@@ -8,7 +8,7 @@ I will flesh out this readme as work on this continues (to include a step-by-ste
 
 My code calls on the ST7789.py file, which was provided by the manufacturer.
 
-My code also calls on this repot: https://github.com/diybitcoinhardware/embit
+My code also calls on this repo: https://github.com/diybitcoinhardware/embit
 
 There are other packages that my script calls on, but you can find them in my script for now!
 
