@@ -10,8 +10,10 @@ from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
 
-from embit.src.embit.bip39 import mnemonic_to_bytes
-from embit.src.embit.bip39 import mnemonic_from_bytes
+from embit.bip39 import mnemonic_to_bytes
+from embit.bip39 import mnemonic_from_bytes
+
+from subprocess import call
 
 #alphabet reference
 alphabet = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
@@ -809,8 +811,7 @@ def mainmenufunction():
             if mainrunstate == 3:
                 print("Option 3 Selected")
                 time.sleep(0.4)
-                mainrunstate = 0
-                displayscreenstate()
+                call("sudo shutdown --poweroff now", shell=True)
 
 
     #clear the screen upon exit
