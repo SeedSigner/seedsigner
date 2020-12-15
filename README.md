@@ -10,6 +10,10 @@ The easiest way to get it up and running is to install using an internet-connect
 
 The steps to install using an internet-connected Raspberry Pi 2/3/4 or Zero W are as follows:
 
+Install the Raspberry Pi Lite operating system (https://www.raspberrypi.org/software/operating-systems/) on a MicroSD card and install the card in a Raspberry Pi 2/3/4 or Zero W.
+
+Connect a keyboard & monitor, or SSH into the Pi if you're familiar with that process.
+
 * `sudo raspi-config`
 (set your localization options, configure WiFi if necessary, but most important: navigate to the "interface options" and enable the "SPI" interface)
 
