@@ -2,6 +2,9 @@ Hello World!
 
 Here is a simple program to calculate the word 24 checksum from the first 23 words of a bitcoin wallet seed phrase!
 
+![Image of SeedSigner running on a Raspberry Pi Zero]
+(https://ibb.co/vPGqwF2)
+
 More functionality will be added over time, but for now you can calculate word 24 on a very low-cost system without wireless capability -- no need to worry about bluetooth, airplane mode, web caching, etc. etc. 
 
 The code is designed to ultimately be run on a Raspberry Pi Zero (version 1.3 with no wireless capability) with a Waveshare 1.3" 240x240 pxl LCD (more info at https://www.waveshare.com/wiki/1.3inch_LCD_HAT).
