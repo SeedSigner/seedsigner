@@ -2,6 +2,8 @@ Hello World!
 
 Here is a simple program to calculate the word 24 checksum from the first 23 words of a bitcoin wallet seed phrase!
 
+New feature added: Generate a seed phrase with entropy from rolled dice
+
 ![Image of SeedSigner running on a Raspberry Pi Zero](https://github.com/SeedSigner/seedsigner/blob/main/Assembled_SeedSigner.JPG)
 
 More functionality will be added over time, but for now you can calculate word 24 on a very low-cost system without wireless capability -- no need to worry about bluetooth, airplane mode, web caching, etc. etc. 
