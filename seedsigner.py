@@ -704,6 +704,363 @@ def iotestmethod():
 ## MODULE TO TEST IO ## MODULE TO TEST IO ## MODULE TO TEST IO ## MODULE TO TEST IO ##
 ## MODULE TO TEST IO ## MODULE TO TEST IO ## MODULE TO TEST IO ## MODULE TO TEST IO ##
 
+## MODULE TO GET A SEED FROM DICE ## MODULE TO GET A SEED FROM DICE ## MODULE TO GET A SEED FROM DICE
+## MODULE TO GET A SEED FROM DICE ## MODULE TO GET A SEED FROM DICE ## MODULE TO GET A SEED FROM DICE
+
+dicefont = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 26)
+dicebottomfont = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 18)
+
+def drawdi1selected():
+    draw.rectangle((5, 50, 75, 120), outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(34, 79), (46, 91)], outline="BLACK", fill="BLACK")
+    draw.rectangle((85, 50, 155, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(100, 60), (112, 72)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 98), (140, 110)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((165, 50, 235, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(180, 60), (192, 72)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(194, 79), (206, 91)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 98), (220, 110)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((5, 130, 75, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(20, 140), (32, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(20, 174), (32, 186)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(48, 140), (60, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(48, 174), (60, 186)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((85, 130, 155, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(100, 140), (112, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(100, 178), (112, 190)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(114, 159), (126, 171)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 140), (140, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 178), (140, 190)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((165, 130, 235, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(180, 140), (192, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(180, 157), (192, 169)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(180, 174), (192, 186)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 140), (220, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 157), (220, 169)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 174), (220, 186)], outline="YELLOW", fill="YELLOW")
+    draw.text((18, 210), "Press Control Stick to Select", fill="YELLOW", font=dicebottomfont)
+
+def drawdi2selected():
+    draw.rectangle((5, 50, 75, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(34, 79), (46, 91)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((85, 50, 155, 120), outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(100, 60), (112, 72)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(128, 98), (140, 110)], outline="BLACK", fill="BLACK")
+    draw.rectangle((165, 50, 235, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(180, 60), (192, 72)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(194, 79), (206, 91)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 98), (220, 110)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((5, 130, 75, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(20, 140), (32, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(20, 174), (32, 186)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(48, 140), (60, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(48, 174), (60, 186)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((85, 130, 155, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(100, 140), (112, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(100, 178), (112, 190)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(114, 159), (126, 171)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 140), (140, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 178), (140, 190)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((165, 130, 235, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(180, 140), (192, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(180, 157), (192, 169)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(180, 174), (192, 186)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 140), (220, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 157), (220, 169)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 174), (220, 186)], outline="YELLOW", fill="YELLOW")
+    draw.text((18, 210), "Press Control Stick to Select", fill="YELLOW", font=dicebottomfont)
+
+def drawdi3selected():
+    draw.rectangle((5, 50, 75, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(34, 79), (46, 91)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((85, 50, 155, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(100, 60), (112, 72)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 98), (140, 110)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((165, 50, 235, 120), outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(180, 60), (192, 72)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(194, 79), (206, 91)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(208, 98), (220, 110)], outline="BLACK", fill="BLACK")
+    draw.rectangle((5, 130, 75, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(20, 140), (32, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(20, 174), (32, 186)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(48, 140), (60, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(48, 174), (60, 186)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((85, 130, 155, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(100, 140), (112, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(100, 178), (112, 190)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(114, 159), (126, 171)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 140), (140, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 178), (140, 190)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((165, 130, 235, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(180, 140), (192, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(180, 157), (192, 169)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(180, 174), (192, 186)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 140), (220, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 157), (220, 169)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 174), (220, 186)], outline="YELLOW", fill="YELLOW")
+    draw.text((18, 210), "Press Control Stick to Select", fill="YELLOW", font=dicebottomfont)
+
+def drawdi4selected():
+    draw.rectangle((5, 50, 75, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(34, 79), (46, 91)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((85, 50, 155, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(100, 60), (112, 72)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 98), (140, 110)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((165, 50, 235, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(180, 60), (192, 72)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(194, 79), (206, 91)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 98), (220, 110)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((5, 130, 75, 200), outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(20, 140), (32, 152)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(20, 174), (32, 186)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(48, 140), (60, 152)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(48, 174), (60, 186)], outline="BLACK", fill="BLACK")
+    draw.rectangle((85, 130, 155, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(100, 140), (112, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(100, 178), (112, 190)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(114, 159), (126, 171)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 140), (140, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 178), (140, 190)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((165, 130, 235, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(180, 140), (192, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(180, 157), (192, 169)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(180, 174), (192, 186)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 140), (220, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 157), (220, 169)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 174), (220, 186)], outline="YELLOW", fill="YELLOW")
+    draw.text((18, 210), "Press Control Stick to Select", fill="YELLOW", font=dicebottomfont)
+
+def drawdi5selected():
+    draw.rectangle((5, 50, 75, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(34, 79), (46, 91)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((85, 50, 155, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(100, 60), (112, 72)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 98), (140, 110)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((165, 50, 235, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(180, 60), (192, 72)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(194, 79), (206, 91)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 98), (220, 110)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((5, 130, 75, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(20, 140), (32, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(20, 174), (32, 186)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(48, 140), (60, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(48, 174), (60, 186)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((85, 130, 155, 200), outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(100, 140), (112, 152)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(100, 178), (112, 190)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(114, 159), (126, 171)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(128, 140), (140, 152)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(128, 178), (140, 190)], outline="BLACK", fill="BLACK")
+    draw.rectangle((165, 130, 235, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(180, 140), (192, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(180, 157), (192, 169)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(180, 174), (192, 186)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 140), (220, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 157), (220, 169)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 174), (220, 186)], outline="YELLOW", fill="YELLOW")
+    draw.text((18, 210), "Press Control Stick to Select", fill="YELLOW", font=dicebottomfont)
+
+def drawdi6selected():
+    draw.rectangle((5, 50, 75, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(34, 79), (46, 91)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((85, 50, 155, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(100, 60), (112, 72)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 98), (140, 110)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((165, 50, 235, 120), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(180, 60), (192, 72)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(194, 79), (206, 91)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(208, 98), (220, 110)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((5, 130, 75, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(20, 140), (32, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(20, 174), (32, 186)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(48, 140), (60, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(48, 174), (60, 186)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((85, 130, 155, 200), outline="YELLOW", fill="BLACK")
+    draw.ellipse([(100, 140), (112, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(100, 178), (112, 190)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(114, 159), (126, 171)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 140), (140, 152)], outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(128, 178), (140, 190)], outline="YELLOW", fill="YELLOW")
+    draw.rectangle((165, 130, 235, 200), outline="YELLOW", fill="YELLOW")
+    draw.ellipse([(180, 140), (192, 152)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(180, 157), (192, 169)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(180, 174), (192, 186)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(208, 140), (220, 152)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(208, 157), (220, 169)], outline="BLACK", fill="BLACK")
+    draw.ellipse([(208, 174), (220, 186)], outline="BLACK", fill="BLACK")
+    draw.text((18, 210), "Press Control Stick to Select", fill="YELLOW", font=dicebottomfont)
+
+def rollsobtainer():
+
+    rollnumber = 1
+    rollcollectorstring = ""
+    currentdiselected = 1
+    draw.rectangle((0, 0, width, height), outline=0, fill=0)
+    draw.text((45, 5), "Dice roll: " + str(rollnumber) + "/99", fill="YELLOW", font=dicefont)
+    drawdi1selected()
+
+    while rollnumber <= 99:
+        if GPIO.input(KEY_RIGHT_PIN) == GPIO.LOW:
+            time.sleep(0.15)
+            if currentdiselected == 2:
+                currentdiselected = 3
+                drawdi3selected()
+            if currentdiselected == 1:
+                currentdiselected = 2
+                drawdi2selected()
+            if currentdiselected == 5:
+                currentdiselected = 6
+                drawdi6selected()
+            if currentdiselected == 4:
+                currentdiselected = 5
+                drawdi5selected()
+        if GPIO.input(KEY_LEFT_PIN) == GPIO.LOW:
+            time.sleep(0.15)
+            if currentdiselected == 2:
+                currentdiselected = 1
+                drawdi1selected()
+            if currentdiselected == 3:
+                currentdiselected = 2
+                drawdi2selected()
+            if currentdiselected == 5:
+                currentdiselected = 4
+                drawdi4selected()
+            if currentdiselected == 6:
+                currentdiselected = 5
+                drawdi5selected()
+        if GPIO.input(KEY_DOWN_PIN) == GPIO.LOW:
+            time.sleep(0.15)
+            if currentdiselected == 1:
+                currentdiselected = 4
+                drawdi4selected()
+            if currentdiselected == 2:
+                currentdiselected = 5
+                drawdi5selected()
+            if currentdiselected == 3:
+                currentdiselected = 6
+                drawdi6selected()
+        if GPIO.input(KEY_UP_PIN) == GPIO.LOW:
+            time.sleep(0.15)
+            if currentdiselected == 4:
+                currentdiselected = 1
+                drawdi1selected()
+            if currentdiselected == 5:
+                currentdiselected = 2
+                drawdi2selected()
+            if currentdiselected == 6:
+                currentdiselected = 3
+                drawdi3selected()
+        if GPIO.input(KEY_PRESS_PIN) == GPIO.LOW:
+            draw.rectangle((0, 0, width, height), outline=0, fill=0)
+            time.sleep(0.15)
+            if currentdiselected == 6:
+                rollcollectorstring = rollcollectorstring + "0"
+            else:
+                rollcollectorstring = rollcollectorstring + str(currentdiselected)
+            print("The roll number is " + str(rollnumber) + " and the die selections are : " + rollcollectorstring)
+            rollnumber = rollnumber + 1
+            if currentdiselected == 1:
+                drawdi1selected()
+            if currentdiselected == 2:
+                drawdi2selected()
+            if currentdiselected == 3:
+                drawdi3selected()
+            if currentdiselected == 4:
+                drawdi4selected()
+            if currentdiselected == 5:
+                drawdi5selected()
+            if currentdiselected == 6:
+                drawdi6selected()
+        if rollnumber < 100:
+            draw.text((45, 5), "Dice roll: " + str(rollnumber) + "/99", fill="YELLOW", font=dicefont)
+        disp.ShowImage(image, 0, 0)
+
+    return rollcollectorstring
+
+
+def showthediceseed():
+    titlefont = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 18)
+    displayphrasefont = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 23)
+
+    collectedrolls = rollsobtainer()
+
+    entropyinteger = int(collectedrolls, 6)
+
+    rollsinbytes = entropyinteger.to_bytes(32, byteorder="little")
+
+    baddicestring = mnemonic_from_bytes(rollsinbytes)
+
+    wordarray = baddicestring.split()
+
+    wordarray.pop(-1)
+
+    laststring = " ".join(wordarray) + " abandon"
+
+    lastbytes = mnemonic_to_bytes(laststring, ignore_checksum=True)
+
+    correctedlaststring = mnemonic_from_bytes(lastbytes)
+
+    print("The string with the corrected checksum word is:")
+    print(correctedlaststring)
+
+    displayarray = correctedlaststring.split()
+
+    print("")
+    print(displayarray)
+
+    firstwordset = True
+
+    while firstwordset is True:
+        #Display the first 12 words
+        draw.rectangle((0, 0, width, height), outline=0, fill=0)
+        draw.text((55, 2), "Your Seed Is (1/2):", fill="YELLOW", font=titlefont)
+        draw.text((2, 40), "1: " + displayarray[0], fill="YELLOW", font=displayphrasefont)
+        draw.text((2, 65), "2: " + displayarray[1], fill="YELLOW", font=displayphrasefont)
+        draw.text((2, 90), "3: " + displayarray[2], fill="YELLOW", font=displayphrasefont)
+        draw.text((2, 115), "4: " + displayarray[3], fill="YELLOW", font=displayphrasefont)
+        draw.text((2, 140), "5: " + displayarray[4], fill="YELLOW", font=displayphrasefont)
+        draw.text((2, 165), "6: " + displayarray[5], fill="YELLOW", font=displayphrasefont)
+        draw.text((120, 40), " 7: " + displayarray[6], fill="YELLOW", font=displayphrasefont)
+        draw.text((120, 65), " 8: " + displayarray[7], fill="YELLOW", font=displayphrasefont)
+        draw.text((120, 90), " 9: " + displayarray[8], fill="YELLOW", font=displayphrasefont)
+        draw.text((120, 115), "10: " + displayarray[9], fill="YELLOW", font=displayphrasefont)
+        draw.text((120, 140), "11: " + displayarray[10], fill="YELLOW", font=displayphrasefont)
+        draw.text((120, 165), "12: " + displayarray[11], fill="YELLOW", font=displayphrasefont)
+        draw.text((55, 210), "RIGHT to Continue", fill="YELLOW", font=titlefont)
+        disp.ShowImage(image, 0, 0)
+
+        if GPIO.input(KEY_RIGHT_PIN) == GPIO.LOW:
+            time.sleep(0.25)
+            firstwordset = False
+
+    secondwordset = True
+
+    while secondwordset is True:
+        # Display the second 12 words
+        draw.rectangle((0, 0, width, height), outline=0, fill=0)
+        draw.text((55, 2), "Your Seed Is (2/2):", fill="YELLOW", font=titlefont)
+        draw.text((2, 40), "13: " + displayarray[12], fill="YELLOW", font=displayphrasefont)
+        draw.text((2, 65), "14: " + displayarray[13], fill="YELLOW", font=displayphrasefont)
+        draw.text((2, 90), "15: " + displayarray[14], fill="YELLOW", font=displayphrasefont)
+        draw.text((2, 115), "16: " + displayarray[15], fill="YELLOW", font=displayphrasefont)
+        draw.text((2, 140), "17: " + displayarray[16], fill="YELLOW", font=displayphrasefont)
+        draw.text((2, 165), "18: " + displayarray[17], fill="YELLOW", font=displayphrasefont)
+        draw.text((120, 40), "19: " + displayarray[18], fill="YELLOW", font=displayphrasefont)
+        draw.text((120, 65), "20: " + displayarray[19], fill="YELLOW", font=displayphrasefont)
+        draw.text((120, 90), "21: " + displayarray[20], fill="YELLOW", font=displayphrasefont)
+        draw.text((120, 115), "22: " + displayarray[21], fill="YELLOW", font=displayphrasefont)
+        draw.text((120, 140), "23: " + displayarray[22], fill="YELLOW", font=displayphrasefont)
+        draw.text((120, 165), "24: " + displayarray[23], fill="YELLOW", font=displayphrasefont)
+        draw.text((70, 210), "RIGHT to EXIT", fill="YELLOW", font=titlefont)
+        disp.ShowImage(image, 0, 0)
+
+        if GPIO.input(KEY_RIGHT_PIN) == GPIO.LOW:
+            time.sleep(0.25)
+            secondwordset = False
+
+## MODULE TO GET A SEED FROM DICE ## MODULE TO GET A SEED FROM DICE ## MODULE TO GET A SEED FROM DICE
+## MODULE TO GET A SEED FROM DICE ## MODULE TO GET A SEED FROM DICE ## MODULE TO GET A SEED FROM DICE
+
 ## MAIN MENU MODULE ## MAIN MENU MODULE ## MAIN MENU MODULE ## MAIN MENU MODULE ## MAIN MENU MODULE ##
 ## MAIN MENU MODULE ## MAIN MENU MODULE ## MAIN MENU MODULE ## MAIN MENU MODULE ## MAIN MENU MODULE ##
 
@@ -713,36 +1070,55 @@ versionfont = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact
 
 def option1():
     draw.rectangle((0, 0, width, height), outline=0, fill=0)
-    draw.rectangle((5, 25, 185, 60), outline=0, fill="YELLOW")
-    draw.text((15, 30), "I/O Interface Check", fill="BLACK", font=mainmenufont)
-    # draw.rectangle((5, 60, 185, 95), outline=0, fill="WHITE")
-    draw.text((15, 65), "Generate Word 24", fill="YELLOW", font=mainmenufont)
-    # draw.rectangle((5, 95, 185, 130), outline=0, fill="YELLOW")
-    draw.text((15, 100), "Power OFF Device", fill="YELLOW", font=mainmenufont)
-    draw.text((175, 160), "SELECT", fill="YELLOW", font=mainmenufont)
-    draw.text((35, 215), "SeedSigner - version 0.0.1", fill="YELLOW", font=versionfont)
+    draw.rectangle((5, 40, 185, 75), outline=0, fill="YELLOW")
+    draw.text((15, 45), "I/O Interface Check", fill="BLACK", font=mainmenufont)
+    #draw.rectangle((5, 75, 185, 110), outline=0, fill="YELLOW")
+    draw.text((15, 80), "Generate Word 24", fill="YELLOW", font=mainmenufont)
+    #draw.rectangle((5, 110, 185, 145), outline=0, fill="YELLOW")
+    draw.text((15, 115), "Get a Seed with Dice", fill="YELLOW", font=mainmenufont)
+    #draw.rectangle((5, 145, 185, 170), outline=0, fill="YELLOW")
+    draw.text((15, 150), "Power OFF Device", fill="YELLOW", font=mainmenufont)
+    draw.text((35, 2), "SeedSigner - version 0.0.2", fill="YELLOW", font=versionfont)
+    draw.text((18, 210), "Press Control Stick to Select", fill="YELLOW", font=dicebottomfont)
 
 def option2():
     draw.rectangle((0, 0, width, height), outline=0, fill=0)
-    #draw.rectangle((5, 25, 185, 60), outline=0, fill="YELLOW")
-    draw.text((15, 30), "I/O Interface Check", fill="YELLOW", font=mainmenufont)
-    draw.rectangle((5, 60, 185, 95), outline=0, fill="YELLOW")
-    draw.text((15, 65), "Generate Word 24", fill="BLACK", font=mainmenufont)
-    # draw.rectangle((5, 95, 185, 130), outline=0, fill="YELLOW")
-    draw.text((15, 100), "Power OFF Device", fill="YELLOW", font=mainmenufont)
-    draw.text((175, 160), "SELECT", fill="YELLOW", font=mainmenufont)
-    draw.text((35, 215), "SeedSigner - version 0.0.1", fill="YELLOW", font=versionfont)
+    #draw.rectangle((5, 40, 185, 75), outline=0, fill="YELLOW")
+    draw.text((15, 45), "I/O Interface Check", fill="YELLOW", font=mainmenufont)
+    draw.rectangle((5, 75, 185, 110), outline=0, fill="YELLOW")
+    draw.text((15, 80), "Generate Word 24", fill="BLACK", font=mainmenufont)
+    #draw.rectangle((5, 110, 185, 145), outline=0, fill="YELLOW")
+    draw.text((15, 115), "Get a Seed with Dice", fill="YELLOW", font=mainmenufont)
+    #draw.rectangle((5, 145, 185, 170), outline=0, fill="YELLOW")
+    draw.text((15, 150), "Power OFF Device", fill="YELLOW", font=mainmenufont)
+    draw.text((35, 2), "SeedSigner - version 0.0.2", fill="YELLOW", font=versionfont)
+    draw.text((18, 210), "Press Control Stick to Select", fill="YELLOW", font=dicebottomfont)
 
 def option3():
     draw.rectangle((0, 0, width, height), outline=0, fill=0)
-    #draw.rectangle((5, 25, 185, 60), outline=0, fill="YELLOW")
-    draw.text((15, 30), "I/O Interface Check", fill="YELLOW", font=mainmenufont)
-    #draw.rectangle((5, 60, 185, 95), outline=0, fill="YELLOW")
-    draw.text((15, 65), "Generate Word 24", fill="YELLOW", font=mainmenufont)
-    draw.rectangle((5, 95, 185, 130), outline=0, fill="YELLOW")
-    draw.text((15, 100), "Power OFF Device", fill="BLACK", font=mainmenufont)
-    draw.text((175, 160), "SELECT", fill="YELLOW", font=mainmenufont)
-    draw.text((35, 215), "SeedSigner - version 0.0.1", fill="YELLOW", font=versionfont)
+    #draw.rectangle((5, 40, 185, 75), outline=0, fill="YELLOW")
+    draw.text((15, 45), "I/O Interface Check", fill="YELLOW", font=mainmenufont)
+    #draw.rectangle((5, 75, 185, 110), outline=0, fill="YELLOW")
+    draw.text((15, 80), "Generate Word 24", fill="YELLOW", font=mainmenufont)
+    draw.rectangle((5, 110, 185, 145), outline=0, fill="YELLOW")
+    draw.text((15, 115), "Get a Seed with Dice", fill="BLACK", font=mainmenufont)
+    #draw.rectangle((5, 145, 185, 170), outline=0, fill="YELLOW")
+    draw.text((15, 150), "Power OFF Device", fill="YELLOW", font=mainmenufont)
+    draw.text((35, 2), "SeedSigner - version 0.0.2", fill="YELLOW", font=versionfont)
+    draw.text((18, 210), "Press Control Stick to Select", fill="YELLOW", font=dicebottomfont)
+
+def option4():
+    draw.rectangle((0, 0, width, height), outline=0, fill=0)
+    #draw.rectangle((5, 40, 185, 75), outline=0, fill="YELLOW")
+    draw.text((15, 45), "I/O Interface Check", fill="YELLOW", font=mainmenufont)
+    #draw.rectangle((5, 75, 185, 110), outline=0, fill="YELLOW")
+    draw.text((15, 80), "Generate Word 24", fill="YELLOW", font=mainmenufont)
+    #draw.rectangle((5, 110, 185, 145), outline=0, fill="YELLOW")
+    draw.text((15, 115), "Get a Seed with Dice", fill="YELLOW", font=mainmenufont)
+    draw.rectangle((5, 145, 185, 180), outline=0, fill="YELLOW")
+    draw.text((15, 150), "Power OFF Device", fill="BLACK", font=mainmenufont)
+    draw.text((35, 2), "SeedSigner - version 0.0.2", fill="YELLOW", font=versionfont)
+    draw.text((18, 210), "Press Control Stick to Select", fill="YELLOW", font=dicebottomfont)
 
 def displayscreenstate():
     if mainrunstate == 1:
@@ -754,10 +1130,13 @@ def displayscreenstate():
     if mainrunstate == 3:
         option3()
 
+    if mainrunstate == 4:
+        option4()
+
     disp.ShowImage(image, 0, 0)
 
 def mainmenufunction():
-    possiblerunstates = [1, 2, 3]
+    possiblerunstates = [1, 2, 3, 4]
     global mainrunstate
     global wordcounter
     global letterslot1
@@ -769,17 +1148,17 @@ def mainmenufunction():
     while mainrunstate in possiblerunstates:
 
         if GPIO.input(KEY_UP_PIN) == GPIO.LOW:
-            if mainrunstate in [2, 3]:
+            if mainrunstate in [2, 3, 4]:
                 mainrunstate = mainrunstate - 1
                 time.sleep(0.2)
             else:
-                mainrunstate = 3
+                mainrunstate = 4
                 time.sleep(0.2)
             displayscreenstate()
             print("The runstate is: " + str(mainrunstate))
 
         if GPIO.input(KEY_DOWN_PIN) == GPIO.LOW:
-            if mainrunstate in [1, 2]:
+            if mainrunstate in [1, 2, 3]:
                 mainrunstate = mainrunstate + 1
                 time.sleep(0.2)
             else:
@@ -788,7 +1167,7 @@ def mainmenufunction():
             displayscreenstate()
             print("The runstate is: " + str(mainrunstate))
 
-        if GPIO.input(KEY3_PIN) == GPIO.LOW:
+        if GPIO.input(KEY_PRESS_PIN) == GPIO.LOW:
             if mainrunstate == 1:
                 print("Option 1 Selected")
                 time.sleep(0.4)
@@ -809,7 +1188,14 @@ def mainmenufunction():
                 displayscreenstate()
 
             if mainrunstate == 3:
-                print("Option 3 Selected")
+                print("Opention 3 Selected")
+                time.sleep(0.4)
+                mainrunstate = 3
+                showthediceseed()
+                displayscreenstate()
+
+            if mainrunstate == 4:
+                print("Option 4 Selected")
                 time.sleep(0.4)
                 call("sudo shutdown --poweroff now", shell=True)
 
