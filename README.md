@@ -2,7 +2,7 @@ Hello World!
 
 Here is a simple program to calculate the word 24 checksum from the first 23 words of a bitcoin wallet seed phrase!
 
-New feature added: Generate a seed phrase with entropy from rolled dice
+(Newest Feature: Generate a seed phrase with entropy from rolled dice)
 
 ![Image of SeedSigner running on a Raspberry Pi Zero](https://github.com/SeedSigner/seedsigner/blob/main/Assembled_SeedSigner.JPG)
 
@@ -11,6 +11,10 @@ More functionality will be added over time, but for now you can calculate word 2
 The code is designed to ultimately be run on a Raspberry Pi Zero (version 1.3 with no wireless capability) with a Waveshare 1.3" 240x240 pxl LCD (more info at https://www.waveshare.com/wiki/1.3inch_LCD_HAT).
 
 The easiest way to get it up and running is to install using an internet-connected Raspberry Pi 2/3/4 or Zero W, and then remove the MicroSD card and install it in the Raspberry Pi Zero 1.3 with the Waveshare 1.3" LCD hat installed. Seedsigner will run when the Zero 1.3 is powered on, and a soft shutdown of the Pi can be done within the interface.
+
+A preconfigured Raspberry Pi image can be downloaded here: https://drive.google.com/file/d/1CdAC09OX5ADRBaDxUJwthePwq11AFF8H/view?usp=sharing
+
+The image can be written to a 4GB (or larger) MicroSD card, then installed in a Raspberry Pi 2/3/4 or Zero.
 
 The steps to install using an internet-connected Raspberry Pi 2/3/4 or Zero W are as follows:
 
@@ -62,3 +66,5 @@ To shut down the pi:
 * `sudo shutdown --poweroff now`
 
 Now either move the MicroSD card to a Pi Zero 1.3 with the 1.3-inch LCD Hat installed, or the LCD Hat will also run fine on a Raspberry Pi 2/3/4 or Zero W; just remember to disable networking if you want to run the software in network isolation.
+
+It will take a minute or so after the Pi is powered on for the GUI to launch.
