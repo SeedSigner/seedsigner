@@ -12,7 +12,7 @@ The code is designed to ultimately be run on a Raspberry Pi Zero (version 1.3 wi
 
 The easiest way to get it up and running is to install using an internet-connected Raspberry Pi 2/3/4 or Zero W, and then remove the MicroSD card and install it in the Raspberry Pi Zero 1.3 with the Waveshare 1.3" LCD hat installed. Seedsigner will run when the Zero 1.3 is powered on, and a soft shutdown of the Pi can be done within the interface.
 
-A preconfigured Raspberry Pi image can be downloaded here: https://drive.google.com/file/d/1CdAC09OX5ADRBaDxUJwthePwq11AFF8H/view?usp=sharing
+A preconfigured Raspberry Pi image can be found in the releases section. Download the seedsigner.zip file, and unzip to obtain the image.
 
 The image can be written to a 4GB (or larger) MicroSD card, then installed in a Raspberry Pi 2/3/4 or Zero.
 
