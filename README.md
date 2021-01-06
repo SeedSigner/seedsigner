@@ -37,6 +37,7 @@ Install these:
 * `sudo apt-get install libopenjp2-7`
 * `sudo apt-get install ttf-mscorefonts-installer`
 * `sudo apt-get install git`
+* `sudo apt-get install libatlas-base-dev`
 
 Install this:
 * `wget http://www.airspayce.com/mikem/bcm2835/bcm2835-1.60.tar.gz`
@@ -57,15 +58,19 @@ Install these python dependencies:
 * `pip3 install --verbose RPi.GPIO`
 * `pip3 install --verbose pillow`
 * `pip3 install --verbose embit`
+* `pip3 install --vebose numpy`
 
 Download SeedSigner
 * `git clone https://github.com/SeedSigner/seedsigner`
 
 Download WordLists to seedsigner directory
+
 * `cd seedsigner/wordlists`
 * `wget https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt`
 * `wget https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/french.txt`
 * `cd ..`
+
+Other Wordlists Available Here: [Wordlists](https://github.com/bitcoin/bips/tree/master/bip-0039)
 
 Modify the system config to run SeedSigner at boot:
 * `sudo nano /etc/rc.local`

@@ -13,6 +13,8 @@ from PIL import ImageFont
 from embit.bip39 import mnemonic_to_bytes
 from embit.bip39 import mnemonic_from_bytes
 
+
+import os
 from subprocess import call
 import string
 
@@ -20,6 +22,12 @@ import string
 alphabet = list(string.ascii_lowercase)
 
 lang = 'english'
+
+# abspath = os.path.abspath(__file__)
+# dname = os.path.dirname(abspath)
+# os.chdir(dname)
+
+os.chdir(os.path.dirname(__file__))
 
 #seed reference from wordlist
 with open(f"wordlists/{lang}.txt", "r") as f:
