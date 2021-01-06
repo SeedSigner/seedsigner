@@ -32,6 +32,7 @@ Install these:
 * `sudo apt-get install wiringpi`
 * `sudo apt-get install python3-pip`
 * `sudo apt-get install python3-numpy`
+* `sudo apt-get install python3-venv`
 * `sudo apt-get install python-pil`
 * `sudo apt-get install libopenjp2-7`
 * `sudo apt-get install ttf-mscorefonts-installer`
@@ -45,18 +46,32 @@ Install this:
 * `sudo make && sudo make check && sudo make install`
 * `cd ..`
 
+Create Python Environment
+* `python3 -m venv env`
+
+Enter Python Environment
+* `source env/bin/activate`
+
 Install these python dependencies:
-* `sudo pip3 install --verbose spidev`
-* `sudo pip3 install --verbose RPi.GPIO`
-* `sudo pip3 install --verbose pillow`
-* `sudo pip3 install --verbose embit`
+* `pip3 install --verbose spidev`
+* `pip3 install --verbose RPi.GPIO`
+* `pip3 install --verbose pillow`
+* `pip3 install --verbose embit`
+
+Download WordLists
+* `wget https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt`
+* `wget https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/french.txt`
 
 Download SeedSigner
-* `sudo git clone https://github.com/SeedSigner/seedsigner`
+* `git clone https://github.com/SeedSigner/seedsigner`
 
 Modify the system config to run SeedSigner at boot:
 * `sudo nano /etc/rc.local`
-add `sudo python3 /home/pi/seedsigner/seedsigner.py &`
+add these lines
+* `export VIRTUAL_ENV=/home/pi/env`
+* `export "PATH=$VIRTUAL_ENV/bin:$PATH"`
+* `python3 /home/pi/seedsigner/seedsigner.py &`
+
 to the line above `exit 0`
 
 Use Control + O, then [enter], to write the file.
