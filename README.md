@@ -58,24 +58,32 @@ Install these python dependencies:
 * `pip3 install --verbose pillow`
 * `pip3 install --verbose embit`
 
-Download WordLists
-* `wget https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt`
-* `wget https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/french.txt`
-
 Download SeedSigner
 * `git clone https://github.com/SeedSigner/seedsigner`
 
+Download WordLists to seedsigner directory
+* `cd seedsigner/wordlists`
+* `wget https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt`
+* `wget https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/french.txt`
+* `cd ..`
+
 Modify the system config to run SeedSigner at boot:
 * `sudo nano /etc/rc.local`
+
 add these lines
+to enter python environment
 * `export VIRTUAL_ENV=/home/pi/env`
-* `export "PATH=$VIRTUAL_ENV/bin:$PATH"`
-* `python3 /home/pi/seedsigner/seedsigner.py &`
+* `export PATH="$VIRTUAL_ENV/bin:$PATH"`
+run seedsigner and redirect output
+* `nohup python3 /home/pi/seedsigner/seedsigner.py > /dev/null &`
 
 to the line above `exit 0`
 
 Use Control + O, then [enter], to write the file.
 Then use Control + X, to exit the program.
+
+To reboot and try out the program... remember the device is still online!
+* `sudo reboot`
 
 To shut down the pi:
 * `sudo shutdown --poweroff now`

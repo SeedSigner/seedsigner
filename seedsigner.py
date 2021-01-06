@@ -19,9 +19,10 @@ import string
 #alphabet reference
 alphabet = list(string.ascii_lowercase)
 
-#seed reference
-# TODO: Get the words from a file instead?
-with open("english.txt", "r") as f:
+lang = 'english'
+
+#seed reference from wordlist
+with open(f"wordlists/{lang}.txt", "r") as f:
     seedwords = f.read().rstrip("\n").split("\n")
 
 #GPIO define
