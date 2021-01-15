@@ -22,8 +22,8 @@ Newest Added Features:
 Considerations:
 * Built to be compatible with Specter-desktop Bitcoin wallet
 * Be patient, it takes a couple of minutes for the menu to come up after applying power to the Pi Zero (when you see the "static" you're almost there!)
+* Confirmed bug: a "bad" seed phrase that fails checksum validation will crash the app and you will need to restart the Pi
 * For now, ALWAYS opt to use animated QR codes in Specter-desktop
-* Make sure your seed is correct (no error checking currently implemented)
 * Mainnet is only option; test with SMALL AMOUNTS of bitcoin
 * Currently ONLY generating Native Segwit Multisig Xpubs
 * Scanning animated QRs into a PC is tricky, be aware of ambient light, glare and focus
