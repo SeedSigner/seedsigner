@@ -9,37 +9,37 @@ The code is designed to ultimately be run on a Raspberry Pi Zero (version 1.3 wi
 The easiest way to get the signer up and running is to downloaded the "seedsigner_0_1_0.zip" file in the current release, extract the "seedsigner_0_1_0.img" file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go.
 
 Newest Added Features:
-. Native Segwit Multisig Xpub generation w/ QR display
-. Scan and Parse transaction data from animated QR codes
-. Sign transactions & transfer xpub data using animated QR codes
-. New extensible menu system
-. Improved letter entry responsiveness
-. Various UX improvements
-. Various code optimizations
-. Project donation information
-. ORANGE text! (looks great with orange pill enclosure!)
+* Native Segwit Multisig Xpub generation w/ QR display
+* Scan and Parse transaction data from animated QR codes
+* Sign transactions & transfer xpub data using animated QR codes
+* New extensible menu system
+* Improved letter entry responsiveness
+* Various UX improvements
+* Various code optimizations
+* Project donation information
+* ORANGE text! (looks great with orange pill enclosure!)
 
 Considerations:
-. Built to be compatible with Specter-desktop Bitcoin wallet
-. Be patient, it takes a couple of minutes for the menu to come up after applying power to the Pi Zero (when you see the "static" you're almost there!)
-. For now, ALWAYS opt to use animated QR codes in Specter-desktop
-. Make sure your seed is correct (no error checking currently implemented)
-. Mainnet is only option; test with SMALL AMOUNTS of bitcoin
-. Currently ONLY generating Native Segwit Multisig Xpubs
-. Scanning animated QRs into a PC is tricky, be aware of ambient light, glare and focus
-. (Holding the screen upside-down significantly reduces glare for some reason)
-. Display text is small; comes with 240x240 territory but ever trying to optimize
-. Check out our "seedsigner" telegram community for community help / feedback: (https://t.me/joinchat/GHNuc_nhNQjLPWsS)
-. If you think SeedSigner adds value to the Bitcoin ecosystem, please help me spread the word! (tweets, pics, videos, etc.)
+* Built to be compatible with Specter-desktop Bitcoin wallet
+* Be patient, it takes a couple of minutes for the menu to come up after applying power to the Pi Zero (when you see the "static" you're almost there!)
+* For now, ALWAYS opt to use animated QR codes in Specter-desktop
+* Make sure your seed is correct (no error checking currently implemented)
+* Mainnet is only option; test with SMALL AMOUNTS of bitcoin
+* Currently ONLY generating Native Segwit Multisig Xpubs
+* Scanning animated QRs into a PC is tricky, be aware of ambient light, glare and focus
+* (Holding the screen upside-down significantly reduces glare for some reason)
+* Display text is small; comes with 240x240 territory but ever trying to optimize
+* Check out our "seedsigner" telegram community for community help / feedback: (https://t.me/joinchat/GHNuc_nhNQjLPWsS)
+* If you think SeedSigner adds value to the Bitcoin ecosystem, please help me spread the word! (tweets, pics, videos, etc.)
 
 Coming Improvements/Functionality:
-. Add support for single QR codes
-. Support for 12 word seeds
-. Reduce signed xpub data to decrease required QR images
-. Support for single signature Xpub key generation
-. Select from different display colors
-. Generate seed from internal entropy (maybe)
-. Other optimizations based on user feedback!
+* Add support for single QR codes
+* Support for 12 word seeds
+* Reduce signed xpub data to decrease required QR images
+* Support for single signature Xpub key generation
+* Select from different display colors
+* Generate seed from internal entropy (maybe)
+* Other optimizations based on user feedback!
 
 The software can also be installed using an internet-connected Raspberry Pi 2/3/4 or Zero W are as follows:
 
