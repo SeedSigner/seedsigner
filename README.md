@@ -83,15 +83,15 @@ Enter Python Environment
 * `source env/bin/activate`
 
 Install these python dependencies:
-* `sudo pip3 install --verbose spidev`
-* `sudo pip3 install --verbose RPi.GPIO`
-* `sudo pip3 install --verbose pillow`
-* `sudo pip3 install --verbose embit`
-* `sudo pip3 install --verbose qrcode`
-* `sudo pip3 install --verbose imutils`
-* `sudo pip3 install --verbose pyzbar`
-* `sudo pip3 install --verbose argparse`
-* `sudo pip3 install --verbose imutils`
+* `pip3 install --verbose spidev`
+* `pip3 install --verbose RPi.GPIO`
+* `pip3 install --verbose pillow`
+* `pip3 install --verbose embit`
+* `pip3 install --verbose qrcode`
+* `pip3 install --verbose imutils`
+* `pip3 install --verbose pyzbar`
+* `pip3 install --verbose argparse`
+* `pip3 install --verbose imutils`
 * `pip3 install --vebose numpy`
 
 
