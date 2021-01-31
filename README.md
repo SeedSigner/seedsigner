@@ -59,10 +59,12 @@ Install these dependencies:
 * `sudo apt-get install wiringpi`
 * `sudo apt-get install python3-pip`
 * `sudo apt-get install python3-numpy`
+* `sudo apt-get install python3-venv`
 * `sudo apt-get install python-pil`
 * `sudo apt-get install libopenjp2-7`
 * `sudo apt-get install ttf-mscorefonts-installer`
 * `sudo apt-get install git`
+* `sudo apt-get install libatlas-base-dev`
 * `sudo apt-get install python3-opencv`
 * `sudo apt-get install libzbar0`
 * `sudo apt-get install python3-picamera`
@@ -75,27 +77,54 @@ Install this:
 * `sudo make && sudo make check && sudo make install`
 * `cd ..`
 
+Create Python Environment
+* `python3 -m venv env`
+
+Enter Python Environment
+* `source env/bin/activate`
+
 Install these python dependencies:
-* `sudo pip3 install --verbose spidev`
-* `sudo pip3 install --verbose RPi.GPIO`
-* `sudo pip3 install --verbose pillow`
-* `sudo pip3 install --verbose embit`
-* `sudo pip3 install --verbose qrcode`
-* `sudo pip3 install --verbose imutils`
-* `sudo pip3 install --verbose pyzbar`
-* `sudo pip3 install --verbose argparse`
-* `sudo pip3 install --verbose imutils`
+* `pip3 install --verbose spidev`
+* `pip3 install --verbose RPi.GPIO`
+* `pip3 install --verbose pillow`
+* `pip3 install --verbose embit`
+* `pip3 install --verbose qrcode`
+* `pip3 install --verbose imutils`
+* `pip3 install --verbose pyzbar`
+* `pip3 install --verbose argparse`
+* `pip3 install --verbose imutils`
+* `pip3 install --vebose numpy`
+
 
 Download SeedSigner
-* `sudo git clone https://github.com/SeedSigner/seedsigner`
+* `git clone https://github.com/SeedSigner/seedsigner`
+
+Download WordLists to seedsigner directory
+
+* `cd seedsigner/wordlists`
+* `wget https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt`
+* `wget https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/french.txt`
+* `cd ..`
+
+Other Wordlists Available Here: [Wordlists](https://github.com/bitcoin/bips/tree/master/bip-0039)
 
 Modify the system config to run SeedSigner at boot:
 * `sudo nano /etc/rc.local`
-add `sudo python3 /home/pi/seedsigner/main.py &`
+
+add these lines
+to enter python environment
+* `export VIRTUAL_ENV=/home/pi/env`
+* `export PATH="$VIRTUAL_ENV/bin:$PATH"`
+run seedsigner and redirect output
+* `nohup python3 /home/pi/main.py > /dev/null &`
+
 to the line above `exit 0`
 
 Use Control + O, then [enter], to write the file.
 Then use Control + X, to exit the program.
+
+To reboot and try out the program... remember the device is still online!
+* `sudo reboot`
 
 (Optional) Modify the system swap configuration to disable virtual memory:
 * `sudo nano /etc/dphys-swapfile`
