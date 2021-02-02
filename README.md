@@ -22,7 +22,7 @@ NOTE TO POTENTIAL CONTRIBUTORS: The current code base is being reorganized to al
 
 ---------------
 
-The code is designed to ultimately be run on a Raspberry Pi Zero (version 1.3 with no wireless capability) with a Waveshare 1.3" 240x240 pxl LCD (more info at https://www.waveshare.com/wiki/1.3inch_LCD_HAT) and a Pi Zero-conpatible camera (tested to work with the Aokin / AuviPal 5MP 1080p with OV5647 Sensor Video Camera Module; other brands with that sensor module may work as well, but may not fit in the Orange Pill enclosure). Choose the Waveshare screen carefully (there are several similar models); make sure to purchase the model that has a resolution of 240x240 pixels.
+The code is designed to ultimately be run on a Raspberry Pi Zero (version 1.3 with no wireless capability) with a Waveshare 1.3" 240x240 pxl LCD (more info at https://www.waveshare.com/wiki/1.3inch_LCD_HAT) and a Pi Zero-compatible camera (tested to work with the Aokin / AuviPal 5MP 1080p with OV5647 Sensor Video Camera Module; other brands with that sensor module may work as well, but may not fit in the Orange Pill enclosure). Choose the Waveshare screen carefully (there are several similar models); make sure to purchase the model that has a resolution of 240x240 pixels.
 
 The easiest way to get the signer up and running is to downloaded the "seedsigner_0_1_0.zip" file in the current release, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go.
 
