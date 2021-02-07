@@ -20,6 +20,7 @@ Newest Added Features:
 * ORANGE text! (looks great with orange pill enclosure!)
 
 Considerations:
+* BUG ALERT: Transaction confirmation screen includes change address in the total spending amount; transactions are processed by Specter correctly after signing. Will be corrected in the next release.
 * Built to be compatible with Specter-desktop Bitcoin wallet
 * Be patient, it takes a couple of minutes for the menu to come up after applying power to the Pi Zero (when you see the "static" you're almost there!)
 * Confirmed bug: a "bad" seed phrase that fails checksum validation will crash the app and you will need to restart the Pi
