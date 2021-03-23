@@ -1,8 +1,10 @@
 Hello World!
 
-Build your own offline, airgapped Bitcoin transaction signing device for less than $35! Also generate seed word 24 or generate a seed phrase from dice rolls!
+Build your own offline, airgapped Bitcoin transaction signing device for less than $35! Also generate seed word 12/24 or generate a seed phrase from dice rolls!
 
 ![Image of SeedSigner in an Orange Pill enclosure](https://github.com/SeedSigner/seedsigner/blob/main/Orange_Pill.JPG)
+
+The Orange Pill enclosure will be available for purchase soon, but in the meantime the design files for the 3d-printed enclosure are also available for sale (personal use only): [Orange Pill .stl files](https://btc-hardware-solutions.square.site/product/orange-pill-enclosure-digital-design-files-/5?cs=true&cst=custom)
 
 The code is designed to ultimately be run on a Raspberry Pi Zero (version 1.3 with no wireless capability) with a Waveshare 1.3" 240x240 pxl LCD (more info at https://www.waveshare.com/wiki/1.3inch_LCD_HAT) and a Pi Zero-conpatible camera (tested to work with the Aokin 5MP 1080p with OV5647 Sensor Video Camera Module; other brands with that sensor module may work as well). Choose the Waveshare screen carefully (there are several similar models); make sure to purchase the model that has a resolution of 240x240 pixels.
 
@@ -42,7 +44,7 @@ Coming Improvements/Functionality:
 * Generate seed from internal entropy (maybe)
 * Other optimizations based on user feedback!
 
-The software can also be installed using an internet-connected Raspberry Pi 2/3/4 or Zero W are as follows:
+The software can also be manually installed using an internet-connected Raspberry Pi 2/3/4 or Zero W are as follows:
 
 Install the Raspberry Pi Lite operating system (https://www.raspberrypi.org/software/operating-systems/) on a MicroSD card and install the card in a Raspberry Pi 2/3/4 or Zero W.
 
