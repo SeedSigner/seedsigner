@@ -90,7 +90,7 @@ Install this:
 Download SeedSigner
 * `sudo git clone https://github.com/SeedSigner/seedsigner`
 
-Install these python dependencies:
+Install the python dependencies using pip:
 * `sudo pip3 install --verbose -r seedsigner/requirements.txt`
 
 
