@@ -86,19 +86,13 @@ Install this:
 * `sudo make && sudo make check && sudo make install`
 * `cd ..`
 
-Install these python dependencies:
-* `sudo pip3 install --verbose spidev`
-* `sudo pip3 install --verbose RPi.GPIO`
-* `sudo pip3 install --verbose pillow`
-* `sudo pip3 install --verbose embit`
-* `sudo pip3 install --verbose qrcode`
-* `sudo pip3 install --verbose imutils`
-* `sudo pip3 install --verbose pyzbar`
-* `sudo pip3 install --verbose argparse`
-* `sudo pip3 install --verbose imutils`
 
 Download SeedSigner
 * `sudo git clone https://github.com/SeedSigner/seedsigner`
+
+Install these python dependencies:
+* `sudo pip3 install --verbose -r seedsigner/requirements.txt`
+
 
 Modify the system config to run SeedSigner at boot:
 * `sudo nano /etc/rc.local`

@@ -1,0 +1,8 @@
+embit==0.2.1
+imutils==0.5.4
+Pillow==8.2.0
+pyzbar==0.1.8
+qrcode==6.1
+RPi.GPIO==0.7.0
+six==1.15.0
+spidev==3.5
