@@ -18,6 +18,9 @@ The upper and lower portions of the enclosure can be printed with a conventional
 https://youtu.be/aIIc2DiZYcI
 
 ---------------
+NOTE TO POTENTIAL CONTRIBUTORS: The current code base is being reorganized to allow for multithreading and other efficiency improvements; we are hoping to merge the new code structure in early May. After the transition to the new structure, issues and pull requests from any and all interested contributors should follow a much more conventional process. If you are currently auditing the code or doing any work to improve the structure, you may consider pausing your efforts until the reorganized code has been merged. Thank you!!!
+
+---------------
 
 The code is designed to ultimately be run on a Raspberry Pi Zero (version 1.3 with no wireless capability) with a Waveshare 1.3" 240x240 pxl LCD (more info at https://www.waveshare.com/wiki/1.3inch_LCD_HAT) and a Pi Zero-conpatible camera (tested to work with the Aokin / AuviPal 5MP 1080p with OV5647 Sensor Video Camera Module; other brands with that sensor module may work as well, but may not fit in the Orange Pill enclosure). Choose the Waveshare screen carefully (there are several similar models); make sure to purchase the model that has a resolution of 240x240 pixels.
 
@@ -33,6 +36,9 @@ Newest Added Features:
 * Various code optimizations
 * Project donation information
 * ORANGE text! (looks great with orange pill enclosure!)
+
+KNOWN ISSUE:
+* The seed word "yellow" was inadvertently replaced with the word "ORANGE" in the hard-coded BIP 0039 seed word list. It will not be possible to enter the word "yellow" if your seed contains that word. This issue will be corrected in the next release.
 
 Considerations:
 * Built for compatibility with Specter v1.1.0 and up
