@@ -106,10 +106,21 @@ Install these python dependencies:
 Download SeedSigner
 * `sudo git clone https://github.com/SeedSigner/seedsigner`
 
-Modify the system config to run SeedSigner at boot:
-* `sudo nano /etc/rc.local`
-add `sudo python3 /home/pi/seedsigner/main.py &`
-to the line above `exit 0`
+Modify the systemd to run SeedSigner at boot:
+* `sudo nano /etc/systemd/system/seedsigner.service`
+create file with contents
+```
+[Unit]
+Description=Seedsigner
+
+[Service]
+ExecStart=/usr/bin/python3 /home/pi/seedsigner/main.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+Run `sudo systemctl enable seedsigner.service` to enable service on boot. This will restart the seedsigner code automatically at startup and if it crashes.
 
 Use Control + O, then [enter], to write the file.
 Then use Control + X, to exit the program.
