@@ -42,7 +42,7 @@ class SeedToolsView(View):
 
         # Wait for Button Input (specifically menu selection/press)
         while True:
-            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS, B.KEY_RIGHT, B.KEY_LEFT, B.KEY1, B.KEY2, B.KEY3])
+            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS, B.KEY_RIGHT, B.KEY_LEFT, B.KEY1, B.KEY2, B.KEY3], True, [B.KEY_PRESS, B.KEY_RIGHT, B.KEY_LEFT, B.KEY1, B.KEY2, B.KEY3])
             if input == B.KEY_UP:
                 ret_val = self.gather_words_up()
             elif input == B.KEY_DOWN:
