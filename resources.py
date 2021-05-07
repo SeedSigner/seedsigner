@@ -2,7 +2,6 @@ import ST7789
 import spidev as SPI
 import RPi.GPIO as GPIO
 
-import time
 import subprocess
 
 from PIL import Image
@@ -11,13 +10,11 @@ from PIL import ImageFont
 
 from subprocess import call
 
-from imutils.video import VideoStream
 from pyzbar import pyzbar
 import argparse
 import datetime
-import imutils
 import time
-import cv2
+import re
 
 from embit.bip39 import mnemonic_to_bytes
 from embit.bip39 import mnemonic_from_bytes
@@ -31,10 +28,33 @@ from embit import ec
 from io import BytesIO
 
 from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
+from bcur import bcur_decode, cbor_decode, bc32decode, bc32encode, cbor_encode, bcur_encode
 
 import qrcode
 
 import textwrap
+
+import threading
+
+# delayed import variables saved in global namespace
+delayed_import_complete_ind = 0
+imutils = None
+cv2 = None
+VideoStream = None
+
+# delayed import funtion for long running imports
+def delayed_import():
+    global start_time
+    global delayed_import_complete_ind
+    global imutils, cv2, pyzbar, VideoStream
+    import imutils
+    import cv2
+    from imutils.video import VideoStream
+    delayed_import_complete_ind = 1
+    return
+
+# add delayed_import function to thread
+delayed_import_thread = threading.Thread(target=delayed_import)
 
 # USE CTL+F to locate the following "modules"
 # MENU MODULE
@@ -48,6 +68,7 @@ import textwrap
 version = "0.3.0"
 currentnetwork = "main"
 hardened_derivation = "m/48h/0h/0h/2h"
+qrsize = 100
 
 #GPIO define
 RST_PIN        = 25
@@ -111,6 +132,9 @@ savedseed1status = "[  ]"
 savedseed2status = "[  ]"
 savedseed3status = "[  ]"
 
+qr_type_ur1_ind = 0
+qr_type_specter_ind = 0
+
 # BEGIN MENU MODULE
 # BEGIN MENU MODULE
 # BEGIN MENU MODULE
@@ -161,6 +185,12 @@ def powering_down_notifier(runstate):
 #MAIN MENU FUNCTIONS BELOW
 #MAIN MENU FUNCTIONS BELOW
 #MAIN MENU FUNCTIONS BELOW
+
+def main_loading():
+    draw.rectangle((0, 0, width, height), outline=0, fill=0)
+    draw.text((35, 2), "SeedSigner  v" + version, fill="ORANGE", font=impact22)
+    draw.text((80, 100), "Starting ...", fill="ORANGE", font=impact20)
+    disp.ShowImage(image, 0, 0)
 
 def main_option1():
     draw.rectangle((0, 0, width, height), outline=0, fill=0)
@@ -222,6 +252,15 @@ def main_menu(runstate):
     localrunstate = runstate
     running = True
     optionselected = 1
+
+    # only used the first time seedsigner starts
+    while delayed_import_complete_ind == 0:
+        main_loading()
+        if delayed_import_thread.is_alive() == False and delayed_import_complete_ind == 0:
+            # when delayed_import_thread is not alive and not complete, then start import
+            delayed_import_thread.start()
+        time.sleep(0.1)
+
     while running == True:
         optionselected = menu_elevator(optionselected, 4)
         if optionselected == 1:
@@ -2464,62 +2503,23 @@ def getseedfromdice(runstate):
 # XPUBMAKE MODULE
 # XPUBMAKE MODULE
 
-def showqrcodes(xpubstring):
-    localxpubstring = xpubstring
-
-    # draw.rectangle((0, 0, width, height), outline=0, fill=0)
-    # draw.text((20, 110), "Creating Animated QR Code...", fill="ORANGE", font=impact18)
-    # disp.ShowImage(image, 0, 0)
-
-    qrdata = localxpubstring
-
-    stringlength = len(qrdata)
-
-    # print("The length of the string is: " + str(stringlength))
-    numofchunks = (stringlength // 100) + 1
-    staticnumofchunks = numofchunks
-    listcounter = 1
-
-    start = 0
-    stop = 99
-    chunklist = ["p" + str(listcounter) + "of" + str(staticnumofchunks) + " " + qrdata[start:stop]]
-    # print("The start is: " + str(start) + " and the end is: " + str(stop))
-    print(chunklist[0])
-    qrimagelist = [qrcode.make(chunklist[0]).resize((240, 240)).convert('RGB')]
-
-    while numofchunks > 1:
-        start = start + 100
-        stop = stop + 100
-        if stop > stringlength:
-            stop = stringlength  # - 1
-        chunklist.append("p" + str(listcounter + 1) + "of" + str(staticnumofchunks) + " " + qrdata[start - 1:stop])
-        print(chunklist[listcounter])
-        qrimagelist.append(qrcode.make(chunklist[listcounter]).resize((240, 240)).convert('RGB'))
-        listcounter = listcounter + 1
-        numofchunks = numofchunks - 1
-
-    showingqrs = True
-    displayedqr = 0
-
-    while showingqrs == True:
-        disp.ShowImage(qrimagelist[displayedqr], 0, 0)
-        time.sleep(0.3)
-        if displayedqr < staticnumofchunks - 1:
-            displayedqr = displayedqr + 1
-            time.sleep(0.3)
-        else:
-            displayedqr = 0
-            time.sleep(0.3)
-        if GPIO.input(KEY_RIGHT_PIN) == GPIO.LOW:  # button is released
-            time.sleep(0.2)
-            showingqrs = False
-        else:
-            time.sleep(0.3)
+def qrimage(data):
+    qr = qrcode.QRCode(
+    version=1,
+    error_correction=qrcode.constants.ERROR_CORRECT_M,
+    box_size=1,
+    border=2
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+    return(qr.make_image(fill_color="black", back_color="white").resize((240,240)).convert('RGB'))
 
 def make_xpub(runstate):
     localrunstate = runstate
     global hardened_derivation
     global currentnetwork
+    global qrsize
+    qrsize = 140
 
     decidedonwhichwords = False
     while decidedonwhichwords == False:
@@ -2591,6 +2591,10 @@ def make_xpub(runstate):
 
     print(xpubstring)
 
+    global qr_type_ur1_ind, qr_type_specter_ind
+    qr_type_ur1_ind = 0
+    qr_type_specter_ind = 0
+
     showqrcodes(xpubstring)
 
     localrunstate[0] = 0
@@ -2605,10 +2609,7 @@ def make_xpub(runstate):
 # BEGIN PSBTSIGN MODULE
 
 def scananimatedqr():
-    # draw.rectangle((0, 0, width, height), outline=0, fill=0)
-    # disp.ShowImage(image, 0, 0)
-
-    vs = VideoStream(usePiCamera=True).start()  # For Pi Camera
+    vs = VideoStream(usePiCamera=True,resolution=(1024, 768),framerate=10).start()  # For Pi Camera
     time.sleep(2.0)
 
     listofstrings = ["empty"]
@@ -2617,29 +2618,36 @@ def scananimatedqr():
     camerarunning = True
     gotnumofframes = False
     totalchunks = 0
+    global qr_type_ur1_ind, qr_type_specter_ind
+    qr_type_ur1_ind = 0
+    qr_type_specter_ind = 0
 
     while gotnumofframes == False:
         frame = vs.read()
-        frame = imutils.resize(frame, width=400)
+        th, frame = cv2.threshold(frame, 128, 255, cv2.THRESH_BINARY) #image binarization to improve decoding
+        frame = imutils.resize(frame, width=550)
         barcodes = pyzbar.decode(frame)
         for barcode in barcodes:
             barcodeData = barcode.data.decode("utf-8")
             string = barcodeData
             print(string)
-            if string[4].isdigit() == True:
-                if string[5].isdigit() == True:
-                    print("The total number of chunks is", string[4:6])
-                    totalchunks = int(string[4:6])
-                else:
-                    print("The total number of digits is", string[4:5])
-                    totalchunks = int(string[4:5])
-            elif string[5].isdigit() == True:
-                if string[6].isdigit() == True:
-                    print("The total number of chunks is", string[5:7])
-                    totalchunks = int(string[5:7])
-                else:
-                    print("The total number of digits is", string[5:6])
-                    totalchunks = int(string[5:6])
+
+            if re.search("^UR\:BYTES\/(\d+)OF(\d+)", string, re.IGNORECASE) != None:
+                # is UR 1.0 Encoding
+                totalchunks = int(re.search("^UR\:BYTES\/(\d+)OF(\d+)", string, re.IGNORECASE).group(2))
+                qr_type_ur1_ind = 1
+            elif re.search("^p(\d+)of(\d+) ", string, re.IGNORECASE) != None:
+                # is specter desktop encoding
+                totalchunks = int(re.search("^p(\d+)of(\d+) ", string, re.IGNORECASE).group(2))
+                qr_type_specter_ind = 1
+            elif re.search("^UR\:.+\/(\d+)\-(\d+)\/", string, re.IGNORECASE) != None:
+                # is UR 2.0 Encoding
+                # not supported yet
+                time.sleep(0.3)
+                vs.stop()
+                return "abort"
+            else:
+                totalchunks = 1
 
             gotnumofframes = True
         if GPIO.input(KEY_LEFT_PIN) == GPIO.LOW:  # button is released
@@ -2660,19 +2668,27 @@ def scananimatedqr():
 
     while camerarunning == True:
         frame = vs.read()
-        frame = imutils.resize(frame, width=400)
+
+        if qr_type_ur1_ind == 1:
+            th, frame = cv2.threshold(frame, 128, 255, cv2.THRESH_BINARY)
+            frame = imutils.resize(frame, width=550)
+        else:
+            frame = imutils.resize(frame, width=400)
+
         barcodes = pyzbar.decode(frame)
         for barcode in barcodes:
             barcodeData = barcode.data.decode("utf-8")
             string = barcodeData
-            if string[1].isdigit() == True:
-                if string[2].isdigit() == True:
-                    currentframe = int(string[1:3])
-                else:
-                    currentframe = int(string[1])
-            spacelocation = string.find(" ") + 1
+
+            if qr_type_ur1_ind == 1:
+                currentframe = int(re.search("^UR\:BYTES\/(\d+)OF(\d+)", string, re.IGNORECASE).group(1))
+                trimmedstring = string.split("/")[-1].strip()
+            else:
+                currentframe = int(re.search("^p(\d+)of(\d+) ", string, re.IGNORECASE).group(1))
+                trimmedstring = string.split(" ")[-1].strip()
+
             length = len(string)
-            trimmedstring = string[spacelocation:length]
+
             listofstrings[currentframe - 1] = trimmedstring
             framestatuslist[currentframe - 1] = "*"
             print(framestatusstring.join(framestatuslist))
@@ -2766,9 +2782,9 @@ def get_policy(scope, scriptpubkey, xpubs):
     if "p2wsh" in script_type and scope.witness_script is not None:
         m, n, pubkeys = parse_multisig(scope.witness_script)
         # check pubkeys are derived from cosigners
-        cosigners = get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
+        #cosigners = get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
         policy.update({
-            "m": m, "n": n, "cosigners": cosigners
+            "m": m, "n": n #, "cosigners": cosigners
         })
     return policy
 
@@ -2777,7 +2793,6 @@ def signtransaction(seedphrase, psbtstring):
     localpsbtstring = psbtstring
     destinationaddress = "self-transfer"
     global runstate
-
     global currentnetwork
     global hardened_derivation
 
@@ -2800,8 +2815,12 @@ def signtransaction(seedphrase, psbtstring):
         bip48_xpub.to_base58())
           )
 
+    if qr_type_ur1_ind == 1:
+        b64_psbt = b2a_base64(cbor_decode(bc32decode(localpsbtstring)))
+    else:
+        b64_psbt = localpsbtstring
+
     # parse psbt transaction
-    b64_psbt = localpsbtstring
     print("took in psbt string")
     # first convert it to binary
     raw = a2b_base64(b64_psbt)
@@ -2937,41 +2956,63 @@ def signtransaction(seedphrase, psbtstring):
     #raw = tx.serialize()  #commented this out for the trim change
     raw = trimmed_psbt.serialize()
 
-    # convert to base64
-    b64_psbt = b2a_base64(raw)
-    # somehow b2a ends with \n...
-    if b64_psbt[-1:] == b"\n":
-        b64_psbt = b64_psbt[:-1]
-    # print
-    print("\nSigned transaction:")
-    print(b64_psbt.decode('utf-8'))
-    return b64_psbt.decode('utf-8')
+    if qr_type_ur1_ind == 1:
+        return(raw)
+    else:
+        # convert to base64
+        b64_psbt = b2a_base64(raw)
+        # somehow b2a ends with \n...
+        if b64_psbt[-1:] == b"\n":
+            b64_psbt = b64_psbt[:-1]
+        # print
+        print("\nSigned transaction:")
+        print(b64_psbt.decode('utf-8'))
+        return b64_psbt.decode('utf-8')
 
-def showqrcodes(signedpsbt):
-    localsignedpsbt = signedpsbt
+def showqrcodes(qrdatain):
+    localqrdatain = qrdatain
 
-    qrdata = localsignedpsbt
+    if qr_type_ur1_ind == 1:
+        bcur_raw = bcur_encode(localqrdatain)
+        qrdata = bcur_raw[0].upper()
+        qrhash = bcur_raw[1].upper()
+    else:
+        qrdata = localqrdatain
 
     stringlength = len(qrdata)
 
     # print("The length of the string is: " + str(stringlength))
-    numofchunks = (stringlength // 100) + 1
+    numofchunks = (stringlength // qrsize) + 1
     staticnumofchunks = numofchunks
     listcounter = 1
 
     start = 0
-    stop = 99
-    chunklist = ["p" + str(listcounter) + "of" + str(staticnumofchunks) + " " + qrdata[start:stop]]
+    stop = qrsize - 1
+    if numofchunks == 1:
+        if qr_type_ur1_ind == 1:
+            chunklist = ["UR:BYTES/1OF1/" + qrhash + "/" + qrdata[start:stop]]
+        else:
+            chunklist = [qrdata[start:stop]]
+    else:
+        if qr_type_ur1_ind == 1:
+            chunklist = ["UR:BYTES/" + str(listcounter) + "OF" + str(staticnumofchunks) + "/" + qrhash + "/" + qrdata[start:stop]]
+        else:
+            chunklist = ["p" + str(listcounter) + "of" + str(staticnumofchunks) + " " + qrdata[start:stop]]
+    
     print(chunklist[0])
-    qrimagelist = [qrcode.make(chunklist[0]).resize((240, 240)).convert('RGB')]
+    qrimagelist = [qrimage(chunklist[0])]
 
     # draw.rectangle((0, 0, width, height), outline=0, fill=0)
     # draw.text((20, 25), "Creating Animated QR Code...", fill="ORANGE", font=impact18)
     generatingqrstatuslist = []
     generatingqrstatusstring = ""
     dashesneeded = numofchunks
-    while dashesneeded > 1:
-        generatingqrstatuslist.append("-")
+
+    while dashesneeded > 0 and numofchunks > 1:
+        if dashesneeded == numofchunks:
+            generatingqrstatuslist.append("*")
+        else:
+            generatingqrstatuslist.append("-")
         dashesneeded = dashesneeded - 1
     # lines = textwrap.wrap(generatingqrstatusstring.join(generatingqrstatuslist), width=11)
     # yheight = 60
@@ -2985,16 +3026,24 @@ def showqrcodes(signedpsbt):
     while numofchunks > 1:
         draw.rectangle((0, 0, width, height), outline=0, fill=0)
         draw.text((20, 25), "Creating Animated QR Code...", fill="ORANGE", font=impact18)
-        start = start + 100
-        stop = stop + 100
+        start = start + qrsize
+        stop = stop + qrsize
         if stop > stringlength:
             stop = stringlength  # - 1
-        chunklist.append("p" + str(listcounter + 1) + "of" + str(staticnumofchunks) + " " + qrdata[start - 1:stop])
-        print(chunklist[listcounter])
-        qrimagelist.append(qrcode.make(chunklist[listcounter]).resize((240, 240)).convert('RGB'))
+
         listcounter = listcounter + 1
         numofchunks = numofchunks - 1
-        generatingqrstatuslist[listcounter - 2] = "*"
+
+        if qr_type_ur1_ind == 1:
+            chunklist.append("UR:BYTES/" + str(listcounter) + "OF" + str(staticnumofchunks) + "/" + qrhash + "/" + qrdata[start - 1:stop])
+        else:
+            chunklist.append("p" + str(listcounter) + "of" + str(staticnumofchunks) + " " + qrdata[start - 1:stop])
+
+        print(chunklist[listcounter-1])
+
+        qrimagelist.append(qrimage(chunklist[listcounter-1]))
+
+        generatingqrstatuslist[listcounter - 1] = "*"
         lines = textwrap.wrap(generatingqrstatusstring.join(generatingqrstatuslist), width=11)
         yheight = 60
         for line in lines:
@@ -3043,6 +3092,9 @@ def showqrcodes(signedpsbt):
 
 def sign_psbt(runstate):
     localrunstate = runstate
+
+    global qrsize
+    qrsize = 100
 
     decidedonwhichwords = False
     while decidedonwhichwords == False:
