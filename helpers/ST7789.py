@@ -3,7 +3,6 @@ import RPi.GPIO as GPIO
 import time
 import numpy as np
 
-
 class ST7789(object):
     """class for ST7789  240*240 1.3inch OLED displays."""
 
