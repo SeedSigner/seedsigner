@@ -114,6 +114,7 @@ create file with contents
 Description=Seedsigner
 
 [Service]
+WorkingDirectory=/home/pi/seedsigner
 ExecStart=/usr/bin/python3 /home/pi/seedsigner/main.py
 Restart=always
 
