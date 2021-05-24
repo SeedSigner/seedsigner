@@ -18,7 +18,7 @@ from psbt_signer import PSBTSigner
 
 class Controller:
     
-    VERSION = "0.4.0b3"
+    VERSION = "0.4.0"
 
     def __init__(self) -> None:
         controller = self
