@@ -113,8 +113,8 @@ class MenuView(View):
         lines = ["... [ Return to Main ]", "Input / Output Tests", "Current Network: <network>", "Wallet: <wallet>", "Version Info", "Donate to SeedSigner"]
         input = 0
         
-        lines[2] = lines[2].replace("<network>", self.controller.storage.get_network())
-        lines[3] = lines[3].replace("<wallet>", "Specter Desktop")
+        lines[2] = lines[2].replace("<network>", self.controller.wallet.get_network())
+        lines[3] = lines[3].replace("<wallet>", self.controller.wallet.get_name())
 
         # Draw Menu
         self.draw_menu(lines, 1)

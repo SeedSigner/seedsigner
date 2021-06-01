@@ -25,7 +25,7 @@ class QR:
         data_parts = []
         images = []
 
-        if format == "Specter Desktop":
+        if format == "Specter Desktop Multisig":
 
             qr_cnt = (len(data) // self.qrsize) + 1
 

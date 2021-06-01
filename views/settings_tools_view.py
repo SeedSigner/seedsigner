@@ -37,9 +37,11 @@ class SettingsToolsView(View):
     ### Display Wallet Selection
 
     def display_wallet_selection(self) ->str:
-        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Specter Desktop"], "Which Wallet?")
+        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Specter Desktop Multisig", "Specter Desktop Single Sig"], "Which Wallet?")
         if r == 2:
-            return "Specter Desktop"
+            return "Specter Desktop Multisig"
+        elif r == 3:
+            return "Specter Desktop Single Sig"
         else:
             return "cancel"
 
