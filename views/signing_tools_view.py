@@ -1,8 +1,6 @@
 # Internal file class dependencies
 from view import View
-from qr import QR
 from buttons import Buttons, B
-from wallet import Wallet
 
 # External Dependencies
 import time
@@ -12,7 +10,6 @@ class SigningToolsView(View):
     def __init__(self, controller, seed_storage) -> None:
         View.__init__(self, controller)
         self.seed_storage = seed_storage
-        self.qr = QR()
 
     ###
     ### XPub
@@ -25,19 +22,30 @@ class SigningToolsView(View):
         
         print(xpubstring)
 
-        xpub_image = self.qr.qrimage(xpubstring, 120)
+        xpub_images = wallet.make_xpub_qr_codes(xpubstring)
 
-        View.DispShowImage(xpub_image)
+        cnt = 0
+        if len(xpub_images) == 1:
+            View.DispShowImage(xpub_images[0])
+        while True:
+            if len(xpub_images) != 1:
+                View.DispShowImage(xpub_images[cnt])
+            cnt += 1
+            if cnt >= len(xpub_images):
+                cnt = 0
+            time.sleep(0.2)
+            if self.buttons.check_for_low(B.KEY_RIGHT):
+                return
 
     ###
     ### Sign Transaction
     ###
 
-    def display_signed_psbt_animated_qr(self, psbt) -> None:
+    def display_signed_psbt_animated_qr(self, wallet, psbt) -> None:
         self.draw_modal(["Generating QR ..."])
 
         print(psbt)
-        images = self.qr.makeqrcodes(psbt, "Specter Desktop Multisig", 60, SigningToolsView.qr_gen_status)
+        images = wallet.make_signing_qr_codes(psbt, SigningToolsView.qr_gen_status)
 
         cnt = 0
         while True:

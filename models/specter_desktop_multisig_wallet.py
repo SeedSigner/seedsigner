@@ -1,4 +1,5 @@
 from wallet import Wallet
+from qr import QR
 
 # External Dependencies
 from embit.bip39 import mnemonic_to_bytes
@@ -12,7 +13,6 @@ from embit import ec
 from io import BytesIO
 from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
 import re
-import textwrap
 
 class SpecterDesktopMultisigWallet(Wallet):
 
@@ -24,9 +24,10 @@ class SpecterDesktopMultisigWallet(Wallet):
         else:
             Wallet.__init__(self, current_network, hardened_derivation)
 
+        self.qrsize = 60
+
     def get_name(self) -> str:
-        print("specter multisig")
-        return "Specter Multisig"
+        return "Specter Desktop"
 
     def import_qr(self) -> str:
         xpubstring = "[%s%s]%s" % (
@@ -101,3 +102,35 @@ class SpecterDesktopMultisigWallet(Wallet):
 
         return True
 
+    def make_xpub_qr_codes(self, data, callback = None) -> []:
+        return self.make_signing_qr_codes(data, callback)
+
+    def make_signing_qr_codes(self, data, callback = None) -> []:
+        qr = QR()
+
+        cnt = 0
+        images = []
+        start = 0
+        stop = self.qrsize
+        qr_cnt = (len(data) // self.qrsize) + 1
+
+        while cnt < qr_cnt:
+            part = "p" + str(cnt+1) + "of" + str(qr_cnt) + " " + data[start:stop]
+            images.append(qr.qrimage(part))
+            print(part)
+            start = start + self.qrsize
+            stop = stop + self.qrsize
+            if stop > len(data):
+                stop = len(data)
+            cnt += 1
+
+            if callback != None:
+                    callback((cnt * 100.0) / qr_cnt)
+
+        return images
+
+    def set_qr_density(density):
+        if density == Wallet.LOW:
+            self.qrsize = 60
+        elif density == Wallet.HIGH:
+            self.qrsize = 100

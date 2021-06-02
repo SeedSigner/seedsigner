@@ -15,7 +15,7 @@ from camera_process import CameraProcess
 from path import Path
 from seed_storage import SeedStorage
 from specter_desktop_multisig_wallet import SpecterDesktopMultisigWallet
-from specter_desktop_single_sig_wallet import SpecterDesktopSingleSigWallet
+from blue_vault_wallet import BlueVaultWallet
 
 class Controller:
     
@@ -280,8 +280,6 @@ class Controller:
 
         self.wallet.set_seed_phrase(seed_phrase)
         self.signing_tools_view.display_xpub_qr(self.wallet)
-        time.sleep(1)
-        input = self.buttons.wait_for([B.KEY_RIGHT])
         return Path.MAIN_MENU
 
     ### Sign Transactions
@@ -353,7 +351,7 @@ class Controller:
         signed_pbst = self.wallet.sign_transaction()
 
         # Display Animated QR Code
-        self.signing_tools_view.display_signed_psbt_animated_qr(signed_pbst)
+        self.signing_tools_view.display_signed_psbt_animated_qr(self.wallet, signed_pbst)
 
         # Return to Main Menu
         return Path.MAIN_MENU
@@ -388,14 +386,15 @@ class Controller:
 
     def show_wallet_tool(self):
         r = self.settings_tools_view.display_wallet_selection()
-        if r == "Specter Desktop Multisig":
-            print("multisig selected")
+        if r == "Specter Desktop":
             self.wallet_klass = globals()["SpecterDesktopMultisigWallet"]
-            self.wallet = self.wallet_klass()
+            self.wallet = self.wallet_klass(self.wallet.get_network())
         elif r == "Specter Desktop Single Sig":
-            print("single selected")
             self.wallet_klass = globals()["SpecterDesktopSingleSigWallet"]
-            self.wallet = self.wallet_klass()
+            self.wallet = self.wallet_klass(self.wallet.get_network())
+        elif r == "Blue Wallet Vault":
+            self.wallet_klass = globals()["BlueVaultWallet"]
+            self.wallet = self.wallet_klass(self.wallet.get_network())
 
         return Path.SETTINGS_SUB_MENU
 

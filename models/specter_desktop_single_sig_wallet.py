@@ -26,7 +26,6 @@ class SpecterDesktopSingleSigWallet(SpecterDesktopMultisigWallet):
             Wallet.__init__(self, current_network, hardened_derivation)
 
     def get_name(self) -> str:
-        print("specter single sig")
         return "Specter Single Sig"
 
     def set_network(self, network) -> bool:

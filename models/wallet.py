@@ -19,9 +19,13 @@ import textwrap
 
 class Wallet:
 
+    LOW = 0
+    HIGH = 1
+
     def __init__(self, current_network, hardened_derivation) -> None:
         self.current_network = current_network
         self.hardened_derivation = hardened_derivation
+        self.qrsize = 60
 
     def set_seed_phrase(self, seed_phrase):
         # requires a valid seed phrase or error will be thrown
@@ -56,7 +60,7 @@ class Wallet:
     ### Required Methods to implement for Child Wallet Class
     ###
     ### import_qr, parse_psbt, sign_transaction, total_frames_parse, current_frame_parse, data_parse, capture_complete
-    ### get_name, set_network
+    ### get_name, set_network, make_xpub_qr_codes, make_signing_qr_codes, set_qr_density
 
     def import_qr(self) -> str:
         return "empty"
@@ -167,6 +171,31 @@ class Wallet:
         elif self.scan_started_ind == 0:
             self.scan_started_ind = 1
             self.controller.menu_view.draw_modal(["Scan Animated QR"], "", "Right to Exit")
+
+    def make_xpub_qr_codes(self, data, callback = None) -> []:
+        return []
+
+    def make_signing_qr_codes(self, data, callback = None) -> []:
+        return []
+
+    def set_qr_density(density):
+        if density == Wallet.LOW:
+            self.qrsize = 60
+        elif density == Wallet.HIGH:
+            self.qrsize = 100
+
+    ###
+    ### Network Related Methods
+    ###
+
+    def get_network(self) -> str:
+        return self.current_network
+
+    def get_hardened_derivation(self) -> str:
+        return self.hardened_derivation
+
+    def set_network(self, network) -> bool:
+        return False
 
     ###
     ### Internal Wallet Transactions
@@ -310,16 +339,3 @@ class Wallet:
                 "m": m, "n": n, "cosigners": cosigners
             })
         return policy
-
-    ###
-    ### Network Related Methods
-    ###
-
-    def get_network(self) -> str:
-        return self.current_network
-
-    def get_hardened_derivation(self) -> str:
-        return self.hardened_derivation
-
-    def set_network(self, network) -> bool:
-        return False

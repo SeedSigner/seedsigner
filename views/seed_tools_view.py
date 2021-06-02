@@ -458,6 +458,9 @@ class SeedToolsView(View):
                 elif ret_val == "right-2":
                     return True
 
+            else:
+                return True
+
     def display_seed_phrase_12(self, seed_phrase, bottom = "Right to Exit"):
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
