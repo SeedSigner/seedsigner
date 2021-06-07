@@ -179,7 +179,10 @@ class SparrowMultiSigWallet(Wallet):
             self.controller.menu_view.draw_modal(["Scan Animated QR"], "", "Right to Exit")
 
     def total_frames_parse(data) -> int:
-        return 10
+        if re.search("^UR\:CRYPTO-PSBT\/(\d+)\-(\d+)\/", data, re.IGNORECASE) != None:
+            return 10 #valid
+        else:
+            return -1 #invalid
 
     def capture_complete(self) -> bool:
         if self.ur_decoder.is_complete():

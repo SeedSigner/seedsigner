@@ -337,7 +337,7 @@ class Controller:
         if raw_pbst == "nodata":
             return Path.SIGNING_TOOLS_SUB_MENU
         if raw_pbst == "invalid":
-            self.menu_view.draw_modal(["QR Format Unexpected"], "", "RIGHT to EXIT")
+            self.menu_view.draw_modal(["QR Format Unexpected", "Check Wallet in Settings"], "", "RIGHT to EXIT")
             input = self.buttons.wait_for([B.KEY_RIGHT])
             return Path.SIGNING_TOOLS_SUB_MENU
         self.menu_view.draw_modal(["Parsing PSBT ..."])
