@@ -24,7 +24,7 @@ class SpecterDesktopMultisigWallet(Wallet):
         else:
             Wallet.__init__(self, current_network, hardened_derivation)
 
-        self.qrsize = 60
+        self.qrsize = 80
 
     def get_name(self) -> str:
         return "Specter Desktop"
@@ -42,8 +42,8 @@ class SpecterDesktopMultisigWallet(Wallet):
         base64_psbt = a2b_base64(raw_psbt)
         self.tx = psbt.PSBT.parse(base64_psbt)
 
-        (self.inp_amount, policy) = Wallet.input_amount(self.tx)
-        (self.change, self.fee, self.spend, self.destinationaddress) = Wallet.change_fee_spend_amounts(self.tx, self.inp_amount, policy, self.current_network)
+        (self.inp_amount, policy) = self.input_amount(self.tx)
+        (self.change, self.fee, self.spend, self.destinationaddress) = self.change_fee_spend_amounts(self.tx, self.inp_amount, policy, self.current_network)
 
         return True
 
@@ -84,8 +84,8 @@ class SpecterDesktopMultisigWallet(Wallet):
     def data_parse(data) -> str:
         return data.split(" ")[-1].strip()
 
-    def capture_complete(qr_data = []) -> bool:
-        if "empty" not in qr_data:
+    def capture_complete(self) -> bool:
+        if "empty" not in self.qr_data:
             return True
         else:
             return False

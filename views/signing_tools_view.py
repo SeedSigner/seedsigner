@@ -16,8 +16,6 @@ class SigningToolsView(View):
     ###
 
     def display_xpub_qr(self, wallet):
-        self.draw_modal(["Generating QR ..."])
-
         xpubstring = wallet.import_qr()
         
         print(xpubstring)
@@ -25,17 +23,39 @@ class SigningToolsView(View):
         xpub_images = wallet.make_xpub_qr_codes(xpubstring)
 
         cnt = 0
+        step = False
         if len(xpub_images) == 1:
             View.DispShowImage(xpub_images[0])
         while True:
             if len(xpub_images) != 1:
-                View.DispShowImage(xpub_images[cnt])
-            cnt += 1
-            if cnt >= len(xpub_images):
-                cnt = 0
-            time.sleep(0.2)
-            if self.buttons.check_for_low(B.KEY_RIGHT):
-                return
+                if step == False:
+                    View.DispShowImage(xpub_images[cnt])
+                else:
+                    frame_text = (str(cnt+1) + " of " + str(len(xpub_images)))
+                    View.DispShowImageWithText(xpub_images[cnt], frame_text)
+                    time.sleep(0.3)
+                    # View.DispShowImage(xpub_images[cnt])
+            if step == False:
+                cnt += 1
+                if cnt >= len(xpub_images):
+                    cnt = 0
+                wallet.qr_sleep()
+                if self.buttons.check_for_low(B.KEY_RIGHT):
+                    return
+                if self.buttons.check_for_low(B.KEY1):
+                    step = True
+            else:
+                input = self.buttons.wait_for([B.KEY1, B.KEY_RIGHT, B.KEY_UP, B.KEY_DOWN])
+                if input == B.KEY_RIGHT:
+                    return
+                elif input == B.KEY1 or input == B.KEY_DOWN:
+                    cnt += 1
+                    if cnt >= len(xpub_images):
+                        cnt = 0
+                elif input == B.KEY_UP:
+                    cnt -= 1
+                    if cnt < 0:
+                        cnt = len(xpub_images) - 1
 
     ###
     ### Sign Transaction
@@ -48,14 +68,36 @@ class SigningToolsView(View):
         images = wallet.make_signing_qr_codes(psbt, SigningToolsView.qr_gen_status)
 
         cnt = 0
+        step = False
         while True:
-            View.DispShowImage(images[cnt])
-            cnt += 1
-            if cnt >= len(images):
-                cnt = 0
-            time.sleep(0.2)
-            if self.buttons.check_for_low(B.KEY_RIGHT):
-                return
+            if step == False:
+                View.DispShowImage(images[cnt])
+            else:
+                frame_text = (str(cnt+1) + " of " + str(len(images)))
+                View.DispShowImageWithText(images[cnt], frame_text)
+                time.sleep(0.3)
+            if step == False:
+                cnt += 1
+                if cnt >= len(images):
+                    cnt = 0
+                wallet.qr_sleep()
+                if self.buttons.check_for_low(B.KEY_RIGHT):
+                    return
+                if self.buttons.check_for_low(B.KEY1):
+                    step = True
+            else:
+                input = self.buttons.wait_for([B.KEY1, B.KEY_RIGHT, B.KEY_UP, B.KEY_DOWN])
+                if input == B.KEY_RIGHT:
+                    return
+                elif input == B.KEY1 or input == B.KEY_DOWN:
+                    cnt += 1
+                    if cnt >= len(images):
+                        cnt = 0
+                elif input == B.KEY_UP:
+                    cnt -= 1
+                    if cnt < 0:
+                        cnt = len(images) - 1
+
 
     def display_transaction_information(self, wallet) -> None:
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)

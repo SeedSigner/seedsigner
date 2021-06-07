@@ -5,6 +5,7 @@ from camera_process import CameraPoll
 from view import View
 
 # External Dependencies
+import time
 from embit.bip39 import mnemonic_to_bytes
 from embit.bip39 import mnemonic_from_bytes
 from embit import bip39
@@ -90,7 +91,7 @@ class Wallet:
         # parse qr data to string to be cancatinated together into a pbst transaction
         return "empty"
 
-    def capture_complete(qr_data = []) -> bool:
+    def capture_complete() -> bool:
         # returns true if the qr data list is complete
         return False
 
@@ -150,11 +151,11 @@ class Wallet:
                 self.percentage_complete = int((self.qr_cur_frame_count / self.qr_total_frames) * 100)
 
             # checking if all frames has been captured, exit camera processing
-            if type(self).capture_complete(self.qr_data):
+            if self.capture_complete():
                 self.buttons.trigger_override()
 
             # if all frames have not all been captured, display progress to screen/display
-            if not type(self).capture_complete(self.qr_data):
+            if not self.capture_complete():
                 View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
                 tw, th = View.draw.textsize("Collecting QR Codes:", font=View.IMPACT22)
                 View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill="ORANGE", font=View.IMPACT22)
@@ -177,6 +178,9 @@ class Wallet:
 
     def make_signing_qr_codes(self, data, callback = None) -> []:
         return []
+
+    def qr_sleep(self):
+        time.sleep(0.2)
 
     def set_qr_density(density):
         if density == Wallet.LOW:
@@ -201,7 +205,7 @@ class Wallet:
     ### Internal Wallet Transactions
     ###
 
-    def input_amount(tx) -> (float, str):
+    def input_amount(self, tx) -> (float, str):
         # Check inputs of the transaction and check that they use the same script type
         # For multisig parsed policy will look like this:
         # { script_type: p2wsh, cosigners: [xpubs strings], m: 2, n: 3}
@@ -210,7 +214,7 @@ class Wallet:
         for inp in tx.inputs:
             inp_amount += inp.witness_utxo.value
             # get policy of the input
-            inp_policy = Wallet.get_policy(inp, inp.witness_utxo.script_pubkey, tx.xpubs)
+            inp_policy = self.get_policy(inp, inp.witness_utxo.script_pubkey, tx.xpubs)
             # if policy is None - assign current
             if policy is None:
                 policy = inp_policy
@@ -222,12 +226,12 @@ class Wallet:
 
         return (inp_amount, policy)
 
-    def change_fee_spend_amounts(tx, inp_amount, policy, currentnetwork) -> (float, float, float):
+    def change_fee_spend_amounts(self, tx, inp_amount, policy, currentnetwork) -> (float, float, float):
         spend = 0
         change = 0
         destinationaddress = ""
         for i, out in enumerate(tx.outputs):
-            out_policy = Wallet.get_policy(out, tx.tx.vout[i].script_pubkey, tx.xpubs)
+            out_policy = self.get_policy(out, tx.tx.vout[i].script_pubkey, tx.xpubs)
             is_change = False
             # if policy is the same - probably change
             if out_policy == policy:
@@ -268,7 +272,7 @@ class Wallet:
 
         return (change, fee, spend, destinationaddress)
 
-    def parse_multisig(sc):
+    def parse_multisig(self, sc):
         """Takes a script and extracts m,n and pubkeys from it"""
         # OP_m <len:pubkey> ... <len:pubkey> OP_n OP_CHECKMULTISIG
         # check min size
@@ -295,7 +299,7 @@ class Wallet:
             raise ValueError("Invalid multisig script")
         return m, n, pubkeys
 
-    def get_cosigners(pubkeys, derivations, xpubs):
+    def get_cosigners(self, pubkeys, derivations, xpubs):
         """Returns xpubs used to derive pubkeys using global xpub field from psbt"""
         cosigners = []
         for i, pubkey in enumerate(pubkeys):
@@ -317,7 +321,7 @@ class Wallet:
             raise RuntimeError("Can't get all cosigners")
         return sorted(cosigners)
 
-    def get_policy(scope, scriptpubkey, xpubs):
+    def get_policy(self, scope, scriptpubkey, xpubs):
         """Parse scope and get policy"""
         # we don't know the policy yet, let's parse it
         script_type = scriptpubkey.script_type()
@@ -331,10 +335,10 @@ class Wallet:
         policy = { "type": script_type }
         # expected multisig
         if "p2wsh" in script_type and scope.witness_script is not None:
-            m, n, pubkeys = Wallet.parse_multisig(scope.witness_script)
+            m, n, pubkeys = self.parse_multisig(scope.witness_script)
 
             # check pubkeys are derived from cosigners
-            cosigners = Wallet.get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
+            cosigners = self.get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
             policy.update({
                 "m": m, "n": n, "cosigners": cosigners
             })

@@ -16,6 +16,8 @@ from path import Path
 from seed_storage import SeedStorage
 from specter_desktop_multisig_wallet import SpecterDesktopMultisigWallet
 from blue_vault_wallet import BlueVaultWallet
+from sparrow_multisig_wallet import SparrowMultiSigWallet
+from generic_ur2_wallet import GenericUR2Wallet
 
 class Controller:
     
@@ -278,6 +280,7 @@ class Controller:
             if r == True:
                 break
 
+        self.signing_tools_view.draw_modal(["Generating QR ..."])
         self.wallet.set_seed_phrase(seed_phrase)
         self.signing_tools_view.display_xpub_qr(self.wallet)
         return Path.MAIN_MENU
@@ -330,7 +333,7 @@ class Controller:
         self.menu_view.draw_modal(["Loading..."])
         self.wallet.set_seed_phrase(seed_phrase)
         raw_pbst = self.wallet.scan_animated_qr_pbst(self)
-        print("raw_pbst: " + raw_pbst)
+
         if raw_pbst == "nodata":
             return Path.SIGNING_TOOLS_SUB_MENU
         if raw_pbst == "invalid":
@@ -394,6 +397,12 @@ class Controller:
             self.wallet = self.wallet_klass(self.wallet.get_network())
         elif r == "Blue Wallet Vault":
             self.wallet_klass = globals()["BlueVaultWallet"]
+            self.wallet = self.wallet_klass(self.wallet.get_network())
+        elif r == "Sparrow Multisig":
+            self.wallet_klass = globals()["SparrowMultiSigWallet"]
+            self.wallet = self.wallet_klass(self.wallet.get_network())
+        elif r == "UR 2.0 Multisig":
+            self.wallet_klass = globals()["GenericUR2Wallet"]
             self.wallet = self.wallet_klass(self.wallet.get_network())
 
         return Path.SETTINGS_SUB_MENU
