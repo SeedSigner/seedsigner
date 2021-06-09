@@ -137,18 +137,11 @@ class SparrowMultiSigWallet(Wallet):
                     self.qr_data = ["invalid"]
                     self.buttons.trigger_override() # something went wrong, invalid QR
                     return
-
-                # create qr_data list with number of total frames
-                self.qr_data = ["empty"] * self.qr_total_frames
-                # create frame display / progress with number of total frames
-                self.frame_display = ["-"] * self.qr_total_frames
+                self.qr_data = ["empty"]
 
             # get data and percentage
             self.ur_decoder.receive_part(data[0])
             self.percentage_complete = self.ur_decoder.estimated_percent_complete()
-            frames_complete = round(self.percentage_complete * self.qr_total_frames)
-            for i in range(frames_complete):
-                self.frame_display[i] = "*"
 
             # checking if all frames has been captured, exit camera processing
             if self.capture_complete():
@@ -157,21 +150,10 @@ class SparrowMultiSigWallet(Wallet):
             # if all frames have not all been captured, display progress to screen/display
             if not self.capture_complete():
                 View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-                tw, th = View.draw.textsize("Collecting QR Codes:", font=View.IMPACT22)
-                View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill="ORANGE", font=View.IMPACT22)
-                lines = textwrap.wrap("".join(self.frame_display), width=11)
-                yheight = 60
-                for line in lines:
-                    tw, th = View.draw.textsize(line, font=View.COURIERNEW30)
-                    View.draw.text(((240 - tw) / 2, yheight), line, fill="ORANGE", font=View.COURIERNEW30)
-                    yheight += 30
-                tw, th = View.draw.textsize("Right to Exit", font=View.IMPACT18)
-                View.draw.text(((240 - tw) / 2, 215), "Right to Exit", fill="ORANGE", font=View.IMPACT18)
-                if self.blink == True:
-                    View.draw.text((230, 5), "+", fill="ORANGE", font=View.IMPACT16)
-                    self.blink = False
-                else:
-                    self.blink = True
+                tw, th = View.draw.textsize("Collecting QR Codes:", font=View.IMPACT25)
+                View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill="ORANGE", font=View.IMPACT25)
+                tw, th = View.draw.textsize(str(round(self.percentage_complete * 100)) + "% Complete", font=View.IMPACT22)
+                View.draw.text(((240 - tw) / 2, 125), str(round(self.percentage_complete * 100)) + "% Complete", fill="ORANGE", font=View.IMPACT22)
                 View.DispShowImage()
 
         elif self.scan_started_ind == 0:

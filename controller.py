@@ -21,7 +21,7 @@ from generic_ur2_wallet import GenericUR2Wallet
 
 class Controller:
     
-    VERSION = "0.4.0b3"
+    VERSION = "0.4.1a1"
 
     def __init__(self) -> None:
         controller = self
