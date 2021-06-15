@@ -172,7 +172,7 @@ class GenericUR2Wallet(Wallet):
         
         while not ur2_encode.is_complete():
 
-            part = ur2_encode.next_part()
+            part = ur2_encode.next_part().upper()
             images.append(qr.qrimage(part))
             print(part)
             cnt += 1
