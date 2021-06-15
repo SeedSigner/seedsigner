@@ -1,11 +1,36 @@
-Hello World!
-
-Build your own offline, airgapped Bitcoin transaction signing device for less than $50! Also generate seed word 12/24 or generate a seed phrase from dice rolls!
+# Build an offline, airgapped Bitcoin signing device for less than $50!
 
 ![Image of SeedSigner in an Orange Pill enclosure](https://github.com/SeedSigner/seedsigner/blob/main/Orange_Pill.JPG)
 
-LATEST UPDATE
------- ------
+---------------
+
+## Contributors Welcome!
+
+* Now that the overall code structure has been largely established, we welcome potential feature additions/improvements
+* We are also actively seeking contributors to create walkthroughs/tutorials on building and using SeedSigner
+* We are seeking a smaller group of more technical users to test new features and upcoming releases
+
+Please contact @SeedSigner on Twitter/Telegram to inquire with any questions about contributing!
+
+---------------
+
+## Shopping List
+
+To build a SeedSigner, you will need:
+
+* Raspberry Pi Zero (version 1.3 with no wireless capability)
+* Waveshare 1.3" 240x240 pxl LCD (more info at https://www.waveshare.com/wiki/1.3inch_LCD_HAT)
+* Pi Zero-conpatible camera (tested to work with the Aokin / AuviPal 5MP 1080p with OV5647 Sensor)
+
+Notes:
+* Other cameras with the above sensor module should work, but may not fit in the Orange Pill enclosure
+* Choose the Waveshare screen carefully; make sure to purchase the model that has a resolution of 240x240 pixels
+
+The easiest way to install the software is to download the "seedsigner_X_X_X.zip" file in the current release, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go.
+
+---------------
+
+## Now make your own "Orange Pill" enclosure too!
 
 The Orange Pill enclosure design has been open-sourced! Check out the "Orange_Pill" folder in this repo. You'll need the following additional hardware to assemble it:
 
@@ -18,46 +43,40 @@ The upper and lower portions of the enclosure can be printed with a conventional
 https://youtu.be/aIIc2DiZYcI
 
 ---------------
-NOTE TO POTENTIAL CONTRIBUTORS: The current code base is being reorganized to allow for multithreading and other efficiency improvements; we are hoping to merge the new code structure in early May. After the transition to the new structure, issues and pull requests from any and all interested contributors should follow a much more conventional process. If you are currently auditing the code or doing any work to improve the structure, you may consider pausing your efforts until the reorganized code has been merged. Thank you!!!
 
----------------
+### Feature Highlights:
+* Calculate word 12/24 of a BIP39 seed phrase
+* Create 24-word BIP39 seed phrase with 99 dice rolls
+* Temporarily store up to 3 seed phrases while device is powered
+* Native Segwit Multisig XPUB generation w/ QR display
+* Scan and parse transaction data from animated QR codes
+* Sign transactions & transfer XPUB data using animated QR codes
+* Support for Bitcoin Mainnet & Testnet
+* Responsive, event-driven user interface
+* Only valid input letters appear during seed word entry (time-saver!)
 
-The code is designed to ultimately be run on a Raspberry Pi Zero (version 1.3 with no wireless capability) with a Waveshare 1.3" 240x240 pxl LCD (more info at https://www.waveshare.com/wiki/1.3inch_LCD_HAT) and a Pi Zero-conpatible camera (tested to work with the Aokin / AuviPal 5MP 1080p with OV5647 Sensor Video Camera Module; other brands with that sensor module may work as well, but may not fit in the Orange Pill enclosure). Choose the Waveshare screen carefully (there are several similar models); make sure to purchase the model that has a resolution of 240x240 pixels.
-
-The easiest way to get the signer up and running is to downloaded the "seedsigner_0_1_0.zip" file in the current release, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go.
-
-Newest Added Features:
-* Native Segwit Multisig Xpub generation w/ QR display
-* Scan and Parse transaction data from animated QR codes
-* Sign transactions & transfer xpub data using animated QR codes
-* New extensible menu system
-* Improved letter entry responsiveness
-* Various UX improvements
-* Various code optimizations
-* Project donation information
-* ORANGE text! (looks great with orange pill enclosure!)
-
-KNOWN ISSUE:
-* The seed word "yellow" was inadvertently replaced with the word "ORANGE" in the hard-coded BIP 0039 seed word list. It will not be possible to enter the word "yellow" if your seed contains that word. This issue will be corrected in the next release.
-
-Considerations:
-* Built for compatibility with Specter v1.1.0 and up
-* Be patient, it takes a couple of minutes for the menu to come up after applying power to the Pi Zero (when you see the "static" you're almost there!)
-* Use Specter's "other" device type when adding
-* For now, ALWAYS opt to use animated QR codes in Specter-desktop
-* On Mainnet, initially test with SMALL AMOUNTS of bitcoin (try Testnet first)
+### Considerations:
+* Built for compatibility with Specter v1.1.0 and up (support for other wallet coordinators coming)
+* Current release takes ~50 seconds to boot before menu appears (be patient!)
+* Use Specter's "other" device type when adding as a new signing device
+* ALWAYS opt to use animated QR codes in Specter-desktop
+* Always test your setup before transfering larger amounts of bitcoin (try testnet first!)
 * Currently ONLY generating Native Segwit Multisig Xpubs
 * Scanning animated QRs into a PC is tricky, be aware of ambient light, glare and focus
-* (Holding the screen upside-down significantly reduces glare for some reason)
-* Display text is small; comes with 240x240 territory but ever trying to optimize
+* (Holding the screen upside-down or at a slight angle can significantly reduce glare)
+* Display text is small; comes with 240x240 pixel territory but ever trying to optimize
 * Check out our "seedsigner" telegram community for community help / feedback: (https://t.me/joinchat/GHNuc_nhNQjLPWsS)
 * If you think SeedSigner adds value to the Bitcoin ecosystem, please help me spread the word! (tweets, pics, videos, etc.)
 
-Coming Improvements/Functionality:
-* Add support for single QR codes
-* Support for single signature Xpub key generation
-* Select from different display colors
+### Planned Upcoming Improvements / Functionality:
+* Support for Sparrow & Bluewallet multisig coordinators!
+* Support for single-signature XPUB generation / signing
+* Manually step through QR sequences using button/joystick controls
 * Other optimizations based on user feedback!
+
+---------------
+
+## MANUAL BUILD INSTRUCTIONS:
 
 The software can also be manually installed using an internet-connected Raspberry Pi 2/3/4 or Zero W are as follows:
 
@@ -108,7 +127,8 @@ Download SeedSigner
 
 Modify the systemd to run SeedSigner at boot:
 * `sudo nano /etc/systemd/system/seedsigner.service`
-create file with contents
+
+Add the following contents to the file:
 ```
 [Unit]
 Description=Seedsigner
@@ -121,10 +141,11 @@ Restart=always
 [Install]
 WantedBy=multi-user.target
 ```
-Run `sudo systemctl enable seedsigner.service` to enable service on boot. This will restart the seedsigner code automatically at startup and if it crashes.
 
 Use Control + O, then [enter], to write the file.
 Then use Control + X, to exit the program.
+
+Run `sudo systemctl enable seedsigner.service` to enable service on boot. (This will restart the seedsigner code automatically at startup and if it crashes.)
 
 (Optional) Modify the system swap configuration to disable virtual memory:
 * `sudo nano /etc/dphys-swapfile`
