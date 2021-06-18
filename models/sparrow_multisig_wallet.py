@@ -38,8 +38,8 @@ class SparrowMultiSigWallet(Wallet):
         self.qrsize = 70
         self.blink = False
 
-    def set_seed_phrase(self, seed_phrase):
-        Wallet.set_seed_phrase(self, seed_phrase)
+    def set_seed_phrase(self, seed_phrase, passphrase):
+        Wallet.set_seed_phrase(self, seed_phrase, passphrase)
         self.ur_decoder = URDecoder()
 
     def get_name(self) -> str:

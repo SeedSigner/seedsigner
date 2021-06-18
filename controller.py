@@ -242,6 +242,7 @@ class Controller:
 
     def show_generate_xpub(self):
         seed_phrase = []
+        passphrase = ""
 
         # If there is a saved seed, ask to use saved seed
         if self.storage.num_of_saved_seeds() > 0:
@@ -281,7 +282,7 @@ class Controller:
                 break
 
         self.signing_tools_view.draw_modal(["Generating QR ..."])
-        self.wallet.set_seed_phrase(seed_phrase)
+        self.wallet.set_seed_phrase(seed_phrase, passphrase)
         self.signing_tools_view.display_xpub_qr(self.wallet)
         return Path.MAIN_MENU
 
@@ -289,6 +290,7 @@ class Controller:
 
     def show_sign_transaction(self):
         seed_phrase = []
+        passphrase = ""
 
         # If there is a saved seed, ask to use saved seed
         if self.storage.num_of_saved_seeds() > 0:
@@ -331,7 +333,7 @@ class Controller:
 
         # Scan PSBT Animated QR using Camera
         self.menu_view.draw_modal(["Loading..."])
-        self.wallet.set_seed_phrase(seed_phrase)
+        self.wallet.set_seed_phrase(seed_phrase, passphrase)
         raw_pbst = self.wallet.scan_animated_qr_pbst(self)
 
         if raw_pbst == "nodata":

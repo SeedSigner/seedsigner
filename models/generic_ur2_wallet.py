@@ -37,8 +37,8 @@ class GenericUR2Wallet(Wallet):
 
         self.qrsize = 80
 
-    def set_seed_phrase(self, seed_phrase):
-        Wallet.set_seed_phrase(self, seed_phrase)
+    def set_seed_phrase(self, seed_phrase, passphrase):
+        Wallet.set_seed_phrase(self, seed_phrase, passphrase)
         self.ur_decoder = URDecoder()
 
     def get_name(self) -> str:
