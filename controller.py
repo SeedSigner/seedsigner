@@ -240,7 +240,7 @@ class Controller:
 
         # If there is a saved seed, ask to use saved seed
         if self.storage.num_of_saved_seeds() > 0:
-            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Save Seed?")
+            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Saved Seed?")
             if r == 1: #Yes
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
                 if slot_num not in (1,2,3):
