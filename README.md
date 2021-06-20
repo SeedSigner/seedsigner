@@ -1,6 +1,6 @@
 # Build an offline, airgapped Bitcoin signing device for less than $50!
 
-![Image of SeedSigner in an Orange Pill enclosure](https://github.com/SeedSigner/seedsigner/blob/main/Orange_Pill.JPG)
+![Image of SeedSigner in an Orange Pill enclosure](docs/img/Orange_Pill.JPG)
 
 ---------------
 
@@ -77,56 +77,63 @@ https://youtu.be/aIIc2DiZYcI
 ---------------
 
 ## MANUAL BUILD INSTRUCTIONS:
+Begin by preparing a copy of the Raspberry Pi Lite operating system (https://www.raspberrypi.org/software/operating-systems/) on a MicroSD card. Their [Raspberry Pi Imager](https://www.raspberrypi.org/software/) tool makes this easy.
 
-The software can also be manually installed using an internet-connected Raspberry Pi 2/3/4 or Zero W are as follows:
+SeedSigner installation and configuration requires an internet connection on the device to download the necessary libraries and code. But because the Pi Zero 1.3 does not have onboard wifi, you have two options:
 
-Install the Raspberry Pi Lite operating system (https://www.raspberrypi.org/software/operating-systems/) on a MicroSD card and install the card in a Raspberry Pi 2/3/4 or Zero W.
+1. Run these steps on a separate Raspberry Pi 2/3/4 or Zero W which can connect to the internet and then transfer the SD card to the Pi Zero 1.3 when complete.
+2. OR configure the Pi Zero 1.3 directly by relaying through your computer's internet connection over USB. See instructions [here](docs/usb_relay.md).
 
-Connect a keyboard & monitor, or SSH into the Pi if you're familiar with that process.
+Connect a keyboard & monitor to the device or SSH into the Pi if you're familiar with that process.
 
-* `sudo raspi-config`
+### Configure the Pi
+On the Pi bring up its system config:
+```
+sudo raspi-config
+```
 
-(set your localization options, configure WiFi if necessary, but most important: navigate to the "interface options" and enable the "SPI" interface; also make sure to enable the camera interface in raspi-config)
+Set the following:
+* `Interface Options`:
+    * `Camera`: enable
+    * `SPI`: enable
+* `Localisation Options`:
+    * `Locale`: arrow up and down through the list and select or deselect languages with the spacebar.
+        * `en_US.UTF-8 UTF-8` for US English
+    * `Timezone`: Select region first, then timezone (e.g. America; Central).
+* WiFi settings (only necessary for the option #1 setup above)
 
-Reboot when prompted within the raspi-config interface
+Reboot when prompted within the raspi-config interface.
 
 Install these dependencies:
-* `sudo apt-get update`
-* `sudo apt-get install wiringpi`
-* `sudo apt-get install python3-pip`
-* `sudo apt-get install python3-numpy`
-* `sudo apt-get install python-pil`
-* `sudo apt-get install libopenjp2-7`
-* `sudo apt-get install ttf-mscorefonts-installer`
-* `sudo apt-get install git`
-* `sudo apt-get install python3-opencv`
-* `sudo apt-get install libzbar0`
-* `sudo apt-get install python3-picamera`
+```
+sudo apt-get update && sudo apt-get install -y wiringpi python3-pip python3-numpy python-pil libopenjp2-7 ttf-mscorefonts-installer git python3-opencv libzbar0 python3-picamera
+```
 
-Install this:
-* `wget http://www.airspayce.com/mikem/bcm2835/bcm2835-1.60.tar.gz`
-* `tar zxvf bcm2835-1.60.tar.gz`
-* `cd bcm2835-1.60/`
-* `sudo ./configure`
-* `sudo make && sudo make check && sudo make install`
-* `cd ..`
+Install the [C library for Broadcom BCM 2835](http://www.airspayce.com/mikem/bcm2835/):
+```
+wget http://www.airspayce.com/mikem/bcm2835/bcm2835-1.60.tar.gz
+tar zxvf bcm2835-1.60.tar.gz
+cd bcm2835-1.60/
+sudo ./configure
+sudo make && sudo make check && sudo make install
+cd ..
+rm bcm2835-1.60.tar.gz
+```
 
-Install these python dependencies:
-* `sudo pip3 install --verbose spidev`
-* `sudo pip3 install --verbose RPi.GPIO`
-* `sudo pip3 install --verbose pillow`
-* `sudo pip3 install --verbose embit`
-* `sudo pip3 install --verbose qrcode`
-* `sudo pip3 install --verbose imutils`
-* `sudo pip3 install --verbose pyzbar`
-* `sudo pip3 install --verbose argparse`
-* `sudo pip3 install --verbose imutils`
+Install python dependencies:
+```
+sudo pip3 install -r requirements.txt
+```
 
 Download SeedSigner
-* `sudo git clone https://github.com/SeedSigner/seedsigner`
+```
+sudo git clone https://github.com/SeedSigner/seedsigner
+```
 
 Modify the systemd to run SeedSigner at boot:
-* `sudo nano /etc/systemd/system/seedsigner.service`
+```
+sudo nano /etc/systemd/system/seedsigner.service
+```
 
 Add the following contents to the file:
 ```
@@ -154,9 +161,11 @@ add `CONF_SWAPSIZE=100` to `CONF_SWAPSIZE=0`
 Use Control + O, then [enter], to write the file.
 Then use Control + X, to exit the program.
 
-To shut down the pi:
-* `sudo shutdown --poweroff now`
+If you completed these steps on a separate Pi (option #1), shut down the pi with `sudo shutdown --poweroff now` and then transfer the SD card to the Pi Zero 1.3 (_note: the LCD Hat will also run fine on a Raspberry Pi 2/3/4 or Zero W; just remember to disable networking if you want to run the software in isolation)_.
 
-Now either move the MicroSD card to a Pi Zero 1.3 with the 1.3-inch LCD Hat and camera installed, or the LCD Hat will also run fine on a Raspberry Pi 2/3/4 or Zero W; just remember to disable networking if you want to run the software in isolation.
+OR if you're working directly on the Pi Zero 1.3 (option #2), just reboot it:
+```
+sudo reboot
+```
 
-It will take a couple of minutes after the Pi is powered on for the GUI to launch -- be patient!
+It will take about a minute after the Pi is powered on for the GUI to launch -- be patient!
