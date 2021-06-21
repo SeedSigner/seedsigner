@@ -64,7 +64,7 @@ class MenuView(View):
     ### Seed Tools Menu
 
     def display_seed_tools_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Generate Word 12 / 24", "Create a Seed w/ Dice", "Store a Seed (temp)"]
+        lines = ["... [ Return to Main ]", "Generate Word 12 / 24", "Create a Seed w/ Dice", "Store a Seed (temp)", "Add Passphrase"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -84,6 +84,8 @@ class MenuView(View):
                     return Path.DICE_GEN_SEED
                 elif self.selected_menu_num == 4:
                     return Path.SAVE_SEED
+                elif self.selected_menu_num == 5:
+                    return Path.PASSPHRASE_SEED
 
     ### Signing Tools Menu
 

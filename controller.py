@@ -21,7 +21,7 @@ from generic_ur2_wallet import GenericUR2Wallet
 
 class Controller:
     
-    VERSION = "0.4.1a1"
+    VERSION = "0.4.1a2"
 
     def __init__(self) -> None:
         controller = self
@@ -90,6 +90,8 @@ class Controller:
                 ret_val = self.show_create_seed_with_dice_tool()
             elif ret_val == Path.SAVE_SEED:
                 ret_val = self.show_store_a_seed_tool()
+            elif ret_val == Path.PASSPHRASE_SEED:
+                ret_val = self.show_add_a_passphrase_tool()
             elif ret_val == Path.GEN_XPUB:
                 ret_val = self.show_generate_xpub()
             elif ret_val == Path.SIGN_TRANSACTION:
@@ -233,6 +235,28 @@ class Controller:
 
         return Path.MAIN_MENU
 
+    ### Add a PassPhrase Menu
+
+    def show_add_a_passphrase_tool(self):
+        ret_val = 0
+        ret_val = self.menu_view.display_saved_seed_menu(self.storage, 3, "... [ Return to Seed Tools ]")
+        if ret_val == 0:
+            return Path.SEED_TOOLS_SUB_MENU
+
+        slot_num = ret_val
+
+        # display a tool to pick letters/numbers to make a passphrase
+        passphrase = self.seed_tools_view.display_gather_passphrase_screen()
+        print("passphrase: " + passphrase)
+        
+        if len(passphrase) == 0:
+            return Path.SEED_TOOLS_SUB_MENU
+
+        self.storage.save_passphrase(passphrase, slot_num)
+        self.menu_view.draw_modal(["Passphrase Added", passphrase, "Added to Slot #" + str(slot_num)], "", "Right to Continue")
+        self.buttons.wait_for([B.KEY_RIGHT])
+
+        return Path.MAIN_MENU
 
     ###
     ### Signing Tools Navigation/Launcher
@@ -252,6 +276,7 @@ class Controller:
                 if slot_num not in (1,2,3):
                     return Path.SIGNING_TOOLS_SUB_MENU
                 seed_phrase = self.storage.get_seed_phrase(slot_num)
+                passphrase = self.storage.get_passphrase(slot_num)
 
         if len(seed_phrase) == 0:
             # gather seed phrase
@@ -300,6 +325,7 @@ class Controller:
                 if slot_num == 0:
                     return Path.SIGNING_TOOLS_SUB_MENU
                 seed_phrase = self.storage.get_seed_phrase(slot_num)
+                passphrase = self.storage.get_passphrase(slot_num)
 
         if len(seed_phrase) == 0:
             # gather seed phrase

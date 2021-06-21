@@ -30,11 +30,16 @@ class SeedToolsView(View):
         self.roll_data = ""
         self.dice_seed_phrase = []
 
+        # Gather passphrase display information
+        self.passphrase = ""
+        self.passphrase_alpha = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*:;?~"
+        self.pass_letter = ""
+
     ###
     ### Display Gather Words Screen
     ###
 
-    def display_gather_words_screen(self, num_of_words, slot_num = 0) -> []:
+    def display_gather_words_screen(self, num_of_words) -> []:
         self.seed_length = num_of_words
 
         self.reset()
@@ -180,6 +185,97 @@ class SeedToolsView(View):
         View.DispShowImage()
 
         return
+
+    ###
+    ### Display Gather PassPhrase Screen
+    ###
+
+    def display_gather_passphrase_screen(self, slot_num = 0) -> str:
+        self.reset()
+        self.pass_letter = "a"
+        self.draw_gather_passphrase()
+
+        # Wait for Button Input (specifically menu selection/press)
+        while True:
+            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS, B.KEY_RIGHT, B.KEY_LEFT, B.KEY3], True, [B.KEY_PRESS, B.KEY_RIGHT, B.KEY_LEFT, B.KEY3])
+            if input == B.KEY_UP:
+                ret_val = self.gather_passphrase_up()
+            elif input == B.KEY_DOWN:
+                ret_val = self.gather_passphrase_down()
+            elif input == B.KEY_PRESS or input == B.KEY_RIGHT:
+                ret_val = self.gather_passphrase_press()
+            elif input == B.KEY_LEFT:
+                ret_val = self.gather_passphrase_left()
+            elif input == B.KEY3:
+                return self.passphrase
+
+            if ret_val == False:
+                return ""
+
+            self.draw_gather_passphrase()
+
+    def draw_gather_passphrase(self):
+
+        View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
+        tw, th = View.draw.textsize("25th Word or PassPhrase", font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 2), "25th Word or PassPhrase", fill="ORANGE", font=View.IMPACT18)
+        tw, th = View.draw.textsize("(press to add to PassPhrase)", font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 217), "(press to add to PassPhrase)", fill="ORANGE", font=View.IMPACT18)
+
+        View.draw.text((5,33), "Phrase:", fill="ORANGE", font=View.IMPACT20)
+        View.draw.text((75,35), self.passphrase + "▒", fill="ORANGE", font=View.COURIERNEW20)
+
+        c_x_offset = 240 - View.IMPACT25.getsize("Save")[0]
+        View.draw.text((c_x_offset , 170), "Save", fill="ORANGE", font=View.IMPACT22)
+
+        # draw letter and arrows
+        tw, th = View.draw.textsize(self.pass_letter, font=View.IMPACT35)
+        View.draw.text((((30-tw)/2), 112), self.pass_letter, fill="ORANGE", font=View.IMPACT35)
+        View.draw.polygon([(8, 105) , (14, 89) , (20, 105 )], outline="ORANGE", fill="BLACK")
+        View.draw.polygon([(8, 168), (14, 184), (20, 168)], outline="ORANGE", fill="BLACK")
+
+        View.DispShowImage()
+
+        return
+
+    def gather_passphrase_up(self):
+        View.draw.polygon([(8, 105) , (14, 89) , (20, 105 )], outline="ORANGE", fill="ORANGE")
+        View.DispShowImage()
+
+        self.calc_possible_alphabet()
+        if self.pass_letter == self.passphrase_alpha[0]:
+            self.pass_letter = self.passphrase_alpha[-1]
+        else:
+            try:
+                idx = self.passphrase_alpha.index(self.pass_letter)
+                self.pass_letter = self.passphrase_alpha[idx-1]
+            except (ValueError, IndexError):
+                print("not found error")
+
+    def gather_passphrase_down(self):
+        View.draw.polygon([(8, 168) , (14, 184) , (20, 168 )], outline="ORANGE", fill="ORANGE")
+        View.DispShowImage()
+
+        self.calc_possible_alphabet()
+        if self.pass_letter == self.passphrase_alpha[-1]:
+            self.pass_letter = self.passphrase_alpha[0]
+        else:
+            try:
+                idx = self.passphrase_alpha.index(self.pass_letter)
+                self.pass_letter = self.passphrase_alpha[idx+1]
+            except (ValueError, IndexError):
+                print("not found error")
+
+    def gather_passphrase_press(self):
+        self.passphrase += self.pass_letter
+        self.pass_letter = "a"
+
+    def gather_passphrase_left(self) -> bool:
+        if len(self.passphrase) == 0:
+            return False
+        else:
+            self.passphrase = self.passphrase[:-1]
+            return True
 
     ###
     ### Display Last Word
@@ -558,6 +654,7 @@ class SeedToolsView(View):
         self.letters.clear()
         self.letters.append(self.possible_alphabet[0])
         self.possible_words.clear()
+        self.passphrase = ""
 
         return
 
