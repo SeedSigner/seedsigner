@@ -175,7 +175,7 @@ class Controller:
 
         # display seed phrase (24 words)
         while True:
-            ret_val = self.seed_tools_view.display_seed_phrase(seed_phrase, "Right to Continue")
+            ret_val = self.seed_tools_view.display_seed_phrase(seed_phrase, "", "Right to Continue")
             if ret_val == True:
                 break
 
@@ -206,7 +206,7 @@ class Controller:
             # show seed phrase
             # display seed phrase (24 words)
             while True:
-                r = self.seed_tools_view.display_seed_phrase(self.storage.get_seed_phrase(abs(slot_num)), "Right to Continue")
+                r = self.seed_tools_view.display_seed_phrase(self.storage.get_seed_phrase(abs(slot_num)), self.storage.get_passphrase(abs(slot_num)), "Right to Continue")
                 if r == True:
                     break
             return Path.MAIN_MENU
@@ -238,8 +238,13 @@ class Controller:
     ### Add a PassPhrase Menu
 
     def show_add_a_passphrase_tool(self):
+        if self.storage.num_of_saved_seeds() == 0:
+            self.menu_view.draw_modal(["Store a seed phrase", "prior to adding", "a passphrase"], "Error", "Right to Continue")
+            self.buttons.wait_for([B.KEY_RIGHT])
+            return Path.SEED_TOOLS_SUB_MENU
+
         ret_val = 0
-        ret_val = self.menu_view.display_saved_seed_menu(self.storage, 3, "... [ Return to Seed Tools ]")
+        ret_val = self.menu_view.display_saved_seed_menu(self.storage, 3, None)
         if ret_val == 0:
             return Path.SEED_TOOLS_SUB_MENU
 
@@ -247,12 +252,12 @@ class Controller:
 
         # display a tool to pick letters/numbers to make a passphrase
         passphrase = self.seed_tools_view.display_gather_passphrase_screen()
-        print("passphrase: " + passphrase)
         
         if len(passphrase) == 0:
             return Path.SEED_TOOLS_SUB_MENU
 
         self.storage.save_passphrase(passphrase, slot_num)
+        print("passphrase: " + self.storage.get_passphrase(slot_num))
         self.menu_view.draw_modal(["Passphrase Added", passphrase, "Added to Slot #" + str(slot_num)], "", "Right to Continue")
         self.buttons.wait_for([B.KEY_RIGHT])
 
@@ -302,7 +307,7 @@ class Controller:
 
         # display seed phrase
         while True:
-            r = self.seed_tools_view.display_seed_phrase(seed_phrase, "Right to See QR")
+            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to See QR")
             if r == True:
                 break
 
@@ -351,7 +356,7 @@ class Controller:
 
         # display seed phrase
         while True:
-            r = self.seed_tools_view.display_seed_phrase(seed_phrase, "Right to Scan QR")
+            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Scan QR")
             if r == True:
                 break
             else:

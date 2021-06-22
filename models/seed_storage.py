@@ -27,7 +27,7 @@ class SeedStorage:
     def save_passphrase(self, passphrase, slot_num = 0) -> bool:
         slot_idx = slot_num - 1
         if slot_idx in (0,1,2):
-            self.passphrase = passphrase
+            self.passphrase[slot_idx] = passphrase
             return True
         else:
             return False
