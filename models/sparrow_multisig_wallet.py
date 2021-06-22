@@ -72,25 +72,14 @@ class SparrowMultiSigWallet(Wallet):
         # sign the transaction
         self.tx.sign_with(self.root)
 
-        for inp in self.tx.inputs:
-            if inp.witness_utxo is not None:
-                inp.non_witness_utxo = None
+        #added section to trim psbt
+        trimmed_psbt = psbt.PSBT(self.tx.tx)
+        sigsEnd = 0
+        for i, inp in enumerate(self.tx.inputs):
+            sigsEnd += len(list(inp.partial_sigs.keys()))
+            trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
 
-        #remove scripts from outputs (DIY should know about the wallet)
-        for out in self.tx.outputs:
-            out.witness_script = None
-            out.redeem_script = None
-
-        raw_trimmed_signed_psbt = self.tx.serialize()
-
-        # #added section to trim psbt
-        # trimmed_psbt = psbt.PSBT(self.tx.tx)
-        # sigsEnd = 0
-        # for i, inp in enumerate(self.tx.inputs):
-        #     sigsEnd += len(list(inp.partial_sigs.keys()))
-        #     trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
-
-        # raw_trimmed_signed_psbt = trimmed_psbt.serialize()
+        raw_trimmed_signed_psbt = trimmed_psbt.serialize()
 
         # convert to base64
         b64_psbt = b2a_base64(raw_trimmed_signed_psbt)
