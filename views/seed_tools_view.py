@@ -32,7 +32,10 @@ class SeedToolsView(View):
 
         # Gather passphrase display information
         self.passphrase = ""
-        self.passphrase_alpha = "abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*:;?~"
+        self.pass_lower = "abcdefghijklmnopqrstuvwxyz"
+        self.pass_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        self.pass_number = "0123456789"
+        self.pass_symbol = "!\"#$%&'()*+,=./;:<>?@[]|-_`~"
         self.pass_letter = ""
         self.pass_case_toggle = "lower"
 
@@ -194,6 +197,7 @@ class SeedToolsView(View):
     def display_gather_passphrase_screen(self, slot_num = 0) -> str:
         self.reset()
         self.pass_letter = "a"
+        self.pass_case_toggle = "lower"
         self.draw_gather_passphrase()
 
         # Wait for Button Input (specifically menu selection/press)
@@ -219,26 +223,43 @@ class SeedToolsView(View):
 
     def draw_gather_passphrase(self):
 
+        # Screen Title
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         tw, th = View.draw.textsize("Add Passphrase", font=View.IMPACT18)
         View.draw.text(((240 - tw) / 2, 2), "Add Passphrase", fill="ORANGE", font=View.IMPACT18)
+
+        # Screen Botton
         tw, th = View.draw.textsize("(press to add to passphrase)", font=View.IMPACT18)
         View.draw.text(((240 - tw) / 2, 217), "(press to add to passphrase)", fill="ORANGE", font=View.IMPACT18)
 
+        # Display passphrase selection in progress
         View.draw.text((5,33), "Phrase:", fill="ORANGE", font=View.IMPACT20)
-        View.draw.text((75,35), self.passphrase + "▒", fill="ORANGE", font=View.COURIERNEW20)
+        View.draw.text((72,35), self.passphrase[:14] + "▒", fill="ORANGE", font=View.COURIERNEW20)
 
+        if len(self.passphrase) >= 14:
+            View.draw.text((72,50), self.passphrase[14:] + "▒", fill="ORANGE", font=View.COURIERNEW20)
+
+        # Display message when max passphrase length reached
+        if len(self.passphrase) >= 28:
+            View.draw.text((65,70), "Max passphrase of 28", fill="ORANGE", font=View.IMPACT18)
+            View.draw.text((68,90), "characters reached", fill="ORANGE", font=View.IMPACT18)
+
+        # Save Button
         c_x_offset = 240 - View.IMPACT25.getsize("Save")[0]
         View.draw.text((c_x_offset , 170), "Save", fill="ORANGE", font=View.IMPACT22)
 
-        x = 240 - View.IMPACT20.getsize(self.pass_case_toggle + "case")[0]
-        View.draw.text((x, 105), self.pass_case_toggle + "case", fill="ORANGE", font=View.IMPACT20)
+        # Toglle Button
+        x = 240 - View.IMPACT20.getsize(self.pass_case_toggle)[0]
+        View.draw.text((x, 105), self.pass_case_toggle, fill="ORANGE", font=View.IMPACT20)
 
         # draw letter and arrows
         if self.pass_case_toggle == "lower":
             pass_letter_disp = self.pass_letter.lower()
-        else:
+        elif self.pass_case_toggle == "upper":
             pass_letter_disp = self.pass_letter.upper()
+        else:
+            pass_letter_disp = self.pass_letter
+
         tw, th = View.draw.textsize(pass_letter_disp, font=View.IMPACT35)
         View.draw.text((((30-tw)/2), 112), pass_letter_disp, fill="ORANGE", font=View.IMPACT35)
         View.draw.polygon([(8, 105) , (14, 89) , (20, 105 )], outline="ORANGE", fill="BLACK")
@@ -252,35 +273,29 @@ class SeedToolsView(View):
         # View.draw.polygon([(8, 105) , (14, 89) , (20, 105 )], outline="ORANGE", fill="ORANGE")
         # View.DispShowImage()
 
-        self.calc_possible_alphabet()
-        if self.pass_letter == self.passphrase_alpha[0]:
-            self.pass_letter = self.passphrase_alpha[-1]
+        pass_choice = self.get_pass_value_options()
+
+        if self.pass_letter == pass_choice[0]:
+            self.pass_letter = pass_choice[-1]
         else:
-            try:
-                idx = self.passphrase_alpha.index(self.pass_letter)
-                self.pass_letter = self.passphrase_alpha[idx-1]
-            except (ValueError, IndexError):
-                print("not found error")
+            idx = pass_choice.index(self.pass_letter)
+            self.pass_letter = pass_choice[idx-1]
 
     def gather_passphrase_down(self):
         # View.draw.polygon([(8, 168) , (14, 184) , (20, 168 )], outline="ORANGE", fill="ORANGE")
         # View.DispShowImage()
 
-        self.calc_possible_alphabet()
-        if self.pass_letter == self.passphrase_alpha[-1]:
-            self.pass_letter = self.passphrase_alpha[0]
+        pass_choice = self.get_pass_value_options()
+
+        if self.pass_letter == pass_choice[-1]:
+            self.pass_letter = pass_choice[0]
         else:
-            try:
-                idx = self.passphrase_alpha.index(self.pass_letter)
-                self.pass_letter = self.passphrase_alpha[idx+1]
-            except (ValueError, IndexError):
-                print("not found error")
+            idx = pass_choice.index(self.pass_letter)
+            self.pass_letter = pass_choice[idx+1]
 
     def gather_passphrase_press(self):
-        if self.pass_case_toggle == "lower":
-            self.passphrase += self.pass_letter.lower()
-        else:
-            self.passphrase += self.pass_letter.upper()
+        if len(self.passphrase) < 28:
+            self.passphrase += self.pass_letter
 
         return True
 
@@ -292,12 +307,29 @@ class SeedToolsView(View):
             return True
 
     def gather_passphrase_toggle(self) -> bool:
-        if self.pass_case_toggle == "lower":
-            self.pass_case_toggle = "upper"
+        options = ["lower", "upper", "number", "symbol"]
+        idx = options.index(self.pass_case_toggle)
+        l = len(options)
+        if idx+1 == l:
+            idx = 0
         else:
-            self.pass_case_toggle = "lower"
+            idx += 1
 
+        self.pass_case_toggle = options[idx]
+        self.pass_letter = self.get_pass_value_options()[0]
         return True
+
+    def get_pass_value_options(self):
+        if self.pass_case_toggle == "lower":
+            return self.pass_lower
+        elif self.pass_case_toggle == "upper":
+            return self.pass_upper
+        elif self.pass_case_toggle == "number":
+            return self.pass_number
+        elif self.pass_case_toggle == "symbol":
+            return self.pass_symbol
+        else:
+            return ""
 
     ###
     ### Display Last Word
@@ -600,7 +632,10 @@ class SeedToolsView(View):
             self.draw.text((120, 155), "12: " + seed_phrase[11], fill="ORANGE", font=View.IMPACT22)
 
         if len(passphrase) > 0:
-            disp_passphrase = "Passphrase: " + passphrase
+            if len(passphrase) > 14:
+                disp_passphrase = "Passphrase: " + passphrase[:14] + "..."
+            else:
+                disp_passphrase = "Passphrase: " + passphrase
             tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
             self.draw.text(((240 - tw) / 2, 185), disp_passphrase, fill="ORANGE", font=View.IMPACT18)
 
@@ -664,7 +699,10 @@ class SeedToolsView(View):
             self.draw.text((120, 155), "24: " + seed_phrase[23], fill="ORANGE", font=View.IMPACT22)
 
         if len(passphrase) > 0:
-            disp_passphrase = "Passphrase: " + passphrase
+            if len(passphrase) > 14:
+                disp_passphrase = "Passphrase: " + passphrase[:14] + "..."
+            else:
+                disp_passphrase = "Passphrase: " + passphrase
             tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
             self.draw.text(((240 - tw) / 2, 185), disp_passphrase, fill="ORANGE", font=View.IMPACT18)
 

@@ -257,7 +257,6 @@ class Controller:
             return Path.SEED_TOOLS_SUB_MENU
 
         self.storage.save_passphrase(passphrase, slot_num)
-        print("passphrase: " + self.storage.get_passphrase(slot_num))
         self.menu_view.draw_modal(["Passphrase Added", passphrase, "Added to Slot #" + str(slot_num)], "", "Right to Continue")
         self.buttons.wait_for([B.KEY_RIGHT])
 
