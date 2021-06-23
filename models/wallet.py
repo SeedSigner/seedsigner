@@ -1,10 +1,11 @@
+# Internal Dependencies
 from buttons import Buttons, B
 from camera_process import CameraProcess
-from seed_storage import SeedStorage
 from camera_process import CameraPoll
 from view import View
 
 # External Dependencies
+import time
 from embit.bip39 import mnemonic_to_bytes
 from embit.bip39 import mnemonic_from_bytes
 from embit import bip39
@@ -13,41 +14,36 @@ from embit import bip32
 from embit import psbt
 from embit.networks import NETWORKS
 from embit import ec
-import time
-import threading
-from threading import Timer
-import re
 from io import BytesIO
 from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
 import textwrap
 
-class PSBTSigner():
+class Wallet:
 
-    def __init__(self, seed_phrase, controller) -> None:
+    LOW = 0
+    HIGH = 1
 
-        # check if seed is valid
-        try:
-            seed = bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip())
-        except ValueError:
-            return
+    def __init__(self, current_network, hardened_derivation) -> None:
+        self.current_network = current_network
+        self.hardened_derivation = hardened_derivation
+        self.qrsize = 60
 
-        self.controller = controller
-        self.seed_storage = controller.storage
-        self.buttons = controller.buttons
-
-        self.seed = seed
-        self.root = bip32.HDKey.from_seed(self.seed, version=NETWORKS[self.seed_storage.get_network()]["xprv"])
-        self.fingerprint = self.root.child(0).fingerprint
-        self.bip48_xprv = self.root.derive(self.seed_storage.get_hardened_derivation())
-        self.bip48_xpub = self.bip48_xprv.to_public()
+    def set_seed_phrase(self, seed_phrase):
+        # requires a valid seed phrase or error will be thrown
         self.seed_phrase = seed_phrase
+        self.seed = bip39.mnemonic_to_seed((" ".join(self.seed_phrase)).strip())
+        self.root = bip32.HDKey.from_seed(self.seed, version=NETWORKS[self.current_network]["xprv"])
+        self.fingerprint = self.root.child(0).fingerprint
+        self.bip48_xprv = self.root.derive(self.hardened_derivation)
+        self.bip48_xpub = self.bip48_xprv.to_public()
 
         self.tx = None
         self.inp_amount = None
         self.fee = None
         self.spend = None
         self.destinationaddress = None
-        self.raw_psbt = None
+        self.controller = None
+        self.buttons = None
 
         self.camera_loop_timer = None
         self.camera_data = None
@@ -61,50 +57,48 @@ class PSBTSigner():
 
         self.scan_started_ind = 0
 
-        return
+    ###
+    ### Required Methods to implement for Child Wallet Class
+    ###
+    ### import_qr, parse_psbt, sign_transaction, total_frames_parse, current_frame_parse, data_parse, capture_complete
+    ### get_name, set_network, make_xpub_qr_codes, make_signing_qr_codes, set_qr_density
+
+    def import_qr(self) -> str:
+        return "empty"
 
     def parse_psbt(self, raw_psbt) -> bool:
-        # Parse pbst transaction
-        #try:
-        base64_psbt = a2b_base64(raw_psbt)
-        tx = psbt.PSBT.parse(base64_psbt)
-        #except:
-        #    return False
-
-        self.tx = tx
-        (self.inp_amount, policy) = PSBTSigner.input_amount(self.tx)
-        (self.change, self.fee, self.spend, self.destinationaddress) = PSBTSigner.change_fee_spend_amounts(self.tx, self.inp_amount, policy, self.seed_storage.get_network())
-        self.raw_psbt = raw_psbt
-
-        return True
+        # decodes and parses raw_psbt, also calculates the following instance values
+        self.inp_amount = None
+        self.change = None
+        self.fee = None
+        self.spend = None
+        self.destinationaddress = None
+        return False
 
     def sign_transaction(self) -> (bool, str):
+        # signs transaction/pbst last passed to parse_psbt method
+        return (False, '')
 
-        # try:
-        # sign the transaction
-        self.tx.sign_with(self.root)
+    def total_frames_parse(data) -> int:
+        # parse and returns total number of frames from qr data frame
+        return -1
 
-        #added section to trim psbt
-        trimmed_psbt = psbt.PSBT(self.tx.tx)
-        sigsEnd = 0
-        for i, inp in enumerate(self.tx.inputs):
-            sigsEnd += len(list(inp.partial_sigs.keys()))
-            trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
+    def current_frame_parse(data) -> int:
+        # parses and returns current frame number from qr data frame
+        return -1
 
-        raw_trimmed_signed_psbt = trimmed_psbt.serialize()
-        # except:
-        #     return (False, self.tx)
+    def data_parse(data) -> str:
+        # parse qr data to string to be cancatinated together into a pbst transaction
+        return "empty"
 
-        # convert to base64
-        b64_psbt = b2a_base64(raw_trimmed_signed_psbt)
-        # somehow b2a ends with \n...
-        if b64_psbt[-1:] == b"\n":
-            b64_psbt = b64_psbt[:-1]
+    def capture_complete() -> bool:
+        # returns true if the qr data list is complete
+        return False
 
-        return (True, b64_psbt.decode('utf-8'))
-
-    def scan_animated_psbt_qr(self) -> str:
-        self.controller.menu_view.draw_modal(["Initializing Camera"])
+    def scan_animated_qr_pbst(self, controller) -> str:
+        self.controller = controller
+        self.buttons = controller.buttons
+        self.controller.menu_view.draw_modal(["Initializing Camera"]) # TODO: Move to Controller
         # initialize camera
         self.controller.to_camera_queue.put(["start"])
         # First get blocking, this way it's clear when the camera is ready for the end user
@@ -131,32 +125,37 @@ class PSBTSigner():
 
         if data[0] != "nodata":
             if self.qr_total_frames == 0:
-                self.qr_total_frames = self.get_totals_frames(data[0])
+                # get total frames if not set
+                self.qr_total_frames = type(self).total_frames_parse(data[0])
                 if self.qr_total_frames == -1:
+                    # when invalid, trigger override to display error
                     self.qr_data = ["invalid"]
                     self.buttons.trigger_override() # something went wrong, invalid QR
                     return
+
+                # create qr_data list with number of total frames
                 self.qr_data = ["empty"] * self.qr_total_frames
+                # create frame display / progress with number of total frames
                 self.frame_display = ["-"] * self.qr_total_frames
-            current_frame = self.get_current_frame(data[0])
+
+            # get current frame
+            current_frame = type(self).current_frame_parse(data[0])
             if self.qr_data[current_frame - 1] == "empty":
-                self.qr_data[current_frame - 1] = self.parse_qr_data(data[0])
+                # if frame has never been captured, store data element in it
+                self.qr_data[current_frame - 1] = type(self).data_parse(data[0])
+                # increment number of frames captured
                 self.qr_cur_frame_count += 1
+                # show in frame display / progress of captured frame
                 self.frame_display[current_frame - 1] = "*"
-            if self.qr_total_frames > 0:
+                # calculate percentage complete of captured frames
                 self.percentage_complete = int((self.qr_cur_frame_count / self.qr_total_frames) * 100)
-            if "empty" not in self.qr_data:
-                # pulled all animated qr frames
+
+            # checking if all frames has been captured, exit camera processing
+            if self.capture_complete():
                 self.buttons.trigger_override()
 
-            
-            #self.frame_display = [f.replace('x', '*') for f in self.frame_display]
-            #self.frame_display[current_frame - 1] = "x"
-
-            # display percentage / frames complete
-            print(self.frame_display)
-
-            if "empty" in self.qr_data:
+            # if all frames have not all been captured, display progress to screen/display
+            if not self.capture_complete():
                 View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
                 tw, th = View.draw.textsize("Collecting QR Codes:", font=View.IMPACT22)
                 View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill="ORANGE", font=View.IMPACT22)
@@ -174,26 +173,39 @@ class PSBTSigner():
             self.scan_started_ind = 1
             self.controller.menu_view.draw_modal(["Scan Animated QR"], "", "Right to Exit")
 
-    def get_totals_frames(self, camera_data) -> int:
-        if re.search("^p(\d+)of(\d+) ", camera_data, re.IGNORECASE) != None:
-            return int(re.search("^p(\d+)of(\d+) ", camera_data, re.IGNORECASE).group(2))
-        else:
-            return -1
+    def make_xpub_qr_codes(self, data, callback = None) -> []:
+        return []
 
-    def get_current_frame(self, camera_data) -> int:
-        if re.search("^p(\d+)of(\d+) ", camera_data, re.IGNORECASE) != None:
-            return int(re.search("^p(\d+)of(\d+) ", camera_data, re.IGNORECASE).group(1))
-        else:
-            return -1
+    def make_signing_qr_codes(self, data, callback = None) -> []:
+        return []
 
-    def parse_qr_data(self, camera_data) -> str:
-        return camera_data.split(" ")[-1].strip()
+    def qr_sleep(self):
+        time.sleep(0.2)
+
+    def set_qr_density(density):
+        if density == Wallet.LOW:
+            self.qrsize = 60
+        elif density == Wallet.HIGH:
+            self.qrsize = 100
 
     ###
-    ### Internal PSBTSigner Transactions
+    ### Network Related Methods
     ###
 
-    def input_amount(tx) -> (float, str):
+    def get_network(self) -> str:
+        return self.current_network
+
+    def get_hardened_derivation(self) -> str:
+        return self.hardened_derivation
+
+    def set_network(self, network) -> bool:
+        return False
+
+    ###
+    ### Internal Wallet Transactions
+    ###
+
+    def input_amount(self, tx) -> (float, str):
         # Check inputs of the transaction and check that they use the same script type
         # For multisig parsed policy will look like this:
         # { script_type: p2wsh, cosigners: [xpubs strings], m: 2, n: 3}
@@ -202,7 +214,7 @@ class PSBTSigner():
         for inp in tx.inputs:
             inp_amount += inp.witness_utxo.value
             # get policy of the input
-            inp_policy = PSBTSigner.get_policy(inp, inp.witness_utxo.script_pubkey, tx.xpubs)
+            inp_policy = self.get_policy(inp, inp.witness_utxo.script_pubkey, tx.xpubs)
             # if policy is None - assign current
             if policy is None:
                 policy = inp_policy
@@ -214,11 +226,12 @@ class PSBTSigner():
 
         return (inp_amount, policy)
 
-    def change_fee_spend_amounts(tx, inp_amount, policy, currentnetwork) -> (float, float, float):
+    def change_fee_spend_amounts(self, tx, inp_amount, policy, currentnetwork) -> (float, float, float):
         spend = 0
         change = 0
+        destinationaddress = ""
         for i, out in enumerate(tx.outputs):
-            out_policy = PSBTSigner.get_policy(out, tx.tx.vout[i].script_pubkey, tx.xpubs)
+            out_policy = self.get_policy(out, tx.tx.vout[i].script_pubkey, tx.xpubs)
             is_change = False
             # if policy is the same - probably change
             if out_policy == policy:
@@ -259,7 +272,7 @@ class PSBTSigner():
 
         return (change, fee, spend, destinationaddress)
 
-    def parse_multisig(sc):
+    def parse_multisig(self, sc):
         """Takes a script and extracts m,n and pubkeys from it"""
         # OP_m <len:pubkey> ... <len:pubkey> OP_n OP_CHECKMULTISIG
         # check min size
@@ -286,7 +299,7 @@ class PSBTSigner():
             raise ValueError("Invalid multisig script")
         return m, n, pubkeys
 
-    def get_cosigners(pubkeys, derivations, xpubs):
+    def get_cosigners(self, pubkeys, derivations, xpubs):
         """Returns xpubs used to derive pubkeys using global xpub field from psbt"""
         cosigners = []
         for i, pubkey in enumerate(pubkeys):
@@ -308,7 +321,7 @@ class PSBTSigner():
             raise RuntimeError("Can't get all cosigners")
         return sorted(cosigners)
 
-    def get_policy(scope, scriptpubkey, xpubs):
+    def get_policy(self, scope, scriptpubkey, xpubs):
         """Parse scope and get policy"""
         # we don't know the policy yet, let's parse it
         script_type = scriptpubkey.script_type()
@@ -322,9 +335,10 @@ class PSBTSigner():
         policy = { "type": script_type }
         # expected multisig
         if "p2wsh" in script_type and scope.witness_script is not None:
-            m, n, pubkeys = PSBTSigner.parse_multisig(scope.witness_script)
+            m, n, pubkeys = self.parse_multisig(scope.witness_script)
+
             # check pubkeys are derived from cosigners
-            cosigners = PSBTSigner.get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
+            cosigners = self.get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
             policy.update({
                 "m": m, "n": n, "cosigners": cosigners
             })

@@ -113,8 +113,8 @@ class MenuView(View):
         lines = ["... [ Return to Main ]", "Input / Output Tests", "Current Network: <network>", "Wallet: <wallet>", "Version Info", "Donate to SeedSigner"]
         input = 0
         
-        lines[2] = lines[2].replace("<network>", self.controller.storage.get_network())
-        lines[3] = lines[3].replace("<wallet>", "Specter Desktop")
+        lines[2] = lines[2].replace("<network>", self.controller.wallet.get_network())
+        lines[3] = lines[3].replace("<wallet>", self.controller.wallet.get_name())
 
         # Draw Menu
         self.draw_menu(lines, 1)
@@ -239,8 +239,21 @@ class MenuView(View):
         else:
             t = title
 
-        if bottom == None:
+        if bottom == None and len(lines) <= 4:
             b = "Press Control Stick to Select"
+        elif bottom == None:
+            if len(lines) >= 5 and len(lines) <= 8:
+                if selected_menu_num <= 4:
+                    b = "Page 1 of 2"
+                elif selected_menu_num >= 5 and selected_menu_num <= 8:
+                    b = "Page 2 of 2"
+            elif len(lines) >= 9 and len(lines) <= 12:
+                if selected_menu_num <= 4:
+                    b = "Page 1 of 3"
+                elif selected_menu_num >= 5 and selected_menu_num <= 8:
+                    b = "Page 2 of 3"
+                elif selected_menu_num >= 9 and selected_menu_num <= 12:
+                    b = "Page 3 of 3"
         else:
             b = bottom
 

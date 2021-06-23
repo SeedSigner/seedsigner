@@ -14,11 +14,14 @@ from buttons import Buttons, B
 from camera_process import CameraProcess
 from path import Path
 from seed_storage import SeedStorage
-from psbt_signer import PSBTSigner
+from specter_desktop_multisig_wallet import SpecterDesktopMultisigWallet
+from blue_vault_wallet import BlueVaultWallet
+from sparrow_multisig_wallet import SparrowMultiSigWallet
+from generic_ur2_wallet import GenericUR2Wallet
 
 class Controller:
     
-    VERSION = "0.4.0"
+    VERSION = "0.4.1a1"
 
     def __init__(self) -> None:
         controller = self
@@ -27,7 +30,9 @@ class Controller:
         self.buttons = Buttons()
 
         # models
-        self.storage = SeedStorage("main", "m/48h/0h/0h/2h")
+        self.storage = SeedStorage()
+        self.wallet_klass = globals()["SpecterDesktopMultisigWallet"]
+        self.wallet = self.wallet_klass()
 
         # Views
         self.menu_view = MenuView(controller)
@@ -275,9 +280,9 @@ class Controller:
             if r == True:
                 break
 
-        self.signing_tools_view.display_xpub_qr(seed_phrase)
-        time.sleep(1)
-        input = self.buttons.wait_for([B.KEY_RIGHT])
+        self.signing_tools_view.draw_modal(["Generating QR ..."])
+        self.wallet.set_seed_phrase(seed_phrase)
+        self.signing_tools_view.display_xpub_qr(self.wallet)
         return Path.MAIN_MENU
 
     ### Sign Transactions
@@ -326,30 +331,30 @@ class Controller:
 
         # Scan PSBT Animated QR using Camera
         self.menu_view.draw_modal(["Loading..."])
-        signer = PSBTSigner(seed_phrase, self)
-        raw_pbst = signer.scan_animated_psbt_qr()
-        print("raw_pbst: " + raw_pbst)
+        self.wallet.set_seed_phrase(seed_phrase)
+        raw_pbst = self.wallet.scan_animated_qr_pbst(self)
+
         if raw_pbst == "nodata":
             return Path.SIGNING_TOOLS_SUB_MENU
         if raw_pbst == "invalid":
-            self.menu_view.draw_modal(["QR Format Unexpected"], "", "RIGHT to EXIT")
+            self.menu_view.draw_modal(["QR Format Unexpected", "Check Wallet in Settings"], "", "RIGHT to EXIT")
             input = self.buttons.wait_for([B.KEY_RIGHT])
             return Path.SIGNING_TOOLS_SUB_MENU
         self.menu_view.draw_modal(["Parsing PSBT ..."])
-        signer.parse_psbt(raw_pbst)
+        self.wallet.parse_psbt(raw_pbst)
 
         # show transaction information before sign
-        self.signing_tools_view.display_transaction_information(signer)
+        self.signing_tools_view.display_transaction_information(self.wallet)
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
         if input == B.KEY_LEFT:
             return Path.SIGNING_TOOLS_SUB_MENU
 
         # Sign PSBT
         self.menu_view.draw_modal(["PSBT Signing ..."])
-        (status, signed_pbst) = signer.sign_transaction()
+        signed_pbst = self.wallet.sign_transaction()
 
         # Display Animated QR Code
-        self.signing_tools_view.display_signed_psbt_animated_qr(signed_pbst)
+        self.signing_tools_view.display_signed_psbt_animated_qr(self.wallet, signed_pbst)
 
         # Return to Main Menu
         return Path.MAIN_MENU
@@ -374,11 +379,9 @@ class Controller:
     def show_current_network_tool(self):
         r = self.settings_tools_view.display_current_network()
         if r == "main":
-            self.storage.set_network("main")
-            self.storage.set_hardened_derivation("m/48h/0h/0h/2h")
+            self.wallet = self.wallet_klass("main")
         elif r == "test":
-            self.storage.set_network("test")
-            self.storage.set_hardened_derivation("m/48h/1h/0h/2h")
+            self.wallet = self.wallet_klass("test")
 
         return Path.SETTINGS_SUB_MENU
 
@@ -387,7 +390,20 @@ class Controller:
     def show_wallet_tool(self):
         r = self.settings_tools_view.display_wallet_selection()
         if r == "Specter Desktop":
-            pass
+            self.wallet_klass = globals()["SpecterDesktopMultisigWallet"]
+            self.wallet = self.wallet_klass(self.wallet.get_network())
+        elif r == "Specter Desktop Single Sig":
+            self.wallet_klass = globals()["SpecterDesktopSingleSigWallet"]
+            self.wallet = self.wallet_klass(self.wallet.get_network())
+        elif r == "Blue Wallet Vault":
+            self.wallet_klass = globals()["BlueVaultWallet"]
+            self.wallet = self.wallet_klass(self.wallet.get_network())
+        elif r == "Sparrow Multisig":
+            self.wallet_klass = globals()["SparrowMultiSigWallet"]
+            self.wallet = self.wallet_klass(self.wallet.get_network())
+        elif r == "UR 2.0 Multisig":
+            self.wallet_klass = globals()["GenericUR2Wallet"]
+            self.wallet = self.wallet_klass(self.wallet.get_network())
 
         return Path.SETTINGS_SUB_MENU
 

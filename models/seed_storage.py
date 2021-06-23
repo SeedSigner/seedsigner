@@ -7,11 +7,9 @@ class SeedStorage:
 
     SEEDWORDS = bip39.WORDLIST
 
-    def __init__(self, current_network = "main", hardened_derivation = "m/48h/0h/0h/2h") -> None:
+    def __init__(self) -> None:
 
         self.saved_seeds = [[],[],[]]
-        self.current_network = current_network
-        self.hardened_derivation = hardened_derivation
 
     ###
     ### Seed Related Methods
@@ -112,33 +110,3 @@ class SeedStorage:
             count += 1
 
         return count
-
-    ###
-    ### Network Related Methods
-    ###
-
-    def get_network(self) -> str:
-        return self.current_network
-
-    def get_hardened_derivation(self) -> str:
-        return self.hardened_derivation
-
-    def set_network(self, network) -> bool:
-        if network == "main":
-            self.current_network = "main"
-        elif network == "test":
-            self.current_network = "test"
-        else:
-            return False
-
-        return True
-
-    def set_hardened_derivation(self, hardened_derivation) -> bool:
-        if hardened_derivation == "m/48h/0h/0h/2h":
-            self.hardened_derivation = "m/48h/0h/0h/2h"
-        elif hardened_derivation == "m/48h/1h/0h/2h":
-            self.hardened_derivation = "m/48h/1h/0h/2h"
-        else:
-            return False
-
-        return True

@@ -26,6 +26,7 @@ class View:
     IMPACT26 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 26)
     IMPACT35 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 35)
     IMPACT50 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 50)
+    COURIERNEW14 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 14)
     COURIERNEW38 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 38)
     COURIERNEW30 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 30)
 
@@ -66,6 +67,13 @@ class View:
         if image == None:
             image = View.canvas
         View.disp.ShowImage(image, 0, 0)
+
+    def DispShowImageWithText(image, text):
+        image_copy = image.copy()
+        draw = ImageDraw.Draw(image_copy)
+        tw, th = draw.textsize(text, font=View.COURIERNEW14)
+        draw.text(((240 - tw) / 2, 228), text, fill="GREY", font=View.COURIERNEW14)
+        View.disp.ShowImage(image_copy, 0, 0)
 
     def draw_modal(self, lines = [], title = "", bottom = "") -> None:
 
