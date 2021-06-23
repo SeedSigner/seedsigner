@@ -99,10 +99,9 @@ Set the following:
 * `Localisation Options`:
     * `Locale`: arrow up and down through the list and select or deselect languages with the spacebar.
         * `en_US.UTF-8 UTF-8` for US English
-    * `Timezone`: Select region first, then timezone (e.g. America; Central).
 * WiFi settings (only necessary for the option #1 setup above)
 
-Reboot when prompted within the raspi-config interface.
+Exit and reboot when prompted within the raspi-config interface.
 
 Install these dependencies:
 ```
@@ -120,14 +119,15 @@ cd ..
 rm bcm2835-1.60.tar.gz
 ```
 
-Install python dependencies:
-```
-sudo pip3 install -r requirements.txt
-```
-
 Download SeedSigner
 ```
-sudo git clone https://github.com/SeedSigner/seedsigner
+git clone https://github.com/SeedSigner/seedsigner
+```
+
+Install python dependencies:
+```
+cd seedsigner
+pip3 install -r requirements.txt
 ```
 
 Modify the systemd to run SeedSigner at boot:
@@ -141,8 +141,9 @@ Add the following contents to the file:
 Description=Seedsigner
 
 [Service]
+User=pi
 WorkingDirectory=/home/pi/seedsigner
-ExecStart=/usr/bin/python3 /home/pi/seedsigner/main.py
+ExecStart=/usr/bin/python3 main.py
 Restart=always
 
 [Install]
@@ -155,8 +156,8 @@ Then use Control + X, to exit the program.
 Run `sudo systemctl enable seedsigner.service` to enable service on boot. (This will restart the seedsigner code automatically at startup and if it crashes.)
 
 (Optional) Modify the system swap configuration to disable virtual memory:
-* `sudo nano /etc/dphys-swapfile`
-add `CONF_SWAPSIZE=100` to `CONF_SWAPSIZE=0`
+```sudo nano /etc/dphys-swapfile```
+Change `CONF_SWAPSIZE=100` to `CONF_SWAPSIZE=0`
 
 Use Control + O, then [enter], to write the file.
 Then use Control + X, to exit the program.
@@ -169,3 +170,5 @@ sudo reboot
 ```
 
 It will take about a minute after the Pi is powered on for the GUI to launch -- be patient!
+
+_Reminder: If you used option #2, [return the guide](babel/README.md) to remove the internet access over USB configuration._
