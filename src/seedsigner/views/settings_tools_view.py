@@ -1,9 +1,9 @@
 # SeedSigner file class dependencies
-from view import View
-from qr import QR
-from buttons import B
 from controller import Controller
 controller = Controller.get_instance()
+from . import View
+from seedsigner.helpers import B, QR
+
 
 
 class SettingsToolsView(View):

@@ -4,20 +4,11 @@ from multiprocessing import Process, Queue
 from subprocess import call
 
 # Internal file class dependencies
-from view import View
-from menu_view import MenuView
-from seed_tools_view import SeedToolsView
-from signing_tools_view import SigningToolsView
-from settings_tools_view import SettingsToolsView
-from io_test_view import IOTestView
-from buttons import Buttons, B
-from camera_process import CameraProcess
-from path import Path
-from seed_storage import SeedStorage
-from specter_desktop_multisig_wallet import SpecterDesktopMultisigWallet
-from blue_vault_wallet import BlueVaultWallet
-from sparrow_multisig_wallet import SparrowMultiSigWallet
-from generic_ur2_wallet import GenericUR2Wallet
+from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
+    SettingsToolsView, IOTestView)
+from .helpers import Buttons, B, CameraProcess,Path
+from .models import (SeedStorage, SpecterDesktopMultisigWallet, BlueVaultWallet,
+    SparrowMultiSigWallet, GenericUR2Wallet)
 
 
 class Controller:

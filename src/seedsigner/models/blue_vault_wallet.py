@@ -1,5 +1,7 @@
-from wallet import Wallet
-from qr import QR
+from . import Wallet
+from seedsigner.helpers import QR
+from seedsigner.helpers.bcur import (bcur_decode, cbor_decode, bc32decode,
+    bc32encode, cbor_encode, bcur_encode)
 
 # External Dependencies
 from embit.bip39 import mnemonic_to_bytes
@@ -12,7 +14,6 @@ from embit.networks import NETWORKS
 from embit import ec
 from io import BytesIO
 from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
-from bcur import bcur_decode, cbor_decode, bc32decode, bc32encode, cbor_encode, bcur_encode
 import re
 
 class BlueVaultWallet(Wallet):

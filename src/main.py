@@ -2,11 +2,7 @@ import configparser
 import sys
 import time
 
-sys.path.append('./views')
-sys.path.append('./models')
-sys.path.append('./helpers')
-
-from controller import Controller
+from seedsigner.controller import Controller
 
 
 config = configparser.ConfigParser()
