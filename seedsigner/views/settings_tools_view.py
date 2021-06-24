@@ -2,11 +2,14 @@
 from view import View
 from qr import QR
 from buttons import B
+from controller import Controller
+controller = Controller.get_instance()
+
 
 class SettingsToolsView(View):
 
-    def __init__(self, controller) -> None:
-        View.__init__(self, controller)
+    def __init__(self) -> None:
+        View.__init__(self)
 
         self.qr = QR()
         self.donate_image = None
@@ -26,7 +29,7 @@ class SettingsToolsView(View):
     ### Display Network Selection
 
     def display_current_network(self) -> str:
-        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Mainnet", "Testnet"], "Which Network?")
+        r = controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Mainnet", "Testnet"], "Which Network?")
         if r == 2:
             return "main"
         elif r == 3:
@@ -37,7 +40,7 @@ class SettingsToolsView(View):
     ### Display Wallet Selection
 
     def display_wallet_selection(self) ->str:
-        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Specter Desktop", "Blue Wallet Vault", "Sparrow Multisig", "UR 2.0 Multisig"], "Which Wallet?")
+        r = controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Specter Desktop", "Blue Wallet Vault", "Sparrow Multisig", "UR 2.0 Multisig"], "Which Wallet?")
         if r == 2:
             return "Specter Desktop"
         elif r == 3:
@@ -58,7 +61,7 @@ class SettingsToolsView(View):
     def display_version_info(self):
     
         line1 = "SeedSigner"
-        line2 = "Version v" + self.controller.VERSION
+        line2 = "Version v" + controller.VERSION
         line3 = "built for use with"
         line4 = "Specter-desktop"
         line5 = "v1.1.0 or higher"

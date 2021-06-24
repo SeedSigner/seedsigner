@@ -1,14 +1,16 @@
 # Internal file class dependencies
 from view import View
 from buttons import Buttons, B
+from controller import Controller
+controller = Controller.get_instance()
 
 # External Dependencies
 import time
 
 class SigningToolsView(View):
 
-    def __init__(self, controller, seed_storage) -> None:
-        View.__init__(self, controller)
+    def __init__(self, seed_storage) -> None:
+        View.__init__(self)
         self.seed_storage = seed_storage
 
     ###

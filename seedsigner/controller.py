@@ -21,14 +21,27 @@ from generic_ur2_wallet import GenericUR2Wallet
 
 
 class Controller:
-    
     VERSION = "0.4.1a1"
 
+    _instance = None
+
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            raise Exception("Singleton not instantiated")
+        return cls._instance
+
+
     def __init__(self, config) -> None:
-        controller = self
+        if self._instance:
+            raise Exception("Singleton cannot be reinstantiated")
 
         # settings
         self.DEBUG = config.getboolean("system", "DEBUG")
+
+        display_settings = {}
+        display_settings["background_color"] = config.get("display", "BACKGROUND_COLOR")
+        display_settings["text_color"] = config.get("display", "TEXT_COLOR")
 
         # Input Buttons
         self.buttons = Buttons()
@@ -39,11 +52,11 @@ class Controller:
         self.wallet = self.wallet_klass()
 
         # Views
-        self.menu_view = MenuView(controller)
-        self.seed_tools_view = SeedToolsView(controller)
-        self.io_test_view = IOTestView(controller)
-        self.signing_tools_view = SigningToolsView(controller, self.storage)
-        self.settings_tools_view = SettingsToolsView(controller)
+        self.menu_view = MenuView()
+        self.seed_tools_view = SeedToolsView()
+        self.io_test_view = IOTestView()
+        self.signing_tools_view = SigningToolsView(self.storage)
+        self.settings_tools_view = SettingsToolsView()
 
         # Then start seperate background camera process with two queues for communication
         # CameraProcess handles connecting to camera hardware and passing back barcode data via from camera queue

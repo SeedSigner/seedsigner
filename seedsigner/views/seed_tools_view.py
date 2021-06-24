@@ -7,6 +7,9 @@ import time
 # Internal file class dependencies
 from view import View
 from buttons import B
+from controller import Controller
+controller = Controller.get_instance()
+
 
 class SeedToolsView(View):
 
@@ -14,8 +17,8 @@ class SeedToolsView(View):
 
     ALPHABET = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
 
-    def __init__(self, controller) -> None:
-        View.__init__(self, controller)
+    def __init__(self) -> None:
+        View.__init__(self)
 
         # Gather words and seed display information
         self.words = []

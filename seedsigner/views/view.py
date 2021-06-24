@@ -5,6 +5,8 @@ from PIL import ImageFont
 import ST7789
 import spidev as SPI
 from multiprocessing import Queue
+from controller import Controller
+controller = Controller.get_instance()
 
 ### Generic View Class to Instatiate Display
 ### Static Class variables are used for display
@@ -34,7 +36,6 @@ class View:
     DC = 25
     BL = 24
 
-    controller = None
     buttons = None
     canvas_width = 0
     canvas_height = 0
@@ -44,11 +45,10 @@ class View:
     device = 0
     disp = None
 
-    def __init__(self, controller) -> None:
+    def __init__(self) -> None:
 
         # Global Singleton
-        View.controller = controller
-        View.buttons = View.controller.buttons
+        View.buttons = controller.buttons
 
         View.canvas_width = View.WIDTH
         View.canvas_height = View.HEIGHT
