@@ -19,12 +19,30 @@ from blue_vault_wallet import BlueVaultWallet
 from sparrow_multisig_wallet import SparrowMultiSigWallet
 from generic_ur2_wallet import GenericUR2Wallet
 
+
+LANGUAGES = {
+    "en": "English",
+    # "es": "Español",
+    # "fr": "Français",
+}
+
+
 class Controller:
     
     VERSION = "0.4.1a1"
 
-    def __init__(self) -> None:
+    def __init__(self, config) -> None:
         controller = self
+
+        # settings
+        self.DEBUG = config.getboolean("system", "DEBUG")
+        self.language_code = config.get("system", "DEFAULT_LANGUAGE")
+        if self.language_code not in LANGUAGES:
+            raise Exception(f"Unsupported language code: {self.language_code}")
+
+        display_settings = {}
+        display_settings["background_color"] = config.get("system", "BACKGROUND_COLOR")
+        display_settings["text_color"] = config.get("system", "TEXT_COLOR")
 
         # Input Buttons
         self.buttons = Buttons()
@@ -48,14 +66,15 @@ class Controller:
         p = Process(target=CameraProcess.start, args=(self.from_camera_queue, self.to_camera_queue))
         p.start()
 
-        return
 
-    def start(self, debug = False) -> None:
+    def start(self) -> None:
+        if self.DEBUG:
+            # Let Exceptions halt execution
+            self.show_main_menu()
 
-        if debug == False:
-            crash_cnt = 0
-
+        else:
             # Handle Unexpected crashes by restarting up to 3 times
+            crash_cnt = 0
             while True:
                 try:
                     self.show_main_menu()
@@ -70,8 +89,7 @@ class Controller:
                     crash_cnt += 1
 
             self.menu_view.draw_modal(["Crashed ..."], "", "requires hard restart")
-        else:
-            self.show_main_menu()
+
 
     ### Menu
     ### Menu View handles navigation within the menu
