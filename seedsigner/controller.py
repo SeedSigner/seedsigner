@@ -41,8 +41,8 @@ class Controller:
             raise Exception(f"Unsupported language code: {self.language_code}")
 
         display_settings = {}
-        display_settings["background_color"] = config.get("system", "BACKGROUND_COLOR")
-        display_settings["text_color"] = config.get("system", "TEXT_COLOR")
+        display_settings["background_color"] = config.get("display", "BACKGROUND_COLOR")
+        display_settings["text_color"] = config.get("display", "TEXT_COLOR")
 
         # Input Buttons
         self.buttons = Buttons()
