@@ -56,6 +56,7 @@ class Wallet:
         self.percentage_complete = 0
 
         self.scan_started_ind = 0
+        self.scan_display_working = 0
 
     ###
     ### Required Methods to implement for Child Wallet Class
@@ -115,6 +116,7 @@ class Wallet:
             self.controller.to_camera_queue.put(["stop"])
             if self.qr_data[0] == "invalid":
                 return "invalid"
+            time.sleep(0.5) # give time for camera loop to complete before returning data
             return "".join(self.qr_data)
 
     def process_camera_data(self):
@@ -155,7 +157,8 @@ class Wallet:
                 self.buttons.trigger_override()
 
             # if all frames have not all been captured, display progress to screen/display
-            if not self.capture_complete():
+            if not self.capture_complete() and self.scan_display_working == 0:
+                self.scan_display_working = 1
                 View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
                 tw, th = View.draw.textsize("Collecting QR Codes:", font=View.IMPACT22)
                 View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill="ORANGE", font=View.IMPACT22)
@@ -168,6 +171,7 @@ class Wallet:
                 tw, th = View.draw.textsize("Right to Exit", font=View.IMPACT18)
                 View.draw.text(((240 - tw) / 2, 215), "Right to Exit", fill="ORANGE", font=View.IMPACT18)
                 View.DispShowImage()
+                self.scan_display_working = 0
 
         elif self.scan_started_ind == 0:
             self.scan_started_ind = 1
