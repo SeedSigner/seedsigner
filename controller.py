@@ -92,6 +92,8 @@ class Controller:
                 ret_val = self.show_store_a_seed_tool()
             elif ret_val == Path.PASSPHRASE_SEED:
                 ret_val = self.show_add_a_passphrase_tool()
+            elif ret_val == Path.DELETE_PASSPHRASE:
+                ret_val = self.show_delete_a_passphrase_tool()
             elif ret_val == Path.GEN_XPUB:
                 ret_val = self.show_generate_xpub()
             elif ret_val == Path.SIGN_TRANSACTION:
@@ -259,6 +261,28 @@ class Controller:
         self.storage.save_passphrase(passphrase, slot_num)
         self.menu_view.draw_modal(["Passphrase Added", passphrase, "Added to Slot #" + str(slot_num)], "", "Right to Continue")
         self.buttons.wait_for([B.KEY_RIGHT])
+
+        return Path.MAIN_MENU
+
+    def show_delete_a_passphrase_tool(self):
+        print("delete a passphrase")
+        if self.storage.num_of_passphrase_seeds() == 0:
+            self.menu_view.draw_modal(["No stored seeds with", "passphrase found"], "Error", "Right to Continue")
+            self.buttons.wait_for([B.KEY_RIGHT])
+            return Path.SEED_TOOLS_SUB_MENU
+
+        ret_val = 0
+        ret_val = self.menu_view.display_saved_seed_menu(self.storage, 4, None)
+
+        if ret_val == 0:
+            return Path.SEED_TOOLS_SUB_MENU
+
+        slot_num = ret_val
+
+        if slot_num > 0:
+            self.storage.delete_passphrase(slot_num)
+            self.menu_view.draw_modal(["Passphrase Deleted", "from Slot #" + str(slot_num)], "", "Right to Continue")
+            self.buttons.wait_for([B.KEY_RIGHT])
 
         return Path.MAIN_MENU
 

@@ -214,7 +214,11 @@ class SeedToolsView(View):
             elif input == B.KEY2:
                 ret_val = self.gather_passphrase_toggle()
             elif input == B.KEY3:
-                return self.passphrase
+                r = self.controller.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Passphrase?")
+                if r == 1: # Yes
+                    return self.passphrase
+                else:
+                    ret_val = True
 
             if ret_val == False:
                 return ""
@@ -229,8 +233,10 @@ class SeedToolsView(View):
         View.draw.text(((240 - tw) / 2, 2), "Add Passphrase", fill="ORANGE", font=View.IMPACT18)
 
         # Screen Botton
-        tw, th = View.draw.textsize("(press to add to passphrase)", font=View.IMPACT18)
-        View.draw.text(((240 - tw) / 2, 217), "(press to add to passphrase)", fill="ORANGE", font=View.IMPACT18)
+        tw, th = View.draw.textsize("use joystick to add and", font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 197), "use joystick to add and", fill="ORANGE", font=View.IMPACT18)
+        tw, th = View.draw.textsize("remove passphrase characters", font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 217), "remove passphrase characters", fill="ORANGE", font=View.IMPACT18)
 
         # Display passphrase selection in progress
         View.draw.text((5,33), "Phrase:", fill="ORANGE", font=View.IMPACT20)
@@ -241,16 +247,16 @@ class SeedToolsView(View):
 
         # Display message when max passphrase length reached
         if len(self.passphrase) >= 28:
-            View.draw.text((65,70), "Max passphrase of 28", fill="ORANGE", font=View.IMPACT18)
-            View.draw.text((68,90), "characters reached", fill="ORANGE", font=View.IMPACT18)
+            View.draw.text((50,70), "Max passphrase of 28", fill="ORANGE", font=View.IMPACT18)
+            View.draw.text((53,90), "characters reached", fill="ORANGE", font=View.IMPACT18)
 
         # Save Button
         c_x_offset = 240 - View.IMPACT25.getsize("Save")[0]
-        View.draw.text((c_x_offset , 170), "Save", fill="ORANGE", font=View.IMPACT22)
+        View.draw.text((c_x_offset , 172), "Save", fill="ORANGE", font=View.IMPACT22)
 
         # Toglle Button
         x = 240 - View.IMPACT20.getsize(self.pass_case_toggle)[0]
-        View.draw.text((x, 105), self.pass_case_toggle, fill="ORANGE", font=View.IMPACT20)
+        View.draw.text((x, 110), self.pass_case_toggle, fill="ORANGE", font=View.IMPACT20)
 
         # draw letter and arrows
         if self.pass_case_toggle == "lower":
@@ -300,11 +306,8 @@ class SeedToolsView(View):
         return True
 
     def gather_passphrase_left(self) -> bool:
-        if len(self.passphrase) == 0:
-            return False
-        else:
-            self.passphrase = self.passphrase[:-1]
-            return True
+        self.passphrase = self.passphrase[:-1]
+        return True
 
     def gather_passphrase_toggle(self) -> bool:
         options = ["lower", "upper", "number", "symbol"]
