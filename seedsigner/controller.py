@@ -20,13 +20,6 @@ from sparrow_multisig_wallet import SparrowMultiSigWallet
 from generic_ur2_wallet import GenericUR2Wallet
 
 
-LANGUAGES = {
-    "en": "English",
-    # "es": "Español",
-    # "fr": "Français",
-}
-
-
 class Controller:
     
     VERSION = "0.4.1a1"
@@ -36,13 +29,6 @@ class Controller:
 
         # settings
         self.DEBUG = config.getboolean("system", "DEBUG")
-        self.language_code = config.get("system", "DEFAULT_LANGUAGE")
-        if self.language_code not in LANGUAGES:
-            raise Exception(f"Unsupported language code: {self.language_code}")
-
-        display_settings = {}
-        display_settings["background_color"] = config.get("display", "BACKGROUND_COLOR")
-        display_settings["text_color"] = config.get("display", "TEXT_COLOR")
 
         # Input Buttons
         self.buttons = Buttons()
