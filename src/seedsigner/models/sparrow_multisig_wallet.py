@@ -14,7 +14,6 @@ import time
 from embit import bip32, bip39, ec, script, psbt
 from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 from embit.networks import NETWORKS
-from embit import 
 from io import BytesIO
 from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
 import re

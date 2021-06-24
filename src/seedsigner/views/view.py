@@ -57,7 +57,7 @@ class View:
         # 240x240 display with hardware SPI:
         View.bus = 0
         View.device = 0
-        View.disp = ST7789.ST7789(SPI.SpiDev(View.bus, View.device),View.RST, View.DC, View.BL)
+        View.disp = ST7789(SPI.SpiDev(View.bus, View.device),View.RST, View.DC, View.BL)
         View.disp.Init()
 
         self.queue = Queue()
