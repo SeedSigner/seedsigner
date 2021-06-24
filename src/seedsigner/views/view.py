@@ -1,10 +1,9 @@
 # External Dependencies
-from PIL import Image
-from PIL import ImageDraw
-from PIL import ImageFont
-import ST7789
+from PIL import Image, ImageDraw, ImageFont
 import spidev as SPI
 from multiprocessing import Queue
+
+from seedsigner.helpers import ST7789
 
 ### Generic View Class to Instatiate Display
 ### Static Class variables are used for display
