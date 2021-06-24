@@ -2,9 +2,6 @@
 from PIL import Image, ImageDraw, ImageFont
 import spidev as SPI
 from multiprocessing import Queue
-from controller import Controller
-controller = Controller.get_instance()
-
 from seedsigner.helpers import ST7789
 
 ### Generic View Class to Instatiate Display
@@ -45,9 +42,12 @@ class View:
     disp = None
 
     def __init__(self) -> None:
+        # Import here to avoid circular imports
+        from seedsigner.controller import Controller
+        self.controller = Controller.get_instance()
 
         # Global Singleton
-        View.buttons = controller.buttons
+        View.buttons = self.controller.buttons
 
         View.canvas_width = View.WIDTH
         View.canvas_height = View.HEIGHT

@@ -7,9 +7,6 @@ from seedsigner.models import SeedStorage
 import time
 import re
 
-from controller import Controller
-controller = Controller.get_instance()
-
 
 class MenuView(View):
 
@@ -116,8 +113,8 @@ class MenuView(View):
         lines = ["... [ Return to Main ]", "Input / Output Tests", "Current Network: <network>", "Wallet: <wallet>", "Version Info", "Donate to SeedSigner"]
         input = 0
         
-        lines[2] = lines[2].replace("<network>", controller.wallet.get_network())
-        lines[3] = lines[3].replace("<wallet>", controller.wallet.get_name())
+        lines[2] = lines[2].replace("<network>", self.controller.wallet.get_network())
+        lines[3] = lines[3].replace("<wallet>", self.controller.wallet.get_name())
 
         # Draw Menu
         self.draw_menu(lines, 1)
@@ -238,7 +235,7 @@ class MenuView(View):
 
     def draw_menu(self, lines, selected_menu_num = 1, title = None, bottom = None) -> None:
         if title == None:
-            t = "SeedSigner  v" + controller.VERSION
+            t = "SeedSigner  v" + self.controller.VERSION
         else:
             t = title
 

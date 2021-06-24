@@ -3,8 +3,6 @@ import threading
 from threading import Timer
 
 # Internal file class dependencies
-from controller import Controller
-controller = Controller.get_instance()
 from . import View
 from seedsigner.helpers import B, CameraPoll
 
@@ -26,10 +24,10 @@ class IOTestView(View):
         self.qr_text = "Scan ANY QR Code"
 
         # initialize camera
-        controller.to_camera_queue.put(["start"])
+        self.controller.to_camera_queue.put(["start"])
 
         # First get blocking, this way it's clear when the camera is ready for the end user
-        controller.from_camera_queue.get()
+        self.controller.from_camera_queue.get()
 
         self.camera_loop_timer = CameraPoll(0.05, self.get_camera_data) # it auto-starts, no need of rt.start()
 
@@ -58,7 +56,7 @@ class IOTestView(View):
 
     def get_camera_data(self):
         try:
-            data = controller.from_camera_queue.get(False)
+            data = self.controller.from_camera_queue.get(False)
             if data[0] != "nodata":
                 self.draw_scan_detected()
         except:
@@ -100,7 +98,7 @@ class IOTestView(View):
 
     def c_button(self):
         self.camera_loop_timer.stop()
-        controller.to_camera_queue.put(["stop"])
+        self.controller.to_camera_queue.put(["stop"])
 
     def up_button(self):
         if self.redraw == False and self.redraw_complete == True:

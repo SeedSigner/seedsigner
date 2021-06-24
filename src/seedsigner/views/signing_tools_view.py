@@ -1,6 +1,4 @@
 # Internal file class dependencies
-from controller import Controller
-controller = Controller.get_instance()
 from . import View
 from seedsigner.helpers import Buttons, B
 

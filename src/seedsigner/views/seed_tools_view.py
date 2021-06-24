@@ -4,8 +4,6 @@ from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 import time
 
 # Internal file class dependencies
-from controller import Controller
-controller = Controller.get_instance()
 from . import View
 from seedsigner.helpers import B
 
