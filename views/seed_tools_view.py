@@ -5,8 +5,11 @@ from embit import bip39
 import time
 
 # Internal file class dependencies
+from qr import QR
 from view import View
 from buttons import B
+from camera_process import CameraPoll
+
 
 class SeedToolsView(View):
 
@@ -547,6 +550,48 @@ class SeedToolsView(View):
             return "right-2"
         elif input == B.KEY_LEFT:
             return "left-2"
+
+    def seed_phrase_as_qr(self, seed_phrase):
+        data = ""
+        for word in seed_phrase:
+            index = bip39.WORDLIST.index(word)
+            print(word, index)
+            data += str("%04d" % index)
+        print(data)
+        qr = QR()
+        image = qr.qrimage(data)
+        View.DispShowImage(image)
+
+    def check_camera(self):
+        try:
+            data = self.controller.from_camera_queue.get(False)
+            print(data)
+
+            for i in range(0, 12):
+                index = int(data[0][i * 4: (i*4) + 4])
+                print(index)
+                word = bip39.WORDLIST[index]
+                print(word)
+                self.words.append(word)
+            print(self.words)
+            self.buttons.trigger_override()
+        except:
+            pass
+
+    def read_seed_phrase_qr(self):
+        self.controller.menu_view.draw_modal(["Initializing Camera"]) # TODO: Move to Controller
+        # initialize camera
+        self.controller.to_camera_queue.put(["start"])
+        # First get blocking, this way it's clear when the camera is ready for the end user
+        self.controller.from_camera_queue.get()
+        self.camera_loop_timer = CameraPoll(0.05, self.check_camera)
+
+        input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
+        if input in (B.KEY_LEFT, B.KEY_RIGHT, B.OVERRIDE):
+            self.camera_loop_timer.stop()
+            self.controller.to_camera_queue.put(["stop"])
+
+        return self.words
 
     ###
     ### Utility Methods

@@ -210,13 +210,14 @@ class Controller:
             return Path.MAIN_MENU
         else:
             # display menu to select 12 or 24 word seed for last word
-            ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Seed Tools ]")
-            if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
-            elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
-            else:
-                return Path.SEED_TOOLS_SUB_MENU
+            # ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Seed Tools ]")
+            # if ret_val == Path.SEED_WORD_12:
+            #     seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
+            # elif ret_val == Path.SEED_WORD_24:
+            #     seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+            # else:
+            #     return Path.SEED_TOOLS_SUB_MENU
+            seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
 
         if len(seed_phrase) == 0:
             return Path.SEED_TOOLS_SUB_MENU
@@ -226,6 +227,9 @@ class Controller:
         if is_valid:
             self.storage.save_seed_phrase(seed_phrase, slot_num)
             self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
+            input = self.buttons.wait_for([B.KEY_RIGHT])
+
+            self.seed_tools_view.seed_phrase_as_qr(seed_phrase)
             input = self.buttons.wait_for([B.KEY_RIGHT])
         else:
             self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
