@@ -157,7 +157,7 @@ class MenuView(View):
     ### Generic Word 12 or 24 seed phrase menu
 
     def display_12_24_word_menu(self, return_txt = "... [ Return to ... ]") -> int:
-        lines = [return_txt, "Use a 12 word seed", "Use a 24 word seed"]
+        lines = [return_txt, "Use a 12 word seed", "Use a 24 word seed", "Scan 12 word seed QR"]
         self.draw_menu(lines)
 
          # Wait for Button Input (specifically menu selection/press)
@@ -174,6 +174,8 @@ class MenuView(View):
                     return Path.SEED_WORD_12
                 elif self.selected_menu_num == 3:
                     return Path.SEED_WORD_24
+                elif self.selected_menu_num == 4:
+                    return Path.SEED_WORD_12_QR
 
     ### Select a Seed Slot to Save a Seed Menu
 

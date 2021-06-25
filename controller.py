@@ -210,14 +210,15 @@ class Controller:
             return Path.MAIN_MENU
         else:
             # display menu to select 12 or 24 word seed for last word
-            # ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Seed Tools ]")
-            # if ret_val == Path.SEED_WORD_12:
-            #     seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
-            # elif ret_val == Path.SEED_WORD_24:
-            #     seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
-            # else:
-            #     return Path.SEED_TOOLS_SUB_MENU
-            seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
+            ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Seed Tools ]")
+            if ret_val == Path.SEED_WORD_12:
+                seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
+            elif ret_val == Path.SEED_WORD_24:
+                seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+            elif ret_val == Path.SEED_WORD_12_QR:
+                seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
+            else:
+                return Path.SEED_TOOLS_SUB_MENU
 
         if len(seed_phrase) == 0:
             return Path.SEED_TOOLS_SUB_MENU
@@ -226,9 +227,10 @@ class Controller:
         is_valid = self.storage.check_if_seed_valid(seed_phrase)
         if is_valid:
             self.storage.save_seed_phrase(seed_phrase, slot_num)
-            self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
+            self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to View as QR")
             input = self.buttons.wait_for([B.KEY_RIGHT])
 
+            # For now automatically show the resulting seed as a transcribable QR code
             self.seed_tools_view.seed_phrase_as_qr(seed_phrase)
             input = self.buttons.wait_for([B.KEY_RIGHT])
         else:
