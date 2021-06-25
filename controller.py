@@ -153,7 +153,11 @@ class Controller:
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
                 if slot_num in (1,2,3):
                     self.storage.save_seed_phrase(completed_seed_phrase, slot_num)
-                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
+                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to View as QR")
+                    input = self.buttons.wait_for([B.KEY_RIGHT])
+
+                    # For now automatically show the resulting seed as a transcribable QR code
+                    self.seed_tools_view.seed_phrase_as_qr(completed_seed_phrase)
                     input = self.buttons.wait_for([B.KEY_RIGHT])
 
         return Path.MAIN_MENU
@@ -184,7 +188,11 @@ class Controller:
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
                 if slot_num in (1,2,3):
                     self.storage.save_seed_phrase(seed_phrase, slot_num)
-                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
+                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to View as QR")
+                    input = self.buttons.wait_for([B.KEY_RIGHT])
+
+                    # For now automatically show the resulting seed as a transcribable QR code
+                    self.seed_tools_view.seed_phrase_as_qr(seed_phrase)
                     input = self.buttons.wait_for([B.KEY_RIGHT])
 
         return Path.MAIN_MENU

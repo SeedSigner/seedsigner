@@ -444,8 +444,13 @@ class SeedToolsView(View):
 
         while True:
             if len(seed_phrase) in (11,12):
-                ret_val = self.display_seed_phrase_12(seed_phrase, bottom)
+                ret_val = self.display_seed_phrase_12(seed_phrase, "Right to View as QR")
                 if ret_val == "right":
+
+                    # For now automatically show the resulting seed as a transcribable QR code
+                    self.seed_phrase_as_qr(seed_phrase)
+                    input = self.buttons.wait_for([B.KEY_RIGHT])
+
                     return True
                 else:
                     return False
@@ -566,6 +571,9 @@ class SeedToolsView(View):
         try:
             data = self.controller.from_camera_queue.get(False)
             print(data)
+
+            # Reset list; will still have any previous seed's words
+            self.words = []
 
             for i in range(0, 12):
                 index = int(data[0][i * 4: (i*4) + 4])
