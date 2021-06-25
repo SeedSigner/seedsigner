@@ -107,7 +107,7 @@ class SpecterDesktopMultisigWallet(Wallet):
         images = []
         start = 0
         stop = self.qrsize
-        qr_cnt = (len(data) // self.qrsize) + 1
+        qr_cnt = ((len(data)-1) // self.qrsize) + 1
 
         while cnt < qr_cnt:
             part = "p" + str(cnt+1) + "of" + str(qr_cnt) + " " + data[start:stop]
