@@ -587,11 +587,13 @@ class SeedToolsView(View):
             pass
 
     def read_seed_phrase_qr(self):
-        self.controller.menu_view.draw_modal(["Initializing Camera"]) # TODO: Move to Controller
+        self.controller.menu_view.draw_modal(["Initializing Camera..."]) # TODO: Move to Controller
         # initialize camera
         self.controller.to_camera_queue.put(["start"])
         # First get blocking, this way it's clear when the camera is ready for the end user
         self.controller.from_camera_queue.get()
+
+        self.controller.menu_view.draw_modal(["Scanning..."]) # TODO: Move to Controller
         self.camera_loop_timer = CameraPoll(0.05, self.check_camera)
 
         input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
