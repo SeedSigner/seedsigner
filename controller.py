@@ -71,7 +71,11 @@ class Controller:
 
             self.menu_view.draw_modal(["Crashed ..."], "", "requires hard restart")
         else:
-            self.show_main_menu()
+            try:
+                self.show_main_menu()
+            finally:
+                self.menu_view.display_blank_screen()
+
 
     ### Menu
     ### Menu View handles navigation within the menu
