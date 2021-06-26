@@ -1,7 +1,7 @@
 # SeedSigner file class dependencies
-from view import View
-from qr import QR
-from buttons import B
+from . import View
+from seedsigner.helpers import B, QR
+
 
 class SettingsToolsView(View):
 
