@@ -1,9 +1,10 @@
 # Internal file class dependencies
-from view import View
-from buttons import Buttons, B
+from . import View
+from seedsigner.helpers import Buttons, B
 
 # External Dependencies
 import time
+
 
 class SigningToolsView(View):
 

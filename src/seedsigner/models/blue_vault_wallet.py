@@ -1,5 +1,7 @@
-from wallet import Wallet
-from qr import QR
+from . import Wallet
+from seedsigner.helpers import QR
+from seedsigner.helpers.bcur import (bcur_decode, cbor_decode, bc32decode,
+    bc32encode, cbor_encode, bcur_encode)
 
 # External Dependencies
 from embit.bip39 import mnemonic_to_bytes
@@ -14,7 +16,7 @@ from io import BytesIO
 from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
 import re
 
-class SpecterDesktopMultisigWallet(Wallet):
+class BlueVaultWallet(Wallet):
 
     def __init__(self, current_network = "main", hardened_derivation = "m/48h/0h/0h/2h") -> None:
         if current_network == "main":
@@ -24,10 +26,10 @@ class SpecterDesktopMultisigWallet(Wallet):
         else:
             Wallet.__init__(self, current_network, hardened_derivation)
 
-        self.qrsize = 80
+        self.qrsize = 100
 
     def get_name(self) -> str:
-        return "Specter Desktop"
+        return "Blue Wallet Vault"
 
     def import_qr(self) -> str:
         xpubstring = "[%s%s]%s" % (
@@ -38,6 +40,7 @@ class SpecterDesktopMultisigWallet(Wallet):
         return xpubstring
 
     def parse_psbt(self, raw_psbt) -> bool:
+        raw_psbt = b2a_base64(cbor_decode(bc32decode(raw_psbt)))
 
         base64_psbt = a2b_base64(raw_psbt)
         self.tx = psbt.PSBT.parse(base64_psbt)
@@ -61,28 +64,22 @@ class SpecterDesktopMultisigWallet(Wallet):
 
         raw_trimmed_signed_psbt = trimmed_psbt.serialize()
 
-        # convert to base64
-        b64_psbt = b2a_base64(raw_trimmed_signed_psbt)
-        # somehow b2a ends with \n...
-        if b64_psbt[-1:] == b"\n":
-            b64_psbt = b64_psbt[:-1]
-
-        return b64_psbt.decode('utf-8')
+        return bcur_encode(raw_trimmed_signed_psbt)
 
     def total_frames_parse(data) -> int:
-        if re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE) != None:
-            return int(re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE).group(2))
+        if re.search("^UR\:BYTES\/(\d+)OF(\d+)", data, re.IGNORECASE) != None:
+            return int(re.search("^UR\:BYTES\/(\d+)OF(\d+)", data, re.IGNORECASE).group(2))
         else:
             return -1
 
     def current_frame_parse(data) -> int:
-        if re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE) != None:
-            return int(re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE).group(1))
+        if re.search("^UR\:BYTES\/(\d+)OF(\d+)", data, re.IGNORECASE) != None:
+            return int(re.search("^UR\:BYTES\/(\d+)OF(\d+)", data, re.IGNORECASE).group(1))
         else:
             return -1
 
     def data_parse(data) -> str:
-        return data.split(" ")[-1].strip()
+        return data.split("/")[-1].strip()
 
     def capture_complete(self) -> bool:
         if "empty" not in self.qr_data:
@@ -103,10 +100,16 @@ class SpecterDesktopMultisigWallet(Wallet):
         return True
 
     def make_xpub_qr_codes(self, data, callback = None) -> []:
-        return self.make_signing_qr_codes(data, callback)
+        qr = QR()
+        images = []
+        images.append(qr.qrimage(data))
+        return images
 
     def make_signing_qr_codes(self, data, callback = None) -> []:
         qr = QR()
+
+        qrdata = data[0].upper()
+        qrhash = data[1].upper()
 
         cnt = 0
         images = []
@@ -115,13 +118,13 @@ class SpecterDesktopMultisigWallet(Wallet):
         qr_cnt = ((len(data)-1) // self.qrsize) + 1
 
         while cnt < qr_cnt:
-            part = "p" + str(cnt+1) + "of" + str(qr_cnt) + " " + data[start:stop]
+            part = "UR:BYTES/" + str(cnt+1) + "OF" + str(qr_cnt) + "/" + qrhash + "/" + qrdata[start:stop]
             images.append(qr.qrimage(part))
             print(part)
             start = start + self.qrsize
             stop = stop + self.qrsize
-            if stop > len(data):
-                stop = len(data)
+            if stop > len(qrdata):
+                stop = len(qrdata)
             cnt += 1
 
             if callback != None:
@@ -131,6 +134,32 @@ class SpecterDesktopMultisigWallet(Wallet):
 
     def set_qr_density(density):
         if density == Wallet.LOW:
-            self.qrsize = 60
-        elif density == Wallet.HIGH:
             self.qrsize = 100
+        elif density == Wallet.HIGH:
+            self.qrsize = 140
+
+    ###
+    ### Internal Wallet Transactions OVERRIDE
+    ###
+
+    def get_policy(self, scope, scriptpubkey, xpubs):
+        """Parse scope and get policy"""
+        # we don't know the policy yet, let's parse it
+        script_type = scriptpubkey.script_type()
+        # p2sh can be either legacy multisig, or nested segwit multisig
+        # or nested segwit singlesig
+        if script_type == "p2sh":
+            if scope.witness_script is not None:
+                script_type = "p2sh-p2wsh"
+            elif scope.redeem_script is not None and scope.redeem_script.script_type() == "p2wpkh":
+                script_type = "p2sh-p2wpkh"
+        policy = { "type": script_type }
+        # expected multisig
+        if "p2wsh" in script_type and scope.witness_script is not None:
+            m, n, pubkeys = super().parse_multisig(scope.witness_script)
+
+            # check pubkeys are derived from cosigners
+            policy.update({
+                "m": m, "n": n
+            })
+        return policy

@@ -1,14 +1,11 @@
 # External Dependencies
-from embit.bip39 import mnemonic_to_bytes
-from embit.bip39 import mnemonic_from_bytes
 from embit import bip39
+from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 import time
 
 # Internal file class dependencies
-from qr import QR
-from view import View
-from buttons import B
-from camera_process import CameraPoll
+from . import View
+from seedsigner.helpers import B, QR, CameraPoll
 
 
 class SeedToolsView(View):

@@ -142,7 +142,7 @@ Description=Seedsigner
 
 [Service]
 User=pi
-WorkingDirectory=/home/pi/seedsigner
+WorkingDirectory=/home/pi/seedsigner/src/
 ExecStart=/usr/bin/python3 main.py
 Restart=always
 
@@ -171,4 +171,4 @@ sudo reboot
 
 It will take about a minute after the Pi is powered on for the GUI to launch -- be patient!
 
-_Reminder: If you used option #2, [return the guide](babel/README.md) to remove the internet access over USB configuration._
+_Reminder: If you used option #2, [return the guide](docs/usb_relay.md) to remove the internet access over USB configuration._

@@ -3,9 +3,9 @@ import threading
 from threading import Timer
 
 # Internal file class dependencies
-from view import View
-from buttons import B
-from camera_process import CameraPoll
+from . import View
+from seedsigner.helpers import B, CameraPoll
+
 
 class IOTestView(View):
 

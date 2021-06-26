@@ -1,8 +1,7 @@
 # Internal file class dependencies
-from view import View
-from buttons import B
-from path import Path
-from seed_storage import SeedStorage
+from . import View
+from seedsigner.helpers import B, Path
+from seedsigner.models import SeedStorage
 
 # External Dependencies
 import time
