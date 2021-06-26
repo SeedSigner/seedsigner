@@ -46,7 +46,6 @@ class View:
         from seedsigner.controller import Controller
         self.controller = Controller.get_instance()
 
-        # Global Singleton
         View.buttons = self.controller.buttons
 
         View.canvas_width = View.WIDTH

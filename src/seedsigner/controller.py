@@ -26,6 +26,8 @@ class Controller:
         from seedsigner.controller import Controller
         controller = Controller.get_instance()
         ```
+        Note: In many/most cases you'll need to do the Controller import within a method
+        rather than at the top in order avoid circular imports.
     """
     VERSION = "0.4.1"
 
