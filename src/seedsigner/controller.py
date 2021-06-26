@@ -27,7 +27,7 @@ class Controller:
         controller = Controller.get_instance()
         ```
     """
-    VERSION = "0.4.1a1"
+    VERSION = "0.4.1"
 
     _instance = None
 

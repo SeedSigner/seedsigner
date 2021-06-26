@@ -131,13 +131,15 @@ class SparrowMultiSigWallet(Wallet):
                 self.buttons.trigger_override()
 
             # if all frames have not all been captured, display progress to screen/display
-            if not self.capture_complete():
+            if not self.capture_complete() and self.scan_display_working == 0:
+                self.scan_display_working = 1
                 View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
                 tw, th = View.draw.textsize("Collecting QR Codes:", font=View.IMPACT25)
                 View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill="ORANGE", font=View.IMPACT25)
                 tw, th = View.draw.textsize(str(round(self.percentage_complete * 100)) + "% Complete", font=View.IMPACT22)
                 View.draw.text(((240 - tw) / 2, 125), str(round(self.percentage_complete * 100)) + "% Complete", fill="ORANGE", font=View.IMPACT22)
                 View.DispShowImage()
+                self.scan_display_working = 0
 
         elif self.scan_started_ind == 0:
             self.scan_started_ind = 1
@@ -180,7 +182,7 @@ class SparrowMultiSigWallet(Wallet):
         images = []
         start = 0
         stop = self.qrsize
-        qr_cnt = (len(data) // self.qrsize) + 1
+        qr_cnt = ((len(data)-1) // self.qrsize) + 1
 
         while cnt < qr_cnt:
             part = "p" + str(cnt+1) + "of" + str(qr_cnt) + " " + data[start:stop]
