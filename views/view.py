@@ -68,11 +68,15 @@ class View:
             image = View.canvas
         View.disp.ShowImage(image, 0, 0)
 
-    def DispShowImageWithText(image, text):
+    def DispShowImageWithText(image, text, font=None, text_color="GREY", text_background=None):
         image_copy = image.copy()
         draw = ImageDraw.Draw(image_copy)
-        tw, th = draw.textsize(text, font=View.COURIERNEW14)
-        draw.text(((240 - tw) / 2, 228), text, fill="GREY", font=View.COURIERNEW14)
+        if not font:
+            font = View.COURIERNEW14
+        tw, th = draw.textsize(text, font=font)
+        if text_background:
+            draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), outline=text_background, fill=text_background)
+        draw.text(((240 - tw) / 2, 240 - th - 1), text, fill=text_color, font=font)
         View.disp.ShowImage(image_copy, 0, 0)
 
     def draw_modal(self, lines = [], title = "", bottom = "") -> None:

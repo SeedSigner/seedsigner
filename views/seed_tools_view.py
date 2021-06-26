@@ -26,6 +26,7 @@ class SeedToolsView(View):
         self.possible_alphabet = []
         self.possible_words = []
         self.seed_length = 12     # Default to 12, Valid values are 11, 12, 23 and 24
+        self.seed_qr_image = None
 
         # Dice information
         self.roll_number = 1
@@ -564,12 +565,50 @@ class SeedToolsView(View):
             data += str("%04d" % index)
         print(data)
         qr = QR()
-        image = qr.qrimage(data)
-        View.DispShowImage(image)
+
+        image = qr.qrimage(data, width=240, height=240, border=3)
+        View.DispShowImageWithText(image, "click to zoom, right to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
+
+        input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_PRESS])
+        if input == B.KEY_RIGHT:
+            return
+
+        elif input == B.KEY_PRESS:
+            image = qr.qrimage(data, width=480, height=480, border=1)
+
+            cur_x = 0
+            cur_y = 0
+            steps = 15
+            while True:
+                View.DispShowImageWithText(image.crop((cur_x, cur_y, cur_x + 240, cur_y + 240)), "click to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
+                input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], False, [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
+                if input == B.KEY_RIGHT:
+                    cur_x += steps
+                    if cur_x > 239:
+                        cur_x = 239
+                elif input == B.KEY_LEFT:
+                    cur_x -= steps
+                    if cur_x < 0:
+                        cur_x = 0
+                elif input == B.KEY_DOWN:
+                    cur_y += steps
+                    if cur_y > 239:
+                        cur_y = 239
+                elif input == B.KEY_UP:
+                    cur_y -= steps
+                    if cur_y < 0:
+                        cur_y = 0
+                elif input == B.KEY_PRESS:
+                    return
+
+
 
     def check_camera(self):
         try:
             data = self.controller.from_camera_queue.get(False)
+            if 'nodata' in data:
+                return
+
             print(data)
 
             # Reset list; will still have any previous seed's words
@@ -582,6 +621,8 @@ class SeedToolsView(View):
                 print(word)
                 self.words.append(word)
             print(self.words)
+            self.camera_loop_timer.stop()
+            self.controller.to_camera_queue.put(["stop"])
             self.buttons.trigger_override()
         except:
             pass
