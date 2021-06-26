@@ -1,19 +1,12 @@
 # Internal Dependencies
-from buttons import Buttons, B
-from camera_process import CameraProcess
-from camera_process import CameraPoll
-from view import View
+from seedsigner.helpers import Buttons, B, CameraProcess, CameraPoll
+from seedsigner.views import View
 
 # External Dependencies
 import time
-from embit.bip39 import mnemonic_to_bytes
-from embit.bip39 import mnemonic_from_bytes
-from embit import bip39
-from embit import script
-from embit import bip32
-from embit import psbt
+from embit import bip32, bip39, ec, psbt, script
+from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 from embit.networks import NETWORKS
-from embit import ec
 from io import BytesIO
 from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
 import textwrap

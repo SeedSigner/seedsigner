@@ -1,21 +1,15 @@
-from wallet import Wallet
-from qr import QR
+from . import Wallet
+from seedsigner.helpers import QR
 
 # External Dependencies
-from embit.bip39 import mnemonic_to_bytes
-from embit.bip39 import mnemonic_from_bytes
-from embit import bip39
-from embit import script
-from embit import bip32
-from embit import psbt
+from embit import bip32, bip39, ec, psbt, script
+from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 from embit.networks import NETWORKS
-from embit import ec
 from io import BytesIO
 from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
-from bcur import bcur_decode, cbor_decode, bc32decode, bc32encode, cbor_encode, bcur_encode
 import re
 
-class BlueVaultWallet(Wallet):
+class SpecterDesktopMultisigWallet(Wallet):
 
     def __init__(self, current_network = "main", hardened_derivation = "m/48h/0h/0h/2h") -> None:
         if current_network == "main":
@@ -25,10 +19,10 @@ class BlueVaultWallet(Wallet):
         else:
             Wallet.__init__(self, current_network, hardened_derivation)
 
-        self.qrsize = 100
+        self.qrsize = 80
 
     def get_name(self) -> str:
-        return "Blue Wallet Vault"
+        return "Specter Desktop"
 
     def import_qr(self) -> str:
         xpubstring = "[%s%s]%s" % (
@@ -39,7 +33,6 @@ class BlueVaultWallet(Wallet):
         return xpubstring
 
     def parse_psbt(self, raw_psbt) -> bool:
-        raw_psbt = b2a_base64(cbor_decode(bc32decode(raw_psbt)))
 
         base64_psbt = a2b_base64(raw_psbt)
         self.tx = psbt.PSBT.parse(base64_psbt)
@@ -63,22 +56,28 @@ class BlueVaultWallet(Wallet):
 
         raw_trimmed_signed_psbt = trimmed_psbt.serialize()
 
-        return bcur_encode(raw_trimmed_signed_psbt)
+        # convert to base64
+        b64_psbt = b2a_base64(raw_trimmed_signed_psbt)
+        # somehow b2a ends with \n...
+        if b64_psbt[-1:] == b"\n":
+            b64_psbt = b64_psbt[:-1]
+
+        return b64_psbt.decode('utf-8')
 
     def total_frames_parse(data) -> int:
-        if re.search("^UR\:BYTES\/(\d+)OF(\d+)", data, re.IGNORECASE) != None:
-            return int(re.search("^UR\:BYTES\/(\d+)OF(\d+)", data, re.IGNORECASE).group(2))
+        if re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE) != None:
+            return int(re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE).group(2))
         else:
             return -1
 
     def current_frame_parse(data) -> int:
-        if re.search("^UR\:BYTES\/(\d+)OF(\d+)", data, re.IGNORECASE) != None:
-            return int(re.search("^UR\:BYTES\/(\d+)OF(\d+)", data, re.IGNORECASE).group(1))
+        if re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE) != None:
+            return int(re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE).group(1))
         else:
             return -1
 
     def data_parse(data) -> str:
-        return data.split("/")[-1].strip()
+        return data.split(" ")[-1].strip()
 
     def capture_complete(self) -> bool:
         if "empty" not in self.qr_data:
@@ -99,16 +98,10 @@ class BlueVaultWallet(Wallet):
         return True
 
     def make_xpub_qr_codes(self, data, callback = None) -> []:
-        qr = QR()
-        images = []
-        images.append(qr.qrimage(data))
-        return images
+        return self.make_signing_qr_codes(data, callback)
 
     def make_signing_qr_codes(self, data, callback = None) -> []:
         qr = QR()
-
-        qrdata = data[0].upper()
-        qrhash = data[1].upper()
 
         cnt = 0
         images = []
@@ -117,13 +110,13 @@ class BlueVaultWallet(Wallet):
         qr_cnt = ((len(data)-1) // self.qrsize) + 1
 
         while cnt < qr_cnt:
-            part = "UR:BYTES/" + str(cnt+1) + "OF" + str(qr_cnt) + "/" + qrhash + "/" + qrdata[start:stop]
+            part = "p" + str(cnt+1) + "of" + str(qr_cnt) + " " + data[start:stop]
             images.append(qr.qrimage(part))
             print(part)
             start = start + self.qrsize
             stop = stop + self.qrsize
-            if stop > len(qrdata):
-                stop = len(qrdata)
+            if stop > len(data):
+                stop = len(data)
             cnt += 1
 
             if callback != None:
@@ -133,32 +126,6 @@ class BlueVaultWallet(Wallet):
 
     def set_qr_density(density):
         if density == Wallet.LOW:
-            self.qrsize = 100
+            self.qrsize = 60
         elif density == Wallet.HIGH:
-            self.qrsize = 140
-
-    ###
-    ### Internal Wallet Transactions OVERRIDE
-    ###
-
-    def get_policy(self, scope, scriptpubkey, xpubs):
-        """Parse scope and get policy"""
-        # we don't know the policy yet, let's parse it
-        script_type = scriptpubkey.script_type()
-        # p2sh can be either legacy multisig, or nested segwit multisig
-        # or nested segwit singlesig
-        if script_type == "p2sh":
-            if scope.witness_script is not None:
-                script_type = "p2sh-p2wsh"
-            elif scope.redeem_script is not None and scope.redeem_script.script_type() == "p2wpkh":
-                script_type = "p2sh-p2wpkh"
-        policy = { "type": script_type }
-        # expected multisig
-        if "p2wsh" in script_type and scope.witness_script is not None:
-            m, n, pubkeys = super().parse_multisig(scope.witness_script)
-
-            # check pubkeys are derived from cosigners
-            policy.update({
-                "m": m, "n": n
-            })
-        return policy
+            self.qrsize = 100

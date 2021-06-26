@@ -142,7 +142,7 @@ Description=Seedsigner
 
 [Service]
 User=pi
-WorkingDirectory=/home/pi/seedsigner
+WorkingDirectory=/home/pi/seedsigner/src/
 ExecStart=/usr/bin/python3 main.py
 Restart=always
 
