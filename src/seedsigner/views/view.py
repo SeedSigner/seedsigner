@@ -74,9 +74,10 @@ class View:
             font = View.COURIERNEW14
         tw, th = draw.textsize(text, font=font)
         if text_background:
-            draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), outline=text_background, fill=text_background)
+            draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), fill=text_background)
         draw.text(((240 - tw) / 2, 240 - th - 1), text, fill=text_color, font=font)
         View.disp.ShowImage(image_copy, 0, 0)
+
 
     def draw_modal(self, lines = [], title = "", bottom = "") -> None:
 
@@ -195,4 +196,10 @@ class View:
         View.draw.text(((240-tw)/2, 130), line3, fill="ORANGE", font=View.IMPACT20)
         tw, th = View.draw.textsize(line4, font=View.IMPACT20)
         View.draw.text(((240-tw)/2, 160), line4, fill="ORANGE", font=View.IMPACT20)
+        View.DispShowImage()
+
+
+
+    def display_blank_screen(self):
+        View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         View.DispShowImage()

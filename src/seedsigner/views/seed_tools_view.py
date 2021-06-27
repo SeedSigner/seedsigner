@@ -1,6 +1,8 @@
 # External Dependencies
 from embit import bip39
 from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
+from PIL import ImageDraw
+import math
 import time
 
 # Internal file class dependencies
@@ -444,11 +446,8 @@ class SeedToolsView(View):
             if len(seed_phrase) in (11,12):
                 ret_val = self.display_seed_phrase_12(seed_phrase, "Right to View as QR")
                 if ret_val == "right":
-
-                    # For now automatically show the resulting seed as a transcribable QR code
+                    # Show the resulting seed as a transcribable QR code
                     self.seed_phrase_as_qr(seed_phrase)
-                    input = self.buttons.wait_for([B.KEY_RIGHT])
-
                     return True
                 else:
                     return False
@@ -571,26 +570,46 @@ class SeedToolsView(View):
             return
 
         elif input == B.KEY_PRESS:
-            image = qr.qrimage(data, width=480, height=480, border=1)
+            # Render an oversized QR code that we can view up close
+            pixels_per_block = 18
+            width=486   # (25 cols + 2 border) * 18px/col
+            height=486
+            if len(seed_phrase) == 24:
+                width = 558  # (29 cols + 2 border) * 18px/col
+                height = 558
+            image = qr.qrimage(data, width=width, height=height, border=1)
 
+            # Render gridlines but leave the 1-block border as-is
+            draw = ImageDraw.Draw(image)
+            for i in range(0, math.floor(width/pixels_per_block)):
+                draw.line((i * pixels_per_block, pixels_per_block, i * pixels_per_block, height - pixels_per_block), fill="#bbb")
+                draw.line((pixels_per_block, i * pixels_per_block, width - pixels_per_block, i * pixels_per_block), fill="#bbb")
+
+            # Number of pixels the screen moves on each movement update
+            steps = pixels_per_block
+
+            # Track our current coordinates for the upper left corner of our view
             cur_x = 0
             cur_y = 0
-            steps = 15
+
             while True:
-                View.DispShowImageWithText(image.crop((cur_x, cur_y, cur_x + 240, cur_y + 240)), "click to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
+                View.DispShowImage(image.crop((cur_x, cur_y, cur_x + 240, cur_y + 240)))
+
+                # View.draw_text_over_image("click to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
+
                 input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], False, [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
                 if input == B.KEY_RIGHT:
                     cur_x += steps
-                    if cur_x > 239:
-                        cur_x = 239
+                    if cur_x > width - 240:
+                        cur_x = width - 240
                 elif input == B.KEY_LEFT:
                     cur_x -= steps
                     if cur_x < 0:
                         cur_x = 0
                 elif input == B.KEY_DOWN:
                     cur_y += steps
-                    if cur_y > 239:
-                        cur_y = 239
+                    if cur_y > height - 240:
+                        cur_y = height - 240
                 elif input == B.KEY_UP:
                     cur_y -= steps
                     if cur_y < 0:
@@ -598,9 +617,7 @@ class SeedToolsView(View):
                 elif input == B.KEY_PRESS:
                     return
 
-
-
-    def check_camera(self):
+    def parse_seed_qr_data(self):
         try:
             data = self.controller.from_camera_queue.get(False)
             if 'nodata' in data:
@@ -611,18 +628,19 @@ class SeedToolsView(View):
             # Reset list; will still have any previous seed's words
             self.words = []
 
-            for i in range(0, 12):
+            # Parse 12 or 24-word QR code
+            num_words = int(len(data[0]) / 4)
+            print(f"num_words: {num_words}")
+            for i in range(0, num_words):
                 index = int(data[0][i * 4: (i*4) + 4])
                 print(index)
                 word = bip39.WORDLIST[index]
                 print(word)
                 self.words.append(word)
             print(self.words)
-            self.camera_loop_timer.stop()
-            self.controller.to_camera_queue.put(["stop"])
             self.buttons.trigger_override()
-        except:
-            pass
+        except Exception as e:
+            print(e)
 
     def read_seed_phrase_qr(self):
         self.controller.menu_view.draw_modal(["Initializing Camera..."]) # TODO: Move to Controller
@@ -631,11 +649,17 @@ class SeedToolsView(View):
         # First get blocking, this way it's clear when the camera is ready for the end user
         self.controller.from_camera_queue.get()
 
-        self.controller.menu_view.draw_modal(["Scanning..."]) # TODO: Move to Controller
-        self.camera_loop_timer = CameraPoll(0.05, self.check_camera)
+        self.controller.menu_view.draw_modal(["Scanning..."], "Left to cancel") # TODO: Move to Controller
 
-        input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
-        if input in (B.KEY_LEFT, B.KEY_RIGHT, B.OVERRIDE):
+        try:
+            self.camera_loop_timer = CameraPoll(0.05, self.parse_seed_qr_data)
+
+            input = self.buttons.wait_for([B.KEY_LEFT])
+            if input == B.KEY_LEFT:
+                # Returning empty will kick us back to SEED_TOOLS_SUB_MENU
+                self.words = []
+        finally:
+            print(f"Stopping QR code scanner")
             self.camera_loop_timer.stop()
             self.controller.to_camera_queue.put(["stop"])
 

@@ -47,14 +47,17 @@ class Controller:
     def start(self) -> None:
         if self.DEBUG:
             # Let Exceptions halt execution
-            self.show_main_menu()
-
+            try:
+                self.show_main_menu(sub_menu=Path.SEED_TOOLS_SUB_MENU)
+            finally:
+                # Clear the screen when exiting
+                self.menu_view.display_blank_screen()
         else:
             # Handle Unexpected crashes by restarting up to 3 times
             crash_cnt = 0
             while True:
                 try:
-                    self.show_main_menu()
+                    self.show_main_menu(sub_menu=Path.SEED_TOOLS_SUB_MENU)
                 except Exception as error:
                     if crash_cnt >= 3:
                         break
@@ -102,8 +105,7 @@ class Controller:
             elif ret_val == Path.POWER_OFF:
                 ret_val = self.show_power_off()
 
-        print("exit show_main_menu")
-        return # should never return/exit
+        raise Exception("Unhandled case")
 
     ### Power Off
 
@@ -229,6 +231,8 @@ class Controller:
         if is_valid:
             self.storage.save_seed_phrase(seed_phrase, slot_num)
             self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to View as QR")
+            # TODO: Issue before here interfering with first joystick input
+            #   Camera loop?
             input = self.buttons.wait_for([B.KEY_RIGHT])
 
             # For now automatically show the resulting seed as a transcribable QR code

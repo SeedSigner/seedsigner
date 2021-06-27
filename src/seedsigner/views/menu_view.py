@@ -83,6 +83,7 @@ class MenuView(View):
                     return Path.DICE_GEN_SEED
                 elif self.selected_menu_num == 4:
                     return Path.SAVE_SEED
+        raise Exception("Unhandled case")
 
     ### Signing Tools Menu
 
@@ -105,6 +106,7 @@ class MenuView(View):
                     return Path.GEN_XPUB
                 elif self.selected_menu_num == 3:
                     return Path.SIGN_TRANSACTION
+        raise Exception("Unhandled case")
 
     ### Settings Menu
 
@@ -138,6 +140,7 @@ class MenuView(View):
                     return Path.VERSION_INFO
                 elif self.selected_menu_num == 6:
                     return Path.DONATE
+        raise Exception("Unhandled case")
 
     ### Generic Single Menu Selection (returns 1,2,3,4,5,6 ...)
 
@@ -152,11 +155,12 @@ class MenuView(View):
                 self.menu_down(title, bottom)
             elif input == B.KEY_PRESS:
                 return self.selected_menu_num
+        raise Exception("Unhandled case")
 
     ### Generic Word 12 or 24 seed phrase menu
 
     def display_12_24_word_menu(self, return_txt = "... [ Return to ... ]") -> int:
-        lines = [return_txt, "Use a 12 word seed", "Use a 24 word seed", "Scan 12 word seed QR"]
+        lines = [return_txt, "Scan a seed QR code", "Use a 12-word seed", "Use a 24-word seed"]
         self.draw_menu(lines)
 
          # Wait for Button Input (specifically menu selection/press)
@@ -170,11 +174,12 @@ class MenuView(View):
                 if self.selected_menu_num == 1:
                     return -1
                 elif self.selected_menu_num == 2:
-                    return Path.SEED_WORD_12
-                elif self.selected_menu_num == 3:
-                    return Path.SEED_WORD_24
-                elif self.selected_menu_num == 4:
                     return Path.SEED_WORD_12_QR
+                elif self.selected_menu_num == 3:
+                    return Path.SEED_WORD_12
+                elif self.selected_menu_num == 4:
+                    return Path.SEED_WORD_24
+        raise Exception("Unhandled case")
 
     ### Select a Seed Slot to Save a Seed Menu
 
@@ -227,6 +232,7 @@ class MenuView(View):
                     return 0
                 else:
                     return int(re.search("#(\d+)", lines[self.selected_menu_num-1], re.IGNORECASE).group(1))
+        raise Exception("Unhandled case")
 
     ###
     ### Generic Reusable Menu Methods/Functions
@@ -303,7 +309,6 @@ class MenuView(View):
             self.menu_lines = lines
             self.selected_menu_num = selected_menu_num
 
-        return
 
     ### Generic Menu Navigation
 
@@ -322,11 +327,8 @@ class MenuView(View):
     ### Internal View Method to Display a Line in a Menu Screen
 
     def draw_menu_text(self, x, y, line, selected) -> None:
-
         if selected == True:
             View.draw.rectangle((5, y-5, 235, y+30), outline=0, fill="ORANGE")
             View.draw.text((x, y) , line, fill="BLACK", font=View.IMPACT20)
         else:
             View.draw.text((x, y) , line, fill="ORANGE", font=View.IMPACT20)
-
-        return
