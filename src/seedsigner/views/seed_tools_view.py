@@ -455,12 +455,14 @@ class SeedToolsView(View):
                 if ret_val == "":
                     ret_val = self.display_seed_phrase_24_1(seed_phrase, bottom) #first run
                 elif ret_val == "right-1":
-                    ret_val = self.display_seed_phrase_24_2(seed_phrase, bottom) #first screen to second screen
+                    ret_val = self.display_seed_phrase_24_2(seed_phrase, "Right to View as QR") #first screen to second screen
                 elif ret_val == "left-2":
                     ret_val = self.display_seed_phrase_24_1(seed_phrase, bottom) #second screen back to first screen
                 elif ret_val == "left-1":
                     return False
                 elif ret_val == "right-2":
+                    # Show the resulting seed as a transcribable QR code
+                    self.seed_phrase_as_qr(seed_phrase)
                     return True
 
             else:

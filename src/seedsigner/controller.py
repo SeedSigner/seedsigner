@@ -153,7 +153,7 @@ class Controller:
                     self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to View as QR")
                     input = self.buttons.wait_for([B.KEY_RIGHT])
 
-                    # For now automatically show the resulting seed as a transcribable QR code
+                    # Show the resulting seed as a transcribable QR code
                     self.seed_tools_view.seed_phrase_as_qr(completed_seed_phrase)
 
         return Path.MAIN_MENU
@@ -235,7 +235,7 @@ class Controller:
             #   Camera loop?
             input = self.buttons.wait_for([B.KEY_RIGHT])
 
-            # For now automatically show the resulting seed as a transcribable QR code
+            # Show the resulting seed as a transcribable QR code
             self.seed_tools_view.seed_phrase_as_qr(seed_phrase)
         else:
             self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
