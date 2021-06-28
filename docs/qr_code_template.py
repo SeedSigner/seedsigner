@@ -58,7 +58,12 @@ def generate_qr_template(qr_size, block_size=5, show_timing_marks=False):
         </style>
         <body>
     """
-    html += f"""<div class="title">{qr_size}-word Seed</div>"""
+    if qr_size == 21:
+        html += f"""<div class="title">{qr_size}x{qr_size} QR Code</div>"""
+    elif qr_size == 25:
+        html += f"""<div class="title">12-word Seed</div>"""
+    else:
+        html += f"""<div class="title">24-word Seed</div>"""
 
     y_names = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,X,Y,Z"
 
