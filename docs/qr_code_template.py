@@ -1,6 +1,6 @@
 import math
 
-def generate_qr_template(qr_size, block_size=5):
+def generate_qr_template(qr_size, block_size=5, show_timing_marks=False):
     html = """
     <html>
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -58,10 +58,7 @@ def generate_qr_template(qr_size, block_size=5):
         </style>
         <body>
     """
-    if qr_size == 25:
-        html += """<div class="title">12-word Seed</div>"""
-    else:
-        html += """<div class="title">24-word Seed</div>"""
+    html += f"""<div class="title">{qr_size}-word Seed</div>"""
 
     y_names = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,X,Y,Z"
 
@@ -114,37 +111,41 @@ def generate_qr_template(qr_size, block_size=5):
     html += fill_registration_box(0, qr_size - 7)
     html += fill_registration_box(qr_size - 7, 0)
 
-    # Fill the dotted timing lines
-    html += fill(8, 6)
-    html += fill(10, 6)
-    html += fill(12, 6)
-    html += fill(14, 6)
-    html += fill(16, 6)
-    if qr_size ==  29:
-        html += fill(18, 6)
-        html += fill(20, 6)
+    if show_timing_marks:
+        # Fill the dotted timing marks
+        html += fill(8, 6)
+        html += fill(10, 6)
+        html += fill(12, 6)
+        if qr_size > 21:
+            html += fill(14, 6)
+            html += fill(16, 6)
+            if qr_size > 25:
+                html += fill(18, 6)
+                html += fill(20, 6)
 
-    html += fill(6, 8)
-    html += fill(6, 10)
-    html += fill(6, 12)
-    html += fill(6, 14)
-    html += fill(6, 16)
-    if qr_size == 29:
-        html += fill(6, 18)
-        html += fill(6, 20)
+        html += fill(6, 8)
+        html += fill(6, 10)
+        html += fill(6, 12)
+        if qr_size > 21:
+            html += fill(6, 14)
+            html += fill(6, 16)
+            if qr_size > 25:
+                html += fill(6, 18)
+                html += fill(6, 20)
 
-    # Fill the smaller inset registration box
-    html += fill(qr_size - 7, qr_size - 7)
+    if qr_size > 21:
+        # Fill the smaller inset registration box
+        html += fill(qr_size - 7, qr_size - 7)
 
-    for i in range(qr_size - 9, qr_size - 4):
-        html += fill(i, qr_size - 9)
-        html += fill(i, qr_size - 5)
-    for j in range(qr_size - 8, qr_size - 5):
-        html += fill(qr_size - 9, j)
-        html += fill(qr_size - 5, j)
-    for i in range(qr_size - 9, qr_size - 4):
-        for j in range(qr_size - 9, qr_size - 4):
-            html += no_border(i, j)
+        for i in range(qr_size - 9, qr_size - 4):
+            html += fill(i, qr_size - 9)
+            html += fill(i, qr_size - 5)
+        for j in range(qr_size - 8, qr_size - 5):
+            html += fill(qr_size - 9, j)
+            html += fill(qr_size - 5, j)
+        for i in range(qr_size - 9, qr_size - 4):
+            for j in range(qr_size - 9, qr_size - 4):
+                html += no_border(i, j)
 
 
     def add_block_dividers(i, j, class_name):
@@ -172,7 +173,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description="""
-    Generates a blank QR code template at either 25x25 or 29x29.
+    Generates a blank QR code template at 21x21, 25x25, or 29x29.
 
         ex: python3 qr_code_template.py 25
         ex: python3 qr_code_template.py 29
@@ -187,15 +188,19 @@ if __name__ == "__main__":
     # Required positional arguments
     parser.add_argument('qr_size',
                         type=int,
-                        choices=[25, 29],
-                        help="QR code size. 25 for 25x25, 29 for 29x29")
+                        choices=[21, 25, 29],
+                        help="QR code size. 21 for 21x21, 25 for 25x25, 29 for 29x29")
     parser.add_argument('-b', '--block_size',
                         type=int,
                         default=5,
                         help="Size of the manual entry zoom blocks")
+    parser.add_argument('-t', '--timing_marks',
+                        action='store_true',
+                        default=False,
+                        help="Show timing marks (the dashed blocks linking the three large registration boxes")
     args = parser.parse_args()
 
-    html = generate_qr_template(qr_size=args.qr_size, block_size=args.block_size)
+    html = generate_qr_template(qr_size=args.qr_size, block_size=args.block_size, show_timing_marks=args.timing_marks)
     file = open(f"qr_code_template_{args.qr_size}x{args.qr_size}.html", "w")
     file.write(html)
     file.close()
