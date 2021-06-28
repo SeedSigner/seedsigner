@@ -1,7 +1,7 @@
 # External Dependencies
 from embit import bip39
 from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
-from PIL import ImageDraw
+from PIL import ImageDraw, Image
 import math
 import time
 
@@ -571,59 +571,135 @@ class SeedToolsView(View):
 
         elif input == B.KEY_PRESS:
             # Render an oversized QR code that we can view up close
-            pixels_per_block = 18
-            width=486   # (25 cols + 2 border) * 18px/col
-            height=486
+            pixels_per_block = 24
+            qr_border = 4
+            width = (qr_border + 25 + qr_border) * pixels_per_block
+            height = width
             if len(seed_phrase) == 24:
-                width = 558  # (29 cols + 2 border) * 18px/col
-                height = 558
-            image = qr.qrimage(data, width=width, height=height, border=1)
+                width = (qr_border + 29 + qr_border) * pixels_per_block
+                height = width
+            image = qr.qrimage(data, width=width, height=height, border=qr_border).convert("RGBA")
 
             # Render gridlines but leave the 1-block border as-is
             draw = ImageDraw.Draw(image)
-            for i in range(0, math.floor(width/pixels_per_block)):
-                draw.line((i * pixels_per_block, pixels_per_block, i * pixels_per_block, height - pixels_per_block), fill="#bbb")
-                draw.line((pixels_per_block, i * pixels_per_block, width - pixels_per_block, i * pixels_per_block), fill="#bbb")
+            for i in range(qr_border, math.floor(width/pixels_per_block) - qr_border):
+                draw.line((i * pixels_per_block, qr_border * pixels_per_block, i * pixels_per_block, height - qr_border * pixels_per_block), fill="#bbb")
+                draw.line((qr_border * pixels_per_block, i * pixels_per_block, width - qr_border * pixels_per_block, i * pixels_per_block), fill="#bbb")
 
-            # Number of pixels the screen moves on each movement update
-            steps = pixels_per_block
+            # Prep the semi-transparent mask overlay
+            # make a blank image for the overlay, initialized to transparent
+            block_mask = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
+            draw = ImageDraw.Draw(block_mask)
+
+            mask_width = int((View.canvas_width - 5 * pixels_per_block)/2)
+            mask_height = int((View.canvas_height - 5 * pixels_per_block)/2)
+            print(f"mask size: ({mask_width},{mask_height})")
+            mask_rgba = (0, 0, 0, 226)
+            draw.rectangle((0, 0, View.canvas_width, mask_height), fill=mask_rgba)
+            draw.rectangle((0, View.canvas_height - mask_height - 1, View.canvas_width, View.canvas_height), fill=mask_rgba)
+            draw.rectangle((0, mask_height, mask_width, View.canvas_height - mask_height), fill=mask_rgba)
+            draw.rectangle((View.canvas_width - mask_width - 1, mask_height, View.canvas_width, View.canvas_height - mask_height), fill=mask_rgba)
+
+            # Draw a box around the cutout portion of the mask for better visibility
+            draw.line((mask_width, mask_height, mask_width, View.canvas_height - mask_height), fill="ORANGE")
+            draw.line((View.canvas_width - mask_width, mask_height, View.canvas_width - mask_width, View.canvas_height - mask_height), fill="ORANGE")
+            draw.line((mask_width, mask_height, View.canvas_width - mask_width, mask_height), fill="ORANGE")
+            draw.line((mask_width, View.canvas_height - mask_height, View.canvas_width - mask_width, View.canvas_height - mask_height), fill="ORANGE")
+
+            msg = "click to exit"
+            tw, th = draw.textsize(msg, font=View.IMPACT18)
+            draw.text(((View.canvas_width - tw) / 2, View.canvas_height - th - 2), msg, fill="ORANGE", font=View.IMPACT18)
+
+            def draw_block_labels(cur_block_x, cur_block_y):
+                # Create overlay for block labels (e.g. "D-5")
+                block_labels_x = ["1", "2", "3", "4", "5", "6"]
+                block_labels_y = ["A", "B", "C", "D", "E", "F"]
+
+                block_labels = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
+                draw = ImageDraw.Draw(block_labels)
+                draw.rectangle((mask_width, 0, View.canvas_width - mask_width, pixels_per_block), fill="ORANGE")
+                draw.rectangle((0, mask_height, pixels_per_block, View.canvas_height - mask_height), fill="ORANGE")
+
+                label_font = View.COURIERNEW24
+                x_label = block_labels_x[cur_block_x]
+                tw, th = draw.textsize(x_label, font=label_font)
+                draw.text(((View.canvas_width - tw) / 2, (pixels_per_block - th) / 2), x_label, fill="BLACK", font=label_font)
+
+                y_label = block_labels_y[cur_block_y]
+                tw, th = draw.textsize(y_label, font=label_font)
+                draw.text(((pixels_per_block - tw) / 2, (View.canvas_height - th) / 2), y_label, fill="BLACK", font=label_font)
+
+                return block_labels
+
+            block_labels = draw_block_labels(0, 0)
 
             # Track our current coordinates for the upper left corner of our view
-            cur_x = 0
-            cur_y = 0
+            cur_block_x = 0
+            cur_block_y = 0
+            cur_x = qr_border * pixels_per_block - mask_width
+            cur_y = qr_border * pixels_per_block - mask_height
+            next_x = cur_x
+            next_y = cur_y
+
+            View.DispShowImage(
+                image.crop((cur_x, cur_y, cur_x + View.canvas_width, cur_y + View.canvas_height)),
+                alpha_overlay=Image.alpha_composite(block_mask, block_labels)
+            )
 
             while True:
-                View.DispShowImage(image.crop((cur_x, cur_y, cur_x + 240, cur_y + 240)))
-
                 # View.draw_text_over_image("click to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
 
-                input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], False, [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
+                input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
                 if input == B.KEY_RIGHT:
-                    cur_x += steps
-                    if cur_x > width - 240:
-                        cur_x = width - 240
+                    next_x = cur_x + 5 * pixels_per_block
+                    cur_block_x += 1
+                    if next_x > width - View.canvas_width:
+                        print(f"At max X limit: {cur_x} | width: {width} | View.canvas_width: {View.canvas_width}")
+                        next_x = cur_x
+                        cur_block_x -= 1
                 elif input == B.KEY_LEFT:
-                    cur_x -= steps
-                    if cur_x < 0:
-                        cur_x = 0
+                    next_x = cur_x - 5 * pixels_per_block
+                    cur_block_x -= 1
+                    if next_x < 0:
+                        next_x = cur_x
+                        cur_block_x += 1
                 elif input == B.KEY_DOWN:
-                    cur_y += steps
-                    if cur_y > height - 240:
-                        cur_y = height - 240
+                    next_y = cur_y + 5 * pixels_per_block
+                    cur_block_y += 1
+                    if next_y > height - View.canvas_height:
+                        print(f"At max Y limit: {cur_y}")
+                        next_y = cur_y
+                        cur_block_y -= 1
                 elif input == B.KEY_UP:
-                    cur_y -= steps
-                    if cur_y < 0:
-                        cur_y = 0
+                    next_y = cur_y - 5 * pixels_per_block
+                    cur_block_y -= 1
+                    if next_y < 0:
+                        next_y = cur_y
+                        cur_block_y += 1
                 elif input == B.KEY_PRESS:
                     return
+
+                # Create overlay for block labels (e.g. "D-5")
+                block_labels = draw_block_labels(cur_block_x, cur_block_y)
+
+                if cur_x != next_x or cur_y != next_y:
+                    View.disp_show_image_pan(
+                        image,
+                        cur_x, cur_y, next_x, next_y,
+                        rate=pixels_per_block,
+                        alpha_overlay=Image.alpha_composite(block_mask, block_labels)
+                    )
+                    cur_x = next_x
+                    cur_y = next_y
+                    print(f"updated cur_x, cur_y: ({cur_x},{cur_y})")
+
+
 
     def parse_seed_qr_data(self):
         try:
             data = self.controller.from_camera_queue.get(False)
-            if 'nodata' in data:
+            if not data or 'nodata' in data:
                 return
-
-            print(data)
 
             # Reset list; will still have any previous seed's words
             self.words = []
@@ -640,7 +716,8 @@ class SeedToolsView(View):
             print(self.words)
             self.buttons.trigger_override()
         except Exception as e:
-            print(e)
+            pass
+
 
     def read_seed_phrase_qr(self):
         self.controller.menu_view.draw_modal(["Initializing Camera..."]) # TODO: Move to Controller

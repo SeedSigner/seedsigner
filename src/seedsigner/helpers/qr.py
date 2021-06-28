@@ -6,7 +6,6 @@ class QR:
         return
 
     def qrimage(self, data, width=240, height=240, border=3):
-
         qr = qrcode.QRCode( version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=5, border=border )
         qr.add_data(data)
         qr.make(fit=True)

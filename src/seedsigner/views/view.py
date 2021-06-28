@@ -14,7 +14,7 @@ class View:
     WIDTH = 240
     HEIGHT = 240
 
-    # Define necessart fonts
+    # Define necessary fonts
     IMPACT16 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 16)
     IMPACT18 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 18)
     IMPACT20 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 20)
@@ -26,6 +26,7 @@ class View:
     IMPACT35 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 35)
     IMPACT50 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 50)
     COURIERNEW14 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 14)
+    COURIERNEW24 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 24)
     COURIERNEW38 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 38)
     COURIERNEW30 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 30)
 
@@ -62,10 +63,48 @@ class View:
 
         self.queue = Queue()
 
-    def DispShowImage(image = None):
+    def DispShowImage(image=None, alpha_overlay=None):
         if image == None:
             image = View.canvas
+        if alpha_overlay:
+            image = Image.alpha_composite(image, alpha_overlay)
         View.disp.ShowImage(image, 0, 0)
+
+    def disp_show_image_pan(image, start_x, start_y, end_x, end_y, rate, alpha_overlay=None):
+        print(f"start_x, start_y:({start_x},{start_y})")
+        print(f"end_x, end_y:({end_x},{end_y})")
+        cur_x = start_x
+        cur_y = start_y
+        rate_x = rate
+        rate_y = rate
+        if end_x - start_x < 0:
+            rate_x = rate_x * -1
+        if end_y - start_y < 0:
+            rate_y = rate_y * -1
+
+        print(f"cur_x, cur_y:({cur_x},{cur_y})")
+
+        while (cur_x != end_x or cur_y != end_y) and (rate_x != 0 or rate_y != 0):
+            cur_x += rate_x
+            if (rate_x > 0 and cur_x > end_x) or (rate_x < 0 and cur_x < end_x):
+                cur_x -= rate_x
+                rate_x = 0
+
+            cur_y += rate_y
+            if (rate_y > 0 and cur_y > end_y) or (rate_y < 0 and cur_y < end_y):
+                cur_y -= rate_y
+                rate_y = 0
+
+            print(f"cur_x, cur_y:({cur_x},{cur_y})")
+
+            crop = image.crop((cur_x, cur_y, cur_x + View.canvas_width, cur_y + View.canvas_height))
+
+            if alpha_overlay:
+                crop = Image.alpha_composite(crop, alpha_overlay)
+
+            View.disp.ShowImage(crop, 0, 0)
+
+
 
     def DispShowImageWithText(image, text, font=None, text_color="GREY", text_background=None):
         image_copy = image.copy()
@@ -80,7 +119,6 @@ class View:
 
 
     def draw_modal(self, lines = [], title = "", bottom = "") -> None:
-
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
         if len(title) > 0:
