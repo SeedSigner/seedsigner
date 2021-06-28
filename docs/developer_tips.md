@@ -14,7 +14,8 @@ seed_phrase = "smoke chimney announce candy glory tongue refuse fatigue cricket 
 data = ""
 for word in seed_phrase.split(" "):
     index = bip39.WORDLIST.index(word)
-    data += str("%04d" % index)
+    data += "%04d" % index
+
 print(data)
 ```
 
