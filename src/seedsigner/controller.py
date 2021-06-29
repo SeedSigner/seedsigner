@@ -213,11 +213,14 @@ class Controller:
             return Path.MAIN_MENU
         else:
             # display menu to select 12 or 24 word seed for last word
-            ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Seed Tools ]")
+            ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Seed Tools ]")
             if ret_val == Path.SEED_WORD_12:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
             elif ret_val == Path.SEED_WORD_24:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+            elif ret_val == Path.SEED_WORD_QR:
+                # TODO Add Functionality here? or maybe return to another seed tools menu?
+                return Path.SEED_TOOLS_SUB_MENU
             else:
                 return Path.SEED_TOOLS_SUB_MENU
 
@@ -308,11 +311,14 @@ class Controller:
         if len(seed_phrase) == 0:
             # gather seed phrase
             # display menu to select 12 or 24 word seed for last word
-            ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Sign Tools ]")
+            ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Sign Tools ]")
             if ret_val == Path.SEED_WORD_12:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
             elif ret_val == Path.SEED_WORD_24:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+            elif ret_val == Path.SEED_WORD_QR:
+                # TODO Add Functionality here? or maybe return to another seed tools menu?
+                return Path.SIGNING_TOOLS_SUB_MENU
             else:
                 return Path.SIGNING_TOOLS_SUB_MENU
 
@@ -357,11 +363,14 @@ class Controller:
         if len(seed_phrase) == 0:
             # gather seed phrase
             # display menu to select 12 or 24 word seed for last word
-            ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Sign Tools ]")
+            ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Sign Tools ]")
             if ret_val == Path.SEED_WORD_12:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
             elif ret_val == Path.SEED_WORD_24:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+            elif ret_val == Path.SEED_WORD_QR:
+                # TODO Add Functionality here? or maybe return to another seed tools menu?
+                return Path.SIGNING_TOOLS_SUB_MENU
             else:
                 return Path.SIGNING_TOOLS_SUB_MENU
 

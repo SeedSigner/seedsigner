@@ -10,6 +10,7 @@ class Path:
     SEED_WORD_12 = 20
     SEED_WORD_24 = 21
     POWER_OFF = 22
+    SEED_WORD_QR = 23
 
     # Tools / Functions Routes
     GEN_LAST_WORD = 40
