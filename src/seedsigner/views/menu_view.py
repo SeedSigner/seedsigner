@@ -238,7 +238,7 @@ class MenuView(View):
         else:
             t = title
 
-        if bottom == None and len(lines) <= 4:
+        if bottom == None and len(lines) <= 5:
             b = "Press Control Stick to Select"
         elif bottom == None:
             if len(lines) >= 6 and len(lines) <= 10:
