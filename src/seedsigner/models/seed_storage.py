@@ -134,3 +134,8 @@ class SeedStorage:
         if len(self.saved_seeds[0]) == 0:
             count += 1
         if len(self.saved_seeds[1]) == 0:
+            count += 1
+        if len(self.saved_seeds[2]) == 0:
+            count += 1
+
+        return count
