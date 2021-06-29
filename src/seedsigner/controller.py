@@ -47,7 +47,11 @@ class Controller:
     def start(self) -> None:
         if self.DEBUG:
             # Let Exceptions halt execution
-            self.show_main_menu()
+            try:
+                self.show_main_menu()
+            finally:
+                # Clear the screen when exiting
+                self.menu_view.display_blank_screen()
 
         else:
             # Handle Unexpected crashes by restarting up to 3 times

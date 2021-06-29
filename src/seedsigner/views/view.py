@@ -192,3 +192,8 @@ class View:
         tw, th = View.draw.textsize(line4, font=View.IMPACT20)
         View.draw.text(((240-tw)/2, 160), line4, fill="ORANGE", font=View.IMPACT20)
         View.DispShowImage()
+
+
+    def display_blank_screen(self):
+        View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
+        View.DispShowImage()
