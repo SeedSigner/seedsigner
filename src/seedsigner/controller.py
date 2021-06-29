@@ -4,27 +4,22 @@ from multiprocessing import Process, Queue
 from subprocess import call
 
 # Internal file class dependencies
-from view import View
-from menu_view import MenuView
-from seed_tools_view import SeedToolsView
-from signing_tools_view import SigningToolsView
-from settings_tools_view import SettingsToolsView
-from io_test_view import IOTestView
-from buttons import Buttons, B
-from camera_process import CameraProcess
-from path import Path
-from seed_storage import SeedStorage
-from specter_desktop_multisig_wallet import SpecterDesktopMultisigWallet
-from blue_vault_wallet import BlueVaultWallet
-from sparrow_multisig_wallet import SparrowMultiSigWallet
-from generic_ur2_wallet import GenericUR2Wallet
+from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
+    SettingsToolsView, IOTestView)
+from .helpers import Buttons, B, CameraProcess,Path
+from .models import (SeedStorage, SpecterDesktopMultisigWallet, BlueVaultWallet,
+    SparrowMultiSigWallet, GenericUR2Wallet)
+
 
 class Controller:
     
     VERSION = "0.4.1a2"
 
-    def __init__(self) -> None:
+    def __init__(self, config) -> None:
         controller = self
+
+        # settings
+        self.DEBUG = config.getboolean("system", "DEBUG")
 
         # Input Buttons
         self.buttons = Buttons()
@@ -48,14 +43,19 @@ class Controller:
         p = Process(target=CameraProcess.start, args=(self.from_camera_queue, self.to_camera_queue))
         p.start()
 
-        return
 
-    def start(self, debug = False) -> None:
+    def start(self) -> None:
+        if self.DEBUG:
+            # Let Exceptions halt execution
+            try:
+                self.show_main_menu()
+            finally:
+                # Clear the screen when exiting
+                self.menu_view.display_blank_screen()
 
-        if debug == False:
-            crash_cnt = 0
-
+        else:
             # Handle Unexpected crashes by restarting up to 3 times
+            crash_cnt = 0
             while True:
                 try:
                     self.show_main_menu()
@@ -70,8 +70,7 @@ class Controller:
                     crash_cnt += 1
 
             self.menu_view.draw_modal(["Crashed ..."], "", "requires hard restart")
-        else:
-            self.show_main_menu()
+
 
     ### Menu
     ### Menu View handles navigation within the menu
@@ -298,7 +297,7 @@ class Controller:
 
         # If there is a saved seed, ask to use saved seed
         if self.storage.num_of_saved_seeds() > 0:
-            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Save Seed?")
+            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Saved Seed?")
             if r == 1: #Yes
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
                 if slot_num not in (1,2,3):

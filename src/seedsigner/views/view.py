@@ -1,10 +1,9 @@
 # External Dependencies
-from PIL import Image
-from PIL import ImageDraw
-from PIL import ImageFont
-import ST7789
+from PIL import Image, ImageDraw, ImageFont
 import spidev as SPI
 from multiprocessing import Queue
+
+from seedsigner.helpers import ST7789
 
 ### Generic View Class to Instatiate Display
 ### Static Class variables are used for display
@@ -59,7 +58,7 @@ class View:
         # 240x240 display with hardware SPI:
         View.bus = 0
         View.device = 0
-        View.disp = ST7789.ST7789(SPI.SpiDev(View.bus, View.device),View.RST, View.DC, View.BL)
+        View.disp = ST7789(SPI.SpiDev(View.bus, View.device),View.RST, View.DC, View.BL)
         View.disp.Init()
 
         self.queue = Queue()
@@ -193,4 +192,9 @@ class View:
         View.draw.text(((240-tw)/2, 130), line3, fill="ORANGE", font=View.IMPACT20)
         tw, th = View.draw.textsize(line4, font=View.IMPACT20)
         View.draw.text(((240-tw)/2, 160), line4, fill="ORANGE", font=View.IMPACT20)
+        View.DispShowImage()
+
+
+    def display_blank_screen(self):
+        View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         View.DispShowImage()

@@ -1,31 +1,25 @@
-from wallet import Wallet
-from buttons import Buttons, B
-from camera_process import CameraProcess
-from camera_process import CameraPoll
-from view import View
-from qr import QR
+from . import Wallet
+
+from seedsigner.helpers import Buttons, B, CameraProcess, CameraPoll, QR
+from seedsigner.helpers.bcur import (bcur_decode, cbor_decode, bc32decode,
+    bc32encode, cbor_encode, bcur_encode)
+from seedsigner.helpers.ur2.ur_decoder import URDecoder
+from seedsigner.helpers.ur2.ur_encoder import UREncoder
+from seedsigner.helpers.ur2.cbor_lite import CBOREncoder
+from seedsigner.helpers.ur2.ur import UR
+from seedsigner.views import View
 
 # External Dependencies
 import time
-from embit.bip39 import mnemonic_to_bytes
-from embit.bip39 import mnemonic_from_bytes
-from embit import bip39
-from embit import script
-from embit import bip32
-from embit import psbt
+from embit import bip32, bip39, ec, script, psbt
+from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 from embit.networks import NETWORKS
-from embit import ec
 from io import BytesIO
 from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
-from bcur import bcur_decode, cbor_decode, bc32decode, bc32encode, cbor_encode, bcur_encode
-from ur2.ur_decoder import URDecoder
-from ur2.ur_encoder import UREncoder
-from ur2.cbor_lite import CBOREncoder
-from ur2.ur import UR
 import re
 import textwrap
 
-class GenericUR2Wallet(Wallet):
+class SparrowMultiSigWallet(Wallet):
 
     def __init__(self, current_network = "main", hardened_derivation = "m/48h/0h/0h/2h") -> None:
         if current_network == "main":
@@ -35,14 +29,20 @@ class GenericUR2Wallet(Wallet):
         else:
             Wallet.__init__(self, current_network, hardened_derivation)
 
-        self.qrsize = 80
+        self.qrsize = 70
+        self.blink = False
 
     def set_seed_phrase(self, seed_phrase, passphrase):
         Wallet.set_seed_phrase(self, seed_phrase, passphrase)
         self.ur_decoder = URDecoder()
 
     def get_name(self) -> str:
-        return "UR 2.0 Multisig"
+        return "Sparrow Multisig"
+
+    # def import_qr(self) -> str:
+    #     xpubstring = '{"xfp": "' + hexlify(self.fingerprint).decode('utf-8') + '","p2wsh": "' + self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]) + '","p2wsh_deriv": "' + self.hardened_derivation[1:].replace("h", "'") + '"}'
+
+    #     return xpubstring
 
     def import_qr(self) -> str:
         xpubstring = "[%s%s]%s" % (
@@ -53,7 +53,8 @@ class GenericUR2Wallet(Wallet):
         return xpubstring
 
     def parse_psbt(self, raw_psbt) -> bool:
-        self.tx = psbt.PSBT.parse(raw_psbt)
+        base64_psbt = a2b_base64(raw_psbt)
+        self.tx = psbt.PSBT.parse(base64_psbt)
 
         (self.inp_amount, policy) = self.input_amount(self.tx)
         (self.change, self.fee, self.spend, self.destinationaddress) = self.change_fee_spend_amounts(self.tx, self.inp_amount, policy, self.current_network)
@@ -65,9 +66,22 @@ class GenericUR2Wallet(Wallet):
         # sign the transaction
         self.tx.sign_with(self.root)
 
-        signed_psbt = self.tx.serialize()
+        #added section to trim psbt
+        trimmed_psbt = psbt.PSBT(self.tx.tx)
+        sigsEnd = 0
+        for i, inp in enumerate(self.tx.inputs):
+            sigsEnd += len(list(inp.partial_sigs.keys()))
+            trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
 
-        return signed_psbt
+        raw_trimmed_signed_psbt = trimmed_psbt.serialize()
+
+        # convert to base64
+        b64_psbt = b2a_base64(raw_trimmed_signed_psbt)
+        # somehow b2a ends with \n...
+        if b64_psbt[-1:] == b"\n":
+            b64_psbt = b64_psbt[:-1]
+
+        return b64_psbt.decode('utf-8')
 
     def scan_animated_qr_pbst(self, controller) -> str:
         self.controller = controller
@@ -89,7 +103,7 @@ class GenericUR2Wallet(Wallet):
             self.controller.to_camera_queue.put(["stop"])
             if self.qr_data[0] == "invalid":
                 return "invalid"
-            return cbor_decode(self.ur_decoder.result.cbor)
+            return b2a_base64(cbor_decode(self.ur_decoder.result.cbor))
 
     def process_camera_data(self):
         try:
@@ -117,13 +131,15 @@ class GenericUR2Wallet(Wallet):
                 self.buttons.trigger_override()
 
             # if all frames have not all been captured, display progress to screen/display
-            if not self.capture_complete():
+            if not self.capture_complete() and self.scan_display_working == 0:
+                self.scan_display_working = 1
                 View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
                 tw, th = View.draw.textsize("Collecting QR Codes:", font=View.IMPACT25)
                 View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill="ORANGE", font=View.IMPACT25)
                 tw, th = View.draw.textsize(str(round(self.percentage_complete * 100)) + "% Complete", font=View.IMPACT22)
                 View.draw.text(((240 - tw) / 2, 125), str(round(self.percentage_complete * 100)) + "% Complete", fill="ORANGE", font=View.IMPACT22)
                 View.DispShowImage()
+                self.scan_display_working = 0
 
         elif self.scan_started_ind == 0:
             self.scan_started_ind = 1
@@ -161,32 +177,33 @@ class GenericUR2Wallet(Wallet):
 
     def make_signing_qr_codes(self, data, callback = None) -> []:
         qr = QR()
-        images = []
+
         cnt = 0
+        images = []
+        start = 0
+        stop = self.qrsize
+        qr_cnt = ((len(data)-1) // self.qrsize) + 1
 
-        cbor_encoder = CBOREncoder()
-        cbor_encoder.encodeBytes(data)
-        qr_ur_bytes = UR("crypto-psbt", cbor_encoder.get_bytes())
-        ur2_encode = UREncoder(qr_ur_bytes,self.qrsize,0)
-        qr_cnt = ur2_encode.fountain_encoder.seq_len()
-        
-        while not ur2_encode.is_complete():
-
-            part = ur2_encode.next_part().upper()
+        while cnt < qr_cnt:
+            part = "p" + str(cnt+1) + "of" + str(qr_cnt) + " " + data[start:stop]
             images.append(qr.qrimage(part))
             print(part)
+            start = start + self.qrsize
+            stop = stop + self.qrsize
+            if stop > len(data):
+                stop = len(data)
             cnt += 1
 
             if callback != None:
-                callback((cnt * 100.0) / qr_cnt)
+                    callback((cnt * 100.0) / qr_cnt)
 
         return images
 
     def qr_sleep(self):
-        time.sleep(0.5)
+        time.sleep(0.4)
 
     def set_qr_density(density):
         if density == Wallet.LOW:
-            self.qrsize = 80
+            self.qrsize = 70
         elif density == Wallet.HIGH:
-            self.qrsize = 100
+            self.qrsize = 90
