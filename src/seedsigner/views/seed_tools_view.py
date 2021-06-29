@@ -741,6 +741,7 @@ class SeedToolsView(View):
             print(f"Stopping QR code scanner")
             self.camera_loop_timer.stop()
             self.controller.to_camera_queue.put(["stop"])
+            self.buttons.trigger_override()
 
         return self.words
 
