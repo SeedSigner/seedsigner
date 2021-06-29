@@ -263,17 +263,17 @@ class MenuView(View):
         if bottom == None and len(lines) <= 4:
             b = "Press Control Stick to Select"
         elif bottom == None:
-            if len(lines) >= 5 and len(lines) <= 8:
-                if selected_menu_num <= 4:
+            if len(lines) >= 6 and len(lines) <= 10:
+                if selected_menu_num <= 5:
                     b = "Page 1 of 2"
-                elif selected_menu_num >= 5 and selected_menu_num <= 8:
+                elif selected_menu_num >= 6 and selected_menu_num <= 10:
                     b = "Page 2 of 2"
-            elif len(lines) >= 9 and len(lines) <= 12:
-                if selected_menu_num <= 4:
+            elif len(lines) >= 11 and len(lines) <= 15:
+                if selected_menu_num <= 5:
                     b = "Page 1 of 3"
-                elif selected_menu_num >= 5 and selected_menu_num <= 8:
+                elif selected_menu_num >= 6 and selected_menu_num <= 10:
                     b = "Page 2 of 3"
-                elif selected_menu_num >= 9 and selected_menu_num <= 12:
+                elif selected_menu_num >= 11 and selected_menu_num <= 15:
                     b = "Page 3 of 3"
         else:
             b = bottom
@@ -287,33 +287,39 @@ class MenuView(View):
 
             num_of_lines = len(lines)
 
-            if selected_menu_num <= 4:
+            if selected_menu_num <= 5:
                 if num_of_lines >= 1:
-                    self.draw_menu_text(15, 45 , lines[0], (True if selected_menu_num == 1 else False))
+                    self.draw_menu_text(15, 43 , lines[0], (True if selected_menu_num == 1 else False))
                 if num_of_lines >= 2:
-                    self.draw_menu_text(15, 80 , lines[1], (True if selected_menu_num == 2 else False))
+                    self.draw_menu_text(15, 76 , lines[1], (True if selected_menu_num == 2 else False))
                 if num_of_lines >= 3:
-                    self.draw_menu_text(15, 115, lines[2], (True if selected_menu_num == 3 else False))
+                    self.draw_menu_text(15, 109, lines[2], (True if selected_menu_num == 3 else False))
                 if num_of_lines >= 4:
-                    self.draw_menu_text(15, 150, lines[3], (True if selected_menu_num == 4 else False))
-            elif selected_menu_num >= 5 and selected_menu_num <= 8:
+                    self.draw_menu_text(15, 142, lines[3], (True if selected_menu_num == 4 else False))
                 if num_of_lines >= 5:
-                    self.draw_menu_text(15, 45 , lines[4], (True if selected_menu_num == 5 else False))
+                    self.draw_menu_text(15, 175, lines[4], (True if selected_menu_num == 5 else False))
+            elif selected_menu_num >= 6 and selected_menu_num <= 10:
                 if num_of_lines >= 6:
-                    self.draw_menu_text(15, 80 , lines[5], (True if selected_menu_num == 6 else False))
+                    self.draw_menu_text(15, 43 , lines[5], (True if selected_menu_num == 6 else False))
                 if num_of_lines >= 7:
-                    self.draw_menu_text(15, 115, lines[6], (True if selected_menu_num == 7 else False))
+                    self.draw_menu_text(15, 80 , lines[6], (True if selected_menu_num == 7 else False))
                 if num_of_lines >= 8:
-                    self.draw_menu_text(15, 150, lines[7], (True if selected_menu_num == 8 else False))
-            elif selected_menu_num >= 9 and selected_menu_num <= 12:
+                    self.draw_menu_text(15, 109, lines[7], (True if selected_menu_num == 8 else False))
                 if num_of_lines >= 9:
-                    self.draw_menu_text(15, 45 , lines[8], (True if selected_menu_num == 9 else False))
+                    self.draw_menu_text(15, 142, lines[8], (True if selected_menu_num == 9 else False))
                 if num_of_lines >= 10:
-                    self.draw_menu_text(15, 80 , lines[9], (True if selected_menu_num == 10 else False))
+                    self.draw_menu_text(15, 175, lines[9], (True if selected_menu_num == 10 else False))
+            elif selected_menu_num >= 11 and selected_menu_num <= 15:
                 if num_of_lines >= 11:
-                    self.draw_menu_text(15, 115, lines[10], (True if selected_menu_num == 11 else False))
+                    self.draw_menu_text(15, 43 , lines[10], (True if selected_menu_num == 11 else False))
                 if num_of_lines >= 12:
-                    self.draw_menu_text(15, 150, lines[11], (True if selected_menu_num == 12 else False))
+                    self.draw_menu_text(15, 76 , lines[11], (True if selected_menu_num == 12 else False))
+                if num_of_lines >= 13:
+                    self.draw_menu_text(15, 109, lines[12], (True if selected_menu_num == 13 else False))
+                if num_of_lines >= 14:
+                    self.draw_menu_text(15, 142, lines[13], (True if selected_menu_num == 14 else False))
+                if num_of_lines >= 15:
+                    self.draw_menu_text(15, 175, lines[14], (True if selected_menu_num == 15 else False))
 
             tw, th = View.draw.textsize(b, font=View.IMPACT18)
             View.draw.text(((240 - tw) / 2, 210), b, fill="ORANGE", font=View.IMPACT18)
@@ -344,7 +350,7 @@ class MenuView(View):
     def draw_menu_text(self, x, y, line, selected) -> None:
 
         if selected == True:
-            View.draw.rectangle((5, y-5, 235, y+30), outline=0, fill="ORANGE")
+            View.draw.rectangle((5, y-3, 235, y+28), outline=0, fill="ORANGE")
             View.draw.text((x, y) , line, fill="BLACK", font=View.IMPACT20)
         else:
             View.draw.text((x, y) , line, fill="ORANGE", font=View.IMPACT20)
