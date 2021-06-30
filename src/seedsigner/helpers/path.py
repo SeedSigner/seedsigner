@@ -25,6 +25,7 @@ class Path:
     VERSION_INFO = 62
     DONATE = 63
     WALLET = 64
+    QR_DENSITY_SETTING = 65
 
     # Seed Slots
     SEED_SLOT_1 = 80

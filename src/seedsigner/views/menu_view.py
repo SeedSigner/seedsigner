@@ -113,11 +113,12 @@ class MenuView(View):
     ### Settings Menu
 
     def display_settings_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Input / Output Tests", "Current Network: <network>", "Wallet: <wallet>", "Version Info", "Donate to SeedSigner"]
+        lines = ["... [ Return to Main ]", "Input / Output Tests", "Current Network: <network>", "Wallet: <wallet>", "QR Density: <density>", "Version Info", "Donate to SeedSigner"]
         input = 0
         
         lines[2] = lines[2].replace("<network>", self.controller.wallet.get_network())
         lines[3] = lines[3].replace("<wallet>", self.controller.wallet.get_name())
+        lines[4] = lines[4].replace("<density>", self.controller.wallet.get_qr_density_name())
 
         # Draw Menu
         self.draw_menu(lines, 1)
@@ -139,8 +140,10 @@ class MenuView(View):
                 elif self.selected_menu_num == 4:
                     return Path.WALLET
                 elif self.selected_menu_num == 5:
-                    return Path.VERSION_INFO
+                    return Path.QR_DENSITY_SETTING
                 elif self.selected_menu_num == 6:
+                    return Path.VERSION_INFO
+                elif self.selected_menu_num == 7:
                     return Path.DONATE
 
     ### Generic Single Menu Selection (returns 1,2,3,4,5,6 ...)
