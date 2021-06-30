@@ -21,10 +21,10 @@ class Wallet:
         self.hardened_derivation = hardened_derivation
         self.qrsize = 60
 
-    def set_seed_phrase(self, seed_phrase):
+    def set_seed_phrase(self, seed_phrase, passphrase):
         # requires a valid seed phrase or error will be thrown
         self.seed_phrase = seed_phrase
-        self.seed = bip39.mnemonic_to_seed((" ".join(self.seed_phrase)).strip())
+        self.seed = bip39.mnemonic_to_seed((" ".join(self.seed_phrase)).strip(), passphrase)
         self.root = bip32.HDKey.from_seed(self.seed, version=NETWORKS[self.current_network]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
         self.bip48_xprv = self.root.derive(self.hardened_derivation)

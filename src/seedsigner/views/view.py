@@ -28,6 +28,7 @@ class View:
     COURIERNEW14 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 14)
     COURIERNEW38 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 38)
     COURIERNEW30 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 30)
+    COURIERNEW20 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 20)
 
     RST = 27
     DC = 25

@@ -13,7 +13,7 @@ from .models import (SeedStorage, SpecterDesktopMultisigWallet, BlueVaultWallet,
 
 class Controller:
     
-    VERSION = "0.4.1"
+    VERSION = "0.4.1a2"
 
     def __init__(self, config) -> None:
         controller = self
@@ -89,6 +89,10 @@ class Controller:
                 ret_val = self.show_create_seed_with_dice_tool()
             elif ret_val == Path.SAVE_SEED:
                 ret_val = self.show_store_a_seed_tool()
+            elif ret_val == Path.PASSPHRASE_SEED:
+                ret_val = self.show_add_a_passphrase_tool()
+            elif ret_val == Path.DELETE_PASSPHRASE:
+                ret_val = self.show_delete_a_passphrase_tool()
             elif ret_val == Path.GEN_XPUB:
                 ret_val = self.show_generate_xpub()
             elif ret_val == Path.SIGN_TRANSACTION:
@@ -172,7 +176,7 @@ class Controller:
 
         # display seed phrase (24 words)
         while True:
-            ret_val = self.seed_tools_view.display_seed_phrase(seed_phrase, "Right to Continue")
+            ret_val = self.seed_tools_view.display_seed_phrase(seed_phrase, "", "Right to Continue")
             if ret_val == True:
                 break
 
@@ -203,17 +207,20 @@ class Controller:
             # show seed phrase
             # display seed phrase (24 words)
             while True:
-                r = self.seed_tools_view.display_seed_phrase(self.storage.get_seed_phrase(abs(slot_num)), "Right to Continue")
+                r = self.seed_tools_view.display_seed_phrase(self.storage.get_seed_phrase(abs(slot_num)), self.storage.get_passphrase(abs(slot_num)), "Right to Continue")
                 if r == True:
                     break
             return Path.MAIN_MENU
         else:
             # display menu to select 12 or 24 word seed for last word
-            ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Seed Tools ]")
+            ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Seed Tools ]")
             if ret_val == Path.SEED_WORD_12:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
             elif ret_val == Path.SEED_WORD_24:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+            elif ret_val == Path.SEED_WORD_QR:
+                # TODO Add Functionality here? or maybe return to another seed tools menu?
+                return Path.SEED_TOOLS_SUB_MENU
             else:
                 return Path.SEED_TOOLS_SUB_MENU
 
@@ -232,6 +239,54 @@ class Controller:
 
         return Path.MAIN_MENU
 
+    ### Add a PassPhrase Menu
+
+    def show_add_a_passphrase_tool(self):
+        if self.storage.num_of_saved_seeds() == 0:
+            self.menu_view.draw_modal(["Store a seed phrase", "prior to adding", "a passphrase"], "Error", "Right to Continue")
+            self.buttons.wait_for([B.KEY_RIGHT])
+            return Path.SEED_TOOLS_SUB_MENU
+
+        ret_val = 0
+        ret_val = self.menu_view.display_saved_seed_menu(self.storage, 3, None)
+        if ret_val == 0:
+            return Path.SEED_TOOLS_SUB_MENU
+
+        slot_num = ret_val
+
+        # display a tool to pick letters/numbers to make a passphrase
+        passphrase = self.seed_tools_view.display_gather_passphrase_screen()
+        
+        if len(passphrase) == 0:
+            return Path.SEED_TOOLS_SUB_MENU
+
+        self.storage.save_passphrase(passphrase, slot_num)
+        self.menu_view.draw_modal(["Passphrase Added", passphrase, "Added to Slot #" + str(slot_num)], "", "Right to Continue")
+        self.buttons.wait_for([B.KEY_RIGHT])
+
+        return Path.MAIN_MENU
+
+    def show_delete_a_passphrase_tool(self):
+        print("delete a passphrase")
+        if self.storage.num_of_passphrase_seeds() == 0:
+            self.menu_view.draw_modal(["No stored seeds with", "passphrase found"], "Error", "Right to Continue")
+            self.buttons.wait_for([B.KEY_RIGHT])
+            return Path.SEED_TOOLS_SUB_MENU
+
+        ret_val = 0
+        ret_val = self.menu_view.display_saved_seed_menu(self.storage, 4, None)
+
+        if ret_val == 0:
+            return Path.SEED_TOOLS_SUB_MENU
+
+        slot_num = ret_val
+
+        if slot_num > 0:
+            self.storage.delete_passphrase(slot_num)
+            self.menu_view.draw_modal(["Passphrase Deleted", "from Slot #" + str(slot_num)], "", "Right to Continue")
+            self.buttons.wait_for([B.KEY_RIGHT])
+
+        return Path.MAIN_MENU
 
     ###
     ### Signing Tools Navigation/Launcher
@@ -241,6 +296,7 @@ class Controller:
 
     def show_generate_xpub(self):
         seed_phrase = []
+        passphrase = ""
 
         # If there is a saved seed, ask to use saved seed
         if self.storage.num_of_saved_seeds() > 0:
@@ -250,15 +306,19 @@ class Controller:
                 if slot_num not in (1,2,3):
                     return Path.SIGNING_TOOLS_SUB_MENU
                 seed_phrase = self.storage.get_seed_phrase(slot_num)
+                passphrase = self.storage.get_passphrase(slot_num)
 
         if len(seed_phrase) == 0:
             # gather seed phrase
             # display menu to select 12 or 24 word seed for last word
-            ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Sign Tools ]")
+            ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Sign Tools ]")
             if ret_val == Path.SEED_WORD_12:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
             elif ret_val == Path.SEED_WORD_24:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+            elif ret_val == Path.SEED_WORD_QR:
+                # TODO Add Functionality here? or maybe return to another seed tools menu?
+                return Path.SIGNING_TOOLS_SUB_MENU
             else:
                 return Path.SIGNING_TOOLS_SUB_MENU
 
@@ -275,12 +335,12 @@ class Controller:
 
         # display seed phrase
         while True:
-            r = self.seed_tools_view.display_seed_phrase(seed_phrase, "Right to See QR")
+            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to See QR")
             if r == True:
                 break
 
         self.signing_tools_view.draw_modal(["Generating QR ..."])
-        self.wallet.set_seed_phrase(seed_phrase)
+        self.wallet.set_seed_phrase(seed_phrase, passphrase)
         self.signing_tools_view.display_xpub_qr(self.wallet)
         return Path.MAIN_MENU
 
@@ -288,6 +348,7 @@ class Controller:
 
     def show_sign_transaction(self):
         seed_phrase = []
+        passphrase = ""
 
         # If there is a saved seed, ask to use saved seed
         if self.storage.num_of_saved_seeds() > 0:
@@ -297,15 +358,19 @@ class Controller:
                 if slot_num == 0:
                     return Path.SIGNING_TOOLS_SUB_MENU
                 seed_phrase = self.storage.get_seed_phrase(slot_num)
+                passphrase = self.storage.get_passphrase(slot_num)
 
         if len(seed_phrase) == 0:
             # gather seed phrase
             # display menu to select 12 or 24 word seed for last word
-            ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Sign Tools ]")
+            ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Sign Tools ]")
             if ret_val == Path.SEED_WORD_12:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
             elif ret_val == Path.SEED_WORD_24:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+            elif ret_val == Path.SEED_WORD_QR:
+                # TODO Add Functionality here? or maybe return to another seed tools menu?
+                return Path.SIGNING_TOOLS_SUB_MENU
             else:
                 return Path.SIGNING_TOOLS_SUB_MENU
 
@@ -322,7 +387,7 @@ class Controller:
 
         # display seed phrase
         while True:
-            r = self.seed_tools_view.display_seed_phrase(seed_phrase, "Right to Scan QR")
+            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Scan QR")
             if r == True:
                 break
             else:
@@ -330,7 +395,7 @@ class Controller:
 
         # Scan PSBT Animated QR using Camera
         self.menu_view.draw_modal(["Loading..."])
-        self.wallet.set_seed_phrase(seed_phrase)
+        self.wallet.set_seed_phrase(seed_phrase, passphrase)
         raw_pbst = self.wallet.scan_animated_qr_pbst(self)
 
         if raw_pbst == "nodata":

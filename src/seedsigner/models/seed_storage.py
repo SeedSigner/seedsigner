@@ -9,6 +9,7 @@ class SeedStorage:
     def __init__(self) -> None:
 
         self.saved_seeds = [[],[],[]]
+        self.passphrase = ["","",""]
 
     ###
     ### Seed Related Methods
@@ -18,6 +19,16 @@ class SeedStorage:
         slot_idx = slot_num - 1
         if slot_idx in (0,1,2):
             self.saved_seeds[slot_idx] = seed_phrase[:]
+            self.passphrase[slot_idx] = ""
+            return True
+        else:
+            return False
+
+    def save_passphrase(self, passphrase, slot_num = 0) -> bool:
+        slot_idx = slot_num - 1
+        if slot_idx in (0,1,2):
+            self.passphrase[slot_idx] = passphrase
+            return True
         else:
             return False
 
@@ -27,6 +38,19 @@ class SeedStorage:
             return self.saved_seeds[slot_idx]
         else:
             return []
+
+    def get_passphrase(self, slot_num) -> str:
+        slot_idx = slot_num - 1
+        if len(self.passphrase[slot_idx]) > 0:
+            return self.passphrase[slot_idx]
+        else:
+            return ""
+
+    def delete_passphrase(self, slot_num) -> bool:
+        slot_idx = slot_num - 1
+        self.passphrase[slot_idx] = ""
+
+        return True
 
     def valid_seed_structure(self, seed_phrase) -> bool:
         if isinstance(seed_phrase, list):
@@ -39,17 +63,6 @@ class SeedStorage:
                 return False # Required to be 12 or 24 word seed phrase
         else:
             return False # Not list, not valid seed_phrase
-
-    def valid_bip39_seed(self, seed_phrase) -> bool:
-        if self.valid_seed_structure(seed_phrase):
-            try:
-                bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip())
-            except ValueError:
-                return False
-        else:
-            return False
-
-        return True
 
     def check_slot_1(self) -> bool:
         if len(self.saved_seeds[0]) > 0:
@@ -75,6 +88,12 @@ class SeedStorage:
         else:
             return False
 
+    def check_slot_passphrase(self, slot_num) -> bool:
+        if len(self.passphrase[slot_num-1]) > 0:
+            return True
+        else:
+            return False
+
     def check_if_seed_valid(self, seed_phrase) -> bool:
         try:
             bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip())
@@ -95,6 +114,17 @@ class SeedStorage:
         if len(self.saved_seeds[1]) > 0:
             count += 1
         if len(self.saved_seeds[2]) > 0:
+            count += 1
+
+        return count
+
+    def num_of_passphrase_seeds(self) -> int:
+        count = 0
+        if len(self.saved_seeds[0]) > 0 and len(self.passphrase[0]) > 0:
+            count += 1
+        if len(self.saved_seeds[1]) > 0 and len(self.passphrase[1]) > 0:
+            count += 1
+        if len(self.saved_seeds[2]) > 0 and len(self.passphrase[2]) > 0:
             count += 1
 
         return count
