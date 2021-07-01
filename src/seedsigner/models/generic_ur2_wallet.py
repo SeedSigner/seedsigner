@@ -25,13 +25,8 @@ import textwrap
 
 class GenericUR2Wallet(Wallet):
 
-    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, hardened_derivation = "m/48h/0h/0h/2h") -> None:
-        if current_network == "main":
-            Wallet.__init__(self, current_network, qr_density, "m/48h/0h/0h/2h")
-        elif current_network == "test":
-            Wallet.__init__(self, current_network, qr_density, "m/48h/1h/0h/2h")
-        else:
-            Wallet.__init__(self, current_network, qr_density, hardened_derivation)
+    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, policy = "PKWSH") -> None:
+        Wallet.__init__(self, current_network, qr_density, policy)
 
     def set_seed_phrase(self, seed_phrase, passphrase):
         Wallet.set_seed_phrase(self, seed_phrase, passphrase)

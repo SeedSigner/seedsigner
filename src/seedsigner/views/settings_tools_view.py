@@ -37,15 +37,15 @@ class SettingsToolsView(View):
     ### Display Wallet Selection
 
     def display_wallet_selection(self) -> str:
-        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Specter Desktop", "Blue Wallet Vault", "Sparrow Multisig", "UR 2.0 Multisig"], "Which Wallet?")
+        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Specter Desktop", "Blue Wallet", "Sparrow", "UR 2.0 Generic"], "Which Wallet?")
         if r == 2:
             return "Specter Desktop"
         elif r == 3:
-            return "Blue Wallet Vault"
+            return "Blue Wallet"
         elif r == 4:
-            return "Sparrow Multisig"
+            return "Sparrow"
         elif r == 5:
-            return "UR 2.0 Multisig"
+            return "UR 2.0 Generic"
         # elif r == 3:
         #     return "Specter Desktop Single Sig"
         else:
@@ -63,6 +63,19 @@ class SettingsToolsView(View):
             return "high"
         else:
             return "invalid"
+
+    ### Display Wallet Policy Selection
+
+    def display_wallet_policy_selection(self) -> str:
+
+        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Multi Sig PKWSH", "Single Sig PKWPKH"], "Which Wallet Policy?")
+        if r == 2:
+            return "Multi Sig"
+        elif r == 3:
+            return "Single Sig"
+        else:
+            return "invalid"
+
 
     ###
     ### Version Info

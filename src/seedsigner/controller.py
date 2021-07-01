@@ -7,8 +7,8 @@ from subprocess import call
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
     SettingsToolsView, IOTestView)
 from .helpers import Buttons, B, CameraProcess,Path
-from .models import (SeedStorage, SpecterDesktopMultisigWallet, BlueVaultWallet,
-    SparrowMultiSigWallet, GenericUR2Wallet, Wallet)
+from .models import (SeedStorage, SpecterDesktopWallet, BlueWallet,
+    SparrowWallet, GenericUR2Wallet, Wallet)
 
 
 class Controller:
@@ -26,7 +26,7 @@ class Controller:
 
         # models
         self.storage = SeedStorage()
-        self.wallet_klass = globals()["SpecterDesktopMultisigWallet"]
+        self.wallet_klass = globals()["SpecterDesktopWallet"]
         self.wallet = self.wallet_klass()
 
         # Views
@@ -456,18 +456,15 @@ class Controller:
     def show_wallet_tool(self):
         r = self.settings_tools_view.display_wallet_selection()
         if r == "Specter Desktop":
-            self.wallet_klass = globals()["SpecterDesktopMultisigWallet"]
+            self.wallet_klass = globals()["SpecterDesktopWallet"]
             self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density())
-        elif r == "Specter Desktop Single Sig":
-            self.wallet_klass = globals()["SpecterDesktopSingleSigWallet"]
+        elif r == "Blue Wallet":
+            self.wallet_klass = globals()["BlueWallet"]
             self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density())
-        elif r == "Blue Wallet Vault":
-            self.wallet_klass = globals()["BlueVaultWallet"]
+        elif r == "Sparrow":
+            self.wallet_klass = globals()["SparrowWallet"]
             self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density())
-        elif r == "Sparrow Multisig":
-            self.wallet_klass = globals()["SparrowMultiSigWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density())
-        elif r == "UR 2.0 Multisig":
+        elif r == "UR 2.0 Generic":
             self.wallet_klass = globals()["GenericUR2Wallet"]
             self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density())
 
@@ -483,6 +480,17 @@ class Controller:
             self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRMEDIUM)
         elif r == "high":
             self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRHIGH)
+
+        return Path.SETTINGS_SUB_MENU
+
+    ### Show Wallet Policy Tool
+
+    def show_wallet_policy_tool(self):
+        r = self.settings_tools_view.display_wallet_policy_selection()
+        if r == "Multi Sig":
+            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), "PKWSH")
+        elif r == "Single Sig":
+            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), "PKWPKH")
 
         return Path.SETTINGS_SUB_MENU
 

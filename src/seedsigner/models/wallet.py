@@ -17,9 +17,20 @@ class Wallet:
     QRMEDIUM = 1
     QRHIGH = 2
 
-    def __init__(self, current_network, qr_density, hardened_derivation) -> None:
+    def __init__(self, current_network, qr_density, policy) -> None:
         self.current_network = current_network
-        self.hardened_derivation = hardened_derivation
+
+        if policy == "PKWSH" and self.current_network == "main":
+            self.hardened_derivation = "m/48h/0h/0h/2h"
+        elif policy == "PKWSH" and self.current_network == "test":
+            self.hardened_derivation = "m/48h/1h/0h/2h"
+        elif policy == "PKWPKH" and self.current_network = "main":
+            self.hardened_derivation = "m/84h/0h/0h"
+        elif policy == "PKWPKH" and self.current_network = "test":
+            self.hardened_derivation = "m/84h/1h/0h"
+        else:
+            raise Exception("Unsupported Derivation Path or Policy")
+
         self.qrsize = 80 # Default
         self.set_qr_density(qr_density)
         self.cur_qr_density = qr_density
