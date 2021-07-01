@@ -9,15 +9,10 @@ from io import BytesIO
 from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
 import re
 
-class SpecterDesktopMultisigWallet(Wallet):
+class SpecterDesktopWallet(Wallet):
 
-    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, hardened_derivation = "m/48h/0h/0h/2h") -> None:
-        if current_network == "main":
-            Wallet.__init__(self, current_network, qr_density, "m/48h/0h/0h/2h")
-        elif current_network == "test":
-            Wallet.__init__(self, current_network, qr_density, "m/48h/1h/0h/2h")
-        else:
-            Wallet.__init__(self, current_network, qr_density, hardened_derivation)
+    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, policy = "PKWSH") -> None:
+        Wallet.__init__(self, current_network, qr_density, policy)
 
     def get_name(self) -> str:
         return "Specter Desktop"

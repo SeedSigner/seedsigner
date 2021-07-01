@@ -1,5 +1,5 @@
-from . import SpecterDesktopMultisigWallet
 from . import Wallet
+
 from seedsigner.helpers import Buttons, B, CameraProcess, CameraPoll, QR
 from seedsigner.helpers.bcur import (bcur_decode, cbor_decode, bc32decode,
     bc32encode, cbor_encode, bcur_encode)
@@ -11,7 +11,7 @@ from seedsigner.views import View
 
 # External Dependencies
 import time
-from embit import bip32, bip39, ec, psbt, script
+from embit import bip32, bip39, ec, script, psbt
 from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 from embit.networks import NETWORKS
 from io import BytesIO
@@ -19,17 +19,11 @@ from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
 import re
 import textwrap
 
-class SpecterDesktopSingleSigWallet(SpecterDesktopMultisigWallet):
+class SparrowWallet(Wallet):
 
-    def __init__(self, current_network = "main", hardened_derivation = "m/84h/0h/0h") -> None:
-        if current_network == "main":
-            Wallet.__init__(self, current_network, "m/84h/0h/0h")
-        elif current_network == "test":
-            Wallet.__init__(self, current_network, "m/84h/1h/0h")
-        else:
-            Wallet.__init__(self, current_network, hardened_derivation)
+    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, policy = "PKWSH") -> None:
+        Wallet.__init__(self, current_network, qr_density, policy)
 
-        self.qrsize = 70
         self.blink = False
 
     def set_seed_phrase(self, seed_phrase, passphrase):
@@ -37,7 +31,12 @@ class SpecterDesktopSingleSigWallet(SpecterDesktopMultisigWallet):
         self.ur_decoder = URDecoder()
 
     def get_name(self) -> str:
-        return "Specter Single Sig"
+        return "Sparrow Multisig"
+
+    # def import_qr(self) -> str:
+    #     xpubstring = '{"xfp": "' + hexlify(self.fingerprint).decode('utf-8') + '","p2wsh": "' + self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]) + '","p2wsh_deriv": "' + self.hardened_derivation[1:].replace("h", "'") + '"}'
+
+    #     return xpubstring
 
     def import_qr(self) -> str:
         xpubstring = "[%s%s]%s" % (
@@ -155,10 +154,10 @@ class SpecterDesktopSingleSigWallet(SpecterDesktopMultisigWallet):
     def set_network(self, network) -> bool:
         if network == "main":
             self.current_network = "main"
-            self.hardened_derivation = "m/84h/0h/0h"
+            self.hardened_derivation = "m/48h/0h/0h/2h"
         elif network == "test":
             self.current_network = "test"
-            self.hardened_derivation = "m/84h/1h/0h"
+            self.hardened_derivation = "m/48h/1h/0h/2h"
         else:
             return False
 
@@ -176,6 +175,7 @@ class SpecterDesktopSingleSigWallet(SpecterDesktopMultisigWallet):
         cnt = 0
         images = []
         start = 0
+        print(self.qrsize)
         stop = self.qrsize
         qr_cnt = ((len(data)-1) // self.qrsize) + 1
 
@@ -195,10 +195,13 @@ class SpecterDesktopSingleSigWallet(SpecterDesktopMultisigWallet):
         return images
 
     def qr_sleep(self):
-        time.sleep(0.4)
+        time.sleep(0.2)
 
-    def set_qr_density(density):
-        if density == Wallet.LOW:
+    def set_qr_density(self, density):
+        self.cur_qr_density = density
+        if density == Wallet.QRLOW:
+            self.qrsize = 50
+        elif density == Wallet.QRMEDIUM:
             self.qrsize = 70
-        elif density == Wallet.HIGH:
-            self.qrsize = 90
+        elif density == Wallet.QRHIGH:
+            self.qrsize = 120
