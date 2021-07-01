@@ -12,18 +12,13 @@ import re
 class SpecterDesktopWallet(Wallet):
 
     def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, policy = "PKWSH") -> None:
+        # if policy not in self.avaliable_wallet_policies():
+        #    policy = "PKWSH" #override policy to PKWSH when not found in avaliable supported policies 
+
         Wallet.__init__(self, current_network, qr_density, policy)
 
     def get_name(self) -> str:
         return "Specter Desktop"
-
-    def import_qr(self) -> str:
-        xpubstring = "[%s%s]%s" % (
-             hexlify(self.fingerprint).decode('utf-8'),
-             self.hardened_derivation[1:],
-             self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]))
-
-        return xpubstring
 
     def parse_psbt(self, raw_psbt) -> bool:
 

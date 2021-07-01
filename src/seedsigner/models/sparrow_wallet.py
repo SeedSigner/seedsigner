@@ -31,20 +31,7 @@ class SparrowWallet(Wallet):
         self.ur_decoder = URDecoder()
 
     def get_name(self) -> str:
-        return "Sparrow Multisig"
-
-    # def import_qr(self) -> str:
-    #     xpubstring = '{"xfp": "' + hexlify(self.fingerprint).decode('utf-8') + '","p2wsh": "' + self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]) + '","p2wsh_deriv": "' + self.hardened_derivation[1:].replace("h", "'") + '"}'
-
-    #     return xpubstring
-
-    def import_qr(self) -> str:
-        xpubstring = "[%s%s]%s" % (
-             hexlify(self.fingerprint).decode('utf-8'),
-             self.hardened_derivation[1:],
-             self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]))
-
-        return xpubstring
+        return "Sparrow"
 
     def parse_psbt(self, raw_psbt) -> bool:
         base64_psbt = a2b_base64(raw_psbt)

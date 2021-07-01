@@ -22,15 +22,7 @@ class BlueWallet(Wallet):
         Wallet.__init__(self, current_network, qr_density, policy)
 
     def get_name(self) -> str:
-        return "Blue Wallet Vault"
-
-    def import_qr(self) -> str:
-        xpubstring = "[%s%s]%s" % (
-             hexlify(self.fingerprint).decode('utf-8'),
-             self.hardened_derivation[1:],
-             self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]))
-
-        return xpubstring
+        return "Blue Wallet"
 
     def parse_psbt(self, raw_psbt) -> bool:
         raw_psbt = b2a_base64(cbor_decode(bc32decode(raw_psbt)))

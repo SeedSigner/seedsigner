@@ -68,13 +68,23 @@ class SettingsToolsView(View):
 
     def display_wallet_policy_selection(self) -> str:
 
-        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Multi Sig PKWSH", "Single Sig PKWPKH"], "Which Wallet Policy?")
-        if r == 2:
-            return "Multi Sig"
+        lines = ["... [ Return to Settings ]"]
+        if "PKWSH" in self.controller.wallet.avaliable_wallet_policies():
+            lines.append("Multi Sig PKWSH")
+        if "PKWPKH" in self.controller.wallet.avaliable_wallet_policies():
+            lines.append("Single Sig PKWPKH")
+
+        print(lines)
+
+        r = self.controller.menu_view.display_generic_selection_menu(lines, "Which Wallet Policy?")
+        if r == 1:
+            return "RETURN"
+        elif r == 2:
+            return "PKWSH"
         elif r == 3:
-            return "Single Sig"
+            return "PKWPKH"
         else:
-            return "invalid"
+            return "INVALID"
 
 
     ###

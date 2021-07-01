@@ -33,15 +33,7 @@ class GenericUR2Wallet(Wallet):
         self.ur_decoder = URDecoder()
 
     def get_name(self) -> str:
-        return "UR 2.0 Multisig"
-
-    def import_qr(self) -> str:
-        xpubstring = "[%s%s]%s" % (
-             hexlify(self.fingerprint).decode('utf-8'),
-             self.hardened_derivation[1:],
-             self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]))
-
-        return xpubstring
+        return "UR 2.0 Generic"
 
     def parse_psbt(self, raw_psbt) -> bool:
         self.tx = psbt.PSBT.parse(raw_psbt)

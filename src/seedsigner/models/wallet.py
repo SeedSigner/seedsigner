@@ -20,13 +20,16 @@ class Wallet:
     def __init__(self, current_network, qr_density, policy) -> None:
         self.current_network = current_network
 
+        if policy not in self.avaliable_wallet_policies():
+            policy = "PKWSH" #override policy to PKWSH when not found in wallet 
+
         if policy == "PKWSH" and self.current_network == "main":
             self.hardened_derivation = "m/48h/0h/0h/2h"
         elif policy == "PKWSH" and self.current_network == "test":
             self.hardened_derivation = "m/48h/1h/0h/2h"
-        elif policy == "PKWPKH" and self.current_network = "main":
+        elif policy == "PKWPKH" and self.current_network == "main":
             self.hardened_derivation = "m/84h/0h/0h"
-        elif policy == "PKWPKH" and self.current_network = "test":
+        elif policy == "PKWPKH" and self.current_network == "test":
             self.hardened_derivation = "m/84h/1h/0h"
         else:
             raise Exception("Unsupported Derivation Path or Policy")
@@ -34,6 +37,7 @@ class Wallet:
         self.qrsize = 80 # Default
         self.set_qr_density(qr_density)
         self.cur_qr_density = qr_density
+        self.cur_policy = policy
 
     def set_seed_phrase(self, seed_phrase, passphrase):
         # requires a valid seed phrase or error will be thrown
@@ -72,7 +76,18 @@ class Wallet:
     ### get_name, set_network, make_xpub_qr_codes, make_signing_qr_codes, set_qr_density
 
     def import_qr(self) -> str:
-        return "empty"
+        if self.cur_policy == "PKWPKH":
+            xpubstring = "[%s%s]%s" % (
+                 hexlify(self.fingerprint).decode('utf-8'),
+                 self.hardened_derivation[1:],
+                 self.bip48_xpub.to_base58(NETWORKS[self.current_network]["zpub"]))
+        else:
+            xpubstring = "[%s%s]%s" % (
+                 hexlify(self.fingerprint).decode('utf-8'),
+                 self.hardened_derivation[1:],
+                 self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]))
+
+        return xpubstring
 
     def parse_psbt(self, raw_psbt) -> bool:
         # decodes and parses raw_psbt, also calculates the following instance values
@@ -215,6 +230,15 @@ class Wallet:
         else:
             return "Unknown"
 
+    def get_wallet_policy_name(self) -> str :
+        return self.cur_policy
+
+    def get_wallet_policy(self) -> str:
+        return self.cur_policy
+
+    def avaliable_wallet_policies(self) -> []:
+        return ["PKWSH", "PKWPKH"]
+
     ###
     ### Network Related Methods
     ###
@@ -280,7 +304,7 @@ class Wallet:
                 elif "pkh" in policy["type"]:
                     if len(out.bip32_derivations.values()) > 0:
                         der = list(out.bip32_derivations.values())[0].derivation
-                        my_pubkey = root.derive(der)
+                        my_pubkey = self.root.derive(der)
                     if policy["type"] == "p2wpkh":
                         sc = script.p2wpkh(my_pubkey)
                     elif policy["type"] == "p2sh-p2wpkh":
