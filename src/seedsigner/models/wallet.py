@@ -13,13 +13,16 @@ import textwrap
 
 class Wallet:
 
-    LOW = 0
-    HIGH = 1
+    QRLOW = 0
+    QRMEDIUM = 1
+    QRHIGH = 2
 
-    def __init__(self, current_network, hardened_derivation) -> None:
+    def __init__(self, current_network, qr_density, hardened_derivation) -> None:
         self.current_network = current_network
         self.hardened_derivation = hardened_derivation
-        self.qrsize = 60
+        self.qrsize = 80 # Default
+        self.set_qr_density(qr_density)
+        self.cur_qr_density = qr_density
 
     def set_seed_phrase(self, seed_phrase, passphrase):
         # requires a valid seed phrase or error will be thrown
@@ -179,11 +182,27 @@ class Wallet:
     def qr_sleep(self):
         time.sleep(0.2)
 
-    def set_qr_density(density):
-        if density == Wallet.LOW:
+    def set_qr_density(self, density):
+        self.cur_qr_density = density
+        if density == Wallet.QRLOW:
             self.qrsize = 60
-        elif density == Wallet.HIGH:
+        elif density == Wallet.QRMEDIUM:
+            self.qrsize = 80
+        elif density == Wallet.QRHIGH:
             self.qrsize = 100
+
+    def get_qr_density(self):
+        return self.cur_qr_density
+
+    def get_qr_density_name(self) -> str :
+        if self.cur_qr_density == Wallet.QRLOW:
+            return "Low"
+        elif self.cur_qr_density == Wallet.QRMEDIUM:
+            return "Medium"
+        elif self.cur_qr_density == Wallet.QRHIGH:
+            return "High"
+        else:
+            return "Unknown"
 
     ###
     ### Network Related Methods
