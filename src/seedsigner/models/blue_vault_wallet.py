@@ -18,15 +18,13 @@ import re
 
 class BlueVaultWallet(Wallet):
 
-    def __init__(self, current_network = "main", hardened_derivation = "m/48h/0h/0h/2h") -> None:
+    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, hardened_derivation = "m/48h/0h/0h/2h") -> None:
         if current_network == "main":
-            Wallet.__init__(self, current_network, "m/48h/0h/0h/2h")
+            Wallet.__init__(self, current_network, qr_density, "m/48h/0h/0h/2h")
         elif current_network == "test":
-            Wallet.__init__(self, current_network, "m/48h/1h/0h/2h")
+            Wallet.__init__(self, current_network, qr_density, "m/48h/1h/0h/2h")
         else:
-            Wallet.__init__(self, current_network, hardened_derivation)
-
-        self.qrsize = 100
+            Wallet.__init__(self, current_network, qr_density, hardened_derivation)
 
     def get_name(self) -> str:
         return "Blue Wallet Vault"
@@ -132,10 +130,13 @@ class BlueVaultWallet(Wallet):
 
         return images
 
-    def set_qr_density(density):
-        if density == Wallet.LOW:
+    def set_qr_density(self, density):
+        self.cur_qr_density = density
+        if density == Wallet.QRLOW:
+            self.qrsize = 70
+        elif density == Wallet.QRMEDIUM:
             self.qrsize = 100
-        elif density == Wallet.HIGH:
+        elif density == Wallet.QRHIGH:
             self.qrsize = 140
 
     ###

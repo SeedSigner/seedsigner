@@ -21,19 +21,18 @@ import textwrap
 
 class SparrowMultiSigWallet(Wallet):
 
-    def __init__(self, current_network = "main", hardened_derivation = "m/48h/0h/0h/2h") -> None:
+    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, hardened_derivation = "m/48h/0h/0h/2h") -> None:
         if current_network == "main":
-            Wallet.__init__(self, current_network, "m/48h/0h/0h/2h")
+            Wallet.__init__(self, current_network, qr_density, "m/48h/0h/0h/2h")
         elif current_network == "test":
-            Wallet.__init__(self, current_network, "m/48h/1h/0h/2h")
+            Wallet.__init__(self, current_network, qr_density, "m/48h/1h/0h/2h")
         else:
-            Wallet.__init__(self, current_network, hardened_derivation)
+            Wallet.__init__(self, current_network, qr_density, hardened_derivation)
 
-        self.qrsize = 70
         self.blink = False
 
-    def set_seed_phrase(self, seed_phrase):
-        Wallet.set_seed_phrase(self, seed_phrase)
+    def set_seed_phrase(self, seed_phrase, passphrase):
+        Wallet.set_seed_phrase(self, seed_phrase, passphrase)
         self.ur_decoder = URDecoder()
 
     def get_name(self) -> str:
@@ -181,6 +180,7 @@ class SparrowMultiSigWallet(Wallet):
         cnt = 0
         images = []
         start = 0
+        print(self.qrsize)
         stop = self.qrsize
         qr_cnt = ((len(data)-1) // self.qrsize) + 1
 
@@ -200,10 +200,13 @@ class SparrowMultiSigWallet(Wallet):
         return images
 
     def qr_sleep(self):
-        time.sleep(0.4)
+        time.sleep(0.2)
 
-    def set_qr_density(density):
-        if density == Wallet.LOW:
+    def set_qr_density(self, density):
+        self.cur_qr_density = density
+        if density == Wallet.QRLOW:
+            self.qrsize = 50
+        elif density == Wallet.QRMEDIUM:
             self.qrsize = 70
-        elif density == Wallet.HIGH:
-            self.qrsize = 90
+        elif density == Wallet.QRHIGH:
+            self.qrsize = 120

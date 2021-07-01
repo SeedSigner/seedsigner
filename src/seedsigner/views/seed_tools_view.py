@@ -30,11 +30,20 @@ class SeedToolsView(View):
         self.roll_data = ""
         self.dice_seed_phrase = []
 
+        # Gather passphrase display information
+        self.passphrase = ""
+        self.pass_lower = "abcdefghijklmnopqrstuvwxyz"
+        self.pass_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        self.pass_number = "0123456789"
+        self.pass_symbol = "!\"#$%&'()*+,=./;:<>?@[]|-_`~"
+        self.pass_letter = ""
+        self.pass_case_toggle = "lower"
+
     ###
     ### Display Gather Words Screen
     ###
 
-    def display_gather_words_screen(self, num_of_words, slot_num = 0) -> []:
+    def display_gather_words_screen(self, num_of_words) -> []:
         self.seed_length = num_of_words
 
         self.reset()
@@ -180,6 +189,150 @@ class SeedToolsView(View):
         View.DispShowImage()
 
         return
+
+    ###
+    ### Display Gather PassPhrase Screen
+    ###
+
+    def display_gather_passphrase_screen(self, slot_num = 0) -> str:
+        self.reset()
+        self.pass_letter = "a"
+        self.pass_case_toggle = "lower"
+        self.draw_gather_passphrase()
+
+        # Wait for Button Input (specifically menu selection/press)
+        while True:
+            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS, B.KEY_RIGHT, B.KEY_LEFT, B.KEY3, B.KEY2], True, [B.KEY_PRESS, B.KEY_RIGHT, B.KEY_LEFT, B.KEY3, B.KEY2])
+            if input == B.KEY_UP:
+                ret_val = self.gather_passphrase_up()
+            elif input == B.KEY_DOWN:
+                ret_val = self.gather_passphrase_down()
+            elif input == B.KEY_PRESS or input == B.KEY_RIGHT:
+                ret_val = self.gather_passphrase_press()
+            elif input == B.KEY_LEFT:
+                ret_val = self.gather_passphrase_left()
+            elif input == B.KEY2:
+                ret_val = self.gather_passphrase_toggle()
+            elif input == B.KEY3:
+                r = self.controller.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Passphrase?")
+                if r == 1: # Yes
+                    return self.passphrase
+                else:
+                    ret_val = True
+
+            if ret_val == False:
+                return ""
+
+            self.draw_gather_passphrase()
+
+    def draw_gather_passphrase(self):
+
+        # Screen Title
+        View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
+        tw, th = View.draw.textsize("Add Passphrase", font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 2), "Add Passphrase", fill="ORANGE", font=View.IMPACT18)
+
+        # Screen Botton
+        tw, th = View.draw.textsize("use joystick to add and", font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 197), "use joystick to add and", fill="ORANGE", font=View.IMPACT18)
+        tw, th = View.draw.textsize("remove passphrase characters", font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 217), "remove passphrase characters", fill="ORANGE", font=View.IMPACT18)
+
+        # Display passphrase selection in progress
+        View.draw.text((5,33), "Phrase:", fill="ORANGE", font=View.IMPACT20)
+        View.draw.text((72,35), self.passphrase[:14] + "▒", fill="ORANGE", font=View.COURIERNEW20)
+
+        if len(self.passphrase) >= 14:
+            View.draw.text((72,50), self.passphrase[14:] + "▒", fill="ORANGE", font=View.COURIERNEW20)
+
+        # Display message when max passphrase length reached
+        if len(self.passphrase) >= 28:
+            View.draw.text((50,70), "Max passphrase of 28", fill="ORANGE", font=View.IMPACT18)
+            View.draw.text((53,90), "characters reached", fill="ORANGE", font=View.IMPACT18)
+
+        # Save Button
+        c_x_offset = 240 - View.IMPACT25.getsize("Save")[0]
+        View.draw.text((c_x_offset , 172), "Save", fill="ORANGE", font=View.IMPACT22)
+
+        # Toglle Button
+        x = 240 - View.IMPACT20.getsize(self.pass_case_toggle)[0]
+        View.draw.text((x, 110), self.pass_case_toggle, fill="ORANGE", font=View.IMPACT20)
+
+        # draw letter and arrows
+        if self.pass_case_toggle == "lower":
+            pass_letter_disp = self.pass_letter.lower()
+        elif self.pass_case_toggle == "upper":
+            pass_letter_disp = self.pass_letter.upper()
+        else:
+            pass_letter_disp = self.pass_letter
+
+        tw, th = View.draw.textsize(pass_letter_disp, font=View.IMPACT35)
+        View.draw.text((((30-tw)/2), 112), pass_letter_disp, fill="ORANGE", font=View.IMPACT35)
+        View.draw.polygon([(8, 105) , (14, 89) , (20, 105 )], outline="ORANGE", fill="BLACK")
+        View.draw.polygon([(8, 168), (14, 184), (20, 168)], outline="ORANGE", fill="BLACK")
+
+        View.DispShowImage()
+
+        return
+
+    def gather_passphrase_up(self):
+        # View.draw.polygon([(8, 105) , (14, 89) , (20, 105 )], outline="ORANGE", fill="ORANGE")
+        # View.DispShowImage()
+
+        pass_choice = self.get_pass_value_options()
+
+        if self.pass_letter == pass_choice[0]:
+            self.pass_letter = pass_choice[-1]
+        else:
+            idx = pass_choice.index(self.pass_letter)
+            self.pass_letter = pass_choice[idx-1]
+
+    def gather_passphrase_down(self):
+        # View.draw.polygon([(8, 168) , (14, 184) , (20, 168 )], outline="ORANGE", fill="ORANGE")
+        # View.DispShowImage()
+
+        pass_choice = self.get_pass_value_options()
+
+        if self.pass_letter == pass_choice[-1]:
+            self.pass_letter = pass_choice[0]
+        else:
+            idx = pass_choice.index(self.pass_letter)
+            self.pass_letter = pass_choice[idx+1]
+
+    def gather_passphrase_press(self):
+        if len(self.passphrase) < 28:
+            self.passphrase += self.pass_letter
+
+        return True
+
+    def gather_passphrase_left(self) -> bool:
+        self.passphrase = self.passphrase[:-1]
+        return True
+
+    def gather_passphrase_toggle(self) -> bool:
+        options = ["lower", "upper", "number", "symbol"]
+        idx = options.index(self.pass_case_toggle)
+        l = len(options)
+        if idx+1 == l:
+            idx = 0
+        else:
+            idx += 1
+
+        self.pass_case_toggle = options[idx]
+        self.pass_letter = self.get_pass_value_options()[0]
+        return True
+
+    def get_pass_value_options(self):
+        if self.pass_case_toggle == "lower":
+            return self.pass_lower
+        elif self.pass_case_toggle == "upper":
+            return self.pass_upper
+        elif self.pass_case_toggle == "number":
+            return self.pass_number
+        elif self.pass_case_toggle == "symbol":
+            return self.pass_symbol
+        else:
+            return ""
 
     ###
     ### Display Last Word
@@ -436,23 +589,23 @@ class SeedToolsView(View):
     ### Display Seed Phrase
     ###
 
-    def display_seed_phrase(self, seed_phrase, bottom = "RIGHT to EXIT") -> bool:
+    def display_seed_phrase(self, seed_phrase, passphrase, bottom = "RIGHT to EXIT") -> bool:
         ret_val = ""
 
         while True:
             if len(seed_phrase) in (11,12):
-                ret_val = self.display_seed_phrase_12(seed_phrase, bottom)
+                ret_val = self.display_seed_phrase_12(seed_phrase, passphrase, bottom)
                 if ret_val == "right":
                     return True
                 else:
                     return False
             elif len(seed_phrase) in (23,24):
                 if ret_val == "":
-                    ret_val = self.display_seed_phrase_24_1(seed_phrase, bottom) #first run
+                    ret_val = self.display_seed_phrase_24_1(seed_phrase, passphrase, bottom) #first run
                 elif ret_val == "right-1":
-                    ret_val = self.display_seed_phrase_24_2(seed_phrase, bottom) #first screen to second screen
+                    ret_val = self.display_seed_phrase_24_2(seed_phrase, passphrase, bottom) #first screen to second screen
                 elif ret_val == "left-2":
-                    ret_val = self.display_seed_phrase_24_1(seed_phrase, bottom) #second screen back to first screen
+                    ret_val = self.display_seed_phrase_24_1(seed_phrase, passphrase, bottom) #second screen back to first screen
                 elif ret_val == "left-1":
                     return False
                 elif ret_val == "right-2":
@@ -461,28 +614,36 @@ class SeedToolsView(View):
             else:
                 return True
 
-    def display_seed_phrase_12(self, seed_phrase, bottom = "Right to Exit"):
+    def display_seed_phrase_12(self, seed_phrase, passphrase, bottom = "Right to Exit"):
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
         tw, th = View.draw.textsize("Selected Words", font=View.IMPACT18)
         self.draw.text(((240 - tw) / 2, 2), "Selected Words", fill=View.color, font=View.IMPACT18)
 
-        self.draw.text((2, 40), "1: "     + seed_phrase[0] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 65), "2: "     + seed_phrase[1] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 90), "3: "     + seed_phrase[2] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 115), "4: "    + seed_phrase[3] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 140), "5: "    + seed_phrase[4] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 165), "6: "    + seed_phrase[5] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 40), " 7: "  + seed_phrase[6] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 65), " 8: "  + seed_phrase[7] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 90), " 9: "  + seed_phrase[8] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 115), "10: " + seed_phrase[9] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 140), "11: " + seed_phrase[10], fill=View.color, font=View.IMPACT23)
+        self.draw.text((2, 40), "1: "     + seed_phrase[0] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 63), "2: "     + seed_phrase[1] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 86), "3: "     + seed_phrase[2] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 109), "4: "    + seed_phrase[3] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 132), "5: "    + seed_phrase[4] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 155), "6: "    + seed_phrase[5] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 40), " 7: "  + seed_phrase[6] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 63), " 8: "  + seed_phrase[7] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 86), " 9: "  + seed_phrase[8] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 109), "10: " + seed_phrase[9] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 132), "11: " + seed_phrase[10], fill=View.color, font=View.IMPACT22)
         if len(seed_phrase) >= 12:
-            self.draw.text((120, 165), "12: " + seed_phrase[11], fill=View.color, font=View.IMPACT23)
+            self.draw.text((120, 155), "12: " + seed_phrase[11], fill=View.color, font=View.IMPACT22)
+
+        if len(passphrase) > 0:
+            if len(passphrase) > 14:
+                disp_passphrase = "Passphrase: " + passphrase[:14] + "..."
+            else:
+                disp_passphrase = "Passphrase: " + passphrase
+            tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
+            self.draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.IMPACT18)
 
         tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.IMPACT18)
+        self.draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
 
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
@@ -491,26 +652,27 @@ class SeedToolsView(View):
         elif input == B.KEY_LEFT:
             return "left"
 
-    def display_seed_phrase_24_1(self, seed_phrase, bottom = "Right to Exit"):
+    def display_seed_phrase_24_1(self, seed_phrase, passphrase, bottom = "Right to Exit"):
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
         tw, th = View.draw.textsize("Selected Words (1/2)", font=View.IMPACT18)
         self.draw.text(((240 - tw) / 2, 2), "Selected Words (1/2)", fill=View.color, font=View.IMPACT18)
 
-        self.draw.text((2, 40), "1: "     + seed_phrase[0] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 65), "2: "     + seed_phrase[1] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 90), "3: "     + seed_phrase[2] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 115), "4: "    + seed_phrase[3] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 140), "5: "    + seed_phrase[4] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 165), "6: "    + seed_phrase[5] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 40), " 7: "  + seed_phrase[6] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 65), " 8: "  + seed_phrase[7] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 90), " 9: "  + seed_phrase[8] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 115), "10: " + seed_phrase[9] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 140), "11: " + seed_phrase[10], fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 165), "12: " + seed_phrase[11], fill=View.color, font=View.IMPACT23)
+        self.draw.text((2, 40), "1: "     + seed_phrase[0] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 63), "2: "     + seed_phrase[1] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 86), "3: "     + seed_phrase[2] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 109), "4: "    + seed_phrase[3] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 132), "5: "    + seed_phrase[4] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 155), "6: "    + seed_phrase[5] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 40), " 7: "  + seed_phrase[6] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 63), " 8: "  + seed_phrase[7] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 90), " 9: "  + seed_phrase[8] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 109), "10: " + seed_phrase[9] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 132), "11: " + seed_phrase[10], fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 155), "12: " + seed_phrase[11], fill=View.color, font=View.IMPACT22)
+
         tw, th = View.draw.textsize("Right to Continue", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 210), "Right to Continue", fill=View.color, font=View.IMPACT18)
+        self.draw.text(((240 - tw) / 2, 212), "Right to Continue", fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
 
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
@@ -519,27 +681,36 @@ class SeedToolsView(View):
         elif input == B.KEY_LEFT:
             return "left-1"
 
-    def display_seed_phrase_24_2(self, seed_phrase, bottom):
+    def display_seed_phrase_24_2(self, seed_phrase, passphrase, bottom):
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         
         tw, th = View.draw.textsize("Selected Words (2/2)", font=View.IMPACT18)
         self.draw.text(((240 - tw) / 2, 2), "Selected Words (2/2)", fill=View.color, font=View.IMPACT18)
 
-        self.draw.text((2, 40), "13: "     + seed_phrase[12] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 65), "14: "     + seed_phrase[13] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 90), "15: "     + seed_phrase[14] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 115), "16: "    + seed_phrase[15] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 140), "17: "    + seed_phrase[16] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((2, 165), "18: "    + seed_phrase[17] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 40), "19: "  + seed_phrase[18] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 65), "20: "  + seed_phrase[19] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 90), "21: "  + seed_phrase[20] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 115), "22: " + seed_phrase[21] , fill=View.color, font=View.IMPACT23)
-        self.draw.text((120, 140), "23: " + seed_phrase[22], fill=View.color, font=View.IMPACT23)
+        self.draw.text((2, 40), "13: "     + seed_phrase[12] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 63), "14: "     + seed_phrase[13] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 86), "15: "     + seed_phrase[14] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 109), "16: "    + seed_phrase[15] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 132), "17: "    + seed_phrase[16] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 155), "18: "    + seed_phrase[17] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 40), "19: "  + seed_phrase[18] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 63), "20: "  + seed_phrase[19] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 86), "21: "  + seed_phrase[20] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 109), "22: " + seed_phrase[21] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 132), "23: " + seed_phrase[22], fill=View.color, font=View.IMPACT22)
         if len(seed_phrase) >= 24:
-            self.draw.text((120, 165), "24: " + seed_phrase[23], fill=View.color, font=View.IMPACT23)
+            self.draw.text((120, 155), "24: " + seed_phrase[23], fill=View.color, font=View.IMPACT22)
+
+        if len(passphrase) > 0:
+            if len(passphrase) > 14:
+                disp_passphrase = "Passphrase: " + passphrase[:14] + "..."
+            else:
+                disp_passphrase = "Passphrase: " + passphrase
+            tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
+            self.draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.IMPACT18)
+
         tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.IMPACT18)
+        self.draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
 
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
@@ -558,6 +729,7 @@ class SeedToolsView(View):
         self.letters.clear()
         self.letters.append(self.possible_alphabet[0])
         self.possible_words.clear()
+        self.passphrase = ""
 
         return
 

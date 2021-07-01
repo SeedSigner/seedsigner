@@ -36,7 +36,7 @@ class SettingsToolsView(View):
 
     ### Display Wallet Selection
 
-    def display_wallet_selection(self) ->str:
+    def display_wallet_selection(self) -> str:
         r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Specter Desktop", "Blue Wallet Vault", "Sparrow Multisig", "UR 2.0 Multisig"], "Which Wallet?")
         if r == 2:
             return "Specter Desktop"
@@ -50,6 +50,19 @@ class SettingsToolsView(View):
         #     return "Specter Desktop Single Sig"
         else:
             return "cancel"
+
+    ### Display QR Density Selection
+
+    def display_qr_density_selection(self) -> str:
+        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Low", "Medium", "High"], "Which QR Density?")
+        if r == 2:
+            return "low"
+        elif r == 3:
+            return "medium"
+        elif r == 4:
+            return "high"
+        else:
+            return "invalid"
 
     ###
     ### Version Info

@@ -63,7 +63,7 @@ class MenuView(View):
     ### Seed Tools Menu
 
     def display_seed_tools_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Generate Word 12 / 24", "Create a Seed w/ Dice", "Store a Seed (temp)"]
+        lines = ["... [ Return to Main ]", "Generate Word 12 / 24", "Create a Seed w/ Dice", "Store a Seed (temp)", "Add Passphrase", "Delete Passphrase"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -83,6 +83,10 @@ class MenuView(View):
                     return Path.DICE_GEN_SEED
                 elif self.selected_menu_num == 4:
                     return Path.SAVE_SEED
+                elif self.selected_menu_num == 5:
+                    return Path.PASSPHRASE_SEED
+                elif self.selected_menu_num == 6:
+                    return Path.DELETE_PASSPHRASE
 
     ### Signing Tools Menu
 
@@ -109,11 +113,12 @@ class MenuView(View):
     ### Settings Menu
 
     def display_settings_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Input / Output Tests", "Current Network: <network>", "Wallet: <wallet>", "Version Info", "Donate to SeedSigner"]
+        lines = ["... [ Return to Main ]", "Input / Output Tests", "Current Network: <network>", "Wallet: <wallet>", "QR Density: <density>", "Version Info", "Donate to SeedSigner"]
         input = 0
         
         lines[2] = lines[2].replace("<network>", self.controller.wallet.get_network())
         lines[3] = lines[3].replace("<wallet>", self.controller.wallet.get_name())
+        lines[4] = lines[4].replace("<density>", self.controller.wallet.get_qr_density_name())
 
         # Draw Menu
         self.draw_menu(lines, 1)
@@ -135,8 +140,10 @@ class MenuView(View):
                 elif self.selected_menu_num == 4:
                     return Path.WALLET
                 elif self.selected_menu_num == 5:
-                    return Path.VERSION_INFO
+                    return Path.QR_DENSITY_SETTING
                 elif self.selected_menu_num == 6:
+                    return Path.VERSION_INFO
+                elif self.selected_menu_num == 7:
                     return Path.DONATE
 
     ### Generic Single Menu Selection (returns 1,2,3,4,5,6 ...)
@@ -154,9 +161,8 @@ class MenuView(View):
                 return self.selected_menu_num
 
     ### Generic Word 12 or 24 seed phrase menu
-
-    def display_12_24_word_menu(self, return_txt = "... [ Return to ... ]") -> int:
-        lines = [return_txt, "Use a 12 word seed", "Use a 24 word seed"]
+    # internal method
+    def draw_12_24_word_menu(self, lines, return_txt = "... [ Return to ... ]") -> int:
         self.draw_menu(lines)
 
          # Wait for Button Input (specifically menu selection/press)
@@ -173,6 +179,16 @@ class MenuView(View):
                     return Path.SEED_WORD_12
                 elif self.selected_menu_num == 3:
                     return Path.SEED_WORD_24
+                elif self.selected_menu_num == 4:
+                    return Path.SEED_WORD_QR
+
+    def display_12_24_word_menu(self, return_txt = "... [ Return to ... ]") -> int:
+        lines = [return_txt, "Use a 12 Word Seed", "Use a 24 Word Seed"]
+        return self.draw_12_24_word_menu(lines, return_txt)
+
+    def display_qr_12_24_word_menu(self, return_txt = "... [ Return to ... ]") -> int:
+        lines = [return_txt, "Enter 12 Word Seed", "Enter 24 Word Seed", "Scan a Seed QR Code"]
+        return self.draw_12_24_word_menu(lines, return_txt)
 
     ### Select a Seed Slot to Save a Seed Menu
 
@@ -208,6 +224,15 @@ class MenuView(View):
                 lines.append("Use Seed Slot #2")
             if storage.check_slot_3():
                 lines.append("Use Seed Slot #3")
+        elif type == 4:
+            # Show only used slots with passphrase
+            if storage.check_slot_passphrase(1):
+                lines.append("Seed Slot #1")
+            if storage.check_slot_passphrase(2):
+                lines.append("Seed Slot #2")
+            if storage.check_slot_passphrase(3):
+                lines.append("Seed Slot #3")
+
         else:
             return 0
 

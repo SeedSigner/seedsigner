@@ -25,18 +25,16 @@ import textwrap
 
 class GenericUR2Wallet(Wallet):
 
-    def __init__(self, current_network = "main", hardened_derivation = "m/48h/0h/0h/2h") -> None:
+    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, hardened_derivation = "m/48h/0h/0h/2h") -> None:
         if current_network == "main":
-            Wallet.__init__(self, current_network, "m/48h/0h/0h/2h")
+            Wallet.__init__(self, current_network, qr_density, "m/48h/0h/0h/2h")
         elif current_network == "test":
-            Wallet.__init__(self, current_network, "m/48h/1h/0h/2h")
+            Wallet.__init__(self, current_network, qr_density, "m/48h/1h/0h/2h")
         else:
-            Wallet.__init__(self, current_network, hardened_derivation)
+            Wallet.__init__(self, current_network, qr_density, hardened_derivation)
 
-        self.qrsize = 80
-
-    def set_seed_phrase(self, seed_phrase):
-        Wallet.set_seed_phrase(self, seed_phrase)
+    def set_seed_phrase(self, seed_phrase, passphrase):
+        Wallet.set_seed_phrase(self, seed_phrase, passphrase)
         self.ur_decoder = URDecoder()
 
     def get_name(self) -> str:
@@ -183,8 +181,11 @@ class GenericUR2Wallet(Wallet):
     def qr_sleep(self):
         time.sleep(0.5)
 
-    def set_qr_density(density):
-        if density == Wallet.LOW:
+    def set_qr_density(self, density):
+        self.cur_qr_density = density
+        if density == Wallet.QRLOW:
+            self.qrsize = 60
+        elif density == Wallet.QRMEDIUM:
             self.qrsize = 80
-        elif density == Wallet.HIGH:
-            self.qrsize = 100
+        elif density == Wallet.QRHIGH:
+            self.qrsize = 120
