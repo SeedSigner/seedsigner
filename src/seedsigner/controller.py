@@ -21,7 +21,6 @@ class Controller:
         # settings
         self.DEBUG = config.getboolean("system", "DEBUG")
         self.color = config["display"]["TEXT_COLOR"]
-        self.background_color = config["display"]["BACKGROUND_COLOR"]
 
         # Input Buttons
         self.buttons = Buttons()
