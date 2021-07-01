@@ -310,7 +310,7 @@ class MenuView(View):
                 if num_of_lines >= 6:
                     self.draw_menu_text(15, 43 , lines[5], (True if selected_menu_num == 6 else False))
                 if num_of_lines >= 7:
-                    self.draw_menu_text(15, 80 , lines[6], (True if selected_menu_num == 7 else False))
+                    self.draw_menu_text(15, 76 , lines[6], (True if selected_menu_num == 7 else False))
                 if num_of_lines >= 8:
                     self.draw_menu_text(15, 109, lines[7], (True if selected_menu_num == 8 else False))
                 if num_of_lines >= 9:
