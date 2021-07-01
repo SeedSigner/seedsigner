@@ -70,18 +70,18 @@ class SettingsToolsView(View):
 
         lines = ["... [ Return to Settings ]"]
         if "PKWSH" in self.controller.wallet.avaliable_wallet_policies():
-            lines.append("Multi Sig PKWSH")
+            lines.append("Multi Sig Native Segwit")
         if "PKWPKH" in self.controller.wallet.avaliable_wallet_policies():
-            lines.append("Single Sig PKWPKH")
+            lines.append("Single Sig Native Segwit")
 
         print(lines)
 
         r = self.controller.menu_view.display_generic_selection_menu(lines, "Which Wallet Policy?")
         if r == 1:
             return "RETURN"
-        elif r == 2:
+        elif lines[r-1] == "Multi Sig Native Segwit":
             return "PKWSH"
-        elif r == 3:
+        elif lines[r-1] == "Single Sig Native Segwit":
             return "PKWPKH"
         else:
             return "INVALID"

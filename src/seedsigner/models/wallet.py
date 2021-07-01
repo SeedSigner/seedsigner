@@ -231,7 +231,12 @@ class Wallet:
             return "Unknown"
 
     def get_wallet_policy_name(self) -> str :
-        return self.cur_policy
+        if self.cur_policy == "PKWSH":
+            return "Multi Sig"
+        elif self.cur_policy == "PKWPKH":
+            return "Single Sig"
+        else:
+            return self.cur_policy
 
     def get_wallet_policy(self) -> str:
         return self.cur_policy
