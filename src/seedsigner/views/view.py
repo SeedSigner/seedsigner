@@ -48,6 +48,7 @@ class View:
         # Global Singleton
         View.controller = controller
         View.buttons = View.controller.buttons
+        View.color = View.controller.color
 
         View.canvas_width = View.WIDTH
         View.canvas_height = View.HEIGHT
@@ -80,36 +81,36 @@ class View:
 
         if len(title) > 0:
             tw, th = View.draw.textsize(title, font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 2), title, fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.IMPACT22)
 
         if len(bottom) > 0:
             tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-            View.draw.text(((240 - tw) / 2, 210), bottom, fill="ORANGE", font=View.IMPACT18)
+            View.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.IMPACT18)
 
         if len(lines) == 1:
             tw, th = View.draw.textsize(lines[0], font=View.IMPACT26)
-            View.draw.text(((240 - tw) / 2, 90), lines[0], fill="ORANGE", font=View.IMPACT26)
+            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.IMPACT26)
         elif len(lines) == 2:
             tw, th = View.draw.textsize(lines[0], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 90), lines[0], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.IMPACT22)
             tw, th = View.draw.textsize(lines[1], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 125), lines[1], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[1], fill=View.color, font=View.IMPACT22)
         elif len(lines) == 3:
             tw, th = View.draw.textsize(lines[0], font=View.IMPACT26)
-            View.draw.text(((240 - tw) / 2, 55), lines[0], fill="ORANGE", font=View.IMPACT26)
+            View.draw.text(((240 - tw) / 2, 55), lines[0], fill=View.color, font=View.IMPACT26)
             tw, th = View.draw.textsize(lines[1], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 90), lines[1], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.IMPACT22)
             tw, th = View.draw.textsize(lines[2], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 125), lines[2], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.IMPACT22)
         elif len(lines) == 4:
             tw, th = View.draw.textsize(lines[0], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 55), lines[0], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 55), lines[0], fill=View.color, font=View.IMPACT22)
             tw, th = View.draw.textsize(lines[1], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 90), lines[1], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.IMPACT22)
             tw, th = View.draw.textsize(lines[2], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 125), lines[2], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.IMPACT22)
             tw, th = View.draw.textsize(lines[3], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 160), lines[3], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 160), lines[3], fill=View.color, font=View.IMPACT22)
 
         View.DispShowImage()
 
@@ -126,45 +127,45 @@ class View:
 
         if len(title) > 0:
             tw, th = View.draw.textsize(title, font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 2), title, fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.IMPACT22)
 
         if len(bottom) > 0:
             tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-            View.draw.text(((240 - tw) / 2, 210), bottom, fill="ORANGE", font=View.IMPACT18)
+            View.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.IMPACT18)
 
         if len(lines) == 1:
             tw, th = View.draw.textsize(lines[0], font=View.IMPACT26)
-            View.draw.text(((240 - tw) / 2, 90), lines[0], fill="ORANGE", font=View.IMPACT26)
+            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.IMPACT26)
         elif len(lines) == 2:
             tw, th = View.draw.textsize(lines[0], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 90), lines[0], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.IMPACT22)
             tw, th = View.draw.textsize(lines[1], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 125), lines[1], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[1], fill=View.color, font=View.IMPACT22)
         elif len(lines) == 3:
             tw, th = View.draw.textsize(lines[0], font=View.IMPACT26)
-            View.draw.text(((240 - tw) / 2, 20), lines[0], fill="ORANGE", font=View.IMPACT26)
+            View.draw.text(((240 - tw) / 2, 20), lines[0], fill=View.color, font=View.IMPACT26)
             tw, th = View.draw.textsize(lines[1], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 90), lines[1], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.IMPACT22)
             tw, th = View.draw.textsize(lines[2], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 125), lines[2], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.IMPACT22)
         elif len(lines) == 4:
             tw, th = View.draw.textsize(lines[0], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 20), lines[0], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 20), lines[0], fill=View.color, font=View.IMPACT22)
             tw, th = View.draw.textsize(lines[1], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 90), lines[1], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.IMPACT22)
             tw, th = View.draw.textsize(lines[2], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 125), lines[2], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.IMPACT22)
             tw, th = View.draw.textsize(lines[3], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 160), lines[3], fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 160), lines[3], fill=View.color, font=View.IMPACT22)
 
         a_x_offset = 240 - View.IMPACT25.getsize(a_txt)[0]
-        View.draw.text((a_x_offset, 39 + 0), a_txt, fill="ORANGE", font=View.IMPACT25)
+        View.draw.text((a_x_offset, 39 + 0), a_txt, fill=View.color, font=View.IMPACT25)
 
         b_x_offset = 240 - View.IMPACT25.getsize(b_txt)[0]
-        View.draw.text((b_x_offset , 39 + 60), b_txt, fill="ORANGE", font=View.IMPACT25)
+        View.draw.text((b_x_offset , 39 + 60), b_txt, fill=View.color, font=View.IMPACT25)
 
         c_x_offset = 240 - View.IMPACT25.getsize(c_txt)[0]
-        View.draw.text((c_x_offset , 39 + 120), c_txt, fill="ORANGE", font=View.IMPACT25)
+        View.draw.text((c_x_offset , 39 + 120), c_txt, fill=View.color, font=View.IMPACT25)
 
         View.DispShowImage()
 
@@ -184,13 +185,13 @@ class View:
         line4 = "disconnecting power."
 
         tw, th = View.draw.textsize(line1, font=View.IMPACT22)
-        View.draw.text(((240-tw)/2, 45), line1, fill="ORANGE", font=View.IMPACT22)
+        View.draw.text(((240-tw)/2, 45), line1, fill=View.color, font=View.IMPACT22)
         tw, th = View.draw.textsize(line2, font=View.IMPACT20)
-        View.draw.text(((240-tw)/2, 100), line2, fill="ORANGE", font=View.IMPACT20)
+        View.draw.text(((240-tw)/2, 100), line2, fill=View.color, font=View.IMPACT20)
         tw, th = View.draw.textsize(line3, font=View.IMPACT20)
-        View.draw.text(((240-tw)/2, 130), line3, fill="ORANGE", font=View.IMPACT20)
+        View.draw.text(((240-tw)/2, 130), line3, fill=View.color, font=View.IMPACT20)
         tw, th = View.draw.textsize(line4, font=View.IMPACT20)
-        View.draw.text(((240-tw)/2, 160), line4, fill="ORANGE", font=View.IMPACT20)
+        View.draw.text(((240-tw)/2, 160), line4, fill=View.color, font=View.IMPACT20)
         View.DispShowImage()
 
 
