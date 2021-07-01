@@ -134,9 +134,9 @@ class SparrowMultiSigWallet(Wallet):
                 self.scan_display_working = 1
                 View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
                 tw, th = View.draw.textsize("Collecting QR Codes:", font=View.IMPACT25)
-                View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill="ORANGE", font=View.IMPACT25)
+                View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill=View.color, font=View.IMPACT25)
                 tw, th = View.draw.textsize(str(round(self.percentage_complete * 100)) + "% Complete", font=View.IMPACT22)
-                View.draw.text(((240 - tw) / 2, 125), str(round(self.percentage_complete * 100)) + "% Complete", fill="ORANGE", font=View.IMPACT22)
+                View.draw.text(((240 - tw) / 2, 125), str(round(self.percentage_complete * 100)) + "% Complete", fill=View.color, font=View.IMPACT22)
                 View.DispShowImage()
                 self.scan_display_working = 0
 

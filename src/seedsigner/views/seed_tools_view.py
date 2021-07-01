@@ -78,7 +78,7 @@ class SeedToolsView(View):
             self.draw_gather_words()
 
     def gather_words_up(self):
-        View.draw.polygon([(8 + ((len(self.letters)-1)*30), 85) , (14 + ((len(self.letters)-1)*30), 69) , (20 + ((len(self.letters)-1)*30), 85 )], outline="ORANGE", fill="ORANGE")
+        View.draw.polygon([(8 + ((len(self.letters)-1)*30), 85) , (14 + ((len(self.letters)-1)*30), 69) , (20 + ((len(self.letters)-1)*30), 85 )], outline=View.color, fill=View.color)
         View.DispShowImage()
 
         self.calc_possible_alphabet()
@@ -92,7 +92,7 @@ class SeedToolsView(View):
                 print("not found error")
 
     def gather_words_down(self):
-        View.draw.polygon([(8 + ((len(self.letters)-1)*30), 148), (14 + ((len(self.letters)-1)*30), 164), (20 + ((len(self.letters)-1)*30), 148)], outline="ORANGE", fill="ORANGE")
+        View.draw.polygon([(8 + ((len(self.letters)-1)*30), 148), (14 + ((len(self.letters)-1)*30), 164), (20 + ((len(self.letters)-1)*30), 148)], outline=View.color, fill=View.color)
         View.DispShowImage()
 
         self.calc_possible_alphabet()
@@ -165,26 +165,26 @@ class SeedToolsView(View):
     def draw_gather_words(self):
 
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        View.draw.text((75, 2), "Seed Word: " + str(len(self.words)+1), fill="ORANGE", font=View.IMPACT18)
-        View.draw.text((15, 210), "(choose from words on right)", fill="ORANGE", font=View.IMPACT18)
+        View.draw.text((75, 2), "Seed Word: " + str(len(self.words)+1), fill=View.color, font=View.IMPACT18)
+        View.draw.text((15, 210), "(choose from words on right)", fill=View.color, font=View.IMPACT18)
 
         # draw possible words (3 at most)
         self.possible_words = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(self.letters))]
         if len(self.possible_words) >= 1:
             for idx, word in enumerate(self.possible_words, start=0):
                 word_offset = 223 - View.IMPACT25.getsize(word)[0]
-                View.draw.text((word_offset, 39 + (60*idx)), word + " -", fill="ORANGE", font=View.IMPACT25)
+                View.draw.text((word_offset, 39 + (60*idx)), word + " -", fill=View.color, font=View.IMPACT25)
                 if idx >= 2:
                     break
 
         # draw letter and arrows
         for idx, letter in enumerate(self.letters, start=0):
             tw, th = View.draw.textsize(letter, font=View.IMPACT35)
-            View.draw.text((((idx*30)+((30-tw)/2)), 92), letter, fill="ORANGE", font=View.IMPACT35)
+            View.draw.text((((idx*30)+((30-tw)/2)), 92), letter, fill=View.color, font=View.IMPACT35)
             if idx+1 == len(self.letters):
                 # draw arrows only above last/active letter
-                View.draw.polygon([(8 + (idx*30), 85) , (14 + (idx*30), 69) , (20 + (idx*30), 85 )], outline="ORANGE", fill="BLACK")
-                View.draw.polygon([(8 + (idx*30), 148), (14 + (idx*30), 164), (20 + (idx*30), 148)], outline="ORANGE", fill="BLACK")
+                View.draw.polygon([(8 + (idx*30), 85) , (14 + (idx*30), 69) , (20 + (idx*30), 85 )], outline=View.color, fill="BLACK")
+                View.draw.polygon([(8 + (idx*30), 148), (14 + (idx*30), 164), (20 + (idx*30), 148)], outline=View.color, fill="BLACK")
 
         View.DispShowImage()
 
@@ -349,10 +349,10 @@ class SeedToolsView(View):
 
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         tw, th = self.draw.textsize("The final word is :", font=View.IMPACT23)
-        self.draw.text(((240 - tw) / 2, 60), "The final word is :", fill="ORANGE", font=View.IMPACT23)
+        self.draw.text(((240 - tw) / 2, 60), "The final word is :", fill=View.color, font=View.IMPACT23)
         tw, th = self.draw.textsize(last_word, font=View.IMPACT50)
-        self.draw.text(((240 - tw) / 2, 90), last_word, fill="ORANGE", font=View.IMPACT50)
-        self.draw.text((73, 210), "Right to Continue", fill="ORANGE", font=View.IMPACT18)
+        self.draw.text(((240 - tw) / 2, 90), last_word, fill=View.color, font=View.IMPACT50)
+        self.draw.text((73, 210), "Right to Continue", fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
 
         input = self.buttons.wait_for([B.KEY_RIGHT])
@@ -483,74 +483,74 @@ class SeedToolsView(View):
     def draw_dice(self, dice_selected):
 
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        self.draw.text((45, 5), "Dice roll: " + str(self.roll_number) + "/99", fill="ORANGE", font=View.IMPACT26)
+        self.draw.text((45, 5), "Dice roll: " + str(self.roll_number) + "/99", fill=View.color, font=View.IMPACT26)
 
         # when dice is selected, rect fill will be orange and ellipse will be black, ellipse outline will be the black
         # when dice is not selected, rect will will be black and ellipse will be orange, ellipse outline will be orange
 
         # dice 1
         if dice_selected == 1:
-            self.draw.rectangle((5, 50, 75, 120),   outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((5, 50, 75, 120),   outline=View.color, fill=View.color)
             self.draw.ellipse([(34, 79), (46, 91)], outline="BLACK",  fill="BLACK")
         else:
-            self.draw.rectangle((5, 50, 75, 120),   outline="ORANGE", fill="BLACK")
-            self.draw.ellipse([(34, 79), (46, 91)], outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((5, 50, 75, 120),   outline=View.color, fill="BLACK")
+            self.draw.ellipse([(34, 79), (46, 91)], outline=View.color, fill=View.color)
 
         # dice 2
         if dice_selected == 2:
-            self.draw.rectangle((85, 50, 155, 120), outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((85, 50, 155, 120), outline=View.color, fill=View.color)
             self.draw.ellipse([(100, 60), (112, 72)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(128, 98), (140, 110)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((85, 50, 155, 120), outline="ORANGE", fill="BLACK")
-            self.draw.ellipse([(100, 60), (112, 72)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(128, 98), (140, 110)], outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((85, 50, 155, 120), outline=View.color, fill="BLACK")
+            self.draw.ellipse([(100, 60), (112, 72)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(128, 98), (140, 110)], outline=View.color, fill=View.color)
 
         # dice 3
         if dice_selected == 3:
-            self.draw.rectangle((165, 50, 235, 120), outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((165, 50, 235, 120), outline=View.color, fill=View.color)
             self.draw.ellipse([(180, 60), (192, 72)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(194, 79), (206, 91)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(208, 98), (220, 110)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((165, 50, 235, 120), outline="ORANGE", fill="BLACK")
-            self.draw.ellipse([(180, 60), (192, 72)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(194, 79), (206, 91)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(208, 98), (220, 110)], outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((165, 50, 235, 120), outline=View.color, fill="BLACK")
+            self.draw.ellipse([(180, 60), (192, 72)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(194, 79), (206, 91)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(208, 98), (220, 110)], outline=View.color, fill=View.color)
 
         # dice 4
         if dice_selected == 4:
-            self.draw.rectangle((5, 130, 75, 200), outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((5, 130, 75, 200), outline=View.color, fill=View.color)
             self.draw.ellipse([(20, 140), (32, 152)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(20, 174), (32, 186)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(48, 140), (60, 152)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(48, 174), (60, 186)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((5, 130, 75, 200), outline="ORANGE", fill="BLACK")
-            self.draw.ellipse([(20, 140), (32, 152)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(20, 174), (32, 186)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(48, 140), (60, 152)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(48, 174), (60, 186)], outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((5, 130, 75, 200), outline=View.color, fill="BLACK")
+            self.draw.ellipse([(20, 140), (32, 152)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(20, 174), (32, 186)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(48, 140), (60, 152)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(48, 174), (60, 186)], outline=View.color, fill=View.color)
 
         # dice 5
         if dice_selected == 5:
-            self.draw.rectangle((85, 130, 155, 200), outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((85, 130, 155, 200), outline=View.color, fill=View.color)
             self.draw.ellipse([(100, 140), (112, 152)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(100, 178), (112, 190)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(114, 159), (126, 171)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(128, 140), (140, 152)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(128, 178), (140, 190)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((85, 130, 155, 200), outline="ORANGE", fill="BLACK")
-            self.draw.ellipse([(100, 140), (112, 152)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(100, 178), (112, 190)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(114, 159), (126, 171)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(128, 140), (140, 152)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(128, 178), (140, 190)], outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((85, 130, 155, 200), outline=View.color, fill="BLACK")
+            self.draw.ellipse([(100, 140), (112, 152)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(100, 178), (112, 190)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(114, 159), (126, 171)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(128, 140), (140, 152)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(128, 178), (140, 190)], outline=View.color, fill=View.color)
 
         # dice 6
         if dice_selected == 6:
-            self.draw.rectangle((165, 130, 235, 200), outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((165, 130, 235, 200), outline=View.color, fill=View.color)
             self.draw.ellipse([(180, 140), (192, 152)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(180, 157), (192, 169)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(180, 174), (192, 186)], outline="BLACK", fill="BLACK")
@@ -558,16 +558,16 @@ class SeedToolsView(View):
             self.draw.ellipse([(208, 157), (220, 169)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(208, 174), (220, 186)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((165, 130, 235, 200), outline="ORANGE", fill="BLACK")
-            self.draw.ellipse([(180, 140), (192, 152)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(180, 157), (192, 169)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(180, 174), (192, 186)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(208, 140), (220, 152)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(208, 157), (220, 169)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(208, 174), (220, 186)], outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((165, 130, 235, 200), outline=View.color, fill="BLACK")
+            self.draw.ellipse([(180, 140), (192, 152)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(180, 157), (192, 169)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(180, 174), (192, 186)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(208, 140), (220, 152)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(208, 157), (220, 169)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(208, 174), (220, 186)], outline=View.color, fill=View.color)
 
         # bottom text
-        self.draw.text((18, 210), "Press Control Stick to Select", fill="ORANGE", font=View.IMPACT18)
+        self.draw.text((18, 210), "Press Control Stick to Select", fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
 
         self.dice_selected = dice_selected
@@ -618,21 +618,21 @@ class SeedToolsView(View):
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
         tw, th = View.draw.textsize("Selected Words", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 2), "Selected Words", fill="ORANGE", font=View.IMPACT18)
+        self.draw.text(((240 - tw) / 2, 2), "Selected Words", fill=View.color, font=View.IMPACT18)
 
-        self.draw.text((2, 40), "1: "     + seed_phrase[0] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 63), "2: "     + seed_phrase[1] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 86), "3: "     + seed_phrase[2] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 109), "4: "    + seed_phrase[3] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 132), "5: "    + seed_phrase[4] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 155), "6: "    + seed_phrase[5] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 40), " 7: "  + seed_phrase[6] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 63), " 8: "  + seed_phrase[7] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 86), " 9: "  + seed_phrase[8] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 109), "10: " + seed_phrase[9] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 132), "11: " + seed_phrase[10], fill="ORANGE", font=View.IMPACT22)
+        self.draw.text((2, 40), "1: "     + seed_phrase[0] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 63), "2: "     + seed_phrase[1] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 86), "3: "     + seed_phrase[2] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 109), "4: "    + seed_phrase[3] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 132), "5: "    + seed_phrase[4] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 155), "6: "    + seed_phrase[5] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 40), " 7: "  + seed_phrase[6] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 63), " 8: "  + seed_phrase[7] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 86), " 9: "  + seed_phrase[8] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 109), "10: " + seed_phrase[9] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 132), "11: " + seed_phrase[10], fill=View.color, font=View.IMPACT22)
         if len(seed_phrase) >= 12:
-            self.draw.text((120, 155), "12: " + seed_phrase[11], fill="ORANGE", font=View.IMPACT22)
+            self.draw.text((120, 155), "12: " + seed_phrase[11], fill=View.color, font=View.IMPACT22)
 
         if len(passphrase) > 0:
             if len(passphrase) > 14:
@@ -640,10 +640,10 @@ class SeedToolsView(View):
             else:
                 disp_passphrase = "Passphrase: " + passphrase
             tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
-            self.draw.text(((240 - tw) / 2, 185), disp_passphrase, fill="ORANGE", font=View.IMPACT18)
+            self.draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.IMPACT18)
 
         tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 212), bottom, fill="ORANGE", font=View.IMPACT18)
+        self.draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
 
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
@@ -656,23 +656,23 @@ class SeedToolsView(View):
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
         tw, th = View.draw.textsize("Selected Words (1/2)", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 2), "Selected Words (1/2)", fill="ORANGE", font=View.IMPACT18)
+        self.draw.text(((240 - tw) / 2, 2), "Selected Words (1/2)", fill=View.color, font=View.IMPACT18)
 
-        self.draw.text((2, 40), "1: "     + seed_phrase[0] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 63), "2: "     + seed_phrase[1] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 86), "3: "     + seed_phrase[2] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 109), "4: "    + seed_phrase[3] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 132), "5: "    + seed_phrase[4] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 155), "6: "    + seed_phrase[5] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 40), " 7: "  + seed_phrase[6] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 63), " 8: "  + seed_phrase[7] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 90), " 9: "  + seed_phrase[8] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 109), "10: " + seed_phrase[9] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 132), "11: " + seed_phrase[10], fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 155), "12: " + seed_phrase[11], fill="ORANGE", font=View.IMPACT22)
+        self.draw.text((2, 40), "1: "     + seed_phrase[0] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 63), "2: "     + seed_phrase[1] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 86), "3: "     + seed_phrase[2] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 109), "4: "    + seed_phrase[3] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 132), "5: "    + seed_phrase[4] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 155), "6: "    + seed_phrase[5] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 40), " 7: "  + seed_phrase[6] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 63), " 8: "  + seed_phrase[7] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 90), " 9: "  + seed_phrase[8] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 109), "10: " + seed_phrase[9] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 132), "11: " + seed_phrase[10], fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 155), "12: " + seed_phrase[11], fill=View.color, font=View.IMPACT22)
 
         tw, th = View.draw.textsize("Right to Continue", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 212), "Right to Continue", fill="ORANGE", font=View.IMPACT18)
+        self.draw.text(((240 - tw) / 2, 212), "Right to Continue", fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
 
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
@@ -685,21 +685,21 @@ class SeedToolsView(View):
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         
         tw, th = View.draw.textsize("Selected Words (2/2)", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 2), "Selected Words (2/2)", fill="ORANGE", font=View.IMPACT18)
+        self.draw.text(((240 - tw) / 2, 2), "Selected Words (2/2)", fill=View.color, font=View.IMPACT18)
 
-        self.draw.text((2, 40), "13: "     + seed_phrase[12] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 63), "14: "     + seed_phrase[13] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 86), "15: "     + seed_phrase[14] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 109), "16: "    + seed_phrase[15] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 132), "17: "    + seed_phrase[16] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 155), "18: "    + seed_phrase[17] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 40), "19: "  + seed_phrase[18] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 63), "20: "  + seed_phrase[19] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 86), "21: "  + seed_phrase[20] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 109), "22: " + seed_phrase[21] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 132), "23: " + seed_phrase[22], fill="ORANGE", font=View.IMPACT22)
+        self.draw.text((2, 40), "13: "     + seed_phrase[12] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 63), "14: "     + seed_phrase[13] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 86), "15: "     + seed_phrase[14] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 109), "16: "    + seed_phrase[15] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 132), "17: "    + seed_phrase[16] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((2, 155), "18: "    + seed_phrase[17] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 40), "19: "  + seed_phrase[18] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 63), "20: "  + seed_phrase[19] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 86), "21: "  + seed_phrase[20] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 109), "22: " + seed_phrase[21] , fill=View.color, font=View.IMPACT22)
+        self.draw.text((120, 132), "23: " + seed_phrase[22], fill=View.color, font=View.IMPACT22)
         if len(seed_phrase) >= 24:
-            self.draw.text((120, 155), "24: " + seed_phrase[23], fill="ORANGE", font=View.IMPACT22)
+            self.draw.text((120, 155), "24: " + seed_phrase[23], fill=View.color, font=View.IMPACT22)
 
         if len(passphrase) > 0:
             if len(passphrase) > 14:
@@ -707,10 +707,10 @@ class SeedToolsView(View):
             else:
                 disp_passphrase = "Passphrase: " + passphrase
             tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
-            self.draw.text(((240 - tw) / 2, 185), disp_passphrase, fill="ORANGE", font=View.IMPACT18)
+            self.draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.IMPACT18)
 
         tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 212), bottom, fill="ORANGE", font=View.IMPACT18)
+        self.draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
 
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
