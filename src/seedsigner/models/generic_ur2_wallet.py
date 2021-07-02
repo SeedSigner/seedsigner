@@ -38,8 +38,7 @@ class GenericUR2Wallet(Wallet):
     def parse_psbt(self, raw_psbt) -> bool:
         self.tx = psbt.PSBT.parse(raw_psbt)
 
-        (self.inp_amount, policy) = self.input_amount(self.tx)
-        (self.change, self.fee, self.spend, self.destinationaddress) = self.change_fee_spend_amounts(self.tx, self.inp_amount, policy, self.current_network)
+        self._parse_psbt()
 
         return True
 
