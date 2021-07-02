@@ -13,7 +13,7 @@ from .models import (SeedStorage, SpecterDesktopWallet, BlueWallet,
 
 class Controller:
     
-    VERSION = "0.4.3a1"
+    VERSION = "0.4.2"
 
     def __init__(self, config) -> None:
         controller = self
