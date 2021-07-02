@@ -59,7 +59,7 @@ class Controller:
             crash_cnt = 0
             while True:
                 try:
-                    self.show_main_menu(sub_menu=Path.SEED_TOOLS_SUB_MENU)
+                    self.show_main_menu()
                 except Exception as error:
                     if crash_cnt >= 3:
                         break
@@ -158,11 +158,8 @@ class Controller:
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
                 if slot_num in (1,2,3):
                     self.storage.save_seed_phrase(completed_seed_phrase, slot_num)
-                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to View as QR")
+                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
                     input = self.buttons.wait_for([B.KEY_RIGHT])
-
-                    # Show the resulting seed as a transcribable QR code
-                    self.seed_tools_view.seed_phrase_as_qr(completed_seed_phrase)
 
         return Path.MAIN_MENU
 
@@ -192,11 +189,8 @@ class Controller:
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
                 if slot_num in (1,2,3):
                     self.storage.save_seed_phrase(seed_phrase, slot_num)
-                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to View as QR")
+                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
                     input = self.buttons.wait_for([B.KEY_RIGHT])
-
-                    # For now automatically show the resulting seed as a transcribable QR code
-                    self.seed_tools_view.seed_phrase_as_qr(seed_phrase)
 
         return Path.MAIN_MENU
 
@@ -215,7 +209,7 @@ class Controller:
             # show seed phrase
             # display seed phrase (24 words)
             while True:
-                r = self.seed_tools_view.display_seed_phrase(self.storage.get_seed_phrase(abs(slot_num)), self.storage.get_passphrase(abs(slot_num)), "Right to Continue")
+                r = self.seed_tools_view.display_seed_phrase(self.storage.get_seed_phrase(abs(slot_num)), self.storage.get_passphrase(abs(slot_num)), "Right to See QR", show_qr_option=True)
                 if r == True:
                     break
             return Path.MAIN_MENU
@@ -227,7 +221,6 @@ class Controller:
             elif ret_val == Path.SEED_WORD_24:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
             elif ret_val == Path.SEED_WORD_QR:
-                # TODO Add Functionality here? or maybe return to another seed tools menu?
                 seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
             else:
                 return Path.SEED_TOOLS_SUB_MENU
@@ -239,13 +232,10 @@ class Controller:
         is_valid = self.storage.check_if_seed_valid(seed_phrase)
         if is_valid:
             self.storage.save_seed_phrase(seed_phrase, slot_num)
-            self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to View as QR")
+            self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
             # TODO: Issue before here interfering with first joystick input
             #   Camera loop?
             input = self.buttons.wait_for([B.KEY_RIGHT])
-
-            # Show the resulting seed as a transcribable QR code
-            self.seed_tools_view.seed_phrase_as_qr(seed_phrase)
         else:
             self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
             input = self.buttons.wait_for([B.KEY_RIGHT])
@@ -348,11 +338,11 @@ class Controller:
 
         # display seed phrase
         while True:
-            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to See QR")
+            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
             if r == True:
                 break
 
-        self.signing_tools_view.draw_modal(["Generating QR ..."])
+        self.signing_tools_view.draw_modal(["Generating xpub QR ..."])
         self.wallet.set_seed_phrase(seed_phrase, passphrase)
         self.signing_tools_view.display_xpub_qr(self.wallet)
         return Path.MAIN_MENU
@@ -400,7 +390,7 @@ class Controller:
 
         # display seed phrase
         while True:
-            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Scan QR")
+            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
             if r == True:
                 break
             else:

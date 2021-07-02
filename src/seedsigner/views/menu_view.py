@@ -63,7 +63,7 @@ class MenuView(View):
     ### Seed Tools Menu
 
     def display_seed_tools_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Generate Word 12 / 24", "Create a Seed w/ Dice", "Store a Seed (temp)", "Add Passphrase", "Delete Passphrase"]
+        lines = ["... [ Return to Main ]", "Generate Word 12 / 24", "Create a Seed w/ Dice", "Store/View Current Seeds", "Add Passphrase", "Delete Passphrase"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -179,10 +179,8 @@ class MenuView(View):
                 if self.selected_menu_num == 1:
                     return -1
                 elif self.selected_menu_num == 2:
-                    return Path.SEED_WORD_12_QR
-                elif self.selected_menu_num == 3:
                     return Path.SEED_WORD_12
-                elif self.selected_menu_num == 4:
+                elif self.selected_menu_num == 3:
                     return Path.SEED_WORD_24
                 elif self.selected_menu_num == 4:
                     return Path.SEED_WORD_QR

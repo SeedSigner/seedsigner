@@ -9,7 +9,6 @@ class Path:
     SETTINGS_SUB_MENU = 12
     SEED_WORD_12 = 20
     SEED_WORD_24 = 21
-    SEED_WORD_12_QR = 23
     POWER_OFF = 22
     SEED_WORD_QR = 23
 

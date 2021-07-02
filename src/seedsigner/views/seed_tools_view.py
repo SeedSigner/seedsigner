@@ -592,15 +592,16 @@ class SeedToolsView(View):
     ### Display Seed Phrase
     ###
 
-    def display_seed_phrase(self, seed_phrase, passphrase, bottom = "RIGHT to EXIT") -> bool:
+    def display_seed_phrase(self, seed_phrase, passphrase, bottom = "RIGHT to EXIT", show_qr_option=False) -> bool:
         ret_val = ""
 
         while True:
             if len(seed_phrase) in (11,12):
                 ret_val = self.display_seed_phrase_12(seed_phrase, passphrase, bottom)
                 if ret_val == "right":
-                    # Show the resulting seed as a transcribable QR code
-                    self.seed_phrase_as_qr(seed_phrase)
+                    if show_qr_option:
+                        # Show the resulting seed as a transcribable QR code
+                        self.seed_phrase_as_qr(seed_phrase)
                     return True
                 else:
                     return False
@@ -614,8 +615,9 @@ class SeedToolsView(View):
                 elif ret_val == "left-1":
                     return False
                 elif ret_val == "right-2":
-                    # Show the resulting seed as a transcribable QR code
-                    self.seed_phrase_as_qr(seed_phrase)
+                    if show_qr_option:
+                        # Show the resulting seed as a transcribable QR code
+                        self.seed_phrase_as_qr(seed_phrase)
                     return True
 
             else:
@@ -730,9 +732,7 @@ class SeedToolsView(View):
         data = ""
         for word in seed_phrase:
             index = bip39.WORDLIST.index(word)
-            print(word, index)
             data += str("%04d" % index)
-        print(data)
         qr = QR()
 
         image = qr.qrimage(data, width=240, height=240, border=3)
@@ -766,7 +766,6 @@ class SeedToolsView(View):
 
             mask_width = int((View.canvas_width - 5 * pixels_per_block)/2)
             mask_height = int((View.canvas_height - 5 * pixels_per_block)/2)
-            print(f"mask size: ({mask_width},{mask_height})")
             mask_rgba = (0, 0, 0, 226)
             draw.rectangle((0, 0, View.canvas_width, mask_height), fill=mask_rgba)
             draw.rectangle((0, View.canvas_height - mask_height - 1, View.canvas_width, View.canvas_height), fill=mask_rgba)
@@ -827,7 +826,6 @@ class SeedToolsView(View):
                     next_x = cur_x + 5 * pixels_per_block
                     cur_block_x += 1
                     if next_x > width - View.canvas_width:
-                        print(f"At max X limit: {cur_x} | width: {width} | View.canvas_width: {View.canvas_width}")
                         next_x = cur_x
                         cur_block_x -= 1
                 elif input == B.KEY_LEFT:
@@ -840,7 +838,6 @@ class SeedToolsView(View):
                     next_y = cur_y + 5 * pixels_per_block
                     cur_block_y += 1
                     if next_y > height - View.canvas_height:
-                        print(f"At max Y limit: {cur_y}")
                         next_y = cur_y
                         cur_block_y -= 1
                 elif input == B.KEY_UP:
@@ -864,7 +861,6 @@ class SeedToolsView(View):
                     )
                     cur_x = next_x
                     cur_y = next_y
-                    print(f"updated cur_x, cur_y: ({cur_x},{cur_y})")
 
 
 
@@ -879,14 +875,10 @@ class SeedToolsView(View):
 
             # Parse 12 or 24-word QR code
             num_words = int(len(data[0]) / 4)
-            print(f"num_words: {num_words}")
             for i in range(0, num_words):
                 index = int(data[0][i * 4: (i*4) + 4])
-                print(index)
                 word = bip39.WORDLIST[index]
-                print(word)
                 self.words.append(word)
-            print(self.words)
             self.buttons.trigger_override()
         except Exception as e:
             pass
