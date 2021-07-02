@@ -63,7 +63,7 @@ class MenuView(View):
     ### Seed Tools Menu
 
     def display_seed_tools_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Generate Word 12 / 24", "Create a Seed w/ Dice", "Store a Seed (temp)"]
+        lines = ["... [ Return to Main ]", "Generate Word 12 / 24", "Create a Seed w/ Dice", "Store a Seed (temp)", "Add Passphrase", "Delete Passphrase"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -83,7 +83,10 @@ class MenuView(View):
                     return Path.DICE_GEN_SEED
                 elif self.selected_menu_num == 4:
                     return Path.SAVE_SEED
-        raise Exception("Unhandled case")
+                elif self.selected_menu_num == 5:
+                    return Path.PASSPHRASE_SEED
+                elif self.selected_menu_num == 6:
+                    return Path.DELETE_PASSPHRASE
 
     ### Signing Tools Menu
 
@@ -111,11 +114,12 @@ class MenuView(View):
     ### Settings Menu
 
     def display_settings_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Input / Output Tests", "Current Network: <network>", "Wallet: <wallet>", "Version Info", "Donate to SeedSigner"]
+        lines = ["... [ Return to Main ]", "Input / Output Tests", "Current Network: <network>", "Wallet: <wallet>", "QR Density: <density>", "Version Info", "Donate to SeedSigner"]
         input = 0
         
         lines[2] = lines[2].replace("<network>", self.controller.wallet.get_network())
         lines[3] = lines[3].replace("<wallet>", self.controller.wallet.get_name())
+        lines[4] = lines[4].replace("<density>", self.controller.wallet.get_qr_density_name())
 
         # Draw Menu
         self.draw_menu(lines, 1)
@@ -137,8 +141,10 @@ class MenuView(View):
                 elif self.selected_menu_num == 4:
                     return Path.WALLET
                 elif self.selected_menu_num == 5:
-                    return Path.VERSION_INFO
+                    return Path.QR_DENSITY_SETTING
                 elif self.selected_menu_num == 6:
+                    return Path.VERSION_INFO
+                elif self.selected_menu_num == 7:
                     return Path.DONATE
         raise Exception("Unhandled case")
 
@@ -158,9 +164,8 @@ class MenuView(View):
         raise Exception("Unhandled case")
 
     ### Generic Word 12 or 24 seed phrase menu
-
-    def display_12_24_word_menu(self, return_txt = "... [ Return to ... ]") -> int:
-        lines = [return_txt, "Scan a seed QR code", "Use a 12-word seed", "Use a 24-word seed"]
+    # internal method
+    def draw_12_24_word_menu(self, lines, return_txt = "... [ Return to ... ]") -> int:
         self.draw_menu(lines)
 
          # Wait for Button Input (specifically menu selection/press)
@@ -179,7 +184,16 @@ class MenuView(View):
                     return Path.SEED_WORD_12
                 elif self.selected_menu_num == 4:
                     return Path.SEED_WORD_24
-        raise Exception("Unhandled case")
+                elif self.selected_menu_num == 4:
+                    return Path.SEED_WORD_QR
+
+    def display_12_24_word_menu(self, return_txt = "... [ Return to ... ]") -> int:
+        lines = [return_txt, "Use a 12 Word Seed", "Use a 24 Word Seed"]
+        return self.draw_12_24_word_menu(lines, return_txt)
+
+    def display_qr_12_24_word_menu(self, return_txt = "... [ Return to ... ]") -> int:
+        lines = [return_txt, "Enter 12 Word Seed", "Enter 24 Word Seed", "Scan a Seed QR Code"]
+        return self.draw_12_24_word_menu(lines, return_txt)
 
     ### Select a Seed Slot to Save a Seed Menu
 
@@ -215,6 +229,15 @@ class MenuView(View):
                 lines.append("Use Seed Slot #2")
             if storage.check_slot_3():
                 lines.append("Use Seed Slot #3")
+        elif type == 4:
+            # Show only used slots with passphrase
+            if storage.check_slot_passphrase(1):
+                lines.append("Seed Slot #1")
+            if storage.check_slot_passphrase(2):
+                lines.append("Seed Slot #2")
+            if storage.check_slot_passphrase(3):
+                lines.append("Seed Slot #3")
+
         else:
             return 0
 
@@ -246,20 +269,20 @@ class MenuView(View):
         else:
             t = title
 
-        if bottom == None and len(lines) <= 4:
+        if bottom == None and len(lines) <= 5:
             b = "Press Control Stick to Select"
         elif bottom == None:
-            if len(lines) >= 5 and len(lines) <= 8:
-                if selected_menu_num <= 4:
+            if len(lines) >= 6 and len(lines) <= 10:
+                if selected_menu_num <= 5:
                     b = "Page 1 of 2"
-                elif selected_menu_num >= 5 and selected_menu_num <= 8:
+                elif selected_menu_num >= 6 and selected_menu_num <= 10:
                     b = "Page 2 of 2"
-            elif len(lines) >= 9 and len(lines) <= 12:
-                if selected_menu_num <= 4:
+            elif len(lines) >= 11 and len(lines) <= 15:
+                if selected_menu_num <= 5:
                     b = "Page 1 of 3"
-                elif selected_menu_num >= 5 and selected_menu_num <= 8:
+                elif selected_menu_num >= 6 and selected_menu_num <= 10:
                     b = "Page 2 of 3"
-                elif selected_menu_num >= 9 and selected_menu_num <= 12:
+                elif selected_menu_num >= 11 and selected_menu_num <= 15:
                     b = "Page 3 of 3"
         else:
             b = bottom
@@ -269,40 +292,46 @@ class MenuView(View):
 
             View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
             tw, th = View.draw.textsize(t, font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 2), t, fill="ORANGE", font=View.IMPACT22)
+            View.draw.text(((240 - tw) / 2, 2), t, fill=View.color, font=View.IMPACT22)
 
             num_of_lines = len(lines)
 
-            if selected_menu_num <= 4:
+            if selected_menu_num <= 5:
                 if num_of_lines >= 1:
-                    self.draw_menu_text(15, 45 , lines[0], (True if selected_menu_num == 1 else False))
+                    self.draw_menu_text(15, 43 , lines[0], (True if selected_menu_num == 1 else False))
                 if num_of_lines >= 2:
-                    self.draw_menu_text(15, 80 , lines[1], (True if selected_menu_num == 2 else False))
+                    self.draw_menu_text(15, 76 , lines[1], (True if selected_menu_num == 2 else False))
                 if num_of_lines >= 3:
-                    self.draw_menu_text(15, 115, lines[2], (True if selected_menu_num == 3 else False))
+                    self.draw_menu_text(15, 109, lines[2], (True if selected_menu_num == 3 else False))
                 if num_of_lines >= 4:
-                    self.draw_menu_text(15, 150, lines[3], (True if selected_menu_num == 4 else False))
-            elif selected_menu_num >= 5 and selected_menu_num <= 8:
+                    self.draw_menu_text(15, 142, lines[3], (True if selected_menu_num == 4 else False))
                 if num_of_lines >= 5:
-                    self.draw_menu_text(15, 45 , lines[4], (True if selected_menu_num == 5 else False))
+                    self.draw_menu_text(15, 175, lines[4], (True if selected_menu_num == 5 else False))
+            elif selected_menu_num >= 6 and selected_menu_num <= 10:
                 if num_of_lines >= 6:
-                    self.draw_menu_text(15, 80 , lines[5], (True if selected_menu_num == 6 else False))
+                    self.draw_menu_text(15, 43 , lines[5], (True if selected_menu_num == 6 else False))
                 if num_of_lines >= 7:
-                    self.draw_menu_text(15, 115, lines[6], (True if selected_menu_num == 7 else False))
+                    self.draw_menu_text(15, 76 , lines[6], (True if selected_menu_num == 7 else False))
                 if num_of_lines >= 8:
-                    self.draw_menu_text(15, 150, lines[7], (True if selected_menu_num == 8 else False))
-            elif selected_menu_num >= 9 and selected_menu_num <= 12:
+                    self.draw_menu_text(15, 109, lines[7], (True if selected_menu_num == 8 else False))
                 if num_of_lines >= 9:
-                    self.draw_menu_text(15, 45 , lines[8], (True if selected_menu_num == 9 else False))
+                    self.draw_menu_text(15, 142, lines[8], (True if selected_menu_num == 9 else False))
                 if num_of_lines >= 10:
-                    self.draw_menu_text(15, 80 , lines[9], (True if selected_menu_num == 10 else False))
+                    self.draw_menu_text(15, 175, lines[9], (True if selected_menu_num == 10 else False))
+            elif selected_menu_num >= 11 and selected_menu_num <= 15:
                 if num_of_lines >= 11:
-                    self.draw_menu_text(15, 115, lines[10], (True if selected_menu_num == 11 else False))
+                    self.draw_menu_text(15, 43 , lines[10], (True if selected_menu_num == 11 else False))
                 if num_of_lines >= 12:
-                    self.draw_menu_text(15, 150, lines[11], (True if selected_menu_num == 12 else False))
+                    self.draw_menu_text(15, 76 , lines[11], (True if selected_menu_num == 12 else False))
+                if num_of_lines >= 13:
+                    self.draw_menu_text(15, 109, lines[12], (True if selected_menu_num == 13 else False))
+                if num_of_lines >= 14:
+                    self.draw_menu_text(15, 142, lines[13], (True if selected_menu_num == 14 else False))
+                if num_of_lines >= 15:
+                    self.draw_menu_text(15, 175, lines[14], (True if selected_menu_num == 15 else False))
 
             tw, th = View.draw.textsize(b, font=View.IMPACT18)
-            View.draw.text(((240 - tw) / 2, 210), b, fill="ORANGE", font=View.IMPACT18)
+            View.draw.text(((240 - tw) / 2, 210), b, fill=View.color, font=View.IMPACT18)
             View.DispShowImage()
 
             # saved update menu lines and selection
@@ -328,7 +357,9 @@ class MenuView(View):
 
     def draw_menu_text(self, x, y, line, selected) -> None:
         if selected == True:
-            View.draw.rectangle((5, y-5, 235, y+30), outline=0, fill="ORANGE")
+            View.draw.rectangle((5, y-3, 235, y+28), outline=0, fill=View.color)
             View.draw.text((x, y) , line, fill="BLACK", font=View.IMPACT20)
         else:
-            View.draw.text((x, y) , line, fill="ORANGE", font=View.IMPACT20)
+            View.draw.text((x, y) , line, fill=View.color, font=View.IMPACT20)
+
+        return

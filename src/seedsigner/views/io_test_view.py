@@ -69,30 +69,30 @@ class IOTestView(View):
         self.redraw_complete = False
         self.redraw = False
         self.draw.rectangle((0,0,View.canvas_width, View.canvas_height), outline=0, fill=0)
-        self.draw.text((45, 5), "Input/Output Check:", fill="ORANGE", font=View.IMPACT18)
-        self.draw.polygon([(61, 89), (80, 46), (99, 89)], outline="ORANGE", fill=0)
-        self.draw.polygon([(51, 100), (8, 119), (51, 138)], outline="ORANGE", fill=0)
-        self.draw.polygon([(109, 100), (152, 119), (109, 138)], outline="ORANGE", fill=0)
-        self.draw.polygon([(61, 151), (80, 193), (99, 151)], outline="ORANGE", fill=0)
-        self.draw.ellipse([(61, 99), (99, 141)], outline="ORANGE", fill=0)
-        self.draw.ellipse([(198, 40), (238, 80)], outline="ORANGE", fill=0)
-        self.draw.ellipse([(198, 95), (238, 135)], outline="ORANGE", fill=0)
-        self.draw.text((200, 160), "EXIT", fill="ORANGE", font=View.IMPACT18)
-        self.draw.rectangle((30, 205, 210, 235), outline="ORANGE", fill="BLACK")
+        self.draw.text((45, 5), "Input/Output Check:", fill=View.color, font=View.IMPACT18)
+        self.draw.polygon([(61, 89), (80, 46), (99, 89)], outline=View.color, fill=0)
+        self.draw.polygon([(51, 100), (8, 119), (51, 138)], outline=View.color, fill=0)
+        self.draw.polygon([(109, 100), (152, 119), (109, 138)], outline=View.color, fill=0)
+        self.draw.polygon([(61, 151), (80, 193), (99, 151)], outline=View.color, fill=0)
+        self.draw.ellipse([(61, 99), (99, 141)], outline=View.color, fill=0)
+        self.draw.ellipse([(198, 40), (238, 80)], outline=View.color, fill=0)
+        self.draw.ellipse([(198, 95), (238, 135)], outline=View.color, fill=0)
+        self.draw.text((200, 160), "EXIT", fill=View.color, font=View.IMPACT18)
+        self.draw.rectangle((30, 205, 210, 235), outline=View.color, fill="BLACK")
         tw, th = self.draw.textsize(self.qr_text, font=View.IMPACT22)
-        self.draw.text(((240 - tw) / 2, 205), self.qr_text, fill="ORANGE", font=View.IMPACT22)
+        self.draw.text(((240 - tw) / 2, 205), self.qr_text, fill=View.color, font=View.IMPACT22)
         View.DispShowImage()
         self.redraw_complete = True
 
     def a_button(self):
         if self.redraw == False and self.redraw_complete == True:
-            self.draw.ellipse([(198, 40), (238, 80)], outline="ORANGE", fill="ORANGE")
+            self.draw.ellipse([(198, 40), (238, 80)], outline=View.color, fill=View.color)
             View.DispShowImage()
             self.redraw = True
 
     def b_button(self):
         if self.redraw == False and self.redraw_complete == True:
-            self.draw.ellipse([(198, 95), (238, 135)], outline="ORANGE", fill="ORANGE")
+            self.draw.ellipse([(198, 95), (238, 135)], outline=View.color, fill=View.color)
             View.DispShowImage()
             self.redraw = True
 
@@ -102,38 +102,38 @@ class IOTestView(View):
 
     def up_button(self):
         if self.redraw == False and self.redraw_complete == True:
-            self.draw.polygon([(61, 89), (80, 46), (99, 89)], outline="ORANGE", fill="ORANGE")
+            self.draw.polygon([(61, 89), (80, 46), (99, 89)], outline=View.color, fill=View.color)
             View.DispShowImage()
             self.redraw = True
         
     def down_button(self):
         if self.redraw == False and self.redraw_complete == True:
-            self.draw.polygon([(61, 151), (80, 193), (99, 151)], outline="ORANGE", fill="ORANGE")
+            self.draw.polygon([(61, 151), (80, 193), (99, 151)], outline=View.color, fill=View.color)
             View.DispShowImage()
             self.redraw = True
         
     def left_button(self):
         if self.redraw == False and self.redraw_complete == True:
-            self.draw.polygon([(51, 100), (8, 119), (51, 138)], outline="ORANGE", fill="ORANGE")
+            self.draw.polygon([(51, 100), (8, 119), (51, 138)], outline=View.color, fill=View.color)
             View.DispShowImage()
             self.redraw = True
         
     def right_button(self):
         if self.redraw == False and self.redraw_complete == True:
-            self.draw.polygon([(109, 100), (152, 119), (109, 138)], outline="ORANGE", fill="ORANGE")
+            self.draw.polygon([(109, 100), (152, 119), (109, 138)], outline=View.color, fill=View.color)
             View.DispShowImage()
             self.redraw = True
         
     def press_button(self):
         if self.redraw == False and self.redraw_complete == True:
-            self.draw.ellipse([(61, 99), (99, 141)], outline="ORANGE", fill="ORANGE")
+            self.draw.ellipse([(61, 99), (99, 141)], outline=View.color, fill=View.color)
             View.DispShowImage()
             self.redraw = True
     
     def draw_scan_detected(self):
         self.qr_text = "QR Scanned"
         if self.redraw == False and self.redraw_complete == True:
-            self.draw.rectangle((30, 205, 210, 235), outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((30, 205, 210, 235), outline=View.color, fill=View.color)
             tw, th = self.draw.textsize(self.qr_text, font=View.IMPACT22)
             self.draw.text(((240 - tw) / 2, 205), self.qr_text, fill="BLACK", font=View.IMPACT22)
             View.DispShowImage()

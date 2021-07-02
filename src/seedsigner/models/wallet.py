@@ -13,18 +13,21 @@ import textwrap
 
 class Wallet:
 
-    LOW = 0
-    HIGH = 1
+    QRLOW = 0
+    QRMEDIUM = 1
+    QRHIGH = 2
 
-    def __init__(self, current_network, hardened_derivation) -> None:
+    def __init__(self, current_network, qr_density, hardened_derivation) -> None:
         self.current_network = current_network
         self.hardened_derivation = hardened_derivation
-        self.qrsize = 60
+        self.qrsize = 80 # Default
+        self.set_qr_density(qr_density)
+        self.cur_qr_density = qr_density
 
-    def set_seed_phrase(self, seed_phrase):
+    def set_seed_phrase(self, seed_phrase, passphrase):
         # requires a valid seed phrase or error will be thrown
         self.seed_phrase = seed_phrase
-        self.seed = bip39.mnemonic_to_seed((" ".join(self.seed_phrase)).strip())
+        self.seed = bip39.mnemonic_to_seed((" ".join(self.seed_phrase)).strip(), passphrase)
         self.root = bip32.HDKey.from_seed(self.seed, version=NETWORKS[self.current_network]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
         self.bip48_xprv = self.root.derive(self.hardened_derivation)
@@ -154,15 +157,15 @@ class Wallet:
                 self.scan_display_working = 1
                 View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
                 tw, th = View.draw.textsize("Collecting QR Codes:", font=View.IMPACT22)
-                View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill="ORANGE", font=View.IMPACT22)
+                View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill=View.color, font=View.IMPACT22)
                 lines = textwrap.wrap("".join(self.frame_display), width=11)
                 yheight = 60
                 for line in lines:
                     tw, th = View.draw.textsize(line, font=View.COURIERNEW30)
-                    View.draw.text(((240 - tw) / 2, yheight), line, fill="ORANGE", font=View.COURIERNEW30)
+                    View.draw.text(((240 - tw) / 2, yheight), line, fill=View.color, font=View.COURIERNEW30)
                     yheight += 30
                 tw, th = View.draw.textsize("Right to Exit", font=View.IMPACT18)
-                View.draw.text(((240 - tw) / 2, 215), "Right to Exit", fill="ORANGE", font=View.IMPACT18)
+                View.draw.text(((240 - tw) / 2, 215), "Right to Exit", fill=View.color, font=View.IMPACT18)
                 View.DispShowImage()
                 self.scan_display_working = 0
 
@@ -179,11 +182,27 @@ class Wallet:
     def qr_sleep(self):
         time.sleep(0.2)
 
-    def set_qr_density(density):
-        if density == Wallet.LOW:
+    def set_qr_density(self, density):
+        self.cur_qr_density = density
+        if density == Wallet.QRLOW:
             self.qrsize = 60
-        elif density == Wallet.HIGH:
+        elif density == Wallet.QRMEDIUM:
+            self.qrsize = 80
+        elif density == Wallet.QRHIGH:
             self.qrsize = 100
+
+    def get_qr_density(self):
+        return self.cur_qr_density
+
+    def get_qr_density_name(self) -> str :
+        if self.cur_qr_density == Wallet.QRLOW:
+            return "Low"
+        elif self.cur_qr_density == Wallet.QRMEDIUM:
+            return "Medium"
+        elif self.cur_qr_density == Wallet.QRHIGH:
+            return "High"
+        else:
+            return "Unknown"
 
     ###
     ### Network Related Methods
