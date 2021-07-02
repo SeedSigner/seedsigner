@@ -237,7 +237,6 @@ class View:
         View.DispShowImage()
 
 
-
     def display_blank_screen(self):
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         View.DispShowImage()

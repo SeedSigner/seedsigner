@@ -48,10 +48,11 @@ class Controller:
         if self.DEBUG:
             # Let Exceptions halt execution
             try:
-                self.show_main_menu(sub_menu=Path.SEED_TOOLS_SUB_MENU)
+                self.show_main_menu()
             finally:
                 # Clear the screen when exiting
                 self.menu_view.display_blank_screen()
+
         else:
             # Handle Unexpected crashes by restarting up to 3 times
             crash_cnt = 0
