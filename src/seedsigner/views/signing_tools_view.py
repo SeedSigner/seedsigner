@@ -63,7 +63,7 @@ class SigningToolsView(View):
     ###
 
     def display_signed_psbt_animated_qr(self, wallet, psbt) -> None:
-        self.draw_modal(["Generating QR ..."])
+        self.draw_modal(["Generating PSBT QR ..."])
 
         print(psbt)
         images = wallet.make_signing_qr_codes(psbt, SigningToolsView.qr_gen_status)

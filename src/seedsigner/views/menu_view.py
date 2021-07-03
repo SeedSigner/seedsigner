@@ -63,7 +63,14 @@ class MenuView(View):
     ### Seed Tools Menu
 
     def display_seed_tools_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Generate Word 12 / 24", "Create a Seed w/ Dice", "Store a Seed (temp)", "Add Passphrase", "Delete Passphrase"]
+        seed_storage_line = "Store a Seed (temp)"
+        if self.controller.storage.num_of_saved_seeds() > 0:
+            if self.controller.storage.num_of_saved_seeds() < 3:
+                seed_storage_line = "View/Store Seeds (temp)"
+            else:
+                seed_storage_line = "View Seeds (temp)"
+
+        lines = ["... [ Return to Main ]", "Generate Word 12 / 24", "Create a Seed w/ Dice", seed_storage_line, "Add Passphrase", "Delete Passphrase"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -109,6 +116,7 @@ class MenuView(View):
                     return Path.GEN_XPUB
                 elif self.selected_menu_num == 3:
                     return Path.SIGN_TRANSACTION
+        raise Exception("Unhandled case")
 
     ### Settings Menu
 
@@ -145,6 +153,7 @@ class MenuView(View):
                     return Path.VERSION_INFO
                 elif self.selected_menu_num == 7:
                     return Path.DONATE
+        raise Exception("Unhandled case")
 
     ### Generic Single Menu Selection (returns 1,2,3,4,5,6 ...)
 
@@ -159,6 +168,7 @@ class MenuView(View):
                 self.menu_down(title, bottom)
             elif input == B.KEY_PRESS:
                 return self.selected_menu_num
+        raise Exception("Unhandled case")
 
     ### Generic Word 12 or 24 seed phrase menu
     # internal method
@@ -250,6 +260,7 @@ class MenuView(View):
                     return 0
                 else:
                     return int(re.search("#(\d+)", lines[self.selected_menu_num-1], re.IGNORECASE).group(1))
+        raise Exception("Unhandled case")
 
     ###
     ### Generic Reusable Menu Methods/Functions
@@ -332,7 +343,6 @@ class MenuView(View):
             self.menu_lines = lines
             self.selected_menu_num = selected_menu_num
 
-        return
 
     ### Generic Menu Navigation
 
@@ -351,7 +361,6 @@ class MenuView(View):
     ### Internal View Method to Display a Line in a Menu Screen
 
     def draw_menu_text(self, x, y, line, selected) -> None:
-
         if selected == True:
             View.draw.rectangle((5, y-3, 235, y+28), outline=0, fill=View.color)
             View.draw.text((x, y) , line, fill="BLACK", font=View.IMPACT20)
