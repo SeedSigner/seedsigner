@@ -258,7 +258,7 @@ class View:
             View.draw.text((cur_x + int((x_width - tw) / 2), cur_y + int((y_height - th)/2)), letter, fill="BLACK", font=View.ROBOTOCONDENSED24)
             View.DispShowImage()
 
-            # Joystick is too responsive with check_release=False; slow down our input rate
+            # Joystick is too responsive with check_release=False; slow down the input rate
             time.sleep(0.03)
 
             input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_LEFT, B.KEY_RIGHT, B.KEY_PRESS], check_release=False)
