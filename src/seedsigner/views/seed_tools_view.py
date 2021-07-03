@@ -342,8 +342,6 @@ class SeedToolsView(View):
     ###
 
     def display_last_word(self, partial_seed_phrase) -> list:
-        print("display last word")
-
         stringphrase = " ".join(partial_seed_phrase).strip() + " abandon"
         bytes = mnemonic_to_bytes(stringphrase, ignore_checksum=True)
         finalseed = mnemonic_from_bytes(bytes)
@@ -367,10 +365,10 @@ class SeedToolsView(View):
 
     def display_generate_seed_from_dice(self):
         self.roll_number = 1
-        self.dice_selected = 0
+        self.dice_selected = 5
         self.roll_data = ""
 
-        self.draw_dice(1)
+        self.draw_dice(self.dice_selected)
         time.sleep(1) # pause for 1 second before accepting input
 
         # Wait for Button Input (specifically menu selection/press)
@@ -477,7 +475,7 @@ class SeedToolsView(View):
             self.roll_data = self.roll_data + str(0).strip()
         else:
             self.roll_data = self.roll_data + str(self.dice_selected).strip()
-        self.dice_selected = 1
+        self.dice_selected = 5
         if self.roll_number < 100:
             self.draw_dice(self.dice_selected)
 
@@ -592,141 +590,106 @@ class SeedToolsView(View):
     ### Display Seed Phrase
     ###
 
-    def display_seed_phrase(self, seed_phrase, passphrase, bottom = "RIGHT to EXIT", show_qr_option=False) -> bool:
+    def display_seed_phrase(self, seed_phrase, passphrase=None, bottom="Right to Main Menu", show_qr_option=False) -> bool:
         ret_val = ""
 
+        def display_seed_phrase_page(draw, seed_phrase, passphrase=None, bottom=bottom, page_num=1):
+            """ Internal helper method to render 12 words of the seed phrase """
+            draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
+
+            word_positions = [
+                # Left column
+                (2, 40),     (2, 63),   (2, 86),   (2, 109),   (2, 132),   (2, 155),
+                # Right column
+                (120, 40), (120, 63), (120, 86), (120, 109), (120, 132), (120, 155)
+            ]
+
+            title = "Seed Phrase"
+            word_index_offset = 0
+            max_range = len(seed_phrase)    # handles 11 or 12; 23 or 24
+            if len(seed_phrase) > 12:
+                max_range -= 12  # we'll iterate up to max_range words on this page
+                if page_num == 1:
+                    title = "Seed Phrase (1/2)"
+                    bottom = "Right to Page 2"
+                else:
+                    title = "Seed Phrase (2/2)"
+                    word_index_offset = 12  # Skip ahead one page worth of words
+
+            tw, th = View.draw.textsize(title, font=View.IMPACT18)
+            draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.IMPACT18)
+
+            for i in range(0, max_range):
+                draw.text(word_positions[i], f"{i + 1 + word_index_offset}: " + seed_phrase[i + word_index_offset] , fill=View.color, font=View.IMPACT22)
+
+            if passphrase:
+                if len(passphrase) > 14:
+                    disp_passphrase = "Passphrase: ************"
+                tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
+                draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.IMPACT18)
+
+            tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
+            draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.IMPACT18)
+            View.DispShowImage()
+
+
+        wait_for_buttons = [B.KEY_RIGHT, B.KEY_LEFT]
+        if show_qr_option:
+            # In this context there's no next step; just display seed phrase and
+            #   offer to show it as a human-transcribable QR.
+            bottom = "Click to Exit; Right for QR Export"
+            wait_for_buttons.append(B.KEY_PRESS)
+
+        cur_page = 1
         while True:
             if len(seed_phrase) in (11,12):
-                ret_val = self.display_seed_phrase_12(seed_phrase, passphrase, bottom)
-                if ret_val == "right":
-                    if show_qr_option:
-                        # Show the resulting seed as a transcribable QR code
-                        self.seed_phrase_as_qr(seed_phrase)
-                    return True
-                else:
+                display_seed_phrase_page(self.draw, seed_phrase, passphrase, bottom)
+                ret_val = self.buttons.wait_for(wait_for_buttons)
+
+                if ret_val == B.KEY_LEFT:
+                    # "Cancel" in contexts that support it / no-op otherwise
                     return False
-            elif len(seed_phrase) in (23,24):
-                if ret_val == "":
-                    ret_val = self.display_seed_phrase_24_1(seed_phrase, passphrase, bottom) #first run
-                elif ret_val == "right-1":
-                    ret_val = self.display_seed_phrase_24_2(seed_phrase, passphrase, bottom) #first screen to second screen
-                elif ret_val == "left-2":
-                    ret_val = self.display_seed_phrase_24_1(seed_phrase, passphrase, bottom) #second screen back to first screen
-                elif ret_val == "left-1":
-                    return False
-                elif ret_val == "right-2":
-                    if show_qr_option:
-                        # Show the resulting seed as a transcribable QR code
-                        self.seed_phrase_as_qr(seed_phrase)
+
+                elif show_qr_option and ret_val == B.KEY_RIGHT:
+                    # Show the resulting seed as a transcribable QR code
+                    self.seed_phrase_as_qr(seed_phrase)
+
+                    # Signal success to move forward
                     return True
 
+                elif ret_val == B.KEY_RIGHT or (show_qr_option and ret_val == B.KEY_PRESS):
+                    # Signal success to move forward
+                    return True
+
+            elif len(seed_phrase) in (23,24):
+                display_seed_phrase_page(self.draw, seed_phrase, passphrase, bottom, page_num=cur_page)
+                ret_val = self.buttons.wait_for(wait_for_buttons)
+
+                if cur_page == 1:
+                    if ret_val == B.KEY_LEFT:
+                        # "Cancel" in contexts that support it / no-op otherwise
+                        return False
+
+                    elif ret_val == B.KEY_RIGHT:
+                        cur_page = 2  # advance to second screen
+
+                else:
+                    if ret_val == B.KEY_LEFT:
+                        cur_page = 1  # second screen back to first screen
+
+                    elif show_qr_option and ret_val == B.KEY_RIGHT:
+                        # Show the resulting seed as a transcribable QR code
+                        self.seed_phrase_as_qr(seed_phrase)
+
+                        # Signal success to move forward
+                        return True
+
+                    elif ret_val == B.KEY_RIGHT or (show_qr_option and ret_val == B.KEY_PRESS):
+                        # Signal success to move forward
+                        return True
             else:
                 return True
 
-    def display_seed_phrase_12(self, seed_phrase, passphrase, bottom = "Right to Exit"):
-        self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-
-        tw, th = View.draw.textsize("Selected Words", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 2), "Selected Words", fill=View.color, font=View.IMPACT18)
-
-        self.draw.text((2, 40), "1: "     + seed_phrase[0] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 63), "2: "     + seed_phrase[1] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 86), "3: "     + seed_phrase[2] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 109), "4: "    + seed_phrase[3] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 132), "5: "    + seed_phrase[4] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 155), "6: "    + seed_phrase[5] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 40), " 7: "  + seed_phrase[6] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 63), " 8: "  + seed_phrase[7] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 86), " 9: "  + seed_phrase[8] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 109), "10: " + seed_phrase[9] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 132), "11: " + seed_phrase[10], fill=View.color, font=View.IMPACT22)
-        if len(seed_phrase) >= 12:
-            self.draw.text((120, 155), "12: " + seed_phrase[11], fill=View.color, font=View.IMPACT22)
-
-        if len(passphrase) > 0:
-            if len(passphrase) > 14:
-                disp_passphrase = "Passphrase: " + passphrase[:14] + "..."
-            else:
-                disp_passphrase = "Passphrase: " + passphrase
-            tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
-            self.draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.IMPACT18)
-
-        tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.IMPACT18)
-        View.DispShowImage()
-
-        input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
-        if input == B.KEY_RIGHT:
-            return "right"
-        elif input == B.KEY_LEFT:
-            return "left"
-
-    def display_seed_phrase_24_1(self, seed_phrase, passphrase, bottom = "Right to Exit"):
-        self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-
-        tw, th = View.draw.textsize("Selected Words (1/2)", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 2), "Selected Words (1/2)", fill=View.color, font=View.IMPACT18)
-
-        self.draw.text((2, 40), "1: "     + seed_phrase[0] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 63), "2: "     + seed_phrase[1] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 86), "3: "     + seed_phrase[2] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 109), "4: "    + seed_phrase[3] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 132), "5: "    + seed_phrase[4] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 155), "6: "    + seed_phrase[5] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 40), " 7: "  + seed_phrase[6] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 63), " 8: "  + seed_phrase[7] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 90), " 9: "  + seed_phrase[8] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 109), "10: " + seed_phrase[9] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 132), "11: " + seed_phrase[10], fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 155), "12: " + seed_phrase[11], fill=View.color, font=View.IMPACT22)
-
-        tw, th = View.draw.textsize("Right to Continue", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 212), "Right to Continue", fill=View.color, font=View.IMPACT18)
-        View.DispShowImage()
-
-        input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
-        if input == B.KEY_RIGHT:
-            return "right-1"
-        elif input == B.KEY_LEFT:
-            return "left-1"
-
-    def display_seed_phrase_24_2(self, seed_phrase, passphrase, bottom):
-        self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        
-        tw, th = View.draw.textsize("Selected Words (2/2)", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 2), "Selected Words (2/2)", fill=View.color, font=View.IMPACT18)
-
-        self.draw.text((2, 40), "13: "     + seed_phrase[12] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 63), "14: "     + seed_phrase[13] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 86), "15: "     + seed_phrase[14] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 109), "16: "    + seed_phrase[15] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 132), "17: "    + seed_phrase[16] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((2, 155), "18: "    + seed_phrase[17] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 40), "19: "  + seed_phrase[18] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 63), "20: "  + seed_phrase[19] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 86), "21: "  + seed_phrase[20] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 109), "22: " + seed_phrase[21] , fill=View.color, font=View.IMPACT22)
-        self.draw.text((120, 132), "23: " + seed_phrase[22], fill=View.color, font=View.IMPACT22)
-        if len(seed_phrase) >= 24:
-            self.draw.text((120, 155), "24: " + seed_phrase[23], fill=View.color, font=View.IMPACT22)
-
-        if len(passphrase) > 0:
-            if len(passphrase) > 14:
-                disp_passphrase = "Passphrase: " + passphrase[:14] + "..."
-            else:
-                disp_passphrase = "Passphrase: " + passphrase
-            tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
-            self.draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.IMPACT18)
-
-        tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.IMPACT18)
-        View.DispShowImage()
-
-        input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
-        if input == B.KEY_RIGHT:
-            return "right-2"
-        elif input == B.KEY_LEFT:
-            return "left-2"
 
     def seed_phrase_as_qr(self, seed_phrase):
         data = ""

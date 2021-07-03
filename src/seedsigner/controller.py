@@ -151,6 +151,15 @@ class Controller:
                 completed_seed_phrase = self.seed_tools_view.display_last_word(seed_phrase)
                 break
 
+        # display seed phrase
+        while True:
+            ret_val = self.seed_tools_view.display_seed_phrase(completed_seed_phrase, show_qr_option=True)
+            if ret_val == True:
+                break
+            else:
+                # no-op; can't back out of the seed phrase view
+                pass
+
         # Ask to save seed
         if self.storage.slot_avaliable():
             r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Seed?")
@@ -178,9 +187,12 @@ class Controller:
 
         # display seed phrase (24 words)
         while True:
-            ret_val = self.seed_tools_view.display_seed_phrase(seed_phrase, "", "Right to Continue")
+            ret_val = self.seed_tools_view.display_seed_phrase(seed_phrase, show_qr_option=True)
             if ret_val == True:
                 break
+            else:
+                # no-op; can't back out of the seed phrase view
+                pass
 
         # Ask to save seed
         if self.storage.slot_avaliable():
@@ -209,9 +221,12 @@ class Controller:
             # show seed phrase
             # display seed phrase (24 words)
             while True:
-                r = self.seed_tools_view.display_seed_phrase(self.storage.get_seed_phrase(abs(slot_num)), self.storage.get_passphrase(abs(slot_num)), "Right to See QR", show_qr_option=True)
+                r = self.seed_tools_view.display_seed_phrase(self.storage.get_seed_phrase(abs(slot_num)), self.storage.get_passphrase(abs(slot_num)), show_qr_option=True)
                 if r == True:
                     break
+                else:
+                    # no-op; can't back out of the seed phrase view
+                    pass
             return Path.MAIN_MENU
         else:
             # display menu to select 12 or 24 word seed for last word
@@ -341,6 +356,9 @@ class Controller:
             r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
             if r == True:
                 break
+            else:
+                # Cancel
+                return Path.SIGNING_TOOLS_SUB_MENU
 
         self.signing_tools_view.draw_modal(["Generating xpub QR ..."])
         self.wallet.set_seed_phrase(seed_phrase, passphrase)
@@ -394,6 +412,7 @@ class Controller:
             if r == True:
                 break
             else:
+                # Cancel
                 return Path.SIGNING_TOOLS_SUB_MENU
 
         # Scan PSBT Animated QR using Camera

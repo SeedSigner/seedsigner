@@ -73,8 +73,6 @@ class View:
         View.disp.ShowImage(image, 0, 0)
 
     def disp_show_image_pan(image, start_x, start_y, end_x, end_y, rate, alpha_overlay=None):
-        print(f"start_x, start_y:({start_x},{start_y})")
-        print(f"end_x, end_y:({end_x},{end_y})")
         cur_x = start_x
         cur_y = start_y
         rate_x = rate
@@ -83,8 +81,6 @@ class View:
             rate_x = rate_x * -1
         if end_y - start_y < 0:
             rate_y = rate_y * -1
-
-        print(f"cur_x, cur_y:({cur_x},{cur_y})")
 
         while (cur_x != end_x or cur_y != end_y) and (rate_x != 0 or rate_y != 0):
             cur_x += rate_x
@@ -96,8 +92,6 @@ class View:
             if (rate_y > 0 and cur_y > end_y) or (rate_y < 0 and cur_y < end_y):
                 cur_y -= rate_y
                 rate_y = 0
-
-            print(f"cur_x, cur_y:({cur_x},{cur_y})")
 
             crop = image.crop((cur_x, cur_y, cur_x + View.canvas_width, cur_y + View.canvas_height))
 
