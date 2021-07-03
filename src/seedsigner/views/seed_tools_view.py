@@ -623,8 +623,7 @@ class SeedToolsView(View):
                 draw.text(word_positions[i], f"{i + 1 + word_index_offset}: " + seed_phrase[i + word_index_offset] , fill=View.color, font=View.IMPACT22)
 
             if passphrase:
-                if len(passphrase) > 14:
-                    disp_passphrase = "Passphrase: ************"
+                disp_passphrase = "Passphrase: ************"
                 tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
                 draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.IMPACT18)
 
