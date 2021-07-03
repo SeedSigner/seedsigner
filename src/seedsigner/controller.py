@@ -80,6 +80,9 @@ class Controller:
     def show_main_menu(self, sub_menu = 0):
         ret_val = sub_menu
         while True:
+            self.menu_view.display_qwerty()
+            self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
+            
             ret_val = self.menu_view.display_main_menu(ret_val)
 
             if ret_val == Path.MAIN_MENU:

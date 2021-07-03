@@ -1,9 +1,12 @@
 # External Dependencies
 from PIL import Image, ImageDraw, ImageFont
+import os
+import pathlib
 import spidev as SPI
+import time
 from multiprocessing import Queue
 
-from seedsigner.helpers import ST7789
+from seedsigner.helpers import B, ST7789
 
 ### Generic View Class to Instatiate Display
 ### Static Class variables are used for display
@@ -30,6 +33,11 @@ class View:
     COURIERNEW38 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 38)
     COURIERNEW30 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 30)
     COURIERNEW20 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 20)
+
+    font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
+    print(font_path)
+
+    ROBOTOCONDENSED24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Light.ttf"), 24)
 
     RST = 27
     DC = 25
@@ -208,6 +216,91 @@ class View:
         View.DispShowImage()
 
         return
+
+
+    def display_qwerty(self):
+        lines = [
+            "1234567890",
+            "abcdefghij",
+            "klmnopqrst",
+            "uvwxyz"
+        ]
+
+        y_start = 60
+        cur_y = y_start
+        y_height = 34
+        y_gap = 6
+        x_width = 22
+        x_gap = 1
+
+        # Set up the blank keyboard first
+        View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
+
+        for line in lines:
+            cur_x = 0
+            for letter in line:
+                tw, th = View.draw.textsize(letter, font=View.ROBOTOCONDENSED24)
+                View.draw.text((cur_x + int((x_width - tw) / 2), cur_y + int((y_height - th)/2)), letter, fill=View.color, font=View.ROBOTOCONDENSED24)
+                View.draw.rectangle((cur_x, cur_y, cur_x + x_width, cur_y + y_height), outline="#333")
+                cur_x += x_width + x_gap
+            cur_y += y_height + y_gap
+
+        View.DispShowImage()
+
+        selected = {"x": 0, "y": 1}  # col 0, row 1: "a"
+        while True:
+            # Render the selected letter
+            cur_x = selected["x"] * (x_width + x_gap)
+            cur_y = y_start + (selected["y"] * (y_height + y_gap))
+            letter = lines[selected["y"]][selected["x"]]
+            View.draw.rectangle((cur_x, cur_y, cur_x + x_width, cur_y + y_height), fill=View.color)
+            tw, th = View.draw.textsize(letter, font=View.ROBOTOCONDENSED24)
+            View.draw.text((cur_x + int((x_width - tw) / 2), cur_y + int((y_height - th)/2)), letter, fill="BLACK", font=View.ROBOTOCONDENSED24)
+            View.DispShowImage()
+
+            # Joystick is too responsive with check_release=False; slow down our input rate
+            time.sleep(0.03)
+
+            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_LEFT, B.KEY_RIGHT, B.KEY_PRESS], check_release=False)
+
+            if input == B.KEY_RIGHT:
+                selected["x"] += 1
+                if selected["x"] == len(lines[selected["y"]]):
+                    # Loop it back to the right side
+                    selected["x"] = 0
+
+            elif input == B.KEY_LEFT:
+                selected["x"] -= 1
+                if selected["x"] < 0:
+                    # Loop it back to the left side
+                    selected["x"] = len(lines[selected["y"]]) - 1
+
+            elif input == B.KEY_DOWN:
+                selected["y"] += 1
+                if selected["y"] == len(lines):
+                    # Loop it back to the top
+                    selected["y"] = 0
+                if selected["x"] >= len(lines[selected["y"]]):
+                    # This line is too short to land here
+                    selected["y"] = 0
+
+            elif input == B.KEY_UP:
+                selected["y"] -= 1
+                if selected["y"] < 0:
+                    # Loop it back to the bottom
+                    selected["y"] = len(lines) - 1
+                if selected["x"] >= len(lines[selected["y"]]):
+                    # This line is too short to land here
+                    selected["y"] -= 1
+
+            # Before we render the next frame, undo our selected letter
+            View.draw.rectangle((cur_x, cur_y, cur_x + x_width, cur_y + y_height), fill=0)
+            tw, th = View.draw.textsize(letter, font=View.ROBOTOCONDENSED24)
+            View.draw.text((cur_x + int((x_width - tw) / 2), cur_y + int((y_height - th)/2)), letter, fill=View.color, font=View.ROBOTOCONDENSED24)
+            View.draw.rectangle((cur_x, cur_y, cur_x + x_width, cur_y + y_height), outline="#333")
+
+        return
+        
 
     ###
     ### Power Off Screen
