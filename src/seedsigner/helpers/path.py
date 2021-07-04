@@ -26,6 +26,7 @@ class Path:
     DONATE = 63
     WALLET = 64
     QR_DENSITY_SETTING = 65
+    WALLET_POLICY = 66
 
     # Seed Slots
     SEED_SLOT_1 = 80

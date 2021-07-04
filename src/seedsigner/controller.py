@@ -7,13 +7,13 @@ from subprocess import call
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
     SettingsToolsView, IOTestView)
 from .helpers import Buttons, B, CameraProcess,Path
-from .models import (SeedStorage, SpecterDesktopMultisigWallet, BlueVaultWallet,
-    SparrowMultiSigWallet, GenericUR2Wallet, Wallet)
+from .models import (SeedStorage, SpecterDesktopWallet, BlueWallet,
+    SparrowWallet, GenericUR2Wallet, Wallet)
 
 
 class Controller:
     
-    VERSION = "0.4.1a2"
+    VERSION = "0.4.2"
 
     def __init__(self, config) -> None:
         controller = self
@@ -27,7 +27,7 @@ class Controller:
 
         # models
         self.storage = SeedStorage()
-        self.wallet_klass = globals()["SpecterDesktopMultisigWallet"]
+        self.wallet_klass = globals()["SpecterDesktopWallet"]
         self.wallet = self.wallet_klass()
 
         # Views
@@ -108,6 +108,8 @@ class Controller:
                 ret_val = self.show_wallet_tool()
             elif ret_val == Path.QR_DENSITY_SETTING:
                 ret_val = self.show_qr_density_tool()
+            elif ret_val == Path.WALLET_POLICY:
+                ret_val = self.show_wallet_policy_tool()
             elif ret_val == Path.DONATE:
                 ret_val = self.show_donate_tool()
             elif ret_val == Path.POWER_OFF:
@@ -465,9 +467,9 @@ class Controller:
     def show_current_network_tool(self):
         r = self.settings_tools_view.display_current_network()
         if r == "main":
-            self.wallet = self.wallet_klass("main", self.wallet.get_qr_density())
+            self.wallet = self.wallet_klass("main", self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
         elif r == "test":
-            self.wallet = self.wallet_klass("test", self.wallet.get_qr_density())
+            self.wallet = self.wallet_klass("test", self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
 
         return Path.SETTINGS_SUB_MENU
 
@@ -476,20 +478,17 @@ class Controller:
     def show_wallet_tool(self):
         r = self.settings_tools_view.display_wallet_selection()
         if r == "Specter Desktop":
-            self.wallet_klass = globals()["SpecterDesktopMultisigWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density())
-        elif r == "Specter Desktop Single Sig":
-            self.wallet_klass = globals()["SpecterDesktopSingleSigWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density())
-        elif r == "Blue Wallet Vault":
-            self.wallet_klass = globals()["BlueVaultWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density())
-        elif r == "Sparrow Multisig":
-            self.wallet_klass = globals()["SparrowMultiSigWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density())
-        elif r == "UR 2.0 Multisig":
+            self.wallet_klass = globals()["SpecterDesktopWallet"]
+            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
+        elif r == "Blue Wallet":
+            self.wallet_klass = globals()["BlueWallet"]
+            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
+        elif r == "Sparrow":
+            self.wallet_klass = globals()["SparrowWallet"]
+            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
+        elif r == "UR 2.0 Generic":
             self.wallet_klass = globals()["GenericUR2Wallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density())
+            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
 
         return Path.SETTINGS_SUB_MENU
 
@@ -498,11 +497,22 @@ class Controller:
     def show_qr_density_tool(self):
         r = self.settings_tools_view.display_qr_density_selection()
         if r == "low":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRLOW)
+            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRLOW, self.wallet.get_wallet_policy())
         elif r == "medium":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRMEDIUM)
+            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRMEDIUM, self.wallet.get_wallet_policy())
         elif r == "high":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRHIGH)
+            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRHIGH, self.wallet.get_wallet_policy())
+
+        return Path.SETTINGS_SUB_MENU
+
+    ### Show Wallet Policy Tool
+
+    def show_wallet_policy_tool(self):
+        r = self.settings_tools_view.display_wallet_policy_selection()
+        if r == "PKWSH":
+            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), "PKWSH")
+        elif r == "PKWPKH":
+            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), "PKWPKH")
 
         return Path.SETTINGS_SUB_MENU
 

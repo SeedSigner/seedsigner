@@ -17,12 +17,27 @@ class Wallet:
     QRMEDIUM = 1
     QRHIGH = 2
 
-    def __init__(self, current_network, qr_density, hardened_derivation) -> None:
+    def __init__(self, current_network, qr_density, policy) -> None:
         self.current_network = current_network
-        self.hardened_derivation = hardened_derivation
+
+        if policy not in self.avaliable_wallet_policies():
+            policy = "PKWSH" #override policy to PKWSH when not found in wallet 
+
+        if policy == "PKWSH" and self.current_network == "main":
+            self.hardened_derivation = "m/48h/0h/0h/2h"
+        elif policy == "PKWSH" and self.current_network == "test":
+            self.hardened_derivation = "m/48h/1h/0h/2h"
+        elif policy == "PKWPKH" and self.current_network == "main":
+            self.hardened_derivation = "m/84h/0h/0h"
+        elif policy == "PKWPKH" and self.current_network == "test":
+            self.hardened_derivation = "m/84h/1h/0h"
+        else:
+            raise Exception("Unsupported Derivation Path or Policy")
+
         self.qrsize = 80 # Default
         self.set_qr_density(qr_density)
         self.cur_qr_density = qr_density
+        self.cur_policy = policy
 
     def set_seed_phrase(self, seed_phrase, passphrase):
         # requires a valid seed phrase or error will be thrown
@@ -38,8 +53,12 @@ class Wallet:
         self.fee = None
         self.spend = None
         self.destinationaddress = None
+        self.dest_addr_cnt = None
+        self.change = None
         self.controller = None
         self.buttons = None
+        self.ins = None
+        self.outs = None
 
         self.camera_loop_timer = None
         self.camera_data = None
@@ -61,7 +80,28 @@ class Wallet:
     ### get_name, set_network, make_xpub_qr_codes, make_signing_qr_codes, set_qr_density
 
     def import_qr(self) -> str:
-        return "empty"
+        if self.cur_policy == "PKWPKH":
+            xpubstring = "[%s%s]%s" % (
+                 hexlify(self.fingerprint).decode('utf-8'),
+                 self.hardened_derivation[1:],
+                 self.bip48_xpub.to_base58(NETWORKS[self.current_network]["zpub"]))
+        else:
+            xpubstring = "[%s%s]%s" % (
+                 hexlify(self.fingerprint).decode('utf-8'),
+                 self.hardened_derivation[1:],
+                 self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]))
+
+        return xpubstring
+
+    def get_xpub_info(self) -> (str, str, str):
+        if self.cur_policy == "PKWPKH":
+            xpub = self.bip48_xpub.to_base58(NETWORKS[self.current_network]["zpub"])
+        else:
+            xpub = self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"])
+
+        derivation = self.hardened_derivation[1:].replace("h","'")
+
+        return (hexlify(self.fingerprint).decode('utf-8'), derivation, xpub)
 
     def parse_psbt(self, raw_psbt) -> bool:
         # decodes and parses raw_psbt, also calculates the following instance values
@@ -204,6 +244,20 @@ class Wallet:
         else:
             return "Unknown"
 
+    def get_wallet_policy_name(self) -> str :
+        if self.cur_policy == "PKWSH":
+            return "Multi Sig"
+        elif self.cur_policy == "PKWPKH":
+            return "Single Sig"
+        else:
+            return self.cur_policy
+
+    def get_wallet_policy(self) -> str:
+        return self.cur_policy
+
+    def avaliable_wallet_policies(self) -> []:
+        return ["PKWSH", "PKWPKH"]
+
     ###
     ### Network Related Methods
     ###
@@ -221,13 +275,15 @@ class Wallet:
     ### Internal Wallet Transactions
     ###
 
-    def input_amount(self, tx) -> (float, str):
+    def input_amount(self, tx) -> (float, str, float):
         # Check inputs of the transaction and check that they use the same script type
         # For multisig parsed policy will look like this:
         # { script_type: p2wsh, cosigners: [xpubs strings], m: 2, n: 3}
         policy = None
         inp_amount = 0.0
+        ins = 0
         for inp in tx.inputs:
+            ins += 1
             inp_amount += inp.witness_utxo.value
             # get policy of the input
             inp_policy = self.get_policy(inp, inp.witness_utxo.script_pubkey, tx.xpubs)
@@ -240,13 +296,16 @@ class Wallet:
                 if policy != inp_policy:
                     raise RuntimeError("Mixed inputs in the transaction")
 
-        return (inp_amount, policy)
+        return (inp_amount, policy, ins)
 
-    def change_fee_spend_amounts(self, tx, inp_amount, policy, currentnetwork) -> (float, float, float):
+    def change_fee_spend_amounts(self, tx, inp_amount, policy, currentnetwork) -> (float, float, float, str, float, float):
         spend = 0
         change = 0
         destinationaddress = ""
+        dest_addr_cnt = 0
+        outs = 0
         for i, out in enumerate(tx.outputs):
+            outs += 1
             out_policy = self.get_policy(out, tx.tx.vout[i].script_pubkey, tx.xpubs)
             is_change = False
             # if policy is the same - probably change
@@ -269,7 +328,7 @@ class Wallet:
                 elif "pkh" in policy["type"]:
                     if len(out.bip32_derivations.values()) > 0:
                         der = list(out.bip32_derivations.values())[0].derivation
-                        my_pubkey = root.derive(der)
+                        my_pubkey = self.root.derive(der)
                     if policy["type"] == "p2wpkh":
                         sc = script.p2wpkh(my_pubkey)
                     elif policy["type"] == "p2sh-p2wpkh":
@@ -283,10 +342,15 @@ class Wallet:
                 spend += tx.tx.vout[i].value
                 print("Spending %d sats to %s" % (tx.tx.vout[i].value, tx.tx.vout[i].script_pubkey.address(NETWORKS[currentnetwork])))
                 destinationaddress = tx.tx.vout[i].script_pubkey.address(NETWORKS[currentnetwork])
+                dest_addr_cnt += 1
 
         fee = inp_amount - change - spend
 
-        return (change, fee, spend, destinationaddress)
+        return (change, fee, spend, destinationaddress, outs, dest_addr_cnt)
+
+    def _parse_psbt(self):
+        (self.inp_amount, policy, self.ins) = self.input_amount(self.tx)
+        (self.change, self.fee, self.spend, self.destinationaddress, self.outs, self.dest_addr_cnt) = self.change_fee_spend_amounts(self.tx, self.inp_amount, policy, self.current_network)
 
     def parse_multisig(self, sc):
         """Takes a script and extracts m,n and pubkeys from it"""

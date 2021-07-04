@@ -16,26 +16,13 @@ from io import BytesIO
 from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
 import re
 
-class BlueVaultWallet(Wallet):
+class BlueWallet(Wallet):
 
-    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, hardened_derivation = "m/48h/0h/0h/2h") -> None:
-        if current_network == "main":
-            Wallet.__init__(self, current_network, qr_density, "m/48h/0h/0h/2h")
-        elif current_network == "test":
-            Wallet.__init__(self, current_network, qr_density, "m/48h/1h/0h/2h")
-        else:
-            Wallet.__init__(self, current_network, qr_density, hardened_derivation)
+    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, policy = "PKWSH") -> None:
+        Wallet.__init__(self, current_network, qr_density, policy)
 
     def get_name(self) -> str:
-        return "Blue Wallet Vault"
-
-    def import_qr(self) -> str:
-        xpubstring = "[%s%s]%s" % (
-             hexlify(self.fingerprint).decode('utf-8'),
-             self.hardened_derivation[1:],
-             self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]))
-
-        return xpubstring
+        return "Blue Wallet"
 
     def parse_psbt(self, raw_psbt) -> bool:
         raw_psbt = b2a_base64(cbor_decode(bc32decode(raw_psbt)))
@@ -43,8 +30,7 @@ class BlueVaultWallet(Wallet):
         base64_psbt = a2b_base64(raw_psbt)
         self.tx = psbt.PSBT.parse(base64_psbt)
 
-        (self.inp_amount, policy) = self.input_amount(self.tx)
-        (self.change, self.fee, self.spend, self.destinationaddress) = self.change_fee_spend_amounts(self.tx, self.inp_amount, policy, self.current_network)
+        self._parse_psbt()
 
         return True
 

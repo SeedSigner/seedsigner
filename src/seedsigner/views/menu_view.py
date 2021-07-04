@@ -121,12 +121,13 @@ class MenuView(View):
     ### Settings Menu
 
     def display_settings_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Input / Output Tests", "Current Network: <network>", "Wallet: <wallet>", "QR Density: <density>", "Version Info", "Donate to SeedSigner"]
+        lines = ["... [ Return to Main ]", "Input / Output Tests", "Current Network: <network>", "Wallet: <wallet>", "Wallet Policy: <policy>", "QR Density: <density>", "Version Info", "Donate to SeedSigner"]
         input = 0
         
         lines[2] = lines[2].replace("<network>", self.controller.wallet.get_network())
         lines[3] = lines[3].replace("<wallet>", self.controller.wallet.get_name())
-        lines[4] = lines[4].replace("<density>", self.controller.wallet.get_qr_density_name())
+        lines[4] = lines[4].replace("<policy>", self.controller.wallet.get_wallet_policy_name())
+        lines[5] = lines[5].replace("<density>", self.controller.wallet.get_qr_density_name())
 
         # Draw Menu
         self.draw_menu(lines, 1)
@@ -148,10 +149,12 @@ class MenuView(View):
                 elif self.selected_menu_num == 4:
                     return Path.WALLET
                 elif self.selected_menu_num == 5:
-                    return Path.QR_DENSITY_SETTING
+                    return Path.WALLET_POLICY
                 elif self.selected_menu_num == 6:
-                    return Path.VERSION_INFO
+                    return Path.QR_DENSITY_SETTING
                 elif self.selected_menu_num == 7:
+                    return Path.VERSION_INFO
+                elif self.selected_menu_num == 8:
                     return Path.DONATE
         raise Exception("Unhandled case")
 
@@ -289,6 +292,8 @@ class MenuView(View):
                     b = "Page 2 of 3"
                 elif selected_menu_num >= 11 and selected_menu_num <= 15:
                     b = "Page 3 of 3"
+            else:
+                b = "Press Control Stick to Select"
         else:
             b = bottom
 
