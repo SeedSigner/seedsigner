@@ -35,7 +35,6 @@ class View:
     COURIERNEW20 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 20)
 
     font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
-    print(font_path)
 
     ROBOTOCONDENSED_BOLD_18 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 18)
     ROBOTOCONDENSED_BOLD_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 24)
@@ -101,11 +100,13 @@ class View:
         while (cur_x != end_x or cur_y != end_y) and (rate_x != 0 or rate_y != 0):
             cur_x += rate_x
             if (rate_x > 0 and cur_x > end_x) or (rate_x < 0 and cur_x < end_x):
+                # We've moved too far; back up and undo that last move.
                 cur_x -= rate_x
                 rate_x = 0
 
             cur_y += rate_y
             if (rate_y > 0 and cur_y > end_y) or (rate_y < 0 and cur_y < end_y):
+                # We've moved too far; back up and undo that last move.
                 cur_y -= rate_y
                 rate_y = 0
 

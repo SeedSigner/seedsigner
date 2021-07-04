@@ -7,7 +7,7 @@ import time
 
 # Internal file class dependencies
 from . import View
-from seedsigner.helpers import B, QR, CameraPoll
+from seedsigner.helpers import B, QR, CameraPoll, Keyboard
 
 
 class SeedToolsView(View):
@@ -79,6 +79,204 @@ class SeedToolsView(View):
                 return self.words[:]
 
             self.draw_gather_words()
+
+
+    def display_manual_seed_entry(self, num_words):
+        self.seed_length = num_words
+        self.reset()
+
+        cur_word = 0
+        while len(self.words) < self.seed_length:
+            initial_letters = ["a"]
+            if len(self.words) >= cur_word + 1:
+                initial_letters = list(self.words[cur_word])
+            ret_val = self.draw_seed_word_keyboard_entry(num_word=cur_word + 1, initial_letters=initial_letters)
+
+            if ret_val == "BACK" and len(self.words) > 0:
+                # Reload previous word
+                cur_word -= 1
+                if cur_word < 0:
+                    return []
+
+            else:
+                self.words.append(ret_val)
+                cur_word += 1
+                if cur_word == self.seed_length:
+                    return self.words
+
+
+    def draw_seed_word_keyboard_entry(self, num_word, initial_letters=["a"]):
+        def render_possible_matches(highlight_word=None):
+            """ Internal helper method to render the KEY 1, 2, 3 word candidates.
+                (has access to all vars in the parent's context)
+            """
+            matches = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(self.letters).strip())][:3]
+            if matches:
+                self.possible_words = matches
+                if len(self.possible_words) > 0:
+                    # Clear the right panel
+                    View.draw.rectangle((keyboard_width, text_entry_display_height, View.canvas_width, View.canvas_height), fill="black")
+
+                    word_font = View.ROBOTOCONDENSED_BOLD_26
+                    for slot, word in enumerate(self.possible_words):
+                        tw, th = word_font.getsize(word)
+                        word_offset = View.canvas_width - tw - 1
+                        slot_y = 39 + (60*slot)
+                        if highlight_word and word == highlight_word:
+                            View.draw.rectangle((word_offset - 3, slot_y - 3, 240, slot_y + th + 6), fill=View.color)
+                            View.draw.text((word_offset, slot_y), word, fill="black", font=word_font)
+                        else:
+                            View.draw.text((word_offset, slot_y), word, fill=View.color, font=word_font)
+
+
+        def render_text_entry_display(draw=View.draw):
+            """ Internal helper method to render the live text entry display at the top
+                along with the "back" arrow.
+                (has access to all vars in the parent's context)
+            """
+            draw.rectangle((0,0, View.canvas_width,text_entry_display_height), fill="black")
+
+            # Set up the "back" arrow in the upper left
+            word_font = View.ROBOTOCONDENSED_BOLD_26
+            draw.text((0, 3), "<", fill=View.color, font=word_font)
+
+            # Render the live text entry display
+            title = f"#{num_word}: {''.join(self.letters)}"
+
+            cursor_block_width = 20
+            cursor_block_height = 33
+
+            # Draw n-1 of the selected letters
+            tw, th = word_font.getsize(title[:-1])
+            word_offset = int(View.canvas_width - tw + cursor_block_width)/2
+            draw.text((word_offset, 2), title[:-1], fill=View.color, font=word_font)
+
+            # Draw the highlighted cursor block
+            cursor_block_offset = word_offset + tw + 2
+            draw.rectangle((cursor_block_offset,2, cursor_block_offset + cursor_block_width, cursor_block_height), fill=View.color)
+            draw.text((cursor_block_offset + 1, 2), ''.join(self.letters[-1:]), fill="black", font=word_font)
+
+
+        # Clear the screen
+        View.draw.rectangle((0,0, View.canvas_width,View.canvas_height), fill="black")
+
+
+        # Set up the keyboard params
+        keyboard_width = 120
+        text_entry_display_height = 39
+
+        # TODO: support other BIP39 languages/charsets
+        keyboard = Keyboard(View.draw, charset="abcdefghijklmnopqrstuvwxyz", rows=5, cols=6, rect=(0,text_entry_display_height + 1, keyboard_width,240))
+
+        # Initialize the current letters/current matches
+        self.letters = initial_letters
+        self.calc_possible_alphabet()
+        keyboard.update_active_keys(active_keys=self.possible_alphabet)
+        keyboard.set_selected_key(selected_letter=self.letters[-1])
+        keyboard.render_keys()
+        render_possible_matches()
+
+        # Render the top text entry display
+        render_text_entry_display()
+
+        View.DispShowImage()
+
+        # Start the interactive update loop
+        while True:
+            input = View.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3], check_release=True, release_keys=[B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3])
+            ret_val = keyboard.update_from_input(input)
+            if ret_val in Keyboard.EXIT_DIRECTIONS:
+                raise Exception("no exit directions yet")
+
+            elif ret_val in Keyboard.ADDITIONAL_KEYS:
+                if input == B.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["letter"]:
+                    self.letters = self.letters[:-2]
+                    self.letters.append(" ")
+
+                    # Reactivate keys after deleting last letter
+                    self.calc_possible_alphabet()
+                    keyboard.update_active_keys(active_keys=self.possible_alphabet)
+                    keyboard.render_keys()
+
+                elif ret_val == Keyboard.KEY_BACKSPACE["letter"]:
+                    # We're just hovering over DEL but haven't clicked. Show blank (" ")
+                    #   in the live text entry display at the top.
+                    self.letters = self.letters[:-1]
+                    self.letters.append(" ")
+
+            else:
+                # Has the user made a final selection of a candidate word?
+                final_selection = None
+                if input == B.KEY1:
+                    if self.possible_words[0]:
+                        final_selection = self.possible_words[0]
+                elif input == B.KEY2:
+                    if self.possible_words[1]:
+                        final_selection = self.possible_words[1]
+                elif input == B.KEY3:
+                    if self.possible_words[2]:
+                        final_selection = self.possible_words[2]
+
+                if final_selection:
+                    # Animate the selection storage, then return the word to the caller
+                    render_possible_matches(highlight_word=final_selection)
+                    View.DispShowImage()
+
+                    return final_selection
+
+                elif input == B.KEY_PRESS and ret_val in self.possible_alphabet:
+                    # User has locked in the current letter
+                    if self.letters[-1] != " ":
+                        # We'll save that locked in letter next but for now update the
+                        # live text entry display with blank (" ") so that we don't try
+                        # to autocalc matches against a second copy of the letter they
+                        # just selected. e.g. They KEY_PRESS on "s" to build "mus". If
+                        # we advance the live block cursor AND display "s" in it, the
+                        # current word would then be "muss" with no matches. If "mus"
+                        # can get us to our match, we don't want it to disappear right
+                        # as we KEY_PRESS.
+                        self.letters.append(" ")
+                    else:
+                        # clicked same letter twice in a row. Because of the above, an
+                        # immediate second click of the same letter would lock in "ap "
+                        # (note the space) instead of "app". So we replace that trailing
+                        # space with the correct repeated letter and then, as above,
+                        # append a trailing blank.
+                        self.letters = self.letters[:-1]
+                        self.letters.append(ret_val)
+                        self.letters.append(" ")
+
+                    # Recalc and deactivate keys after advancing
+                    self.calc_possible_alphabet()
+                    keyboard.update_active_keys(active_keys=self.possible_alphabet)
+
+                    # Move the selection cursor to an active Key using the next letter in
+                    #   the top possible_words match.
+                    if self.possible_words and len(self.possible_words[0]) >= len(self.letters):
+                        keyboard.set_selected_key(self.possible_words[0][len(self.letters) - 1])
+                    keyboard.render_keys()
+
+                else:
+                    # Live joystick movement; haven't locked this new letter in yet.
+                    # Replace the last letter w/the currently selected one. But don't
+                    # call `calc_possible_alphabet()` because we want to still be able
+                    # to freely float to a different letter; only update the active
+                    # keyboard keys when a selection has been locked in (KEY_PRESS) or
+                    # removed ("del").
+                    self.letters = self.letters[:-1]
+                    if ret_val in self.possible_alphabet:
+                        self.letters.append(ret_val)
+                    else:
+                        self.letters.append(" ")
+
+            # Update the KEY 1, 2, 3 word candidates
+            render_possible_matches()
+
+            # Render the text entry display and cursor block
+            render_text_entry_display()
+
+            View.DispShowImage()
+
 
     def gather_words_up(self):
         View.draw.polygon([(8 + ((len(self.letters)-1)*30), 85) , (14 + ((len(self.letters)-1)*30), 69) , (20 + ((len(self.letters)-1)*30), 85 )], outline=View.color, fill=View.color)
@@ -885,11 +1083,11 @@ class SeedToolsView(View):
         return
 
     def calc_possible_alphabet(self, new_letter = False):
-        if (len(self.letters) > 1 and new_letter == False) or (len(self.letters) > 0 and new_letter == True):
+        if (self.letters and len(self.letters) > 1 and new_letter == False) or (len(self.letters) > 0 and new_letter == True):
             search_letters = self.letters[:]
             if new_letter == False:
                 search_letters.pop()
-            possible_words = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(search_letters))]
+            possible_words = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(search_letters).strip())]
             letter_num = len(search_letters)
             possible_letters = []
             for word in possible_words:

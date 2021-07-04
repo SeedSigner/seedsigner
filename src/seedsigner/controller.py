@@ -6,7 +6,7 @@ from subprocess import call
 # Internal file class dependencies
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
     SettingsToolsView, IOTestView)
-from .helpers import Buttons, B, CameraProcess, Path, Keyboard
+from .helpers import Buttons, B, CameraProcess, Path
 from .models import (SeedStorage, SpecterDesktopMultisigWallet, BlueVaultWallet,
     SparrowMultiSigWallet, GenericUR2Wallet, Wallet)
 
@@ -79,100 +79,41 @@ class Controller:
 
     def show_main_menu(self, sub_menu = 0):
         ret_val = sub_menu
-
-        word_font = View.ROBOTOCONDENSED_BOLD_26
-        View.draw.text((0, 3), "<", fill=View.color, font=word_font)
-
-        title = f"#11:"
-        word_offset = int(View.canvas_width - word_font.getsize(title)[0] - 1)/2
-        View.draw.text((word_offset, 2), title, fill=View.color, font=word_font)
-
-        for idx, word in enumerate(["champion", "mushroom", "satoshi"]):
-            word_offset = View.canvas_width - word_font.getsize(word)[0] - 1
-            View.draw.text((word_offset, 39 + (60*idx)), word, fill=View.color, font=word_font)
-        View.DispShowImage()
-
-        # draw, charset=["1234567890abcdefghijklmnopqrstuvwxyz"], self.selected_char="a", rows=4, cols=10, rect=(0,40, 240,240), font=View.ROBOTOCONDENSED_LIGHT_24
-        keyboard = Keyboard(self.menu_view.draw,charset="abcdefghijklmnopqrstuvwxyz", rows=5, cols=6, rect=(0,40, 120,240))
-
-        cur_word = ""
         while True:
-            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS], check_release=False, release_keys=[B.KEY_PRESS])
-            ret_val = keyboard.update_from_input(input)
-            if ret_val in Keyboard.EXIT_DIRECTIONS:
-                raise Exception("no exit directions yet")
-            elif ret_val in Keyboard.ADDITIONAL_KEYS:
-                if input == B.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE:
-                    cur_word = cur_word[:-2] + " "
-                elif ret_val == Keyboard.KEY_BACKSPACE:
-                    cur_word = cur_word[:-1] + " "
-            else:
-                if input == B.KEY_PRESS:
-                    if cur_word[-1] == " ":
-                        # clicking same letter twice in a row
-                        cur_word = cur_word[:-1] + ret_val + " "
-                    else:
-                        # Keep the last letter by advancing
-                        cur_word += " "
-                else:
-                    # Replace the last letter w/the currently selected one
-                    cur_word = cur_word[:-1] + ret_val
+            ret_val = self.menu_view.display_main_menu(ret_val)
 
-            title = f"#11: {cur_word}"
-            # Clear the area first
-            View.draw.rectangle((20,0, View.canvas_width, 39), fill="black")
+            if ret_val == Path.MAIN_MENU:
+                ret_val = Path.MAIN_MENU
+            elif ret_val == Path.GEN_LAST_WORD:
+                ret_val = self.show_generate_last_word_tool()
+            elif ret_val == Path.DICE_GEN_SEED:
+                ret_val = self.show_create_seed_with_dice_tool()
+            elif ret_val == Path.SAVE_SEED:
+                ret_val = self.show_store_a_seed_tool()
+            elif ret_val == Path.PASSPHRASE_SEED:
+                ret_val = self.show_add_a_passphrase_tool()
+            elif ret_val == Path.DELETE_PASSPHRASE:
+                ret_val = self.show_delete_a_passphrase_tool()
+            elif ret_val == Path.GEN_XPUB:
+                ret_val = self.show_generate_xpub()
+            elif ret_val == Path.SIGN_TRANSACTION:
+                ret_val = self.show_sign_transaction()
+            elif ret_val == Path.IO_TEST_TOOL:
+                ret_val = self.show_io_test_tool()
+            elif ret_val == Path.VERSION_INFO:
+                ret_val = self.show_version_info()
+            elif ret_val == Path.CURRENT_NETWORK:
+                ret_val = self.show_current_network_tool()
+            elif ret_val == Path.WALLET:
+                ret_val = self.show_wallet_tool()
+            elif ret_val == Path.QR_DENSITY_SETTING:
+                ret_val = self.show_qr_density_tool()
+            elif ret_val == Path.DONATE:
+                ret_val = self.show_donate_tool()
+            elif ret_val == Path.POWER_OFF:
+                ret_val = self.show_power_off()
 
-            cursor_block_width = 20
-            cursor_block_height = 33
-
-            # Draw n-1 of the selected letters
-            tw, th = word_font.getsize(title[:-1])
-            word_offset = int(View.canvas_width - tw + cursor_block_width)/2
-            View.draw.text((word_offset, 2), title[:-1], fill=View.color, font=word_font)
-
-            cursor_block_offset = word_offset + tw + 2
-            tw, th = word_font.getsize(cur_word[-1:])
-            View.draw.rectangle((cursor_block_offset,2, cursor_block_offset + cursor_block_width, cursor_block_height), fill=View.color)
-            View.draw.text((cursor_block_offset + 1, 2), cur_word[-1:], fill="black", font=word_font)
-
-
-            View.DispShowImage()
-
-
-        #     ret_val = self.menu_view.display_main_menu(ret_val)
-
-        #     if ret_val == Path.MAIN_MENU:
-        #         ret_val = Path.MAIN_MENU
-        #     elif ret_val == Path.GEN_LAST_WORD:
-        #         ret_val = self.show_generate_last_word_tool()
-        #     elif ret_val == Path.DICE_GEN_SEED:
-        #         ret_val = self.show_create_seed_with_dice_tool()
-        #     elif ret_val == Path.SAVE_SEED:
-        #         ret_val = self.show_store_a_seed_tool()
-        #     elif ret_val == Path.PASSPHRASE_SEED:
-        #         ret_val = self.show_add_a_passphrase_tool()
-        #     elif ret_val == Path.DELETE_PASSPHRASE:
-        #         ret_val = self.show_delete_a_passphrase_tool()
-        #     elif ret_val == Path.GEN_XPUB:
-        #         ret_val = self.show_generate_xpub()
-        #     elif ret_val == Path.SIGN_TRANSACTION:
-        #         ret_val = self.show_sign_transaction()
-        #     elif ret_val == Path.IO_TEST_TOOL:
-        #         ret_val = self.show_io_test_tool()
-        #     elif ret_val == Path.VERSION_INFO:
-        #         ret_val = self.show_version_info()
-        #     elif ret_val == Path.CURRENT_NETWORK:
-        #         ret_val = self.show_current_network_tool()
-        #     elif ret_val == Path.WALLET:
-        #         ret_val = self.show_wallet_tool()
-        #     elif ret_val == Path.QR_DENSITY_SETTING:
-        #         ret_val = self.show_qr_density_tool()
-        #     elif ret_val == Path.DONATE:
-        #         ret_val = self.show_donate_tool()
-        #     elif ret_val == Path.POWER_OFF:
-        #         ret_val = self.show_power_off()
-
-        # raise Exception("Unhandled case")
+        raise Exception("Unhandled case")
 
     ### Power Off
 
@@ -200,9 +141,9 @@ class Controller:
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Seed Tools ]")
             if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(11)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(11)
             elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(23)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(23)
             else:
                 return Path.SEED_TOOLS_SUB_MENU
 
@@ -291,9 +232,9 @@ class Controller:
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Seed Tools ]")
             if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
             elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
             elif ret_val == Path.SEED_WORD_QR:
                 seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
             else:
@@ -390,9 +331,9 @@ class Controller:
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Sign Tools ]")
             if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
             elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
             elif ret_val == Path.SEED_WORD_QR:
                 # TODO Add Functionality here? or maybe return to another seed tools menu?
                 return Path.SIGNING_TOOLS_SUB_MENU
@@ -445,9 +386,9 @@ class Controller:
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Sign Tools ]")
             if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
             elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
             elif ret_val == Path.SEED_WORD_QR:
                 # TODO Add Functionality here? or maybe return to another seed tools menu?
                 return Path.SIGNING_TOOLS_SUB_MENU
