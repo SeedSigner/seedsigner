@@ -279,10 +279,10 @@ class SeedToolsView(View):
                     self.calc_possible_alphabet()
                     keyboard.update_active_keys(active_keys=self.possible_alphabet)
 
-                    # Move the selection cursor to an active Key using the next letter in
-                    #   the top possible_words match.
-                    if self.possible_words and len(self.possible_words[0]) >= len(self.letters):
-                        keyboard.set_selected_key(self.possible_words[0][len(self.letters) - 1])
+                    if len(self.possible_alphabet) == 1:
+                        # If there's only one possible letter left, select it
+                        keyboard.set_selected_key(self.possible_alphabet[0])
+
                     keyboard.render_keys()
 
                 else:
