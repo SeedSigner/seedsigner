@@ -93,6 +93,16 @@ class Wallet:
 
         return xpubstring
 
+    def get_xpub_info(self) -> (str, str, str):
+        if self.cur_policy == "PKWPKH":
+            xpub = self.bip48_xpub.to_base58(NETWORKS[self.current_network]["zpub"])
+        else:
+            xpub = self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"])
+
+        derivation = self.hardened_derivation[1:].replace("h","'")
+
+        return (hexlify(self.fingerprint).decode('utf-8'), derivation, xpub)
+
     def parse_psbt(self, raw_psbt) -> bool:
         # decodes and parses raw_psbt, also calculates the following instance values
         self.inp_amount = None
