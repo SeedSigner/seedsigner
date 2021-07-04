@@ -29,8 +29,12 @@ class Keyboard:
         "font": COMPACT_KEY_FONT,
         "size": 2,
     }
+    KEY_PREVIOUS_PAGE = {
+        "letter": "prev"
+    }
     ADDITIONAL_KEYS = {
         KEY_BACKSPACE["letter"]: KEY_BACKSPACE,
+        KEY_PREVIOUS_PAGE["letter"]: KEY_PREVIOUS_PAGE,
     }
 
     @dataclass
@@ -230,7 +234,9 @@ class Keyboard:
                     # Loop it back to the right side
                     self.selected_key["x"] = 0
                 else:
-                    # Notify controlling loop that we've left the keyboard
+                    # Undo selection change and notify controlling loop that we've left
+                    #   the keyboard
+                    self.selected_key["x"] -= 1
                     return Keyboard.EXIT_RIGHT
 
         elif input == B.KEY_LEFT:
@@ -240,7 +246,9 @@ class Keyboard:
                     # Loop it back to the left side
                     self.selected_key["x"] = len(self.keys[self.selected_key["y"]]) - 1
                 else:
-                    # Notify controlling loop that we've left the keyboard
+                    # Undo selection change and notify controlling loop that we've left
+                    #   the keyboard
+                    self.selected_key["x"] += 1
                     return Keyboard.EXIT_LEFT
 
         elif input == B.KEY_DOWN:
@@ -250,7 +258,9 @@ class Keyboard:
                     # Loop it back to the top
                     self.selected_key["y"] = 0
                 else:
-                    # Notify controlling loop that we've left the keyboard
+                    # Undo selection change and notify controlling loop that we've left
+                    #   the keyboard
+                    self.selected_key["y"] -= 1
                     return Keyboard.EXIT_BOTTOM
 
             if self.selected_key["x"] >= len(self.keys[self.selected_key["y"]]):
@@ -258,7 +268,9 @@ class Keyboard:
                     # This line is too short to land here
                     self.selected_key["y"] = 0
                 else:
-                    # Notify controlling loop that we've left the keyboard
+                    # Undo selection change and notify controlling loop that we've left
+                    #   the keyboard
+                    self.selected_key["y"] -= 1
                     return Keyboard.EXIT_BOTTOM
 
         elif input == B.KEY_UP:
@@ -268,14 +280,19 @@ class Keyboard:
                     # Loop it back to the bottom
                     self.selected_key["y"] = len(self.keys) - 1
                 else:
-                    # Notify controlling loop that we've left the keyboard
+                    # Undo selection change and notify controlling loop that we've left
+                    #   the keyboard
+                    self.selected_key["y"] += 1
                     return Keyboard.EXIT_TOP
+
             if self.selected_key["x"] >= len(self.keys[self.selected_key["y"]]):
                 if Keyboard.WRAP_TOP in self.auto_wrap:
                     # This line is too short to land here
                     self.selected_key["y"] -= 1
                 else:
-                    # Notify controlling loop that we've left the keyboard
+                    # Undo selection change and notify controlling loop that we've left
+                    #   the keyboard
+                    self.selected_key["y"] += 1
                     return Keyboard.EXIT_TOP
 
         # Render the newly self.selected_key letter

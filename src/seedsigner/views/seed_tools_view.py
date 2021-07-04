@@ -85,24 +85,31 @@ class SeedToolsView(View):
         self.seed_length = num_words
         self.reset()
 
-        cur_word = 0
+        cur_word = 1
         while len(self.words) < self.seed_length:
             initial_letters = ["a"]
-            if len(self.words) >= cur_word + 1:
-                initial_letters = list(self.words[cur_word])
-            ret_val = self.draw_seed_word_keyboard_entry(num_word=cur_word + 1, initial_letters=initial_letters)
+            if len(self.words) >= cur_word:
+                initial_letters = list(self.words[cur_word - 1])  # zero-indexed
 
-            if ret_val == "BACK" and len(self.words) > 0:
+            ret_val = self.draw_seed_word_keyboard_entry(num_word=cur_word, initial_letters=initial_letters)
+
+            if ret_val == Keyboard.KEY_PREVIOUS_PAGE:
                 # Reload previous word
                 cur_word -= 1
-                if cur_word < 0:
+                if cur_word == 0:
+                    # Exit this UI
                     return []
+                else:
+                    # We've backed `cur_word` up, so re-enter loop
+                    continue
 
-            else:
+            if len(self.words) < cur_word:
                 self.words.append(ret_val)
-                cur_word += 1
-                if cur_word == self.seed_length:
-                    return self.words
+            else:
+                self.words[cur_word - 1] = ret_val
+            cur_word += 1
+
+        return self.words
 
 
     def draw_seed_word_keyboard_entry(self, num_word, initial_letters=["a"]):
@@ -129,16 +136,26 @@ class SeedToolsView(View):
                             View.draw.text((word_offset, slot_y), word, fill=View.color, font=word_font)
 
 
+        def render_previous_button(highlight=False):
+            # Set up the "back" arrow in the upper left
+            arrow = "<"
+            word_font = View.ROBOTOCONDENSED_BOLD_26
+            tw, th = word_font.getsize(arrow)
+            if highlight:
+                View.draw.rectangle((0,0, tw + 6, th + 6), fill=View.color)
+                View.draw.text((3, 3), arrow, fill="black", font=word_font)
+            else:
+                View.draw.rectangle((0,0, tw + 6, th + 6), fill="black")
+                View.draw.text((3, 3), arrow, fill=View.color, font=word_font)
+
+            return tw + 6
+
+
         def render_text_entry_display(draw=View.draw):
-            """ Internal helper method to render the live text entry display at the top
-                along with the "back" arrow.
+            """ Internal helper method to render the live text entry display at the top.
                 (has access to all vars in the parent's context)
             """
-            draw.rectangle((0,0, View.canvas_width,text_entry_display_height), fill="black")
-
-            # Set up the "back" arrow in the upper left
-            word_font = View.ROBOTOCONDENSED_BOLD_26
-            draw.text((0, 3), "<", fill=View.color, font=word_font)
+            draw.rectangle((previous_button_width,0, View.canvas_width,text_entry_display_height), fill="black")
 
             # Render the live text entry display
             title = f"#{num_word}: {''.join(self.letters)}"
@@ -147,6 +164,7 @@ class SeedToolsView(View):
             cursor_block_height = 33
 
             # Draw n-1 of the selected letters
+            word_font = View.ROBOTOCONDENSED_BOLD_26
             tw, th = word_font.getsize(title[:-1])
             word_offset = int(View.canvas_width - tw + cursor_block_width)/2
             draw.text((word_offset, 2), title[:-1], fill=View.color, font=word_font)
@@ -159,14 +177,20 @@ class SeedToolsView(View):
 
         # Clear the screen
         View.draw.rectangle((0,0, View.canvas_width,View.canvas_height), fill="black")
-
+        previous_button_width = render_previous_button()
+        previous_button_is_active = False
 
         # Set up the keyboard params
         keyboard_width = 120
         text_entry_display_height = 39
 
         # TODO: support other BIP39 languages/charsets
-        keyboard = Keyboard(View.draw, charset="abcdefghijklmnopqrstuvwxyz", rows=5, cols=6, rect=(0,text_entry_display_height + 1, keyboard_width,240))
+        keyboard = Keyboard(View.draw,
+                            charset="abcdefghijklmnopqrstuvwxyz",
+                            rows=5,
+                            cols=6,
+                            rect=(0,text_entry_display_height + 1, keyboard_width,240),
+                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT])
 
         # Initialize the current letters/current matches
         self.letters = initial_letters
@@ -186,7 +210,8 @@ class SeedToolsView(View):
             input = View.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3], check_release=True, release_keys=[B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3])
             ret_val = keyboard.update_from_input(input)
             if ret_val in Keyboard.EXIT_DIRECTIONS:
-                raise Exception("no exit directions yet")
+                render_previous_button(highlight=True)
+                previous_button_is_active = True
 
             elif ret_val in Keyboard.ADDITIONAL_KEYS:
                 if input == B.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["letter"]:
@@ -223,6 +248,10 @@ class SeedToolsView(View):
                     View.DispShowImage()
 
                     return final_selection
+
+                elif input == B.KEY_PRESS and previous_button_is_active:
+                    # User clicked the "back" arrow
+                    return Keyboard.KEY_PREVIOUS_PAGE
 
                 elif input == B.KEY_PRESS and ret_val in self.possible_alphabet:
                     # User has locked in the current letter
