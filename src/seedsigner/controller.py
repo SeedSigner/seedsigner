@@ -20,6 +20,7 @@ class Controller:
 
         # settings
         self.DEBUG = config.getboolean("system", "DEBUG")
+        self.color = config["display"]["TEXT_COLOR"]
 
         # Input Buttons
         self.buttons = Buttons()
@@ -114,8 +115,7 @@ class Controller:
             elif ret_val == Path.POWER_OFF:
                 ret_val = self.show_power_off()
 
-        print("exit show_main_menu")
-        return # should never return/exit
+        raise Exception("Unhandled case")
 
     ### Power Off
 
@@ -153,6 +153,15 @@ class Controller:
                 completed_seed_phrase = self.seed_tools_view.display_last_word(seed_phrase)
                 break
 
+        # display seed phrase
+        while True:
+            ret_val = self.seed_tools_view.display_seed_phrase(completed_seed_phrase, show_qr_option=True)
+            if ret_val == True:
+                break
+            else:
+                # no-op; can't back out of the seed phrase view
+                pass
+
         # Ask to save seed
         if self.storage.slot_avaliable():
             r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Seed?")
@@ -160,7 +169,7 @@ class Controller:
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
                 if slot_num in (1,2,3):
                     self.storage.save_seed_phrase(completed_seed_phrase, slot_num)
-                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
+                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
                     input = self.buttons.wait_for([B.KEY_RIGHT])
 
         return Path.MAIN_MENU
@@ -180,9 +189,12 @@ class Controller:
 
         # display seed phrase (24 words)
         while True:
-            ret_val = self.seed_tools_view.display_seed_phrase(seed_phrase, "", "Right to Continue")
+            ret_val = self.seed_tools_view.display_seed_phrase(seed_phrase, show_qr_option=True)
             if ret_val == True:
                 break
+            else:
+                # no-op; can't back out of the seed phrase view
+                pass
 
         # Ask to save seed
         if self.storage.slot_avaliable():
@@ -191,7 +203,7 @@ class Controller:
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
                 if slot_num in (1,2,3):
                     self.storage.save_seed_phrase(seed_phrase, slot_num)
-                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
+                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
                     input = self.buttons.wait_for([B.KEY_RIGHT])
 
         return Path.MAIN_MENU
@@ -211,9 +223,12 @@ class Controller:
             # show seed phrase
             # display seed phrase (24 words)
             while True:
-                r = self.seed_tools_view.display_seed_phrase(self.storage.get_seed_phrase(abs(slot_num)), self.storage.get_passphrase(abs(slot_num)), "Right to Continue")
+                r = self.seed_tools_view.display_seed_phrase(self.storage.get_seed_phrase(abs(slot_num)), self.storage.get_passphrase(abs(slot_num)), show_qr_option=True)
                 if r == True:
                     break
+                else:
+                    # no-op; can't back out of the seed phrase view
+                    pass
             return Path.MAIN_MENU
         else:
             # display menu to select 12 or 24 word seed for last word
@@ -223,8 +238,7 @@ class Controller:
             elif ret_val == Path.SEED_WORD_24:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
             elif ret_val == Path.SEED_WORD_QR:
-                # TODO Add Functionality here? or maybe return to another seed tools menu?
-                return Path.SEED_TOOLS_SUB_MENU
+                seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
             else:
                 return Path.SEED_TOOLS_SUB_MENU
 
@@ -235,7 +249,9 @@ class Controller:
         is_valid = self.storage.check_if_seed_valid(seed_phrase)
         if is_valid:
             self.storage.save_seed_phrase(seed_phrase, slot_num)
-            self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
+            self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
+            # TODO: Issue before here interfering with first joystick input
+            #   Camera loop?
             input = self.buttons.wait_for([B.KEY_RIGHT])
         else:
             self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
@@ -339,11 +355,14 @@ class Controller:
 
         # display seed phrase
         while True:
-            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to See QR")
+            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
             if r == True:
                 break
+            else:
+                # Cancel
+                return Path.SIGNING_TOOLS_SUB_MENU
 
-        self.signing_tools_view.draw_modal(["Generating QR ..."])
+        self.signing_tools_view.draw_modal(["Generating xpub QR ..."])
         self.wallet.set_seed_phrase(seed_phrase, passphrase)
         self.signing_tools_view.display_xpub_qr(self.wallet)
         return Path.MAIN_MENU
@@ -391,10 +410,11 @@ class Controller:
 
         # display seed phrase
         while True:
-            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Scan QR")
+            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
             if r == True:
                 break
             else:
+                # Cancel
                 return Path.SIGNING_TOOLS_SUB_MENU
 
         # Scan PSBT Animated QR using Camera

@@ -1,11 +1,13 @@
 # External Dependencies
 from embit import bip39
 from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
+from PIL import ImageDraw, Image
+import math
 import time
 
 # Internal file class dependencies
 from . import View
-from seedsigner.helpers import B
+from seedsigner.helpers import B, QR, CameraPoll
 
 
 class SeedToolsView(View):
@@ -23,6 +25,7 @@ class SeedToolsView(View):
         self.possible_alphabet = []
         self.possible_words = []
         self.seed_length = 12     # Default to 12, Valid values are 11, 12, 23 and 24
+        self.seed_qr_image = None
 
         # Dice information
         self.roll_number = 1
@@ -78,7 +81,7 @@ class SeedToolsView(View):
             self.draw_gather_words()
 
     def gather_words_up(self):
-        View.draw.polygon([(8 + ((len(self.letters)-1)*30), 85) , (14 + ((len(self.letters)-1)*30), 69) , (20 + ((len(self.letters)-1)*30), 85 )], outline="ORANGE", fill="ORANGE")
+        View.draw.polygon([(8 + ((len(self.letters)-1)*30), 85) , (14 + ((len(self.letters)-1)*30), 69) , (20 + ((len(self.letters)-1)*30), 85 )], outline=View.color, fill=View.color)
         View.DispShowImage()
 
         self.calc_possible_alphabet()
@@ -92,7 +95,7 @@ class SeedToolsView(View):
                 print("not found error")
 
     def gather_words_down(self):
-        View.draw.polygon([(8 + ((len(self.letters)-1)*30), 148), (14 + ((len(self.letters)-1)*30), 164), (20 + ((len(self.letters)-1)*30), 148)], outline="ORANGE", fill="ORANGE")
+        View.draw.polygon([(8 + ((len(self.letters)-1)*30), 148), (14 + ((len(self.letters)-1)*30), 164), (20 + ((len(self.letters)-1)*30), 148)], outline=View.color, fill=View.color)
         View.DispShowImage()
 
         self.calc_possible_alphabet()
@@ -165,26 +168,26 @@ class SeedToolsView(View):
     def draw_gather_words(self):
 
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        View.draw.text((75, 2), "Seed Word: " + str(len(self.words)+1), fill="ORANGE", font=View.IMPACT18)
-        View.draw.text((15, 210), "(choose from words on right)", fill="ORANGE", font=View.IMPACT18)
+        View.draw.text((75, 2), "Seed Word: " + str(len(self.words)+1), fill=View.color, font=View.IMPACT18)
+        View.draw.text((15, 210), "(choose from words on right)", fill=View.color, font=View.IMPACT18)
 
         # draw possible words (3 at most)
         self.possible_words = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(self.letters))]
         if len(self.possible_words) >= 1:
             for idx, word in enumerate(self.possible_words, start=0):
                 word_offset = 223 - View.IMPACT25.getsize(word)[0]
-                View.draw.text((word_offset, 39 + (60*idx)), word + " -", fill="ORANGE", font=View.IMPACT25)
+                View.draw.text((word_offset, 39 + (60*idx)), word + " -", fill=View.color, font=View.IMPACT25)
                 if idx >= 2:
                     break
 
         # draw letter and arrows
         for idx, letter in enumerate(self.letters, start=0):
             tw, th = View.draw.textsize(letter, font=View.IMPACT35)
-            View.draw.text((((idx*30)+((30-tw)/2)), 92), letter, fill="ORANGE", font=View.IMPACT35)
+            View.draw.text((((idx*30)+((30-tw)/2)), 92), letter, fill=View.color, font=View.IMPACT35)
             if idx+1 == len(self.letters):
                 # draw arrows only above last/active letter
-                View.draw.polygon([(8 + (idx*30), 85) , (14 + (idx*30), 69) , (20 + (idx*30), 85 )], outline="ORANGE", fill="BLACK")
-                View.draw.polygon([(8 + (idx*30), 148), (14 + (idx*30), 164), (20 + (idx*30), 148)], outline="ORANGE", fill="BLACK")
+                View.draw.polygon([(8 + (idx*30), 85) , (14 + (idx*30), 69) , (20 + (idx*30), 85 )], outline=View.color, fill="BLACK")
+                View.draw.polygon([(8 + (idx*30), 148), (14 + (idx*30), 164), (20 + (idx*30), 148)], outline=View.color, fill="BLACK")
 
         View.DispShowImage()
 
@@ -339,8 +342,6 @@ class SeedToolsView(View):
     ###
 
     def display_last_word(self, partial_seed_phrase) -> list:
-        print("display last word")
-
         stringphrase = " ".join(partial_seed_phrase).strip() + " abandon"
         bytes = mnemonic_to_bytes(stringphrase, ignore_checksum=True)
         finalseed = mnemonic_from_bytes(bytes)
@@ -349,10 +350,10 @@ class SeedToolsView(View):
 
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         tw, th = self.draw.textsize("The final word is :", font=View.IMPACT23)
-        self.draw.text(((240 - tw) / 2, 60), "The final word is :", fill="ORANGE", font=View.IMPACT23)
+        self.draw.text(((240 - tw) / 2, 60), "The final word is :", fill=View.color, font=View.IMPACT23)
         tw, th = self.draw.textsize(last_word, font=View.IMPACT50)
-        self.draw.text(((240 - tw) / 2, 90), last_word, fill="ORANGE", font=View.IMPACT50)
-        self.draw.text((73, 210), "Right to Continue", fill="ORANGE", font=View.IMPACT18)
+        self.draw.text(((240 - tw) / 2, 90), last_word, fill=View.color, font=View.IMPACT50)
+        self.draw.text((73, 210), "Right to Continue", fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
 
         input = self.buttons.wait_for([B.KEY_RIGHT])
@@ -364,10 +365,10 @@ class SeedToolsView(View):
 
     def display_generate_seed_from_dice(self):
         self.roll_number = 1
-        self.dice_selected = 0
+        self.dice_selected = 5
         self.roll_data = ""
 
-        self.draw_dice(1)
+        self.draw_dice(self.dice_selected)
         time.sleep(1) # pause for 1 second before accepting input
 
         # Wait for Button Input (specifically menu selection/press)
@@ -474,7 +475,7 @@ class SeedToolsView(View):
             self.roll_data = self.roll_data + str(0).strip()
         else:
             self.roll_data = self.roll_data + str(self.dice_selected).strip()
-        self.dice_selected = 1
+        self.dice_selected = 5
         if self.roll_number < 100:
             self.draw_dice(self.dice_selected)
 
@@ -483,74 +484,74 @@ class SeedToolsView(View):
     def draw_dice(self, dice_selected):
 
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        self.draw.text((45, 5), "Dice roll: " + str(self.roll_number) + "/99", fill="ORANGE", font=View.IMPACT26)
+        self.draw.text((45, 5), "Dice roll: " + str(self.roll_number) + "/99", fill=View.color, font=View.IMPACT26)
 
         # when dice is selected, rect fill will be orange and ellipse will be black, ellipse outline will be the black
         # when dice is not selected, rect will will be black and ellipse will be orange, ellipse outline will be orange
 
         # dice 1
         if dice_selected == 1:
-            self.draw.rectangle((5, 50, 75, 120),   outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((5, 50, 75, 120),   outline=View.color, fill=View.color)
             self.draw.ellipse([(34, 79), (46, 91)], outline="BLACK",  fill="BLACK")
         else:
-            self.draw.rectangle((5, 50, 75, 120),   outline="ORANGE", fill="BLACK")
-            self.draw.ellipse([(34, 79), (46, 91)], outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((5, 50, 75, 120),   outline=View.color, fill="BLACK")
+            self.draw.ellipse([(34, 79), (46, 91)], outline=View.color, fill=View.color)
 
         # dice 2
         if dice_selected == 2:
-            self.draw.rectangle((85, 50, 155, 120), outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((85, 50, 155, 120), outline=View.color, fill=View.color)
             self.draw.ellipse([(100, 60), (112, 72)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(128, 98), (140, 110)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((85, 50, 155, 120), outline="ORANGE", fill="BLACK")
-            self.draw.ellipse([(100, 60), (112, 72)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(128, 98), (140, 110)], outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((85, 50, 155, 120), outline=View.color, fill="BLACK")
+            self.draw.ellipse([(100, 60), (112, 72)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(128, 98), (140, 110)], outline=View.color, fill=View.color)
 
         # dice 3
         if dice_selected == 3:
-            self.draw.rectangle((165, 50, 235, 120), outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((165, 50, 235, 120), outline=View.color, fill=View.color)
             self.draw.ellipse([(180, 60), (192, 72)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(194, 79), (206, 91)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(208, 98), (220, 110)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((165, 50, 235, 120), outline="ORANGE", fill="BLACK")
-            self.draw.ellipse([(180, 60), (192, 72)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(194, 79), (206, 91)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(208, 98), (220, 110)], outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((165, 50, 235, 120), outline=View.color, fill="BLACK")
+            self.draw.ellipse([(180, 60), (192, 72)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(194, 79), (206, 91)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(208, 98), (220, 110)], outline=View.color, fill=View.color)
 
         # dice 4
         if dice_selected == 4:
-            self.draw.rectangle((5, 130, 75, 200), outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((5, 130, 75, 200), outline=View.color, fill=View.color)
             self.draw.ellipse([(20, 140), (32, 152)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(20, 174), (32, 186)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(48, 140), (60, 152)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(48, 174), (60, 186)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((5, 130, 75, 200), outline="ORANGE", fill="BLACK")
-            self.draw.ellipse([(20, 140), (32, 152)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(20, 174), (32, 186)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(48, 140), (60, 152)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(48, 174), (60, 186)], outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((5, 130, 75, 200), outline=View.color, fill="BLACK")
+            self.draw.ellipse([(20, 140), (32, 152)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(20, 174), (32, 186)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(48, 140), (60, 152)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(48, 174), (60, 186)], outline=View.color, fill=View.color)
 
         # dice 5
         if dice_selected == 5:
-            self.draw.rectangle((85, 130, 155, 200), outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((85, 130, 155, 200), outline=View.color, fill=View.color)
             self.draw.ellipse([(100, 140), (112, 152)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(100, 178), (112, 190)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(114, 159), (126, 171)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(128, 140), (140, 152)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(128, 178), (140, 190)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((85, 130, 155, 200), outline="ORANGE", fill="BLACK")
-            self.draw.ellipse([(100, 140), (112, 152)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(100, 178), (112, 190)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(114, 159), (126, 171)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(128, 140), (140, 152)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(128, 178), (140, 190)], outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((85, 130, 155, 200), outline=View.color, fill="BLACK")
+            self.draw.ellipse([(100, 140), (112, 152)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(100, 178), (112, 190)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(114, 159), (126, 171)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(128, 140), (140, 152)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(128, 178), (140, 190)], outline=View.color, fill=View.color)
 
         # dice 6
         if dice_selected == 6:
-            self.draw.rectangle((165, 130, 235, 200), outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((165, 130, 235, 200), outline=View.color, fill=View.color)
             self.draw.ellipse([(180, 140), (192, 152)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(180, 157), (192, 169)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(180, 174), (192, 186)], outline="BLACK", fill="BLACK")
@@ -558,16 +559,16 @@ class SeedToolsView(View):
             self.draw.ellipse([(208, 157), (220, 169)], outline="BLACK", fill="BLACK")
             self.draw.ellipse([(208, 174), (220, 186)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((165, 130, 235, 200), outline="ORANGE", fill="BLACK")
-            self.draw.ellipse([(180, 140), (192, 152)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(180, 157), (192, 169)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(180, 174), (192, 186)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(208, 140), (220, 152)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(208, 157), (220, 169)], outline="ORANGE", fill="ORANGE")
-            self.draw.ellipse([(208, 174), (220, 186)], outline="ORANGE", fill="ORANGE")
+            self.draw.rectangle((165, 130, 235, 200), outline=View.color, fill="BLACK")
+            self.draw.ellipse([(180, 140), (192, 152)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(180, 157), (192, 169)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(180, 174), (192, 186)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(208, 140), (220, 152)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(208, 157), (220, 169)], outline=View.color, fill=View.color)
+            self.draw.ellipse([(208, 174), (220, 186)], outline=View.color, fill=View.color)
 
         # bottom text
-        self.draw.text((18, 210), "Press Control Stick to Select", fill="ORANGE", font=View.IMPACT18)
+        self.draw.text((18, 210), "Press Control Stick to Select", fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
 
         self.dice_selected = dice_selected
@@ -589,135 +590,285 @@ class SeedToolsView(View):
     ### Display Seed Phrase
     ###
 
-    def display_seed_phrase(self, seed_phrase, passphrase, bottom = "RIGHT to EXIT") -> bool:
+    def display_seed_phrase(self, seed_phrase, passphrase=None, bottom="Right to Main Menu", show_qr_option=False) -> bool:
         ret_val = ""
 
+        def display_seed_phrase_page(draw, seed_phrase, passphrase=None, bottom=bottom, page_num=1):
+            """ Internal helper method to render 12 words of the seed phrase """
+            draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
+
+            word_positions = [
+                # Left column
+                (2, 40),     (2, 63),   (2, 86),   (2, 109),   (2, 132),   (2, 155),
+                # Right column
+                (120, 40), (120, 63), (120, 86), (120, 109), (120, 132), (120, 155)
+            ]
+
+            title = "Seed Phrase"
+            word_index_offset = 0
+            max_range = len(seed_phrase)    # handles 11 or 12; 23 or 24
+            if len(seed_phrase) > 12:
+                max_range -= 12  # we'll iterate up to max_range words on this page
+                if page_num == 1:
+                    title = "Seed Phrase (1/2)"
+                    bottom = "Right to Page 2"
+                else:
+                    title = "Seed Phrase (2/2)"
+                    word_index_offset = 12  # Skip ahead one page worth of words
+
+            tw, th = View.draw.textsize(title, font=View.IMPACT18)
+            draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.IMPACT18)
+
+            for i in range(0, max_range):
+                draw.text(word_positions[i], f"{i + 1 + word_index_offset}: " + seed_phrase[i + word_index_offset] , fill=View.color, font=View.IMPACT22)
+
+            if passphrase:
+                disp_passphrase = "Passphrase: ************"
+                tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
+                draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.IMPACT18)
+
+            tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
+            draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.IMPACT18)
+            View.DispShowImage()
+
+
+        wait_for_buttons = [B.KEY_RIGHT, B.KEY_LEFT]
+        if show_qr_option:
+            # In this context there's no next step; just display seed phrase and
+            #   offer to show it as a human-transcribable QR.
+            bottom = "Click to Exit; Right for QR Export"
+            wait_for_buttons.append(B.KEY_PRESS)
+
+        cur_page = 1
         while True:
             if len(seed_phrase) in (11,12):
-                ret_val = self.display_seed_phrase_12(seed_phrase, passphrase, bottom)
-                if ret_val == "right":
-                    return True
-                else:
+                display_seed_phrase_page(self.draw, seed_phrase, passphrase, bottom)
+                ret_val = self.buttons.wait_for(wait_for_buttons)
+
+                if ret_val == B.KEY_LEFT:
+                    # "Cancel" in contexts that support it / no-op otherwise
                     return False
-            elif len(seed_phrase) in (23,24):
-                if ret_val == "":
-                    ret_val = self.display_seed_phrase_24_1(seed_phrase, passphrase, bottom) #first run
-                elif ret_val == "right-1":
-                    ret_val = self.display_seed_phrase_24_2(seed_phrase, passphrase, bottom) #first screen to second screen
-                elif ret_val == "left-2":
-                    ret_val = self.display_seed_phrase_24_1(seed_phrase, passphrase, bottom) #second screen back to first screen
-                elif ret_val == "left-1":
-                    return False
-                elif ret_val == "right-2":
+
+                elif show_qr_option and ret_val == B.KEY_RIGHT:
+                    # Show the resulting seed as a transcribable QR code
+                    self.seed_phrase_as_qr(seed_phrase)
+
+                    # Signal success to move forward
                     return True
 
+                elif ret_val == B.KEY_RIGHT or (show_qr_option and ret_val == B.KEY_PRESS):
+                    # Signal success to move forward
+                    return True
+
+            elif len(seed_phrase) in (23,24):
+                display_seed_phrase_page(self.draw, seed_phrase, passphrase, bottom, page_num=cur_page)
+                ret_val = self.buttons.wait_for(wait_for_buttons)
+
+                if cur_page == 1:
+                    if ret_val == B.KEY_LEFT:
+                        # "Cancel" in contexts that support it / no-op otherwise
+                        return False
+
+                    elif ret_val == B.KEY_RIGHT:
+                        cur_page = 2  # advance to second screen
+
+                else:
+                    if ret_val == B.KEY_LEFT:
+                        cur_page = 1  # second screen back to first screen
+
+                    elif show_qr_option and ret_val == B.KEY_RIGHT:
+                        # Show the resulting seed as a transcribable QR code
+                        self.seed_phrase_as_qr(seed_phrase)
+
+                        # Signal success to move forward
+                        return True
+
+                    elif ret_val == B.KEY_RIGHT or (show_qr_option and ret_val == B.KEY_PRESS):
+                        # Signal success to move forward
+                        return True
             else:
                 return True
 
-    def display_seed_phrase_12(self, seed_phrase, passphrase, bottom = "Right to Exit"):
-        self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
-        tw, th = View.draw.textsize("Selected Words", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 2), "Selected Words", fill="ORANGE", font=View.IMPACT18)
+    def seed_phrase_as_qr(self, seed_phrase):
+        data = ""
+        for word in seed_phrase:
+            index = bip39.WORDLIST.index(word)
+            data += str("%04d" % index)
+        qr = QR()
 
-        self.draw.text((2, 40), "1: "     + seed_phrase[0] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 63), "2: "     + seed_phrase[1] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 86), "3: "     + seed_phrase[2] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 109), "4: "    + seed_phrase[3] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 132), "5: "    + seed_phrase[4] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 155), "6: "    + seed_phrase[5] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 40), " 7: "  + seed_phrase[6] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 63), " 8: "  + seed_phrase[7] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 86), " 9: "  + seed_phrase[8] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 109), "10: " + seed_phrase[9] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 132), "11: " + seed_phrase[10], fill="ORANGE", font=View.IMPACT22)
-        if len(seed_phrase) >= 12:
-            self.draw.text((120, 155), "12: " + seed_phrase[11], fill="ORANGE", font=View.IMPACT22)
+        image = qr.qrimage(data, width=240, height=240, border=3)
+        View.DispShowImageWithText(image, "click to zoom, right to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
 
-        if len(passphrase) > 0:
-            if len(passphrase) > 14:
-                disp_passphrase = "Passphrase: " + passphrase[:14] + "..."
-            else:
-                disp_passphrase = "Passphrase: " + passphrase
-            tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
-            self.draw.text(((240 - tw) / 2, 185), disp_passphrase, fill="ORANGE", font=View.IMPACT18)
-
-        tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 212), bottom, fill="ORANGE", font=View.IMPACT18)
-        View.DispShowImage()
-
-        input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
+        input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_PRESS])
         if input == B.KEY_RIGHT:
-            return "right"
-        elif input == B.KEY_LEFT:
-            return "left"
+            return
 
-    def display_seed_phrase_24_1(self, seed_phrase, passphrase, bottom = "Right to Exit"):
-        self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
+        elif input == B.KEY_PRESS:
+            # Render an oversized QR code that we can view up close
+            pixels_per_block = 24
+            qr_border = 4
+            width = (qr_border + 25 + qr_border) * pixels_per_block
+            height = width
+            if len(seed_phrase) == 24:
+                width = (qr_border + 29 + qr_border) * pixels_per_block
+                height = width
+            image = qr.qrimage(data, width=width, height=height, border=qr_border).convert("RGBA")
 
-        tw, th = View.draw.textsize("Selected Words (1/2)", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 2), "Selected Words (1/2)", fill="ORANGE", font=View.IMPACT18)
+            # Render gridlines but leave the 1-block border as-is
+            draw = ImageDraw.Draw(image)
+            for i in range(qr_border, math.floor(width/pixels_per_block) - qr_border):
+                draw.line((i * pixels_per_block, qr_border * pixels_per_block, i * pixels_per_block, height - qr_border * pixels_per_block), fill="#bbb")
+                draw.line((qr_border * pixels_per_block, i * pixels_per_block, width - qr_border * pixels_per_block, i * pixels_per_block), fill="#bbb")
 
-        self.draw.text((2, 40), "1: "     + seed_phrase[0] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 63), "2: "     + seed_phrase[1] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 86), "3: "     + seed_phrase[2] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 109), "4: "    + seed_phrase[3] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 132), "5: "    + seed_phrase[4] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 155), "6: "    + seed_phrase[5] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 40), " 7: "  + seed_phrase[6] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 63), " 8: "  + seed_phrase[7] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 90), " 9: "  + seed_phrase[8] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 109), "10: " + seed_phrase[9] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 132), "11: " + seed_phrase[10], fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 155), "12: " + seed_phrase[11], fill="ORANGE", font=View.IMPACT22)
+            # Prep the semi-transparent mask overlay
+            # make a blank image for the overlay, initialized to transparent
+            block_mask = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
+            draw = ImageDraw.Draw(block_mask)
 
-        tw, th = View.draw.textsize("Right to Continue", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 212), "Right to Continue", fill="ORANGE", font=View.IMPACT18)
-        View.DispShowImage()
+            mask_width = int((View.canvas_width - 5 * pixels_per_block)/2)
+            mask_height = int((View.canvas_height - 5 * pixels_per_block)/2)
+            mask_rgba = (0, 0, 0, 226)
+            draw.rectangle((0, 0, View.canvas_width, mask_height), fill=mask_rgba)
+            draw.rectangle((0, View.canvas_height - mask_height - 1, View.canvas_width, View.canvas_height), fill=mask_rgba)
+            draw.rectangle((0, mask_height, mask_width, View.canvas_height - mask_height), fill=mask_rgba)
+            draw.rectangle((View.canvas_width - mask_width - 1, mask_height, View.canvas_width, View.canvas_height - mask_height), fill=mask_rgba)
 
-        input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
-        if input == B.KEY_RIGHT:
-            return "right-1"
-        elif input == B.KEY_LEFT:
-            return "left-1"
+            # Draw a box around the cutout portion of the mask for better visibility
+            draw.line((mask_width, mask_height, mask_width, View.canvas_height - mask_height), fill="ORANGE")
+            draw.line((View.canvas_width - mask_width, mask_height, View.canvas_width - mask_width, View.canvas_height - mask_height), fill="ORANGE")
+            draw.line((mask_width, mask_height, View.canvas_width - mask_width, mask_height), fill="ORANGE")
+            draw.line((mask_width, View.canvas_height - mask_height, View.canvas_width - mask_width, View.canvas_height - mask_height), fill="ORANGE")
 
-    def display_seed_phrase_24_2(self, seed_phrase, passphrase, bottom):
-        self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        
-        tw, th = View.draw.textsize("Selected Words (2/2)", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 2), "Selected Words (2/2)", fill="ORANGE", font=View.IMPACT18)
+            msg = "click to exit"
+            tw, th = draw.textsize(msg, font=View.IMPACT18)
+            draw.text(((View.canvas_width - tw) / 2, View.canvas_height - th - 2), msg, fill="ORANGE", font=View.IMPACT18)
 
-        self.draw.text((2, 40), "13: "     + seed_phrase[12] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 63), "14: "     + seed_phrase[13] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 86), "15: "     + seed_phrase[14] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 109), "16: "    + seed_phrase[15] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 132), "17: "    + seed_phrase[16] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((2, 155), "18: "    + seed_phrase[17] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 40), "19: "  + seed_phrase[18] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 63), "20: "  + seed_phrase[19] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 86), "21: "  + seed_phrase[20] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 109), "22: " + seed_phrase[21] , fill="ORANGE", font=View.IMPACT22)
-        self.draw.text((120, 132), "23: " + seed_phrase[22], fill="ORANGE", font=View.IMPACT22)
-        if len(seed_phrase) >= 24:
-            self.draw.text((120, 155), "24: " + seed_phrase[23], fill="ORANGE", font=View.IMPACT22)
+            def draw_block_labels(cur_block_x, cur_block_y):
+                # Create overlay for block labels (e.g. "D-5")
+                block_labels_x = ["1", "2", "3", "4", "5", "6"]
+                block_labels_y = ["A", "B", "C", "D", "E", "F"]
 
-        if len(passphrase) > 0:
-            if len(passphrase) > 14:
-                disp_passphrase = "Passphrase: " + passphrase[:14] + "..."
-            else:
-                disp_passphrase = "Passphrase: " + passphrase
-            tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
-            self.draw.text(((240 - tw) / 2, 185), disp_passphrase, fill="ORANGE", font=View.IMPACT18)
+                block_labels = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
+                draw = ImageDraw.Draw(block_labels)
+                draw.rectangle((mask_width, 0, View.canvas_width - mask_width, pixels_per_block), fill="ORANGE")
+                draw.rectangle((0, mask_height, pixels_per_block, View.canvas_height - mask_height), fill="ORANGE")
 
-        tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 212), bottom, fill="ORANGE", font=View.IMPACT18)
-        View.DispShowImage()
+                label_font = View.COURIERNEW24
+                x_label = block_labels_x[cur_block_x]
+                tw, th = draw.textsize(x_label, font=label_font)
+                draw.text(((View.canvas_width - tw) / 2, (pixels_per_block - th) / 2), x_label, fill="BLACK", font=label_font)
 
-        input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
-        if input == B.KEY_RIGHT:
-            return "right-2"
-        elif input == B.KEY_LEFT:
-            return "left-2"
+                y_label = block_labels_y[cur_block_y]
+                tw, th = draw.textsize(y_label, font=label_font)
+                draw.text(((pixels_per_block - tw) / 2, (View.canvas_height - th) / 2), y_label, fill="BLACK", font=label_font)
+
+                return block_labels
+
+            block_labels = draw_block_labels(0, 0)
+
+            # Track our current coordinates for the upper left corner of our view
+            cur_block_x = 0
+            cur_block_y = 0
+            cur_x = qr_border * pixels_per_block - mask_width
+            cur_y = qr_border * pixels_per_block - mask_height
+            next_x = cur_x
+            next_y = cur_y
+
+            View.DispShowImage(
+                image.crop((cur_x, cur_y, cur_x + View.canvas_width, cur_y + View.canvas_height)),
+                alpha_overlay=Image.alpha_composite(block_mask, block_labels)
+            )
+
+            while True:
+                # View.draw_text_over_image("click to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
+
+                input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
+                if input == B.KEY_RIGHT:
+                    next_x = cur_x + 5 * pixels_per_block
+                    cur_block_x += 1
+                    if next_x > width - View.canvas_width:
+                        next_x = cur_x
+                        cur_block_x -= 1
+                elif input == B.KEY_LEFT:
+                    next_x = cur_x - 5 * pixels_per_block
+                    cur_block_x -= 1
+                    if next_x < 0:
+                        next_x = cur_x
+                        cur_block_x += 1
+                elif input == B.KEY_DOWN:
+                    next_y = cur_y + 5 * pixels_per_block
+                    cur_block_y += 1
+                    if next_y > height - View.canvas_height:
+                        next_y = cur_y
+                        cur_block_y -= 1
+                elif input == B.KEY_UP:
+                    next_y = cur_y - 5 * pixels_per_block
+                    cur_block_y -= 1
+                    if next_y < 0:
+                        next_y = cur_y
+                        cur_block_y += 1
+                elif input == B.KEY_PRESS:
+                    return
+
+                # Create overlay for block labels (e.g. "D-5")
+                block_labels = draw_block_labels(cur_block_x, cur_block_y)
+
+                if cur_x != next_x or cur_y != next_y:
+                    View.disp_show_image_pan(
+                        image,
+                        cur_x, cur_y, next_x, next_y,
+                        rate=pixels_per_block,
+                        alpha_overlay=Image.alpha_composite(block_mask, block_labels)
+                    )
+                    cur_x = next_x
+                    cur_y = next_y
+
+
+
+    def parse_seed_qr_data(self):
+        try:
+            data = self.controller.from_camera_queue.get(False)
+            if not data or 'nodata' in data:
+                return
+
+            # Reset list; will still have any previous seed's words
+            self.words = []
+
+            # Parse 12 or 24-word QR code
+            num_words = int(len(data[0]) / 4)
+            for i in range(0, num_words):
+                index = int(data[0][i * 4: (i*4) + 4])
+                word = bip39.WORDLIST[index]
+                self.words.append(word)
+            self.buttons.trigger_override()
+        except Exception as e:
+            pass
+
+
+    def read_seed_phrase_qr(self):
+        self.controller.menu_view.draw_modal(["Initializing Camera..."]) # TODO: Move to Controller
+        # initialize camera
+        self.controller.to_camera_queue.put(["start"])
+        # First get blocking, this way it's clear when the camera is ready for the end user
+        self.controller.from_camera_queue.get()
+
+        self.controller.menu_view.draw_modal(["Scanning..."], "Left to cancel") # TODO: Move to Controller
+
+        try:
+            self.camera_loop_timer = CameraPoll(0.05, self.parse_seed_qr_data)
+
+            input = self.buttons.wait_for([B.KEY_LEFT])
+            if input == B.KEY_LEFT:
+                # Returning empty will kick us back to SEED_TOOLS_SUB_MENU
+                self.words = []
+        finally:
+            print(f"Stopping QR code scanner")
+            self.camera_loop_timer.stop()
+            self.controller.to_camera_queue.put(["stop"])
+            self.buttons.trigger_override()
+
+        return self.words
 
     ###
     ### Utility Methods

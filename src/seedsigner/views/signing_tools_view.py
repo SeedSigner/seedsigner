@@ -70,7 +70,7 @@ class SigningToolsView(View):
     ###
 
     def display_signed_psbt_animated_qr(self, wallet, psbt) -> None:
-        self.draw_modal(["Generating QR ..."])
+        self.draw_modal(["Generating PSBT QR ..."])
 
         print(psbt)
         images = wallet.make_signing_qr_codes(psbt, SigningToolsView.qr_gen_status)
@@ -164,8 +164,8 @@ class SigningToolsView(View):
     def qr_gen_status(percentage):
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         tw, th = View.draw.textsize("QR Generation", font=View.IMPACT25)
-        View.draw.text(((240 - tw) / 2, 90), "QR Generation", fill="ORANGE", font=View.IMPACT25)
+        View.draw.text(((240 - tw) / 2, 90), "QR Generation", fill=View.color, font=View.IMPACT25)
         tw, th = View.draw.textsize(str(round(percentage)) + "% Complete", font=View.IMPACT25)
-        View.draw.text(((240 - tw) / 2, 125), str(round(percentage)) + "% Complete", fill="ORANGE", font=View.IMPACT25)
+        View.draw.text(((240 - tw) / 2, 125), str(round(percentage)) + "% Complete", fill=View.color, font=View.IMPACT25)
         View.DispShowImage()
 
