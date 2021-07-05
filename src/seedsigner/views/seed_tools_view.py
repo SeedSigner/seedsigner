@@ -117,23 +117,62 @@ class SeedToolsView(View):
             """ Internal helper method to render the KEY 1, 2, 3 word candidates.
                 (has access to all vars in the parent's context)
             """
-            matches = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(self.letters).strip())][:3]
-            if matches:
-                self.possible_words = matches
-                if len(self.possible_words) > 0:
-                    # Clear the right panel
-                    View.draw.rectangle((keyboard_width, text_entry_display_height, View.canvas_width, View.canvas_height), fill="black")
+            # Clear the right panel
+            View.draw.rectangle((keyboard_width, text_entry_display_height, View.canvas_width, View.canvas_height), fill="black")
 
-                    word_font = View.ROBOTOCONDENSED_BOLD_26
-                    for slot, word in enumerate(self.possible_words):
-                        tw, th = word_font.getsize(word)
-                        word_offset = View.canvas_width - tw - 1
-                        slot_y = 39 + (60*slot)
-                        if highlight_word and word == highlight_word:
-                            View.draw.rectangle((word_offset - 3, slot_y - 3, 240, slot_y + th + 6), fill=View.color)
-                            View.draw.text((word_offset, slot_y), word, fill="black", font=word_font)
-                        else:
-                            View.draw.text((word_offset, slot_y), word, fill=View.color, font=word_font)
+            if self.possible_words:
+                selected_possible_words_index = 2
+                if len(self.possible_words) < 3:
+                    selected_possible_words_index = len(self.possible_words) - 1
+
+                center_slot = (keyboard_width + 3, 39 + 60)
+
+                # Render level 3
+                level_shift_x = 20
+                level_shift_y = 26 * 2
+                word_font = View.ROBOTOCONDENSED_BOLD_22
+                View.draw.rounded_rectangle((center_slot[0] + level_shift_x, center_slot[1] - level_shift_y - 3, 250, center_slot[1] - level_shift_y + 26 + 3), fill="black", outline="#333", radius=5, width=2)
+                if selected_possible_words_index - 2 >= 0:
+                    word = self.possible_words[selected_possible_words_index - 2]
+                    View.draw.text((center_slot[0] + level_shift_x + 5, center_slot[1] - level_shift_y), word, fill=View.color, font=word_font)
+
+                View.draw.rounded_rectangle((center_slot[0] + level_shift_x, center_slot[1] + level_shift_y - 3 + 6, 250, center_slot[1] + level_shift_y + 26 + 7), fill="black", outline="#333", radius=5, width=2)
+                if selected_possible_words_index + 2 < len(self.possible_words):
+                    word = self.possible_words[selected_possible_words_index + 2]
+                    View.draw.text((center_slot[0] + level_shift_x + 5, center_slot[1] + level_shift_y + 7), word, fill=View.color, font=word_font)
+
+
+                # Render level 2
+                level_shift_x = 10
+                level_shift_y = 28
+                word_font = View.ROBOTOCONDENSED_BOLD_24
+                View.draw.rounded_rectangle((center_slot[0] + level_shift_x, center_slot[1] - level_shift_y - 3, 250, center_slot[1] - level_shift_y + 26 + 3), fill="black", outline="#333", radius=5, width=2)
+                if selected_possible_words_index - 1 >= 0:
+                    word = self.possible_words[selected_possible_words_index - 1]
+                    View.draw.text((center_slot[0] + level_shift_x + 5, center_slot[1] - level_shift_y), word, fill=View.color, font=word_font)
+
+                View.draw.rounded_rectangle((center_slot[0] + level_shift_x, center_slot[1] + level_shift_y - 3 + 6, 250, center_slot[1] + level_shift_y + 26 + 7), fill="black", outline="#333", radius=5, width=2)
+                if selected_possible_words_index + 1 < len(self.possible_words):
+                    word = self.possible_words[selected_possible_words_index + 1]
+                    View.draw.text((center_slot[0] + level_shift_x + 5, center_slot[1] + level_shift_y + 5), word, fill=View.color, font=word_font)
+
+
+                word = self.possible_words[selected_possible_words_index]
+
+                # Render center slot
+                word_font = View.ROBOTOCONDENSED_BOLD_26
+                tw, th = word_font.getsize(word)
+                View.draw.rounded_rectangle((center_slot[0], center_slot[1], 250, center_slot[1] + 28 + 3), fill=View.color, radius=7)
+                View.draw.text((center_slot[0] + 5, center_slot[1]), word, fill="black", font=word_font)
+
+                # for slot, word in enumerate(self.possible_words):
+                #     word_offset = View.canvas_width - tw - 1
+                #     slot_y = 39 + (60*slot)
+                #     if highlight_word and word == highlight_word:
+                #         View.draw.rectangle((word_offset - 3, slot_y - 3, 240, slot_y + th + 6), fill=View.color)
+                #         View.draw.text((word_offset, slot_y), word, fill="black", font=word_font)
+                #     else:
+                #         View.draw.text((word_offset, slot_y), word, fill=View.color, font=word_font)
 
 
         def render_previous_button(highlight=False):
@@ -166,7 +205,7 @@ class SeedToolsView(View):
             # Draw n-1 of the selected letters
             word_font = View.ROBOTOCONDENSED_BOLD_26
             tw, th = word_font.getsize(title[:-1])
-            word_offset = int(View.canvas_width - tw + cursor_block_width)/2
+            word_offset = int(View.canvas_width - tw - cursor_block_width)/2
             draw.text((word_offset, 2), title[:-1], fill=View.color, font=word_font)
 
             # Draw the highlighted cursor block
@@ -208,7 +247,29 @@ class SeedToolsView(View):
         # Start the interactive update loop
         while True:
             input = View.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3], check_release=True, release_keys=[B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3])
+
+            if previous_button_is_active:
+                if input == B.KEY_PRESS:
+                    # User clicked the "back" arrow
+                    return Keyboard.KEY_PREVIOUS_PAGE
+                elif input == B.KEY_UP:
+                    input = Keyboard.ENTER_BOTTOM
+                    # Re-render it without the highlight
+                    previous_button_is_active = False
+                    render_previous_button()
+
+                elif input == B.KEY_DOWN:
+                    input = Keyboard.ENTER_TOP
+                    # Re-render it without the highlight
+                    previous_button_is_active = False
+                    render_previous_button()
+
+                elif input in [B.KEY_RIGHT, B.KEY_LEFT]:
+                    # no action in this context
+                    continue
+
             ret_val = keyboard.update_from_input(input)
+
             if ret_val in Keyboard.EXIT_DIRECTIONS:
                 render_previous_button(highlight=True)
                 previous_button_is_active = True
@@ -233,14 +294,18 @@ class SeedToolsView(View):
                 # Has the user made a final selection of a candidate word?
                 final_selection = None
                 if input == B.KEY1:
-                    if self.possible_words[0]:
-                        final_selection = self.possible_words[0]
+                    # Scroll the list up
+                    selected_possible_words_index -= 1
+                    if selected_possible_words_index < 0:
+                        selected_possible_words_index = 0
                 elif input == B.KEY2:
                     if self.possible_words[1]:
                         final_selection = self.possible_words[1]
                 elif input == B.KEY3:
-                    if self.possible_words[2]:
-                        final_selection = self.possible_words[2]
+                    # Scroll the list down
+                    selected_possible_words_index += 1
+                    if selected_possible_words_index >= len(self.possible_words):
+                        selected_possible_words_index = len(self.possible_words) - 1
 
                 if final_selection:
                     # Animate the selection storage, then return the word to the caller
@@ -248,10 +313,6 @@ class SeedToolsView(View):
                     View.DispShowImage()
 
                     return final_selection
-
-                elif input == B.KEY_PRESS and previous_button_is_active:
-                    # User clicked the "back" arrow
-                    return Keyboard.KEY_PREVIOUS_PAGE
 
                 elif input == B.KEY_PRESS and ret_val in self.possible_alphabet:
                     # User has locked in the current letter
@@ -1116,13 +1177,14 @@ class SeedToolsView(View):
             search_letters = self.letters[:]
             if new_letter == False:
                 search_letters.pop()
-            possible_words = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(search_letters).strip())]
+            self.possible_words = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(search_letters).strip())]
             letter_num = len(search_letters)
             possible_letters = []
-            for word in possible_words:
+            for word in self.possible_words:
                 if len(word)-1 >= letter_num:
                     possible_letters.append(word[letter_num])
             # remove duplicates and keep order
             self.possible_alphabet = list(dict.fromkeys(possible_letters))[:]
         else:
             self.possible_alphabet = SeedToolsView.ALPHABET[:]
+            self.possible_words = []

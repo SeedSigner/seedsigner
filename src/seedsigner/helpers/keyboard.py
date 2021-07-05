@@ -295,6 +295,29 @@ class Keyboard:
                     self.selected_key["y"] += 1
                     return Keyboard.EXIT_TOP
 
+        elif input == Keyboard.ENTER_LEFT:
+            # User has returned to the keyboard along the left edge
+            # Keep the last y position that was selected.
+            self.selected_key["x"] = 0
+
+        elif input == Keyboard.ENTER_RIGHT:
+            # User has returned to the keyboard along the right edge
+            # Keep the last y position that was selected.
+            self.selected_key["x"] = len(self.keys[self.selected_key["y"]]) - 1
+
+        elif input == Keyboard.ENTER_TOP:
+            # User has returned to the keyboard along the top edge
+            # Keep the last x position that was selected.
+            self.selected_key["y"] = 0
+
+        elif input == Keyboard.ENTER_BOTTOM:
+            # User has returned to the keyboard along the bottom edge
+            # Keep the last x position that was selected.
+            self.selected_key["y"] = len(self.keys) - 1
+            if self.selected_key["x"] > len(self.keys[self.selected_key["y"]]) - 1:
+                # Can't enter here. Jump up a row
+                self.selected_key["y"] -= 1
+
         # Render the newly self.selected_key letter
         key = self.keys[self.selected_key["y"]][self.selected_key["x"]]
         key.is_selected = True
