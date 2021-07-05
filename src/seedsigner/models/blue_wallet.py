@@ -99,9 +99,14 @@ class BlueWallet(Wallet):
         images = []
         start = 0
         stop = self.qrsize
-        qr_cnt = ((len(data)-1) // self.qrsize) + 1
+        qr_cnt = ((len(qrdata)-1) // self.qrsize) + 1
 
-        while cnt < qr_cnt:
+        if qr_cnt == 1:
+            part = "UR:BYTES/" + qrhash + "/" + qrdata[start:stop]
+            images.append(qr.qrimage(part))
+            print(part)
+            
+        while cnt < qr_cnt and qr_cnt != 1:
             part = "UR:BYTES/" + str(cnt+1) + "OF" + str(qr_cnt) + "/" + qrhash + "/" + qrdata[start:stop]
             images.append(qr.qrimage(part))
             print(part)
