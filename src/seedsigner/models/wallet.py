@@ -324,15 +324,19 @@ class Wallet:
                     sc = script.p2wsh(out.witness_script)
                 elif policy["type"] == "p2sh-p2wsh":
                     sc = script.p2sh(script.p2wsh(out.witness_script))
-                # single-sig
+                # single-sig native segwit
                 elif "pkh" in policy["type"]:
-                    if len(out.bip32_derivations.values()) > 0:
-                        der = list(out.bip32_derivations.values())[0].derivation
-                        my_pubkey = self.root.derive(der)
-                    if policy["type"] == "p2wpkh":
-                        sc = script.p2wpkh(my_pubkey)
-                    elif policy["type"] == "p2sh-p2wpkh":
-                        sc = script.p2sh(script.p2wpkh(my_pubkey))
+                    for pub in out.bip32_derivations:
+                        # check if it is our key
+                        if out.bip32_derivations[pub].fingerprint == self.fingerprint:
+                            hdkey = self.root.derive(out.bip32_derivations[pub].derivation)
+                            mypub = hdkey.key.get_public_key()
+                            if mypub != pub:
+                                raise ValueError("Derivation path doesn't look right")
+                            # now check if provided scriptpubkey matches
+                            sc = script.p2wpkh(mypub)
+                            if sc == tx.tx.vout[i].script_pubkey:
+                                is_change = True
                 if sc.data == tx.tx.vout[i].script_pubkey.data:
                     is_change = True
             if is_change:
