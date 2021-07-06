@@ -425,19 +425,12 @@ class SeedToolsView(View):
                 # to freely float to a different letter; only update the active
                 # keyboard keys when a selection has been locked in (KEY_PRESS) or
                 # removed ("del").
-                # If you're returning to the same letter (e.g. "v" to inactive, back
-                # to "v", don't recalc and re-render).
-                if ret_val in self.possible_alphabet and ret_val != self.letters[-1]:
-                    self.letters = self.letters[:-1]
-                    self.letters.append(ret_val)
-                    self.calc_possible_words()  # live update our matches as we move
+                self.letters = self.letters[:-1]
+                self.letters.append(ret_val)
+                self.calc_possible_words()  # live update our matches as we move
 
-                    # Update the right-hand possible matches area
-                    render_possible_matches()
-                else:
-                    # Do nothing when hovering over an inactive letter
-                    # self.letters.append(" ")
-                    pass
+                # Update the right-hand possible matches area
+                render_possible_matches()
 
             # Render the text entry display and cursor block
             render_text_entry_display()
