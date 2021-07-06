@@ -148,11 +148,17 @@ class SeedToolsView(View):
                 View.draw.text((x, y + row * row_height), self.possible_words[i], fill=View.color, font=word_font)
 
             # Render the SELECT outline
-            View.draw.rounded_rectangle((keyboard_width + 4, y + (3 * row_height) - 2, 250, y + (4 * row_height) + 2), outline=View.color, fill="#111", radius=5, width=1)
+            if highlight_word:
+                fill_color = View.color
+                font_color = "black"
+            else:
+                fill_color = "#111"
+                font_color = View.color
+            View.draw.rounded_rectangle((keyboard_width + 4, y + (3 * row_height) - 2, 250, y + (4 * row_height) + 2), outline=View.color, fill=fill_color, radius=5, width=1)
 
             if self.possible_words:
                 word_font = View.ROBOTOCONDENSED_BOLD_24
-                View.draw.text((x, y + 3 * row_height), self.possible_words[self.selected_possible_words_index], fill=View.color, font=word_font)
+                View.draw.text((x, y + 3 * row_height), self.possible_words[self.selected_possible_words_index], fill=font_color, font=word_font)
 
             render_possible_matches_arrows()
 
@@ -257,7 +263,7 @@ class SeedToolsView(View):
 
         # Initialize the current letters/current matches
         self.letters = initial_letters
-        self.calc_possible_words()  # Force it to match on even just the default ["a"]
+        self.possible_words = []
         if len(self.letters) > 1:
             self.letters.append(" ")    # "Lock in" the last letter as if KEY_PRESS
             self.calc_possible_alphabet()
@@ -267,7 +273,6 @@ class SeedToolsView(View):
             keyboard.set_selected_key(selected_letter=self.letters[-1])
         keyboard.render_keys()
         render_possible_matches()
-        render_possible_matches_arrows()
 
         # Render the top text entry display
         render_text_entry_display()
@@ -329,7 +334,7 @@ class SeedToolsView(View):
 
             # Has the user made a final selection of a candidate word?
             final_selection = None
-            if input == B.KEY1:
+            if input == B.KEY1 and self.possible_words:
                 # Scroll the list up
                 self.selected_possible_words_index -= 1
                 if self.selected_possible_words_index < 0:
@@ -343,9 +348,10 @@ class SeedToolsView(View):
                 render_possible_matches()
 
             elif input == B.KEY2:
-                final_selection = self.possible_words[self.selected_possible_words_index]
+                if self.possible_words:
+                    final_selection = self.possible_words[self.selected_possible_words_index]
 
-            elif input == B.KEY3:
+            elif input == B.KEY3 and self.possible_words:
                 # Scroll the list down
                 self.selected_possible_words_index += 1
                 if self.selected_possible_words_index >= len(self.possible_words):
@@ -370,7 +376,9 @@ class SeedToolsView(View):
 
             if final_selection:
                 # Animate the selection storage, then return the word to the caller
+                self.letters = list(final_selection + " ")
                 render_possible_matches(highlight_word=final_selection)
+                render_text_entry_display()
                 View.DispShowImage()
 
                 return final_selection
