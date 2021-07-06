@@ -47,7 +47,9 @@ class View:
     ROBOTOCONDENSED_LIGHT_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Light.ttf"), 24)
     ROBOTOCONDENSED_REGULAR_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 16)
     ROBOTOCONDENSED_REGULAR_20 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 20)
+    ROBOTOCONDENSED_REGULAR_22 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 22)
     ROBOTOCONDENSED_REGULAR_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 24)
+    ROBOTOCONDENSED_REGULAR_26 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 26)
 
     RST = 27
     DC = 25

@@ -24,6 +24,7 @@ class SeedToolsView(View):
         self.letters = []
         self.possible_alphabet = []
         self.possible_words = []
+        self.selected_possible_words_index = 0
         self.seed_length = 12     # Default to 12, Valid values are 11, 12, 23 and 24
         self.seed_qr_image = None
 
@@ -104,9 +105,9 @@ class SeedToolsView(View):
                     continue
 
             if len(self.words) < cur_word:
-                self.words.append(ret_val)
+                self.words.append(ret_val.strip())
             else:
-                self.words[cur_word - 1] = ret_val
+                self.words[cur_word - 1] = ret_val.strip()
             cur_word += 1
 
         return self.words
@@ -120,59 +121,75 @@ class SeedToolsView(View):
             # Clear the right panel
             View.draw.rectangle((keyboard_width, text_entry_display_height, View.canvas_width, View.canvas_height), fill="black")
 
+            if not self.possible_words:
+                return
+
+            row_height = 26
+            x = keyboard_width + 10
+            y = text_entry_display_height - int(row_height / 2)
+
+            highlighted_row = 3
+            num_possible_rows = 11
+
+            list_starting_index = self.selected_possible_words_index - highlighted_row
+
+            word_font = View.ROBOTOCONDENSED_REGULAR_22
+            for row, i in enumerate(range(list_starting_index, list_starting_index + num_possible_rows)):
+                if i < 0:
+                    # We're near the top of the list, not enough items to fill above the highlighted row
+                    continue
+                if row == highlighted_row:
+                    # Leave the highlighted row to be rendered below
+                    continue
+
+                if len(self.possible_words) <= i:
+                    break
+
+                View.draw.text((x, y + row * row_height), self.possible_words[i], fill=View.color, font=word_font)
+
+            # Render the SELECT outline
+            View.draw.rounded_rectangle((keyboard_width + 4, y + (3 * row_height) - 2, 250, y + (4 * row_height) + 2), outline=View.color, fill="#111", radius=5, width=1)
+
             if self.possible_words:
-                selected_possible_words_index = 2
-                if len(self.possible_words) < 3:
-                    selected_possible_words_index = len(self.possible_words) - 1
-
-                center_slot = (keyboard_width + 3, 39 + 60)
-
-                # Render level 3
-                level_shift_x = 20
-                level_shift_y = 26 * 2
-                word_font = View.ROBOTOCONDENSED_BOLD_22
-                View.draw.rounded_rectangle((center_slot[0] + level_shift_x, center_slot[1] - level_shift_y - 3, 250, center_slot[1] - level_shift_y + 26 + 3), fill="black", outline="#333", radius=5, width=2)
-                if selected_possible_words_index - 2 >= 0:
-                    word = self.possible_words[selected_possible_words_index - 2]
-                    View.draw.text((center_slot[0] + level_shift_x + 5, center_slot[1] - level_shift_y), word, fill=View.color, font=word_font)
-
-                View.draw.rounded_rectangle((center_slot[0] + level_shift_x, center_slot[1] + level_shift_y - 3 + 6, 250, center_slot[1] + level_shift_y + 26 + 7), fill="black", outline="#333", radius=5, width=2)
-                if selected_possible_words_index + 2 < len(self.possible_words):
-                    word = self.possible_words[selected_possible_words_index + 2]
-                    View.draw.text((center_slot[0] + level_shift_x + 5, center_slot[1] + level_shift_y + 7), word, fill=View.color, font=word_font)
-
-
-                # Render level 2
-                level_shift_x = 10
-                level_shift_y = 28
                 word_font = View.ROBOTOCONDENSED_BOLD_24
-                View.draw.rounded_rectangle((center_slot[0] + level_shift_x, center_slot[1] - level_shift_y - 3, 250, center_slot[1] - level_shift_y + 26 + 3), fill="black", outline="#333", radius=5, width=2)
-                if selected_possible_words_index - 1 >= 0:
-                    word = self.possible_words[selected_possible_words_index - 1]
-                    View.draw.text((center_slot[0] + level_shift_x + 5, center_slot[1] - level_shift_y), word, fill=View.color, font=word_font)
+                View.draw.text((x, y + 3 * row_height), self.possible_words[self.selected_possible_words_index], fill=View.color, font=word_font)
 
-                View.draw.rounded_rectangle((center_slot[0] + level_shift_x, center_slot[1] + level_shift_y - 3 + 6, 250, center_slot[1] + level_shift_y + 26 + 7), fill="black", outline="#333", radius=5, width=2)
-                if selected_possible_words_index + 1 < len(self.possible_words):
-                    word = self.possible_words[selected_possible_words_index + 1]
-                    View.draw.text((center_slot[0] + level_shift_x + 5, center_slot[1] + level_shift_y + 5), word, fill=View.color, font=word_font)
+            render_possible_matches_arrows()
 
 
-                word = self.possible_words[selected_possible_words_index]
+        def render_possible_matches_arrows():
+            # Render the up/down arrow buttons for KEY1 and KEY3
+            row_height = 26
+            arrow_button_width = 25
+            arrow_padding = 5
+            key_x = View.canvas_width - arrow_button_width
+            key_y = text_entry_display_height - int(row_height / 2) + int(0.75 * row_height)
+            background_color = "#111"
+            arrow_color = View.color
+            if arrow_up_is_active:
+                background_color = View.color
+                arrow_color = "#111"
+            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
+            View.draw.polygon(
+                [(key_x + int(arrow_button_width)/2 + 1, key_y + arrow_padding),  # centered top point
+                (View.canvas_width - arrow_padding + 1, key_y + row_height - arrow_padding),  # bottom right point
+                (key_x + arrow_padding + 1, key_y + row_height - arrow_padding)],  # bottom left point
+                fill=arrow_color
+            )
 
-                # Render center slot
-                word_font = View.ROBOTOCONDENSED_BOLD_26
-                tw, th = word_font.getsize(word)
-                View.draw.rounded_rectangle((center_slot[0], center_slot[1], 250, center_slot[1] + 28 + 3), fill=View.color, radius=7)
-                View.draw.text((center_slot[0] + 5, center_slot[1]), word, fill="black", font=word_font)
-
-                # for slot, word in enumerate(self.possible_words):
-                #     word_offset = View.canvas_width - tw - 1
-                #     slot_y = 39 + (60*slot)
-                #     if highlight_word and word == highlight_word:
-                #         View.draw.rectangle((word_offset - 3, slot_y - 3, 240, slot_y + th + 6), fill=View.color)
-                #         View.draw.text((word_offset, slot_y), word, fill="black", font=word_font)
-                #     else:
-                #         View.draw.text((word_offset, slot_y), word, fill=View.color, font=word_font)
+            background_color = "#111"
+            arrow_color = View.color
+            if arrow_down_is_active:
+                background_color = View.color
+                arrow_color = "#111"
+            key_y = text_entry_display_height - int(row_height / 2) + int(5.25 * row_height)
+            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
+            View.draw.polygon(
+                [(key_x + int(arrow_button_width)/2 + 1, key_y + row_height - arrow_padding),  # bottom centered point
+                (View.canvas_width - arrow_padding + 1, key_y + arrow_padding),  # right top point
+                (key_x + arrow_padding + 1, key_y + arrow_padding)], # left top point
+                fill=arrow_color
+            )
 
 
         def render_previous_button(highlight=False):
@@ -199,7 +216,7 @@ class SeedToolsView(View):
             # Render the live text entry display
             title = f"#{num_word}: {''.join(self.letters)}"
 
-            cursor_block_width = 20
+            cursor_block_width = 18
             cursor_block_height = 33
 
             # Draw n-1 of the selected letters
@@ -209,15 +226,22 @@ class SeedToolsView(View):
             draw.text((word_offset, 2), title[:-1], fill=View.color, font=word_font)
 
             # Draw the highlighted cursor block
-            cursor_block_offset = word_offset + tw + 2
-            draw.rectangle((cursor_block_offset,2, cursor_block_offset + cursor_block_width, cursor_block_height), fill=View.color)
-            draw.text((cursor_block_offset + 1, 2), ''.join(self.letters[-1:]), fill="black", font=word_font)
+            cursor_block_offset = word_offset + tw - 1
+            draw.rectangle((cursor_block_offset,2, cursor_block_offset + cursor_block_width, cursor_block_height), fill="#111")
+            draw.text((cursor_block_offset + 1, 2), ''.join(self.letters[-1:]), fill=View.color, font=word_font)
 
 
         # Clear the screen
         View.draw.rectangle((0,0, View.canvas_width,View.canvas_height), fill="black")
+
         previous_button_width = render_previous_button()
         previous_button_is_active = False
+        arrow_up_is_active = False
+        arrow_down_is_active = False
+
+        # Have to ensure that we don't carry any effects from a previous run
+        # TODO: This shouldn't be a member var
+        self.possible_alphabet = "abcdefghijklmnopqrstuvwxyz"
 
         # Set up the keyboard params
         keyboard_width = 120
@@ -225,7 +249,7 @@ class SeedToolsView(View):
 
         # TODO: support other BIP39 languages/charsets
         keyboard = Keyboard(View.draw,
-                            charset="abcdefghijklmnopqrstuvwxyz",
+                            charset=self.possible_alphabet,
                             rows=5,
                             cols=6,
                             rect=(0,text_entry_display_height + 1, keyboard_width,240),
@@ -233,11 +257,17 @@ class SeedToolsView(View):
 
         # Initialize the current letters/current matches
         self.letters = initial_letters
-        self.calc_possible_alphabet()
-        keyboard.update_active_keys(active_keys=self.possible_alphabet)
-        keyboard.set_selected_key(selected_letter=self.letters[-1])
+        self.calc_possible_words()  # Force it to match on even just the default ["a"]
+        if len(self.letters) > 1:
+            self.letters.append(" ")    # "Lock in" the last letter as if KEY_PRESS
+            self.calc_possible_alphabet()
+            keyboard.update_active_keys(active_keys=self.possible_alphabet)
+            keyboard.set_selected_key(selected_letter=self.letters[-2])
+        else:
+            keyboard.set_selected_key(selected_letter=self.letters[-1])
         keyboard.render_keys()
         render_possible_matches()
+        render_possible_matches_arrows()
 
         # Render the top text entry display
         render_text_entry_display()
@@ -246,7 +276,11 @@ class SeedToolsView(View):
 
         # Start the interactive update loop
         while True:
-            input = View.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3], check_release=True, release_keys=[B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3])
+            input = View.buttons.wait_for(
+                [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3],
+                check_release=True,
+                release_keys=[B.KEY_PRESS, B.KEY2]
+            )
 
             if previous_button_is_active:
                 if input == B.KEY_PRESS:
@@ -283,6 +317,9 @@ class SeedToolsView(View):
                     self.calc_possible_alphabet()
                     keyboard.update_active_keys(active_keys=self.possible_alphabet)
                     keyboard.render_keys()
+                        
+                    # Update the right-hand possible matches area
+                    render_possible_matches()
 
                 elif ret_val == Keyboard.KEY_BACKSPACE["letter"]:
                     # We're just hovering over DEL but haven't clicked. Show blank (" ")
@@ -290,77 +327,106 @@ class SeedToolsView(View):
                     self.letters = self.letters[:-1]
                     self.letters.append(" ")
 
-            else:
-                # Has the user made a final selection of a candidate word?
-                final_selection = None
-                if input == B.KEY1:
-                    # Scroll the list up
-                    selected_possible_words_index -= 1
-                    if selected_possible_words_index < 0:
-                        selected_possible_words_index = 0
-                elif input == B.KEY2:
-                    if self.possible_words[1]:
-                        final_selection = self.possible_words[1]
-                elif input == B.KEY3:
-                    # Scroll the list down
-                    selected_possible_words_index += 1
-                    if selected_possible_words_index >= len(self.possible_words):
-                        selected_possible_words_index = len(self.possible_words) - 1
+            # Has the user made a final selection of a candidate word?
+            final_selection = None
+            if input == B.KEY1:
+                # Scroll the list up
+                self.selected_possible_words_index -= 1
+                if self.selected_possible_words_index < 0:
+                    self.selected_possible_words_index = 0
 
-                if final_selection:
-                    # Animate the selection storage, then return the word to the caller
-                    render_possible_matches(highlight_word=final_selection)
-                    View.DispShowImage()
+                if not arrow_up_is_active:
+                    # Flash the up arrow as selected
+                    arrow_up_is_active = True
 
-                    return final_selection
+                # Update the right-hand possible matches area
+                render_possible_matches()
 
-                elif input == B.KEY_PRESS and ret_val in self.possible_alphabet:
-                    # User has locked in the current letter
-                    if self.letters[-1] != " ":
-                        # We'll save that locked in letter next but for now update the
-                        # live text entry display with blank (" ") so that we don't try
-                        # to autocalc matches against a second copy of the letter they
-                        # just selected. e.g. They KEY_PRESS on "s" to build "mus". If
-                        # we advance the live block cursor AND display "s" in it, the
-                        # current word would then be "muss" with no matches. If "mus"
-                        # can get us to our match, we don't want it to disappear right
-                        # as we KEY_PRESS.
-                        self.letters.append(" ")
-                    else:
-                        # clicked same letter twice in a row. Because of the above, an
-                        # immediate second click of the same letter would lock in "ap "
-                        # (note the space) instead of "app". So we replace that trailing
-                        # space with the correct repeated letter and then, as above,
-                        # append a trailing blank.
-                        self.letters = self.letters[:-1]
-                        self.letters.append(ret_val)
-                        self.letters.append(" ")
+            elif input == B.KEY2:
+                final_selection = self.possible_words[self.selected_possible_words_index]
 
-                    # Recalc and deactivate keys after advancing
-                    self.calc_possible_alphabet()
-                    keyboard.update_active_keys(active_keys=self.possible_alphabet)
+            elif input == B.KEY3:
+                # Scroll the list down
+                self.selected_possible_words_index += 1
+                if self.selected_possible_words_index >= len(self.possible_words):
+                    self.selected_possible_words_index = len(self.possible_words) - 1
 
-                    if len(self.possible_alphabet) == 1:
-                        # If there's only one possible letter left, select it
-                        keyboard.set_selected_key(self.possible_alphabet[0])
+                if not arrow_down_is_active:
+                    # Flash the down arrow as selected
+                    arrow_down_is_active = True
 
-                    keyboard.render_keys()
+                # Update the right-hand possible matches area
+                render_possible_matches()
 
+            if input is not B.KEY1 and arrow_up_is_active:
+                # Deactivate the arrow and redraw
+                arrow_up_is_active = False
+                render_possible_matches_arrows()
+
+            if input is not B.KEY3 and arrow_down_is_active:
+                # Deactivate the arrow and redraw
+                arrow_down_is_active = False
+                render_possible_matches_arrows()
+
+            if final_selection:
+                # Animate the selection storage, then return the word to the caller
+                render_possible_matches(highlight_word=final_selection)
+                View.DispShowImage()
+
+                return final_selection
+
+            elif input == B.KEY_PRESS and ret_val in self.possible_alphabet:
+                # User has locked in the current letter
+                if self.letters[-1] != " ":
+                    # We'll save that locked in letter next but for now update the
+                    # live text entry display with blank (" ") so that we don't try
+                    # to autocalc matches against a second copy of the letter they
+                    # just selected. e.g. They KEY_PRESS on "s" to build "mus". If
+                    # we advance the live block cursor AND display "s" in it, the
+                    # current word would then be "muss" with no matches. If "mus"
+                    # can get us to our match, we don't want it to disappear right
+                    # as we KEY_PRESS.
+                    self.letters.append(" ")
                 else:
-                    # Live joystick movement; haven't locked this new letter in yet.
-                    # Replace the last letter w/the currently selected one. But don't
-                    # call `calc_possible_alphabet()` because we want to still be able
-                    # to freely float to a different letter; only update the active
-                    # keyboard keys when a selection has been locked in (KEY_PRESS) or
-                    # removed ("del").
+                    # clicked same letter twice in a row. Because of the above, an
+                    # immediate second click of the same letter would lock in "ap "
+                    # (note the space) instead of "app". So we replace that trailing
+                    # space with the correct repeated letter and then, as above,
+                    # append a trailing blank.
                     self.letters = self.letters[:-1]
-                    if ret_val in self.possible_alphabet:
-                        self.letters.append(ret_val)
-                    else:
-                        self.letters.append(" ")
+                    self.letters.append(ret_val)
+                    self.letters.append(" ")
 
-            # Update the KEY 1, 2, 3 word candidates
-            render_possible_matches()
+                # Recalc and deactivate keys after advancing
+                self.calc_possible_alphabet()
+                keyboard.update_active_keys(active_keys=self.possible_alphabet)
+                    
+                # Update the right-hand possible matches area
+                render_possible_matches()
+
+                if len(self.possible_alphabet) == 1:
+                    # If there's only one possible letter left, select it
+                    keyboard.set_selected_key(self.possible_alphabet[0])
+
+                keyboard.render_keys()
+
+            elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN] and ret_val in self.possible_alphabet:
+                # Live joystick movement; haven't locked this new letter in yet.
+                # Replace the last letter w/the currently selected one. But don't
+                # call `calc_possible_alphabet()` because we want to still be able
+                # to freely float to a different letter; only update the active
+                # keyboard keys when a selection has been locked in (KEY_PRESS) or
+                # removed ("del").
+                self.letters = self.letters[:-1]
+                if ret_val in self.possible_alphabet:
+                    self.letters.append(ret_val)
+                    self.calc_possible_words()  # live update our matches as we move
+
+                    # Update the right-hand possible matches area
+                    render_possible_matches()
+                else:
+                    # Do nothing when hovering over an inactive letter
+                    self.letters.append(" ")
 
             # Render the text entry display and cursor block
             render_text_entry_display()
@@ -1158,10 +1224,10 @@ class SeedToolsView(View):
 
         return self.words
 
+
     ###
     ### Utility Methods
     ###
-
     def reset(self):
         self.words.clear()
         self.possible_alphabet = SeedToolsView.ALPHABET[:]
@@ -1172,12 +1238,13 @@ class SeedToolsView(View):
 
         return
 
+
     def calc_possible_alphabet(self, new_letter = False):
         if (self.letters and len(self.letters) > 1 and new_letter == False) or (len(self.letters) > 0 and new_letter == True):
             search_letters = self.letters[:]
             if new_letter == False:
                 search_letters.pop()
-            self.possible_words = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(search_letters).strip())]
+            self.calc_possible_words()
             letter_num = len(search_letters)
             possible_letters = []
             for word in self.possible_words:
@@ -1188,3 +1255,8 @@ class SeedToolsView(View):
         else:
             self.possible_alphabet = SeedToolsView.ALPHABET[:]
             self.possible_words = []
+
+
+    def calc_possible_words(self):
+        self.possible_words = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(self.letters).strip())]
+        self.selected_possible_words_index = 0        
