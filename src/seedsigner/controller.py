@@ -428,7 +428,7 @@ class Controller:
         if len(seed_phrase) == 0:
             # gather seed phrase
             # display menu to select 12 or 24 word seed for last word
-            ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Sign Tools ]")
+            ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Main Menu ]")
             if ret_val == Path.SEED_WORD_12:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
             elif ret_val == Path.SEED_WORD_24:
