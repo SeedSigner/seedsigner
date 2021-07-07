@@ -287,7 +287,6 @@ class Controller:
         return Path.MAIN_MENU
 
     def show_delete_a_passphrase_tool(self):
-        print("delete a passphrase")
         if self.storage.num_of_passphrase_seeds() == 0:
             self.menu_view.draw_modal(["No stored seeds with", "passphrase found"], "Error", "Right to Continue")
             self.buttons.wait_for([B.KEY_RIGHT])
@@ -337,8 +336,7 @@ class Controller:
             elif ret_val == Path.SEED_WORD_24:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
             elif ret_val == Path.SEED_WORD_QR:
-                # TODO Add Functionality here? or maybe return to another seed tools menu?
-                return Path.SIGNING_TOOLS_SUB_MENU
+                seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
             else:
                 return Path.SIGNING_TOOLS_SUB_MENU
 
@@ -353,6 +351,20 @@ class Controller:
                 input = self.buttons.wait_for([B.KEY_RIGHT])
                 return Path.MAIN_MENU
 
+            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Optional Passphrase?")
+            if r == 1:
+                # display a tool to pick letters/numbers to make a passphrase
+                passphrase = self.seed_tools_view.display_gather_passphrase_screen()
+                if len(passphrase) == 0 or passphrase == "-1":
+                    passphrase = ""
+                    self.menu_view.draw_modal(["No passphrase added", "to seed words"], "", "Left to Exit, Right to Continue")
+                    input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
+                    if input == B.KEY_LEFT:
+                        return Path.MAIN_MENU
+                else:
+                    self.menu_view.draw_modal(["Optional passphrase", "added to seed words", passphrase], "", "Right to Continue")
+                    self.buttons.wait_for([B.KEY_RIGHT])
+
         # display seed phrase
         while True:
             r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
@@ -362,8 +374,11 @@ class Controller:
                 # Cancel
                 return Path.SIGNING_TOOLS_SUB_MENU
 
-        self.signing_tools_view.draw_modal(["Generating xpub QR ..."])
+        self.signing_tools_view.draw_modal(["Loading xPub Info ..."])
         self.wallet.set_seed_phrase(seed_phrase, passphrase)
+        self.signing_tools_view.display_xpub_info(self.wallet)
+        self.buttons.wait_for([B.KEY_RIGHT])
+        self.signing_tools_view.draw_modal(["Generating xPub QR ..."])
         self.signing_tools_view.display_xpub_qr(self.wallet)
         return Path.MAIN_MENU
 
@@ -392,8 +407,7 @@ class Controller:
             elif ret_val == Path.SEED_WORD_24:
                 seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
             elif ret_val == Path.SEED_WORD_QR:
-                # TODO Add Functionality here? or maybe return to another seed tools menu?
-                return Path.SIGNING_TOOLS_SUB_MENU
+                seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
             else:
                 return Path.SIGNING_TOOLS_SUB_MENU
 
@@ -407,6 +421,20 @@ class Controller:
                 self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
                 return Path.MAIN_MENU
+
+            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Optional Passphrase?")
+            if r == 1:
+                # display a tool to pick letters/numbers to make a passphrase
+                passphrase = self.seed_tools_view.display_gather_passphrase_screen()
+                if len(passphrase) == 0 or passphrase == "-1":
+                    passphrase = ""
+                    self.menu_view.draw_modal(["No passphrase added", "to seed words"], "", "Left to Exit, Right to Continue")
+                    input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
+                    if input == B.KEY_LEFT:
+                        return Path.MAIN_MENU
+                else:
+                    self.menu_view.draw_modal(["Optional passphrase", "added to seed words", passphrase], "", "Right to Continue")
+                    self.buttons.wait_for([B.KEY_RIGHT])
 
         # display seed phrase
         while True:

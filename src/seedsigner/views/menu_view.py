@@ -98,7 +98,7 @@ class MenuView(View):
     ### Signing Tools Menu
 
     def display_signing_tools_menu(self) -> None:
-        lines = ["... [ Return to Main ]", "Generate XPUB", "Sign a Transaction"]
+        lines = ["... [ Return to Main ]", "Generate xPub", "Sign a Transaction"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -130,6 +130,7 @@ class MenuView(View):
         lines[5] = lines[5].replace("<density>", self.controller.wallet.get_qr_density_name())
 
         # Draw Menu
+        self.selected_menu_num = 1
         self.draw_menu(lines, 1)
 
         # Wait for Button Input (specifically menu selection/press)
@@ -161,7 +162,8 @@ class MenuView(View):
     ### Generic Single Menu Selection (returns 1,2,3,4,5,6 ...)
 
     def display_generic_selection_menu(self, lines = [], title = None, bottom = None) -> int:
-        self.draw_menu(lines, 1, title, bottom)
+        self.selected_menu_num = 1
+        self.draw_menu(lines, 1, title, bottom, True)
 
         while True:
             input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
@@ -271,7 +273,7 @@ class MenuView(View):
 
     ### Generic Draw Menu Method
 
-    def draw_menu(self, lines, selected_menu_num = 1, title = None, bottom = None) -> None:
+    def draw_menu(self, lines, selected_menu_num = 1, title = None, bottom = None, force_redraw = False) -> None:
         if title == None:
             t = "SeedSigner  v" + self.controller.VERSION
         else:
@@ -297,7 +299,7 @@ class MenuView(View):
         else:
             b = bottom
 
-        if lines != self.menu_lines or selected_menu_num != self.selected_menu_num:
+        if lines != self.menu_lines or selected_menu_num != self.selected_menu_num or force_redraw == True:
             #Menu has changed, redraw
 
             View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
