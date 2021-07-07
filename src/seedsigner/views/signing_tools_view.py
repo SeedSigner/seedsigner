@@ -18,17 +18,9 @@ class SigningToolsView(View):
 
     def display_xpub_qr(self, wallet):
         xpubstring = wallet.import_qr()
-        (fingerprint, derivation, xpub) = wallet.get_xpub_info()
-        
         print(xpubstring)
 
         xpub_images = wallet.make_xpub_qr_codes(xpubstring)
-
-        # display finger
-        derivation_display = "Derivation: " + derivation
-        xpub_display = xpub[0:8] + "..." + xpub[-10:]
-        self.draw_modal(["Master Fingerprint: ", fingerprint, derivation_display, xpub_display], "Xpub Info", "Right to Continue")
-        self.buttons.wait_for([B.KEY_RIGHT])
 
         cnt = 0
         step = False
@@ -64,6 +56,12 @@ class SigningToolsView(View):
                     cnt -= 1
                     if cnt < 0:
                         cnt = len(xpub_images) - 1
+
+    def display_xpub_info(self, wallet):
+        (fingerprint, derivation, xpub) = wallet.get_xpub_info()
+        derivation_display = "Derivation: " + derivation
+        xpub_display = xpub[0:7] + "..." + xpub[-9:]
+        self.draw_modal(["Master Fingerprint: ", fingerprint, derivation_display, xpub_display], "Xpub Info", "Right to Continue")
 
     ###
     ### Sign Transaction
