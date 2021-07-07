@@ -197,10 +197,12 @@ class SeedToolsView(View):
     ### Display Gather PassPhrase Screen
     ###
 
-    def display_gather_passphrase_screen(self, slot_num = 0) -> str:
+    def display_gather_passphrase_screen(self, existing_passphrase = "") -> str:
         self.reset()
         self.pass_letter = "a"
         self.pass_case_toggle = "lower"
+        if existing_passphrase != "":
+            self.passphrase = existing_passphrase
         self.draw_gather_passphrase()
 
         # Wait for Button Input (specifically menu selection/press)

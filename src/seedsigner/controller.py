@@ -91,9 +91,7 @@ class Controller:
             elif ret_val == Path.SAVE_SEED:
                 ret_val = self.show_store_a_seed_tool()
             elif ret_val == Path.PASSPHRASE_SEED:
-                ret_val = self.show_add_a_passphrase_tool()
-            elif ret_val == Path.DELETE_PASSPHRASE:
-                ret_val = self.show_delete_a_passphrase_tool()
+                ret_val = self.show_add_remove_passphrase_tool()
             elif ret_val == Path.GEN_XPUB:
                 ret_val = self.show_generate_xpub()
             elif ret_val == Path.SIGN_TRANSACTION:
@@ -213,6 +211,7 @@ class Controller:
     def show_store_a_seed_tool(self):
         seed_phrase = []
         ret_val = 0
+        display_saved_seed = False
         ret_val = self.menu_view.display_saved_seed_menu(self.storage, 1, "... [ Return to Seed Tools ]")
         if ret_val == 0:
             return Path.SEED_TOOLS_SUB_MENU
@@ -220,6 +219,7 @@ class Controller:
         slot_num = ret_val
 
         if self.storage.check_slot(slot_num) == True:
+            display_saved_seed = True
             # show seed phrase
             # display seed phrase (24 words)
             while True:
@@ -245,13 +245,24 @@ class Controller:
         if len(seed_phrase) == 0:
             return Path.SEED_TOOLS_SUB_MENU
 
+        if ret_val == Path.SEED_WORD_QR and len(seed_phrase) > 0:
+            show_qr_option = False
+        else:
+            show_qr_option = True
+
+        while display_saved_seed == False:
+            r = self.seed_tools_view.display_seed_phrase(seed_phrase, show_qr_option=show_qr_option )
+            if r == True:
+                break
+            else:
+                # no-op; can't back out of the seed phrase view
+                pass
+
         self.menu_view.draw_modal(["Validating ..."])
         is_valid = self.storage.check_if_seed_valid(seed_phrase)
         if is_valid:
             self.storage.save_seed_phrase(seed_phrase, slot_num)
             self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
-            # TODO: Issue before here interfering with first joystick input
-            #   Camera loop?
             input = self.buttons.wait_for([B.KEY_RIGHT])
         else:
             self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
@@ -261,51 +272,67 @@ class Controller:
 
     ### Add a PassPhrase Menu
 
-    def show_add_a_passphrase_tool(self):
+    def show_add_remove_passphrase_tool(self):
+        ret_val = 0
+        r = 0
+
         if self.storage.num_of_saved_seeds() == 0:
             self.menu_view.draw_modal(["Store a seed phrase", "prior to adding", "a passphrase"], "Error", "Right to Continue")
             self.buttons.wait_for([B.KEY_RIGHT])
             return Path.SEED_TOOLS_SUB_MENU
 
-        ret_val = 0
-        ret_val = self.menu_view.display_saved_seed_menu(self.storage, 3, None)
-        if ret_val == 0:
-            return Path.SEED_TOOLS_SUB_MENU
+        if self.storage.num_of_passphrase_seeds() > 0:
+            r = self.menu_view.display_generic_selection_menu(["Add", "Change", "Remove"], "Passphrase Action")
+            if r == 1: # Add
+                ret_val = self.menu_view.display_saved_seed_menu(self.storage, 3, None)
+                if ret_val == 0:
+                    return Path.SEED_TOOLS_SUB_MENU
+                # continue after top level if to capture and store passphrase
+            elif r == 2: #Change
+                ret_val = self.menu_view.display_saved_seed_menu(self.storage, 4, None)
+                if ret_val == 0:
+                    return Path.SEED_TOOLS_SUB_MENU
+                # continue after top level if to capture and store new passphrase
+            elif r == 3:
+                # Remove Passphrase Workflow
+                if self.storage.num_of_saved_seeds() == 0:
+                    self.menu_view.draw_modal(["Store a seed phrase", "prior to adding", "a passphrase"], "Error", "Right to Continue")
+                    self.buttons.wait_for([B.KEY_RIGHT])
+                    return Path.SEED_TOOLS_SUB_MENU
+                else:
+                    ret_val = self.menu_view.display_saved_seed_menu(self.storage, 4, None)
+                    if ret_val == 0:
+                        return Path.SEED_TOOLS_SUB_MENU
+
+                    slot_num = ret_val
+
+                    if slot_num > 0:
+                        self.storage.delete_passphrase(slot_num)
+                        self.menu_view.draw_modal(["Passphrase Deleted", "from Slot #" + str(slot_num)], "", "Right to Continue")
+                        self.buttons.wait_for([B.KEY_RIGHT])
+
+                    return Path.SEED_TOOLS_SUB_MENU
+        else:
+            # when no existing passphrase prompt for which seed to add passphrase to
+            ret_val = self.menu_view.display_saved_seed_menu(self.storage, 3, None)
+            if ret_val == 0:
+                return Path.SEED_TOOLS_SUB_MENU
 
         slot_num = ret_val
 
         # display a tool to pick letters/numbers to make a passphrase
-        passphrase = self.seed_tools_view.display_gather_passphrase_screen()
-        
+        passphrase = self.seed_tools_view.display_gather_passphrase_screen(self.storage.get_passphrase(slot_num))
         if len(passphrase) == 0:
             return Path.SEED_TOOLS_SUB_MENU
 
         self.storage.save_passphrase(passphrase, slot_num)
-        self.menu_view.draw_modal(["Passphrase Added", passphrase, "Added to Slot #" + str(slot_num)], "", "Right to Continue")
+        if r in (0,1):
+            self.menu_view.draw_modal(["Passphrase Added", passphrase, "Added to Slot #" + str(slot_num)], "", "Right to Continue")
+        elif r == 2:
+            self.menu_view.draw_modal(["Passphrase Updated", passphrase, "Added to Slot #" + str(slot_num)], "", "Right to Continue")
         self.buttons.wait_for([B.KEY_RIGHT])
 
-        return Path.MAIN_MENU
-
-    def show_delete_a_passphrase_tool(self):
-        if self.storage.num_of_passphrase_seeds() == 0:
-            self.menu_view.draw_modal(["No stored seeds with", "passphrase found"], "Error", "Right to Continue")
-            self.buttons.wait_for([B.KEY_RIGHT])
-            return Path.SEED_TOOLS_SUB_MENU
-
-        ret_val = 0
-        ret_val = self.menu_view.display_saved_seed_menu(self.storage, 4, None)
-
-        if ret_val == 0:
-            return Path.SEED_TOOLS_SUB_MENU
-
-        slot_num = ret_val
-
-        if slot_num > 0:
-            self.storage.delete_passphrase(slot_num)
-            self.menu_view.draw_modal(["Passphrase Deleted", "from Slot #" + str(slot_num)], "", "Right to Continue")
-            self.buttons.wait_for([B.KEY_RIGHT])
-
-        return Path.MAIN_MENU
+        return Path.SEED_TOOLS_SUB_MENU
 
     ###
     ### Signing Tools Navigation/Launcher
@@ -323,7 +350,7 @@ class Controller:
             if r == 1: #Yes
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
                 if slot_num not in (1,2,3):
-                    return Path.SIGNING_TOOLS_SUB_MENU
+                    return Path.SEED_TOOLS_SUB_MENU
                 seed_phrase = self.storage.get_seed_phrase(slot_num)
                 passphrase = self.storage.get_passphrase(slot_num)
 
@@ -338,10 +365,10 @@ class Controller:
             elif ret_val == Path.SEED_WORD_QR:
                 seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
             else:
-                return Path.SIGNING_TOOLS_SUB_MENU
+                return Path.SEED_TOOLS_SUB_MENU
 
             if len(seed_phrase) == 0:
-                return Path.SIGNING_TOOLS_SUB_MENU
+                return Path.SEED_TOOLS_SUB_MENU
 
             # check if seed phrase is valid
             self.menu_view.draw_modal(["Validating ..."])
@@ -372,7 +399,7 @@ class Controller:
                 break
             else:
                 # Cancel
-                return Path.SIGNING_TOOLS_SUB_MENU
+                return Path.SEED_TOOLS_SUB_MENU
 
         self.signing_tools_view.draw_modal(["Loading xPub Info ..."])
         self.wallet.set_seed_phrase(seed_phrase, passphrase)
@@ -394,7 +421,7 @@ class Controller:
             if r == 1: #Yes
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
                 if slot_num == 0:
-                    return Path.SIGNING_TOOLS_SUB_MENU
+                    return Path.MAIN_MENU
                 seed_phrase = self.storage.get_seed_phrase(slot_num)
                 passphrase = self.storage.get_passphrase(slot_num)
 
@@ -409,10 +436,10 @@ class Controller:
             elif ret_val == Path.SEED_WORD_QR:
                 seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
             else:
-                return Path.SIGNING_TOOLS_SUB_MENU
+                return Path.MAIN_MENU
 
             if len(seed_phrase) == 0:
-                return Path.SIGNING_TOOLS_SUB_MENU
+                return Path.MAIN_MENU
 
             # check if seed phrase is valid
             self.menu_view.draw_modal(["Validating ..."])
@@ -443,7 +470,7 @@ class Controller:
                 break
             else:
                 # Cancel
-                return Path.SIGNING_TOOLS_SUB_MENU
+                return Path.MAIN_MENU
 
         # Scan PSBT Animated QR using Camera
         self.menu_view.draw_modal(["Loading..."])
@@ -451,11 +478,11 @@ class Controller:
         raw_pbst = self.wallet.scan_animated_qr_pbst(self)
 
         if raw_pbst == "nodata":
-            return Path.SIGNING_TOOLS_SUB_MENU
+            return Path.MAIN_MENU
         if raw_pbst == "invalid":
             self.menu_view.draw_modal(["QR Format Unexpected", "Check Wallet in Settings"], "", "RIGHT to EXIT")
             input = self.buttons.wait_for([B.KEY_RIGHT])
-            return Path.SIGNING_TOOLS_SUB_MENU
+            return Path.MAIN_MENU
         self.menu_view.draw_modal(["Parsing PSBT ..."])
         self.wallet.parse_psbt(raw_pbst)
 
@@ -463,7 +490,7 @@ class Controller:
         self.signing_tools_view.display_transaction_information(self.wallet)
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
         if input == B.KEY_LEFT:
-            return Path.SIGNING_TOOLS_SUB_MENU
+            return Path.MAIN_MENU
 
         # Sign PSBT
         self.menu_view.draw_modal(["PSBT Signing ..."])
