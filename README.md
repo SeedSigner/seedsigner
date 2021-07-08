@@ -56,22 +56,19 @@ https://youtu.be/aIIc2DiZYcI
 * Only valid input letters appear during seed word entry (time-saver!)
 
 ### Considerations:
-* Built for compatibility with Specter v1.1.0 and up (support for other wallet coordinators coming)
+* Built for compatibility with Specter-desktop, Sparrow and BlueWallet Vaults
 * Current release takes ~50 seconds to boot before menu appears (be patient!)
-* Use Specter's "other" device type when adding as a new signing device
-* ALWAYS opt to use animated QR codes in Specter-desktop
 * Always test your setup before transfering larger amounts of bitcoin (try testnet first!)
 * Currently ONLY generating Native Segwit Multisig Xpubs
-* Scanning animated QRs into a PC is tricky, be aware of ambient light, glare and focus
 * (Holding the screen upside-down or at a slight angle can significantly reduce glare)
-* Display text is small; comes with 240x240 pixel territory but ever trying to optimize
-* Check out our "seedsigner" telegram community for community help / feedback: (https://t.me/joinchat/GHNuc_nhNQjLPWsS)
+* Check out our "seedsigner" telegram group for community help / feedback: (https://t.me/joinchat/GHNuc_nhNQjLPWsS)
 * If you think SeedSigner adds value to the Bitcoin ecosystem, please help me spread the word! (tweets, pics, videos, etc.)
 
 ### Planned Upcoming Improvements / Functionality:
-* Support for Sparrow & Bluewallet multisig coordinators!
 * Support for single-signature XPUB generation / signing
-* Manually step through QR sequences using button/joystick controls
+* Support for BIP39 passphrases
+* User-guided manual QR transcription to quickly input seed phrases
+* Low/Med/High customizable QR density
 * Other optimizations based on user feedback!
 
 ---------------
