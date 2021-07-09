@@ -341,3 +341,36 @@ class Keyboard:
         raise Exception(f"""`selected_letter` "{selected_letter}" not found in keyboard""")
 
 
+
+@dataclass
+class TextEntryDisplay:
+    draw: any
+    rect: (int,int,int,int)
+    font: any
+    font_color: any
+    is_centered: bool = True
+    cur_text: str = " "
+
+
+    def render(self, cur_text=None):
+        """ Render the live text entry display """
+        if cur_text:
+            self.cur_text = cur_text
+        self.draw.rectangle(self.rect, fill="black")
+
+        cursor_block_width = 18
+        cursor_block_height = 33
+
+        # Draw n-1 of the selected letters
+        tw, th = self.font.getsize(self.cur_text[:-1])
+        if self.is_centered:
+            word_offset = int(self.rect[2] - tw - cursor_block_width)/2
+        else:
+            word_offset = 0
+        self.draw.text((word_offset, 2), self.cur_text[:-1], fill=self.font_color, font=self.font)
+
+        # Draw the highlighted cursor block
+        cursor_block_offset = word_offset + tw - 1
+        self.draw.rectangle((cursor_block_offset,2, cursor_block_offset + cursor_block_width, cursor_block_height), fill="#111")
+        self.draw.text((cursor_block_offset + 1, 2), self.cur_text[-1], fill=self.font_color, font=self.font)
+

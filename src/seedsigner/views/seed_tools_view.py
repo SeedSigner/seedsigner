@@ -7,7 +7,7 @@ import time
 
 # Internal file class dependencies
 from . import View
-from seedsigner.helpers import B, QR, CameraPoll, Keyboard
+from seedsigner.helpers import B, QR, CameraPoll, Keyboard, TextEntryDisplay
 
 
 class SeedToolsView(View):
@@ -198,49 +198,10 @@ class SeedToolsView(View):
             )
 
 
-        def render_previous_button(highlight=False):
-            # Set up the "back" arrow in the upper left
-            arrow = "<"
-            word_font = View.ROBOTOCONDENSED_BOLD_26
-            tw, th = word_font.getsize(arrow)
-            if highlight:
-                View.draw.rectangle((0,0, tw + 6, th + 6), fill=View.color)
-                View.draw.text((3, 3), arrow, fill="black", font=word_font)
-            else:
-                View.draw.rectangle((0,0, tw + 6, th + 6), fill="black")
-                View.draw.text((3, 3), arrow, fill=View.color, font=word_font)
-
-            return tw + 6
-
-
-        def render_text_entry_display(draw=View.draw):
-            """ Internal helper method to render the live text entry display at the top.
-                (has access to all vars in the parent's context)
-            """
-            draw.rectangle((previous_button_width,0, View.canvas_width,text_entry_display_height), fill="black")
-
-            # Render the live text entry display
-            title = f"#{num_word}: {''.join(self.letters)}"
-
-            cursor_block_width = 18
-            cursor_block_height = 33
-
-            # Draw n-1 of the selected letters
-            word_font = View.ROBOTOCONDENSED_BOLD_26
-            tw, th = word_font.getsize(title[:-1])
-            word_offset = int(View.canvas_width - tw - cursor_block_width)/2
-            draw.text((word_offset, 2), title[:-1], fill=View.color, font=word_font)
-
-            # Draw the highlighted cursor block
-            cursor_block_offset = word_offset + tw - 1
-            draw.rectangle((cursor_block_offset,2, cursor_block_offset + cursor_block_width, cursor_block_height), fill="#111")
-            draw.text((cursor_block_offset + 1, 2), ''.join(self.letters[-1:]), fill=View.color, font=word_font)
-
-
         # Clear the screen
         View.draw.rectangle((0,0, View.canvas_width,View.canvas_height), fill="black")
 
-        previous_button_width = render_previous_button()
+        self.render_previous_button()
         previous_button_is_active = False
         arrow_up_is_active = False
         arrow_down_is_active = False
@@ -261,8 +222,18 @@ class SeedToolsView(View):
                             rect=(0,text_entry_display_height + 1, keyboard_width,240),
                             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT])
 
-        # Initialize the current letters/current matches
+        # Render the top text entry display
         self.letters = initial_letters
+        text_entry_display = TextEntryDisplay(
+            View.draw,
+            rect=(self.previous_button_width,0, View.canvas_width,text_entry_display_height),
+            font=View.ROBOTOCONDENSED_BOLD_26,
+            font_color=View.color,
+            cur_text="".join(self.letters)
+        )
+        text_entry_display.render()
+
+        # Initialize the current matches
         self.possible_words = []
         if len(self.letters) > 1:
             self.letters.append(" ")    # "Lock in" the last letter as if KEY_PRESS
@@ -273,9 +244,6 @@ class SeedToolsView(View):
             keyboard.set_selected_key(selected_letter=self.letters[-1])
         keyboard.render_keys()
         render_possible_matches()
-
-        # Render the top text entry display
-        render_text_entry_display()
 
         View.DispShowImage()
 
@@ -295,13 +263,13 @@ class SeedToolsView(View):
                     input = Keyboard.ENTER_BOTTOM
                     # Re-render it without the highlight
                     previous_button_is_active = False
-                    render_previous_button()
+                    self.render_previous_button()
 
                 elif input == B.KEY_DOWN:
                     input = Keyboard.ENTER_TOP
                     # Re-render it without the highlight
                     previous_button_is_active = False
-                    render_previous_button()
+                    self.render_previous_button()
 
                 elif input in [B.KEY_RIGHT, B.KEY_LEFT]:
                     # no action in this context
@@ -310,7 +278,7 @@ class SeedToolsView(View):
             ret_val = keyboard.update_from_input(input)
 
             if ret_val in Keyboard.EXIT_DIRECTIONS:
-                render_previous_button(highlight=True)
+                self.render_previous_button(highlight=True)
                 previous_button_is_active = True
 
             elif ret_val in Keyboard.ADDITIONAL_KEYS:
@@ -378,7 +346,7 @@ class SeedToolsView(View):
                 # Animate the selection storage, then return the word to the caller
                 self.letters = list(final_selection + " ")
                 render_possible_matches(highlight_word=final_selection)
-                render_text_entry_display()
+                text_entry_display.render("".join(self.letters))
                 View.DispShowImage()
 
                 return final_selection
@@ -433,10 +401,47 @@ class SeedToolsView(View):
                 render_possible_matches()
 
             # Render the text entry display and cursor block
-            render_text_entry_display()
+            text_entry_display.render("".join(self.letters))
 
             View.DispShowImage()
 
+
+    def draw_passphrase_keyboard_entry(self):
+
+        # Clear the screen
+        View.draw.rectangle((0,0, View.canvas_width,View.canvas_height), fill="black")
+
+        self.render_previous_button()
+        previous_button_is_active = False
+
+        # Have to ensure that we don't carry any effects from a previous run
+        # TODO: This shouldn't be a member var
+        self.passphrase = " "
+
+        # Set up the keyboard params
+        right_key_nav_width = 50
+        keyboard_width = View.canvas_width - right_key_nav_width
+        text_entry_display_height = 39
+
+        keyboard = Keyboard(View.draw,
+                            charset=list("1234567890").append(SeedToolsView.ALPHABET),
+                            rows=4,
+                            cols=10,
+                            rect=(0,text_entry_display_height + 1, keyboard_width,240),
+                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT, Keyboard.WRAP_TOP, Keyboard.WRAP_BOTTOM])
+
+        # Render the top text entry display
+        text_entry_display = TextEntryDisplay(
+            View.draw,
+            rect=(self.previous_button_width,0, View.canvas_width,text_entry_display_height),
+            font=View.ROBOTOCONDENSED_BOLD_26,
+            font_color=View.color,
+            is_centered=False,
+            cur_text=''.join(self.passphrase)
+        )
+        text_entry_display.render()
+
+        View.DispShowImage()
 
     def gather_words_up(self):
         View.draw.polygon([(8 + ((len(self.letters)-1)*30), 85) , (14 + ((len(self.letters)-1)*30), 69) , (20 + ((len(self.letters)-1)*30), 85 )], outline=View.color, fill=View.color)
@@ -551,10 +556,10 @@ class SeedToolsView(View):
 
         return
 
+
     ###
     ### Display Gather PassPhrase Screen
     ###
-
     def display_gather_passphrase_screen(self, slot_num = 0) -> str:
         self.reset()
         self.pass_letter = "a"

@@ -64,6 +64,7 @@ class View:
     bus = 0
     device = 0
     disp = None
+    previous_button_width = None
 
     def __init__(self, controller) -> None:
 
@@ -259,3 +260,24 @@ class View:
     def display_blank_screen(self):
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         View.DispShowImage()
+
+
+    ###
+    ### Reusable components
+    ###
+    def render_previous_button(self, highlight=False):
+        # Set up the "back" arrow in the upper left
+        arrow = "<"
+        word_font = View.ROBOTOCONDENSED_BOLD_26
+        padding = 3
+        tw, th = word_font.getsize(arrow)
+        self.previous_button_width = tw + 2 * padding
+        if highlight:
+            View.draw.rectangle((0,0, tw + 2 * padding, th + 2 * padding), fill=View.color)
+            View.draw.text((padding, padding), arrow, fill="black", font=word_font)
+        else:
+            View.draw.rectangle((0,0, tw + 2 * padding, th + 2 * padding), fill="black")
+            View.draw.text((padding, padding), arrow, fill=View.color, font=word_font)
+
+
+
