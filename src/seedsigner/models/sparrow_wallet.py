@@ -34,10 +34,12 @@ class SparrowWallet(Wallet):
         return "Sparrow"
 
     def parse_psbt(self, raw_psbt) -> bool:
-        base64_psbt = a2b_base64(raw_psbt)
-        self.tx = psbt.PSBT.parse(base64_psbt)
-
-        self._parse_psbt()
+        try:
+            base64_psbt = a2b_base64(raw_psbt)
+            self.tx = psbt.PSBT.parse(base64_psbt)
+            self._parse_psbt()
+        except Exception:
+            return False
 
         return True
 
@@ -103,7 +105,11 @@ class SparrowWallet(Wallet):
                 self.qr_data = ["empty"]
 
             # get data and percentage
-            self.ur_decoder.receive_part(data[0])
+            decoder_work_check = self.ur_decoder.receive_part(data[0])
+            if decoder_work_check == False:
+                self.qr_data = ["invalidpsbt"]
+                self.buttons.trigger_override() # something went wrong, invalid QR
+                return
             self.percentage_complete = self.ur_decoder.estimated_percent_complete()
 
             # checking if all frames has been captured, exit camera processing
