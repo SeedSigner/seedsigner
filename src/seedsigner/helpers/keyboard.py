@@ -364,13 +364,13 @@ class TextEntryDisplay:
         # Draw n-1 of the selected letters
         tw, th = self.font.getsize(self.cur_text[:-1])
         if self.is_centered:
-            word_offset = int(self.rect[2] - tw - cursor_block_width)/2
+            word_offset = self.rect[0] + int(self.rect[2] - self.rect[0] - tw - cursor_block_width)/2
         else:
-            word_offset = 0
-        self.draw.text((word_offset, 2), self.cur_text[:-1], fill=self.font_color, font=self.font)
+            word_offset = self.rect[0]
+        self.draw.text((word_offset, self.rect[1] + 2), self.cur_text[:-1], fill=self.font_color, font=self.font)
 
         # Draw the highlighted cursor block
         cursor_block_offset = word_offset + tw - 1
-        self.draw.rectangle((cursor_block_offset,2, cursor_block_offset + cursor_block_width, cursor_block_height), fill="#111")
-        self.draw.text((cursor_block_offset + 1, 2), self.cur_text[-1], fill=self.font_color, font=self.font)
+        self.draw.rectangle((cursor_block_offset, self.rect[1] + 2, cursor_block_offset + cursor_block_width, cursor_block_height), fill="#111")
+        self.draw.text((cursor_block_offset + 1, self.rect[1] + 2), self.cur_text[-1], fill=self.font_color, font=self.font)
 

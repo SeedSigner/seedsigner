@@ -424,11 +424,11 @@ class SeedToolsView(View):
         text_entry_display_height = 39
 
         keyboard = Keyboard(View.draw,
-                            charset=list("1234567890").append(SeedToolsView.ALPHABET),
+                            charset="1234567890" + "".join(SeedToolsView.ALPHABET),
                             rows=4,
                             cols=10,
-                            rect=(0,text_entry_display_height + 1, keyboard_width,240),
-                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT, Keyboard.WRAP_TOP, Keyboard.WRAP_BOTTOM])
+                            rect=(0, int(1.5 * text_entry_display_height), keyboard_width,240),
+                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT])
 
         # Render the top text entry display
         text_entry_display = TextEntryDisplay(
@@ -442,6 +442,66 @@ class SeedToolsView(View):
         text_entry_display.render()
 
         View.DispShowImage()
+
+        # Start the interactive update loop
+        while True:
+            input = View.buttons.wait_for(
+                [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3]
+            )
+
+            ret_val = keyboard.update_from_input(input)
+
+            if ret_val in Keyboard.EXIT_DIRECTIONS:
+                self.render_previous_button(highlight=True)
+                previous_button_is_active = True
+
+            elif ret_val in Keyboard.ADDITIONAL_KEYS:
+                if input == B.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["letter"]:
+                    self.passphrase = self.passphrase[:-2]
+                    self.passphrase += " "
+
+                elif ret_val == Keyboard.KEY_BACKSPACE["letter"]:
+                    # We're just hovering over DEL but haven't clicked. Show blank (" ")
+                    #   in the live text entry display at the top.
+                    self.passphrase = self.passphrase[:-1]
+                    self.passphrase += " "
+
+
+            elif input == B.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
+                # User has locked in the current letter
+                if self.passphrase[-1] != " ":
+                    # We'll save that locked in letter next but for now update the
+                    # live text entry display with blank (" ") so that we don't try
+                    # to autocalc matches against a second copy of the letter they
+                    # just selected. e.g. They KEY_PRESS on "s" to build "mus". If
+                    # we advance the live block cursor AND display "s" in it, the
+                    # current word would then be "muss" with no matches. If "mus"
+                    # can get us to our match, we don't want it to disappear right
+                    # as we KEY_PRESS.
+                    self.passphrase += " "
+                else:
+                    # clicked same letter twice in a row. Because of the above, an
+                    # immediate second click of the same letter would lock in "ap "
+                    # (note the space) instead of "app". So we replace that trailing
+                    # space with the correct repeated letter and then, as above,
+                    # append a trailing blank.
+                    self.passphrase = self.passphrase[:-1]
+                    self.passphrase += ret_val
+                    self.passphrase += " "
+
+            elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN]:
+                # Live joystick movement; haven't locked this new letter in yet.
+                # Replace the last letter w/the currently selected one. Only update
+                # the active keyboard keys when a selection has been locked in
+                # (KEY_PRESS) or removed ("del").
+                self.passphrase = self.passphrase[:-1]
+                self.passphrase += ret_val
+
+            # Render the text entry display and cursor block
+            text_entry_display.render(self.passphrase)
+
+            View.DispShowImage()
+
 
     def gather_words_up(self):
         View.draw.polygon([(8 + ((len(self.letters)-1)*30), 85) , (14 + ((len(self.letters)-1)*30), 69) , (20 + ((len(self.letters)-1)*30), 85 )], outline=View.color, fill=View.color)

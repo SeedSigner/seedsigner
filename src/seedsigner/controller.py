@@ -273,7 +273,8 @@ class Controller:
         slot_num = ret_val
 
         # display a tool to pick letters/numbers to make a passphrase
-        passphrase = self.seed_tools_view.display_gather_passphrase_screen()
+        # passphrase = self.seed_tools_view.display_gather_passphrase_screen()
+        passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
         
         if len(passphrase) == 0:
             return Path.SEED_TOOLS_SUB_MENU
