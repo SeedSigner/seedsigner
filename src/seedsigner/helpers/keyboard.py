@@ -265,15 +265,22 @@ class Keyboard:
                     self.selected_key["y"] -= 1
                     return Keyboard.EXIT_BOTTOM
 
-            if self.selected_key["x"] >= len(self.keys[self.selected_key["y"]]):
-                if Keyboard.WRAP_BOTTOM in self.auto_wrap:
-                    # This line is too short to land here
-                    self.selected_key["y"] = 0
+            elif self.selected_key["x"] >= len(self.keys[self.selected_key["y"]]):
+                # We're moving into the bottom line but there's no key directly below.
+                if self.selected_key["x"] - 1 == len(self.keys[self.selected_key["y"]]) - 1 and \
+                        self.keys[self.selected_key["y"]][-1].size == 2:
+                    # The last, adjacent key in this row is a double. Go ahead and select it
+                    self.selected_key["x"] = self.selected_key["x"] - 1
+
                 else:
-                    # Undo selection change and notify controlling loop that we've left
-                    #   the keyboard
-                    self.selected_key["y"] -= 1
-                    return Keyboard.EXIT_BOTTOM
+                    if Keyboard.WRAP_BOTTOM in self.auto_wrap:
+                        # This line is too short to land here
+                        self.selected_key["y"] = 0
+                    else:
+                        # Undo selection change and notify controlling loop that we've left
+                        #   the keyboard
+                        self.selected_key["y"] -= 1
+                        return Keyboard.EXIT_BOTTOM
 
         elif input == B.KEY_UP:
             self.selected_key["y"] -= 1
@@ -288,14 +295,20 @@ class Keyboard:
                     return Keyboard.EXIT_TOP
 
             if self.selected_key["x"] >= len(self.keys[self.selected_key["y"]]):
-                if Keyboard.WRAP_TOP in self.auto_wrap:
-                    # This line is too short to land here
-                    self.selected_key["y"] -= 1
+                # We're moving into the bottom line but there's no key directly below.
+                if self.selected_key["x"] - 1 == len(self.keys[self.selected_key["y"]]) - 1 and \
+                        self.keys[self.selected_key["y"]][-1].size == 2:
+                    # The last, adjacent key in this row is a double. Go ahead and select it
+                    self.selected_key["x"] = self.selected_key["x"] - 1
                 else:
-                    # Undo selection change and notify controlling loop that we've left
-                    #   the keyboard
-                    self.selected_key["y"] += 1
-                    return Keyboard.EXIT_TOP
+                    if Keyboard.WRAP_TOP in self.auto_wrap:
+                        # This line is too short to land here
+                        self.selected_key["y"] -= 1
+                    else:
+                        # Undo selection change and notify controlling loop that we've left
+                        #   the keyboard
+                        self.selected_key["y"] += 1
+                        return Keyboard.EXIT_TOP
 
         elif input == Keyboard.ENTER_LEFT:
             # User has returned to the keyboard along the left edge
@@ -317,8 +330,13 @@ class Keyboard:
             # Keep the last x position that was selected.
             self.selected_key["y"] = len(self.keys) - 1
             if self.selected_key["x"] > len(self.keys[self.selected_key["y"]]) - 1:
-                # Can't enter here. Jump up a row
-                self.selected_key["y"] -= 1
+                if self.selected_key["x"] - 1 == len(self.keys[self.selected_key["y"]]) - 1 and \
+                        self.keys[self.selected_key["y"]][-1].size == 2:
+                    # The last, adjacent key in this row is a double. Go ahead and select it
+                    self.selected_key["x"] = self.selected_key["x"] - 1
+                else:
+                    # Can't enter here. Jump up a row
+                    self.selected_key["y"] -= 1
 
         # Render the newly self.selected_key letter
         key = self.keys[self.selected_key["y"]][self.selected_key["x"]]
