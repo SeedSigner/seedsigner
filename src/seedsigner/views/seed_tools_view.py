@@ -252,7 +252,7 @@ class SeedToolsView(View):
             input = View.buttons.wait_for(
                 [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3],
                 check_release=True,
-                release_keys=[B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY2]
+                release_keys=[B.KEY_PRESS, B.KEY2]
             )
 
             if previous_button_is_active:
