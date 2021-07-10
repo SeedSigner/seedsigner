@@ -526,7 +526,9 @@ class SeedToolsView(View):
         # Start the interactive update loop
         while True:
             input = View.buttons.wait_for(
-                [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3]
+                [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3],
+                check_release=True,
+                release_keys=[B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3]
             )
 
             keyboard_swap = False
