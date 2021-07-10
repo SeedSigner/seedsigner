@@ -407,6 +407,46 @@ class SeedToolsView(View):
 
 
     def draw_passphrase_keyboard_entry(self):
+        def render_right_panel(button1_text="ABC", button2_text="!@#"):
+            # Render the up/down arrow buttons for KEY1 and KEY3
+            row_height = 28
+            right_button_left_margin = 10
+            right_button_width = right_panel_buttons_width - right_button_left_margin
+            font_padding_right = 2
+            font_padding_top = 1
+            key_x = View.canvas_width - right_button_width
+            key_y = int(View.canvas_height - row_height) / 2 - 1 - 60
+
+            background_color = "#111"
+            font_color = View.color
+            font = View.ROBOTOCONDENSED_BOLD_24
+            tw, th = font.getsize(button1_text)
+            if button1_is_active:
+                background_color = View.color
+                font_color = "#111"
+            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
+            View.draw.text((View.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button1_text, fill=font_color)
+
+            background_color = "#111"
+            font_color = View.color
+            tw, th = font.getsize(button2_text)
+            if button2_is_active:
+                background_color = View.color
+                font_color = "#111"
+            key_y = int(View.canvas_height - row_height) / 2 - 1
+            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
+            View.draw.text((View.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button2_text, fill=font_color)
+
+            background_color = "#111"
+            font_color = View.color
+            button3_text = "Save"
+            tw, th = font.getsize(button3_text)
+            if button3_is_active:
+                background_color = View.color
+                font_color = "#111"
+            key_y = int(View.canvas_height - row_height) / 2 - 1 + 60
+            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
+            View.draw.text((View.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button3_text, fill=font_color)
 
         # Clear the screen
         View.draw.rectangle((0,0, View.canvas_width,View.canvas_height), fill="black")
@@ -419,27 +459,67 @@ class SeedToolsView(View):
         self.passphrase = " "
 
         # Set up the keyboard params
-        right_key_nav_width = 50
-        keyboard_width = View.canvas_width - right_key_nav_width
-        text_entry_display_height = 39
+        right_panel_buttons_width = 60
 
-        keyboard = Keyboard(View.draw,
-                            charset="1234567890" + "".join(SeedToolsView.ALPHABET),
-                            rows=4,
-                            cols=10,
-                            rect=(0, int(1.5 * text_entry_display_height), keyboard_width,240),
-                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT])
+        # render top title banner
+        font = View.ROBOTOCONDENSED_REGULAR_20
+        title = "Enter Passphrase"
+        title_top_padding = 0
+        title_bottom_padding = 10
+        tw, th = font.getsize(title)
+        View.draw.text((int(View.canvas_width - tw) / 2, title_top_padding), text=title, font=font, fill=View.color)
+        title_height = th + title_top_padding + title_bottom_padding
 
-        # Render the top text entry display
+        # Render the live text entry display
+        font = View.ROBOTOCONDENSED_REGULAR_28
+        tw, th = font.getsize("!\"#$%&'()*+,=./;:<>?@[]|-_`~ ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 1234567890")  # All possible chars for max range
+        text_entry_side_padding = 0
+        text_entry_top_padding = 1
+        text_entry_bottom_padding = 10
+        text_entry_top_y = title_height + text_entry_top_padding
+        text_entry_bottom_y = text_entry_top_y + 3 + th + 3
         text_entry_display = TextEntryDisplay(
             View.draw,
-            rect=(self.previous_button_width,0, View.canvas_width,text_entry_display_height),
-            font=View.ROBOTOCONDENSED_BOLD_26,
+            rect=(text_entry_side_padding,text_entry_top_y, View.canvas_width - right_panel_buttons_width - 1, text_entry_bottom_y),
+            font=font,
             font_color=View.color,
             is_centered=False,
+            has_outline=True,
             cur_text=''.join(self.passphrase)
         )
         text_entry_display.render()
+
+        keyboard_start_y = text_entry_bottom_y + text_entry_bottom_padding
+        keyboard_abc = Keyboard(View.draw,
+                            charset="1234567890" + "".join(SeedToolsView.ALPHABET),
+                            rows=4,
+                            cols=10,
+                            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
+                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT])
+        keyboard_ABC = Keyboard(View.draw,
+                            charset="1234567890" + "".join(SeedToolsView.ALPHABET).upper(),
+                            rows=4,
+                            cols=10,
+                            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
+                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+                            render_now=False)
+        keyboard_symbol = Keyboard(View.draw,
+                            charset="1234567890" + "!\"#$%&'()*+,=./;:<>?@[]|-_`~",
+                            rows=4,
+                            cols=10,
+                            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
+                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+                            render_now=False)
+
+        button1_is_active = False
+        button2_is_active = False
+        button3_is_active = False
+        KEYBOARD__LOWERCASE = 0
+        KEYBOARD__UPPERCASE = 1
+        KEYBOARD__SYMBOL = 2
+        cur_keyboard_type = KEYBOARD__LOWERCASE
+        cur_keyboard = keyboard_abc
+        render_right_panel()
 
         View.DispShowImage()
 
@@ -449,7 +529,34 @@ class SeedToolsView(View):
                 [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3]
             )
 
-            ret_val = keyboard.update_from_input(input)
+            keyboard_swap = False
+            if input == B.KEY1:
+                if cur_keyboard_type == KEYBOARD__LOWERCASE:
+                    keyboard_ABC.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard_type = KEYBOARD__UPPERCASE
+                    cur_keyboard = keyboard_ABC
+                    render_right_panel(button1_text="abc", button2_text="!@#")
+                else:
+                    keyboard_abc.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard_type = KEYBOARD__LOWERCASE
+                    cur_keyboard = keyboard_abc
+                    render_right_panel(button1_text="ABC", button2_text="!@#")
+                cur_keyboard.render_keys()
+                keyboard_swap = True
+                ret_val = cur_keyboard.get_selected_key()
+
+            elif input == B.KEY2:
+                if cur_keyboard_type in [KEYBOARD__LOWERCASE, KEYBOARD__UPPERCASE]:
+                    keyboard_symbol.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard_type = KEYBOARD__SYMBOL
+                    cur_keyboard = keyboard_symbol
+                    cur_keyboard.render_keys()
+                    render_right_panel(button1_text="abc", button2_text="")
+                    keyboard_swap = True
+                    ret_val = cur_keyboard.get_selected_key()
+
+            else:
+                ret_val = cur_keyboard.update_from_input(input)
 
             if ret_val in Keyboard.EXIT_DIRECTIONS:
                 self.render_previous_button(highlight=True)
@@ -465,7 +572,6 @@ class SeedToolsView(View):
                     #   in the live text entry display at the top.
                     self.passphrase = self.passphrase[:-1]
                     self.passphrase += " "
-
 
             elif input == B.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
                 # User has locked in the current letter
@@ -489,7 +595,7 @@ class SeedToolsView(View):
                     self.passphrase += ret_val
                     self.passphrase += " "
 
-            elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN]:
+            elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN] or keyboard_swap:
                 # Live joystick movement; haven't locked this new letter in yet.
                 # Replace the last letter w/the currently selected one. Only update
                 # the active keyboard keys when a selection has been locked in

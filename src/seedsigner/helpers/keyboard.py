@@ -88,7 +88,8 @@ class Keyboard:
                  rect=(0,40, 240,240),
                  font=None,
                  additional_keys=[KEY_BACKSPACE],
-                 auto_wrap=[WRAP_TOP, WRAP_BOTTOM, WRAP_LEFT, WRAP_RIGHT]):
+                 auto_wrap=[WRAP_TOP, WRAP_BOTTOM, WRAP_LEFT, WRAP_RIGHT],
+                 render_now=True):
         """
             `auto_wrap` specifies which edges the keyboard is allowed to loop back when
             navigating past the end.
@@ -168,11 +169,12 @@ class Keyboard:
                     ))
                     cur_x += self.x_width + self.x_gap
 
-        # Render the keys
-        self.render_keys()
+        if render_now:
+            # Render the keys
+            self.render_keys()
 
-        # Render the initial highlighted character
-        self.update_from_input(input=None)
+            # Render the initial highlighted character
+            self.update_from_input(input=None)
 
 
     def update_active_keys(self, active_keys):
@@ -341,6 +343,27 @@ class Keyboard:
         raise Exception(f"""`selected_letter` "{selected_letter}" not found in keyboard""")
 
 
+    def set_selected_key_indices(self, x, y):
+        # De-select the current selected_key
+        self.keys[self.selected_key["y"]][self.selected_key["x"]].is_selected = False
+
+        if y < len(self.keys):
+            self.selected_key["y"] = y
+        else:
+            self.selected_key["y"] = len(self.keys) - 1
+
+        if x < len(self.keys[self.selected_key["y"]]):
+            self.selected_key["x"] = x
+        else:
+            self.selected_key["x"] = len(self.keys[self.selected_key["y"]]) - 1
+
+        # Select the new selected_key
+        self.keys[self.selected_key["y"]][self.selected_key["x"]].is_selected = True
+
+
+    def get_selected_key(self):
+        return self.keys[self.selected_key["y"]][self.selected_key["x"]].letter
+
 
 @dataclass
 class TextEntryDisplay:
@@ -349,6 +372,7 @@ class TextEntryDisplay:
     font: any
     font_color: any
     is_centered: bool = True
+    has_outline: bool = False
     cur_text: str = " "
 
 
@@ -356,7 +380,10 @@ class TextEntryDisplay:
         """ Render the live text entry display """
         if cur_text:
             self.cur_text = cur_text
-        self.draw.rectangle(self.rect, fill="black")
+        if self.has_outline:
+            self.draw.rectangle(self.rect, fill="black", outline=self.font_color)
+        else:
+            self.draw.rectangle(self.rect, fill="black")
 
         cursor_block_width = 18
         cursor_block_height = 33
@@ -366,11 +393,20 @@ class TextEntryDisplay:
         if self.is_centered:
             word_offset = self.rect[0] + int(self.rect[2] - self.rect[0] - tw - cursor_block_width)/2
         else:
-            word_offset = self.rect[0]
-        self.draw.text((word_offset, self.rect[1] + 2), self.cur_text[:-1], fill=self.font_color, font=self.font)
+            word_offset = self.rect[0] + 3
+        cursor_block_offset = word_offset + tw - 1
+        if cursor_block_offset == self.rect[0]:
+            cursor_block_offset = self.rect[0] + 1
+
+        end_pos_x = cursor_block_offset + cursor_block_width
+        if end_pos_x >= self.rect[2]:
+            # Shift the display left
+            cursor_block_offset -= end_pos_x - self.rect[2] + 1
+            word_offset -= end_pos_x - self.rect[2] + 1
+
+        self.draw.text((word_offset, self.rect[1] + 3), self.cur_text[:-1], fill=self.font_color, font=self.font)
 
         # Draw the highlighted cursor block
-        cursor_block_offset = word_offset + tw - 1
-        self.draw.rectangle((cursor_block_offset, self.rect[1] + 2, cursor_block_offset + cursor_block_width, cursor_block_height), fill="#111")
-        self.draw.text((cursor_block_offset + 1, self.rect[1] + 2), self.cur_text[-1], fill=self.font_color, font=self.font)
+        self.draw.rectangle((cursor_block_offset, self.rect[1] + 1, cursor_block_offset + cursor_block_width, self.rect[3] - 1), fill="#111")
+        self.draw.text((cursor_block_offset + 1, self.rect[1] + 3), self.cur_text[-1], fill=self.font_color, font=self.font)
 

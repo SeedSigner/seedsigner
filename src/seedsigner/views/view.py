@@ -43,6 +43,7 @@ class View:
     ROBOTOCONDENSED_BOLD_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 22)
     ROBOTOCONDENSED_BOLD_25 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 25)
     ROBOTOCONDENSED_BOLD_26 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 26)
+    ROBOTOCONDENSED_BOLD_28 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 28)
     ROBOTOCONDENSED_LIGHT_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Light.ttf"), 16)
     ROBOTOCONDENSED_LIGHT_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Light.ttf"), 24)
     ROBOTOCONDENSED_REGULAR_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 16)
@@ -50,6 +51,7 @@ class View:
     ROBOTOCONDENSED_REGULAR_22 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 22)
     ROBOTOCONDENSED_REGULAR_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 24)
     ROBOTOCONDENSED_REGULAR_26 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 26)
+    ROBOTOCONDENSED_REGULAR_28 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 28)
 
     RST = 27
     DC = 25
@@ -269,15 +271,19 @@ class View:
         # Set up the "back" arrow in the upper left
         arrow = "<"
         word_font = View.ROBOTOCONDENSED_BOLD_26
-        padding = 3
+        top_padding = -3
+        bottom_padding = 3
+        side_padding = 3
         tw, th = word_font.getsize(arrow)
-        self.previous_button_width = tw + 2 * padding
+        self.previous_button_width = tw + 2 * side_padding
         if highlight:
-            View.draw.rectangle((0,0, tw + 2 * padding, th + 2 * padding), fill=View.color)
-            View.draw.text((padding, padding), arrow, fill="black", font=word_font)
+            font_color = "black"
+            background_color = View.color
         else:
-            View.draw.rectangle((0,0, tw + 2 * padding, th + 2 * padding), fill="black")
-            View.draw.text((padding, padding), arrow, fill=View.color, font=word_font)
+            font_color = View.color
+            background_color = "black"
+        View.draw.rectangle((0,0, self.previous_button_width, th + top_padding + bottom_padding), fill=background_color)
+        View.draw.text((side_padding, top_padding), arrow, fill=font_color, font=word_font)
 
 
 

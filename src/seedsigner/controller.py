@@ -260,17 +260,17 @@ class Controller:
     ### Add a PassPhrase Menu
 
     def show_add_a_passphrase_tool(self):
-        if self.storage.num_of_saved_seeds() == 0:
-            self.menu_view.draw_modal(["Store a seed phrase", "prior to adding", "a passphrase"], "Error", "Right to Continue")
-            self.buttons.wait_for([B.KEY_RIGHT])
-            return Path.SEED_TOOLS_SUB_MENU
+        # if self.storage.num_of_saved_seeds() == 0:
+        #     self.menu_view.draw_modal(["Store a seed phrase", "prior to adding", "a passphrase"], "Error", "Right to Continue")
+        #     self.buttons.wait_for([B.KEY_RIGHT])
+        #     return Path.SEED_TOOLS_SUB_MENU
 
-        ret_val = 0
-        ret_val = self.menu_view.display_saved_seed_menu(self.storage, 3, None)
-        if ret_val == 0:
-            return Path.SEED_TOOLS_SUB_MENU
+        # ret_val = 0
+        # ret_val = self.menu_view.display_saved_seed_menu(self.storage, 3, None)
+        # if ret_val == 0:
+        #     return Path.SEED_TOOLS_SUB_MENU
 
-        slot_num = ret_val
+        # slot_num = ret_val
 
         # display a tool to pick letters/numbers to make a passphrase
         # passphrase = self.seed_tools_view.display_gather_passphrase_screen()
