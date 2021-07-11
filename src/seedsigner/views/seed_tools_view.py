@@ -532,6 +532,18 @@ class SeedToolsView(View):
             )
 
             keyboard_swap = False
+
+            # Check our two possible exit conditions
+            if input == B.KEY3:
+                # Save!
+                if self.passphrase != "" and self.passphrase != " ":
+                    return self.passphrase
+
+            elif input == B.KEY_PRESS and previous_button_is_active:
+                # Prev button clicked; return empty string to signal cancel.
+                return ""
+
+            # Check for keyboard swaps
             if input == B.KEY1:
                 if cur_keyboard_type == KEYBOARD__LOWERCASE:
                     keyboard_ABC.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
@@ -558,8 +570,25 @@ class SeedToolsView(View):
                     ret_val = cur_keyboard.get_selected_key()
 
             else:
+                # Process normal input
+                if input in [B.KEY_UP, B.KEY_DOWN] and previous_button_is_active:
+                    # We're navigating off the previous button
+                    previous_button_is_active = False
+                    self.render_previous_button(highlight=False)
+
+                    # Override the actual input w/an ENTER signal for the Keyboard
+                    if input == B.KEY_DOWN:
+                        input = Keyboard.ENTER_TOP
+                    else:
+                        input = Keyboard.ENTER_BOTTOM
+                elif input in [B.KEY_LEFT, B.KEY_RIGHT] and previous_button_is_active:
+                    # ignore
+                    continue
+
+
                 ret_val = cur_keyboard.update_from_input(input)
 
+            # Now process the result from the keyboard
             if ret_val in Keyboard.EXIT_DIRECTIONS:
                 self.render_previous_button(highlight=True)
                 previous_button_is_active = True
