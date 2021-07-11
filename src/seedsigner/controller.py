@@ -12,37 +12,77 @@ from .models import (SeedStorage, SpecterDesktopWallet, BlueWallet,
 
 
 
+
 class Controller:
-    
+    """
+        The Controller is a globally available singleton that maintains SeedSigner state.
+
+        It only makes sense to ever have a single Controller instance so it is
+        implemented here as a singleton. One departure from the typical singleton pattern
+        is the addition of a `configure_instance()` call to pass run-time settings into
+        the Controller.
+
+        Any code that needs to interact with the one and only Controller can just run:
+        ```
+        from seedsigner.controller import Controller
+        controller = Controller.get_instance()
+        ```
+        Note: In many/most cases you'll need to do the Controller import within a method
+        rather than at the top in order avoid circular imports.
+    """
     VERSION = "0.4.2"
 
-    def __init__(self, config) -> None:
-        controller = self
+    _instance = None
+
+
+    def __init__(self):
+        # Singleton pattern must prevent normal instantiation
+        raise Exception("Cannot directly instantiate the Controller. Access via Controller.get_instance()")
+
+
+    @classmethod
+    def get_instance(cls):
+        # This is the only way to access the one and only Controller
+        if cls._instance:
+            return cls._instance
+        else:
+            raise Exception("Must call Controller.configure_instance(config) first")
+
+
+    @classmethod
+    def configure_instance(cls, config=None):
+        # Must be called before the first get_instance() call
+        if cls._instance:
+            raise Exception("Instance already configured")
+
+        # Instantiate the one and only Controller instance
+        controller = cls.__new__(cls)
+        cls._instance = controller
 
         # settings
-        self.DEBUG = config.getboolean("system", "DEBUG")
-        self.color = config["display"]["TEXT_COLOR"]
+        controller.DEBUG = config.getboolean("system", "DEBUG")
+        controller.color = config["display"]["TEXT_COLOR"]
 
         # Input Buttons
-        self.buttons = Buttons()
+        controller.buttons = Buttons()
 
         # models
-        self.storage = SeedStorage()
-        self.wallet_klass = globals()["SpecterDesktopWallet"]
-        self.wallet = self.wallet_klass()
+        controller.storage = SeedStorage()
+        controller.wallet_klass = globals()["SpecterDesktopWallet"]
+        controller.wallet = controller.wallet_klass()
 
         # Views
-        self.menu_view = MenuView(controller)
-        self.seed_tools_view = SeedToolsView(controller)
-        self.io_test_view = IOTestView(controller)
-        self.signing_tools_view = SigningToolsView(controller, self.storage)
-        self.settings_tools_view = SettingsToolsView(controller)
+        controller.menu_view = MenuView()
+        controller.seed_tools_view = SeedToolsView()
+        controller.io_test_view = IOTestView()
+        controller.signing_tools_view = SigningToolsView(controller.storage)
+        controller.settings_tools_view = SettingsToolsView()
 
         # Then start seperate background camera process with two queues for communication
         # CameraProcess handles connecting to camera hardware and passing back barcode data via from camera queue
-        self.from_camera_queue = Queue()
-        self.to_camera_queue = Queue()
-        p = Process(target=CameraProcess.start, args=(self.from_camera_queue, self.to_camera_queue))
+        controller.from_camera_queue = Queue()
+        controller.to_camera_queue = Queue()
+        p = Process(target=CameraProcess.start, args=(controller.from_camera_queue, controller.to_camera_queue))
         p.start()
 
 

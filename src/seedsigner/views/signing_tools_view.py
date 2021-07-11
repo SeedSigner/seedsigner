@@ -8,8 +8,8 @@ import time
 
 class SigningToolsView(View):
 
-    def __init__(self, controller, seed_storage) -> None:
-        View.__init__(self, controller)
+    def __init__(self, seed_storage) -> None:
+        View.__init__(self)
         self.seed_storage = seed_storage
 
     ###

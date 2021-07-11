@@ -5,8 +5,8 @@ import pathlib
 import spidev as SPI
 import time
 from multiprocessing import Queue
-
 from seedsigner.helpers import B, ST7789
+
 
 ### Generic View Class to Instatiate Display
 ### Static Class variables are used for display
@@ -57,7 +57,6 @@ class View:
     DC = 25
     BL = 24
 
-    controller = None
     buttons = None
     canvas_width = 0
     canvas_height = 0
@@ -68,12 +67,13 @@ class View:
     disp = None
     previous_button_width = None
 
-    def __init__(self, controller) -> None:
+    def __init__(self) -> None:
+        # Import here to avoid circular imports
+        from seedsigner.controller import Controller
+        self.controller = Controller.get_instance()
 
-        # Global Singleton
-        View.controller = controller
-        View.buttons = View.controller.buttons
-        View.color = View.controller.color
+        View.buttons = self.controller.buttons
+        View.color = self.controller.color
 
         View.canvas_width = View.WIDTH
         View.canvas_height = View.HEIGHT

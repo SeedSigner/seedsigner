@@ -7,10 +7,11 @@ from seedsigner.models import SeedStorage
 import time
 import re
 
+
 class MenuView(View):
 
-    def __init__(self, controller) -> None:
-        View.__init__(self, controller)
+    def __init__(self) -> None:
+        View.__init__(self)
 
         self.menu_lines = []
         self.selected_menu_num = 1
