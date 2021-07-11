@@ -1,5 +1,5 @@
 embit==0.4.2
-imutils==0.5.4
+picamera==1.13
 Pillow==8.2.0
 pyzbar==0.1.8
 qrcode==6.1

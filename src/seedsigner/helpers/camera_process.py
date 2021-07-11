@@ -6,33 +6,38 @@ import time
 class CameraProcess:
 
     def start(out_queue, in_queue):
-
         print("CameraProcess start")
 
-        from imutils.video import VideoStream
+        import_start_time = int(time.time() * 1000)
+        from .pivideostream import PiVideoStream
         from pyzbar import pyzbar
+        import_end_time = int(time.time() * 1000)
 
-        print("CameraProcess finish import")
+        print(f"CameraProcess finish import: {import_end_time - import_start_time}ms")
 
-        running = True
+        is_running = True
 
-        while running == True:
-
-            camera_on = False
+        while is_running:
+            is_camera_on = False
 
             msg = []
             msg = in_queue.get()
 
             if msg[0] == "start":
                 print("start camera!!")
-                vs = VideoStream(usePiCamera=True,resolution=(512, 384),framerate=12).start()  # For Pi Camera
-                time.sleep(2.0)
+                vs = PiVideoStream(resolution=(512, 384),framerate=12).start()  # For Pi Camera
 
                 msg[0] = ""
-                camera_on = True
+                is_camera_on = True
 
-                while camera_on:
+                while is_camera_on:
                     frame = vs.read()
+
+                    if frame is None:
+                        # Camera isn't returning data yet
+                        time.sleep(0.125)
+                        continue
+
                     barcodes = pyzbar.decode(frame)
                     for barcode in barcodes:
                         data = barcode.data.decode("utf-8")
@@ -48,10 +53,14 @@ class CameraProcess:
 
                     if msg[0] == "stop":
                         vs.stop()
-                        camera_on = False
+                        is_camera_on = False
 
             elif msg[0] == "stop":
                 print("stop camera!!")
+
+            time.sleep(0.25)    # No need to poll all that frequently
+
+
 
 class CameraPoll(object):
 
@@ -61,20 +70,20 @@ class CameraPoll(object):
         self.function   = function
         self.args       = args
         self.kwargs     = kwargs
-        self.is_running = False
+        self.is_is_running = False
         self.start()
 
     def _run(self):
-        self.is_running = False
+        self.is_is_running = False
         self.start()
         self.function(*self.args, **self.kwargs)
 
     def start(self):
-        if not self.is_running:
+        if not self.is_is_running:
             self._timer = Timer(self.interval, self._run)
             self._timer.start()
-            self.is_running = True
+            self.is_is_running = True
 
     def stop(self):
         self._timer.cancel()
-        self.is_running = False
+        self.is_is_running = False
