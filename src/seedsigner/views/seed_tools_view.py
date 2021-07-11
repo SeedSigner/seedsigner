@@ -406,7 +406,7 @@ class SeedToolsView(View):
             View.DispShowImage()
 
 
-    def draw_passphrase_keyboard_entry(self):
+    def draw_passphrase_keyboard_entry(self, existing_passphrase = ""):
         def render_right_panel(button1_text="ABC", button2_text="!@#"):
             # Render the up/down arrow buttons for KEY1 and KEY3
             row_height = 28
@@ -456,7 +456,10 @@ class SeedToolsView(View):
 
         # Have to ensure that we don't carry any effects from a previous run
         # TODO: This shouldn't be a member var
-        self.passphrase = " "
+        if existing_passphrase:
+            self.passphrase = existing_passphrase
+        else:
+            self.passphrase = " "
 
         # Set up the keyboard params
         right_panel_buttons_width = 60
@@ -757,10 +760,12 @@ class SeedToolsView(View):
     ###
     ### Display Gather PassPhrase Screen
     ###
-    def display_gather_passphrase_screen(self, slot_num = 0) -> str:
+    def display_gather_passphrase_screen(self, existing_passphrase = "") -> str:
         self.reset()
         self.pass_letter = "a"
         self.pass_case_toggle = "lower"
+        if existing_passphrase != "":
+            self.passphrase = existing_passphrase
         self.draw_gather_passphrase()
 
         # Wait for Button Input (specifically menu selection/press)
@@ -777,11 +782,13 @@ class SeedToolsView(View):
             elif input == B.KEY2:
                 ret_val = self.gather_passphrase_toggle()
             elif input == B.KEY3:
-                r = self.controller.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Passphrase?")
-                if r == 1: # Yes
-                    return self.passphrase
-                else:
+                r = self.controller.menu_view.display_generic_selection_menu(["Edit Passphrase", "Save and Exit", "Exit without Saving"], "Passphrase Actions", self.passphrase)
+                if r == 1:
                     ret_val = True
+                elif r == 2: # Save and Exit
+                    return self.passphrase
+                elif r == 3:
+                    return ""
 
             if ret_val == False:
                 return ""
@@ -814,8 +821,8 @@ class SeedToolsView(View):
             View.draw.text((53,90), "characters reached", fill="ORANGE", font=View.IMPACT18)
 
         # Save Button
-        c_x_offset = 240 - View.IMPACT25.getsize("Save")[0]
-        View.draw.text((c_x_offset , 172), "Save", fill="ORANGE", font=View.IMPACT22)
+        c_x_offset = 240 - View.IMPACT25.getsize("Exit")[0]
+        View.draw.text((c_x_offset , 172), "Exit", fill="ORANGE", font=View.IMPACT22)
 
         # Toglle Button
         x = 240 - View.IMPACT20.getsize(self.pass_case_toggle)[0]
@@ -1182,7 +1189,7 @@ class SeedToolsView(View):
             for i in range(0, max_range):
                 draw.text(word_positions[i], f"{i + 1 + word_index_offset}: " + seed_phrase[i + word_index_offset] , fill=View.color, font=View.IMPACT22)
 
-            if passphrase:
+            if passphrase and ((len(seed_phrase) > 12 and page_num == 2) or (len(seed_phrase) <= 12 and page_num == 1)):
                 disp_passphrase = "Passphrase: ************"
                 tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
                 draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.IMPACT18)
@@ -1401,7 +1408,7 @@ class SeedToolsView(View):
                 index = int(data[0][i * 4: (i*4) + 4])
                 word = bip39.WORDLIST[index]
                 self.words.append(word)
-            self.buttons.trigger_override()
+            self.buttons.trigger_override(True)
         except Exception as e:
             pass
 
@@ -1413,7 +1420,7 @@ class SeedToolsView(View):
         # First get blocking, this way it's clear when the camera is ready for the end user
         self.controller.from_camera_queue.get()
 
-        self.controller.menu_view.draw_modal(["Scanning..."], "Left to cancel") # TODO: Move to Controller
+        self.controller.menu_view.draw_modal(["Scanning..."], "Seed QR" ,"Left to Cancel") # TODO: Move to Controller
 
         try:
             self.camera_loop_timer = CameraPoll(0.05, self.parse_seed_qr_data)
@@ -1426,9 +1433,10 @@ class SeedToolsView(View):
             print(f"Stopping QR code scanner")
             self.camera_loop_timer.stop()
             self.controller.to_camera_queue.put(["stop"])
-            self.buttons.trigger_override()
 
-        return self.words
+        time.sleep(0.5) # give time for camera loop to complete before returning data
+        self.buttons.trigger_override(True)
+        return self.words[:]
 
 
     ###

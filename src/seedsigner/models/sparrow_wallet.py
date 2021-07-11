@@ -19,15 +19,10 @@ from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
 import re
 import textwrap
 
-class SparrowMultiSigWallet(Wallet):
+class SparrowWallet(Wallet):
 
-    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, hardened_derivation = "m/48h/0h/0h/2h") -> None:
-        if current_network == "main":
-            Wallet.__init__(self, current_network, qr_density, "m/48h/0h/0h/2h")
-        elif current_network == "test":
-            Wallet.__init__(self, current_network, qr_density, "m/48h/1h/0h/2h")
-        else:
-            Wallet.__init__(self, current_network, qr_density, hardened_derivation)
+    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, policy = "PKWSH") -> None:
+        Wallet.__init__(self, current_network, qr_density, policy)
 
         self.blink = False
 
@@ -36,27 +31,13 @@ class SparrowMultiSigWallet(Wallet):
         self.ur_decoder = URDecoder()
 
     def get_name(self) -> str:
-        return "Sparrow Multisig"
-
-    # def import_qr(self) -> str:
-    #     xpubstring = '{"xfp": "' + hexlify(self.fingerprint).decode('utf-8') + '","p2wsh": "' + self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]) + '","p2wsh_deriv": "' + self.hardened_derivation[1:].replace("h", "'") + '"}'
-
-    #     return xpubstring
-
-    def import_qr(self) -> str:
-        xpubstring = "[%s%s]%s" % (
-             hexlify(self.fingerprint).decode('utf-8'),
-             self.hardened_derivation[1:],
-             self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]))
-
-        return xpubstring
+        return "Sparrow"
 
     def parse_psbt(self, raw_psbt) -> bool:
         base64_psbt = a2b_base64(raw_psbt)
         self.tx = psbt.PSBT.parse(base64_psbt)
 
-        (self.inp_amount, policy) = self.input_amount(self.tx)
-        (self.change, self.fee, self.spend, self.destinationaddress) = self.change_fee_spend_amounts(self.tx, self.inp_amount, policy, self.current_network)
+        self._parse_psbt()
 
         return True
 

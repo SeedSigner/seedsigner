@@ -42,6 +42,7 @@ class Buttons:
     def wait_for(self, keys=[], check_release=True, release_keys=[]) -> int:
         if not release_keys:
             release_keys = keys
+        self.override_ind = False
         while True:
             for key in keys:
                 if not check_release or ((check_release and key in release_keys and B.release_lock) or check_release and key not in release_keys):
@@ -100,12 +101,18 @@ class Buttons:
         B.release_lock = True
 
 
-    def trigger_override(self) -> bool:
+    def trigger_override(self, force_release = False) -> bool:
+        if force_release:
+            B.release_lock = True
+
         if not self.override_ind:
             self.override_ind = True
             return True
         return False
 
+    def force_release(self) -> bool:
+        B.release_lock = True
+        return True
 
     def check_for_low(self, key) -> bool:
         return self.GPIO.input(key) == self.GPIO.LOW

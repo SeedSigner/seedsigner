@@ -24,12 +24,12 @@ class MenuView(View):
     def display_main_menu(self, sub_menu = None) -> int:
         ret_val = 0
         input = 0
-        lines = ["Seed Tools", "Signing Tools", "Settings", "Power OFF Device"]
+        lines = ["Seed Tools", "Sign a Transaction", "Settings", "Power Off"]
 
         if sub_menu == Path.SEED_TOOLS_SUB_MENU:
             return self.display_seed_tools_menu()
         elif sub_menu == Path.SIGNING_TOOLS_SUB_MENU:
-            return self.display_signing_tools_menu()
+            return Path.SIGN_TRANSACTION
         elif sub_menu == Path.SETTINGS_SUB_MENU:
             return self.display_settings_menu()
         else:
@@ -49,7 +49,7 @@ class MenuView(View):
                 if self.selected_menu_num == 1:
                     ret_val = self.display_seed_tools_menu()
                 elif self.selected_menu_num == 2:
-                    ret_val = self.display_signing_tools_menu()
+                    ret_val = Path.SIGN_TRANSACTION
                 elif self.selected_menu_num == 3:
                     ret_val = self.display_settings_menu()
                 elif self.selected_menu_num == 4:
@@ -70,7 +70,7 @@ class MenuView(View):
             else:
                 seed_storage_line = "View Seeds (temp)"
 
-        lines = ["... [ Return to Main ]", "Generate Word 12 / 24", "Create a Seed w/ Dice", seed_storage_line, "Add Passphrase", "Delete Passphrase"]
+        lines = ["... [ Return to Main ]", "Input a Seed", "Add/Remove Passphrase", "Generate an xPub", "Generate Work 12/24", "Generate a Seed with Dice"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -85,20 +85,20 @@ class MenuView(View):
                 if self.selected_menu_num == 1:
                     return Path.MAIN_MENU
                 elif self.selected_menu_num == 2:
-                    return Path.GEN_LAST_WORD
-                elif self.selected_menu_num == 3:
-                    return Path.DICE_GEN_SEED
-                elif self.selected_menu_num == 4:
                     return Path.SAVE_SEED
-                elif self.selected_menu_num == 5:
+                elif self.selected_menu_num == 3:
                     return Path.PASSPHRASE_SEED
+                elif self.selected_menu_num == 4:
+                    return Path.GEN_XPUB
+                elif self.selected_menu_num == 5:
+                    return Path.GEN_LAST_WORD
                 elif self.selected_menu_num == 6:
-                    return Path.DELETE_PASSPHRASE
+                    return Path.DICE_GEN_SEED
 
     ### Signing Tools Menu
 
     def display_signing_tools_menu(self) -> None:
-        lines = ["... [ Return to Main ]", "Generate XPUB", "Sign a Transaction"]
+        lines = ["... [ Return to Main ]", "Generate xPub", "Sign a Transaction"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -121,14 +121,16 @@ class MenuView(View):
     ### Settings Menu
 
     def display_settings_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Input / Output Tests", "Current Network: <network>", "Wallet: <wallet>", "QR Density: <density>", "Version Info", "Donate to SeedSigner"]
+        lines = ["... [ Return to Main ]", "Input / Output Tests", "Wallet: <wallet>", "Wallet Policy: <policy>", "Current Network: <network>", "QR Density: <density>", "Version Info", "Donate to SeedSigner"]
         input = 0
         
-        lines[2] = lines[2].replace("<network>", self.controller.wallet.get_network())
-        lines[3] = lines[3].replace("<wallet>", self.controller.wallet.get_name())
-        lines[4] = lines[4].replace("<density>", self.controller.wallet.get_qr_density_name())
+        lines[2] = lines[2].replace("<wallet>", self.controller.wallet.get_name())
+        lines[3] = lines[3].replace("<policy>", self.controller.wallet.get_wallet_policy_name())
+        lines[4] = lines[4].replace("<network>", self.controller.wallet.get_network())
+        lines[5] = lines[5].replace("<density>", self.controller.wallet.get_qr_density_name())
 
         # Draw Menu
+        self.selected_menu_num = 1
         self.draw_menu(lines, 1)
 
         # Wait for Button Input (specifically menu selection/press)
@@ -144,21 +146,24 @@ class MenuView(View):
                 elif self.selected_menu_num == 2:
                     return Path.IO_TEST_TOOL
                 elif self.selected_menu_num == 3:
-                    return Path.CURRENT_NETWORK
-                elif self.selected_menu_num == 4:
                     return Path.WALLET
+                elif self.selected_menu_num == 4:
+                    return Path.WALLET_POLICY
                 elif self.selected_menu_num == 5:
-                    return Path.QR_DENSITY_SETTING
+                    return Path.CURRENT_NETWORK
                 elif self.selected_menu_num == 6:
-                    return Path.VERSION_INFO
+                    return Path.QR_DENSITY_SETTING
                 elif self.selected_menu_num == 7:
+                    return Path.VERSION_INFO
+                elif self.selected_menu_num == 8:
                     return Path.DONATE
         raise Exception("Unhandled case")
 
     ### Generic Single Menu Selection (returns 1,2,3,4,5,6 ...)
 
     def display_generic_selection_menu(self, lines = [], title = None, bottom = None) -> int:
-        self.draw_menu(lines, 1, title, bottom)
+        self.selected_menu_num = 1
+        self.draw_menu(lines, 1, title, bottom, True)
 
         while True:
             input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
@@ -268,7 +273,7 @@ class MenuView(View):
 
     ### Generic Draw Menu Method
     # TODO: Optimize updates by just redrawing the no-longer highlighted line and the newly highlighted line
-    def draw_menu(self, lines, selected_menu_num = 1, title = None, bottom = None) -> None:
+    def draw_menu(self, lines, selected_menu_num = 1, title = None, bottom = None, force_redraw = False) -> None:
         if title == None:
             t = "SeedSigner  v" + self.controller.VERSION
         else:
@@ -289,10 +294,12 @@ class MenuView(View):
                     b = "Page 2 of 3"
                 elif selected_menu_num >= 11 and selected_menu_num <= 15:
                     b = "Page 3 of 3"
+            else:
+                b = "Press Control Stick to Select"
         else:
             b = bottom
 
-        if lines != self.menu_lines or selected_menu_num != self.selected_menu_num:
+        if lines != self.menu_lines or selected_menu_num != self.selected_menu_num or force_redraw == True:
             #Menu has changed, redraw
 
             View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
