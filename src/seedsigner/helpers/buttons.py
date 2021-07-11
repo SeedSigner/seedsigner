@@ -35,7 +35,7 @@ class Buttons:
         self.cur_input = None           # Track which direction or button was last pressed
         self.cur_input_started = None   # Track when that input began
         self.last_input_time = int(time.time() * 1000)  # How long has it been since the last input?
-        self.first_repeat_threshold = 100  # Long-press time required before returning continuous input
+        self.first_repeat_threshold = 120  # Long-press time required before returning continuous input
         self.next_repeat_threshold = 250  # Amount of time where we no longer consider input a continuous hold
 
 
