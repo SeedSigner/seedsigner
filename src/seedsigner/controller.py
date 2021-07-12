@@ -480,11 +480,19 @@ class Controller:
         if raw_pbst == "nodata":
             return Path.MAIN_MENU
         if raw_pbst == "invalid":
-            self.menu_view.draw_modal(["QR Format Unexpected", "Check Wallet in Settings"], "", "RIGHT to EXIT")
+            self.menu_view.draw_modal(["QR Format Unexpected", "Check Wallet in Settings"], "", "Right to Exit")
+            input = self.buttons.wait_for([B.KEY_RIGHT])
+            return Path.MAIN_MENU
+        if raw_pbst == "invalidpsbt":
+            self.menu_view.draw_modal(["PSBT UR 2.0 Decoding Error", "try again"], "", "Right to Exit")
             input = self.buttons.wait_for([B.KEY_RIGHT])
             return Path.MAIN_MENU
         self.menu_view.draw_modal(["Parsing PSBT ..."])
-        self.wallet.parse_psbt(raw_pbst)
+        parse_status = self.wallet.parse_psbt(raw_pbst)
+        if parse_status == False:
+            self.menu_view.draw_modal(["PSBT Parsing Failed"], "", "Right to Exit")
+            input = self.buttons.wait_for([B.KEY_RIGHT])
+            return Path.MAIN_MENU
 
         # show transaction information before sign
         self.signing_tools_view.display_transaction_information(self.wallet)

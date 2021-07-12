@@ -21,11 +21,12 @@ class SpecterDesktopWallet(Wallet):
         return "Specter Desktop"
 
     def parse_psbt(self, raw_psbt) -> bool:
-
-        base64_psbt = a2b_base64(raw_psbt)
-        self.tx = psbt.PSBT.parse(base64_psbt)
-
-        self._parse_psbt()
+        try:
+            base64_psbt = a2b_base64(raw_psbt)
+            self.tx = psbt.PSBT.parse(base64_psbt)
+            self._parse_psbt()
+        except Exception:
+            return False
 
         return True
 
