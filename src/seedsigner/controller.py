@@ -129,6 +129,8 @@ class Controller:
                 ret_val = self.show_generate_last_word_tool()
             elif ret_val == Path.DICE_GEN_SEED:
                 ret_val = self.show_create_seed_with_dice_tool()
+            elif ret_val == Path.IMAGE_GEN_SEED:
+                ret_val = self.show_create_seed_with_image_tool()
             elif ret_val == Path.SAVE_SEED:
                 ret_val = self.show_store_a_seed_tool()
             elif ret_val == Path.PASSPHRASE_SEED:
@@ -247,6 +249,37 @@ class Controller:
 
         return Path.MAIN_MENU
 
+    def show_create_seed_with_image_tool(self) -> int:
+        seed_phrase = []
+        ret_val = True
+
+        while True:
+            seed_phrase = self.seed_tools_view.seed_phrase_from_camera_image()
+            if len(seed_phrase) > 0:
+                break
+            else:
+                return Path.SEED_TOOLS_SUB_MENU
+
+        # display seed phrase (24 words)
+        while True:
+            ret_val = self.seed_tools_view.display_seed_phrase(seed_phrase, show_qr_option=True)
+            if ret_val == True:
+                break
+            else:
+                # no-op; can't back out of the seed phrase view
+                pass
+
+        # Ask to save seed
+        if self.storage.slot_avaliable():
+            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Seed?")
+            if r == 1: #Yes
+                slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
+                if slot_num in (1,2,3):
+                    self.storage.save_seed_phrase(seed_phrase, slot_num)
+                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
+                    input = self.buttons.wait_for([B.KEY_RIGHT])
+
+        return Path.MAIN_MENU
     ### Store a seed (temp) Menu
 
     def show_store_a_seed_tool(self):

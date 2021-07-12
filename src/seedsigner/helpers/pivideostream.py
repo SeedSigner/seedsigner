@@ -2,6 +2,7 @@
 from picamera.array import PiRGBArray
 from picamera import PiCamera
 from threading import Thread
+import time
 
 
 # Modified from: https://github.com/jrosebr1/imutils
@@ -38,6 +39,7 @@ class PiVideoStream:
 			# if the thread indicator variable is set, stop the thread
 			# and resource camera resources
 			if self.stopped:
+				print("PiVideoStream: closing everything")
 				self.stream.close()
 				self.rawCapture.close()
 				self.camera.close()
@@ -50,3 +52,11 @@ class PiVideoStream:
 	def stop(self):
 		# indicate that the thread should be stopped
 		self.stopped = True
+
+		# while True:
+		# 	# Wait for camera to close before letting the thread get destroyed
+		# 	if not self.camera.closed:
+		# 		time.sleep(0.1)
+		# 	else:
+		# 		break
+

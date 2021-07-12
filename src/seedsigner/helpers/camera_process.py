@@ -1,19 +1,118 @@
 # External Dependencies
 from multiprocessing import Queue
 from threading import Timer
+import io
 import time
+import traceback
+import operator
 
-class CameraProcess:
 
-    def start(out_queue, in_queue):
-        print("CameraProcess start")
+class CameraProcess():
 
-        import_start_time = int(time.time() * 1000)
-        from .pivideostream import PiVideoStream
+    def scan_qr_code(in_queue, out_queue):
         from pyzbar import pyzbar
-        import_end_time = int(time.time() * 1000)
+        from .pivideostream import PiVideoStream
+        try:
+            print("Instantiate PiVideoStream start")
+            start_time = int(time.time() * 1000)
+            video_stream = PiVideoStream(resolution=(512, 384),framerate=12)
+            end_time = int(time.time() * 1000)
+            print(f"Instantiate PiVideoStream finish: {end_time - start_time}ms")
 
-        print(f"CameraProcess finish import: {import_end_time - import_start_time}ms")
+            print("video_stream start()")
+            start_time = int(time.time() * 1000)
+            video_stream.start()
+            end_time = int(time.time() * 1000)
+            print(f"video_stream start() done: {end_time - start_time}ms")
+
+            msg = [""]
+
+            while True:
+                # Loop the reader until we get a result or receive "stop"
+                frame = video_stream.read()
+
+                if frame is None:
+                    # Camera isn't returning data yet
+                    time.sleep(0.1)
+                    continue
+
+                barcodes = pyzbar.decode(frame)
+                for barcode in barcodes:
+                    data = barcode.data.decode("utf-8")
+                    out_queue.put([data])
+                    break
+                if len(barcodes) == 0:
+                    out_queue.put(["nodata"])
+
+                try:
+                    # Get any updates from the message queue, but don't wait
+                    msg = in_queue.get(block=False)
+                except:
+                    pass
+
+                if msg[0] == "stop":
+                    break
+        finally:
+            try:
+                video_stream.stop()
+            except:
+                pass
+
+
+
+    def capture_single_frame(in_queue, out_queue):
+        from PIL import Image
+        from PIL.ImageOps import autocontrast
+        import picamera
+
+        print("Instantiate PiCamera start")
+        start_time = int(time.time() * 1000)
+        # camera = picamera.PiCamera(resolution=(512, 384),framerate=12)
+        camera = picamera.PiCamera(resolution=(480, 480), framerate=8)
+        end_time = int(time.time() * 1000)
+        print(f"Instantiate PiCamera finish: {end_time - start_time}ms")
+
+        try:
+            print("camera ready")
+            out_queue.put(["ready"])
+
+            # Wait for the "click" command
+            while True:
+                try:
+                    msg = in_queue.get(block=False)
+                    break
+                except:
+                    time.sleep(0.1)
+
+            if msg[0] == "stop":
+                print("Received 'stop'")
+                return
+
+            elif msg[0] == "click":
+                print("Received 'click'")
+                stream = io.BytesIO()
+                camera.capture(stream, format='jpeg')
+
+                # "Rewind" the stream to the beginning so we can read its content
+                stream.seek(0)
+
+                out_queue.put([autocontrast(Image.open(stream)).rotate(90)])
+
+        except Exception as e:
+            traceback.print_exc()
+
+        finally:
+            camera.close()
+            print("Cleaned up capture_single_frame")
+
+
+    @classmethod
+    def start(cls, out_queue, in_queue):
+        print("CameraProcess start")
+        start_time = int(time.time() * 1000)
+        from .pivideostream import PiVideoStream
+        end_time = int(time.time() * 1000)
+        print(f"CameraProcess finish import: {end_time - start_time}ms")
 
         is_running = True
 
@@ -24,36 +123,10 @@ class CameraProcess:
             msg = in_queue.get()
 
             if msg[0] == "start":
-                print("start camera!!")
-                vs = PiVideoStream(resolution=(512, 384),framerate=12).start()  # For Pi Camera
+                CameraProcess.scan_qr_code(in_queue, out_queue)
 
-                msg[0] = ""
-                is_camera_on = True
-
-                while is_camera_on:
-                    frame = vs.read()
-
-                    if frame is None:
-                        # Camera isn't returning data yet
-                        time.sleep(0.125)
-                        continue
-
-                    barcodes = pyzbar.decode(frame)
-                    for barcode in barcodes:
-                        data = barcode.data.decode("utf-8")
-                        out_queue.put([data])
-                        break
-                    if len(barcodes) == 0:
-                        out_queue.put(["nodata"])
-
-                    try:
-                        msg = in_queue.get(False)
-                    except:
-                        pass
-
-                    if msg[0] == "stop":
-                        vs.stop()
-                        is_camera_on = False
+            elif msg[0] == "single_frame":
+                CameraProcess.capture_single_frame(in_queue, out_queue)
 
             elif msg[0] == "stop":
                 print("stop camera!!")

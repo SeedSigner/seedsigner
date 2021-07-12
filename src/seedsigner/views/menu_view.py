@@ -71,7 +71,7 @@ class MenuView(View):
             else:
                 seed_storage_line = "View Seeds (temp)"
 
-        lines = ["... [ Return to Main ]", "Input a Seed", "Add/Remove Passphrase", "Generate an xPub", "Generate Work 12/24", "Generate a Seed with Dice"]
+        lines = ["... [ Return to Main ]", "Input a Seed", "Add/Remove Passphrase", "Generate an xPub", "Generate Word 12/24", "Generate a Seed with Dice", "Generate a Seed with Image"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -95,6 +95,8 @@ class MenuView(View):
                     return Path.GEN_LAST_WORD
                 elif self.selected_menu_num == 6:
                     return Path.DICE_GEN_SEED
+                elif self.selected_menu_num == 7:
+                    return Path.IMAGE_GEN_SEED
 
     ### Signing Tools Menu
 
