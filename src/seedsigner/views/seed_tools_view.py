@@ -237,33 +237,33 @@ class SeedToolsView(View):
         # Screen Title
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         tw, th = View.draw.textsize("Add Passphrase", font=View.IMPACT18)
-        View.draw.text(((240 - tw) / 2, 2), "Add Passphrase", fill="ORANGE", font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 2), "Add Passphrase", fill=View.color, font=View.IMPACT18)
 
         # Screen Botton
         tw, th = View.draw.textsize("use joystick to add and", font=View.IMPACT18)
-        View.draw.text(((240 - tw) / 2, 197), "use joystick to add and", fill="ORANGE", font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 197), "use joystick to add and", fill=View.color, font=View.IMPACT18)
         tw, th = View.draw.textsize("remove passphrase characters", font=View.IMPACT18)
-        View.draw.text(((240 - tw) / 2, 217), "remove passphrase characters", fill="ORANGE", font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 217), "remove passphrase characters", fill=View.color, font=View.IMPACT18)
 
         # Display passphrase selection in progress
-        View.draw.text((5,33), "Phrase:", fill="ORANGE", font=View.IMPACT20)
-        View.draw.text((72,35), self.passphrase[:14] + "▒", fill="ORANGE", font=View.COURIERNEW20)
+        View.draw.text((5,33), "Phrase:", fill=View.color, font=View.IMPACT20)
+        View.draw.text((72,35), self.passphrase[:14] + "▒", fill=View.color, font=View.COURIERNEW20)
 
         if len(self.passphrase) >= 14:
-            View.draw.text((72,50), self.passphrase[14:] + "▒", fill="ORANGE", font=View.COURIERNEW20)
+            View.draw.text((72,50), self.passphrase[14:] + "▒", fill=View.color, font=View.COURIERNEW20)
 
         # Display message when max passphrase length reached
         if len(self.passphrase) >= 28:
-            View.draw.text((50,70), "Max passphrase of 28", fill="ORANGE", font=View.IMPACT18)
-            View.draw.text((53,90), "characters reached", fill="ORANGE", font=View.IMPACT18)
+            View.draw.text((50,70), "Max passphrase of 28", fill=View.color, font=View.IMPACT18)
+            View.draw.text((53,90), "characters reached", fill=View.color, font=View.IMPACT18)
 
         # Save Button
         c_x_offset = 240 - View.IMPACT25.getsize("Exit")[0]
-        View.draw.text((c_x_offset , 172), "Exit", fill="ORANGE", font=View.IMPACT22)
+        View.draw.text((c_x_offset , 172), "Exit", fill=View.color, font=View.IMPACT22)
 
         # Toglle Button
         x = 240 - View.IMPACT20.getsize(self.pass_case_toggle)[0]
-        View.draw.text((x, 110), self.pass_case_toggle, fill="ORANGE", font=View.IMPACT20)
+        View.draw.text((x, 110), self.pass_case_toggle, fill=View.color, font=View.IMPACT20)
 
         # draw letter and arrows
         if self.pass_case_toggle == "lower":
@@ -274,17 +274,15 @@ class SeedToolsView(View):
             pass_letter_disp = self.pass_letter
 
         tw, th = View.draw.textsize(pass_letter_disp, font=View.IMPACT35)
-        View.draw.text((((30-tw)/2), 112), pass_letter_disp, fill="ORANGE", font=View.IMPACT35)
-        View.draw.polygon([(8, 105) , (14, 89) , (20, 105 )], outline="ORANGE", fill="BLACK")
-        View.draw.polygon([(8, 168), (14, 184), (20, 168)], outline="ORANGE", fill="BLACK")
+        View.draw.text((((30-tw)/2), 112), pass_letter_disp, fill=View.color, font=View.IMPACT35)
+        View.draw.polygon([(8, 105) , (14, 89) , (20, 105 )], outline=View.color, fill="BLACK")
+        View.draw.polygon([(8, 168), (14, 184), (20, 168)], outline=View.color, fill="BLACK")
 
         View.DispShowImage()
 
         return
 
     def gather_passphrase_up(self):
-        # View.draw.polygon([(8, 105) , (14, 89) , (20, 105 )], outline="ORANGE", fill="ORANGE")
-        # View.DispShowImage()
 
         pass_choice = self.get_pass_value_options()
 
@@ -295,8 +293,6 @@ class SeedToolsView(View):
             self.pass_letter = pass_choice[idx-1]
 
     def gather_passphrase_down(self):
-        # View.draw.polygon([(8, 168) , (14, 184) , (20, 168 )], outline="ORANGE", fill="ORANGE")
-        # View.DispShowImage()
 
         pass_choice = self.get_pass_value_options()
 
@@ -739,14 +735,14 @@ class SeedToolsView(View):
             draw.rectangle((View.canvas_width - mask_width - 1, mask_height, View.canvas_width, View.canvas_height - mask_height), fill=mask_rgba)
 
             # Draw a box around the cutout portion of the mask for better visibility
-            draw.line((mask_width, mask_height, mask_width, View.canvas_height - mask_height), fill="ORANGE")
-            draw.line((View.canvas_width - mask_width, mask_height, View.canvas_width - mask_width, View.canvas_height - mask_height), fill="ORANGE")
-            draw.line((mask_width, mask_height, View.canvas_width - mask_width, mask_height), fill="ORANGE")
-            draw.line((mask_width, View.canvas_height - mask_height, View.canvas_width - mask_width, View.canvas_height - mask_height), fill="ORANGE")
+            draw.line((mask_width, mask_height, mask_width, View.canvas_height - mask_height), fill=View.color)
+            draw.line((View.canvas_width - mask_width, mask_height, View.canvas_width - mask_width, View.canvas_height - mask_height), fill=View.color)
+            draw.line((mask_width, mask_height, View.canvas_width - mask_width, mask_height), fill=View.color)
+            draw.line((mask_width, View.canvas_height - mask_height, View.canvas_width - mask_width, View.canvas_height - mask_height), fill=View.color)
 
             msg = "click to exit"
             tw, th = draw.textsize(msg, font=View.IMPACT18)
-            draw.text(((View.canvas_width - tw) / 2, View.canvas_height - th - 2), msg, fill="ORANGE", font=View.IMPACT18)
+            draw.text(((View.canvas_width - tw) / 2, View.canvas_height - th - 2), msg, fill=View.color, font=View.IMPACT18)
 
             def draw_block_labels(cur_block_x, cur_block_y):
                 # Create overlay for block labels (e.g. "D-5")
@@ -755,8 +751,8 @@ class SeedToolsView(View):
 
                 block_labels = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
                 draw = ImageDraw.Draw(block_labels)
-                draw.rectangle((mask_width, 0, View.canvas_width - mask_width, pixels_per_block), fill="ORANGE")
-                draw.rectangle((0, mask_height, pixels_per_block, View.canvas_height - mask_height), fill="ORANGE")
+                draw.rectangle((mask_width, 0, View.canvas_width - mask_width, pixels_per_block), fill=View.color)
+                draw.rectangle((0, mask_height, pixels_per_block, View.canvas_height - mask_height), fill=View.color)
 
                 label_font = View.COURIERNEW24
                 x_label = block_labels_x[cur_block_x]
