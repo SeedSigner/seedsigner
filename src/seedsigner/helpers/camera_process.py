@@ -90,13 +90,23 @@ class CameraProcess():
 
             elif msg[0] == "click":
                 print("Received 'click'")
+
+                # Wait for the automatic gain control to settle
+                time.sleep(2)
+                # Now fix the values
+                camera.shutter_speed = camera.exposure_speed
+                camera.exposure_mode = 'off'
+                g = camera.awb_gains
+                camera.awb_mode = 'off'
+                camera.awb_gains = g
+
                 stream = io.BytesIO()
                 camera.capture(stream, format='jpeg')
 
                 # "Rewind" the stream to the beginning so we can read its content
                 stream.seek(0)
 
-                out_queue.put([autocontrast(Image.open(stream)).rotate(90)])
+                out_queue.put([autocontrast(Image.open(stream), cutoff=2).rotate(90)])
 
         except Exception as e:
             traceback.print_exc()
