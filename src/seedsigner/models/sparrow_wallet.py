@@ -133,7 +133,9 @@ class SparrowWallet(Wallet):
 
     def total_frames_parse(data) -> int:
         if re.search("^UR\:CRYPTO-PSBT\/(\d+)\-(\d+)\/", data, re.IGNORECASE) != None:
-            return 10 #valid
+            return 10 # valid
+        elif re.search("^UR\:CRYPTO-PSBT", data, re.IGNORECASE) != None:
+            return 1 # valid but only 1 segment
         else:
             return -1 #invalid
 
