@@ -266,8 +266,8 @@ class Controller:
             if ret_val == True:
                 break
             else:
-                # no-op; can't back out of the seed phrase view
-                pass
+                # Start over
+                return self.show_create_seed_with_image_tool()
 
         # Ask to save seed
         if self.storage.slot_avaliable():

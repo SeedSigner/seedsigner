@@ -62,13 +62,11 @@ class CameraProcess():
 
     def capture_single_frame(in_queue, out_queue):
         from PIL import Image
-        from PIL.ImageOps import autocontrast
         import picamera
 
         print("Instantiate PiCamera start")
         start_time = int(time.time() * 1000)
-        # camera = picamera.PiCamera(resolution=(512, 384),framerate=12)
-        camera = picamera.PiCamera(resolution=(480, 480), framerate=8)
+        camera = picamera.PiCamera(resolution=(720, 480), framerate=8)
         end_time = int(time.time() * 1000)
         print(f"Instantiate PiCamera finish: {end_time - start_time}ms")
 
@@ -106,7 +104,7 @@ class CameraProcess():
                 # "Rewind" the stream to the beginning so we can read its content
                 stream.seek(0)
 
-                out_queue.put([autocontrast(Image.open(stream), cutoff=2).rotate(90)])
+                out_queue.put([Image.open(stream)])
 
         except Exception as e:
             traceback.print_exc()

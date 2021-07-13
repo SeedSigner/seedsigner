@@ -2,6 +2,7 @@
 from embit import bip39
 from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 from PIL import ImageDraw, Image
+from PIL.ImageOps import autocontrast
 import hashlib
 import math
 import time
@@ -1500,12 +1501,25 @@ class SeedToolsView(View):
                 self.words = []
                 return self.words
 
-            # Resize and display
+            # Prep a copy of the image for display. The actual image data is 720x480
+            # Present just a center crop to fit the screen and to keep some of the
+            # data hidden.
+            display_version = autocontrast(
+                self.seed_entropy_image, cutoff=2
+            ).rotate(
+                90
+            ).crop(
+                (120, 0, 600, 480)
+            ).resize(
+                (View.canvas_width, View.canvas_height), Image.BICUBIC
+            )
+
             View.DispShowImageWithText(
-                self.seed_entropy_image.resize((View.canvas_width, View.canvas_height), Image.BICUBIC),
-                text="<= reshoot | accept =>",
+                display_version,
+                text=" < reshoot  |  accept > ",
                 font=View.ROBOTOCONDENSED_REGULAR_22,
-                text_color=View.color
+                text_color=View.color,
+                text_background=(0,0,0,225)
             )
 
             input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])

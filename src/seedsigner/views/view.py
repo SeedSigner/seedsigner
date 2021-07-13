@@ -128,15 +128,18 @@ class View:
 
 
     def DispShowImageWithText(image, text, font=None, text_color="GREY", text_background=None):
-        image_copy = image.copy()
+        image_copy = image.copy().convert("RGBA")
         draw = ImageDraw.Draw(image_copy)
+
+        text_overlay = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
+        text_overlay_draw = ImageDraw.Draw(text_overlay)
         if not font:
             font = View.COURIERNEW14
-        tw, th = draw.textsize(text, font=font)
+        tw, th = text_overlay_draw.textsize(text, font=font)
         if text_background:
-            draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), fill=text_background)
-        draw.text(((240 - tw) / 2, 240 - th - 1), text, fill=text_color, font=font)
-        View.disp.ShowImage(image_copy, 0, 0)
+            text_overlay_draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), fill=text_background)
+        text_overlay_draw.text(((240 - tw) / 2, 240 - th - 1), text, fill=text_color, font=font)
+        View.DispShowImage(image_copy, alpha_overlay=text_overlay)
 
 
     def draw_modal(self, lines = [], title = "", bottom = "") -> None:
