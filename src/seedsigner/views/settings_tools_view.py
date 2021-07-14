@@ -102,6 +102,6 @@ class SettingsToolsView(View):
         View.draw.text(((240 - tw) / 2, 20), line1, fill=View.color, font=View.IMPACT22)
         tw, th = View.draw.textsize(line2, font=View.IMPACT22)
         View.draw.text(((240 - tw) / 2, 55), line2, fill=View.color, font=View.IMPACT22)
-        tw, th = View.draw.textsize(line6, font=View.IMPACT18)
+        tw, th = View.draw.textsize(line3, font=View.IMPACT18)
         View.draw.text(((240 - tw) / 2, 210), line3, fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
