@@ -9,36 +9,24 @@ from io import BytesIO
 from binascii import unhexlify, hexlify, a2b_base64, b2a_base64
 import re
 
-class SpecterDesktopMultisigWallet(Wallet):
+class SpecterDesktopWallet(Wallet):
 
-    def __init__(self, current_network = "main", hardened_derivation = "m/48h/0h/0h/2h") -> None:
-        if current_network == "main":
-            Wallet.__init__(self, current_network, "m/48h/0h/0h/2h")
-        elif current_network == "test":
-            Wallet.__init__(self, current_network, "m/48h/1h/0h/2h")
-        else:
-            Wallet.__init__(self, current_network, hardened_derivation)
+    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, policy = "PKWSH") -> None:
+        # if policy not in self.avaliable_wallet_policies():
+        #    policy = "PKWSH" #override policy to PKWSH when not found in avaliable supported policies 
 
-        self.qrsize = 80
+        Wallet.__init__(self, current_network, qr_density, policy)
 
     def get_name(self) -> str:
         return "Specter Desktop"
 
-    def import_qr(self) -> str:
-        xpubstring = "[%s%s]%s" % (
-             hexlify(self.fingerprint).decode('utf-8'),
-             self.hardened_derivation[1:],
-             self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]))
-
-        return xpubstring
-
     def parse_psbt(self, raw_psbt) -> bool:
-
-        base64_psbt = a2b_base64(raw_psbt)
-        self.tx = psbt.PSBT.parse(base64_psbt)
-
-        (self.inp_amount, policy) = self.input_amount(self.tx)
-        (self.change, self.fee, self.spend, self.destinationaddress) = self.change_fee_spend_amounts(self.tx, self.inp_amount, policy, self.current_network)
+        try:
+            base64_psbt = a2b_base64(raw_psbt)
+            self.tx = psbt.PSBT.parse(base64_psbt)
+            self._parse_psbt()
+        except Exception:
+            return False
 
         return True
 
@@ -67,14 +55,18 @@ class SpecterDesktopMultisigWallet(Wallet):
     def total_frames_parse(data) -> int:
         if re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE) != None:
             return int(re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE).group(2))
+        elif re.search("UR\:.*", data, re.IGNORECASE) != None:
+            return -1 # if data has UR:, assume invalid wallet selected
         else:
-            return -1
+            return 1
 
     def current_frame_parse(data) -> int:
         if re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE) != None:
             return int(re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE).group(1))
+        elif re.search("UR\:.*", data, re.IGNORECASE) != None:
+            return -1 # if data has UR:, assume invalid wallet selected
         else:
-            return -1
+            return 1 # assume a single frame for specter if no p#of# is found.
 
     def data_parse(data) -> str:
         return data.split(" ")[-1].strip()
@@ -109,7 +101,12 @@ class SpecterDesktopMultisigWallet(Wallet):
         stop = self.qrsize
         qr_cnt = ((len(data)-1) // self.qrsize) + 1
 
-        while cnt < qr_cnt:
+        if qr_cnt == 1:
+            part = data[start:stop]
+            images.append(qr.qrimage(part))
+            print(part)
+
+        while cnt < qr_cnt and qr_cnt != 1:
             part = "p" + str(cnt+1) + "of" + str(qr_cnt) + " " + data[start:stop]
             images.append(qr.qrimage(part))
             print(part)
@@ -124,8 +121,11 @@ class SpecterDesktopMultisigWallet(Wallet):
 
         return images
 
-    def set_qr_density(density):
-        if density == Wallet.LOW:
+    def set_qr_density(self, density):
+        self.cur_qr_density = density
+        if density == Wallet.QRLOW:
             self.qrsize = 60
-        elif density == Wallet.HIGH:
+        elif density == Wallet.QRMEDIUM:
+            self.qrsize = 80
+        elif density == Wallet.QRHIGH:
             self.qrsize = 100

@@ -25,36 +25,20 @@ import textwrap
 
 class GenericUR2Wallet(Wallet):
 
-    def __init__(self, current_network = "main", hardened_derivation = "m/48h/0h/0h/2h") -> None:
-        if current_network == "main":
-            Wallet.__init__(self, current_network, "m/48h/0h/0h/2h")
-        elif current_network == "test":
-            Wallet.__init__(self, current_network, "m/48h/1h/0h/2h")
-        else:
-            Wallet.__init__(self, current_network, hardened_derivation)
+    def __init__(self, current_network = "main", qr_density = Wallet.QRMEDIUM, policy = "PKWSH") -> None:
+        Wallet.__init__(self, current_network, qr_density, policy)
 
-        self.qrsize = 80
-
-    def set_seed_phrase(self, seed_phrase):
-        Wallet.set_seed_phrase(self, seed_phrase)
+    def set_seed_phrase(self, seed_phrase, passphrase):
+        Wallet.set_seed_phrase(self, seed_phrase, passphrase)
         self.ur_decoder = URDecoder()
 
     def get_name(self) -> str:
-        return "UR 2.0 Multisig"
-
-    def import_qr(self) -> str:
-        xpubstring = "[%s%s]%s" % (
-             hexlify(self.fingerprint).decode('utf-8'),
-             self.hardened_derivation[1:],
-             self.bip48_xpub.to_base58(NETWORKS[self.current_network]["Zpub"]))
-
-        return xpubstring
+        return "UR 2.0 Generic"
 
     def parse_psbt(self, raw_psbt) -> bool:
         self.tx = psbt.PSBT.parse(raw_psbt)
 
-        (self.inp_amount, policy) = self.input_amount(self.tx)
-        (self.change, self.fee, self.spend, self.destinationaddress) = self.change_fee_spend_amounts(self.tx, self.inp_amount, policy, self.current_network)
+        self._parse_psbt()
 
         return True
 
@@ -183,8 +167,11 @@ class GenericUR2Wallet(Wallet):
     def qr_sleep(self):
         time.sleep(0.5)
 
-    def set_qr_density(density):
-        if density == Wallet.LOW:
+    def set_qr_density(self, density):
+        self.cur_qr_density = density
+        if density == Wallet.QRLOW:
+            self.qrsize = 60
+        elif density == Wallet.QRMEDIUM:
             self.qrsize = 80
-        elif density == Wallet.HIGH:
-            self.qrsize = 100
+        elif density == Wallet.QRHIGH:
+            self.qrsize = 120

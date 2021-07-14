@@ -10,11 +10,14 @@ class Path:
     SEED_WORD_12 = 20
     SEED_WORD_24 = 21
     POWER_OFF = 22
+    SEED_WORD_QR = 23
 
     # Tools / Functions Routes
     GEN_LAST_WORD = 40
     DICE_GEN_SEED = 41
     SAVE_SEED = 42
+    PASSPHRASE_SEED = 43
+    DELETE_PASSPHRASE = 44
     GEN_XPUB = 50
     SIGN_TRANSACTION = 51
     IO_TEST_TOOL = 60
@@ -22,6 +25,8 @@ class Path:
     VERSION_INFO = 62
     DONATE = 63
     WALLET = 64
+    QR_DENSITY_SETTING = 65
+    WALLET_POLICY = 66
 
     # Seed Slots
     SEED_SLOT_1 = 80
