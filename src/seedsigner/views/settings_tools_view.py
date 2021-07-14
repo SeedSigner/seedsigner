@@ -95,22 +95,13 @@ class SettingsToolsView(View):
     
         line1 = "SeedSigner"
         line2 = "Version v" + self.controller.VERSION
-        line3 = "built for use with"
-        line4 = "Specter-desktop"
-        line5 = "v1.1.0 or higher"
-        line6 = "(Joystick RIGHT to EXIT)"
+        line3 = "(Joystick RIGHT to EXIT)"
 
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         tw, th = View.draw.textsize(line1, font=View.IMPACT22)
         View.draw.text(((240 - tw) / 2, 20), line1, fill=View.color, font=View.IMPACT22)
         tw, th = View.draw.textsize(line2, font=View.IMPACT22)
         View.draw.text(((240 - tw) / 2, 55), line2, fill=View.color, font=View.IMPACT22)
-        tw, th = View.draw.textsize(line3, font=View.IMPACT22)
-        View.draw.text(((240 - tw) / 2, 90), line3, fill=View.color, font=View.IMPACT22)
-        tw, th = View.draw.textsize(line4, font=View.IMPACT22)
-        View.draw.text(((240 - tw) / 2, 125), line4, fill=View.color, font=View.IMPACT22)
-        tw, th = View.draw.textsize(line5, font=View.IMPACT22)
-        View.draw.text(((240 - tw) / 2, 160), line5, fill=View.color, font=View.IMPACT22)
-        tw, th = View.draw.textsize(line6, font=View.IMPACT18)
-        View.draw.text(((240 - tw) / 2, 210), line6, fill=View.color, font=View.IMPACT18)
+        tw, th = View.draw.textsize(line3, font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 210), line3, fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
