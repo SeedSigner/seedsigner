@@ -234,7 +234,7 @@ class SeedToolsView(View):
             rect=(self.previous_button_width,0, View.canvas_width,text_entry_display_height),
             font=View.ROBOTOCONDENSED_BOLD_26,
             font_color=View.color,
-            cur_text="".join(self.letters)
+            cur_text=f"{num_word}: " + "".join(self.letters)
         )
         text_entry_display.render()
 
@@ -351,7 +351,7 @@ class SeedToolsView(View):
                 # Animate the selection storage, then return the word to the caller
                 self.letters = list(final_selection + " ")
                 render_possible_matches(highlight_word=final_selection)
-                text_entry_display.render("".join(self.letters))
+                text_entry_display.render(f"{num_word}: " + "".join(self.letters))
                 View.DispShowImage()
 
                 return final_selection
@@ -406,7 +406,7 @@ class SeedToolsView(View):
                 render_possible_matches()
 
             # Render the text entry display and cursor block
-            text_entry_display.render("".join(self.letters))
+            text_entry_display.render(f"{num_word}: " + "".join(self.letters))
 
             View.DispShowImage()
 
@@ -545,7 +545,7 @@ class SeedToolsView(View):
             if input == B.KEY3:
                 # Save!
                 if self.passphrase != "" and self.passphrase != " ":
-                    return self.passphrase
+                    return self.passphrase.strip()
 
             elif input == B.KEY_PRESS and previous_button_is_active:
                 # Prev button clicked; return empty string to signal cancel.
@@ -1505,7 +1505,8 @@ class SeedToolsView(View):
             # Present just a center crop to fit the screen and to keep some of the
             # data hidden.
             display_version = autocontrast(
-                self.seed_entropy_image, cutoff=2
+                self.seed_entropy_image,
+                cutoff=2
             ).rotate(
                 90
             ).crop(
