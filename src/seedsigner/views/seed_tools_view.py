@@ -353,7 +353,10 @@ class SeedToolsView(View):
         self.draw.text(((240 - tw) / 2, 60), "The final word is :", fill=View.color, font=View.IMPACT23)
         tw, th = self.draw.textsize(last_word, font=View.IMPACT50)
         self.draw.text(((240 - tw) / 2, 90), last_word, fill=View.color, font=View.IMPACT50)
-        self.draw.text((73, 210), "Right to Continue", fill=View.color, font=View.IMPACT18)
+
+        tw, th = View.draw.textsize("Right to Continue", font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 210), "Right to Continue", fill=View.color, font=View.IMPACT18)
+
         View.DispShowImage()
 
         input = self.buttons.wait_for([B.KEY_RIGHT])
