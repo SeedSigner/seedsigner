@@ -124,7 +124,7 @@ class BlueWallet(Wallet):
     def set_qr_density(self, density):
         self.cur_qr_density = density
         if density == Wallet.QRLOW:
-            self.qrsize = 70
+            self.qrsize = 20
         elif density == Wallet.QRMEDIUM:
             self.qrsize = 100
         elif density == Wallet.QRHIGH:

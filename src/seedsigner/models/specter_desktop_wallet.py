@@ -21,11 +21,12 @@ class SpecterDesktopWallet(Wallet):
         return "Specter Desktop"
 
     def parse_psbt(self, raw_psbt) -> bool:
-
-        base64_psbt = a2b_base64(raw_psbt)
-        self.tx = psbt.PSBT.parse(base64_psbt)
-
-        self._parse_psbt()
+        try:
+            base64_psbt = a2b_base64(raw_psbt)
+            self.tx = psbt.PSBT.parse(base64_psbt)
+            self._parse_psbt()
+        except Exception:
+            return False
 
         return True
 
@@ -54,14 +55,18 @@ class SpecterDesktopWallet(Wallet):
     def total_frames_parse(data) -> int:
         if re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE) != None:
             return int(re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE).group(2))
+        elif re.search("UR\:.*", data, re.IGNORECASE) != None:
+            return -1 # if data has UR:, assume invalid wallet selected
         else:
-            return -1
+            return 1
 
     def current_frame_parse(data) -> int:
         if re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE) != None:
             return int(re.search("^p(\d+)of(\d+) ", data, re.IGNORECASE).group(1))
+        elif re.search("UR\:.*", data, re.IGNORECASE) != None:
+            return -1 # if data has UR:, assume invalid wallet selected
         else:
-            return -1
+            return 1 # assume a single frame for specter if no p#of# is found.
 
     def data_parse(data) -> str:
         return data.split(" ")[-1].strip()
@@ -96,7 +101,12 @@ class SpecterDesktopWallet(Wallet):
         stop = self.qrsize
         qr_cnt = ((len(data)-1) // self.qrsize) + 1
 
-        while cnt < qr_cnt:
+        if qr_cnt == 1:
+            part = data[start:stop]
+            images.append(qr.qrimage(part))
+            print(part)
+
+        while cnt < qr_cnt and qr_cnt != 1:
             part = "p" + str(cnt+1) + "of" + str(qr_cnt) + " " + data[start:stop]
             images.append(qr.qrimage(part))
             print(part)

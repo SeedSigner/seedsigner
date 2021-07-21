@@ -1,4 +1,4 @@
-embit==0.4.2
+embit==0.4.3
 picamera==1.13
 Pillow==8.2.0
 pyzbar==0.1.8
