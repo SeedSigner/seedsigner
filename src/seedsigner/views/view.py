@@ -1,9 +1,12 @@
 # External Dependencies
 from PIL import Image, ImageDraw, ImageFont
+import os
+import pathlib
 import spidev as SPI
+import time
 from multiprocessing import Queue
+from seedsigner.helpers import B, ST7789
 
-from seedsigner.helpers import ST7789
 
 ### Generic View Class to Instatiate Display
 ### Static Class variables are used for display
@@ -31,11 +34,29 @@ class View:
     COURIERNEW30 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 30)
     COURIERNEW20 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 20)
 
+    font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
+
+    ROBOTOCONDENSED_BOLD_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 16)
+    ROBOTOCONDENSED_BOLD_18 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 18)
+    ROBOTOCONDENSED_BOLD_20 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 20)
+    ROBOTOCONDENSED_BOLD_22 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 20)
+    ROBOTOCONDENSED_BOLD_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 22)
+    ROBOTOCONDENSED_BOLD_25 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 25)
+    ROBOTOCONDENSED_BOLD_26 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 26)
+    ROBOTOCONDENSED_BOLD_28 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 28)
+    ROBOTOCONDENSED_LIGHT_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Light.ttf"), 16)
+    ROBOTOCONDENSED_LIGHT_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Light.ttf"), 24)
+    ROBOTOCONDENSED_REGULAR_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 16)
+    ROBOTOCONDENSED_REGULAR_20 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 20)
+    ROBOTOCONDENSED_REGULAR_22 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 22)
+    ROBOTOCONDENSED_REGULAR_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 24)
+    ROBOTOCONDENSED_REGULAR_26 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 26)
+    ROBOTOCONDENSED_REGULAR_28 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 28)
+
     RST = 27
     DC = 25
     BL = 24
 
-    controller = None
     buttons = None
     canvas_width = 0
     canvas_height = 0
@@ -44,13 +65,15 @@ class View:
     bus = 0
     device = 0
     disp = None
+    previous_button_width = None
 
-    def __init__(self, controller) -> None:
+    def __init__(self) -> None:
+        # Import here to avoid circular imports
+        from seedsigner.controller import Controller
+        self.controller = Controller.get_instance()
 
-        # Global Singleton
-        View.controller = controller
-        View.buttons = View.controller.buttons
-        View.color = View.controller.color
+        View.buttons = self.controller.buttons
+        View.color = self.controller.color
 
         View.canvas_width = View.WIDTH
         View.canvas_height = View.HEIGHT
@@ -85,11 +108,13 @@ class View:
         while (cur_x != end_x or cur_y != end_y) and (rate_x != 0 or rate_y != 0):
             cur_x += rate_x
             if (rate_x > 0 and cur_x > end_x) or (rate_x < 0 and cur_x < end_x):
+                # We've moved too far; back up and undo that last move.
                 cur_x -= rate_x
                 rate_x = 0
 
             cur_y += rate_y
             if (rate_y > 0 and cur_y > end_y) or (rate_y < 0 and cur_y < end_y):
+                # We've moved too far; back up and undo that last move.
                 cur_y -= rate_y
                 rate_y = 0
 
@@ -103,15 +128,18 @@ class View:
 
 
     def DispShowImageWithText(image, text, font=None, text_color="GREY", text_background=None):
-        image_copy = image.copy()
+        image_copy = image.copy().convert("RGBA")
         draw = ImageDraw.Draw(image_copy)
+
+        text_overlay = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
+        text_overlay_draw = ImageDraw.Draw(text_overlay)
         if not font:
             font = View.COURIERNEW14
-        tw, th = draw.textsize(text, font=font)
+        tw, th = text_overlay_draw.textsize(text, font=font)
         if text_background:
-            draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), fill=text_background)
-        draw.text(((240 - tw) / 2, 240 - th - 1), text, fill=text_color, font=font)
-        View.disp.ShowImage(image_copy, 0, 0)
+            text_overlay_draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), fill=text_background)
+        text_overlay_draw.text(((240 - tw) / 2, 240 - th - 1), text, fill=text_color, font=font)
+        View.DispShowImage(image_copy, alpha_overlay=text_overlay)
 
 
     def draw_modal(self, lines = [], title = "", bottom = "") -> None:
@@ -208,6 +236,7 @@ class View:
         View.DispShowImage()
 
         return
+        
 
     ###
     ### Power Off Screen
@@ -236,3 +265,28 @@ class View:
     def display_blank_screen(self):
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         View.DispShowImage()
+
+
+    ###
+    ### Reusable components
+    ###
+    def render_previous_button(self, highlight=False):
+        # Set up the "back" arrow in the upper left
+        arrow = "<"
+        word_font = View.ROBOTOCONDENSED_BOLD_26
+        top_padding = -3
+        bottom_padding = 3
+        side_padding = 3
+        tw, th = word_font.getsize(arrow)
+        self.previous_button_width = tw + 2 * side_padding
+        if highlight:
+            font_color = "black"
+            background_color = View.color
+        else:
+            font_color = View.color
+            background_color = "black"
+        View.draw.rectangle((0,0, self.previous_button_width, th + top_padding + bottom_padding), fill=background_color)
+        View.draw.text((side_padding, top_padding), arrow, fill=font_color, font=word_font)
+
+
+

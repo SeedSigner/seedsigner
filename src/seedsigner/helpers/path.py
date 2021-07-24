@@ -15,6 +15,7 @@ class Path:
     # Tools / Functions Routes
     GEN_LAST_WORD = 40
     DICE_GEN_SEED = 41
+    IMAGE_GEN_SEED = 45
     SAVE_SEED = 42
     PASSPHRASE_SEED = 43
     DELETE_PASSPHRASE = 44
