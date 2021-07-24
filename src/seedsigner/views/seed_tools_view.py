@@ -1443,23 +1443,17 @@ class SeedToolsView(View):
     def parse_seed_image_data(self):
         try:
             data = self.controller.from_camera_queue.get(block=False)
+            print(f"got queue data: {data}")
         except:
             return
 
-        print("parse_seed_image_data got data")
-
-        try:
-            # self.seed_entropy_image = Image.fromarray(data[0])
-            self.seed_entropy_image = data[0]
-            print(self.seed_entropy_image)
-
-            self.buttons.trigger_override(True)
-        except Exception as e:
-            traceback.print_exc()
+        self.seed_entropy_image = data[0]
         print("exiting parse_seed_image_data")
 
 
     def seed_phrase_from_camera_image(self):
+        reshoot = False
+
         self.seed_entropy_image = None
         self.controller.menu_view.draw_modal(["Initializing Camera..."]) # TODO: Move to Controller
         # initialize camera
@@ -1476,27 +1470,26 @@ class SeedToolsView(View):
 
         self.controller.menu_view.draw_modal(["Aim camera", "click joystick"], title="Capture Image as Seed", bottom="Left to Cancel") # TODO: Move to Controller
 
-        try:
-            input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_PRESS])
-            if input == B.KEY_LEFT:
-                print("KEY_LEFT")
-                # Returning empty will kick us back to SEED_TOOLS_SUB_MENU
-                self.words = []
-            elif input == B.KEY_PRESS:
+        input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_PRESS])
+        if input == B.KEY_LEFT:
+            self.words = []
+            self.controller.to_camera_queue.put(["stop"])
+
+        elif input == B.KEY_PRESS:
+            try:
                 print("KEY_PRESS")
-                self.controller.menu_view.draw_modal(["Auto-adjusting", "exposure..."], title="Capture Image as Seed", bottom="Left to Cancel") # TODO: Move to Controller
+                self.controller.menu_view.draw_modal(["Auto-adjusting", "exposure..."], title="Capture Image as Seed") # TODO: Move to Controller
                 self.controller.to_camera_queue.put(["click"])
                 self.camera_loop_timer = CameraPoll(0.05, self.parse_seed_image_data)
 
-            input = self.buttons.wait_for([B.KEY_LEFT])
-            self.controller.to_camera_queue.put(["stop"])
-            self.camera_loop_timer.stop()
-
-            if input == B.KEY_LEFT:
-                print("KEY_LEFT")
-                # Returning empty will kick us back to SEED_TOOLS_SUB_MENU
-                self.words = []
-                return self.words
+                # Wait for the camera process to complete
+                while self.seed_entropy_image is None:
+                    time.sleep(0.2)
+            except Exception as e:
+                traceback.print_exc()
+            finally:
+                self.controller.to_camera_queue.put(["stop"])
+                self.camera_loop_timer.stop()
 
             # Prep a copy of the image for display. The actual image data is 720x480
             # Present just a center crop to fit the screen and to keep some of the
@@ -1522,27 +1515,23 @@ class SeedToolsView(View):
 
             input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
             if input == B.KEY_LEFT:
-                return self.seed_phrase_from_camera_image()
+                reshoot = True
 
-            hash = hashlib.sha256(self.seed_entropy_image.tobytes())
-            badseedphrase_str = mnemonic_from_bytes(hash.digest())
-            badseedphrase_list = badseedphrase_str.split()
-            badseedphrase_list.pop(-1)
-            calclastwordphrasestr = " ".join(badseedphrase_list) + " abandon"
-            goodphrasebytes = mnemonic_to_bytes(calclastwordphrasestr, ignore_checksum=True)
-            goodseedphrasestr = mnemonic_from_bytes(goodphrasebytes)
-            self.words = goodseedphrasestr.split()
+            else:
+                # TODO: Pull this out into its own method so we can write tests against it
+                hash = hashlib.sha256(self.seed_entropy_image.tobytes())
+                badseedphrase_str = mnemonic_from_bytes(hash.digest())
+                badseedphrase_list = badseedphrase_str.split()
+                badseedphrase_list.pop(-1)
+                calclastwordphrasestr = " ".join(badseedphrase_list) + " abandon"
+                goodphrasebytes = mnemonic_to_bytes(calclastwordphrasestr, ignore_checksum=True)
+                goodseedphrasestr = mnemonic_from_bytes(goodphrasebytes)
+                self.words = goodseedphrasestr.split()
 
-        except Exception as e:
-            traceback.print_exc()
-        finally:
-            print(f"Stopping QR code scanner")
-            self.controller.to_camera_queue.put(["stop"])
-            self.camera_loop_timer.stop()
+        # self.buttons.trigger_override(True)
+        return (reshoot, self.words)
 
-        time.sleep(0.5) # give time for camera loop to complete before returning data
-        self.buttons.trigger_override(True)
-        return self.words[:]
+
     ###
     ### Utility Methods
     ###

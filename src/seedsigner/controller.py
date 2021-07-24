@@ -254,7 +254,11 @@ class Controller:
         ret_val = True
 
         while True:
-            seed_phrase = self.seed_tools_view.seed_phrase_from_camera_image()
+            (reshoot, seed_phrase) = self.seed_tools_view.seed_phrase_from_camera_image()
+            if reshoot:
+                # Relaunch into another image capture cycle
+                continue
+
             if len(seed_phrase) > 0:
                 break
             else:

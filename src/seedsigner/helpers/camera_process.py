@@ -86,7 +86,7 @@ class CameraProcess():
                 print("Received 'click'")
 
                 # Wait for the automatic gain control to settle
-                time.sleep(2)
+                time.sleep(0.25)
                 # Now fix the values
                 camera.shutter_speed = camera.exposure_speed
                 camera.exposure_mode = 'off'
