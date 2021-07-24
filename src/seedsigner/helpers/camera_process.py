@@ -19,11 +19,7 @@ class CameraProcess():
             end_time = int(time.time() * 1000)
             print(f"Instantiate PiVideoStream finish: {end_time - start_time}ms")
 
-            print("video_stream start()")
-            start_time = int(time.time() * 1000)
             video_stream.start()
-            end_time = int(time.time() * 1000)
-            print(f"video_stream start() done: {end_time - start_time}ms")
 
             msg = [""]
 

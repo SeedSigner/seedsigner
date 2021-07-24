@@ -636,11 +636,9 @@ class SeedToolsView(View):
 
             elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN] or keyboard_swap:
                 # Live joystick movement; haven't locked this new letter in yet.
-                # Replace the last letter w/the currently selected one. Only update
-                # the active keyboard keys when a selection has been locked in
-                # (KEY_PRESS) or removed ("del").
-                self.passphrase = self.passphrase[:-1]
-                self.passphrase += ret_val
+                # Leave current spot blank for now. Only update the active keyboard keys
+                # when a selection has been locked in (KEY_PRESS) or removed ("del").
+                pass
 
             # Render the text entry display and cursor block
             text_entry_display.render(self.passphrase)
