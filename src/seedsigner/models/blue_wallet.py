@@ -85,6 +85,8 @@ class BlueWallet(Wallet):
             self.controller.to_camera_queue.put(["stop"])
             if self.qr_data[0] == "invalid":
                 return "invalid"
+            elif self.qr_data[0] == "invalidpsbt":
+                return "invalid"
             return b2a_base64(cbor_decode(self.ur_decoder.result.cbor))
 
     def process_camera_data(self):
