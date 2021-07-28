@@ -1464,7 +1464,14 @@ class SeedToolsView(View):
             try:
                 msg = self.controller.from_camera_queue.get(block=False)
                 print(f"msg received: {msg}")
-                break
+
+                # check 'ready', sometimes queue contains nodata or data that needs to be cleared
+                is_ready = False
+                for m in msg:
+                    if m == "ready":
+                        is_ready = True
+                if is_ready:
+                    break
             except:
                 time.sleep(0.1)
 
