@@ -3,10 +3,11 @@ from . import View
 from seedsigner.helpers import B, QR
 
 
+
 class SettingsToolsView(View):
 
-    def __init__(self, controller) -> None:
-        View.__init__(self, controller)
+    def __init__(self) -> None:
+        View.__init__(self)
 
         self.qr = QR()
         self.donate_image = None

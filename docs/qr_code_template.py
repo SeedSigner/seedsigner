@@ -1,6 +1,13 @@
 import math
 
 def generate_qr_template(qr_size, block_size=5, show_timing_marks=False):
+    if qr_size == 29:
+        num_words = 24
+        word_cols = 2
+    else:
+        num_words = 12
+        word_cols = 1
+
     html = """
     <html>
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -9,6 +16,7 @@ def generate_qr_template(qr_size, block_size=5, show_timing_marks=False):
 
         <style>
             body {
+                margin-top: 5em;
                 text-align: center;
                 font-family: "Open Sans", sans-serif;
                 -webkit-print-color-adjust: exact;
@@ -28,6 +36,11 @@ def generate_qr_template(qr_size, block_size=5, show_timing_marks=False):
                 border: 1px dotted #c8c8c8;
                 width: 11px;
                 height: 12px;
+            }
+            .qr_table {
+                margin-top: 5em;
+                margin-right: 4em;
+                float: right;
             }
             .filled {
                 background-color: black;
@@ -55,19 +68,59 @@ def generate_qr_template(qr_size, block_size=5, show_timing_marks=False):
             .no_border {
                 border: none;
             }
+
+            .word_list_table {
+    """
+
+    if num_words == 12:
+        html += "margin-left: 10em;\n"
+    else:
+        html += "margin-left: 0;\n"
+
+    html += """
+                float: left;
+            }
+            .word_list {
+                text-align: right;
+                padding-top: 2em;
+                padding-left: 1em;
+                padding-right: 1em;
+            }
+            .word_row {
+                height: 2.5em;
+            }
+            .word_num {
+                width: 1em;
+                text-align: right;
+                color: #999;
+            }
+            .word_blank {
+                color: #ccc;
+            }
         </style>
         <body>
     """
-    if qr_size == 21:
-        html += f"""<div class="title">{qr_size}x{qr_size} QR Code</div>"""
-    elif qr_size == 25:
-        html += f"""<div class="title">12-word Seed</div>"""
-    else:
-        html += f"""<div class="title">24-word Seed</div>"""
+
+    html += """
+        <table align="center" class="word_list_table">
+            <tr>
+                <td class="word_list">
+    """
+    for i in range(1, num_words + 1):
+        if i == 13:
+            html += """
+                </td>
+                <td class="word_list">
+            """
+        html += f"""<div class="word_row">
+                <span class="word_num">{i}:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        """
+    html += "</td></tr></table>"
 
     y_names = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,X,Y,Z"
 
-    html += """<table align="center">"""
+    html += """<table align="center" class="qr_table">"""
     html += f"""<tr rowspan="{block_size}"><td class="col_block_divider row_block_divider"></td>"""
     for j in range(0, math.ceil(qr_size/block_size)):
         html += f"""<td colspan="{block_size}" class="col_name col_block_divider">{j + 1}</td>"""

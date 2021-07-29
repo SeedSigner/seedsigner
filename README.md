@@ -169,3 +169,7 @@ sudo reboot
 It will take about a minute after the Pi is powered on for the GUI to launch -- be patient!
 
 _Reminder: If you used option #2, [return the guide](docs/usb_relay.md) to remove the internet access over USB configuration._
+
+
+## Run the tests
+see: [tests/README.md](tests/README.md)

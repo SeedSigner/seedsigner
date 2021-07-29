@@ -9,8 +9,8 @@ from seedsigner.helpers import B, CameraPoll
 
 class IOTestView(View):
 
-    def __init__(self, controller) -> None:
-        View.__init__(self, controller)
+    def __init__(self) -> None:
+        View.__init__(self)
         self.camera_loop_timer = None
         self.redraw = False
         self.redraw_complete = False

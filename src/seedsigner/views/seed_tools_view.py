@@ -2,12 +2,16 @@
 from embit import bip39
 from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 from PIL import ImageDraw, Image
+from PIL.ImageOps import autocontrast
+import hashlib
 import math
 import time
+import traceback
 
 # Internal file class dependencies
 from . import View
-from seedsigner.helpers import B, QR, CameraPoll
+from seedsigner.helpers import B, QR, CameraPoll, Keyboard, TextEntryDisplay
+
 
 
 class SeedToolsView(View):
@@ -16,16 +20,18 @@ class SeedToolsView(View):
 
     ALPHABET = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
 
-    def __init__(self, controller) -> None:
-        View.__init__(self, controller)
+    def __init__(self) -> None:
+        View.__init__(self)
 
         # Gather words and seed display information
         self.words = []
         self.letters = []
         self.possible_alphabet = []
         self.possible_words = []
+        self.selected_possible_words_index = 0
         self.seed_length = 12     # Default to 12, Valid values are 11, 12, 23 and 24
         self.seed_qr_image = None
+        self.seed_entropy_image = None
 
         # Dice information
         self.roll_number = 1
@@ -79,6 +85,566 @@ class SeedToolsView(View):
                 return self.words[:]
 
             self.draw_gather_words()
+
+
+    def display_manual_seed_entry(self, num_words):
+        self.seed_length = num_words
+        self.reset()
+
+        cur_word = 1
+        while len(self.words) < self.seed_length:
+            initial_letters = ["a"]
+            if len(self.words) >= cur_word:
+                initial_letters = list(self.words[cur_word - 1])  # zero-indexed
+
+            ret_val = self.draw_seed_word_keyboard_entry(num_word=cur_word, initial_letters=initial_letters)
+
+            if ret_val == Keyboard.KEY_PREVIOUS_PAGE:
+                # Reload previous word
+                cur_word -= 1
+                if cur_word == 0:
+                    # Exit this UI
+                    return []
+                else:
+                    # We've backed `cur_word` up, so re-enter loop
+                    continue
+
+            if len(self.words) < cur_word:
+                self.words.append(ret_val.strip())
+            else:
+                self.words[cur_word - 1] = ret_val.strip()
+            cur_word += 1
+
+        return self.words
+
+
+    def draw_seed_word_keyboard_entry(self, num_word, initial_letters=["a"]):
+        def render_possible_matches(highlight_word=None):
+            """ Internal helper method to render the KEY 1, 2, 3 word candidates.
+                (has access to all vars in the parent's context)
+            """
+            # Clear the right panel
+            View.draw.rectangle((keyboard_width, text_entry_display_height, View.canvas_width, View.canvas_height), fill="black")
+
+            if not self.possible_words:
+                return
+
+            row_height = 26
+            x = keyboard_width + 10
+            y = text_entry_display_height - int(row_height / 2)
+
+            highlighted_row = 3
+            num_possible_rows = 11
+
+            list_starting_index = self.selected_possible_words_index - highlighted_row
+
+            word_font = View.ROBOTOCONDENSED_REGULAR_22
+            for row, i in enumerate(range(list_starting_index, list_starting_index + num_possible_rows)):
+                if i < 0:
+                    # We're near the top of the list, not enough items to fill above the highlighted row
+                    continue
+                if row == highlighted_row:
+                    # Leave the highlighted row to be rendered below
+                    continue
+
+                if len(self.possible_words) <= i:
+                    break
+
+                View.draw.text((x, y + row * row_height), self.possible_words[i], fill=View.color, font=word_font)
+
+            # Render the SELECT outline
+            if highlight_word:
+                fill_color = View.color
+                font_color = "black"
+            else:
+                fill_color = "#111"
+                font_color = View.color
+            View.draw.rounded_rectangle((keyboard_width + 4, y + (3 * row_height) - 2, 250, y + (4 * row_height) + 2), outline=View.color, fill=fill_color, radius=5, width=1)
+
+            if self.possible_words:
+                word_font = View.ROBOTOCONDENSED_BOLD_24
+                View.draw.text((x, y + 3 * row_height), self.possible_words[self.selected_possible_words_index], fill=font_color, font=word_font)
+
+            render_possible_matches_arrows()
+
+
+        def render_possible_matches_arrows():
+            # Render the up/down arrow buttons for KEY1 and KEY3
+            row_height = 26
+            arrow_button_width = 25
+            arrow_padding = 5
+            key_x = View.canvas_width - arrow_button_width
+            key_y = text_entry_display_height - int(row_height / 2) + int(0.75 * row_height)
+            background_color = "#111"
+            arrow_color = View.color
+            if arrow_up_is_active:
+                background_color = View.color
+                arrow_color = "#111"
+            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
+            View.draw.polygon(
+                [(key_x + int(arrow_button_width)/2 + 1, key_y + arrow_padding),  # centered top point
+                (View.canvas_width - arrow_padding + 1, key_y + row_height - arrow_padding),  # bottom right point
+                (key_x + arrow_padding + 1, key_y + row_height - arrow_padding)],  # bottom left point
+                fill=arrow_color
+            )
+
+            background_color = "#111"
+            arrow_color = View.color
+            if arrow_down_is_active:
+                background_color = View.color
+                arrow_color = "#111"
+            key_y = text_entry_display_height - int(row_height / 2) + int(5.25 * row_height)
+            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
+            View.draw.polygon(
+                [(key_x + int(arrow_button_width)/2 + 1, key_y + row_height - arrow_padding),  # bottom centered point
+                (View.canvas_width - arrow_padding + 1, key_y + arrow_padding),  # right top point
+                (key_x + arrow_padding + 1, key_y + arrow_padding)], # left top point
+                fill=arrow_color
+            )
+
+
+        # Clear the screen
+        View.draw.rectangle((0,0, View.canvas_width,View.canvas_height), fill="black")
+
+        self.render_previous_button()
+        previous_button_is_active = False
+        arrow_up_is_active = False
+        arrow_down_is_active = False
+
+        # Have to ensure that we don't carry any effects from a previous run
+        # TODO: This shouldn't be a member var
+        self.possible_alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+        # Set up the keyboard params
+        keyboard_width = 120
+        text_entry_display_height = 39
+
+        # TODO: support other BIP39 languages/charsets
+        keyboard = Keyboard(View.draw,
+                            charset=self.possible_alphabet,
+                            rows=5,
+                            cols=6,
+                            rect=(0,text_entry_display_height + 1, keyboard_width,240),
+                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT])
+
+        # Render the top text entry display
+        self.letters = initial_letters
+        text_entry_display = TextEntryDisplay(
+            View.draw,
+            rect=(self.previous_button_width,0, View.canvas_width,text_entry_display_height),
+            font=View.ROBOTOCONDENSED_BOLD_26,
+            font_color=View.color,
+            cur_text=f"{num_word}: " + "".join(self.letters)
+        )
+        text_entry_display.render()
+
+        # Initialize the current matches
+        self.possible_words = []
+        if len(self.letters) > 1:
+            self.letters.append(" ")    # "Lock in" the last letter as if KEY_PRESS
+            self.calc_possible_alphabet()
+            keyboard.update_active_keys(active_keys=self.possible_alphabet)
+            keyboard.set_selected_key(selected_letter=self.letters[-2])
+        else:
+            keyboard.set_selected_key(selected_letter=self.letters[-1])
+        keyboard.render_keys()
+        render_possible_matches()
+
+        View.DispShowImage()
+
+        # Start the interactive update loop
+        while True:
+            input = View.buttons.wait_for(
+                [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3],
+                check_release=True,
+                release_keys=[B.KEY_PRESS, B.KEY2]
+            )
+
+            if previous_button_is_active:
+                if input == B.KEY_PRESS:
+                    # User clicked the "back" arrow
+                    return Keyboard.KEY_PREVIOUS_PAGE
+                elif input == B.KEY_UP:
+                    input = Keyboard.ENTER_BOTTOM
+                    # Re-render it without the highlight
+                    previous_button_is_active = False
+                    self.render_previous_button()
+
+                elif input == B.KEY_DOWN:
+                    input = Keyboard.ENTER_TOP
+                    # Re-render it without the highlight
+                    previous_button_is_active = False
+                    self.render_previous_button()
+
+                elif input in [B.KEY_RIGHT, B.KEY_LEFT]:
+                    # no action in this context
+                    continue
+
+            ret_val = keyboard.update_from_input(input)
+
+            if ret_val in Keyboard.EXIT_DIRECTIONS:
+                self.render_previous_button(highlight=True)
+                previous_button_is_active = True
+
+            elif ret_val in Keyboard.ADDITIONAL_KEYS:
+                if input == B.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["letter"]:
+                    self.letters = self.letters[:-2]
+                    self.letters.append(" ")
+
+                    # Reactivate keys after deleting last letter
+                    self.calc_possible_alphabet()
+                    keyboard.update_active_keys(active_keys=self.possible_alphabet)
+                    keyboard.render_keys()
+                        
+                    # Update the right-hand possible matches area
+                    render_possible_matches()
+
+                elif ret_val == Keyboard.KEY_BACKSPACE["letter"]:
+                    # We're just hovering over DEL but haven't clicked. Show blank (" ")
+                    #   in the live text entry display at the top.
+                    self.letters = self.letters[:-1]
+                    self.letters.append(" ")
+
+            # Has the user made a final selection of a candidate word?
+            final_selection = None
+            if input == B.KEY1 and self.possible_words:
+                # Scroll the list up
+                self.selected_possible_words_index -= 1
+                if self.selected_possible_words_index < 0:
+                    self.selected_possible_words_index = 0
+
+                if not arrow_up_is_active:
+                    # Flash the up arrow as selected
+                    arrow_up_is_active = True
+
+                # Update the right-hand possible matches area
+                render_possible_matches()
+
+            elif input == B.KEY2:
+                if self.possible_words:
+                    final_selection = self.possible_words[self.selected_possible_words_index]
+
+            elif input == B.KEY3 and self.possible_words:
+                # Scroll the list down
+                self.selected_possible_words_index += 1
+                if self.selected_possible_words_index >= len(self.possible_words):
+                    self.selected_possible_words_index = len(self.possible_words) - 1
+
+                if not arrow_down_is_active:
+                    # Flash the down arrow as selected
+                    arrow_down_is_active = True
+
+                # Update the right-hand possible matches area
+                render_possible_matches()
+
+            if input is not B.KEY1 and arrow_up_is_active:
+                # Deactivate the arrow and redraw
+                arrow_up_is_active = False
+                render_possible_matches_arrows()
+
+            if input is not B.KEY3 and arrow_down_is_active:
+                # Deactivate the arrow and redraw
+                arrow_down_is_active = False
+                render_possible_matches_arrows()
+
+            if final_selection:
+                # Animate the selection storage, then return the word to the caller
+                self.letters = list(final_selection + " ")
+                render_possible_matches(highlight_word=final_selection)
+                text_entry_display.render(f"{num_word}: " + "".join(self.letters))
+                View.DispShowImage()
+
+                return final_selection
+
+            elif input == B.KEY_PRESS and ret_val in self.possible_alphabet:
+                # User has locked in the current letter
+                if self.letters[-1] != " ":
+                    # We'll save that locked in letter next but for now update the
+                    # live text entry display with blank (" ") so that we don't try
+                    # to autocalc matches against a second copy of the letter they
+                    # just selected. e.g. They KEY_PRESS on "s" to build "mus". If
+                    # we advance the live block cursor AND display "s" in it, the
+                    # current word would then be "muss" with no matches. If "mus"
+                    # can get us to our match, we don't want it to disappear right
+                    # as we KEY_PRESS.
+                    self.letters.append(" ")
+                else:
+                    # clicked same letter twice in a row. Because of the above, an
+                    # immediate second click of the same letter would lock in "ap "
+                    # (note the space) instead of "app". So we replace that trailing
+                    # space with the correct repeated letter and then, as above,
+                    # append a trailing blank.
+                    self.letters = self.letters[:-1]
+                    self.letters.append(ret_val)
+                    self.letters.append(" ")
+
+                # Recalc and deactivate keys after advancing
+                self.calc_possible_alphabet()
+                keyboard.update_active_keys(active_keys=self.possible_alphabet)
+                    
+                # Update the right-hand possible matches area
+                render_possible_matches()
+
+                if len(self.possible_alphabet) == 1:
+                    # If there's only one possible letter left, select it
+                    keyboard.set_selected_key(self.possible_alphabet[0])
+
+                keyboard.render_keys()
+
+            elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN] and ret_val in self.possible_alphabet:
+                # Live joystick movement; haven't locked this new letter in yet.
+                # Replace the last letter w/the currently selected one. But don't
+                # call `calc_possible_alphabet()` because we want to still be able
+                # to freely float to a different letter; only update the active
+                # keyboard keys when a selection has been locked in (KEY_PRESS) or
+                # removed ("del").
+                self.letters = self.letters[:-1]
+                self.letters.append(ret_val)
+                self.calc_possible_words()  # live update our matches as we move
+
+                # Update the right-hand possible matches area
+                render_possible_matches()
+
+            # Render the text entry display and cursor block
+            text_entry_display.render(f"{num_word}: " + "".join(self.letters))
+
+            View.DispShowImage()
+
+
+    def draw_passphrase_keyboard_entry(self, existing_passphrase = ""):
+        def render_right_panel(button1_text="ABC", button2_text="!@#"):
+            # Render the up/down arrow buttons for KEY1 and KEY3
+            row_height = 28
+            right_button_left_margin = 10
+            right_button_width = right_panel_buttons_width - right_button_left_margin
+            font_padding_right = 2
+            font_padding_top = 1
+            key_x = View.canvas_width - right_button_width
+            key_y = int(View.canvas_height - row_height) / 2 - 1 - 60
+
+            background_color = "#111"
+            font_color = View.color
+            font = View.ROBOTOCONDENSED_BOLD_24
+            tw, th = font.getsize(button1_text)
+            if button1_is_active:
+                background_color = View.color
+                font_color = "#111"
+            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
+            View.draw.text((View.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button1_text, fill=font_color)
+
+            background_color = "#111"
+            font_color = View.color
+            tw, th = font.getsize(button2_text)
+            if button2_is_active:
+                background_color = View.color
+                font_color = "#111"
+            key_y = int(View.canvas_height - row_height) / 2 - 1
+            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
+            View.draw.text((View.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button2_text, fill=font_color)
+
+            background_color = "#111"
+            font_color = View.color
+            button3_text = "Save"
+            tw, th = font.getsize(button3_text)
+            if button3_is_active:
+                background_color = View.color
+                font_color = "#111"
+            key_y = int(View.canvas_height - row_height) / 2 - 1 + 60
+            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
+            View.draw.text((View.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button3_text, fill=font_color)
+
+        # Clear the screen
+        View.draw.rectangle((0,0, View.canvas_width,View.canvas_height), fill="black")
+
+        self.render_previous_button()
+        previous_button_is_active = False
+
+        # Have to ensure that we don't carry any effects from a previous run
+        # TODO: This shouldn't be a member var
+        if existing_passphrase:
+            self.passphrase = existing_passphrase
+        else:
+            self.passphrase = " "
+
+        # Set up the keyboard params
+        right_panel_buttons_width = 60
+
+        # render top title banner
+        font = View.ROBOTOCONDENSED_REGULAR_20
+        title = "Enter Passphrase"
+        title_top_padding = 0
+        title_bottom_padding = 10
+        tw, th = font.getsize(title)
+        View.draw.text((int(View.canvas_width - tw) / 2, title_top_padding), text=title, font=font, fill=View.color)
+        title_height = th + title_top_padding + title_bottom_padding
+
+        # Render the live text entry display
+        font = View.ROBOTOCONDENSED_REGULAR_28
+        tw, th = font.getsize("!\"#$%&'()*+,=./;:<>?@[]|-_`~ ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 1234567890")  # All possible chars for max range
+        text_entry_side_padding = 0
+        text_entry_top_padding = 1
+        text_entry_bottom_padding = 10
+        text_entry_top_y = title_height + text_entry_top_padding
+        text_entry_bottom_y = text_entry_top_y + 3 + th + 3
+        text_entry_display = TextEntryDisplay(
+            View.draw,
+            rect=(text_entry_side_padding,text_entry_top_y, View.canvas_width - right_panel_buttons_width - 1, text_entry_bottom_y),
+            font=font,
+            font_color=View.color,
+            is_centered=False,
+            has_outline=True,
+            cur_text=''.join(self.passphrase)
+        )
+        text_entry_display.render()
+
+        keyboard_start_y = text_entry_bottom_y + text_entry_bottom_padding
+        keyboard_abc = Keyboard(View.draw,
+                            charset="1234567890" + "".join(SeedToolsView.ALPHABET),
+                            rows=4,
+                            cols=10,
+                            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
+                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT])
+        keyboard_ABC = Keyboard(View.draw,
+                            charset="1234567890" + "".join(SeedToolsView.ALPHABET).upper(),
+                            rows=4,
+                            cols=10,
+                            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
+                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+                            render_now=False)
+        keyboard_symbol = Keyboard(View.draw,
+                            charset="1234567890" + "!\"#$%&'()*+,=./;:<>?@[]|-_`~",
+                            rows=4,
+                            cols=10,
+                            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
+                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+                            render_now=False)
+
+        button1_is_active = False
+        button2_is_active = False
+        button3_is_active = False
+        KEYBOARD__LOWERCASE = 0
+        KEYBOARD__UPPERCASE = 1
+        KEYBOARD__SYMBOL = 2
+        cur_keyboard_type = KEYBOARD__LOWERCASE
+        cur_keyboard = keyboard_abc
+        render_right_panel()
+
+        View.DispShowImage()
+
+        # Start the interactive update loop
+        while True:
+            input = View.buttons.wait_for(
+                [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3],
+                check_release=True,
+                release_keys=[B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3]
+            )
+
+            keyboard_swap = False
+
+            # Check our two possible exit conditions
+            if input == B.KEY3:
+                # Save!
+                if self.passphrase != "" and self.passphrase != " ":
+                    return self.passphrase.strip()
+
+            elif input == B.KEY_PRESS and previous_button_is_active:
+                # Prev button clicked; return empty string to signal cancel.
+                return ""
+
+            # Check for keyboard swaps
+            if input == B.KEY1:
+                if cur_keyboard_type == KEYBOARD__LOWERCASE:
+                    keyboard_ABC.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard_type = KEYBOARD__UPPERCASE
+                    cur_keyboard = keyboard_ABC
+                    render_right_panel(button1_text="abc", button2_text="!@#")
+                else:
+                    keyboard_abc.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard_type = KEYBOARD__LOWERCASE
+                    cur_keyboard = keyboard_abc
+                    render_right_panel(button1_text="ABC", button2_text="!@#")
+                cur_keyboard.render_keys()
+                keyboard_swap = True
+                ret_val = cur_keyboard.get_selected_key()
+
+            elif input == B.KEY2:
+                if cur_keyboard_type in [KEYBOARD__LOWERCASE, KEYBOARD__UPPERCASE]:
+                    keyboard_symbol.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard_type = KEYBOARD__SYMBOL
+                    cur_keyboard = keyboard_symbol
+                    cur_keyboard.render_keys()
+                    render_right_panel(button1_text="abc", button2_text="")
+                    keyboard_swap = True
+                    ret_val = cur_keyboard.get_selected_key()
+
+            else:
+                # Process normal input
+                if input in [B.KEY_UP, B.KEY_DOWN] and previous_button_is_active:
+                    # We're navigating off the previous button
+                    previous_button_is_active = False
+                    self.render_previous_button(highlight=False)
+
+                    # Override the actual input w/an ENTER signal for the Keyboard
+                    if input == B.KEY_DOWN:
+                        input = Keyboard.ENTER_TOP
+                    else:
+                        input = Keyboard.ENTER_BOTTOM
+                elif input in [B.KEY_LEFT, B.KEY_RIGHT] and previous_button_is_active:
+                    # ignore
+                    continue
+
+
+                ret_val = cur_keyboard.update_from_input(input)
+
+            # Now process the result from the keyboard
+            if ret_val in Keyboard.EXIT_DIRECTIONS:
+                self.render_previous_button(highlight=True)
+                previous_button_is_active = True
+
+            elif ret_val in Keyboard.ADDITIONAL_KEYS:
+                if input == B.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["letter"]:
+                    self.passphrase = self.passphrase[:-2]
+                    self.passphrase += " "
+
+                elif ret_val == Keyboard.KEY_BACKSPACE["letter"]:
+                    # We're just hovering over DEL but haven't clicked. Show blank (" ")
+                    #   in the live text entry display at the top.
+                    self.passphrase = self.passphrase[:-1]
+                    self.passphrase += " "
+
+            elif input == B.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
+                # User has locked in the current letter
+                if self.passphrase[-1] != " ":
+                    # We'll save that locked in letter next but for now update the
+                    # live text entry display with blank (" ") so that we don't try
+                    # to autocalc matches against a second copy of the letter they
+                    # just selected. e.g. They KEY_PRESS on "s" to build "mus". If
+                    # we advance the live block cursor AND display "s" in it, the
+                    # current word would then be "muss" with no matches. If "mus"
+                    # can get us to our match, we don't want it to disappear right
+                    # as we KEY_PRESS.
+                    self.passphrase += " "
+                else:
+                    # clicked same letter twice in a row. Because of the above, an
+                    # immediate second click of the same letter would lock in "ap "
+                    # (note the space) instead of "app". So we replace that trailing
+                    # space with the correct repeated letter and then, as above,
+                    # append a trailing blank.
+                    self.passphrase = self.passphrase[:-1]
+                    self.passphrase += ret_val
+                    self.passphrase += " "
+
+            elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN] or keyboard_swap:
+                # Live joystick movement; haven't locked this new letter in yet.
+                # Leave current spot blank for now. Only update the active keyboard keys
+                # when a selection has been locked in (KEY_PRESS) or removed ("del").
+                pass
+
+            # Render the text entry display and cursor block
+            text_entry_display.render(self.passphrase)
+
+            View.DispShowImage()
+
 
     def gather_words_up(self):
         View.draw.polygon([(8 + ((len(self.letters)-1)*30), 85) , (14 + ((len(self.letters)-1)*30), 69) , (20 + ((len(self.letters)-1)*30), 85 )], outline=View.color, fill=View.color)
@@ -193,10 +759,10 @@ class SeedToolsView(View):
 
         return
 
+
     ###
     ### Display Gather PassPhrase Screen
     ###
-
     def display_gather_passphrase_screen(self, existing_passphrase = "") -> str:
         self.reset()
         self.pass_letter = "a"
@@ -828,7 +1394,6 @@ class SeedToolsView(View):
                     cur_y = next_y
 
 
-
     def parse_seed_qr_data(self):
         try:
             data = self.controller.from_camera_queue.get(False)
@@ -874,10 +1439,109 @@ class SeedToolsView(View):
         self.buttons.trigger_override(True)
         return self.words[:]
 
+
+    def parse_seed_image_data(self):
+        try:
+            data = self.controller.from_camera_queue.get(block=False)
+            print(f"got queue data: {data}")
+        except:
+            return
+
+        self.seed_entropy_image = data[0]
+        print("exiting parse_seed_image_data")
+
+
+    def seed_phrase_from_camera_image(self):
+        reshoot = False
+
+        self.seed_entropy_image = None
+        self.controller.menu_view.draw_modal(["Initializing Camera..."]) # TODO: Move to Controller
+        # initialize camera
+        self.controller.to_camera_queue.put(["single_frame"])
+        # First get blocking, this way it's clear when the camera is ready for the end user
+        print("Waiting for 'ready' from camera")
+        while True:
+            try:
+                msg = self.controller.from_camera_queue.get(block=False)
+                print(f"msg received: {msg}")
+
+                # check 'ready', sometimes queue contains nodata or data that needs to be cleared
+                is_ready = False
+                for m in msg:
+                    if m == "ready":
+                        is_ready = True
+                if is_ready:
+                    break
+            except:
+                time.sleep(0.1)
+
+        self.controller.menu_view.draw_modal(["Aim camera", "click joystick"], title="Capture Image as Seed", bottom="Left to Cancel") # TODO: Move to Controller
+
+        input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_PRESS])
+        if input == B.KEY_LEFT:
+            self.words = []
+            self.controller.to_camera_queue.put(["stop"])
+
+        elif input == B.KEY_PRESS:
+            try:
+                print("KEY_PRESS")
+                self.controller.menu_view.draw_modal(["Auto-adjusting", "exposure..."], title="Capture Image as Seed") # TODO: Move to Controller
+                self.controller.to_camera_queue.put(["click"])
+                self.camera_loop_timer = CameraPoll(0.05, self.parse_seed_image_data)
+
+                # Wait for the camera process to complete
+                while self.seed_entropy_image is None:
+                    time.sleep(0.2)
+            except Exception as e:
+                traceback.print_exc()
+            finally:
+                self.controller.to_camera_queue.put(["stop"])
+                self.camera_loop_timer.stop()
+
+            # Prep a copy of the image for display. The actual image data is 720x480
+            # Present just a center crop to fit the screen and to keep some of the
+            # data hidden.
+            display_version = autocontrast(
+                self.seed_entropy_image,
+                cutoff=2
+            ).rotate(
+                90
+            ).crop(
+                (120, 0, 600, 480)
+            ).resize(
+                (View.canvas_width, View.canvas_height), Image.BICUBIC
+            )
+
+            View.DispShowImageWithText(
+                display_version,
+                text=" < reshoot  |  accept > ",
+                font=View.ROBOTOCONDENSED_REGULAR_22,
+                text_color=View.color,
+                text_background=(0,0,0,225)
+            )
+
+            input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
+            if input == B.KEY_LEFT:
+                reshoot = True
+
+            else:
+                # TODO: Pull this out into its own method so we can write tests against it
+                hash = hashlib.sha256(self.seed_entropy_image.tobytes())
+                badseedphrase_str = mnemonic_from_bytes(hash.digest())
+                badseedphrase_list = badseedphrase_str.split()
+                badseedphrase_list.pop(-1)
+                calclastwordphrasestr = " ".join(badseedphrase_list) + " abandon"
+                goodphrasebytes = mnemonic_to_bytes(calclastwordphrasestr, ignore_checksum=True)
+                goodseedphrasestr = mnemonic_from_bytes(goodphrasebytes)
+                self.words = goodseedphrasestr.split()
+
+        # self.buttons.trigger_override(True)
+        return (reshoot, self.words)
+
+
     ###
     ### Utility Methods
     ###
-
     def reset(self):
         self.words.clear()
         self.possible_alphabet = SeedToolsView.ALPHABET[:]
@@ -888,18 +1552,25 @@ class SeedToolsView(View):
 
         return
 
+
     def calc_possible_alphabet(self, new_letter = False):
-        if (len(self.letters) > 1 and new_letter == False) or (len(self.letters) > 0 and new_letter == True):
+        if (self.letters and len(self.letters) > 1 and new_letter == False) or (len(self.letters) > 0 and new_letter == True):
             search_letters = self.letters[:]
             if new_letter == False:
                 search_letters.pop()
-            possible_words = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(search_letters))]
+            self.calc_possible_words()
             letter_num = len(search_letters)
             possible_letters = []
-            for word in possible_words:
+            for word in self.possible_words:
                 if len(word)-1 >= letter_num:
                     possible_letters.append(word[letter_num])
             # remove duplicates and keep order
             self.possible_alphabet = list(dict.fromkeys(possible_letters))[:]
         else:
             self.possible_alphabet = SeedToolsView.ALPHABET[:]
+            self.possible_words = []
+
+
+    def calc_possible_words(self):
+        self.possible_words = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(self.letters).strip())]
+        self.selected_possible_words_index = 0        

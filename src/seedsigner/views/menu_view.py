@@ -7,10 +7,11 @@ from seedsigner.models import SeedStorage
 import time
 import re
 
+
 class MenuView(View):
 
-    def __init__(self, controller) -> None:
-        View.__init__(self, controller)
+    def __init__(self) -> None:
+        View.__init__(self)
 
         self.menu_lines = []
         self.selected_menu_num = 1
@@ -38,7 +39,7 @@ class MenuView(View):
         # Wait for Button Input (specifically menu selection/press)
         while True:
             if ret_val == 0:
-                input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
+                input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             else:
                 return ret_val
             if input == B.KEY_UP:
@@ -70,13 +71,13 @@ class MenuView(View):
             else:
                 seed_storage_line = "View Seeds (temp)"
 
-        lines = ["... [ Return to Main ]", "Input a Seed", "Add/Remove Passphrase", "Generate an xPub", "Generate Work 12/24", "Generate a Seed with Dice"]
+        lines = ["... [ Return to Main ]", "Input a Seed", "Add/Remove Passphrase", "Generate an xPub", "Generate Word 12/24", "Generate a Seed with Dice", "Generate a Seed with Image"]
         self.draw_menu(lines, 1)
         input = 0
 
         # Wait for Button Input (specifically menu selection/press)
         while True:
-            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
+            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if input == B.KEY_UP:
                 self.menu_up()
             elif input == B.KEY_DOWN:
@@ -94,6 +95,8 @@ class MenuView(View):
                     return Path.GEN_LAST_WORD
                 elif self.selected_menu_num == 6:
                     return Path.DICE_GEN_SEED
+                elif self.selected_menu_num == 7:
+                    return Path.IMAGE_GEN_SEED
 
     ### Signing Tools Menu
 
@@ -104,7 +107,7 @@ class MenuView(View):
 
         # Wait for Button Input (specifically menu selection/press)
         while True:
-            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
+            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if input == B.KEY_UP:
                 self.menu_up()
             elif input == B.KEY_DOWN:
@@ -135,7 +138,7 @@ class MenuView(View):
 
         # Wait for Button Input (specifically menu selection/press)
         while True:
-            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
+            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if input == B.KEY_UP:
                 self.menu_up()
             elif input == B.KEY_DOWN:
@@ -166,7 +169,7 @@ class MenuView(View):
         self.draw_menu(lines, 1, title, bottom, True)
 
         while True:
-            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
+            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if input == B.KEY_UP:
                 self.menu_up(title, bottom)
             elif input == B.KEY_DOWN:
@@ -182,7 +185,7 @@ class MenuView(View):
 
          # Wait for Button Input (specifically menu selection/press)
         while True:
-            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
+            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if input == B.KEY_UP:
                 self.menu_up()
             elif input == B.KEY_DOWN:
@@ -255,7 +258,7 @@ class MenuView(View):
 
         # Wait for Button Input (specifically menu selection/press)
         while True:
-            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
+            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if input == B.KEY_UP:
                 self.menu_up()
             elif input == B.KEY_DOWN:
@@ -272,7 +275,7 @@ class MenuView(View):
     ###
 
     ### Generic Draw Menu Method
-
+    # TODO: Optimize updates by just redrawing the no-longer highlighted line and the newly highlighted line
     def draw_menu(self, lines, selected_menu_num = 1, title = None, bottom = None, force_redraw = False) -> None:
         if title == None:
             t = "SeedSigner  v" + self.controller.VERSION

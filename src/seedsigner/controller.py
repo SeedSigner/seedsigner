@@ -11,37 +11,78 @@ from .models import (SeedStorage, SpecterDesktopWallet, BlueWallet,
     SparrowWallet, GenericUR2Wallet, Wallet)
 
 
-class Controller:
-    
-    VERSION = "0.4.2"
 
-    def __init__(self, config) -> None:
-        controller = self
+
+class Controller:
+    """
+        The Controller is a globally available singleton that maintains SeedSigner state.
+
+        It only makes sense to ever have a single Controller instance so it is
+        implemented here as a singleton. One departure from the typical singleton pattern
+        is the addition of a `configure_instance()` call to pass run-time settings into
+        the Controller.
+
+        Any code that needs to interact with the one and only Controller can just run:
+        ```
+        from seedsigner.controller import Controller
+        controller = Controller.get_instance()
+        ```
+        Note: In many/most cases you'll need to do the Controller import within a method
+        rather than at the top in order avoid circular imports.
+    """
+    VERSION = "0.4.3"
+
+    _instance = None
+
+
+    def __init__(self):
+        # Singleton pattern must prevent normal instantiation
+        raise Exception("Cannot directly instantiate the Controller. Access via Controller.get_instance()")
+
+
+    @classmethod
+    def get_instance(cls):
+        # This is the only way to access the one and only Controller
+        if cls._instance:
+            return cls._instance
+        else:
+            raise Exception("Must call Controller.configure_instance(config) first")
+
+
+    @classmethod
+    def configure_instance(cls, config=None):
+        # Must be called before the first get_instance() call
+        if cls._instance:
+            raise Exception("Instance already configured")
+
+        # Instantiate the one and only Controller instance
+        controller = cls.__new__(cls)
+        cls._instance = controller
 
         # settings
-        self.DEBUG = config.getboolean("system", "DEBUG")
-        self.color = config["display"]["TEXT_COLOR"]
+        controller.DEBUG = config.getboolean("system", "DEBUG")
+        controller.color = config["display"]["TEXT_COLOR"]
 
         # Input Buttons
-        self.buttons = Buttons()
+        controller.buttons = Buttons()
 
         # models
-        self.storage = SeedStorage()
-        self.wallet_klass = globals()["SpecterDesktopWallet"]
-        self.wallet = self.wallet_klass()
+        controller.storage = SeedStorage()
+        controller.wallet_klass = globals()["SpecterDesktopWallet"]
+        controller.wallet = controller.wallet_klass()
 
         # Views
-        self.menu_view = MenuView(controller)
-        self.seed_tools_view = SeedToolsView(controller)
-        self.io_test_view = IOTestView(controller)
-        self.signing_tools_view = SigningToolsView(controller, self.storage)
-        self.settings_tools_view = SettingsToolsView(controller)
+        controller.menu_view = MenuView()
+        controller.seed_tools_view = SeedToolsView()
+        controller.io_test_view = IOTestView()
+        controller.signing_tools_view = SigningToolsView(controller.storage)
+        controller.settings_tools_view = SettingsToolsView()
 
         # Then start seperate background camera process with two queues for communication
         # CameraProcess handles connecting to camera hardware and passing back barcode data via from camera queue
-        self.from_camera_queue = Queue()
-        self.to_camera_queue = Queue()
-        p = Process(target=CameraProcess.start, args=(self.from_camera_queue, self.to_camera_queue))
+        controller.from_camera_queue = Queue()
+        controller.to_camera_queue = Queue()
+        p = Process(target=CameraProcess.start, args=(controller.from_camera_queue, controller.to_camera_queue))
         p.start()
 
 
@@ -88,6 +129,8 @@ class Controller:
                 ret_val = self.show_generate_last_word_tool()
             elif ret_val == Path.DICE_GEN_SEED:
                 ret_val = self.show_create_seed_with_dice_tool()
+            elif ret_val == Path.IMAGE_GEN_SEED:
+                ret_val = self.show_create_seed_with_image_tool()
             elif ret_val == Path.SAVE_SEED:
                 ret_val = self.show_store_a_seed_tool()
             elif ret_val == Path.PASSPHRASE_SEED:
@@ -141,9 +184,9 @@ class Controller:
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Seed Tools ]")
             if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(11)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(11)
             elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(23)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(23)
             else:
                 return Path.SEED_TOOLS_SUB_MENU
 
@@ -206,6 +249,41 @@ class Controller:
 
         return Path.MAIN_MENU
 
+    def show_create_seed_with_image_tool(self) -> int:
+        seed_phrase = []
+        ret_val = True
+
+        while True:
+            (reshoot, seed_phrase) = self.seed_tools_view.seed_phrase_from_camera_image()
+            if reshoot:
+                # Relaunch into another image capture cycle
+                continue
+
+            if len(seed_phrase) > 0:
+                break
+            else:
+                return Path.SEED_TOOLS_SUB_MENU
+
+        # display seed phrase (24 words)
+        while True:
+            ret_val = self.seed_tools_view.display_seed_phrase(seed_phrase, show_qr_option=True)
+            if ret_val == True:
+                break
+            else:
+                # Start over
+                return self.show_create_seed_with_image_tool()
+
+        # Ask to save seed
+        if self.storage.slot_avaliable():
+            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Seed?")
+            if r == 1: #Yes
+                slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
+                if slot_num in (1,2,3):
+                    self.storage.save_seed_phrase(seed_phrase, slot_num)
+                    self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
+                    input = self.buttons.wait_for([B.KEY_RIGHT])
+
+        return Path.MAIN_MENU
     ### Store a seed (temp) Menu
 
     def show_store_a_seed_tool(self):
@@ -234,9 +312,9 @@ class Controller:
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Seed Tools ]")
             if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
             elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
             elif ret_val == Path.SEED_WORD_QR:
                 seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
             else:
@@ -321,7 +399,7 @@ class Controller:
         slot_num = ret_val
 
         # display a tool to pick letters/numbers to make a passphrase
-        passphrase = self.seed_tools_view.display_gather_passphrase_screen(self.storage.get_passphrase(slot_num))
+        passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry(existing_passphrase=self.storage.get_passphrase(slot_num))
         if len(passphrase) == 0:
             return Path.SEED_TOOLS_SUB_MENU
 
@@ -359,9 +437,9 @@ class Controller:
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Sign Tools ]")
             if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
             elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
             elif ret_val == Path.SEED_WORD_QR:
                 seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
             else:
@@ -381,7 +459,7 @@ class Controller:
             r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Optional Passphrase?")
             if r == 1:
                 # display a tool to pick letters/numbers to make a passphrase
-                passphrase = self.seed_tools_view.display_gather_passphrase_screen()
+                passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
                 if len(passphrase) == 0 or passphrase == "-1":
                     passphrase = ""
                     self.menu_view.draw_modal(["No passphrase added", "to seed words"], "", "Left to Exit, Right to Continue")
@@ -430,9 +508,9 @@ class Controller:
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Main Menu ]")
             if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(12)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
             elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_gather_words_screen(24)
+                seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
             elif ret_val == Path.SEED_WORD_QR:
                 seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
             else:
@@ -452,7 +530,7 @@ class Controller:
             r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Optional Passphrase?")
             if r == 1:
                 # display a tool to pick letters/numbers to make a passphrase
-                passphrase = self.seed_tools_view.display_gather_passphrase_screen()
+                passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
                 if len(passphrase) == 0 or passphrase == "-1":
                     passphrase = ""
                     self.menu_view.draw_modal(["No passphrase added", "to seed words"], "", "Left to Exit, Right to Continue")
