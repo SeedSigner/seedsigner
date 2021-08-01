@@ -57,7 +57,7 @@ class UREncodePSBTQR:
 
     def __init__(self, p, qr_density):
         self.psbt = p
-        self.qr_max_fragement_size = 50
+        self.qr_max_fragement_size = 10
 
         cbor_encoder = CBOREncoder()
         cbor_encoder.encodeBytes(self.psbt.serialize())
@@ -66,9 +66,9 @@ class UREncodePSBTQR:
         self.ur2_encode = UREncoder(qr_ur_bytes,self.qr_max_fragement_size,0)
 
         if qr_density == EncodePSBTQRDensity.LOW:
-            self.qr_max_fragement_size = 20
+            self.qr_max_fragement_size = 10
         elif qr_density == EncodePSBTQRDensity.MEDIUM:
-            self.qr_max_fragement_size = 50
+            self.qr_max_fragement_size = 20
         elif qr_density == EncodePSBTQRDensity.HIGH:
             self.qr_max_fragement_size = 80
 

@@ -14,28 +14,48 @@ class PSBTParser():
         self.spend_amount = 0
         self.change_amount = 0
         self.fee_amount = 0
+        self.input_amount = 0
         self.destination_addresses = []
         self.self_addresses = []
 
+        self.seed = None
+        self.root = None
+
+        if self.seed_phrase != None:
+            self.parse(self.psbt,self.seed_phrase,self.passphrase,self.network)
+
+    def __setSeedRoot(self, seed_phrase, passphrase, network):
+        self.seed = bip39.mnemonic_to_seed(" ".join(seed_phrase).strip(), passphrase)
+        self.root = bip32.HDKey.from_seed(self.seed, version=NETWORKS[network]["xprv"])
+
     def parse(self, p, seed_phrase=[], passphrase="", network="main"):
-        if p == None:
+        is_psbt_empty = False
+        try:
+            if p == None:
+                is_psbt_empty = True
+        except:
+            pass
+
+        if is_psbt_empty:
             return False
 
-        if seed_phrase == None or len(seed_phrase) not in (12,24):
+        if len(seed_phrase) == 0:
             return False
+
+        self.__setSeedRoot(seed_phrase,passphrase,network)
 
         rt = self.__parseInputs()
         if rt == False:
             return False
 
-        rt = self.__parseOutputs(self.seed_phrase, self.passphrase, self.network)
+        rt = self.__parseOutputs()
         if rt == False:
             return False
 
         return True
 
     def __parseInputs(self):
-        self.psbt.input_amount = 0
+        self.input_amount = 0
         for inp in self.psbt.inputs:
             self.input_amount += inp.witness_utxo.value
             inp_policy = PSBTParser.__get_policy(inp, inp.witness_utxo.script_pubkey, self.psbt.xpubs)
@@ -45,11 +65,7 @@ class PSBTParser():
                 if self.policy != inp_policy:
                     raise RuntimeError("Mixed inputs in the transaction")
 
-    def __parseOutputs(self, seed_phrase, passphrase, network):
-        seed = bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip(), passphrase)
-        root = bip32.HDKey.from_seed(seed, version=NETWORKS[network]["xprv"])
-        fingerprint = root.child(0).fingerprint
-
+    def __parseOutputs(self):
         self.spend_amount = 0
         self.change_amount = 0
         self.fee_amount = 0
@@ -75,27 +91,30 @@ class PSBTParser():
                     sc = script.p2wsh(out.witness_script)
                 elif self.policy["type"] == "p2sh-p2wsh":
                     sc = script.p2sh(script.p2wsh(out.witness_script))
+
                 # single-sig
-                elif "pkh" in self.policy["type"] and fingerprint != None:
-                    for pub in out.bip32_derivations:
-                        # check if it is our key
-                        if out.bip32_derivations[pub].fingerprint == fingerprint:
-                            hdkey = root.derive(out.bip32_derivations[pub].derivation)
-                            mypub = hdkey.key.get_public_key()
-                            if mypub != pub:
-                                raise ValueError("Derivation path doesn't look right")
-                            # now check if provided scriptpubkey matches
-                            sc = script.p2wpkh(mypub)
-                            if sc == self.psbt.tx.vout[i].script_pubkey:
-                                is_change = True
+                elif "pkh" in self.policy["type"]:
+                    my_pubkey = None
+                    # should be one or zero for single-key addresses
+                    if len(out.bip32_derivations.values()) > 0:
+                        der = list(out.bip32_derivations.values())[0].derivation
+                        my_pubkey = self.root.derive(der)
+                    if self.policy["type"] == "p2wpkh" and my_pubkey != None:
+                        sc = script.p2wpkh(my_pubkey)
+                    elif self.policy["type"] == "p2sh-p2wpkh" and my_pubkey != None:
+                        sc = script.p2sh(script.p2wpkh(my_pubkey))
+
+                    if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
+                        is_change = True
+
                 if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
                     is_change = True
             if is_change:
                 self.change_amount += self.psbt.tx.vout[i].value
-                self.self_addresses.append(self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[network]))
+                self.self_addresses.append(self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[self.network]))
             else:
-                self.spend_amount += self.tx.vout[i].value
-                self.destination_addresses.append(self.tx.vout[i].script_pubkey.address(NETWORKS[network]))
+                self.spend_amount += self.psbt.tx.vout[i].value
+                self.destination_addresses.append(self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[self.network]))
 
         self.fee_amount = self.psbt.fee()
         return True
@@ -132,10 +151,10 @@ class PSBTParser():
         if "p2wsh" in script_type and scope.witness_script is not None:
             m, n, pubkeys = PSBTParser.__parse_multisig(scope.witness_script)
             # check pubkeys are derived from cosigners
-            if len(pubkeys) > 0:
+            try:
                 cosigners = PSBTParser.__get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
                 policy.update({"m": m, "n": n, "cosigners": cosigners})
-            else:
+            except:
                 policy.update({"m": m, "n": n})
         return policy
 

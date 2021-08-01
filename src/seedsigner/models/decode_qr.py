@@ -80,23 +80,30 @@ class DecodeQR:
 
     def getPSBT(self):
         if self.complete:
-            try:
-                if self.qr_type == QRType.PSBTUR2:
-                    cbor = self.ur_decoder.result_message().cbor
-                    return psbt.PSBT.parse(cbor_decode(cbor))
-                elif self.qr_type == QRType.PSBTSPECTER:
-                    return psbt.PSBT.parse(self.specter_qr.getData())
-                elif self.qr_type == QRType.PSBTURLEGACY:
-                    return psbt.PSBT.parse(self.legacy_ur.getData())
-                elif self.qr_type == QRType.PSBTBASE64:
-                    return psbt.PSBT.parse(self.base64_qr.getData())
-            except:
-                return None
+            data = self.getDataPSBT()
+            if data != None:
+                try:
+                    return psbt.PSBT.parse(data)
+                except:
+                    return None
+        return None
+
+    def getDataPSBT(self):
+        if self.complete:
+            if self.qr_type == QRType.PSBTUR2:
+                cbor = self.ur_decoder.result_message().cbor
+                return cbor_decode(cbor)
+            elif self.qr_type == QRType.PSBTSPECTER:
+                return self.specter_qr.getData()
+            elif self.qr_type == QRType.PSBTURLEGACY:
+                return self.legacy_ur.getData()
+            elif self.qr_type == QRType.PSBTBASE64:
+                return self.base64_qr.getData()
         return None
 
     def getBase64PSBT(self):
         if self.complete:
-            data = self.getData()
+            data = self.getDataPSBT()
             b64_psbt = b2a_base64(data)
 
             if b64_psbt[-1:] == b"\n":
@@ -163,7 +170,7 @@ class DecodeQR:
             return QRType.PSBTURLEGACY
         elif re.search(r'\d{48,96}', s):
             return QRType.SEEDSSQR
-        elif DecodePSBTQR.isBase64PSBT(s):
+        elif DecodeQR.isBase64PSBT(s):
             return QRType.PSBTBASE64
         else:
             return QRType.INVALID
