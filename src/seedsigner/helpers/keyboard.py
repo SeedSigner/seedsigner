@@ -91,6 +91,8 @@ class Keyboard:
         screen_x: int
         screen_y: int
         keyboard: any
+        index_x: int = None
+        index_y: int = None
         code: str = None  # key/code returned on press (e.g. "x" or "cursor_left")
         size: int = 1
         is_active: bool = True
@@ -181,6 +183,7 @@ class Keyboard:
         self.x_width = int((rect[2] - rect[0]) / cols) - self.x_gap
         self.y_gap = 6
         self.y_height = int((rect[3] - rect[1]) / rows) - self.y_gap
+        self.additional_key_entered_from_x = None
 
         # Two-dimensional list of Key obj row data
         self.keys = []
@@ -189,20 +192,24 @@ class Keyboard:
         for i in range(0, rows):
             cur_row = []
             cur_x = self.x_start
-            for j, letter in enumerate(charset[i*cols:(i+1)*cols]):
+            cur_index_x = 0
+            for letter in charset[i*cols:(i+1)*cols]:
                 is_selected = False
                 if letter == selected_char:
                     is_selected = True
                     self.selected_key["y"] = i
-                    self.selected_key["x"] = j
+                    self.selected_key["x"] = cur_index_x
                 cur_row.append(self.Key(
                     letter=letter,
                     screen_x=cur_x,
                     screen_y=cur_y,
+                    index_x=cur_index_x,
+                    index_y=i,
                     is_selected=is_selected,
                     keyboard=self
                 ))
                 cur_x += self.x_width + self.x_gap
+                cur_index_x += 1
             self.keys.append(cur_row)
             if i < rows -1:
                 # increment to the next row and continue
@@ -215,11 +222,14 @@ class Keyboard:
                         code=additional_key["code"],
                         screen_x=cur_x,
                         screen_y=cur_y,
+                        index_x=cur_index_x,
+                        index_y=i,
                         keyboard=self,
                         size=additional_key["size"],
                         is_additional_key=True,
                     ))
                     cur_x += self.x_width * additional_key["size"] + self.x_gap
+                    cur_index_x += additional_key["size"]
 
         if render_now:
             # Render the keys
@@ -260,6 +270,74 @@ class Keyboard:
                 key.render_key()
 
 
+    def get_selected_key(self):
+        return self.get_key_at(self.selected_key["x"], self.selected_key["y"])
+
+
+    def get_key_at(self, index_x, index_y):
+        if index_y < len(self.keys) - 1:
+            # Not on the bottom row
+            if index_x < len(self.keys[index_y]):
+                return self.keys[index_y][index_x]
+            else:
+                # index_x is beyond the last key in this row
+                return None
+
+        effective_index = 0
+        key = None
+        for cur_key in self.keys[index_y]:
+            if index_x >= effective_index and index_x < effective_index + cur_key.size:
+                return cur_key
+            effective_index += cur_key.size
+
+        return None
+
+
+    def get_key_above(self, cur_x, cur_y):
+        next_y = cur_y - 1
+
+        while True:
+            if next_y < 0:
+                # We started from the top row; auto_wrap or exit.
+                if Keyboard.WRAP_TOP in self.auto_wrap:
+                    # Loop it back to the bottom
+                    next_y = len(self.keys) - 1
+                else:
+                    # Undo selection change and notify controlling loop that we've left
+                    #   the keyboard
+                    return (cur_x, cur_y, Keyboard.EXIT_TOP)
+
+            target_key = self.get_key_at(cur_x, next_y)
+            if target_key:
+                return(cur_x, next_y, None)
+            else:
+                # No match was found. Move up one more row.
+                next_y -= 1
+
+
+    def get_key_below(self, cur_x, cur_y):
+        next_y = cur_y + 1
+
+        while True:
+            if next_y == len(self.keys):
+                # We started from the bottom row; auto_wrap or exit.
+                if Keyboard.WRAP_BOTTOM in self.auto_wrap:
+                    # Loop it back to the top
+                    next_y = 0
+                    return (cur_x, next_y, None)
+                else:
+                    # Undo selection change and notify controlling loop that we've left
+                    #   the keyboard
+                    return (cur_x, cur_y, Keyboard.EXIT_BOTTOM)
+
+            target_key = self.get_key_at(cur_x, next_y)
+            if target_key is not None:
+                return (cur_x, next_y, None)
+
+            # No keys in this col in this row. Move down again and recheck.
+            next_y += 1
+
+
     def update_from_input(self, input, enter_from=None):
         """
             Managing code must handle its own input/update loop since other action buttons
@@ -275,15 +353,16 @@ class Keyboard:
 
             Does NOT call View.DispShowImage to avoid multiple calls on the same screen.
         """
-        key = self.keys[self.selected_key["y"]][self.selected_key["x"]]
+        key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
 
         # Before we update, undo our previously self.selected_key key
         key.is_selected = False
         key.render_key()
 
         if input == B.KEY_RIGHT:
-            self.selected_key["x"] += 1
-            if self.selected_key["x"] == len(self.keys[self.selected_key["y"]]):
+            self.selected_key["x"] = key.index_x + key.size
+            new_key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
+            if new_key is None:
                 if Keyboard.WRAP_RIGHT in self.auto_wrap:
                     # Loop it back to the right side
                     self.selected_key["x"] = 0
@@ -294,11 +373,12 @@ class Keyboard:
                     return Keyboard.EXIT_RIGHT
 
         elif input == B.KEY_LEFT:
-            self.selected_key["x"] -= 1
+            key = self.get_selected_key()
+            self.selected_key["x"] = key.index_x - 1
             if self.selected_key["x"] < 0:
                 if Keyboard.WRAP_LEFT in self.auto_wrap:
                     # Loop it back to the left side
-                    self.selected_key["x"] = len(self.keys[self.selected_key["y"]]) - 1
+                    self.selected_key["x"] = self.keys[self.selected_key["y"]][-1].index_x
                 else:
                     # Undo selection change and notify controlling loop that we've left
                     #   the keyboard
@@ -306,61 +386,18 @@ class Keyboard:
                     return Keyboard.EXIT_LEFT
 
         elif input == B.KEY_DOWN:
-            self.selected_key["y"] += 1
-            if self.selected_key["y"] == len(self.keys):
-                if Keyboard.WRAP_BOTTOM in self.auto_wrap:
-                    # Loop it back to the top
-                    self.selected_key["y"] = 0
-                else:
-                    # Undo selection change and notify controlling loop that we've left
-                    #   the keyboard
-                    self.selected_key["y"] -= 1
-                    return Keyboard.EXIT_BOTTOM
-
-            elif self.selected_key["x"] >= len(self.keys[self.selected_key["y"]]):
-                # We're moving into the bottom line but there's no key directly below.
-                if self.selected_key["x"] - 1 == len(self.keys[self.selected_key["y"]]) - 1 and \
-                        self.keys[self.selected_key["y"]][-1].size == 2:
-                    # The last, adjacent key in this row is a double. Go ahead and select it
-                    self.selected_key["x"] = self.selected_key["x"] - 1
-
-                else:
-                    if Keyboard.WRAP_BOTTOM in self.auto_wrap:
-                        # This line is too short to land here
-                        self.selected_key["y"] = 0
-                    else:
-                        # Undo selection change and notify controlling loop that we've left
-                        #   the keyboard
-                        self.selected_key["y"] -= 1
-                        return Keyboard.EXIT_BOTTOM
+            new_index_x, new_index_y, keyboard_exit = self.get_key_below(self.selected_key["x"], self.selected_key["y"])
+            self.selected_key["x"] = new_index_x
+            self.selected_key["y"] = new_index_y
+            if keyboard_exit:
+                return keyboard_exit
 
         elif input == B.KEY_UP:
-            self.selected_key["y"] -= 1
-            if self.selected_key["y"] < 0:
-                if Keyboard.WRAP_TOP in self.auto_wrap:
-                    # Loop it back to the bottom
-                    self.selected_key["y"] = len(self.keys) - 1
-                else:
-                    # Undo selection change and notify controlling loop that we've left
-                    #   the keyboard
-                    self.selected_key["y"] += 1
-                    return Keyboard.EXIT_TOP
-
-            if self.selected_key["x"] >= len(self.keys[self.selected_key["y"]]):
-                # We're moving into the bottom line but there's no key directly below.
-                if self.selected_key["x"] - 1 == len(self.keys[self.selected_key["y"]]) - 1 and \
-                        self.keys[self.selected_key["y"]][-1].size == 2:
-                    # The last, adjacent key in this row is a double. Go ahead and select it
-                    self.selected_key["x"] = self.selected_key["x"] - 1
-                else:
-                    if Keyboard.WRAP_TOP in self.auto_wrap:
-                        # This line is too short to land here
-                        self.selected_key["y"] -= 1
-                    else:
-                        # Undo selection change and notify controlling loop that we've left
-                        #   the keyboard
-                        self.selected_key["y"] += 1
-                        return Keyboard.EXIT_TOP
+            new_index_x, new_index_y, keyboard_exit = self.get_key_above(self.selected_key["x"], self.selected_key["y"])
+            self.selected_key["x"] = new_index_x
+            self.selected_key["y"] = new_index_y
+            if keyboard_exit:
+                return keyboard_exit
 
         elif input == Keyboard.ENTER_LEFT:
             # User has returned to the keyboard along the left edge
@@ -370,7 +407,7 @@ class Keyboard:
         elif input == Keyboard.ENTER_RIGHT:
             # User has returned to the keyboard along the right edge
             # Keep the last y position that was selected.
-            self.selected_key["x"] = len(self.keys[self.selected_key["y"]]) - 1
+            self.selected_key["x"] = self.keys[self.selected_key["y"]][-1].index_x
 
         elif input == Keyboard.ENTER_TOP:
             # User has returned to the keyboard along the top edge
@@ -381,17 +418,16 @@ class Keyboard:
             # User has returned to the keyboard along the bottom edge
             # Keep the last x position that was selected.
             self.selected_key["y"] = len(self.keys) - 1
-            if self.selected_key["x"] > len(self.keys[self.selected_key["y"]]) - 1:
-                if self.selected_key["x"] - 1 == len(self.keys[self.selected_key["y"]]) - 1 and \
-                        self.keys[self.selected_key["y"]][-1].size == 2:
-                    # The last, adjacent key in this row is a double. Go ahead and select it
-                    self.selected_key["x"] = self.selected_key["x"] - 1
+            while True:
+                key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
+                if key is not None:
+                    break
                 else:
                     # Can't enter here. Jump up a row
                     self.selected_key["y"] -= 1
 
         # Render the newly self.selected_key letter
-        key = self.keys[self.selected_key["y"]][self.selected_key["x"]]
+        key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
         key.is_selected = True
         key.render_key()
 
@@ -400,7 +436,7 @@ class Keyboard:
 
     def set_selected_key(self, selected_letter):
         # De-select the current selected_key
-        self.keys[self.selected_key["y"]][self.selected_key["x"]].is_selected = False
+        self.get_selected_key().is_selected = False
 
         # Find the new selected_key
         for i, row_keys in enumerate(self.keys):
@@ -415,7 +451,7 @@ class Keyboard:
 
     def set_selected_key_indices(self, x, y):
         # De-select the current selected_key
-        self.keys[self.selected_key["y"]][self.selected_key["x"]].is_selected = False
+        self.get_selected_key().is_selected = False
 
         if y < len(self.keys):
             self.selected_key["y"] = y
@@ -428,11 +464,8 @@ class Keyboard:
             self.selected_key["x"] = len(self.keys[self.selected_key["y"]]) - 1
 
         # Select the new selected_key
-        self.keys[self.selected_key["y"]][self.selected_key["x"]].is_selected = True
+        self.get_key_at(self.selected_key["x"], self.selected_key["y"]).is_selected = True
 
-
-    def get_selected_key(self):
-        return self.keys[self.selected_key["y"]][self.selected_key["x"]].code
 
 
 class TextEntryDisplayConstants:

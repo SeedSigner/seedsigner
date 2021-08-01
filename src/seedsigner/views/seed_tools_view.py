@@ -503,7 +503,6 @@ class SeedToolsView(View):
         keyboard_abc = Keyboard(
             View.draw,
             charset="".join(SeedToolsView.ALPHABET),
-            # charset="1234567890" + "".join(SeedToolsView.ALPHABET),
             rows=4,
             cols=9,
             rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
@@ -525,8 +524,8 @@ class SeedToolsView(View):
         keyboard_digits = Keyboard(
             View.draw,
             charset="1234567890",
-            rows=5,
-            cols=3,
+            rows=3,
+            cols=5,
             rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
             additional_keys=[Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
@@ -584,40 +583,48 @@ class SeedToolsView(View):
 
             # Check for keyboard swaps
             if input == B.KEY1:
+                # Return to the same button2 keyboard, if applicable
+                if cur_keyboard == keyboard_digits:
+                    cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
+                elif cur_keyboard == keyboard_symbols:
+                    cur_button2_text = KEYBOARD__SYMBOLS_BUTTON_TEXT
+
                 if cur_button1_text == KEYBOARD__LOWERCASE_BUTTON_TEXT:
                     keyboard_abc.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard_type = KEYBOARD__LOWERCASE
                     cur_keyboard = keyboard_abc
                     cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
                     render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
                 else:
                     keyboard_ABC.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard_type = KEYBOARD__UPPERCASE
                     cur_keyboard = keyboard_ABC
                     cur_button1_text = KEYBOARD__LOWERCASE_BUTTON_TEXT
                     render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
                 cur_keyboard.render_keys()
                 keyboard_swap = True
-                ret_val = cur_keyboard.get_selected_key()
+                ret_val = None
 
             elif input == B.KEY2:
+                # Return to the same button1 keyboard, if applicable
+                if cur_keyboard == keyboard_abc:
+                    cur_button1_text = KEYBOARD__LOWERCASE_BUTTON_TEXT
+                elif cur_keyboard == keyboard_ABC:
+                    cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
+
                 if cur_button2_text == KEYBOARD__DIGITS_BUTTON_TEXT:
                     keyboard_digits.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard_type = KEYBOARD__DIGITS
                     cur_keyboard = keyboard_digits
                     cur_keyboard.render_keys()
                     cur_button2_text = KEYBOARD__SYMBOLS_BUTTON_TEXT
                     render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
                 else:
                     keyboard_symbols.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard_type = KEYBOARD__SYMBOLS
                     cur_keyboard = keyboard_symbols
                     cur_keyboard.render_keys()
                     cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
                     render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
                 cur_keyboard.render_keys()
                 keyboard_swap = True
-                ret_val = cur_keyboard.get_selected_key()
+                ret_val = None
 
             else:
                 # Process normal input
