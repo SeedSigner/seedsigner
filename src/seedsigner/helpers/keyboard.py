@@ -25,16 +25,59 @@ class Keyboard:
     COMPACT_KEY_FONT = "compact"
 
     KEY_BACKSPACE = {
+        "code": "DEL",
         "letter": "del",
         "font": COMPACT_KEY_FONT,
         "size": 2,
     }
+    KEY_SPACE = {
+        "code": "SPACE",
+        "letter": "space",
+        "font": COMPACT_KEY_FONT,
+        "size": 1,
+    }
+    KEY_SPACE_3 = {
+        "code": "SPACE",
+        "letter": "space",
+        "font": COMPACT_KEY_FONT,
+        "size": 3,
+    }
+    KEY_SPACE_4 = {
+        "code": "SPACE",
+        "letter": "space",
+        "font": COMPACT_KEY_FONT,
+        "size": 4,
+    }
+    KEY_SPACE_5 = {
+        "code": "SPACE",
+        "letter": "space",
+        "font": COMPACT_KEY_FONT,
+        "size": 5,
+    }
+    KEY_CURSOR_LEFT = {
+        "code": "CURSOR_LEFT",
+        "letter": "<",
+        "font": REGULAR_KEY_FONT,
+        "size": 1,
+    }
+    KEY_CURSOR_RIGHT = {
+        "code": "CURSOR_RIGHT",
+        "letter": ">",
+        "font": REGULAR_KEY_FONT,
+        "size": 1,
+    }
     KEY_PREVIOUS_PAGE = {
-        "letter": "prev"
+        "code": "PREV",
+        "letter": "<",
+        "font": REGULAR_KEY_FONT,
+        "size": 1,
     }
     ADDITIONAL_KEYS = {
-        KEY_BACKSPACE["letter"]: KEY_BACKSPACE,
-        KEY_PREVIOUS_PAGE["letter"]: KEY_PREVIOUS_PAGE,
+        KEY_SPACE["code"]: KEY_SPACE,
+        KEY_BACKSPACE["code"]: KEY_BACKSPACE,
+        KEY_CURSOR_LEFT["code"]: KEY_CURSOR_LEFT,
+        KEY_CURSOR_RIGHT["code"]: KEY_CURSOR_RIGHT,
+        KEY_PREVIOUS_PAGE["code"]: KEY_PREVIOUS_PAGE,
     }
 
     @dataclass
@@ -44,19 +87,24 @@ class Keyboard:
             individual key in the keyboard and its state. Attrs with defaults must be
             listed last.
         """
-        letter: str
+        letter: str     # display value
         screen_x: int
         screen_y: int
         keyboard: any
+        code: str = None  # key/code returned on press (e.g. "x" or "cursor_left")
         size: int = 1
         is_active: bool = True
         is_selected: bool = False
         is_additional_key: bool = False
 
+        def __post_init__(self):
+            if not self.code:
+                self.code = self.letter
+
         def render_key(self):
             font = self.keyboard.font
-            if self.letter in Keyboard.ADDITIONAL_KEYS:
-                if Keyboard.ADDITIONAL_KEYS[self.letter]["font"] == Keyboard.COMPACT_KEY_FONT:
+            if self.is_additional_key:
+                if Keyboard.ADDITIONAL_KEYS[self.code]["font"] == Keyboard.COMPACT_KEY_FONT:
                     font = self.keyboard.additonal_key_compact_font
 
             outline_color = "#333"
@@ -70,10 +118,13 @@ class Keyboard:
                 rect_color = self.keyboard.highlight_color  # Render solid background with the UI's hero color
                 font_color = self.keyboard.background_color
             else:
-                rect_color = self.keyboard.background_color
+                if self.is_additional_key:
+                    rect_color = "#111"
+                else:
+                    rect_color = self.keyboard.background_color
                 font_color = self.keyboard.highlight_color
 
-            self.keyboard.draw.rectangle((self.screen_x, self.screen_y, self.screen_x + self.keyboard.x_width * self.size, self.screen_y + self.keyboard.y_height), outline=outline_color, fill=rect_color)
+            self.keyboard.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.keyboard.x_width * self.size - 1, self.screen_y + self.keyboard.y_height), outline=outline_color, fill=rect_color, radius=4)
             tw, th = self.keyboard.draw.textsize(self.letter, font=font)
             self.keyboard.draw.text((self.screen_x + int((self.keyboard.x_width * self.size - tw) / 2), self.screen_y + int((self.keyboard.y_height - th)/2)), self.letter, fill=font_color, font=font)
 
@@ -161,13 +212,14 @@ class Keyboard:
                 for additional_key in additional_keys:
                     self.keys[-1].append(self.Key(
                         letter=additional_key["letter"],
+                        code=additional_key["code"],
                         screen_x=cur_x,
                         screen_y=cur_y,
                         keyboard=self,
                         size=additional_key["size"],
                         is_additional_key=True,
                     ))
-                    cur_x += self.x_width + self.x_gap
+                    cur_x += self.x_width * additional_key["size"] + self.x_gap
 
         if render_now:
             # Render the keys
@@ -181,7 +233,7 @@ class Keyboard:
         self.active_keys = active_keys
         for i, row_keys in enumerate(self.keys):
             for j, key in enumerate(row_keys):
-                if key.letter not in self.active_keys and key.letter not in Keyboard.ADDITIONAL_KEYS:
+                if key.code not in self.active_keys and not key.is_additional_key:
                     # Note: ADDITIONAL_KEYS are never deactivated.
                     key.is_active = False
                 else:
@@ -201,7 +253,7 @@ class Keyboard:
 
         for i, row_keys in enumerate(self.keys):
             for j, key in enumerate(row_keys):
-                if selected_letter and key.letter == selected_letter:
+                if selected_letter and key.code == selected_letter:
                     key.is_selected = True
                     self.selected_key["y"] = i
                     self.selected_key["x"] = j
@@ -343,7 +395,7 @@ class Keyboard:
         key.is_selected = True
         key.render_key()
 
-        return key.letter
+        return key.code
 
 
     def set_selected_key(self, selected_letter):
@@ -353,7 +405,7 @@ class Keyboard:
         # Find the new selected_key
         for i, row_keys in enumerate(self.keys):
             for j, key in enumerate(row_keys):
-                if selected_letter and key.letter == selected_letter:
+                if selected_letter and key.code == selected_letter:
                     key.is_selected = True
                     self.selected_key["y"] = i
                     self.selected_key["x"] = j
@@ -380,21 +432,28 @@ class Keyboard:
 
 
     def get_selected_key(self):
-        return self.keys[self.selected_key["y"]][self.selected_key["x"]].letter
+        return self.keys[self.selected_key["y"]][self.selected_key["x"]].code
+
+
+class TextEntryDisplayConstants:
+    CURSOR_MODE__BAR = "bar"
+    CURSOR_MODE__BLOCK = "block"
+
 
 
 @dataclass
-class TextEntryDisplay:
+class TextEntryDisplay(TextEntryDisplayConstants):
     draw: any
     rect: (int,int,int,int)
     font: any
     font_color: any
+    cursor_mode: str = TextEntryDisplayConstants.CURSOR_MODE__BLOCK
     is_centered: bool = True
     has_outline: bool = False
     cur_text: str = " "
 
 
-    def render(self, cur_text=None):
+    def render(self, cur_text=None, cursor_position=None):
         """ Render the live text entry display """
         if cur_text:
             self.cur_text = cur_text
@@ -403,28 +462,63 @@ class TextEntryDisplay:
         else:
             self.draw.rectangle(self.rect, fill="black")
 
-        cursor_block_width = 18
-        cursor_block_height = 33
+        if self.cursor_mode == TextEntryDisplay.CURSOR_MODE__BLOCK:
+            cursor_block_width = 18
+            cursor_block_height = 33
 
-        # Draw n-1 of the selected letters
-        tw, th = self.font.getsize(self.cur_text[:-1])
-        if self.is_centered:
-            word_offset = self.rect[0] + int(self.rect[2] - self.rect[0] - tw - cursor_block_width)/2
+            # Draw n-1 of the selected letters
+            tw, th = self.font.getsize(self.cur_text[:-1])
+            if self.is_centered:
+                word_offset = self.rect[0] + int(self.rect[2] - self.rect[0] - tw - cursor_block_width)/2
+            else:
+                word_offset = self.rect[0] + 3
+            cursor_block_offset = word_offset + tw - 1
+            if cursor_block_offset == self.rect[0]:
+                cursor_block_offset = self.rect[0] + 1
+
+            end_pos_x = cursor_block_offset + cursor_block_width
+            if end_pos_x >= self.rect[2]:
+                # Shift the display left
+                cursor_block_offset -= end_pos_x - self.rect[2] + 1
+                word_offset -= end_pos_x - self.rect[2] + 1
+
+            self.draw.text((word_offset, self.rect[1] + 3), self.cur_text[:-1], fill=self.font_color, font=self.font)
+
+            # Draw the highlighted cursor block
+            self.draw.rectangle((cursor_block_offset, self.rect[1] + 1, cursor_block_offset + cursor_block_width, self.rect[3] - 1), fill="#111")
+            self.draw.text((cursor_block_offset + 1, self.rect[1] + 3), self.cur_text[-1], fill=self.font_color, font=self.font)
+
         else:
-            word_offset = self.rect[0] + 3
-        cursor_block_offset = word_offset + tw - 1
-        if cursor_block_offset == self.rect[0]:
-            cursor_block_offset = self.rect[0] + 1
+            cursor_bar_offset = 1
+            cursor_bar_serif_half_width = 4
+            tw, th = self.font.getsize(self.cur_text)
+            if self.is_centered:
+                word_offset = self.rect[0] + int(self.rect[2] - self.rect[0] - tw)/2
+            else:
+                word_offset = self.rect[0] + 3
 
-        end_pos_x = cursor_block_offset + cursor_block_width
-        if end_pos_x >= self.rect[2]:
-            # Shift the display left
-            cursor_block_offset -= end_pos_x - self.rect[2] + 1
-            word_offset -= end_pos_x - self.rect[2] + 1
+            end_pos_x = word_offset + tw + cursor_bar_serif_half_width + 3
+            if end_pos_x >= self.rect[2]:
+                # Shift the display left
+                word_offset -= end_pos_x - self.rect[2] + 1
 
-        self.draw.text((word_offset, self.rect[1] + 3), self.cur_text[:-1], fill=self.font_color, font=self.font)
+            # Draw the cursor bar
+            if cursor_position is None:
+                cursor_position = len(self.cur_text)
+            if cursor_position == 0:
+                cursor_bar_x = self.rect[0] + cursor_bar_offset + cursor_bar_serif_half_width
+            elif cursor_position >= len(self.cur_text):
+                cursor_bar_x = word_offset + tw
+            else:
+                tw, th = self.font.getsize(self.cur_text[:cursor_position])
+                cursor_bar_x = word_offset + tw + cursor_bar_offset
 
-        # Draw the highlighted cursor block
-        self.draw.rectangle((cursor_block_offset, self.rect[1] + 1, cursor_block_offset + cursor_block_width, self.rect[3] - 1), fill="#111")
-        self.draw.text((cursor_block_offset + 1, self.rect[1] + 3), self.cur_text[-1], fill=self.font_color, font=self.font)
+            self.draw.text((word_offset, self.rect[1] + 3), self.cur_text, fill=self.font_color, font=self.font)
+
+            # Render as an "I" bar
+            cursor_bar_color = "#ccc"
+            self.draw.line((cursor_bar_x, self.rect[1] + 3, cursor_bar_x, self.rect[3] - 3), fill=cursor_bar_color)
+            self.draw.line((cursor_bar_x - cursor_bar_serif_half_width, self.rect[1] + 3, cursor_bar_x + cursor_bar_serif_half_width, self.rect[1] + 3), fill=cursor_bar_color)
+            self.draw.line((cursor_bar_x - cursor_bar_serif_half_width, self.rect[3] - 3, cursor_bar_x + cursor_bar_serif_half_width, self.rect[3] - 3), fill=cursor_bar_color)
+
 
