@@ -1,12 +1,13 @@
 from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
-import re
 from enum import IntEnum
+import re
 import base64
 from embit import bip39, psbt
 from binascii import a2b_base64, b2a_base64
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
 from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
+from seedsigner.models.qr_type import QRType
 
 ###
 ### DecodeQR Class
@@ -15,14 +16,18 @@ from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
 
 class DecodeQR:
 
-    def __init__(self, qr_type=None):
+    def __init__(self, **kwargs):
         self.complete = False
-        self.qr_type = qr_type
+        self.qr_type = None
         self.ur_decoder = URDecoder() # UR2 decoder
         self.specter_qr = SpecterDecodePSBTQR() # Specter Desktop PSBT QR base64 decoder
         self.legacy_ur = LegacyURDecodeQR() # UR Legacy decoder
         self.base64_qr = Base64DecodeQR() # Single Segments Base64
         self.seedqr = SeedQR()
+
+        for key, value in kwargs.items():
+            if key == "qr_type":
+                self.qr_type = value
 
     def addImage(self, image):
         qr_str = DecodeQR.QR2Str(image)
@@ -401,21 +406,6 @@ class SeedQR:
         if len(self.seed_phrase) > 0 and self.complete:
             return self.seed_phrase
         return None
-
-
-###
-### QRType Class IntEum
-### Purpose: used in DecodeQR to communicate qr encoding type
-###
-
-class QRType(IntEnum):
-    PSBTBASE64 = 1
-    PSBTSPECTER = 2
-    PSBTURLEGACY = 3
-    PSBTUR2 = 5
-    SEEDSSQR = 6
-    SEEDUR2 = 7
-    INVALID = 100
 
 ###
 ### DecodeQRStatus Class IntEum

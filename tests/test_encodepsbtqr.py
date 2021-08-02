@@ -11,7 +11,7 @@ def test_ur_qr_encode():
 
     tx = psbt.PSBT.parse(a2b_base64(base64_psbt))
 
-    e = EncodeQR(tx, QRType.PSBTUR2)
+    e = EncodeQR(psbt=tx, qr_type=QRType.PSBTUR2)
 
     cnt = 0
     while cnt <= 10:
@@ -26,7 +26,7 @@ def test_specter_qr_encode():
 
     tx = psbt.PSBT.parse(a2b_base64(base64_psbt))
 
-    e = EncodeQR(tx, QRType.PSBTSPECTER)
+    e = EncodeQR(psbt=tx, qr_type=QRType.PSBTSPECTER)
 
     cnt = 0
     while cnt <= 10:
@@ -61,11 +61,29 @@ def test_seedsigner_qr():
 
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(mnemonic.split(" "), QRType.SEEDSSQR)
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), qr_type=QRType.SEEDSSQR)
 
     print(e.nextPart())
 
     assert e.nextPart() == "121802020768124106400009195602431595117715840445"
 
+def test_xpub_qr():
+
+    mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
+
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUBQR, network="test", policy="PKWPKH", derivation="m/48h/1h/0h/2h")
+
+    assert e.nextPart() == "[c49122a5/48h/1h/0h/2h]vpub5adb6xr5X1yqx2v7qoo5uR32BBCQsj9tRe9zbMRsH8X6tYGE6CzuiF6k3njCyHrU5JWPMsoPwNZd9Bk9Kaqy29izB8PbuU6smtv8HLcTEAv"
+
+def test_specter_xpub_qr():
+
+    mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
+
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.SPECTERXPUBQR, network="test", policy="PKWPKH", derivation="m/48h/1h/0h/2h", qr_density=EncodeQRDensity.LOW)
+
+    assert e.nextPart() == "p1of4 [c49122a5/48h/1h/0h/2h]vpub5adb6xr5X1yqx"
+    assert e.nextPart() == "p2of4 2v7qoo5uR32BBCQsj9tRe9zbMRsH8X6tYGE6Czui"
+    assert e.nextPart() == "p3of4 F6k3njCyHrU5JWPMsoPwNZd9Bk9Kaqy29izB8Pbu"
+    assert e.nextPart() == "p4of4 U6smtv8HLcTEAv"
 
 
