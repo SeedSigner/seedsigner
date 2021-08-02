@@ -29,7 +29,7 @@ Now we have some incomprensible configuration steps to set up the internet acces
 Add a line to the end of `config.txt`:
 ```
 # mac/Linux/Windows:
-echo dtoverlay=dwc2 >> config.txt
+dtoverlay=dwc2
 ```
 
 Open `cmdline.txt` in a basic text editor:
@@ -52,12 +52,12 @@ Eject the SD card and insert it into your Pi Zero 1.3. Plug a USB cable into you
 
 The Pi will take a minute or so to boot up its OS. After waiting a bit, try to communicate with the Pi over SSH:
 ```
-ssh pi@raspberrypi.local
+ssh pi@seedsigner.local
 ```
 
 If you see the following prompt, type `yes` to continue:
 ```
-The authenticity of host 'raspberrypi.local (192.168.2.3)' can't be established.
+The authenticity of host 'seedsigner.local (192.168.2.3)' can't be established.
 ECDSA key fingerprint is SHA256:go4yVgii1GcvyxzhOe03atLn5bl2NhZlOR04tJHBo+k.
 Are you sure you want to continue connecting (yes/no/[fingerprint])?
 ```
@@ -75,7 +75,7 @@ This is a security risk - please login as the 'pi' user and type 'passwd' to set
 
 If someone savvy got access to your SeedSigner, they could sign into it and potentially upload malicious code. To add an extra layer of protection, change the default 'pi' user's password now by typing `passwd`:
 ```
-pi@raspberrypi:~ $ passwd
+pi@seedsigner:~ $ passwd
 Changing password for pi.
 Current password: 
 New password: 
