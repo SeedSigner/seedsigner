@@ -287,7 +287,7 @@ class SeedToolsView(View):
                 previous_button_is_active = True
 
             elif ret_val in Keyboard.ADDITIONAL_KEYS:
-                if input == B.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["letter"]:
+                if input == B.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["code"]:
                     self.letters = self.letters[:-2]
                     self.letters.append(" ")
 
@@ -299,7 +299,7 @@ class SeedToolsView(View):
                     # Update the right-hand possible matches area
                     render_possible_matches()
 
-                elif ret_val == Keyboard.KEY_BACKSPACE["letter"]:
+                elif ret_val == Keyboard.KEY_BACKSPACE["code"]:
                     # We're just hovering over DEL but haven't clicked. Show blank (" ")
                     #   in the live text entry display at the top.
                     self.letters = self.letters[:-1]
@@ -464,7 +464,7 @@ class SeedToolsView(View):
         if existing_passphrase:
             self.passphrase = existing_passphrase
         else:
-            self.passphrase = " "
+            self.passphrase = ""
 
         # Set up the keyboard params
         right_panel_buttons_width = 60
@@ -491,42 +491,72 @@ class SeedToolsView(View):
             rect=(text_entry_side_padding,text_entry_top_y, View.canvas_width - right_panel_buttons_width - 1, text_entry_bottom_y),
             font=font,
             font_color=View.color,
+            cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
             is_centered=False,
             has_outline=True,
             cur_text=''.join(self.passphrase)
         )
         text_entry_display.render()
+        cursor_position = len(self.passphrase)
 
         keyboard_start_y = text_entry_bottom_y + text_entry_bottom_padding
-        keyboard_abc = Keyboard(View.draw,
-                            charset="1234567890" + "".join(SeedToolsView.ALPHABET),
-                            rows=4,
-                            cols=10,
-                            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
-                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT])
-        keyboard_ABC = Keyboard(View.draw,
-                            charset="1234567890" + "".join(SeedToolsView.ALPHABET).upper(),
-                            rows=4,
-                            cols=10,
-                            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
-                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
-                            render_now=False)
-        keyboard_symbol = Keyboard(View.draw,
-                            charset="1234567890" + "!\"#$%&'()*+,=./;:<>?@[]|-_`~",
-                            rows=4,
-                            cols=10,
-                            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
-                            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
-                            render_now=False)
+        keyboard_abc = Keyboard(
+            View.draw,
+            charset="".join(SeedToolsView.ALPHABET),
+            rows=4,
+            cols=9,
+            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
+            additional_keys=[Keyboard.KEY_SPACE_5, Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT]
+        )
+
+        keyboard_ABC = Keyboard(
+            View.draw,
+            charset="".join(SeedToolsView.ALPHABET).upper(),
+            rows=4,
+            cols=9,
+            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
+            additional_keys=[Keyboard.KEY_SPACE_5, Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+            render_now=False
+        )
+
+        keyboard_digits = Keyboard(
+            View.draw,
+            charset="1234567890",
+            rows=3,
+            cols=5,
+            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
+            additional_keys=[Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+            render_now=False
+        )
+
+        keyboard_symbols = Keyboard(
+            View.draw,
+            charset="!@#$%^&*()-+_=[]{}\\|;:'\",.<>/?`~",
+            rows=4,
+            cols=10,
+            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
+            additional_keys=[Keyboard.KEY_SPACE_4, Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+            render_now=False
+        )
 
         button1_is_active = False
         button2_is_active = False
         button3_is_active = False
         KEYBOARD__LOWERCASE = 0
         KEYBOARD__UPPERCASE = 1
-        KEYBOARD__SYMBOL = 2
-        cur_keyboard_type = KEYBOARD__LOWERCASE
+        KEYBOARD__DIGITS = 2
+        KEYBOARD__SYMBOLS = 3
+        KEYBOARD__LOWERCASE_BUTTON_TEXT = "abc"
+        KEYBOARD__UPPERCASE_BUTTON_TEXT = "ABC"
+        KEYBOARD__DIGITS_BUTTON_TEXT = "123"
+        KEYBOARD__SYMBOLS_BUTTON_TEXT = "!@#"
         cur_keyboard = keyboard_abc
+        cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
+        cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
         render_right_panel()
 
         View.DispShowImage()
@@ -544,7 +574,7 @@ class SeedToolsView(View):
             # Check our two possible exit conditions
             if input == B.KEY3:
                 # Save!
-                if self.passphrase != "" and self.passphrase != " ":
+                if len(self.passphrase) > 0:
                     return self.passphrase.strip()
 
             elif input == B.KEY_PRESS and previous_button_is_active:
@@ -553,29 +583,48 @@ class SeedToolsView(View):
 
             # Check for keyboard swaps
             if input == B.KEY1:
-                if cur_keyboard_type == KEYBOARD__LOWERCASE:
-                    keyboard_ABC.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard_type = KEYBOARD__UPPERCASE
-                    cur_keyboard = keyboard_ABC
-                    render_right_panel(button1_text="abc", button2_text="!@#")
-                else:
+                # Return to the same button2 keyboard, if applicable
+                if cur_keyboard == keyboard_digits:
+                    cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
+                elif cur_keyboard == keyboard_symbols:
+                    cur_button2_text = KEYBOARD__SYMBOLS_BUTTON_TEXT
+
+                if cur_button1_text == KEYBOARD__LOWERCASE_BUTTON_TEXT:
                     keyboard_abc.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard_type = KEYBOARD__LOWERCASE
                     cur_keyboard = keyboard_abc
-                    render_right_panel(button1_text="ABC", button2_text="!@#")
+                    cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
+                    render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
+                else:
+                    keyboard_ABC.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard = keyboard_ABC
+                    cur_button1_text = KEYBOARD__LOWERCASE_BUTTON_TEXT
+                    render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
                 cur_keyboard.render_keys()
                 keyboard_swap = True
-                ret_val = cur_keyboard.get_selected_key()
+                ret_val = None
 
             elif input == B.KEY2:
-                if cur_keyboard_type in [KEYBOARD__LOWERCASE, KEYBOARD__UPPERCASE]:
-                    keyboard_symbol.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard_type = KEYBOARD__SYMBOL
-                    cur_keyboard = keyboard_symbol
+                # Return to the same button1 keyboard, if applicable
+                if cur_keyboard == keyboard_abc:
+                    cur_button1_text = KEYBOARD__LOWERCASE_BUTTON_TEXT
+                elif cur_keyboard == keyboard_ABC:
+                    cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
+
+                if cur_button2_text == KEYBOARD__DIGITS_BUTTON_TEXT:
+                    keyboard_digits.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard = keyboard_digits
                     cur_keyboard.render_keys()
-                    render_right_panel(button1_text="abc", button2_text="")
-                    keyboard_swap = True
-                    ret_val = cur_keyboard.get_selected_key()
+                    cur_button2_text = KEYBOARD__SYMBOLS_BUTTON_TEXT
+                    render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
+                else:
+                    keyboard_symbols.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard = keyboard_symbols
+                    cur_keyboard.render_keys()
+                    cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
+                    render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
+                cur_keyboard.render_keys()
+                keyboard_swap = True
+                ret_val = None
 
             else:
                 # Process normal input
@@ -593,7 +642,6 @@ class SeedToolsView(View):
                     # ignore
                     continue
 
-
                 ret_val = cur_keyboard.update_from_input(input)
 
             # Now process the result from the keyboard
@@ -601,38 +649,41 @@ class SeedToolsView(View):
                 self.render_previous_button(highlight=True)
                 previous_button_is_active = True
 
-            elif ret_val in Keyboard.ADDITIONAL_KEYS:
-                if input == B.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["letter"]:
-                    self.passphrase = self.passphrase[:-2]
-                    self.passphrase += " "
+            elif ret_val in Keyboard.ADDITIONAL_KEYS and input == B.KEY_PRESS:
+                if ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                    if cursor_position == 0:
+                        pass
+                    elif cursor_position == len(self.passphrase):
+                        self.passphrase = self.passphrase[:-1]
+                    else:
+                        self.passphrase = self.passphrase[:cursor_position - 1] + self.passphrase[cursor_position:]
 
-                elif ret_val == Keyboard.KEY_BACKSPACE["letter"]:
-                    # We're just hovering over DEL but haven't clicked. Show blank (" ")
-                    #   in the live text entry display at the top.
-                    self.passphrase = self.passphrase[:-1]
-                    self.passphrase += " "
+                    cursor_position -= 1
+
+                elif ret_val == Keyboard.KEY_CURSOR_LEFT["code"]:
+                    cursor_position -= 1
+                    if cursor_position < 0:
+                        cursor_position = 0
+
+                elif ret_val == Keyboard.KEY_CURSOR_RIGHT["code"]:
+                    cursor_position += 1
+                    if cursor_position > len(self.passphrase):
+                        cursor_position = len(self.passphrase)
+
+                elif ret_val == Keyboard.KEY_SPACE["code"]:
+                    if cursor_position == len(self.passphrase):
+                        self.passphrase += " "
+                    else:
+                        self.passphrase = self.passphrase[:cursor_position] + " " + self.passphrase[cursor_position:]
+                    cursor_position += 1
 
             elif input == B.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
                 # User has locked in the current letter
-                if self.passphrase[-1] != " ":
-                    # We'll save that locked in letter next but for now update the
-                    # live text entry display with blank (" ") so that we don't try
-                    # to autocalc matches against a second copy of the letter they
-                    # just selected. e.g. They KEY_PRESS on "s" to build "mus". If
-                    # we advance the live block cursor AND display "s" in it, the
-                    # current word would then be "muss" with no matches. If "mus"
-                    # can get us to our match, we don't want it to disappear right
-                    # as we KEY_PRESS.
-                    self.passphrase += " "
-                else:
-                    # clicked same letter twice in a row. Because of the above, an
-                    # immediate second click of the same letter would lock in "ap "
-                    # (note the space) instead of "app". So we replace that trailing
-                    # space with the correct repeated letter and then, as above,
-                    # append a trailing blank.
-                    self.passphrase = self.passphrase[:-1]
+                if cursor_position == len(self.passphrase):
                     self.passphrase += ret_val
-                    self.passphrase += " "
+                else:
+                    self.passphrase = self.passphrase[:cursor_position] + ret_val + self.passphrase[cursor_position:]
+                cursor_position += 1
 
             elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN] or keyboard_swap:
                 # Live joystick movement; haven't locked this new letter in yet.
@@ -641,7 +692,7 @@ class SeedToolsView(View):
                 pass
 
             # Render the text entry display and cursor block
-            text_entry_display.render(self.passphrase)
+            text_entry_display.render(self.passphrase, cursor_position)
 
             View.DispShowImage()
 
