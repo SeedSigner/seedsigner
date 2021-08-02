@@ -1,5 +1,5 @@
 from .decode_qr import *
-from .encode_psbt_qr import *
+from .encode_qr import *
 from .psbt_parser import *
 from .seed_storage import *
 from .wallet import *	# base class has to be first

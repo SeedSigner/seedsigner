@@ -1,5 +1,5 @@
 from enum import IntEnum
-from embit import psbt
+from embit import psbt, bip39
 from binascii import b2a_base64
 from seedsigner.helpers.ur2.ur_encoder import UREncoder
 from seedsigner.helpers.ur2.cbor_lite import CBOREncoder
@@ -9,24 +9,28 @@ from seedsigner.helpers.qr import QR
 from seedsigner.models.decode_qr import QRType
 
 ###
-### EncodePSBTQR Class
+### EncodeQR Class
 ### Purpose: used to encode psbt for displaying as qr image
 ###
 
-class EncodePSBTQR:
+class EncodeQR:
 
     def __init__(self, p, qr_type=None, qr_density=None):
-        if qr_type == None:
+        if qr_type == None and self.psbt != None:
             self.qr_type = QRType.PSBTSPECTER
         else:
             self.qr_type = qr_type
 
+        if self.qr_type in (QRType.PSBTSPECTER, QRType.PSBTUR2):
+            self.psbt = p
+        else:
+            self.psbt = None
+
         if qr_density == None:
-            self.qr_density = EncodePSBTQRDensity.MEDIUM
+            self.qr_density = EncodeQRDensity.MEDIUM
         else:
             self.qr_density = qr_density
 
-        self.psbt = p
         self.qr = QR()
 
         self.encoder = None
@@ -34,30 +38,39 @@ class EncodePSBTQR:
             self.encoder = SpecterEncodePSBTQR(self.psbt, self.qr_density)
         elif qr_type == QRType.PSBTUR2:
             self.encoder = UREncodePSBTQR(self.psbt, self.qr_density)
+        elif qr_type == QRType.SEEDSSQR:
+            seed_phrase = p
+            self.encoder = SeedSSQR(seed_phrase)
         else:
             raise Exception('Encoder Type not Supported')
 
     def totalParts(self):
-        return self.encoder.seq_len()
+        return self.encoder.seqLen()
 
     def nextPart(self):
-        return self.encoder.next_part()
+        return self.encoder.nextPart()
 
-    def part2Image(self, part):
-        return self.qr.qrimage_io(part)
+    def part2Image(self, part, width=240, height=240, border=3):
+        return self.qr.qrimage_io(part, width, height, border)
 
-    def nextPartImage(self):
+    def nextPartImage(self, width=240, height=240, border=3):
         part = self.nextPart()
-        return self.qr.qrimage_io(part)
+        return self.qr.qrimage_io(part, width, height, border)
 
     def isComplete(self):
-        return self.encoder.is_complete()
+        return self.encoder.isComplete()
+
+    def getQRDensity(self):
+        return self.qr_density
+
+    def getQRType(self):
+        return self.qr_type
 
 class UREncodePSBTQR:
 
     def __init__(self, p, qr_density):
         self.psbt = p
-        self.qr_max_fragement_size = 10
+        self.qr_max_fragement_size = 20
 
         cbor_encoder = CBOREncoder()
         cbor_encoder.encodeBytes(self.psbt.serialize())
@@ -65,20 +78,20 @@ class UREncodePSBTQR:
 
         self.ur2_encode = UREncoder(qr_ur_bytes,self.qr_max_fragement_size,0)
 
-        if qr_density == EncodePSBTQRDensity.LOW:
+        if qr_density == EncodeQRDensity.LOW:
             self.qr_max_fragement_size = 10
-        elif qr_density == EncodePSBTQRDensity.MEDIUM:
+        elif qr_density == EncodeQRDensity.MEDIUM:
             self.qr_max_fragement_size = 20
-        elif qr_density == EncodePSBTQRDensity.HIGH:
+        elif qr_density == EncodeQRDensity.HIGH:
             self.qr_max_fragement_size = 80
 
-    def seq_len(self):
+    def seqLen(self):
         return self.ur2_encode.fountain_encoder.seq_len()
 
-    def next_part(self) -> str:
+    def nextPart(self) -> str:
         return self.ur2_encode.next_part().upper()
 
-    def is_complete(self):
+    def isComplete(self):
         return self.ur2_encode.is_complete()
 
 class SpecterEncodePSBTQR:
@@ -90,11 +103,11 @@ class SpecterEncodePSBTQR:
         self.part_num_sent = 0
         self.sent_complete = False
 
-        if qr_density == EncodePSBTQRDensity.LOW:
+        if qr_density == EncodeQRDensity.LOW:
             self.qr_max_fragement_size = 40
-        elif qr_density == EncodePSBTQRDensity.MEDIUM:
+        elif qr_density == EncodeQRDensity.MEDIUM:
             self.qr_max_fragement_size = 65
-        elif qr_density == EncodePSBTQRDensity.HIGH:
+        elif qr_density == EncodeQRDensity.HIGH:
             self.qr_max_fragement_size = 90
 
         self.__createParts()
@@ -126,10 +139,10 @@ class SpecterEncodePSBTQR:
                 stop = len(base64_psbt)
             cnt += 1
 
-    def seq_len(self):
+    def seqLen(self):
         return len(self.parts)
 
-    def next_part(self) -> str:
+    def nextPart(self) -> str:
         # if part num sent is gt number of parts, start at 0
         if self.part_num_sent > (len(self.parts) - 1):
             self.part_num_sent = 0
@@ -145,10 +158,30 @@ class SpecterEncodePSBTQR:
 
         return part
 
-    def is_complete(self):
+    def isComplete(self):
         return self.sent_complete
 
-class EncodePSBTQRDensity(IntEnum):
+class SeedSSQR:
+
+    def __init__(self, seed_phrase):
+        self.seed_phrase = seed_phrase
+
+    def seqLen(self):
+        return 1
+
+    def nextPart(self):
+        data = ""
+        for word in self.seed_phrase:
+            index = bip39.WORDLIST.index(word)
+            data += str("%04d" % index)
+
+        return data
+
+    def isComplete(self):
+        return True
+
+
+class EncodeQRDensity(IntEnum):
     LOW = 1
     MEDIUM = 2
     HIGH = 3
