@@ -37,6 +37,9 @@ class DecodeQR:
         return self.addString(qr_str)
 
     def addString(self, qr_str):
+        if qr_str == None:
+            return DecodeQRStatus.FALSE
+
         qr_type = DecodeQR.SegmentType(qr_str)
 
         if self.qr_type == None:
