@@ -99,9 +99,9 @@ class PSBTParser():
                     if len(out.bip32_derivations.values()) > 0:
                         der = list(out.bip32_derivations.values())[0].derivation
                         my_pubkey = self.root.derive(der)
-                    if self.policy["type"] == "p2wpkh" and my_pubkey != None:
+                    if self.policy["type"] == "p2wpkh" and my_pubkey is not None:
                         sc = script.p2wpkh(my_pubkey)
-                    elif self.policy["type"] == "p2sh-p2wpkh" and my_pubkey != None:
+                    elif self.policy["type"] == "p2sh-p2wpkh" and my_pubkey is not None:
                         sc = script.p2sh(script.p2wpkh(my_pubkey))
 
                     if sc.data == self.psbt.tx.vout[i].script_pubkey.data:

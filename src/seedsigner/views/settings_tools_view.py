@@ -70,12 +70,8 @@ class SettingsToolsView(View):
     def display_wallet_policy_selection(self) -> str:
 
         lines = ["... [ Return to Settings ]"]
-        if "PKWSH" in self.controller.wallet.avaliable_wallet_policies():
-            lines.append("Multi Sig Native Segwit")
-        if "PKWPKH" in self.controller.wallet.avaliable_wallet_policies():
-            lines.append("Single Sig Native Segwit")
-
-        print(lines)
+        lines.append("Multi Sig Native Segwit")
+        lines.append("Single Sig Native Segwit")
 
         r = self.controller.menu_view.display_generic_selection_menu(lines, "Which Wallet Policy?")
         if r == 1:

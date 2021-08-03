@@ -31,7 +31,7 @@ class DecodeQR:
 
     def addImage(self, image):
         qr_str = DecodeQR.QR2Str(image)
-        if not qr_str:
+        if qr_str == None:
             return DecodeQRStatus.FALSE
 
         return self.addString(qr_str)
@@ -160,8 +160,10 @@ class DecodeQR:
 
     @staticmethod
     def QR2Str(image) -> str:
+        if image is None:
+            return None
 
-        barcodes = pyzbar.decode(frame, symbols=[ZBarSymbol.QRCODE])
+        barcodes = pyzbar.decode(image, symbols=[ZBarSymbol.QRCODE])
 
         for barcode in barcodes:
             # Only pull and return the first barcode
