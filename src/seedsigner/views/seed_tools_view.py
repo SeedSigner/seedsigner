@@ -10,7 +10,7 @@ import traceback
 
 # Internal file class dependencies
 from . import View
-from seedsigner.helpers import B, QR, CameraPoll, Keyboard, TextEntryDisplay
+from seedsigner.helpers import B, QR, Keyboard, TextEntryDisplay
 
 
 
@@ -1491,63 +1491,29 @@ class SeedToolsView(View):
         return self.words[:]
 
 
-    def parse_seed_image_data(self):
-        try:
-            data = self.controller.from_camera_queue.get(block=False)
-            print(f"got queue data: {data}")
-        except:
-            return
-
-        self.seed_entropy_image = data[0]
-        print("exiting parse_seed_image_data")
-
-
     def seed_phrase_from_camera_image(self):
         reshoot = False
 
         self.seed_entropy_image = None
-        self.controller.menu_view.draw_modal(["Initializing Camera..."]) # TODO: Move to Controller
-        # initialize camera
-        self.controller.to_camera_queue.put(["single_frame"])
-        # First get blocking, this way it's clear when the camera is ready for the end user
-        print("Waiting for 'ready' from camera")
-        while True:
-            try:
-                msg = self.controller.from_camera_queue.get(block=False)
-                print(f"msg received: {msg}")
+        self.controller.menu_view.draw_modal(["Initializing Camera..."])
+        self.controller.camera.start_single_frame_mode(resolution=(720, 480))
 
-                # check 'ready', sometimes queue contains nodata or data that needs to be cleared
-                is_ready = False
-                for m in msg:
-                    if m == "ready":
-                        is_ready = True
-                if is_ready:
-                    break
-            except:
-                time.sleep(0.1)
-
-        self.controller.menu_view.draw_modal(["Aim camera", "click joystick"], title="Capture Image as Seed", bottom="Left to Cancel") # TODO: Move to Controller
+        self.controller.menu_view.draw_modal(["Aim camera", "click joystick"], title="Capture Image as Seed", bottom="Left to Cancel")
 
         input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_PRESS])
         if input == B.KEY_LEFT:
             self.words = []
-            self.controller.to_camera_queue.put(["stop"])
+            self.controller.camera.stop_single_frame_mode()
 
         elif input == B.KEY_PRESS:
             try:
                 print("KEY_PRESS")
-                self.controller.menu_view.draw_modal(["Auto-adjusting", "exposure..."], title="Capture Image as Seed") # TODO: Move to Controller
-                self.controller.to_camera_queue.put(["click"])
-                self.camera_loop_timer = CameraPoll(0.05, self.parse_seed_image_data)
-
-                # Wait for the camera process to complete
-                while self.seed_entropy_image is None:
-                    time.sleep(0.2)
+                self.controller.menu_view.draw_modal(["Taking photo..."], title="Capture Image as Seed")
+                self.seed_entropy_image = self.controller.camera.capture_frame()
             except Exception as e:
                 traceback.print_exc()
             finally:
-                self.controller.to_camera_queue.put(["stop"])
-                self.camera_loop_timer.stop()
+                self.controller.camera.stop_single_frame_mode()
 
             # Prep a copy of the image for display. The actual image data is 720x480
             # Present just a center crop to fit the screen and to keep some of the

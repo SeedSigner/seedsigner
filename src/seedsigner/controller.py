@@ -6,14 +6,13 @@ from subprocess import call
 # Internal file class dependencies
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
     SettingsToolsView, IOTestView)
-from .helpers import Buttons, B, CameraProcess,Path
+from .helpers import Buttons, B,Path, Singleton
 from .models import (SeedStorage, SpecterDesktopWallet, BlueWallet,
     SparrowWallet, GenericUR2Wallet, Wallet)
 
 
 
-
-class Controller:
+class Controller(Singleton):
     """
         The Controller is a globally available singleton that maintains SeedSigner state.
 
@@ -31,13 +30,6 @@ class Controller:
         rather than at the top in order avoid circular imports.
     """
     VERSION = "0.4.3"
-
-    _instance = None
-
-
-    def __init__(self):
-        # Singleton pattern must prevent normal instantiation
-        raise Exception("Cannot directly instantiate the Controller. Access via Controller.get_instance()")
 
 
     @classmethod
@@ -78,12 +70,11 @@ class Controller:
         controller.signing_tools_view = SigningToolsView(controller.storage)
         controller.settings_tools_view = SettingsToolsView()
 
-        # Then start seperate background camera process with two queues for communication
-        # CameraProcess handles connecting to camera hardware and passing back barcode data via from camera queue
-        controller.from_camera_queue = Queue()
-        controller.to_camera_queue = Queue()
-        p = Process(target=CameraProcess.start, args=(controller.from_camera_queue, controller.to_camera_queue))
-        p.start()
+
+    @property
+    def camera(self):
+        from .camera import Camera
+        return Camera.get_instance()
 
 
     def start(self) -> None:
