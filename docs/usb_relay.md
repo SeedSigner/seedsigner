@@ -6,6 +6,7 @@ If you use this setup route, we recommend that you disable internet access over 
 
 
 ### Get started
+
 Insert the SD card with your Raspberry Pi OS image into a regular computer. Open a terminal window (macOS: Terminal; Windows: Command Prompt) and navigate to the SD card:
 ```
 # mac/Linux:
@@ -17,22 +18,36 @@ cd e:
 
 We need to create an empty file called "ssh" to enable us to remotely terminal into the Pi via SSH.
 ```
-# max/Linux:
+# mac/Linux:
 touch ssh
 
 # Windows:
 type nul > ssh
 ```
 
+
 Now we have some incomprensible configuration steps to set up the internet access relay.
 
-Add a line to the end of `config.txt`:
+Edit `config.txt`:
 ```
-# mac/Linux/Windows:
-dtoverlay=dwc2
+# mac/Linux:
+nano config.txt
+
+# Windows:
+notepad config.txt
 ```
 
-Open `cmdline.txt` in a basic text editor:
+Add `dtoverlay=dwc2` to the end of `config.txt`. Exit and save changes (CTRL-X, then "y" in nano).
+
+
+Alternatively, add to `config.txt` via the command line:
+```
+# mac/Linux/Windows:
+echo dtoverlay=dwc2 >> config.txt
+```
+
+
+Next, edit `cmdline.txt`:
 ```
 # mac/Linux:
 nano cmdline.txt
@@ -46,18 +61,23 @@ Add `modules-load=dwc2,g_ether` **directly after** `rootwait`:
 blah blah rootwait modules-load=dwc2,g_ether [possibly more blah]
 ```
 
-Then if on mac/Linux, hit `CTRL-X` to exit and `y` to save your changes. In Notepad just save and close. 
+Exit and save changes (CTRL-X, then "y" in nano).
+
 
 Eject the SD card and insert it into your Pi Zero 1.3. Plug a USB cable into your computer and into the Pi's USB connector that is closer to the center. It will draw power from the USB cable and begin powering up.
 
 The Pi will take a minute or so to boot up its OS. After waiting a bit, try to communicate with the Pi over SSH:
 ```
+# Manual builds:
+ssh pi@raspberrypi.local
+
+# Pre-built image:
 ssh pi@seedsigner.local
 ```
 
 If you see the following prompt, type `yes` to continue:
 ```
-The authenticity of host 'seedsigner.local (192.168.2.3)' can't be established.
+The authenticity of host 'raspberrypi.local (192.168.2.3)' can't be established.
 ECDSA key fingerprint is SHA256:go4yVgii1GcvyxzhOe03atLn5bl2NhZlOR04tJHBo+k.
 Are you sure you want to continue connecting (yes/no/[fingerprint])?
 ```
@@ -75,7 +95,7 @@ This is a security risk - please login as the 'pi' user and type 'passwd' to set
 
 If someone savvy got access to your SeedSigner, they could sign into it and potentially upload malicious code. To add an extra layer of protection, change the default 'pi' user's password now by typing `passwd`:
 ```
-pi@seedsigner:~ $ passwd
+pi@raspberrypi:~ $ passwd
 Changing password for pi.
 Current password: 
 New password: 
