@@ -1494,63 +1494,67 @@ class SeedToolsView(View):
     def seed_phrase_from_camera_image(self):
         reshoot = False
 
-        self.seed_entropy_image = None
         self.controller.menu_view.draw_modal(["Initializing Camera..."])
+        self.controller.camera.start_video_stream_mode(resolution=(240, 240), framerate=24, format="rgb")
+
+        while True:
+            frame = self.controller.camera.read_video_stream(as_image=True)
+            if frame is not None:
+                View.DispShowImageWithText(frame, "click joystick", text_color=View.color, text_background=(0,0,0,225))
+
+            if self.buttons.check_for_low(B.KEY_LEFT):
+                self.words = []
+                self.controller.camera.stop_video_stream_mode()
+                return (reshoot, self.words)
+
+            elif self.buttons.check_for_low(B.KEY_PRESS):
+                self.controller.camera.stop_video_stream_mode()
+                break
+
         self.controller.camera.start_single_frame_mode(resolution=(720, 480))
+        time.sleep(0.25)
+        seed_entropy_image = self.controller.camera.capture_frame()
+        self.controller.camera.stop_single_frame_mode()
 
-        self.controller.menu_view.draw_modal(["Aim camera", "click joystick"], title="Capture Image as Seed", bottom="Left to Cancel")
+        # Prep a copy of the image for display. The actual image data is 720x480
+        # Present just a center crop to fit the screen and to keep some of the
+        # data hidden.
+        display_version = autocontrast(
+            seed_entropy_image,
+            cutoff=2
+        ).rotate(
+            90
+        ).crop(
+            (120, 0, 600, 480)
+        ).resize(
+            (View.canvas_width, View.canvas_height), Image.BICUBIC
+        )
 
-        input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_PRESS])
+        View.DispShowImageWithText(
+            display_version,
+            text=" < reshoot  |  accept > ",
+            font=View.ROBOTOCONDENSED_REGULAR_22,
+            text_color=View.color,
+            text_background=(0,0,0,225)
+        )
+
+        input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
         if input == B.KEY_LEFT:
-            self.words = []
-            self.controller.camera.stop_single_frame_mode()
+            reshoot = True
 
-        elif input == B.KEY_PRESS:
-            try:
-                print("KEY_PRESS")
-                self.controller.menu_view.draw_modal(["Taking photo..."], title="Capture Image as Seed")
-                self.seed_entropy_image = self.controller.camera.capture_frame()
-            except Exception as e:
-                traceback.print_exc()
-            finally:
-                self.controller.camera.stop_single_frame_mode()
+        else:
+            # TODO: Pull this out into its own method so we can write tests against it
+            hash = hashlib.sha256(seed_entropy_image.tobytes())
+            badseedphrase_str = mnemonic_from_bytes(hash.digest())
+            badseedphrase_list = badseedphrase_str.split()
+            badseedphrase_list.pop(-1)
+            calclastwordphrasestr = " ".join(badseedphrase_list) + " abandon"
+            goodphrasebytes = mnemonic_to_bytes(calclastwordphrasestr, ignore_checksum=True)
+            goodseedphrasestr = mnemonic_from_bytes(goodphrasebytes)
+            self.words = goodseedphrasestr.split()
 
-            # Prep a copy of the image for display. The actual image data is 720x480
-            # Present just a center crop to fit the screen and to keep some of the
-            # data hidden.
-            display_version = autocontrast(
-                self.seed_entropy_image,
-                cutoff=2
-            ).rotate(
-                90
-            ).crop(
-                (120, 0, 600, 480)
-            ).resize(
-                (View.canvas_width, View.canvas_height), Image.BICUBIC
-            )
-
-            View.DispShowImageWithText(
-                display_version,
-                text=" < reshoot  |  accept > ",
-                font=View.ROBOTOCONDENSED_REGULAR_22,
-                text_color=View.color,
-                text_background=(0,0,0,225)
-            )
-
-            input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
-            if input == B.KEY_LEFT:
-                reshoot = True
-
-            else:
-                # TODO: Pull this out into its own method so we can write tests against it
-                hash = hashlib.sha256(self.seed_entropy_image.tobytes())
-                badseedphrase_str = mnemonic_from_bytes(hash.digest())
-                badseedphrase_list = badseedphrase_str.split()
-                badseedphrase_list.pop(-1)
-                calclastwordphrasestr = " ".join(badseedphrase_list) + " abandon"
-                goodphrasebytes = mnemonic_to_bytes(calclastwordphrasestr, ignore_checksum=True)
-                goodseedphrasestr = mnemonic_from_bytes(goodphrasebytes)
-                self.words = goodseedphrasestr.split()
+            # Image should never get saved nor stick around in memory
+            seed_entropy_image = None
 
         # self.buttons.trigger_override(True)
         return (reshoot, self.words)
