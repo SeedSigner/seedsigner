@@ -9,13 +9,12 @@ from binascii import hexlify
 # Internal file class dependencies
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
     SettingsToolsView, IOTestView)
-from .helpers import Buttons, B, Path
+from .helpers import Buttons, B, Path, Singleton
 from .models import (SeedStorage, SpecterDesktopWallet, BlueWallet,
     SparrowWallet, GenericUR2Wallet, Wallet, DecodeQR, DecodeQRStatus,
     EncodeQRDensity, EncodeQR, PSBTParser, QRType)
 
-
-class Controller:
+class Controller(Singleton):
     """
         The Controller is a globally available singleton that maintains SeedSigner state.
 
@@ -33,13 +32,6 @@ class Controller:
         rather than at the top in order avoid circular imports.
     """
     VERSION = "0.4.3"
-
-    _instance = None
-
-
-    def __init__(self):
-        # Singleton pattern must prevent normal instantiation
-        raise Exception("Cannot directly instantiate the Controller. Access via Controller.get_instance()")
 
 
     @classmethod

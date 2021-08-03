@@ -102,7 +102,7 @@ Exit and reboot when prompted within the raspi-config interface.
 
 Install these dependencies:
 ```
-sudo apt-get update && sudo apt-get install -y wiringpi python3-pip python3-numpy python-pil libopenjp2-7 ttf-mscorefonts-installer git python3-opencv libzbar0 python3-picamera qrencoder
+sudo apt-get update && sudo apt-get install -y wiringpi python3-pip python3-numpy python-pil libopenjp2-7 ttf-mscorefonts-installer git python3-opencv libzbar0 python3-picamera libatlas-base-dev qrencoder
 ```
 
 Install the [C library for Broadcom BCM 2835](http://www.airspayce.com/mikem/bcm2835/):
@@ -114,6 +114,24 @@ sudo ./configure
 sudo make && sudo make check && sudo make install
 cd ..
 rm bcm2835-1.60.tar.gz
+```
+
+Set up virtualenv
+```
+pip3 install virtualenvwrapper
+```
+
+Edit your bash profile with `nano ~/.profile` and add the following to the end:
+```
+export WORKON_HOME=$HOME/.envs
+export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3
+source /home/pi/.local/bin/virtualenvwrapper.sh
+```
+Then `CTRL-X` and `y` to exit and save changes.
+
+Now create the python virtualenv for SeedSigner:
+```
+mkvirtualenv --python=python3 seedsigner-env
 ```
 
 Download SeedSigner
