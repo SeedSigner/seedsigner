@@ -4,7 +4,7 @@ from threading import Timer
 
 # Internal file class dependencies
 from . import View
-from seedsigner.helpers import B, CameraPoll
+from seedsigner.helpers import B
 
 
 class IOTestView(View):
@@ -22,14 +22,6 @@ class IOTestView(View):
         self.draw_modal(["Initializing I/O Test"])
         print("Initializing I/O Test")
         self.qr_text = "Scan ANY QR Code"
-
-        # initialize camera
-        self.controller.to_camera_queue.put(["start"])
-
-        # First get blocking, this way it's clear when the camera is ready for the end user
-        self.controller.from_camera_queue.get()
-
-        self.camera_loop_timer = CameraPoll(0.05, self.get_camera_data) # it auto-starts, no need of rt.start()
 
         while True:
 

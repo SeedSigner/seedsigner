@@ -9,7 +9,7 @@ from binascii import hexlify
 # Internal file class dependencies
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
     SettingsToolsView, IOTestView)
-from .helpers import Buttons, B, CameraProcess,Path
+from .helpers import Buttons, B, Path
 from .models import (SeedStorage, SpecterDesktopWallet, BlueWallet,
     SparrowWallet, GenericUR2Wallet, Wallet, DecodeQR, DecodeQRStatus,
     EncodeQRDensity, EncodeQR, PSBTParser, QRType)
@@ -79,13 +79,6 @@ class Controller:
         controller.io_test_view = IOTestView()
         controller.signing_tools_view = SigningToolsView(controller.storage)
         controller.settings_tools_view = SettingsToolsView()
-
-        # Then start seperate background camera process with two queues for communication
-        # CameraProcess handles connecting to camera hardware and passing back barcode data via from camera queue
-        controller.from_camera_queue = Queue()
-        controller.to_camera_queue = Queue()
-        p = Process(target=CameraProcess.start, args=(controller.from_camera_queue, controller.to_camera_queue))
-        p.start()
 
     @property
     def camera(self):

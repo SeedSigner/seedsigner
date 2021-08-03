@@ -10,7 +10,7 @@ import traceback
 
 # Internal file class dependencies
 from . import View
-from seedsigner.helpers import B, QR, CameraPoll, Keyboard, TextEntryDisplay
+from seedsigner.helpers import B, QR, Keyboard, TextEntryDisplay
 
 
 
