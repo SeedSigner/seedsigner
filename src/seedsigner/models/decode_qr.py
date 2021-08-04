@@ -77,10 +77,9 @@ class DecodeQR:
             return rt
 
         elif self.qr_type == QRType.SEEDSSQR:
-
             rt = self.seedqr.add(qr_str)
             if rt == DecodeQRStatus.COMPLETE:
-                self.complete
+                self.complete = True
             return rt
 
         else:
@@ -121,7 +120,7 @@ class DecodeQR:
         return None
 
     def getSeedPhrase(self):
-        self.seedqr.getSeedPhrase()
+        return self.seedqr.getSeedPhrase()
 
     def getPercentComplete(self) -> int:
         if self.qr_type == QRType.PSBTUR2:
@@ -398,19 +397,24 @@ class SeedQR:
             self.seed_phrase = []
 
             # Parse 12 or 24-word QR code
-            num_words = int(len(segment[0]) / 4)
+            num_words = int(len(segment) / 4)
             for i in range(0, num_words):
-                index = int(segment[0][i * 4: (i*4) + 4])
+                index = int(segment[i * 4: (i*4) + 4])
                 word = bip39.WORDLIST[index]
                 self.seed_phrase.append(word)
-            return DecodeQRStatus.COMPLETE
+            if len(self.seed_phrase) > 0:
+                self.complete = True
+                self.collected_segments = 1
+                return DecodeQRStatus.COMPLETE
+            else:
+                return DecodeQRStatus.INVALID
         except Exception as e:
             return DecodeQRStatus.INVALID
 
     def getSeedPhrase(self):
-        if len(self.seed_phrase) > 0 and self.complete:
-            return self.seed_phrase
-        return None
+        if self.complete:
+            return self.seed_phrase[:]
+        return []
 
 ###
 ### DecodeQRStatus Class IntEum

@@ -11,7 +11,7 @@ import traceback
 # Internal file class dependencies
 from . import View
 from seedsigner.helpers import B, QR, Keyboard, TextEntryDisplay
-
+from seedsigner.models import DecodeQR, DecodeQRStatus, QRType
 
 
 class SeedToolsView(View):
@@ -1444,52 +1444,34 @@ class SeedToolsView(View):
                     cur_x = next_x
                     cur_y = next_y
 
-
-    def parse_seed_qr_data(self):
-        try:
-            data = self.controller.from_camera_queue.get(False)
-            if not data or 'nodata' in data:
-                return
-
-            # Reset list; will still have any previous seed's words
-            self.words = []
-
-            # Parse 12 or 24-word QR code
-            num_words = int(len(data[0]) / 4)
-            for i in range(0, num_words):
-                index = int(data[0][i * 4: (i*4) + 4])
-                word = bip39.WORDLIST[index]
-                self.words.append(word)
-            self.buttons.trigger_override(True)
-        except Exception as e:
-            pass
-
-
     def read_seed_phrase_qr(self):
-        self.controller.menu_view.draw_modal(["Initializing Camera..."]) # TODO: Move to Controller
-        # initialize camera
-        self.controller.to_camera_queue.put(["start"])
-        # First get blocking, this way it's clear when the camera is ready for the end user
-        self.controller.from_camera_queue.get()
-
-        self.controller.menu_view.draw_modal(["Scanning..."], "Seed QR" ,"Left to Cancel") # TODO: Move to Controller
-
+        self.draw_modal(["Scanning..."], "Seed QR" ,"Left to Cancel")
         try:
-            self.camera_loop_timer = CameraPoll(0.05, self.parse_seed_qr_data)
+            self.controller.camera.start_video_stream_mode()
+            decoder = DecodeQR(qr_type=QRType.SEEDSSQR)
+            while True:
+                frame = self.controller.camera.read_video_stream()
+                status = decoder.addImage(frame)
 
-            input = self.buttons.wait_for([B.KEY_LEFT])
-            if input == B.KEY_LEFT:
-                # Returning empty will kick us back to SEED_TOOLS_SUB_MENU
+                if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
+                    break
+                
+                if self.buttons.check_for_low(B.KEY_LEFT):
+                    self.controller.camera.stop_video_stream_mode()
+                    self.words = []
+                    return self.words[:]
+
+            if decoder.isComplete() and decoder.isSeed():
+                self.words = decoder.getSeedPhrase()
+            else:
+                self.draw_modal(["Seed Parsing Failed"], "", "Right to Exit")
+                input = self.buttons.wait_for([B.KEY_RIGHT])
                 self.words = []
+
         finally:
-            print(f"Stopping QR code scanner")
-            self.camera_loop_timer.stop()
-            self.controller.to_camera_queue.put(["stop"])
+            self.controller.camera.stop_video_stream_mode()
 
-        time.sleep(0.5) # give time for camera loop to complete before returning data
-        self.buttons.trigger_override(True)
         return self.words[:]
-
 
     def seed_phrase_from_camera_image(self):
         reshoot = False

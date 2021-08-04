@@ -33,7 +33,7 @@ class SettingsToolsView(View):
         elif r == 3:
             return "test"
         else:
-            return "cancel"
+            return None
 
     ### Display Wallet Selection
 
@@ -47,10 +47,8 @@ class SettingsToolsView(View):
             return "Sparrow"
         elif r == 5:
             return "UR 2.0 Generic"
-        # elif r == 3:
-        #     return "Specter Desktop Single Sig"
         else:
-            return "cancel"
+            return None
 
     ### Display QR Density Selection
 
@@ -63,7 +61,7 @@ class SettingsToolsView(View):
         elif r == 4:
             return "high"
         else:
-            return "invalid"
+            return None
 
     ### Display Wallet Policy Selection
 
@@ -81,7 +79,7 @@ class SettingsToolsView(View):
         elif lines[r-1] == "Single Sig Native Segwit":
             return "PKWPKH"
         else:
-            return "INVALID"
+            return None
 
 
     ###

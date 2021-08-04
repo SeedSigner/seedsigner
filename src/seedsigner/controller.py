@@ -10,8 +10,7 @@ from binascii import hexlify
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
     SettingsToolsView, IOTestView)
 from .helpers import Buttons, B, Path, Singleton
-from .models import (SeedStorage, SpecterDesktopWallet, BlueWallet,
-    SparrowWallet, GenericUR2Wallet, Wallet, DecodeQR, DecodeQRStatus,
+from .models import (SeedStorage, Wallet, DecodeQR, DecodeQRStatus,
     EncodeQRDensity, EncodeQR, PSBTParser, QRType)
 
 class Controller(Singleton):
@@ -62,8 +61,7 @@ class Controller(Singleton):
 
         # models
         controller.storage = SeedStorage()
-        controller.wallet_klass = globals()["SpecterDesktopWallet"]
-        controller.wallet = controller.wallet_klass()
+        controller.wallet = Wallet(config["settings"]["wallet"], config["settings"]["network"], int(config["settings"]["qr_density"]), config["settings"]["policy"])
 
         # Views
         controller.menu_view = MenuView()
@@ -474,20 +472,20 @@ class Controller(Singleton):
         self.signing_tools_view.draw_modal(["Loading xPub Info ..."])
 
         seed = bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip(), passphrase)
-        root = bip32.HDKey.from_seed(seed, version=NETWORKS[self.getNetwork()]["xprv"])
+        root = bip32.HDKey.from_seed(seed, version=NETWORKS[self.wallet.network]["xprv"])
         fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
         bip48_xprv = root.derive(self.getDerivation())
         bip48_xpub = bip48_xprv.to_public()
-        if self.getPolicy() == "PKWPKH":
-            xpub = bip48_xpub.to_base58(NETWORKS[self.getNetwork()]["zpub"])
+        if self.wallet.policy == "PKWPKH":
+            xpub = bip48_xpub.to_base58(NETWORKS[self.wallet.network]["zpub"])
         else:
-            xpub = bip48_xpub.to_base58(NETWORKS[self.getNetwork()]["Zpub"])
+            xpub = bip48_xpub.to_base58(NETWORKS[self.wallet.network]["Zpub"])
 
         self.signing_tools_view.display_xpub_info(fingerprint, self.getDerivationDisplay(), xpub)
         self.buttons.wait_for([B.KEY_RIGHT])
 
         self.signing_tools_view.draw_modal(["Generating xPub QR ..."])
-        encoder = e = EncodeQR(seed_phrase=seed_phrase, passphrase=passphrase, derivation=self.getDerivation(), network=self.getNetwork(), policy=self.getPolicy(), qr_type=self.getXPubQRType(), qr_density=self.getQRDensity())
+        encoder = e = EncodeQR(seed_phrase=seed_phrase, passphrase=passphrase, derivation=self.getDerivation(), network=self.wallet.network, policy=self.wallet.policy, qr_type=self.getXPubQRType(), qr_density=self.wallet.qr_density)
 
         while e.totalParts() > 1:
             image = e.nextPartImage()
@@ -568,10 +566,8 @@ class Controller(Singleton):
 
         # Scan PSBT Animated QR using Camera
         self.menu_view.draw_modal(["Initializing Camera"])
-        print("init")
         self.camera.start_video_stream_mode()
         decoder = DecodeQR()
-        print("decoder")
         self.menu_view.draw_modal(["Scan PSBT QR"], "", "Right to Exit")
         while True:
             frame = self.camera.read_video_stream()
@@ -597,7 +593,7 @@ class Controller(Singleton):
             return Path.MAIN_MENU
 
         # show transaction information before sign
-        p = PSBTParser(psbt,seed_phrase,passphrase,self.getNetwork())
+        p = PSBTParser(psbt,seed_phrase,passphrase,self.wallet.network)
         self.signing_tools_view.display_transaction_information(p)
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
         if input == B.KEY_LEFT:
@@ -610,7 +606,7 @@ class Controller(Singleton):
 
         # Display Animated QR Code
         self.menu_view.draw_modal(["Generating PSBT QR ..."])
-        encoder = e = EncodeQR(psbt=trimmed_psbt, qr_type=self.getWalletQRType(), qr_density=self.getQRDensity())
+        encoder = e = EncodeQR(psbt=trimmed_psbt, qr_type=self.getWalletQRType(), qr_density=self.wallet.qr_density)
         while True:
             image = e.nextPartImage()
             View.DispShowImage(image)
@@ -640,44 +636,29 @@ class Controller(Singleton):
 
     def show_current_network_tool(self):
         r = self.settings_tools_view.display_current_network()
-        if r == "main":
-            self.wallet = self.wallet_klass("main", self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
-        elif r == "test":
-            self.wallet = self.wallet_klass("test", self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
+        if r is not None:
+            self.wallet.network = r
 
         return Path.SETTINGS_SUB_MENU
-
-    def getNetwork(self):
-        return self.wallet.get_network()
 
     ### Show Wallet Selection Tool
 
     def show_wallet_tool(self):
         r = self.settings_tools_view.display_wallet_selection()
-        if r == "Specter Desktop":
-            self.wallet_klass = globals()["SpecterDesktopWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
-        elif r == "Blue Wallet":
-            self.wallet_klass = globals()["BlueWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
-        elif r == "Sparrow":
-            self.wallet_klass = globals()["SparrowWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
-        elif r == "UR 2.0 Generic":
-            self.wallet_klass = globals()["GenericUR2Wallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
+        if r is not None:
+            self.wallet.wallet_name = r
 
         return Path.SETTINGS_SUB_MENU
 
     def getWalletQRType(self):
-        r = self.wallet.get_name()
+        r = self.wallet.wallet_name
         if r in ("Specter Desktop", "Sparrow"):
             return QRType.PSBTSPECTER
         else:
             return QRType.PSBTUR2
 
     def getXPubQRType(self):
-        r = self.wallet.get_name()
+        r = self.wallet.wallet_name
         if r in ("Specter Desktop"):
             return QRType.SPECTERXPUBQR
         else:
@@ -688,16 +669,16 @@ class Controller(Singleton):
     def show_qr_density_tool(self):
         r = self.settings_tools_view.display_qr_density_selection()
         if r == "low":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRLOW, self.wallet.get_wallet_policy())
+            self.wallet.qr_density = Wallet.QRLOW
         elif r == "medium":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRMEDIUM, self.wallet.get_wallet_policy())
+            self.wallet.qr_density = Wallet.QRMEDIUM
         elif r == "high":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRHIGH, self.wallet.get_wallet_policy())
+            self.wallet.qr_density = Wallet.QRHIGH
 
         return Path.SETTINGS_SUB_MENU
 
     def getQRDensity(self):
-        r = self.wallet.get_qr_density_name()
+        r = self.wallet.qr_density_name
         if r == "Low":
             return EncodeQRDensity.LOW
         elif r == "High":
@@ -709,21 +690,16 @@ class Controller(Singleton):
 
     def show_wallet_policy_tool(self):
         r = self.settings_tools_view.display_wallet_policy_selection()
-        if r == "PKWSH":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), "PKWSH")
-        elif r == "PKWPKH":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), "PKWPKH")
+        if r is not None:
+            self.wallet.policy = r
 
         return Path.SETTINGS_SUB_MENU
 
-    def getPolicy(self):
-        return self.wallet.get_wallet_policy()
-
     def getDerivation(self):
-        return self.wallet.get_hardened_derivation()
+        return self.wallet.derivation
 
     def getDerivationDisplay(self):
-        return self.wallet.get_hardened_derivation()[1:].replace("h","'")
+        return self.wallet.derivation[1:].replace("h","'")
 
     ### Show Version Info
 

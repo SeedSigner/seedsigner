@@ -127,10 +127,10 @@ class MenuView(View):
         lines = ["... [ Return to Main ]", "Input / Output Tests", "Wallet: <wallet>", "Wallet Policy: <policy>", "Current Network: <network>", "QR Density: <density>", "Version Info", "Donate to SeedSigner"]
         input = 0
         
-        lines[2] = lines[2].replace("<wallet>", self.controller.wallet.get_name())
-        lines[3] = lines[3].replace("<policy>", self.controller.wallet.get_wallet_policy_name())
-        lines[4] = lines[4].replace("<network>", self.controller.wallet.get_network())
-        lines[5] = lines[5].replace("<density>", self.controller.wallet.get_qr_density_name())
+        lines[2] = lines[2].replace("<wallet>", self.controller.wallet.wallet_name)
+        lines[3] = lines[3].replace("<policy>", self.controller.wallet.policy_name)
+        lines[4] = lines[4].replace("<network>", self.controller.wallet.network)
+        lines[5] = lines[5].replace("<density>", self.controller.wallet.qr_density_name)
 
         # Draw Menu
         self.selected_menu_num = 1
