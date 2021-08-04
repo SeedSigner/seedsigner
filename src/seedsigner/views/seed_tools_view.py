@@ -1442,19 +1442,21 @@ class SeedToolsView(View):
     def read_seed_phrase_qr(self):
         self.draw_modal(["Scanning..."], "Seed QR" ,"Left to Cancel")
         try:
-            self.controller.camera.start_video_stream_mode()
+            self.controller.camera.start_video_stream_mode(resolution=(240, 240), framerate=12, format="rgb")
             decoder = DecodeQR(qr_type=QRType.SEEDSSQR)
             while True:
-                frame = self.controller.camera.read_video_stream()
-                status = decoder.addImage(frame)
+                frame = self.controller.camera.read_video_stream(as_image=True)
+                if frame is not None:
+                    View.DispShowImageWithText(frame, "Scan QR", text_color=View.color, text_background=(0,0,0,225))
+                    status = decoder.addImage(frame)
 
-                if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
-                    break
-                
-                if self.buttons.check_for_low(B.KEY_LEFT):
-                    self.controller.camera.stop_video_stream_mode()
-                    self.words = []
-                    return self.words[:]
+                    if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
+                        break
+                    
+                    if self.buttons.check_for_low(B.KEY_LEFT):
+                        self.controller.camera.stop_video_stream_mode()
+                        self.words = []
+                        return self.words[:]
 
             if decoder.isComplete() and decoder.isSeed():
                 self.words = decoder.getSeedPhrase()

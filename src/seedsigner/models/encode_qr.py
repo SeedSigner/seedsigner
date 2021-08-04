@@ -97,14 +97,14 @@ class UREncodePSBTQR:
         cbor_encoder.encodeBytes(self.psbt.serialize())
         qr_ur_bytes = UR("crypto-psbt", cbor_encoder.get_bytes())
 
-        self.ur2_encode = UREncoder(qr_ur_bytes,self.qr_max_fragement_size,0)
-
         if qr_density == EncodeQRDensity.LOW:
             self.qr_max_fragement_size = 10
         elif qr_density == EncodeQRDensity.MEDIUM:
             self.qr_max_fragement_size = 20
         elif qr_density == EncodeQRDensity.HIGH:
             self.qr_max_fragement_size = 80
+
+        self.ur2_encode = UREncoder(qr_ur_bytes,self.qr_max_fragement_size,0)
 
     def seqLen(self):
         return self.ur2_encode.fountain_encoder.seq_len()

@@ -5,6 +5,7 @@ from subprocess import call
 from embit import bip39, bip32
 from embit.networks import NETWORKS
 from binascii import hexlify
+from threading import Thread
 
 # Internal file class dependencies
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
@@ -566,23 +567,40 @@ class Controller(Singleton):
 
         # Scan PSBT Animated QR using Camera
         self.menu_view.draw_modal(["Initializing Camera"])
-        self.camera.start_video_stream_mode()
+        self.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
         decoder = DecodeQR()
-        self.menu_view.draw_modal(["Scan PSBT QR"], "", "Right to Exit")
+
+        def live_preview(camera, decoder):
+            while True:
+                frame = self.camera.read_video_stream(as_image=True)
+                if frame is not None:
+                    if decoder.getPercentComplete() > 0:
+                        scan_text = str(decoder.getPercentComplete()) + "% Complete"
+                    else:
+                        scan_text = "Scan PSBT QR"
+                    View.DispShowImageWithText(frame.resize((240,240)), scan_text, font=View.IMPACT22, text_color=View.color, text_background=(0,0,0,225))
+                time.sleep(0.1) # turn this up or down to tune performace while decoding psbt
+                if camera._video_stream is None:
+                    break
+
+        # putting live preview in it's own thread to improve psbt decoding performance
+        t = Thread(target=live_preview, args=(self.camera, decoder,))
+        t.start()
+
         while True:
             frame = self.camera.read_video_stream()
-            status = decoder.addImage(frame)
+            if frame is not None:
+                status = decoder.addImage(frame)
 
-            if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
-                self.camera.stop_video_stream_mode()
-                break
-            elif status == DecodeQRStatus.PART_COMPLETE:
-                SigningToolsView.qr_gen_status(decoder.getPercentComplete())
-            
-            if self.buttons.check_for_low(B.KEY_RIGHT):
-                self.camera.stop_video_stream_mode()
-                return Path.MAIN_MENU
+                if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
+                    self.camera.stop_video_stream_mode()
+                    break
+                
+                if self.buttons.check_for_low(B.KEY_RIGHT):
+                    self.camera.stop_video_stream_mode()
+                    return Path.MAIN_MENU
 
+        time.sleep(0.2) # time to let live preview thread complete to avoid race condition on display
         if decoder.isComplete() and decoder.isPSBT():
             self.menu_view.draw_modal(["Parsing PSBT"])
             psbt = decoder.getPSBT()
@@ -606,11 +624,11 @@ class Controller(Singleton):
 
         # Display Animated QR Code
         self.menu_view.draw_modal(["Generating PSBT QR ..."])
-        encoder = e = EncodeQR(psbt=trimmed_psbt, qr_type=self.getWalletQRType(), qr_density=self.wallet.qr_density)
+        encoder = e = EncodeQR(psbt=trimmed_psbt, qr_type=self.getWalletQRType(), qr_density=self.getQRDensity())
         while True:
             image = e.nextPartImage(240,240,1)
             View.DispShowImage(image)
-            time.sleep(0.1)
+            time.sleep(0.05)
             if self.buttons.check_for_low(B.KEY_RIGHT):
                     break
 
@@ -652,7 +670,7 @@ class Controller(Singleton):
 
     def getWalletQRType(self):
         r = self.wallet.wallet_name
-        if r in ("Specter Desktop", "Sparrow"):
+        if r in ("Specter Desktop"): #, "Sparrow"):
             return QRType.PSBTSPECTER
         else:
             return QRType.PSBTUR2
