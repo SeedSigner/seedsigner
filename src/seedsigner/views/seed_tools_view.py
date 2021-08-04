@@ -11,7 +11,7 @@ import traceback
 # Internal file class dependencies
 from . import View
 from seedsigner.helpers import B, QR, Keyboard, TextEntryDisplay
-from seedsigner.models import DecodeQR, DecodeQRStatus, QRType
+from seedsigner.models import DecodeQR, DecodeQRStatus, QRType, EncodeQR
 
 
 class SeedToolsView(View):
@@ -1311,13 +1311,8 @@ class SeedToolsView(View):
 
 
     def seed_phrase_as_qr(self, seed_phrase):
-        data = ""
-        for word in seed_phrase:
-            index = bip39.WORDLIST.index(word)
-            data += str("%04d" % index)
-        qr = QR()
-
-        image = qr.qrimage(data, width=240, height=240, border=3)
+        e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEEDSSQR)
+        image = e.nextPartImage(240, 240, 3)
         View.DispShowImageWithText(image, "click to zoom, right to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
 
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_PRESS])

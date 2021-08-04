@@ -488,14 +488,14 @@ class Controller(Singleton):
         encoder = e = EncodeQR(seed_phrase=seed_phrase, passphrase=passphrase, derivation=self.getDerivation(), network=self.wallet.network, policy=self.wallet.policy, qr_type=self.getXPubQRType(), qr_density=self.wallet.qr_density)
 
         while e.totalParts() > 1:
-            image = e.nextPartImage()
+            image = e.nextPartImage(240,240,2)
             View.DispShowImage(image)
             time.sleep(0.1)
             if self.buttons.check_for_low(B.KEY_RIGHT):
                     break
 
         if e.totalParts() == 1:
-            image = e.nextPartImage()
+            image = e.nextPartImage(240,240,1)
             View.DispShowImage(image)
             self.buttons.wait_for([B.KEY_RIGHT])
 
@@ -608,7 +608,7 @@ class Controller(Singleton):
         self.menu_view.draw_modal(["Generating PSBT QR ..."])
         encoder = e = EncodeQR(psbt=trimmed_psbt, qr_type=self.getWalletQRType(), qr_density=self.wallet.qr_density)
         while True:
-            image = e.nextPartImage()
+            image = e.nextPartImage(240,240,1)
             View.DispShowImage(image)
             time.sleep(0.1)
             if self.buttons.check_for_low(B.KEY_RIGHT):
