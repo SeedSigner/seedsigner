@@ -7,25 +7,27 @@ import time
 
 # Modified from: https://github.com/jrosebr1/imutils
 class PiVideoStream:
-	def __init__(self, resolution=(320, 240), framerate=32, **kwargs):
+	def __init__(self, resolution=(320, 240), framerate=32, format="bgr", **kwargs):
 		# initialize the camera
 		self.camera = PiCamera(resolution=resolution, framerate=framerate, **kwargs)
 
 		# initialize the stream
 		self.rawCapture = PiRGBArray(self.camera, size=resolution)
 		self.stream = self.camera.capture_continuous(self.rawCapture,
-			format="bgr", use_video_port=True)
+			format=format, use_video_port=True)
 
 		# initialize the frame and the variable used to indicate
 		# if the thread should be stopped
 		self.frame = None
-		self.stopped = False
+		self.should_stop = False
+		self.is_stopped = True
 
 	def start(self):
 		# start the thread to read frames from the video stream
 		t = Thread(target=self.update, args=())
 		t.daemon = True
 		t.start()
+		self.is_stopped = False
 		return self
 
 	def update(self):
@@ -38,11 +40,13 @@ class PiVideoStream:
 
 			# if the thread indicator variable is set, stop the thread
 			# and resource camera resources
-			if self.stopped:
+			if self.should_stop:
 				print("PiVideoStream: closing everything")
 				self.stream.close()
 				self.rawCapture.close()
 				self.camera.close()
+				self.should_stop = False
+				self.is_stopped = True
 				return
 
 	def read(self):
@@ -51,12 +55,8 @@ class PiVideoStream:
 
 	def stop(self):
 		# indicate that the thread should be stopped
-		self.stopped = True
+		self.should_stop = True
 
-		# while True:
-		# 	# Wait for camera to close before letting the thread get destroyed
-		# 	if not self.camera.closed:
-		# 		time.sleep(0.1)
-		# 	else:
-		# 		break
-
+		# Block in this thread until stopped
+		while not self.is_stopped:
+			pass

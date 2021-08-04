@@ -2,18 +2,19 @@
 import time
 from multiprocessing import Process, Queue
 from subprocess import call
+from embit import bip39, bip32
+from embit.networks import NETWORKS
+from binascii import hexlify
+from threading import Thread
 
 # Internal file class dependencies
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
     SettingsToolsView, IOTestView)
-from .helpers import Buttons, B, CameraProcess,Path
-from .models import (SeedStorage, SpecterDesktopWallet, BlueWallet,
-    SparrowWallet, GenericUR2Wallet, Wallet)
+from .helpers import Buttons, B, Path, Singleton
+from .models import (SeedStorage, Wallet, DecodeQR, DecodeQRStatus,
+    EncodeQRDensity, EncodeQR, PSBTParser, QRType)
 
-
-
-
-class Controller:
+class Controller(Singleton):
     """
         The Controller is a globally available singleton that maintains SeedSigner state.
 
@@ -31,13 +32,6 @@ class Controller:
         rather than at the top in order avoid circular imports.
     """
     VERSION = "0.4.3"
-
-    _instance = None
-
-
-    def __init__(self):
-        # Singleton pattern must prevent normal instantiation
-        raise Exception("Cannot directly instantiate the Controller. Access via Controller.get_instance()")
 
 
     @classmethod
@@ -68,8 +62,7 @@ class Controller:
 
         # models
         controller.storage = SeedStorage()
-        controller.wallet_klass = globals()["SpecterDesktopWallet"]
-        controller.wallet = controller.wallet_klass()
+        controller.wallet = Wallet(config["settings"]["wallet"], config["settings"]["network"], int(config["settings"]["qr_density"]), config["settings"]["policy"])
 
         # Views
         controller.menu_view = MenuView()
@@ -78,12 +71,10 @@ class Controller:
         controller.signing_tools_view = SigningToolsView(controller.storage)
         controller.settings_tools_view = SettingsToolsView()
 
-        # Then start seperate background camera process with two queues for communication
-        # CameraProcess handles connecting to camera hardware and passing back barcode data via from camera queue
-        controller.from_camera_queue = Queue()
-        controller.to_camera_queue = Queue()
-        p = Process(target=CameraProcess.start, args=(controller.from_camera_queue, controller.to_camera_queue))
-        p.start()
+    @property
+    def camera(self):
+        from .camera import Camera
+        return Camera.get_instance()
 
 
     def start(self) -> None:
@@ -480,11 +471,35 @@ class Controller:
                 return Path.SEED_TOOLS_SUB_MENU
 
         self.signing_tools_view.draw_modal(["Loading xPub Info ..."])
-        self.wallet.set_seed_phrase(seed_phrase, passphrase)
-        self.signing_tools_view.display_xpub_info(self.wallet)
+
+        seed = bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip(), passphrase)
+        root = bip32.HDKey.from_seed(seed, version=NETWORKS[self.wallet.network]["xprv"])
+        fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
+        bip48_xprv = root.derive(self.getDerivation())
+        bip48_xpub = bip48_xprv.to_public()
+        if self.wallet.policy == "PKWPKH":
+            xpub = bip48_xpub.to_base58(NETWORKS[self.wallet.network]["zpub"])
+        else:
+            xpub = bip48_xpub.to_base58(NETWORKS[self.wallet.network]["Zpub"])
+
+        self.signing_tools_view.display_xpub_info(fingerprint, self.getDerivationDisplay(), xpub)
         self.buttons.wait_for([B.KEY_RIGHT])
+
         self.signing_tools_view.draw_modal(["Generating xPub QR ..."])
-        self.signing_tools_view.display_xpub_qr(self.wallet)
+        encoder = e = EncodeQR(seed_phrase=seed_phrase, passphrase=passphrase, derivation=self.getDerivation(), network=self.wallet.network, policy=self.wallet.policy, qr_type=self.getXPubQRType(), qr_density=self.wallet.qr_density)
+
+        while e.totalParts() > 1:
+            image = e.nextPartImage(240,240,2)
+            View.DispShowImage(image)
+            time.sleep(0.1)
+            if self.buttons.check_for_low(B.KEY_RIGHT):
+                    break
+
+        if e.totalParts() == 1:
+            image = e.nextPartImage(240,240,1)
+            View.DispShowImage(image)
+            self.buttons.wait_for([B.KEY_RIGHT])
+
         return Path.MAIN_MENU
 
     ### Sign Transactions
@@ -551,39 +566,71 @@ class Controller:
                 return Path.MAIN_MENU
 
         # Scan PSBT Animated QR using Camera
-        self.menu_view.draw_modal(["Loading..."])
-        self.wallet.set_seed_phrase(seed_phrase, passphrase)
-        raw_pbst = self.wallet.scan_animated_qr_pbst(self)
+        self.menu_view.draw_modal(["Initializing Camera"])
+        self.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
+        decoder = DecodeQR()
 
-        if raw_pbst == "nodata":
-            return Path.MAIN_MENU
-        if raw_pbst == "invalid":
-            self.menu_view.draw_modal(["QR Format Unexpected", "Check Wallet in Settings"], "", "Right to Exit")
-            input = self.buttons.wait_for([B.KEY_RIGHT])
-            return Path.MAIN_MENU
-        if raw_pbst == "invalidpsbt":
-            self.menu_view.draw_modal(["PSBT UR 2.0 Decoding Error", "try again"], "", "Right to Exit")
-            input = self.buttons.wait_for([B.KEY_RIGHT])
-            return Path.MAIN_MENU
-        self.menu_view.draw_modal(["Parsing PSBT ..."])
-        parse_status = self.wallet.parse_psbt(raw_pbst)
-        if parse_status == False:
+        def live_preview(camera, decoder):
+            while True:
+                frame = self.camera.read_video_stream(as_image=True)
+                if frame is not None:
+                    if decoder.getPercentComplete() > 0:
+                        scan_text = str(decoder.getPercentComplete()) + "% Complete"
+                    else:
+                        scan_text = "Scan PSBT QR"
+                    View.DispShowImageWithText(frame.resize((240,240)), scan_text, font=View.IMPACT22, text_color=View.color, text_background=(0,0,0,225))
+                time.sleep(0.1) # turn this up or down to tune performace while decoding psbt
+                if camera._video_stream is None:
+                    break
+
+        # putting live preview in it's own thread to improve psbt decoding performance
+        t = Thread(target=live_preview, args=(self.camera, decoder,))
+        t.start()
+
+        while True:
+            frame = self.camera.read_video_stream()
+            if frame is not None:
+                status = decoder.addImage(frame)
+
+                if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
+                    self.camera.stop_video_stream_mode()
+                    break
+                
+                if self.buttons.check_for_low(B.KEY_RIGHT):
+                    self.camera.stop_video_stream_mode()
+                    return Path.MAIN_MENU
+
+        time.sleep(0.2) # time to let live preview thread complete to avoid race condition on display
+        if decoder.isComplete() and decoder.isPSBT():
+            self.menu_view.draw_modal(["Parsing PSBT"])
+            psbt = decoder.getPSBT()
+
+        else:
             self.menu_view.draw_modal(["PSBT Parsing Failed"], "", "Right to Exit")
             input = self.buttons.wait_for([B.KEY_RIGHT])
             return Path.MAIN_MENU
 
         # show transaction information before sign
-        self.signing_tools_view.display_transaction_information(self.wallet)
+        p = PSBTParser(psbt,seed_phrase,passphrase,self.wallet.network)
+        self.signing_tools_view.display_transaction_information(p)
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
         if input == B.KEY_LEFT:
             return Path.MAIN_MENU
 
         # Sign PSBT
         self.menu_view.draw_modal(["PSBT Signing ..."])
-        signed_pbst = self.wallet.sign_transaction()
+        psbt.sign_with(p.root)
+        trimmed_psbt = PSBTParser.trim(psbt)
 
         # Display Animated QR Code
-        self.signing_tools_view.display_signed_psbt_animated_qr(self.wallet, signed_pbst)
+        self.menu_view.draw_modal(["Generating PSBT QR ..."])
+        encoder = e = EncodeQR(psbt=trimmed_psbt, qr_type=self.getWalletQRType(), qr_density=self.getQRDensity())
+        while True:
+            image = e.nextPartImage(240,240,1)
+            View.DispShowImage(image)
+            time.sleep(0.05)
+            if self.buttons.check_for_low(B.KEY_RIGHT):
+                    break
 
         # Return to Main Menu
         return Path.MAIN_MENU
@@ -607,10 +654,8 @@ class Controller:
 
     def show_current_network_tool(self):
         r = self.settings_tools_view.display_current_network()
-        if r == "main":
-            self.wallet = self.wallet_klass("main", self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
-        elif r == "test":
-            self.wallet = self.wallet_klass("test", self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
+        if r is not None:
+            self.wallet.network = r
 
         return Path.SETTINGS_SUB_MENU
 
@@ -618,44 +663,61 @@ class Controller:
 
     def show_wallet_tool(self):
         r = self.settings_tools_view.display_wallet_selection()
-        if r == "Specter Desktop":
-            self.wallet_klass = globals()["SpecterDesktopWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
-        elif r == "Blue Wallet":
-            self.wallet_klass = globals()["BlueWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
-        elif r == "Sparrow":
-            self.wallet_klass = globals()["SparrowWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
-        elif r == "UR 2.0 Generic":
-            self.wallet_klass = globals()["GenericUR2Wallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
+        if r is not None:
+            self.wallet.wallet_name = r
 
         return Path.SETTINGS_SUB_MENU
+
+    def getWalletQRType(self):
+        r = self.wallet.wallet_name
+        if r in ("Specter Desktop"): #, "Sparrow"):
+            return QRType.PSBTSPECTER
+        else:
+            return QRType.PSBTUR2
+
+    def getXPubQRType(self):
+        r = self.wallet.wallet_name
+        if r in ("Specter Desktop"):
+            return QRType.SPECTERXPUBQR
+        else:
+            return QRType.XPUBQR
 
     ### Show QR Density Tool
 
     def show_qr_density_tool(self):
         r = self.settings_tools_view.display_qr_density_selection()
         if r == "low":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRLOW, self.wallet.get_wallet_policy())
+            self.wallet.qr_density = Wallet.QRLOW
         elif r == "medium":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRMEDIUM, self.wallet.get_wallet_policy())
+            self.wallet.qr_density = Wallet.QRMEDIUM
         elif r == "high":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRHIGH, self.wallet.get_wallet_policy())
+            self.wallet.qr_density = Wallet.QRHIGH
 
         return Path.SETTINGS_SUB_MENU
+
+    def getQRDensity(self):
+        r = self.wallet.qr_density_name
+        if r == "Low":
+            return EncodeQRDensity.LOW
+        elif r == "High":
+            return EncodeQRDensity.HIGH
+        else:
+            return EncodeQRDensity.MEDIUM
 
     ### Show Wallet Policy Tool
 
     def show_wallet_policy_tool(self):
         r = self.settings_tools_view.display_wallet_policy_selection()
-        if r == "PKWSH":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), "PKWSH")
-        elif r == "PKWPKH":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), "PKWPKH")
+        if r is not None:
+            self.wallet.policy = r
 
         return Path.SETTINGS_SUB_MENU
+
+    def getDerivation(self):
+        return self.wallet.derivation
+
+    def getDerivationDisplay(self):
+        return self.wallet.derivation[1:].replace("h","'")
 
     ### Show Version Info
 

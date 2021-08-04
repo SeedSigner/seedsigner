@@ -32,11 +32,11 @@ def test_singleton_get_instance_preserves_state():
 	# Initialize the instance and verify that it read the config settings
 	Controller.configure_instance(config)
 	controller = Controller.get_instance()
-	assert controller.display_settings["text_color"] == "orange"
+	assert controller.color == "orange"
 
 	# Change a value in the instance...
-	controller.display_settings["text_color"] = "purple"
+	controller.color = "purple"
 
 	# ...get a new copy of the instance and confirm change
 	controller = Controller.get_instance()
-	assert controller.display_settings["text_color"] == "purple"
+	assert controller.color == "purple"
