@@ -158,6 +158,11 @@ class DecodeQR:
     def isComplete(self) -> bool:
         return self.complete
 
+    def isInvalid(self) -> bool:
+        if self.qr_type == QRType.INVALID:
+            return True
+        return False
+
     def isPSBT(self) -> bool:
         if self.qr_type in (QRType.PSBTUR2, QRType.PSBTSPECTER, QRType.PSBTURLEGACY, QRType.PSBTBASE64):
             return True

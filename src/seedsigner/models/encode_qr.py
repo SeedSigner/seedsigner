@@ -100,9 +100,9 @@ class UREncodePSBTQR:
         if qr_density == EncodeQRDensity.LOW:
             self.qr_max_fragement_size = 10
         elif qr_density == EncodeQRDensity.MEDIUM:
-            self.qr_max_fragement_size = 20
+            self.qr_max_fragement_size = 30
         elif qr_density == EncodeQRDensity.HIGH:
-            self.qr_max_fragement_size = 80
+            self.qr_max_fragement_size = 120
 
         self.ur2_encode = UREncoder(qr_ur_bytes,self.qr_max_fragement_size,0)
 
