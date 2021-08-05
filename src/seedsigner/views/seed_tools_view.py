@@ -1447,26 +1447,24 @@ class SeedToolsView(View):
             while True:
                 frame = self.controller.camera.read_video_stream(as_image=True)
                 if frame is not None:
-                    View.DispShowImageWithText(frame.resize((240,240)), "Scan QR", text_color=View.color, text_background=(0,0,0,225))
+                    View.DispShowImageWithText(frame.resize((240,240)), "Scan Seed QR", font=View.IMPACT22, text_color=View.color, text_background=(0,0,0,225))
                     status = decoder.addImage(frame)
 
                     if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
                         break
                     
-                    if self.buttons.check_for_low(B.KEY_LEFT):
+                    if self.buttons.check_for_low(B.KEY_RIGHT) or self.buttons.check_for_low(B.KEY_LEFT):
                         self.controller.camera.stop_video_stream_mode()
                         self.words = []
                         return self.words[:]
 
             if decoder.isComplete() and decoder.isSeed():
-                if decoder.qrType() not in (QRType.SEEDSSQR, QRType.SEEDMNEMONIC, QRType.SEED4LETTERMNEMONIC):
-                    self.draw_modal(["Not a Seed QR"], "", "Right to Exit")
                 self.words = decoder.getSeedPhrase()
+            elif not decoder.isPSBT():
+                self.draw_modal(["Not a valid Seed QR"], "", "Right to Exit")
+                input = self.buttons.wait_for([B.KEY_RIGHT])
             else:
-                print(decoder.qrType())
-                print(decoder.isSeed())
-                print(decoder.isComplete())
-                self.draw_modal(["Seed Parsing Failed"], "", "Right to Exit")
+                self.draw_modal(["QR Parsing Failed"], "", "Right to Exit")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
                 self.words = []
 
