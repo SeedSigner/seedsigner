@@ -303,5 +303,33 @@ def test_specter_multisig_animated_qr():
 
     assert str(trimmed_tx2) == expected_signed_trimmed_base642
 
+def test_mnemonic_qr():
+
+    mnemonic = "height demise useless trap grow lion found off key clown transfer enroll"
+    d = DecodeQR()
+
+    assert d.addString(mnemonic) == DecodeQRStatus.COMPLETE
+    assert d.getSeedPhrase() == mnemonic.split()
+
+    bad_mnemonic = "height useless trap grow lion found off key clown transfer enroll"
+    d2 = DecodeQR()
+    assert d2.addString(bad_mnemonic) == DecodeQRStatus.INVALID
+
+    bad2_mnemonic = "words not in the list of bip39"
+    d3 = DecodeQR()
+    assert d3.addString(bad2_mnemonic) == DecodeQRStatus.INVALID
+
+def test_short_4_letter_mnemonic_qr():
+
+    short_nm = "heig demi usel trap grow lion foun off key clow tran enro"
+    d = DecodeQR()
+    d.addString(short_nm)
+
+    assert d.isComplete() == True
+    assert d.getSeedPhrase() == ["height", "demise", "useless", "trap", "grow", "lion", "found", "off", "key", "clown", "transfer", "enroll"]
+
+
+
+
 
 
