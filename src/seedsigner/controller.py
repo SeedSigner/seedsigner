@@ -685,7 +685,7 @@ class Controller(Singleton):
 
     def show_qr_density_tool(self):
         r = self.settings_tools_view.display_qr_density_selection()
-        if r in (EncodeQRDensity.LOW, EncodeQRDensity.MEDIUM, EncodeQRDensity.HIGH)
+        if r in (EncodeQRDensity.LOW, EncodeQRDensity.MEDIUM, EncodeQRDensity.HIGH):
             self.wallet.qr_density = r
 
         return Path.SETTINGS_SUB_MENU
