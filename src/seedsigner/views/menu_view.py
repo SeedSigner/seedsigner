@@ -25,7 +25,7 @@ class MenuView(View):
     def display_main_menu(self, sub_menu = None) -> int:
         ret_val = 0
         input = 0
-        lines = ["Seed Tools", "Sign a Transaction", "Settings", "Power Off"]
+        lines = ["Seed Tools", "Scan QR", "Settings", "Power Off"]
 
         if sub_menu == Path.SEED_TOOLS_SUB_MENU:
             return self.display_seed_tools_menu()

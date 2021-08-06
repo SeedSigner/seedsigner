@@ -301,7 +301,7 @@ class Controller(Singleton):
                 else:
                     # no-op; can't back out of the seed phrase view
                     pass
-            return Path.MAIN_MENU
+            return Path.SEED_TOOLS_SUB_MENU
         else:
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Seed Tools ]")
@@ -340,7 +340,7 @@ class Controller(Singleton):
             self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
             input = self.buttons.wait_for([B.KEY_RIGHT])
 
-        return Path.MAIN_MENU
+        return Path.SEED_TOOLS_SUB_MENU
 
     ### Add a PassPhrase Menu
 
@@ -450,7 +450,7 @@ class Controller(Singleton):
                 input = self.buttons.wait_for([B.KEY_RIGHT])
                 return Path.MAIN_MENU
 
-            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Optional Passphrase?")
+            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
             if r == 1:
                 # display a tool to pick letters/numbers to make a passphrase
                 passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
@@ -511,41 +511,71 @@ class Controller(Singleton):
         seed_phrase = []
         passphrase = ""
 
-        # If there is a saved seed, ask to use saved seed
-        if self.storage.num_of_saved_seeds() > 0:
-            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Save Seed?")
-            if r == 1: #Yes
-                slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
-                if slot_num == 0:
-                    return Path.MAIN_MENU
-                seed_phrase = self.storage.get_seed_phrase(slot_num)
-                passphrase = self.storage.get_passphrase(slot_num)
+        # reusable qr scan function
+        def scan_qr(scan_text="Scan QR"):
+            # Scan QR using Camera
+            self.menu_view.draw_modal(["Initializing Camera"])
+            self.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
+            decoder = DecodeQR()
 
-        if len(seed_phrase) == 0:
-            # gather seed phrase
-            # display menu to select 12 or 24 word seed for last word
-            ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Main Menu ]")
-            if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
-            elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
-            elif ret_val == Path.SEED_WORD_QR:
-                seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
-            else:
-                return Path.MAIN_MENU
+            def live_preview(camera, decoder, scan_text):
+                while True:
+                    frame = self.camera.read_video_stream(as_image=True)
+                    if frame is not None:
+                        if decoder.getPercentComplete() > 0 and decoder.isPSBT():
+                            scan_text = str(decoder.getPercentComplete()) + "% Complete"
+                        View.DispShowImageWithText(frame.resize((240,240)), scan_text, font=View.IMPACT22, text_color=View.color, text_background=(0,0,0,225))
+                    time.sleep(0.1) # turn this up or down to tune performace while decoding psbt
+                    if camera._video_stream is None:
+                        break
 
-            if len(seed_phrase) == 0:
-                return Path.MAIN_MENU
+            # putting live preview in it's own thread to improve psbt decoding performance
+            t = Thread(target=live_preview, args=(self.camera, decoder, scan_text,))
+            t.start()
 
-            # check if seed phrase is valid
-            self.menu_view.draw_modal(["Validating ..."])
+            while True:
+                frame = self.camera.read_video_stream()
+                if frame is not None:
+                    status = decoder.addImage(frame)
+
+                    if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
+                        self.camera.stop_video_stream_mode()
+                        break
+                    
+                    if self.buttons.check_for_low(B.KEY_RIGHT) or self.buttons.check_for_low(B.KEY_LEFT):
+                        self.camera.stop_video_stream_mode()
+                        break
+
+            time.sleep(0.2) # time to let live preview thread complete to avoid race condition on display
+
+            return decoder
+
+        # first QR scan
+        decoder = scan_qr()
+
+        if decoder.isComplete() and decoder.isPSBT():
+            # first QR is PSBT
+            self.menu_view.draw_modal(["Validating PSBT"])
+            psbt = decoder.getPSBT()
+
+            self.menu_view.draw_modal(["PSBT Valid!", "Select, enter, or scan", "a seed phrase", "to sign this tx"], "", "Right to Continue")
+            input = self.buttons.wait_for([B.KEY_RIGHT])
+
+        elif decoder.isComplete() and decoder.isSeed():
+            # first QR is Seed
+            self.menu_view.draw_modal(["Validating Seed"])
+            seed_phrase = decoder.getSeedPhrase()
             is_valid = self.storage.check_if_seed_valid(seed_phrase)
             if is_valid == False:
-                self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
+                # Exit if not valid with message
+                self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again", ""], "", "Right to Continue")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
                 return Path.MAIN_MENU
+            else:
+                self.menu_view.draw_modal(["Valid Seed!"], "", "Right to Continue")
+                input = self.buttons.wait_for([B.KEY_RIGHT])
 
-            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Optional Passphrase?")
+            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
             if r == 1:
                 # display a tool to pick letters/numbers to make a passphrase
                 passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
@@ -556,58 +586,30 @@ class Controller(Singleton):
                     if input == B.KEY_LEFT:
                         return Path.MAIN_MENU
                 else:
-                    self.menu_view.draw_modal(["Optional passphrase", "added to seed words", passphrase], "", "Right to Continue")
+                    self.menu_view.draw_modal(["Optional passphrase", "added to seed words"], "", "Right to Continue")
                     self.buttons.wait_for([B.KEY_RIGHT])
 
-        # display seed phrase
-        while True:
-            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
-            if r == True:
-                break
+            # display seed phrase
+            while True:
+                r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
+                if r == True:
+                    break
+                else:
+                    # Cancel
+                    return Path.MAIN_MENU
+
+            # second QR scan need PSBT now
+            decoder = scan_qr("Scan PSBT QR")
+
+            if decoder.isComplete() and decoder.isPSBT():
+                # second QR must be a PSBT
+                self.menu_view.draw_modal(["Validating PSBT"])
+                psbt = decoder.getPSBT()
             else:
-                # Cancel
+                self.menu_view.draw_modal(["Invalid PSBT QR"], "", "Right to Exit")
+                input = self.buttons.wait_for([B.KEY_RIGHT])
                 return Path.MAIN_MENU
 
-        # Scan PSBT Animated QR using Camera
-        self.menu_view.draw_modal(["Initializing Camera"])
-        self.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
-        decoder = DecodeQR()
-
-        def live_preview(camera, decoder):
-            while True:
-                frame = self.camera.read_video_stream(as_image=True)
-                if frame is not None:
-                    if decoder.getPercentComplete() > 0:
-                        scan_text = str(decoder.getPercentComplete()) + "% Complete"
-                    else:
-                        scan_text = "Scan PSBT QR"
-                    View.DispShowImageWithText(frame.resize((240,240)), scan_text, font=View.IMPACT22, text_color=View.color, text_background=(0,0,0,225))
-                time.sleep(0.1) # turn this up or down to tune performace while decoding psbt
-                if camera._video_stream is None:
-                    break
-
-        # putting live preview in it's own thread to improve psbt decoding performance
-        t = Thread(target=live_preview, args=(self.camera, decoder,))
-        t.start()
-
-        while True:
-            frame = self.camera.read_video_stream()
-            if frame is not None:
-                status = decoder.addImage(frame)
-
-                if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
-                    self.camera.stop_video_stream_mode()
-                    break
-                
-                if self.buttons.check_for_low(B.KEY_RIGHT) or self.buttons.check_for_low(B.KEY_LEFT):
-                    self.camera.stop_video_stream_mode()
-                    break
-
-        time.sleep(0.2) # time to let live preview thread complete to avoid race condition on display
-
-        if decoder.isComplete() and decoder.isPSBT():
-            self.menu_view.draw_modal(["Parsing PSBT"])
-            psbt = decoder.getPSBT()
         elif ( decoder.isComplete() and not decoder.isPSBT() ) or decoder.isInvalid():
             self.menu_view.draw_modal(["Not a valid PSBT QR"], "", "Right to Exit")
             input = self.buttons.wait_for([B.KEY_RIGHT])
@@ -615,7 +617,69 @@ class Controller(Singleton):
         else:
             return Path.MAIN_MENU
 
+
+        if len(seed_phrase) == 0:
+
+            # If there is a saved seed, ask to use saved seed
+            if self.storage.num_of_saved_seeds() > 0:
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Save Seed?")
+                if r == 1: #Yes
+                    slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
+                    if slot_num == 0:
+                        return Path.MAIN_MENU
+                    seed_phrase = self.storage.get_seed_phrase(slot_num)
+                    passphrase = self.storage.get_passphrase(slot_num)
+
+            if len(seed_phrase) == 0:
+                # gather seed phrase
+                # display menu to select 12 or 24 word seed for last word
+                ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Main Menu ]")
+                if ret_val == Path.SEED_WORD_12:
+                    seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
+                elif ret_val == Path.SEED_WORD_24:
+                    seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
+                elif ret_val == Path.SEED_WORD_QR:
+                    seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
+                else:
+                    return Path.MAIN_MENU
+
+                if len(seed_phrase) == 0:
+                    return Path.MAIN_MENU
+
+            # check if seed phrase is valid
+            self.menu_view.draw_modal(["Validating Seed ..."])
+            is_valid = self.storage.check_if_seed_valid(seed_phrase)
+            if is_valid == False:
+                self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
+                input = self.buttons.wait_for([B.KEY_RIGHT])
+                return Path.MAIN_MENU
+
+            if len(passphrase) == 0:
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
+                if r == 1:
+                    # display a tool to pick letters/numbers to make a passphrase
+                    passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
+                    if len(passphrase) == 0 or passphrase == "-1":
+                        passphrase = ""
+                        self.menu_view.draw_modal(["No passphrase added", "to seed words"], "", "Left to Exit, Right to Continue")
+                        input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
+                        if input == B.KEY_LEFT:
+                            return Path.MAIN_MENU
+                    else:
+                        self.menu_view.draw_modal(["Optional passphrase", "added to seed words", passphrase], "", "Right to Continue")
+                        self.buttons.wait_for([B.KEY_RIGHT])
+
+            # display seed phrase
+            while True:
+                r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
+                if r == True:
+                    break
+                else:
+                    # Cancel
+                    return Path.MAIN_MENU
+
         # show transaction information before sign
+        self.menu_view.draw_modal(["Parsing PSBT"])
         p = PSBTParser(psbt,seed_phrase,passphrase,self.settings.network)
         self.signing_tools_view.display_transaction_information(p)
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
@@ -623,8 +687,8 @@ class Controller(Singleton):
             return Path.MAIN_MENU
 
         # Sign PSBT
-        sig_cnt = PSBTParser.sigCount(psbt)
         self.menu_view.draw_modal(["PSBT Signing ..."])
+        sig_cnt = PSBTParser.sigCount(psbt)
         psbt.sign_with(p.root)
         trimmed_psbt = PSBTParser.trim(psbt)
 

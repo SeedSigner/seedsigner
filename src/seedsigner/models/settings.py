@@ -44,6 +44,7 @@ class Settings(Singleton):
 
         settings.init_complete = True
 
+<<<<<<< Updated upstream
     def __config_to_data(self, config):
         self.persistent = config.getboolean("system", "persistent_settings")
         self._data["system"]["debug"] = config.getboolean("system", "debug")
@@ -56,6 +57,8 @@ class Settings(Singleton):
         self.custom_derivation_enabled = config.getboolean("wallet", "custom_derivation_enabled")
         self.custom_derivation = config["wallet"]["custom_derivation"]
 
+=======
+>>>>>>> Stashed changes
     ### persistent settings handling
 
     @property
