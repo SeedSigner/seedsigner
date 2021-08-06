@@ -121,7 +121,6 @@ class PSBTParser():
 
     @staticmethod
     def trim(tx):
-        #added section to trim psbt
         trimmed_psbt = psbt.PSBT(tx.tx)
         sigsEnd = 0
         for i, inp in enumerate(tx.inputs):
@@ -129,6 +128,14 @@ class PSBTParser():
             trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
 
         return trimmed_psbt
+
+    @staticmethod
+    def sigCount(tx):
+        cnt = 0
+        for i, inp in enumerate(tx.inputs):
+            cnt += len(list(inp.partial_sigs.keys()))
+
+        return cnt
 
     # checks that all inputs are from the same wallet
     @staticmethod

@@ -620,9 +620,16 @@ class Controller(Singleton):
             return Path.MAIN_MENU
 
         # Sign PSBT
+        sig_cnt = PSBTParser.sigCount(psbt)
         self.menu_view.draw_modal(["PSBT Signing ..."])
         psbt.sign_with(p.root)
         trimmed_psbt = PSBTParser.trim(psbt)
+
+        if sig_cnt == PSBTParser.sigCount(trimmed_psbt):
+            self.menu_view.draw_modal(["Signing failed", "left to exit", "or right to continue", "to display PSBT QR"], "", "")
+            input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
+            if input == B.KEY_LEFT:
+                return Path.MAIN_MENU
 
         # Display Animated QR Code
         self.menu_view.draw_modal(["Generating PSBT QR ..."])
