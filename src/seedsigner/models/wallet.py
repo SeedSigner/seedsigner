@@ -1,11 +1,8 @@
+from .models import EncodeQRDensity
 
 class Wallet:
 
-    QRLOW = 0
-    QRMEDIUM = 1
-    QRHIGH = 2
-
-    def __init__(self, wallet_name, network="main", qr_density=1, policy="PKWSH"):
+    def __init__(self, wallet_name, network="main", qr_density=EncodeQRDensity.MEDIUM, policy="PKWSH"):
         self.network = network
         self.qr_density = qr_density
         self.policy = policy
@@ -56,18 +53,18 @@ class Wallet:
 
     @qr_density.setter
     def qr_density(self, value):
-        if value in (Wallet.QRLOW, Wallet.QRMEDIUM, Wallet.QRHIGH):
+        if value in (EncodeQRDensity.LOW, EncodeQRDensity.MEDIUM, EncodeQRDensity.HIGH):
             self._qr_density = value
         else:
             raise Exception("Invalid Wallet QR density value")
 
     @property
     def qr_density_name(self):
-        if self.qr_density == Wallet.QRLOW:
+        if self.qr_density == EncodeQRDensity.LOW:
             return "Low"
-        elif self.qr_density == Wallet.QRMEDIUM:
+        elif self.qr_density == EncodeQRDensity.MEDIUM:
             return "Medium"
-        elif self.qr_density == Wallet.QRHIGH:
+        elif self.qr_density == EncodeQRDensity.HIGH:
             return "High"
         else:
             return "Unknown"
@@ -75,12 +72,12 @@ class Wallet:
     @property
     def derivation(self):
         if self.policy == "PKWSH" and self.network == "main":
-            return "m/48h/0h/0h/2h"
+            return "m/48'/0'/0'/2'"
         elif self.policy == "PKWSH" and self.network == "test":
-            return "m/48h/1h/0h/2h"
+            return "m/48'/1'/0'/2'"
         elif self.policy == "PKWPKH" and self.network == "main":
-            return "m/84h/0h/0h"
+            return "m/84'/0'/0'"
         elif self.policy == "PKWPKH" and self.network == "test":
-            return "m/84h/1h/0h"
+            return "m/84'/1'/0'"
         else:
             raise Exception("Unsupported Derivation Path or Policy")

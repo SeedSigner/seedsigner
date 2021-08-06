@@ -134,7 +134,7 @@ class MenuView(View):
 
         # Draw Menu
         self.selected_menu_num = 1
-        self.draw_menu(lines, 1)
+        self.draw_menu(lines, 1, None, None, True)
 
         # Wait for Button Input (specifically menu selection/press)
         while True:

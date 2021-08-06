@@ -1,6 +1,7 @@
 # SeedSigner file class dependencies
 from . import View
 from seedsigner.helpers import B, QR
+from seedsigner.models import EncodeQRDensity
 
 
 
@@ -55,11 +56,11 @@ class SettingsToolsView(View):
     def display_qr_density_selection(self) -> str:
         r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Low", "Medium", "High"], "Which QR Density?")
         if r == 2:
-            return "low"
+            return EncodeQRDensity.LOW
         elif r == 3:
-            return "medium"
+            return EncodeQRDensity.MEDIUM
         elif r == 4:
-            return "high"
+            return EncodeQRDensity.HIGH
         else:
             return None
 
