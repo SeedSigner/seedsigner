@@ -1,6 +1,7 @@
 # SeedSigner file class dependencies
 from . import View
 from seedsigner.helpers import B, QR
+from seedsigner.models import EncodeQRDensity
 
 
 
@@ -55,11 +56,11 @@ class SettingsToolsView(View):
     def display_qr_density_selection(self) -> str:
         r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Low", "Medium", "High"], "Which QR Density?")
         if r == 2:
-            return "low"
+            return EncodeQRDensity.LOW
         elif r == 3:
-            return "medium"
+            return EncodeQRDensity.MEDIUM
         elif r == 4:
-            return "high"
+            return EncodeQRDensity.HIGH
         else:
             return None
 
@@ -73,7 +74,7 @@ class SettingsToolsView(View):
 
         r = self.controller.menu_view.display_generic_selection_menu(lines, "Which Wallet Policy?")
         if r == 1:
-            return "RETURN"
+            return None
         elif lines[r-1] == "Multi Sig Native Segwit":
             return "PKWSH"
         elif lines[r-1] == "Single Sig Native Segwit":
@@ -81,6 +82,21 @@ class SettingsToolsView(View):
         else:
             return None
 
+    def display_persistent_settings(self) -> bool:
+
+        lines = ["... [ Return to Settings ]"]
+        lines.append("Yes")
+        lines.append("No")
+
+        r = self.controller.menu_view.display_generic_selection_menu(lines, "Use Persistent Settings?")
+        if r == 1:
+            return None
+        elif r == 2:
+            return True
+        elif r == 3:
+            return False
+        else:
+            return None
 
     ###
     ### Version Info
