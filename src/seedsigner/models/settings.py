@@ -40,20 +40,21 @@ class Settings(Singleton):
 
         if config is not None:
             # read settings.ini typically
-            settings.persistent = config.getboolean("system", "persistent_settings")
-            settings._data["system"]["debug"] = config.getboolean("system", "debug")
-            settings._data["system"]["default_language"] = config["system"]["default_language"]
-            settings._data["display"]["text_color"] = config["display"]["text_color"]
-            settings.network = config["wallet"]["network"]
-            settings.software = config["wallet"]["software"]
-            settings.qr_density = int(config["wallet"]["qr_density"])
-            settings.script_policy = config["wallet"]["script_policy"]
-            settings.custom_derivation_enabled = config.getboolean("wallet", "custom_derivation_enabled")
-            settings.custom_derivation = config["wallet"]["custom_derivation"]
+            settings.__config_to_data(config)
 
         settings.init_complete = True
 
-        print(settings._data)
+    def __config_to_data(self, config):
+        self.persistent = config.getboolean("system", "persistent_settings")
+        self._data["system"]["debug"] = config.getboolean("system", "debug")
+        self._data["system"]["default_language"] = config["system"]["default_language"]
+        self._data["display"]["text_color"] = config["display"]["text_color"]
+        self.network = config["wallet"]["network"]
+        self.software = config["wallet"]["software"]
+        self.qr_density = int(config["wallet"]["qr_density"])
+        self.script_policy = config["wallet"]["script_policy"]
+        self.custom_derivation_enabled = config.getboolean("wallet", "custom_derivation_enabled")
+        self.custom_derivation = config["wallet"]["custom_derivation"]
 
     ### persistent settings handling
 
@@ -64,14 +65,23 @@ class Settings(Singleton):
     @persistent.setter
     def persistent(self, value):
         if type(value) == bool:
-            self._data["system"]["persistent_settings"] = value
-            self.__writeConfig()
+            if value == False and value != self._data["system"]["persistent_settings"]:
+                # persistence is changed to false, restore defaults
+                self._data["system"]["persistent_settings"] = value
+                self.init_complete == False
+                self.restoreDefault()
+                self.init_complete == True
+            else:
+                self._data["system"]["persistent_settings"] = value
+                self.__writeConfig()
         else:
             raise Exception("Unexpected system.persistent_settings settings.ini value")
 
-    def enablePersistence(self):
-        self.persistent = True
-        self.__writeConfig()
+    def restoreDefault(self):
+        config = configparser.ConfigParser()
+        config.read("default_settings.ini")
+        self.__config_to_data(config)
+        self.__writeSettingsIni(config)
 
     def __writeSettingsIni(self, config):
         with open('settings.ini', 'w') as configfile:
@@ -89,6 +99,13 @@ class Settings(Singleton):
         if self._data["system"]["persistent_settings"] == True and self.init_complete == True:
             config = self.__generateConfig()
             self.__writeSettingsIni(config)
+
+    @property
+    def persistent_display(self):
+        if self.persistent:
+            return "Yes"
+        else:
+            return "No"
 
     ### system
 
@@ -139,7 +156,7 @@ class Settings(Singleton):
     @qr_density.setter
     def qr_density(self, value):
         if value in (EncodeQRDensity.LOW, EncodeQRDensity.MEDIUM, EncodeQRDensity.HIGH, int(EncodeQRDensity.LOW), int(EncodeQRDensity.MEDIUM), int(EncodeQRDensity.HIGH)):
-            self._data["wallet"]["qr_density"] = value
+            self._data["wallet"]["qr_density"] = int(value)
             self.__writeConfig()
         else:
             raise Exception("Unexpected wallet.qr_density settings.ini value")

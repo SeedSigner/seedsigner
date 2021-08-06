@@ -143,6 +143,8 @@ class Controller(Singleton):
                 ret_val = self.show_qr_density_tool()
             elif ret_val == Path.WALLET_POLICY:
                 ret_val = self.show_wallet_policy_tool()
+            elif ret_val == Path.PERSISTENT_SETTINGS:
+                ret_val = self.show_persistent_settings_tool()
             elif ret_val == Path.DONATE:
                 ret_val = self.show_donate_tool()
             elif ret_val == Path.POWER_OFF:
@@ -657,7 +659,7 @@ class Controller(Singleton):
         ret_val = self.io_test_view.display_io_test_screen()
 
         if ret_val == True:
-            return Path.MAIN_MENU
+            return Path.SETTINGS_SUB_MENU
 
     ### Show Current Network
 
@@ -703,7 +705,25 @@ class Controller(Singleton):
         if input == B.KEY_LEFT:
             return Path.SETTINGS_SUB_MENU
         elif input == B.KEY_RIGHT:
-            return Path.MAIN_MENU
+            return Path.SETTINGS_SUB_MENU
+
+    ### Show Persistent Settings Screen
+
+    def show_persistent_settings_tool(self):
+        r = self.settings_tools_view.display_persistent_settings()
+        if r is not None:
+            if r == True:
+                self.menu_view.draw_modal(["Persistent settings", "keeps settings saved", "accross reboot.", "Seeds are never saved"], "Warning", "Right to Continue")
+                input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
+                if input == B.KEY_RIGHT:
+                    self.settings.persistent = r
+            else:
+                self.menu_view.draw_modal(["This will restore", "the default", "settings.", ""], "Warning", "Right to Continue")
+                input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
+                if input == B.KEY_RIGHT:
+                    self.settings.persistent = r
+
+        return Path.SETTINGS_SUB_MENU
 
     ### Show Donate Screen and QR
 
