@@ -11,7 +11,7 @@ from threading import Thread
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
     SettingsToolsView, IOTestView)
 from .helpers import Buttons, B, Path, Singleton
-from .models import (SeedStorage, Wallet, DecodeQR, DecodeQRStatus,
+from .models import (SeedStorage, Settings, DecodeQR, DecodeQRStatus,
     EncodeQRDensity, EncodeQR, PSBTParser, QRType)
 
 class Controller(Singleton):
@@ -53,16 +53,17 @@ class Controller(Singleton):
         controller = cls.__new__(cls)
         cls._instance = controller
 
-        # settings
-        controller.DEBUG = config.getboolean("system", "DEBUG")
-        controller.color = config["display"]["TEXT_COLOR"]
-
         # Input Buttons
         controller.buttons = Buttons()
 
         # models
         controller.storage = SeedStorage()
-        controller.wallet = Wallet(config["settings"]["wallet"], config["settings"]["network"], int(config["settings"]["qr_density"]), config["settings"]["policy"])
+        Settings.configure_instance(config)
+        controller.settings = Settings.get_instance()
+
+        # settings
+        controller.DEBUG = controller.settings.debug
+        controller.color = controller.settings.text_color
 
         # Views
         controller.menu_view = MenuView()
@@ -473,20 +474,20 @@ class Controller(Singleton):
         self.signing_tools_view.draw_modal(["Loading xPub Info ..."])
 
         seed = bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip(), passphrase)
-        root = bip32.HDKey.from_seed(seed, version=NETWORKS[self.wallet.network]["xprv"])
+        root = bip32.HDKey.from_seed(seed, version=NETWORKS[self.settings.network]["xprv"])
         fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
-        bip48_xprv = root.derive(self.wallet.derivation)
+        bip48_xprv = root.derive(self.settings.derivation)
         bip48_xpub = bip48_xprv.to_public()
-        if self.wallet.policy == "PKWPKH":
-            xpub = bip48_xpub.to_base58(NETWORKS[self.wallet.network]["zpub"])
+        if self.settings.script_policy == "PKWPKH":
+            xpub = bip48_xpub.to_base58(NETWORKS[self.settings.network]["zpub"])
         else:
-            xpub = bip48_xpub.to_base58(NETWORKS[self.wallet.network]["Zpub"])
+            xpub = bip48_xpub.to_base58(NETWORKS[self.settings.network]["Zpub"])
 
-        self.signing_tools_view.display_xpub_info(fingerprint, self.wallet.derivation, xpub)
+        self.signing_tools_view.display_xpub_info(fingerprint, self.settings.derivation, xpub)
         self.buttons.wait_for([B.KEY_RIGHT])
 
         self.signing_tools_view.draw_modal(["Generating xPub QR ..."])
-        e = EncodeQR(seed_phrase=seed_phrase, passphrase=passphrase, derivation=self.wallet.derivation, network=self.wallet.network, policy=self.wallet.policy, qr_type=self.getXPubQRType(), qr_density=self.wallet.qr_density)
+        e = EncodeQR(seed_phrase=seed_phrase, passphrase=passphrase, derivation=self.settings.derivation, network=self.settings.network, policy=self.settings.script_policy, qr_type=self.settings.qr_xpub_type, qr_density=self.settings.qr_density)
 
         while e.totalParts() > 1:
             image = e.nextPartImage(240,240,2)
@@ -613,7 +614,7 @@ class Controller(Singleton):
             return Path.MAIN_MENU
 
         # show transaction information before sign
-        p = PSBTParser(psbt,seed_phrase,passphrase,self.wallet.network)
+        p = PSBTParser(psbt,seed_phrase,passphrase,self.settings.network)
         self.signing_tools_view.display_transaction_information(p)
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
         if input == B.KEY_LEFT:
@@ -633,7 +634,7 @@ class Controller(Singleton):
 
         # Display Animated QR Code
         self.menu_view.draw_modal(["Generating PSBT QR ..."])
-        e = EncodeQR(psbt=trimmed_psbt, qr_type=self.getWalletQRType(), qr_density=self.wallet.qr_density)
+        e = EncodeQR(psbt=trimmed_psbt, qr_type=self.settings.qr_psbt_type, qr_density=self.settings.qr_density)
         while True:
             image = e.nextPartImage(240,240,1)
             View.DispShowImage(image)
@@ -663,7 +664,7 @@ class Controller(Singleton):
     def show_current_network_tool(self):
         r = self.settings_tools_view.display_current_network()
         if r is not None:
-            self.wallet.network = r
+            self.settings.network = r
 
         return Path.SETTINGS_SUB_MENU
 
@@ -672,30 +673,16 @@ class Controller(Singleton):
     def show_wallet_tool(self):
         r = self.settings_tools_view.display_wallet_selection()
         if r is not None:
-            self.wallet.wallet_name = r
+            self.settings.software = r
 
         return Path.SETTINGS_SUB_MENU
-
-    def getWalletQRType(self):
-        r = self.wallet.wallet_name
-        if r in ("Specter Desktop"):
-            return QRType.PSBTSPECTER
-        else:
-            return QRType.PSBTUR2
-
-    def getXPubQRType(self):
-        r = self.wallet.wallet_name
-        if r in ("Specter Desktop"):
-            return QRType.SPECTERXPUBQR
-        else:
-            return QRType.XPUBQR
 
     ### Show QR Density Tool
 
     def show_qr_density_tool(self):
         r = self.settings_tools_view.display_qr_density_selection()
         if r in (EncodeQRDensity.LOW, EncodeQRDensity.MEDIUM, EncodeQRDensity.HIGH):
-            self.wallet.qr_density = r
+            self.settings.qr_density = r
 
         return Path.SETTINGS_SUB_MENU
 
@@ -704,7 +691,7 @@ class Controller(Singleton):
     def show_wallet_policy_tool(self):
         r = self.settings_tools_view.display_wallet_policy_selection()
         if r is not None:
-            self.wallet.policy = r
+            self.settings.script_policy = r
 
         return Path.SETTINGS_SUB_MENU
 

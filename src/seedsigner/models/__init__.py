@@ -3,4 +3,4 @@ from .decode_qr import *
 from .encode_qr import *
 from .psbt_parser import *
 from .seed_storage import *
-from .wallet import *
+from .settings import *
