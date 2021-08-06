@@ -1,4 +1,4 @@
-from .models import EncodeQRDensity
+from .encode_qr import EncodeQRDensity
 
 class Wallet:
 
