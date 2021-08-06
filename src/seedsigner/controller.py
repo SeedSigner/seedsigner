@@ -596,18 +596,20 @@ class Controller(Singleton):
                     self.camera.stop_video_stream_mode()
                     break
                 
-                if self.buttons.check_for_low(B.KEY_RIGHT):
+                if self.buttons.check_for_low(B.KEY_RIGHT) or self.buttons.check_for_low(B.KEY_LEFT):
                     self.camera.stop_video_stream_mode()
-                    return Path.MAIN_MENU
+                    break
 
         time.sleep(0.2) # time to let live preview thread complete to avoid race condition on display
+
         if decoder.isComplete() and decoder.isPSBT():
             self.menu_view.draw_modal(["Parsing PSBT"])
             psbt = decoder.getPSBT()
-
-        else:
-            self.menu_view.draw_modal(["PSBT Parsing Failed"], "", "Right to Exit")
+        elif ( decoder.isComplete() and not decoder.isPSBT() ) or decoder.isInvalid():
+            self.menu_view.draw_modal(["Not a valid PSBT QR"], "", "Right to Exit")
             input = self.buttons.wait_for([B.KEY_RIGHT])
+            return Path.MAIN_MENU
+        else:
             return Path.MAIN_MENU
 
         # show transaction information before sign

@@ -16,6 +16,8 @@ from seedsigner.models.qr_type import QRType
 
 class DecodeQR:
 
+    _4LETTER_WORDLIST = [word[:4].strip() for word in bip39.WORDLIST]
+
     def __init__(self, **kwargs):
         self.complete = False
         self.qr_type = None
@@ -77,7 +79,19 @@ class DecodeQR:
             return rt
 
         elif self.qr_type == QRType.SEEDSSQR:
-            rt = self.seedqr.add(qr_str)
+            rt = self.seedqr.add(qr_str, QRType.SEEDSSQR)
+            if rt == DecodeQRStatus.COMPLETE:
+                self.complete = True
+            return rt
+
+        elif self.qr_type == QRType.SEEDMNEMONIC:
+            rt = self.seedqr.add(qr_str, QRType.SEEDMNEMONIC)
+            if rt == DecodeQRStatus.COMPLETE:
+                self.complete = True
+            return rt
+
+        elif self.qr_type == QRType.SEED4LETTERMNEMONIC:
+            rt = self.seedqr.add(qr_str, QRType.SEED4LETTERMNEMONIC)
             if rt == DecodeQRStatus.COMPLETE:
                 self.complete = True
             return rt
@@ -144,13 +158,18 @@ class DecodeQR:
     def isComplete(self) -> bool:
         return self.complete
 
+    def isInvalid(self) -> bool:
+        if self.qr_type == QRType.INVALID:
+            return True
+        return False
+
     def isPSBT(self) -> bool:
         if self.qr_type in (QRType.PSBTUR2, QRType.PSBTSPECTER, QRType.PSBTURLEGACY, QRType.PSBTBASE64):
             return True
         return False
 
     def isSeed(self):
-        if self.qr_type in (QRType.SEEDSSQR, QRType.SEEDUR2):
+        if self.qr_type in (QRType.SEEDSSQR, QRType.SEEDUR2, QRType.SEEDMNEMONIC, QRType.SEED4LETTERMNEMONIC):
             return True
         return False
 
@@ -179,6 +198,12 @@ class DecodeQR:
             return QRType.PSBTURLEGACY
         elif re.search(r'\d{48,96}', s):
             return QRType.SEEDSSQR
+        elif all(x in bip39.WORDLIST for x in s.strip().split(" ")):
+            # checks if all words in list are in bip39 word list
+            return QRType.SEEDMNEMONIC
+        elif all(x in DecodeQR._4LETTER_WORDLIST for x in s.strip().split(" ")):
+            # checks if all 4 letter words are in list are in 4 letter bip39 word list
+            return QRType.SEED4LETTERMNEMONIC
         elif DecodeQR.isBase64PSBT(s):
             return QRType.PSBTBASE64
         else:
@@ -384,6 +409,14 @@ class Base64DecodeQR:
     def parseSegment(segment) -> str:
         return segment
 
+###
+### SeedQR Class
+### Purpose: used in DecodeQR to decode single frame representing a seed
+###          SeedSigner numeric respresentation of a seed as a qr is supported
+###          Mnemonic seed phrase respresentation of a seed as a qr is supported
+###          does not support animated qr because no idicator or segments or thier order
+###
+
 class SeedQR:
 
     def __init__(self):
@@ -392,29 +425,76 @@ class SeedQR:
         self.complete = False
         self.seed_phrase = []
 
-    def add(self, segment):
-        try:
-            self.seed_phrase = []
+    def add(self, segment, qr_type=QRType.SEEDSSQR):
 
-            # Parse 12 or 24-word QR code
-            num_words = int(len(segment) / 4)
-            for i in range(0, num_words):
-                index = int(segment[i * 4: (i*4) + 4])
-                word = bip39.WORDLIST[index]
-                self.seed_phrase.append(word)
-            if len(self.seed_phrase) > 0:
+        if qr_type == QRType.SEEDSSQR:
+
+            try:
+                self.seed_phrase = []
+
+                # Parse 12 or 24-word QR code
+                num_words = int(len(segment) / 4)
+                for i in range(0, num_words):
+                    index = int(segment[i * 4: (i*4) + 4])
+                    word = bip39.WORDLIST[index]
+                    self.seed_phrase.append(word)
+                if len(self.seed_phrase) > 0:
+                    if self.is1224Phrase() == False:
+                        return DecodeQRStatus.INVALID
+                    self.complete = True
+                    self.collected_segments = 1
+                    return DecodeQRStatus.COMPLETE
+                else:
+                    return DecodeQRStatus.INVALID
+            except Exception as e:
+                return DecodeQRStatus.INVALID
+
+        elif qr_type == QRType.SEEDMNEMONIC:
+
+            try:
+                # embit mnemonic code to validate
+                bip39.mnemonic_to_seed(segment.strip())
+                self.seed_phrase = segment.strip().split(" ")
+                if self.is1224Phrase() == False:
+                        return DecodeQRStatus.INVALID
                 self.complete = True
                 self.collected_segments = 1
                 return DecodeQRStatus.COMPLETE
-            else:
+            except Exception as e:
                 return DecodeQRStatus.INVALID
-        except Exception as e:
+
+        elif qr_type == QRType.SEED4LETTERMNEMONIC:
+
+            try:
+                sl = segment.strip().split(" ")
+                words = []
+                for s in sl:
+                    words.append(bip39.WORDLIST[DecodeQR._4LETTER_WORDLIST.index(s)])
+
+                # embit mnemonic code to validate
+                bip39.mnemonic_to_seed(" ".join(words).strip())
+                self.seed_phrase = words
+                if self.is1224Phrase() == False:
+                        return DecodeQRStatus.INVALID
+                self.complete = True
+                self.collected_segments = 1
+                return DecodeQRStatus.COMPLETE
+            except Exception as e:
+                return DecodeQRStatus.INVALID
+
+        else:
+
             return DecodeQRStatus.INVALID
 
     def getSeedPhrase(self):
         if self.complete:
             return self.seed_phrase[:]
         return []
+
+    def is1224Phrase(self):
+        if len(self.seed_phrase) in (12, 24):
+            return True
+        return False
 
 ###
 ### DecodeQRStatus Class IntEum
