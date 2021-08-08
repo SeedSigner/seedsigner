@@ -1146,7 +1146,7 @@ class SeedToolsView(View):
                     cur_y = next_y
 
     def read_seed_phrase_qr(self):
-        self.draw_modal(["Scanning..."], "Seed QR" ,"Left to Cancel")
+        self.draw_modal(["Scanning..."], "Seed QR" ,"Right to Exit")
         try:
             self.controller.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
             decoder = DecodeQR()

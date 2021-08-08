@@ -2,6 +2,7 @@
 import time
 from multiprocessing import Process, Queue
 from subprocess import call
+import os, sys
 from embit import bip39, bip32
 from embit.networks import NETWORKS
 from binascii import hexlify
@@ -31,7 +32,7 @@ class Controller(Singleton):
         Note: In many/most cases you'll need to do the Controller import within a method
         rather than at the top in order avoid circular imports.
     """
-    VERSION = "0.4.3"
+    VERSION = "0.4.4"
 
 
     @classmethod
@@ -147,6 +148,8 @@ class Controller(Singleton):
                 ret_val = self.show_persistent_settings_tool()
             elif ret_val == Path.DONATE:
                 ret_val = self.show_donate_tool()
+            elif ret_val == Path.RESET:
+                ret_val = self.show_reset_tool()
             elif ret_val == Path.POWER_OFF:
                 ret_val = self.show_power_off()
 
@@ -322,6 +325,17 @@ class Controller(Singleton):
         else:
             show_qr_option = True
 
+        self.menu_view.draw_modal(["Validating ..."])
+        is_valid = self.storage.check_if_seed_valid(seed_phrase)
+        if is_valid == False:
+            # Exit if not valid with message
+            self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again", ""], "", "Right to Continue")
+            input = self.buttons.wait_for([B.KEY_RIGHT])
+            return Path.SEED_TOOLS_SUB_MENU
+        else:
+            self.menu_view.draw_modal(["Valid Seed!"], "", "Right to Continue")
+            input = self.buttons.wait_for([B.KEY_RIGHT])
+
         while display_saved_seed == False:
             r = self.seed_tools_view.display_seed_phrase(seed_phrase, show_qr_option=show_qr_option )
             if r == True:
@@ -330,14 +344,9 @@ class Controller(Singleton):
                 # no-op; can't back out of the seed phrase view
                 pass
 
-        self.menu_view.draw_modal(["Validating ..."])
-        is_valid = self.storage.check_if_seed_valid(seed_phrase)
         if is_valid:
             self.storage.save_seed_phrase(seed_phrase, slot_num)
-            self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
-            input = self.buttons.wait_for([B.KEY_RIGHT])
-        else:
-            self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
+            self.menu_view.draw_modal(["", "Saved to Slot #" + str(slot_num)], "", "Right to Exit")
             input = self.buttons.wait_for([B.KEY_RIGHT])
 
         return Path.SEED_TOOLS_SUB_MENU
@@ -488,8 +497,15 @@ class Controller(Singleton):
         self.signing_tools_view.display_xpub_info(fingerprint, self.settings.derivation, xpub)
         self.buttons.wait_for([B.KEY_RIGHT])
 
+        if self.settings.software == "Prompt":
+            lines = ["Specter Desktop", "Blue Wallet", "Sparrow"]
+            r = self.menu_view.display_generic_selection_menu(lines, "Which Wallet?")
+            qr_xpub_type = Settings.getXPubType(lines[r-1])
+        else:
+            qr_xpub_type = self.settings.qr_xpub_type
+
         self.signing_tools_view.draw_modal(["Generating xPub QR ..."])
-        e = EncodeQR(seed_phrase=seed_phrase, passphrase=passphrase, derivation=self.settings.derivation, network=self.settings.network, policy=self.settings.script_policy, qr_type=self.settings.qr_xpub_type, qr_density=self.settings.qr_density)
+        e = EncodeQR(seed_phrase=seed_phrase, passphrase=passphrase, derivation=self.settings.derivation, network=self.settings.network, policy=self.settings.script_policy, qr_type=qr_xpub_type, qr_density=self.settings.qr_density)
 
         while e.totalParts() > 1:
             image = e.nextPartImage(240,240,2)
@@ -575,6 +591,16 @@ class Controller(Singleton):
                 self.menu_view.draw_modal(["Valid Seed!"], "", "Right to Continue")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
 
+            # Ask to save seed
+            if self.storage.slot_avaliable():
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Seed?")
+                if r == 1: #Yes
+                    slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
+                    if slot_num in (1,2,3):
+                        self.storage.save_seed_phrase(seed_phrase, slot_num)
+                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
+                        input = self.buttons.wait_for([B.KEY_RIGHT])
+
             r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
             if r == 1:
                 # display a tool to pick letters/numbers to make a passphrase
@@ -605,9 +631,11 @@ class Controller(Singleton):
                 # second QR must be a PSBT
                 self.menu_view.draw_modal(["Validating PSBT"])
                 psbt = decoder.getPSBT()
-            else:
-                self.menu_view.draw_modal(["Invalid PSBT QR"], "", "Right to Exit")
+            elif ( decoder.isComplete() and not decoder.isPSBT() ) or decoder.isInvalid():
+                self.menu_view.draw_modal(["Not a valid PSBT QR"], "", "Right to Exit")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
+                return Path.MAIN_MENU
+            else:
                 return Path.MAIN_MENU
 
         elif ( decoder.isComplete() and not decoder.isPSBT() ) or decoder.isInvalid():
@@ -802,4 +830,29 @@ class Controller(Singleton):
             time.sleep(1)
             input = self.buttons.wait_for([B.KEY_RIGHT])
             return Path.MAIN_MENU
+
+    def show_reset_tool(self):
+        self.menu_view.draw_modal(["This will restore", "default settings and", "restart the device", ""], "Warning", "Right to Continue")
+        input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
+        if input == B.KEY_RIGHT:
+            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Reset SeedSigner?")
+            if r == 1: #Yes
+                self.menu_view.display_blank_screen()
+                self.settings.restoreDefault()
+                time.sleep(0.1) # give time to write to disk
+
+                return_code = os.system("sudo systemctl is-active --quiet seedsigner.service")
+
+                if return_code == 0:
+                    # systemd service is running
+                    call("sudo systemctl restart seedsigner.service", shell=True)
+                    time.sleep(2)
+                else:
+                    # systemd service is not running, restart script internally
+                    os.execv(sys.executable, ['python3'] + sys.argv)
+
+            else: # No
+                return Path.MAIN_MENU
+
+        return Path.MAIN_MENU
 
