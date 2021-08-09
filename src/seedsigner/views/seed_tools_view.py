@@ -1034,6 +1034,8 @@ class SeedToolsView(View):
             if len(seed_phrase) == 24:
                 width = (qr_border + 29 + qr_border) * pixels_per_block
                 height = width
+            data = e.nextPart()
+            qr = QR()
             image = qr.qrimage(data, width=width, height=height, border=qr_border).convert("RGBA")
 
             # Render gridlines but leave the 1-block border as-is
@@ -1146,7 +1148,7 @@ class SeedToolsView(View):
                     cur_y = next_y
 
     def read_seed_phrase_qr(self):
-        self.draw_modal(["Scanning..."], "Seed QR" ,"Left to Cancel")
+        self.draw_modal(["Scanning..."], "Seed QR" ,"Right to Exit")
         try:
             self.controller.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
             decoder = DecodeQR()

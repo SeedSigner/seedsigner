@@ -29,6 +29,7 @@ class Path:
     QR_DENSITY_SETTING = 65
     WALLET_POLICY = 66
     PERSISTENT_SETTINGS = 67
+    RESET = 68
 
     # Seed Slots
     SEED_SLOT_1 = 80

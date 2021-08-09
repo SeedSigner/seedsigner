@@ -143,7 +143,7 @@ class Settings(Singleton):
 
     @software.setter
     def software(self, value):
-        if value in ("Specter Desktop", "Blue Wallet", "Sparrow", "UR 2.0 Generic"):
+        if value in ("Specter Desktop", "Blue Wallet", "Sparrow", "Prompt"):
             self._data["wallet"]["software"] = value
             self.__writeConfig()
         else:
@@ -170,7 +170,11 @@ class Settings(Singleton):
 
     @property
     def qr_xpub_type(self):
-        if self.software in ("Specter Desktop"):
+        return Settings.getXPubType(self.software)
+
+    @staticmethod
+    def getXPubType(software):
+        if software == "Specter Desktop":
             return QRType.SPECTERXPUBQR
         else:
             return QRType.XPUBQR

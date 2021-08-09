@@ -71,7 +71,7 @@ class MenuView(View):
             else:
                 seed_storage_line = "View Seeds (temp)"
 
-        lines = ["... [ Return to Main ]", "Input a Seed", "Add/Remove Passphrase", "Generate an xPub", "Generate Word 12/24", "Generate a Seed with Dice", "Generate a Seed with Image"]
+        lines = ["... [ Return to Main ]", "Seed Storage", "Seed Passphrase", "xPub from Seed", "Calculate Last Word", "Generate Seed with Dice", "Generate Seed with Image"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -124,7 +124,7 @@ class MenuView(View):
     ### Settings Menu
 
     def display_settings_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Wallet: <wallet>", "Script Policy: <policy>", "Network: <network>", "QR Density: <density>", "Input / Output Tests", "Persistent Settings: <persistent>", "Version Info", "Donate to SeedSigner"]
+        lines = ["... [ Return to Main ]", "Wallet: <wallet>", "Script Policy: <policy>", "Network: <network>", "QR Density: <density>", "Input / Output Tests", "Persistent Settings: <persistent>", "Version Info", "Donate to SeedSigner", "Reset SeedSigner"]
         input = 0
         
         lines[1] = lines[1].replace("<wallet>", Settings.get_instance().software)
@@ -163,6 +163,8 @@ class MenuView(View):
                     return Path.VERSION_INFO
                 elif self.selected_menu_num == 9:
                     return Path.DONATE
+                elif self.selected_menu_num == 10:
+                    return Path.RESET
         raise Exception("Unhandled case")
 
     ### Generic Single Menu Selection (returns 1,2,3,4,5,6 ...)
