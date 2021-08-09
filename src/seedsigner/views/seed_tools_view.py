@@ -1034,6 +1034,8 @@ class SeedToolsView(View):
             if len(seed_phrase) == 24:
                 width = (qr_border + 29 + qr_border) * pixels_per_block
                 height = width
+            data = e.nextPart()
+            qr = QR()
             image = qr.qrimage(data, width=width, height=height, border=qr_border).convert("RGBA")
 
             # Render gridlines but leave the 1-block border as-is
