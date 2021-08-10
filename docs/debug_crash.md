@@ -1,6 +1,6 @@
 ## Debugging a Crash for advanced (technical) users
 
-These are instructions are intended to help users of SeedSigner provide crash exception and traceback logs to developers to aid in troubleshooting and resolving bugs.
+These instructions are intended to help users of SeedSigner provide crash exception and traceback logs to developers to aid in troubleshooting and resolving bugs.
 
 ### Testnet vs Mainnet
 
