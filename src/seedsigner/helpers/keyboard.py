@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from PIL import Image, ImageDraw
 
 from . import B
 
@@ -484,16 +485,33 @@ class TextEntryDisplay(TextEntryDisplayConstants):
     is_centered: bool = True
     has_outline: bool = False
     cur_text: str = " "
+    text_offset = 0
+
+    @property
+    def width(self):
+        return self.rect[2] - self.rect[0]
+
+    @property
+    def height(self):
+        return self.rect[3] - self.rect[1]
 
 
     def render(self, cur_text=None, cursor_position=None):
+        # Import here to avoid circular import problems
+        from seedsigner.views import View
+
         """ Render the live text entry display """
         if cur_text:
             self.cur_text = cur_text
+
+        # Start by rendering to a new Image that we'll composite in at the end
+        image = Image.new("RGB", (self.width + 1, self.height + 1), "black")
+        draw = ImageDraw.Draw(image)
+
         if self.has_outline:
-            self.draw.rectangle(self.rect, fill="black", outline=self.font_color)
+            draw.rectangle((0, 0, self.width, self.height), fill="black", outline=self.font_color)
         else:
-            self.draw.rectangle(self.rect, fill="black")
+            draw.rectangle((0, 0, self.width, self.height), fill="black")
 
         if self.cursor_mode == TextEntryDisplay.CURSOR_MODE__BLOCK:
             cursor_block_width = 18
@@ -502,56 +520,66 @@ class TextEntryDisplay(TextEntryDisplayConstants):
             # Draw n-1 of the selected letters
             tw, th = self.font.getsize(self.cur_text[:-1])
             if self.is_centered:
-                word_offset = self.rect[0] + int(self.rect[2] - self.rect[0] - tw - cursor_block_width)/2
+                self.text_offset = int(self.width - tw - cursor_block_width)/2
             else:
-                word_offset = self.rect[0] + 3
-            cursor_block_offset = word_offset + tw - 1
-            if cursor_block_offset == self.rect[0]:
-                cursor_block_offset = self.rect[0] + 1
+                self.text_offset = 3
+            cursor_block_offset = self.text_offset + tw - 1
+            if cursor_block_offset == 0:
+                cursor_block_offset = 1
 
             end_pos_x = cursor_block_offset + cursor_block_width
-            if end_pos_x >= self.rect[2]:
+            if end_pos_x >= self.width:
                 # Shift the display left
-                cursor_block_offset -= end_pos_x - self.rect[2] + 1
-                word_offset -= end_pos_x - self.rect[2] + 1
+                cursor_block_offset -= end_pos_x - self.width + 1
+                self.text_offset -= end_pos_x - self.width + 1
 
-            self.draw.text((word_offset, self.rect[1] + 3), self.cur_text[:-1], fill=self.font_color, font=self.font)
+            draw.text((self.text_offset, 3), self.cur_text[:-1], fill=self.font_color, font=self.font)
 
             # Draw the highlighted cursor block
-            self.draw.rectangle((cursor_block_offset, self.rect[1] + 1, cursor_block_offset + cursor_block_width, self.rect[3] - 1), fill="#111")
-            self.draw.text((cursor_block_offset + 1, self.rect[1] + 3), self.cur_text[-1], fill=self.font_color, font=self.font)
+            draw.rectangle((cursor_block_offset, 1, cursor_block_offset + cursor_block_width, self.height - 1), fill="#111")
+            draw.text((cursor_block_offset + 1,  3), self.cur_text[-1], fill=self.font_color, font=self.font)
 
         else:
             cursor_bar_offset = 1
             cursor_bar_serif_half_width = 4
             tw, th = self.font.getsize(self.cur_text)
             if self.is_centered:
-                word_offset = self.rect[0] + int(self.rect[2] - self.rect[0] - tw)/2
+                # self.text_offset = int(self.width - tw)/2
+                raise Exception("Centered cursor bars not fully implemented")
+
+            end_pos_x = 3 + tw + cursor_bar_serif_half_width + 3
+            if end_pos_x < self.width:
+                # The entire cur_text plus the cursor bar fits
+                self.text_offset = 3
+                tw_left, th = self.font.getsize(self.cur_text[:cursor_position])
+                cursor_bar_x = tw_left + self.text_offset
+
             else:
-                word_offset = self.rect[0] + 3
+                if cursor_position is None:
+                    cursor_position = len(self.cur_text)
 
-            end_pos_x = word_offset + tw + cursor_bar_serif_half_width + 3
-            if end_pos_x >= self.rect[2]:
-                # Shift the display left
-                word_offset -= end_pos_x - self.rect[2] + 1
+                # Is the cursor at either extreme?
+                tw_left, th = self.font.getsize(self.cur_text[:cursor_position])
+                tw_right, th = self.font.getsize(self.cur_text[cursor_position:])
 
-            # Draw the cursor bar
-            if cursor_position is None:
-                cursor_position = len(self.cur_text)
-            if cursor_position == 0:
-                cursor_bar_x = self.rect[0] + cursor_bar_offset + cursor_bar_serif_half_width
-            elif cursor_position >= len(self.cur_text):
-                cursor_bar_x = word_offset + tw
-            else:
-                tw, th = self.font.getsize(self.cur_text[:cursor_position])
-                cursor_bar_x = word_offset + tw + cursor_bar_offset
+                if self.text_offset + tw_left + cursor_bar_serif_half_width + 3 >= self.width:
+                    # Cursor is at the extreme right; have to push the full tw_right off
+                    #   the right edge of the display.
+                    self.text_offset = self.width - (tw_left + cursor_bar_serif_half_width + 3)
+                elif self.text_offset + tw_left < 3 + cursor_bar_serif_half_width:
+                    # Cursor is at the extreme left; have to push the full tw_left off 
+                    #   left edge of the display.
+                    self.text_offset = 3 + cursor_bar_serif_half_width - tw_left
 
-            self.draw.text((word_offset, self.rect[1] + 3), self.cur_text, fill=self.font_color, font=self.font)
+                cursor_bar_x = self.text_offset + tw_left
+
+            draw.text((self.text_offset, 3), self.cur_text, fill=self.font_color, font=self.font)
 
             # Render as an "I" bar
             cursor_bar_color = "#ccc"
-            self.draw.line((cursor_bar_x, self.rect[1] + 3, cursor_bar_x, self.rect[3] - 3), fill=cursor_bar_color)
-            self.draw.line((cursor_bar_x - cursor_bar_serif_half_width, self.rect[1] + 3, cursor_bar_x + cursor_bar_serif_half_width, self.rect[1] + 3), fill=cursor_bar_color)
-            self.draw.line((cursor_bar_x - cursor_bar_serif_half_width, self.rect[3] - 3, cursor_bar_x + cursor_bar_serif_half_width, self.rect[3] - 3), fill=cursor_bar_color)
+            draw.line((cursor_bar_x, 3, cursor_bar_x, self.height - 3), fill=cursor_bar_color)
+            draw.line((cursor_bar_x - cursor_bar_serif_half_width, 3, cursor_bar_x + cursor_bar_serif_half_width, 3), fill=cursor_bar_color)
+            draw.line((cursor_bar_x - cursor_bar_serif_half_width, self.height - 3, cursor_bar_x + cursor_bar_serif_half_width, self.height - 3), fill=cursor_bar_color)
 
+            View.canvas.paste(image, (self.rect[0], self.rect[1]))
 
