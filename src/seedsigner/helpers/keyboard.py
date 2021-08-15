@@ -501,7 +501,7 @@ class TextEntryDisplay(TextEntryDisplayConstants):
         from seedsigner.views import View
 
         """ Render the live text entry display """
-        if cur_text:
+        if cur_text is not None:
             self.cur_text = cur_text
 
         # Start by rendering to a new Image that we'll composite in at the end
@@ -510,8 +510,6 @@ class TextEntryDisplay(TextEntryDisplayConstants):
 
         if self.has_outline:
             draw.rectangle((0, 0, self.width, self.height), fill="black", outline=self.font_color)
-        else:
-            draw.rectangle((0, 0, self.width, self.height), fill="black")
 
         if self.cursor_mode == TextEntryDisplay.CURSOR_MODE__BLOCK:
             cursor_block_width = 18
@@ -550,9 +548,9 @@ class TextEntryDisplay(TextEntryDisplayConstants):
             end_pos_x = 3 + tw + cursor_bar_serif_half_width + 3
             if end_pos_x < self.width:
                 # The entire cur_text plus the cursor bar fits
-                self.text_offset = 3
+                self.text_offset = 3 + cursor_bar_serif_half_width
                 tw_left, th = self.font.getsize(self.cur_text[:cursor_position])
-                cursor_bar_x = tw_left + self.text_offset
+                cursor_bar_x = self.text_offset + tw_left
 
             else:
                 if cursor_position is None:
@@ -581,5 +579,6 @@ class TextEntryDisplay(TextEntryDisplayConstants):
             draw.line((cursor_bar_x - cursor_bar_serif_half_width, 3, cursor_bar_x + cursor_bar_serif_half_width, 3), fill=cursor_bar_color)
             draw.line((cursor_bar_x - cursor_bar_serif_half_width, self.height - 3, cursor_bar_x + cursor_bar_serif_half_width, self.height - 3), fill=cursor_bar_color)
 
-            View.canvas.paste(image, (self.rect[0], self.rect[1]))
+        # Paste the display onto the main canvas
+        View.canvas.paste(image, (self.rect[0], self.rect[1]))
 
