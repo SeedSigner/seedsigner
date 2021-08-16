@@ -17,6 +17,8 @@ class View:
     WIDTH = 240
     HEIGHT = 240
 
+    font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
+    
     # Define necessary fonts
     ANTON16 = ImageFont.truetype(os.path.join(font_path, "Anton.ttf"), 16)
     ANTON18 = ImageFont.truetype(os.path.join(font_path, "Anton.ttf"), 18)
@@ -34,7 +36,6 @@ class View:
     COURIERNEW30 = ImageFont.truetype(os.path.join(font_path, "Cour.ttf"), 30)
     COURIERNEW20 = ImageFont.truetype(os.path.join(font_path, "Cour.ttf"), 20)
 
-    font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
 
     ROBOTOCONDENSED_BOLD_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 16)
     ROBOTOCONDENSED_BOLD_18 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 18)
