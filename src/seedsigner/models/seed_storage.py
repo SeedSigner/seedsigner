@@ -128,6 +128,16 @@ class SeedStorage:
             count += 1
 
         return count
+        
+    def get_first_seed_slot(self) -> int:
+        if len(self.saved_seeds[0]) > 0:
+            return 1
+        elif len(self.saved_seeds[1]) > 0:
+            return 2
+        elif len(self.saved_seeds[2]) > 0:
+            return 3
+        else:
+            return None
 
     def num_of_free_slots(self) -> int:
         count = 0
