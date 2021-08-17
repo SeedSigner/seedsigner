@@ -101,10 +101,10 @@ class GenericUR2Wallet(Wallet):
             # if all frames have not all been captured, display progress to screen/display
             if not self.capture_complete():
                 View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-                tw, th = View.draw.textsize("Collecting QR Codes:", font=View.IMPACT25)
-                View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill=View.color, font=View.IMPACT25)
-                tw, th = View.draw.textsize(str(round(self.percentage_complete * 100)) + "% Complete", font=View.IMPACT22)
-                View.draw.text(((240 - tw) / 2, 125), str(round(self.percentage_complete * 100)) + "% Complete", fill=View.color, font=View.IMPACT22)
+                tw, th = View.draw.textsize("Collecting QR Codes:", font=View.ANTON25)
+                View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill=View.color, font=View.ANTON25)
+                tw, th = View.draw.textsize(str(round(self.percentage_complete * 100)) + "% Complete", font=View.ANTON22)
+                View.draw.text(((240 - tw) / 2, 125), str(round(self.percentage_complete * 100)) + "% Complete", fill=View.color, font=View.ANTON22)
                 View.DispShowImage()
 
         elif self.scan_started_ind == 0:

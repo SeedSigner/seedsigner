@@ -196,16 +196,16 @@ class Wallet:
             if not self.capture_complete() and self.scan_display_working == 0:
                 self.scan_display_working = 1
                 View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-                tw, th = View.draw.textsize("Collecting QR Codes:", font=View.IMPACT22)
-                View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill=View.color, font=View.IMPACT22)
+                tw, th = View.draw.textsize("Collecting QR Codes:", font=View.ANTON22)
+                View.draw.text(((240 - tw) / 2, 15), "Collecting QR Codes:", fill=View.color, font=View.ANTON22)
                 lines = textwrap.wrap("".join(self.frame_display), width=11)
                 yheight = 60
                 for line in lines:
                     tw, th = View.draw.textsize(line, font=View.COURIERNEW30)
                     View.draw.text(((240 - tw) / 2, yheight), line, fill=View.color, font=View.COURIERNEW30)
                     yheight += 30
-                tw, th = View.draw.textsize("Right to Exit", font=View.IMPACT18)
-                View.draw.text(((240 - tw) / 2, 215), "Right to Exit", fill=View.color, font=View.IMPACT18)
+                tw, th = View.draw.textsize("Right to Exit", font=View.ANTON18)
+                View.draw.text(((240 - tw) / 2, 215), "Right to Exit", fill=View.color, font=View.ANTON18)
                 View.DispShowImage()
                 self.scan_display_working = 0
 

@@ -734,22 +734,22 @@ class SeedToolsView(View):
     def draw_gather_words(self):
 
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        View.draw.text((75, 2), "Seed Word: " + str(len(self.words)+1), fill=View.color, font=View.IMPACT18)
-        View.draw.text((15, 210), "(choose from words on right)", fill=View.color, font=View.IMPACT18)
+        View.draw.text((75, 2), "Seed Word: " + str(len(self.words)+1), fill=View.color, font=View.ANTON18)
+        View.draw.text((15, 210), "(choose from words on right)", fill=View.color, font=View.ANTON18)
 
         # draw possible words (3 at most)
         self.possible_words = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(self.letters))]
         if len(self.possible_words) >= 1:
             for idx, word in enumerate(self.possible_words, start=0):
-                word_offset = 223 - View.IMPACT25.getsize(word)[0]
-                View.draw.text((word_offset, 39 + (60*idx)), word + " -", fill=View.color, font=View.IMPACT25)
+                word_offset = 223 - View.ANTON25.getsize(word)[0]
+                View.draw.text((word_offset, 39 + (60*idx)), word + " -", fill=View.color, font=View.ANTON25)
                 if idx >= 2:
                     break
 
         # draw letter and arrows
         for idx, letter in enumerate(self.letters, start=0):
-            tw, th = View.draw.textsize(letter, font=View.IMPACT35)
-            View.draw.text((((idx*30)+((30-tw)/2)), 92), letter, fill=View.color, font=View.IMPACT35)
+            tw, th = View.draw.textsize(letter, font=View.ANTON35)
+            View.draw.text((((idx*30)+((30-tw)/2)), 92), letter, fill=View.color, font=View.ANTON35)
             if idx+1 == len(self.letters):
                 # draw arrows only above last/active letter
                 View.draw.polygon([(8 + (idx*30), 85) , (14 + (idx*30), 69) , (20 + (idx*30), 85 )], outline=View.color, fill="BLACK")
@@ -802,17 +802,17 @@ class SeedToolsView(View):
 
         # Screen Title
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        tw, th = View.draw.textsize("Add Passphrase", font=View.IMPACT18)
-        View.draw.text(((240 - tw) / 2, 2), "Add Passphrase", fill=View.color, font=View.IMPACT18)
+        tw, th = View.draw.textsize("Add Passphrase", font=View.ANTON18)
+        View.draw.text(((240 - tw) / 2, 2), "Add Passphrase", fill=View.color, font=View.ANTON18)
 
         # Screen Botton
-        tw, th = View.draw.textsize("use joystick to add and", font=View.IMPACT18)
-        View.draw.text(((240 - tw) / 2, 197), "use joystick to add and", fill=View.color, font=View.IMPACT18)
-        tw, th = View.draw.textsize("remove passphrase characters", font=View.IMPACT18)
-        View.draw.text(((240 - tw) / 2, 217), "remove passphrase characters", fill=View.color, font=View.IMPACT18)
+        tw, th = View.draw.textsize("use joystick to add and", font=View.ANTON18)
+        View.draw.text(((240 - tw) / 2, 197), "use joystick to add and", fill=View.color, font=View.ANTON18)
+        tw, th = View.draw.textsize("remove passphrase characters", font=View.ANTON18)
+        View.draw.text(((240 - tw) / 2, 217), "remove passphrase characters", fill=View.color, font=View.ANTON18)
 
         # Display passphrase selection in progress
-        View.draw.text((5,33), "Phrase:", fill=View.color, font=View.IMPACT20)
+        View.draw.text((5,33), "Phrase:", fill=View.color, font=View.ANTON20)
         View.draw.text((72,35), self.passphrase[:14] + "▒", fill=View.color, font=View.COURIERNEW20)
 
         if len(self.passphrase) >= 14:
@@ -820,16 +820,16 @@ class SeedToolsView(View):
 
         # Display message when max passphrase length reached
         if len(self.passphrase) >= 28:
-            View.draw.text((50,70), "Max passphrase of 28", fill=View.color, font=View.IMPACT18)
-            View.draw.text((53,90), "characters reached", fill=View.color, font=View.IMPACT18)
+            View.draw.text((50,70), "Max passphrase of 28", fill=View.color, font=View.ANTON18)
+            View.draw.text((53,90), "characters reached", fill=View.color, font=View.ANTON18)
 
         # Save Button
-        c_x_offset = 240 - View.IMPACT25.getsize("Exit")[0]
-        View.draw.text((c_x_offset , 172), "Exit", fill=View.color, font=View.IMPACT22)
+        c_x_offset = 240 - View.ANTON25.getsize("Exit")[0]
+        View.draw.text((c_x_offset , 172), "Exit", fill=View.color, font=View.ANTON22)
 
         # Toglle Button
-        x = 240 - View.IMPACT20.getsize(self.pass_case_toggle)[0]
-        View.draw.text((x, 110), self.pass_case_toggle, fill=View.color, font=View.IMPACT20)
+        x = 240 - View.ANTON20.getsize(self.pass_case_toggle)[0]
+        View.draw.text((x, 110), self.pass_case_toggle, fill=View.color, font=View.ANTON20)
 
         # draw letter and arrows
         if self.pass_case_toggle == "lower":
@@ -839,8 +839,8 @@ class SeedToolsView(View):
         else:
             pass_letter_disp = self.pass_letter
 
-        tw, th = View.draw.textsize(pass_letter_disp, font=View.IMPACT35)
-        View.draw.text((((30-tw)/2), 112), pass_letter_disp, fill=View.color, font=View.IMPACT35)
+        tw, th = View.draw.textsize(pass_letter_disp, font=View.ANTON35)
+        View.draw.text((((30-tw)/2), 112), pass_letter_disp, fill=View.color, font=View.ANTON35)
         View.draw.polygon([(8, 105) , (14, 89) , (20, 105 )], outline=View.color, fill="BLACK")
         View.draw.polygon([(8, 168), (14, 184), (20, 168)], outline=View.color, fill="BLACK")
 
@@ -915,13 +915,13 @@ class SeedToolsView(View):
         last_word = splitseed[-1]
 
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        tw, th = self.draw.textsize("The final word is :", font=View.IMPACT23)
-        self.draw.text(((240 - tw) / 2, 60), "The final word is :", fill=View.color, font=View.IMPACT23)
-        tw, th = self.draw.textsize(last_word, font=View.IMPACT50)
-        self.draw.text(((240 - tw) / 2, 90), last_word, fill=View.color, font=View.IMPACT50)
+        tw, th = self.draw.textsize("The final word is :", font=View.ANTON23)
+        self.draw.text(((240 - tw) / 2, 60), "The final word is :", fill=View.color, font=View.ANTON23)
+        tw, th = self.draw.textsize(last_word, font=View.ANTON50)
+        self.draw.text(((240 - tw) / 2, 90), last_word, fill=View.color, font=View.ANTON50)
 
-        tw, th = View.draw.textsize("Right to Continue", font=View.IMPACT18)
-        View.draw.text(((240 - tw) / 2, 210), "Right to Continue", fill=View.color, font=View.IMPACT18)
+        tw, th = View.draw.textsize("Right to Continue", font=View.ANTON18)
+        View.draw.text(((240 - tw) / 2, 210), "Right to Continue", fill=View.color, font=View.ANTON18)
 
         View.DispShowImage()
 
@@ -1053,7 +1053,7 @@ class SeedToolsView(View):
     def draw_dice(self, dice_selected):
 
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        self.draw.text((45, 5), "Dice roll: " + str(self.roll_number) + "/99", fill=View.color, font=View.IMPACT26)
+        self.draw.text((45, 5), "Dice roll: " + str(self.roll_number) + "/99", fill=View.color, font=View.ANTON26)
 
         # when dice is selected, rect fill will be orange and ellipse will be black, ellipse outline will be the black
         # when dice is not selected, rect will will be black and ellipse will be orange, ellipse outline will be orange
@@ -1137,7 +1137,7 @@ class SeedToolsView(View):
             self.draw.ellipse([(208, 174), (220, 186)], outline=View.color, fill=View.color)
 
         # bottom text
-        self.draw.text((18, 210), "Press Control Stick to Select", fill=View.color, font=View.IMPACT18)
+        self.draw.text((18, 210), "Press Control Stick to Select", fill=View.color, font=View.ANTON18)
         View.DispShowImage()
 
         self.dice_selected = dice_selected
@@ -1185,19 +1185,19 @@ class SeedToolsView(View):
                     title = "Seed Phrase (2/2)"
                     word_index_offset = 12  # Skip ahead one page worth of words
 
-            tw, th = View.draw.textsize(title, font=View.IMPACT18)
-            draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.IMPACT18)
+            tw, th = View.draw.textsize(title, font=View.ANTON18)
+            draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.ANTON18)
 
             for i in range(0, max_range):
-                draw.text(word_positions[i], f"{i + 1 + word_index_offset}: " + seed_phrase[i + word_index_offset] , fill=View.color, font=View.IMPACT22)
+                draw.text(word_positions[i], f"{i + 1 + word_index_offset}: " + seed_phrase[i + word_index_offset] , fill=View.color, font=View.ANTON22)
 
             if passphrase and ((len(seed_phrase) > 12 and page_num == 2) or (len(seed_phrase) <= 12 and page_num == 1)):
                 disp_passphrase = "Passphrase: ************"
-                tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
-                draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.IMPACT18)
+                tw, th = View.draw.textsize(disp_passphrase, font=View.ANTON18)
+                draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.ANTON18)
 
-            tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-            draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.IMPACT18)
+            tw, th = View.draw.textsize(bottom, font=View.ANTON18)
+            draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.ANTON18)
             View.DispShowImage()
 
 
@@ -1267,7 +1267,7 @@ class SeedToolsView(View):
         qr = QR()
 
         image = qr.qrimage(data, width=240, height=240, border=3)
-        View.DispShowImageWithText(image, "click to zoom, right to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
+        View.DispShowImageWithText(image, "click to zoom, right to exit", font=View.ANTON18, text_color="BLACK", text_background="ORANGE")
 
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_PRESS])
         if input == B.KEY_RIGHT:
@@ -1310,8 +1310,8 @@ class SeedToolsView(View):
             draw.line((mask_width, View.canvas_height - mask_height, View.canvas_width - mask_width, View.canvas_height - mask_height), fill=View.color)
 
             msg = "click to exit"
-            tw, th = draw.textsize(msg, font=View.IMPACT18)
-            draw.text(((View.canvas_width - tw) / 2, View.canvas_height - th - 2), msg, fill=View.color, font=View.IMPACT18)
+            tw, th = draw.textsize(msg, font=View.ANTON18)
+            draw.text(((View.canvas_width - tw) / 2, View.canvas_height - th - 2), msg, fill=View.color, font=View.ANTON18)
 
             def draw_block_labels(cur_block_x, cur_block_y):
                 # Create overlay for block labels (e.g. "D-5")
@@ -1350,7 +1350,7 @@ class SeedToolsView(View):
             )
 
             while True:
-                # View.draw_text_over_image("click to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
+                # View.draw_text_over_image("click to exit", font=View.ANTON18, text_color="BLACK", text_background="ORANGE")
 
                 input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
                 if input == B.KEY_RIGHT:
