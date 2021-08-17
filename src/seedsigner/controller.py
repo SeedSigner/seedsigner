@@ -525,7 +525,7 @@ class Controller(Singleton):
                     if frame is not None:
                         if decoder.getPercentComplete() > 0 and decoder.isPSBT():
                             scan_text = str(decoder.getPercentComplete()) + "% Complete"
-                        View.DispShowImageWithText(frame.resize((240,240)), scan_text, font=View.IMPACT22, text_color=View.color, text_background=(0,0,0,225))
+                        View.DispShowImageWithText(frame.resize((240,240)), scan_text, font=View.ASSISTANT22, text_color=View.color, text_background=(0,0,0,225))
                     time.sleep(0.1) # turn this up or down to tune performace while decoding psbt
                     if camera._video_stream is None:
                         break
