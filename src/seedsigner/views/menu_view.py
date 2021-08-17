@@ -71,7 +71,7 @@ class MenuView(View):
             else:
                 seed_storage_line = "View Seeds (temp)"
 
-        lines = ["... [ Return to Main ]", "Seed Storage", "Seed Passphrase", "xPub from Seed", "Calculate Last Word", "Generate Seed with Dice", "Generate Seed with Image"]
+        lines = ["... [ Return to Main ]", "Temp Seed Storage", "Seed Passphrase", "xPub from Seed", "Calculate Last Word", "Generate Seed with Dice", "Generate Seed with Image"]
         self.draw_menu(lines, 1)
         input = 0
 
