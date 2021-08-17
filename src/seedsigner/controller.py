@@ -362,44 +362,28 @@ class Controller(Singleton):
             self.buttons.wait_for([B.KEY_RIGHT])
             return Path.SEED_TOOLS_SUB_MENU
 
-        if self.storage.num_of_passphrase_seeds() > 0:
-            r = self.menu_view.display_generic_selection_menu(["Add", "Change", "Remove"], "Passphrase Action")
-            if r == 1: # Add
+        if self.storage.num_of_saved_seeds() > 0:
+            if self.storage.num_of_saved_seeds() == 1:
+                ret_val = self.storage.get_first_seed_slot()
+            else:
                 ret_val = self.menu_view.display_saved_seed_menu(self.storage, 3, None)
                 if ret_val == 0:
                     return Path.SEED_TOOLS_SUB_MENU
-                # continue after top level if to capture and store passphrase
-            elif r == 2: #Change
-                ret_val = self.menu_view.display_saved_seed_menu(self.storage, 4, None)
-                if ret_val == 0:
-                    return Path.SEED_TOOLS_SUB_MENU
-                # continue after top level if to capture and store new passphrase
-            elif r == 3:
-                # Remove Passphrase Workflow
-                if self.storage.num_of_saved_seeds() == 0:
-                    self.menu_view.draw_modal(["Store a seed phrase", "prior to adding", "a passphrase"], "Error", "Right to Continue")
-                    self.buttons.wait_for([B.KEY_RIGHT])
-                    return Path.SEED_TOOLS_SUB_MENU
-                else:
-                    ret_val = self.menu_view.display_saved_seed_menu(self.storage, 4, None)
-                    if ret_val == 0:
-                        return Path.SEED_TOOLS_SUB_MENU
-
-                    slot_num = ret_val
-
-                    if slot_num > 0:
-                        self.storage.delete_passphrase(slot_num)
-                        self.menu_view.draw_modal(["Passphrase Deleted", "from Slot #" + str(slot_num)], "", "Right to Continue")
-                        self.buttons.wait_for([B.KEY_RIGHT])
-
-                    return Path.SEED_TOOLS_SUB_MENU
-        else:
-            # when no existing passphrase prompt for which seed to add passphrase to
-            ret_val = self.menu_view.display_saved_seed_menu(self.storage, 3, None)
-            if ret_val == 0:
-                return Path.SEED_TOOLS_SUB_MENU
-
+            # continue after top level if to capture and store passphrase
+            
         slot_num = ret_val
+
+        if self.storage.check_slot_passphrase(slot_num) == True:
+            #only display Add vs Remove menu if there is a passphrase to remove
+            r = self.menu_view.display_generic_selection_menu(["Add/Update Passphrase", "Remove Passphrase"], "Passphrase Action")
+            if r == 2:
+                # Remove Passphrase Workflow
+                self.storage.delete_passphrase(slot_num)
+                self.menu_view.draw_modal(["Passphrase Deleted", "from Slot #" + str(slot_num)], "", "Right to Continue")
+                self.buttons.wait_for([B.KEY_RIGHT])
+
+                return Path.SEED_TOOLS_SUB_MENU
+            # continue if adding or updating passphrase
 
         # display a tool to pick letters/numbers to make a passphrase
         passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry(existing_passphrase=self.storage.get_passphrase(slot_num))
