@@ -510,6 +510,7 @@ class Controller(Singleton):
     def show_sign_transaction(self):
         seed_phrase = []
         passphrase = ""
+        used_saved_seed = False
 
         # reusable qr scan function
         def scan_qr(scan_text="Scan QR"):
@@ -558,7 +559,7 @@ class Controller(Singleton):
             self.menu_view.draw_modal(["Validating PSBT"])
             psbt = decoder.getPSBT()
 
-            self.menu_view.draw_modal(["PSBT Valid!", "Select, enter, or scan", "a seed phrase", "to sign this tx"], "", "Right to Continue")
+            self.menu_view.draw_modal(["PSBT Valid!", "Enter", "seed phrase", "to sign this tx"], "", "Right to Continue")
             input = self.buttons.wait_for([B.KEY_RIGHT])
 
         elif decoder.isComplete() and decoder.isSeed():
@@ -575,16 +576,6 @@ class Controller(Singleton):
                 self.menu_view.draw_modal(["Valid Seed!"], "", "Right to Continue")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
 
-            # Ask to save seed
-            if self.storage.slot_avaliable():
-                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Seed?")
-                if r == 1: #Yes
-                    slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
-                    if slot_num in (1,2,3):
-                        self.storage.save_seed_phrase(seed_phrase, slot_num)
-                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
-                        input = self.buttons.wait_for([B.KEY_RIGHT])
-
             r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
             if r == 1:
                 # display a tool to pick letters/numbers to make a passphrase
@@ -598,6 +589,17 @@ class Controller(Singleton):
                 else:
                     self.menu_view.draw_modal(["Optional passphrase", "added to seed words"], "", "Right to Continue")
                     self.buttons.wait_for([B.KEY_RIGHT])
+
+            # Ask to save seed
+            if self.storage.slot_avaliable():
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Seed?")
+                if r == 1: #Yes
+                    slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
+                    if slot_num in (1,2,3):
+                        self.storage.save_seed_phrase(seed_phrase, slot_num)
+                        self.storage.save_passphrase(passphrase, slot_num)
+                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
+                        input = self.buttons.wait_for([B.KEY_RIGHT])
 
             # display seed phrase
             while True:
@@ -641,6 +643,7 @@ class Controller(Singleton):
                         return Path.MAIN_MENU
                     seed_phrase = self.storage.get_seed_phrase(slot_num)
                     passphrase = self.storage.get_passphrase(slot_num)
+                    used_saved_seed = True
 
             if len(seed_phrase) == 0:
                 # gather seed phrase
@@ -689,6 +692,17 @@ class Controller(Singleton):
                 else:
                     # Cancel
                     return Path.MAIN_MENU
+                    
+            # Ask to save seed
+            if self.storage.slot_avaliable() and used_saved_seed == False:
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Seed?")
+                if r == 1: #Yes
+                    slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
+                    if slot_num in (1,2,3):
+                        self.storage.save_seed_phrase(seed_phrase, slot_num)
+                        self.storage.save_passphrase(passphrase, slot_num)
+                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
+                        input = self.buttons.wait_for([B.KEY_RIGHT])
 
         # show transaction information before sign
         self.menu_view.draw_modal(["Parsing PSBT"])
