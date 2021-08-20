@@ -1022,7 +1022,7 @@ class SeedToolsView(View):
     def seed_phrase_as_qr(self, seed_phrase):
         e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEEDSSQR)
         image = e.nextPartImage(240, 240, 3)
-        View.DispShowImageWithText(image, "click to zoom, right to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
+        View.DispShowImageWithText(image, "click to zoom, right to exit", font=View.ANTON18, text_color="BLACK", text_background="ORANGE")
 
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_PRESS])
         if input == B.KEY_RIGHT:
@@ -1158,7 +1158,7 @@ class SeedToolsView(View):
             while True:
                 frame = self.controller.camera.read_video_stream(as_image=True)
                 if frame is not None:
-                    View.DispShowImageWithText(frame.resize((240,240)), "Scan Seed QR", font=View.IMPACT22, text_color=View.color, text_background=(0,0,0,225))
+                    View.DispShowImageWithText(frame.resize((240,240)), "Scan Seed QR", font=View.ANTON22, text_color=View.color, text_background=(0,0,0,225))
                     status = decoder.addImage(frame)
 
                     if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
