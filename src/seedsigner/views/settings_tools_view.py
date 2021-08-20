@@ -1,6 +1,7 @@
 # SeedSigner file class dependencies
 from . import View
 from seedsigner.helpers import B, QR
+from seedsigner.models import EncodeQRDensity
 
 
 
@@ -33,60 +34,69 @@ class SettingsToolsView(View):
         elif r == 3:
             return "test"
         else:
-            return "cancel"
+            return None
 
     ### Display Wallet Selection
 
     def display_wallet_selection(self) -> str:
-        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Specter Desktop", "Blue Wallet", "Sparrow", "UR 2.0 Generic"], "Which Wallet?")
+        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Prompt", "Specter Desktop", "Blue Wallet", "Sparrow"], "Which Wallet?")
         if r == 2:
-            return "Specter Desktop"
+            return "Prompt"
         elif r == 3:
-            return "Blue Wallet"
+            return "Specter Desktop"
         elif r == 4:
-            return "Sparrow"
+            return "Blue Wallet"
         elif r == 5:
-            return "UR 2.0 Generic"
-        # elif r == 3:
-        #     return "Specter Desktop Single Sig"
+            return "Sparrow"
         else:
-            return "cancel"
+            return None
 
     ### Display QR Density Selection
 
     def display_qr_density_selection(self) -> str:
         r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Low", "Medium", "High"], "Which QR Density?")
         if r == 2:
-            return "low"
+            return EncodeQRDensity.LOW
         elif r == 3:
-            return "medium"
+            return EncodeQRDensity.MEDIUM
         elif r == 4:
-            return "high"
+            return EncodeQRDensity.HIGH
         else:
-            return "invalid"
+            return None
 
     ### Display Wallet Policy Selection
 
     def display_wallet_policy_selection(self) -> str:
 
         lines = ["... [ Return to Settings ]"]
-        if "PKWSH" in self.controller.wallet.avaliable_wallet_policies():
-            lines.append("Multi Sig Native Segwit")
-        if "PKWPKH" in self.controller.wallet.avaliable_wallet_policies():
-            lines.append("Single Sig Native Segwit")
-
-        print(lines)
+        lines.append("Multi Sig Native Segwit")
+        lines.append("Single Sig Native Segwit")
 
         r = self.controller.menu_view.display_generic_selection_menu(lines, "Which Wallet Policy?")
         if r == 1:
-            return "RETURN"
+            return None
         elif lines[r-1] == "Multi Sig Native Segwit":
             return "PKWSH"
         elif lines[r-1] == "Single Sig Native Segwit":
             return "PKWPKH"
         else:
-            return "INVALID"
+            return None
 
+    def display_persistent_settings(self) -> bool:
+
+        lines = ["... [ Return to Settings ]"]
+        lines.append("Yes")
+        lines.append("No")
+
+        r = self.controller.menu_view.display_generic_selection_menu(lines, "Use Persistent Settings?")
+        if r == 1:
+            return None
+        elif r == 2:
+            return True
+        elif r == 3:
+            return False
+        else:
+            return None
 
     ###
     ### Version Info

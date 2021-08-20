@@ -1,7 +1,7 @@
 # Internal file class dependencies
 from . import View
 from seedsigner.helpers import B, Path
-from seedsigner.models import SeedStorage
+from seedsigner.models import SeedStorage, Settings
 
 # External Dependencies
 import time
@@ -25,7 +25,7 @@ class MenuView(View):
     def display_main_menu(self, sub_menu = None) -> int:
         ret_val = 0
         input = 0
-        lines = ["Seed Tools", "Sign a Transaction", "Settings", "Power Off"]
+        lines = ["Seed Tools", "Scan QR", "Settings", "Power Off"]
 
         if sub_menu == Path.SEED_TOOLS_SUB_MENU:
             return self.display_seed_tools_menu()
@@ -71,7 +71,7 @@ class MenuView(View):
             else:
                 seed_storage_line = "View Seeds (temp)"
 
-        lines = ["... [ Return to Main ]", "Input a Seed", "Add/Remove Passphrase", "Generate an xPub", "Generate Word 12/24", "Generate a Seed with Dice", "Generate a Seed with Image"]
+        lines = ["... [ Return to Main ]", "Seed Storage", "Seed Passphrase", "xPub from Seed", "Calculate Last Word", "Generate Seed with Dice", "Generate Seed with Image"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -124,17 +124,18 @@ class MenuView(View):
     ### Settings Menu
 
     def display_settings_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Input / Output Tests", "Wallet: <wallet>", "Wallet Policy: <policy>", "Current Network: <network>", "QR Density: <density>", "Version Info", "Donate to SeedSigner"]
+        lines = ["... [ Return to Main ]", "Wallet: <wallet>", "Script Policy: <policy>", "Network: <network>", "QR Density: <density>", "Input / Output Tests", "Persistent Settings: <persistent>", "Version Info", "Donate to SeedSigner", "Reset SeedSigner"]
         input = 0
         
-        lines[2] = lines[2].replace("<wallet>", self.controller.wallet.get_name())
-        lines[3] = lines[3].replace("<policy>", self.controller.wallet.get_wallet_policy_name())
-        lines[4] = lines[4].replace("<network>", self.controller.wallet.get_network())
-        lines[5] = lines[5].replace("<density>", self.controller.wallet.get_qr_density_name())
+        lines[1] = lines[1].replace("<wallet>", Settings.get_instance().software)
+        lines[2] = lines[2].replace("<policy>", Settings.get_instance().policy_name)
+        lines[3] = lines[3].replace("<network>", Settings.get_instance().network)
+        lines[4] = lines[4].replace("<density>", Settings.get_instance().qr_density_name)
+        lines[6] = lines[6].replace("<persistent>", Settings.get_instance().persistent_display)
 
         # Draw Menu
         self.selected_menu_num = 1
-        self.draw_menu(lines, 1)
+        self.draw_menu(lines, 1, None, None, True)
 
         # Wait for Button Input (specifically menu selection/press)
         while True:
@@ -147,19 +148,23 @@ class MenuView(View):
                 if self.selected_menu_num == 1:
                     return Path.MAIN_MENU
                 elif self.selected_menu_num == 2:
-                    return Path.IO_TEST_TOOL
-                elif self.selected_menu_num == 3:
                     return Path.WALLET
-                elif self.selected_menu_num == 4:
+                elif self.selected_menu_num == 3:
                     return Path.WALLET_POLICY
-                elif self.selected_menu_num == 5:
+                elif self.selected_menu_num == 4:
                     return Path.CURRENT_NETWORK
-                elif self.selected_menu_num == 6:
+                elif self.selected_menu_num == 5:
                     return Path.QR_DENSITY_SETTING
+                elif self.selected_menu_num == 6:
+                    return Path.IO_TEST_TOOL
                 elif self.selected_menu_num == 7:
-                    return Path.VERSION_INFO
+                    return Path.PERSISTENT_SETTINGS
                 elif self.selected_menu_num == 8:
+                    return Path.VERSION_INFO
+                elif self.selected_menu_num == 9:
                     return Path.DONATE
+                elif self.selected_menu_num == 10:
+                    return Path.RESET
         raise Exception("Unhandled case")
 
     ### Generic Single Menu Selection (returns 1,2,3,4,5,6 ...)

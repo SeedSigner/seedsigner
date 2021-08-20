@@ -2,18 +2,20 @@
 import time
 from multiprocessing import Process, Queue
 from subprocess import call
+import os, sys
+from embit import bip39, bip32
+from embit.networks import NETWORKS
+from binascii import hexlify
+from threading import Thread
 
 # Internal file class dependencies
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
     SettingsToolsView, IOTestView)
-from .helpers import Buttons, B, CameraProcess,Path
-from .models import (SeedStorage, SpecterDesktopWallet, BlueWallet,
-    SparrowWallet, GenericUR2Wallet, Wallet)
+from .helpers import Buttons, B, Path, Singleton
+from .models import (SeedStorage, Settings, DecodeQR, DecodeQRStatus,
+    EncodeQRDensity, EncodeQR, PSBTParser, QRType)
 
-
-
-
-class Controller:
+class Controller(Singleton):
     """
         The Controller is a globally available singleton that maintains SeedSigner state.
 
@@ -30,14 +32,7 @@ class Controller:
         Note: In many/most cases you'll need to do the Controller import within a method
         rather than at the top in order avoid circular imports.
     """
-    VERSION = "0.4.3"
-
-    _instance = None
-
-
-    def __init__(self):
-        # Singleton pattern must prevent normal instantiation
-        raise Exception("Cannot directly instantiate the Controller. Access via Controller.get_instance()")
+    VERSION = "0.4.4"
 
 
     @classmethod
@@ -59,17 +54,17 @@ class Controller:
         controller = cls.__new__(cls)
         cls._instance = controller
 
-        # settings
-        controller.DEBUG = config.getboolean("system", "DEBUG")
-        controller.color = config["display"]["TEXT_COLOR"]
-
         # Input Buttons
         controller.buttons = Buttons()
 
         # models
         controller.storage = SeedStorage()
-        controller.wallet_klass = globals()["SpecterDesktopWallet"]
-        controller.wallet = controller.wallet_klass()
+        Settings.configure_instance(config)
+        controller.settings = Settings.get_instance()
+
+        # settings
+        controller.DEBUG = controller.settings.debug
+        controller.color = controller.settings.text_color
 
         # Views
         controller.menu_view = MenuView()
@@ -78,12 +73,10 @@ class Controller:
         controller.signing_tools_view = SigningToolsView(controller.storage)
         controller.settings_tools_view = SettingsToolsView()
 
-        # Then start seperate background camera process with two queues for communication
-        # CameraProcess handles connecting to camera hardware and passing back barcode data via from camera queue
-        controller.from_camera_queue = Queue()
-        controller.to_camera_queue = Queue()
-        p = Process(target=CameraProcess.start, args=(controller.from_camera_queue, controller.to_camera_queue))
-        p.start()
+    @property
+    def camera(self):
+        from .camera import Camera
+        return Camera.get_instance()
 
 
     def start(self) -> None:
@@ -151,8 +144,12 @@ class Controller:
                 ret_val = self.show_qr_density_tool()
             elif ret_val == Path.WALLET_POLICY:
                 ret_val = self.show_wallet_policy_tool()
+            elif ret_val == Path.PERSISTENT_SETTINGS:
+                ret_val = self.show_persistent_settings_tool()
             elif ret_val == Path.DONATE:
                 ret_val = self.show_donate_tool()
+            elif ret_val == Path.RESET:
+                ret_val = self.show_reset_tool()
             elif ret_val == Path.POWER_OFF:
                 ret_val = self.show_power_off()
 
@@ -307,7 +304,7 @@ class Controller:
                 else:
                     # no-op; can't back out of the seed phrase view
                     pass
-            return Path.MAIN_MENU
+            return Path.SEED_TOOLS_SUB_MENU
         else:
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Seed Tools ]")
@@ -328,6 +325,17 @@ class Controller:
         else:
             show_qr_option = True
 
+        self.menu_view.draw_modal(["Validating ..."])
+        is_valid = self.storage.check_if_seed_valid(seed_phrase)
+        if is_valid == False:
+            # Exit if not valid with message
+            self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again", ""], "", "Right to Continue")
+            input = self.buttons.wait_for([B.KEY_RIGHT])
+            return Path.SEED_TOOLS_SUB_MENU
+        else:
+            self.menu_view.draw_modal(["Valid Seed!"], "", "Right to Continue")
+            input = self.buttons.wait_for([B.KEY_RIGHT])
+
         while display_saved_seed == False:
             r = self.seed_tools_view.display_seed_phrase(seed_phrase, show_qr_option=show_qr_option )
             if r == True:
@@ -336,17 +344,12 @@ class Controller:
                 # no-op; can't back out of the seed phrase view
                 pass
 
-        self.menu_view.draw_modal(["Validating ..."])
-        is_valid = self.storage.check_if_seed_valid(seed_phrase)
         if is_valid:
             self.storage.save_seed_phrase(seed_phrase, slot_num)
-            self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
-            input = self.buttons.wait_for([B.KEY_RIGHT])
-        else:
-            self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
+            self.menu_view.draw_modal(["", "Saved to Slot #" + str(slot_num)], "", "Right to Exit")
             input = self.buttons.wait_for([B.KEY_RIGHT])
 
-        return Path.MAIN_MENU
+        return Path.SEED_TOOLS_SUB_MENU
 
     ### Add a PassPhrase Menu
 
@@ -456,7 +459,7 @@ class Controller:
                 input = self.buttons.wait_for([B.KEY_RIGHT])
                 return Path.MAIN_MENU
 
-            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Optional Passphrase?")
+            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
             if r == 1:
                 # display a tool to pick letters/numbers to make a passphrase
                 passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
@@ -480,11 +483,42 @@ class Controller:
                 return Path.SEED_TOOLS_SUB_MENU
 
         self.signing_tools_view.draw_modal(["Loading xPub Info ..."])
-        self.wallet.set_seed_phrase(seed_phrase, passphrase)
-        self.signing_tools_view.display_xpub_info(self.wallet)
+
+        seed = bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip(), passphrase)
+        root = bip32.HDKey.from_seed(seed, version=NETWORKS[self.settings.network]["xprv"])
+        fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
+        bip48_xprv = root.derive(self.settings.derivation)
+        bip48_xpub = bip48_xprv.to_public()
+        if self.settings.script_policy == "PKWPKH":
+            xpub = bip48_xpub.to_base58(NETWORKS[self.settings.network]["zpub"])
+        else:
+            xpub = bip48_xpub.to_base58(NETWORKS[self.settings.network]["Zpub"])
+
+        self.signing_tools_view.display_xpub_info(fingerprint, self.settings.derivation, xpub)
         self.buttons.wait_for([B.KEY_RIGHT])
+
+        if self.settings.software == "Prompt":
+            lines = ["Specter Desktop", "Blue Wallet", "Sparrow"]
+            r = self.menu_view.display_generic_selection_menu(lines, "Which Wallet?")
+            qr_xpub_type = Settings.getXPubType(lines[r-1])
+        else:
+            qr_xpub_type = self.settings.qr_xpub_type
+
         self.signing_tools_view.draw_modal(["Generating xPub QR ..."])
-        self.signing_tools_view.display_xpub_qr(self.wallet)
+        e = EncodeQR(seed_phrase=seed_phrase, passphrase=passphrase, derivation=self.settings.derivation, network=self.settings.network, policy=self.settings.script_policy, qr_type=qr_xpub_type, qr_density=self.settings.qr_density)
+
+        while e.totalParts() > 1:
+            image = e.nextPartImage(240,240,2)
+            View.DispShowImage(image)
+            time.sleep(0.1)
+            if self.buttons.check_for_low(B.KEY_RIGHT):
+                    break
+
+        if e.totalParts() == 1:
+            image = e.nextPartImage(240,240,1)
+            View.DispShowImage(image)
+            self.buttons.wait_for([B.KEY_RIGHT])
+
         return Path.MAIN_MENU
 
     ### Sign Transactions
@@ -493,41 +527,81 @@ class Controller:
         seed_phrase = []
         passphrase = ""
 
-        # If there is a saved seed, ask to use saved seed
-        if self.storage.num_of_saved_seeds() > 0:
-            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Save Seed?")
-            if r == 1: #Yes
-                slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
-                if slot_num == 0:
-                    return Path.MAIN_MENU
-                seed_phrase = self.storage.get_seed_phrase(slot_num)
-                passphrase = self.storage.get_passphrase(slot_num)
+        # reusable qr scan function
+        def scan_qr(scan_text="Scan QR"):
+            # Scan QR using Camera
+            self.menu_view.draw_modal(["Initializing Camera"])
+            self.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
+            decoder = DecodeQR()
 
-        if len(seed_phrase) == 0:
-            # gather seed phrase
-            # display menu to select 12 or 24 word seed for last word
-            ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Main Menu ]")
-            if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
-            elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
-            elif ret_val == Path.SEED_WORD_QR:
-                seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
-            else:
-                return Path.MAIN_MENU
+            def live_preview(camera, decoder, scan_text):
+                while True:
+                    frame = self.camera.read_video_stream(as_image=True)
+                    if frame is not None:
+                        if decoder.getPercentComplete() > 0 and decoder.isPSBT():
+                            scan_text = str(decoder.getPercentComplete()) + "% Complete"
+                        View.DispShowImageWithText(frame.resize((240,240)), scan_text, font=View.IMPACT22, text_color=View.color, text_background=(0,0,0,225))
+                    time.sleep(0.1) # turn this up or down to tune performace while decoding psbt
+                    if camera._video_stream is None:
+                        break
 
-            if len(seed_phrase) == 0:
-                return Path.MAIN_MENU
+            # putting live preview in it's own thread to improve psbt decoding performance
+            t = Thread(target=live_preview, args=(self.camera, decoder, scan_text,))
+            t.start()
 
-            # check if seed phrase is valid
-            self.menu_view.draw_modal(["Validating ..."])
+            while True:
+                frame = self.camera.read_video_stream()
+                if frame is not None:
+                    status = decoder.addImage(frame)
+
+                    if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
+                        self.camera.stop_video_stream_mode()
+                        break
+                    
+                    if self.buttons.check_for_low(B.KEY_RIGHT) or self.buttons.check_for_low(B.KEY_LEFT):
+                        self.camera.stop_video_stream_mode()
+                        break
+
+            time.sleep(0.2) # time to let live preview thread complete to avoid race condition on display
+
+            return decoder
+
+        # first QR scan
+        decoder = scan_qr()
+
+        if decoder.isComplete() and decoder.isPSBT():
+            # first QR is PSBT
+            self.menu_view.draw_modal(["Validating PSBT"])
+            psbt = decoder.getPSBT()
+
+            self.menu_view.draw_modal(["PSBT Valid!", "Select, enter, or scan", "a seed phrase", "to sign this tx"], "", "Right to Continue")
+            input = self.buttons.wait_for([B.KEY_RIGHT])
+
+        elif decoder.isComplete() and decoder.isSeed():
+            # first QR is Seed
+            self.menu_view.draw_modal(["Validating Seed"])
+            seed_phrase = decoder.getSeedPhrase()
             is_valid = self.storage.check_if_seed_valid(seed_phrase)
             if is_valid == False:
-                self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
+                # Exit if not valid with message
+                self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again", ""], "", "Right to Continue")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
                 return Path.MAIN_MENU
+            else:
+                self.menu_view.draw_modal(["Valid Seed!"], "", "Right to Continue")
+                input = self.buttons.wait_for([B.KEY_RIGHT])
 
-            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Optional Passphrase?")
+            # Ask to save seed
+            if self.storage.slot_avaliable():
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Seed?")
+                if r == 1: #Yes
+                    slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
+                    if slot_num in (1,2,3):
+                        self.storage.save_seed_phrase(seed_phrase, slot_num)
+                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
+                        input = self.buttons.wait_for([B.KEY_RIGHT])
+
+            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
             if r == 1:
                 # display a tool to pick letters/numbers to make a passphrase
                 passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
@@ -538,56 +612,132 @@ class Controller:
                     if input == B.KEY_LEFT:
                         return Path.MAIN_MENU
                 else:
-                    self.menu_view.draw_modal(["Optional passphrase", "added to seed words", passphrase], "", "Right to Continue")
+                    self.menu_view.draw_modal(["Optional passphrase", "added to seed words"], "", "Right to Continue")
                     self.buttons.wait_for([B.KEY_RIGHT])
 
-        # display seed phrase
-        while True:
-            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
-            if r == True:
-                break
+            # display seed phrase
+            while True:
+                r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
+                if r == True:
+                    break
+                else:
+                    # Cancel
+                    return Path.MAIN_MENU
+
+            # second QR scan need PSBT now
+            decoder = scan_qr("Scan PSBT QR")
+
+            if decoder.isComplete() and decoder.isPSBT():
+                # second QR must be a PSBT
+                self.menu_view.draw_modal(["Validating PSBT"])
+                psbt = decoder.getPSBT()
+            elif ( decoder.isComplete() and not decoder.isPSBT() ) or decoder.isInvalid():
+                self.menu_view.draw_modal(["Not a valid PSBT QR"], "", "Right to Exit")
+                input = self.buttons.wait_for([B.KEY_RIGHT])
+                return Path.MAIN_MENU
             else:
-                # Cancel
                 return Path.MAIN_MENU
 
-        # Scan PSBT Animated QR using Camera
-        self.menu_view.draw_modal(["Loading..."])
-        self.wallet.set_seed_phrase(seed_phrase, passphrase)
-        raw_pbst = self.wallet.scan_animated_qr_pbst(self)
+        elif ( decoder.isComplete() and not decoder.isPSBT() ) or decoder.isInvalid():
+            self.menu_view.draw_modal(["Not a valid PSBT QR"], "", "Right to Exit")
+            input = self.buttons.wait_for([B.KEY_RIGHT])
+            return Path.MAIN_MENU
+        else:
+            return Path.MAIN_MENU
 
-        if raw_pbst == "nodata":
-            return Path.MAIN_MENU
-        if raw_pbst == "invalid":
-            self.menu_view.draw_modal(["QR Format Unexpected", "Check Wallet in Settings"], "", "Right to Exit")
-            input = self.buttons.wait_for([B.KEY_RIGHT])
-            return Path.MAIN_MENU
-        if raw_pbst == "invalidpsbt":
-            self.menu_view.draw_modal(["PSBT UR 2.0 Decoding Error", "try again"], "", "Right to Exit")
-            input = self.buttons.wait_for([B.KEY_RIGHT])
-            return Path.MAIN_MENU
-        self.menu_view.draw_modal(["Parsing PSBT ..."])
-        parse_status = self.wallet.parse_psbt(raw_pbst)
-        if parse_status == False:
-            self.menu_view.draw_modal(["PSBT Parsing Failed"], "", "Right to Exit")
-            input = self.buttons.wait_for([B.KEY_RIGHT])
-            return Path.MAIN_MENU
+
+        if len(seed_phrase) == 0:
+
+            # If there is a saved seed, ask to use saved seed
+            if self.storage.num_of_saved_seeds() > 0:
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Save Seed?")
+                if r == 1: #Yes
+                    slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
+                    if slot_num == 0:
+                        return Path.MAIN_MENU
+                    seed_phrase = self.storage.get_seed_phrase(slot_num)
+                    passphrase = self.storage.get_passphrase(slot_num)
+
+            if len(seed_phrase) == 0:
+                # gather seed phrase
+                # display menu to select 12 or 24 word seed for last word
+                ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Main Menu ]")
+                if ret_val == Path.SEED_WORD_12:
+                    seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
+                elif ret_val == Path.SEED_WORD_24:
+                    seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
+                elif ret_val == Path.SEED_WORD_QR:
+                    seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
+                else:
+                    return Path.MAIN_MENU
+
+                if len(seed_phrase) == 0:
+                    return Path.MAIN_MENU
+
+            # check if seed phrase is valid
+            self.menu_view.draw_modal(["Validating Seed ..."])
+            is_valid = self.storage.check_if_seed_valid(seed_phrase)
+            if is_valid == False:
+                self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
+                input = self.buttons.wait_for([B.KEY_RIGHT])
+                return Path.MAIN_MENU
+
+            if len(passphrase) == 0:
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
+                if r == 1:
+                    # display a tool to pick letters/numbers to make a passphrase
+                    passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
+                    if len(passphrase) == 0 or passphrase == "-1":
+                        passphrase = ""
+                        self.menu_view.draw_modal(["No passphrase added", "to seed words"], "", "Left to Exit, Right to Continue")
+                        input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
+                        if input == B.KEY_LEFT:
+                            return Path.MAIN_MENU
+                    else:
+                        self.menu_view.draw_modal(["Optional passphrase", "added to seed words", passphrase], "", "Right to Continue")
+                        self.buttons.wait_for([B.KEY_RIGHT])
+
+            # display seed phrase
+            while True:
+                r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
+                if r == True:
+                    break
+                else:
+                    # Cancel
+                    return Path.MAIN_MENU
 
         # show transaction information before sign
-        self.signing_tools_view.display_transaction_information(self.wallet)
+        self.menu_view.draw_modal(["Parsing PSBT"])
+        p = PSBTParser(psbt,seed_phrase,passphrase,self.settings.network)
+        self.signing_tools_view.display_transaction_information(p)
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
         if input == B.KEY_LEFT:
             return Path.MAIN_MENU
 
         # Sign PSBT
         self.menu_view.draw_modal(["PSBT Signing ..."])
-        signed_pbst = self.wallet.sign_transaction()
+        sig_cnt = PSBTParser.sigCount(psbt)
+        psbt.sign_with(p.root)
+        trimmed_psbt = PSBTParser.trim(psbt)
+
+        if sig_cnt == PSBTParser.sigCount(trimmed_psbt):
+            self.menu_view.draw_modal(["Signing failed", "left to exit", "or right to continue", "to display PSBT QR"], "", "")
+            input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
+            if input == B.KEY_LEFT:
+                return Path.MAIN_MENU
 
         # Display Animated QR Code
-        self.signing_tools_view.display_signed_psbt_animated_qr(self.wallet, signed_pbst)
+        self.menu_view.draw_modal(["Generating PSBT QR ..."])
+        e = EncodeQR(psbt=trimmed_psbt, qr_type=self.settings.qr_psbt_type, qr_density=self.settings.qr_density)
+        while True:
+            image = e.nextPartImage(240,240,1)
+            View.DispShowImage(image)
+            time.sleep(0.05)
+            if self.buttons.check_for_low(B.KEY_RIGHT):
+                    break
 
         # Return to Main Menu
         return Path.MAIN_MENU
-
 
     ###
     ### Settings Tools Navigation/Launcher
@@ -601,16 +751,14 @@ class Controller:
         ret_val = self.io_test_view.display_io_test_screen()
 
         if ret_val == True:
-            return Path.MAIN_MENU
+            return Path.SETTINGS_SUB_MENU
 
     ### Show Current Network
 
     def show_current_network_tool(self):
         r = self.settings_tools_view.display_current_network()
-        if r == "main":
-            self.wallet = self.wallet_klass("main", self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
-        elif r == "test":
-            self.wallet = self.wallet_klass("test", self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
+        if r is not None:
+            self.settings.network = r
 
         return Path.SETTINGS_SUB_MENU
 
@@ -618,18 +766,8 @@ class Controller:
 
     def show_wallet_tool(self):
         r = self.settings_tools_view.display_wallet_selection()
-        if r == "Specter Desktop":
-            self.wallet_klass = globals()["SpecterDesktopWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
-        elif r == "Blue Wallet":
-            self.wallet_klass = globals()["BlueWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
-        elif r == "Sparrow":
-            self.wallet_klass = globals()["SparrowWallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
-        elif r == "UR 2.0 Generic":
-            self.wallet_klass = globals()["GenericUR2Wallet"]
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), self.wallet.get_wallet_policy())
+        if r is not None:
+            self.settings.software = r
 
         return Path.SETTINGS_SUB_MENU
 
@@ -637,12 +775,8 @@ class Controller:
 
     def show_qr_density_tool(self):
         r = self.settings_tools_view.display_qr_density_selection()
-        if r == "low":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRLOW, self.wallet.get_wallet_policy())
-        elif r == "medium":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRMEDIUM, self.wallet.get_wallet_policy())
-        elif r == "high":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), Wallet.QRHIGH, self.wallet.get_wallet_policy())
+        if r in (EncodeQRDensity.LOW, EncodeQRDensity.MEDIUM, EncodeQRDensity.HIGH):
+            self.settings.qr_density = r
 
         return Path.SETTINGS_SUB_MENU
 
@@ -650,10 +784,8 @@ class Controller:
 
     def show_wallet_policy_tool(self):
         r = self.settings_tools_view.display_wallet_policy_selection()
-        if r == "PKWSH":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), "PKWSH")
-        elif r == "PKWPKH":
-            self.wallet = self.wallet_klass(self.wallet.get_network(), self.wallet.get_qr_density(), "PKWPKH")
+        if r is not None:
+            self.settings.script_policy = r
 
         return Path.SETTINGS_SUB_MENU
 
@@ -665,7 +797,25 @@ class Controller:
         if input == B.KEY_LEFT:
             return Path.SETTINGS_SUB_MENU
         elif input == B.KEY_RIGHT:
-            return Path.MAIN_MENU
+            return Path.SETTINGS_SUB_MENU
+
+    ### Show Persistent Settings Screen
+
+    def show_persistent_settings_tool(self):
+        r = self.settings_tools_view.display_persistent_settings()
+        if r is not None:
+            if r == True:
+                self.menu_view.draw_modal(["Persistent settings", "keeps settings saved", "accross reboot.", "Seeds are never saved"], "Warning", "Right to Continue")
+                input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
+                if input == B.KEY_RIGHT:
+                    self.settings.persistent = r
+            else:
+                self.menu_view.draw_modal(["This will restore", "the default", "settings.", ""], "Warning", "Right to Continue")
+                input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
+                if input == B.KEY_RIGHT:
+                    self.settings.persistent = r
+
+        return Path.SETTINGS_SUB_MENU
 
     ### Show Donate Screen and QR
 
@@ -680,4 +830,29 @@ class Controller:
             time.sleep(1)
             input = self.buttons.wait_for([B.KEY_RIGHT])
             return Path.MAIN_MENU
+
+    def show_reset_tool(self):
+        self.menu_view.draw_modal(["This will restore", "default settings and", "restart the device", ""], "Warning", "Right to Continue")
+        input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
+        if input == B.KEY_RIGHT:
+            r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Reset SeedSigner?")
+            if r == 1: #Yes
+                self.menu_view.display_blank_screen()
+                self.settings.restoreDefault()
+                time.sleep(0.1) # give time to write to disk
+
+                return_code = os.system("sudo systemctl is-active --quiet seedsigner.service")
+
+                if return_code == 0:
+                    # systemd service is running
+                    call("sudo systemctl restart seedsigner.service", shell=True)
+                    time.sleep(2)
+                else:
+                    # systemd service is not running, restart script internally
+                    os.execv(sys.executable, ['python3'] + sys.argv)
+
+            else: # No
+                return Path.MAIN_MENU
+
+        return Path.MAIN_MENU
 
