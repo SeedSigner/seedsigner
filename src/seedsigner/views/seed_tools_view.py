@@ -675,13 +675,13 @@ class SeedToolsView(View):
         last_word = splitseed[-1]
 
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        tw, th = self.draw.textsize("The final word is :", font=View.IMPACT23)
-        self.draw.text(((240 - tw) / 2, 60), "The final word is :", fill=View.color, font=View.IMPACT23)
-        tw, th = self.draw.textsize(last_word, font=View.IMPACT50)
-        self.draw.text(((240 - tw) / 2, 90), last_word, fill=View.color, font=View.IMPACT50)
+        tw, th = self.draw.textsize("The final word is :", font=View.ANTON23)
+        self.draw.text(((240 - tw) / 2, 60), "The final word is :", fill=View.color, font=View.ANTON23)
+        tw, th = self.draw.textsize(last_word, font=View.ANTON50)
+        self.draw.text(((240 - tw) / 2, 90), last_word, fill=View.color, font=View.ANTON50)
 
-        tw, th = View.draw.textsize("Right to Continue", font=View.IMPACT18)
-        View.draw.text(((240 - tw) / 2, 210), "Right to Continue", fill=View.color, font=View.IMPACT18)
+        tw, th = View.draw.textsize("Right to Continue", font=View.ANTON18)
+        View.draw.text(((240 - tw) / 2, 210), "Right to Continue", fill=View.color, font=View.ANTON18)
 
         View.DispShowImage()
 
@@ -813,7 +813,7 @@ class SeedToolsView(View):
     def draw_dice(self, dice_selected):
 
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        self.draw.text((45, 5), "Dice roll: " + str(self.roll_number) + "/99", fill=View.color, font=View.IMPACT26)
+        self.draw.text((45, 5), "Dice roll: " + str(self.roll_number) + "/99", fill=View.color, font=View.ANTON26)
 
         # when dice is selected, rect fill will be orange and ellipse will be black, ellipse outline will be the black
         # when dice is not selected, rect will will be black and ellipse will be orange, ellipse outline will be orange
@@ -897,7 +897,7 @@ class SeedToolsView(View):
             self.draw.ellipse([(208, 174), (220, 186)], outline=View.color, fill=View.color)
 
         # bottom text
-        self.draw.text((18, 210), "Press Control Stick to Select", fill=View.color, font=View.IMPACT18)
+        self.draw.text((18, 210), "Press Control Stick to Select", fill=View.color, font=View.ANTON18)
         View.DispShowImage()
 
         self.dice_selected = dice_selected
@@ -945,19 +945,19 @@ class SeedToolsView(View):
                     title = "Seed Phrase (2/2)"
                     word_index_offset = 12  # Skip ahead one page worth of words
 
-            tw, th = View.draw.textsize(title, font=View.IMPACT18)
-            draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.IMPACT18)
+            tw, th = View.draw.textsize(title, font=View.ANTON18)
+            draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.ANTON18)
 
             for i in range(0, max_range):
-                draw.text(word_positions[i], f"{i + 1 + word_index_offset}: " + seed_phrase[i + word_index_offset] , fill=View.color, font=View.IMPACT22)
+                draw.text(word_positions[i], f"{i + 1 + word_index_offset}: " + seed_phrase[i + word_index_offset] , fill=View.color, font=View.ANTON22)
 
             if passphrase and ((len(seed_phrase) > 12 and page_num == 2) or (len(seed_phrase) <= 12 and page_num == 1)):
                 disp_passphrase = "Passphrase: ************"
-                tw, th = View.draw.textsize(disp_passphrase, font=View.IMPACT18)
-                draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.IMPACT18)
+                tw, th = View.draw.textsize(disp_passphrase, font=View.ANTON18)
+                draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.ANTON18)
 
-            tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-            draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.IMPACT18)
+            tw, th = View.draw.textsize(bottom, font=View.ANTON18)
+            draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.ANTON18)
             View.DispShowImage()
 
 
@@ -1067,8 +1067,8 @@ class SeedToolsView(View):
             draw.line((mask_width, View.canvas_height - mask_height, View.canvas_width - mask_width, View.canvas_height - mask_height), fill=View.color)
 
             msg = "click to exit"
-            tw, th = draw.textsize(msg, font=View.IMPACT18)
-            draw.text(((View.canvas_width - tw) / 2, View.canvas_height - th - 2), msg, fill=View.color, font=View.IMPACT18)
+            tw, th = draw.textsize(msg, font=View.ANTON18)
+            draw.text(((View.canvas_width - tw) / 2, View.canvas_height - th - 2), msg, fill=View.color, font=View.ANTON18)
 
             def draw_block_labels(cur_block_x, cur_block_y):
                 # Create overlay for block labels (e.g. "D-5")
@@ -1107,7 +1107,7 @@ class SeedToolsView(View):
             )
 
             while True:
-                # View.draw_text_over_image("click to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
+                # View.draw_text_over_image("click to exit", font=View.ANTON18, text_color="BLACK", text_background="ORANGE")
 
                 input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
                 if input == B.KEY_RIGHT:

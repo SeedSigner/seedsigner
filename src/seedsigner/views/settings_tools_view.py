@@ -109,10 +109,10 @@ class SettingsToolsView(View):
         line3 = "(Joystick RIGHT to EXIT)"
 
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        tw, th = View.draw.textsize(line1, font=View.IMPACT22)
-        View.draw.text(((240 - tw) / 2, 20), line1, fill=View.color, font=View.IMPACT22)
-        tw, th = View.draw.textsize(line2, font=View.IMPACT22)
-        View.draw.text(((240 - tw) / 2, 55), line2, fill=View.color, font=View.IMPACT22)
-        tw, th = View.draw.textsize(line3, font=View.IMPACT18)
-        View.draw.text(((240 - tw) / 2, 210), line3, fill=View.color, font=View.IMPACT18)
+        tw, th = View.draw.textsize(line1, font=View.ANTON22)
+        View.draw.text(((240 - tw) / 2, 20), line1, fill=View.color, font=View.ANTON22)
+        tw, th = View.draw.textsize(line2, font=View.ANTON22)
+        View.draw.text(((240 - tw) / 2, 55), line2, fill=View.color, font=View.ANTON22)
+        tw, th = View.draw.textsize(line3, font=View.ANTON18)
+        View.draw.text(((240 - tw) / 2, 210), line3, fill=View.color, font=View.ANTON18)
         View.DispShowImage()
