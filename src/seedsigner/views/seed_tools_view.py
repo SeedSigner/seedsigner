@@ -377,7 +377,7 @@ class SeedToolsView(View):
 
 
     def draw_passphrase_keyboard_entry(self, existing_passphrase = ""):
-        def render_right_panel(button1_text="ABC", button2_text="!@#"):
+        def render_right_panel(button1_text="ABC", button2_text="123"):
             # Render the up/down arrow buttons for KEY1 and KEY3
             row_height = 28
             right_button_left_margin = 10
@@ -642,6 +642,9 @@ class SeedToolsView(View):
                         self.passphrase = self.passphrase[:cursor_position] + " " + self.passphrase[cursor_position:]
                     cursor_position += 1
 
+                # Update the text entry display and cursor
+                text_entry_display.render(self.passphrase, cursor_position)
+
             elif input == B.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
                 # User has locked in the current letter
                 if cursor_position == len(self.passphrase):
@@ -650,14 +653,14 @@ class SeedToolsView(View):
                     self.passphrase = self.passphrase[:cursor_position] + ret_val + self.passphrase[cursor_position:]
                 cursor_position += 1
 
+                # Update the text entry display and cursor
+                text_entry_display.render(self.passphrase, cursor_position)
+
             elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN] or keyboard_swap:
                 # Live joystick movement; haven't locked this new letter in yet.
                 # Leave current spot blank for now. Only update the active keyboard keys
                 # when a selection has been locked in (KEY_PRESS) or removed ("del").
                 pass
-
-            # Render the text entry display and cursor block
-            text_entry_display.render(self.passphrase, cursor_position)
 
             View.DispShowImage()
 
