@@ -5,11 +5,12 @@ from PIL import ImageDraw, Image
 from PIL.ImageOps import autocontrast
 import hashlib
 import math
+import os
 import time
 
 # Internal file class dependencies
 from . import View
-from seedsigner.helpers import B, QR, Keyboard, TextEntryDisplay
+from seedsigner.helpers import B, QR, Keyboard, TextEntryDisplay, mnemonic_generation
 from seedsigner.models import DecodeQR, DecodeQRStatus, QRType, EncodeQR
 
 
@@ -665,11 +666,8 @@ class SeedToolsView(View):
     ###
 
     def display_last_word(self, partial_seed_phrase) -> list:
-        stringphrase = " ".join(partial_seed_phrase).strip() + " abandon"
-        bytes = mnemonic_to_bytes(stringphrase, ignore_checksum=True)
-        finalseed = mnemonic_from_bytes(bytes)
-        splitseed = finalseed.split()
-        last_word = splitseed[-1]
+        finalseed = mnemonic_generation.calculate_checksum(partial_seed_phrase)
+        last_word = finalseed[-1]
 
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         tw, th = self.draw.textsize("The final word is :", font=View.IMPACT23)
@@ -683,7 +681,7 @@ class SeedToolsView(View):
         View.DispShowImage()
 
         input = self.buttons.wait_for([B.KEY_RIGHT])
-        return splitseed[:]
+        return finalseed
 
     ###
     ### Display Seed from Dice
@@ -715,7 +713,7 @@ class SeedToolsView(View):
                 return []
 
             if self.roll_number >= 100:
-                self.dice_seed_phrase = self.calc_seed_from_dice()
+                self.dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(self.roll_data)
                 return self.dice_seed_phrase[:]
 
     def dice_arrow_up(self):
@@ -796,11 +794,13 @@ class SeedToolsView(View):
         return True
 
     def dice_arrow_press(self):
-        self.roll_number = self.roll_number + 1
+        self.roll_number += 1
         if self.dice_selected == 6:
-            self.roll_data = self.roll_data + str(0).strip()
+            self.roll_data += "0"
         else:
-            self.roll_data = self.roll_data + str(self.dice_selected).strip()
+            self.roll_data += str(self.dice_selected)
+
+        # Reset for the next UI render
         self.dice_selected = 5
         if self.roll_number < 100:
             self.draw_dice(self.dice_selected)
@@ -898,19 +898,6 @@ class SeedToolsView(View):
         View.DispShowImage()
 
         self.dice_selected = dice_selected
-
-    def calc_seed_from_dice(self):
-        entropyinteger = int(self.roll_data, 6)
-        entropyinbytes = entropyinteger.to_bytes(32, byteorder="little")
-        badseedphrase_str = mnemonic_from_bytes(entropyinbytes)
-        badseedphrase_list = badseedphrase_str.split()
-        badseedphrase_list.pop(-1)
-        calclastwordphrasestr = " ".join(badseedphrase_list) + " abandon"
-        goodphrasebytes = mnemonic_to_bytes(calclastwordphrasestr, ignore_checksum=True)
-        goodseedphrasestr = mnemonic_from_bytes(goodphrasebytes)
-        seed_phrase = goodseedphrasestr.split()
-
-        return seed_phrase
 
     ###
     ### Display Seed Phrase
@@ -1187,10 +1174,16 @@ class SeedToolsView(View):
         self.controller.menu_view.draw_modal(["Initializing Camera..."])
         self.controller.camera.start_video_stream_mode(resolution=(240, 240), framerate=24, format="rgb")
 
+        # save preview image frames to use as additional entropy below
+        preview_images = []
+        max_entropy_frames = 50
+
         while True:
             frame = self.controller.camera.read_video_stream(as_image=True)
             if frame is not None:
                 View.DispShowImageWithText(frame, "click joystick", text_color=View.color, text_background=(0,0,0,225))
+                if len(preview_images) < max_entropy_frames:
+                    preview_images.append(frame)
 
             if self.buttons.check_for_low(B.KEY_LEFT):
                 self.words = []
@@ -1207,8 +1200,8 @@ class SeedToolsView(View):
         self.controller.camera.stop_single_frame_mode()
 
         # Prep a copy of the image for display. The actual image data is 720x480
-        # Present just a center crop to fit the screen and to keep some of the
-        # data hidden.
+        # Present just a center crop and resize it to fit the screen and to keep some of
+        #   the data hidden.
         display_version = autocontrast(
             seed_entropy_image,
             cutoff=2
@@ -1233,18 +1226,35 @@ class SeedToolsView(View):
             reshoot = True
 
         else:
-            # TODO: Pull this out into its own method so we can write tests against it
-            hash = hashlib.sha256(seed_entropy_image.tobytes())
-            badseedphrase_str = mnemonic_from_bytes(hash.digest())
-            badseedphrase_list = badseedphrase_str.split()
-            badseedphrase_list.pop(-1)
-            calclastwordphrasestr = " ".join(badseedphrase_list) + " abandon"
-            goodphrasebytes = mnemonic_to_bytes(calclastwordphrasestr, ignore_checksum=True)
-            goodseedphrasestr = mnemonic_from_bytes(goodphrasebytes)
-            self.words = goodseedphrasestr.split()
+            # Build in some hardware-level uniqueness via CPU unique Serial num
+            try:
+                stream = os.popen("cat /proc/cpuinfo | grep Serial")
+                output = stream.read()
+                serial_num = output.split(":")[-1].strip().encode('utf-8')
+                serial_hash = hashlib.sha256(serial_num)
+                hash_bytes = serial_hash.digest()
+            except Exception as e:
+                print(repr(e))
+                hash_bytes = b'0'
+
+            # Build in modest entropy via millis since power on
+            millis_hash = hashlib.sha256(hash_bytes + str(time.time()).encode('utf-8'))
+            hash_bytes = millis_hash.digest()
+
+            # Build in better entropy by chaining the preview frames
+            for frame in preview_images:
+                img_hash = hashlib.sha256(hash_bytes + frame.tobytes())
+                hash_bytes = img_hash.digest()
+
+            # Finally build in our headline entropy via the new full-res image
+            final_hash = hashlib.sha256(hash_bytes + seed_entropy_image.tobytes())
+            self.words = mnemonic_generation.generate_mnemonic_from_bytes(final_hash.digest())
 
             # Image should never get saved nor stick around in memory
             seed_entropy_image = None
+            preview_images = None
+            final_hash = None
+            hash_bytes = None
 
         # self.buttons.trigger_override(True)
         return (reshoot, self.words)
