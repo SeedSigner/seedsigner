@@ -1,20 +1,21 @@
 # External Dependencies
-import threading
-from threading import Timer
+from threading import Thread
+from pyzbar import pyzbar
+from pyzbar.pyzbar import ZBarSymbol
+import time
 
 # Internal file class dependencies
 from . import View
-from seedsigner.helpers import B, CameraPoll
-
+from seedsigner.helpers import B
 
 class IOTestView(View):
 
     def __init__(self) -> None:
         View.__init__(self)
-        self.camera_loop_timer = None
         self.redraw = False
         self.redraw_complete = False
         self.qr_text = "Scan ANY QR Code"
+        self.exit = False
 
     def display_io_test_screen(self):
         
@@ -23,13 +24,13 @@ class IOTestView(View):
         print("Initializing I/O Test")
         self.qr_text = "Scan ANY QR Code"
 
-        # initialize camera
-        self.controller.to_camera_queue.put(["start"])
-
-        # First get blocking, this way it's clear when the camera is ready for the end user
-        self.controller.from_camera_queue.get()
-
-        self.camera_loop_timer = CameraPoll(0.05, self.get_camera_data) # it auto-starts, no need of rt.start()
+        try:
+            self.controller.get_instance().camera.start_video_stream_mode()
+            t = Thread(target=self.qr_loop)
+            t.start()
+        except:
+            self.qr_text = "No Camera"
+            self.controller.get_instance().camera.stop_video_stream_mode()
 
         while True:
 
@@ -54,16 +55,21 @@ class IOTestView(View):
                 ret_val = self.c_button()
                 return True
 
-    def get_camera_data(self):
-        try:
-            data = self.controller.from_camera_queue.get(False)
-            if data[0] != "nodata":
-                self.draw_scan_detected()
-        except:
-            data = ["nodata"]
+    def qr_loop(self):
+        while True:
+            frame = self.controller.get_instance().camera.read_video_stream()
+            if frame is not None:
+                barcodes = pyzbar.decode(frame, symbols=[ZBarSymbol.QRCODE])
+                if len(barcodes) > 0:
+                    self.draw_scan_detected()
 
-        if self.redraw == True and self.redraw_complete == True:
-            self.draw_io_screen()
+            time.sleep(0.05)
+
+            if self.controller.get_instance().camera._video_stream is None:
+                break
+
+            if self.exit == True:
+                break
 
     def draw_io_screen(self):
         self.redraw_complete = False
@@ -97,8 +103,9 @@ class IOTestView(View):
             self.redraw = True
 
     def c_button(self):
-        self.camera_loop_timer.stop()
-        self.controller.to_camera_queue.put(["stop"])
+        self.exit = True
+        self.controller.get_instance().camera.stop_video_stream_mode()
+        return
 
     def up_button(self):
         if self.redraw == False and self.redraw_complete == True:
