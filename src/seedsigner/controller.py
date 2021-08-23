@@ -374,16 +374,18 @@ class Controller(Singleton):
         slot_num = ret_val
 
         if self.storage.check_slot_passphrase(slot_num) == True:
-            #only display Add vs Remove menu if there is a passphrase to remove
-            r = self.menu_view.display_generic_selection_menu(["Change Passphrase", "Remove Passphrase"], "Passphrase Action")
-            if r == 2:
+            # only display menu to remove/update if there is a passphrase to remove
+            r = self.menu_view.display_generic_selection_menu(["... [ Return to Seed Tools ]", "Change Passphrase", "Remove Passphrase"], "Passphrase Action")
+            if r == 3:
                 # Remove Passphrase Workflow
                 self.storage.delete_passphrase(slot_num)
                 self.menu_view.draw_modal(["Passphrase Deleted", "from Slot #" + str(slot_num)], "", "Right to Continue")
                 self.buttons.wait_for([B.KEY_RIGHT])
 
                 return Path.SEED_TOOLS_SUB_MENU
-            # continue if adding or updating passphrase
+            elif r == 1:
+                return Path.SEED_TOOLS_SUB_MENU
+            # continue if updating passphrase
 
         # display a tool to pick letters/numbers to make a passphrase
         passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry(existing_passphrase=self.storage.get_passphrase(slot_num))
