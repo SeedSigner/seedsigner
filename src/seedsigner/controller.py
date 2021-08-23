@@ -375,7 +375,7 @@ class Controller(Singleton):
 
         if self.storage.check_slot_passphrase(slot_num) == True:
             #only display Add vs Remove menu if there is a passphrase to remove
-            r = self.menu_view.display_generic_selection_menu(["Add/Update Passphrase", "Remove Passphrase"], "Passphrase Action")
+            r = self.menu_view.display_generic_selection_menu(["Change Passphrase", "Remove Passphrase"], "Passphrase Action")
             if r == 2:
                 # Remove Passphrase Workflow
                 self.storage.delete_passphrase(slot_num)
