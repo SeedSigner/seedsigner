@@ -600,7 +600,7 @@ class Controller(Singleton):
                     if slot_num in (1,2,3):
                         self.storage.save_seed_phrase(seed_phrase, slot_num)
                         self.storage.save_passphrase(passphrase, slot_num)
-                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
+                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
                         input = self.buttons.wait_for([B.KEY_RIGHT])
 
             # display seed phrase
@@ -703,7 +703,7 @@ class Controller(Singleton):
                     if slot_num in (1,2,3):
                         self.storage.save_seed_phrase(seed_phrase, slot_num)
                         self.storage.save_passphrase(passphrase, slot_num)
-                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
+                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
                         input = self.buttons.wait_for([B.KEY_RIGHT])
 
         # show transaction information before sign
@@ -805,7 +805,7 @@ class Controller(Singleton):
         r = self.settings_tools_view.display_persistent_settings()
         if r is not None:
             if r == True:
-                self.menu_view.draw_modal(["Persistent settings", "keeps settings saved", "accross reboot.", "Seeds are never saved"], "Warning", "Right to Continue")
+                self.menu_view.draw_modal(["Persistent settings", "keeps settings saved", "across reboot.", "Seeds are never saved"], "Warning", "Right to Continue")
                 input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
                 if input == B.KEY_RIGHT:
                     self.settings.persistent = r
@@ -832,7 +832,7 @@ class Controller(Singleton):
             return Path.MAIN_MENU
 
     def show_reset_tool(self):
-        self.menu_view.draw_modal(["This will restore", "default settings and", "restart the device", ""], "Warning", "Right to Continue")
+        self.menu_view.draw_modal(["This will restore", "default settings and", "restart the app", ""], "Warning", "Right to Continue")
         input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
         if input == B.KEY_RIGHT:
             r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Reset SeedSigner?")
