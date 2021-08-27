@@ -102,7 +102,7 @@ Exit and reboot when prompted within the raspi-config interface.
 
 Install these dependencies:
 ```
-sudo apt-get update && sudo apt-get install -y wiringpi python3-pip python3-numpy python-pil libopenjp2-7 ttf-mscorefonts-installer git python3-opencv libzbar0 python3-picamera
+sudo apt-get update && sudo apt-get install -y wiringpi python3-pip python3-numpy python-pil libopenjp2-7 ttf-mscorefonts-installer git python3-opencv libzbar0 python3-picamera qrencode
 ```
 
 Install the [C library for Broadcom BCM 2835](http://www.airspayce.com/mikem/bcm2835/):
