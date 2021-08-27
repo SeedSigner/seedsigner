@@ -131,6 +131,7 @@ Then `CTRL-X` and `y` to exit and save changes.
 
 Now create the python virtualenv for SeedSigner:
 ```
+source ~/.profile
 mkvirtualenv --python=python3 seedsigner-env
 ```
 
