@@ -159,7 +159,7 @@ Description=Seedsigner
 [Service]
 User=pi
 WorkingDirectory=/home/pi/seedsigner/src/
-ExecStart=/usr/bin/python3 main.py
+ExecStart=/home/pi/.envs/seedsigner-env/bin/python main.py
 Restart=always
 
 [Install]
