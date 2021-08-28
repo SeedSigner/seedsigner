@@ -1174,7 +1174,7 @@ class SeedToolsView(View):
     def seed_phrase_from_camera_image(self):
         reshoot = False
 
-        self.controller.menu_view.draw_modal(["Iticializando Cámara..."])
+        self.controller.menu_view.draw_modal(["Inicializando Cámara..."])
         self.controller.camera.start_video_stream_mode(resolution=(240, 240), framerate=24, format="rgb")
 
         # save preview image frames to use as additional entropy below
