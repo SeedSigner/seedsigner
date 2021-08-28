@@ -16,11 +16,11 @@ class SettingsToolsView(View):
     ### Donate Menu Item
 
     def display_donate_info_screen(self):
-        self.draw_modal(["You can support", "SeedSigner by donating", "any amount of BTC", "Thank You!!!"], "", "(Press right for a QR code)")
+        self.draw_modal(["Puedes Apoyar a ", "SeedSigner donando", "cualquier cantidad de BTC", "¡Gracias!"], "", "(Palanca derecha para un QR)")
         return True
 
     def display_donate_qr(self):
-        self.draw_modal(["Loading..."])
+        self.draw_modal(["Cargando..."])
         self.donate_image = self.qr.qrimage("bc1qphlyv2dde290tqdlnk8uswztnshw3x9rjurexqqhksvu7vdevhtsuw4efe")
         View.DispShowImage(self.donate_image)
         return True
@@ -28,7 +28,7 @@ class SettingsToolsView(View):
     ### Display Network Selection
 
     def display_current_network(self) -> str:
-        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Mainnet", "Testnet"], "Which Network?")
+        r = self.controller.menu_view.display_generic_selection_menu(["...[Regresar a Configuración ]", "Mainnet", "Testnet"], "¿Qué Red?")
         if r == 2:
             return "main"
         elif r == 3:
@@ -39,7 +39,7 @@ class SettingsToolsView(View):
     ### Display Wallet Selection
 
     def display_wallet_selection(self) -> str:
-        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Prompt", "Specter Desktop", "Blue Wallet", "Sparrow"], "Which Wallet?")
+        r = self.controller.menu_view.display_generic_selection_menu(["...[Regresar a Configuración ]", "Prompt", "Specter Desktop", "Blue Wallet", "Sparrow"], "Which Wallet?")
         if r == 2:
             return "Prompt"
         elif r == 3:
@@ -54,7 +54,7 @@ class SettingsToolsView(View):
     ### Display QR Density Selection
 
     def display_qr_density_selection(self) -> str:
-        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Low", "Medium", "High"], "Which QR Density?")
+        r = self.controller.menu_view.display_generic_selection_menu(["...[Regresar a Configuración ]", "Baja", "Mediana", "Alta"], "¿Cuál densidad de QR?")
         if r == 2:
             return EncodeQRDensity.LOW
         elif r == 3:
@@ -68,27 +68,27 @@ class SettingsToolsView(View):
 
     def display_wallet_policy_selection(self) -> str:
 
-        lines = ["... [ Return to Settings ]"]
-        lines.append("Multi Sig Native Segwit")
-        lines.append("Single Sig Native Segwit")
+        lines = ["...[Regresar a Configuración ]"]
+        lines.append("Multi Firma Segwit Nativo")
+        lines.append("Firma Sencilla Segwit Nativo")
 
-        r = self.controller.menu_view.display_generic_selection_menu(lines, "Which Wallet Policy?")
+        r = self.controller.menu_view.display_generic_selection_menu(lines, "¿Qué wallet policy?")
         if r == 1:
             return None
-        elif lines[r-1] == "Multi Sig Native Segwit":
+        elif lines[r-1] == "Multi Firma Segwit Nativo":
             return "PKWSH"
-        elif lines[r-1] == "Single Sig Native Segwit":
+        elif lines[r-1] == "Firma Sencilla Segwit Nativo":
             return "PKWPKH"
         else:
             return None
 
     def display_persistent_settings(self) -> bool:
 
-        lines = ["... [ Return to Settings ]"]
-        lines.append("Yes")
+        lines = ["...[Regresar a Configuración ]"]
+        lines.append("Sí")
         lines.append("No")
 
-        r = self.controller.menu_view.display_generic_selection_menu(lines, "Use Persistent Settings?")
+        r = self.controller.menu_view.display_generic_selection_menu(lines, "¿Usar Conf. Persistente?")
         if r == 1:
             return None
         elif r == 2:
@@ -106,7 +106,7 @@ class SettingsToolsView(View):
     
         line1 = "SeedSigner"
         line2 = "Version v" + self.controller.VERSION
-        line3 = "(Joystick RIGHT to EXIT)"
+        line3 = "(Palanca DERECHA para SALIR)"
 
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
         tw, th = View.draw.textsize(line1, font=View.IMPACT22)
