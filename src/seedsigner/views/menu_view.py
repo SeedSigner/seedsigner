@@ -25,7 +25,7 @@ class MenuView(View):
     def display_main_menu(self, sub_menu = None) -> int:
         ret_val = 0
         input = 0
-        lines = ["Seed Tools", "Scan QR", "Settings", "Power Off"]
+        lines = ["Herramientas de Semilla", "Escanear QR", "Configuración", "Apagar"]
 
         if sub_menu == Path.SEED_TOOLS_SUB_MENU:
             return self.display_seed_tools_menu()
@@ -64,14 +64,14 @@ class MenuView(View):
     ### Seed Tools Menu
 
     def display_seed_tools_menu(self) -> int:
-        seed_storage_line = "Store a Seed (temp)"
+        seed_storage_line = "Guardar una semilla (temp)"
         if self.controller.storage.num_of_saved_seeds() > 0:
             if self.controller.storage.num_of_saved_seeds() < 3:
-                seed_storage_line = "View/Store Seeds (temp)"
+                seed_storage_line = "Ver/Guardar Semillas (temp)"
             else:
-                seed_storage_line = "View Seeds (temp)"
+                seed_storage_line = "Ver Semillas (temp)"
 
-        lines = ["... [ Return to Main ]", "Temp Seed Storage", "Seed Passphrase", "xPub from Seed", "Calculate Last Word", "Generate Seed with Dice", "Generate Seed with Image"]
+        lines = ["...[ Regresar a Main ]", "Alm. temp semilla", "Contraseña de Semilla", "xPub de Semilla", "Calc. Última Palabra", "Crear Semilla Con Dado", "Crear Semilla Con Imágen"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -101,7 +101,7 @@ class MenuView(View):
     ### Signing Tools Menu
 
     def display_signing_tools_menu(self) -> None:
-        lines = ["... [ Return to Main ]", "Generate xPub", "Sign a Transaction"]
+        lines = ["...[ Regresar a Main ]", "Generar xPub", "Firmar Transacción"]
         self.draw_menu(lines, 1)
         input = 0
 
@@ -124,7 +124,7 @@ class MenuView(View):
     ### Settings Menu
 
     def display_settings_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Wallet: <wallet>", "Script Policy: <policy>", "Network: <network>", "QR Density: <density>", "Input / Output Tests", "Persistent Settings: <persistent>", "Version Info", "Donate to SeedSigner", "Reset SeedSigner"]
+        lines = ["...[ Regresar a Main ]", "Wallet: <wallet>", "Política Script: <policy>", "Red: <network>", "Densidad QR: <density>", "Input / Output Tests", "Persistent Settings: <persistent>", "Version Info", "Donate to SeedSigner", "Reset SeedSigner"]
         input = 0
         
         lines[1] = lines[1].replace("<wallet>", Settings.get_instance().software)
@@ -185,7 +185,7 @@ class MenuView(View):
 
     ### Generic Word 12 or 24 seed phrase menu
     # internal method
-    def draw_12_24_word_menu(self, lines, return_txt = "... [ Return to ... ]") -> int:
+    def draw_12_24_word_menu(self, lines, return_txt = "...[ Regresar a ... ]") -> int:
         self.draw_menu(lines)
 
          # Wait for Button Input (specifically menu selection/press)
@@ -205,56 +205,56 @@ class MenuView(View):
                 elif self.selected_menu_num == 4:
                     return Path.SEED_WORD_QR
 
-    def display_12_24_word_menu(self, return_txt = "... [ Return to ... ]") -> int:
-        lines = [return_txt, "Use a 12 Word Seed", "Use a 24 Word Seed"]
+    def display_12_24_word_menu(self, return_txt = "... [ Regresar a ... ]") -> int:
+        lines = [return_txt, "Usar Semilla 12 Palabras", "Usar Semilla 12 Palabras"]
         return self.draw_12_24_word_menu(lines, return_txt)
 
-    def display_qr_12_24_word_menu(self, return_txt = "... [ Return to ... ]") -> int:
-        lines = [return_txt, "Enter 12 Word Seed", "Enter 24 Word Seed", "Scan a Seed QR Code"]
+    def display_qr_12_24_word_menu(self, return_txt = "... [ Regresar a ... ]") -> int:
+        lines = [return_txt, "Entrar Semilla 12 Palabras", "Entrar Semilla 24 Palabras", "Escanear Semilla de QR"]
         return self.draw_12_24_word_menu(lines, return_txt)
 
     ### Select a Seed Slot to Save a Seed Menu
 
-    def display_saved_seed_menu(self, storage, type = 1, return_sel_txt = "... [ Return to Seed Tools ]") -> int:
+    def display_saved_seed_menu(self, storage, type = 1, return_sel_txt = "...[Regresar a Herr. Semilla]") -> int:
         lines = []
         if return_sel_txt != None:
             lines.append(return_sel_txt)
 
         if type == 1:
             # Show all slots used and free
-            lines.extend(["Use Seed Slot #1", "Use Seed Slot #2", "Use Seed Slot #3"])
+            lines.extend(["Usar Slot Semilla #1", "Usar Slot Semilla #2", "Usar Slot Semilla #3"])
             if storage.check_slot_1():
-                lines[1] = "Display Seed Slot #1" # replace
+                lines[1] = "Mostrar Slot Semilla #1" # replace
             if storage.check_slot_2():
-                lines[2] = "Display Seed Slot #2" # replace
+                lines[2] = "Mostrar Slot Semilla #2" # replace
             if storage.check_slot_3():
-                lines[3] = "Display Seed Slot #3" # replace
+                lines[3] = "Mostrar Slot Semilla #3" # replace
         elif type == 2:
             # Show only free slots
             if storage.check_slot_1() == False:
-                lines.append("Use Seed Slot #1")
+                lines.append("Usar Slot Semilla #1")
             if storage.check_slot_2() == False:
-                lines.append("Use Seed Slot #2")
+                lines.append("Usar Slot Semilla #2")
             if storage.check_slot_3() == False:
-                lines.append("Use Seed Slot #3")
+                lines.append("Usar Slot Semilla")
             if storage.num_of_free_slots() == 0:
                 return 0
         elif type == 3:
             # Show only used slots
             if storage.check_slot_1():
-                lines.append("Use Seed Slot #1")
+                lines.append("Usar Slot Semilla #1")
             if storage.check_slot_2():
-                lines.append("Use Seed Slot #2")
+                lines.append("Usar Slot Semilla #2")
             if storage.check_slot_3():
-                lines.append("Use Seed Slot #3")
+                lines.append("Usar Slot Semilla #3")
         elif type == 4:
             # Show only used slots with passphrase
             if storage.check_slot_passphrase(1):
-                lines.append("Seed Slot #1")
+                lines.append("Slot Semilla #1")
             if storage.check_slot_passphrase(2):
-                lines.append("Seed Slot #2")
+                lines.append("Slot Semilla #2")
             if storage.check_slot_passphrase(3):
-                lines.append("Seed Slot #3")
+                lines.append("Slot Semilla #3")
 
         else:
             return 0
@@ -288,22 +288,22 @@ class MenuView(View):
             t = title
 
         if bottom == None and len(lines) <= 5:
-            b = "Press Control Stick to Select"
+            b = "Presione Palanca Para Seleccionar"
         elif bottom == None:
             if len(lines) >= 6 and len(lines) <= 10:
                 if selected_menu_num <= 5:
-                    b = "Page 1 of 2"
+                    b = "Página 1 de 2"
                 elif selected_menu_num >= 6 and selected_menu_num <= 10:
-                    b = "Page 2 of 2"
+                    b = "Página 2 de 2"
             elif len(lines) >= 11 and len(lines) <= 15:
                 if selected_menu_num <= 5:
-                    b = "Page 1 of 3"
+                    b = "Página 1 de 3"
                 elif selected_menu_num >= 6 and selected_menu_num <= 10:
-                    b = "Page 2 of 3"
+                    b = "Página 2 de 3"
                 elif selected_menu_num >= 11 and selected_menu_num <= 15:
-                    b = "Page 3 of 3"
+                    b = "Página 3 de 3"
             else:
-                b = "Press Control Stick to Select"
+                b = "Presione Palanca Para Seleccionar"
         else:
             b = bottom
 
