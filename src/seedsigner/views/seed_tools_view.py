@@ -436,7 +436,7 @@ class SeedToolsView(View):
 
         # render top title banner
         font = View.ROBOTOCONDENSED_REGULAR_20
-        title = "Enter Passphrase"
+        title = "Entre Contraseña"
         title_top_padding = 0
         title_bottom_padding = 10
         tw, th = font.getsize(title)
@@ -673,13 +673,13 @@ class SeedToolsView(View):
         last_word = finalseed[-1]
 
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        tw, th = self.draw.textsize("The final word is :", font=View.IMPACT23)
-        self.draw.text(((240 - tw) / 2, 60), "The final word is :", fill=View.color, font=View.IMPACT23)
+        tw, th = self.draw.textsize("La palabra final es :", font=View.IMPACT23)
+        self.draw.text(((240 - tw) / 2, 60), "La palabra final es :", fill=View.color, font=View.IMPACT23)
         tw, th = self.draw.textsize(last_word, font=View.IMPACT50)
         self.draw.text(((240 - tw) / 2, 90), last_word, fill=View.color, font=View.IMPACT50)
 
-        tw, th = View.draw.textsize("Right to Continue", font=View.IMPACT18)
-        View.draw.text(((240 - tw) / 2, 210), "Right to Continue", fill=View.color, font=View.IMPACT18)
+        tw, th = View.draw.textsize("Derecha Para Continuar", font=View.IMPACT18)
+        View.draw.text(((240 - tw) / 2, 210), "Derecha Para Continuar", fill=View.color, font=View.IMPACT18)
 
         View.DispShowImage()
 
@@ -765,7 +765,7 @@ class SeedToolsView(View):
 
     def dice_arrow_left(self):
         if self.dice_selected == 1:
-            self.draw_prompt_custom("Undo ", "Cancel ", "Exit ", ["Action:  ", "", ""])
+            self.draw_prompt_custom("Deshacer ", "Cancelar ", "Salir ", ["Acción:  ", "", ""])
             input = self.buttons.wait_for([B.KEY1, B.KEY2, B.KEY3])
             if input == B.KEY1: #Undo
                 self.roll_number = self.roll_number - 1
@@ -813,7 +813,7 @@ class SeedToolsView(View):
     def draw_dice(self, dice_selected):
 
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        self.draw.text((45, 5), "Dice roll: " + str(self.roll_number) + "/99", fill=View.color, font=View.IMPACT26)
+        self.draw.text((45, 5), "Tirada de dado: " + str(self.roll_number) + "/99", fill=View.color, font=View.IMPACT26)
 
         # when dice is selected, rect fill will be orange and ellipse will be black, ellipse outline will be the black
         # when dice is not selected, rect will will be black and ellipse will be orange, ellipse outline will be orange
@@ -897,7 +897,7 @@ class SeedToolsView(View):
             self.draw.ellipse([(208, 174), (220, 186)], outline=View.color, fill=View.color)
 
         # bottom text
-        self.draw.text((18, 210), "Press Control Stick to Select", fill=View.color, font=View.IMPACT18)
+        self.draw.text((18, 210), "Presione Palanca Para Seleccionar", fill=View.color, font=View.IMPACT18)
         View.DispShowImage()
 
         self.dice_selected = dice_selected
@@ -906,7 +906,7 @@ class SeedToolsView(View):
     ### Display Seed Phrase
     ###
 
-    def display_seed_phrase(self, seed_phrase, passphrase=None, bottom="Right to Main Menu", show_qr_option=False) -> bool:
+    def display_seed_phrase(self, seed_phrase, passphrase=None, bottom="Derecha Para Menú", show_qr_option=False) -> bool:
         ret_val = ""
 
         def display_seed_phrase_page(draw, seed_phrase, passphrase=None, bottom=bottom, page_num=1):
@@ -920,7 +920,7 @@ class SeedToolsView(View):
                 (120, 40), (120, 63), (120, 86), (120, 109), (120, 132), (120, 155)
             ]
 
-            title = "Seed Phrase"
+            title = "Contraseña De Semilla"
             word_index_offset = 0
             max_range = len(seed_phrase)    # handles 11 or 12; 23 or 24
             if len(seed_phrase) > 12:
@@ -1009,7 +1009,7 @@ class SeedToolsView(View):
     def seed_phrase_as_qr(self, seed_phrase):
         e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEEDSSQR)
         image = e.nextPartImage(240, 240, 3)
-        View.DispShowImageWithText(image, "click to zoom, right to exit", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
+        View.DispShowImageWithText(image, "click para zoom, derecha para salir", font=View.IMPACT18, text_color="BLACK", text_background="ORANGE")
 
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_PRESS])
         if input == B.KEY_RIGHT:
@@ -1138,14 +1138,14 @@ class SeedToolsView(View):
                     cur_y = next_y
 
     def read_seed_phrase_qr(self):
-        self.draw_modal(["Scanning..."], "Seed QR" ,"Right to Exit")
+        self.draw_modal(["Escaneando..."], "QR de Semilla" ,"Derecha Para Salir")
         try:
             self.controller.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
             decoder = DecodeQR()
             while True:
                 frame = self.controller.camera.read_video_stream(as_image=True)
                 if frame is not None:
-                    View.DispShowImageWithText(frame.resize((240,240)), "Scan Seed QR", font=View.IMPACT22, text_color=View.color, text_background=(0,0,0,225))
+                    View.DispShowImageWithText(frame.resize((240,240)), "Escanear QR de Semilla", font=View.IMPACT22, text_color=View.color, text_background=(0,0,0,225))
                     status = decoder.addImage(frame)
 
                     if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
@@ -1159,10 +1159,10 @@ class SeedToolsView(View):
             if decoder.isComplete() and decoder.isSeed():
                 self.words = decoder.getSeedPhrase()
             elif not decoder.isPSBT():
-                self.draw_modal(["Not a valid Seed QR"], "", "Right to Exit")
+                self.draw_modal(["QR de Semilla No Válido"], "", "Derecha Para Salir")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
             else:
-                self.draw_modal(["QR Parsing Failed"], "", "Right to Exit")
+                self.draw_modal(["Parsing de QR Falló"], "", "Derecha Para Salir")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
                 self.words = []
 
@@ -1174,7 +1174,7 @@ class SeedToolsView(View):
     def seed_phrase_from_camera_image(self):
         reshoot = False
 
-        self.controller.menu_view.draw_modal(["Initializing Camera..."])
+        self.controller.menu_view.draw_modal(["Iticializando Cámara..."])
         self.controller.camera.start_video_stream_mode(resolution=(240, 240), framerate=24, format="rgb")
 
         # save preview image frames to use as additional entropy below
@@ -1184,7 +1184,7 @@ class SeedToolsView(View):
         while True:
             frame = self.controller.camera.read_video_stream(as_image=True)
             if frame is not None:
-                View.DispShowImageWithText(frame, "click joystick", text_color=View.color, text_background=(0,0,0,225))
+                View.DispShowImageWithText(frame, "haga click en palanca", text_color=View.color, text_background=(0,0,0,225))
                 if len(preview_images) < max_entropy_frames:
                     preview_images.append(frame)
 
@@ -1218,7 +1218,7 @@ class SeedToolsView(View):
 
         View.DispShowImageWithText(
             display_version,
-            text=" < reshoot  |  accept > ",
+            text=" < retomar  |  aceptar > ",
             font=View.ROBOTOCONDENSED_REGULAR_22,
             text_color=View.color,
             text_background=(0,0,0,225)
