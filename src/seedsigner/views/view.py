@@ -184,7 +184,7 @@ class View:
 
     def draw_prompt_yes_no(self, lines = [], title = "", bottom = "") -> None:
 
-        self.draw_prompt_custom("", "Yes ", "No ", lines, title, bottom)
+        self.draw_prompt_custom("", "Sí ", "No ", lines, title, bottom)
         return
 
     def draw_prompt_custom(self, a_txt, b_txt, c_txt, lines = [], title = "", bottom = "") -> None:
@@ -246,10 +246,10 @@ class View:
 
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
-        line1 = "Powering Down..."
-        line2 = "Please wait about"
-        line3 = "30 seconds before"
-        line4 = "disconnecting power."
+        line1 = "Apagando..."
+        line2 = "Favor de esperar"
+        line3 = "30 segundos antes de"
+        line4 = "desconectar la corriente."
 
         tw, th = View.draw.textsize(line1, font=View.IMPACT22)
         View.draw.text(((240-tw)/2, 45), line1, fill=View.color, font=View.IMPACT22)
