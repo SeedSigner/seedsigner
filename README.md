@@ -23,7 +23,7 @@ To build a SeedSigner, you will need:
 * Pi Zero-conpatible camera (tested to work with the Aokin / AuviPal 5MP 1080p with OV5647 Sensor)
 
 Notes:
-* You will need to solder the 20 GPIO pins to the Raspberry Pi Zero board. If you don't want to solder, purchase "GPIO Hammer Headers" for a solderless experience.
+* You will need to solder the 40 GPIO pins (20 pins per row) to the Raspberry Pi Zero board. If you don't want to solder, purchase "GPIO Hammer Headers" for a solderless experience.
 * Other cameras with the above sensor module should work, but may not fit in the Orange Pill enclosure
 * Choose the Waveshare screen carefully; make sure to purchase the model that has a resolution of 240x240 pixels
 
