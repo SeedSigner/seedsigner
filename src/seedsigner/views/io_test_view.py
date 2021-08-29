@@ -14,22 +14,22 @@ class IOTestView(View):
         View.__init__(self)
         self.redraw = False
         self.redraw_complete = False
-        self.qr_text = "Scan ANY QR Code"
+        self.qr_text = "Escanee Código QR"
         self.exit = False
 
     def display_io_test_screen(self):
         
         # display loading screen
-        self.draw_modal(["Initializing I/O Test"])
-        print("Initializing I/O Test")
-        self.qr_text = "Scan ANY QR Code"
+        self.draw_modal(["Inicializando prueba I/O"])
+        print("Inicializando prueba I/O")
+        self.qr_text = "Escanee Código QR"
 
         try:
             self.controller.get_instance().camera.start_video_stream_mode()
             t = Thread(target=self.qr_loop)
             t.start()
         except:
-            self.qr_text = "No Camera"
+            self.qr_text = "Cámara No Instalada"
             self.controller.get_instance().camera.stop_video_stream_mode()
 
         while True:
@@ -75,7 +75,7 @@ class IOTestView(View):
         self.redraw_complete = False
         self.redraw = False
         self.draw.rectangle((0,0,View.canvas_width, View.canvas_height), outline=0, fill=0)
-        self.draw.text((45, 5), "Input/Output Check:", fill=View.color, font=View.IMPACT18)
+        self.draw.text((45, 5), "Prueba de Input/Output:", fill=View.color, font=View.IMPACT18)
         self.draw.polygon([(61, 89), (80, 46), (99, 89)], outline=View.color, fill=0)
         self.draw.polygon([(51, 100), (8, 119), (51, 138)], outline=View.color, fill=0)
         self.draw.polygon([(109, 100), (152, 119), (109, 138)], outline=View.color, fill=0)
@@ -83,7 +83,7 @@ class IOTestView(View):
         self.draw.ellipse([(61, 99), (99, 141)], outline=View.color, fill=0)
         self.draw.ellipse([(198, 40), (238, 80)], outline=View.color, fill=0)
         self.draw.ellipse([(198, 95), (238, 135)], outline=View.color, fill=0)
-        self.draw.text((200, 160), "EXIT", fill=View.color, font=View.IMPACT18)
+        self.draw.text((200, 160), "SALIR", fill=View.color, font=View.IMPACT18)
         self.draw.rectangle((30, 205, 210, 235), outline=View.color, fill="BLACK")
         tw, th = self.draw.textsize(self.qr_text, font=View.IMPACT22)
         self.draw.text(((240 - tw) / 2, 205), self.qr_text, fill=View.color, font=View.IMPACT22)
@@ -138,11 +138,12 @@ class IOTestView(View):
             self.redraw = True
     
     def draw_scan_detected(self):
-        self.qr_text = "QR Scanned"
+        self.qr_text = "QR Escaneado"
         if self.redraw == False and self.redraw_complete == True:
             self.draw.rectangle((30, 205, 210, 235), outline=View.color, fill=View.color)
             tw, th = self.draw.textsize(self.qr_text, font=View.IMPACT22)
             self.draw.text(((240 - tw) / 2, 205), self.qr_text, fill="BLACK", font=View.IMPACT22)
             View.DispShowImage()
             self.redraw = True
+        
         
