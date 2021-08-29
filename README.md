@@ -32,7 +32,7 @@ The easiest way to install the software is to download the "seedsigner_X_X_X.zip
 
 ## Now make your own "Orange Pill" enclosure too!
 
-The Orange Pill enclosure design has been open-sourced! Check out the "Orange_Pill" folder in this repo. You'll need the following additional hardware to assemble it:
+The Orange Pill enclosure design has been open-sourced! Check out the "enclosures" folder in this repo. You'll need the following additional hardware to assemble it:
 
 * 4 x F-F M2.5 spacers, 10mm length
 * 4 x M2.5 pan head screws, 6mm length
