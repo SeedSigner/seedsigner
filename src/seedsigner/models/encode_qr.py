@@ -8,6 +8,7 @@ from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.bcur import (bc32encode, cbor_encode, bcur_encode)
 from seedsigner.helpers.qr import QR
 from seedsigner.models.qr_type import QRType
+from seedsigner.views.seed_tools_view import SeedToolsView
 
 ###
 ### EncodeQR Class
@@ -193,7 +194,7 @@ class SeedSSQR:
     def nextPart(self):
         data = ""
         for word in self.seed_phrase:
-            index = bip39.WORDLIST.index(word)
+            index = SeedToolsView.SEEDWORDS.index(word)
             data += str("%04d" % index)
 
         return data
@@ -212,7 +213,7 @@ class XPubQR:
         self.sent_complete = False
 
         self.network = network
-        self.seed = bip39.mnemonic_to_seed((" ".join(self.seed_phrase)).strip(), self.passphrase)
+        self.seed = bip39.mnemonic_to_seed((" ".join(self.seed_phrase)).strip(), self.passphrase, wordlist=SeedToolsView.SEEDWORDS)
         self.root = bip32.HDKey.from_seed(self.seed, version=NETWORKS[self.network]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
         self.bip48_xprv = self.root.derive(self.derivation)

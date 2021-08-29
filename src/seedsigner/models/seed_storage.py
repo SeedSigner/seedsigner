@@ -1,10 +1,11 @@
 # External Dependencies
 from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 from embit import bip39
+from seedsigner.views.seed_tools_view import SeedToolsView
 
 class SeedStorage:
 
-    SEEDWORDS = bip39.WORDLIST
+    SEEDWORDS = wordlist=SeedToolsView.SEEDWORDS
 
     def __init__(self) -> None:
 
@@ -96,7 +97,7 @@ class SeedStorage:
 
     def check_if_seed_valid(self, seed_phrase) -> bool:
         try:
-            bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip())
+            bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip(), wordlist=SeedToolsView.SEEDWORDS)
         except ValueError:
             return False
 

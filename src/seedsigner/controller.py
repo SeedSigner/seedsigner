@@ -470,7 +470,7 @@ class Controller(Singleton):
 
         self.signing_tools_view.draw_modal(["Loading xPub Info ..."])
 
-        seed = bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip(), passphrase)
+        seed = bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip(), passphrase, wordlist=SeedToolsView.SEEDWORDS)
         root = bip32.HDKey.from_seed(seed, version=NETWORKS[self.settings.network]["xprv"])
         fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
         bip48_xprv = root.derive(self.settings.derivation)

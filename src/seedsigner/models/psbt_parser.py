@@ -1,6 +1,7 @@
 from embit import psbt, script, ec, bip32, bip39
 from embit.networks import NETWORKS
 from io import BytesIO
+from seedsigner.views.seed_tools_view import SeedToolsView
 
 class PSBTParser():
 
@@ -25,7 +26,7 @@ class PSBTParser():
             self.parse(self.psbt,self.seed_phrase,self.passphrase,self.network)
 
     def __setSeedRoot(self, seed_phrase, passphrase, network):
-        self.seed = bip39.mnemonic_to_seed(" ".join(seed_phrase).strip(), passphrase)
+        self.seed = bip39.mnemonic_to_seed(" ".join(seed_phrase).strip(), passphrase, wordlist=SeedToolsView.SEEDWORDS)
         self.root = bip32.HDKey.from_seed(self.seed, version=NETWORKS[network]["xprv"])
 
     def parse(self, p, seed_phrase=[], passphrase="", network="main"):

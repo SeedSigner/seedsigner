@@ -8,6 +8,7 @@ from binascii import a2b_base64, b2a_base64
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
 from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
 from seedsigner.models.qr_type import QRType
+from seedsigner.views.seed_tools_view import SeedToolsView
 
 ###
 ### DecodeQR Class
@@ -16,7 +17,7 @@ from seedsigner.models.qr_type import QRType
 
 class DecodeQR:
 
-    _4LETTER_WORDLIST = [word[:4].strip() for word in bip39.WORDLIST]
+    _4LETTER_WORDLIST = [word[:4].strip() for word in SeedToolsView.SEEDWORDS]
 
     def __init__(self, **kwargs):
         self.complete = False
@@ -198,7 +199,7 @@ class DecodeQR:
             return QRType.PSBTURLEGACY
         elif re.search(r'\d{48,96}', s):
             return QRType.SEEDSSQR
-        elif all(x in bip39.WORDLIST for x in s.strip().split(" ")):
+        elif all(x in SeedToolsView.SEEDWORDS for x in s.strip().split(" ")):
             # checks if all words in list are in bip39 word list
             return QRType.SEEDMNEMONIC
         elif all(x in DecodeQR._4LETTER_WORDLIST for x in s.strip().split(" ")):
@@ -436,7 +437,7 @@ class SeedQR:
                 num_words = int(len(segment) / 4)
                 for i in range(0, num_words):
                     index = int(segment[i * 4: (i*4) + 4])
-                    word = bip39.WORDLIST[index]
+                    word = SeedToolsView.SEEDWORDS[index]
                     self.seed_phrase.append(word)
                 if len(self.seed_phrase) > 0:
                     if self.is1224Phrase() == False:
@@ -453,7 +454,7 @@ class SeedQR:
 
             try:
                 # embit mnemonic code to validate
-                bip39.mnemonic_to_seed(segment.strip())
+                bip39.mnemonic_to_seed(segment.strip(), wordlist=SeedToolsView.SEEDWORDS)
                 self.seed_phrase = segment.strip().split(" ")
                 if self.is1224Phrase() == False:
                         return DecodeQRStatus.INVALID
@@ -469,10 +470,10 @@ class SeedQR:
                 sl = segment.strip().split(" ")
                 words = []
                 for s in sl:
-                    words.append(bip39.WORDLIST[DecodeQR._4LETTER_WORDLIST.index(s)])
+                    words.append(SeedToolsView.SEEDWORDS[DecodeQR._4LETTER_WORDLIST.index(s)])
 
                 # embit mnemonic code to validate
-                bip39.mnemonic_to_seed(" ".join(words).strip())
+                bip39.mnemonic_to_seed(" ".join(words).strip(), wordlist=SeedToolsView.SEEDWORDS)
                 self.seed_phrase = words
                 if self.is1224Phrase() == False:
                         return DecodeQRStatus.INVALID
