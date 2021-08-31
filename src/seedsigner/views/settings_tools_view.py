@@ -21,7 +21,7 @@ class SettingsToolsView(View):
 
     def display_donate_qr(self):
         self.draw_modal(["Loading..."])
-        self.donate_image = self.qr.qrimage("bc1q8u3dyltlg6pu56fe7m58aqz9cwrfld0s03zlrjl0wvm9x4nfa60q2l0g97")
+        self.donate_image = self.qr.qrimage("bc1qphlyv2dde290tqdlnk8uswztnshw3x9rjurexqqhksvu7vdevhtsuw4efe")
         View.DispShowImage(self.donate_image)
         return True
 

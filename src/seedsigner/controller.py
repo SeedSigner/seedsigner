@@ -374,16 +374,18 @@ class Controller(Singleton):
         slot_num = ret_val
 
         if self.storage.check_slot_passphrase(slot_num) == True:
-            #only display Add vs Remove menu if there is a passphrase to remove
-            r = self.menu_view.display_generic_selection_menu(["Add/Update Passphrase", "Remove Passphrase"], "Passphrase Action")
-            if r == 2:
+            # only display menu to remove/update if there is a passphrase to remove
+            r = self.menu_view.display_generic_selection_menu(["... [ Return to Seed Tools ]", "Change Passphrase", "Remove Passphrase"], "Passphrase Action")
+            if r == 3:
                 # Remove Passphrase Workflow
                 self.storage.delete_passphrase(slot_num)
                 self.menu_view.draw_modal(["Passphrase Deleted", "from Slot #" + str(slot_num)], "", "Right to Continue")
                 self.buttons.wait_for([B.KEY_RIGHT])
 
                 return Path.SEED_TOOLS_SUB_MENU
-            # continue if adding or updating passphrase
+            elif r == 1:
+                return Path.SEED_TOOLS_SUB_MENU
+            # continue if updating passphrase
 
         # display a tool to pick letters/numbers to make a passphrase
         passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry(existing_passphrase=self.storage.get_passphrase(slot_num))
@@ -598,7 +600,7 @@ class Controller(Singleton):
                     if slot_num in (1,2,3):
                         self.storage.save_seed_phrase(seed_phrase, slot_num)
                         self.storage.save_passphrase(passphrase, slot_num)
-                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
+                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
                         input = self.buttons.wait_for([B.KEY_RIGHT])
 
             # display seed phrase
@@ -701,7 +703,7 @@ class Controller(Singleton):
                     if slot_num in (1,2,3):
                         self.storage.save_seed_phrase(seed_phrase, slot_num)
                         self.storage.save_passphrase(passphrase, slot_num)
-                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
+                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
                         input = self.buttons.wait_for([B.KEY_RIGHT])
 
         # show transaction information before sign
@@ -803,7 +805,7 @@ class Controller(Singleton):
         r = self.settings_tools_view.display_persistent_settings()
         if r is not None:
             if r == True:
-                self.menu_view.draw_modal(["Persistent settings", "keeps settings saved", "accross reboot.", "Seeds are never saved"], "Warning", "Right to Continue")
+                self.menu_view.draw_modal(["Persistent settings", "keeps settings saved", "across reboot.", "Seeds are never saved"], "Warning", "Right to Continue")
                 input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
                 if input == B.KEY_RIGHT:
                     self.settings.persistent = r
@@ -830,7 +832,7 @@ class Controller(Singleton):
             return Path.MAIN_MENU
 
     def show_reset_tool(self):
-        self.menu_view.draw_modal(["This will restore", "default settings and", "restart the device", ""], "Warning", "Right to Continue")
+        self.menu_view.draw_modal(["This will restore", "default settings and", "restart the app", ""], "Warning", "Right to Continue")
         input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
         if input == B.KEY_RIGHT:
             r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Reset SeedSigner?")
