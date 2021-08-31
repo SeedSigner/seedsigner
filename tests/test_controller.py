@@ -19,12 +19,20 @@ def test_singleton_get_instance_preserves_state():
 	""" Changes to the Controller singleton should be preserved across calls to get_instance() """
 	settings = """
 		[system]
-		DEBUG = True
-		DEFAULT_LANGUAGE = en
-
+		debug = False
+		default_language = en
+		persistent_settings = False
+		
 		[display]
-		BACKGROUND_COLOR = #000
-		TEXT_COLOR = orange
+		text_color = ORANGE
+		
+		[wallet]
+		network = main
+		software = Prompt
+		qr_density = 2
+		script_policy = PKWSH
+		custom_derivation_enabled = False
+		custom_derivation = m/0/0
 	"""
 	config = configparser.ConfigParser()
 	config.read_string(settings)
@@ -32,7 +40,7 @@ def test_singleton_get_instance_preserves_state():
 	# Initialize the instance and verify that it read the config settings
 	Controller.configure_instance(config)
 	controller = Controller.get_instance()
-	assert controller.color == "orange"
+	assert controller.color == "ORANGE"
 
 	# Change a value in the instance...
 	controller.color = "purple"

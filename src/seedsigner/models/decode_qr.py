@@ -3,11 +3,13 @@ from pyzbar.pyzbar import ZBarSymbol
 from enum import IntEnum
 import re
 import base64
-from embit import bip39, psbt
+from embit import psbt
 from binascii import a2b_base64, b2a_base64
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
 from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
 from seedsigner.models.qr_type import QRType
+from seedsigner.models.settings import Settings
+from seedsigner.models.seed import Seed
 
 ###
 ### DecodeQR Class
@@ -15,8 +17,6 @@ from seedsigner.models.qr_type import QRType
 ###
 
 class DecodeQR:
-
-    _4LETTER_WORDLIST = [word[:4].strip() for word in bip39.WORDLIST]
 
     def __init__(self, **kwargs):
         self.complete = False
@@ -189,6 +189,9 @@ class DecodeQR:
 
     @staticmethod
     def SegmentType(s):
+        
+        _WORDLIST = Settings.get_instance().wordlist
+        _4LETTER_WORDLIST = [word[:4].strip() for word in _WORDLIST]
 
         if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
             return QRType.PSBTUR2
@@ -198,10 +201,10 @@ class DecodeQR:
             return QRType.PSBTURLEGACY
         elif re.search(r'\d{48,96}', s):
             return QRType.SEEDSSQR
-        elif all(x in bip39.WORDLIST for x in s.strip().split(" ")):
+        elif all(x in _WORDLIST for x in s.strip().split(" ")):
             # checks if all words in list are in bip39 word list
             return QRType.SEEDMNEMONIC
-        elif all(x in DecodeQR._4LETTER_WORDLIST for x in s.strip().split(" ")):
+        elif all(x in _4LETTER_WORDLIST for x in s.strip().split(" ")):
             # checks if all 4 letter words are in list are in 4 letter bip39 word list
             return QRType.SEED4LETTERMNEMONIC
         elif DecodeQR.isBase64PSBT(s):
@@ -427,6 +430,9 @@ class SeedQR:
 
     def add(self, segment, qr_type=QRType.SEEDSSQR):
 
+        _WORDLIST = Settings.get_instance().wordlist
+        _4LETTER_WORDLIST = [word[:4].strip() for word in _WORDLIST]
+
         if qr_type == QRType.SEEDSSQR:
 
             try:
@@ -436,7 +442,7 @@ class SeedQR:
                 num_words = int(len(segment) / 4)
                 for i in range(0, num_words):
                     index = int(segment[i * 4: (i*4) + 4])
-                    word = bip39.WORDLIST[index]
+                    word = _WORDLIST[index]
                     self.seed_phrase.append(word)
                 if len(self.seed_phrase) > 0:
                     if self.is1224Phrase() == False:
@@ -453,7 +459,10 @@ class SeedQR:
 
             try:
                 # embit mnemonic code to validate
-                bip39.mnemonic_to_seed(segment.strip())
+                seed = Seed(segment, passphrase="")
+                if not seed:
+                    # seed is not valid, return invalid
+                    return DecodeQRStatus.INVALID
                 self.seed_phrase = segment.strip().split(" ")
                 if self.is1224Phrase() == False:
                         return DecodeQRStatus.INVALID
@@ -469,10 +478,13 @@ class SeedQR:
                 sl = segment.strip().split(" ")
                 words = []
                 for s in sl:
-                    words.append(bip39.WORDLIST[DecodeQR._4LETTER_WORDLIST.index(s)])
+                    words.append(_WORDLIST[_4LETTER_WORDLIST.index(s)])
 
                 # embit mnemonic code to validate
-                bip39.mnemonic_to_seed(" ".join(words).strip())
+                seed = Seed(words, passphrase="")
+                if not seed:
+                    # seed is not valid, return invalid
+                    return DecodeQRStatus.INVALID
                 self.seed_phrase = words
                 if self.is1224Phrase() == False:
                         return DecodeQRStatus.INVALID

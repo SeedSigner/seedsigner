@@ -2,7 +2,7 @@
 from embit import bip39, bip32
 import unicodedata
 
-from seedsigner.models import Settings 
+from seedsigner.models.settings import Settings 
 
 class Seed:
 
@@ -41,6 +41,10 @@ class Seed:
 	@property
 	def mnemonic_display(self):
 		return unicodedata.normalize("NFC", self._mnemonic)
+	
+	@property
+	def mnemonic_display_list(self):
+		return unicodedata.normalize("NFC", self._mnemonic).split()
 
 	@mnemonic.setter
 	def mnemonic(self, value):
@@ -51,6 +55,7 @@ class Seed:
 			
 		if self._init_complete:
 			self._valid = self._generate_seed()
+
 
 	@property
 	def passphrase(self):

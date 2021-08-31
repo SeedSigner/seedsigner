@@ -188,7 +188,7 @@ class Controller(Singleton):
                 return Path.SEED_TOOLS_SUB_MENU
 
             if len(seed.mnemonic_list) > 0:
-                seed.mnemonic = self.seed_tools_view.display_last_word(seed.mnemonic_list)
+                seed.mnemonic = self.seed_tools_view.display_last_word(seed.mnemonic_display_list)
                 break
 
         # display seed phrase

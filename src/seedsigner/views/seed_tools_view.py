@@ -1,6 +1,4 @@
 # External Dependencies
-from embit import bip39
-from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 from PIL import ImageDraw, Image
 from PIL.ImageOps import autocontrast
 import hashlib

@@ -1,5 +1,5 @@
 from enum import IntEnum
-from embit import psbt, bip39, bip32
+from embit import psbt, bip32
 from embit.networks import NETWORKS
 from binascii import b2a_base64, hexlify
 from seedsigner.helpers.ur2.ur_encoder import UREncoder
@@ -8,6 +8,8 @@ from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.bcur import (bc32encode, cbor_encode, bcur_encode)
 from seedsigner.helpers.qr import QR
 from seedsigner.models.qr_type import QRType
+from seedsigner.models.settings import Settings
+from seedsigner.models.seed import Seed
 
 ###
 ### EncodeQR Class
@@ -17,6 +19,7 @@ from seedsigner.models.qr_type import QRType
 class EncodeQR:
 
     def __init__(self, **kwargs):
+        self._WORDLIST = Settings.get_instance().wordlist
         self.psbt = None
         self.seed_phrase = None
         self.passphrase = None
@@ -193,7 +196,7 @@ class SeedSSQR:
     def nextPart(self):
         data = ""
         for word in self.seed_phrase:
-            index = bip39.WORDLIST.index(word)
+            index = self._WORDLIST.index(word)
             data += str("%04d" % index)
 
         return data
@@ -212,8 +215,8 @@ class XPubQR:
         self.sent_complete = False
 
         self.network = network
-        self.seed = bip39.mnemonic_to_seed((" ".join(self.seed_phrase)).strip(), self.passphrase)
-        self.root = bip32.HDKey.from_seed(self.seed, version=NETWORKS[self.network]["xprv"])
+        self.seed = Seed(self.seed_phrase, self.passphrase)
+        self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[self.network]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
         self.bip48_xprv = self.root.derive(self.derivation)
         self.bip48_xpub = self.bip48_xprv.to_public()
@@ -304,8 +307,3 @@ class SpecterXPubQR(XPubQR):
 
     def isComplete(self):
         return self.sent_complete
-
-class EncodeQRDensity(IntEnum):
-    LOW = 1
-    MEDIUM = 2
-    HIGH = 3
