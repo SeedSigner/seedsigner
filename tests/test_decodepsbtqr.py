@@ -1,8 +1,9 @@
 import pytest
 from mock import MagicMock
+from seedsigner.models.seed import Seed
 from seedsigner.models.decode_qr import DecodeQR, QRType, DecodeQRStatus
 from seedsigner.models.psbt_parser import PSBTParser
-from embit import psbt
+from embit import psbt, bip39
 
 
 # this is an of this bug: https://github.com/Foundation-Devices/foundation-ur-py/issues/3
@@ -80,7 +81,8 @@ def test_base64_single_frame_singlsig():
 
     mnemonic = "height demise useless trap grow lion found off key clown transfer enroll"
     pw = ""
-    pp = PSBTParser(tx,mnemonic.split(" "),pw,"test")
+    seed = Seed(mnemonic, pw, wordlist=bip39.WORDLIST)
+    pp = PSBTParser(tx,seed,"test")
 
     assert tx.inputs[0].witness_utxo.value == 25000 # input amount in psbt
 
@@ -130,7 +132,7 @@ def test_base64_2_input_p2wsh():
     assert str(tx) == base64_psbt
 
     mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-    pp = PSBTParser(tx,mnemonic.split(" "),"","test")
+    pp = PSBTParser(tx,Seed(mnemonic, wordlist=bip39.WORDLIST),"test")
 
     assert tx.inputs[0].witness_utxo.value == 10000000 # input amount 1 in psbt
 
@@ -157,7 +159,7 @@ def test_base64_1_input_p2sh_p2wsh():
     assert str(tx) == base64_psbt
 
     mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-    pp = PSBTParser(tx,mnemonic.split(" "),"","test")
+    pp = PSBTParser(tx,Seed(mnemonic, wordlist=bip39.WORDLIST),"test")
 
     assert tx.inputs[0].witness_utxo.value == 100000000 # input amount 1 in psbt
 
@@ -213,7 +215,7 @@ def test_ur_legacy():
     tx = d.getPSBT()
 
     mnemonic = "zone zone zone zone zone abandon ability able abandon ability able abstract"
-    pp = PSBTParser(tx,mnemonic.split(" "),"","test")
+    pp = PSBTParser(tx,Seed(mnemonic, wordlist=bip39.WORDLIST),"test")
 
     assert pp.input_amount == 200000
 
@@ -247,7 +249,7 @@ def test_specter_multisig_animated_qr():
     tx = d.getPSBT()
 
     mnemonic = "zone zone zone zone zone abandon ability able abandon ability able abstract"
-    pp = PSBTParser(tx,mnemonic.split(" "),"","test")
+    pp = PSBTParser(tx,Seed(mnemonic, wordlist=bip39.WORDLIST),"test")
 
     assert pp.input_amount == 1052818
 
@@ -285,7 +287,7 @@ def test_specter_multisig_animated_qr():
     tx2 = d2.getPSBT()
 
     mnemonic2 = "able bacon cable able bacon cable abandon abandon abandon abandon abandon access"
-    pp2 = PSBTParser(tx2,mnemonic2.split(" "),"","test")
+    pp2 = PSBTParser(tx2,Seed(mnemonic2, wordlist=bip39.WORDLIST),"test")
 
     assert pp2.input_amount == 1052818
 

@@ -2,11 +2,12 @@ from embit import psbt, script, ec, bip32, bip39
 from embit.networks import NETWORKS
 from io import BytesIO
 
+from seedsigner.models.seed import Seed
+
 class PSBTParser():
 
-    def __init__(self, p, seed_phrase=[], passphrase="", network="main"):
-        self.seed_phrase = seed_phrase
-        self.passphrase = passphrase
+    def __init__(self, p, seed: Seed, network="main"):
+        self.seed = seed
         self.network = network
         self.psbt = p
 
@@ -18,17 +19,15 @@ class PSBTParser():
         self.destination_addresses = []
         self.self_addresses = []
 
-        self.seed = None
         self.root = None
 
-        if self.seed_phrase != None:
-            self.parse(self.psbt,self.seed_phrase,self.passphrase,self.network)
+        if self.seed:
+            self.parse(self.psbt,self.seed,self.network)
 
-    def __setSeedRoot(self, seed_phrase, passphrase, network):
-        self.seed = bip39.mnemonic_to_seed(" ".join(seed_phrase).strip(), passphrase)
-        self.root = bip32.HDKey.from_seed(self.seed, version=NETWORKS[network]["xprv"])
+    def __setRoot(self, seed: Seed, network):
+        self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[network]["xprv"])
 
-    def parse(self, p, seed_phrase=[], passphrase="", network="main"):
+    def parse(self, p, seed: Seed, network="main"):
         is_psbt_empty = False
         try:
             if p == None:
@@ -39,10 +38,10 @@ class PSBTParser():
         if is_psbt_empty:
             return False
 
-        if len(seed_phrase) == 0:
+        if not seed:
             return False
 
-        self.__setSeedRoot(seed_phrase,passphrase,network)
+        self.__setRoot(seed, network)
 
         rt = self.__parseInputs()
         if rt == False:

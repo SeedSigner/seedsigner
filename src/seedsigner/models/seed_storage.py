@@ -1,5 +1,4 @@
 # External Dependencies
-from embit import bip39
 from seedsigner.models import Seed
 
 class SeedStorage:

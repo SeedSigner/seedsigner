@@ -3,7 +3,7 @@ import time
 from multiprocessing import Process, Queue
 from subprocess import call
 import os, sys
-from embit import bip39, bip32
+from embit import bip32
 from embit.networks import NETWORKS
 from binascii import hexlify
 from threading import Thread
@@ -694,7 +694,7 @@ class Controller(Singleton):
 
         # show transaction information before sign
         self.menu_view.draw_modal(["Parsing PSBT"])
-        p = PSBTParser(psbt,seed.mnemonic_list,seed.passphrase,self.settings.network)
+        p = PSBTParser(psbt,seed,self.settings.network)
         self.signing_tools_view.display_transaction_information(p)
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
         if input == B.KEY_LEFT:
