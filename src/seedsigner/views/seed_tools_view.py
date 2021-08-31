@@ -11,13 +11,10 @@ import time
 # Internal file class dependencies
 from . import View
 from seedsigner.helpers import B, QR, Keyboard, TextEntryDisplay, mnemonic_generation
-from seedsigner.models import DecodeQR, DecodeQRStatus, QRType, EncodeQR
+from seedsigner.models import DecodeQR, DecodeQRStatus, QRType, EncodeQR, Settings
 from seedsigner.models import SeedStorage
 
-
 class SeedToolsView(View):
-
-    SEEDWORDS = SeedStorage.SEEDWORDS
 
     ALPHABET = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
 
@@ -1298,5 +1295,5 @@ class SeedToolsView(View):
 
 
     def calc_possible_words(self):
-        self.possible_words = [i for i in SeedToolsView.SEEDWORDS if i.startswith("".join(self.letters).strip())]
+        self.possible_words = [i for i in Settings.get_instance().wordlist if i.startswith("".join(self.letters).strip())]
         self.selected_possible_words_index = 0        

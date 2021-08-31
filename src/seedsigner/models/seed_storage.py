@@ -4,8 +4,6 @@ from seedsigner.models import Seed
 
 class SeedStorage:
 
-	SEEDWORDS = bip39.WORDLIST
-
 	def __init__(self) -> None:
 		self.seeds = []
 		
@@ -143,9 +141,9 @@ class SeedStorage:
 		count = 0
 		if self.slots[0] == -1:
 			count += 1
-		if self.slots[0] == -1:
+		if self.slots[1] == -1:
 			count += 1
-		if self.slots[0] == -1:
+		if self.slots[2] == -1:
 			count += 1
 
 		return count

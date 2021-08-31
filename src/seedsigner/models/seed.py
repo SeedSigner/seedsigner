@@ -2,6 +2,8 @@
 from embit import bip39, bip32
 import unicodedata
 
+from seedsigner.models import Settings 
+
 class Seed:
 
 	def __init__(self, mnemonic = None, passphrase = "", wordlist=None) -> None:
@@ -10,7 +12,7 @@ class Seed:
 		self.passphrase = passphrase
 		self.mnemonic = mnemonic
 		if wordlist == None:
-			self._wordlist = bip39.WORDLIST
+			self._wordlist = Settings.get_instance().wordlist
 		else:
 			self._wordlist = wordlist
 		

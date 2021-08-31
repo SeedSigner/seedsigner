@@ -3,6 +3,7 @@ from .encode_qr import EncodeQRDensity
 from .qr_type import QRType
 
 import configparser
+from embit import bip39
 
 class Settings(Singleton):
 
@@ -21,7 +22,8 @@ class Settings(Singleton):
             'system': {
                 'debug': False,
                 'default_language': "en",
-                'persistent_settings': False
+                'persistent_settings': False,
+                'wordlist': bip39.WORDLIST
             },
             'display': {
                 'text_color': "ORANGE",
@@ -116,6 +118,10 @@ class Settings(Singleton):
     @property
     def language(self):
         return self._data["system"]["default_language"]
+        
+    @property
+    def wordlist(self):
+        return self._data["system"]["wordlist"]
 
     ### display
 
