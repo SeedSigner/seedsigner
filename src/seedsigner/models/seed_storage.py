@@ -1,5 +1,6 @@
 # External Dependencies
-from embit import bip39, bip32
+from embit import bip39
+from seedsigner.models import Seed
 
 class SeedStorage:
 
@@ -7,8 +8,6 @@ class SeedStorage:
 
 	def __init__(self) -> None:
 		self.seeds = []
-		self.mnemonics = []
-		self.passphrases = []
 		
 		# to be removed once the concepts of slots is removed
 		# this is a list of 3 indexes to the actual seed/mnemonic/passphrase data
@@ -16,42 +15,19 @@ class SeedStorage:
 		self.slots = [-1,-1,-1]
 	
 	# only adds a seed if it's valid and does not already exist
-	def add_seed(self, seed_phrase, passphrase: str = "", slot_num = -1) -> bool:
-		mnemonic = ""
-		if isinstance(seed_phrase, list):
-			mnemonic = " ".join(seed_phrase).strip()
-		elif isinstance(seed_phrase, str):
-			mnemonic = seed_phrase.strip()
-		else:
-			raise ValueError("Invalid mnemonic seed phrase format")
-			
-		if not isinstance(passphrase, str):
-			raise ValueError("Invalid passphrase format")
+	def add_mnemonic(self, mnemonic, passphrase: str = "", slot_num = -1) -> bool:
+		self.seeds.append(Seed(mnemonic, passphrase))
 
-		try:
-			seed = bip39.mnemonic_to_seed(mnemonic, passphrase, wordlist=SeedStorage.SEEDWORDS)
-			self.seeds.append(seed)
-			self.mnemonics.append(mnemonic)
-			self.passphrases.append(passphrase)
+		# used to track virtual slot number, TODO: remove concept in UI of slots
+		if slot_num > 0:
+			self.slots[slot_num - 1] = len(self.seeds) - 1
 			
-			# used to track virtual slot number, TODO: remove concept in UI of slots
-			if slot_num > 0:
-				self.slots[slot_num - 1] = len(self.seeds) - 1
-
-			return True
-		except Exception as e:
-			return False # return false if there is an unexpected exception
-			
-	def delete_seed(self, seed) -> bool:
-		if seed in self.seeds:
-			idx = self.seeds.index(seed)
-			self.seeds.pop(idx)
-			self.mnemonics.pop(idx)
-			self.passphrases.pop(idx)
-			self.slots[self.slots.index(idx)] = -1
-			return True
-		else:
-			return False
+	def add_seed(self, seed: Seed, slot_num = -1):
+		self.seeds.append(seed)
+		
+		# used to track virtual slot number, TODO: remove concept in UI of slots
+		if slot_num > 0:
+			self.slots[slot_num - 1] = len(self.seeds) - 1
 			
 	def add_passphrase_to_seed(self, seed, passphrase: str = ""):
 		if not isinstance(passphrase, str):
@@ -60,53 +36,22 @@ class SeedStorage:
 		# find existing seed to add passphrase to
 		if seed in self.seeds:
 			idx = self.seeds.index(seed)
-			new_seed = bip39.mnemonic_to_seed(self.mnemonics[idx], passphrase, wordlist=SeedStorage.SEEDWORDS)
-			self.seeds[idx] = new_seed
-			self.passphrases[idx] = passphrase
+			seed.passphrase = passphrase
 			return True
 		else:
 			return False
 		
 	def remove_passphrase_from_seed(self, seed):
-		# find existing seed to add passphrase to
-		if seed in self.seeds:
-			idx = self.seeds.index(seed)
-			new_seed = bip39.mnemonic_to_seed(self.mnemonics[idx], "", wordlist=SeedStorage.SEEDWORDS)
-			self.seeds[idx] = new_seed
-			self.passphrases[idx] = ""
-			return True
-		else:
-			return False
+		return self.add_passphrase_to_seed(seed, "")
 	
 	# validates mnemonic part of a seed in list or string format
 	def validate_mnemonic(self, seed_phrase) -> bool:
-		mnemonic = ""
-		if isinstance(seed_phrase, list):
-			mnemonic = " ".join(seed_phrase).strip()
-		elif isinstance(seed_phrase, str):
-			mnemonic = seed_phrase.strip()
-		else:
-			raise ValueError("Invalid mnemonic seed phrase format")
-			
-		return bip39.mnemonic_is_valid(mnemonic)
-
-	def get_last_seed(self):
-		if len(self.seeds) >= 1:
-			return self.seeds[-1]
-		else:
-			return None
-
-	def get_last_mnemonic(self):
-		if len(self.mnemonics) >= 1:
-			return self.mnemonics[-1]
-		else:
-			return None
-
-	def get_last_passphrase(self):
-		if len(self.passphrases) >= 1:
-			return self.passphrases[-1]
-		else:
-			return None
+		try:
+			seed = Seed(seed_phrase)
+		except Exception as e:
+			return False
+		
+		return True
 		
 	def seed_count(self):
 		return len(self.seeds)
@@ -120,13 +65,13 @@ class SeedStorage:
 		if self.slots[slot_num - 1] == -1:
 			raise ValueError("Slot is unexpectedly empty")
 			
-		return self.mnemonics[self.slots[slot_num - 1]]
+		return self.seeds[self.slots[slot_num - 1]].mnemonic
 
 	def get_passphrase_from_slot(self, slot_num = 0):
 		if self.slots[slot_num - 1] == -1:
 			raise ValueError("Slot is unexpectedly empty")
 			
-		return self.passphrases[self.slots[slot_num - 1]]
+		return self.seeds[self.slots[slot_num - 1]].passphrase
 		
 	def add_passphrase_to_slot(self, passphrase: str = "", slot_num = -1):
 		if self.slots[slot_num - 1] == -1:
@@ -174,7 +119,7 @@ class SeedStorage:
 
 	def check_slot_passphrase(self, slot_num) -> bool:
 		if self.slots[slot_num-1] != -1:
-			if self.passphrases[self.slots[slot_num-1]] != "":
+			if self.seeds[self.slots[slot_num-1]].passphrase != "":
 				return True
 		return False
 	
@@ -206,7 +151,7 @@ class SeedStorage:
 		return count
 
 	def save_seed_phrase(self, seed_phrase = [], slot_num = 0) -> bool:
-		return self.add_seed(seed_phrase,slot_num=slot_num)
+		return self.add_mnemonic(seed_phrase,slot_num=slot_num)
 
 	def save_passphrase(self, passphrase, slot_num = 0) -> bool:
 		return self.add_passphrase_to_slot(passphrase, slot_num=slot_num)
@@ -215,13 +160,19 @@ class SeedStorage:
 		if self.slots[slot_num - 1] == -1:
 			return []
 
-		return self.mnemonics[self.slots[slot_num - 1]].split()
+		return self.seeds[self.slots[slot_num - 1]].mnemonic.split()
 
 	def get_passphrase(self, slot_num) -> str:
 		if self.slots[slot_num - 1] == -1:
 			return ""
 
-		return self.passphrases[self.slots[slot_num - 1]]
+		return self.seeds[self.slots[slot_num - 1]].passphrase
+
+	def get_seed(self, slot_num) -> Seed:
+		if self.slots[slot_num - 1] == -1:
+			return Seed()
+
+		return self.seeds[self.slots[slot_num - 1]]
 
 	def delete_passphrase(self, slot_num) -> bool:
 		if self.slots[slot_num - 1] == -1:
