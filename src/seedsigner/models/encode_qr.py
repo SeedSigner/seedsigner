@@ -7,7 +7,7 @@ from seedsigner.helpers.ur2.cbor_lite import CBOREncoder
 from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.bcur import (bc32encode, cbor_encode, bcur_encode)
 from seedsigner.helpers.qr import QR
-from seedsigner.models.qr_type import QRType
+from seedsigner.models.qr_type import QRType, EncodeQRDensity
 from seedsigner.models.settings import Settings
 from seedsigner.models.seed import Seed
 
@@ -18,8 +18,10 @@ from seedsigner.models.seed import Seed
 
 class EncodeQR:
 
+    WORDLIST = None
+
     def __init__(self, **kwargs):
-        self._WORDLIST = Settings.get_instance().wordlist
+        EncodeQR.WORDLIST = Settings.get_instance().wordlist
         self.psbt = None
         self.seed_phrase = None
         self.passphrase = None
@@ -196,7 +198,7 @@ class SeedSSQR:
     def nextPart(self):
         data = ""
         for word in self.seed_phrase:
-            index = self._WORDLIST.index(word)
+            index = EncodeQR.WORDLIST.index(word)
             data += str("%04d" % index)
 
         return data
