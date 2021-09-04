@@ -42,6 +42,7 @@ If you have specific questions about the project, our [Telegram Group](https://t
 * Support for custom user-defined derivation paths
 * Single-sig and multi-sig address verification
 * Re-imagined, graphically-focused user interface
+* Multi-language support
 * Customized Linux live-boot OS to allow MicroSD card removal
 * Other optimizations based on user feedback!
 
@@ -64,7 +65,7 @@ Notes:
 
 # Important Note on Software Installation
 
-The easiest way to install the software is to download the most recent "seedsigner_X_X_X.zip" file in the [software releases](https://github.com/SeedSigner/seedsigner/releases) section of this repository. After downloading the .zip file, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go. If your goal is a more trustless installation, you can follow the manual build instructions below.
+The quickest and easiest way to install the software is to download the most recent "seedsigner_X_X_X.zip" file in the [software releases](https://github.com/SeedSigner/seedsigner/releases) section of this repository. After downloading the .zip file, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go. If your goal is a more trustless installation, you can follow the manual build instructions below.
 
 ---------------
 
@@ -86,7 +87,7 @@ The upper and lower portions of the enclosure can be printed using a standard FD
 
 ---------------
 
-# MANUAL BUILD INSTRUCTIONS:
+# Manual Software Installation Instructions:
 Begin by preparing a copy of the Raspberry Pi Lite operating system (https://www.raspberrypi.org/software/operating-systems/) on a MicroSD card. Their [Raspberry Pi Imager](https://www.raspberrypi.org/software/) tool makes this easy.
 
 SeedSigner installation and configuration requires an internet connection on the device to download the necessary libraries and code. But because the Pi Zero 1.3 does not have onboard wifi, you have two options:
