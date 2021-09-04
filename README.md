@@ -1,24 +1,57 @@
 # Build an offline, airgapped Bitcoin signing device for less than $50!
 
-![Image of SeedSigner in an Orange Pill enclosure](docs/img/Orange_Pill.JPG)
+![Image of SeedSigners in Open Pill Enclosures](docs/img/Open_Pill_Star.JPG)![Image of SeedSigner in an Orange Pill enclosure](docs/img/Orange_Pill.JPG)
 
 ---------------
 
-## Contributors Welcome!
+# Project Summary
 
-* Now that the overall code structure has been largely established, we welcome potential feature additions/improvements
-* We are also actively seeking contributors to create walkthroughs/tutorials on building and using SeedSigner
-* We are seeking a smaller group of more technical users to test new features and upcoming releases
+The goal of SeedSigner is to lower the cost and complexity of Bitcoin multi-signature wallet use. To accomplish this goal, SeedSigner offers anyone the opportunity to build a verifiably air-gapped Bitcoin signing device using inexpensive, publicly available hardware components (usually < $50). SeedSigner helps users save with bitcoin by assisting with trustless private key generation and multi-signature wallet setup, and helps users transact with bitcoin via a secure, air-gapped QR-exchange signing model.
 
-Please contact @SeedSigner on Twitter/Telegram to inquire with any questions about contributing!
+Additional information about the project can be found at [seedsigner.com](https://seedsigner.com).
+
+You can follow [@SeedSigner](https://twitter.com/SeedSigner) on Twitter for the latest project news and developments.
+
+If you have specific questions about the project, our [Telegram Group](https://t.me/joinchat/GHNuc_nhNQjLPWsS) is a great place to ask them.
+
+### Feature Highlights:
+* Calculate word 12/24 of a BIP39 seed phrase
+* Create a 24-word BIP39 seed phrase with 99 dice rolls
+* Create a 24-word BIP39 seed phrase by taking a digital photo 
+* Temporarily store up to 3 seed phrases while device is powered
+* Guided interface to manually create a SeedQR for instant input [(demo video here)](https://youtu.be/c1-PqTNx1vc)
+* BIP39 passphrase / word 25 support
+* Native Segwit Multisig XPUB generation w/ QR display
+* Scan and parse transaction data from animated QR codes
+* Sign transactions & transfer XPUB data using animated QR codes [(demo video here)](https://youtu.be/LPqvdQ2gSzs)
+* Live preview during photo-to-seed and QR scanning UX
+* Optimized seed word entry interface
+* Support for Bitcoin Mainnet & Testnet
+* User-configurable QR code display density
+* Responsive, event-driven user interface
+
+### Considerations:
+* Built for compatibility with Specter-desktop, Sparrow and BlueWallet Vaults
+* Device takes ~45 seconds to boot before menu appears (be patient!)
+* Always test your setup before transfering larger amounts of bitcoin (try testnet first!)
+* Currently ONLY generating Native Segwit Single-sig & Multi-sig XPUBs
+* Slightly rotating the screen clockwise or counter-clockwise should resolve lighting/glare issues
+* If you think SeedSigner adds value to the Bitcoin ecosystem, please help us spread the word! (tweets, pics, videos, etc.)
+
+### Planned Upcoming Improvements / Functionality:
+* Support for custom user-defined derivation paths
+* Single-sig and multi-sig address verification
+* Re-imagined, graphically-focused user interface
+* Customized Linux live-boot OS to allow MicroSD card removal
+* Other optimizations based on user feedback!
 
 ---------------
 
-## Shopping List
+# Shopping List
 
 To build a SeedSigner, you will need:
 
-* Raspberry Pi Zero (version 1.3 with no wireless capability)
+* Raspberry Pi Zero (version 1.3 with no WiFi/Bluetooth capability)
 * Waveshare 1.3" 240x240 pxl LCD (more info at https://www.waveshare.com/wiki/1.3inch_LCD_HAT)
 * Pi Zero-conpatible camera (tested to work with the Aokin / AuviPal 5MP 1080p with OV5647 Sensor)
 
@@ -27,54 +60,33 @@ Notes:
 * Other cameras with the above sensor module should work, but may not fit in the Orange Pill enclosure
 * Choose the Waveshare screen carefully; make sure to purchase the model that has a resolution of 240x240 pixels
 
-The easiest way to install the software is to download the "seedsigner_X_X_X.zip" file in the current release, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go.
+---------------
+
+# Important Note on Software Installation
+
+The easiest way to install the software is to download the most recent "seedsigner_X_X_X.zip" file in the [software releases](https://github.com/SeedSigner/seedsigner/releases) section of this repository. After downloading the .zip file, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go. If your goal is a more trustless installation, you can follow the manual build instructions below.
 
 ---------------
 
-## Now make your own "Orange Pill" enclosure too!
+# Enclosure Designs
 
-The Orange Pill enclosure design has been open-sourced! Check out the "Orange_Pill" folder in this repo. You'll need the following additional hardware to assemble it:
+### Open Pill
+
+The Open Pill enclosure design is all about quick, simple and inexpensive depoloyment of a SeedSigner device. The design does not require any additional hardware and can be printed using a standard FDM 3D printer in about 2 hours, no supports necessary. A video demonstrating the assembly process can be found [here](https://youtu.be/gXPFJygZobEa). To access the design file and printable model, click [here](https://github.com/SeedSigner/seedsigner/tree/main/enclosures/open_pill).
+
+### Orange Pill
+
+The Orange Pill enclosure design offers a more finished look that includes button covers and a joystick topper. You'll also need the following additional hardware to assemble it:
 
 * 4 x F-F M2.5 spacers, 10mm length
 * 4 x M2.5 pan head screws, 6mm length
 * 4 x M2.5 pan head screws, 12mm length
 
-The upper and lower portions of the enclosure can be printed with a conventional FDM 3D printer, 0.2mm layer height is fine, no supports necessary. The buttons and joystick nub should be produced with a SLA/resin printer (orient the square hole on the joystick nub away from the build plate). An overview of the entire assembly process can be found here:
-
-https://youtu.be/aIIc2DiZYcI
+The upper and lower portions of the enclosure can be printed using a standard FDM 3D printer, no supports necessary. The buttons and joystick nub should ideally be produced with a SLA/resin printer. An overview of the entire assembly process can be found [here](https://youtu.be/aIIc2DiZYcI). To access the design files and printable models, click [here](https://github.com/SeedSigner/seedsigner/tree/main/enclosures/orange_pill).
 
 ---------------
 
-### Feature Highlights:
-* Calculate word 12/24 of a BIP39 seed phrase
-* Create 24-word BIP39 seed phrase with 99 dice rolls
-* Temporarily store up to 3 seed phrases while device is powered
-* Native Segwit Multisig XPUB generation w/ QR display
-* Scan and parse transaction data from animated QR codes
-* Sign transactions & transfer XPUB data using animated QR codes
-* Support for Bitcoin Mainnet & Testnet
-* Responsive, event-driven user interface
-* Only valid input letters appear during seed word entry (time-saver!)
-
-### Considerations:
-* Built for compatibility with Specter-desktop, Sparrow and BlueWallet Vaults
-* Current release takes ~50 seconds to boot before menu appears (be patient!)
-* Always test your setup before transfering larger amounts of bitcoin (try testnet first!)
-* Currently ONLY generating Native Segwit Multisig Xpubs
-* (Holding the screen upside-down or at a slight angle can significantly reduce glare)
-* Check out our "seedsigner" telegram group for community help / feedback: (https://t.me/joinchat/GHNuc_nhNQjLPWsS)
-* If you think SeedSigner adds value to the Bitcoin ecosystem, please help me spread the word! (tweets, pics, videos, etc.)
-
-### Planned Upcoming Improvements / Functionality:
-* Support for single-signature XPUB generation / signing
-* Support for BIP39 passphrases
-* User-guided manual QR transcription to quickly input seed phrases
-* Low/Med/High customizable QR density
-* Other optimizations based on user feedback!
-
----------------
-
-## MANUAL BUILD INSTRUCTIONS:
+# MANUAL BUILD INSTRUCTIONS:
 Begin by preparing a copy of the Raspberry Pi Lite operating system (https://www.raspberrypi.org/software/operating-systems/) on a MicroSD card. Their [Raspberry Pi Imager](https://www.raspberrypi.org/software/) tool makes this easy.
 
 SeedSigner installation and configuration requires an internet connection on the device to download the necessary libraries and code. But because the Pi Zero 1.3 does not have onboard wifi, you have two options:
@@ -191,5 +203,5 @@ It will take about a minute after the Pi is powered on for the GUI to launch -- 
 _Reminder: If you used option #2, [return the guide](docs/usb_relay.md) to remove the internet access over USB configuration._
 
 
-## Run the tests
+### Run the tests
 see: [tests/README.md](tests/README.md)
