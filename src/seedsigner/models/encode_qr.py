@@ -7,8 +7,7 @@ from seedsigner.helpers.ur2.cbor_lite import CBOREncoder
 from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.bcur import (bc32encode, cbor_encode, bcur_encode)
 from seedsigner.helpers.qr import QR
-from seedsigner.models.qr_type import QRType, EncodeQRDensity
-from seedsigner.models.seed import Seed
+from seedsigner.models import Seed, QRType, EncodeQRDensity
 
 ###
 ### EncodeQR Class
@@ -66,11 +65,11 @@ class EncodeQR:
         elif self.qr_type == QRType.PSBTUR2:
             self.encoder = UREncodePSBTQR(self.psbt, self.qr_density)
         elif self.qr_type == QRType.SEEDSSQR:
-            self.encoder = SeedSSQR(self.seed_phrase)
+            self.encoder = SeedSSQR(self.seed_phrase, self.wordlist)
         elif self.qr_type == QRType.XPUBQR:
-            self.encoder = XPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.policy)
+            self.encoder = XPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.policy, self.wordlist)
         elif self.qr_type == QRType.SPECTERXPUBQR:
-            self.encoder = SpecterXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.policy, self.qr_density)
+            self.encoder = SpecterXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.policy, self.qr_density, self.wordlist)
         else:
             raise Exception('Encoder Type not Supported')
 
@@ -193,8 +192,12 @@ class SpecterEncodePSBTQR:
 
 class SeedSSQR:
 
-    def __init__(self, seed_phrase):
+    def __init__(self, seed_phrase, wordlist):
         self.seed_phrase = seed_phrase
+        self.wordlist = wordlist
+        
+        if self.wordlist == None:
+            raise Exception('Wordlist Required')
 
     def seqLen(self):
         return 1
@@ -202,7 +205,7 @@ class SeedSSQR:
     def nextPart(self):
         data = ""
         for word in self.seed_phrase:
-            index = EncodeQR.WORDLIST.index(word)
+            index = self.wordlist.index(word)
             data += str("%04d" % index)
 
         return data
@@ -212,13 +215,17 @@ class SeedSSQR:
 
 class XPubQR:
 
-    def __init__(self, seed_phrase, passphrase, derivation, network, policy):
+    def __init__(self, seed_phrase, passphrase, derivation, network, policy, wordlist):
         self.seed_phrase = seed_phrase
         self.passphrase = passphrase
         self.derivation = derivation
+        self.wordlist = wordlist
         self.parts = []
         self.part_num_sent = 0
         self.sent_complete = False
+
+        if self.wordlist == None:
+            raise Exception('Wordlist Required')
 
         self.network = network
         self.seed = Seed(mnemonic=self.seed_phrase, passphrase=self.passphrase, wordlist=self.wordlist)
@@ -258,7 +265,7 @@ class XPubQR:
 
 class SpecterXPubQR(XPubQR):
 
-    def __init__(self, seed_phrase, passphrase, derivation, network, policy, qr_density):
+    def __init__(self, seed_phrase, passphrase, derivation, network, policy, qr_density, wordlist):
         self.qr_max_fragement_size = 65
         if qr_density == EncodeQRDensity.LOW:
             self.qr_max_fragement_size = 40
@@ -267,7 +274,7 @@ class SpecterXPubQR(XPubQR):
         elif qr_density == EncodeQRDensity.HIGH:
             self.qr_max_fragement_size = 90
 
-        XPubQR.__init__(self, seed_phrase, passphrase, derivation, network, policy)
+        XPubQR.__init__(self, seed_phrase, passphrase, derivation, network, policy, wordlist)
         self.__createParts()
 
     def __createParts(self):

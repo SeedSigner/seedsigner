@@ -20,7 +20,7 @@ class Seed:
 	def _generate_seed(self) -> bool:
 		self.seed = None
 		try:
-			self.seed = bip39.mnemonic_to_seed(self.mnemonic, password=self.passphrase, wordlist=self._wordlist)
+			self.seed = bip39.mnemonic_to_seed(self.mnemonic, password=self.passphrase, wordlist=self.wordlist)
 			return True
 		except Exception as e:
 			return False

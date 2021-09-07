@@ -17,8 +17,3 @@ class QRType(IntEnum):
     XPUBQR = 20
     SPECTERXPUBQR = 21
     INVALID = 100
-    
-class EncodeQRDensity(IntEnum):
-    LOW = 1
-    MEDIUM = 2
-    HIGH = 3

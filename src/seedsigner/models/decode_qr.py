@@ -7,8 +7,7 @@ from embit import psbt
 from binascii import a2b_base64, b2a_base64
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
 from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
-from seedsigner.models.qr_type import QRType
-from seedsigner.models.seed import Seed
+from seedsigner.models import QRType, Seed
 
 ###
 ### DecodeQR Class

@@ -9,11 +9,9 @@ from binascii import hexlify
 from threading import Thread
 
 # Internal file class dependencies
-from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
-    SettingsToolsView, IOTestView)
+from .views import (View, MenuView, SeedToolsView,SigningToolsView, SettingsToolsView, IOTestView)
 from .helpers import Buttons, B, Path, Singleton
-from .models import (SeedStorage, Settings, DecodeQR, DecodeQRStatus,
-    EncodeQRDensity, EncodeQR, PSBTParser, QRType, Seed)
+from .models import (EncodeQRDensity, QRType, Seed, SeedStorage, Settings, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
 
 class Controller(Singleton):
     """

@@ -1,8 +1,6 @@
 import pytest
 from mock import MagicMock
-from seedsigner.models.decode_qr import DecodeQR, QRType, DecodeQRStatus
-from seedsigner.models.psbt_parser import PSBTParser
-from seedsigner.models.seed import Seed
+from seedsigner.models import Seed, DecodeQR, DecodeQRStatus, QRType, EncodeQRDensity, PSBTParser
 from embit import psbt, bip39
 
 
@@ -41,7 +39,7 @@ def test_ur_qr_decode_multisig():
     ,   "UR:CRYPTO-PSBT/26-29/LPCSCYCSCACFCMCPCYBBRSPTSKHDSSKSKGDYBYDMPEYTWFDIROBZCHGWCEFMFECKZEDYAEAELAAEAEAELAAEAEAELAAOAEAELAADAEAEAEAEAEAEAECPAOAXREAMJNKKZCESYKSWJOJPTBRDEOKGBSHHDTIYPSBEPSVWKSYKJPCPDKUYIMPEOSFECEQZEOVTMDDYAEAELAAEAEAELAAEAEAELAAOAEAELAADAEAEAEAEAEAEAECPAOAXWTSOSKSKFNWYBYLBNSHTEEEEECTORFLRBYCWROTKVTEMBDPDQDTEVALECAWNWDVYCELPDNDYMYDYAEAELAAEAEAELAAEAEAELAAOAEAELAADAEAEAEAEAEAEAEAEADADTKGHCLAOOEWLYATYBAOYLKOLJESGHTGYJLCLRHSGLFKPBDCLSEHYMT"
     ]
 
-    d = DecodeQR()
+    d = DecodeQR(wordlist=bip39.WORDLIST)
     for i in qrcodes:
         d.addString(i)
         assert d.qrType() == QRType.PSBTUR2
@@ -63,7 +61,7 @@ def test_base64_single_frame_singlsig():
         "cHNidP8BAHICAAAAAQDo5ey+2HIrNUkExsFhsImv1OK1cYA9x/bRjYQD+0UaAQAAAAD9////Apg6AAAAAAAAF6kUVuVZEcdpQ2zgABa9dRUNYHD4VuaHgSYAAAAAAAAWABQaLE4t0JbDRg4pNnmcf+cAWIcyawAAAAAAAQEfqGEAAAAAAAAWABRyuw9od6yuS0yiZljV0X12wG9e5CIGA/ZlEZvQubb6PmcnK+vlnd8aftYnrQ8wHYSxsD8tDp61GIshjoFUAACAAQAAgAAAAIAAAAAAAAAAAAAAAA=="
     ]
 
-    d = DecodeQR()
+    d = DecodeQR(wordlist=bip39.WORDLIST)
     for i in qrcodes:
         d.addString(i)
         assert d.qrType() == QRType.PSBTBASE64
@@ -81,7 +79,12 @@ def test_base64_single_frame_singlsig():
 
     mnemonic = "height demise useless trap grow lion found off key clown transfer enroll"
     pw = ""
-    seed = Seed(mnemonic, pw, wordlist=bip39.WORDLIST)
+    seed = Seed(mnemonic, passphrase=pw, wordlist=bip39.WORDLIST)
+    
+    assert seed.mnemonic == mnemonic
+    
+    assert seed.seed != None
+    
     pp = PSBTParser(tx,seed,"test")
 
     assert tx.inputs[0].witness_utxo.value == 25000 # input amount in psbt
@@ -103,7 +106,7 @@ def test_ur2_sparrow_singlesig_to_self():
     ,   "UR:CRYPTO-PSBT/443-3/LPCFADRKAXCFAOOECYMSTBHDCSHDVYAXADCTPDIARTHKYLIDWSLTAASGSARSUECLSANEPDFZEHDLRNWSGLNNHTYTBNGRYLVYWDCPCLTDAEAEAEAEADDKAXTBCHOSVEHPAHTESNYAUYOYCKRNDRTBGWIHIYTLWFUERDNYWTMSLSROHKRPKELPLONDKOUEJSKBKGIHKNDNAYHLWENSMEGSSSHNAEEEFZSRNSKEGSVYWNEEAATAPYIMPASNHPFWMETEAYBYHFRSBBZCDSRDTTLNADLBEMFTTSSOAHENPFNTVSVEBDHNDTWYKBBDEYTSLPFRJSLBBTVADPDTBEDAKIZEZMZMAOPKPEAOAEAECPAOAXWKGRNLJEVSZMWSIDSOTTEHHETYFTFXCASBMKGTURBWJLIMTLLUFWSTSSKIZMLAFXBALUECZTFTHPISKTDWPEGRGSCPIYHDTLGYKIKORTJLHLVEMNKPCTAERKWPCMJN"
     ]
 
-    d = DecodeQR()
+    d = DecodeQR(wordlist=bip39.WORDLIST)
     for i in qrcodes:
         d.addString(i)
         assert d.qrType() == QRType.PSBTUR2
@@ -123,7 +126,7 @@ def test_base64_2_input_p2wsh():
 
     base64_psbt = "cHNidP8BALICAAAAAq1DhxRK+mUH4T6uUNob8bUaZ7MP+44MW4+Y9bOxpjhZAAAAAAD9////aWclWQ+45HKrI07r878E2UrAupT2paT4QurbmtNjYNQBAAAAAP3///8CQEIPAAAAAAAiACCpkDPDhmIzPlkJrjw9A71xjbIUWf3VUB7ooFJhTVm04tjSIQEAAAAAIgAgjQKFDauIXsV5u23LBdYgOwX1FwGGrLiQfWzBtFKZ7dIAAAAATwEENYfPBD5i336AAAACQStJhNVJul7vHKbo83VdmuAW2m0WaXLKDlFANn7dUNoCNbhLMdw4Knz7Q7o6exdL6UFhQegW9nJb0SUStbLEpawUAgjLdzAAAIABAACAAAAAgAIAAIBPAQQ1h88EnbHQAIAAAAI/2Nc7x7iMpJNapTe/OJTV4oifqzQcYY9KV2+PGRjCdQJoww1WnSNqfcxXGyux0q1PqfmzUqgJNqKJCpmqI9t47BQmu4PEMAAAgAEAAIAAAACAAgAAgE8BBDWHzwS6wUg5gAAAAh1Pvr3ZZ+GvcUwJl9OPz2cLXOnTAcBEC7zDtqIOt3IcA1aOofNgUZFu0baQw54SqOcGA7KAvTDOXygfKRilU2OqFHPF2gowAACAAQAAgAAAAIACAACAAAEBK4CWmAAAAAAAIgAgiYAxcG7dnrEiZ4VHFVHOo18XCalvhZYuMqBr9n7HESQBBWlSIQJOjQgMfX26XEf+trHIEk3rYkEX5Y2NfrFKQARPcd2X8iEDBWHUgq25PfHvE+hlcBryJG7wo2y8jKUSPY7sd85OOMchA2iVcuKLD+2p1pgcAjfZ5d7b/sFt5xQ/aAoC7V0Vn3WHU64iBgJOjQgMfX26XEf+trHIEk3rYkEX5Y2NfrFKQARPcd2X8hwmu4PEMAAAgAEAAIAAAACAAgAAgAAAAAABAAAAIgYDBWHUgq25PfHvE+hlcBryJG7wo2y8jKUSPY7sd85OOMccAgjLdzAAAIABAACAAAAAgAIAAIAAAAAAAQAAACIGA2iVcuKLD+2p1pgcAjfZ5d7b/sFt5xQ/aAoC7V0Vn3WHHHPF2gowAACAAQAAgAAAAIACAACAAAAAAAEAAAAAAQErgJaYAAAAAAAiACAzd60wM9EFnPHSNbsSJfyipL8myVLVP2/vwzotVUSNxQEFaVIhAiKCMRLlzIhLkRbLIUIMx5KYJM0v6LcjW/mS6K7eFGwiIQKDzUflU23LeecRgzDo5IBCEvaWGfHW7JkNxzXvuc7FdCEDC5DtLoa61/Kk/pdpu0F9e6nKoRJIB9v7Ni377rZefgFTriIGAiKCMRLlzIhLkRbLIUIMx5KYJM0v6LcjW/mS6K7eFGwiHAIIy3cwAACAAQAAgAAAAIACAACAAAAAAAAAAAAiBgKDzUflU23LeecRgzDo5IBCEvaWGfHW7JkNxzXvuc7FdBwmu4PEMAAAgAEAAIAAAACAAgAAgAAAAAAAAAAAIgYDC5DtLoa61/Kk/pdpu0F9e6nKoRJIB9v7Ni377rZefgEcc8XaCjAAAIABAACAAAAAgAIAAIAAAAAAAAAAAAABAWlSIQKtIdmtKKuZrH7f2R4iIU8RWVOrCdHVWBCS+0e9pZJy/iEDoH074LrWPIA10hyXtBCJDT06GdLkA6+z/PxoJqomPHYhA6GoQ/otQdk71nUpYZFfbkSKdBkkSj4CuPTPYrzGp6JrU64iAgKtIdmtKKuZrH7f2R4iIU8RWVOrCdHVWBCS+0e9pZJy/hwCCMt3MAAAgAEAAIAAAACAAgAAgAEAAAAAAAAAIgIDoH074LrWPIA10hyXtBCJDT06GdLkA6+z/PxoJqomPHYcc8XaCjAAAIABAACAAAAAgAIAAIABAAAAAAAAACICA6GoQ/otQdk71nUpYZFfbkSKdBkkSj4CuPTPYrzGp6JrHCa7g8QwAACAAQAAgAAAAIACAACAAQAAAAAAAAAAAA=="
 
-    d = DecodeQR()
+    d = DecodeQR(wordlist=bip39.WORDLIST)
     d.addString(base64_psbt)
     assert d.qrType() == QRType.PSBTBASE64
 
@@ -150,7 +153,7 @@ def test_base64_1_input_p2sh_p2wsh():
 
     base64_psbt = "cHNidP8BAHICAAAAAR30J629i3Y/R8woRpLQ9JUa31rKxyM+Ny4NEsme48GWAAAAAAD9////Atw5XQUAAAAAF6kUdSESczdYagEyToVUSXyT8VTNz+OHgJaYAAAAAAAWABTmav7/w4OOcfCiewfjsA7eaujhYAAAAABPAQQ1h88EPmLffoAAAAHdXEj2dn8EYJ+rRdXEYu5laq6lJI5Mp+3t63ckwty05QKrJBNPewhwQaGPYRif6+XaxozFXvTXn7pU24H6fRy1FxQCCMt3MAAAgAEAAIAAAACAAQAAgE8BBDWHzwSdsdAAgAAAAeeOv56oeaaFTrNonMKDHk1C8brbWGFvdlecVue+v0/RAn/g4yI3oYsyen7OOcT7caYl4Mn7nQbyonHcusUR+GhzFCa7g8QwAACAAQAAgAAAAIABAACATwEENYfPBLrBSDmAAAABpzrb4oeEh2NNy/w/fr3osfyZTx7AaGDPAcP+LqeR3bYC5ioqmXPuazp69HwimlvecLylm9BLuyl/VpPXqiVrl20Uc8XaCjAAAIABAACAAAAAgAEAAIAAAQEgAOH1BQAAAAAXqRSv3gkn8731qcPbSDu4TJOlJJZ/PocBBCIAIOeiFBX5x0vX6CacrAUVovrs1DDCcKJS5qptFS3sjpDpAQVpUiECZ+pFYkOTVjB+eG+vQFA3MNjZWiA6DjRcs1Wl36A/zgMhA2Ygckuwjah29wiVRgA6wFx51+6ayrzeCIQ2eE4zfxPtIQOnUlBn22cn2CPCZkMSI6cDaZK2SlLV20rT6pqMoQCJsFOuIgYCZ+pFYkOTVjB+eG+vQFA3MNjZWiA6DjRcs1Wl36A/zgMcc8XaCjAAAIABAACAAAAAgAEAAIAAAAAAAAAAACIGA2Ygckuwjah29wiVRgA6wFx51+6ayrzeCIQ2eE4zfxPtHCa7g8QwAACAAQAAgAAAAIABAACAAAAAAAAAAAAiBgOnUlBn22cn2CPCZkMSI6cDaZK2SlLV20rT6pqMoQCJsBwCCMt3MAAAgAEAAIAAAACAAQAAgAAAAAAAAAAAAAEAIgAgZBwTq05RkpqKv6FV6LQjuM07Qv0/bYfWVc9NUQOFvwQBAWlSIQI32jVSdTgeu7+YZKrWfgOZ2J/LV36c5rBoApTzhrNlDCEC+hEqm3XmRt862AFFeyJ7p1m8A+V7czj6OajUNgCfg4EhA/MUVfxGh4k3Po3LB8CmMRsvIHcGNO0elUgETaITZA3UU64iAgI32jVSdTgeu7+YZKrWfgOZ2J/LV36c5rBoApTzhrNlDBwCCMt3MAAAgAEAAIAAAACAAQAAgAEAAAAAAAAAIgIC+hEqm3XmRt862AFFeyJ7p1m8A+V7czj6OajUNgCfg4EcJruDxDAAAIABAACAAAAAgAEAAIABAAAAAAAAACICA/MUVfxGh4k3Po3LB8CmMRsvIHcGNO0elUgETaITZA3UHHPF2gowAACAAQAAgAAAAIABAACAAQAAAAAAAAAAAA=="
 
-    d = DecodeQR()
+    d = DecodeQR(wordlist=bip39.WORDLIST)
     d.addString(base64_psbt)
     assert d.qrType() == QRType.PSBTBASE64
 
@@ -203,7 +206,7 @@ def test_ur_legacy():
         ,   "UR:BYTES/8OF8/MMH5LDF9RK3QKCUL3VM26M6270FFJU50CU6YT5WM65783GL5EJMQPG3WV3/E0DKKUXEJDPX589HZPQ6SVQQQZQQZQQQSQQQQQYQQGQQPQQPQQQQQPQQQQQZYQSZ56D86Z6EZJEJALSG9KYCEJD4ES9TQR59AR7VDQQ9FKL44LSKUNL3E38ZAMFNQQQQSQQSQQYQQQQQPQQZQQQGQQGQQQQQGQQQQQQQ0P6SEH"
     ]
 
-    d = DecodeQR()
+    d = DecodeQR(wordlist=bip39.WORDLIST)
     for i in qrcodes:
         if d.addString(i) == DecodeQRStatus.COMPLETE:
             break
@@ -237,7 +240,7 @@ def test_specter_multisig_animated_qr():
     ,   "p1of5 cHNidP8BAKQCAAAAA6DLc9RAdKwWQb/7Nrq1FyAtDQ3e0w5E4LkLpcrwBL0aAAAAAAD9////78NG2vqjywKaa0QHfo6C44o1+odXeWZ43FfHy4bLdxABAAAAAP3///8rhueJha90HzgJ6alnJ1uvi0Zbq0JQoXnwDb0Cjn79DwAAAAAA/f///wHWCBAAAAAAABYAFDraKFKubXzlSvRQy8V4X+TwKhLXAAAAAE8BBDWHzwQJeplqgAAAAqmHnnoRR+XJd7gJt/PhLazKeWAfCBLJ4/OF/s0PqqF1AzK8fctt"
     ]
 
-    d = DecodeQR()
+    d = DecodeQR(wordlist=bip39.WORDLIST)
     for i in qrcodes:
         if d.addString(i) == DecodeQRStatus.COMPLETE:
             break
@@ -275,7 +278,7 @@ def test_specter_multisig_animated_qr():
     ,   "p2of5 OUsU2k9a6Valj6kLb/Bh2gB7YuxenNz7LY5PFJkKc60wAACAAQAAgAAAAIACAACATwEENYfPBEgFouKAAAACOeERUyCmIJuSdQNDB1mxkahw4tc2UCtjxJQoQGnRCtQCZUSXwQF+nA8dl/RG6U1b9ViWJxkzNrDCCagYEWch72cUrnhJ4jAAAIABAACAAAAAgAIAAIAAAQErckUPAAAAAAAiACDwHjagvyTvVDVn+RqxW0xaMLODBm2IVCwDBQm5uK8rDQEFR1IhAi/hk/Tz0aHcNwsVyv86bqQj30sUexPl"
     ]
 
-    d2 = DecodeQR()
+    d2 = DecodeQR(wordlist=bip39.WORDLIST)
     for i in qrcodes2:
         if d2.addString(i) == DecodeQRStatus.COMPLETE:
             break
@@ -308,23 +311,23 @@ def test_specter_multisig_animated_qr():
 def test_mnemonic_qr():
 
     mnemonic = "height demise useless trap grow lion found off key clown transfer enroll"
-    d = DecodeQR()
+    d = DecodeQR(wordlist=bip39.WORDLIST)
 
     assert d.addString(mnemonic) == DecodeQRStatus.COMPLETE
     assert d.getSeedPhrase() == mnemonic.split()
 
     bad_mnemonic = "height useless trap grow lion found off key clown transfer enroll"
-    d2 = DecodeQR()
+    d2 = DecodeQR(wordlist=bip39.WORDLIST)
     assert d2.addString(bad_mnemonic) == DecodeQRStatus.INVALID
 
     bad2_mnemonic = "words not in the list of bip39"
-    d3 = DecodeQR()
+    d3 = DecodeQR(wordlist=bip39.WORDLIST)
     assert d3.addString(bad2_mnemonic) == DecodeQRStatus.INVALID
 
 def test_short_4_letter_mnemonic_qr():
 
     short_nm = "heig demi usel trap grow lion foun off key clow tran enro"
-    d = DecodeQR()
+    d = DecodeQR(wordlist=bip39.WORDLIST)
     d.addString(short_nm)
 
     assert d.isComplete() == True

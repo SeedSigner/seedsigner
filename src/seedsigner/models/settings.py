@@ -1,5 +1,6 @@
 from seedsigner.helpers import Singleton
-from .qr_type import QRType, EncodeQRDensity
+from .qr_type import QRType
+from .encode_qr_density import EncodeQRDensity
 
 import configparser
 from embit import bip39
