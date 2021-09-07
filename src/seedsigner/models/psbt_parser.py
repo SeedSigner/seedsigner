@@ -2,8 +2,6 @@ from embit import psbt, script, ec, bip32, bip39
 from embit.networks import NETWORKS
 from io import BytesIO
 
-from seedsigner.models.seed import Seed
-
 class PSBTParser():
 
     def __init__(self, p, seed: Seed, network="main"):

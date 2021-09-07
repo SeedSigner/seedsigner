@@ -174,7 +174,7 @@ class Controller(Singleton):
     ### Generate Last Word 12 / 24 Menu
 
     def show_generate_last_word_tool(self) -> int:
-        seed = Seed()
+        seed = Seed(wordlist=self.settings.wordlist)
         ret_val = 0
 
         while True:
@@ -215,7 +215,7 @@ class Controller(Singleton):
     ### Create a Seed w/ Dice Screen
 
     def show_create_seed_with_dice_tool(self) -> int:
-        seed = Seed()
+        seed = Seed(wordlist=self.settings.wordlist)
         ret_val = True
 
         while True:
@@ -249,7 +249,7 @@ class Controller(Singleton):
     ### Create a Seed w/ Image
 
     def show_create_seed_with_image_tool(self) -> int:
-        seed = Seed()
+        seed = Seed(wordlist=self.settings.wordlist)
         ret_val = True
 
         while True:
@@ -287,7 +287,7 @@ class Controller(Singleton):
     ### Store a seed (temp) Menu
 
     def show_store_a_seed_tool(self):
-        seed = Seed()
+        seed = Seed(wordlist=self.settings.wordlist)
         ret_val = 0
         display_saved_seed = False
         ret_val = self.menu_view.display_saved_seed_menu(self.storage, 1, "... [ Return to Seed Tools ]")
@@ -410,7 +410,7 @@ class Controller(Singleton):
     ### Generate XPUB
 
     def show_generate_xpub(self):
-        seed = Seed()
+        seed = Seed(wordlist=self.settings.wordlist)
 
         # If there is a saved seed, ask to use saved seed
         if self.storage.num_of_saved_seeds() > 0:
@@ -487,7 +487,7 @@ class Controller(Singleton):
             qr_xpub_type = self.settings.qr_xpub_type
 
         self.signing_tools_view.draw_modal(["Generating xPub QR ..."])
-        e = EncodeQR(seed_phrase=seed.mnemonic_list, passphrase=seed.passphrase, derivation=self.settings.derivation, network=self.settings.network, policy=self.settings.script_policy, qr_type=qr_xpub_type, qr_density=self.settings.qr_density)
+        e = EncodeQR(seed_phrase=seed.mnemonic_list, passphrase=seed.passphrase, derivation=self.settings.derivation, network=self.settings.network, policy=self.settings.script_policy, qr_type=qr_xpub_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
 
         while e.totalParts() > 1:
             image = e.nextPartImage(240,240,2)
@@ -506,7 +506,7 @@ class Controller(Singleton):
     ### Sign Transactions
 
     def show_sign_transaction(self):
-        seed = Seed()
+        seed = Seed(wordlist=self.settings.wordlist)
         used_saved_seed = False
 
         # reusable qr scan function
@@ -514,7 +514,7 @@ class Controller(Singleton):
             # Scan QR using Camera
             self.menu_view.draw_modal(["Initializing Camera"])
             self.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
-            decoder = DecodeQR()
+            decoder = DecodeQR(wordlist=self.settings.wordlist)
 
             def live_preview(camera, decoder, scan_text):
                 while True:
@@ -714,7 +714,7 @@ class Controller(Singleton):
 
         # Display Animated QR Code
         self.menu_view.draw_modal(["Generating PSBT QR ..."])
-        e = EncodeQR(psbt=trimmed_psbt, qr_type=self.settings.qr_psbt_type, qr_density=self.settings.qr_density)
+        e = EncodeQR(psbt=trimmed_psbt, qr_type=self.settings.qr_psbt_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
         while True:
             image = e.nextPartImage(240,240,1)
             View.DispShowImage(image)

@@ -9,11 +9,10 @@ class Seed:
 		self._valid = False
 		self.passphrase = passphrase
 		self.mnemonic = mnemonic
-		if wordlist == None:
-			from seedsigner.models.settings import Settings 
-			self._wordlist = Settings.get_instance().wordlist
-		else:
-			self._wordlist = wordlist
+		self.wordlist = wordlist
+		
+		if self.wordlist == None:
+			raise Exception('Wordlist Required')
 		
 		self._valid = self._generate_seed()
 		self._init_complete = True

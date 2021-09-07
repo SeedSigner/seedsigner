@@ -8,7 +8,6 @@ from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.bcur import (bc32encode, cbor_encode, bcur_encode)
 from seedsigner.helpers.qr import QR
 from seedsigner.models.qr_type import QRType, EncodeQRDensity
-from seedsigner.models.settings import Settings
 from seedsigner.models.seed import Seed
 
 ###
@@ -21,7 +20,6 @@ class EncodeQR:
     WORDLIST = None
 
     def __init__(self, **kwargs):
-        EncodeQR.WORDLIST = Settings.get_instance().wordlist
         self.psbt = None
         self.seed_phrase = None
         self.passphrase = None
@@ -31,6 +29,7 @@ class EncodeQR:
         self.qr_type = None
         self.qr_density = None
         self.qr = QR()
+        self.wordlist = None
 
         for key, value in kwargs.items():
             if key == "psbt":
@@ -49,6 +48,11 @@ class EncodeQR:
                 self.qr_type = value
             elif key == "qr_density":
                 self.qr_density = value
+            elif key == "wordlist":
+                self.wordlist = value
+                
+        if self.wordlist == None:
+            raise Exception('Wordlist Required')
 
         if self.qr_type == None:
             raise Exception('Encoder Type Required')
@@ -217,7 +221,7 @@ class XPubQR:
         self.sent_complete = False
 
         self.network = network
-        self.seed = Seed(self.seed_phrase, self.passphrase)
+        self.seed = Seed(mnemonic=self.seed_phrase, passphrase=self.passphrase, wordlist=self.wordlist)
         self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[self.network]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
         self.bip48_xprv = self.root.derive(self.derivation)

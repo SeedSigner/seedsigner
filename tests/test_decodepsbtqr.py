@@ -1,8 +1,8 @@
 import pytest
 from mock import MagicMock
-from seedsigner.models.seed import Seed
 from seedsigner.models.decode_qr import DecodeQR, QRType, DecodeQRStatus
 from seedsigner.models.psbt_parser import PSBTParser
+from seedsigner.models.seed import Seed
 from embit import psbt, bip39
 
 

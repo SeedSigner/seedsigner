@@ -2,11 +2,9 @@ from embit import bip39
 from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 import unicodedata
 
-from seedsigner.models import Settings
 
 
-
-def calculate_checksum(partial_mnemonic: list):
+def calculate_checksum(partial_mnemonic: list, wordlist):
     # Provide 11- or 23-word mnemonic, returns complete mnemonic w/checksum
     if len(partial_mnemonic) not in [11, 23]:
         raise Exception("Pass in a 11- or 23-word mnemonic")
@@ -16,7 +14,7 @@ def calculate_checksum(partial_mnemonic: list):
     mnemonic_copy.append("abandon")
 
     # Ignores the final checksum word and recalcs
-    mnemonic_bytes = bip39.mnemonic_to_bytes(unicodedata.normalize("NFKD", " ".join(mnemonic_copy)), ignore_checksum=True, wordlist=Settings.get_instance().wordlist)
+    mnemonic_bytes = bip39.mnemonic_to_bytes(unicodedata.normalize("NFKD", " ".join(mnemonic_copy)), ignore_checksum=True, wordlist=wordlist)
 
     # Return as a list
     return bip39.mnemonic_from_bytes(mnemonic_bytes).split()

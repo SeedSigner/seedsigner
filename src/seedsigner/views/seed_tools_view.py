@@ -665,7 +665,7 @@ class SeedToolsView(View):
     ###
 
     def display_last_word(self, partial_seed_phrase) -> list:
-        finalseed = mnemonic_generation.calculate_checksum(partial_seed_phrase)
+        finalseed = mnemonic_generation.calculate_checksum(partial_seed_phrase, wordlist=self.controller.settings.wordlist)
         last_word = finalseed[-1]
 
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
