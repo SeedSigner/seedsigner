@@ -30,7 +30,7 @@ class Controller(Singleton):
         Note: In many/most cases you'll need to do the Controller import within a method
         rather than at the top in order avoid circular imports.
     """
-    VERSION = "0.4.4"
+    VERSION = "0.4.5"
 
 
     @classmethod
@@ -520,7 +520,7 @@ class Controller(Singleton):
                     if frame is not None:
                         if decoder.getPercentComplete() > 0 and decoder.isPSBT():
                             scan_text = str(decoder.getPercentComplete()) + "% Complete"
-                        View.DispShowImageWithText(frame.resize((240,240)), scan_text, font=View.IMPACT22, text_color=View.color, text_background=(0,0,0,225))
+                        View.DispShowImageWithText(frame.resize((240,240)), scan_text, font=View.ANTON22, text_color=View.color, text_background=(0,0,0,225))
                     time.sleep(0.1) # turn this up or down to tune performace while decoding psbt
                     if camera._video_stream is None:
                         break
