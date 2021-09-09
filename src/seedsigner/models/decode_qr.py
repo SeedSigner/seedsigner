@@ -23,6 +23,7 @@ class DecodeQR:
         self.specter_qr = SpecterDecodePSBTQR() # Specter Desktop PSBT QR base64 decoder
         self.legacy_ur = LegacyURDecodeQR() # UR Legacy decoder
         self.base64_qr = Base64DecodeQR() # Single Segments Base64
+        self.base43_qr = Base43DecodeQR() # Single Segment Base43
         self.wordlist = None
 
         for key, value in kwargs.items():
@@ -82,6 +83,13 @@ class DecodeQR:
             if rt == DecodeQRStatus.COMPLETE:
                 self.complete = True
             return rt
+            
+        elif self.qr_type == QRType.PSBTBASE43:
+            
+            rt = self.base43_qr.add(qr_str)
+            if rt == DecodeQRStatus.COMPLETE:
+                self.complete = True
+            return rt
 
         elif self.qr_type == QRType.SEEDSSQR:
             rt = self.seedqr.add(qr_str, QRType.SEEDSSQR)
@@ -125,6 +133,8 @@ class DecodeQR:
                 return self.legacy_ur.getData()
             elif self.qr_type == QRType.PSBTBASE64:
                 return self.base64_qr.getData()
+            elif self.qr_type == QRType.PSBTBASE43:
+                return self.base43_qr.getData()
         return None
 
     def getBase64PSBT(self):
@@ -157,6 +167,11 @@ class DecodeQR:
                 return 100
             else:
                 return 0
+        elif self.qr_type == QRType.PSBTBASE43:
+            if self.base43_qr.complete:
+                return 100
+            else:
+                return 0
         else:
             return 0
 
@@ -169,7 +184,7 @@ class DecodeQR:
         return False
 
     def isPSBT(self) -> bool:
-        if self.qr_type in (QRType.PSBTUR2, QRType.PSBTSPECTER, QRType.PSBTURLEGACY, QRType.PSBTBASE64):
+        if self.qr_type in (QRType.PSBTUR2, QRType.PSBTSPECTER, QRType.PSBTURLEGACY, QRType.PSBTBASE64, QRType.PSBTBASE43):
             return True
         return False
 
@@ -216,6 +231,8 @@ class DecodeQR:
         elif all(x in _4LETTER_WORDLIST for x in s.strip().split(" ")):
             # checks if all 4 letter words are in list are in 4 letter bip39 word list
             return QRType.SEED4LETTERMNEMONIC
+        elif DecodeQR.isBase43PSBT(s):
+            return QRType.PSBTBASE43
         else:
             return QRType.INVALID
 
@@ -235,6 +252,51 @@ class DecodeQR:
         except Exception:
             return False
         return False
+
+    @staticmethod
+    def isBase43PSBT(s):
+        try:
+            psbt.PSBT.parse(DecodeQR.base43Decode(s))
+            return True
+        except Exception:
+            return False
+        return False
+    
+    @staticmethod
+    def base43Decode(s):
+        chars = b'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ$*+-./:' #base43 chars
+
+        if isinstance(s, bytes):
+            v = s
+        if isinstance(s, str):
+            v = s.encode('ascii')
+        elif isinstance(s, bytearray):
+            v = bytes(s)
+            
+        long_value = 0
+        power_of_base = 1
+        for c in v[::-1]:
+            digit = chars.find(bytes([c]))
+            if digit == -1:
+                raise BaseDecodeError('Forbidden character {} for base {}'.format(c, 43))
+            # naive but slow variant:   long_value += digit * (base**i)
+            long_value += digit * power_of_base
+            power_of_base *= 43
+        result = bytearray()
+        while long_value >= 256:
+            div, mod = divmod(long_value, 256)
+            result.append(mod)
+            long_value = div
+        result.append(long_value)
+        nPad = 0
+        for c in v:
+            if c == chars[0]:
+                nPad += 1
+            else:
+                break
+        result.extend(b'\x00' * nPad)
+        result.reverse()
+        return bytes(result)
 
 ###
 ### SpecterDecodePSBTQR Class
@@ -377,7 +439,7 @@ class LegacyURDecodeQR:
 ###
 ### Base64DecodeQR Class
 ### Purpose: used in DecodeQR to decode single frame base64 encoded qr image
-###          does not support animated qr because no idicator or segments or thier order
+###          does not support animated qr because no indicator or segments or their order
 ###
 
 class Base64DecodeQR:
@@ -420,11 +482,49 @@ class Base64DecodeQR:
         return segment
 
 ###
+### Base43DecodeQR Class
+### Purpose: used in DecodeQR to decode single frame base43 encoded qr image
+###          does not support animated qr because no indicator or segments or their order
+###
+
+class Base43DecodeQR:
+
+    def __init__(self):
+        self.total_segments = 1
+        self.collected_segments = 0
+        self.complete = False
+        self.data = None
+
+    def add(self, segment):
+        if DecodeQR.isBase43PSBT(segment):
+            self.complete = True
+            self.data = DecodeQR.base43Decode(segment)
+            self.collected_segments = 1
+            return DecodeQRStatus.COMPLETE
+
+        return DecodeQRStatus.INVALID
+
+    def getData(self):
+        return self.data
+
+    @staticmethod
+    def currentSegmentNum(segment) -> int:
+        return self.collected_segments
+
+    @staticmethod
+    def totalSegmentNum(segment) -> int:
+        return self.total_segments
+
+    @staticmethod
+    def parseSegment(segment) -> str:
+        return segment
+
+###
 ### SeedQR Class
 ### Purpose: used in DecodeQR to decode single frame representing a seed
-###          SeedSigner numeric respresentation of a seed as a qr is supported
-###          Mnemonic seed phrase respresentation of a seed as a qr is supported
-###          does not support animated qr because no idicator or segments or thier order
+###          SeedSigner numeric representation of a seed as a qr is supported
+###          Mnemonic seed phrase representation of a seed as a qr is supported
+###          does not support animated qr because no indicator or segments or their order
 ###
 
 class SeedQR:

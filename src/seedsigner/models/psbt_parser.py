@@ -24,7 +24,7 @@ class PSBTParser():
             self.parse(self.psbt,self.seed,self.network)
 
     def __setRoot(self, seed: Seed, network):
-        self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[network]["xprv"])
+        self.root = bip32.HDKey.from_seed(seed.seed, version=NETWORKS[network]["xprv"])
 
     def parse(self, p, seed: Seed, network="main"):
         is_psbt_empty = False
@@ -55,13 +55,14 @@ class PSBTParser():
     def __parseInputs(self):
         self.input_amount = 0
         for inp in self.psbt.inputs:
-            self.input_amount += inp.witness_utxo.value
-            inp_policy = PSBTParser.__get_policy(inp, inp.witness_utxo.script_pubkey, self.psbt.xpubs)
-            if self.policy == None:
-                self.policy = inp_policy
-            else:
-                if self.policy != inp_policy:
-                    raise RuntimeError("Mixed inputs in the transaction")
+            if inp.witness_utxo:
+                self.input_amount += inp.witness_utxo.value
+                inp_policy = PSBTParser.__get_policy(inp, inp.witness_utxo.script_pubkey, self.psbt.xpubs)
+                if self.policy == None:
+                    self.policy = inp_policy
+                else:
+                    if self.policy != inp_policy:
+                        raise RuntimeError("Mixed inputs in the transaction")
 
     def __parseOutputs(self):
         self.spend_amount = 0

@@ -1003,7 +1003,7 @@ class SeedToolsView(View):
 
 
     def seed_phrase_as_qr(self, seed_phrase):
-        e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEEDSSQR)
+        e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEEDSSQR, wordlist=self.controller.settings.wordlist)
         image = e.nextPartImage(240, 240, 3)
         View.DispShowImageWithText(image, "click to zoom, right to exit", font=View.ANTON18, text_color="BLACK", text_background="ORANGE")
 
@@ -1137,7 +1137,7 @@ class SeedToolsView(View):
         self.draw_modal(["Scanning..."], "Seed QR" ,"Right to Exit")
         try:
             self.controller.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
-            decoder = DecodeQR()
+            decoder = DecodeQR(wordlist=self.controller.settings.wordlist)
             while True:
                 frame = self.controller.camera.read_video_stream(as_image=True)
                 if frame is not None:

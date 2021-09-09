@@ -9,6 +9,7 @@ class QRType(IntEnum):
     PSBTBASE64 = 1
     PSBTSPECTER = 2
     PSBTURLEGACY = 3
+    PSBTBASE43 = 4
     PSBTUR2 = 5
     SEEDSSQR = 6
     SEEDUR2 = 7
