@@ -72,7 +72,9 @@ class Controller(Singleton):
         controller.io_test_view = IOTestView()
         controller.signing_tools_view = SigningToolsView(controller.storage)
         controller.settings_tools_view = SettingsToolsView()
-        controller.screensaver = ScreensaverView()
+        controller.screensaver = ScreensaverView(controller.buttons)
+
+        controller.screensaver_activation_ms = 60 * 1000
 
     @property
     def camera(self):
@@ -109,6 +111,10 @@ class Controller(Singleton):
                     crash_cnt += 1
 
             self.menu_view.draw_modal(["Crashed ..."], "", "requires hard restart")
+
+
+    def start_screensaver(self):
+        self.screensaver.start()
 
 
     ### Menu
