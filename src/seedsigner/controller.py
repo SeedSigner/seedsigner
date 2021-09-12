@@ -5,6 +5,7 @@ from multiprocessing import Process, Queue
 from subprocess import call
 import os, sys
 from embit import bip32, script, ec
+import traceback
 from embit.networks import NETWORKS
 from embit.descriptor import Descriptor
 from binascii import hexlify
@@ -135,6 +136,7 @@ class Controller(Singleton):
                         break
                     else:
                         print('Caught this error: ' + repr(error)) # debug
+                        print(traceback.format_exc())
                         self.menu_view.draw_modal(["Crashed ..."], "", "restarting")
                         time.sleep(5)
 
