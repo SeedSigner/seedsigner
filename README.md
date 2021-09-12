@@ -97,10 +97,10 @@ If you want to avoid the long process of installation, you should at least valid
 gpg --import seedsigner_pubkey.gpg
 ```
 3. Download the latest release of the image at the [releases page](https://github.com/SeedSigner/seedsigner/releases). It will look something like seedsigner_x_x_x.img.zip
-4. Download the related gpg file. It will look like seedsigner_x_x_x.img.zip.txt.gpg
-5. Verify the downloaded file with the command:
+4. Download the related gpg file in the same folder. It will look like seedsigner_x_x_x.img.zip.txt.gpg
+5. Verify the downloaded file with the command (adjust the file name to the file you just downloaded):
 ```
- gpg --verify seedsigner_0_4_4.img.zip.txt.gpg
+ gpg --verify seedsigner_x_x_x.img.zip.txt.gpg
 ```
 6. You can trust the file if the output of the previous command has a message like:
 ```
