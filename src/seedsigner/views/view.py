@@ -68,6 +68,7 @@ class View:
     disp = None
     previous_button_width = None
 
+
     def __init__(self) -> None:
         # Import here to avoid circular imports
         from seedsigner.controller import Controller
@@ -89,12 +90,22 @@ class View:
 
         self.queue = Queue()
 
+
     def DispShowImage(image=None, alpha_overlay=None):
         if image == None:
             image = View.canvas
+        else:
+            # Always keep a copy of the current display in the canvas
+            View.canvas.paste(image)
+
         if alpha_overlay:
             image = Image.alpha_composite(image, alpha_overlay)
+
+            # Always keep a copy of the current display in the canvas
+            View.canvas.paste(image)
+
         View.disp.ShowImage(image, 0, 0)
+
 
     def disp_show_image_pan(image, start_x, start_y, end_x, end_y, rate, alpha_overlay=None):
         cur_x = start_x
@@ -124,6 +135,9 @@ class View:
             if alpha_overlay:
                 crop = Image.alpha_composite(crop, alpha_overlay)
 
+            # Always keep a copy of the current display in the canvas
+            View.canvas.paste(crop)
+
             View.disp.ShowImage(crop, 0, 0)
 
 
@@ -140,6 +154,7 @@ class View:
         if text_background:
             text_overlay_draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), fill=text_background)
         text_overlay_draw.text(((240 - tw) / 2, 240 - th - 1), text, fill=text_color, font=font)
+
         View.DispShowImage(image_copy, alpha_overlay=text_overlay)
 
 
@@ -183,10 +198,12 @@ class View:
 
         return
 
+
     def draw_prompt_yes_no(self, lines = [], title = "", bottom = "") -> None:
 
         self.draw_prompt_custom("", "Yes ", "No ", lines, title, bottom)
         return
+
 
     def draw_prompt_custom(self, a_txt, b_txt, c_txt, lines = [], title = "", bottom = "") -> None:
 

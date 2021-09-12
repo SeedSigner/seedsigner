@@ -10,7 +10,7 @@ from threading import Thread
 
 # Internal file class dependencies
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
-    SettingsToolsView, IOTestView)
+    SettingsToolsView, IOTestView, OpeningSplashView, ScreensaverView)
 from .helpers import Buttons, B, Path, Singleton
 from .models import (SeedStorage, Settings, DecodeQR, DecodeQRStatus,
     EncodeQRDensity, EncodeQR, PSBTParser, QRType)
@@ -72,6 +72,9 @@ class Controller(Singleton):
         controller.io_test_view = IOTestView()
         controller.signing_tools_view = SigningToolsView(controller.storage)
         controller.settings_tools_view = SettingsToolsView()
+        controller.screensaver = ScreensaverView(controller.buttons)
+
+        controller.screensaver_activation_ms = 60 * 1000
 
     @property
     def camera(self):
@@ -80,6 +83,9 @@ class Controller(Singleton):
 
 
     def start(self) -> None:
+        opening_splash = OpeningSplashView()
+        opening_splash.start()
+
         if self.DEBUG:
             # Let Exceptions halt execution
             try:
@@ -105,6 +111,10 @@ class Controller(Singleton):
                     crash_cnt += 1
 
             self.menu_view.draw_modal(["Crashed ..."], "", "requires hard restart")
+
+
+    def start_screensaver(self):
+        self.screensaver.start()
 
 
     ### Menu

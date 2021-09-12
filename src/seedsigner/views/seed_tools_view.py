@@ -1189,11 +1189,15 @@ class SeedToolsView(View):
                     preview_images.append(frame)
 
             if self.buttons.check_for_low(B.KEY_LEFT):
+                # Have to manually update last input time since we're not in a wait_for loop
+                self.buttons.update_last_input_time()
                 self.words = []
                 self.controller.camera.stop_video_stream_mode()
                 return (reshoot, self.words)
 
             elif self.buttons.check_for_low(B.KEY_PRESS):
+                # Have to manually update last input time since we're not in a wait_for loop
+                self.buttons.update_last_input_time()
                 self.controller.camera.stop_video_stream_mode()
                 break
 
