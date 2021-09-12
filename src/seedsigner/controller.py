@@ -3,6 +3,7 @@ import time
 from multiprocessing import Process, Queue
 from subprocess import call
 import os, sys
+import traceback
 from embit import bip39, bip32
 from embit.networks import NETWORKS
 from binascii import hexlify
@@ -99,6 +100,7 @@ class Controller(Singleton):
                         break
                     else:
                         print('Caught this error: ' + repr(error)) # debug
+                        print(traceback.format_exc())
                         self.menu_view.draw_modal(["Crashed ..."], "", "restarting")
                         time.sleep(5)
 

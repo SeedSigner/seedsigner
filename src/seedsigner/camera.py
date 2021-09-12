@@ -39,25 +39,27 @@ class Camera(Singleton):
 
 
     def start_single_frame_mode(self, resolution=(720, 480)):
-        if self._video_stream is not None:
-            self.stop_video_stream_mode()
-        if self._picamera is not None:
-            self._picamera.close()
+        pass
+        # self._video_stream.should_stop = True
+        # if self._video_stream is not None:
+        #     self.stop_video_stream_mode()
+        # if self._picamera is not None:
+        #     self._picamera.close()
 
-        self._picamera = PiCamera(resolution=resolution, framerate=24)
-        self._picamera.start_preview()
+        # self._picamera = PiCamera(resolution=resolution, framerate=24)
+        # self._picamera.start_preview()
 
 
     def capture_frame(self):
-        if self._picamera is None:
-            raise Exception("Must call start_single_frame_mode first.")
+        # if self._picamera is None:
+        #     raise Exception("Must call start_single_frame_mode first.")
 
         # Set auto-exposure values
-        self._picamera.shutter_speed = self._picamera.exposure_speed
-        self._picamera.exposure_mode = 'off'
-        g = self._picamera.awb_gains
-        self._picamera.awb_mode = 'off'
-        self._picamera.awb_gains = g
+        # self._picamera.shutter_speed = self._picamera.exposure_speed
+        # self._picamera.exposure_mode = 'off'
+        # g = self._picamera.awb_gains
+        # self._picamera.awb_mode = 'off'
+        # self._picamera.awb_gains = g
 
         """
         When outputting to unencoded formats, the camera rounds the requested resolution.
@@ -85,11 +87,13 @@ class Camera(Singleton):
         # return Image.fromarray(np_array[:resolution.width, :resolution.height, :].astype('uint8'), 'RGB')
 
         stream = io.BytesIO()
-        self._picamera.capture(stream, format='jpeg')
+        self._video_stream
+        # self._picamera.capture(stream, format='jpeg')
 
         # "Rewind" the stream to the beginning so we can read its content
-        stream.seek(0)
-        return Image.open(stream)
+        # stream.seek(0)
+        # return Image.open(stream)
+        return Image.fromarray(self._video_stream.frame.astype('uint8'), 'RGB').rotate(90)
 
 
     def stop_single_frame_mode(self):

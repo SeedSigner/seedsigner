@@ -7,3 +7,4 @@ qrcode==6.1
 RPi.GPIO==0.7.0
 six==1.16.0
 spidev==3.5
+opencv-python==4.5.3
