@@ -74,6 +74,7 @@ class View:
         from seedsigner.controller import Controller
         self.controller = Controller.get_instance()
 
+        # TODO: These assignments treat the View more like a singleton than a base class
         View.buttons = self.controller.buttons
         View.color = self.controller.color
 

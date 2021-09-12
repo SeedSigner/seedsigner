@@ -15,6 +15,8 @@ from .helpers import Buttons, B, Path, Singleton
 from .models import (SeedStorage, Settings, DecodeQR, DecodeQRStatus,
     EncodeQRDensity, EncodeQR, PSBTParser, QRType)
 
+
+
 class Controller(Singleton):
     """
         The Controller is a globally available singleton that maintains SeedSigner state.
@@ -32,7 +34,7 @@ class Controller(Singleton):
         Note: In many/most cases you'll need to do the Controller import within a method
         rather than at the top in order avoid circular imports.
     """
-    VERSION = "0.4.5"
+    VERSION = "0.5.0"
 
 
     @classmethod
@@ -83,8 +85,69 @@ class Controller(Singleton):
 
 
     def start(self) -> None:
-        opening_splash = OpeningSplashView()
-        opening_splash.start()
+        from seedsigner.gui.templates import BaseScreen, ButtonListScreen, FontTesterScreen
+        from seedsigner.gui.components import load_font
+        # opening_splash = OpeningSplashView()
+        # opening_splash.start()
+        # base_screen = BaseScreen(
+        #     title="In-Memory Seeds",
+        # )
+        # base_screen.render()
+
+        # screen = ButtonListScreen(
+        #     title="In-Memory Seeds",
+        #     button_data=[
+        #         {"text": "cfd0883d"},
+        #         {"text": "72f9a6bf"},
+        #     ],
+        #     is_text_centered=False,
+        #     is_bottom_list=False,
+        # )
+        # screen.render()
+
+        tests = [
+            ("OpenSans-SemiBold.ttf", 16),
+            ("OpenSans-SemiBold.ttf", 18),
+            ("OpenSans-SemiBold.ttf", 20),
+        ]
+
+        index = 0
+        while True:
+            test = tests[index]
+            screen = FontTesterScreen(
+                title="In-Memory Seeds",
+                button_data=[
+                    {"text": "cfd0883d"},
+                    {"text": "72f9a6bf"},
+                    {"text": f"{test[0].split('.')[0]} {test[1]}"},
+                ],
+                is_text_centered=False,
+                is_bottom_list=False,
+                font=load_font("OpenSans-SemiBold.ttf", 20),
+                button_font=load_font(test[0], test[1]),
+            )
+
+            screen.render()
+
+            while True:
+                if index == 0:
+                    input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_UP, B.KEY_DOWN])
+                elif index < len(tests) - 1:
+                    input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
+                else:
+                    input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
+
+                if input == B.KEY_RIGHT:
+                    index += 1
+                    break
+                elif input == B.KEY_LEFT:
+                    index -= 1
+                    break
+                else:
+                    screen.update_from_input(input)
+
+
+        time.sleep(180)
 
         if self.DEBUG:
             # Let Exceptions halt execution
