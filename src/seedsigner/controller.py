@@ -475,7 +475,7 @@ class Controller(Singleton):
         # choose single sig or multisig wallet type
         wallet_type = "multisig"
         script_type = "native segwit"
-        derivation = "m/0"
+        derivation = self.settings.custom_derivation
         r = self.menu_view.display_generic_selection_menu(["Single Sig", "Multisig"], "Wallet Type?")
         if r == 1:
             wallet_type = "single sig"
@@ -493,7 +493,8 @@ class Controller(Singleton):
         
         # calculated derivation or get custom from keyboard entry
         if script_type == "custom":
-            derivation = self.settings_tools_view.draw_derivation_keyboard_entry()
+            derivation = self.settings_tools_view.draw_derivation_keyboard_entry(existing_derivation=self.settings.custom_derivation)
+            self.settings.custom_derivation = derivation # save for next time
         else:
             derivation = Settings.calc_derivation(self.settings.network, wallet_type, script_type)
             

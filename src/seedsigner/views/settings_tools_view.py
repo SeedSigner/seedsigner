@@ -10,6 +10,7 @@ class SettingsToolsView(View):
 
         self.qr = QR()
         self.donate_image = None
+        self.derivation = None
 
     ### Donate Menu Item
 
@@ -168,16 +169,19 @@ class SettingsToolsView(View):
         keyboard_start_y = text_entry_bottom_y + text_entry_bottom_padding
         keyboard_digits = Keyboard(
             View.draw,
-            charset="0123456789/'",
+            charset="/'0123456789",
             rows=3,
             cols=6,
             rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )
-        keyboard_digits.set_selected_key(selected_letter="0")
+        keyboard_digits.set_selected_key(selected_letter="/")
         keyboard_digits.render_keys()
         render_right_panel()
+        
+        text_entry_display.render(self.derivation)
+        View.DispShowImage()
     
         # Start the interactive update loop
         while True:
