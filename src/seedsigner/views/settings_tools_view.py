@@ -89,12 +89,12 @@ class SettingsToolsView(View):
         line3 = "(Joystick RIGHT to EXIT)"
 
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        tw, th = View.draw.textsize(line1, font=View.ANTON22)
-        View.draw.text(((240 - tw) / 2, 20), line1, fill=View.color, font=View.ANTON22)
-        tw, th = View.draw.textsize(line2, font=View.ANTON22)
-        View.draw.text(((240 - tw) / 2, 55), line2, fill=View.color, font=View.ANTON22)
-        tw, th = View.draw.textsize(line3, font=View.ANTON18)
-        View.draw.text(((240 - tw) / 2, 210), line3, fill=View.color, font=View.ANTON18)
+        tw, th = View.draw.textsize(line1, font=View.ASSISTANT22)
+        View.draw.text(((240 - tw) / 2, 20), line1, fill=View.color, font=View.ASSISTANT22)
+        tw, th = View.draw.textsize(line2, font=View.ASSISTANT22)
+        View.draw.text(((240 - tw) / 2, 55), line2, fill=View.color, font=View.ASSISTANT22)
+        tw, th = View.draw.textsize(line3, font=View.ASSISTANT18)
+        View.draw.text(((240 - tw) / 2, 210), line3, fill=View.color, font=View.ASSISTANT18)
         View.DispShowImage()
 
     ###
@@ -178,7 +178,6 @@ class SettingsToolsView(View):
         keyboard_digits.set_selected_key(selected_letter="0")
         keyboard_digits.render_keys()
         render_right_panel()
-        View.DispShowImage()
     
         # Start the interactive update loop
         while True:

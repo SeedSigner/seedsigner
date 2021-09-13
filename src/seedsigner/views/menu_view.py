@@ -308,8 +308,8 @@ class MenuView(View):
             #Menu has changed, redraw
 
             View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-            tw, th = View.draw.textsize(t, font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 2), t, fill=View.color, font=View.ANTON22)
+            tw, th = View.draw.textsize(t, font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 2), t, fill=View.color, font=View.ASSISTANT22)
 
             num_of_lines = len(lines)
 
@@ -347,8 +347,8 @@ class MenuView(View):
                 if num_of_lines >= 15:
                     self.draw_menu_text(15, 175, lines[14], (True if selected_menu_num == 15 else False))
 
-            tw, th = View.draw.textsize(b, font=View.ANTON18)
-            View.draw.text(((240 - tw) / 2, 210), b, fill=View.color, font=View.ANTON18)
+            tw, th = View.draw.textsize(b, font=View.ASSISTANT18)
+            View.draw.text(((240 - tw) / 2, 210), b, fill=View.color, font=View.ASSISTANT18)
             View.DispShowImage()
 
             # saved update menu lines and selection
@@ -375,8 +375,8 @@ class MenuView(View):
     def draw_menu_text(self, x, y, line, selected) -> None:
         if selected == True:
             View.draw.rectangle((5, y-3, 235, y+28), outline=0, fill=View.color)
-            View.draw.text((x, y) , line, fill="BLACK", font=View.ANTON20)
+            View.draw.text((x, y) , line, fill="BLACK", font=View.ASSISTANT20BOLD)
         else:
-            View.draw.text((x, y) , line, fill=View.color, font=View.ANTON20)
+            View.draw.text((x, y) , line, fill=View.color, font=View.ASSISTANT20)
 
         return
