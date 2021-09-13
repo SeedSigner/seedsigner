@@ -30,8 +30,6 @@ def test_singleton_get_instance_preserves_state():
         network = main
         software = Prompt
         qr_density = 2
-        script_policy = PKWSH
-        custom_derivation_enabled = False
         custom_derivation = m/0/0
     """
     config = configparser.ConfigParser()

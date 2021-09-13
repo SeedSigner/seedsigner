@@ -24,7 +24,6 @@ class EncodeQR:
         self.passphrase = None
         self.derivation = None
         self.network = None
-        self.policy = None
         self.qr_type = None
         self.qr_density = None
         self.qr = QR()
@@ -41,8 +40,6 @@ class EncodeQR:
                 self.derivation = value
             elif key == "network":
                 self.network = value
-            elif key == "policy":
-                self.policy = value
             elif key == "qr_type":
                 self.qr_type = value
             elif key == "qr_density":
@@ -67,9 +64,9 @@ class EncodeQR:
         elif self.qr_type == QRType.SEEDSSQR:
             self.encoder = SeedSSQR(self.seed_phrase, self.wordlist)
         elif self.qr_type == QRType.XPUBQR:
-            self.encoder = XPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.policy, self.wordlist)
+            self.encoder = XPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.wordlist)
         elif self.qr_type == QRType.SPECTERXPUBQR:
-            self.encoder = SpecterXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.policy, self.qr_density, self.wordlist)
+            self.encoder = SpecterXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.qr_density, self.wordlist)
         else:
             raise Exception('Encoder Type not Supported')
 
@@ -215,7 +212,7 @@ class SeedSSQR:
 
 class XPubQR:
 
-    def __init__(self, seed_phrase, passphrase, derivation, network, policy, wordlist):
+    def __init__(self, seed_phrase, passphrase, derivation, network, wordlist):
         self.seed_phrase = seed_phrase
         self.passphrase = passphrase
         self.derivation = derivation
@@ -259,7 +256,7 @@ class XPubQR:
 
 class SpecterXPubQR(XPubQR):
 
-    def __init__(self, seed_phrase, passphrase, derivation, network, policy, qr_density, wordlist):
+    def __init__(self, seed_phrase, passphrase, derivation, network, qr_density, wordlist):
         self.qr_max_fragement_size = 65
         if qr_density == EncodeQRDensity.LOW:
             self.qr_max_fragement_size = 40
@@ -268,7 +265,7 @@ class SpecterXPubQR(XPubQR):
         elif qr_density == EncodeQRDensity.HIGH:
             self.qr_max_fragement_size = 90
 
-        XPubQR.__init__(self, seed_phrase, passphrase, derivation, network, policy, wordlist)
+        XPubQR.__init__(self, seed_phrase, passphrase, derivation, network, wordlist)
         self.__createParts()
 
     def __createParts(self):

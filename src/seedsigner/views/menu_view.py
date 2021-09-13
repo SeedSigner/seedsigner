@@ -124,14 +124,13 @@ class MenuView(View):
     ### Settings Menu
 
     def display_settings_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Wallet: <wallet>", "Script Policy: <policy>", "Network: <network>", "QR Density: <density>", "Input / Output Tests", "Persistent Settings: <persistent>", "Version Info", "Donate to SeedSigner", "Reset SeedSigner"]
+        lines = ["... [ Return to Main ]", "Wallet: <wallet>", "Network: <network>", "QR Density: <density>", "Input / Output Tests", "Persistent Settings: <persistent>", "Version Info", "Donate to SeedSigner", "Reset SeedSigner"]
         input = 0
         
         lines[1] = lines[1].replace("<wallet>", Settings.get_instance().software)
-        lines[2] = lines[2].replace("<policy>", Settings.get_instance().policy_name)
-        lines[3] = lines[3].replace("<network>", Settings.get_instance().network)
-        lines[4] = lines[4].replace("<density>", Settings.get_instance().qr_density_name)
-        lines[6] = lines[6].replace("<persistent>", Settings.get_instance().persistent_display)
+        lines[2] = lines[2].replace("<network>", Settings.get_instance().network)
+        lines[3] = lines[3].replace("<density>", Settings.get_instance().qr_density_name)
+        lines[5] = lines[5].replace("<persistent>", Settings.get_instance().persistent_display)
 
         # Draw Menu
         self.selected_menu_num = 1
@@ -150,20 +149,18 @@ class MenuView(View):
                 elif self.selected_menu_num == 2:
                     return Path.WALLET
                 elif self.selected_menu_num == 3:
-                    return Path.WALLET_POLICY
-                elif self.selected_menu_num == 4:
                     return Path.CURRENT_NETWORK
-                elif self.selected_menu_num == 5:
+                elif self.selected_menu_num == 4:
                     return Path.QR_DENSITY_SETTING
-                elif self.selected_menu_num == 6:
+                elif self.selected_menu_num == 5:
                     return Path.IO_TEST_TOOL
-                elif self.selected_menu_num == 7:
+                elif self.selected_menu_num == 6:
                     return Path.PERSISTENT_SETTINGS
-                elif self.selected_menu_num == 8:
+                elif self.selected_menu_num == 7:
                     return Path.VERSION_INFO
-                elif self.selected_menu_num == 9:
+                elif self.selected_menu_num == 8:
                     return Path.DONATE
-                elif self.selected_menu_num == 10:
+                elif self.selected_menu_num == 9:
                     return Path.RESET
         raise Exception("Unhandled case")
 

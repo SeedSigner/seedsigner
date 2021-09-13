@@ -151,8 +151,6 @@ class Controller(Singleton):
                 ret_val = self.show_wallet_tool()
             elif ret_val == Path.QR_DENSITY_SETTING:
                 ret_val = self.show_qr_density_tool()
-            elif ret_val == Path.WALLET_POLICY:
-                ret_val = self.show_wallet_policy_tool()
             elif ret_val == Path.PERSISTENT_SETTINGS:
                 ret_val = self.show_persistent_settings_tool()
             elif ret_val == Path.DONATE:
@@ -524,7 +522,7 @@ class Controller(Singleton):
         self.buttons.wait_for([B.KEY_RIGHT])
 
         self.signing_tools_view.draw_modal(["Generating xPub QR ..."])
-        e = EncodeQR(seed_phrase=seed.mnemonic_list, passphrase=seed.passphrase, derivation=derivation, network=self.settings.network, policy=self.settings.script_policy, qr_type=qr_xpub_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
+        e = EncodeQR(seed_phrase=seed.mnemonic_list, passphrase=seed.passphrase, derivation=derivation, network=self.settings.network, qr_type=qr_xpub_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
 
         while e.totalParts() > 1:
             image = e.nextPartImage(240,240,2)
@@ -800,15 +798,6 @@ class Controller(Singleton):
         r = self.settings_tools_view.display_qr_density_selection()
         if r in (EncodeQRDensity.LOW, EncodeQRDensity.MEDIUM, EncodeQRDensity.HIGH):
             self.settings.qr_density = r
-
-        return Path.SETTINGS_SUB_MENU
-
-    ### Show Wallet Policy Tool
-
-    def show_wallet_policy_tool(self):
-        r = self.settings_tools_view.display_wallet_policy_selection()
-        if r is not None:
-            self.settings.script_policy = r
 
         return Path.SETTINGS_SUB_MENU
 

@@ -62,24 +62,6 @@ class SettingsToolsView(View):
         else:
             return None
 
-    ### Display Wallet Policy Selection
-
-    def display_wallet_policy_selection(self) -> str:
-
-        lines = ["... [ Return to Settings ]"]
-        lines.append("Multi Sig Native Segwit")
-        lines.append("Single Sig Native Segwit")
-
-        r = self.controller.menu_view.display_generic_selection_menu(lines, "Which Wallet Policy?")
-        if r == 1:
-            return None
-        elif lines[r-1] == "Multi Sig Native Segwit":
-            return "PKWSH"
-        elif lines[r-1] == "Single Sig Native Segwit":
-            return "PKWPKH"
-        else:
-            return None
-
     def display_persistent_settings(self) -> bool:
 
         lines = ["... [ Return to Settings ]"]
