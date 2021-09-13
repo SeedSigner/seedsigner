@@ -73,6 +73,11 @@ https://youtu.be/aIIc2DiZYcI
 
 ---------------
 
+## OFFICIAL IMAGE INSTALLATION:
+There is available an official image you can use to quick start. Instructions [here](docs/official_image_installation.md).
+
+---------------
+
 ## MANUAL BUILD INSTRUCTIONS:
 Begin by preparing a copy of the Raspberry Pi Lite operating system (https://www.raspberrypi.org/software/operating-systems/) on a MicroSD card. Their [Raspberry Pi Imager](https://www.raspberrypi.org/software/) tool makes this easy.
 
