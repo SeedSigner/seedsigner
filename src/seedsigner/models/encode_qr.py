@@ -226,22 +226,16 @@ class XPubQR:
 
         if self.wordlist == None:
             raise Exception('Wordlist Required')
-
-        self.network = network
+            
+        version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[network])
+        print(self.derivation)
         self.seed = Seed(mnemonic=self.seed_phrase, passphrase=self.passphrase, wordlist=self.wordlist)
-        self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[self.network]["xprv"])
+        self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[network]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
-        self.bip48_xprv = self.root.derive(self.derivation)
-        self.bip48_xpub = self.bip48_xprv.to_public()
-
-        xpub_base58 = ""
-
-        if policy == "PKWPKH":
-            self.xpub_base58 = self.bip48_xpub.to_base58(NETWORKS[self.network]["zpub"])
-        elif policy == "PKWSH":
-            self.xpub_base58 = self.bip48_xpub.to_base58(NETWORKS[self.network]["Zpub"])
-        else:
-            raise Exception('Policy Type not Supported')
+        self.xprv = self.root.derive(self.derivation)
+        self.xpub = self.xprv.to_public()
+        self.xpub_base58 = self.xpub.to_string(version=version)
+        self.network = network
 
         self.xpubstring = "[%s%s]%s" % (hexlify(self.fingerprint).decode('utf-8'),self.derivation[1:],self.xpub_base58)
 
