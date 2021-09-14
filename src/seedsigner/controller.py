@@ -3,7 +3,7 @@ import time
 from multiprocessing import Process, Queue
 from subprocess import call
 import os, sys
-from embit import bip39, bip32
+from embit import bip32
 from embit.networks import NETWORKS
 from binascii import hexlify
 from threading import Thread
@@ -12,8 +12,7 @@ from threading import Thread
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
     SettingsToolsView, IOTestView, OpeningSplashView, ScreensaverView)
 from .helpers import Buttons, B, Path, Singleton
-from .models import (SeedStorage, Settings, DecodeQR, DecodeQRStatus,
-    EncodeQRDensity, EncodeQR, PSBTParser, QRType)
+from .models import (EncodeQRDensity, QRType, Seed, SeedStorage, Settings, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
 
 class Controller(Singleton):
     """
@@ -184,26 +183,26 @@ class Controller(Singleton):
     ### Generate Last Word 12 / 24 Menu
 
     def show_generate_last_word_tool(self) -> int:
-        seed_phrase = []
+        seed = Seed(wordlist=self.settings.wordlist)
         ret_val = 0
 
         while True:
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Seed Tools ]")
             if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_manual_seed_entry(11)
+                seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(11)
             elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_manual_seed_entry(23)
+                seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(23)
             else:
                 return Path.SEED_TOOLS_SUB_MENU
 
-            if len(seed_phrase) > 0:
-                completed_seed_phrase = self.seed_tools_view.display_last_word(seed_phrase)
+            if len(seed.mnemonic_list) > 0:
+                seed.mnemonic = self.seed_tools_view.display_last_word(seed.mnemonic_display_list)
                 break
 
         # display seed phrase
         while True:
-            ret_val = self.seed_tools_view.display_seed_phrase(completed_seed_phrase, show_qr_option=True)
+            ret_val = self.seed_tools_view.display_seed_phrase(seed.mnemonic, show_qr_option=True)
             if ret_val == True:
                 break
             else:
@@ -216,7 +215,7 @@ class Controller(Singleton):
             if r == 1: #Yes
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
                 if slot_num in (1,2,3):
-                    self.storage.save_seed_phrase(completed_seed_phrase, slot_num)
+                    self.storage.add_seed(seed, slot_num)
                     self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
                     input = self.buttons.wait_for([B.KEY_RIGHT])
 
@@ -225,19 +224,19 @@ class Controller(Singleton):
     ### Create a Seed w/ Dice Screen
 
     def show_create_seed_with_dice_tool(self) -> int:
-        seed_phrase = []
+        seed = Seed(wordlist=self.settings.wordlist)
         ret_val = True
 
         while True:
-            seed_phrase = self.seed_tools_view.display_generate_seed_from_dice()
-            if len(seed_phrase) > 0:
+            seed.mnemonic = self.seed_tools_view.display_generate_seed_from_dice()
+            if seed:
                 break
             else:
                 return Path.SEED_TOOLS_SUB_MENU
 
         # display seed phrase (24 words)
         while True:
-            ret_val = self.seed_tools_view.display_seed_phrase(seed_phrase, show_qr_option=True)
+            ret_val = self.seed_tools_view.display_seed_phrase(seed.mnemonic_list, show_qr_option=True)
             if ret_val == True:
                 break
             else:
@@ -250,30 +249,32 @@ class Controller(Singleton):
             if r == 1: #Yes
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
                 if slot_num in (1,2,3):
-                    self.storage.save_seed_phrase(seed_phrase, slot_num)
+                    self.storage.add_seed(seed, slot_num)
                     self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
                     input = self.buttons.wait_for([B.KEY_RIGHT])
 
         return Path.MAIN_MENU
 
+    ### Create a Seed w/ Image
+
     def show_create_seed_with_image_tool(self) -> int:
-        seed_phrase = []
+        seed = Seed(wordlist=self.settings.wordlist)
         ret_val = True
 
         while True:
-            (reshoot, seed_phrase) = self.seed_tools_view.seed_phrase_from_camera_image()
+            (reshoot, seed.mnemonic) = self.seed_tools_view.seed_phrase_from_camera_image()
             if reshoot:
                 # Relaunch into another image capture cycle
                 continue
 
-            if len(seed_phrase) > 0:
+            if seed:
                 break
             else:
                 return Path.SEED_TOOLS_SUB_MENU
 
         # display seed phrase (24 words)
         while True:
-            ret_val = self.seed_tools_view.display_seed_phrase(seed_phrase, show_qr_option=True)
+            ret_val = self.seed_tools_view.display_seed_phrase(seed.mnemonic_list, show_qr_option=True)
             if ret_val == True:
                 break
             else:
@@ -286,15 +287,16 @@ class Controller(Singleton):
             if r == 1: #Yes
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
                 if slot_num in (1,2,3):
-                    self.storage.save_seed_phrase(seed_phrase, slot_num)
+                    self.storage.add_seed(seed, slot_num)
                     self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
                     input = self.buttons.wait_for([B.KEY_RIGHT])
 
         return Path.MAIN_MENU
+
     ### Store a seed (temp) Menu
 
     def show_store_a_seed_tool(self):
-        seed_phrase = []
+        seed = Seed(wordlist=self.settings.wordlist)
         ret_val = 0
         display_saved_seed = False
         ret_val = self.menu_view.display_saved_seed_menu(self.storage, 1, "... [ Return to Seed Tools ]")
@@ -319,26 +321,25 @@ class Controller(Singleton):
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Seed Tools ]")
             if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
+                seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(12)
             elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
+                seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(24)
             elif ret_val == Path.SEED_WORD_QR:
-                seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
+                seed.mnemonic = self.seed_tools_view.read_seed_phrase_qr()
             else:
                 return Path.SEED_TOOLS_SUB_MENU
 
-        if len(seed_phrase) == 0:
+        if not seed:
+            # seed is not valid
             return Path.SEED_TOOLS_SUB_MENU
 
-        if ret_val == Path.SEED_WORD_QR and len(seed_phrase) > 0:
+        if ret_val == Path.SEED_WORD_QR and seed:
             show_qr_option = False
         else:
             show_qr_option = True
 
-        self.menu_view.draw_modal(["Validating ..."])
-        is_valid = self.storage.check_if_seed_valid(seed_phrase)
-        if is_valid == False:
-            # Exit if not valid with message
+        if not seed:
+            # Seed is not valid, Exit if not valid with message
             self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again", ""], "", "Right to Continue")
             input = self.buttons.wait_for([B.KEY_RIGHT])
             return Path.SEED_TOOLS_SUB_MENU
@@ -347,15 +348,15 @@ class Controller(Singleton):
             input = self.buttons.wait_for([B.KEY_RIGHT])
 
         while display_saved_seed == False:
-            r = self.seed_tools_view.display_seed_phrase(seed_phrase, show_qr_option=show_qr_option )
+            r = self.seed_tools_view.display_seed_phrase(seed.mnemonic_list, show_qr_option=show_qr_option )
             if r == True:
                 break
             else:
                 # no-op; can't back out of the seed phrase view
                 pass
 
-        if is_valid:
-            self.storage.save_seed_phrase(seed_phrase, slot_num)
+        if seed:
+            self.storage.add_seed(seed, slot_num)
             self.menu_view.draw_modal(["", "Saved to Slot #" + str(slot_num)], "", "Right to Exit")
             input = self.buttons.wait_for([B.KEY_RIGHT])
 
@@ -418,8 +419,7 @@ class Controller(Singleton):
     ### Generate XPUB
 
     def show_generate_xpub(self):
-        seed_phrase = []
-        passphrase = ""
+        seed = Seed(wordlist=self.settings.wordlist)
 
         # If there is a saved seed, ask to use saved seed
         if self.storage.num_of_saved_seeds() > 0:
@@ -428,29 +428,26 @@ class Controller(Singleton):
                 slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
                 if slot_num not in (1,2,3):
                     return Path.SEED_TOOLS_SUB_MENU
-                seed_phrase = self.storage.get_seed_phrase(slot_num)
-                passphrase = self.storage.get_passphrase(slot_num)
+                seed = self.storage.get_seed(slot_num)
 
-        if len(seed_phrase) == 0:
-            # gather seed phrase
+        if not seed:
+            # no valid seed, gather seed phrase
             # display menu to select 12 or 24 word seed for last word
             ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Sign Tools ]")
             if ret_val == Path.SEED_WORD_12:
-                seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
+                seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(12)
             elif ret_val == Path.SEED_WORD_24:
-                seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
+                seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(24)
             elif ret_val == Path.SEED_WORD_QR:
-                seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
+                seed.mnemonic = self.seed_tools_view.read_seed_phrase_qr()
             else:
                 return Path.SEED_TOOLS_SUB_MENU
 
-            if len(seed_phrase) == 0:
+            if not seed:
                 return Path.SEED_TOOLS_SUB_MENU
 
             # check if seed phrase is valid
-            self.menu_view.draw_modal(["Validating ..."])
-            is_valid = self.storage.check_if_seed_valid(seed_phrase)
-            if is_valid == False:
+            if not seed:
                 self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
                 return Path.MAIN_MENU
@@ -458,20 +455,19 @@ class Controller(Singleton):
             r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
             if r == 1:
                 # display a tool to pick letters/numbers to make a passphrase
-                passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
-                if len(passphrase) == 0 or passphrase == "-1":
-                    passphrase = ""
+                seed.passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
+                if len(seed.passphrase) == 0:
                     self.menu_view.draw_modal(["No passphrase added", "to seed words"], "", "Left to Exit, Right to Continue")
                     input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
                     if input == B.KEY_LEFT:
                         return Path.MAIN_MENU
                 else:
-                    self.menu_view.draw_modal(["Optional passphrase", "added to seed words", passphrase], "", "Right to Continue")
+                    self.menu_view.draw_modal(["Optional passphrase", "added to seed words", seed.passphrase], "", "Right to Continue")
                     self.buttons.wait_for([B.KEY_RIGHT])
 
         # display seed phrase
         while True:
-            r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
+            r = self.seed_tools_view.display_seed_phrase(seed.mnemonic_list, seed.passphrase, "Right to Continue")
             if r == True:
                 break
             else:
@@ -480,8 +476,7 @@ class Controller(Singleton):
 
         self.signing_tools_view.draw_modal(["Loading xPub Info ..."])
 
-        seed = bip39.mnemonic_to_seed((" ".join(seed_phrase)).strip(), passphrase)
-        root = bip32.HDKey.from_seed(seed, version=NETWORKS[self.settings.network]["xprv"])
+        root = bip32.HDKey.from_seed(seed.seed, version=NETWORKS[self.settings.network]["xprv"])
         fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
         bip48_xprv = root.derive(self.settings.derivation)
         bip48_xpub = bip48_xprv.to_public()
@@ -501,7 +496,7 @@ class Controller(Singleton):
             qr_xpub_type = self.settings.qr_xpub_type
 
         self.signing_tools_view.draw_modal(["Generating xPub QR ..."])
-        e = EncodeQR(seed_phrase=seed_phrase, passphrase=passphrase, derivation=self.settings.derivation, network=self.settings.network, policy=self.settings.script_policy, qr_type=qr_xpub_type, qr_density=self.settings.qr_density)
+        e = EncodeQR(seed_phrase=seed.mnemonic_list, passphrase=seed.passphrase, derivation=self.settings.derivation, network=self.settings.network, policy=self.settings.script_policy, qr_type=qr_xpub_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
 
         while e.totalParts() > 1:
             image = e.nextPartImage(240,240,2)
@@ -520,8 +515,7 @@ class Controller(Singleton):
     ### Sign Transactions
 
     def show_sign_transaction(self):
-        seed_phrase = []
-        passphrase = ""
+        seed = Seed(wordlist=self.settings.wordlist)
         used_saved_seed = False
 
         # reusable qr scan function
@@ -529,7 +523,7 @@ class Controller(Singleton):
             # Scan QR using Camera
             self.menu_view.draw_modal(["Initializing Camera"])
             self.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
-            decoder = DecodeQR()
+            decoder = DecodeQR(wordlist=self.settings.wordlist)
 
             def live_preview(camera, decoder, scan_text):
                 while True:
@@ -577,10 +571,9 @@ class Controller(Singleton):
         elif decoder.isComplete() and decoder.isSeed():
             # first QR is Seed
             self.menu_view.draw_modal(["Validating Seed"])
-            seed_phrase = decoder.getSeedPhrase()
-            is_valid = self.storage.check_if_seed_valid(seed_phrase)
-            if is_valid == False:
-                # Exit if not valid with message
+            seed.mnemonic = decoder.getSeedPhrase()
+            if not seed:
+                # seed is not valid, Exit if not valid with message
                 self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again", ""], "", "Right to Continue")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
                 return Path.MAIN_MENU
@@ -591,9 +584,8 @@ class Controller(Singleton):
             r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
             if r == 1:
                 # display a tool to pick letters/numbers to make a passphrase
-                passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
-                if len(passphrase) == 0 or passphrase == "-1":
-                    passphrase = ""
+                seed.passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
+                if len(seed.passphrase) == 0:
                     self.menu_view.draw_modal(["No passphrase added", "to seed words"], "", "Left to Exit, Right to Continue")
                     input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
                     if input == B.KEY_LEFT:
@@ -608,14 +600,13 @@ class Controller(Singleton):
                 if r == 1: #Yes
                     slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
                     if slot_num in (1,2,3):
-                        self.storage.save_seed_phrase(seed_phrase, slot_num)
-                        self.storage.save_passphrase(passphrase, slot_num)
+                        self.storage.add_seed(seed, slot_num)
                         self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
                         input = self.buttons.wait_for([B.KEY_RIGHT])
 
             # display seed phrase
             while True:
-                r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
+                r = self.seed_tools_view.display_seed_phrase(seed.mnemonic_list, seed.passphrase, "Right to Continue")
                 if r == True:
                     break
                 else:
@@ -643,62 +634,57 @@ class Controller(Singleton):
         else:
             return Path.MAIN_MENU
 
-
-        if len(seed_phrase) == 0:
-
-            # If there is a saved seed, ask to use saved seed
+        if not seed:
+            # No valid seed yet, If there is a saved seed, ask to use saved seed
             if self.storage.num_of_saved_seeds() > 0:
                 r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Save Seed?")
                 if r == 1: #Yes
                     slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
                     if slot_num == 0:
                         return Path.MAIN_MENU
-                    seed_phrase = self.storage.get_seed_phrase(slot_num)
-                    passphrase = self.storage.get_passphrase(slot_num)
+                    seed = self.storage.get_seed(slot_num)
                     used_saved_seed = True
 
-            if len(seed_phrase) == 0:
-                # gather seed phrase
+            if not seed:
+                # no valid seed yet, gather seed phrase
                 # display menu to select 12 or 24 word seed for last word
                 ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Main Menu ]")
                 if ret_val == Path.SEED_WORD_12:
-                    seed_phrase = self.seed_tools_view.display_manual_seed_entry(12)
+                    seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(12)
                 elif ret_val == Path.SEED_WORD_24:
-                    seed_phrase = self.seed_tools_view.display_manual_seed_entry(24)
+                    seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(24)
                 elif ret_val == Path.SEED_WORD_QR:
-                    seed_phrase = self.seed_tools_view.read_seed_phrase_qr()
+                    seed.mnemonic = self.seed_tools_view.read_seed_phrase_qr()
                 else:
                     return Path.MAIN_MENU
 
-                if len(seed_phrase) == 0:
+                if not seed:
                     return Path.MAIN_MENU
 
             # check if seed phrase is valid
             self.menu_view.draw_modal(["Validating Seed ..."])
-            is_valid = self.storage.check_if_seed_valid(seed_phrase)
-            if is_valid == False:
+            if not seed:
                 self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
                 return Path.MAIN_MENU
 
-            if len(passphrase) == 0:
+            if len(seed.passphrase) == 0:
                 r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
                 if r == 1:
                     # display a tool to pick letters/numbers to make a passphrase
-                    passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
-                    if len(passphrase) == 0 or passphrase == "-1":
-                        passphrase = ""
+                    seed.passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
+                    if len(seed.passphrase) == 0:
                         self.menu_view.draw_modal(["No passphrase added", "to seed words"], "", "Left to Exit, Right to Continue")
                         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
                         if input == B.KEY_LEFT:
                             return Path.MAIN_MENU
                     else:
-                        self.menu_view.draw_modal(["Optional passphrase", "added to seed words", passphrase], "", "Right to Continue")
+                        self.menu_view.draw_modal(["Optional passphrase", "added to seed words", seed.passphrase], "", "Right to Continue")
                         self.buttons.wait_for([B.KEY_RIGHT])
 
             # display seed phrase
             while True:
-                r = self.seed_tools_view.display_seed_phrase(seed_phrase, passphrase, "Right to Continue")
+                r = self.seed_tools_view.display_seed_phrase(seed.mnemonic_list, seed.passphrase, "Right to Continue")
                 if r == True:
                     break
                 else:
@@ -711,14 +697,13 @@ class Controller(Singleton):
                 if r == 1: #Yes
                     slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
                     if slot_num in (1,2,3):
-                        self.storage.save_seed_phrase(seed_phrase, slot_num)
-                        self.storage.save_passphrase(passphrase, slot_num)
+                        self.storage.add_seed(seed, slot_num)
                         self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
                         input = self.buttons.wait_for([B.KEY_RIGHT])
 
         # show transaction information before sign
         self.menu_view.draw_modal(["Parsing PSBT"])
-        p = PSBTParser(psbt,seed_phrase,passphrase,self.settings.network)
+        p = PSBTParser(psbt,seed,self.settings.network)
         self.signing_tools_view.display_transaction_information(p)
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
         if input == B.KEY_LEFT:
@@ -738,7 +723,7 @@ class Controller(Singleton):
 
         # Display Animated QR Code
         self.menu_view.draw_modal(["Generating PSBT QR ..."])
-        e = EncodeQR(psbt=trimmed_psbt, qr_type=self.settings.qr_psbt_type, qr_density=self.settings.qr_density)
+        e = EncodeQR(psbt=trimmed_psbt, qr_type=self.settings.qr_psbt_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
         while True:
             image = e.nextPartImage(240,240,1)
             View.DispShowImage(image)

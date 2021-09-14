@@ -3,8 +3,6 @@ from . import View
 from seedsigner.helpers import B, QR
 from seedsigner.models import EncodeQRDensity
 
-
-
 class SettingsToolsView(View):
 
     def __init__(self) -> None:

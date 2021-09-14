@@ -23,6 +23,9 @@ class IOTestView(View):
         self.draw_modal(["Initializing I/O Test"])
         print("Initializing I/O Test")
         self.qr_text = "Scan ANY QR Code"
+        self.redraw = False
+        self.redraw_complete = False
+        self.exit = False
 
         try:
             self.controller.get_instance().camera.start_video_stream_mode()

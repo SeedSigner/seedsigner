@@ -1,7 +1,7 @@
 # Internal file class dependencies
 from . import View
 from seedsigner.helpers import B, Path
-from seedsigner.models import SeedStorage, Settings
+from seedsigner.models import SeedStorage, Settings, Seed
 
 # External Dependencies
 import time
