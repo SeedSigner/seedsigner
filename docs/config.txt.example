@@ -1,0 +1,13 @@
+# Disable bluetooth 
+dtoverlay=pi3-disable-bt
+
+# Disable Wifi
+dtoverlay=pi3-disable-wifi
+
+# Enable SPI
+dtparam=spi=on
+
+# Enable PiCam
+start_x=1
+gpu_mem=128 # maybe needed
+disable_camera_led=1  # optional, if you don't want the led to glow
