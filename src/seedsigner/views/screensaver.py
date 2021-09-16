@@ -11,7 +11,8 @@ from seedsigner.helpers import B
 
 class LogoView(View):
     def __init__(self):
-        logo_url = os.path.join("seedsigner", "resources", "logo_black_240.png")
+        dirname = os.path.dirname(__file__)
+        logo_url = os.path.join(dirname, "../../", "seedsigner", "resources", "logo_black_240.png")
         self.logo = Image.open(logo_url)
 
 
