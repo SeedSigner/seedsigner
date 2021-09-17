@@ -151,8 +151,6 @@ class Controller(Singleton):
                 ret_val = self.show_wallet_tool()
             elif ret_val == Path.QR_DENSITY_SETTING:
                 ret_val = self.show_qr_density_tool()
-            elif ret_val == Path.WALLET_POLICY:
-                ret_val = self.show_wallet_policy_tool()
             elif ret_val == Path.PERSISTENT_SETTINGS:
                 ret_val = self.show_persistent_settings_tool()
             elif ret_val == Path.DONATE:
@@ -473,21 +471,37 @@ class Controller(Singleton):
             else:
                 # Cancel
                 return Path.SEED_TOOLS_SUB_MENU
-
-        self.signing_tools_view.draw_modal(["Loading xPub Info ..."])
-
-        root = bip32.HDKey.from_seed(seed.seed, version=NETWORKS[self.settings.network]["xprv"])
-        fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
-        bip48_xprv = root.derive(self.settings.derivation)
-        bip48_xpub = bip48_xprv.to_public()
-        if self.settings.script_policy == "PKWPKH":
-            xpub = bip48_xpub.to_base58(NETWORKS[self.settings.network]["zpub"])
+                
+        # choose single sig or multisig wallet type
+        wallet_type = "multisig"
+        script_type = "native segwit"
+        derivation = self.settings.custom_derivation
+        r = self.menu_view.display_generic_selection_menu(["Single Sig", "Multisig"], "Wallet Type?")
+        if r == 1:
+            wallet_type = "single sig"
+        elif r == 2:
+            wallet_type = "multisig"
+        
+        # choose derivation standard
+        r = self.menu_view.display_generic_selection_menu(["Native Segwit", "Nested Segwit", "Custom"], "Derivation Path?")
+        if r == 1:
+            script_type = "native segwit"
+        elif r == 2:
+            script_type = "nested segwit"
+        elif r == 3:
+            script_type = "custom"
+        
+        # calculated derivation or get custom from keyboard entry
+        if script_type == "custom":
+            derivation = self.settings_tools_view.draw_derivation_keyboard_entry(existing_derivation=self.settings.custom_derivation)
+            self.settings.custom_derivation = derivation # save for next time
         else:
-            xpub = bip48_xpub.to_base58(NETWORKS[self.settings.network]["Zpub"])
-
-        self.signing_tools_view.display_xpub_info(fingerprint, self.settings.derivation, xpub)
-        self.buttons.wait_for([B.KEY_RIGHT])
-
+            derivation = Settings.calc_derivation(self.settings.network, wallet_type, script_type)
+            
+        if derivation == "" or derivation == None:
+            self.menu_view.draw_modal(["Invalid Derivation", "try again"], "", "Right to Continue")
+            return Path.SEED_TOOLS_SUB_MENU
+            
         if self.settings.software == "Prompt":
             lines = ["Specter Desktop", "Blue Wallet", "Sparrow"]
             r = self.menu_view.display_generic_selection_menu(lines, "Which Wallet?")
@@ -495,8 +509,21 @@ class Controller(Singleton):
         else:
             qr_xpub_type = self.settings.qr_xpub_type
 
+        self.signing_tools_view.draw_modal(["Loading xPub Info ..."])
+
+        version = bip32.detect_version(derivation, default="xpub", network=NETWORKS[self.settings.network])
+        root = bip32.HDKey.from_seed(seed.seed, version=NETWORKS[self.settings.network]["xprv"])
+        fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
+        xprv = root.derive(derivation)
+        xpub = xprv.to_public()
+        print(derivation)
+        xpub_base58 = xpub.to_string(version=version)
+
+        self.signing_tools_view.display_xpub_info(fingerprint, derivation, xpub_base58)
+        self.buttons.wait_for([B.KEY_RIGHT])
+
         self.signing_tools_view.draw_modal(["Generating xPub QR ..."])
-        e = EncodeQR(seed_phrase=seed.mnemonic_list, passphrase=seed.passphrase, derivation=self.settings.derivation, network=self.settings.network, policy=self.settings.script_policy, qr_type=qr_xpub_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
+        e = EncodeQR(seed_phrase=seed.mnemonic_list, passphrase=seed.passphrase, derivation=derivation, network=self.settings.network, qr_type=qr_xpub_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
 
         while e.totalParts() > 1:
             image = e.nextPartImage(240,240,2)
@@ -531,8 +558,8 @@ class Controller(Singleton):
                     if frame is not None:
                         if decoder.getPercentComplete() > 0 and decoder.isPSBT():
                             scan_text = str(decoder.getPercentComplete()) + "% Complete"
-                        View.DispShowImageWithText(frame.resize((240,240)), scan_text, font=View.ANTON22, text_color=View.color, text_background=(0,0,0,225))
-                    time.sleep(0.1) # turn this up or down to tune performace while decoding psbt
+                        View.DispShowImageWithText(frame.resize((240,240)), scan_text, font=View.ASSISTANT22, text_color=View.color, text_background=(0,0,0,225))
+                    time.sleep(0.1) # turn this up or down to tune performance while decoding psbt
                     if camera._video_stream is None:
                         break
 
@@ -772,15 +799,6 @@ class Controller(Singleton):
         r = self.settings_tools_view.display_qr_density_selection()
         if r in (EncodeQRDensity.LOW, EncodeQRDensity.MEDIUM, EncodeQRDensity.HIGH):
             self.settings.qr_density = r
-
-        return Path.SETTINGS_SUB_MENU
-
-    ### Show Wallet Policy Tool
-
-    def show_wallet_policy_tool(self):
-        r = self.settings_tools_view.display_wallet_policy_selection()
-        if r is not None:
-            self.settings.script_policy = r
 
         return Path.SETTINGS_SUB_MENU
 

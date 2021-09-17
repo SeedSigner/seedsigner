@@ -9,9 +9,9 @@ class Seed:
 		self._valid = False
 		self.passphrase = passphrase
 		self.mnemonic = mnemonic
-		self.wordlist = wordlist
+		self._wordlist = wordlist
 		
-		if self.wordlist == None:
+		if self._wordlist == None:
 			raise Exception('Wordlist Required')
 		
 		self._valid = self._generate_seed()
@@ -20,7 +20,7 @@ class Seed:
 	def _generate_seed(self) -> bool:
 		self.seed = None
 		try:
-			self.seed = bip39.mnemonic_to_seed(self.mnemonic, password=self.passphrase, wordlist=self.wordlist)
+			self.seed = bip39.mnemonic_to_seed(self.mnemonic, password=self.passphrase, wordlist=self._wordlist)
 			return True
 		except Exception as e:
 			return False
@@ -54,7 +54,6 @@ class Seed:
 		if self._init_complete:
 			self._valid = self._generate_seed()
 
-
 	@property
 	def passphrase(self):
 		return self._passphrase
@@ -70,6 +69,33 @@ class Seed:
 
 		if self._init_complete:
 			self._valid = self._generate_seed()
+
+	@property
+	def wordlist(self):
+		return self._wordlist
+
+	@wordlist.setter
+	def wordlist(self, value):
+		previous_wordlist = self._wordlist
+		
+		if isinstance(value, list):
+			if len(value) == 2048:
+				self._wordlist = value
+			else:
+				raise Exception('Invalid Wordlist')
+		else:
+			raise Exception('Wordlist Must be List Type')
+		
+		if self.mnemonic != None:
+			# if has mnemonic, convert to new wordlist
+			previous_mnemonic_str = self._mnemonic
+			previous_mnemonic_list = previous_mnemonic_str.split()
+			new_mnemonic_list = []
+			for word in previous_mnemonic_list:
+				idx = previous_wordlist.index(word)
+				new_mnemonic_list.append(self._wordlist[idx])
+			
+			self._mnemonic = " ".join(new_mnemonic_list)
 
 	### override operators
 	

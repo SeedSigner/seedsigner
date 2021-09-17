@@ -124,14 +124,13 @@ class MenuView(View):
     ### Settings Menu
 
     def display_settings_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Wallet: <wallet>", "Script Policy: <policy>", "Network: <network>", "QR Density: <density>", "Input / Output Tests", "Persistent Settings: <persistent>", "Version Info", "Donate to SeedSigner", "Reset SeedSigner"]
+        lines = ["... [ Return to Main ]", "Wallet: <wallet>", "Network: <network>", "QR Density: <density>", "Input / Output Tests", "Persistent Settings: <persistent>", "Version Info", "Donate to SeedSigner", "Reset SeedSigner"]
         input = 0
         
         lines[1] = lines[1].replace("<wallet>", Settings.get_instance().software)
-        lines[2] = lines[2].replace("<policy>", Settings.get_instance().policy_name)
-        lines[3] = lines[3].replace("<network>", Settings.get_instance().network)
-        lines[4] = lines[4].replace("<density>", Settings.get_instance().qr_density_name)
-        lines[6] = lines[6].replace("<persistent>", Settings.get_instance().persistent_display)
+        lines[2] = lines[2].replace("<network>", Settings.get_instance().network)
+        lines[3] = lines[3].replace("<density>", Settings.get_instance().qr_density_name)
+        lines[5] = lines[5].replace("<persistent>", Settings.get_instance().persistent_display)
 
         # Draw Menu
         self.selected_menu_num = 1
@@ -150,20 +149,18 @@ class MenuView(View):
                 elif self.selected_menu_num == 2:
                     return Path.WALLET
                 elif self.selected_menu_num == 3:
-                    return Path.WALLET_POLICY
-                elif self.selected_menu_num == 4:
                     return Path.CURRENT_NETWORK
-                elif self.selected_menu_num == 5:
+                elif self.selected_menu_num == 4:
                     return Path.QR_DENSITY_SETTING
-                elif self.selected_menu_num == 6:
+                elif self.selected_menu_num == 5:
                     return Path.IO_TEST_TOOL
-                elif self.selected_menu_num == 7:
+                elif self.selected_menu_num == 6:
                     return Path.PERSISTENT_SETTINGS
-                elif self.selected_menu_num == 8:
+                elif self.selected_menu_num == 7:
                     return Path.VERSION_INFO
-                elif self.selected_menu_num == 9:
+                elif self.selected_menu_num == 8:
                     return Path.DONATE
-                elif self.selected_menu_num == 10:
+                elif self.selected_menu_num == 9:
                     return Path.RESET
         raise Exception("Unhandled case")
 
@@ -311,8 +308,8 @@ class MenuView(View):
             #Menu has changed, redraw
 
             View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-            tw, th = View.draw.textsize(t, font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 2), t, fill=View.color, font=View.ANTON22)
+            tw, th = View.draw.textsize(t, font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 2), t, fill=View.color, font=View.ASSISTANT22)
 
             num_of_lines = len(lines)
 
@@ -350,8 +347,8 @@ class MenuView(View):
                 if num_of_lines >= 15:
                     self.draw_menu_text(15, 175, lines[14], (True if selected_menu_num == 15 else False))
 
-            tw, th = View.draw.textsize(b, font=View.ANTON18)
-            View.draw.text(((240 - tw) / 2, 210), b, fill=View.color, font=View.ANTON18)
+            tw, th = View.draw.textsize(b, font=View.ASSISTANT18)
+            View.draw.text(((240 - tw) / 2, 210), b, fill=View.color, font=View.ASSISTANT18)
             View.DispShowImage()
 
             # saved update menu lines and selection
@@ -378,8 +375,8 @@ class MenuView(View):
     def draw_menu_text(self, x, y, line, selected) -> None:
         if selected == True:
             View.draw.rectangle((5, y-3, 235, y+28), outline=0, fill=View.color)
-            View.draw.text((x, y) , line, fill="BLACK", font=View.ANTON20)
+            View.draw.text((x, y) , line, fill="BLACK", font=View.ASSISTANT20BOLD)
         else:
-            View.draw.text((x, y) , line, fill=View.color, font=View.ANTON20)
+            View.draw.text((x, y) , line, fill=View.color, font=View.ASSISTANT20)
 
         return
