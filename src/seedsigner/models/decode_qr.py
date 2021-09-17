@@ -24,6 +24,7 @@ class DecodeQR:
         self.legacy_ur = LegacyURDecodeQR() # UR Legacy decoder
         self.base64_qr = Base64DecodeQR() # Single Segments Base64
         self.base43_qr = Base43DecodeQR() # Single Segment Base43
+        self.address_qr = BitcoinAddressQR() # Single Segment bitcoin address
         self.wordlist = None
 
         for key, value in kwargs.items():
@@ -108,6 +109,12 @@ class DecodeQR:
             if rt == DecodeQRStatus.COMPLETE:
                 self.complete = True
             return rt
+            
+        elif self.qr_type == QRType.BITCOINADDRESSQR:
+            rt = self.address_qr.add(qr_str, QRType.BITCOINADDRESSQR)
+            if rt == DecodeQRStatus.COMPLETE:
+                self.complete = True
+            return rt
 
         else:
             return DecodeQRStatus.INVALID
@@ -150,6 +157,12 @@ class DecodeQR:
 
     def getSeedPhrase(self):
         return self.seedqr.getSeedPhrase()
+        
+    def getAddress(self):
+        return self.address_qr.getAddress()
+        
+    def getAddressType(self):
+        return self.address_qr.getAddressType()
 
     def getPercentComplete(self) -> int:
         if self.qr_type == QRType.PSBTUR2:
@@ -192,6 +205,11 @@ class DecodeQR:
         if self.qr_type in (QRType.SEEDSSQR, QRType.SEEDUR2, QRType.SEEDMNEMONIC, QRType.SEED4LETTERMNEMONIC):
             return True
         return False
+        
+    def isAddress(self):
+        if self.qr_type in (QRType.BITCOINADDRESSQR):
+            return True
+        return False
 
     def qrType(self):
         return self.qr_type
@@ -220,6 +238,10 @@ class DecodeQR:
         elif DecodeQR.isBase64PSBT(s):
             return QRType.PSBTBASE64
         
+        # Bitcoin Address
+        if DecodeQR.isBitcoinAddress(s):
+            return QRType.BITCOINADDRESSQR
+
         _4LETTER_WORDLIST = [word[:4].strip() for word in wordlist]
         
         # Seed
@@ -297,6 +319,16 @@ class DecodeQR:
         result.extend(b'\x00' * nPad)
         result.reverse()
         return bytes(result)
+        
+    @staticmethod
+    def isBitcoinAddress(s):
+    
+        if re.search(r'^bitcoin\:.*', s, re.IGNORECASE):
+            return True
+        elif re.search(r'^((bc1|tb1|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', s):
+            return True
+        else:
+            return False
 
 ###
 ### SpecterDecodePSBTQR Class
@@ -617,6 +649,65 @@ class SeedQR:
         if len(self.seed_phrase) in (12, 24):
             return True
         return False
+
+###
+### BitcoinAddressQR Class
+### Purpose: used in DecodeQR to decode single frame representing a bitcoin address
+###
+
+class BitcoinAddressQR:
+
+    def __init__(self, wordlist=None):
+        self.total_segments = 1
+        self.collected_segments = 0
+        self.complete = False
+        self.address = None
+        self.address_type = None
+
+    def add(self, segment, qr_type=QRType.BITCOINADDRESSQR):
+        
+        r = re.search(r'((bc1|tb1|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})', segment)
+        if r != None:
+            self.address = r.group(1)
+        
+            if re.search(r'^((bc1|tb1|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', self.address) != None:
+                self.complete = True
+                self.collected_segments = 1
+                
+                # get address type
+                r = re.search(r'^((bc1|tb1|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', self.address)
+                if r != None:
+                    r = r.group(2)
+                
+                if r == "1":
+                    self.address_type = "P2PKH-main" # Legacy
+                elif r == "m" or r == "n":
+                    self.address_type = "P2PKH-test" # Legacy
+                elif r == "3":
+                    self.address_type = "P2SH-main" # Nested Segwit Single Sig (P2WPKH in P2SH) or Multisig (P2WSH in P2SH)
+                elif r == "2":
+                    self.address_type = "P2SH-test" # Nested Segwit Single Sig (P2WPKH in P2SH) or Multisig (P2WSH in P2SH)
+                elif r == "bc1":
+                    self.address_type = "Bech32-main" 
+                elif r == "tb1":
+                    self.address_type = "Bech32-test"
+                
+                return DecodeQRStatus.COMPLETE
+
+        return DecodeQRStatus.INVALID
+        
+    def getAddress(self):
+        if self.address != None:
+            return self.address
+        return None
+        
+    def getAddressType(self):
+        if self.address != None:
+            if self.address_type != None:
+                return self.address_type
+            else:
+                return "Unknown"
+        return None
 
 ###
 ### DecodeQRStatus Class IntEum

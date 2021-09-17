@@ -333,7 +333,76 @@ def test_short_4_letter_mnemonic_qr():
     assert d.isComplete() == True
     assert d.getSeedPhrase() == ["height", "demise", "useless", "trap", "grow", "lion", "found", "off", "key", "clown", "transfer", "enroll"]
 
-
+def test_bitcoin_address():
+    
+    bad1 = "loremipsum"
+    bad2 = "0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae"
+    bad3 = "121802020768124106400009195602431595117715840445"
+    
+    legacy_address1 = "1KFHE7w8BhaENAswwryaoccDb6qcT6DbYY"
+    legacy_address2 = "16ftSEQ4ctQFDtVZiUBusQUjRrGhM3JYwe"
+    
+    main_bech32_address = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+    test_bech32_address = "tb1qkurj377gtlmu0j5flcykcsh2xagexh9h3jk06a"
+    
+    main_nested_segwit_address = "3Nu78Cqcf6hsD4sUBAN9nP13tYiHU9QPFX"
+    test_nested_segwit_address = "2N6JbrvPMMwbBhu2KxqXyyHUQz3XKspvyfm"
+    
+    main_bech32_address2 = "bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?amount=12000"
+    main_bech32_address3 = "BITCOIN:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?junk"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(bad1)
+    
+    assert d.qrType() == QRType.INVALID
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(legacy_address1)
+    
+    assert d.getAddress() == legacy_address1
+    assert d.getAddressType() == "P2PKH-main"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(legacy_address2)
+    
+    assert d.getAddress() == legacy_address2
+    assert d.getAddressType() == "P2PKH-main"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(main_bech32_address)
+    
+    assert d.getAddress() == main_bech32_address
+    assert d.getAddressType() == "Bech32-main"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(test_bech32_address)
+    
+    assert d.getAddress() == test_bech32_address
+    assert d.getAddressType() == "Bech32-test"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(main_nested_segwit_address)
+    
+    assert d.getAddress() == main_nested_segwit_address
+    assert d.getAddressType() == "P2SH-main"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(test_nested_segwit_address)
+    
+    assert d.getAddress() == test_nested_segwit_address
+    assert d.getAddressType() == "P2SH-test"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(main_bech32_address2)
+    
+    assert d.getAddress() == "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+    assert d.getAddressType() == "Bech32-main"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(main_bech32_address3)
+    
+    assert d.getAddress() == "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+    assert d.getAddressType() == "Bech32-main"
 
 
 
