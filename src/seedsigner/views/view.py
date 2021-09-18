@@ -16,26 +16,35 @@ class View:
 
     WIDTH = 240
     HEIGHT = 240
-
+    
     font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
     
     # Define necessary fonts
-    ANTON16 = ImageFont.truetype(os.path.join(font_path, "Anton.ttf"), 16)
-    ANTON18 = ImageFont.truetype(os.path.join(font_path, "Anton.ttf"), 18)
-    ANTON20 = ImageFont.truetype(os.path.join(font_path, "Anton.ttf"), 20)
-    ANTON21 = ImageFont.truetype(os.path.join(font_path, "Anton.ttf"), 21)
-    ANTON22 = ImageFont.truetype(os.path.join(font_path, "Anton.ttf"), 22)
-    ANTON23 = ImageFont.truetype(os.path.join(font_path, "Anton.ttf"), 23)
-    ANTON25 = ImageFont.truetype(os.path.join(font_path, "Anton.ttf"), 25)
-    ANTON26 = ImageFont.truetype(os.path.join(font_path, "Anton.ttf"), 26)
-    ANTON35 = ImageFont.truetype(os.path.join(font_path, "Anton.ttf"), 35)
-    ANTON50 = ImageFont.truetype(os.path.join(font_path, "Anton.ttf"), 50)
-    COURIERNEW14 = ImageFont.truetype(os.path.join(font_path, "Cour.ttf"), 14)
-    COURIERNEW24 = ImageFont.truetype(os.path.join(font_path, "Cour.ttf"), 24)
-    COURIERNEW38 = ImageFont.truetype(os.path.join(font_path, "Cour.ttf"), 38)
-    COURIERNEW30 = ImageFont.truetype(os.path.join(font_path, "Cour.ttf"), 30)
-    COURIERNEW20 = ImageFont.truetype(os.path.join(font_path, "Cour.ttf"), 20)
-
+    ASSISTANT16 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 16)
+    ASSISTANT18 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 18)
+    ASSISTANT20 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 20)
+    ASSISTANT21 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 21)
+    ASSISTANT22 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 22)
+    ASSISTANT23 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 23)
+    ASSISTANT25 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 25)
+    ASSISTANT26 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 26)
+    ASSISTANT35 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 35)
+    ASSISTANT50 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 50)
+    ASSISTANT16BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 15)
+    ASSISTANT18BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 17)
+    ASSISTANT20BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 19)
+    ASSISTANT21BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 20)
+    ASSISTANT22BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 21)
+    ASSISTANT23BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 22)
+    ASSISTANT25BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 25)
+    ASSISTANT26BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 26)
+    ASSISTANT35BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 35)
+    ASSISTANT50BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 50)
+    ROBOTOMONO14 = ImageFont.truetype(os.path.join(font_path, 'RobotoMono-Medium.ttf'), 14)
+    ROBOTOMONO24 = ImageFont.truetype(os.path.join(font_path, 'RobotoMono-Medium.ttf'), 24)
+    ROBOTOMONO38 = ImageFont.truetype(os.path.join(font_path, 'RobotoMono-Medium.ttf'), 38)
+    ROBOTOMONO30 = ImageFont.truetype(os.path.join(font_path, 'RobotoMono-Medium.ttf'), 30)
+    ROBOTOMONO20 = ImageFont.truetype(os.path.join(font_path, 'RobotoMono-Medium.ttf'), 20)
 
     ROBOTOCONDENSED_BOLD_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 16)
     ROBOTOCONDENSED_BOLD_18 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 18)
@@ -150,7 +159,7 @@ class View:
         text_overlay = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
         text_overlay_draw = ImageDraw.Draw(text_overlay)
         if not font:
-            font = View.COURIERNEW14
+            font = View.ASSISTANT18
         tw, th = text_overlay_draw.textsize(text, font=font)
         if text_background:
             text_overlay_draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), fill=text_background)
@@ -163,37 +172,37 @@ class View:
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
         if len(title) > 0:
-            tw, th = View.draw.textsize(title, font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.ANTON22)
+            tw, th = View.draw.textsize(title, font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.ASSISTANT22)
 
         if len(bottom) > 0:
-            tw, th = View.draw.textsize(bottom, font=View.ANTON18)
-            View.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.ANTON18)
+            tw, th = View.draw.textsize(bottom, font=View.ASSISTANT18)
+            View.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.ASSISTANT18)
 
         if len(lines) == 1:
-            tw, th = View.draw.textsize(lines[0], font=View.ANTON26)
-            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.ANTON26)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT26)
+            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.ASSISTANT26)
         elif len(lines) == 2:
-            tw, th = View.draw.textsize(lines[0], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.ANTON22)
-            tw, th = View.draw.textsize(lines[1], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 125), lines[1], fill=View.color, font=View.ANTON22)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[1], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[1], fill=View.color, font=View.ASSISTANT22)
         elif len(lines) == 3:
-            tw, th = View.draw.textsize(lines[0], font=View.ANTON26)
-            View.draw.text(((240 - tw) / 2, 55), lines[0], fill=View.color, font=View.ANTON26)
-            tw, th = View.draw.textsize(lines[1], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.ANTON22)
-            tw, th = View.draw.textsize(lines[2], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.ANTON22)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT26)
+            View.draw.text(((240 - tw) / 2, 55), lines[0], fill=View.color, font=View.ASSISTANT26)
+            tw, th = View.draw.textsize(lines[1], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[2], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.ASSISTANT22)
         elif len(lines) == 4:
-            tw, th = View.draw.textsize(lines[0], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 55), lines[0], fill=View.color, font=View.ANTON22)
-            tw, th = View.draw.textsize(lines[1], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.ANTON22)
-            tw, th = View.draw.textsize(lines[2], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.ANTON22)
-            tw, th = View.draw.textsize(lines[3], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 160), lines[3], fill=View.color, font=View.ANTON22)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 55), lines[0], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[1], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[2], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[3], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 160), lines[3], fill=View.color, font=View.ASSISTANT22)
 
         View.DispShowImage()
 
@@ -211,46 +220,46 @@ class View:
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
         if len(title) > 0:
-            tw, th = View.draw.textsize(title, font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.ANTON22)
+            tw, th = View.draw.textsize(title, font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.ASSISTANT22)
 
         if len(bottom) > 0:
-            tw, th = View.draw.textsize(bottom, font=View.ANTON18)
-            View.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.ANTON18)
+            tw, th = View.draw.textsize(bottom, font=View.ASSISTANT18)
+            View.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.ASSISTANT18)
 
         if len(lines) == 1:
-            tw, th = View.draw.textsize(lines[0], font=View.ANTON26)
-            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.ANTON26)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT26)
+            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.ASSISTANT26)
         elif len(lines) == 2:
-            tw, th = View.draw.textsize(lines[0], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.ANTON22)
-            tw, th = View.draw.textsize(lines[1], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 125), lines[1], fill=View.color, font=View.ANTON22)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[1], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[1], fill=View.color, font=View.ASSISTANT22)
         elif len(lines) == 3:
-            tw, th = View.draw.textsize(lines[0], font=View.ANTON26)
-            View.draw.text(((240 - tw) / 2, 20), lines[0], fill=View.color, font=View.ANTON26)
-            tw, th = View.draw.textsize(lines[1], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.ANTON22)
-            tw, th = View.draw.textsize(lines[2], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.ANTON22)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT26)
+            View.draw.text(((240 - tw) / 2, 20), lines[0], fill=View.color, font=View.ASSISTANT26)
+            tw, th = View.draw.textsize(lines[1], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[2], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.ASSISTANT22)
         elif len(lines) == 4:
-            tw, th = View.draw.textsize(lines[0], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 20), lines[0], fill=View.color, font=View.ANTON22)
-            tw, th = View.draw.textsize(lines[1], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.ANTON22)
-            tw, th = View.draw.textsize(lines[2], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.ANTON22)
-            tw, th = View.draw.textsize(lines[3], font=View.ANTON22)
-            View.draw.text(((240 - tw) / 2, 160), lines[3], fill=View.color, font=View.ANTON22)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 20), lines[0], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[1], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[2], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[3], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 160), lines[3], fill=View.color, font=View.ASSISTANT22)
 
-        a_x_offset = 240 - View.ANTON25.getsize(a_txt)[0]
-        View.draw.text((a_x_offset, 39 + 0), a_txt, fill=View.color, font=View.ANTON25)
+        a_x_offset = 240 - View.ASSISTANT25.getsize(a_txt)[0]
+        View.draw.text((a_x_offset, 39 + 0), a_txt, fill=View.color, font=View.ASSISTANT25)
 
-        b_x_offset = 240 - View.ANTON25.getsize(b_txt)[0]
-        View.draw.text((b_x_offset , 39 + 60), b_txt, fill=View.color, font=View.ANTON25)
+        b_x_offset = 240 - View.ASSISTANT25.getsize(b_txt)[0]
+        View.draw.text((b_x_offset , 39 + 60), b_txt, fill=View.color, font=View.ASSISTANT25)
 
-        c_x_offset = 240 - View.ANTON25.getsize(c_txt)[0]
-        View.draw.text((c_x_offset , 39 + 120), c_txt, fill=View.color, font=View.ANTON25)
+        c_x_offset = 240 - View.ASSISTANT25.getsize(c_txt)[0]
+        View.draw.text((c_x_offset , 39 + 120), c_txt, fill=View.color, font=View.ASSISTANT25)
 
         View.DispShowImage()
 
@@ -270,14 +279,14 @@ class View:
         line3 = "30 seconds before"
         line4 = "disconnecting power."
 
-        tw, th = View.draw.textsize(line1, font=View.ANTON22)
-        View.draw.text(((240-tw)/2, 45), line1, fill=View.color, font=View.ANTON22)
-        tw, th = View.draw.textsize(line2, font=View.ANTON20)
-        View.draw.text(((240-tw)/2, 100), line2, fill=View.color, font=View.ANTON20)
-        tw, th = View.draw.textsize(line3, font=View.ANTON20)
-        View.draw.text(((240-tw)/2, 130), line3, fill=View.color, font=View.ANTON20)
-        tw, th = View.draw.textsize(line4, font=View.ANTON20)
-        View.draw.text(((240-tw)/2, 160), line4, fill=View.color, font=View.ANTON20)
+        tw, th = View.draw.textsize(line1, font=View.ASSISTANT22)
+        View.draw.text(((240-tw)/2, 45), line1, fill=View.color, font=View.ASSISTANT22)
+        tw, th = View.draw.textsize(line2, font=View.ASSISTANT20)
+        View.draw.text(((240-tw)/2, 100), line2, fill=View.color, font=View.ASSISTANT20)
+        tw, th = View.draw.textsize(line3, font=View.ASSISTANT20)
+        View.draw.text(((240-tw)/2, 130), line3, fill=View.color, font=View.ASSISTANT20)
+        tw, th = View.draw.textsize(line4, font=View.ASSISTANT20)
+        View.draw.text(((240-tw)/2, 160), line4, fill=View.color, font=View.ASSISTANT20)
         View.DispShowImage()
 
 
