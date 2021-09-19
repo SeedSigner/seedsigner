@@ -98,7 +98,9 @@ SeedSigner installation and configuration requires an internet connection on the
 Connect a keyboard & monitor to the device or SSH into the Pi if you're familiar with that process.
 
 ### Configure the Pi
-On the Pi bring up its system config:
+You have two options for configuring the hardware of the Pi. 
+
+1. If you are running on the Pi itself, you can use the system config tool:
 ```
 sudo raspi-config
 ```
@@ -113,6 +115,9 @@ Set the following:
 * WiFi settings (only necessary for the option #1 setup above)
 
 Exit and reboot when prompted within the raspi-config interface.
+
+2. If you want to configure the hardware on another machine, insert the MicroSD card into that machine, and navigate to the /boot directory, which should be accessible in any OS.
+    * Edit the file called `config.txt`, and replace all its contents with the content from the file [here](docs/example-config.txt)
 
 Install these dependencies:
 ```
