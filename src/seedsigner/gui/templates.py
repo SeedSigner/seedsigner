@@ -103,7 +103,7 @@ class ButtonListScreen(BaseScreen):
 
 
 class BottomButtonScreen(ButtonListScreen):
-    def __init__(self, title:str, button_data:list, is_button_text_centered:bool, title_font=None, body_text=None, is_body_text_centered=True, body_font_color=None, body_font=None, button_font=None):
+    def __init__(self, title:str, button_data:list, is_button_text_centered:bool, title_font=None, body_text=None, is_body_text_centered=True, body_font_color=None, body_font_name=None, body_font_size=None, button_font=None):
         super().__init__(title=title, button_data=button_data, is_button_text_centered=is_button_text_centered, is_bottom_list=True, title_font=title_font, button_font=button_font)
 
         self.body_textscreen = TextArea(
@@ -112,8 +112,9 @@ class BottomButtonScreen(ButtonListScreen):
             screen_y=self.top_nav.height,
             width=self.canvas_width,
             height=self.buttons[0].screen_y - self.top_nav.height,
-            draw=View.draw,
-            font=body_font,
+            canvas=View.canvas,
+            font_name=body_font_name,
+            font_size=body_font_size,
             font_color=body_font_color,
             is_text_centered=is_body_text_centered
         )

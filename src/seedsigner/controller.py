@@ -86,7 +86,7 @@ class Controller(Singleton):
 
     def start(self) -> None:
         from seedsigner.gui.templates import BaseScreen, ButtonListScreen, FontTesterScreen, BottomButtonScreen
-        from seedsigner.gui.components import load_font
+        from seedsigner.gui.components import Fonts
         # opening_splash = OpeningSplashView()
         # opening_splash.start()
         # base_screen = BaseScreen(
@@ -116,12 +116,13 @@ class Controller(Singleton):
             title="Body Font Test",
             button_data=[{"text":"Proceed"}],
             is_button_text_centered=True,
-            title_font=load_font("OpenSans-SemiBold.ttf", 18),
+            title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
             body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
             is_body_text_centered=True,
-            body_font=load_font("OpenSans-Regular.ttf", 18),
+            body_font_name="OpenSans-Regular.ttf",
+            body_font_size=16,
             body_font_color="white",
-            button_font=load_font("OpenSans-SemiBold.ttf", 18)
+            button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18)
         )
 
         screen.render()
@@ -140,8 +141,8 @@ class Controller(Singleton):
                 ],
                 is_button_text_centered=False,
                 is_bottom_list=False,
-                title_font=load_font("OpenSans-SemiBold.ttf", 18),
-                button_font=load_font(test[0], test[1]),
+                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                button_font=Fonts.load_font(test[0], test[1]),
             )
 
             screen.render()

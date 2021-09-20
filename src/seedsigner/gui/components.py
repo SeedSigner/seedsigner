@@ -3,19 +3,13 @@ import os
 import pathlib
 
 from dataclasses import dataclass
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 
 
 # TODO: Remove all pixel hard coding
 EDGE_PADDING = 4
 COMPONENT_PADDING = 8
-
-
-# DEBUGGING
-def load_font(font_name, size):
-    font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
-    return ImageFont.truetype(os.path.join(font_path, font_name), size)
 
 
 
@@ -64,6 +58,7 @@ class Fonts:
     PAGE_TITLE_SMALLER = ASSISTANT_REGULAR_20
     PAGE_TITLE_SMALLEST = ASSISTANT_REGULAR_18
     BUTTON = OPENSANS_SEMIBOLD_24
+    BODY_FONT_NAME = "OpenSans-Regular"
 
 
     ROBOTOCONDENSED_BOLD_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 16)
@@ -85,6 +80,13 @@ class Fonts:
     ROBOTOCONDENSED_REGULAR_28 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 28)
 
 
+    @classmethod
+    def load_font(cls, font_name, size):
+        font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
+        return ImageFont.truetype(os.path.join(font_path, font_name), size)
+
+
+
 @dataclass
 class TextArea:
     """
@@ -104,16 +106,19 @@ class TextArea:
     screen_y: int
     width: int
     height: int
-    draw: ImageDraw
+    canvas: Image
     background_color: str = "black"
-    font: ImageFont = None
+    font_name: str = Fonts.BODY_FONT_NAME
+    font_size: int = 16
     font_color: str = "orange"
     is_text_centered: bool = True
 
 
     def __post_init__(self):
-        if not self.font:
-            self.font = Fonts.BODY_TEXT
+        self.supersampling_factor = 2
+        self.font = Fonts.load_font(self.font_name, self.supersampling_factor * self.font_size)
+        self.width = self.supersampling_factor * self.width
+        self.height = self.supersampling_factor * self.height
 
         # We have to figure out if and where to make line breaks in the text so that it
         #   fits in its bounding rect (plus accounting for edge padding) using its given
@@ -124,17 +129,17 @@ class TextArea:
         self.text_lines = []
         def _add_text_line(text, width):
             if self.is_text_centered:
-                text_x = self.screen_x + int((self.width - width) / 2)
+                text_x = int((self.width - width) / 2)
             else:
-                text_x = self.screen_x + EDGE_PADDING
+                text_x = self.supersampling_factor * EDGE_PADDING
             self.text_lines.append({"text": text, "text_x": text_x})
 
-        if tw < self.width - (2 * EDGE_PADDING):
+        if tw < self.width - (2 * EDGE_PADDING * self.supersampling_factor):
             # The whole text fits on one line
             _add_text_line(self.text, tw)
 
             # Vertical starting point calc is easy in this case
-            self.text_y = self.screen_y + int((self.height - th) / 2)
+            self.text_y = int(((self.supersampling_factor * self.height) - th) / 2)
 
         else:
             # Have to calc how to break text into multiple lines
@@ -152,7 +157,7 @@ class TextArea:
                 if index == min_index:
                     # We have converged
                     return (index, tw)
-                elif tw > self.width - (2 * EDGE_PADDING):
+                elif tw > self.width - (2 * EDGE_PADDING * self.supersampling_factor):
                     # Candidate line is still too long. Restrict search range down.
                     return _binary_len_search(min_index, index)
                 else:
@@ -168,18 +173,27 @@ class TextArea:
 
             self.line_spacing = int(0.1 * self.text_height)
             total_text_height = self.text_height * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
-            if total_text_height > self.height + 2 * COMPONENT_PADDING:
+            if total_text_height > self.height + 2 * COMPONENT_PADDING * self.supersampling_factor:
                 raise Exception("Text cannot fit in target rect with this font/size")
 
-            self.text_y = self.screen_y + int((self.height - total_text_height) / 2)
+            self.text_y = int((self.height - total_text_height) / 2)
 
 
     def render(self):
+        # Render to a temp img scaled up by self.supersampling_factor, then resize down
+        #   with bicubic resampling.
+        img = Image.new("RGB", (self.width, self.height), self.background_color)
+        draw = ImageDraw.Draw(img)
         cur_y = self.text_y
         for line in self.text_lines:
             print(line)
-            self.draw.text((line["text_x"], cur_y), line["text"], fill=self.font_color, font=self.font)
+            draw.text((line["text_x"], cur_y), line["text"], fill=self.font_color, font=self.font)
             cur_y += self.text_height + self.line_spacing
+        # img = img.filter(ImageFilter.EDGE_ENHANCE)
+        resized = img.resize((int(self.width / self.supersampling_factor), int(self.height / self.supersampling_factor)), Image.LANCZOS)
+        resized = resized.filter(ImageFilter.SHARPEN)
+        self.canvas.paste(resized, (self.screen_x, self.screen_y))
+
 
 
 @dataclass
