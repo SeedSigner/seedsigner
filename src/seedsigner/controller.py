@@ -94,15 +94,6 @@ class Controller(Singleton):
         # )
         # base_screen.render()
 
-        # screen = ButtonListScreen(
-        #     title="In-Memory Seeds",
-        #     button_data=[
-        #         {"text": "cfd0883d"},
-        #         {"text": "72f9a6bf"},
-        #     ],
-        #     is_text_centered=False,
-        #     is_bottom_list=False,
-        # )
         # screen.render()
 
 
@@ -144,6 +135,35 @@ class Controller(Singleton):
                 supersampling_factor=2
             )
         )
+        screens.append(
+            ButtonListScreen(
+                title="Color: Orange",
+                button_data=[
+                    {"text": "cfd0883d"},
+                    {"text": "72f9a6bf"},
+                ],
+                is_button_text_centered=False,
+                is_bottom_list=False,
+                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                button_selected_color="orange"
+            )
+        )
+        screens.append(
+            ButtonListScreen(
+                title="Color: #f7941d",
+                button_data=[
+                    {"text": "cfd0883d"},
+                    {"text": "72f9a6bf"},
+                ],
+                is_button_text_centered=False,
+                is_bottom_list=False,
+                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                button_selected_color="#f7941d"
+            )
+        )
+
 
         index = 0
         while True:
@@ -157,8 +177,6 @@ class Controller(Singleton):
             #     ],
             #     is_button_text_centered=False,
             #     is_bottom_list=False,
-            #     title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-            #     button_font=Fonts.load_font(test[0], test[1]),
             # )
 
             screens[index].render()

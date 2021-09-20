@@ -28,7 +28,7 @@ class BaseScreen(View):
 
 
 class ButtonListScreen(BaseScreen):
-    def __init__(self, title:str, button_data:list, is_button_text_centered:bool, is_bottom_list:bool, title_font=None, button_font=None):
+    def __init__(self, title:str, button_data:list, is_button_text_centered:bool, is_bottom_list:bool, title_font=None, button_font=None, button_selected_color="orange"):
         super().__init__(title, title_font)
 
         self.button_data = button_data
@@ -55,6 +55,7 @@ class ButtonListScreen(BaseScreen):
                 height=button_height,
                 is_text_centered=is_button_text_centered,
                 font=button_font,
+                selected_color=button_selected_color
             )
             self.buttons.append(button)
 
