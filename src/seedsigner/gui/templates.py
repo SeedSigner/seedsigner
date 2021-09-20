@@ -1,6 +1,8 @@
 
-from .components import Button, TopNav, EDGE_PADDING, COMPONENT_PADDING
+from .components import (EDGE_PADDING, COMPONENT_PADDING, Button, TopNav, 
+    TextArea)
 
+from PIL import ImageFont
 from seedsigner.helpers import B
 from seedsigner.views import View
 
@@ -27,8 +29,8 @@ class BaseScreen(View):
 
 
 class ButtonListScreen(BaseScreen):
-    def __init__(self, title:str, button_data:list, is_text_centered:bool, is_bottom_list:bool, font=None, button_font=None):
-        super().__init__(title, font)
+    def __init__(self, title:str, button_data:list, is_button_text_centered:bool, is_bottom_list:bool, title_font=None, button_font=None):
+        super().__init__(title, title_font)
 
         self.button_data = button_data
         self.is_bottom_list = is_bottom_list
@@ -53,7 +55,7 @@ class ButtonListScreen(BaseScreen):
                 width=self.canvas_width - (2 * EDGE_PADDING),
                 height=button_height,
                 draw=View.draw,
-                is_text_centered=is_text_centered,
+                is_text_centered=is_button_text_centered,
                 font=button_font,
             )
             self.buttons.append(button)
@@ -96,6 +98,33 @@ class ButtonListScreen(BaseScreen):
         else:
             return
 
+        View.DispShowImage()
+
+
+
+class BottomButtonScreen(ButtonListScreen):
+    def __init__(self, title:str, button_data:list, is_button_text_centered:bool, title_font=None, body_text=None, is_body_text_centered=True, body_font_color=None, body_font=None, button_font=None):
+        super().__init__(title=title, button_data=button_data, is_button_text_centered=is_button_text_centered, is_bottom_list=True, title_font=title_font, button_font=button_font)
+
+        self.body_textscreen = TextArea(
+            text=body_text,
+            screen_x=0,
+            screen_y=self.top_nav.height,
+            width=self.canvas_width,
+            height=self.buttons[0].screen_y - self.top_nav.height,
+            draw=View.draw,
+            font=body_font,
+            font_color=body_font_color,
+            is_text_centered=is_body_text_centered
+        )
+
+
+    def render(self):
+        View.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), fill=0)
+        self.top_nav.render()
+        self.body_textscreen.render()
+        for button in self.buttons:
+            button.render()
         View.DispShowImage()
 
 

@@ -9,7 +9,7 @@ from binascii import hexlify
 from threading import Thread
 
 # Internal file class dependencies
-from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
+from .views import (View, MenuView, SeedToolsView, SigningToolsView, 
     SettingsToolsView, IOTestView, OpeningSplashView, ScreensaverView)
 from .helpers import Buttons, B, Path, Singleton
 from .models import (EncodeQRDensity, QRType, Seed, SeedStorage, Settings, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
@@ -85,7 +85,7 @@ class Controller(Singleton):
 
 
     def start(self) -> None:
-        from seedsigner.gui.templates import BaseScreen, ButtonListScreen, FontTesterScreen
+        from seedsigner.gui.templates import BaseScreen, ButtonListScreen, FontTesterScreen, BottomButtonScreen
         from seedsigner.gui.components import load_font
         # opening_splash = OpeningSplashView()
         # opening_splash.start()
@@ -105,11 +105,28 @@ class Controller(Singleton):
         # )
         # screen.render()
 
+
         tests = [
             ("OpenSans-SemiBold.ttf", 16),
             ("OpenSans-SemiBold.ttf", 18),
             ("OpenSans-SemiBold.ttf", 20),
         ]
+
+        screen = BottomButtonScreen(
+            title="Body Font Test",
+            button_data=[{"text":"Proceed"}],
+            is_button_text_centered=True,
+            title_font=load_font("OpenSans-SemiBold.ttf", 18),
+            body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+            is_body_text_centered=True,
+            body_font=load_font("OpenSans-Regular.ttf", 18),
+            body_font_color="white",
+            button_font=load_font("OpenSans-SemiBold.ttf", 18)
+        )
+
+        screen.render()
+        time.sleep(180)
+
 
         index = 0
         while True:
@@ -121,9 +138,9 @@ class Controller(Singleton):
                     {"text": "72f9a6bf"},
                     {"text": f"{test[0].split('.')[0]} {test[1]}"},
                 ],
-                is_text_centered=False,
+                is_button_text_centered=False,
                 is_bottom_list=False,
-                font=load_font("OpenSans-SemiBold.ttf", 20),
+                title_font=load_font("OpenSans-SemiBold.ttf", 18),
                 button_font=load_font(test[0], test[1]),
             )
 

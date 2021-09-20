@@ -1,3 +1,4 @@
+import math
 import os
 import pathlib
 
@@ -82,6 +83,103 @@ class Fonts:
     ROBOTOCONDENSED_REGULAR_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 24)
     ROBOTOCONDENSED_REGULAR_26 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 26)
     ROBOTOCONDENSED_REGULAR_28 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 28)
+
+
+@dataclass
+class TextArea:
+    """
+        Not to be confused with an html <textarea>! This is a rect-delimited text
+        display box that could be the main body content of a screen or a sub-zone
+        of text within a more complicated page.
+
+        Auto-calcs line breaks based on input text and font (somewhat naive; only
+        breaks on spaces. Future enhancement could break on hyphens, too).
+
+        Raises an Exception if the text won't fit in the given rect.
+
+        Attrs with defaults must be listed last.
+    """
+    text: str     # display value
+    screen_x: int
+    screen_y: int
+    width: int
+    height: int
+    draw: ImageDraw
+    background_color: str = "black"
+    font: ImageFont = None
+    font_color: str = "orange"
+    is_text_centered: bool = True
+
+
+    def __post_init__(self):
+        if not self.font:
+            self.font = Fonts.BODY_TEXT
+
+        # We have to figure out if and where to make line breaks in the text so that it
+        #   fits in its bounding rect (plus accounting for edge padding) using its given
+        #   font.
+        tw, self.text_height = self.font.getsize(self.text)
+
+        # Stores each line of text and its rendering starting x-coord
+        self.text_lines = []
+        def _add_text_line(text, width):
+            if self.is_text_centered:
+                text_x = self.screen_x + int((self.width - width) / 2)
+            else:
+                text_x = self.screen_x + EDGE_PADDING
+            self.text_lines.append({"text": text, "text_x": text_x})
+
+        if tw < self.width - (2 * EDGE_PADDING):
+            # The whole text fits on one line
+            _add_text_line(self.text, tw)
+
+            # Vertical starting point calc is easy in this case
+            self.text_y = self.screen_y + int((self.height - th) / 2)
+
+        else:
+            # Have to calc how to break text into multiple lines
+            def _binary_len_search(min_index, max_index):
+                # Try the middle of the range
+                index = math.floor((max_index + min_index) / 2)
+                if index == 0:
+                    # Handle edge case where there's only one word in the last line
+                    index = 1
+                print(min_index, index, max_index, words[0:index])
+
+                tw, th = self.font.getsize(" ".join(words[0:index]))
+
+                print(self.width, tw)
+                if index == min_index:
+                    # We have converged
+                    return (index, tw)
+                elif tw > self.width - (2 * EDGE_PADDING):
+                    # Candidate line is still too long. Restrict search range down.
+                    return _binary_len_search(min_index, index)
+                else:
+                    # Candidate line is possibly shorter than necessary.
+                    return _binary_len_search(index, max_index)
+
+            words = self.text.split(" ")
+            while words:
+                (index, tw) = _binary_len_search(0, len(words))
+                print(f"--->{' '.join(words[:index])}")
+                _add_text_line(" ".join(words[0:index]), tw)
+                words = words[index:]
+
+            self.line_spacing = int(0.1 * self.text_height)
+            total_text_height = self.text_height * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
+            if total_text_height > self.height + 2 * COMPONENT_PADDING:
+                raise Exception("Text cannot fit in target rect with this font/size")
+
+            self.text_y = self.screen_y + int((self.height - total_text_height) / 2)
+
+
+    def render(self):
+        cur_y = self.text_y
+        for line in self.text_lines:
+            print(line)
+            self.draw.text((line["text_x"], cur_y), line["text"], fill=self.font_color, font=self.font)
+            cur_y += self.text_height + self.line_spacing
 
 
 @dataclass
