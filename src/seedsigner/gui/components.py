@@ -4,6 +4,7 @@ import pathlib
 
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from seedsigner.views import View
 
 
 
@@ -106,17 +107,19 @@ class TextArea:
     screen_y: int
     width: int
     height: int
-    canvas: Image
     background_color: str = "black"
     font_name: str = Fonts.BODY_FONT_NAME
     font_size: int = 16
     font_color: str = "orange"
     is_text_centered: bool = True
+    supersampling_factor: int = None
 
 
     def __post_init__(self):
-        self.supersampling_factor = 2
-        self.font = Fonts.load_font(self.font_name, self.supersampling_factor * self.font_size)
+        if not self.supersampling_factor:
+            self.supersampling_factor = 2
+
+        self.font = Fonts.load_font(self.font_name, int(self.supersampling_factor * self.font_size))
         self.width = self.supersampling_factor * self.width
         self.height = self.supersampling_factor * self.height
 
@@ -145,21 +148,24 @@ class TextArea:
             # Have to calc how to break text into multiple lines
             def _binary_len_search(min_index, max_index):
                 # Try the middle of the range
-                index = math.floor((max_index + min_index) / 2)
+                index = math.ceil((max_index + min_index) / 2)
                 if index == 0:
                     # Handle edge case where there's only one word in the last line
                     index = 1
                 print(min_index, index, max_index, words[0:index])
 
                 tw, th = self.font.getsize(" ".join(words[0:index]))
-
                 print(self.width, tw)
-                if index == min_index:
+
+                if tw > self.width - (2 * EDGE_PADDING * self.supersampling_factor):
+                    # Candidate line is still too long. Restrict search range down.
+                    if min_index + 1 == index:
+                        # There's no room left to search
+                        index -= 1
+                    return _binary_len_search(min_index, index)
+                elif index == max_index:
                     # We have converged
                     return (index, tw)
-                elif tw > self.width - (2 * EDGE_PADDING * self.supersampling_factor):
-                    # Candidate line is still too long. Restrict search range down.
-                    return _binary_len_search(min_index, index)
                 else:
                     # Candidate line is possibly shorter than necessary.
                     return _binary_len_search(index, max_index)
@@ -171,7 +177,7 @@ class TextArea:
                 _add_text_line(" ".join(words[0:index]), tw)
                 words = words[index:]
 
-            self.line_spacing = int(0.1 * self.text_height)
+            self.line_spacing = int(0.25 * self.font_size)
             total_text_height = self.text_height * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
             if total_text_height > self.height + 2 * COMPONENT_PADDING * self.supersampling_factor:
                 raise Exception("Text cannot fit in target rect with this font/size")
@@ -180,19 +186,25 @@ class TextArea:
 
 
     def render(self):
-        # Render to a temp img scaled up by self.supersampling_factor, then resize down
-        #   with bicubic resampling.
-        img = Image.new("RGB", (self.width, self.height), self.background_color)
-        draw = ImageDraw.Draw(img)
-        cur_y = self.text_y
+        if self.supersampling_factor > 1:
+            # Render to a temp img scaled up by self.supersampling_factor, then resize down
+            #   with bicubic resampling.
+            img = Image.new("RGB", (self.width, self.height), self.background_color)
+            draw = ImageDraw.Draw(img)
+            cur_y = self.text_y
+        else:
+            draw = View.draw
+            cur_y = self.text_y + self.screen_y
+
         for line in self.text_lines:
             print(line)
             draw.text((line["text_x"], cur_y), line["text"], fill=self.font_color, font=self.font)
             cur_y += self.text_height + self.line_spacing
-        # img = img.filter(ImageFilter.EDGE_ENHANCE)
-        resized = img.resize((int(self.width / self.supersampling_factor), int(self.height / self.supersampling_factor)), Image.LANCZOS)
-        resized = resized.filter(ImageFilter.SHARPEN)
-        self.canvas.paste(resized, (self.screen_x, self.screen_y))
+
+        if self.supersampling_factor > 1:
+            resized = img.resize((int(self.width / self.supersampling_factor), int(self.height / self.supersampling_factor)), Image.LANCZOS)
+            resized = resized.filter(ImageFilter.SHARPEN)
+            View.canvas.paste(resized, (self.screen_x, self.screen_y))
 
 
 
@@ -207,7 +219,6 @@ class Button:
     screen_y: int
     width: int
     height: int
-    draw: ImageDraw
     background_color: str = "#333"
     selected_color: str = "orange"
     font: ImageFont = None
@@ -237,8 +248,8 @@ class Button:
             background_color = self.background_color
             font_color = self.font_color
 
-        self.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.width, self.screen_y + self.height), fill=background_color, radius=COMPONENT_PADDING)
-        self.draw.text((self.text_x, self.text_y), self.text, fill=font_color, font=self.font)
+        View.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.width, self.screen_y + self.height), fill=background_color, radius=COMPONENT_PADDING)
+        View.draw.text((self.text_x, self.text_y), self.text, fill=font_color, font=self.font)
 
 
 
@@ -247,7 +258,6 @@ class TopNav:
     text: str
     width: int
     height: int
-    draw: ImageDraw
     background_color: str = "black"
     font: ImageFont = None
     font_color: str = "white"
@@ -261,7 +271,6 @@ class TopNav:
             screen_y=EDGE_PADDING,
             width=button_width,
             height=button_width,
-            draw=self.draw
         )
         self.context_button = Button(
             text="?",
@@ -269,7 +278,6 @@ class TopNav:
             screen_y=EDGE_PADDING,
             width=button_width,
             height=button_width,
-            draw=self.draw
         )
 
         if not self.font:
@@ -298,11 +306,11 @@ class TopNav:
 
 
     def render(self):
-        self.draw.rectangle((0, 0, self.width, self.height), fill=self.background_color)
+        View.draw.rectangle((0, 0, self.width, self.height), fill=self.background_color)
         self.back_button.render()
         self.context_button.render()
         # self.right_button.render()
-        self.draw.text((self.text_x, self.text_y), self.text, fill=self.font_color, font=self.font)
+        View.draw.text((self.text_x, self.text_y), self.text, fill=self.font_color, font=self.font)
 
 
 

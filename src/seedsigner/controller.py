@@ -112,45 +112,61 @@ class Controller(Singleton):
             ("OpenSans-SemiBold.ttf", 20),
         ]
 
-        screen = BottomButtonScreen(
-            title="Body Font Test",
-            button_data=[{"text":"Proceed"}],
-            is_button_text_centered=True,
-            title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-            body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-            is_body_text_centered=True,
-            body_font_name="OpenSans-Regular.ttf",
-            body_font_size=16,
-            body_font_color="white",
-            button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18)
+        screens = []
+
+        screens.append(
+            BottomButtonScreen(
+                title="Supersampling: off",
+                button_data=[{"text":"Proceed"}],
+                is_button_text_centered=False,
+                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+                is_body_text_centered=True,
+                body_font_name="OpenSans-Regular.ttf",
+                body_font_size=17,
+                body_font_color="white",
+                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                supersampling_factor=1
+            )
         )
-
-        screen.render()
-        time.sleep(180)
-
+        screens.append(
+            BottomButtonScreen(
+                title="Supersampling: 2",
+                button_data=[{"text":"Proceed"}],
+                is_button_text_centered=False,
+                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+                is_body_text_centered=True,
+                body_font_name="OpenSans-Regular.ttf",
+                body_font_size=17,
+                body_font_color="white",
+                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                supersampling_factor=2
+            )
+        )
 
         index = 0
         while True:
-            test = tests[index]
-            screen = FontTesterScreen(
-                title="In-Memory Seeds",
-                button_data=[
-                    {"text": "cfd0883d"},
-                    {"text": "72f9a6bf"},
-                    {"text": f"{test[0].split('.')[0]} {test[1]}"},
-                ],
-                is_button_text_centered=False,
-                is_bottom_list=False,
-                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                button_font=Fonts.load_font(test[0], test[1]),
-            )
+            # test = tests[index]
+            # screen = FontTesterScreen(
+            #     title="In-Memory Seeds",
+            #     button_data=[
+            #         {"text": "cfd0883d"},
+            #         {"text": "72f9a6bf"},
+            #         {"text": f"{test[0].split('.')[0]} {test[1]}"},
+            #     ],
+            #     is_button_text_centered=False,
+            #     is_bottom_list=False,
+            #     title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+            #     button_font=Fonts.load_font(test[0], test[1]),
+            # )
 
-            screen.render()
+            screens[index].render()
 
             while True:
                 if index == 0:
                     input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_UP, B.KEY_DOWN])
-                elif index < len(tests) - 1:
+                elif index < len(screens) - 1:
                     input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
                 else:
                     input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
@@ -162,7 +178,7 @@ class Controller(Singleton):
                     index -= 1
                     break
                 else:
-                    screen.update_from_input(input)
+                    screen[index].update_from_input(input)
 
 
         time.sleep(180)
