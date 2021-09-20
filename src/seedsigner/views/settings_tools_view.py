@@ -79,6 +79,28 @@ class SettingsToolsView(View):
         else:
             return None
 
+
+    def display_camera_rotation(self) -> int:
+        lines = ["... [ Return to Settings ]"]
+        lines.append("0 (default)")
+        lines.append("90")
+        lines.append("180")
+        lines.append("270")
+
+        r = self.controller.menu_view.display_generic_selection_menu(lines, "Camera Rotation")
+        if r == 1:
+            return None
+        elif r == 2:
+            return 0
+        elif r == 3:
+            return 90
+        elif r == 4:
+            return 180
+        elif r == 5:
+            return 270
+        else:
+            return None
+
     ###
     ### Version Info
     ###

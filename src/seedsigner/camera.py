@@ -10,6 +10,16 @@ from seedsigner.helpers import PiVideoStream, Singleton
 class Camera(Singleton):
     _video_stream = None
     _picamera = None
+    _camera_rotation = None
+
+    @classmethod
+    def get_instance(cls):
+        # This is the only way to access the one and only Controller
+        from seedsigner.models import Settings
+        if cls._instance is None:
+            cls._instance = cls.__new__(cls)
+        cls._instance._camera_rotation = Settings.get_instance().camera_rotation
+        return cls._instance
 
 
     def start_video_stream_mode(self, resolution=(512, 384), framerate=12, format="bgr"):
@@ -28,7 +38,7 @@ class Camera(Singleton):
             return frame
         else:
             if frame is not None:
-                return Image.fromarray(frame.astype('uint8'), 'RGB').rotate(90)
+                return Image.fromarray(frame.astype('uint8'), 'RGB').rotate(90 + self._camera_rotation)
         return None
 
 
@@ -59,37 +69,12 @@ class Camera(Singleton):
         self._picamera.awb_mode = 'off'
         self._picamera.awb_gains = g
 
-        """
-        When outputting to unencoded formats, the camera rounds the requested resolution.
-        The horizontal resolution is rounded up to the nearest multiple of 32 pixels,
-        while the vertical resolution is rounded up to the nearest multiple of 16 pixels. 
-        """
-        # resolution = self._picamera.resolution
-        # if resolution.width % 32 == 0:
-        #     raw_width = resolution.width
-        # else:
-        #     raw_width = resolution.width - (resolution.width % 32) + 32
-            
-        # if resolution.height % 16 == 0:
-        #     raw_height = resolution.height
-        # else:
-        #     raw_height = resolution.height + 16
-
-        # print(resolution)
-        # print(raw_width, raw_height)
-        # np_array = numpy.empty((raw_width, raw_height, 3), dtype=numpy.uint8)
-        # self._picamera.capture(np_array, format='rgb')
-
-        # np_array.reshape((raw_width, raw_height, 3))
-
-        # return Image.fromarray(np_array[:resolution.width, :resolution.height, :].astype('uint8'), 'RGB')
-
         stream = io.BytesIO()
         self._picamera.capture(stream, format='jpeg')
 
         # "Rewind" the stream to the beginning so we can read its content
         stream.seek(0)
-        return Image.open(stream)
+        return Image.open(stream).rotate(90 + self._camera_rotation)
 
 
     def stop_single_frame_mode(self):

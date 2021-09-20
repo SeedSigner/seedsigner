@@ -73,7 +73,8 @@ class Controller(Singleton):
         controller.settings_tools_view = SettingsToolsView()
         controller.screensaver = ScreensaverView(controller.buttons)
 
-        controller.screensaver_activation_ms = 60 * 1000
+        controller.screensaver_activation_ms = 120 * 1000
+
 
     @property
     def camera(self):
@@ -153,6 +154,8 @@ class Controller(Singleton):
                 ret_val = self.show_qr_density_tool()
             elif ret_val == Path.PERSISTENT_SETTINGS:
                 ret_val = self.show_persistent_settings_tool()
+            elif ret_val == Path.CAMERA_ROTATION:
+                ret_val = self.show_camera_rotation_tool()
             elif ret_val == Path.DONATE:
                 ret_val = self.show_donate_tool()
             elif ret_val == Path.RESET:
@@ -830,7 +833,13 @@ class Controller(Singleton):
 
         return Path.SETTINGS_SUB_MENU
 
-    ### Show Donate Screen and QR
+
+    def show_camera_rotation_tool(self):
+        r = self.settings_tools_view.display_camera_rotation()
+        if r is not None:
+            self.settings.camera_rotation = r
+
+        return Path.SETTINGS_SUB_MENU    ### Show Donate Screen and QR
 
     def show_donate_tool(self):
         self.settings_tools_view.display_donate_info_screen()

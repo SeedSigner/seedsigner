@@ -158,7 +158,7 @@ class View:
         text_overlay = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
         text_overlay_draw = ImageDraw.Draw(text_overlay)
         if not font:
-            font = View.COURIERNEW14
+            font = View.ASSISTANT18
         tw, th = text_overlay_draw.textsize(text, font=font)
         if text_background:
             text_overlay_draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), fill=text_background)
