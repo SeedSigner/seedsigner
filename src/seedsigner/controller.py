@@ -137,6 +137,21 @@ class Controller(Singleton):
         )
         screens.append(
             BottomButtonScreen(
+                title="Regular 16px w/SS",
+                button_data=[{"text":"Proceed"}],
+                is_button_text_centered=False,
+                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+                is_body_text_centered=True,
+                body_font_name="OpenSans-Regular.ttf",
+                body_font_size=16,
+                body_font_color="white",
+                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                supersampling_factor=2
+            )
+        )
+        screens.append(
+            BottomButtonScreen(
                 title="SemiBold 16px, no SS",
                 button_data=[{"text":"Proceed"}],
                 is_button_text_centered=False,
