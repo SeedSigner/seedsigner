@@ -136,6 +136,36 @@ class Controller(Singleton):
             )
         )
         screens.append(
+            BottomButtonScreen(
+                title="SemiBold 16px, no SS",
+                button_data=[{"text":"Proceed"}],
+                is_button_text_centered=False,
+                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+                is_body_text_centered=True,
+                body_font_name="OpenSans-SemiBold.ttf",
+                body_font_size=16,
+                body_font_color="white",
+                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                supersampling_factor=1
+            )
+        )
+        screens.append(
+            BottomButtonScreen(
+                title="SemiBold 17px, no SS",
+                button_data=[{"text":"Proceed"}],
+                is_button_text_centered=False,
+                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+                is_body_text_centered=True,
+                body_font_name="OpenSans-SemiBold.ttf",
+                body_font_size=17,
+                body_font_color="white",
+                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
+                supersampling_factor=1
+            )
+        )
+        screens.append(
             ButtonListScreen(
                 title="Color: Orange",
                 button_data=[
@@ -196,7 +226,7 @@ class Controller(Singleton):
                     index -= 1
                     break
                 else:
-                    screen[index].update_from_input(input)
+                    screens[index].update_from_input(input)
 
 
         time.sleep(180)

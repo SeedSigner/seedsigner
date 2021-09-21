@@ -122,6 +122,7 @@ class TextArea:
         self.font = Fonts.load_font(self.font_name, int(self.supersampling_factor * self.font_size))
         self.width = self.supersampling_factor * self.width
         self.height = self.supersampling_factor * self.height
+        self.line_spacing = int(0.25 * self.font_size)
 
         # We have to figure out if and where to make line breaks in the text so that it
         #   fits in its bounding rect (plus accounting for edge padding) using its given
@@ -142,7 +143,7 @@ class TextArea:
             _add_text_line(self.text, tw)
 
             # Vertical starting point calc is easy in this case
-            self.text_y = int(((self.supersampling_factor * self.height) - th) / 2)
+            self.text_y = int(((self.supersampling_factor * self.height) - self.text_height) / 2)
 
         else:
             # Have to calc how to break text into multiple lines
@@ -177,7 +178,6 @@ class TextArea:
                 _add_text_line(" ".join(words[0:index]), tw)
                 words = words[index:]
 
-            self.line_spacing = int(0.25 * self.font_size)
             total_text_height = self.text_height * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
             if total_text_height > self.height + 2 * COMPONENT_PADDING * self.supersampling_factor:
                 raise Exception("Text cannot fit in target rect with this font/size")
