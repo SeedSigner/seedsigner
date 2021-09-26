@@ -7,10 +7,14 @@ from PIL import Image, ImageDraw
 from . import View
 
 from seedsigner.helpers import B
+from seedsigner.gui.components import Fonts
 
 
-class LogoView(View):
+
+class LogoView:
     def __init__(self):
+        from seedsigner.gui import Renderer
+        self.renderer = Renderer.get_instance()
         dirname = os.path.dirname(__file__)
         logo_url = os.path.join(dirname, "../../", "seedsigner", "resources", "logo_black_240.png")
         self.logo = Image.open(logo_url)
@@ -26,18 +30,18 @@ class OpeningSplashView(LogoView):
         for i in range(250, -1, -25):
             self.logo.putalpha(255 - i)
             background = Image.new("RGBA", self.logo.size, (0,0,0))
-            View.disp.ShowImage(Image.alpha_composite(background, self.logo), 0, 0)
+            self.renderer.disp.ShowImage(Image.alpha_composite(background, self.logo), 0, 0)
 
         # Display version num and hold for a few seconds
-        font = View.ROBOTOCONDENSED_REGULAR_22
+        font = Fonts.get_font("RobotoCondensed-Regular", 22)
         version = f"v{controller.VERSION}"
         tw, th = font.getsize(version)
-        x = int((View.canvas_width - tw) / 2)
-        y = int(View.canvas_height / 2) + 40
+        x = int((self.renderer.canvas_width - tw) / 2)
+        y = int(self.renderer.canvas_height / 2) + 40
 
         draw = ImageDraw.Draw(self.logo)
         draw.text((x, y), version, fill="orange", font=font)
-        View.DispShowImage(self.logo)
+        self.renderer.show_image(self.logo)
         time.sleep(3)
 
 
@@ -65,7 +69,6 @@ class ScreensaverView(LogoView):
         self.last_screen = None
 
 
-
     @property
     def is_running(self):
         return self._is_running
@@ -87,7 +90,7 @@ class ScreensaverView(LogoView):
         self._is_running = True
 
         # Store the current screen in order to restore it later
-        self.last_screen = View.canvas.copy()
+        self.last_screen = self.renderer.canvas.copy()
 
         screensaver_start = int(time.time() * 1000)
 
@@ -98,12 +101,13 @@ class ScreensaverView(LogoView):
             # Must crop the image to the exact display size
             crop = self.image.crop((
                 self.cur_x, self.cur_y,
-                self.cur_x + View.canvas_width, self.cur_y + View.canvas_height))
-            View.disp.ShowImage(crop, 0, 0)
+                self.cur_x + self.renderer.canvas_width, self.cur_y + self.renderer.canvas_height))
+            self.renderer.disp.ShowImage(crop, 0, 0)
 
             self.cur_x += self.increment_x
             self.cur_y += self.increment_y
 
+            # At each edge bump, calculate a new random rate of change for that axis
             if self.cur_x < self.min_coords[0]:
                 self.cur_x = self.min_coords[0]
                 self.increment_x = self.rand_increment()
@@ -129,7 +133,7 @@ class ScreensaverView(LogoView):
 
     def stop(self):
         # Restore the original screen
-        View.DispShowImage(self.last_screen)
+        self.renderer.show_image(self.last_screen)
 
         self._is_running = False
 

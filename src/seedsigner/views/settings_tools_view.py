@@ -21,7 +21,7 @@ class SettingsToolsView(View):
     def display_donate_qr(self):
         self.draw_modal(["Loading..."])
         self.donate_image = self.qr.qrimage("bc1qphlyv2dde290tqdlnk8uswztnshw3x9rjurexqqhksvu7vdevhtsuw4efe")
-        View.DispShowImage(self.donate_image)
+        self.renderer.show_image(self.donate_image)
         return True
 
     ### Display Network Selection
@@ -111,14 +111,14 @@ class SettingsToolsView(View):
         line2 = "Version v" + self.controller.VERSION
         line3 = "(Joystick RIGHT to EXIT)"
 
-        View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        tw, th = View.draw.textsize(line1, font=View.ASSISTANT22)
-        View.draw.text(((240 - tw) / 2, 20), line1, fill=View.color, font=View.ASSISTANT22)
-        tw, th = View.draw.textsize(line2, font=View.ASSISTANT22)
-        View.draw.text(((240 - tw) / 2, 55), line2, fill=View.color, font=View.ASSISTANT22)
-        tw, th = View.draw.textsize(line3, font=View.ASSISTANT18)
-        View.draw.text(((240 - tw) / 2, 210), line3, fill=View.color, font=View.ASSISTANT18)
-        View.DispShowImage()
+        self.renderer.draw.rectangle((0, 0, self.renderer.canvas_width, self.renderer.canvas_height), outline=0, fill=0)
+        tw, th = self.renderer.draw.textsize(line1, font=Fonts.get_font("Assistant-Medium", 22))
+        self.renderer.draw.text(((240 - tw) / 2, 20), line1, fill=View.color, font=Fonts.get_font("Assistant-Medium", 22))
+        tw, th = self.renderer.draw.textsize(line2, font=Fonts.get_font("Assistant-Medium", 22))
+        self.renderer.draw.text(((240 - tw) / 2, 55), line2, fill=View.color, font=Fonts.get_font("Assistant-Medium", 22))
+        tw, th = self.renderer.draw.textsize(line3, font=Fonts.get_font("Assistant-Medium", 18))
+        self.renderer.draw.text(((240 - tw) / 2, 210), line3, fill=View.color, font=Fonts.get_font("Assistant-Medium", 18))
+        self.renderer.show_image()
 
     ###
     ### Custom Derivation Path
@@ -131,19 +131,19 @@ class SettingsToolsView(View):
             right_button_width = 60
             font_padding_right = 2
             font_padding_top = 1
-            key_x = View.canvas_width - right_button_width
-            key_y = int(View.canvas_height - row_height) / 2 - 1 - 60
-            font = View.ROBOTOCONDENSED_BOLD_24
+            key_x = self.renderer.canvas_width - right_button_width
+            key_y = int(self.renderer.canvas_height - row_height) / 2 - 1 - 60
+            font = Fonts.get_font("RobotoCondensed-Regular", 24)
             background_color = "#111"
             font_color = View.color
             button3_text = "Save"
             tw, th = font.getsize(button3_text)
-            key_y = int(View.canvas_height - row_height) / 2 - 1 + 60
-            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
-            View.draw.text((View.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button3_text, fill=font_color)
+            key_y = int(self.renderer.canvas_height - row_height) / 2 - 1 + 60
+            self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
+            self.renderer.draw.text((self.renderer.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button3_text, fill=font_color)
     
         # Clear the screen
-        View.draw.rectangle((0,0, View.canvas_width,View.canvas_height), fill="black")
+        self.renderer.draw.rectangle((0,0, self.renderer.canvas_width,self.renderer.canvas_height), fill="black")
     
         self.render_previous_button()
         previous_button_is_active = False
@@ -159,16 +159,16 @@ class SettingsToolsView(View):
         right_panel_buttons_width = 60
     
         # render top title banner
-        font = View.ROBOTOCONDENSED_REGULAR_20
+        font = Fonts.get_font("RobotoCondensed-Regular", 20)
         title = "Enter Derivation"
         title_top_padding = 0
         title_bottom_padding = 10
         tw, th = font.getsize(title)
-        View.draw.text((int(View.canvas_width - tw) / 2, title_top_padding), text=title, font=font, fill=View.color)
+        self.renderer.draw.text((int(self.renderer.canvas_width - tw) / 2, title_top_padding), text=title, font=font, fill=View.color)
         title_height = th + title_top_padding + title_bottom_padding
     
         # Render the live text entry display
-        font = View.ROBOTOCONDENSED_REGULAR_28
+        font = Fonts.get_font("RobotoCondensed-Regular", 28)
         tw, th = font.getsize("m/1234567890")  # All possible chars for max range
         text_entry_side_padding = 0
         text_entry_top_padding = 1
@@ -176,8 +176,8 @@ class SettingsToolsView(View):
         text_entry_top_y = title_height + text_entry_top_padding
         text_entry_bottom_y = text_entry_top_y + 3 + th + 3
         text_entry_display = TextEntryDisplay(
-            View.draw,
-            rect=(text_entry_side_padding,text_entry_top_y, View.canvas_width - right_panel_buttons_width - 1, text_entry_bottom_y),
+            self.renderer.draw,
+            rect=(text_entry_side_padding,text_entry_top_y, self.renderer.canvas_width - right_panel_buttons_width - 1, text_entry_bottom_y),
             font=font,
             font_color=View.color,
             cursor_mode=TextEntryDisplay.CURSOR_MODE__BLOCK,
@@ -190,11 +190,11 @@ class SettingsToolsView(View):
     
         keyboard_start_y = text_entry_bottom_y + text_entry_bottom_padding
         keyboard_digits = Keyboard(
-            View.draw,
+            self.renderer.draw,
             charset="/'0123456789",
             rows=3,
             cols=6,
-            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
+            rect=(0, keyboard_start_y, self.renderer.canvas_width - right_panel_buttons_width, self.renderer.canvas_height),
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )
@@ -203,11 +203,11 @@ class SettingsToolsView(View):
         render_right_panel()
         
         text_entry_display.render(self.derivation)
-        View.DispShowImage()
+        self.renderer.show_image()
     
         # Start the interactive update loop
         while True:
-            input = View.buttons.wait_for(
+            input = self.buttons.wait_for(
                 [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY3],
                 check_release=True,
                 release_keys=[B.KEY_PRESS, B.KEY3]
@@ -273,4 +273,4 @@ class SettingsToolsView(View):
             # Render the text entry display and cursor block
             text_entry_display.render(self.derivation)
     
-            View.DispShowImage()
+            self.renderer.show_image()

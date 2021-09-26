@@ -3,7 +3,8 @@ import numpy
 
 from picamera import PiCamera
 from PIL import Image
-from seedsigner.helpers import PiVideoStream, Singleton
+from seedsigner.models import Singleton
+from seedsigner.helpers import PiVideoStream
 
 
 

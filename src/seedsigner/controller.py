@@ -11,12 +11,13 @@ from threading import Thread
 # Internal file class dependencies
 from .views import (View, MenuView, SeedToolsView, SigningToolsView, 
     SettingsToolsView, IOTestView, OpeningSplashView, ScreensaverView)
-from .helpers import Buttons, B, Path, Singleton
-from .models import (EncodeQRDensity, QRType, Seed, SeedStorage, Settings, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
+from .gui import Renderer
+from .helpers import Buttons, B, Path
+from .models import (EncodeQRDensity, QRType, Seed, SeedStorage, Settings, ConfigurableSingleton, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
 
 
 
-class Controller(Singleton):
+class Controller(ConfigurableSingleton):
     """
         The Controller is a globally available singleton that maintains SeedSigner state.
 
@@ -37,19 +38,8 @@ class Controller(Singleton):
 
 
     @classmethod
-    def get_instance(cls):
-        # This is the only way to access the one and only Controller
-        if cls._instance:
-            return cls._instance
-        else:
-            raise Exception("Must call Controller.configure_instance(config) first")
-
-
-    @classmethod
     def configure_instance(cls, config=None):
-        # Must be called before the first get_instance() call
-        if cls._instance:
-            raise Exception("Instance already configured")
+        super().configure_instance(config)
 
         # Instantiate the one and only Controller instance
         controller = cls.__new__(cls)
@@ -67,6 +57,9 @@ class Controller(Singleton):
         controller.DEBUG = controller.settings.debug
         controller.color = controller.settings.text_color
 
+        # Configure the Renderer
+        Renderer.configure_instance({"text_color": controller.color})
+
         # Views
         controller.menu_view = MenuView()
         controller.seed_tools_view = SeedToolsView()
@@ -75,6 +68,7 @@ class Controller(Singleton):
         controller.settings_tools_view = SettingsToolsView()
         controller.screensaver = ScreensaverView(controller.buttons)
 
+        # Other behavior constants
         controller.screensaver_activation_ms = 120 * 1000
 
 
@@ -87,164 +81,156 @@ class Controller(Singleton):
     def start(self) -> None:
         from seedsigner.gui.templates import BaseScreen, ButtonListScreen, FontTesterScreen, BottomButtonScreen
         from seedsigner.gui.components import Fonts
-        # opening_splash = OpeningSplashView()
-        # opening_splash.start()
-        # base_screen = BaseScreen(
-        #     title="In-Memory Seeds",
+        opening_splash = OpeningSplashView()
+        opening_splash.start()
+
+        # tests = [
+        #     ("OpenSans-SemiBold", 16),
+        #     ("OpenSans-SemiBold", 18),
+        #     ("OpenSans-SemiBold", 20),
+        # ]
+
+        # screens = []
+
+        # screens.append(
+        #     BottomButtonScreen(
+        #         title="Supersampling: off",
+        #         button_data=[{"text":"Proceed"}],
+        #         is_button_text_centered=False,
+        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        #         is_body_text_centered=True,
+        #         body_font_name="OpenSans-Regular",
+        #         body_font_size=17,
+        #         body_font_color="white",
+        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         supersampling_factor=1
+        #     )
         # )
-        # base_screen.render()
-
-        # screen.render()
-
-
-        tests = [
-            ("OpenSans-SemiBold.ttf", 16),
-            ("OpenSans-SemiBold.ttf", 18),
-            ("OpenSans-SemiBold.ttf", 20),
-        ]
-
-        screens = []
-
-        screens.append(
-            BottomButtonScreen(
-                title="Supersampling: off",
-                button_data=[{"text":"Proceed"}],
-                is_button_text_centered=False,
-                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-                is_body_text_centered=True,
-                body_font_name="OpenSans-Regular.ttf",
-                body_font_size=17,
-                body_font_color="white",
-                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                supersampling_factor=1
-            )
-        )
-        screens.append(
-            BottomButtonScreen(
-                title="Supersampling: 2",
-                button_data=[{"text":"Proceed"}],
-                is_button_text_centered=False,
-                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-                is_body_text_centered=True,
-                body_font_name="OpenSans-Regular.ttf",
-                body_font_size=17,
-                body_font_color="white",
-                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                supersampling_factor=2
-            )
-        )
-        screens.append(
-            BottomButtonScreen(
-                title="Regular 16px w/SS",
-                button_data=[{"text":"Proceed"}],
-                is_button_text_centered=False,
-                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-                is_body_text_centered=True,
-                body_font_name="OpenSans-Regular.ttf",
-                body_font_size=16,
-                body_font_color="white",
-                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                supersampling_factor=2
-            )
-        )
-        screens.append(
-            BottomButtonScreen(
-                title="SemiBold 16px, no SS",
-                button_data=[{"text":"Proceed"}],
-                is_button_text_centered=False,
-                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-                is_body_text_centered=True,
-                body_font_name="OpenSans-SemiBold.ttf",
-                body_font_size=16,
-                body_font_color="white",
-                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                supersampling_factor=1
-            )
-        )
-        screens.append(
-            BottomButtonScreen(
-                title="SemiBold 17px, no SS",
-                button_data=[{"text":"Proceed"}],
-                is_button_text_centered=False,
-                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-                is_body_text_centered=True,
-                body_font_name="OpenSans-SemiBold.ttf",
-                body_font_size=17,
-                body_font_color="white",
-                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                supersampling_factor=1
-            )
-        )
-        screens.append(
-            ButtonListScreen(
-                title="Color: Orange",
-                button_data=[
-                    {"text": "cfd0883d"},
-                    {"text": "72f9a6bf"},
-                ],
-                is_button_text_centered=False,
-                is_bottom_list=False,
-                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                button_selected_color="orange"
-            )
-        )
-        screens.append(
-            ButtonListScreen(
-                title="Color: #f7941d",
-                button_data=[
-                    {"text": "cfd0883d"},
-                    {"text": "72f9a6bf"},
-                ],
-                is_button_text_centered=False,
-                is_bottom_list=False,
-                title_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                button_font=Fonts.load_font("OpenSans-SemiBold.ttf", 18),
-                button_selected_color="#f7941d"
-            )
-        )
+        # screens.append(
+        #     BottomButtonScreen(
+        #         title="Supersampling: 2",
+        #         button_data=[{"text":"Proceed"}],
+        #         is_button_text_centered=False,
+        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        #         is_body_text_centered=True,
+        #         body_font_name="OpenSans-Regular",
+        #         body_font_size=17,
+        #         body_font_color="white",
+        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         supersampling_factor=2
+        #     )
+        # )
+        # screens.append(
+        #     BottomButtonScreen(
+        #         title="Regular 16px w/SS",
+        #         button_data=[{"text":"Proceed"}],
+        #         is_button_text_centered=False,
+        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        #         is_body_text_centered=True,
+        #         body_font_name="OpenSans-Regular",
+        #         body_font_size=16,
+        #         body_font_color="white",
+        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         supersampling_factor=2
+        #     )
+        # )
+        # screens.append(
+        #     BottomButtonScreen(
+        #         title="SemiBold 16px, no SS",
+        #         button_data=[{"text":"Proceed"}],
+        #         is_button_text_centered=False,
+        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        #         is_body_text_centered=True,
+        #         body_font_name="OpenSans-SemiBold",
+        #         body_font_size=16,
+        #         body_font_color="white",
+        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         supersampling_factor=1
+        #     )
+        # )
+        # screens.append(
+        #     BottomButtonScreen(
+        #         title="SemiBold 17px, no SS",
+        #         button_data=[{"text":"Proceed"}],
+        #         is_button_text_centered=False,
+        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        #         is_body_text_centered=True,
+        #         body_font_name="OpenSans-SemiBold",
+        #         body_font_size=17,
+        #         body_font_color="white",
+        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         supersampling_factor=1
+        #     )
+        # )
+        # screens.append(
+        #     ButtonListScreen(
+        #         title="Color: Orange",
+        #         button_data=[
+        #             {"text": "cfd0883d"},
+        #             {"text": "72f9a6bf"},
+        #         ],
+        #         is_button_text_centered=False,
+        #         is_bottom_list=False,
+        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         button_selected_color="orange"
+        #     )
+        # )
+        # screens.append(
+        #     ButtonListScreen(
+        #         title="Color: #f7941d",
+        #         button_data=[
+        #             {"text": "cfd0883d"},
+        #             {"text": "72f9a6bf"},
+        #         ],
+        #         is_button_text_centered=False,
+        #         is_bottom_list=False,
+        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
+        #         button_selected_color="#f7941d"
+        #     )
+        # )
 
 
-        index = 0
-        while True:
-            # test = tests[index]
-            # screen = FontTesterScreen(
-            #     title="In-Memory Seeds",
-            #     button_data=[
-            #         {"text": "cfd0883d"},
-            #         {"text": "72f9a6bf"},
-            #         {"text": f"{test[0].split('.')[0]} {test[1]}"},
-            #     ],
-            #     is_button_text_centered=False,
-            #     is_bottom_list=False,
-            # )
+        # index = 0
+        # while True:
+        #     # test = tests[index]
+        #     # screen = FontTesterScreen(
+        #     #     title="In-Memory Seeds",
+        #     #     button_data=[
+        #     #         {"text": "cfd0883d"},
+        #     #         {"text": "72f9a6bf"},
+        #     #         {"text": f"{test[0].split('.')[0]} {test[1]}"},
+        #     #     ],
+        #     #     is_button_text_centered=False,
+        #     #     is_bottom_list=False,
+        #     # )
 
-            screens[index].render()
+        #     screens[index].render()
 
-            while True:
-                if index == 0:
-                    input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_UP, B.KEY_DOWN])
-                elif index < len(screens) - 1:
-                    input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
-                else:
-                    input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
+        #     while True:
+        #         if index == 0:
+        #             input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_UP, B.KEY_DOWN])
+        #         elif index < len(screens) - 1:
+        #             input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
+        #         else:
+        #             input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
 
-                if input == B.KEY_RIGHT:
-                    index += 1
-                    break
-                elif input == B.KEY_LEFT:
-                    index -= 1
-                    break
-                else:
-                    screens[index].update_from_input(input)
+        #         if input == B.KEY_RIGHT:
+        #             index += 1
+        #             break
+        #         elif input == B.KEY_LEFT:
+        #             index -= 1
+        #             break
+        #         else:
+        #             screens[index].update_from_input(input)
 
-
-        time.sleep(180)
+        # time.sleep(180)
 
         if self.DEBUG:
             # Let Exceptions halt execution
@@ -690,14 +676,14 @@ class Controller(Singleton):
 
         while e.totalParts() > 1:
             image = e.nextPartImage(240,240,2)
-            View.DispShowImage(image)
+            self.renderer.show_image(image)
             time.sleep(0.1)
             if self.buttons.check_for_low(B.KEY_RIGHT):
                     break
 
         if e.totalParts() == 1:
             image = e.nextPartImage(240,240,1)
-            View.DispShowImage(image)
+            self.renderer.show_image(image)
             self.buttons.wait_for([B.KEY_RIGHT])
 
         return Path.MAIN_MENU
@@ -721,7 +707,7 @@ class Controller(Singleton):
                     if frame is not None:
                         if decoder.getPercentComplete() > 0 and decoder.isPSBT():
                             scan_text = str(decoder.getPercentComplete()) + "% Complete"
-                        View.DispShowImageWithText(frame.resize((240,240)), scan_text, font=View.ASSISTANT22, text_color=View.color, text_background=(0,0,0,225))
+                        self.renderer.show_image_with_text(frame.resize((240,240)), scan_text, font=Fonts.get_font("Assistant-Medium", 22), text_color=View.color, text_background=(0,0,0,225))
                     time.sleep(0.1) # turn this up or down to tune performance while decoding psbt
                     if camera._video_stream is None:
                         break
@@ -916,7 +902,7 @@ class Controller(Singleton):
         e = EncodeQR(psbt=trimmed_psbt, qr_type=self.settings.qr_psbt_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
         while True:
             image = e.nextPartImage(240,240,1)
-            View.DispShowImage(image)
+            self.renderer.show_image(image)
             time.sleep(0.05)
             if self.buttons.check_for_low(B.KEY_RIGHT):
                     break

@@ -4,7 +4,7 @@ import pathlib
 
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from seedsigner.views import View
+from seedsigner.models import Singleton
 
 
 
@@ -14,82 +14,36 @@ COMPONENT_PADDING = 8
 
 
 
-class Fonts:
+class Fonts(Singleton):
     font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
-    ASSISTANT_REGULAR_16 = ImageFont.truetype(os.path.join(font_path, "Assistant-Regular.ttf"), 16)
-    ASSISTANT_REGULAR_18 = ImageFont.truetype(os.path.join(font_path, "Assistant-Regular.ttf"), 18)
-    ASSISTANT_REGULAR_20 = ImageFont.truetype(os.path.join(font_path, "Assistant-Regular.ttf"), 20)
-    ASSISTANT_REGULAR_22 = ImageFont.truetype(os.path.join(font_path, "Assistant-Regular.ttf"), 22)
-    ASSISTANT_REGULAR_24 = ImageFont.truetype(os.path.join(font_path, "Assistant-Regular.ttf"), 24)
-    ASSISTANT_REGULAR_26 = ImageFont.truetype(os.path.join(font_path, "Assistant-Regular.ttf"), 26)
-    ASSISTANT_REGULAR = [
-        ASSISTANT_REGULAR_26,
-        ASSISTANT_REGULAR_24,
-        ASSISTANT_REGULAR_22,
-        ASSISTANT_REGULAR_20,
-        ASSISTANT_REGULAR_18,
-        ASSISTANT_REGULAR_16,
-    ]
-
-    ASSISTANT_BOLD_16 = ImageFont.truetype(os.path.join(font_path, "Assistant-Bold.ttf"), 16)
-    ASSISTANT_BOLD_18 = ImageFont.truetype(os.path.join(font_path, "Assistant-Bold.ttf"), 18)
-    ASSISTANT_BOLD_20 = ImageFont.truetype(os.path.join(font_path, "Assistant-Bold.ttf"), 20)
-    ASSISTANT_BOLD_22 = ImageFont.truetype(os.path.join(font_path, "Assistant-Bold.ttf"), 22)
-    ASSISTANT_BOLD_24 = ImageFont.truetype(os.path.join(font_path, "Assistant-Bold.ttf"), 24)
-    ASSISTANT_BOLD_26 = ImageFont.truetype(os.path.join(font_path, "Assistant-Bold.ttf"), 26)
-    ASSISTANT_BOLD = [
-        ASSISTANT_BOLD_26,
-        ASSISTANT_BOLD_24,
-        ASSISTANT_BOLD_22,
-        ASSISTANT_BOLD_20,
-        ASSISTANT_BOLD_18,
-        ASSISTANT_BOLD_16,
-    ]
-
-    OPENSANS_SEMIBOLD_16 = ImageFont.truetype(os.path.join(font_path, "OpenSans-SemiBold.ttf"), 16)
-    OPENSANS_SEMIBOLD_18 = ImageFont.truetype(os.path.join(font_path, "OpenSans-SemiBold.ttf"), 18)
-    OPENSANS_SEMIBOLD_20 = ImageFont.truetype(os.path.join(font_path, "OpenSans-SemiBold.ttf"), 20)
-    OPENSANS_SEMIBOLD_22 = ImageFont.truetype(os.path.join(font_path, "OpenSans-SemiBold.ttf"), 22)
-    OPENSANS_SEMIBOLD_24 = ImageFont.truetype(os.path.join(font_path, "OpenSans-SemiBold.ttf"), 24)
-    OPENSANS_SEMIBOLD_26 = ImageFont.truetype(os.path.join(font_path, "OpenSans-SemiBold.ttf"), 26)
-
-
-    BODY_TEXT = ASSISTANT_REGULAR_18
-    PAGE_TITLE = ASSISTANT_REGULAR_26
-    PAGE_TITLE_SMALLER = ASSISTANT_REGULAR_20
-    PAGE_TITLE_SMALLEST = ASSISTANT_REGULAR_18
-    BUTTON = OPENSANS_SEMIBOLD_24
-    BODY_FONT_NAME = "OpenSans-Regular"
-
-
-    ROBOTOCONDENSED_BOLD_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 16)
-    ROBOTOCONDENSED_BOLD_18 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 18)
-    ROBOTOCONDENSED_BOLD_20 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 20)
-    ROBOTOCONDENSED_BOLD_22 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 20)
-    ROBOTOCONDENSED_BOLD_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 22)
-    ROBOTOCONDENSED_BOLD_25 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 25)
-    ROBOTOCONDENSED_BOLD_26 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 26)
-    ROBOTOCONDENSED_BOLD_28 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 28)
-    ROBOTOCONDENSED_LIGHT_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Light.ttf"), 16)
-    ROBOTOCONDENSED_LIGHT_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Light.ttf"), 24)
-    ROBOTOCONDENSED_REGULAR_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 16)
-    ROBOTOCONDENSED_REGULAR_20 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 20)
-    ROBOTOCONDENSED_REGULAR_18 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 18)
-    ROBOTOCONDENSED_REGULAR_22 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 22)
-    ROBOTOCONDENSED_REGULAR_24 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 24)
-    ROBOTOCONDENSED_REGULAR_26 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 26)
-    ROBOTOCONDENSED_REGULAR_28 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Regular.ttf"), 28)
-
+    fonts = {}
 
     @classmethod
-    def load_font(cls, font_name, size):
-        font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
-        return ImageFont.truetype(os.path.join(font_path, font_name), size)
+    def get_font(cls, font_name, size):
+        # Cache already-loaded fonts
+        if font_name not in cls.fonts:
+            cls.fonts[font_name] = {}
+
+        if size not in cls.fonts[font_name]:
+            cls.fonts[font_name][size] = ImageFont.truetype(os.path.join(cls.font_path, f"{font_name}.ttf"), size)
+
+        return cls.fonts[font_name][size]
+
+
+
+class BaseComponent:
+    def __post_init__(self):
+        from seedsigner.gui import Renderer
+        self.renderer = Renderer.get_instance()
+
+
+    def render(self):
+        raise Exception("render() not implemented in the child class!")
 
 
 
 @dataclass
-class TextArea:
+class TextArea(BaseComponent):
     """
         Not to be confused with an html <textarea>! This is a rect-delimited text
         display box that could be the main body content of a screen or a sub-zone
@@ -108,7 +62,7 @@ class TextArea:
     width: int
     height: int
     background_color: str = "black"
-    font_name: str = Fonts.BODY_FONT_NAME
+    font_name: str = "OpenSans-Regular"
     font_size: int = 16
     font_color: str = "orange"
     is_text_centered: bool = True
@@ -116,10 +70,11 @@ class TextArea:
 
 
     def __post_init__(self):
+        super().__post_init__()
         if not self.supersampling_factor:
             self.supersampling_factor = 2
 
-        self.font = Fonts.load_font(self.font_name, int(self.supersampling_factor * self.font_size))
+        self.font = Fonts.get_font(self.font_name, int(self.supersampling_factor * self.font_size))
         self.width = self.supersampling_factor * self.width
         self.height = self.supersampling_factor * self.height
         self.line_spacing = int(0.25 * self.font_size)
@@ -153,10 +108,8 @@ class TextArea:
                 if index == 0:
                     # Handle edge case where there's only one word in the last line
                     index = 1
-                print(min_index, index, max_index, words[0:index])
 
                 tw, th = self.font.getsize(" ".join(words[0:index]))
-                print(self.width, tw)
 
                 if tw > self.width - (2 * EDGE_PADDING * self.supersampling_factor):
                     # Candidate line is still too long. Restrict search range down.
@@ -174,7 +127,6 @@ class TextArea:
             words = self.text.split(" ")
             while words:
                 (index, tw) = _binary_len_search(0, len(words))
-                print(f"--->{' '.join(words[:index])}")
                 _add_text_line(" ".join(words[0:index]), tw)
                 words = words[index:]
 
@@ -193,23 +145,22 @@ class TextArea:
             draw = ImageDraw.Draw(img)
             cur_y = self.text_y
         else:
-            draw = View.draw
+            draw = self.renderer.draw
             cur_y = self.text_y + self.screen_y
 
         for line in self.text_lines:
-            print(line)
             draw.text((line["text_x"], cur_y), line["text"], fill=self.font_color, font=self.font)
             cur_y += self.text_height + self.line_spacing
 
         if self.supersampling_factor > 1:
             resized = img.resize((int(self.width / self.supersampling_factor), int(self.height / self.supersampling_factor)), Image.LANCZOS)
             resized = resized.filter(ImageFilter.SHARPEN)
-            View.canvas.paste(resized, (self.screen_x, self.screen_y))
+            self.renderer.canvas.paste(resized, (self.screen_x, self.screen_y))
 
 
 
 @dataclass
-class Button:
+class Button(BaseComponent):
     # TODO: Rename the seedsigner.helpers.Buttons class (to Inputs?)
     """
         Attrs with defaults must be listed last.
@@ -229,8 +180,9 @@ class Button:
 
 
     def __post_init__(self):
+        super().__post_init__()
         if not self.font:
-            self.font = Fonts.BUTTON
+            self.font = Fonts.get_font("OpenSans-SemiBold", 24)
 
         self.text_width, self.text_height = self.font.getsize(self.text)
         if self.is_text_centered:
@@ -248,22 +200,23 @@ class Button:
             background_color = self.background_color
             font_color = self.font_color
 
-        View.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.width, self.screen_y + self.height), fill=background_color, radius=COMPONENT_PADDING)
-        View.draw.text((self.text_x, self.text_y), self.text, fill=font_color, font=self.font)
+        self.renderer.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.width, self.screen_y + self.height), fill=background_color, radius=COMPONENT_PADDING)
+        self.renderer.draw.text((self.text_x, self.text_y), self.text, fill=font_color, font=self.font)
 
 
 
 @dataclass
-class TopNav:
+class TopNav(BaseComponent):
     text: str
     width: int
     height: int
     background_color: str = "black"
-    font: ImageFont = None
+    font: ImageFont = Fonts.get_font("OpenSans-SemiBold", 18)
     font_color: str = "white"
 
 
     def __post_init__(self):
+        super().__post_init__()
         button_width = int(self.width * 2.0 / 15.0)     # 32px on 240x240 screen
         self.back_button = Button(
             text="<",
@@ -280,24 +233,24 @@ class TopNav:
             height=button_width,
         )
 
-        if not self.font:
-            # Pre-calc how much room the title bar text will take up. Use the biggest font
-            #   that will fit.
-            max_font_width = self.width - (2 * self.back_button.width) - (4 * EDGE_PADDING)
-            for font in Fonts.ASSISTANT_BOLD:
-                self.text_width, self.text_height = font.getsize(self.text)
-                if self.text_width < max_font_width:
-                    self.font = font
-                    self.text_x = int((self.width - self.text_width) / 2)
-                    self.text_y = int((self.height - self.text_height) / 2)
-                    break
+        # if not self.font:
+        #     # Pre-calc how much room the title bar text will take up. Use the biggest font
+        #     #   that will fit.
+        #     max_font_width = self.width - (2 * self.back_button.width) - (4 * EDGE_PADDING)
+        #     for font in Fonts.ASSISTANT_BOLD:
+        #         self.text_width, self.text_height = font.getsize(self.text)
+        #         if self.text_width < max_font_width:
+        #             self.font = font
+        #             self.text_x = int((self.width - self.text_width) / 2)
+        #             self.text_y = int((self.height - self.text_height) / 2)
+        #             break
 
-        else:
-            # TESTING
-            self.text_width, self.text_height = self.font.getsize(self.text)
-            self.text_x = int((self.width - self.text_width) / 2)
-            self.text_y = int((self.height - self.text_height) / 2)
-            # End TESTING
+        # else:
+        # TESTING
+        self.text_width, self.text_height = self.font.getsize(self.text)
+        self.text_x = int((self.width - self.text_width) / 2)
+        self.text_y = int((self.height - self.text_height) / 2)
+        # End TESTING
 
 
 
@@ -306,11 +259,11 @@ class TopNav:
 
 
     def render(self):
-        View.draw.rectangle((0, 0, self.width, self.height), fill=self.background_color)
+        self.renderer.draw.rectangle((0, 0, self.width, self.height), fill=self.background_color)
         self.back_button.render()
         self.context_button.render()
         # self.right_button.render()
-        View.draw.text((self.text_x, self.text_y), self.text, fill=self.font_color, font=self.font)
+        self.renderer.draw.text((self.text_x, self.text_y), self.text, fill=self.font_color, font=self.font)
 
 
 

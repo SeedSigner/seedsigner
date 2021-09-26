@@ -1,4 +1,4 @@
-from seedsigner.helpers import Singleton
+from .singleton import ConfigurableSingleton
 from .qr_type import QRType
 from .encode_qr_density import EncodeQRDensity
 
@@ -7,13 +7,11 @@ from embit import bip39
 
 
 
-class Settings(Singleton):
+class Settings(ConfigurableSingleton):
 
     @classmethod
     def configure_instance(cls, config=None):
-        # Must be called before the first get_instance() call
-        if cls._instance:
-            raise Exception("Instance already configured")
+        super().configure_instance(config)
 
         # Instantiate the one and only instance
         settings = cls.__new__(cls)

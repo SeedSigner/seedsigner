@@ -1,5 +1,7 @@
 # Internal file class dependencies
 from . import View
+
+from seedsigner.gui.components import Fonts
 from seedsigner.helpers import B, Path
 from seedsigner.models import SeedStorage, Settings, Seed
 
@@ -11,7 +13,7 @@ import re
 class MenuView(View):
 
     def __init__(self) -> None:
-        View.__init__(self)
+        super().__init__()
 
         self.menu_lines = []
         self.selected_menu_num = 1
@@ -309,9 +311,9 @@ class MenuView(View):
         if lines != self.menu_lines or selected_menu_num != self.selected_menu_num or force_redraw == True:
             #Menu has changed, redraw
 
-            View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-            tw, th = View.draw.textsize(t, font=View.ASSISTANT22)
-            View.draw.text(((240 - tw) / 2, 2), t, fill=View.color, font=View.ASSISTANT22)
+            self.renderer.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
+            tw, th = self.renderer.draw.textsize(t, font=Fonts.get_font("Assistant-Medium", 22))
+            self.renderer.draw.text(((240 - tw) / 2, 2), t, fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
 
             num_of_lines = len(lines)
 
@@ -349,9 +351,9 @@ class MenuView(View):
                 if num_of_lines >= 15:
                     self.draw_menu_text(15, 175, lines[14], (True if selected_menu_num == 15 else False))
 
-            tw, th = View.draw.textsize(b, font=View.ASSISTANT18)
-            View.draw.text(((240 - tw) / 2, 210), b, fill=View.color, font=View.ASSISTANT18)
-            View.DispShowImage()
+            tw, th = self.renderer.draw.textsize(b, font=Fonts.get_font("Assistant-Medium", 18))
+            self.renderer.draw.text(((240 - tw) / 2, 210), b, fill=self.color, font=Fonts.get_font("Assistant-Medium", 18))
+            self.renderer.show_image()
 
             # saved update menu lines and selection
             self.menu_lines = lines
@@ -376,9 +378,9 @@ class MenuView(View):
 
     def draw_menu_text(self, x, y, line, selected) -> None:
         if selected == True:
-            View.draw.rectangle((5, y-3, 235, y+28), outline=0, fill=View.color)
-            View.draw.text((x, y) , line, fill="BLACK", font=View.ASSISTANT20BOLD)
+            self.renderer.draw.rectangle((5, y-3, 235, y+28), outline=0, fill=self.color)
+            self.renderer.draw.text((x, y) , line, fill="BLACK", font=Fonts.get_font("Assistant-Bold", 20))
         else:
-            View.draw.text((x, y) , line, fill=View.color, font=View.ASSISTANT20)
+            self.renderer.draw.text((x, y) , line, fill=self.color, font=Fonts.get_font("Assistant-Medium", 20))
 
         return

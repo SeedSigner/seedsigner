@@ -77,8 +77,8 @@ class IOTestView(View):
     def draw_io_screen(self):
         self.redraw_complete = False
         self.redraw = False
-        self.draw.rectangle((0,0,View.canvas_width, View.canvas_height), outline=0, fill=0)
-        self.draw.text((45, 5), "Input/Output Check:", fill=View.color, font=View.ASSISTANT18)
+        self.draw.rectangle((0,0,self.renderer.canvas_width, self.renderer.canvas_height), outline=0, fill=0)
+        self.draw.text((45, 5), "Input/Output Check:", fill=View.color, font=Fonts.get_font("Assistant-Medium", 18))
         self.draw.polygon([(61, 89), (80, 46), (99, 89)], outline=View.color, fill=0)
         self.draw.polygon([(51, 100), (8, 119), (51, 138)], outline=View.color, fill=0)
         self.draw.polygon([(109, 100), (152, 119), (109, 138)], outline=View.color, fill=0)
@@ -86,23 +86,23 @@ class IOTestView(View):
         self.draw.ellipse([(61, 99), (99, 141)], outline=View.color, fill=0)
         self.draw.ellipse([(198, 40), (238, 80)], outline=View.color, fill=0)
         self.draw.ellipse([(198, 95), (238, 135)], outline=View.color, fill=0)
-        self.draw.text((200, 160), "EXIT", fill=View.color, font=View.ASSISTANT18)
+        self.draw.text((200, 160), "EXIT", fill=View.color, font=Fonts.get_font("Assistant-Medium", 18))
         self.draw.rectangle((30, 205, 210, 235), outline=View.color, fill="BLACK")
-        tw, th = self.draw.textsize(self.qr_text, font=View.ASSISTANT22)
-        self.draw.text(((240 - tw) / 2, 205), self.qr_text, fill=View.color, font=View.ASSISTANT22)
-        View.DispShowImage()
+        tw, th = self.draw.textsize(self.qr_text, font=Fonts.get_font("Assistant-Medium", 22))
+        self.draw.text(((240 - tw) / 2, 205), self.qr_text, fill=View.color, font=Fonts.get_font("Assistant-Medium", 22))
+        self.renderer.show_image()
         self.redraw_complete = True
 
     def a_button(self):
         if self.redraw == False and self.redraw_complete == True:
             self.draw.ellipse([(198, 40), (238, 80)], outline=View.color, fill=View.color)
-            View.DispShowImage()
+            self.renderer.show_image()
             self.redraw = True
 
     def b_button(self):
         if self.redraw == False and self.redraw_complete == True:
             self.draw.ellipse([(198, 95), (238, 135)], outline=View.color, fill=View.color)
-            View.DispShowImage()
+            self.renderer.show_image()
             self.redraw = True
 
     def c_button(self):
@@ -113,39 +113,39 @@ class IOTestView(View):
     def up_button(self):
         if self.redraw == False and self.redraw_complete == True:
             self.draw.polygon([(61, 89), (80, 46), (99, 89)], outline=View.color, fill=View.color)
-            View.DispShowImage()
+            self.renderer.show_image()
             self.redraw = True
         
     def down_button(self):
         if self.redraw == False and self.redraw_complete == True:
             self.draw.polygon([(61, 151), (80, 193), (99, 151)], outline=View.color, fill=View.color)
-            View.DispShowImage()
+            self.renderer.show_image()
             self.redraw = True
         
     def left_button(self):
         if self.redraw == False and self.redraw_complete == True:
             self.draw.polygon([(51, 100), (8, 119), (51, 138)], outline=View.color, fill=View.color)
-            View.DispShowImage()
+            self.renderer.show_image()
             self.redraw = True
         
     def right_button(self):
         if self.redraw == False and self.redraw_complete == True:
             self.draw.polygon([(109, 100), (152, 119), (109, 138)], outline=View.color, fill=View.color)
-            View.DispShowImage()
+            self.renderer.show_image()
             self.redraw = True
         
     def press_button(self):
         if self.redraw == False and self.redraw_complete == True:
             self.draw.ellipse([(61, 99), (99, 141)], outline=View.color, fill=View.color)
-            View.DispShowImage()
+            self.renderer.show_image()
             self.redraw = True
     
     def draw_scan_detected(self):
         self.qr_text = "QR Scanned"
         if self.redraw == False and self.redraw_complete == True:
             self.draw.rectangle((30, 205, 210, 235), outline=View.color, fill=View.color)
-            tw, th = self.draw.textsize(self.qr_text, font=View.ASSISTANT22)
-            self.draw.text(((240 - tw) / 2, 205), self.qr_text, fill="BLACK", font=View.ASSISTANT22)
-            View.DispShowImage()
+            tw, th = self.draw.textsize(self.qr_text, font=Fonts.get_font("Assistant-Medium", 22))
+            self.draw.text(((240 - tw) / 2, 205), self.qr_text, fill="BLACK", font=Fonts.get_font("Assistant-Medium", 22))
+            self.renderer.show_image()
             self.redraw = True
         

@@ -8,42 +8,52 @@ from seedsigner.views import View
 
 
 
-class BaseScreen(View):
-    def __init__(self, title:str, font=None):
-        super().__init__()
+class BaseScreen:
+    def __init__(self,
+                 title:str,
+                 font: ImageFont = None):
+        from seedsigner.gui import Renderer
+        self.renderer = Renderer.get_instance()
         self.title = title
         self.top_nav = TopNav(
             text=self.title,
-            width=self.canvas_width,
-            height=(2 * EDGE_PADDING) + int(self.canvas_width * 2.0 / 15.0),     # 32px on a 240x240 screen
+            width=self.renderer.canvas_width,
+            height=(2 * EDGE_PADDING) + int(self.renderer.canvas_width * 2.0 / 15.0),     # 32px on a 240x240 screen
             font=font,
         )
 
 
     def render(self):
-        View.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), fill=0)
+        self.renderer.draw.rectangle((0, 0, self.renderer.canvas_width, self.renderer.canvas_height), fill=0)
         self.top_nav.render()
-        View.DispShowImage()
+        self.renderer.show_image()
 
 
 
 class ButtonListScreen(BaseScreen):
-    def __init__(self, title:str, button_data:list, is_button_text_centered:bool, is_bottom_list:bool, title_font=None, button_font=None, button_selected_color="orange"):
+    def __init__(self,
+                 title: str,
+                 button_data: list,                  # w/Python 3.9 we can be more specific: list[str]
+                 is_button_text_centered: bool,
+                 is_bottom_list: bool,
+                 title_font: ImageFont = None,
+                 button_font: ImageFont = None,
+                 button_selected_color: str = "orange"):
         super().__init__(title, title_font)
 
         self.button_data = button_data
         self.is_bottom_list = is_bottom_list
 
-        button_height = int(self.canvas_height * 3.0 / 20.0)    # 36px on a 240x240 screen
+        button_height = int(self.renderer.canvas_height * 3.0 / 20.0)    # 36px on a 240x240 screen
         if len(self.button_data) == 1:
             button_list_height = button_height
         else:
             button_list_height = (len(self.button_data) * button_height) + (COMPONENT_PADDING * (len(self.button_data) - 1))
 
         if is_bottom_list:
-            button_list_y = self.canvas_height - (button_list_height + EDGE_PADDING)
+            button_list_y = self.renderer.canvas_height - (button_list_height + EDGE_PADDING)
         else:
-            button_list_y = self.top_nav.height + int((self.canvas_height - self.top_nav.height - button_list_height) / 2)
+            button_list_y = self.top_nav.height + int((self.renderer.canvas_height - self.top_nav.height - button_list_height) / 2)
 
         self.buttons = []
         for i, entry in enumerate(button_data):
@@ -51,7 +61,7 @@ class ButtonListScreen(BaseScreen):
                 text=entry["text"],
                 screen_x=EDGE_PADDING,
                 screen_y=button_list_y + i * (button_height + COMPONENT_PADDING),
-                width=self.canvas_width - (2 * EDGE_PADDING),
+                width=self.renderer.canvas_width - (2 * EDGE_PADDING),
                 height=button_height,
                 is_text_centered=is_button_text_centered,
                 font=button_font,
@@ -64,11 +74,11 @@ class ButtonListScreen(BaseScreen):
 
 
     def render(self):
-        View.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), fill=0)
+        self.renderer.draw.rectangle((0, 0, self.renderer.canvas_width, self.renderer.canvas_height), fill=0)
         self.top_nav.render()
         for button in self.buttons:
             button.render()
-        View.DispShowImage()
+        self.renderer.show_image()
 
 
     def update_from_input(self, input):
@@ -97,19 +107,37 @@ class ButtonListScreen(BaseScreen):
         else:
             return
 
-        View.DispShowImage()
+        self.renderer.show_image()
 
 
 
 class BottomButtonScreen(ButtonListScreen):
-    def __init__(self, title:str, button_data:list, is_button_text_centered:bool, title_font=None, body_text=None, is_body_text_centered=True, body_font_color=None, body_font_name=None, body_font_size=None, button_font=None, supersampling_factor=None):
-        super().__init__(title=title, button_data=button_data, is_button_text_centered=is_button_text_centered, is_bottom_list=True, title_font=title_font, button_font=button_font)
+    def __init__(self,
+                 title: str,
+                 button_data: list,
+                 is_button_text_centered: bool,
+                 title_font: ImageFont = None,
+                 body_text: str = None,
+                 is_body_text_centered: bool = True,
+                 body_font_color: str = None,
+                 body_font_name: str = None,
+                 body_font_size: int = None,
+                 button_font: ImageFont = None,
+                 supersampling_factor: int = None):
+        super().__init__(
+            title=title,
+            button_data=button_data,
+            is_button_text_centered=is_button_text_centered,
+            is_bottom_list=True,
+            title_font=title_font,
+            button_font=button_font
+        )
 
         self.body_textscreen = TextArea(
             text=body_text,
             screen_x=0,
             screen_y=self.top_nav.height,
-            width=self.canvas_width,
+            width=self.renderer.canvas_width,
             height=self.buttons[0].screen_y - self.top_nav.height,
             font_name=body_font_name,
             font_size=body_font_size,
@@ -120,17 +148,30 @@ class BottomButtonScreen(ButtonListScreen):
 
 
     def render(self):
-        View.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), fill=0)
+        self.renderer.draw.rectangle((0, 0, self.renderer.canvas_width, self.renderer.canvas_height), fill=0)
         self.top_nav.render()
         self.body_textscreen.render()
         for button in self.buttons:
             button.render()
-        View.DispShowImage()
+        self.renderer.show_image()
 
 
 
 class FontTesterScreen(ButtonListScreen):
-    def __init__(self, title:str, button_data:list, is_text_centered:bool, is_bottom_list:bool, font, button_font):
-        super().__init__(title, button_data, is_text_centered, is_bottom_list, font, button_font)
+    def __init__(self,
+                 title: str,
+                 button_data: list,
+                 is_text_centered: bool,
+                 is_bottom_list: bool,
+                 font: ImageFont,
+                 button_font: ImageFont):
+        super().__init__(
+            title=title,
+            button_data=button_data,
+            is_text_centered=is_text_centered,
+            is_bottom_list=is_bottom_list,
+            font=font,
+            button_font=button_font
+        )
 
 
