@@ -59,7 +59,7 @@ class SeedToolsView(View):
             if len(self.words) >= cur_word:
                 initial_letters = list(self.words[cur_word - 1])  # zero-indexed
 
-            ret_val = self.renderer.draw_seed_word_keyboard_entry(num_word=cur_word, initial_letters=initial_letters)
+            ret_val = self.draw_seed_word_keyboard_entry(num_word=cur_word, initial_letters=initial_letters)
 
             if ret_val == Keyboard.KEY_PREVIOUS_PAGE:
                 # Reload previous word
@@ -684,7 +684,7 @@ class SeedToolsView(View):
         self.dice_selected = 5
         self.roll_data = ""
 
-        self.renderer.draw_dice(self.dice_selected)
+        self.draw_dice(self.dice_selected)
         time.sleep(1) # pause for 1 second before accepting input
 
         # Wait for Button Input (specifically menu selection/press)
@@ -719,7 +719,7 @@ class SeedToolsView(View):
             new_selection = 3
 
         if self.dice_selected != new_selection and new_selection != 0:
-            self.renderer.draw_dice(new_selection)
+            self.draw_dice(new_selection)
 
         return True
 
@@ -734,7 +734,7 @@ class SeedToolsView(View):
             new_selection = 6
 
         if self.dice_selected != new_selection and new_selection != 0:
-            self.renderer.draw_dice(new_selection)
+            self.draw_dice(new_selection)
 
         return True
 
@@ -751,25 +751,25 @@ class SeedToolsView(View):
             new_selection = 6
 
         if self.dice_selected != new_selection and new_selection != 0:
-            self.renderer.draw_dice(new_selection)
+            self.draw_dice(new_selection)
 
         return True
 
 
     def dice_arrow_left(self):
         if self.dice_selected == 1:
-            self.renderer.draw_prompt_custom("Undo ", "Cancel ", "Exit ", ["Action:  ", "", ""])
+            self.draw_prompt_custom("Undo ", "Cancel ", "Exit ", ["Action:  ", "", ""])
             input = self.buttons.wait_for([B.KEY1, B.KEY2, B.KEY3])
             if input == B.KEY1: #Undo
                 self.roll_number = self.roll_number - 1
                 self.roll_data = self.roll_data[:-1] # remove last character from string
                 if self.roll_number >= 1:
-                    self.renderer.draw_dice(self.dice_selected)
+                    self.draw_dice(self.dice_selected)
                     return True
                 else:
                     return False
             elif input == B.KEY2: # Cancel
-                self.renderer.draw_dice(self.dice_selected)
+                self.draw_dice(self.dice_selected)
                 return True
             elif input == B.KEY3: # Exit
                 return False
@@ -785,7 +785,7 @@ class SeedToolsView(View):
             new_selection = 4
 
         if self.dice_selected != new_selection and new_selection != 0:
-            self.renderer.draw_dice(new_selection)
+            self.draw_dice(new_selection)
 
         return True
 
@@ -800,7 +800,7 @@ class SeedToolsView(View):
         # Reset for the next UI render
         self.dice_selected = 5
         if self.roll_number < 100:
-            self.renderer.draw_dice(self.dice_selected)
+            self.draw_dice(self.dice_selected)
 
         return True
 
@@ -1090,7 +1090,7 @@ class SeedToolsView(View):
             )
 
             while True:
-                # self.renderer.draw_text_over_image("click to exit", font=Fonts.get_font("Assistant-Medium", 18), text_color="BLACK", text_background="ORANGE")
+                # self.draw_text_over_image("click to exit", font=Fonts.get_font("Assistant-Medium", 18), text_color="BLACK", text_background="ORANGE")
 
                 input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
                 if input == B.KEY_RIGHT:
@@ -1134,7 +1134,7 @@ class SeedToolsView(View):
                     cur_y = next_y
 
     def read_seed_phrase_qr(self):
-        self.renderer.draw_modal(["Scanning..."], "Seed QR" ,"Right to Exit")
+        self.draw_modal(["Scanning..."], "Seed QR" ,"Right to Exit")
         try:
             self.controller.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
             decoder = DecodeQR(wordlist=self.controller.settings.wordlist)
@@ -1155,10 +1155,10 @@ class SeedToolsView(View):
             if decoder.isComplete() and decoder.isSeed():
                 self.words = decoder.getSeedPhrase()
             elif not decoder.isPSBT():
-                self.renderer.draw_modal(["Not a valid Seed QR"], "", "Right to Exit")
+                self.draw_modal(["Not a valid Seed QR"], "", "Right to Exit")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
             else:
-                self.renderer.draw_modal(["QR Parsing Failed"], "", "Right to Exit")
+                self.draw_modal(["QR Parsing Failed"], "", "Right to Exit")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
                 self.words = []
 

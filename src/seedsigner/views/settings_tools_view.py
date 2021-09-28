@@ -3,8 +3,9 @@ from . import View
 from seedsigner.helpers import B, QR, Keyboard, TextEntryDisplay
 from seedsigner.models import EncodeQRDensity
 
-class SettingsToolsView(View):
 
+
+class SettingsToolsView(View):
     def __init__(self) -> None:
         View.__init__(self)
 
@@ -12,22 +13,23 @@ class SettingsToolsView(View):
         self.donate_image = None
         self.derivation = None
 
-    ### Donate Menu Item
 
+    ### Donate Menu Item
     def display_donate_info_screen(self):
-        self.draw_modal(["You can support", "SeedSigner by donating", "any amount of BTC", "Thank You!!!"], "", "(Press right for a QR code)")
+        self.renderer.draw_modal(["You can support", "SeedSigner by donating", "any amount of BTC", "Thank You!!!"], "", "(Press right for a QR code)")
         return True
 
+
     def display_donate_qr(self):
-        self.draw_modal(["Loading..."])
+        self.renderer.draw_modal(["Loading..."])
         self.donate_image = self.qr.qrimage("bc1qphlyv2dde290tqdlnk8uswztnshw3x9rjurexqqhksvu7vdevhtsuw4efe")
         self.renderer.show_image(self.donate_image)
         return True
 
-    ### Display Network Selection
 
+    ### Display Network Selection
     def display_current_network(self) -> str:
-        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Mainnet", "Testnet"], "Which Network?")
+        r = self.renderer.display_generic_selection_menu(["... [ Return to Settings ]", "Mainnet", "Testnet"], "Which Network?")
         if r == 2:
             return "main"
         elif r == 3:
@@ -35,10 +37,10 @@ class SettingsToolsView(View):
         else:
             return None
 
-    ### Display Wallet Selection
 
+    ### Display Wallet Selection
     def display_wallet_selection(self) -> str:
-        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Prompt", "Specter Desktop", "Blue Wallet", "Sparrow"], "Which Wallet?")
+        r = self.renderer.display_generic_selection_menu(["... [ Return to Settings ]", "Prompt", "Specter Desktop", "Blue Wallet", "Sparrow"], "Which Wallet?")
         if r == 2:
             return "Prompt"
         elif r == 3:
@@ -50,10 +52,10 @@ class SettingsToolsView(View):
         else:
             return None
 
-    ### Display QR Density Selection
 
+    ### Display QR Density Selection
     def display_qr_density_selection(self) -> str:
-        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Low", "Medium", "High"], "Which QR Density?")
+        r = self.renderer.display_generic_selection_menu(["... [ Return to Settings ]", "Low", "Medium", "High"], "Which QR Density?")
         if r == 2:
             return EncodeQRDensity.LOW
         elif r == 3:
@@ -63,13 +65,13 @@ class SettingsToolsView(View):
         else:
             return None
 
-    def display_persistent_settings(self) -> bool:
 
+    def display_persistent_settings(self) -> bool:
         lines = ["... [ Return to Settings ]"]
         lines.append("Yes")
         lines.append("No")
 
-        r = self.controller.menu_view.display_generic_selection_menu(lines, "Use Persistent Settings?")
+        r = self.renderer.display_generic_selection_menu(lines, "Use Persistent Settings?")
         if r == 1:
             return None
         elif r == 2:
@@ -87,7 +89,7 @@ class SettingsToolsView(View):
         lines.append("180")
         lines.append("270")
 
-        r = self.controller.menu_view.display_generic_selection_menu(lines, "Camera Rotation")
+        r = self.renderer.display_generic_selection_menu(lines, "Camera Rotation")
         if r == 1:
             return None
         elif r == 2:
@@ -101,12 +103,11 @@ class SettingsToolsView(View):
         else:
             return None
 
+
     ###
     ### Version Info
     ###
-
-    def display_version_info(self):
-    
+    def display_version_info(self):    
         line1 = "SeedSigner"
         line2 = "Version v" + self.controller.VERSION
         line3 = "(Joystick RIGHT to EXIT)"
@@ -120,10 +121,10 @@ class SettingsToolsView(View):
         self.renderer.draw.text(((240 - tw) / 2, 210), line3, fill=View.color, font=Fonts.get_font("Assistant-Medium", 18))
         self.renderer.show_image()
 
+
     ###
     ### Custom Derivation Path
     ###
-    
     def draw_derivation_keyboard_entry(self, existing_derivation = "m/"):
         def render_right_panel():
             row_height = 28

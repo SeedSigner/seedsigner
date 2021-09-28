@@ -57,11 +57,6 @@ class View:
         self.renderer.show_image()
 
 
-    def display_blank_screen(self):
-        self.renderer.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
-        self.renderer.show_image()
-
-
     ###
     ### Reusable components
     ###

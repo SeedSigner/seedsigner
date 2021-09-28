@@ -2,7 +2,8 @@
 from . import View
 
 from seedsigner.gui.components import Fonts
-from seedsigner.helpers import B, Path
+from seedsigner.gui.templates import ButtonListScreen
+from seedsigner.helpers import B, Path, Buttons
 from seedsigner.models import SeedStorage, Settings, Seed
 
 # External Dependencies
@@ -18,53 +19,48 @@ class MenuView(View):
         self.menu_lines = []
         self.selected_menu_num = 1
 
+
     ###
     ### Main Navigation
     ###
 
     ### Main Menu
-
     def display_main_menu(self, sub_menu = None) -> int:
-        ret_val = 0
-        input = 0
-        lines = ["Seed Tools", "Scan QR", "Settings", "Power Off"]
+        button_labels = [
+            "Seed Tools",
+            "Scan QR",
+            "Settings",
+            "Power Off"
+        ]
 
-        if sub_menu == Path.SEED_TOOLS_SUB_MENU:
-            return self.display_seed_tools_menu()
-        elif sub_menu == Path.SIGNING_TOOLS_SUB_MENU:
-            return Path.SIGN_TRANSACTION
-        elif sub_menu == Path.SETTINGS_SUB_MENU:
-            return self.display_settings_menu()
-        else:
-            self.draw_menu(lines, 1)
+        # if sub_menu == Path.SEED_TOOLS_SUB_MENU:
+        #     return self.display_seed_tools_menu()
+        # elif sub_menu == Path.SIGNING_TOOLS_SUB_MENU:
+        #     return Path.SIGN_TRANSACTION
+        # elif sub_menu == Path.SETTINGS_SUB_MENU:
+        #     return self.display_settings_menu()
+        
+        menu_screen = ButtonListScreen(title="SeedSigner", button_labels=button_labels, selected_button=0)
+        menu_screen.render()
+        selected_menu_num = menu_screen.run()
 
-        # Wait for Button Input (specifically menu selection/press)
-        while True:
-            if ret_val == 0:
-                input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
-            else:
-                return ret_val
-            if input == B.KEY_UP:
-                self.menu_up()
-            elif input == B.KEY_DOWN:
-                self.menu_down()
-            elif input == B.KEY_PRESS:
-                if self.selected_menu_num == 1:
-                    ret_val = self.display_seed_tools_menu()
-                elif self.selected_menu_num == 2:
-                    ret_val = Path.SIGN_TRANSACTION
-                elif self.selected_menu_num == 3:
-                    ret_val = self.display_settings_menu()
-                elif self.selected_menu_num == 4:
-                    ret_val = Path.POWER_OFF
+        print(f"selected_menu_num: {selected_menu_num}")
 
-                if ret_val != Path.MAIN_MENU: # When no main menu, return to controller
-                    return ret_val
-                else:
-                    self.draw_menu(lines)
+        if selected_menu_num == 0:
+            print("returning selected_menu_num")
+            return (self.display_seed_tools_menu, {})
+        elif selected_menu_num == 1:
+            ret_val = Path.SIGN_TRANSACTION
+        elif selected_menu_num == 2:
+            return (self.display_settings_menu, {})
+        elif selected_menu_num == 3:
+            ret_val = Path.POWER_OFF
+
+        # if ret_val != Path.MAIN_MENU: # When no main menu, return to controller
+        #     return ret_val
+
 
     ### Seed Tools Menu
-
     def display_seed_tools_menu(self) -> int:
         seed_storage_line = "Store a Seed (temp)"
         if self.controller.storage.num_of_saved_seeds() > 0:
@@ -100,8 +96,8 @@ class MenuView(View):
                 elif self.selected_menu_num == 7:
                     return Path.IMAGE_GEN_SEED
 
-    ### Signing Tools Menu
 
+    ### Signing Tools Menu
     def display_signing_tools_menu(self) -> None:
         lines = ["... [ Return to Main ]", "Generate xPub", "Sign a Transaction"]
         self.draw_menu(lines, 1)
@@ -123,16 +119,22 @@ class MenuView(View):
                     return Path.SIGN_TRANSACTION
         raise Exception("Unhandled case")
 
-    ### Settings Menu
 
+    ### Settings Menu
     def display_settings_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Wallet: <wallet>", "Network: <network>", "QR Density: <density>", "Input / Output Tests", "Persistent Settings: <persistent>", "Camera Rotation", "Version Info", "Donate to SeedSigner", "Reset SeedSigner"]
+        lines = [
+            "... [ Return to Main ]",
+            f"Wallet: {Settings.get_instance().software}",
+            f"Network: {Settings.get_instance().network}",
+            f"QR Density: {Settings.get_instance().qr_density_name}",
+            "Input / Output Tests",
+            f"Persistent Settings: {Settings.get_instance().persistent_display}",
+            "Camera Rotation",
+            "Version Info",
+            "Donate to SeedSigner",
+            "Reset SeedSigner"
+        ]
         input = 0
-        
-        lines[1] = lines[1].replace("<wallet>", Settings.get_instance().software)
-        lines[2] = lines[2].replace("<network>", Settings.get_instance().network)
-        lines[3] = lines[3].replace("<density>", Settings.get_instance().qr_density_name)
-        lines[5] = lines[5].replace("<persistent>", Settings.get_instance().persistent_display)
 
         # Draw Menu
         self.selected_menu_num = 1
@@ -168,21 +170,6 @@ class MenuView(View):
                     return Path.RESET
         raise Exception("Unhandled case")
 
-    ### Generic Single Menu Selection (returns 1,2,3,4,5,6 ...)
-
-    def display_generic_selection_menu(self, lines = [], title = None, bottom = None) -> int:
-        self.selected_menu_num = 1
-        self.draw_menu(lines, 1, title, bottom, True)
-
-        while True:
-            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
-            if input == B.KEY_UP:
-                self.menu_up(title, bottom)
-            elif input == B.KEY_DOWN:
-                self.menu_down(title, bottom)
-            elif input == B.KEY_PRESS:
-                return self.selected_menu_num
-        raise Exception("Unhandled case")
 
     ### Generic Word 12 or 24 seed phrase menu
     # internal method
@@ -276,111 +263,6 @@ class MenuView(View):
                     return int(re.search("#(\d+)", lines[self.selected_menu_num-1], re.IGNORECASE).group(1))
         raise Exception("Unhandled case")
 
-    ###
-    ### Generic Reusable Menu Methods/Functions
-    ###
-
-    ### Generic Draw Menu Method
-    # TODO: Optimize updates by just redrawing the no-longer highlighted line and the newly highlighted line
-    def draw_menu(self, lines, selected_menu_num = 1, title = None, bottom = None, force_redraw = False) -> None:
-        if title == None:
-            t = "SeedSigner  v" + self.controller.VERSION
-        else:
-            t = title
-
-        if bottom == None and len(lines) <= 5:
-            b = "Press Control Stick to Select"
-        elif bottom == None:
-            if len(lines) >= 6 and len(lines) <= 10:
-                if selected_menu_num <= 5:
-                    b = "Page 1 of 2"
-                elif selected_menu_num >= 6 and selected_menu_num <= 10:
-                    b = "Page 2 of 2"
-            elif len(lines) >= 11 and len(lines) <= 15:
-                if selected_menu_num <= 5:
-                    b = "Page 1 of 3"
-                elif selected_menu_num >= 6 and selected_menu_num <= 10:
-                    b = "Page 2 of 3"
-                elif selected_menu_num >= 11 and selected_menu_num <= 15:
-                    b = "Page 3 of 3"
-            else:
-                b = "Press Control Stick to Select"
-        else:
-            b = bottom
-
-        if lines != self.menu_lines or selected_menu_num != self.selected_menu_num or force_redraw == True:
-            #Menu has changed, redraw
-
-            self.renderer.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
-            tw, th = self.renderer.draw.textsize(t, font=Fonts.get_font("Assistant-Medium", 22))
-            self.renderer.draw.text(((240 - tw) / 2, 2), t, fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-
-            num_of_lines = len(lines)
-
-            if selected_menu_num <= 5:
-                if num_of_lines >= 1:
-                    self.draw_menu_text(15, 43 , lines[0], (True if selected_menu_num == 1 else False))
-                if num_of_lines >= 2:
-                    self.draw_menu_text(15, 76 , lines[1], (True if selected_menu_num == 2 else False))
-                if num_of_lines >= 3:
-                    self.draw_menu_text(15, 109, lines[2], (True if selected_menu_num == 3 else False))
-                if num_of_lines >= 4:
-                    self.draw_menu_text(15, 142, lines[3], (True if selected_menu_num == 4 else False))
-                if num_of_lines >= 5:
-                    self.draw_menu_text(15, 175, lines[4], (True if selected_menu_num == 5 else False))
-            elif selected_menu_num >= 6 and selected_menu_num <= 10:
-                if num_of_lines >= 6:
-                    self.draw_menu_text(15, 43 , lines[5], (True if selected_menu_num == 6 else False))
-                if num_of_lines >= 7:
-                    self.draw_menu_text(15, 76 , lines[6], (True if selected_menu_num == 7 else False))
-                if num_of_lines >= 8:
-                    self.draw_menu_text(15, 109, lines[7], (True if selected_menu_num == 8 else False))
-                if num_of_lines >= 9:
-                    self.draw_menu_text(15, 142, lines[8], (True if selected_menu_num == 9 else False))
-                if num_of_lines >= 10:
-                    self.draw_menu_text(15, 175, lines[9], (True if selected_menu_num == 10 else False))
-            elif selected_menu_num >= 11 and selected_menu_num <= 15:
-                if num_of_lines >= 11:
-                    self.draw_menu_text(15, 43 , lines[10], (True if selected_menu_num == 11 else False))
-                if num_of_lines >= 12:
-                    self.draw_menu_text(15, 76 , lines[11], (True if selected_menu_num == 12 else False))
-                if num_of_lines >= 13:
-                    self.draw_menu_text(15, 109, lines[12], (True if selected_menu_num == 13 else False))
-                if num_of_lines >= 14:
-                    self.draw_menu_text(15, 142, lines[13], (True if selected_menu_num == 14 else False))
-                if num_of_lines >= 15:
-                    self.draw_menu_text(15, 175, lines[14], (True if selected_menu_num == 15 else False))
-
-            tw, th = self.renderer.draw.textsize(b, font=Fonts.get_font("Assistant-Medium", 18))
-            self.renderer.draw.text(((240 - tw) / 2, 210), b, fill=self.color, font=Fonts.get_font("Assistant-Medium", 18))
-            self.renderer.show_image()
-
-            # saved update menu lines and selection
-            self.menu_lines = lines
-            self.selected_menu_num = selected_menu_num
 
 
-    ### Generic Menu Navigation
 
-    def menu_up(self, title = None, bottom = None):
-        if self.selected_menu_num <= 1:
-            self.draw_menu(self.menu_lines, len(self.menu_lines), title, bottom)
-        else:
-            self.draw_menu(self.menu_lines, self.selected_menu_num - 1, title, bottom)
-
-    def menu_down(self, title = None, bottom = None):
-        if self.selected_menu_num >= len(self.menu_lines):
-            self.draw_menu(self.menu_lines, 1, title, bottom)
-        else:
-            self.draw_menu(self.menu_lines, self.selected_menu_num + 1, title, bottom)
-
-    ### Internal View Method to Display a Line in a Menu Screen
-
-    def draw_menu_text(self, x, y, line, selected) -> None:
-        if selected == True:
-            self.renderer.draw.rectangle((5, y-3, 235, y+28), outline=0, fill=self.color)
-            self.renderer.draw.text((x, y) , line, fill="BLACK", font=Fonts.get_font("Assistant-Bold", 20))
-        else:
-            self.renderer.draw.text((x, y) , line, fill=self.color, font=Fonts.get_font("Assistant-Medium", 20))
-
-        return
