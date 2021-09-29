@@ -9,10 +9,6 @@ from binascii import hexlify
 from threading import Thread
 
 # Internal file class dependencies
-from .views import (View, MenuView, SeedToolsView, SigningToolsView, 
-    SettingsToolsView, IOTestView, OpeningSplashView, ScreensaverView)
-from .gui import Renderer
-from .helpers import Buttons, B, Path
 from .models import (EncodeQRDensity, QRType, Seed, SeedStorage, Settings, ConfigurableSingleton, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
 
 
@@ -39,6 +35,10 @@ class Controller(ConfigurableSingleton):
 
     @classmethod
     def configure_instance(cls, config=None):
+        from .gui import Renderer
+        from .helpers import Buttons
+        from .views import ScreensaverView
+
         super().configure_instance(config)
 
         # Instantiate the one and only Controller instance
@@ -64,11 +64,11 @@ class Controller(ConfigurableSingleton):
         controller.renderer = Renderer.get_instance()
 
         # Views
-        controller.menu_view = MenuView()
-        controller.seed_tools_view = SeedToolsView()
-        controller.io_test_view = IOTestView()
-        controller.signing_tools_view = SigningToolsView(controller.storage)
-        controller.settings_tools_view = SettingsToolsView()
+        # controller.menu_view = MenuView()
+        # controller.seed_tools_view = SeedToolsView()
+        # controller.io_test_view = IOTestView()
+        # controller.signing_tools_view = SigningToolsView(controller.storage)
+        # controller.settings_tools_view = SettingsToolsView()
         controller.screensaver = ScreensaverView(controller.buttons)
 
         controller.back_stack = []
@@ -90,241 +90,97 @@ class Controller(ConfigurableSingleton):
 
 
     def start(self) -> None:
+        from .views import OpeningSplashView, MainMenuView
+
         opening_splash = OpeningSplashView()
         # opening_splash.start()
 
-        """ Functions can be stored as variables in python!
+        """ Class references can be stored as variables in python!
 
-            This loop receives a view function to execute and stores it in the
-            `view_function` var along with any input arguments in the `function_args`
-            dict.
+            This loop receives a View class to execute and stores it in the `View_cls`
+            var along with any input arguments in the `run_args` dict.
 
-            The `view_function` is executed w/its `function_args`. Each view returns either
-            a new view function to execute next or None.
+            The `View_cls` is instantiated and run with `run_args` passed in. It returns
+            either a new View class to execute next or None.
 
             Example:
-                def my_view(some_arg, other_arg):
-                    print(other_arg)
+                class MyView(View)
+                    def run(self, some_arg, other_arg):
+                        print(other_arg)
 
-                def other_view():
-                    return (my_view, {"some_arg": 1, "other_arg": "hello"})
+                class OtherView():
+                    def run(self):
+                        return (MyView, {"some_arg": 1, "other_arg": "hello"})
 
-            When `other_view` is run, we capture its return values:
+            When `OtherView` is instantiated and run, we capture its return values:
 
-                (view_function, function_args) = other_view()
+                (View_cls, run_args) = OtherView().run()
 
-            And then we can execute that view function:
+            And then we can instantiate and run that View class:
 
-                view_function(**function_args)
+                View_cls().run(**run_args)
         """
         try:
-            view_function = None
-            function_args = {}
+            View_cls = None
+            run_args = {}
             while True:
-                if not view_function:
+                if not View_cls or View_cls == MainMenuView:
                     # None is a special case; render the Home screen
-                    view_function = self.menu_view.display_main_menu
-                    function_args = {}
+                    View_cls = MainMenuView
+                    run_args = {}
 
                     # Home always wipes the back_stack
                     self.back_stack = []
 
-                print(f"Executing {view_function}")
+                print(f"Executing {View_cls.__name__}")
 
-                # Each view returns the next view function to display plus any
-                #   function_args in an argument dict.
-                (view_function, function_args) = view_function(**function_args)
+                # Instantiate the `View_cls` and run() it with the `run_args` dict
+                result = View_cls().run(**run_args)
 
-                print(f"view_function: {view_function}")
-
-                if view_function == self.pop_back_stack:
-                    # "Back" arrow was clicked; load the previous view
-                    (view_function, function_args) = self.pop_back_stack()
+                if type(result) is tuple:
+                    View_cls = result[0]
+                    run_args = result[1]
                 else:
-                    self.back_stack.append((view_function, function_args))
+                    View_cls = result
+                    run_args = {}
+
+                print(f"View_cls: {View_cls.__name__ if View_cls else 'None'}")
+
+                if View_cls == self.pop_back_stack:
+                    # "Back" arrow was clicked; load the previous view
+                    (View_cls, run_args) = self.pop_back_stack()
+                else:
+                    self.back_stack.append((View_cls, run_args))
 
         finally:
             # Clear the screen when exiting
             self.renderer.display_blank_screen()
 
+        # if self.DEBUG:
+        #     # Let Exceptions halt execution
+        #     try:
+        #         self.show_main_menu()
+        #     finally:
+        #         # Clear the screen when exiting
+        #         self.renderer.display_blank_screen()
 
-
-        from seedsigner.gui.templates import BaseScreen, ButtonListScreen, FontTesterScreen, BottomButtonScreen
-        from seedsigner.gui.components import Fonts
-
-        # tests = [
-        #     ("OpenSans-SemiBold", 16),
-        #     ("OpenSans-SemiBold", 18),
-        #     ("OpenSans-SemiBold", 20),
-        # ]
-
-        # screens = []
-
-        # screens.append(
-        #     BottomButtonScreen(
-        #         title="Supersampling: off",
-        #         button_data=[{"text":"Proceed"}],
-        #         is_button_text_centered=False,
-        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-        #         is_body_text_centered=True,
-        #         body_font_name="OpenSans-Regular",
-        #         body_font_size=17,
-        #         body_font_color="white",
-        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         supersampling_factor=1
-        #     )
-        # )
-        # screens.append(
-        #     BottomButtonScreen(
-        #         title="Supersampling: 2",
-        #         button_data=[{"text":"Proceed"}],
-        #         is_button_text_centered=False,
-        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-        #         is_body_text_centered=True,
-        #         body_font_name="OpenSans-Regular",
-        #         body_font_size=17,
-        #         body_font_color="white",
-        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         supersampling_factor=2
-        #     )
-        # )
-        # screens.append(
-        #     BottomButtonScreen(
-        #         title="Regular 16px w/SS",
-        #         button_data=[{"text":"Proceed"}],
-        #         is_button_text_centered=False,
-        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-        #         is_body_text_centered=True,
-        #         body_font_name="OpenSans-Regular",
-        #         body_font_size=16,
-        #         body_font_color="white",
-        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         supersampling_factor=2
-        #     )
-        # )
-        # screens.append(
-        #     BottomButtonScreen(
-        #         title="SemiBold 16px, no SS",
-        #         button_data=[{"text":"Proceed"}],
-        #         is_button_text_centered=False,
-        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-        #         is_body_text_centered=True,
-        #         body_font_name="OpenSans-SemiBold",
-        #         body_font_size=16,
-        #         body_font_color="white",
-        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         supersampling_factor=1
-        #     )
-        # )
-        # screens.append(
-        #     BottomButtonScreen(
-        #         title="SemiBold 17px, no SS",
-        #         button_data=[{"text":"Proceed"}],
-        #         is_button_text_centered=False,
-        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         body_text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-        #         is_body_text_centered=True,
-        #         body_font_name="OpenSans-SemiBold",
-        #         body_font_size=17,
-        #         body_font_color="white",
-        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         supersampling_factor=1
-        #     )
-        # )
-        # screens.append(
-        #     ButtonListScreen(
-        #         title="Color: Orange",
-        #         button_data=[
-        #             {"text": "cfd0883d"},
-        #             {"text": "72f9a6bf"},
-        #         ],
-        #         is_button_text_centered=False,
-        #         is_bottom_list=False,
-        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         button_selected_color="orange"
-        #     )
-        # )
-        # screens.append(
-        #     ButtonListScreen(
-        #         title="Color: #f7941d",
-        #         button_data=[
-        #             {"text": "cfd0883d"},
-        #             {"text": "72f9a6bf"},
-        #         ],
-        #         is_button_text_centered=False,
-        #         is_bottom_list=False,
-        #         title_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         button_font=Fonts.get_font("OpenSans-SemiBold", 18),
-        #         button_selected_color="#f7941d"
-        #     )
-        # )
-
-
-        # index = 0
-        # while True:
-        #     # test = tests[index]
-        #     # screen = FontTesterScreen(
-        #     #     title="In-Memory Seeds",
-        #     #     button_data=[
-        #     #         {"text": "cfd0883d"},
-        #     #         {"text": "72f9a6bf"},
-        #     #         {"text": f"{test[0].split('.')[0]} {test[1]}"},
-        #     #     ],
-        #     #     is_button_text_centered=False,
-        #     #     is_bottom_list=False,
-        #     # )
-
-        #     screens[index].render()
-
+        # else:
+        #     # Handle Unexpected crashes by restarting up to 3 times
+        #     crash_cnt = 0
         #     while True:
-        #         if index == 0:
-        #             input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_UP, B.KEY_DOWN])
-        #         elif index < len(screens) - 1:
-        #             input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
-        #         else:
-        #             input = self.buttons.wait_for([B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN])
+        #         try:
+        #             self.show_main_menu()
+        #         except Exception as error:
+        #             if crash_cnt >= 3:
+        #                 break
+        #             else:
+        #                 print('Caught this error: ' + repr(error)) # debug
+        #                 self.renderer.draw_modal(["Crashed ..."], "", "restarting")
+        #                 time.sleep(5)
 
-        #         if input == B.KEY_RIGHT:
-        #             index += 1
-        #             break
-        #         elif input == B.KEY_LEFT:
-        #             index -= 1
-        #             break
-        #         else:
-        #             screens[index].update_from_input(input)
+        #             crash_cnt += 1
 
-        # time.sleep(180)
-
-        if self.DEBUG:
-            # Let Exceptions halt execution
-            try:
-                self.show_main_menu()
-            finally:
-                # Clear the screen when exiting
-                self.renderer.display_blank_screen()
-
-        else:
-            # Handle Unexpected crashes by restarting up to 3 times
-            crash_cnt = 0
-            while True:
-                try:
-                    self.show_main_menu()
-                except Exception as error:
-                    if crash_cnt >= 3:
-                        break
-                    else:
-                        print('Caught this error: ' + repr(error)) # debug
-                        self.renderer.draw_modal(["Crashed ..."], "", "restarting")
-                        time.sleep(5)
-
-                    crash_cnt += 1
-
-            self.renderer.draw_modal(["Crashed ..."], "", "requires hard restart")
+        #     self.renderer.draw_modal(["Crashed ..."], "", "requires hard restart")
 
 
     def start_screensaver(self):

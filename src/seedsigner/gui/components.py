@@ -63,8 +63,8 @@ class TextArea(BaseComponent):
     height: int
     background_color: str = "black"
     font_name: str = "OpenSans-Regular"
-    font_size: int = 16
-    font_color: str = "orange"
+    font_size: int = 17
+    font_color: str = "white"
     is_text_centered: bool = True
     supersampling_factor: int = None
 
@@ -182,14 +182,23 @@ class Button(BaseComponent):
     def __post_init__(self):
         super().__post_init__()
         if not self.font:
-            self.font = Fonts.get_font("OpenSans-SemiBold", 24)
+            self.font = Fonts.get_font("OpenSans-SemiBold", 18)
 
-        self.text_width, self.text_height = self.font.getsize(self.text)
+        # see: https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html#text-anchors
+        offset_x, offset_y = self.font.getoffset(self.text)
+        (box_left, box_top, box_right, box_bottom) = self.font.getbbox(self.text, anchor='lt')
+        ascent, descent = self.font.getmetrics()
+
+        # print(f"----- {self.text} -----")
+        # print(f"offset_x, offset_y: ({offset_x}, {offset_y})")
+        # print(f"(box_left, box_top, box_right, box_bottom): ({box_left}, {box_top}, {box_right}, {box_bottom})")
+        # print(f"ascent, descent: ({ascent}, {descent})")
+
         if self.is_text_centered:
-            self.text_x = self.screen_x + int((self.width - self.text_width) / 2)
+            self.text_x = self.screen_x + int((self.width - (box_right - offset_x)) / 2) - offset_x
         else:
             self.text_x = self.screen_x + COMPONENT_PADDING
-        self.text_y = self.screen_y + int((self.height - self.text_height) / 2)
+        self.text_y = self.screen_y + int((self.height - (ascent - offset_y)) / 2) - offset_y
 
 
     def render(self):
@@ -211,7 +220,7 @@ class TopNav(BaseComponent):
     width: int
     height: int
     background_color: str = "black"
-    font: ImageFont = Fonts.get_font("OpenSans-SemiBold", 18)
+    font: ImageFont = Fonts.get_font("OpenSans-SemiBold", 19)
     font_color: str = "white"
 
 

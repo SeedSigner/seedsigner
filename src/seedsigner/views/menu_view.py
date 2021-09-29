@@ -2,13 +2,53 @@
 from . import View
 
 from seedsigner.gui.components import Fonts
-from seedsigner.gui.templates import ButtonListScreen
+from seedsigner.gui.screens import ButtonListScreen
 from seedsigner.helpers import B, Path, Buttons
 from seedsigner.models import SeedStorage, Settings, Seed
 
 # External Dependencies
 import time
 import re
+
+
+
+class SeedToolsMenuView(View):
+    def run(self, **kwargs):
+        from . import MainMenuView
+
+        title = "Store a Seed"
+        if self.controller.storage.num_of_saved_seeds() > 0:
+            if self.controller.storage.num_of_saved_seeds() < 3:
+                title = "View/Store Seeds"
+            else:
+                title = "View Seeds"
+
+        selected_menu_num = ButtonListScreen(
+            title=title,
+            button_labels=["... [ Return to Main ]",
+                           "Temp Seed Storage",
+                           "Seed Passphrase",
+                           "Export xPub",
+                           "Calc Last Word",
+                           "New Seed w/Dice",
+                           "New Seed w/Image"]
+        ).display()
+
+        if selected_menu_num == 0:
+            print("returning MainMenuView")
+            return (MainMenuView, {})
+        elif selected_menu_num == 1:
+            return Path.SAVE_SEED
+        elif selected_menu_num == 2:
+            return Path.PASSPHRASE_SEED
+        elif selected_menu_num == 3:
+            return Path.GEN_XPUB
+        elif selected_menu_num == 4:
+            return Path.GEN_LAST_WORD
+        elif selected_menu_num == 5:
+            return Path.DICE_GEN_SEED
+        elif selected_menu_num == 6:
+            return Path.IMAGE_GEN_SEED
 
 
 class MenuView(View):
@@ -18,83 +58,6 @@ class MenuView(View):
 
         self.menu_lines = []
         self.selected_menu_num = 1
-
-
-    ###
-    ### Main Navigation
-    ###
-
-    ### Main Menu
-    def display_main_menu(self, sub_menu = None) -> int:
-        button_labels = [
-            "Seed Tools",
-            "Scan QR",
-            "Settings",
-            "Power Off"
-        ]
-
-        # if sub_menu == Path.SEED_TOOLS_SUB_MENU:
-        #     return self.display_seed_tools_menu()
-        # elif sub_menu == Path.SIGNING_TOOLS_SUB_MENU:
-        #     return Path.SIGN_TRANSACTION
-        # elif sub_menu == Path.SETTINGS_SUB_MENU:
-        #     return self.display_settings_menu()
-        
-        menu_screen = ButtonListScreen(title="SeedSigner", button_labels=button_labels, selected_button=0)
-        menu_screen.render()
-        selected_menu_num = menu_screen.run()
-
-        print(f"selected_menu_num: {selected_menu_num}")
-
-        if selected_menu_num == 0:
-            print("returning selected_menu_num")
-            return (self.display_seed_tools_menu, {})
-        elif selected_menu_num == 1:
-            ret_val = Path.SIGN_TRANSACTION
-        elif selected_menu_num == 2:
-            return (self.display_settings_menu, {})
-        elif selected_menu_num == 3:
-            ret_val = Path.POWER_OFF
-
-        # if ret_val != Path.MAIN_MENU: # When no main menu, return to controller
-        #     return ret_val
-
-
-    ### Seed Tools Menu
-    def display_seed_tools_menu(self) -> int:
-        seed_storage_line = "Store a Seed (temp)"
-        if self.controller.storage.num_of_saved_seeds() > 0:
-            if self.controller.storage.num_of_saved_seeds() < 3:
-                seed_storage_line = "View/Store Seeds (temp)"
-            else:
-                seed_storage_line = "View Seeds (temp)"
-
-        lines = ["... [ Return to Main ]", "Temp Seed Storage", "Seed Passphrase", "xPub from Seed", "Calculate Last Word", "Generate Seed with Dice", "Generate Seed with Image"]
-        self.draw_menu(lines, 1)
-        input = 0
-
-        # Wait for Button Input (specifically menu selection/press)
-        while True:
-            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
-            if input == B.KEY_UP:
-                self.menu_up()
-            elif input == B.KEY_DOWN:
-                self.menu_down()
-            elif input == B.KEY_PRESS:
-                if self.selected_menu_num == 1:
-                    return Path.MAIN_MENU
-                elif self.selected_menu_num == 2:
-                    return Path.SAVE_SEED
-                elif self.selected_menu_num == 3:
-                    return Path.PASSPHRASE_SEED
-                elif self.selected_menu_num == 4:
-                    return Path.GEN_XPUB
-                elif self.selected_menu_num == 5:
-                    return Path.GEN_LAST_WORD
-                elif self.selected_menu_num == 6:
-                    return Path.DICE_GEN_SEED
-                elif self.selected_menu_num == 7:
-                    return Path.IMAGE_GEN_SEED
 
 
     ### Signing Tools Menu

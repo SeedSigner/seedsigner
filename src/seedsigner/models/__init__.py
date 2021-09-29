@@ -1,3 +1,6 @@
+# Must import crucial base class first!
+from .singleton import Singleton, ConfigurableSingleton
+
 from .seed import *
 from .qr_type import *
 from .encode_qr_density import *
@@ -6,4 +9,3 @@ from .encode_qr import *
 from .psbt_parser import *
 from .seed_storage import *
 from .settings import *
-from .singleton import *

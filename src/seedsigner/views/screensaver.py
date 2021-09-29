@@ -4,7 +4,7 @@ import time
 
 from PIL import Image, ImageDraw
 
-from . import View
+from .view import View
 
 from seedsigner.helpers import B
 from seedsigner.gui.components import Fonts

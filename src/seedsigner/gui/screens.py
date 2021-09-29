@@ -5,7 +5,6 @@ from .components import (EDGE_PADDING, COMPONENT_PADDING, Button, TopNav,
 from dataclasses import dataclass
 from PIL import ImageFont
 from seedsigner.helpers import B, Buttons
-from seedsigner.views import View
 
 
 
@@ -21,18 +20,23 @@ class BaseScreen:
         self.renderer = Renderer.get_instance()
         self.hw_inputs = Buttons.get_instance()
 
+        self.canvas_width = self.renderer.canvas_width
+        self.canvas_height = self.renderer.canvas_height
 
-    def render(self, show_image: bool = True):
+
+    def display(self):
+        self._render()
+        self.renderer.show_image()
+
+        return self._run()
+
+
+    def _render(self):
         # Clear the whole canvas
-        self.renderer.draw.rectangle((0, 0, self.renderer.canvas_width, self.renderer.canvas_height), fill=0)
-
-        if show_image:
-            # Will be false when called by child classes; they'll want to keep writing
-            #   their own UI content before calling show_image() themselves.
-            self.renderer.show_image()
+        self.renderer.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), fill=0)
 
 
-    def run(self):
+    def _run(self):
         """
             Screen can run on its own until it returns a final exit input from the user.
 
@@ -64,18 +68,56 @@ class BaseTopNavScreen(BaseScreen):
         super().__post_init__()
         self.top_nav = TopNav(
             text=self.title,
-            width=self.renderer.canvas_width,
-            height=(2 * EDGE_PADDING) + int(self.renderer.canvas_width * 2.0 / 15.0),     # 32px on a 240x240 screen
+            width=self.canvas_width,
+            height=(2 * EDGE_PADDING) + int(self.canvas_width * 2.0 / 15.0),     # 32px on a 240x240 screen
         )
 
 
-    def render(self, show_image: bool = True):
-        super().render(show_image=False)    # Child always tells parent to wait
-
+    def _render(self):
+        super()._render()
         self.top_nav.render()
 
-        if show_image:
-            self.renderer.show_image()
+
+    def _run(self):
+        raise Exception("Must implement in a child class")
+
+
+@dataclass
+class TextTopNavScreen(BaseTopNavScreen):
+    title: str      # Not necessary to include this since it's in parent; just here for clarity
+    text: str
+    is_text_centered: bool = True
+    text_font_name: str = "OpenSans-Regular"
+    text_font_size: int = 17
+    supersampling_factor: int = None
+
+    def __post_init__(self):
+        super().__post_init__()
+        if self.text_font_size < 18 and not self.supersampling_factor or self.supersampling_factor == 1:
+            self.supersampling_factor = 2
+
+        self.text_area = TextArea(
+            text=self.text,
+            screen_x=0,
+            screen_y=self.top_nav.height,
+            width=self.canvas_width,
+            height=self.canvas_height - self.top_nav.height,
+            font_name=self.text_font_name,
+            font_size=self.text_font_size,
+            is_text_centered=self.is_text_centered,
+            supersampling_factor=self.supersampling_factor
+        )
+
+
+    def _render(self):
+        super()._render()
+        self.top_nav.render()
+        self.text_area.render()
+
+
+    def _run(self):
+        # No interactive UI to handle
+        pass
 
 
 
@@ -92,16 +134,20 @@ class ButtonListScreen(BaseTopNavScreen):
     def __post_init__(self):
         super().__post_init__()
 
-        button_height = int(self.renderer.canvas_height * 3.0 / 20.0)    # 36px on a 240x240 screen
+        button_height = int(self.canvas_height * 3.0 / 20.0)    # 36px on a 240x240 screen
         if len(self.button_labels) == 1:
             button_list_height = button_height
         else:
             button_list_height = (len(self.button_labels) * button_height) + (COMPONENT_PADDING * (len(self.button_labels) - 1))
 
         if self.is_bottom_list:
-            button_list_y = self.renderer.canvas_height - (button_list_height + EDGE_PADDING)
+            button_list_y = self.canvas_height - (button_list_height + EDGE_PADDING)
         else:
-            button_list_y = self.top_nav.height + int((self.renderer.canvas_height - self.top_nav.height - button_list_height) / 2)
+            button_list_y = self.top_nav.height + int((self.canvas_height - self.top_nav.height - button_list_height) / 2)
+
+        if button_list_y < self.top_nav.height:
+            # The button list is too long; force it to run off the bottom of the screen.
+            button_list_y = self.top_nav.height + COMPONENT_PADDING
 
         self.buttons = []
         for i, button_label in enumerate(self.button_labels):
@@ -109,7 +155,7 @@ class ButtonListScreen(BaseTopNavScreen):
                 text=button_label,
                 screen_x=EDGE_PADDING,
                 screen_y=button_list_y + i * (button_height + COMPONENT_PADDING),
-                width=self.renderer.canvas_width - (2 * EDGE_PADDING),
+                width=self.canvas_width - (2 * EDGE_PADDING),
                 height=button_height,
                 is_text_centered=self.is_button_text_centered,
                 font=self.button_font,
@@ -121,16 +167,13 @@ class ButtonListScreen(BaseTopNavScreen):
         self.selected_button = 0
 
 
-    def render(self, show_image: bool = True):
-        super().render(show_image=False)    # Child always tells parent to wait
-
+    def _render(self):
+        super()._render()
         for button in self.buttons:
             button.render()
 
-        self.renderer.show_image()
 
-
-    def run(self):
+    def _run(self):
         while True:
             user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if user_input == B.KEY_UP:
@@ -189,7 +232,7 @@ class BottomButtonScreen(ButtonListScreen):
             text=body_text,
             screen_x=0,
             screen_y=self.top_nav.height,
-            width=self.renderer.canvas_width,
+            width=self.canvas_width,
             height=self.buttons[0].screen_y - self.top_nav.height,
             font_name=body_font_name,
             font_size=body_font_size,
@@ -199,8 +242,8 @@ class BottomButtonScreen(ButtonListScreen):
         )
 
 
-    def render(self):
-        self.renderer.draw.rectangle((0, 0, self.renderer.canvas_width, self.renderer.canvas_height), fill=0)
+    def _render(self):
+        self.renderer.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), fill=0)
         self.top_nav.render()
         self.body_textscreen.render()
         for button in self.buttons:
