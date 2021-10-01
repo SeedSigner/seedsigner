@@ -11,10 +11,10 @@ The `Controller` then ends up being quite stripped down. For example, there's no
 * `Model`s: Store the persistent settings, the in-memory seeds, current wallet information, etc.
 * `Controller`: Manages the state of the world and controls access to global resources.
 * `View`s: Implementation of each screen. Prepares relevant data for display. Must also instantiate the display objects that will actually render the UI.
-* `gui.templates`: Re-usable formatted UI renderers.
+* `gui.screens`: Re-usable formatted UI renderers.
 * `gui.components`: Basic individual UI elements that are used by the `templates` such as the top nav, buttons, button lists, text displays.
 
-In an typical webserver context the `View` would send data to an html template (e.g. Jinja) which would then dynamically populate the page with html elements like `<input>`, `<button>`, `<img>`, etc. This is analgous to our `gui.templates` constructing a UI renderer by piecing together various `gui.components` as needed.
+In an typical webserver context the `View` would send data to an html template (e.g. Jinja) which would then dynamically populate the page with html elements like `<input>`, `<button>`, `<img>`, etc. This is analgous to our `gui.screens` constructing a UI renderer by piecing together various `gui.components` as needed.
 
 
 

@@ -90,7 +90,7 @@ class Controller(ConfigurableSingleton):
 
 
     def start(self) -> None:
-        from .views import OpeningSplashView, MainMenuView
+        from .views import View, OpeningSplashView, MainMenuView
 
         opening_splash = OpeningSplashView()
         # opening_splash.start()
@@ -140,9 +140,11 @@ class Controller(ConfigurableSingleton):
                 if type(result) is tuple:
                     View_cls = result[0]
                     run_args = result[1]
-                else:
+                elif type(result) is View:
                     View_cls = result
                     run_args = {}
+                else:
+                    raise Exception("Invalid View.run() return type; must be tuple(View, args_dict) or View.")
 
                 print(f"View_cls: {View_cls.__name__ if View_cls else 'None'}")
 

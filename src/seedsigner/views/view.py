@@ -93,9 +93,11 @@ class MainMenuView(View):
         if selected_menu_num == 0:
             return SeedToolsMenuView
         elif selected_menu_num == 1:
-            ret_val = Path.SIGN_TRANSACTION
+            return None
+            # ret_val = Path.SIGN_TRANSACTION
         elif selected_menu_num == 2:
-            return self.display_settings_menu
+            return None
+            # return self.display_settings_menu
         elif selected_menu_num == 3:
             return PowerOffView
 

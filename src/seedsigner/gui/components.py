@@ -14,6 +14,28 @@ COMPONENT_PADDING = 8
 
 
 
+def calc_text_centering(font, text, is_text_centered, box_width, box_height, start_x, start_y):
+    # see: https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html#text-anchors
+    offset_x, offset_y = font.getoffset(text)
+    (box_left, box_top, box_right, box_bottom) = font.getbbox(text, anchor='lt')
+    ascent, descent = font.getmetrics()
+
+    # print(f"----- {text} -----")
+    # print(f"offset_x, offset_y: ({offset_x}, {offset_y})")
+    # print(f"(box_left, box_top, box_right, box_bottom): ({box_left}, {box_top}, {box_right}, {box_bottom})")
+    # print(f"ascent, descent: ({ascent}, {descent})")
+
+    if is_text_centered:
+        text_x = int((box_width - (box_right - offset_x)) / 2) - offset_x
+    else:
+        text_x = COMPONENT_PADDING
+
+    text_y = int((box_height - (ascent - offset_y)) / 2) - offset_y
+
+    return (start_x + text_x, start_y + text_y)
+
+
+
 class Fonts(Singleton):
     font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
     fonts = {}
@@ -184,21 +206,15 @@ class Button(BaseComponent):
         if not self.font:
             self.font = Fonts.get_font("OpenSans-SemiBold", 18)
 
-        # see: https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html#text-anchors
-        offset_x, offset_y = self.font.getoffset(self.text)
-        (box_left, box_top, box_right, box_bottom) = self.font.getbbox(self.text, anchor='lt')
-        ascent, descent = self.font.getmetrics()
-
-        # print(f"----- {self.text} -----")
-        # print(f"offset_x, offset_y: ({offset_x}, {offset_y})")
-        # print(f"(box_left, box_top, box_right, box_bottom): ({box_left}, {box_top}, {box_right}, {box_bottom})")
-        # print(f"ascent, descent: ({ascent}, {descent})")
-
-        if self.is_text_centered:
-            self.text_x = self.screen_x + int((self.width - (box_right - offset_x)) / 2) - offset_x
-        else:
-            self.text_x = self.screen_x + COMPONENT_PADDING
-        self.text_y = self.screen_y + int((self.height - (ascent - offset_y)) / 2) - offset_y
+        (self.text_x, self.text_y) = calc_text_centering(
+            font=self.font,
+            text=self.text,
+            is_text_centered=self.is_text_centered,
+            box_width=self.width,
+            box_height=self.height,
+            start_x=self.screen_x,
+            start_y=self.screen_y
+        )
 
 
     def render(self):
@@ -255,12 +271,15 @@ class TopNav(BaseComponent):
         #             break
 
         # else:
-        # TESTING
-        self.text_width, self.text_height = self.font.getsize(self.text)
-        self.text_x = int((self.width - self.text_width) / 2)
-        self.text_y = int((self.height - self.text_height) / 2)
-        # End TESTING
-
+        (self.text_x, self.text_y) = calc_text_centering(
+            font=self.font,
+            text=self.text,
+            is_text_centered=True,
+            box_width=self.width,
+            box_height=self.height,
+            start_x=0,
+            start_y=0
+        )
 
 
     def update_from_input(self, input, enter_from=None):

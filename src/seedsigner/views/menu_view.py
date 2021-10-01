@@ -35,8 +35,7 @@ class SeedToolsMenuView(View):
         ).display()
 
         if selected_menu_num == 0:
-            print("returning MainMenuView")
-            return (MainMenuView, {})
+            return MainMenuView
         elif selected_menu_num == 1:
             return Path.SAVE_SEED
         elif selected_menu_num == 2:
