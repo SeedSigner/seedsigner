@@ -82,12 +82,15 @@ class View:
 class MainMenuView(View):
     def run(self):
         from .menu_view import SeedToolsMenuView
-        selected_menu_num = ButtonListScreen(
-            title="SeedSigner",
-            button_labels=["Seed Tools",
-                           "Scan QR",
-                           "Settings",
-                           "Power Off"]
+        from seedsigner.gui.screens import LargeButtonScreen
+        selected_menu_num = LargeButtonScreen(
+            title="Home",
+            title_font_size=26,
+            button_data=[("Scan", None),
+                         ("Seeds", None),
+                         ("Tools", None),
+                         ("Settings", None)],
+            show_back_button=False,
         ).display()
 
         if selected_menu_num == 0:

@@ -12,6 +12,10 @@ from seedsigner.models import Singleton
 EDGE_PADDING = 4
 COMPONENT_PADDING = 8
 
+TOP_NAV_TITLE_FONT_SIZE = 19
+BUTTON_FONT_NAME = "OpenSans-SemiBold"
+BUTTON_FONT_SIZE = 18
+
 
 
 def calc_text_centering(font, text, is_text_centered, box_width, box_height, start_x, start_y):
@@ -194,7 +198,8 @@ class Button(BaseComponent):
     height: int
     background_color: str = "#333"
     selected_color: str = "orange"
-    font: ImageFont = None
+    font_name: str = BUTTON_FONT_NAME
+    font_size: int = BUTTON_FONT_SIZE
     font_color: str = "white"
     selected_font_color: str = "black"
     is_text_centered: bool = True
@@ -203,8 +208,7 @@ class Button(BaseComponent):
 
     def __post_init__(self):
         super().__post_init__()
-        if not self.font:
-            self.font = Fonts.get_font("OpenSans-SemiBold", 18)
+        self.font = Fonts.get_font(self.font_name, self.font_size)
 
         (self.text_x, self.text_y) = calc_text_centering(
             font=self.font,
@@ -236,27 +240,32 @@ class TopNav(BaseComponent):
     width: int
     height: int
     background_color: str = "black"
-    font: ImageFont = Fonts.get_font("OpenSans-SemiBold", 19)
+    font_name: str = "OpenSans-SemiBold"
+    font_size: int = TOP_NAV_TITLE_FONT_SIZE
     font_color: str = "white"
+    show_back_button: bool = True
 
 
     def __post_init__(self):
         super().__post_init__()
+        self.font = Fonts.get_font(self.font_name, self.font_size)
         button_width = int(self.width * 2.0 / 15.0)     # 32px on 240x240 screen
-        self.back_button = Button(
-            text="<",
-            screen_x=EDGE_PADDING,
-            screen_y=EDGE_PADDING,
-            width=button_width,
-            height=button_width,
-        )
-        self.context_button = Button(
-            text="?",
-            screen_x=self.width - button_width - EDGE_PADDING,
-            screen_y=EDGE_PADDING,
-            width=button_width,
-            height=button_width,
-        )
+
+        if self.show_back_button:
+            self.back_button = Button(
+                text="<",
+                screen_x=EDGE_PADDING,
+                screen_y=EDGE_PADDING,
+                width=button_width,
+                height=button_width,
+            )
+            self.context_button = Button(
+                text="?",
+                screen_x=self.width - button_width - EDGE_PADDING,
+                screen_y=EDGE_PADDING,
+                width=button_width,
+                height=button_width,
+            )
 
         # if not self.font:
         #     # Pre-calc how much room the title bar text will take up. Use the biggest font
@@ -288,9 +297,10 @@ class TopNav(BaseComponent):
 
     def render(self):
         self.renderer.draw.rectangle((0, 0, self.width, self.height), fill=self.background_color)
-        self.back_button.render()
-        self.context_button.render()
-        # self.right_button.render()
+        if self.show_back_button:
+            self.back_button.render()
+            self.context_button.render()
+
         self.renderer.draw.text((self.text_x, self.text_y), self.text, fill=self.font_color, font=self.font)
 
 

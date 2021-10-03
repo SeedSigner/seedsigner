@@ -1,6 +1,6 @@
 
-from .components import (EDGE_PADDING, COMPONENT_PADDING, Button, TopNav, 
-    TextArea)
+from .components import (EDGE_PADDING, COMPONENT_PADDING, TOP_NAV_TITLE_FONT_SIZE,
+    BUTTON_FONT_NAME, BUTTON_FONT_SIZE, Button, TopNav, TextArea)
 
 from dataclasses import dataclass
 from PIL import ImageFont
@@ -62,14 +62,18 @@ class BaseScreen:
 
 @dataclass
 class BaseTopNavScreen(BaseScreen):
-    title:str
+    title: str
+    title_font_size: int = TOP_NAV_TITLE_FONT_SIZE
+    show_back_button: bool = True
 
     def __post_init__(self):
         super().__post_init__()
         self.top_nav = TopNav(
             text=self.title,
+            font_size=self.title_font_size,
             width=self.canvas_width,
             height=(2 * EDGE_PADDING) + int(self.canvas_width * 2.0 / 15.0),     # 32px on a 240x240 screen
+            show_back_button=self.show_back_button
         )
 
 
@@ -84,8 +88,7 @@ class BaseTopNavScreen(BaseScreen):
 
 @dataclass
 class TextTopNavScreen(BaseTopNavScreen):
-    title: str      # Not necessary to include this since it's in parent; just here for clarity
-    text: str
+    text: str = "Your display text"
     is_text_centered: bool = True
     text_font_name: str = "OpenSans-Regular"
     text_font_size: int = 17
@@ -123,12 +126,12 @@ class TextTopNavScreen(BaseTopNavScreen):
 
 @dataclass
 class ButtonListScreen(BaseTopNavScreen):
-    title: str      # Not necessary to include this since it's in parent; just here for clarity
-    button_labels: list                  # w/Python 3.9 we can be more specific: list[str]
+    button_labels: list = None                  # w/Python 3.9 we can be more specific: list[str]
     selected_button: int = 0
     is_button_text_centered: bool = True
     is_bottom_list: bool = False
-    button_font: ImageFont = None
+    button_font_name: str = BUTTON_FONT_NAME
+    button_font_size: int = BUTTON_FONT_SIZE
     button_selected_color: str = "orange"
 
     def __post_init__(self):
@@ -158,7 +161,8 @@ class ButtonListScreen(BaseTopNavScreen):
                 width=self.canvas_width - (2 * EDGE_PADDING),
                 height=button_height,
                 is_text_centered=self.is_button_text_centered,
-                font=self.button_font,
+                font_name=self.button_font_name,
+                font_size=self.button_font_size,
                 selected_color=self.button_selected_color
             )
             self.buttons.append(button)
@@ -189,7 +193,7 @@ class ButtonListScreen(BaseTopNavScreen):
 
             elif user_input == B.KEY_DOWN:
                 if self.selected_button == len(self.buttons) - 1:
-                    # TODO: Trap selection at bottom?
+                    # TODO: Trap selection at bottom or loop?
                     pass
                 else:
                     self.buttons[self.selected_button].is_selected = False
@@ -249,6 +253,102 @@ class BottomButtonScreen(ButtonListScreen):
         for button in self.buttons:
             button.render()
         self.renderer.show_image()
+
+
+
+@dataclass
+class LargeButtonScreen(BaseTopNavScreen):
+    button_data: list = None           # list of tuples: (display_text: str, display_icon: str = None)
+    button_font_name: str = BUTTON_FONT_NAME
+    button_font_size: int = 20
+    button_selected_color: str = "orange"
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        if len(self.button_data) not in [2, 4]:
+            raise Exception("LargeButtonScreen only supports 2 or 4 buttons")
+
+        # Maximize 2-across width; calc height with a 4:3 aspect ratio
+        button_width = int((self.canvas_width - (2 * EDGE_PADDING) - COMPONENT_PADDING) / 2)
+        button_height = int(button_width * (3.0 / 4.0))
+
+        # Vertically center the buttons
+        if len(self.button_data) == 2:
+            button_start_y = self.top_nav.height + int((self.canvas_height - (self.top_nav.height + COMPONENT_PADDING) - button_height) / 2)
+        else:
+            button_start_y = self.top_nav.height + int((self.canvas_height - (self.top_nav.height + COMPONENT_PADDING) - (2 * button_height) - COMPONENT_PADDING) / 2)
+
+        self.buttons = []
+        for i, (button_label, button_icon_name) in enumerate(self.button_data):
+            if i % 2 == 0:
+                button_start_x = EDGE_PADDING
+            else:
+                button_start_x = EDGE_PADDING + button_width + COMPONENT_PADDING
+
+            button = Button(
+                text=button_label,
+                screen_x=button_start_x,
+                screen_y=button_start_y,
+                width=button_width,
+                height=button_height,
+                is_text_centered=True,
+                font_name=self.button_font_name,
+                font_size=self.button_font_size,
+                selected_color=self.button_selected_color,
+            )
+            self.buttons.append(button)
+
+            if i == 1:
+                button_start_y += button_height + COMPONENT_PADDING
+
+        self.buttons[0].is_selected = True
+        self.selected_button = 0
+
+
+    def _render(self):
+        super()._render()
+        for button in self.buttons:
+            button.render()
+
+
+    def _run(self):
+        def swap_selected_button(new_selected_button: int):
+            self.buttons[self.selected_button].is_selected = False
+            self.buttons[self.selected_button].render()
+            self.selected_button = new_selected_button
+            self.buttons[self.selected_button].is_selected = True
+            self.buttons[self.selected_button].render()
+
+        while True:
+            user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_LEFT, B.KEY_RIGHT, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
+            if user_input == B.KEY_UP:
+                if self.selected_button in [0, 1]:
+                    # TODO: Move selection up to top_nav
+                    pass
+                elif len(self.buttons) == 4:
+                    swap_selected_button(self.selected_button - 2)
+
+            elif user_input == B.KEY_DOWN:
+                if self.selected_button in [2, 3]:
+                    # TODO: Trap selection at bottom or loop?
+                    pass
+                elif len(self.buttons) == 4:
+                    swap_selected_button(self.selected_button + 2)
+
+            elif user_input == B.KEY_RIGHT:
+                if self.selected_button in [0, 2]:
+                    swap_selected_button(self.selected_button + 1)
+
+            elif user_input == B.KEY_LEFT:
+                if self.selected_button in [1, 3]:
+                    swap_selected_button(self.selected_button - 1)
+
+            elif user_input == B.KEY_PRESS:
+                return self.selected_button
+
+            # Write the screen updates
+            self.renderer.show_image()
 
 
 
