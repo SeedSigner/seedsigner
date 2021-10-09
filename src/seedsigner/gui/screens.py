@@ -1,6 +1,6 @@
 
 from .components import (EDGE_PADDING, COMPONENT_PADDING, TOP_NAV_TITLE_FONT_SIZE,
-    BUTTON_FONT_NAME, BUTTON_FONT_SIZE, Button, TopNav, TextArea)
+    BUTTON_FONT_NAME, BUTTON_FONT_SIZE, Button, IconButton, TopNav, TextArea)
 
 from dataclasses import dataclass
 from PIL import ImageFont
@@ -286,17 +286,24 @@ class LargeButtonScreen(BaseTopNavScreen):
             else:
                 button_start_x = EDGE_PADDING + button_width + COMPONENT_PADDING
 
-            button = Button(
-                text=button_label,
-                screen_x=button_start_x,
-                screen_y=button_start_y,
-                width=button_width,
-                height=button_height,
-                is_text_centered=True,
-                font_name=self.button_font_name,
-                font_size=self.button_font_size,
-                selected_color=self.button_selected_color,
-            )
+            button_args = {
+                "text": button_label,
+                "screen_x": button_start_x,
+                "screen_y": button_start_y,
+                "width": button_width,
+                "height": button_height,
+                "is_text_centered": True,
+                "font_name": self.button_font_name,
+                "font_size": self.button_font_size,
+                "selected_color": self.button_selected_color,
+            }
+            if button_icon_name:
+                button_args["icon_name"] = button_icon_name
+                button_args["text_y_offset"] = int(48 / 240 * self.renderer.canvas_height)
+                button = IconButton(**button_args)
+            else:
+                button = Button(**button_args)
+
             self.buttons.append(button)
 
             if i == 1:

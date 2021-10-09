@@ -196,6 +196,7 @@ class Button(BaseComponent):
     screen_y: int
     width: int
     height: int
+    text_y_offset: int = 0
     background_color: str = "#333"
     selected_color: str = "orange"
     font_name: str = BUTTON_FONT_NAME
@@ -215,9 +216,9 @@ class Button(BaseComponent):
             text=self.text,
             is_text_centered=self.is_text_centered,
             box_width=self.width,
-            box_height=self.height,
+            box_height=self.height - self.text_y_offset,
             start_x=self.screen_x,
-            start_y=self.screen_y
+            start_y=self.screen_y + self.text_y_offset
         )
 
 
@@ -232,6 +233,32 @@ class Button(BaseComponent):
         self.renderer.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.width, self.screen_y + self.height), fill=background_color, radius=COMPONENT_PADDING)
         self.renderer.draw.text((self.text_x, self.text_y), self.text, fill=font_color, font=self.font)
 
+
+
+@dataclass
+class IconButton(Button):
+    icon_name: str = None
+
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        dirname = os.path.dirname(__file__)
+        icon_url = os.path.join(dirname, "../../", "seedsigner", "resources", "icons", self.icon_name)
+        self.icon = Image.open(icon_url + ".png").convert("RGBA")
+        self.icon_selected = Image.open(icon_url + "_selected.png").convert("RGBA")
+
+
+    def render(self):
+        super().render()
+        icon = self.icon
+        if self.is_selected:
+            icon = self.icon_selected
+
+        icon_x = self.screen_x + int((self.width - icon.width) / 2)
+        icon_y = self.screen_y + int(8 / 240 * self.renderer.canvas_height)
+
+        self.renderer.canvas.paste(icon, (icon_x, icon_y))
 
 
 @dataclass

@@ -86,10 +86,10 @@ class MainMenuView(View):
         selected_menu_num = LargeButtonScreen(
             title="Home",
             title_font_size=26,
-            button_data=[("Scan", None),
-                         ("Seeds", None),
-                         ("Tools", None),
-                         ("Settings", None)],
+            button_data=[("Scan", "scan"),
+                         ("Seeds", "seeds"),
+                         ("Tools", "tools"),
+                         ("Settings", "settings")],
             show_back_button=False,
         ).display()
 
