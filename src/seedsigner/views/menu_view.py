@@ -2,7 +2,7 @@
 from . import View
 
 from seedsigner.gui.components import Fonts
-from seedsigner.gui.screens import ButtonListScreen
+from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
 from seedsigner.helpers import B, Path, Buttons
 from seedsigner.models import SeedStorage, Settings, Seed
 
@@ -25,8 +25,7 @@ class SeedToolsMenuView(View):
 
         selected_menu_num = ButtonListScreen(
             title=title,
-            button_labels=["... [ Return to Main ]",
-                           "Temp Seed Storage",
+            button_labels=["Temp Seed Storage",
                            "Seed Passphrase",
                            "Export xPub",
                            "Calc Last Word",
@@ -34,20 +33,20 @@ class SeedToolsMenuView(View):
                            "New Seed w/Image"]
         ).display()
 
-        if selected_menu_num == 0:
+        return_views = [
+            Path.SAVE_SEED,
+            Path.PASSPHRASE_SEED,
+            Path.GEN_XPUB,
+            Path.GEN_LAST_WORD,
+            Path.DICE_GEN_SEED,
+            Path.IMAGE_GEN_SEED,
+        ]
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
             return MainMenuView
-        elif selected_menu_num == 1:
-            return Path.SAVE_SEED
-        elif selected_menu_num == 2:
-            return Path.PASSPHRASE_SEED
-        elif selected_menu_num == 3:
-            return Path.GEN_XPUB
-        elif selected_menu_num == 4:
-            return Path.GEN_LAST_WORD
-        elif selected_menu_num == 5:
-            return Path.DICE_GEN_SEED
-        elif selected_menu_num == 6:
-            return Path.IMAGE_GEN_SEED
+
+        return return_views[selected_menu_num]
+
 
 
 class MenuView(View):

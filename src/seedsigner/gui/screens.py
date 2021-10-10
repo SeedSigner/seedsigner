@@ -7,6 +7,10 @@ from PIL import ImageFont
 from seedsigner.helpers import B, Buttons
 
 
+RET_CODE__BACK_BUTTON = -1
+RET_CODE__POWER_BUTTON = -2
+
+
 
 @dataclass
 class BaseScreen:
@@ -65,6 +69,7 @@ class BaseTopNavScreen(BaseScreen):
     title: str
     title_font_size: int = TOP_NAV_TITLE_FONT_SIZE
     show_back_button: bool = True
+    show_power_button: bool = False
 
     def __post_init__(self):
         super().__post_init__()
@@ -72,9 +77,11 @@ class BaseTopNavScreen(BaseScreen):
             text=self.title,
             font_size=self.title_font_size,
             width=self.canvas_width,
-            height=(2 * EDGE_PADDING) + int(self.canvas_width * 2.0 / 15.0),     # 32px on a 240x240 screen
-            show_back_button=self.show_back_button
+            height=48,
+            show_back_button=self.show_back_button,
+            show_power_button=self.show_power_button,
         )
+        self.is_input_in_top_nav = False
 
 
     def _render(self):
@@ -119,9 +126,24 @@ class TextTopNavScreen(BaseTopNavScreen):
 
 
     def _run(self):
-        # No interactive UI to handle
-        pass
+        while True:
+            user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
+            if user_input == B.KEY_UP:
+                if not self.top_nav.is_selected:
+                    self.top_nav.is_selected = True
+                    self.top_nav.render()
 
+            elif user_input == B.KEY_DOWN:
+                if self.top_nav.is_selected:
+                    self.top_nav.is_selected = False
+                    self.top_nav.render()
+
+            elif user_input == B.KEY_PRESS:
+                if self.top_nav.is_selected:
+                    return self.top_nav.selected_button
+
+            # Write the screen updates
+            self.renderer.show_image()
 
 
 @dataclass
@@ -150,7 +172,7 @@ class ButtonListScreen(BaseTopNavScreen):
 
         if button_list_y < self.top_nav.height:
             # The button list is too long; force it to run off the bottom of the screen.
-            button_list_y = self.top_nav.height + COMPONENT_PADDING
+            button_list_y = self.top_nav.height
 
         self.buttons = []
         for i, button_label in enumerate(self.button_labels):
@@ -182,8 +204,13 @@ class ButtonListScreen(BaseTopNavScreen):
             user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if user_input == B.KEY_UP:
                 if self.selected_button == 0:
-                    # TODO: Move selection up to top_nav
-                    pass
+                    # Move selection up to top_nav
+                    self.buttons[self.selected_button].is_selected = False
+                    self.buttons[self.selected_button].render()
+                    self.selected_button = None
+
+                    self.top_nav.is_selected = True
+                    self.top_nav.render()
                 else:
                     self.buttons[self.selected_button].is_selected = False
                     self.buttons[self.selected_button].render()
@@ -192,7 +219,15 @@ class ButtonListScreen(BaseTopNavScreen):
                     self.buttons[self.selected_button].render()
 
             elif user_input == B.KEY_DOWN:
-                if self.selected_button == len(self.buttons) - 1:
+                if self.top_nav.is_selected:
+                    self.top_nav.is_selected = False
+                    self.top_nav.render()
+
+                    self.selected_button = 0
+                    self.buttons[self.selected_button].is_selected = True
+                    self.buttons[self.selected_button].render()
+
+                elif self.selected_button == len(self.buttons) - 1:
                     # TODO: Trap selection at bottom or loop?
                     pass
                 else:
@@ -203,6 +238,8 @@ class ButtonListScreen(BaseTopNavScreen):
                     self.buttons[self.selected_button].render()
 
             elif user_input == B.KEY_PRESS:
+                if self.top_nav.is_selected:
+                    return self.top_nav.selected_button
                 return self.selected_button
 
             # Write the screen updates
@@ -331,27 +368,40 @@ class LargeButtonScreen(BaseTopNavScreen):
             user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_LEFT, B.KEY_RIGHT, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if user_input == B.KEY_UP:
                 if self.selected_button in [0, 1]:
-                    # TODO: Move selection up to top_nav
-                    pass
+                    # Move selection up to top_nav
+                    self.top_nav.is_selected = True
+                    self.top_nav.render()
+
+                    self.buttons[self.selected_button].is_selected = False
+                    self.buttons[self.selected_button].render()
+
                 elif len(self.buttons) == 4:
                     swap_selected_button(self.selected_button - 2)
 
             elif user_input == B.KEY_DOWN:
-                if self.selected_button in [2, 3]:
+                if self.top_nav.is_selected:
+                    self.top_nav.is_selected = False
+                    self.top_nav.render()
+
+                    self.buttons[self.selected_button].is_selected = True
+                    self.buttons[self.selected_button].render()
+                elif self.selected_button in [2, 3]:
                     # TODO: Trap selection at bottom or loop?
                     pass
                 elif len(self.buttons) == 4:
                     swap_selected_button(self.selected_button + 2)
 
-            elif user_input == B.KEY_RIGHT:
+            elif user_input == B.KEY_RIGHT and not self.top_nav.is_selected:
                 if self.selected_button in [0, 2]:
                     swap_selected_button(self.selected_button + 1)
 
-            elif user_input == B.KEY_LEFT:
+            elif user_input == B.KEY_LEFT and not self.top_nav.is_selected:
                 if self.selected_button in [1, 3]:
                     swap_selected_button(self.selected_button - 1)
 
             elif user_input == B.KEY_PRESS:
+                if self.top_nav.is_selected:
+                    return self.top_nav.selected_button
                 return self.selected_button
 
             # Write the screen updates

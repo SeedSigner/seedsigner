@@ -140,11 +140,9 @@ class Controller(ConfigurableSingleton):
                 if type(result) is tuple:
                     View_cls = result[0]
                     run_args = result[1]
-                elif type(result) is View:
+                else:
                     View_cls = result
                     run_args = {}
-                else:
-                    raise Exception("Invalid View.run() return type; must be tuple(View, args_dict) or View.")
 
                 print(f"View_cls: {View_cls.__name__ if View_cls else 'None'}")
 

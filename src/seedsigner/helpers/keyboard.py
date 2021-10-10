@@ -112,7 +112,7 @@ class Keyboard:
                 if Keyboard.ADDITIONAL_KEYS[self.code]["font"] == Keyboard.COMPACT_KEY_FONT:
                     font = self.keyboard.additonal_key_compact_font
 
-            outline_color = "#333"
+            outline_color = "#2c2c2c"
             if not self.is_active:
                 rect_color = self.keyboard.background_color
                 font_color = "#666"  # Show the letter but render as gray

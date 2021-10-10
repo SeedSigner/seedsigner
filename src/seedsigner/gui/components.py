@@ -9,7 +9,7 @@ from seedsigner.models import Singleton
 
 
 # TODO: Remove all pixel hard coding
-EDGE_PADDING = 4
+EDGE_PADDING = 8
 COMPONENT_PADDING = 8
 
 TOP_NAV_TITLE_FONT_SIZE = 19
@@ -90,7 +90,7 @@ class TextArea(BaseComponent):
     background_color: str = "black"
     font_name: str = "OpenSans-Regular"
     font_size: int = 17
-    font_color: str = "white"
+    font_color: str = "#fcfcfc"
     is_text_centered: bool = True
     supersampling_factor: int = None
 
@@ -197,11 +197,11 @@ class Button(BaseComponent):
     width: int
     height: int
     text_y_offset: int = 0
-    background_color: str = "#333"
+    background_color: str = "#2c2c2c"
     selected_color: str = "orange"
     font_name: str = BUTTON_FONT_NAME
     font_size: int = BUTTON_FONT_SIZE
-    font_color: str = "white"
+    font_color: str = "#fcfcfc"
     selected_font_color: str = "black"
     is_text_centered: bool = True
     is_selected: bool = False
@@ -211,15 +211,16 @@ class Button(BaseComponent):
         super().__post_init__()
         self.font = Fonts.get_font(self.font_name, self.font_size)
 
-        (self.text_x, self.text_y) = calc_text_centering(
-            font=self.font,
-            text=self.text,
-            is_text_centered=self.is_text_centered,
-            box_width=self.width,
-            box_height=self.height - self.text_y_offset,
-            start_x=self.screen_x,
-            start_y=self.screen_y + self.text_y_offset
-        )
+        if self.text:
+            (self.text_x, self.text_y) = calc_text_centering(
+                font=self.font,
+                text=self.text,
+                is_text_centered=self.is_text_centered,
+                box_width=self.width,
+                box_height=self.height - self.text_y_offset,
+                start_x=self.screen_x,
+                start_y=self.screen_y + self.text_y_offset
+            )
 
 
     def render(self):
@@ -231,13 +232,16 @@ class Button(BaseComponent):
             font_color = self.font_color
 
         self.renderer.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.width, self.screen_y + self.height), fill=background_color, radius=COMPONENT_PADDING)
-        self.renderer.draw.text((self.text_x, self.text_y), self.text, fill=font_color, font=self.font)
+
+        if self.text:
+            self.renderer.draw.text((self.text_x, self.text_y), self.text, fill=font_color, font=self.font)
 
 
 
 @dataclass
 class IconButton(Button):
     icon_name: str = None
+    icon_top_padding: int = 8
 
 
     def __post_init__(self):
@@ -245,8 +249,8 @@ class IconButton(Button):
 
         dirname = os.path.dirname(__file__)
         icon_url = os.path.join(dirname, "../../", "seedsigner", "resources", "icons", self.icon_name)
-        self.icon = Image.open(icon_url + ".png").convert("RGBA")
-        self.icon_selected = Image.open(icon_url + "_selected.png").convert("RGBA")
+        self.icon = Image.open(icon_url + ".png").convert("RGB")
+        self.icon_selected = Image.open(icon_url + "_selected.png").convert("RGB")
 
 
     def render(self):
@@ -256,7 +260,7 @@ class IconButton(Button):
             icon = self.icon_selected
 
         icon_x = self.screen_x + int((self.width - icon.width) / 2)
-        icon_y = self.screen_y + int(8 / 240 * self.renderer.canvas_height)
+        icon_y = self.screen_y + self.icon_top_padding
 
         self.renderer.canvas.paste(icon, (icon_x, icon_y))
 
@@ -269,29 +273,37 @@ class TopNav(BaseComponent):
     background_color: str = "black"
     font_name: str = "OpenSans-SemiBold"
     font_size: int = TOP_NAV_TITLE_FONT_SIZE
-    font_color: str = "white"
+    font_color: str = "#fcfcfc"
     show_back_button: bool = True
+    show_power_button: bool = False
+    is_selected: bool = False
 
 
     def __post_init__(self):
         super().__post_init__()
         self.font = Fonts.get_font(self.font_name, self.font_size)
-        button_width = int(self.width * 2.0 / 15.0)     # 32px on 240x240 screen
+        button_width = 32
 
         if self.show_back_button:
-            self.back_button = Button(
-                text="<",
+            self.back_button = IconButton(
+                text=None,
+                icon_name="back",
                 screen_x=EDGE_PADDING,
                 screen_y=EDGE_PADDING,
                 width=button_width,
                 height=button_width,
+                icon_top_padding=4,
             )
-            self.context_button = Button(
-                text="?",
+
+        if self.show_power_button:
+            self.power_button = IconButton(
+                text=None,
+                icon_name="power",
                 screen_x=self.width - button_width - EDGE_PADDING,
                 screen_y=EDGE_PADDING,
                 width=button_width,
                 height=button_width,
+                icon_top_padding=4,
             )
 
         # if not self.font:
@@ -318,15 +330,25 @@ class TopNav(BaseComponent):
         )
 
 
-    def update_from_input(self, input, enter_from=None):
-        pass
+    @property
+    def selected_button(self):
+        from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
+        if not self.is_selected:
+            return None
+        if self.show_back_button:
+            return RET_CODE__BACK_BUTTON
+        if self.show_power_button:
+            return RET_CODE__POWER_BUTTON
 
 
     def render(self):
         self.renderer.draw.rectangle((0, 0, self.width, self.height), fill=self.background_color)
         if self.show_back_button:
+            self.back_button.is_selected = self.is_selected
             self.back_button.render()
-            self.context_button.render()
+        if self.show_power_button:
+            self.power_button.is_selected = self.is_selected
+            self.power_button.render()
 
         self.renderer.draw.text((self.text_x, self.text_y), self.text, fill=self.font_color, font=self.font)
 

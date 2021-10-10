@@ -1,7 +1,8 @@
 import time
 
 from seedsigner.gui.components import Fonts
-from seedsigner.gui.screens import ButtonListScreen, TextTopNavScreen
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON,
+    ButtonListScreen, TextTopNavScreen)
 
 
 """
@@ -27,6 +28,7 @@ from seedsigner.gui.screens import ButtonListScreen, TextTopNavScreen
 class View:
     # TODO: Obviated by seedsigner.gui.components.TopNav
     previous_button_width: int = None
+
 
     def __init__(self) -> None:
         # Import here to avoid circular imports
@@ -91,17 +93,26 @@ class MainMenuView(View):
                          ("Tools", "tools"),
                          ("Settings", "settings")],
             show_back_button=False,
+            show_power_button=True,
         ).display()
+
+        print(f"selected_menu_num: {selected_menu_num}")
 
         if selected_menu_num == 0:
             return SeedToolsMenuView
+
         elif selected_menu_num == 1:
             return None
             # ret_val = Path.SIGN_TRANSACTION
+
         elif selected_menu_num == 2:
             return None
             # return self.display_settings_menu
+
         elif selected_menu_num == 3:
+            return None
+
+        elif selected_menu_num == RET_CODE__POWER_BUTTON:
             return PowerOffView
 
 
@@ -112,7 +123,8 @@ class PowerOffView(View):
         TextTopNavScreen(
             title="Powering Down",
             text="Please wait about 30 seconds before disconnecting power.",
-            text_font_size=22
+            text_font_size=22,
+            show_back_button=False
         ).display()
 
         # call("sudo shutdown --poweroff now", shell=True)
