@@ -2,6 +2,7 @@ from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
 from enum import IntEnum
 import re
+import json
 import base64
 from embit import psbt
 from binascii import a2b_base64, b2a_base64
@@ -25,6 +26,7 @@ class DecodeQR:
         self.base64_qr = Base64DecodeQR() # Single Segments Base64
         self.base43_qr = Base43DecodeQR() # Single Segment Base43
         self.address_qr = BitcoinAddressQR() # Single Segment bitcoin address
+        self.specter_wallet_qr = SpecterDecodeWalletQR() # Specter Desktop Wallet Export decoder
         self.wordlist = None
 
         for key, value in kwargs.items():
@@ -115,6 +117,12 @@ class DecodeQR:
             if rt == DecodeQRStatus.COMPLETE:
                 self.complete = True
             return rt
+            
+        elif self.qr_type == QRType.SPECTERWALLETQR:
+            rt = self.specter_wallet_qr.add(qr_str)
+            if rt == DecodeQRStatus.COMPLETE:
+                self.complete = True
+            return rt
 
         else:
             return DecodeQRStatus.INVALID
@@ -163,6 +171,9 @@ class DecodeQR:
         
     def getAddressType(self):
         return self.address_qr.getAddressType()
+        
+    def getWalletDescriptor(self):
+        return self.specter_wallet_qr.getWalletDescriptor()
 
     def getPercentComplete(self) -> int:
         if self.qr_type == QRType.PSBTUR2:
@@ -207,7 +218,12 @@ class DecodeQR:
         return False
         
     def isAddress(self):
-        if self.qr_type in (QRType.BITCOINADDRESSQR):
+        if self.qr_type == QRType.BITCOINADDRESSQR:
+            return True
+        return False
+        
+    def isWalletDescriptor(self):
+        if self.qr_type in (QRType.SPECTERWALLETQR, QRType.URWALLETQR, QRType.BLUEWALLETQR):
             return True
         return False
 
@@ -231,22 +247,36 @@ class DecodeQR:
         # PSBT
         if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
             return QRType.PSBTUR2
-        elif re.search(r'^p(\d+)of(\d+) ', s, re.IGNORECASE):
+        elif re.search(r'^p(\d+)of(\d+) ([A-Za-z0-9+\/=]+$)', s, re.IGNORECASE): #must be base64 characters only in segment
             return QRType.PSBTSPECTER
         elif re.search("^UR:BYTES/", s, re.IGNORECASE):
             return QRType.PSBTURLEGACY
         elif DecodeQR.isBase64PSBT(s):
             return QRType.PSBTBASE64
-        
-        # Bitcoin Address
-        if DecodeQR.isBitcoinAddress(s):
-            return QRType.BITCOINADDRESSQR
+            
+        # Wallet Descriptor
+        elif re.search(r'^p(\d+)of(\d+) ', s, re.IGNORECASE):
+            # when not a SPECTER Base64 PSBT from above, assume it's json
+            return QRType.SPECTERWALLETQR
+        elif re.search(r'^\{\"label\".*\"descriptor\"\:.*', s, re.IGNORECASE):
+            # if json starting with label and contains descriptor, assume specter wallet json
+            return QRType.SPECTERWALLETQR
 
-        _4LETTER_WORDLIST = [word[:4].strip() for word in wordlist]
+        # create 4 letter wordlist only if not PSBT (performance gain)
+        try:
+            _4LETTER_WORDLIST = [word[:4].strip() for word in wordlist]
+        except:
+            _4LETTER_WORDLIST = []
         
         # Seed
         if re.search(r'\d{48,96}', s):
             return QRType.SEEDSSQR
+            
+        # Bitcoin Address
+        elif DecodeQR.isBitcoinAddress(s):
+            return QRType.BITCOINADDRESSQR
+        
+        # Seed
         elif all(x in wordlist for x in s.strip().split(" ")):
             # checks if all words in list are in bip39 word list
             return QRType.SEEDMNEMONIC
@@ -255,8 +285,8 @@ class DecodeQR:
             return QRType.SEED4LETTERMNEMONIC
         elif DecodeQR.isBase43PSBT(s):
             return QRType.PSBTBASE43
-        else:
-            return QRType.INVALID
+        
+        return QRType.INVALID
 
     @staticmethod   
     def isBase64(s):
@@ -708,6 +738,90 @@ class BitcoinAddressQR:
             else:
                 return "Unknown"
         return None
+
+###
+### SpecterDecodeWalletQR Class
+### Purpose: used in DecodeQR to decode animated frames to get a wallet descriptor from Specter Desktop
+###
+
+class SpecterDecodeWalletQR:
+    
+    def __init__(self):
+        self.total_segments = None
+        self.collected_segments = 0
+        self.complete = False
+        self.segments = []
+
+    def add(self, segment):
+        if self.total_segments == None:
+            self.total_segments = SpecterDecodeWalletQR.totalSegmentNum(segment)
+            self.segments = [None] * self.total_segments
+        elif self.total_segments != SpecterDecodeWalletQR.totalSegmentNum(segment):
+            raise Exception('Specter Desktop segment total changed unexpectedly')
+
+        if self.segments[SpecterDecodeWalletQR.currentSegmentNum(segment) - 1] == None:
+            self.segments[SpecterDecodeWalletQR.currentSegmentNum(segment) - 1] = SpecterDecodeWalletQR.parseSegment(segment)
+            self.collected_segments += 1
+            if self.total_segments == self.collected_segments:
+                if self.validateWalletDescriptor():
+                    self.complete = True
+                    return DecodeQRStatus.COMPLETE
+                else:
+                    return DecodeQRStatus.INVALID
+            return DecodeQRStatus.PART_COMPLETE # new segment added
+
+        return DecodeQRStatus.PART_EXISTING # segment not added because it's already been added
+        
+    def validateJson(self) -> str:
+        try:
+            j = "".join(self.segments)
+            json.loads(j)
+        except json.decoder.JSONDecodeError:
+            return False
+        return True
+        
+    def validateWalletDescriptor(self):
+        if self.validateJson():
+            j = "".join(self.segments)
+            data = json.loads(j)
+            if "descriptor" in data:
+                return True
+            return False
+        
+    def getWalletDescriptor(self) -> str:
+        if self.validateWalletDescriptor():
+            j = "".join(self.segments)
+            data = json.loads(j)
+            return data['descriptor']
+        return None
+
+    def is_complete(self) -> bool:
+        if self.complete and self.validateWalletDescriptor():
+            return True
+        return False
+
+    @staticmethod
+    def currentSegmentNum(segment) -> int:
+        if DecodeQR.SegmentType(segment) == QRType.SPECTERWALLETQR:
+            if re.search(r'^p(\d+)of(\d+) ', segment, re.IGNORECASE) != None:
+                return int(re.search(r'^p(\d+)of(\d+) ', segment, re.IGNORECASE).group(1))
+            else:
+                return 1
+
+    @staticmethod
+    def totalSegmentNum(segment) -> int:
+        if DecodeQR.SegmentType(segment) == QRType.SPECTERWALLETQR:
+            if re.search(r'^p(\d+)of(\d+) ', segment, re.IGNORECASE) != None:
+                return int(re.search(r'^p(\d+)of(\d+) ', segment, re.IGNORECASE).group(2))
+            else:
+                return 1
+
+    @staticmethod
+    def parseSegment(segment) -> str:
+        try:
+            return re.search(r'^p(\d+)of(\d+) (.+$)', segment, re.IGNORECASE).group(3)
+        except:
+            return segment
 
 ###
 ### DecodeQRStatus Class IntEum
