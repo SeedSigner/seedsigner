@@ -1,7 +1,7 @@
 from embit import bip39
 from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 import unicodedata
-
+import hashlib
 
 
 def calculate_checksum(partial_mnemonic: list, wordlist):
@@ -28,8 +28,7 @@ def generate_mnemonic_from_bytes(entropy_bytes):
 
 
 def generate_mnemonic_from_dice(roll_data: str):
-    entropyinteger = int(roll_data, 6)
-    entropy_bytes = entropyinteger.to_bytes(32, byteorder="little")
+    entropy_bytes = hashlib.sha256(roll_data.encode()).digest()
 
     # Return as a list
     return bip39.mnemonic_from_bytes(entropy_bytes).split()
