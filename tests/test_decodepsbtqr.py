@@ -333,8 +333,111 @@ def test_short_4_letter_mnemonic_qr():
     assert d.isComplete() == True
     assert d.getSeedPhrase() == ["height", "demise", "useless", "trap", "grow", "lion", "found", "off", "key", "clown", "transfer", "enroll"]
 
+def test_bitcoin_address():
+    
+    bad1 = "loremipsum"
+    bad2 = "0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae"
+    bad3 = "121802020768124106400009195602431595117715840445"
+    
+    legacy_address1 = "1KFHE7w8BhaENAswwryaoccDb6qcT6DbYY"
+    legacy_address2 = "16ftSEQ4ctQFDtVZiUBusQUjRrGhM3JYwe"
+    
+    main_bech32_address = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+    test_bech32_address = "tb1qkurj377gtlmu0j5flcykcsh2xagexh9h3jk06a"
+    
+    main_nested_segwit_address = "3Nu78Cqcf6hsD4sUBAN9nP13tYiHU9QPFX"
+    test_nested_segwit_address = "2N6JbrvPMMwbBhu2KxqXyyHUQz3XKspvyfm"
+    
+    main_bech32_address2 = "bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?amount=12000"
+    main_bech32_address3 = "BITCOIN:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?junk"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(bad1)
+    
+    assert d.qrType() == QRType.INVALID
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(legacy_address1)
+    
+    assert d.getAddress() == legacy_address1
+    assert d.getAddressType() == "P2PKH-main"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(legacy_address2)
+    
+    assert d.getAddress() == legacy_address2
+    assert d.getAddressType() == "P2PKH-main"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(main_bech32_address)
+    
+    assert d.getAddress() == main_bech32_address
+    assert d.getAddressType() == "Bech32-main"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(test_bech32_address)
+    
+    assert d.getAddress() == test_bech32_address
+    assert d.getAddressType() == "Bech32-test"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(main_nested_segwit_address)
+    
+    assert d.getAddress() == main_nested_segwit_address
+    assert d.getAddressType() == "P2SH-main"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(test_nested_segwit_address)
+    
+    assert d.getAddress() == test_nested_segwit_address
+    assert d.getAddressType() == "P2SH-test"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(main_bech32_address2)
+    
+    assert d.getAddress() == "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+    assert d.getAddressType() == "Bech32-main"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(main_bech32_address3)
+    
+    assert d.getAddress() == "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+    assert d.getAddressType() == "Bech32-main"
 
-
-
-
+def test_seed_qr():
+    seed = "121802020768124106400009195602431595117715840445"
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(seed)
+    
+    assert d.qrType() == QRType.SEEDSSQR
+    assert d.getSeedPhrase() == "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash".split()
+    
+def test_specter_wallet_json():
+    
+    parts = [
+        'p1of3 {"label": "SeedSigner Dev Funds", "blockheight": 692143, "descriptor": "wsh(sortedmulti(4,[e0811b6b/48h/0h/0h/2h]xpub6E8v7uy63pCeJvHe5W8ea8zTnCtKMFgMRb5bueWWcUFMw6sWmUwTqxM8cFiKQRWkA2Fxth9HJZufJwjWTTvU1UGZNpTrh9khrswYMgeHiCt/0/*,[852b308f/48h/0h/0h/2h]xpub6ErhgAWfnEqW7xDBm1iLq5JjNyUS65YUFnjHLrRv9zmdDEtuE75bpWQ8o6bSBnpT6AkrrsA8eA5SmEFArZn11KEPaZJzx9mHTXPWZCsxLyh/0/*,[7edf9c59/48h/0h/0h/2h]xpub6DaFfKoe7Wpofr'
+    ,   'p2of3 bYeNo3Wv2AiLUMeyrPwotXfukFxUHbK4JxaLHTd5394QtH5wnjFzBgr2YnJpHhXv25Zsqv2APmMFvH1DsKHj5LCr3pmXs/0/*,[b433e095/48h/0h/0h/2h]xpub6EF51itHko2YhGTjVeuYbBgJjVbTzzpYzn2a3JwZHpDrMePRVgXGBHMx2Yv1KwgLsUn9i7ExcAo8uqMx4pDjVRY9J7qnceFAwRRj16dd5AS/0/*,[184d07eb/48h/0h/0h/2h]xpub6EEoTpcQu7N4R8D84pJjZ69j3mi'
+    ,   'p3of3 nevnYLDDoo2HBzYBXTQ4rGVf4XGTyCYFwJuZdsF9MyFYJNzYEjg5LGMA1ubTGWuDnjHAZz6ficVRDTSy/0/*,[3e451efe/48h/0h/0h/2h]xpub6ExQPvQxGBMaPxr8Fv7Vq91ztJFFX3VWvtpvex6UPZ1AptTeuAiJGCtKkgwJkrwpMZMagh9ex6rL4sM8axfFcdQbERoFCRUKTJxrBkJh56g/0/*))#c44hel9e", "devices": [{"type": "other", "label": "Keith"}, {"type": "other", "label": "Nick"}, {"type": "other", "label": "Richard"}, {"type": "other", "label": "Stephan"}, {"type": "other", "label": "SeedSigner 1"}, {"type": "other", "label": "SeedSigner 2"}]}'
+    ]
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(parts[1])
+    d.addString(parts[2])
+    d.addString(parts[0])
+    
+    assert d.qrType() == QRType.SPECTERWALLETQR
+    assert d.isComplete() == True
+    assert d.getWalletDescriptor() == "wsh(sortedmulti(4,[e0811b6b/48h/0h/0h/2h]xpub6E8v7uy63pCeJvHe5W8ea8zTnCtKMFgMRb5bueWWcUFMw6sWmUwTqxM8cFiKQRWkA2Fxth9HJZufJwjWTTvU1UGZNpTrh9khrswYMgeHiCt/0/*,[852b308f/48h/0h/0h/2h]xpub6ErhgAWfnEqW7xDBm1iLq5JjNyUS65YUFnjHLrRv9zmdDEtuE75bpWQ8o6bSBnpT6AkrrsA8eA5SmEFArZn11KEPaZJzx9mHTXPWZCsxLyh/0/*,[7edf9c59/48h/0h/0h/2h]xpub6DaFfKoe7WpofrbYeNo3Wv2AiLUMeyrPwotXfukFxUHbK4JxaLHTd5394QtH5wnjFzBgr2YnJpHhXv25Zsqv2APmMFvH1DsKHj5LCr3pmXs/0/*,[b433e095/48h/0h/0h/2h]xpub6EF51itHko2YhGTjVeuYbBgJjVbTzzpYzn2a3JwZHpDrMePRVgXGBHMx2Yv1KwgLsUn9i7ExcAo8uqMx4pDjVRY9J7qnceFAwRRj16dd5AS/0/*,[184d07eb/48h/0h/0h/2h]xpub6EEoTpcQu7N4R8D84pJjZ69j3minevnYLDDoo2HBzYBXTQ4rGVf4XGTyCYFwJuZdsF9MyFYJNzYEjg5LGMA1ubTGWuDnjHAZz6ficVRDTSy/0/*,[3e451efe/48h/0h/0h/2h]xpub6ExQPvQxGBMaPxr8Fv7Vq91ztJFFX3VWvtpvex6UPZ1AptTeuAiJGCtKkgwJkrwpMZMagh9ex6rL4sM8axfFcdQbERoFCRUKTJxrBkJh56g/0/*))#c44hel9e"
+    
+def test_specter_wallet_json2():
+    
+    1_part = '{"label": "Testnet Single Zone", "blockheight": 2090512, "descriptor": "wpkh([990a73ad/84h/1h/0h]tpubDDHQMDnFdan2GyHBsG32VW9qiygbhVizGRTjiS3H79M49FSvpsvLXqLgp1yC7r43dXVHozWavi2Fc4WHUpZmQYmzoQbit28qJhLjScbAQWU/0/*)#ujr0xunp","devices": [{"type": "seedsigner", "label": "Single Seed Zone Testnet"}]}'
+    
+    d = DecodeQR(wordlist=bip39.WORDLIST)
+    d.addString(1_part)
+    
+    assert d.qrType() == QRType.SPECTERWALLETQR
+    assert d.isComplete() == True
+    
 
