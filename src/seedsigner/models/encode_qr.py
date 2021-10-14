@@ -81,7 +81,10 @@ class EncodeQR:
 
     def nextPartImage(self, width=240, height=240, border=3, background="FFFFFF"):
         part = self.nextPart()
-        return self.qr.qrimage_io(part, width, height, border, background=background)
+        if self.qr_type == QRType.SEEDSSQR:
+            return self.qr.qrimage(part, width, height, border)
+        else:
+            return self.qr.qrimage_io(part, width, height, border, background=background)
 
     def isComplete(self):
         return self.encoder.isComplete()

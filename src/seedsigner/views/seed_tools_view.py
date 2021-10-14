@@ -1064,7 +1064,7 @@ class SeedToolsView(View):
                 draw.rectangle((mask_width, 0, View.canvas_width - mask_width, pixels_per_block), fill=View.color)
                 draw.rectangle((0, mask_height, pixels_per_block, View.canvas_height - mask_height), fill=View.color)
 
-                label_font = View.COURIERNEW24
+                label_font = View.ROBOTOMONO24
                 x_label = block_labels_x[cur_block_x]
                 tw, th = draw.textsize(x_label, font=label_font)
                 draw.text(((View.canvas_width - tw) / 2, (pixels_per_block - th) / 2), x_label, fill="BLACK", font=label_font)
