@@ -76,7 +76,8 @@ class Controller(Singleton):
         controller.settings_tools_view = SettingsToolsView()
         controller.screensaver = ScreensaverView(controller.buttons)
 
-        controller.screensaver_activation_ms = 60 * 1000
+        controller.screensaver_activation_ms = 120 * 1000
+
 
     @property
     def camera(self):
@@ -156,6 +157,8 @@ class Controller(Singleton):
                 ret_val = self.show_qr_density_tool()
             elif ret_val == Path.PERSISTENT_SETTINGS:
                 ret_val = self.show_persistent_settings_tool()
+            elif ret_val == Path.CAMERA_ROTATION:
+                ret_val = self.show_camera_rotation_tool()
             elif ret_val == Path.DONATE:
                 ret_val = self.show_donate_tool()
             elif ret_val == Path.RESET:
@@ -679,10 +682,13 @@ class Controller(Singleton):
             self.buttons.wait_for([B.KEY_RIGHT])
             
             validate_network = NETWORKS[self.settings.network]
+            validate_network_text = self.settings.network
             if "main" in address_type:
                 validate_network = NETWORKS["main"]
+                validate_network_text = "main"
             elif "test" in address_type:
                 validate_network = NETWORKS["test"]
+                validate_network_text = "test"
                 
             r = 0
             if address_type in ("Bech32-main", "Bech32-test") and len(address) == 62:
@@ -779,7 +785,7 @@ class Controller(Singleton):
                     derivation = self.settings_tools_view.draw_derivation_keyboard_entry(existing_derivation=self.settings.custom_derivation)
                     self.settings.custom_derivation = derivation # save for next time
                 else:
-                    derivation = Settings.calc_derivation(validate_network, "single sig", script_type)
+                    derivation = Settings.calc_derivation(validate_network_text, "single sig", script_type)
                     
                 if derivation == "" or derivation == None:
                     self.menu_view.draw_modal(["Invalid Derivation", "try again"], "", "Right to Continue")
@@ -1073,6 +1079,13 @@ class Controller(Singleton):
         self.settings.qr_background_color = self.current_bg_qr_color
 
     ### Show Donate Screen and QR
+
+    def show_camera_rotation_tool(self):
+        r = self.settings_tools_view.display_camera_rotation()
+        if r is not None:
+            self.settings.camera_rotation = r
+
+        return Path.SETTINGS_SUB_MENU    ### Show Donate Screen and QR
 
     def show_donate_tool(self):
         self.settings_tools_view.display_donate_info_screen()

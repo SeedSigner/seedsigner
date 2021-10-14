@@ -1064,10 +1064,12 @@ class SeedToolsView(View):
                 draw.rectangle((mask_width, 0, View.canvas_width - mask_width, pixels_per_block), fill=View.color)
                 draw.rectangle((0, mask_height, pixels_per_block, View.canvas_height - mask_height), fill=View.color)
 
-                label_font = View.ROBOTOMONO24
+                label_font = View.ASSISTANT26
                 x_label = block_labels_x[cur_block_x]
                 tw, th = draw.textsize(x_label, font=label_font)
-                draw.text(((View.canvas_width - tw) / 2, (pixels_per_block - th) / 2), x_label, fill="BLACK", font=label_font)
+
+                # note: have to nudge the y-coord up (the extra "- 4") for some reason
+                draw.text(((View.canvas_width - tw) / 2, ((pixels_per_block - th) / 2) - 4), x_label, fill="BLACK", font=label_font)
 
                 y_label = block_labels_y[cur_block_y]
                 tw, th = draw.textsize(y_label, font=label_font)
@@ -1209,8 +1211,6 @@ class SeedToolsView(View):
         display_version = autocontrast(
             seed_entropy_image,
             cutoff=2
-        ).rotate(
-            90
         ).crop(
             (120, 0, 600, 480)
         ).resize(

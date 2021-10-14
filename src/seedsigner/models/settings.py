@@ -13,7 +13,7 @@ class Settings(Singleton):
         if cls._instance:
             raise Exception("Instance already configured")
 
-        # Instantiate the one and only Controller instance
+        # Instantiate the one and only instance
         settings = cls.__new__(cls)
         cls._instance = settings
 
@@ -27,7 +27,8 @@ class Settings(Singleton):
             },
             'display': {
                 'text_color': "ORANGE",
-                'qr_background_color': "FFFFFF"
+                'qr_background_color': "FFFFFF",
+                'camera_rotation': 0
             },
             'wallet': {
                 'network': "main",
@@ -50,6 +51,7 @@ class Settings(Singleton):
         self._data["system"]["debug"] = config.getboolean("system", "debug")
         self._data["system"]["default_language"] = config["system"]["default_language"]
         self._data["display"]["text_color"] = config["display"]["text_color"]
+        self._data["display"]["camera_rotation"] = int(config["display"]["camera_rotation"])
         self.network = config["wallet"]["network"]
         self.software = config["wallet"]["software"]
         self.qr_density = int(config["wallet"]["qr_density"])
@@ -135,6 +137,18 @@ class Settings(Singleton):
     def qr_background_color(self, value):
         self._data["display"]["qr_background_color"] = value
         self.__writeConfig()
+
+    @property
+    def camera_rotation(self):
+        return self._data["display"]["camera_rotation"]
+
+    @camera_rotation.setter
+    def camera_rotation(self, value):
+        if value in [0, 90, 180, 270]:
+            self._data["display"]["camera_rotation"] = value
+            self.__writeConfig()
+        else:
+            raise Exception("Unexpected display.camera_rotation settings.ini value")
 
     ### wallet
 
