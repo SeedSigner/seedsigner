@@ -84,7 +84,6 @@ class Renderer(ConfigurableSingleton):
             self.disp.ShowImage(crop, 0, 0)
 
 
-    # TODO: Should probably move this to templates.py
     def show_image_with_text(self, image, text, font=None, text_color="GREY", text_background=None):
         image_copy = image.copy().convert("RGBA")
         draw = ImageDraw.Draw(image_copy)
@@ -101,7 +100,7 @@ class Renderer(ConfigurableSingleton):
         self.show_image(image_copy, alpha_overlay=text_overlay)
 
 
-    # TODO: Should probably move this to templates.py
+    # TODO: Should probably move this to screens.py
     def draw_modal(self, lines = [], title = "", bottom = "") -> None:
         self.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
 

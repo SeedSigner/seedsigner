@@ -1,15 +1,23 @@
 # External Dependencies
 from seedsigner.models import Seed
 
+
 class SeedStorage:
 
 	def __init__(self) -> None:
 		self.seeds = []
+		self.pending_seed = None
 		
 		# to be removed once the concepts of slots is removed
 		# this is a list of 3 indexes to the actual seed/mnemonic/passphrase data
 		# -1 means the slot is empty
 		self.slots = [-1,-1,-1]
+
+	def set_pending_seed(self, seed: Seed):
+		self.pending_seed = seed
+
+	def get_pending_seed(self) -> Seed:
+		return self.pending_seed
 	
 	# only adds a seed if it's valid and does not already exist
 	def add_mnemonic(self, mnemonic, passphrase: str = "", slot_num = -1) -> bool:

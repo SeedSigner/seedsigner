@@ -49,6 +49,7 @@ class Controller(ConfigurableSingleton):
         controller.buttons = Buttons.get_instance()
 
         # models
+        # TODO: Rename "storage" to something more indicative of its temp, in-memory state
         controller.storage = SeedStorage()
         Settings.configure_instance(config)
         controller.settings = Settings.get_instance()
@@ -84,13 +85,17 @@ class Controller(ConfigurableSingleton):
 
 
     def pop_back_stack(self):
-        if len(self.back_stack) > 0:
+        if len(self.back_stack) > 1:
+            # Pop the current View off
+            self.back_stack.pop()
+
+            # The one below that is "back"
             return self.back_stack.pop()
         return (None, {})
 
 
     def start(self) -> None:
-        from .views import View, OpeningSplashView, MainMenuView
+        from .views import View, OpeningSplashView, MainMenuView, BackStackView
 
         opening_splash = OpeningSplashView()
         # opening_splash.start()
@@ -146,7 +151,7 @@ class Controller(ConfigurableSingleton):
 
                 print(f"View_cls: {View_cls.__name__ if View_cls else 'None'}")
 
-                if View_cls == self.pop_back_stack:
+                if View_cls == BackStackView:
                     # "Back" arrow was clicked; load the previous view
                     (View_cls, run_args) = self.pop_back_stack()
                 else:

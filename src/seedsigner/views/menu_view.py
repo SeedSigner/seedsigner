@@ -2,7 +2,7 @@
 from . import View
 
 from seedsigner.gui.components import Fonts
-from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
+from seedsigner.gui.screens import ButtonListScreen
 from seedsigner.helpers import B, Path, Buttons
 from seedsigner.models import SeedStorage, Settings, Seed
 
@@ -14,8 +14,6 @@ import re
 
 class SeedToolsMenuView(View):
     def run(self, **kwargs):
-        from . import MainMenuView
-
         title = "Store a Seed"
         if self.controller.storage.num_of_saved_seeds() > 0:
             if self.controller.storage.num_of_saved_seeds() < 3:
@@ -42,7 +40,8 @@ class SeedToolsMenuView(View):
             Path.IMAGE_GEN_SEED,
         ]
 
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
+        if selected_menu_num == ButtonListScreen.RET_CODE__BACK_BUTTON:
+            from . import MainMenuView
             return MainMenuView
 
         return return_views[selected_menu_num]

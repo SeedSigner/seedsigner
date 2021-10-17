@@ -1,14 +1,10 @@
 
-from .components import (EDGE_PADDING, COMPONENT_PADDING, TOP_NAV_TITLE_FONT_SIZE,
+from ..components import (EDGE_PADDING, COMPONENT_PADDING, TOP_NAV_TITLE_FONT_SIZE,
     BUTTON_FONT_NAME, BUTTON_FONT_SIZE, Button, IconButton, TopNav, TextArea)
 
 from dataclasses import dataclass
 from PIL import ImageFont
 from seedsigner.helpers import B, Buttons
-
-
-RET_CODE__BACK_BUTTON = -1
-RET_CODE__POWER_BUTTON = -2
 
 
 
@@ -17,6 +13,9 @@ class BaseScreen:
     # Avoid setting defaults on parent dataclasses, otherwise you must have defaults on
     #   all child attrs. see: https://stackoverflow.com/a/53085935
     # No base attrs specified yet
+
+    RET_CODE__BACK_BUTTON = -1
+    RET_CODE__POWER_BUTTON = -2
 
 
     def __post_init__(self):
@@ -66,7 +65,7 @@ class BaseScreen:
 
 @dataclass
 class BaseTopNavScreen(BaseScreen):
-    title: str
+    title: str = "Screen Title"
     title_font_size: int = TOP_NAV_TITLE_FONT_SIZE
     show_back_button: bool = True
     show_power_button: bool = False
@@ -91,6 +90,7 @@ class BaseTopNavScreen(BaseScreen):
 
     def _run(self):
         raise Exception("Must implement in a child class")
+
 
 
 @dataclass
@@ -146,9 +146,10 @@ class TextTopNavScreen(BaseTopNavScreen):
             self.renderer.show_image()
 
 
+
 @dataclass
 class ButtonListScreen(BaseTopNavScreen):
-    button_labels: list = None                  # w/Python 3.9 we can be more specific: list[str]
+    button_labels: list = None                  # list can be a mix of str or tuple(label: str, icon_name: str)
     selected_button: int = 0
     is_button_text_centered: bool = True
     is_bottom_list: bool = False
@@ -176,8 +177,14 @@ class ButtonListScreen(BaseTopNavScreen):
 
         self.buttons = []
         for i, button_label in enumerate(self.button_labels):
+            if type(button_label) == tuple:
+                (button_label, icon_name) = button_label
+            else:
+                icon_name = None
             button = Button(
                 text=button_label,
+                icon_name=icon_name,
+                is_icon_inline=True,
                 screen_x=EDGE_PADDING,
                 screen_y=button_list_y + i * (button_height + COMPONENT_PADDING),
                 width=self.canvas_width - (2 * EDGE_PADDING),
@@ -244,52 +251,6 @@ class ButtonListScreen(BaseTopNavScreen):
 
             # Write the screen updates
             self.renderer.show_image()
-
-
-
-class BottomButtonScreen(ButtonListScreen):
-    def __init__(self,
-                 title: str,
-                 button_data: list,
-                 is_button_text_centered: bool,
-                 title_font: ImageFont = None,
-                 body_text: str = None,
-                 is_body_text_centered: bool = True,
-                 body_font_color: str = None,
-                 body_font_name: str = None,
-                 body_font_size: int = None,
-                 button_font: ImageFont = None,
-                 supersampling_factor: int = None):
-        super().__init__(
-            title=title,
-            button_data=button_data,
-            is_button_text_centered=is_button_text_centered,
-            is_bottom_list=True,
-            title_font=title_font,
-            button_font=button_font
-        )
-
-        self.body_textscreen = TextArea(
-            text=body_text,
-            screen_x=0,
-            screen_y=self.top_nav.height,
-            width=self.canvas_width,
-            height=self.buttons[0].screen_y - self.top_nav.height,
-            font_name=body_font_name,
-            font_size=body_font_size,
-            font_color=body_font_color,
-            is_text_centered=is_body_text_centered,
-            supersampling_factor=supersampling_factor
-        )
-
-
-    def _render(self):
-        self.renderer.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), fill=0)
-        self.top_nav.render()
-        self.body_textscreen.render()
-        for button in self.buttons:
-            button.render()
-        self.renderer.show_image()
 
 
 
@@ -406,22 +367,3 @@ class LargeButtonScreen(BaseTopNavScreen):
 
             # Write the screen updates
             self.renderer.show_image()
-
-
-
-class FontTesterScreen(ButtonListScreen):
-    def __init__(self,
-                 title: str,
-                 button_data: list,
-                 is_text_centered: bool,
-                 is_bottom_list: bool,
-                 font: ImageFont,
-                 button_font: ImageFont):
-        super().__init__(
-            title=title,
-            button_data=button_data,
-            is_text_centered=is_text_centered,
-            is_bottom_list=is_bottom_list,
-            font=font,
-            button_font=button_font
-        )

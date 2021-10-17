@@ -1,8 +1,16 @@
 import time
 
 from seedsigner.gui.components import Fonts
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON,
-    ButtonListScreen, TextTopNavScreen)
+from seedsigner.gui.screens import (ButtonListScreen, TextTopNavScreen)
+
+
+
+class BackStackView:
+    """
+        Empty class that just signals to the Controller to pop the most recent View off
+        the back_stack.
+    """
+    pass
 
 
 """
@@ -34,10 +42,12 @@ class View:
         # Import here to avoid circular imports
         from seedsigner.controller import Controller
         from seedsigner.gui import Renderer
+        from seedsigner.models import Settings
 
         self.controller = Controller.get_instance()
+        self.settings = Settings.get_instance()
 
-        # TODO: Pull all rendering-related code out of Views and into GUI Templates?
+        # TODO: Pull all rendering-related code out of Views and into gui.screens implementations
         self.renderer = Renderer.get_instance()
         self.canvas_width = self.renderer.canvas_width
         self.canvas_height = self.renderer.canvas_height
@@ -47,8 +57,10 @@ class View:
 
 
     def run(self, **kwargs):
-        raise Exception("Must implement in the child class")
-
+        if hasattr(self, "screen"):
+            self.screen.display()
+        else:
+            raise Exception("Must implement in the child class")
 
 
 
@@ -84,6 +96,7 @@ class View:
 class MainMenuView(View):
     def run(self):
         from .menu_view import SeedToolsMenuView
+        from .scan_views import ScanView
         from seedsigner.gui.screens import LargeButtonScreen
         selected_menu_num = LargeButtonScreen(
             title="Home",
@@ -99,11 +112,10 @@ class MainMenuView(View):
         print(f"selected_menu_num: {selected_menu_num}")
 
         if selected_menu_num == 0:
-            return SeedToolsMenuView
+            return ScanView
 
         elif selected_menu_num == 1:
-            return None
-            # ret_val = Path.SIGN_TRANSACTION
+            return SeedToolsMenuView
 
         elif selected_menu_num == 2:
             return None
@@ -112,7 +124,7 @@ class MainMenuView(View):
         elif selected_menu_num == 3:
             return None
 
-        elif selected_menu_num == RET_CODE__POWER_BUTTON:
+        elif selected_menu_num == LargeButtonScreen.RET_CODE__POWER_BUTTON:
             return PowerOffView
 
 
@@ -129,4 +141,8 @@ class PowerOffView(View):
 
         # call("sudo shutdown --poweroff now", shell=True)
         time.sleep(10)
+
+        # TODO: Remove debugging
+        return MainMenuView
+        # END debugging
 

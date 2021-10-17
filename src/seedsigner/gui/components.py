@@ -13,12 +13,22 @@ EDGE_PADDING = 8
 COMPONENT_PADDING = 8
 
 TOP_NAV_TITLE_FONT_SIZE = 19
+BODY_FONT_NAME = "OpenSans-Regular"
+BODY_FONT_SIZE = 17
+BODY_LINE_SPACING = 0.25
+
 BUTTON_FONT_NAME = "OpenSans-SemiBold"
 BUTTON_FONT_SIZE = 18
 
 
 
-def calc_text_centering(font, text, is_text_centered, box_width, box_height, start_x, start_y):
+def calc_text_centering(font: ImageFont,
+                        text: str,
+                        is_text_centered: bool,
+                        box_width: int,
+                        box_height: int,
+                        start_x: int = 0,
+                        start_y: int = 0):
     # see: https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html#text-anchors
     offset_x, offset_y = font.getoffset(text)
     (box_left, box_top, box_right, box_bottom) = font.getbbox(text, anchor='lt')
@@ -83,27 +93,24 @@ class TextArea(BaseComponent):
         Attrs with defaults must be listed last.
     """
     text: str     # display value
-    screen_x: int
-    screen_y: int
     width: int
-    height: int
+    height: int = 0    # 0 = special case: autosize to min height
+    screen_x: int = 0
+    screen_y: int = 0
     background_color: str = "black"
-    font_name: str = "OpenSans-Regular"
-    font_size: int = 17
+    font_name: str = BODY_FONT_NAME
+    font_size: int = BODY_FONT_SIZE
     font_color: str = "#fcfcfc"
     is_text_centered: bool = True
-    supersampling_factor: int = None
+    supersampling_factor: int = 2
 
 
     def __post_init__(self):
         super().__post_init__()
-        if not self.supersampling_factor:
-            self.supersampling_factor = 2
-
         self.font = Fonts.get_font(self.font_name, int(self.supersampling_factor * self.font_size))
-        self.width = self.supersampling_factor * self.width
-        self.height = self.supersampling_factor * self.height
-        self.line_spacing = int(0.25 * self.font_size)
+        self.supersampled_width = self.supersampling_factor * self.width
+        self.supersampled_height = self.supersampling_factor * self.height
+        self.line_spacing = int(BODY_LINE_SPACING * self.font_size)
 
         # We have to figure out if and where to make line breaks in the text so that it
         #   fits in its bounding rect (plus accounting for edge padding) using its given
@@ -112,19 +119,27 @@ class TextArea(BaseComponent):
 
         # Stores each line of text and its rendering starting x-coord
         self.text_lines = []
+        self.text_width = 0
         def _add_text_line(text, width):
             if self.is_text_centered:
-                text_x = int((self.width - width) / 2)
+                text_x = int((self.supersampled_width - width) / 2)
             else:
                 text_x = self.supersampling_factor * EDGE_PADDING
             self.text_lines.append({"text": text, "text_x": text_x})
 
-        if tw < self.width - (2 * EDGE_PADDING * self.supersampling_factor):
+            if width > self.text_width:
+                self.text_width = width
+
+        if tw < self.supersampled_width - (2 * EDGE_PADDING * self.supersampling_factor):
             # The whole text fits on one line
             _add_text_line(self.text, tw)
 
-            # Vertical starting point calc is easy in this case
-            self.text_y = int(((self.supersampling_factor * self.height) - self.text_height) / 2)
+            if self.height == 0:
+                self.text_y = 0
+                self.supersampled_height = self.text_height
+            else:
+                # Vertical starting point calc is easy in this case
+                self.text_y = int(((self.supersampling_factor * self.supersampled_height) - self.text_height) / 2)
 
         else:
             # Have to calc how to break text into multiple lines
@@ -137,7 +152,7 @@ class TextArea(BaseComponent):
 
                 tw, th = self.font.getsize(" ".join(words[0:index]))
 
-                if tw > self.width - (2 * EDGE_PADDING * self.supersampling_factor):
+                if tw > self.supersampled_width - (2 * EDGE_PADDING * self.supersampling_factor):
                     # Candidate line is still too long. Restrict search range down.
                     if min_index + 1 == index:
                         # There's no room left to search
@@ -157,17 +172,26 @@ class TextArea(BaseComponent):
                 words = words[index:]
 
             total_text_height = self.text_height * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
-            if total_text_height > self.height + 2 * COMPONENT_PADDING * self.supersampling_factor:
+            if self.height > 0 and total_text_height > self.supersampled_height + 2 * COMPONENT_PADDING * self.supersampling_factor:
                 raise Exception("Text cannot fit in target rect with this font/size")
+            else:
+                self.supersampled_height = total_text_height
 
-            self.text_y = int((self.height - total_text_height) / 2)
+            # Vertically center the text's starting point
+            self.text_y = int((self.supersampled_height - total_text_height) / 2)
+
+        # Make sure the width/height that get referenced outside this obj are
+        #   restored to their normal scaling factor.
+        self.width = int(self.supersampled_width / self.supersampling_factor)
+        self.height = int(self.supersampled_height / self.supersampling_factor)
+        self.text_width = int(self.text_width / self.supersampling_factor)
 
 
     def render(self):
         if self.supersampling_factor > 1:
             # Render to a temp img scaled up by self.supersampling_factor, then resize down
             #   with bicubic resampling.
-            img = Image.new("RGB", (self.width, self.height), self.background_color)
+            img = Image.new("RGB", (self.supersampled_width, self.supersampled_height), self.background_color)
             draw = ImageDraw.Draw(img)
             cur_y = self.text_y
         else:
@@ -179,7 +203,7 @@ class TextArea(BaseComponent):
             cur_y += self.text_height + self.line_spacing
 
         if self.supersampling_factor > 1:
-            resized = img.resize((int(self.width / self.supersampling_factor), int(self.height / self.supersampling_factor)), Image.LANCZOS)
+            resized = img.resize((self.width, self.height), Image.LANCZOS)
             resized = resized.filter(ImageFilter.SHARPEN)
             self.renderer.canvas.paste(resized, (self.screen_x, self.screen_y))
 
@@ -196,6 +220,9 @@ class Button(BaseComponent):
     screen_y: int
     width: int
     height: int
+    icon_name: str = None   # Optional icon to accompany the text
+    icon_y_offset: int = 2
+    is_icon_inline: bool = True    # True = render next to text; False = render centered above text
     text_y_offset: int = 0
     background_color: str = "#2c2c2c"
     selected_color: str = "orange"
@@ -209,6 +236,7 @@ class Button(BaseComponent):
 
     def __post_init__(self):
         super().__post_init__()
+
         self.font = Fonts.get_font(self.font_name, self.font_size)
 
         if self.text:
@@ -221,6 +249,30 @@ class Button(BaseComponent):
                 start_x=self.screen_x,
                 start_y=self.screen_y + self.text_y_offset
             )
+        elif self.icon_name and self.is_icon_inline:
+            self.text_x = self.screen_x + int(self.width / 2)
+            self.text_y = self.screen_y + int(self.height / 2)
+
+        # Preload the icon and its "_selected" variant
+        if self.icon_name:
+            icon_padding = 8
+            dirname = os.path.dirname(__file__)
+            icon_url = os.path.join(dirname, "..", "..", "seedsigner", "resources", "icons", self.icon_name)
+            self.icon = Image.open(icon_url + ".png").convert("RGB")
+            self.icon_selected = Image.open(icon_url + "_selected.png").convert("RGB")
+
+            if self.is_icon_inline:
+                if self.text:
+                    if self.is_text_centered:
+                        # Shift the text's centering
+                        self.text_x += int((self.icon.width + icon_padding) / 2)
+                    else:
+                        self.text_x += self.icon.width + icon_padding
+                self.icon_x = self.text_x - (self.icon.width + icon_padding)
+                self.icon_y = self.text_y + self.icon_y_offset
+            else:
+                self.icon_x = self.screen_x + int((self.width - self.icon.width) / 2)
+                self.icon_y = self.screen_y + self.icon_y_offset
 
 
     def render(self):
@@ -236,33 +288,23 @@ class Button(BaseComponent):
         if self.text:
             self.renderer.draw.text((self.text_x, self.text_y), self.text, fill=font_color, font=self.font)
 
+        if self.icon_name:
+            icon = self.icon
+            if self.is_selected:
+                icon = self.icon_selected
+            self.renderer.canvas.paste(icon, (self.icon_x, self.icon_y))
+
 
 
 @dataclass
 class IconButton(Button):
-    icon_name: str = None
-    icon_top_padding: int = 8
+    """
+        A button that is primarily a big icon (e.g. the Home screen buttons) w/text below
+        the icon.
+    """
+    is_icon_inline: bool = False
+    icon_y_offset: int = 8
 
-
-    def __post_init__(self):
-        super().__post_init__()
-
-        dirname = os.path.dirname(__file__)
-        icon_url = os.path.join(dirname, "../../", "seedsigner", "resources", "icons", self.icon_name)
-        self.icon = Image.open(icon_url + ".png").convert("RGB")
-        self.icon_selected = Image.open(icon_url + "_selected.png").convert("RGB")
-
-
-    def render(self):
-        super().render()
-        icon = self.icon
-        if self.is_selected:
-            icon = self.icon_selected
-
-        icon_x = self.screen_x + int((self.width - icon.width) / 2)
-        icon_y = self.screen_y + self.icon_top_padding
-
-        self.renderer.canvas.paste(icon, (icon_x, icon_y))
 
 
 @dataclass
@@ -292,7 +334,7 @@ class TopNav(BaseComponent):
                 screen_y=EDGE_PADDING,
                 width=button_width,
                 height=button_width,
-                icon_top_padding=4,
+                icon_y_offset=4,
             )
 
         if self.show_power_button:
@@ -303,7 +345,7 @@ class TopNav(BaseComponent):
                 screen_y=EDGE_PADDING,
                 width=button_width,
                 height=button_width,
-                icon_top_padding=4,
+                icon_y_offset=4,
             )
 
         # if not self.font:
@@ -332,13 +374,13 @@ class TopNav(BaseComponent):
 
     @property
     def selected_button(self):
-        from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
+        from seedsigner.gui.screens import BaseScreen
         if not self.is_selected:
             return None
         if self.show_back_button:
-            return RET_CODE__BACK_BUTTON
+            return BaseScreen.RET_CODE__BACK_BUTTON
         if self.show_power_button:
-            return RET_CODE__POWER_BUTTON
+            return BaseScreen.RET_CODE__POWER_BUTTON
 
 
     def render(self):
