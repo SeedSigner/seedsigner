@@ -9,7 +9,8 @@ from binascii import hexlify
 from threading import Thread
 
 # Internal file class dependencies
-from .models import (EncodeQRDensity, QRType, Seed, SeedStorage, Settings, ConfigurableSingleton, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
+from .models import (EncodeQRDensity, QRType, Seed, SeedStorage, Settings,
+    ConfigurableSingleton, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
 
 
 

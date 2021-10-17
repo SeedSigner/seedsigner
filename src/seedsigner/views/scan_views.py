@@ -26,7 +26,6 @@ class ScanView(View):
                 # Found a valid mnemonic seed! All new seeds should be considered
                 #   pending (might set a passphrase, SeedXOR, etc) until finalized.
                 from .seed_views import SeedValidView
-                print(seed_mnemonic)
                 self.controller.storage.set_pending_seed(
                     Seed(mnemonic=seed_mnemonic, wordlist=self.controller.settings.wordlist)
                 )

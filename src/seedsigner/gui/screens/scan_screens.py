@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 from threading import Thread
 
 from .base import BaseTopNavScreen
-from ..components import BUTTON_FONT_NAME, BUTTON_FONT_SIZE, Fonts, calc_text_centering
+from ..components import GUIConstants, Fonts, calc_text_centering
 
 from seedsigner.helpers import B
 from seedsigner.models import DecodeQR, DecodeQRStatus
@@ -34,7 +34,7 @@ class ScanScreen(BaseTopNavScreen):
 
         # Pre-calc where the instruction text goes
         self.instructions_text = "Scan a Seed or PSBT"
-        self.instructions_font = Fonts.get_font(BUTTON_FONT_NAME, BUTTON_FONT_SIZE)
+        self.instructions_font = Fonts.get_font(GUIConstants.BUTTON_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
 
         # TODO: Add the QR code icon and adjust start_x
         (self.instructions_text_x, self.instructions_text_y) = calc_text_centering(
@@ -49,6 +49,11 @@ class ScanScreen(BaseTopNavScreen):
 
 
     def _run(self):
+        """
+            _render() is mostly meant to be a one-time initial drawing call to set up the
+            Screen. Once interaction starts, the display updates have to be managed in
+            _run(). The live preview is an extra-complex case.
+        """
         def live_preview():
             while True:
                 frame = self.camera.read_video_stream(as_image=True)
@@ -56,8 +61,10 @@ class ScanScreen(BaseTopNavScreen):
                     scan_text = self.instructions_text
                     if self.decoder.getPercentComplete() > 0 and self.decoder.isPSBT():
                         scan_text = str(self.decoder.getPercentComplete()) + "% Complete"
+
                     # TODO: Render TopNav & instructions_background w/transparency
                     self.renderer.show_image_with_text(frame.resize((240,240)), scan_text, font=self.instructions_font, text_color="white", text_background=(0,0,0,225))
+
                 time.sleep(0.1) # turn this up or down to tune performance while decoding psbt
                 if self.camera._video_stream is None:
                     break

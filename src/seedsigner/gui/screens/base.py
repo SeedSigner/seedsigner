@@ -1,6 +1,6 @@
 
-from ..components import (EDGE_PADDING, COMPONENT_PADDING, TOP_NAV_TITLE_FONT_SIZE,
-    BUTTON_FONT_NAME, BUTTON_FONT_SIZE, Button, IconButton, TopNav, TextArea)
+from ..components import (GUIConstants, BaseComponent, Button, IconButton, TopNav,
+    TextArea)
 
 from dataclasses import dataclass
 from PIL import ImageFont
@@ -9,22 +9,17 @@ from seedsigner.helpers import B, Buttons
 
 
 @dataclass
-class BaseScreen:
-    # Avoid setting defaults on parent dataclasses, otherwise you must have defaults on
-    #   all child attrs. see: https://stackoverflow.com/a/53085935
-    # No base attrs specified yet
-
+class BaseScreen(BaseComponent):
     RET_CODE__BACK_BUTTON = -1
     RET_CODE__POWER_BUTTON = -2
 
 
     def __post_init__(self):
         from seedsigner.gui import Renderer
-        self.renderer = Renderer.get_instance()
-        self.hw_inputs = Buttons.get_instance()
 
-        self.canvas_width = self.renderer.canvas_width
-        self.canvas_height = self.renderer.canvas_height
+        super().__post_init__()
+        
+        self.hw_inputs = Buttons.get_instance()
 
 
     def display(self):
@@ -36,7 +31,7 @@ class BaseScreen:
 
     def _render(self):
         # Clear the whole canvas
-        self.renderer.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), fill=0)
+        self.image_draw.rectangle((0, 0, self.canvas_width, self.canvas_height), fill=0)
 
 
     def _run(self):
@@ -66,7 +61,7 @@ class BaseScreen:
 @dataclass
 class BaseTopNavScreen(BaseScreen):
     title: str = "Screen Title"
-    title_font_size: int = TOP_NAV_TITLE_FONT_SIZE
+    title_font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE
     show_back_button: bool = True
     show_power_button: bool = False
 
@@ -76,7 +71,7 @@ class BaseTopNavScreen(BaseScreen):
             text=self.title,
             font_size=self.title_font_size,
             width=self.canvas_width,
-            height=48,
+            height=GUIConstants.TOP_NAV_HEIGHT,
             show_back_button=self.show_back_button,
             show_power_button=self.show_power_button,
         )
@@ -95,16 +90,13 @@ class BaseTopNavScreen(BaseScreen):
 
 @dataclass
 class TextTopNavScreen(BaseTopNavScreen):
-    text: str = "Your display text"
+    text: str = "Body text"
     is_text_centered: bool = True
-    text_font_name: str = "OpenSans-Regular"
-    text_font_size: int = 17
-    supersampling_factor: int = None
+    text_font_name: str = GUIConstants.BODY_FONT_NAME
+    text_font_size: int = GUIConstants.BODY_FONT_SIZE
 
     def __post_init__(self):
         super().__post_init__()
-        if self.text_font_size < 18 and not self.supersampling_factor or self.supersampling_factor == 1:
-            self.supersampling_factor = 2
 
         self.text_area = TextArea(
             text=self.text,
@@ -114,8 +106,7 @@ class TextTopNavScreen(BaseTopNavScreen):
             height=self.canvas_height - self.top_nav.height,
             font_name=self.text_font_name,
             font_size=self.text_font_size,
-            is_text_centered=self.is_text_centered,
-            supersampling_factor=self.supersampling_factor
+            is_text_centered=self.is_text_centered
         )
 
 
@@ -153,21 +144,21 @@ class ButtonListScreen(BaseTopNavScreen):
     selected_button: int = 0
     is_button_text_centered: bool = True
     is_bottom_list: bool = False
-    button_font_name: str = BUTTON_FONT_NAME
-    button_font_size: int = BUTTON_FONT_SIZE
+    button_font_name: str = GUIConstants.BUTTON_FONT_NAME
+    button_font_size: int = GUIConstants.BUTTON_FONT_SIZE
     button_selected_color: str = "orange"
 
     def __post_init__(self):
         super().__post_init__()
 
-        button_height = int(self.canvas_height * 3.0 / 20.0)    # 36px on a 240x240 screen
+        button_height = GUIConstants.BUTTON_HEIGHT
         if len(self.button_labels) == 1:
             button_list_height = button_height
         else:
-            button_list_height = (len(self.button_labels) * button_height) + (COMPONENT_PADDING * (len(self.button_labels) - 1))
+            button_list_height = (len(self.button_labels) * button_height) + (GUIConstants.COMPONENT_PADDING * (len(self.button_labels) - 1))
 
         if self.is_bottom_list:
-            button_list_y = self.canvas_height - (button_list_height + EDGE_PADDING)
+            button_list_y = self.canvas_height - (button_list_height + GUIConstants.EDGE_PADDING)
         else:
             button_list_y = self.top_nav.height + int((self.canvas_height - self.top_nav.height - button_list_height) / 2)
 
@@ -185,9 +176,9 @@ class ButtonListScreen(BaseTopNavScreen):
                 text=button_label,
                 icon_name=icon_name,
                 is_icon_inline=True,
-                screen_x=EDGE_PADDING,
-                screen_y=button_list_y + i * (button_height + COMPONENT_PADDING),
-                width=self.canvas_width - (2 * EDGE_PADDING),
+                screen_x=GUIConstants.EDGE_PADDING,
+                screen_y=button_list_y + i * (button_height + GUIConstants.COMPONENT_PADDING),
+                width=self.canvas_width - (2 * GUIConstants.EDGE_PADDING),
                 height=button_height,
                 is_text_centered=self.is_button_text_centered,
                 font_name=self.button_font_name,
@@ -257,7 +248,7 @@ class ButtonListScreen(BaseTopNavScreen):
 @dataclass
 class LargeButtonScreen(BaseTopNavScreen):
     button_data: list = None           # list of tuples: (display_text: str, display_icon: str = None)
-    button_font_name: str = BUTTON_FONT_NAME
+    button_font_name: str = GUIConstants.BUTTON_FONT_NAME
     button_font_size: int = 20
     button_selected_color: str = "orange"
 
@@ -268,21 +259,21 @@ class LargeButtonScreen(BaseTopNavScreen):
             raise Exception("LargeButtonScreen only supports 2 or 4 buttons")
 
         # Maximize 2-across width; calc height with a 4:3 aspect ratio
-        button_width = int((self.canvas_width - (2 * EDGE_PADDING) - COMPONENT_PADDING) / 2)
+        button_width = int((self.canvas_width - (2 * GUIConstants.EDGE_PADDING) - GUIConstants.COMPONENT_PADDING) / 2)
         button_height = int(button_width * (3.0 / 4.0))
 
         # Vertically center the buttons
         if len(self.button_data) == 2:
-            button_start_y = self.top_nav.height + int((self.canvas_height - (self.top_nav.height + COMPONENT_PADDING) - button_height) / 2)
+            button_start_y = self.top_nav.height + int((self.canvas_height - (self.top_nav.height + GUIConstants.COMPONENT_PADDING) - button_height) / 2)
         else:
-            button_start_y = self.top_nav.height + int((self.canvas_height - (self.top_nav.height + COMPONENT_PADDING) - (2 * button_height) - COMPONENT_PADDING) / 2)
+            button_start_y = self.top_nav.height + int((self.canvas_height - (self.top_nav.height + GUIConstants.COMPONENT_PADDING) - (2 * button_height) - GUIConstants.COMPONENT_PADDING) / 2)
 
         self.buttons = []
         for i, (button_label, button_icon_name) in enumerate(self.button_data):
             if i % 2 == 0:
-                button_start_x = EDGE_PADDING
+                button_start_x = GUIConstants.EDGE_PADDING
             else:
-                button_start_x = EDGE_PADDING + button_width + COMPONENT_PADDING
+                button_start_x = GUIConstants.EDGE_PADDING + button_width + GUIConstants.COMPONENT_PADDING
 
             button_args = {
                 "text": button_label,
@@ -305,7 +296,7 @@ class LargeButtonScreen(BaseTopNavScreen):
             self.buttons.append(button)
 
             if i == 1:
-                button_start_y += button_height + COMPONENT_PADDING
+                button_start_y += button_height + GUIConstants.COMPONENT_PADDING
 
         self.buttons[0].is_selected = True
         self.selected_button = 0
