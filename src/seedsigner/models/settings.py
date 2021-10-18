@@ -5,8 +5,6 @@ from .encode_qr_density import EncodeQRDensity
 import configparser
 from embit import bip39
 
-
-
 class Settings(Singleton):
 
     @classmethod
@@ -29,7 +27,8 @@ class Settings(Singleton):
             },
             'display': {
                 'text_color': "ORANGE",
-                'camera_rotation': 0,
+                'qr_background_color': "FFFFFF",
+                'camera_rotation': 0
             },
             'wallet': {
                 'network': "main",
@@ -57,6 +56,7 @@ class Settings(Singleton):
         self.software = config["wallet"]["software"]
         self.qr_density = int(config["wallet"]["qr_density"])
         self.custom_derivation = config["wallet"]["custom_derivation"]
+        self.qr_background_color = config["display"]["qr_background_color"]
 
     ### persistent settings handling
 
@@ -128,6 +128,15 @@ class Settings(Singleton):
     @property
     def text_color(self):
         return self._data["display"]["text_color"]
+    
+    @property
+    def qr_background_color(self):
+        return self._data["display"]["qr_background_color"]
+        
+    @qr_background_color.setter
+    def qr_background_color(self, value):
+        self._data["display"]["qr_background_color"] = value
+        self.__writeConfig()
 
     @property
     def camera_rotation(self):

@@ -66,6 +66,7 @@ class Controller(Singleton):
         # settings
         controller.DEBUG = controller.settings.debug
         controller.color = controller.settings.text_color
+        controller.current_bg_qr_color = controller.settings.qr_background_color
 
         # Views
         controller.menu_view = MenuView()
@@ -530,16 +531,26 @@ class Controller(Singleton):
         e = EncodeQR(seed_phrase=seed.mnemonic_list, passphrase=seed.passphrase, derivation=derivation, network=self.settings.network, qr_type=qr_xpub_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
 
         while e.totalParts() > 1:
-            image = e.nextPartImage(240,240,2)
+            image = e.nextPartImage(240,240,2,background=self.current_bg_qr_color)
             View.DispShowImage(image)
             time.sleep(0.1)
             if self.buttons.check_for_low(B.KEY_RIGHT):
-                    break
+                break
+            elif self.buttons.check_for_low(B.KEY_UP):
+                self.prev_qr_background_color()
+            elif self.buttons.check_for_low(B.KEY_DOWN):
+                self.next_qr_background_color()
 
-        if e.totalParts() == 1:
-            image = e.nextPartImage(240,240,1)
+        while e.totalParts() == 1:
+            image = e.nextPartImage(240,240,1,background=self.current_bg_qr_color)
             View.DispShowImage(image)
-            self.buttons.wait_for([B.KEY_RIGHT])
+            input = self.buttons.wait_for([B.KEY_RIGHT,B.KEY_UP,B.KEY_DOWN])
+            if input == B.KEY_RIGHT:
+                break
+            elif input == B.KEY_UP:
+                self.prev_qr_background_color()
+            elif input == B.KEY_DOWN:
+                self.next_qr_background_color()
 
         return Path.MAIN_MENU
 
@@ -671,10 +682,13 @@ class Controller(Singleton):
             self.buttons.wait_for([B.KEY_RIGHT])
             
             validate_network = NETWORKS[self.settings.network]
+            validate_network_text = self.settings.network
             if "main" in address_type:
                 validate_network = NETWORKS["main"]
+                validate_network_text = "main"
             elif "test" in address_type:
                 validate_network = NETWORKS["test"]
+                validate_network_text = "test"
                 
             r = 0
             if address_type in ("Bech32-main", "Bech32-test") and len(address) == 62:
@@ -771,7 +785,7 @@ class Controller(Singleton):
                     derivation = self.settings_tools_view.draw_derivation_keyboard_entry(existing_derivation=self.settings.custom_derivation)
                     self.settings.custom_derivation = derivation # save for next time
                 else:
-                    derivation = Settings.calc_derivation(validate_network, "single sig", script_type)
+                    derivation = Settings.calc_derivation(validate_network_text, "single sig", script_type)
                     
                 if derivation == "" or derivation == None:
                     self.menu_view.draw_modal(["Invalid Derivation", "try again"], "", "Right to Continue")
@@ -954,11 +968,15 @@ class Controller(Singleton):
         self.menu_view.draw_modal(["Generating PSBT QR ..."])
         e = EncodeQR(psbt=trimmed_psbt, qr_type=self.settings.qr_psbt_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
         while True:
-            image = e.nextPartImage(240,240,1)
+            image = e.nextPartImage(240,240,1,background=self.current_bg_qr_color)
             View.DispShowImage(image)
             time.sleep(0.05)
             if self.buttons.check_for_low(B.KEY_RIGHT):
-                    break
+                break
+            elif self.buttons.check_for_low(B.KEY_UP):
+                self.prev_qr_background_color()
+            elif self.buttons.check_for_low(B.KEY_DOWN):
+                self.next_qr_background_color()
 
         # Return to Main Menu
         return Path.MAIN_MENU
@@ -1032,6 +1050,35 @@ class Controller(Singleton):
 
         return Path.SETTINGS_SUB_MENU
 
+    ### next_qr_background_colors()
+    
+    def next_qr_background_color(self):
+        if self.current_bg_qr_color == "FFFFFF":
+            self.current_bg_qr_color = "DDDDDD"
+        elif self.current_bg_qr_color == "DDDDDD":
+            self.current_bg_qr_color = "BBBBBB"
+        elif self.current_bg_qr_color == "BBBBBB":
+            self.current_bg_qr_color = "999999"
+        elif self.current_bg_qr_color == "999999":
+            self.current_bg_qr_color = "FFFFFF"
+            
+        self.settings.qr_background_color = self.current_bg_qr_color
+        
+    ### prev_qr_background_colors()
+    
+    def prev_qr_background_color(self):
+        if self.current_bg_qr_color == "999999":
+            self.current_bg_qr_color = "BBBBBB"
+        elif self.current_bg_qr_color == "BBBBBB":
+            self.current_bg_qr_color = "DDDDDD"
+        elif self.current_bg_qr_color == "DDDDDD":
+            self.current_bg_qr_color = "FFFFFF"
+        elif self.current_bg_qr_color == "FFFFFF":
+            self.current_bg_qr_color = "999999"
+            
+        self.settings.qr_background_color = self.current_bg_qr_color
+
+    ### Show Donate Screen and QR
 
     def show_camera_rotation_tool(self):
         r = self.settings_tools_view.display_camera_rotation()
