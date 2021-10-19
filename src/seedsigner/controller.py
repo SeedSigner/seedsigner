@@ -836,12 +836,17 @@ class Controller(Singleton):
                 
                 if decoder2.isComplete() and decoder2.isWalletDescriptor():
                     desc_str = decoder2.getWalletDescriptor()
+                    desc_str = desc_str.replace("\n","").replace(" ","")
                     try:
-                        if len(re.findall(r'\[([0-9,a-f,A-F]+?)(\/[0-9,\/,h\']+?)\].*?(\/0\/\*)', desc_str)) > 0:
+                        if len(re.findall (r'\[([0-9,a-f,A-F]+?)(\/[0-9,\/,h\']+?)\].*?(\/0\/\*)', desc_str)) > 0:
                             p = re.compile(r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h\']+?\].*?)(\/0\/\*)')
                             desc_str = p.sub(r'\1/{0,1}/*', desc_str)
+                        elif len(re.findall (r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])', desc_str)) > 0:
+                            p = re.compile(r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])')
+                            desc_str = p.sub(r'\1/{0,1}/*\2', desc_str)
                     except:
-                        desc_str = decoder2.getWalletDescriptor()
+                       desc_str = decoder2.getWalletDescriptor()
+                    print(desc_str)
                     desc = Descriptor.from_string(desc_str)
                 else:
                     return Path.MAIN_MENU
