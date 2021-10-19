@@ -255,10 +255,11 @@ class DecodeQR:
             return QRType.PSBTBASE64
             
         # Wallet Descriptor
-        elif re.search(r'^p(\d+)of(\d+) ', s, re.IGNORECASE):
+        desc_str = s.replace("\n","").replace(" ","")
+        if re.search(r'^p(\d+)of(\d+) ', s, re.IGNORECASE):
             # when not a SPECTER Base64 PSBT from above, assume it's json
             return QRType.SPECTERWALLETQR
-        elif re.search(r'^\{\"label\".*\"descriptor\"\:.*', s, re.IGNORECASE):
+        elif re.search(r'^\{\"label\".*\"descriptor\"\:.*', desc_str, re.IGNORECASE):
             # if json starting with label and contains descriptor, assume specter wallet json
             return QRType.SPECTERWALLETQR
 
