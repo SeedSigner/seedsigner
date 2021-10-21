@@ -33,7 +33,7 @@ Now we are sure that the dice derivation is correct and we can unplug everything
 
 ### Verifying with Coldcard
 
-There is nothing specific, the algorithm are completely the same. Coldcard has a verification script and explanation here:
+There is nothing specific, the algorithm are completely the same. Coldcard has a verification script in python and all explanations here:
 https://coldcard.com/docs/verifying-dice-roll-math
 
 ### Epilogue
