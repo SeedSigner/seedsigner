@@ -207,6 +207,37 @@ class View:
 
         return
 
+    def draw_address(self, address) -> None:
+        
+        if address.startswith(tuple(['1','2','3'])):
+            dividby = 14
+        else:
+            dividby = 18
+        address_parts = [address[i:i+dividby] for i in range(0, len(address), dividby)]
+        address_part_1 = address_parts[0]
+        address_part_2 = address_parts[1] if len(address_parts) >= 2 else ""
+        address_part_3 = address_parts[2] if len(address_parts) >= 3 else ""
+        address_part_4 = address_parts[3] if len(address_parts) >= 4 else ""
+        
+        View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
+
+        tw, th = View.draw.textsize("Right to Continue", font=View.ASSISTANT18)
+        View.draw.text(((240 - tw) / 2, 210), "Right to Continue", fill=View.color, font=View.ASSISTANT18)
+
+        tw, th = View.draw.textsize("Bitcoin Address", font=View.ASSISTANT22)
+        View.draw.text(((240 - tw) / 2, 35), "Bitcoin Address", fill=View.color, font=View.ASSISTANT22)
+        tw, th = View.draw.textsize(address_part_1, font=View.ROBOTOCONDENSED_REGULAR_22)
+        View.draw.text(((240 - tw) / 2, 70), address_part_1, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_22)
+        tw, th = View.draw.textsize(address_part_2, font=View.ROBOTOCONDENSED_REGULAR_22)
+        View.draw.text(((240 - tw) / 2, 105), address_part_2, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_22)
+        tw, th = View.draw.textsize(address_part_3, font=View.ROBOTOCONDENSED_REGULAR_22)
+        View.draw.text(((240 - tw) / 2, 140), address_part_3, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_22)
+        tw, th = View.draw.textsize(address_part_4, font=View.ROBOTOCONDENSED_REGULAR_22)
+        View.draw.text(((240 - tw) / 2, 175), address_part_4, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_22)
+
+        View.DispShowImage()
+
+        return
 
     def draw_prompt_yes_no(self, lines = [], title = "", bottom = "") -> None:
 

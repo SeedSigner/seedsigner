@@ -673,12 +673,8 @@ class Controller(Singleton):
             
             address = decoder.getAddress()
             address_type = decoder.getAddressType()
-            # address_parts = textwrap.wrap(address, 30)
-            address_parts = [address[i:i+22] for i in range(0, len(address), 22)]
-            address_part_1 = address_parts[0]
-            address_part_2 = address_parts[1] if len(address_parts) >= 2 else ""
-            address_part_3 = address_parts[2] if len(address_parts) >= 3 else ""
-            self.menu_view.draw_modal(["Bitcoin Address", address_part_1, address_part_2, address_part_3], "", "Right to Continue")
+
+            self.menu_view.draw_address(address)
             self.buttons.wait_for([B.KEY_RIGHT])
             
             validate_network = NETWORKS[self.settings.network]
@@ -714,7 +710,7 @@ class Controller(Singleton):
                 if not seed:
                     # no valid seed yet, gather seed phrase
                     # display menu to select 12 or 24 word seed for last word
-                    ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Main Menu ]")
+                    ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Cancel ]")
                     if ret_val == Path.SEED_WORD_12:
                         seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(12)
                     elif ret_val == Path.SEED_WORD_24:
@@ -1065,21 +1061,33 @@ class Controller(Singleton):
         elif self.current_bg_qr_color == "BBBBBB":
             self.current_bg_qr_color = "999999"
         elif self.current_bg_qr_color == "999999":
+            self.current_bg_qr_color = "777777"
+        elif self.current_bg_qr_color == "777777":
+            self.current_bg_qr_color = "555555"
+        elif self.current_bg_qr_color == "555555":
+            self.current_bg_qr_color = "333333"
+        elif self.current_bg_qr_color == "333333":
             self.current_bg_qr_color = "FFFFFF"
-            
+        
         self.settings.qr_background_color = self.current_bg_qr_color
         
     ### prev_qr_background_colors()
     
     def prev_qr_background_color(self):
-        if self.current_bg_qr_color == "999999":
+        if self.current_bg_qr_color == "333333":
+            self.current_bg_qr_color = "555555"
+        elif self.current_bg_qr_color == "555555":
+            self.current_bg_qr_color = "777777"
+        elif self.current_bg_qr_color == "777777":
+            self.current_bg_qr_color = "999999"
+        elif self.current_bg_qr_color == "999999":
             self.current_bg_qr_color = "BBBBBB"
         elif self.current_bg_qr_color == "BBBBBB":
             self.current_bg_qr_color = "DDDDDD"
         elif self.current_bg_qr_color == "DDDDDD":
             self.current_bg_qr_color = "FFFFFF"
         elif self.current_bg_qr_color == "FFFFFF":
-            self.current_bg_qr_color = "999999"
+            self.current_bg_qr_color = "333333"
             
         self.settings.qr_background_color = self.current_bg_qr_color
 
