@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 from PIL import Image
 
-from .base import ButtonListScreen
+from .base import ButtonListScreen, LargeButtonScreen
 from ..components import load_icon, TextArea, GUIConstants
 
 from seedsigner.helpers import B
@@ -10,14 +10,32 @@ from seedsigner.helpers import B
 
 
 @dataclass
+class SeedsMenuScreen(ButtonListScreen):
+    # Customize defaults
+    title: str = "In-Memory Seeds"
+    is_button_text_centered: bool = False
+    seeds: list = None
+
+    def __post_init__(self):
+        # Programmatically set up other args
+        self.button_data = []
+        for seed in self.seeds:
+            self.button_data.append((seed["fingerprint"], "fingerprint_inline"))
+        self.button_data.append("Load a seed")
+
+        # Initialize the base class
+        super().__post_init__()
+
+
+@dataclass
 class SeedValidScreen(ButtonListScreen):
     fingerprint: str = None
+    title: str = "Seed Valid"
+    is_bottom_list: bool = False
 
     def __post_init__(self):
         # Customize defaults
-        self.title = "Seed Valid"
-        self.is_bottom_list = True
-        self.button_labels = [
+        self.button_data = [
             # ("Scan PSBT or Seed", "scan_inline"),
             "Home",
             ("Advanced", "settings_inline"),
@@ -59,4 +77,63 @@ class SeedValidScreen(ButtonListScreen):
 
         # Write the screen updates
         self.renderer.show_image()
+
+
+
+@dataclass
+class SeedOptionsScreen(ButtonListScreen):
+    # Customize defaults
+    title: str = "Seed Options"
+    is_bottom_list: bool = True
+    fingerprint: str = None
+    has_passphrase: bool = False
+
+    def __post_init__(self):
+        # Programmatically set up other args
+        self.button_data = [
+            "View Seed Words",
+            "Export Xpub",
+            "Export Seed as QR",
+        ]
+
+        # Initialize the base class
+        super().__post_init__()
+
+
+
+@dataclass
+class SeedExportXpub1Screen(LargeButtonScreen):
+    # Customize defaults
+    title: str = "Export Xpub"
+
+    def __post_init__(self):
+        # Programmatically set up other args
+        self.button_data = [
+            "Single Sig",
+            "Multisig",
+        ]
+
+        # Initialize the base class
+        super().__post_init__()
+
+
+
+@dataclass
+class SeedExportXpub2Screen(ButtonListScreen):
+    # Customize defaults
+    title: str = "Export Xpub"
+    is_button_text_centered: bool = False
+    is_bottom_list: bool = True
+
+    def __post_init__(self):
+        # Programmatically set up other args
+        self.button_data = [
+            "Native Segwit",
+            "Nested Segwit (legacy)",
+            "Taproot",
+            "Custom Derivation",
+        ]
+
+        # Initialize the base class
+        super().__post_init__()
 

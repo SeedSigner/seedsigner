@@ -86,12 +86,13 @@ class Controller(ConfigurableSingleton):
 
 
     def pop_back_stack(self):
-        if len(self.back_stack) > 1:
-            # Pop the current View off
+        if len(self.back_stack) > 0:
+            # Pop the top View (which is the current View_cls)
             self.back_stack.pop()
 
-            # The one below that is "back"
-            return self.back_stack.pop()
+            if len(self.back_stack) > 0:
+                # One more pop back gives us the actual "back" View_cls
+                return self.back_stack.pop()
         return (None, {})
 
 
@@ -104,10 +105,10 @@ class Controller(ConfigurableSingleton):
         """ Class references can be stored as variables in python!
 
             This loop receives a View class to execute and stores it in the `View_cls`
-            var along with any input arguments in the `run_args` dict.
+            var along with any input arguments in the `init_args` dict.
 
-            The `View_cls` is instantiated and run with `run_args` passed in. It returns
-            either a new View class to execute next or None.
+            The `View_cls` is instantiated with `init_args` passed in and then run(). It
+            returns either a new View class to execute next or None.
 
             Example:
                 class MyView(View)
@@ -120,43 +121,47 @@ class Controller(ConfigurableSingleton):
 
             When `OtherView` is instantiated and run, we capture its return values:
 
-                (View_cls, run_args) = OtherView().run()
+                (View_cls, init_args) = OtherView().run()
 
             And then we can instantiate and run that View class:
 
-                View_cls().run(**run_args)
+                View_cls(**init_args).run()
         """
         try:
             View_cls = None
-            run_args = {}
+            init_args = {}
             while True:
                 if not View_cls or View_cls == MainMenuView:
                     # None is a special case; render the Home screen
                     View_cls = MainMenuView
-                    run_args = {}
+                    init_args = {}
 
                     # Home always wipes the back_stack
                     self.back_stack = []
 
-                print(f"Executing {View_cls.__name__}")
+                print(f"Executing {View_cls.__name__}({init_args})")
 
-                # Instantiate the `View_cls` and run() it with the `run_args` dict
-                result = View_cls().run(**run_args)
+                # Instantiate the `View_cls` and run() it with the `init_args` dict
+                result = View_cls(**init_args).run()
 
                 if type(result) is tuple:
                     View_cls = result[0]
-                    run_args = result[1]
+                    init_args = result[1]
                 else:
                     View_cls = result
-                    run_args = {}
+                    init_args = {}
 
                 print(f"View_cls: {View_cls.__name__ if View_cls else 'None'}")
+                if init_args != {}:
+                    print(f"init_args: {init_args}")
 
                 if View_cls == BackStackView:
                     # "Back" arrow was clicked; load the previous view
-                    (View_cls, run_args) = self.pop_back_stack()
-                else:
-                    self.back_stack.append((View_cls, run_args))
+                    (View_cls, init_args) = self.pop_back_stack()
+
+                # The next View_cls up always goes on the back_stack, even if it's the
+                #   one we just popped.
+                self.back_stack.append((View_cls, init_args))
 
         finally:
             # Clear the screen when exiting

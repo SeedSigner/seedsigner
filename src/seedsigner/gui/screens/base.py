@@ -140,7 +140,7 @@ class TextTopNavScreen(BaseTopNavScreen):
 
 @dataclass
 class ButtonListScreen(BaseTopNavScreen):
-    button_labels: list = None                  # list can be a mix of str or tuple(label: str, icon_name: str)
+    button_data: list = None                  # list can be a mix of str or tuple(label: str, icon_name: str)
     selected_button: int = 0
     is_button_text_centered: bool = True
     is_bottom_list: bool = False
@@ -152,10 +152,10 @@ class ButtonListScreen(BaseTopNavScreen):
         super().__post_init__()
 
         button_height = GUIConstants.BUTTON_HEIGHT
-        if len(self.button_labels) == 1:
+        if len(self.button_data) == 1:
             button_list_height = button_height
         else:
-            button_list_height = (len(self.button_labels) * button_height) + (GUIConstants.COMPONENT_PADDING * (len(self.button_labels) - 1))
+            button_list_height = (len(self.button_data) * button_height) + (GUIConstants.COMPONENT_PADDING * (len(self.button_data) - 1))
 
         if self.is_bottom_list:
             button_list_y = self.canvas_height - (button_list_height + GUIConstants.EDGE_PADDING)
@@ -167,7 +167,7 @@ class ButtonListScreen(BaseTopNavScreen):
             button_list_y = self.top_nav.height
 
         self.buttons = []
-        for i, button_label in enumerate(self.button_labels):
+        for i, button_label in enumerate(self.button_data):
             if type(button_label) == tuple:
                 (button_label, icon_name) = button_label
             else:
@@ -247,7 +247,7 @@ class ButtonListScreen(BaseTopNavScreen):
 
 @dataclass
 class LargeButtonScreen(BaseTopNavScreen):
-    button_data: list = None           # list of tuples: (display_text: str, display_icon: str = None)
+    button_data: list = None                  # list can be a mix of str or tuple(label: str, icon_name: str)
     button_font_name: str = GUIConstants.BUTTON_FONT_NAME
     button_font_size: int = 20
     button_selected_color: str = "orange"
@@ -269,7 +269,12 @@ class LargeButtonScreen(BaseTopNavScreen):
             button_start_y = self.top_nav.height + int((self.canvas_height - (self.top_nav.height + GUIConstants.COMPONENT_PADDING) - (2 * button_height) - GUIConstants.COMPONENT_PADDING) / 2)
 
         self.buttons = []
-        for i, (button_label, button_icon_name) in enumerate(self.button_data):
+        for i, button_label in enumerate(self.button_data):
+            if type(button_label) == tuple:
+                (button_label, icon_name) = button_label
+            else:
+                icon_name = None
+
             if i % 2 == 0:
                 button_start_x = GUIConstants.EDGE_PADDING
             else:
@@ -286,8 +291,8 @@ class LargeButtonScreen(BaseTopNavScreen):
                 "font_size": self.button_font_size,
                 "selected_color": self.button_selected_color,
             }
-            if button_icon_name:
-                button_args["icon_name"] = button_icon_name
+            if icon_name:
+                button_args["icon_name"] = icon_name
                 button_args["text_y_offset"] = int(48 / 240 * self.renderer.canvas_height)
                 button = IconButton(**button_args)
             else:

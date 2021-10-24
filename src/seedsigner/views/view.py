@@ -95,7 +95,7 @@ class View:
 #########################################################################################
 class MainMenuView(View):
     def run(self):
-        from .menu_view import SeedToolsMenuView
+        from .seed_views import SeedsMenuView
         from .scan_views import ScanView
         from seedsigner.gui.screens import LargeButtonScreen
         selected_menu_num = LargeButtonScreen(
@@ -115,7 +115,7 @@ class MainMenuView(View):
             return ScanView
 
         elif selected_menu_num == 1:
-            return SeedToolsMenuView
+            return SeedsMenuView
 
         elif selected_menu_num == 2:
             return None

@@ -12,6 +12,9 @@ class Seed:
         self._valid = False
         self.passphrase = passphrase
         self.mnemonic = mnemonic
+
+        # TODO: Don't carry the wordlist around in each Seed instance. Just set it
+        #   to a constant (e.g. WORDLIST__ENGLISH) that references the right list.
         self._wordlist = wordlist
         
         if self._wordlist == None:

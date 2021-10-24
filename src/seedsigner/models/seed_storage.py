@@ -18,6 +18,13 @@ class SeedStorage:
 
 	def get_pending_seed(self) -> Seed:
 		return self.pending_seed
+
+	def finalize_pending_seed(self):
+		self.seeds.append(self.pending_seed)
+		self.pending_seed = None
+
+	def clear_pending_seed(self):
+		self.pending_seed = None
 	
 	# only adds a seed if it's valid and does not already exist
 	def add_mnemonic(self, mnemonic, passphrase: str = "", slot_num = -1) -> bool:
