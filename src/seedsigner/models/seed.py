@@ -5,6 +5,23 @@ from embit import bip39, bip32
 from embit.networks import NETWORKS
 
 
+class SeedConstants:
+    SINGLE_SIG = "single_sig"
+    MULTISIG = "multisig"
+
+    NATIVE_SEGWIT = "native_segwit"
+    NESTED_SEGWIT = "nested_segwit"
+    TAPROOT = "taproot"
+    CUSTOM_DERIVATION = "custom_derivation"
+
+    ALL_SCRIPT_TYPES = [
+        (NATIVE_SEGWIT, "Native Segwit"),
+        (NESTED_SEGWIT, "Nested Segwit (legacy)"),
+        (TAPROOT, "Taproot"),
+        (CUSTOM_DERIVATION, "Custom Derivation"),
+    ]
+
+
 
 class Seed:
     def __init__(self, mnemonic = None, passphrase = "", wordlist=None) -> None:

@@ -6,25 +6,8 @@ from .base import ButtonListScreen, LargeButtonScreen
 from ..components import load_icon, TextArea, GUIConstants
 
 from seedsigner.helpers import B
+from seedsigner.models.seed import SeedConstants
 
-
-
-@dataclass
-class SeedsMenuScreen(ButtonListScreen):
-    # Customize defaults
-    title: str = "In-Memory Seeds"
-    is_button_text_centered: bool = False
-    seeds: list = None
-
-    def __post_init__(self):
-        # Programmatically set up other args
-        self.button_data = []
-        for seed in self.seeds:
-            self.button_data.append((seed["fingerprint"], "fingerprint_inline"))
-        self.button_data.append("Load a seed")
-
-        # Initialize the base class
-        super().__post_init__()
 
 
 @dataclass
@@ -43,6 +26,16 @@ class SeedValidScreen(ButtonListScreen):
 
         # Initialize the base class
         super().__post_init__()
+
+        # TODO: Create a reusable Component that can display multi-line text w/an icon
+        """
+            lines=[
+                (None, "Fingerprint:"),
+                "fingerprint", self.fingerprint,
+            ]
+            is_text_centered=True,
+            
+        """
 
         self.fingerprint_icon = load_icon("fingerprint")
 
@@ -99,41 +92,5 @@ class SeedOptionsScreen(ButtonListScreen):
         # Initialize the base class
         super().__post_init__()
 
-
-
-@dataclass
-class SeedExportXpub1Screen(LargeButtonScreen):
-    # Customize defaults
-    title: str = "Export Xpub"
-
-    def __post_init__(self):
-        # Programmatically set up other args
-        self.button_data = [
-            "Single Sig",
-            "Multisig",
-        ]
-
-        # Initialize the base class
-        super().__post_init__()
-
-
-
-@dataclass
-class SeedExportXpub2Screen(ButtonListScreen):
-    # Customize defaults
-    title: str = "Export Xpub"
-    is_button_text_centered: bool = False
-    is_bottom_list: bool = True
-
-    def __post_init__(self):
-        # Programmatically set up other args
-        self.button_data = [
-            "Native Segwit",
-            "Nested Segwit (legacy)",
-            "Taproot",
-            "Custom Derivation",
-        ]
-
-        # Initialize the base class
-        super().__post_init__()
+        # TODO: Set up the fingerprint and passphrase displays
 

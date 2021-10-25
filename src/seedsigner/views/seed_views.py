@@ -1,5 +1,10 @@
 from .view import View, BackStackView, MainMenuView
 
+from seedsigner.gui.screens.base import ButtonListScreen
+from seedsigner.models.seed import SeedConstants
+from seedsigner.models.settings import SettingsConstants
+
+
 
 class SeedsMenuView(View):
     def __init__(self):
@@ -15,16 +20,23 @@ class SeedsMenuView(View):
     def run(self):
         from seedsigner.gui.screens.seed_screens import SeedsMenuScreen
 
-        selected_menu_num = SeedsMenuScreen(
-            seeds=self.seeds
+        button_data = []
+        for seed in self.seeds:
+            button_data.append((seed["fingerprint"], "fingerprint_inline"))
+        button_data.append("Load a seed")
+
+        selected_menu_num = ButtonListScreen(
+            title="In-Memory Seeds",
+            is_button_text_centered=False,
+            button_data=button_data
         ).display()
 
-        if selected_menu_num < len(self.seeds):
+        if len(self.seeds) > 0 and selected_menu_num < len(self.seeds) - 1:
             return (SeedOptionsView, {"seed_num": selected_menu_num})
 
         elif selected_menu_num == len(self.seeds):
             # TODO: Load a Seed
-            pass
+            raise Exception("Not yet implemented")
 
         elif selected_menu_num == SeedsMenuScreen.RET_CODE__BACK_BUTTON:
             return BackStackView
@@ -51,7 +63,7 @@ class SeedOptionsView(View):
             return None
 
         elif selected_menu_num == 1:
-            return (SeedExportXpub1View, {"seed_num": self.seed_num})
+            return (SeedExportXpubSigsView, {"seed_num": self.seed_num})
 
         elif selected_menu_num == 2:
             # TODO: Export Seed as QR
@@ -62,60 +74,123 @@ class SeedOptionsView(View):
 
 
 
-SINGLE_SIG = "singlesig"
-MULTISIG = "multisig"
-class SeedExportXpub1View(View):
+class SeedExportXpubSigTypeView(View):
     def __init__(self, seed_num: int):
         super().__init__()
         self.seed_num = seed_num
 
 
     def run(self):
-        from seedsigner.gui.screens.seed_screens import SeedExportXpub1Screen
-
-        selected_menu_num = SeedExportXpub1Screen().display()
+        selected_menu_num = ButtonListScreen(
+            title="Export Xpub",
+            button_data=[
+                "Single Sig",
+                "Multisig",
+            ]
+        ).display()
 
         if selected_menu_num == 0:
-            return (SeedExportXpub2View, {"seed_num": self.seed_num, "wallet_type": SINGLE_SIG})
+            return (SeedExportXpubScriptTypeView, {"seed_num": self.seed_num, "sig_type": SeedConstants.SINGLE_SIG})
 
         elif selected_menu_num == 1:
-            return (SeedExportXpub2View, {"seed_num": self.seed_num, "wallet_type": MULTISIG})
+            return (SeedExportXpubScriptTypeView, {"seed_num": self.seed_num, "sig_type": SeedConstants.MULTISIG})
 
-        elif selected_menu_num == SeedExportXpub1Screen.RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == SeedExportXpubSigTypeScreen.RET_CODE__BACK_BUTTON:
             return BackStackView
 
 
 
-class SeedExportXpub2View(View):
-    def __init__(self, seed_num: int, wallet_type: str):
+class SeedExportXpubScriptTypeView(View):
+    def __init__(self, seed_num: int, sig_type: str):
         super().__init__()
         self.seed_num = seed_num
-        self.wallet_type = wallet_type
+        self.sig_type = sig_type
 
 
     def run(self):
-        from seedsigner.gui.screens.seed_screens import SeedExportXpub2Screen
+        selected_menu_num = ButtonListScreen(
+            title="Export Xpub",
+            is_button_text_centered=False,
+            is_bottom_list=True,
+            button_data=[script_type[1] for script_type in SeedConstants.ALL_SCRIPT_TYPES]
+        ).display()
 
-        selected_menu_num = SeedExportXpub2Screen().display()
+        args = {"seed_num": self.seed_num, "sig_type": self.sig_type}
+        if selected_menu_num < len(SeedConstants.ALL_SCRIPT_TYPES):
+            args["script_type"] = SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num][0]
 
-        if selected_menu_num == 0:
-            # TODO: Native Segwit
-            return None
+            if SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num][0] == SeedContants.CUSTOM_DERIVATION:
+                # TODO: Route to custom derivation View
+                raise Exception("Not yet implemented")
 
-        elif selected_menu_num == 1:
-            # TODO: Nested Segwit
-            return None
+            return (SeedExportXpubWalletView, args)
 
-        elif selected_menu_num == 2:
-            # TODO: Taproot
-            return None
-
-        elif selected_menu_num == 3:
-            # TODO: Custom Derivation
-            return None
-
-        elif selected_menu_num == SeedExportXpub2Screen.RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == SeedExportXpubScriptTypeScreen.RET_CODE__BACK_BUTTON:
             return BackStackView
+
+
+
+class SeedExportXpubCoordinatorView(View):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str):
+        super().__init__()
+        self.seed_num = seed_num
+        self.sig_type = sig_type
+        self.script_type = script_type
+
+
+    def run(self):
+        from seedsigner.gui.screens.seed_screens import SeedExportXpubWalletScreen
+
+        default_coordinator = self.settings.software
+
+        # Set up how the list should be ordered
+        coordinator_list = []
+        if default_coordinator == SettingsConstants.COORDINATOR__PROMPT:
+            # Use the default list, but omit "Prompt"
+            coordinator_list = SettingsConstants.ALL_COORDINATORS[:-1]
+        else:
+            # List the selected coordinator first, then the rest (but omit "Prompt")
+            coordinator_list.append(default_coordinator)
+            for coordinator in SettingsConstants.ALL_COORDINATORS[:-1]:
+                if coordinator != default_coordinator:
+                    coordinator_list.append(coordinator)
+
+        selected_menu_num = ButtonListScreen(
+            title="Export Xpub",
+            is_button_text_centered=False,
+            is_bottom_list=True,
+            button_data=coordinator_list,
+        ).display()
+
+        if selected_menu_num < len(coordinator_list):
+            args = {"seed_num": self.seed_num,
+                    "sig_type": self.sig_type,
+                    "script_type": self.script_type,
+                    "coordinator": coordinator_list[selected_menu_num]}
+            return (SeedExportXpubWarningView, args)
+
+        elif selected_menu_num == SeedExportXpubScriptTypeScreen.RET_CODE__BACK_BUTTON:
+            return BackStackView
+
+
+
+class SeedExportXpubWarningView(View):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str):
+        super().__init__()
+        self.seed_num = seed_num
+        self.sig_type = sig_type
+        self.script_type = script_type
+        self.coordinator = coordinator
+
+
+    def run(self):
+        # from seedsigner.gui.screens.seed_screens import SeedExportXpubWalletScreen
+
+        # TODO: Implement a generic "Caution" Screen
+        caution_title = "Privacy Leak!"
+        caution_text = """Xpub can be used to track all future transactions."""
+
+        raise Exception("Not yet implemented")
 
 
 

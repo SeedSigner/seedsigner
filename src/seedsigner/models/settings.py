@@ -6,6 +6,20 @@ import configparser
 from embit import bip39
 
 
+class SettingsConstants:
+    COORDINATOR__SPECTER_DESKTOP = "Specter Desktop"
+    COORDINATOR__BLUE_WALLET = "Blue Wallet"
+    COORDINATOR__SPARROW = "Sparrow"
+    COORDINATOR__PROMPT = "Prompt"
+
+    ALL_COORDINATORS = [
+        COORDINATOR__SPECTER_DESKTOP
+        COORDINATOR__BLUE_WALLET,
+        COORDINATOR__SPARROW,
+        COORDINATOR__PROMPT
+    ]
+
+
 
 class Settings(ConfigurableSingleton):
 
@@ -159,7 +173,7 @@ class Settings(ConfigurableSingleton):
 
     @software.setter
     def software(self, value):
-        if value in ("Specter Desktop", "Blue Wallet", "Sparrow", "Prompt"):
+        if value in SettingsConstants.ALL_WALLETS:
             self._data["wallet"]["software"] = value
             self.__writeConfig()
         else:
