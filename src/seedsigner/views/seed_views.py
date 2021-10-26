@@ -1,6 +1,6 @@
 from .view import View, BackStackView, MainMenuView
 
-from seedsigner.gui.screens.base import ButtonListScreen
+from seedsigner.gui.screens.base import ButtonListScreen, LargeButtonScreen
 from seedsigner.models.seed import SeedConstants
 from seedsigner.models.settings import SettingsConstants
 
@@ -18,8 +18,6 @@ class SeedsMenuView(View):
 
 
     def run(self):
-        from seedsigner.gui.screens.seed_screens import SeedsMenuScreen
-
         button_data = []
         for seed in self.seeds:
             button_data.append((seed["fingerprint"], "fingerprint_inline"))
@@ -31,14 +29,14 @@ class SeedsMenuView(View):
             button_data=button_data
         ).display()
 
-        if len(self.seeds) > 0 and selected_menu_num < len(self.seeds) - 1:
+        if len(self.seeds) > 0 and selected_menu_num < len(self.seeds):
             return (SeedOptionsView, {"seed_num": selected_menu_num})
 
         elif selected_menu_num == len(self.seeds):
             # TODO: Load a Seed
             raise Exception("Not yet implemented")
 
-        elif selected_menu_num == SeedsMenuScreen.RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == ButtonListScreen.RET_CODE__BACK_BUTTON:
             return BackStackView
 
 
@@ -63,7 +61,9 @@ class SeedOptionsView(View):
             return None
 
         elif selected_menu_num == 1:
-            return (SeedExportXpubSigsView, {"seed_num": self.seed_num})
+            # TODO: Locked-down "Uncle Jim" mode options to bypass the prompts and just
+            #   use the configured defaults (e.g. single sig, native segwit, Blue Wallet)
+            return (SeedExportXpubSigTypeView, {"seed_num": self.seed_num})
 
         elif selected_menu_num == 2:
             # TODO: Export Seed as QR
@@ -81,7 +81,7 @@ class SeedExportXpubSigTypeView(View):
 
 
     def run(self):
-        selected_menu_num = ButtonListScreen(
+        selected_menu_num = LargeButtonScreen(
             title="Export Xpub",
             button_data=[
                 "Single Sig",
@@ -95,7 +95,7 @@ class SeedExportXpubSigTypeView(View):
         elif selected_menu_num == 1:
             return (SeedExportXpubScriptTypeView, {"seed_num": self.seed_num, "sig_type": SeedConstants.MULTISIG})
 
-        elif selected_menu_num == SeedExportXpubSigTypeScreen.RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == LargeButtonScreen.RET_CODE__BACK_BUTTON:
             return BackStackView
 
 
@@ -119,13 +119,13 @@ class SeedExportXpubScriptTypeView(View):
         if selected_menu_num < len(SeedConstants.ALL_SCRIPT_TYPES):
             args["script_type"] = SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num][0]
 
-            if SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num][0] == SeedContants.CUSTOM_DERIVATION:
+            if SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num][0] == SeedConstants.CUSTOM_DERIVATION:
                 # TODO: Route to custom derivation View
                 raise Exception("Not yet implemented")
 
-            return (SeedExportXpubWalletView, args)
+            return (SeedExportXpubCoordinatorView, args)
 
-        elif selected_menu_num == SeedExportXpubScriptTypeScreen.RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == ButtonListScreen.RET_CODE__BACK_BUTTON:
             return BackStackView
 
 
@@ -139,8 +139,6 @@ class SeedExportXpubCoordinatorView(View):
 
 
     def run(self):
-        from seedsigner.gui.screens.seed_screens import SeedExportXpubWalletScreen
-
         default_coordinator = self.settings.software
 
         # Set up how the list should be ordered
@@ -166,10 +164,10 @@ class SeedExportXpubCoordinatorView(View):
             args = {"seed_num": self.seed_num,
                     "sig_type": self.sig_type,
                     "script_type": self.script_type,
-                    "coordinator": coordinator_list[selected_menu_num]}
+                    "coordinator": SettingsConstants.ALL_COORDINATORS[selected_menu_num]}
             return (SeedExportXpubWarningView, args)
 
-        elif selected_menu_num == SeedExportXpubScriptTypeScreen.RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == ButtonListScreen.RET_CODE__BACK_BUTTON:
             return BackStackView
 
 

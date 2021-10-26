@@ -20,6 +20,8 @@ class GUIConstants:
 
     BODY_FONT_NAME = "OpenSans-Regular"
     BODY_FONT_SIZE = 17
+    BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE
+    BODY_FONT_COLOR = "#fcfcfc"
     BODY_LINE_SPACING = 0.25
 
     BUTTON_FONT_NAME = "OpenSans-SemiBold"
@@ -136,7 +138,7 @@ class TextArea(BaseComponent):
     background_color: str = "black"
     font_name: str = GUIConstants.BODY_FONT_NAME
     font_size: int = GUIConstants.BODY_FONT_SIZE
-    font_color: str = "#fcfcfc"
+    font_color: str = GUIConstants.BODY_FONT_COLOR
     is_text_centered: bool = True
     supersampling_factor: int = 1
 

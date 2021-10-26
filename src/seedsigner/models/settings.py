@@ -13,10 +13,10 @@ class SettingsConstants:
     COORDINATOR__PROMPT = "Prompt"
 
     ALL_COORDINATORS = [
-        COORDINATOR__SPECTER_DESKTOP
+        COORDINATOR__SPECTER_DESKTOP,
         COORDINATOR__BLUE_WALLET,
         COORDINATOR__SPARROW,
-        COORDINATOR__PROMPT
+        COORDINATOR__PROMPT,
     ]
 
 
@@ -173,7 +173,7 @@ class Settings(ConfigurableSingleton):
 
     @software.setter
     def software(self, value):
-        if value in SettingsConstants.ALL_WALLETS:
+        if value in SettingsConstants.ALL_COORDINATORS:
             self._data["wallet"]["software"] = value
             self.__writeConfig()
         else:
