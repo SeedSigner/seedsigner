@@ -7,13 +7,15 @@ from PIL import ImageFont
 from seedsigner.helpers import B, Buttons
 
 
+# Must be negative numbers to avoid conflicting with the selected_button returned by the
+#   screens with buttons.
+RET_CODE__BACK_BUTTON = -1
+RET_CODE__POWER_BUTTON = -2
+
+
 
 @dataclass
 class BaseScreen(BaseComponent):
-    RET_CODE__BACK_BUTTON = -1
-    RET_CODE__POWER_BUTTON = -2
-
-
     def __post_init__(self):
         from seedsigner.gui import Renderer
 
@@ -187,8 +189,8 @@ class ButtonListScreen(BaseTopNavScreen):
             )
             self.buttons.append(button)
 
-        self.buttons[0].is_selected = True
         self.selected_button = 0
+        self.buttons[0].is_selected = True
 
 
     def _render(self):
@@ -363,3 +365,52 @@ class LargeButtonScreen(BaseTopNavScreen):
 
             # Write the screen updates
             self.renderer.show_image()
+
+
+
+@dataclass
+class WarningScreen(ButtonListScreen):
+    title: str = "Caution"
+    button_label: str = "I Understand"
+    is_bottom_list: bool = True
+    warning_headline: str = "Privacy Leak!"     # The colored text under the alert icon
+    warning_text: str = ""                      # The body text of the warning
+    warning_color: str = "yellow"
+
+    def __post_init__(self):
+        # Populate the required button_data for the ButtonListScreen
+        self.button_data = [self.button_label]
+        super().__post_init__()
+
+        # TODO: render alert icon, then calc proper warning_headline_y
+        warning_headline_y = self.top_nav.height + 40 + 8
+
+        self.warning_headline_textarea = TextArea(
+            text=self.warning_headline,
+            width=self.canvas_width,
+            screen_y=warning_headline_y,
+            font_color=self.warning_color,
+        )
+
+        warning_text_y = warning_headline_y + self.warning_headline_textarea.height + 8
+        self.warning_text_textarea = TextArea(
+            text=self.warning_text,
+            width=self.canvas_width,
+            screen_y=warning_text_y,
+        )
+
+
+    def _render(self):
+        super()._render()
+        self.warning_headline_textarea.render()
+        self.warning_text_textarea.render()
+
+
+
+@dataclass
+class DireWarningScreen(WarningScreen):
+    title: str = "Caution"
+    warning_headline: str = "Classified Info!"     # The colored text under the alert icon
+    warning_color: str = "red"
+
+

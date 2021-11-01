@@ -8,7 +8,7 @@ from embit import bip39
 
 class SettingsConstants:
     COORDINATOR__SPECTER_DESKTOP = "Specter Desktop"
-    COORDINATOR__BLUE_WALLET = "Blue Wallet"
+    COORDINATOR__BLUE_WALLET = "BlueWallet"
     COORDINATOR__SPARROW = "Sparrow"
     COORDINATOR__PROMPT = "Prompt"
 

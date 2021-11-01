@@ -1,6 +1,6 @@
 from .view import View, BackStackView, MainMenuView
-
-from seedsigner.gui.screens.base import ButtonListScreen, LargeButtonScreen
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, LargeButtonScreen,
+    WarningScreen, DireWarningScreen)
 from seedsigner.models.seed import SeedConstants
 from seedsigner.models.settings import SettingsConstants
 
@@ -36,7 +36,7 @@ class SeedsMenuView(View):
             # TODO: Load a Seed
             raise Exception("Not yet implemented")
 
-        elif selected_menu_num == ButtonListScreen.RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return BackStackView
 
 
@@ -57,8 +57,8 @@ class SeedOptionsView(View):
         ).display()
 
         if selected_menu_num == 0:
-            # TODO: View seed words
-            return None
+            # View seed words
+            return (ShowSeedWordsWarningView, {"seed_num": self.seed_num})
 
         elif selected_menu_num == 1:
             # TODO: Locked-down "Uncle Jim" mode options to bypass the prompts and just
@@ -69,11 +69,39 @@ class SeedOptionsView(View):
             # TODO: Export Seed as QR
             return None
 
-        elif selected_menu_num == SeedOptionsScreen.RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+            return BackStackView
+
+
+"""****************************************************************************
+    View Seed Words flow
+****************************************************************************"""
+class ShowSeedWordsWarningView(View):
+    def __init__(self, seed_num: int):
+        super().__init__()
+        self.seed_num = seed_num
+
+
+    def run(self):
+        # from seedsigner.gui.screens.seed_screens import SeedExportXpubWalletScreen
+
+        selected_menu_num = DireWarningScreen(
+            warning_text="""You must keep your seed words private & away from all online devices.""",
+        ).display()
+
+        if selected_menu_num == 0:
+            # User clicked "I Understand"
+            raise Exception("not implemented yet")
+
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return BackStackView
 
 
 
+
+"""****************************************************************************
+    Export Xpub flow
+****************************************************************************"""
 class SeedExportXpubSigTypeView(View):
     def __init__(self, seed_num: int):
         super().__init__()
@@ -95,7 +123,7 @@ class SeedExportXpubSigTypeView(View):
         elif selected_menu_num == 1:
             return (SeedExportXpubScriptTypeView, {"seed_num": self.seed_num, "sig_type": SeedConstants.MULTISIG})
 
-        elif selected_menu_num == LargeButtonScreen.RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return BackStackView
 
 
@@ -125,7 +153,7 @@ class SeedExportXpubScriptTypeView(View):
 
             return (SeedExportXpubCoordinatorView, args)
 
-        elif selected_menu_num == ButtonListScreen.RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return BackStackView
 
 
@@ -161,13 +189,15 @@ class SeedExportXpubCoordinatorView(View):
         ).display()
 
         if selected_menu_num < len(coordinator_list):
-            args = {"seed_num": self.seed_num,
-                    "sig_type": self.sig_type,
-                    "script_type": self.script_type,
-                    "coordinator": SettingsConstants.ALL_COORDINATORS[selected_menu_num]}
+            args = {
+                "seed_num": self.seed_num,
+                "sig_type": self.sig_type,
+                "script_type": self.script_type,
+                "coordinator": SettingsConstants.ALL_COORDINATORS[selected_menu_num]
+            }
             return (SeedExportXpubWarningView, args)
 
-        elif selected_menu_num == ButtonListScreen.RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return BackStackView
 
 
@@ -184,11 +214,17 @@ class SeedExportXpubWarningView(View):
     def run(self):
         # from seedsigner.gui.screens.seed_screens import SeedExportXpubWalletScreen
 
-        # TODO: Implement a generic "Caution" Screen
-        caution_title = "Privacy Leak!"
-        caution_text = """Xpub can be used to track all future transactions."""
+        selected_menu_num = WarningScreen(
+            warning_headline="Privacy Leak!",
+            warning_text="""Xpub can be used to view all future transactions.""",
+        ).display()
 
-        raise Exception("Not yet implemented")
+        if selected_menu_num == 0:
+            # User clicked "I Understand"
+            raise Exception("not implemented yet")
+
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+            return BackStackView
 
 
 
@@ -218,7 +254,7 @@ class SeedValidView(View):
             # TODO: SeedAdvancedView to set passphrase, SeedXOR
             return None
 
-        elif selected_menu_num == SeedValidScreen.RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
             # Back button should reset our progress
             self.controller.storage.clear_pending_seed()
             return BackStackView

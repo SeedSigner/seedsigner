@@ -2,7 +2,7 @@
 from . import View
 
 from seedsigner.gui.components import Fonts
-from seedsigner.gui.screens import ButtonListScreen
+from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
 from seedsigner.helpers import B, Path, Buttons
 from seedsigner.models import SeedStorage, Settings, Seed
 
@@ -40,7 +40,7 @@ class SeedToolsMenuView(View):
             Path.IMAGE_GEN_SEED,
         ]
 
-        if selected_menu_num == ButtonListScreen.RET_CODE__BACK_BUTTON:
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
             from . import MainMenuView
             return MainMenuView
 
@@ -48,6 +48,10 @@ class SeedToolsMenuView(View):
 
 
 
+
+"""
+    OLD CODE BELOW:
+"""
 class MenuView(View):
 
     def __init__(self) -> None:

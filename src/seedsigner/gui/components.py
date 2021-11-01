@@ -4,8 +4,8 @@ import pathlib
 
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from seedsigner.models import Singleton
 
+from seedsigner.models import Singleton
 
 
 # TODO: Remove all pixel hard coding
@@ -426,13 +426,13 @@ class TopNav(BaseComponent):
 
     @property
     def selected_button(self):
-        from seedsigner.gui.screens import BaseScreen
+        from .screens import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
         if not self.is_selected:
             return None
         if self.show_back_button:
-            return BaseScreen.RET_CODE__BACK_BUTTON
+            return RET_CODE__BACK_BUTTON
         if self.show_power_button:
-            return BaseScreen.RET_CODE__POWER_BUTTON
+            return RET_CODE__POWER_BUTTON
 
 
     def render(self):

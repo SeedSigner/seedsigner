@@ -1,7 +1,8 @@
 import time
 
 from seedsigner.gui.components import Fonts
-from seedsigner.gui.screens import (ButtonListScreen, TextTopNavScreen)
+from seedsigner.gui.screens import (RET_CODE__POWER_BUTTON, ButtonListScreen,
+    TextTopNavScreen)
 
 
 
@@ -124,7 +125,7 @@ class MainMenuView(View):
         elif selected_menu_num == 3:
             return None
 
-        elif selected_menu_num == LargeButtonScreen.RET_CODE__POWER_BUTTON:
+        elif selected_menu_num == RET_CODE__POWER_BUTTON:
             return PowerOffView
 
 
