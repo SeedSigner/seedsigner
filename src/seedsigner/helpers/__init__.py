@@ -5,3 +5,4 @@ from .pivideostream import PiVideoStream
 from .qr import *
 from .singleton import Singleton
 from .ST7789 import *
+from .logging import configure_logging

@@ -1,6 +1,6 @@
 # External Dependencies
 import time
-from multiprocessing import Process, Queue
+import logging
 from subprocess import call
 import os, sys
 from embit import bip39, bip32
@@ -13,7 +13,7 @@ from .views import (View, MenuView, SeedToolsView,SigningToolsView,
     SettingsToolsView, IOTestView)
 from .helpers import Buttons, B, Path, Singleton
 from .models import (SeedStorage, Settings, DecodeQR, DecodeQRStatus,
-    EncodeQRDensity, EncodeQR, PSBTParser, QRType)
+    EncodeQRDensity, EncodeQR, PSBTParser)
 
 class Controller(Singleton):
     """
@@ -73,6 +73,8 @@ class Controller(Singleton):
         controller.signing_tools_view = SigningToolsView(controller.storage)
         controller.settings_tools_view = SettingsToolsView()
 
+        logging.debug("Controller instance configured")
+
     @property
     def camera(self):
         from .camera import Camera
@@ -80,7 +82,11 @@ class Controller(Singleton):
 
 
     def start(self) -> None:
+        logging.info("Controller starting. SeedSigner v%s", self.VERSION)
+
         if self.DEBUG:
+            logging.debug("Debugging enabled")
+
             # Let Exceptions halt execution
             try:
                 self.show_main_menu()
@@ -98,12 +104,17 @@ class Controller(Singleton):
                     if crash_cnt >= 3:
                         break
                     else:
-                        print('Caught this error: ' + repr(error)) # debug
+                        sleep_time = 5
+
+                        logging.debug('Caught this error: %s', repr(error))
+                        logging.warning("[%d] Retrying to draw in %d seconds", crash_cnt, sleep_time)
+
                         self.menu_view.draw_modal(["Crashed ..."], "", "restarting")
-                        time.sleep(5)
+                        time.sleep(sleep_time)
 
                     crash_cnt += 1
 
+            logging.error("Crashed after %d retries. Hard restart required", crash_cnt)
             self.menu_view.draw_modal(["Crashed ..."], "", "requires hard restart")
 
 
@@ -113,6 +124,7 @@ class Controller(Singleton):
 
     def show_main_menu(self, sub_menu = 0):
         ret_val = sub_menu
+
         while True:
             ret_val = self.menu_view.display_main_menu(ret_val)
 
@@ -152,6 +164,8 @@ class Controller(Singleton):
                 ret_val = self.show_reset_tool()
             elif ret_val == Path.POWER_OFF:
                 ret_val = self.show_power_off()
+            
+            logging.debug("Invalid Path value %s", ret_val)
 
         raise Exception("Unhandled case")
 
@@ -162,6 +176,7 @@ class Controller(Singleton):
         r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Power Off?")
         if r == 1: #Yes
             self.menu_view.display_power_off_screen()
+            logging.info("Shutting down")
             call("sudo shutdown --poweroff now", shell=True)
             time.sleep(10)
         else: # No

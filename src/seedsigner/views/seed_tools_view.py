@@ -1,12 +1,11 @@
 # External Dependencies
-from embit import bip39
-from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 from PIL import ImageDraw, Image
 from PIL.ImageOps import autocontrast
 import hashlib
 import math
 import os
 import time
+import logging
 
 # Internal file class dependencies
 from . import View
@@ -1241,7 +1240,7 @@ class SeedToolsView(View):
                 serial_hash = hashlib.sha256(serial_num)
                 hash_bytes = serial_hash.digest()
             except Exception as e:
-                print(repr(e))
+                logging.warning("Failed to get hash bytes from cpu info - %s", repr(e))
                 hash_bytes = b'0'
 
             # Build in modest entropy via millis since power on
