@@ -531,15 +531,21 @@ class Controller(Singleton):
         e = EncodeQR(seed_phrase=seed.mnemonic_list, passphrase=seed.passphrase, derivation=derivation, network=self.settings.network, qr_type=qr_xpub_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
 
         while e.totalParts() > 1:
-            image = e.nextPartImage(240,240,2,background=self.current_bg_qr_color)
-            View.DispShowImage(image)
-            time.sleep(0.1)
-            if self.buttons.check_for_low(B.KEY_RIGHT):
-                break
-            elif self.buttons.check_for_low(B.KEY_UP):
-                self.prev_qr_background_color()
-            elif self.buttons.check_for_low(B.KEY_DOWN):
-                self.next_qr_background_color()
+            
+            cur_time = int(time.time() * 1000)
+            if cur_time - self.buttons.last_input_time > self.screensaver_activation_ms and not self.screensaver.is_running:
+                self.start_screensaver()
+                self.buttons.update_last_input_time()
+            else:
+                image = e.nextPartImage(240,240,2,background=self.current_bg_qr_color)
+                View.DispShowImage(image)
+                time.sleep(0.1)
+                if self.buttons.check_for_low(B.KEY_RIGHT):
+                    break
+                elif self.buttons.check_for_low(B.KEY_UP):
+                    self.prev_qr_background_color()
+                elif self.buttons.check_for_low(B.KEY_DOWN):
+                    self.next_qr_background_color()
 
         while e.totalParts() == 1:
             image = e.nextPartImage(240,240,1,background=self.current_bg_qr_color)
@@ -969,15 +975,20 @@ class Controller(Singleton):
         self.menu_view.draw_modal(["Generating PSBT QR ..."])
         e = EncodeQR(psbt=trimmed_psbt, qr_type=self.settings.qr_psbt_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
         while True:
-            image = e.nextPartImage(240,240,1,background=self.current_bg_qr_color)
-            View.DispShowImage(image)
-            time.sleep(0.05)
-            if self.buttons.check_for_low(B.KEY_RIGHT):
-                break
-            elif self.buttons.check_for_low(B.KEY_UP):
-                self.prev_qr_background_color()
-            elif self.buttons.check_for_low(B.KEY_DOWN):
-                self.next_qr_background_color()
+            cur_time = int(time.time() * 1000)
+            if cur_time - self.buttons.last_input_time > self.screensaver_activation_ms and not self.screensaver.is_running:
+                self.start_screensaver()
+                self.buttons.update_last_input_time()
+            else:
+                image = e.nextPartImage(240,240,1,background=self.current_bg_qr_color)
+                View.DispShowImage(image)
+                time.sleep(0.05)
+                if self.buttons.check_for_low(B.KEY_RIGHT):
+                    break
+                elif self.buttons.check_for_low(B.KEY_UP):
+                    self.prev_qr_background_color()
+                elif self.buttons.check_for_low(B.KEY_DOWN):
+                    self.next_qr_background_color()
 
         # Return to Main Menu
         return Path.MAIN_MENU
