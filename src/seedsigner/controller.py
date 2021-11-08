@@ -409,9 +409,9 @@ class Controller(Singleton):
 
         self.storage.save_passphrase(passphrase, slot_num)
         if r in (0,1):
-            self.menu_view.draw_modal(["Passphrase Added", passphrase, "Added to Slot #" + str(slot_num)], "", "Right to Continue")
+            self.menu_view.draw_passphrase("Passphrase Added", passphrase, "Right to Continue")
         elif r == 2:
-            self.menu_view.draw_modal(["Passphrase Updated", passphrase, "Added to Slot #" + str(slot_num)], "", "Right to Continue")
+            self.menu_view.draw_passphrase("Passphrase Updated", passphrase, "Right to Continue")
         self.buttons.wait_for([B.KEY_RIGHT])
 
         return Path.SEED_TOOLS_SUB_MENU
