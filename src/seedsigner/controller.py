@@ -813,7 +813,7 @@ class Controller(Singleton):
                         change_address = script.p2sh(script.p2wpkh(c_pubkey)).address(network=validate_network)
                         
                     if address == recieve_address:
-                        self.menu_view.draw_modal(["Recieved Address "+str(i), "Verified"], "", "Right to Exit")
+                        self.menu_view.draw_modal(["Receive Address "+str(i), "Verified"], "", "Right to Exit")
                         input = self.buttons.wait_for([B.KEY_RIGHT])
                         return Path.MAIN_MENU
                     if address == change_address:
