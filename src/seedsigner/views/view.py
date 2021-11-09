@@ -238,6 +238,33 @@ class View:
         View.DispShowImage()
 
         return
+        
+    def draw_passphrase(self, title, passphrase, bottom) -> None:
+        View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
+
+        tw, th = View.draw.textsize(bottom, font=View.ASSISTANT18)
+        View.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.ASSISTANT18)
+        
+        passphrase_part_1 = passphrase[0:20]
+        passphrase_part_2 = passphrase[20:40]
+        passphrase_part_3 = passphrase[40:60]
+        passphrase_part_4 = passphrase[60:1000]
+        
+        tw, th = View.draw.textsize(title, font=View.ASSISTANT26)
+        View.draw.text(((240 - tw) / 2, 30), title, fill=View.color, font=View.ASSISTANT26)
+        
+        tw, th = View.draw.textsize(passphrase_part_1, font=View.ROBOTOCONDENSED_REGULAR_20)
+        View.draw.text(((240 - tw) / 2, 70), passphrase_part_1, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_20)
+        tw, th = View.draw.textsize(passphrase_part_2, font=View.ROBOTOCONDENSED_REGULAR_20)
+        View.draw.text(((240 - tw) / 2, 100), passphrase_part_2, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_20)
+        tw, th = View.draw.textsize(passphrase_part_3, font=View.ROBOTOCONDENSED_REGULAR_20)
+        View.draw.text(((240 - tw) / 2, 130), passphrase_part_3, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_20)
+        tw, th = View.draw.textsize(passphrase_part_4, font=View.ROBOTOCONDENSED_REGULAR_20)
+        View.draw.text(((240 - tw) / 2, 160), passphrase_part_4, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_20)
+        
+        View.DispShowImage()
+
+        return
 
     def draw_prompt_yes_no(self, lines = [], title = "", bottom = "") -> None:
 
