@@ -41,14 +41,13 @@ class SettingsToolsView(View):
         r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Prompt", "Specter Desktop", "Blue Wallet", "Sparrow"], "Which Wallet?")
         if r == 2:
             return "Prompt"
-        elif r == 3:
+        if r == 3:
             return "Specter Desktop"
-        elif r == 4:
+        if r == 4:
             return "Blue Wallet"
-        elif r == 5:
+        if r == 5:
             return "Sparrow"
-        else:
-            return None
+        return None
 
     ### Display QR Density Selection
 
@@ -56,12 +55,11 @@ class SettingsToolsView(View):
         r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Low", "Medium", "High"], "Which QR Density?")
         if r == 2:
             return EncodeQRDensity.LOW
-        elif r == 3:
+        if r == 3:
             return EncodeQRDensity.MEDIUM
-        elif r == 4:
+        if r == 4:
             return EncodeQRDensity.HIGH
-        else:
-            return None
+        return None
 
     def display_persistent_settings(self) -> bool:
 
@@ -72,12 +70,11 @@ class SettingsToolsView(View):
         r = self.controller.menu_view.display_generic_selection_menu(lines, "Use Persistent Settings?")
         if r == 1:
             return None
-        elif r == 2:
+        if r == 2:
             return True
-        elif r == 3:
+        if r == 3:
             return False
-        else:
-            return None
+        return None
 
 
     def display_camera_rotation(self) -> int:
@@ -90,16 +87,15 @@ class SettingsToolsView(View):
         r = self.controller.menu_view.display_generic_selection_menu(lines, "Camera Rotation")
         if r == 1:
             return None
-        elif r == 2:
+        if r == 2:
             return 0
-        elif r == 3:
+        if r == 3:
             return 90
-        elif r == 4:
+        if r == 4:
             return 180
-        elif r == 5:
+        if r == 5:
             return 270
-        else:
-            return None
+        return None
 
     ###
     ### Version Info

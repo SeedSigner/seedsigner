@@ -232,35 +232,31 @@ class Settings(Singleton):
             if wallet_type.lower() == "single sig":
                 if script_type.lower() == "native segwit":
                     return "m/84'/0'/0'"
-                elif script_type.lower() == "nested segwit":
+                if script_type.lower() == "nested segwit":
                     return "m/49'/0'/0'"
-                else:
-                    raise Exception("Unexpected script type")
-            elif wallet_type.lower() == "multisig":
+                raise Exception("Unexpected script type")
+            if wallet_type.lower() == "multisig":
                 if script_type.lower() == "native segwit":
                     return "m/48'/0'/0'/2'"
-                elif script_type.lower() == "nested segwit":
+                if script_type.lower() == "nested segwit":
                     return "m/48'/0'/0'/1'"
-                else:
-                    raise Exception("Unexpected script type")
-            else:
-                raise Exception("Unexpected wallet type")
-        elif network == "test":
+                raise Exception("Unexpected script type")
+            raise Exception("Unexpected wallet type")
+
+        if network == "test":
             if wallet_type.lower() == "single sig":
                 if script_type.lower() == "native segwit":
                     return "m/84'/1'/0'"
-                elif script_type.lower() == "nested segwit":
+                if script_type.lower() == "nested segwit":
                     return "m/49'/1'/0'"
-                else:
-                    raise Exception("Unexpected script type")
-            elif wallet_type.lower() == "multisig":
+                raise Exception("Unexpected script type")
+
+            if wallet_type.lower() == "multisig":
                 if script_type.lower() == "native segwit":
                     return "m/48'/1'/0'/2'"
-                elif script_type.lower() == "nested segwit":
+                if script_type.lower() == "nested segwit":
                     return "m/48'/1'/0'/1'"
-                else:
-                    raise Exception("Unexpected script type")
-            else:
-                raise Exception("Unexpected wallet type")
-        else:
-            raise Exception("Unexpected network type")
+                raise Exception("Unexpected script type")
+            raise Exception("Unexpected wallet type")
+
+        raise Exception("Unexpected network type")

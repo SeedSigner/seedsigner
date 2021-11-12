@@ -178,26 +178,23 @@ class DecodeQR:
     def getPercentComplete(self) -> int:
         if self.qr_type == QRType.PSBTUR2:
             return int(self.ur_decoder.estimated_percent_complete() * 100)
-        elif self.qr_type == QRType.PSBTSPECTER:
+        if self.qr_type == QRType.PSBTSPECTER:
             if self.specter_qr.total_segments == None:
                 return 0
             return int((self.specter_qr.collected_segments / self.specter_qr.total_segments) * 100)
-        elif self.qr_type == QRType.PSBTURLEGACY:
+        if self.qr_type == QRType.PSBTURLEGACY:
             if self.legacy_ur.total_segments == None:
                 return 0
             return int((self.legacy_ur.collected_segments / self.legacy_ur.total_segments) * 100)
-        elif self.qr_type == QRType.PSBTBASE64:
+        if self.qr_type == QRType.PSBTBASE64:
             if self.base64_qr.complete:
                 return 100
-            else:
-                return 0
-        elif self.qr_type == QRType.PSBTBASE43:
+            return 0
+        if self.qr_type == QRType.PSBTBASE43:
             if self.base43_qr.complete:
                 return 100
-            else:
-                return 0
-        else:
             return 0
+        return 0
 
     def isComplete(self) -> bool:
         return self.complete
@@ -247,11 +244,11 @@ class DecodeQR:
         # PSBT
         if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
             return QRType.PSBTUR2
-        elif re.search(r'^p(\d+)of(\d+) ([A-Za-z0-9+\/=]+$)', s, re.IGNORECASE): #must be base64 characters only in segment
+        if re.search(r'^p(\d+)of(\d+) ([A-Za-z0-9+\/=]+$)', s, re.IGNORECASE): #must be base64 characters only in segment
             return QRType.PSBTSPECTER
-        elif re.search("^UR:BYTES/", s, re.IGNORECASE):
+        if re.search("^UR:BYTES/", s, re.IGNORECASE):
             return QRType.PSBTURLEGACY
-        elif DecodeQR.isBase64PSBT(s):
+        if DecodeQR.isBase64PSBT(s):
             return QRType.PSBTBASE64
             
         # Wallet Descriptor
@@ -259,7 +256,7 @@ class DecodeQR:
         if re.search(r'^p(\d+)of(\d+) ', s, re.IGNORECASE):
             # when not a SPECTER Base64 PSBT from above, assume it's json
             return QRType.SPECTERWALLETQR
-        elif re.search(r'^\{\"label\".*\"descriptor\"\:.*', desc_str, re.IGNORECASE):
+        if re.search(r'^\{\"label\".*\"descriptor\"\:.*', desc_str, re.IGNORECASE):
             # if json starting with label and contains descriptor, assume specter wallet json
             return QRType.SPECTERWALLETQR
 
@@ -274,17 +271,17 @@ class DecodeQR:
             return QRType.SEEDSSQR
             
         # Bitcoin Address
-        elif DecodeQR.isBitcoinAddress(s):
+        if DecodeQR.isBitcoinAddress(s):
             return QRType.BITCOINADDRESSQR
         
         # Seed
-        elif all(x in wordlist for x in s.strip().split(" ")):
+        if all(x in wordlist for x in s.strip().split(" ")):
             # checks if all words in list are in bip39 word list
             return QRType.SEEDMNEMONIC
-        elif all(x in _4LETTER_WORDLIST for x in s.strip().split(" ")):
+        if all(x in _4LETTER_WORDLIST for x in s.strip().split(" ")):
             # checks if all 4 letter words are in list are in 4 letter bip39 word list
             return QRType.SEED4LETTERMNEMONIC
-        elif DecodeQR.isBase43PSBT(s):
+        if DecodeQR.isBase43PSBT(s):
             return QRType.PSBTBASE43
         
         return QRType.INVALID
@@ -353,13 +350,11 @@ class DecodeQR:
         
     @staticmethod
     def isBitcoinAddress(s):
-    
         if re.search(r'^bitcoin\:.*', s, re.IGNORECASE):
             return True
-        elif re.search(r'^((bc1|tb1|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', s):
+        if re.search(r'^((bc1|tb1|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', s):
             return True
-        else:
-            return False
+        return False
 
 ###
 ### SpecterDecodePSBTQR Class

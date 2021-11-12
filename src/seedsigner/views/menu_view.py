@@ -58,8 +58,7 @@ class MenuView(View):
 
                 if ret_val != Path.MAIN_MENU: # When no main menu, return to controller
                     return ret_val
-                else:
-                    self.draw_menu(lines)
+                self.draw_menu(lines)
 
     ### Seed Tools Menu
 
@@ -115,9 +114,9 @@ class MenuView(View):
             elif input == B.KEY_PRESS:
                 if self.selected_menu_num == 1:
                     return Path.MAIN_MENU
-                elif self.selected_menu_num == 2:
+                if self.selected_menu_num == 2:
                     return Path.GEN_XPUB
-                elif self.selected_menu_num == 3:
+                if self.selected_menu_num == 3:
                     return Path.SIGN_TRANSACTION
         raise Exception("Unhandled case")
 
@@ -146,23 +145,23 @@ class MenuView(View):
             elif input == B.KEY_PRESS:
                 if self.selected_menu_num == 1:
                     return Path.MAIN_MENU
-                elif self.selected_menu_num == 2:
+                if self.selected_menu_num == 2:
                     return Path.WALLET
-                elif self.selected_menu_num == 3:
+                if self.selected_menu_num == 3:
                     return Path.CURRENT_NETWORK
-                elif self.selected_menu_num == 4:
+                if self.selected_menu_num == 4:
                     return Path.QR_DENSITY_SETTING
-                elif self.selected_menu_num == 5:
+                if self.selected_menu_num == 5:
                     return Path.IO_TEST_TOOL
-                elif self.selected_menu_num == 6:
+                if self.selected_menu_num == 6:
                     return Path.PERSISTENT_SETTINGS
-                elif self.selected_menu_num == 7:
+                if self.selected_menu_num == 7:
                     return Path.CAMERA_ROTATION
-                elif self.selected_menu_num == 8:
+                if self.selected_menu_num == 8:
                     return Path.VERSION_INFO
-                elif self.selected_menu_num == 9:
+                if self.selected_menu_num == 9:
                     return Path.DONATE
-                elif self.selected_menu_num == 10:
+                if self.selected_menu_num == 10:
                     return Path.RESET
         raise Exception("Unhandled case")
 
