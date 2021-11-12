@@ -237,6 +237,10 @@ class SeedExportXpubWarningView(View):
 
 
 class SeedExportXpubDetailsView(View):
+    """
+        Collects the user input from all the previous screens leading up to this and
+        finally calculates the xpub and displays the summary view to the user.
+    """
     def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str):
         super().__init__()
         self.sig_type = sig_type
