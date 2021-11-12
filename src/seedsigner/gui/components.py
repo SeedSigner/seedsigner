@@ -141,6 +141,7 @@ class TextArea(BaseComponent):
     font_color: str = GUIConstants.BODY_FONT_COLOR
     is_text_centered: bool = True
     supersampling_factor: int = 1
+    auto_line_break: bool = True
 
 
     def __post_init__(self):
@@ -177,7 +178,7 @@ class TextArea(BaseComponent):
             if width > self.text_width:
                 self.text_width = width
 
-        if tw < self.supersampled_width - (2 * GUIConstants.EDGE_PADDING * self.supersampling_factor):
+        if not self.auto_line_break or tw < self.supersampled_width - (2 * GUIConstants.EDGE_PADDING * self.supersampling_factor):
             # The whole text fits on one line
             _add_text_line(self.text, tw)
 
@@ -253,6 +254,67 @@ class TextArea(BaseComponent):
             resized = img.resize((self.width, self.height), Image.LANCZOS)
             resized = resized.filter(ImageFilter.SHARPEN)
             self.canvas.paste(resized, (self.screen_x, self.screen_y))
+
+
+
+@dataclass
+class IconTextLine(BaseComponent):
+    """
+        Renders an icon next to a label/value pairing (or just value)
+    """
+    icon_name: str = "fingerprint"
+    label_text: str = "Fingerprint"
+    value_text: str = "73c5da0a"
+    screen_x: int = 0
+    screen_y: int = 0
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.icon = load_icon(self.icon_name)
+        self.icon_x = self.screen_x
+
+        if self.label_text:
+            self.label_textarea = TextArea(
+                image_draw=self.image_draw,
+                canvas=self.canvas,
+                text=self.label_text,
+                font_size=GUIConstants.BODY_FONT_SIZE - 2,
+                font_color="#666",
+                is_text_centered=False,
+                auto_line_break=False,
+                screen_x=self.screen_x + self.icon.width,
+                screen_y=self.screen_y,
+            )
+        else:
+            self.label_textarea = None        
+        
+        value_textarea_screen_y = self.label_textarea.screen_y
+        if self.label_text:
+            value_textarea_screen_y += self.label_textarea.height
+        self.value_textarea = TextArea(
+            image_draw=self.image_draw,
+            canvas=self.canvas,
+            text=self.value_text,
+            is_text_centered=False,
+            auto_line_break=False,
+            screen_x=self.label_textarea.screen_x,
+            screen_y=value_textarea_screen_y,
+        )
+
+        if self.label_text:
+            self.height = self.label_textarea.height + self.value_textarea.height
+            self.icon_y = self.screen_y + int((self.height - self.icon.height) / 2)
+        else:
+            self.height = self.value_textarea.height
+            self.icon_y = self.screen_y
+
+
+    def render(self):
+        self.canvas.paste(self.icon, (self.icon_x, self.icon_y))
+        if self.label_textarea:
+            self.label_textarea.render()
+        self.value_textarea.render()
 
 
 

@@ -1,6 +1,6 @@
 
 from ..components import (GUIConstants, BaseComponent, Button, IconButton, TopNav,
-    TextArea)
+    TextArea, load_icon)
 
 from dataclasses import dataclass
 from PIL import ImageFont
@@ -114,7 +114,6 @@ class TextTopNavScreen(BaseTopNavScreen):
 
     def _render(self):
         super()._render()
-        self.top_nav.render()
         self.text_area.render()
 
 
@@ -373,17 +372,20 @@ class WarningScreen(ButtonListScreen):
     title: str = "Caution"
     button_label: str = "I Understand"
     is_bottom_list: bool = True
+    warning_icon_name: str = "warning"
     warning_headline: str = "Privacy Leak!"     # The colored text under the alert icon
     warning_text: str = ""                      # The body text of the warning
-    warning_color: str = "yellow"
+    warning_color: str = "#FFD60A"
 
     def __post_init__(self):
         # Populate the required button_data for the ButtonListScreen
         self.button_data = [self.button_label]
         super().__post_init__()
 
-        # TODO: render alert icon, then calc proper warning_headline_y
-        warning_headline_y = self.top_nav.height + 40 + 8
+        self.warning_icon = load_icon(self.warning_icon_name)
+        self.warning_icon_y = self.top_nav.height
+        self.warning_icon_x = int((self.canvas_width - self.warning_icon.width) / 2)
+        warning_headline_y = self.warning_icon_y + self.warning_icon.height + 4
 
         self.warning_headline_textarea = TextArea(
             text=self.warning_headline,
@@ -402,6 +404,7 @@ class WarningScreen(ButtonListScreen):
 
     def _render(self):
         super()._render()
+        self.canvas.paste(self.warning_icon, (self.warning_icon_x, self.warning_icon_y))
         self.warning_headline_textarea.render()
         self.warning_text_textarea.render()
 
@@ -410,6 +413,7 @@ class WarningScreen(ButtonListScreen):
 @dataclass
 class DireWarningScreen(WarningScreen):
     title: str = "Caution"
+    warning_icon_name: str = "dire_warning"
     warning_headline: str = "Classified Info!"     # The colored text under the alert icon
     warning_color: str = "red"
 

@@ -2,8 +2,8 @@ import os
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont
 
-from .base import ButtonListScreen, LargeButtonScreen
-from ..components import load_icon, Fonts, TextArea, GUIConstants
+from .screen import ButtonListScreen, LargeButtonScreen
+from ..components import load_icon, Fonts, TextArea, GUIConstants, IconTextLine
 
 from seedsigner.helpers import B
 from seedsigner.models.seed import SeedConstants
@@ -96,3 +96,58 @@ class SeedOptionsScreen(ButtonListScreen):
 
         # TODO: Set up the fingerprint and passphrase displays
 
+
+
+@dataclass
+class SeedExportXpubDetailsScreen(ButtonListScreen):
+    # Customize defaults
+    title: str = "Xpub Details"
+    is_bottom_list: bool = True
+    fingerprint: str = None
+    has_passphrase: bool = False
+    derivation_path: str = "m/84'/0'/0'"
+    xpub: str = "zpub6r..."
+    button_data=["Export Xpub"]
+
+    def __post_init__(self):
+        # Programmatically set up other args
+        self.button_data = ["Export Xpub"]
+
+        # Initialize the base class
+        super().__post_init__()
+
+        # Set up the fingerprint and passphrase displays
+        self.fingerprint_line = IconTextLine(
+            icon_name="fingerprint",
+            label_text="Fingerprint",
+            value_text=self.fingerprint,
+            screen_x=8,
+            screen_y=self.top_nav.height,
+        )
+
+        self.derivation_line = IconTextLine(
+            icon_name="fingerprint",
+            label_text="Derivation",
+            value_text=self.derivation_path,
+            screen_x=8,
+            screen_y=self.fingerprint_line.screen_y + self.fingerprint_line.height + 8,
+        )
+
+        self.xpub_line = IconTextLine(
+            icon_name="fingerprint",
+            label_text="Xpub",
+            value_text=self.xpub,
+            screen_x=8,
+            screen_y=self.derivation_line.screen_y + self.derivation_line.height + 8,
+        )
+
+
+    def _render(self):
+        super()._render()
+
+        self.fingerprint_line.render()
+        self.derivation_line.render()
+        self.xpub_line.render()
+
+        # Write the screen updates
+        self.renderer.show_image()

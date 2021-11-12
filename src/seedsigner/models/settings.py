@@ -1,3 +1,4 @@
+from .seed import SeedConstants
 from .singleton import ConfigurableSingleton
 from .qr_type import QRType
 from .encode_qr_density import EncodeQRDensity
@@ -44,7 +45,7 @@ class Settings(ConfigurableSingleton):
                 'camera_rotation': 0,
             },
             'wallet': {
-                'network': "main",
+                'network': SeedConstants.MAINNET,
                 'software': "Specter Desktop",
                 'qr_density': EncodeQRDensity.MEDIUM,
                 'custom_derivation': 'm/0/0'
@@ -161,7 +162,7 @@ class Settings(ConfigurableSingleton):
 
     @network.setter
     def network(self, value):
-        if value in ("main", "test"):
+        if value in [SeedConstants.MAINNET, SeedConstants.TESTNET]:
             self._data["wallet"]["network"] = value
             self.__writeConfig()
         else:
@@ -231,39 +232,31 @@ class Settings(ConfigurableSingleton):
             
     @staticmethod
     def calc_derivation(network, wallet_type, script_type):
-        if network == "main":
-            if wallet_type.lower() == "single sig":
-                if script_type.lower() == "native segwit":
-                    return "m/84'/0'/0'"
-                elif script_type.lower() == "nested segwit":
-                    return "m/49'/0'/0'"
-                else:
-                    raise Exception("Unexpected script type")
-            elif wallet_type.lower() == "multisig":
-                if script_type.lower() == "native segwit":
-                    return "m/48'/0'/0'/2'"
-                elif script_type.lower() == "nested segwit":
-                    return "m/48'/0'/0'/1'"
-                else:
-                    raise Exception("Unexpected script type")
-            else:
-                raise Exception("Unexpected wallet type")
-        elif network == "test":
-            if wallet_type.lower() == "single sig":
-                if script_type.lower() == "native segwit":
-                    return "m/84'/1'/0'"
-                elif script_type.lower() == "nested segwit":
-                    return "m/49'/1'/0'"
-                else:
-                    raise Exception("Unexpected script type")
-            elif wallet_type.lower() == "multisig":
-                if script_type.lower() == "native segwit":
-                    return "m/48'/1'/0'/2'"
-                elif script_type.lower() == "nested segwit":
-                    return "m/48'/1'/0'/1'"
-                else:
-                    raise Exception("Unexpected script type")
-            else:
-                raise Exception("Unexpected wallet type")
+        if network == SeedConstants.MAINNET:
+            network_path = "0'"
+        elif network == SeedConstants.TESTNET:
+            network_path = "1'"
         else:
-            raise Exception("Unexpected network type")
+            raise Exception("Unexpected network")
+
+        if wallet_type == SeedConstants.SINGLE_SIG:
+            if script_type == SeedConstants.NATIVE_SEGWIT:
+                return f"m/84'/{network_path}/0'"
+            elif script_type == SeedConstants.NESTED_SEGWIT:
+                return f"m/49'/{network_path}/0'"
+            elif script_type == SeedConstants.TAPROOT:
+                return f"m/86'/{network_path}/0'"
+            else:
+                raise Exception("Unexpected script type")
+
+        elif wallet_type == SeedConstants.MULTISIG:
+            if script_type == SeedConstants.NATIVE_SEGWIT:
+                return f"m/48'/{network_path}/0'/2'"
+            elif script_type == SeedConstants.NESTED_SEGWIT:
+                return f"m/48'/{network_path}/0'/1'"
+            elif script_type == SeedConstants.TAPROOT:
+                raise Exception("Taproot multisig/musig not yet supported")
+            else:
+                raise Exception("Unexpected script type")
+        else:
+            raise Exception("Unexpected wallet type")

@@ -2,7 +2,7 @@ from .view import View, BackStackView, MainMenuView
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, LargeButtonScreen,
     WarningScreen, DireWarningScreen)
 from seedsigner.models.seed import SeedConstants
-from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.settings import Settings, SettingsConstants
 
 
 
@@ -136,12 +136,13 @@ class SeedExportXpubScriptTypeView(View):
 
 
     def run(self):
-        selected_menu_num = ButtonListScreen(
+        screen = ButtonListScreen(
             title="Export Xpub",
             is_button_text_centered=False,
             is_bottom_list=True,
             button_data=[script_type[1] for script_type in SeedConstants.ALL_SCRIPT_TYPES]
-        ).display()
+        )
+        selected_menu_num = screen.display()
 
         args = {"seed_num": self.seed_num, "sig_type": self.sig_type}
         if selected_menu_num < len(SeedConstants.ALL_SCRIPT_TYPES):
@@ -181,12 +182,13 @@ class SeedExportXpubCoordinatorView(View):
                 if coordinator != default_coordinator:
                     coordinator_list.append(coordinator)
 
-        selected_menu_num = ButtonListScreen(
+        screen = ButtonListScreen(
             title="Export Xpub",
             is_button_text_centered=False,
             is_bottom_list=True,
             button_data=coordinator_list,
-        ).display()
+        )
+        selected_menu_num = screen.display()
 
         if selected_menu_num < len(coordinator_list):
             args = {
@@ -214,17 +216,69 @@ class SeedExportXpubWarningView(View):
     def run(self):
         # from seedsigner.gui.screens.seed_screens import SeedExportXpubWalletScreen
 
-        selected_menu_num = WarningScreen(
+        screen = WarningScreen(
             warning_headline="Privacy Leak!",
             warning_text="""Xpub can be used to view all future transactions.""",
-        ).display()
+        )
+        selected_menu_num = screen.display()
 
         if selected_menu_num == 0:
             # User clicked "I Understand"
-            raise Exception("not implemented yet")
+            return(SeedExportXpubDetailsView, {
+                "seed_num": self.seed_num,
+                "sig_type": self.sig_type,
+                "script_type": self.script_type,
+                "coordinator": self.coordinator,
+            })
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return BackStackView
+
+
+
+class SeedExportXpubDetailsView(View):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str):
+        super().__init__()
+        self.sig_type = sig_type
+        self.script_type = script_type
+        self.coordinator = coordinator
+        self.seed = self.controller.storage.seeds[seed_num]
+
+
+    def run(self):
+        import embit
+        from binascii import hexlify
+        from seedsigner.gui.screens.seed_screens import SeedExportXpubDetailsScreen
+
+        derivation_path = Settings.calc_derivation(
+            network=self.controller.settings.network,
+            wallet_type=self.sig_type,
+            script_type=self.script_type
+        )
+
+        version = embit.bip32.detect_version(
+            derivation_path,
+            default="xpub",
+            network=embit.networks.NETWORKS[self.controller.settings.network]
+        )
+
+        root = embit.bip32.HDKey.from_seed(
+            self.seed.seed,
+            version=embit.networks.NETWORKS[self.controller.settings.network]["xprv"]
+        )
+
+        fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
+        xprv = root.derive(derivation_path)
+        xpub = xprv.to_public()
+        xpub_base58 = xpub.to_string(version=version)
+
+        screen = SeedExportXpubDetailsScreen(
+            fingerprint=fingerprint,
+            has_passphrase=self.seed.passphrase is not None,
+            derivation_path=derivation_path,
+            xpub=xpub_base58,
+        )
+        selected_menu_num = screen.display()
 
 
 

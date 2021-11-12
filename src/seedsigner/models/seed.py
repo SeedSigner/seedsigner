@@ -6,6 +6,9 @@ from embit.networks import NETWORKS
 
 
 class SeedConstants:
+    MAINNET = "main"
+    TESTNET = "test"
+    
     SINGLE_SIG = "single_sig"
     MULTISIG = "multisig"
 

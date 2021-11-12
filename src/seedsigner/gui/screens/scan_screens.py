@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont
 from threading import Thread
 
-from .base import BaseTopNavScreen
+from .screen import BaseTopNavScreen
 from ..components import GUIConstants, Fonts, calc_text_centering
 
 from seedsigner.helpers import B
