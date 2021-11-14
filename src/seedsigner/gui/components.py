@@ -139,6 +139,7 @@ class TextArea(BaseComponent):
     font_name: str = GUIConstants.BODY_FONT_NAME
     font_size: int = GUIConstants.BODY_FONT_SIZE
     font_color: str = GUIConstants.BODY_FONT_COLOR
+    edge_padding: int = GUIConstants.EDGE_PADDING
     is_text_centered: bool = True
     supersampling_factor: int = 1
     auto_line_break: bool = True
@@ -163,7 +164,7 @@ class TextArea(BaseComponent):
         # We have to figure out if and where to make line breaks in the text so that it
         #   fits in its bounding rect (plus accounting for edge padding) using its given
         #   font.
-        tw, self.text_height = self.font.getsize(self.text)
+        full_text_width, self.text_height = self.font.getsize(self.text)
 
         # Stores each line of text and its rendering starting x-coord
         self.text_lines = []
@@ -172,15 +173,15 @@ class TextArea(BaseComponent):
             if self.is_text_centered:
                 text_x = int((self.supersampled_width - width) / 2)
             else:
-                text_x = self.supersampling_factor * GUIConstants.EDGE_PADDING
+                text_x = self.supersampling_factor * self.edge_padding
             self.text_lines.append({"text": text, "text_x": text_x})
 
             if width > self.text_width:
                 self.text_width = width
 
-        if not self.auto_line_break or tw < self.supersampled_width - (2 * GUIConstants.EDGE_PADDING * self.supersampling_factor):
+        if not self.auto_line_break or full_text_width < self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
             # The whole text fits on one line
-            _add_text_line(self.text, tw)
+            _add_text_line(self.text, full_text_width)
 
             if self.height is None:
                 self.text_y = 0
@@ -188,6 +189,8 @@ class TextArea(BaseComponent):
             else:
                 # Vertical starting point calc is easy in this case
                 self.text_y = int(((self.supersampling_factor * self.supersampled_height) - self.text_height) / 2)
+            
+            self.text_width = full_text_width
 
         else:
             # Have to calc how to break text into multiple lines
@@ -200,7 +203,7 @@ class TextArea(BaseComponent):
 
                 tw, th = self.font.getsize(" ".join(words[0:index]))
 
-                if tw > self.supersampled_width - (2 * GUIConstants.EDGE_PADDING * self.supersampling_factor):
+                if tw > self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
                     # Candidate line is still too long. Restrict search range down.
                     if min_index + 1 == index:
                         # There's no room left to search
@@ -230,30 +233,24 @@ class TextArea(BaseComponent):
 
         # Make sure the width/height that get referenced outside this obj are
         #   specified and restored to their normal scaling factor.
-        self.width = int(self.supersampled_width / self.supersampling_factor)
         self.height = int(self.supersampled_height / self.supersampling_factor)
-        self.text_width = int(self.text_width / self.supersampling_factor)
+        self.width = int(self.text_width / self.supersampling_factor)
 
 
     def render(self):
-        if self.supersampling_factor > 1:
-            # Render to a temp img scaled up by self.supersampling_factor, then resize down
-            #   with bicubic resampling.
-            img = Image.new("RGB", (self.supersampled_width, self.supersampled_height), self.background_color)
-            draw = ImageDraw.Draw(img)
-            cur_y = self.text_y
-        else:
-            draw = self.image_draw
-            cur_y = self.text_y + self.screen_y
+        # Render to a temp img scaled up by self.supersampling_factor, then resize down
+        #   with bicubic resampling.
+        img = Image.new("RGB", (self.supersampled_width, self.supersampled_height), self.background_color)
+        draw = ImageDraw.Draw(img)
+        cur_y = self.text_y
 
         for line in self.text_lines:
             draw.text((line["text_x"], cur_y), line["text"], fill=self.font_color, font=self.font)
             cur_y += self.text_height + self.line_spacing
 
-        if self.supersampling_factor > 1:
-            resized = img.resize((self.width, self.height), Image.LANCZOS)
-            resized = resized.filter(ImageFilter.SHARPEN)
-            self.canvas.paste(resized, (self.screen_x, self.screen_y))
+        resized = img.resize((int(self.supersampled_width / self.supersampling_factor), self.height), Image.LANCZOS)
+        resized = resized.filter(ImageFilter.SHARPEN)
+        self.canvas.paste(resized, (self.screen_x, self.screen_y))
 
 
 
@@ -263,8 +260,10 @@ class IconTextLine(BaseComponent):
         Renders an icon next to a label/value pairing (or just value)
     """
     icon_name: str = "fingerprint"
-    label_text: str = "Fingerprint"
+    label_text: str = None
     value_text: str = "73c5da0a"
+    font_size: int = GUIConstants.BODY_FONT_SIZE
+    is_text_centered: bool = False
     screen_x: int = 0
     screen_y: int = 0
 
@@ -273,7 +272,9 @@ class IconTextLine(BaseComponent):
 
         self.icon = load_icon(self.icon_name)
         self.icon_x = self.screen_x
+        self.icon_horizontal_spacer = 0
 
+        text_screen_x = self.screen_x + self.icon.width + self.icon_horizontal_spacer
         if self.label_text:
             self.label_textarea = TextArea(
                 image_draw=self.image_draw,
@@ -281,40 +282,52 @@ class IconTextLine(BaseComponent):
                 text=self.label_text,
                 font_size=GUIConstants.BODY_FONT_SIZE - 2,
                 font_color="#666",
+                edge_padding=0,
                 is_text_centered=False,
                 auto_line_break=False,
-                screen_x=self.screen_x + self.icon.width,
+                screen_x=text_screen_x,
                 screen_y=self.screen_y,
             )
         else:
             self.label_textarea = None        
         
-        value_textarea_screen_y = self.label_textarea.screen_y
+        value_textarea_screen_y = self.screen_y
         if self.label_text:
             value_textarea_screen_y += self.label_textarea.height
         self.value_textarea = TextArea(
             image_draw=self.image_draw,
             canvas=self.canvas,
             text=self.value_text,
+            font_size=self.font_size,
+            edge_padding=0,
             is_text_centered=False,
             auto_line_break=False,
-            screen_x=self.label_textarea.screen_x,
+            screen_x=text_screen_x,
             screen_y=value_textarea_screen_y,
         )
 
         if self.label_text:
             self.height = self.label_textarea.height + self.value_textarea.height
             self.icon_y = self.screen_y + int((self.height - self.icon.height) / 2)
+            max_textarea_width = max(self.label_textarea.width, self.value_textarea.width)
         else:
             self.height = self.value_textarea.height
             self.icon_y = self.screen_y
+            max_textarea_width = self.value_textarea.width
+        
+        if self.is_text_centered:
+            total_width = max_textarea_width + self.icon.width + self.icon_horizontal_spacer
+            self.icon_x = self.screen_x + int((self.canvas_width - self.screen_x - total_width) / 2)
+            if self.label_text:
+                self.label_textarea.screen_x = self.icon_x + self.icon.width + self.icon_horizontal_spacer
+            self.value_textarea.screen_x = self.icon_x + self.icon.width + self.icon_horizontal_spacer
 
 
     def render(self):
-        self.canvas.paste(self.icon, (self.icon_x, self.icon_y))
         if self.label_textarea:
             self.label_textarea.render()
         self.value_textarea.render()
+        self.canvas.paste(self.icon, (self.icon_x, self.icon_y))
 
 
 

@@ -1,3 +1,4 @@
+from enum import auto
 import os
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont
@@ -27,48 +28,29 @@ class SeedValidScreen(ButtonListScreen):
         # Initialize the base class
         super().__post_init__()
 
-        # TODO: Create a reusable Component that can display multi-line text w/an icon?
-        """
-            lines=[
-                (None, "Fingerprint:"),
-                "fingerprint", self.fingerprint,
-            ]
+        self.title_textarea = TextArea(
+            text="Fingerprint:",
             is_text_centered=True,
+            auto_line_break=False,
+            screen_y=self.top_nav.height + int((self.buttons[0].screen_y - self.top_nav.height) / 2) - 30
+        )
 
-        """
-
-        # Render each line on a separate Image that can be pasted onto the right place
-        body_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_MAX_SIZE)
-        line_1_text = "Fingerprint:"
-        line_2_text = self.fingerprint
-        line_1_width, line_1_height = body_font.getsize(line_1_text)
-        line_2_width, line_2_height = body_font.getsize(line_2_text)
-
-        fingerprint_icon = load_icon("fingerprint")
-        line_2_x = fingerprint_icon.width + int(GUIConstants.COMPONENT_PADDING / 2)
-        line_2_y = line_1_height + int(GUIConstants.BODY_FONT_MAX_SIZE * GUIConstants.BODY_LINE_SPACING)
-
-        body_content_width = max([
-            line_1_width,
-            line_2_x + line_2_width
-        ])
-        body_content_height = line_2_y + line_2_height
-
-        self.body_content = Image.new('RGB', (body_content_width, body_content_height))
-        body_content_draw = ImageDraw.Draw(self.body_content)
-        body_content_draw.text((int((body_content_width - line_1_width) / 2), 0), line_1_text, fill=GUIConstants.BODY_FONT_COLOR, font=body_font)
-        body_content_draw.text((line_2_x, line_2_y), line_2_text, fill=GUIConstants.BODY_FONT_COLOR, font=body_font)
-        self.body_content.paste(fingerprint_icon, (0, line_2_y))
-
-        self.body_content_x = int((self.canvas_width - body_content_width) / 2)
-        self.body_content_y = self.top_nav.height + int((self.canvas_height - self.top_nav.height - self.buttons[0].screen_y) / 2)
-
+        self.fingerprint_icontl = IconTextLine(
+            icon_name="fingerprint",
+            value_text=self.fingerprint,
+            font_size=GUIConstants.BODY_FONT_SIZE + 2,
+            is_text_centered=True,
+            screen_x = -4,
+            screen_y=self.title_textarea.screen_y + self.title_textarea.height
+        )
 
     def _render(self):
         super()._render()
 
-        # self.renderer.canvas.paste(self.fingerprint_icon, (self.fingerprint_icon_x, self.fingerprint_icon_y))
-        self.renderer.canvas.paste(self.body_content, (self.body_content_x, self.body_content_y))
+        self.title_textarea.render()
+        self.fingerprint_icontl.render()
+
+        # self.renderer.canvas.paste(self.body_content, (self.body_content_x, self.body_content_y))
 
         # Write the screen updates
         self.renderer.show_image()

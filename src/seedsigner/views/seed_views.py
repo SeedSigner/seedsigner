@@ -300,9 +300,10 @@ class SeedValidView(View):
     def run(self):
         from seedsigner.gui.screens.seed_screens import SeedValidScreen
 
-        selected_menu_num = SeedValidScreen(
+        screen = SeedValidScreen(
             fingerprint=self.fingerprint
-        ).display()
+        )
+        selected_menu_num = screen.display()
 
         if selected_menu_num == 0:
             self.controller.storage.finalize_pending_seed()
