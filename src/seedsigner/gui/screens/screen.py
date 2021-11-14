@@ -33,7 +33,10 @@ class BaseScreen(BaseComponent):
 
     def _render(self):
         # Clear the whole canvas
-        self.image_draw.rectangle((0, 0, self.canvas_width, self.canvas_height), fill=0)
+        self.image_draw.rectangle(
+            (0, 0, self.canvas_width, self.canvas_height),
+            fill=0,
+        )
 
 
     def _run(self):
@@ -368,7 +371,31 @@ class LargeButtonScreen(BaseTopNavScreen):
 
 
 @dataclass
-class WarningScreen(ButtonListScreen):
+class WarningScreenMixin:
+    border_color: str = "yellow"
+
+    def render_warning_edges(self):
+        self.image_draw.line(
+            (0, 0, self.canvas_width, 0),
+            fill=self.border_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
+        )
+        self.image_draw.line(
+            (self.canvas_width, 0, self.canvas_width, self.canvas_height),
+            fill=self.border_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
+        )
+        self.image_draw.line(
+            (self.canvas_width, self.canvas_height, 0, self.canvas_height),
+            fill=self.border_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
+        )
+        self.image_draw.line(
+            (0, self.canvas_height, 0, 0),
+            fill=self.border_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
+        )
+
+
+
+@dataclass
+class WarningScreen(WarningScreenMixin, ButtonListScreen):
     title: str = "Caution"
     button_label: str = "I Understand"
     is_bottom_list: bool = True
@@ -407,6 +434,7 @@ class WarningScreen(ButtonListScreen):
         self.canvas.paste(self.warning_icon, (self.warning_icon_x, self.warning_icon_y))
         self.warning_headline_textarea.render()
         self.warning_text_textarea.render()
+        self.render_warning_edges()
 
 
 
@@ -416,5 +444,4 @@ class DireWarningScreen(WarningScreen):
     warning_icon_name: str = "dire_warning"
     warning_headline: str = "Classified Info!"     # The colored text under the alert icon
     warning_color: str = "red"
-
 

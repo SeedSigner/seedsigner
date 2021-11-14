@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont
 
-from .screen import ButtonListScreen, LargeButtonScreen
+from .screen import ButtonListScreen, LargeButtonScreen, WarningScreenMixin
 from ..components import load_icon, Fonts, TextArea, GUIConstants, IconTextLine
 
 from seedsigner.helpers import B
@@ -81,7 +81,7 @@ class SeedOptionsScreen(ButtonListScreen):
 
 
 @dataclass
-class SeedExportXpubDetailsScreen(ButtonListScreen):
+class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
     # Customize defaults
     title: str = "Xpub Details"
     is_bottom_list: bool = True
@@ -130,6 +130,8 @@ class SeedExportXpubDetailsScreen(ButtonListScreen):
         self.fingerprint_line.render()
         self.derivation_line.render()
         self.xpub_line.render()
+
+        self.render_warning_edges()
 
         # Write the screen updates
         self.renderer.show_image()
