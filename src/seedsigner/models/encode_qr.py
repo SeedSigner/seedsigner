@@ -1,5 +1,5 @@
 from enum import IntEnum
-from embit import psbt, bip39, bip32
+from embit import psbt, bip32
 from embit.networks import NETWORKS
 from binascii import b2a_base64, hexlify
 from seedsigner.helpers.ur2.ur_encoder import UREncoder
@@ -7,7 +7,7 @@ from seedsigner.helpers.ur2.cbor_lite import CBOREncoder
 from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.bcur import (bc32encode, cbor_encode, bcur_encode)
 from seedsigner.helpers.qr import QR
-from seedsigner.models.qr_type import QRType
+from seedsigner.models import Seed, QRType, EncodeQRDensity
 
 ###
 ### EncodeQR Class
@@ -16,16 +16,18 @@ from seedsigner.models.qr_type import QRType
 
 class EncodeQR:
 
+    WORDLIST = None
+
     def __init__(self, **kwargs):
         self.psbt = None
         self.seed_phrase = None
         self.passphrase = None
         self.derivation = None
         self.network = None
-        self.policy = None
         self.qr_type = None
         self.qr_density = None
         self.qr = QR()
+        self.wordlist = None
 
         for key, value in kwargs.items():
             if key == "psbt":
@@ -38,12 +40,15 @@ class EncodeQR:
                 self.derivation = value
             elif key == "network":
                 self.network = value
-            elif key == "policy":
-                self.policy = value
             elif key == "qr_type":
                 self.qr_type = value
             elif key == "qr_density":
                 self.qr_density = value
+            elif key == "wordlist":
+                self.wordlist = value
+                
+        if self.wordlist == None:
+            raise Exception('Wordlist Required')
 
         if self.qr_type == None:
             raise Exception('Encoder Type Required')
@@ -57,11 +62,11 @@ class EncodeQR:
         elif self.qr_type == QRType.PSBTUR2:
             self.encoder = UREncodePSBTQR(self.psbt, self.qr_density)
         elif self.qr_type == QRType.SEEDSSQR:
-            self.encoder = SeedSSQR(self.seed_phrase)
+            self.encoder = SeedSSQR(self.seed_phrase, self.wordlist)
         elif self.qr_type == QRType.XPUBQR:
-            self.encoder = XPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.policy)
+            self.encoder = XPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.wordlist)
         elif self.qr_type == QRType.SPECTERXPUBQR:
-            self.encoder = SpecterXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.policy, self.qr_density)
+            self.encoder = SpecterXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.qr_density, self.wordlist)
         else:
             raise Exception('Encoder Type not Supported')
 
@@ -74,9 +79,12 @@ class EncodeQR:
     def part2Image(self, part, width=240, height=240, border=3):
         return self.qr.qrimage_io(part, width, height, border)
 
-    def nextPartImage(self, width=240, height=240, border=3):
+    def nextPartImage(self, width=240, height=240, border=3, background="FFFFFF"):
         part = self.nextPart()
-        return self.qr.qrimage_io(part, width, height, border)
+        if self.qr_type == QRType.SEEDSSQR:
+            return self.qr.qrimage(part, width, height, border)
+        else:
+            return self.qr.qrimage_io(part, width, height, border, background=background)
 
     def isComplete(self):
         return self.encoder.isComplete()
@@ -184,8 +192,12 @@ class SpecterEncodePSBTQR:
 
 class SeedSSQR:
 
-    def __init__(self, seed_phrase):
+    def __init__(self, seed_phrase, wordlist):
         self.seed_phrase = seed_phrase
+        self.wordlist = wordlist
+        
+        if self.wordlist == None:
+            raise Exception('Wordlist Required')
 
     def seqLen(self):
         return 1
@@ -193,7 +205,7 @@ class SeedSSQR:
     def nextPart(self):
         data = ""
         for word in self.seed_phrase:
-            index = bip39.WORDLIST.index(word)
+            index = self.wordlist.index(word)
             data += str("%04d" % index)
 
         return data
@@ -203,29 +215,27 @@ class SeedSSQR:
 
 class XPubQR:
 
-    def __init__(self, seed_phrase, passphrase, derivation, network, policy):
+    def __init__(self, seed_phrase, passphrase, derivation, network, wordlist):
         self.seed_phrase = seed_phrase
         self.passphrase = passphrase
         self.derivation = derivation
+        self.wordlist = wordlist
         self.parts = []
         self.part_num_sent = 0
         self.sent_complete = False
 
-        self.network = network
-        self.seed = bip39.mnemonic_to_seed((" ".join(self.seed_phrase)).strip(), self.passphrase)
-        self.root = bip32.HDKey.from_seed(self.seed, version=NETWORKS[self.network]["xprv"])
+        if self.wordlist == None:
+            raise Exception('Wordlist Required')
+            
+        version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[network])
+        print(self.derivation)
+        self.seed = Seed(mnemonic=self.seed_phrase, passphrase=self.passphrase, wordlist=self.wordlist)
+        self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[network]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
-        self.bip48_xprv = self.root.derive(self.derivation)
-        self.bip48_xpub = self.bip48_xprv.to_public()
-
-        xpub_base58 = ""
-
-        if policy == "PKWPKH":
-            self.xpub_base58 = self.bip48_xpub.to_base58(NETWORKS[self.network]["zpub"])
-        elif policy == "PKWSH":
-            self.xpub_base58 = self.bip48_xpub.to_base58(NETWORKS[self.network]["Zpub"])
-        else:
-            raise Exception('Policy Type not Supported')
+        self.xprv = self.root.derive(self.derivation)
+        self.xpub = self.xprv.to_public()
+        self.xpub_base58 = self.xpub.to_string(version=version)
+        self.network = network
 
         self.xpubstring = "[%s%s]%s" % (hexlify(self.fingerprint).decode('utf-8'),self.derivation[1:],self.xpub_base58)
 
@@ -249,7 +259,7 @@ class XPubQR:
 
 class SpecterXPubQR(XPubQR):
 
-    def __init__(self, seed_phrase, passphrase, derivation, network, policy, qr_density):
+    def __init__(self, seed_phrase, passphrase, derivation, network, qr_density, wordlist):
         self.qr_max_fragement_size = 65
         if qr_density == EncodeQRDensity.LOW:
             self.qr_max_fragement_size = 40
@@ -258,7 +268,7 @@ class SpecterXPubQR(XPubQR):
         elif qr_density == EncodeQRDensity.HIGH:
             self.qr_max_fragement_size = 90
 
-        XPubQR.__init__(self, seed_phrase, passphrase, derivation, network, policy)
+        XPubQR.__init__(self, seed_phrase, passphrase, derivation, network, wordlist)
         self.__createParts()
 
     def __createParts(self):
@@ -304,8 +314,3 @@ class SpecterXPubQR(XPubQR):
 
     def isComplete(self):
         return self.sent_complete
-
-class EncodeQRDensity(IntEnum):
-    LOW = 1
-    MEDIUM = 2
-    HIGH = 3

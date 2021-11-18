@@ -1,8 +1,7 @@
 import pytest
 from mock import MagicMock
-from seedsigner.models.decode_qr import QRType
-from seedsigner.models.encode_qr import EncodeQR, EncodeQRDensity
-from embit import psbt
+from seedsigner.models import EncodeQR, QRType, EncodeQRDensity
+from embit import psbt, bip39
 from binascii import a2b_base64
 
 def test_ur_qr_encode():
@@ -11,7 +10,7 @@ def test_ur_qr_encode():
 
     tx = psbt.PSBT.parse(a2b_base64(base64_psbt))
 
-    e = EncodeQR(psbt=tx, qr_type=QRType.PSBTUR2)
+    e = EncodeQR(psbt=tx, qr_type=QRType.PSBTUR2, wordlist=bip39.WORDLIST)
 
     cnt = 0
     while cnt <= 10:
@@ -26,7 +25,7 @@ def test_specter_qr_encode():
 
     tx = psbt.PSBT.parse(a2b_base64(base64_psbt))
 
-    e = EncodeQR(psbt=tx, qr_type=QRType.PSBTSPECTER)
+    e = EncodeQR(psbt=tx, qr_type=QRType.PSBTSPECTER, wordlist=bip39.WORDLIST)
 
     cnt = 0
     while cnt <= 10:
@@ -61,7 +60,7 @@ def test_seedsigner_qr():
 
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), qr_type=QRType.SEEDSSQR)
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), qr_type=QRType.SEEDSSQR, wordlist=bip39.WORDLIST)
 
     print(e.nextPart())
 
@@ -71,19 +70,19 @@ def test_xpub_qr():
 
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUBQR, network="test", policy="PKWPKH", derivation="m/48h/1h/0h/2h")
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUBQR, network="test", derivation="m/48h/1h/0h/2h", wordlist=bip39.WORDLIST)
 
-    assert e.nextPart() == "[c49122a5/48h/1h/0h/2h]vpub5adb6xr5X1yqx2v7qoo5uR32BBCQsj9tRe9zbMRsH8X6tYGE6CzuiF6k3njCyHrU5JWPMsoPwNZd9Bk9Kaqy29izB8PbuU6smtv8HLcTEAv"
+    assert e.nextPart() == "[c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDNc5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBoMxfrVggXj5NJmaNEToWpax8GMMucozvAdqf1bW1JsZsfdBzsK3VUC5"
 
 def test_specter_xpub_qr():
 
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.SPECTERXPUBQR, network="test", policy="PKWPKH", derivation="m/48h/1h/0h/2h", qr_density=EncodeQRDensity.LOW)
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.SPECTERXPUBQR, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQRDensity.LOW, wordlist=bip39.WORDLIST)
 
-    assert e.nextPart() == "p1of4 [c49122a5/48h/1h/0h/2h]vpub5adb6xr5X1yqx"
-    assert e.nextPart() == "p2of4 2v7qoo5uR32BBCQsj9tRe9zbMRsH8X6tYGE6Czui"
-    assert e.nextPart() == "p3of4 F6k3njCyHrU5JWPMsoPwNZd9Bk9Kaqy29izB8Pbu"
-    assert e.nextPart() == "p4of4 U6smtv8HLcTEAv"
+    assert e.nextPart() == "p1of4 [c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDN"
+    assert e.nextPart() == "p2of4 c5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBo"
+    assert e.nextPart() == "p3of4 MxfrVggXj5NJmaNEToWpax8GMMucozvAdqf1bW1J"
+    assert e.nextPart() == "p4of4 sZsfdBzsK3VUC5"
 
 

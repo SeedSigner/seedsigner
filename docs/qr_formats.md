@@ -15,6 +15,7 @@ Static QR Formats:
     - Base64 (if the PSBT byte size is too large, SS may have trouble scanning)
 - Seed
     - SeedSigner Seed QR format
+        - A 48 or 96 length string of numbers representing a bip39 wordlist (all wordlist languages supported). The numeric sequence is a concatination of four-digit zero padded segments. Each four-digit segment represents a bip39 word expressed by a zero-indexed position in the wordlist. For example "0000" is abandon in the english bip39 wordlist.
 	- English Bip39 Mnemonic words separated by a space. Currently only supports 12 and 24 word seeds.
 	- English Bip39 Mnemonic with only first 4 letters seperated by a space. Currently only supports 12 and 24 word seeds.
 
@@ -30,3 +31,4 @@ Animated QR Formats:
 Static QR Formats:
 - Seed
     - SeedSigner Seed QR format
+        - A 48 or 96 length string of numbers representing a bip39 wordlist (all wordlist languages supported). The numeric sequence is a concatination of four-digit zero padded segments. Each four-digit segment represents a bip39 word expressed by a zero-indexed position in the wordlist. For example "0000" is abandon in the english bip39 wordlist.

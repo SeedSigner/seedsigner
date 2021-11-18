@@ -23,10 +23,10 @@ def test_calculate_checksum():
     """
     # Test mnemonics from https://iancoleman.io/bip39/
     partial_mnemonic = "crawl focus rescue cable view pledge rather dinner cousin unfair day"
-    mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "))
+    mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist=bip39.WORDLIST)
     assert bip39.mnemonic_is_valid(" ".join(mnemonic))
 
     partial_mnemonic = "bubble father debate ankle injury fence mesh evolve section wet coyote violin pyramid flower rent arrow round clutch myth safe base skin mobile"
-    mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "))
+    mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist=bip39.WORDLIST)
     assert bip39.mnemonic_is_valid(" ".join(mnemonic))
 

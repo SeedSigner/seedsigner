@@ -1,8 +1,9 @@
 from seedsigner.helpers import Singleton
-from .encode_qr import EncodeQRDensity
 from .qr_type import QRType
+from .encode_qr_density import EncodeQRDensity
 
 import configparser
+from embit import bip39
 
 class Settings(Singleton):
 
@@ -12,7 +13,7 @@ class Settings(Singleton):
         if cls._instance:
             raise Exception("Instance already configured")
 
-        # Instantiate the one and only Controller instance
+        # Instantiate the one and only instance
         settings = cls.__new__(cls)
         cls._instance = settings
 
@@ -21,17 +22,18 @@ class Settings(Singleton):
             'system': {
                 'debug': False,
                 'default_language': "en",
-                'persistent_settings': False
+                'persistent_settings': False,
+                'wordlist': bip39.WORDLIST
             },
             'display': {
                 'text_color': "ORANGE",
+                'qr_background_color': "FFFFFF",
+                'camera_rotation': 0
             },
             'wallet': {
                 'network': "main",
                 'software': "Specter Desktop",
                 'qr_density': EncodeQRDensity.MEDIUM,
-                'script_policy': "PKWSH",
-                'custom_derivation_enabled': False,
                 'custom_derivation': 'm/0/0'
             }
         }
@@ -49,12 +51,12 @@ class Settings(Singleton):
         self._data["system"]["debug"] = config.getboolean("system", "debug")
         self._data["system"]["default_language"] = config["system"]["default_language"]
         self._data["display"]["text_color"] = config["display"]["text_color"]
+        self._data["display"]["camera_rotation"] = int(config["display"]["camera_rotation"])
         self.network = config["wallet"]["network"]
         self.software = config["wallet"]["software"]
         self.qr_density = int(config["wallet"]["qr_density"])
-        self.script_policy = config["wallet"]["script_policy"]
-        self.custom_derivation_enabled = config.getboolean("wallet", "custom_derivation_enabled")
         self.custom_derivation = config["wallet"]["custom_derivation"]
+        self.qr_background_color = config["display"]["qr_background_color"]
 
     ### persistent settings handling
 
@@ -116,12 +118,37 @@ class Settings(Singleton):
     @property
     def language(self):
         return self._data["system"]["default_language"]
+        
+    @property
+    def wordlist(self):
+        return self._data["system"]["wordlist"]
 
     ### display
 
     @property
     def text_color(self):
         return self._data["display"]["text_color"]
+    
+    @property
+    def qr_background_color(self):
+        return self._data["display"]["qr_background_color"]
+        
+    @qr_background_color.setter
+    def qr_background_color(self, value):
+        self._data["display"]["qr_background_color"] = value
+        self.__writeConfig()
+
+    @property
+    def camera_rotation(self):
+        return self._data["display"]["camera_rotation"]
+
+    @camera_rotation.setter
+    def camera_rotation(self, value):
+        if value in [0, 90, 180, 270]:
+            self._data["display"]["camera_rotation"] = value
+            self.__writeConfig()
+        else:
+            raise Exception("Unexpected display.camera_rotation settings.ini value")
 
     ### wallet
 
@@ -191,58 +218,49 @@ class Settings(Singleton):
             return "Unknown"
 
     @property
-    def script_policy(self):
-        return self._data["wallet"]["script_policy"]
-
-    @script_policy.setter
-    def script_policy(self, value):
-        if value in ("PKWSH", "PKWPKH"):
-            self._data["wallet"]["script_policy"] = value
-            self.__writeConfig()
-        else:
-            raise Exception("Unexpected wallet.script_policy settings.ini value")
-
-    @property
-    def policy_name(self):
-        if self.script_policy == "PKWSH":
-            return "Multi Sig"
-        elif self.script_policy == "PKWPKH":
-            return "Single Sig"
-        else:
-            raise Exception("Unexpected Wallet policy value")
-
-    @property
     def custom_derivation(self):
-        if self._data["wallet"]["custom_derivation_enabled"]:
-            return self._data["wallet"]["custom_derivation"]
-        else:
-            return None
-
-    @property
-    def derivation(self):
-        if self.script_policy == "PKWSH" and self.network == "main":
-            return "m/48'/0'/0'/2'"
-        elif self.script_policy == "PKWSH" and self.network == "test":
-            return "m/48'/1'/0'/2'"
-        elif self.script_policy == "PKWPKH" and self.network == "main":
-            return "m/84'/0'/0'"
-        elif self.script_policy == "PKWPKH" and self.network == "test":
-            return "m/84'/1'/0'"
-        else:
-            raise Exception("Unsupported Derivation Path or Policy")
+        return self._data["wallet"]["custom_derivation"]
 
     @custom_derivation.setter
     def custom_derivation(self, value):
         # TODO: parse and validate custom derivation path
         self._data["wallet"]["custom_derivation"] = value
-
-    @property
-    def custom_derivation_enabled(self):
-        return self._data["wallet"]["custom_derivation_enabled"]
-
-    @custom_derivation_enabled.setter
-    def custom_derivation_enabled(self, value):
-        if type(value) == bool:
-            self._data["wallet"]["custom_derivation_enabled"] = value
+            
+    @staticmethod
+    def calc_derivation(network, wallet_type, script_type):
+        if network == "main":
+            if wallet_type.lower() == "single sig":
+                if script_type.lower() == "native segwit":
+                    return "m/84'/0'/0'"
+                elif script_type.lower() == "nested segwit":
+                    return "m/49'/0'/0'"
+                else:
+                    raise Exception("Unexpected script type")
+            elif wallet_type.lower() == "multisig":
+                if script_type.lower() == "native segwit":
+                    return "m/48'/0'/0'/2'"
+                elif script_type.lower() == "nested segwit":
+                    return "m/48'/0'/0'/1'"
+                else:
+                    raise Exception("Unexpected script type")
+            else:
+                raise Exception("Unexpected wallet type")
+        elif network == "test":
+            if wallet_type.lower() == "single sig":
+                if script_type.lower() == "native segwit":
+                    return "m/84'/1'/0'"
+                elif script_type.lower() == "nested segwit":
+                    return "m/49'/1'/0'"
+                else:
+                    raise Exception("Unexpected script type")
+            elif wallet_type.lower() == "multisig":
+                if script_type.lower() == "native segwit":
+                    return "m/48'/1'/0'/2'"
+                elif script_type.lower() == "nested segwit":
+                    return "m/48'/1'/0'/1'"
+                else:
+                    raise Exception("Unexpected script type")
+            else:
+                raise Exception("Unexpected wallet type")
         else:
-            raise Exception("Unexpected wallet.custom_derivation_enabled settings.ini value")
+            raise Exception("Unexpected network type")
