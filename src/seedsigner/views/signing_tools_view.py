@@ -28,15 +28,15 @@ class SigningToolsView(View):
     def display_transaction_information(self, p) -> None:
         self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
-        tw, th = self.draw.textsize("Confirm Tx Details", font=View.IMPACT25)
-        self.draw.text(((240 - tw) / 2, 3), "Confirm Tx Details", fill=View.color, font=View.IMPACT25)
+        tw, th = self.draw.textsize("Confirm Tx Details", font=View.ASSISTANT25)
+        self.draw.text(((240 - tw) / 2, 3), "Confirm Tx Details", fill=View.color, font=View.ASSISTANT25)
 
         in_fee_outs_str = str(len(p.psbt.inputs))
         in_fee_outs_str += " inputs - fee = " if len(p.psbt.inputs) > 1 else " input - fee = "
         in_fee_outs_str += str(len(p.psbt.outputs))
         in_fee_outs_str += " outs" if len(p.psbt.outputs) > 1 else " out"
-        tw, th = self.draw.textsize(in_fee_outs_str, font=View.IMPACT22)
-        self.draw.text(((240 - tw) / 2, 40), in_fee_outs_str, fill=View.color, font=View.IMPACT22)
+        tw, th = self.draw.textsize(in_fee_outs_str, font=View.ASSISTANT22)
+        self.draw.text(((240 - tw) / 2, 40), in_fee_outs_str, fill=View.color, font=View.ASSISTANT22)
 
         receiving_addr_str1 = ""
         receiving_addr_str2 = ""
@@ -45,45 +45,45 @@ class SigningToolsView(View):
             receiving_addr_str2 += "receiving addresses"
         elif len(p.destination_addresses) == 1:
             receiving_addr_str1 += "receiving address"
-            receiving_addr_str2 += "last 13: ..." + p.destination_addresses[0][-13:]
+            receiving_addr_str2 += "last 13: ... " + p.destination_addresses[0][-13:]
         else:
             receiving_addr_str1 += "Self-Transfer"
         
-        tw, th = self.draw.textsize(receiving_addr_str1, font=View.IMPACT22)
-        self.draw.text(((240 - tw) / 2, 75), receiving_addr_str1, fill=View.color, font=View.IMPACT22)
+        tw, th = self.draw.textsize(receiving_addr_str1, font=View.ASSISTANT22)
+        self.draw.text(((240 - tw) / 2, 75), receiving_addr_str1, fill=View.color, font=View.ASSISTANT22)
         if len(receiving_addr_str2) > 0:
-            tw, th = self.draw.textsize(receiving_addr_str2, font=View.IMPACT22)
-            self.draw.text(((240 - tw) / 2, 100), receiving_addr_str2, fill=View.color, font=View.IMPACT22)
+            tw, th = self.draw.textsize(receiving_addr_str2, font=View.ROBOTOCONDENSED_BOLD_18)
+            self.draw.text(((240 - tw) / 2, 105), receiving_addr_str2, fill=View.color, font=View.ROBOTOCONDENSED_BOLD_18)
 
 
         if p.spend_amount > 0:
             spending_str = "Spend: " + str(p.spend_amount) + " sats"
-            tw, th = self.draw.textsize(spending_str, font=View.IMPACT22)
-            self.draw.text(((240 - tw) / 2, 130), spending_str, fill=View.color, font=View.IMPACT22)
+            tw, th = self.draw.textsize(spending_str, font=View.ASSISTANT22)
+            self.draw.text(((240 - tw) / 2, 130), spending_str, fill=View.color, font=View.ASSISTANT22)
 
         if p.change_amount > 0 and len(p.destination_addresses) == 0:
             change_str = "Amount: " + str(p.change_amount) + " sats"
-            tw, th = self.draw.textsize(change_str, font=View.IMPACT22)
-            self.draw.text(((240 - tw) / 2, 155), change_str, fill=View.color, font=View.IMPACT22)
+            tw, th = self.draw.textsize(change_str, font=View.ASSISTANT22)
+            self.draw.text(((240 - tw) / 2, 155), change_str, fill=View.color, font=View.ASSISTANT22)
         elif p.change_amount > 0:
             change_str = "Change: " + str(p.change_amount) + " sats"
-            tw, th = self.draw.textsize(change_str, font=View.IMPACT22)
-            self.draw.text(((240 - tw) / 2, 155), change_str, fill=View.color, font=View.IMPACT22)
+            tw, th = self.draw.textsize(change_str, font=View.ASSISTANT22)
+            self.draw.text(((240 - tw) / 2, 155), change_str, fill=View.color, font=View.ASSISTANT22)
 
         fee_str = "Fee: " + str(p.fee_amount) + " sats"
-        tw, th = self.draw.textsize(fee_str, font=View.IMPACT22)
-        self.draw.text(((240 - tw) / 2, 180), fee_str, fill=View.color, font=View.IMPACT22)
+        tw, th = self.draw.textsize(fee_str, font=View.ASSISTANT22)
+        self.draw.text(((240 - tw) / 2, 180), fee_str, fill=View.color, font=View.ASSISTANT22)
 
-        tw, th = self.draw.textsize("Left to Exit, Right to Continue", font=View.IMPACT18)
-        self.draw.text(((240 - tw) / 2, 215), "Left to Exit, Right to Continue", fill=View.color, font=View.IMPACT18)
+        tw, th = self.draw.textsize("Left to Exit, Right to Continue", font=View.ASSISTANT18)
+        self.draw.text(((240 - tw) / 2, 215), "Left to Exit, Right to Continue", fill=View.color, font=View.ASSISTANT18)
 
         View.DispShowImage()
 
     def qr_gen_status(percentage):
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        tw, th = View.draw.textsize("QR Generation", font=View.IMPACT25)
-        View.draw.text(((240 - tw) / 2, 90), "QR Generation", fill=View.color, font=View.IMPACT25)
-        tw, th = View.draw.textsize(str(round(percentage)) + "% Complete", font=View.IMPACT25)
-        View.draw.text(((240 - tw) / 2, 125), str(round(percentage)) + "% Complete", fill=View.color, font=View.IMPACT25)
+        tw, th = View.draw.textsize("QR Generation", font=View.ASSISTANT25)
+        View.draw.text(((240 - tw) / 2, 90), "QR Generation", fill=View.color, font=View.ASSISTANT25)
+        tw, th = View.draw.textsize(str(round(percentage)) + "% Complete", font=View.ASSISTANT25)
+        View.draw.text(((240 - tw) / 2, 125), str(round(percentage)) + "% Complete", fill=View.color, font=View.ASSISTANT25)
         View.DispShowImage()
 

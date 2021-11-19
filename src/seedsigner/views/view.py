@@ -16,25 +16,35 @@ class View:
 
     WIDTH = 240
     HEIGHT = 240
-
-    # Define necessary fonts
-    IMPACT16 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 16)
-    IMPACT18 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 18)
-    IMPACT20 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 20)
-    IMPACT21 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 21)
-    IMPACT22 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 22)
-    IMPACT23 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 23)
-    IMPACT25 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 25)
-    IMPACT26 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 26)
-    IMPACT35 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 35)
-    IMPACT50 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/Impact.ttf', 50)
-    COURIERNEW14 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 14)
-    COURIERNEW24 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 24)
-    COURIERNEW38 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 38)
-    COURIERNEW30 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 30)
-    COURIERNEW20 = ImageFont.truetype('/usr/share/fonts/truetype/msttcorefonts/courbd.ttf', 20)
-
+    
     font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
+    
+    # Define necessary fonts
+    ASSISTANT16 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 16)
+    ASSISTANT18 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 18)
+    ASSISTANT20 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 20)
+    ASSISTANT21 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 21)
+    ASSISTANT22 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 22)
+    ASSISTANT23 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 23)
+    ASSISTANT25 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 25)
+    ASSISTANT26 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 26)
+    ASSISTANT35 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 35)
+    ASSISTANT50 = ImageFont.truetype(os.path.join(font_path, 'Assistant-Medium.ttf'), 50)
+    ASSISTANT16BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 15)
+    ASSISTANT18BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 17)
+    ASSISTANT20BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 19)
+    ASSISTANT21BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 20)
+    ASSISTANT22BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 21)
+    ASSISTANT23BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 22)
+    ASSISTANT25BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 25)
+    ASSISTANT26BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 26)
+    ASSISTANT35BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 35)
+    ASSISTANT50BOLD = ImageFont.truetype(os.path.join(font_path, 'Assistant-Bold.ttf'), 50)
+    ROBOTOMONO14 = ImageFont.truetype(os.path.join(font_path, 'RobotoMono-Medium.ttf'), 14)
+    ROBOTOMONO24 = ImageFont.truetype(os.path.join(font_path, 'RobotoMono-Medium.ttf'), 24)
+    ROBOTOMONO38 = ImageFont.truetype(os.path.join(font_path, 'RobotoMono-Medium.ttf'), 38)
+    ROBOTOMONO30 = ImageFont.truetype(os.path.join(font_path, 'RobotoMono-Medium.ttf'), 30)
+    ROBOTOMONO20 = ImageFont.truetype(os.path.join(font_path, 'RobotoMono-Medium.ttf'), 20)
 
     ROBOTOCONDENSED_BOLD_16 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 16)
     ROBOTOCONDENSED_BOLD_18 = ImageFont.truetype(os.path.join(font_path, "RobotoCondensed-Bold.ttf"), 18)
@@ -67,6 +77,7 @@ class View:
     disp = None
     previous_button_width = None
 
+
     def __init__(self) -> None:
         # Import here to avoid circular imports
         from seedsigner.controller import Controller
@@ -88,12 +99,22 @@ class View:
 
         self.queue = Queue()
 
+
     def DispShowImage(image=None, alpha_overlay=None):
         if image == None:
             image = View.canvas
+        else:
+            # Always keep a copy of the current display in the canvas
+            View.canvas.paste(image)
+
         if alpha_overlay:
             image = Image.alpha_composite(image, alpha_overlay)
+
+            # Always keep a copy of the current display in the canvas
+            View.canvas.paste(image)
+
         View.disp.ShowImage(image, 0, 0)
+
 
     def disp_show_image_pan(image, start_x, start_y, end_x, end_y, rate, alpha_overlay=None):
         cur_x = start_x
@@ -123,6 +144,9 @@ class View:
             if alpha_overlay:
                 crop = Image.alpha_composite(crop, alpha_overlay)
 
+            # Always keep a copy of the current display in the canvas
+            View.canvas.paste(crop)
+
             View.disp.ShowImage(crop, 0, 0)
 
 
@@ -134,11 +158,12 @@ class View:
         text_overlay = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
         text_overlay_draw = ImageDraw.Draw(text_overlay)
         if not font:
-            font = View.COURIERNEW14
+            font = View.ASSISTANT18
         tw, th = text_overlay_draw.textsize(text, font=font)
         if text_background:
             text_overlay_draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), fill=text_background)
         text_overlay_draw.text(((240 - tw) / 2, 240 - th - 1), text, fill=text_color, font=font)
+
         View.DispShowImage(image_copy, alpha_overlay=text_overlay)
 
 
@@ -146,38 +171,97 @@ class View:
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
         if len(title) > 0:
-            tw, th = View.draw.textsize(title, font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.IMPACT22)
+            tw, th = View.draw.textsize(title, font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.ASSISTANT22)
 
         if len(bottom) > 0:
-            tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-            View.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.IMPACT18)
+            tw, th = View.draw.textsize(bottom, font=View.ASSISTANT18)
+            View.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.ASSISTANT18)
 
         if len(lines) == 1:
-            tw, th = View.draw.textsize(lines[0], font=View.IMPACT26)
-            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.IMPACT26)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT26)
+            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.ASSISTANT26)
         elif len(lines) == 2:
-            tw, th = View.draw.textsize(lines[0], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.IMPACT22)
-            tw, th = View.draw.textsize(lines[1], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 125), lines[1], fill=View.color, font=View.IMPACT22)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[1], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[1], fill=View.color, font=View.ASSISTANT22)
         elif len(lines) == 3:
-            tw, th = View.draw.textsize(lines[0], font=View.IMPACT26)
-            View.draw.text(((240 - tw) / 2, 55), lines[0], fill=View.color, font=View.IMPACT26)
-            tw, th = View.draw.textsize(lines[1], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.IMPACT22)
-            tw, th = View.draw.textsize(lines[2], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.IMPACT22)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT26)
+            View.draw.text(((240 - tw) / 2, 55), lines[0], fill=View.color, font=View.ASSISTANT26)
+            tw, th = View.draw.textsize(lines[1], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[2], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.ASSISTANT22)
         elif len(lines) == 4:
-            tw, th = View.draw.textsize(lines[0], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 55), lines[0], fill=View.color, font=View.IMPACT22)
-            tw, th = View.draw.textsize(lines[1], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.IMPACT22)
-            tw, th = View.draw.textsize(lines[2], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.IMPACT22)
-            tw, th = View.draw.textsize(lines[3], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 160), lines[3], fill=View.color, font=View.IMPACT22)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 55), lines[0], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[1], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[2], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[3], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 160), lines[3], fill=View.color, font=View.ASSISTANT22)
 
+        View.DispShowImage()
+
+        return
+
+    def draw_address(self, address) -> None:
+        
+        if address.startswith(tuple(['1','2','3'])):
+            dividby = 14
+        else:
+            dividby = 18
+        address_parts = [address[i:i+dividby] for i in range(0, len(address), dividby)]
+        address_part_1 = address_parts[0]
+        address_part_2 = address_parts[1] if len(address_parts) >= 2 else ""
+        address_part_3 = address_parts[2] if len(address_parts) >= 3 else ""
+        address_part_4 = address_parts[3] if len(address_parts) >= 4 else ""
+        
+        View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
+
+        tw, th = View.draw.textsize("Right to Continue", font=View.ASSISTANT18)
+        View.draw.text(((240 - tw) / 2, 210), "Right to Continue", fill=View.color, font=View.ASSISTANT18)
+
+        tw, th = View.draw.textsize("Bitcoin Address", font=View.ASSISTANT22)
+        View.draw.text(((240 - tw) / 2, 35), "Bitcoin Address", fill=View.color, font=View.ASSISTANT22)
+        tw, th = View.draw.textsize(address_part_1, font=View.ROBOTOCONDENSED_REGULAR_22)
+        View.draw.text(((240 - tw) / 2, 70), address_part_1, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_22)
+        tw, th = View.draw.textsize(address_part_2, font=View.ROBOTOCONDENSED_REGULAR_22)
+        View.draw.text(((240 - tw) / 2, 105), address_part_2, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_22)
+        tw, th = View.draw.textsize(address_part_3, font=View.ROBOTOCONDENSED_REGULAR_22)
+        View.draw.text(((240 - tw) / 2, 140), address_part_3, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_22)
+        tw, th = View.draw.textsize(address_part_4, font=View.ROBOTOCONDENSED_REGULAR_22)
+        View.draw.text(((240 - tw) / 2, 175), address_part_4, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_22)
+
+        View.DispShowImage()
+
+        return
+        
+    def draw_passphrase(self, title, passphrase, bottom) -> None:
+        View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
+
+        tw, th = View.draw.textsize(bottom, font=View.ASSISTANT18)
+        View.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.ASSISTANT18)
+        
+        passphrase_part_1 = passphrase[0:20]
+        passphrase_part_2 = passphrase[20:40]
+        passphrase_part_3 = passphrase[40:60]
+        passphrase_part_4 = passphrase[60:1000]
+        
+        tw, th = View.draw.textsize(title, font=View.ASSISTANT26)
+        View.draw.text(((240 - tw) / 2, 30), title, fill=View.color, font=View.ASSISTANT26)
+        
+        tw, th = View.draw.textsize(passphrase_part_1, font=View.ROBOTOCONDENSED_REGULAR_20)
+        View.draw.text(((240 - tw) / 2, 70), passphrase_part_1, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_20)
+        tw, th = View.draw.textsize(passphrase_part_2, font=View.ROBOTOCONDENSED_REGULAR_20)
+        View.draw.text(((240 - tw) / 2, 100), passphrase_part_2, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_20)
+        tw, th = View.draw.textsize(passphrase_part_3, font=View.ROBOTOCONDENSED_REGULAR_20)
+        View.draw.text(((240 - tw) / 2, 130), passphrase_part_3, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_20)
+        tw, th = View.draw.textsize(passphrase_part_4, font=View.ROBOTOCONDENSED_REGULAR_20)
+        View.draw.text(((240 - tw) / 2, 160), passphrase_part_4, fill=View.color, font=View.ROBOTOCONDENSED_REGULAR_20)
+        
         View.DispShowImage()
 
         return
@@ -187,51 +271,52 @@ class View:
         self.draw_prompt_custom("", "Yes ", "No ", lines, title, bottom)
         return
 
+
     def draw_prompt_custom(self, a_txt, b_txt, c_txt, lines = [], title = "", bottom = "") -> None:
 
         View.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
 
         if len(title) > 0:
-            tw, th = View.draw.textsize(title, font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.IMPACT22)
+            tw, th = View.draw.textsize(title, font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.ASSISTANT22)
 
         if len(bottom) > 0:
-            tw, th = View.draw.textsize(bottom, font=View.IMPACT18)
-            View.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.IMPACT18)
+            tw, th = View.draw.textsize(bottom, font=View.ASSISTANT18)
+            View.draw.text(((240 - tw) / 2, 210), bottom, fill=View.color, font=View.ASSISTANT18)
 
         if len(lines) == 1:
-            tw, th = View.draw.textsize(lines[0], font=View.IMPACT26)
-            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.IMPACT26)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT26)
+            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.ASSISTANT26)
         elif len(lines) == 2:
-            tw, th = View.draw.textsize(lines[0], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.IMPACT22)
-            tw, th = View.draw.textsize(lines[1], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 125), lines[1], fill=View.color, font=View.IMPACT22)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[0], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[1], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[1], fill=View.color, font=View.ASSISTANT22)
         elif len(lines) == 3:
-            tw, th = View.draw.textsize(lines[0], font=View.IMPACT26)
-            View.draw.text(((240 - tw) / 2, 20), lines[0], fill=View.color, font=View.IMPACT26)
-            tw, th = View.draw.textsize(lines[1], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.IMPACT22)
-            tw, th = View.draw.textsize(lines[2], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.IMPACT22)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT26)
+            View.draw.text(((240 - tw) / 2, 20), lines[0], fill=View.color, font=View.ASSISTANT26)
+            tw, th = View.draw.textsize(lines[1], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[2], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.ASSISTANT22)
         elif len(lines) == 4:
-            tw, th = View.draw.textsize(lines[0], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 20), lines[0], fill=View.color, font=View.IMPACT22)
-            tw, th = View.draw.textsize(lines[1], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.IMPACT22)
-            tw, th = View.draw.textsize(lines[2], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.IMPACT22)
-            tw, th = View.draw.textsize(lines[3], font=View.IMPACT22)
-            View.draw.text(((240 - tw) / 2, 160), lines[3], fill=View.color, font=View.IMPACT22)
+            tw, th = View.draw.textsize(lines[0], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 20), lines[0], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[1], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 90), lines[1], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[2], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 125), lines[2], fill=View.color, font=View.ASSISTANT22)
+            tw, th = View.draw.textsize(lines[3], font=View.ASSISTANT22)
+            View.draw.text(((240 - tw) / 2, 160), lines[3], fill=View.color, font=View.ASSISTANT22)
 
-        a_x_offset = 240 - View.IMPACT25.getsize(a_txt)[0]
-        View.draw.text((a_x_offset, 39 + 0), a_txt, fill=View.color, font=View.IMPACT25)
+        a_x_offset = 240 - View.ASSISTANT25.getsize(a_txt)[0]
+        View.draw.text((a_x_offset, 39 + 0), a_txt, fill=View.color, font=View.ASSISTANT25)
 
-        b_x_offset = 240 - View.IMPACT25.getsize(b_txt)[0]
-        View.draw.text((b_x_offset , 39 + 60), b_txt, fill=View.color, font=View.IMPACT25)
+        b_x_offset = 240 - View.ASSISTANT25.getsize(b_txt)[0]
+        View.draw.text((b_x_offset , 39 + 60), b_txt, fill=View.color, font=View.ASSISTANT25)
 
-        c_x_offset = 240 - View.IMPACT25.getsize(c_txt)[0]
-        View.draw.text((c_x_offset , 39 + 120), c_txt, fill=View.color, font=View.IMPACT25)
+        c_x_offset = 240 - View.ASSISTANT25.getsize(c_txt)[0]
+        View.draw.text((c_x_offset , 39 + 120), c_txt, fill=View.color, font=View.ASSISTANT25)
 
         View.DispShowImage()
 
@@ -251,14 +336,14 @@ class View:
         line3 = "30 seconds before"
         line4 = "disconnecting power."
 
-        tw, th = View.draw.textsize(line1, font=View.IMPACT22)
-        View.draw.text(((240-tw)/2, 45), line1, fill=View.color, font=View.IMPACT22)
-        tw, th = View.draw.textsize(line2, font=View.IMPACT20)
-        View.draw.text(((240-tw)/2, 100), line2, fill=View.color, font=View.IMPACT20)
-        tw, th = View.draw.textsize(line3, font=View.IMPACT20)
-        View.draw.text(((240-tw)/2, 130), line3, fill=View.color, font=View.IMPACT20)
-        tw, th = View.draw.textsize(line4, font=View.IMPACT20)
-        View.draw.text(((240-tw)/2, 160), line4, fill=View.color, font=View.IMPACT20)
+        tw, th = View.draw.textsize(line1, font=View.ASSISTANT22)
+        View.draw.text(((240-tw)/2, 45), line1, fill=View.color, font=View.ASSISTANT22)
+        tw, th = View.draw.textsize(line2, font=View.ASSISTANT20)
+        View.draw.text(((240-tw)/2, 100), line2, fill=View.color, font=View.ASSISTANT20)
+        tw, th = View.draw.textsize(line3, font=View.ASSISTANT20)
+        View.draw.text(((240-tw)/2, 130), line3, fill=View.color, font=View.ASSISTANT20)
+        tw, th = View.draw.textsize(line4, font=View.ASSISTANT20)
+        View.draw.text(((240-tw)/2, 160), line4, fill=View.color, font=View.ASSISTANT20)
         View.DispShowImage()
 
 

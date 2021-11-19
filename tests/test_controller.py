@@ -6,37 +6,43 @@ from seedsigner.controller import Controller
 
 
 def test_singleton_init_fails():
-	""" The Controller should not allow any code to instantiate it via Controller() """
-	with pytest.raises(Exception):
-		c = Controller()
+    """ The Controller should not allow any code to instantiate it via Controller() """
+    with pytest.raises(Exception):
+        c = Controller()
 
 def test_singleton_get_instance_without_configure_fails():
-	""" Calling get_instance() without first calling configure_instance() should fail """
-	with pytest.raises(Exception):
-		c = Controller.get_instance()
+    """ Calling get_instance() without first calling configure_instance() should fail """
+    with pytest.raises(Exception):
+        c = Controller.get_instance()
 
 def test_singleton_get_instance_preserves_state():
-	""" Changes to the Controller singleton should be preserved across calls to get_instance() """
-	settings = """
-		[system]
-		DEBUG = True
-		DEFAULT_LANGUAGE = en
+    """ Changes to the Controller singleton should be preserved across calls to get_instance() """
+    settings = """
+        [system]
+        debug = False
+        default_language = en
+        persistent_settings = False
 
-		[display]
-		BACKGROUND_COLOR = #000
-		TEXT_COLOR = orange
-	"""
-	config = configparser.ConfigParser()
-	config.read_string(settings)
+        [display]
+        text_color = ORANGE
 
-	# Initialize the instance and verify that it read the config settings
-	Controller.configure_instance(config)
-	controller = Controller.get_instance()
-	assert controller.color == "orange"
+        [wallet]
+        network = main
+        software = Prompt
+        qr_density = 2
+        custom_derivation = m/0/0
+    """
+    config = configparser.ConfigParser()
+    config.read_string(settings)
 
-	# Change a value in the instance...
-	controller.color = "purple"
+    # Initialize the instance and verify that it read the config settings
+    Controller.configure_instance(config)
+    controller = Controller.get_instance()
+    assert controller.color == "ORANGE"
 
-	# ...get a new copy of the instance and confirm change
-	controller = Controller.get_instance()
-	assert controller.color == "purple"
+    # Change a value in the instance...
+    controller.color = "purple"
+
+    # ...get a new copy of the instance and confirm change
+    controller = Controller.get_instance()
+    assert controller.color == "purple"

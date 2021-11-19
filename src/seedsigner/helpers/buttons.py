@@ -40,10 +40,30 @@ class Buttons:
 
 
     def wait_for(self, keys=[], check_release=True, release_keys=[]) -> int:
+        # TODO: Refactor to keep control in the Controller and not here
+        from seedsigner.controller import Controller
+        controller = Controller.get_instance()
+
         if not release_keys:
             release_keys = keys
         self.override_ind = False
+
         while True:
+            cur_time = int(time.time() * 1000)
+            if cur_time - self.last_input_time > controller.screensaver_activation_ms and not controller.screensaver.is_running:
+                # Start the screensaver. Will block execution until input detected.
+                controller.start_screensaver()
+
+                # We're back. Update last_input_time to now.
+                self.update_last_input_time()
+
+                # Freeze any further processing for a moment to avoid having the wakeup
+                #   input register in the resumed UI.
+                time.sleep(self.next_repeat_threshold / 1000.0)
+
+                # Resume from a fresh loop
+                continue
+
             for key in keys:
                 if not check_release or ((check_release and key in release_keys and B.release_lock) or check_release and key not in release_keys):
                     # when check release is False or the release lock is released (True)
@@ -61,8 +81,6 @@ class Buttons:
 
                         else:
                             # Still pressing the same input
-                            cur_time = int(time.time() * 1000)
-
                             if cur_time - self.last_input_time > self.next_repeat_threshold:
                                 # Too much time has elapsed to consider this the same
                                 #   continuous input. Treat as a new separate press.
@@ -92,6 +110,10 @@ class Buttons:
             time.sleep(0.01) # wait 10 ms to give CPU chance to do other things
 
 
+    def update_last_input_time(self):
+        self.last_input_time = int(time.time() * 1000)
+
+
     def add_events(self, keys=[]):
         for key in keys:
             GPIO.add_event_detect(key, self.GPIO.RISING, callback=Buttons.rising_callback)
@@ -115,7 +137,18 @@ class Buttons:
         return True
 
     def check_for_low(self, key) -> bool:
-        return self.GPIO.input(key) == self.GPIO.LOW
+        if self.GPIO.input(key) == self.GPIO.LOW:
+            self.update_last_input_time()
+            return True
+        else:
+            return False
+
+    def has_any_input(self) -> bool:
+        for key in B.ALL_KEYS:
+            if self.GPIO.input(key) == GPIO.LOW:
+                return True
+        return False
+
 
 
 
@@ -132,5 +165,16 @@ class B:
     KEY2 = 20
     KEY3 = 16
     OVERRIDE = 1000
+
+    ALL_KEYS = [
+        KEY_UP,
+        KEY_DOWN,
+        KEY_LEFT,
+        KEY_RIGHT,
+        KEY_PRESS,
+        KEY1,
+        KEY2,
+        KEY3,
+    ]
 
     release_lock = True # released when True, locked when False
