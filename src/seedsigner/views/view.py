@@ -1,5 +1,7 @@
 import time
 
+from dataclasses import dataclass
+
 from seedsigner.gui.components import Fonts
 from seedsigner.gui.screens import (RET_CODE__POWER_BUTTON, ButtonListScreen,
     TextTopNavScreen)
@@ -63,8 +65,6 @@ class View:
         else:
             raise Exception("Must implement in the child class")
 
-
-
     ###
     ### Reusable components
     ###
@@ -89,6 +89,38 @@ class View:
 
 
 
+@dataclass
+class Destination:
+    """
+        Basic struct to pass back to the Controller to tell it which View the user should
+        be presented with next.
+    """
+    View_cls: View              # The target View to route to
+    view_args: dict = None          # The input args required to instantiate the target View
+    clear_history: bool = False     # Optionally clears the back_stack to prevent "back"
+
+    def __str__(self):
+        if self.View_cls is None:
+            out = "None"
+        else:
+            out = self.View_cls.__name__
+        if self.view_args:
+            out += f"({self.view_args})"
+        else:
+            out += "()"
+        if self.clear_history:
+            out += f" | clear_history: {self.clear_history}"
+        return out
+
+    def run(self):
+        if not self.view_args:
+            # Can't unpack (**) None so we replace with an empty dict
+            self.view_args = {}
+        # Instantiate the `View_cls` and run() it with the `view_args` dict
+        return self.View_cls(**self.view_args).run()
+
+
+
 #########################################################################################
 #
 # Root level Views don't have a sub-module home so they live at the top level here.
@@ -99,7 +131,7 @@ class MainMenuView(View):
         from .seed_views import SeedsMenuView
         from .scan_views import ScanView
         from seedsigner.gui.screens import LargeButtonScreen
-        selected_menu_num = LargeButtonScreen(
+        screen= LargeButtonScreen(
             title="Home",
             title_font_size=26,
             button_data=[("Scan", "scan"),
@@ -108,42 +140,44 @@ class MainMenuView(View):
                          ("Settings", "settings")],
             show_back_button=False,
             show_power_button=True,
-        ).display()
+        )
+        selected_menu_num = screen.display()
 
         print(f"selected_menu_num: {selected_menu_num}")
 
         if selected_menu_num == 0:
-            return ScanView
+            return Destination(ScanView)
 
         elif selected_menu_num == 1:
-            return SeedsMenuView
+            return Destination(SeedsMenuView)
 
         elif selected_menu_num == 2:
-            return None
+            return Destination(None)
             # return self.display_settings_menu
 
         elif selected_menu_num == 3:
-            return None
+            return Destination(None)
 
         elif selected_menu_num == RET_CODE__POWER_BUTTON:
-            return PowerOffView
+            return Destination(PowerOffView)
 
 
 
 class PowerOffView(View):
     def run(self):
         from subprocess import call
-        TextTopNavScreen(
+        screen = TextTopNavScreen(
             title="Powering Down",
             text="Please wait about 30 seconds before disconnecting power.",
             text_font_size=22,
             show_back_button=False
-        ).display()
+        )
+        screen.display()
 
         # call("sudo shutdown --poweroff now", shell=True)
         time.sleep(10)
 
         # TODO: Remove debugging
-        return MainMenuView
+        return Destination(MainMenuView)
         # END debugging
 

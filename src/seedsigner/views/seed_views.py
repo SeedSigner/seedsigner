@@ -1,4 +1,4 @@
-from .view import View, BackStackView, MainMenuView
+from .view import View, Destination, BackStackView, MainMenuView
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, LargeButtonScreen,
     WarningScreen, DireWarningScreen)
 from seedsigner.models.seed import SeedConstants
@@ -23,21 +23,22 @@ class SeedsMenuView(View):
             button_data.append((seed["fingerprint"], "fingerprint_inline"))
         button_data.append("Load a seed")
 
-        selected_menu_num = ButtonListScreen(
+        screen = ButtonListScreen(
             title="In-Memory Seeds",
             is_button_text_centered=False,
             button_data=button_data
-        ).display()
+        )
+        selected_menu_num = screen.display()
 
         if len(self.seeds) > 0 and selected_menu_num < len(self.seeds):
-            return (SeedOptionsView, {"seed_num": selected_menu_num})
+            return Destination(SeedOptionsView, view_args={"seed_num": selected_menu_num})
 
         elif selected_menu_num == len(self.seeds):
             # TODO: Load a Seed
             raise Exception("Not yet implemented")
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return BackStackView
+            return Destination(BackStackView)
 
 
 
@@ -51,26 +52,27 @@ class SeedOptionsView(View):
     def run(self):
         from seedsigner.gui.screens.seed_screens import SeedOptionsScreen
 
-        selected_menu_num = SeedOptionsScreen(
+        screen = SeedOptionsScreen(
             fingerprint=self.seed.get_fingerprint(self.settings.network),
             has_passphrase=self.seed.passphrase is not None
-        ).display()
+        )
+        selected_menu_num = screen.display()
 
         if selected_menu_num == 0:
             # View seed words
-            return (ShowSeedWordsWarningView, {"seed_num": self.seed_num})
+            return Destination(ShowSeedWordsWarningView, view_args={"seed_num": self.seed_num})
 
         elif selected_menu_num == 1:
             # TODO: Locked-down "Uncle Jim" mode options to bypass the prompts and just
             #   use the configured defaults (e.g. single sig, native segwit, Blue Wallet)
-            return (SeedExportXpubSigTypeView, {"seed_num": self.seed_num})
+            return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})
 
         elif selected_menu_num == 2:
             # TODO: Export Seed as QR
-            return None
+            return Destination(None)
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return BackStackView
+            return Destination(BackStackView)
 
 
 """****************************************************************************
@@ -85,16 +87,17 @@ class ShowSeedWordsWarningView(View):
     def run(self):
         # from seedsigner.gui.screens.seed_screens import SeedExportXpubWalletScreen
 
-        selected_menu_num = DireWarningScreen(
+        screen = DireWarningScreen(
             warning_text="""You must keep your seed words private & away from all online devices.""",
-        ).display()
+        )
+        selected_menu_num = screen.display()
 
         if selected_menu_num == 0:
             # User clicked "I Understand"
             raise Exception("not implemented yet")
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return BackStackView
+            return Destination(BackStackView)
 
 
 
@@ -109,22 +112,23 @@ class SeedExportXpubSigTypeView(View):
 
 
     def run(self):
-        selected_menu_num = LargeButtonScreen(
+        screen = LargeButtonScreen(
             title="Export Xpub",
             button_data=[
                 "Single Sig",
                 "Multisig",
             ]
-        ).display()
+        )
+        selected_menu_num = screen.display()
 
         if selected_menu_num == 0:
-            return (SeedExportXpubScriptTypeView, {"seed_num": self.seed_num, "sig_type": SeedConstants.SINGLE_SIG})
+            return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": SeedConstants.SINGLE_SIG})
 
         elif selected_menu_num == 1:
-            return (SeedExportXpubScriptTypeView, {"seed_num": self.seed_num, "sig_type": SeedConstants.MULTISIG})
+            return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": SeedConstants.MULTISIG})
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return BackStackView
+            return Destination(BackStackView)
 
 
 
@@ -140,22 +144,23 @@ class SeedExportXpubScriptTypeView(View):
             title="Export Xpub",
             is_button_text_centered=False,
             is_bottom_list=True,
-            button_data=[script_type[1] for script_type in SeedConstants.ALL_SCRIPT_TYPES]
+            button_data=[script_type["display_name"] for script_type in SeedConstants.ALL_SCRIPT_TYPES]
         )
         selected_menu_num = screen.display()
 
         args = {"seed_num": self.seed_num, "sig_type": self.sig_type}
-        if selected_menu_num < len(SeedConstants.ALL_SCRIPT_TYPES):
-            args["script_type"] = SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num][0]
 
-            if SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num][0] == SeedConstants.CUSTOM_DERIVATION:
+        if selected_menu_num < len(SeedConstants.ALL_SCRIPT_TYPES):
+            args["script_type"] = SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num]["type"]
+
+            if SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num]["type"] == SeedConstants.CUSTOM_DERIVATION:
                 # TODO: Route to custom derivation View
                 raise Exception("Not yet implemented")
 
-            return (SeedExportXpubCoordinatorView, args)
+            return Destination(SeedExportXpubCoordinatorView, view_args=args)
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return BackStackView
+            return Destination(BackStackView)
 
 
 
@@ -197,10 +202,10 @@ class SeedExportXpubCoordinatorView(View):
                 "script_type": self.script_type,
                 "coordinator": SettingsConstants.ALL_COORDINATORS[selected_menu_num]
             }
-            return (SeedExportXpubWarningView, args)
+            return Destination(SeedExportXpubWarningView, view_args=args)
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return BackStackView
+            return Destination(BackStackView)
 
 
 
@@ -224,15 +229,18 @@ class SeedExportXpubWarningView(View):
 
         if selected_menu_num == 0:
             # User clicked "I Understand"
-            return(SeedExportXpubDetailsView, {
-                "seed_num": self.seed_num,
-                "sig_type": self.sig_type,
-                "script_type": self.script_type,
-                "coordinator": self.coordinator,
-            })
+            return Destination(
+                SeedExportXpubDetailsView,
+                view_args={
+                    "seed_num": self.seed_num,
+                    "sig_type": self.sig_type,
+                    "script_type": self.script_type,
+                    "coordinator": self.coordinator,
+                }
+            )
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return BackStackView
+            return Destination(BackStackView)
 
 
 
@@ -284,6 +292,10 @@ class SeedExportXpubDetailsView(View):
         )
         selected_menu_num = screen.display()
 
+        # TODO: Continue Xpub export
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
 
 
 """****************************************************************************
@@ -306,16 +318,23 @@ class SeedValidView(View):
         selected_menu_num = screen.display()
 
         if selected_menu_num == 0:
+            # Jump back to the Scan mode, but this to sign a PSBT
+            from .scan_views import ScanView
             self.controller.storage.finalize_pending_seed()
-            return MainMenuView
-
+            return Destination(ScanView, clear_history=True)
+        
         elif selected_menu_num == 1:
-            # TODO: SeedAdvancedView to set passphrase, SeedXOR
-            return None
+            # Jump straight to the Seed Tools for this seed
+            seed_num = self.controller.storage.finalize_pending_seed()
+            return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
+
+        elif selected_menu_num == 2:
+            # TODO: SeedAdvancedView to set passphrase, SeedXOR merge, etc.
+            raise Exception("Not implemented yet")
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            # Back button should reset our progress
+            # Back button should clear out the pending seed and start over
             self.controller.storage.clear_pending_seed()
-            return BackStackView
+            return Destination(BackStackView)
 
 

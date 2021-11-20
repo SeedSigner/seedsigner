@@ -7,10 +7,10 @@ from PIL import ImageFont
 from seedsigner.helpers import B, Buttons
 
 
-# Must be negative numbers to avoid conflicting with the selected_button returned by the
+# Must be huge numbers to avoid conflicting with the selected_button returned by the
 #   screens with buttons.
-RET_CODE__BACK_BUTTON = -1
-RET_CODE__POWER_BUTTON = -2
+RET_CODE__BACK_BUTTON = 1000
+RET_CODE__POWER_BUTTON = 1001
 
 
 

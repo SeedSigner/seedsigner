@@ -1,5 +1,6 @@
+from .view import View, Destination
+
 from seedsigner.models import Settings, DecodeQR, DecodeQRStatus, Seed
-from .view import View
 from seedsigner.gui.screens.scan_screens import ScanScreen
 
 
@@ -13,7 +14,8 @@ class ScanView(View):
 
     def run(self):
         # Run the live preview and QR code capture process
-        ScanScreen(decoder=self.decoder).display()
+        screen = ScanScreen(decoder=self.decoder)
+        screen.display()
 
         if self.decoder.isComplete() and self.decoder.isSeed():
             # first QR is Seed
@@ -28,5 +30,5 @@ class ScanView(View):
                 self.controller.storage.set_pending_seed(
                     Seed(mnemonic=seed_mnemonic, wordlist=self.controller.settings.wordlist)
                 )
-                return SeedValidView
+                return Destination(SeedValidView)
 

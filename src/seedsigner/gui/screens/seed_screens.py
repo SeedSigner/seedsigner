@@ -20,8 +20,8 @@ class SeedValidScreen(ButtonListScreen):
     def __post_init__(self):
         # Customize defaults
         self.button_data = [
-            # ("Scan PSBT or Seed", "scan_inline"),
-            "Home",
+            ("Scan a PSBT", "scan_inline"),
+            "Seed Tools",
             ("Advanced", "settings_inline"),
         ]
 
@@ -76,8 +76,17 @@ class SeedOptionsScreen(ButtonListScreen):
         # Initialize the base class
         super().__post_init__()
 
-        # TODO: Set up the fingerprint and passphrase displays
+        self.fingerprint_icontextline = IconTextLine(
+            icon_name="fingerprint",
+            value_text=self.fingerprint,
+            is_text_centered=True,
+            screen_y=self.top_nav.height
+        )
 
+
+    def _render(self):
+        super()._render()
+        self.fingerprint_icontextline.render()
 
 
 @dataclass

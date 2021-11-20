@@ -18,10 +18,10 @@ class SeedConstants:
     CUSTOM_DERIVATION = "custom_derivation"
 
     ALL_SCRIPT_TYPES = [
-        (NATIVE_SEGWIT, "Native Segwit"),
-        (NESTED_SEGWIT, "Nested Segwit (legacy)"),
-        (TAPROOT, "Taproot"),
-        (CUSTOM_DERIVATION, "Custom Derivation"),
+        {"type": NATIVE_SEGWIT, "display_name": "Native Segwit"},
+        {"type": NESTED_SEGWIT, "display_name": "Nested Segwit (legacy)"},
+        {"type": TAPROOT, "display_name": "Taproot"},
+        {"type": CUSTOM_DERIVATION, "display_name": "Custom Derivation"},
     ]
 
 

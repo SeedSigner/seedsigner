@@ -1,14 +1,15 @@
-# External Dependencies
+import os
+import sys
 import time
-from multiprocessing import Process, Queue
-from subprocess import call
-import os, sys
+
+from binascii import hexlify
+from dataclasses import dataclass
 from embit import bip32
 from embit.networks import NETWORKS
-from binascii import hexlify
+from multiprocessing import Process, Queue
+from subprocess import call
 from threading import Thread
 
-# Internal file class dependencies
 from .models import (EncodeQRDensity, QRType, Seed, SeedStorage, Settings,
     ConfigurableSingleton, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
 
@@ -86,6 +87,7 @@ class Controller(ConfigurableSingleton):
 
 
     def pop_back_stack(self):
+        from .views import Destination
         if len(self.back_stack) > 0:
             # Pop the top View (which is the current View_cls)
             self.back_stack.pop()
@@ -93,11 +95,15 @@ class Controller(ConfigurableSingleton):
             if len(self.back_stack) > 0:
                 # One more pop back gives us the actual "back" View_cls
                 return self.back_stack.pop()
-        return (None, {})
+        return Destination(None)
+    
+
+    def clear_back_stack(self):
+        self.back_stack = []
 
 
     def start(self) -> None:
-        from .views import View, OpeningSplashView, MainMenuView, BackStackView
+        from .views import View, Destination, OpeningSplashView, MainMenuView, BackStackView
 
         opening_splash = OpeningSplashView()
         # opening_splash.start()
@@ -128,40 +134,30 @@ class Controller(ConfigurableSingleton):
                 View_cls(**init_args).run()
         """
         try:
-            View_cls = None
-            init_args = {}
+            next_destination = Destination(MainMenuView)
             while True:
-                if not View_cls or View_cls == MainMenuView:
+                if next_destination.View_cls is None or next_destination.View_cls == MainMenuView:
                     # None is a special case; render the Home screen
-                    View_cls = MainMenuView
-                    init_args = {}
+                    next_destination = Destination(MainMenuView)
 
                     # Home always wipes the back_stack
-                    self.back_stack = []
+                    self.clear_back_stack()
 
-                print(f"Executing {View_cls.__name__}({init_args})")
+                print(f"Executing {next_destination}")
+                next_destination = next_destination.run()
 
-                # Instantiate the `View_cls` and run() it with the `init_args` dict
-                result = View_cls(**init_args).run()
-
-                if type(result) is tuple:
-                    View_cls = result[0]
-                    init_args = result[1]
-                else:
-                    View_cls = result
-                    init_args = {}
-
-                print(f"View_cls: {View_cls.__name__ if View_cls else 'None'}")
-                if init_args != {}:
-                    print(f"init_args: {init_args}")
-
-                if View_cls == BackStackView:
+                print(f"next_destination: {next_destination}")
+                clear_history = next_destination.clear_history
+                if next_destination.View_cls == BackStackView:
                     # "Back" arrow was clicked; load the previous view
-                    (View_cls, init_args) = self.pop_back_stack()
+                    next_destination = self.pop_back_stack()
 
-                # The next View_cls up always goes on the back_stack, even if it's the
+                if clear_history:
+                    self.clear_back_stack()
+
+                # The next_destination up always goes on the back_stack, even if it's the
                 #   one we just popped.
-                self.back_stack.append((View_cls, init_args))
+                self.back_stack.append(next_destination)
 
         finally:
             # Clear the screen when exiting
