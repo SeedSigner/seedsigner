@@ -215,8 +215,6 @@ class Controller(ConfigurableSingleton):
                 ret_val = self.show_store_a_seed_tool()
             elif ret_val == Path.PASSPHRASE_SEED:
                 ret_val = self.show_add_remove_passphrase_tool()
-            elif ret_val == Path.GEN_XPUB:
-                ret_val = self.show_generate_xpub()
             elif ret_val == Path.SIGN_TRANSACTION:
                 ret_val = self.show_sign_transaction()
             elif ret_val == Path.IO_TEST_TOOL:
@@ -237,22 +235,10 @@ class Controller(ConfigurableSingleton):
                 ret_val = self.show_donate_tool()
             elif ret_val == Path.RESET:
                 ret_val = self.show_reset_tool()
-            elif ret_val == Path.POWER_OFF:
-                ret_val = self.show_power_off()
 
         raise Exception("Unhandled case")
 
-    ### Power Off
 
-    def show_power_off(self):
-
-        r = self.renderer.display_generic_selection_menu(["Yes", "No"], "Power Off?")
-        if r == 1: #Yes
-            self.menu_view.display_power_off_screen()
-            call("sudo shutdown --poweroff now", shell=True)
-            time.sleep(10)
-        else: # No
-            return Path.MAIN_MENU
 
     ###
     ### Seed Tools Controller Naviation/Launcher
@@ -494,130 +480,6 @@ class Controller(ConfigurableSingleton):
     ### Signing Tools Navigation/Launcher
     ###
 
-    ### Generate XPUB
-
-    def show_generate_xpub(self):
-        seed = Seed(wordlist=self.settings.wordlist)
-
-        # If there is a saved seed, ask to use saved seed
-        if self.storage.num_of_saved_seeds() > 0:
-            r = self.renderer.display_generic_selection_menu(["Yes", "No"], "Use Saved Seed?")
-            if r == 1: #Yes
-                slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
-                if slot_num not in (1,2,3):
-                    return Path.SEED_TOOLS_SUB_MENU
-                seed = self.storage.get_seed(slot_num)
-
-        if not seed:
-            # no valid seed, gather seed phrase
-            # display menu to select 12 or 24 word seed for last word
-            ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Return to Sign Tools ]")
-            if ret_val == Path.SEED_WORD_12:
-                seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(12)
-            elif ret_val == Path.SEED_WORD_24:
-                seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(24)
-            elif ret_val == Path.SEED_WORD_QR:
-                seed.mnemonic = self.seed_tools_view.read_seed_phrase_qr()
-            else:
-                return Path.SEED_TOOLS_SUB_MENU
-
-            if not seed:
-                return Path.SEED_TOOLS_SUB_MENU
-
-            # check if seed phrase is valid
-            if not seed:
-                self.renderer.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
-                input = self.buttons.wait_for([B.KEY_RIGHT])
-                return Path.MAIN_MENU
-
-            r = self.renderer.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
-            if r == 1:
-                # display a tool to pick letters/numbers to make a passphrase
-                seed.passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
-                if len(seed.passphrase) == 0:
-                    self.renderer.draw_modal(["No passphrase added", "to seed words"], "", "Left to Exit, Right to Continue")
-                    input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
-                    if input == B.KEY_LEFT:
-                        return Path.MAIN_MENU
-                else:
-                    self.renderer.draw_modal(["Optional passphrase", "added to seed words", seed.passphrase], "", "Right to Continue")
-                    self.buttons.wait_for([B.KEY_RIGHT])
-
-        # display seed phrase
-        while True:
-            r = self.seed_tools_view.display_seed_phrase(seed.mnemonic_list, seed.passphrase, "Right to Continue")
-            if r == True:
-                break
-            else:
-                # Cancel
-                return Path.SEED_TOOLS_SUB_MENU
-                
-        # choose single sig or multisig wallet type
-        wallet_type = "multisig"
-        script_type = "native segwit"
-        derivation = self.settings.custom_derivation
-        r = self.renderer.display_generic_selection_menu(["Single Sig", "Multisig"], "Wallet Type?")
-        if r == 1:
-            wallet_type = "single sig"
-        elif r == 2:
-            wallet_type = "multisig"
-        
-        # choose derivation standard
-        r = self.renderer.display_generic_selection_menu(["Native Segwit", "Nested Segwit", "Custom"], "Derivation Path?")
-        if r == 1:
-            script_type = "native segwit"
-        elif r == 2:
-            script_type = "nested segwit"
-        elif r == 3:
-            script_type = "custom"
-        
-        # calculated derivation or get custom from keyboard entry
-        if script_type == "custom":
-            derivation = self.settings_tools_view.draw_derivation_keyboard_entry(existing_derivation=self.settings.custom_derivation)
-            self.settings.custom_derivation = derivation # save for next time
-        else:
-            derivation = Settings.calc_derivation(self.settings.network, wallet_type, script_type)
-            
-        if derivation == "" or derivation == None:
-            self.renderer.draw_modal(["Invalid Derivation", "try again"], "", "Right to Continue")
-            return Path.SEED_TOOLS_SUB_MENU
-            
-        if self.settings.software == "Prompt":
-            lines = ["Specter Desktop", "Blue Wallet", "Sparrow"]
-            r = self.renderer.display_generic_selection_menu(lines, "Which Wallet?")
-            qr_xpub_type = Settings.getXPubType(lines[r-1])
-        else:
-            qr_xpub_type = self.settings.qr_xpub_type
-
-        self.signing_tools_view.draw_modal(["Loading xPub Info ..."])
-
-        version = bip32.detect_version(derivation, default="xpub", network=NETWORKS[self.settings.network])
-        root = bip32.HDKey.from_seed(seed.seed, version=NETWORKS[self.settings.network]["xprv"])
-        fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
-        xprv = root.derive(derivation)
-        xpub = xprv.to_public()
-        print(derivation)
-        xpub_base58 = xpub.to_string(version=version)
-
-        self.signing_tools_view.display_xpub_info(fingerprint, derivation, xpub_base58)
-        self.buttons.wait_for([B.KEY_RIGHT])
-
-        self.signing_tools_view.draw_modal(["Generating xPub QR ..."])
-        e = EncodeQR(seed_phrase=seed.mnemonic_list, passphrase=seed.passphrase, derivation=derivation, network=self.settings.network, qr_type=qr_xpub_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
-
-        while e.totalParts() > 1:
-            image = e.nextPartImage(240,240,2)
-            self.renderer.show_image(image)
-            time.sleep(0.1)
-            if self.buttons.check_for_low(B.KEY_RIGHT):
-                    break
-
-        if e.totalParts() == 1:
-            image = e.nextPartImage(240,240,1)
-            self.renderer.show_image(image)
-            self.buttons.wait_for([B.KEY_RIGHT])
-
-        return Path.MAIN_MENU
 
     ### Sign Transactions
 

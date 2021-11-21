@@ -154,8 +154,7 @@ class SeedExportXpubScriptTypeView(View):
             args["script_type"] = SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num]["type"]
 
             if SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num]["type"] == SeedConstants.CUSTOM_DERIVATION:
-                # TODO: Route to custom derivation View
-                raise Exception("Not yet implemented")
+                return Destination(SeedExportXpubCustomDerivationView, view_args=args)
 
             return Destination(SeedExportXpubCoordinatorView, view_args=args)
 
@@ -163,13 +162,43 @@ class SeedExportXpubScriptTypeView(View):
             return Destination(BackStackView)
 
 
-
-class SeedExportXpubCoordinatorView(View):
+class SeedExportXpubCustomDerivationView(View):
     def __init__(self, seed_num: int, sig_type: str, script_type: str):
         super().__init__()
         self.seed_num = seed_num
         self.sig_type = sig_type
         self.script_type = script_type
+
+    def run(self):
+        from seedsigner.gui.screens.seed_screens import SeedExportXpubCustomDerivationScreen
+        screen = SeedExportXpubCustomDerivationScreen()
+        ret = screen.display()
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        # ret should be the custom derivation path
+        custom_derivation_path = ret
+
+        return Destination(
+            SeedExportXpubCoordinatorView,
+            view_args={
+                "seed_num": self.seed_num,
+                "sig_type": self.sig_type,
+                "script_type": self.script_type,
+                "custom_derivation_path": custom_derivation_path,
+            }
+        )
+
+
+
+class SeedExportXpubCoordinatorView(View):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, custom_derivation_path: str = None):
+        super().__init__()
+        self.seed_num = seed_num
+        self.sig_type = sig_type
+        self.script_type = script_type
+        self.custom_derivation_path = custom_derivation_path
 
 
     def run(self):
@@ -200,7 +229,8 @@ class SeedExportXpubCoordinatorView(View):
                 "seed_num": self.seed_num,
                 "sig_type": self.sig_type,
                 "script_type": self.script_type,
-                "coordinator": SettingsConstants.ALL_COORDINATORS[selected_menu_num]
+                "coordinator": SettingsConstants.ALL_COORDINATORS[selected_menu_num],
+                "custom_derivation_path": self.custom_derivation_path,
             }
             return Destination(SeedExportXpubWarningView, view_args=args)
 
@@ -210,12 +240,13 @@ class SeedExportXpubCoordinatorView(View):
 
 
 class SeedExportXpubWarningView(View):
-    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, custom_derivation_path: str = None):
         super().__init__()
         self.seed_num = seed_num
         self.sig_type = sig_type
         self.script_type = script_type
         self.coordinator = coordinator
+        self.custom_derivation_path = custom_derivation_path
 
 
     def run(self):
@@ -236,6 +267,7 @@ class SeedExportXpubWarningView(View):
                     "sig_type": self.sig_type,
                     "script_type": self.script_type,
                     "coordinator": self.coordinator,
+                    "custom_derivation_path": self.custom_derivation_path,
                 }
             )
 
@@ -249,13 +281,14 @@ class SeedExportXpubDetailsView(View):
         Collects the user input from all the previous screens leading up to this and
         finally calculates the xpub and displays the summary view to the user.
     """
-    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, custom_derivation_path: str = None):
         super().__init__()
         self.sig_type = sig_type
         self.script_type = script_type
         self.coordinator = coordinator
         self.seed_num = seed_num
         self.seed = self.controller.storage.seeds[seed_num]
+        self.custom_derivation_path = custom_derivation_path
 
 
     def run(self):
@@ -263,11 +296,14 @@ class SeedExportXpubDetailsView(View):
         from binascii import hexlify
         from seedsigner.gui.screens.seed_screens import SeedExportXpubDetailsScreen
 
-        derivation_path = Settings.calc_derivation(
-            network=self.controller.settings.network,
-            wallet_type=self.sig_type,
-            script_type=self.script_type
-        )
+        if self.custom_derivation_path:
+            derivation_path = self.custom_derivation_path
+        else:
+            derivation_path = Settings.calc_derivation(
+                network=self.controller.settings.network,
+                wallet_type=self.sig_type,
+                script_type=self.script_type
+            )
 
         version = embit.bip32.detect_version(
             derivation_path,
