@@ -70,6 +70,49 @@ The quickest and easiest way to install the software is to download the most rec
 
 ---------------
 
+# Important Note on Software Authenticity Verification
+
+You can verify the data integrity and authenticity of the latest release with as little as three commands (though moving forward you will have to replace the version in the following commands with the version number you are attempting to validate). This process assumes that you have navigated to a folder where you have these four relevant files present:
+
+* seedsigner_pubkey.gpg (from the main folder of this repo)
+* seedsigner_0_4_5.img.zip (from the software release)
+* seedsigner_0_4_5.img.zip.sha256 (from the software release)
+* seedsigner_0_4_5.img.zip.sha256.sig (from the software release)
+
+This process also assumes you are running the commands from a system where both GPG and shasum are installed and working.
+
+First make sure that the public key is present in your keychain:
+```
+gpg --import seedsigner_pubkey.gpg 
+```
+This command will import the public key, or return:
+```
+key <...> not changed
+```
+
+Now you can verify the authenticity of the small text file containing the release's SHA256 hash with the command:
+```
+gpg --verify seedsigner_0_4_5.img.zip.sha256.sig
+```
+The reponse to this command should include the text:
+```
+Good signature from "seedsigner <btc.hardware.solutions@gmail.com>" [unknown]
+```
+The previous command validates that aforementioned small text file was signed using the private key that matches the published public key associated with the project (an early timestamped record of this public/private key's creation can be found in this [tweet](https://twitter.com/SeedSigner/status/1389617642286329856?s=20)).
+
+The last step is to make sure the .zip file that you've downloaded, and that contains the released software, is a perfect match to the software that was published by the holder of the private key in the last step. The command for this step is:
+```
+shasum -a 256 -c seedsigner_0_4_5.img.zip.sha256
+```
+The reponse to this command should include the text:
+```
+seedsigner_0_4_5.img.zip: OK
+```
+
+There are other steps you can take to verify the software, including examining the hash value in the .sha256 text file, but this one has been documented here because it seems the simplest for most people to follow. Please recognize that this process can only validate the software to the extent that the entity that first published the key is an honest actor, and assumes the private key has remained uncompromised and is not being used by a malicious actor.
+
+---------------
+
 # Enclosure Designs
 
 ### Open Pill
