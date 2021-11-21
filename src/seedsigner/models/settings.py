@@ -194,7 +194,7 @@ class Settings(ConfigurableSingleton):
 
     @property
     def qr_psbt_type(self):
-        if self.software in ("Specter Desktop"):
+        if self.software in [SettingsConstants.COORDINATOR__SPECTER_DESKTOP]:
             return QRType.PSBTSPECTER
         else:
             return QRType.PSBTUR2
@@ -205,7 +205,7 @@ class Settings(ConfigurableSingleton):
 
     @staticmethod
     def getXPubType(software):
-        if software == "Specter Desktop":
+        if software == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
             return QRType.SPECTERXPUBQR
         else:
             return QRType.XPUBQR

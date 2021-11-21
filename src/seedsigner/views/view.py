@@ -95,7 +95,7 @@ class Destination:
         Basic struct to pass back to the Controller to tell it which View the user should
         be presented with next.
     """
-    View_cls: View              # The target View to route to
+    View_cls: View                  # The target View to route to
     view_args: dict = None          # The input args required to instantiate the target View
     clear_history: bool = False     # Optionally clears the back_stack to prevent "back"
 

@@ -254,6 +254,7 @@ class SeedExportXpubDetailsView(View):
         self.sig_type = sig_type
         self.script_type = script_type
         self.coordinator = coordinator
+        self.seed_num = seed_num
         self.seed = self.controller.storage.seeds[seed_num]
 
 
@@ -292,10 +293,53 @@ class SeedExportXpubDetailsView(View):
         )
         selected_menu_num = screen.display()
 
-        # TODO: Continue Xpub export
+        if selected_menu_num == 0:
+            return Destination(
+                SeedExportXpubQRDisplayView,
+                {
+                    "seed_num": self.seed_num,
+                    "sig_type": self.sig_type,
+                    "script_type": self.script_type,
+                    "coordinator": self.coordinator,
+                    "derivation_path": derivation_path,
+                }
+            )
 
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
+
+
+
+class SeedExportXpubQRDisplayView(View):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, derivation_path: str):
+        from seedsigner.models.encode_qr import EncodeQR
+        from seedsigner.models.qr_type import QRType
+
+        super().__init__()
+        self.seed = self.controller.storage.seeds[seed_num]
+
+        qr_type = QRType.XPUBQR
+        if coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
+            qr_type = QRType.SPECTERXPUBQR
+
+        self.qr_encoder = EncodeQR(
+            seed_phrase=self.seed.mnemonic_list,
+            passphrase=self.seed.passphrase,
+            derivation=derivation_path,
+            network=self.settings.network,
+            qr_type=qr_type,
+            qr_density=self.settings.qr_density,
+            wordlist=self.seed.wordlist
+        )
+
+
+    def run(self):
+        from seedsigner.gui.screens.seed_screens import SeedExportXpubQRDisplayScreen
+        screen = SeedExportXpubQRDisplayScreen(qr_encoder=self.qr_encoder)
+        screen.display()
+
+        return Destination(MainMenuView)
+
 
 
 """****************************************************************************
@@ -318,7 +362,7 @@ class SeedValidView(View):
         selected_menu_num = screen.display()
 
         if selected_menu_num == 0:
-            # Jump back to the Scan mode, but this to sign a PSBT
+            # Jump back to the Scan mode, but this time to sign a PSBT
             from .scan_views import ScanView
             self.controller.storage.finalize_pending_seed()
             return Destination(ScanView, clear_history=True)
