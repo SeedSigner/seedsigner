@@ -406,8 +406,8 @@ class SeedValidView(View):
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
 
         elif selected_menu_num == 2:
-            # TODO: SeedAdvancedView to set passphrase, SeedXOR merge, etc.
-            raise Exception("Not implemented yet")
+            # SeedAdvancedView to set passphrase, SeedXOR merge, etc.
+            return Destination(SeedAdvancedOptionsView)
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             # Back button should clear out the pending seed and start over
@@ -415,3 +415,45 @@ class SeedValidView(View):
             return Destination(BackStackView)
 
 
+
+class SeedAdvancedOptionsView(View):
+    def __init__(self):
+        super().__init__()
+
+        self.seed = self.controller.storage.get_pending_seed()
+        self.fingerprint = self.seed.get_fingerprint(network=self.controller.settings.network)
+
+
+    def run(self):
+        from seedsigner.gui.screens.seed_screens import SeedAdvancedOptionsScreen
+        screen = SeedAdvancedOptionsScreen(fingerprint=self.fingerprint)
+        selected_menu_num = screen.display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        elif selected_menu_num == 0:
+            return Destination(SeedAddPassphraseView)
+
+        return Destination(MainMenuView)
+
+
+
+class SeedAddPassphraseView(View):
+    def __init__(self):
+        super().__init__()
+
+        self.seed = self.controller.storage.get_pending_seed()
+        self.fingerprint = self.seed.get_fingerprint(network=self.controller.settings.network)
+
+
+    def run(self):
+        from seedsigner.gui.screens.seed_screens import SeedAddPassphraseScreen
+        screen = SeedAddPassphraseScreen(passphrase=self.seed.passphrase)
+        ret = screen.display()
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        self.seed.passphrase = ret
+        return Destination(SeedValidView)

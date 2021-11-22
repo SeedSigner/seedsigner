@@ -315,3 +315,321 @@ class SeedExportXpubQRDisplayScreen(BaseScreen):
             self.hw_inputs.wait_for([B.KEY_RIGHT])
 
         # TODO: handle left as BACK
+
+
+
+@dataclass
+class SeedAdvancedOptionsScreen(ButtonListScreen):
+    title: str = "Advanced"
+    is_bottom_list: bool = True
+    fingerprint: str = None
+    has_passphrase: bool = False
+
+    def __post_init__(self):
+        # Programmatically set up other args
+        self.button_data = [
+            "Add Passphrase",
+            "Home",
+        ]
+
+        # Initialize the base class
+        super().__post_init__()
+
+        self.fingerprint_icontextline = IconTextLine(
+            icon_name="fingerprint",
+            value_text=self.fingerprint,
+            is_text_centered=True,
+            screen_y=self.top_nav.height
+        )
+
+
+    def _render(self):
+        super()._render()
+        self.fingerprint_icontextline.render()
+
+
+
+@dataclass
+class SeedAddPassphraseScreen(BaseTopNavScreen):
+    title: str = "Add Passphrase"
+    passphrase: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        keys_lower = "abcdefghijklmnopqrstuvwxyz"
+        keys_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        keys_number = "0123456789"
+        keys_symbol = "!\"#$%&'()*+,=./;:<>?@[]|-_`~"
+
+        # Set up the keyboard params
+        self.right_panel_buttons_width = 60
+
+        font = Fonts.get_font("RobotoCondensed-Regular", 28)
+        tw, th = font.getsize(keys_lower + keys_upper + keys_number + keys_symbol)      # All possible chars for max size measurements
+        text_entry_side_padding = 0
+        text_entry_top_padding = 1
+        text_entry_bottom_padding = 10
+        text_entry_top_y = self.top_nav.height + text_entry_top_padding
+        text_entry_bottom_y = text_entry_top_y + 3 + th + 3
+        self.text_entry_display = TextEntryDisplay(
+            canvas=self.renderer.canvas,
+            rect=(text_entry_side_padding,text_entry_top_y, self.canvas_width - self.right_panel_buttons_width - 1, text_entry_bottom_y),
+            font=font,
+            font_color="orange",
+            cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
+            is_centered=False,
+            has_outline=True,
+            cur_text=''.join(self.passphrase)
+        )
+
+        keyboard_start_y = text_entry_bottom_y + text_entry_bottom_padding
+        self.keyboard_abc = Keyboard(
+            draw=self.renderer.draw,
+            charset=keys_lower,
+            rows=4,
+            cols=9,
+            rect=(0, keyboard_start_y, self.canvas_width - self.right_panel_buttons_width, self.canvas_height),
+            additional_keys=[Keyboard.KEY_SPACE_5, Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT]
+        )
+
+        self.keyboard_ABC = Keyboard(
+            draw=self.renderer.draw,
+            charset=keys_upper,
+            rows=4,
+            cols=9,
+            rect=(0, keyboard_start_y, self.canvas_width - self.right_panel_buttons_width, self.canvas_height),
+            additional_keys=[Keyboard.KEY_SPACE_5, Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+            render_now=False
+        )
+
+        self.keyboard_digits = Keyboard(
+            draw=self.renderer.draw,
+            charset=keys_number,
+            rows=3,
+            cols=5,
+            rect=(0, keyboard_start_y, self.canvas_width - self.right_panel_buttons_width, self.canvas_height),
+            additional_keys=[Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+            render_now=False
+        )
+
+        self.keyboard_symbols = Keyboard(
+            draw=self.renderer.draw,
+            charset=keys_symbol,
+            rows=4,
+            cols=10,
+            rect=(0, keyboard_start_y, self.canvas_width - self.right_panel_buttons_width, self.canvas_height),
+            additional_keys=[Keyboard.KEY_SPACE_4, Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+            render_now=False
+        )
+
+        self.button1_is_active = False
+        self.button2_is_active = False
+        self.button3_is_active = False
+
+
+
+    def render_right_panel(self, button1_text="ABC", button2_text="123"):
+        # Render the up/down arrow buttons for KEY1 and KEY3
+        row_height = 28
+        right_button_left_margin = 10
+        right_button_width = self.right_panel_buttons_width - right_button_left_margin
+        font_padding_right = 2
+        font_padding_top = 1
+        key_x = self.canvas_width - right_button_width
+        key_y = int(self.canvas_height - row_height) / 2 - 1 - 60
+
+        background_color = "#111"
+        font_color = "orange"
+        font = Fonts.get_font("RobotoCondensed-Regular", 24)
+        tw, th = font.getsize(button1_text)
+        if self.button1_is_active:
+            background_color = "orange"
+            font_color = "#111"
+        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline="orange", fill=background_color, radius=5, width=1)
+        self.renderer.draw.text((self.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button1_text, fill=font_color)
+
+        background_color = "#111"
+        font_color = "orange"
+        tw, th = font.getsize(button2_text)
+        if self.button2_is_active:
+            background_color = "orange"
+            font_color = "#111"
+        key_y = int(self.canvas_height - row_height) / 2 - 1
+        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline="orange", fill=background_color, radius=5, width=1)
+        self.renderer.draw.text((self.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button2_text, fill=font_color)
+
+        background_color = "#111"
+        font_color = "orange"
+        button3_text = "Save"
+        tw, th = font.getsize(button3_text)
+        if self.button3_is_active:
+            background_color = "orange"
+            font_color = "#111"
+        key_y = int(self.canvas_height - row_height) / 2 - 1 + 60
+        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline="orange", fill=background_color, radius=5, width=1)
+        self.renderer.draw.text((self.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button3_text, fill=font_color)
+
+
+    def _render(self):
+        super()._render()
+
+        self.text_entry_display.render()
+        self.render_right_panel()
+        self.keyboard_abc.render_keys()
+
+        self.renderer.show_image()
+
+
+    def _run(self):
+        cursor_position = len(self.passphrase)
+
+        KEYBOARD__LOWERCASE_BUTTON_TEXT = "abc"
+        KEYBOARD__UPPERCASE_BUTTON_TEXT = "ABC"
+        KEYBOARD__DIGITS_BUTTON_TEXT = "123"
+        KEYBOARD__SYMBOLS_BUTTON_TEXT = "!@#"
+        cur_keyboard = self.keyboard_abc
+        cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
+        cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
+
+        # Start the interactive update loop
+        while True:
+            input = self.hw_inputs.wait_for(
+                [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3],
+                check_release=True,
+                release_keys=[B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3]
+            )
+
+            keyboard_swap = False
+
+            # Check our two possible exit conditions
+            if input == B.KEY3:
+                # Save!
+                if len(self.passphrase) > 0:
+                    return self.passphrase.strip()
+
+            elif input == B.KEY_PRESS and self.top_nav.is_selected:
+                # Back button clicked
+                return self.top_nav.selected_button
+
+            # Check for keyboard swaps
+            if input == B.KEY1:
+                # Return to the same button2 keyboard, if applicable
+                if cur_keyboard == self.keyboard_digits:
+                    cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
+                elif cur_keyboard == self.keyboard_symbols:
+                    cur_button2_text = KEYBOARD__SYMBOLS_BUTTON_TEXT
+
+                if cur_button1_text == KEYBOARD__LOWERCASE_BUTTON_TEXT:
+                    self.keyboard_abc.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard = self.keyboard_abc
+                    cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
+                    self.render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
+                else:
+                    self.keyboard_ABC.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard = self.keyboard_ABC
+                    cur_button1_text = KEYBOARD__LOWERCASE_BUTTON_TEXT
+                    self.render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
+                cur_keyboard.render_keys()
+                keyboard_swap = True
+                ret_val = None
+
+            elif input == B.KEY2:
+                # Return to the same button1 keyboard, if applicable
+                if cur_keyboard == self.keyboard_abc:
+                    cur_button1_text = KEYBOARD__LOWERCASE_BUTTON_TEXT
+                elif cur_keyboard == self.keyboard_ABC:
+                    cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
+
+                if cur_button2_text == KEYBOARD__DIGITS_BUTTON_TEXT:
+                    self.keyboard_digits.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard = self.keyboard_digits
+                    cur_keyboard.render_keys()
+                    cur_button2_text = KEYBOARD__SYMBOLS_BUTTON_TEXT
+                    self.render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
+                else:
+                    self.keyboard_symbols.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard = self.keyboard_symbols
+                    cur_keyboard.render_keys()
+                    cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
+                    self.render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
+                cur_keyboard.render_keys()
+                keyboard_swap = True
+                ret_val = None
+
+            else:
+                # Process normal input
+                if input in [B.KEY_UP, B.KEY_DOWN] and self.top_nav.is_selected:
+                    # We're navigating off the previous button
+                    self.top_nav.is_selected = False
+                    self.top_nav.render()
+
+                    # Override the actual input w/an ENTER signal for the Keyboard
+                    if input == B.KEY_DOWN:
+                        input = Keyboard.ENTER_TOP
+                    else:
+                        input = Keyboard.ENTER_BOTTOM
+                elif input in [B.KEY_LEFT, B.KEY_RIGHT] and self.top_nav.is_selected:
+                    # ignore
+                    continue
+
+                ret_val = cur_keyboard.update_from_input(input)
+
+            # Now process the result from the keyboard
+            if ret_val in Keyboard.EXIT_DIRECTIONS:
+                self.top_nav.is_selected = True
+                self.top_nav.render()
+
+            elif ret_val in Keyboard.ADDITIONAL_KEYS and input == B.KEY_PRESS:
+                if ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                    if cursor_position == 0:
+                        pass
+                    elif cursor_position == len(self.passphrase):
+                        self.passphrase = self.passphrase[:-1]
+                    else:
+                        self.passphrase = self.passphrase[:cursor_position - 1] + self.passphrase[cursor_position:]
+
+                    cursor_position -= 1
+
+                elif ret_val == Keyboard.KEY_CURSOR_LEFT["code"]:
+                    cursor_position -= 1
+                    if cursor_position < 0:
+                        cursor_position = 0
+
+                elif ret_val == Keyboard.KEY_CURSOR_RIGHT["code"]:
+                    cursor_position += 1
+                    if cursor_position > len(self.passphrase):
+                        cursor_position = len(self.passphrase)
+
+                elif ret_val == Keyboard.KEY_SPACE["code"]:
+                    if cursor_position == len(self.passphrase):
+                        self.passphrase += " "
+                    else:
+                        self.passphrase = self.passphrase[:cursor_position] + " " + self.passphrase[cursor_position:]
+                    cursor_position += 1
+
+                # Update the text entry display and cursor
+                self.text_entry_display.render(self.passphrase, cursor_position)
+
+            elif input == B.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
+                # User has locked in the current letter
+                if cursor_position == len(self.passphrase):
+                    self.passphrase += ret_val
+                else:
+                    self.passphrase = self.passphrase[:cursor_position] + ret_val + self.passphrase[cursor_position:]
+                cursor_position += 1
+
+                # Update the text entry display and cursor
+                self.text_entry_display.render(self.passphrase, cursor_position)
+
+            elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN] or keyboard_swap:
+                # Live joystick movement; haven't locked this new letter in yet.
+                # Leave current spot blank for now. Only update the active keyboard keys
+                # when a selection has been locked in (KEY_PRESS) or removed ("del").
+                pass
+
+            self.renderer.show_image()

@@ -17,8 +17,6 @@ RET_CODE__POWER_BUTTON = 1001
 @dataclass
 class BaseScreen(BaseComponent):
     def __post_init__(self):
-        from seedsigner.gui import Renderer
-
         super().__post_init__()
         
         self.hw_inputs = Buttons.get_instance()
