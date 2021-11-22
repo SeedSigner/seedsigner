@@ -92,7 +92,8 @@ class SeedOptionsScreen(ButtonListScreen):
 
 @dataclass
 class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
-    title: str = "Custom Derivation"
+    title: str = "Derivation Path"
+    derivation_path: str = "m/"
 
     def __post_init__(self):
         super().__post_init__()
@@ -101,7 +102,6 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
         right_panel_buttons_width = 60
         
         # Set up the live text entry display
-        self.derivation = "m/"
         font = Fonts.get_font("RobotoCondensed-Regular", 28)
         tw, th = font.getsize("m/1234567890")  # All possible chars for max range
         text_entry_side_padding = 0
@@ -111,13 +111,13 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
         text_entry_bottom_y = text_entry_top_y + 3 + th + 3
         self.text_entry_display = TextEntryDisplay(
             canvas=self.renderer.canvas,
-            rect=(text_entry_side_padding,text_entry_top_y, self.renderer.canvas_width - right_panel_buttons_width - 1, text_entry_bottom_y),
+            rect=(text_entry_side_padding,text_entry_top_y, self.renderer.canvas_width - right_panel_buttons_width - GUIConstants.COMPONENT_PADDING, text_entry_bottom_y),
             font=font,
             font_color="orange",
             cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
             is_centered=False,
             has_outline=True,
-            cur_text=''.join(self.derivation)
+            cur_text=''.join(self.derivation_path)
         )
 
         keyboard_start_y = text_entry_bottom_y + text_entry_bottom_padding
@@ -126,7 +126,7 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
             charset="/'0123456789",
             rows=3,
             cols=6,
-            rect=(0, keyboard_start_y, self.renderer.canvas_width - right_panel_buttons_width, self.renderer.canvas_height),
+            rect=(0, keyboard_start_y, self.renderer.canvas_width - right_panel_buttons_width - GUIConstants.COMPONENT_PADDING, self.renderer.canvas_height),
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )
@@ -155,12 +155,12 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
         self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline="orange", fill=background_color, radius=5, width=1)
         self.renderer.draw.text((self.renderer.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button3_text, fill=font_color)
 
-        self.text_entry_display.render(self.derivation)
+        self.text_entry_display.render(self.derivation_path)
         self.renderer.show_image()
     
 
     def _run(self):
-        cursor_position = len(self.derivation)
+        cursor_position = len(self.derivation_path)
 
         # Start the interactive update loop
         while True:
@@ -173,8 +173,8 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
             # Check our two possible exit conditions
             if input == B.KEY3:
                 # Save!
-                if len(self.derivation) > 0:
-                    return self.derivation.strip()
+                if len(self.derivation_path) > 0:
+                    return self.derivation_path.strip()
     
             elif self.top_nav.is_selected and input == B.KEY_PRESS:
                 # Prev button clicked; return empty string to signal cancel.
@@ -204,21 +204,21 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
     
             elif ret_val in Keyboard.ADDITIONAL_KEYS and input == B.KEY_PRESS:
                 if ret_val == Keyboard.KEY_BACKSPACE["code"]:
-                    if len(self.derivation) <= 2:
+                    if len(self.derivation_path) <= 2:
                         pass
-                    elif cursor_position == len(self.derivation):
-                        self.derivation = self.derivation[:-1]
+                    elif cursor_position == len(self.derivation_path):
+                        self.derivation_path = self.derivation_path[:-1]
                         cursor_position -= 1
                     else:
-                        self.derivation = self.derivation[:cursor_position - 1] + self.derivation[cursor_position:]
+                        self.derivation_path = self.derivation_path[:cursor_position - 1] + self.derivation_path[cursor_position:]
                         cursor_position -= 1
     
             elif input == B.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
                 # User has locked in the current letter
-                if cursor_position == len(self.derivation):
-                    self.derivation += ret_val
+                if cursor_position == len(self.derivation_path):
+                    self.derivation_path += ret_val
                 else:
-                    self.derivation = self.derivation[:cursor_position] + ret_val + self.derivation[cursor_position:]
+                    self.derivation_path = self.derivation_path[:cursor_position] + ret_val + self.derivation_path[cursor_position:]
                 cursor_position += 1
     
             elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN]:
@@ -228,7 +228,7 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
                 pass
     
             # Render the text entry display and cursor block
-            self.text_entry_display.render(self.derivation)
+            self.text_entry_display.render(self.derivation_path)
     
             self.renderer.show_image()
 

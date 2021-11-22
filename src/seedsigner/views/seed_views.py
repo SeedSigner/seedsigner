@@ -168,17 +168,20 @@ class SeedExportXpubCustomDerivationView(View):
         self.seed_num = seed_num
         self.sig_type = sig_type
         self.script_type = script_type
+        self.custom_derivation_path = self.settings.custom_derivation
 
     def run(self):
         from seedsigner.gui.screens.seed_screens import SeedExportXpubCustomDerivationScreen
-        screen = SeedExportXpubCustomDerivationScreen()
+        screen = SeedExportXpubCustomDerivationScreen(
+            derivation_path=self.custom_derivation_path
+        )
         ret = screen.display()
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
-        # ret should be the custom derivation path
-        custom_derivation_path = ret
+        # ret should be the custom derivation path; store it in Settings
+        self.settings.custom_derivation = ret
 
         return Destination(
             SeedExportXpubCoordinatorView,
@@ -186,19 +189,17 @@ class SeedExportXpubCustomDerivationView(View):
                 "seed_num": self.seed_num,
                 "sig_type": self.sig_type,
                 "script_type": self.script_type,
-                "custom_derivation_path": custom_derivation_path,
             }
         )
 
 
 
 class SeedExportXpubCoordinatorView(View):
-    def __init__(self, seed_num: int, sig_type: str, script_type: str, custom_derivation_path: str = None):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str):
         super().__init__()
         self.seed_num = seed_num
         self.sig_type = sig_type
         self.script_type = script_type
-        self.custom_derivation_path = custom_derivation_path
 
 
     def run(self):
@@ -230,7 +231,6 @@ class SeedExportXpubCoordinatorView(View):
                 "sig_type": self.sig_type,
                 "script_type": self.script_type,
                 "coordinator": SettingsConstants.ALL_COORDINATORS[selected_menu_num],
-                "custom_derivation_path": self.custom_derivation_path,
             }
             return Destination(SeedExportXpubWarningView, view_args=args)
 
@@ -240,13 +240,12 @@ class SeedExportXpubCoordinatorView(View):
 
 
 class SeedExportXpubWarningView(View):
-    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, custom_derivation_path: str = None):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str):
         super().__init__()
         self.seed_num = seed_num
         self.sig_type = sig_type
         self.script_type = script_type
         self.coordinator = coordinator
-        self.custom_derivation_path = custom_derivation_path
 
 
     def run(self):
@@ -267,7 +266,6 @@ class SeedExportXpubWarningView(View):
                     "sig_type": self.sig_type,
                     "script_type": self.script_type,
                     "coordinator": self.coordinator,
-                    "custom_derivation_path": self.custom_derivation_path,
                 }
             )
 
@@ -281,14 +279,13 @@ class SeedExportXpubDetailsView(View):
         Collects the user input from all the previous screens leading up to this and
         finally calculates the xpub and displays the summary view to the user.
     """
-    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, custom_derivation_path: str = None):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str):
         super().__init__()
         self.sig_type = sig_type
         self.script_type = script_type
         self.coordinator = coordinator
         self.seed_num = seed_num
         self.seed = self.controller.storage.seeds[seed_num]
-        self.custom_derivation_path = custom_derivation_path
 
 
     def run(self):
@@ -296,8 +293,8 @@ class SeedExportXpubDetailsView(View):
         from binascii import hexlify
         from seedsigner.gui.screens.seed_screens import SeedExportXpubDetailsScreen
 
-        if self.custom_derivation_path:
-            derivation_path = self.custom_derivation_path
+        if self.script_type == SeedConstants.CUSTOM_DERIVATION:
+            derivation_path = self.settings.custom_derivation
         else:
             derivation_path = Settings.calc_derivation(
                 network=self.controller.settings.network,

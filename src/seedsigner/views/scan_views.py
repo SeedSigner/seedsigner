@@ -1,4 +1,4 @@
-from .view import View, Destination
+from .view import MainMenuView, View, Destination
 
 from seedsigner.models import Settings, DecodeQR, DecodeQRStatus, Seed
 from seedsigner.gui.screens.scan_screens import ScanScreen
@@ -31,4 +31,6 @@ class ScanView(View):
                     Seed(mnemonic=seed_mnemonic, wordlist=self.controller.settings.wordlist)
                 )
                 return Destination(SeedValidView)
+    
+        return Destination(MainMenuView)
 

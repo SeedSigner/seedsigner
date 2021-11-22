@@ -38,7 +38,7 @@ class Settings(ConfigurableSingleton):
                 'debug': False,
                 'default_language': "en",
                 'persistent_settings': False,
-                'wordlist': bip39.WORDLIST
+                'wordlist': bip39.WORDLIST      # TODO: Just store the wordlist language
             },
             'display': {
                 'text_color': "ORANGE",
@@ -48,7 +48,7 @@ class Settings(ConfigurableSingleton):
                 'network': SeedConstants.MAINNET,
                 'software': "Specter Desktop",
                 'qr_density': EncodeQRDensity.MEDIUM,
-                'custom_derivation': 'm/0/0'
+                'custom_derivation': 'm/'
             }
         }
 
@@ -229,7 +229,8 @@ class Settings(ConfigurableSingleton):
     def custom_derivation(self, value):
         # TODO: parse and validate custom derivation path
         self._data["wallet"]["custom_derivation"] = value
-            
+        self.__writeConfig()
+
     @staticmethod
     def calc_derivation(network, wallet_type, script_type):
         if network == SeedConstants.MAINNET:
