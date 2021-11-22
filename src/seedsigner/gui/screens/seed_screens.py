@@ -16,16 +16,9 @@ class SeedValidScreen(ButtonListScreen):
     fingerprint: str = None
     title: str = "Seed Valid"
     is_bottom_list: bool = True
+    button_data: list = None
 
     def __post_init__(self):
-        # Customize defaults
-        self.button_data = [
-            ("Scan a PSBT", "scan_inline"),
-            "Seed Tools",
-            ("Advanced", "settings_inline"),
-        ]
-
-        # Initialize the base class
         super().__post_init__()
 
         self.title_textarea = TextArea(
@@ -49,8 +42,6 @@ class SeedValidScreen(ButtonListScreen):
 
         self.title_textarea.render()
         self.fingerprint_icontl.render()
-
-        # self.renderer.canvas.paste(self.body_content, (self.body_content_x, self.body_content_y))
 
         # Write the screen updates
         self.renderer.show_image()
@@ -315,37 +306,6 @@ class SeedExportXpubQRDisplayScreen(BaseScreen):
             self.hw_inputs.wait_for([B.KEY_RIGHT])
 
         # TODO: handle left as BACK
-
-
-
-@dataclass
-class SeedAdvancedOptionsScreen(ButtonListScreen):
-    title: str = "Advanced"
-    is_bottom_list: bool = True
-    fingerprint: str = None
-    has_passphrase: bool = False
-
-    def __post_init__(self):
-        # Programmatically set up other args
-        self.button_data = [
-            "Add Passphrase",
-            "Home",
-        ]
-
-        # Initialize the base class
-        super().__post_init__()
-
-        self.fingerprint_icontextline = IconTextLine(
-            icon_name="fingerprint",
-            value_text=self.fingerprint,
-            is_text_centered=True,
-            screen_y=self.top_nav.height
-        )
-
-
-    def _render(self):
-        super()._render()
-        self.fingerprint_icontextline.render()
 
 
 
