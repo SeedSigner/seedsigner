@@ -57,14 +57,6 @@ class SeedOptionsScreen(ButtonListScreen):
     has_passphrase: bool = False
 
     def __post_init__(self):
-        # Programmatically set up other args
-        self.button_data = [
-            "View Seed Words",
-            "Export Xpub",
-            "Export Seed as QR",
-        ]
-
-        # Initialize the base class
         super().__post_init__()
 
         self.fingerprint_icontextline = IconTextLine(

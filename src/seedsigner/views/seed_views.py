@@ -1,6 +1,8 @@
+
 from .view import View, Destination, BackStackView, MainMenuView
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, LargeButtonScreen,
-    WarningScreen, DireWarningScreen)
+
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
+    LargeButtonScreen, WarningScreen, DireWarningScreen)
 from seedsigner.models.seed import SeedConstants
 from seedsigner.models.settings import Settings, SettingsConstants
 
@@ -53,6 +55,11 @@ class SeedOptionsView(View):
         from seedsigner.gui.screens.seed_screens import SeedOptionsScreen
 
         screen = SeedOptionsScreen(
+            button_data = [
+                "View Seed Words",
+                "Export Xpub",
+                "Export Seed as QR",
+            ],
             fingerprint=self.seed.get_fingerprint(self.settings.network),
             has_passphrase=self.seed.passphrase is not None
         )
