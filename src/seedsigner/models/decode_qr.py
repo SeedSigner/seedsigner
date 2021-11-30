@@ -1,29 +1,40 @@
+import base64
+import json
+import logging
+import re
+
+from binascii import a2b_base64, b2a_base64
+from embit import psbt
+from enum import IntEnum
 from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
-from enum import IntEnum
-import re
-import base64
-from embit import psbt
-from binascii import a2b_base64, b2a_base64
+
+from . import QRType, Seed
+from .seed import SeedConstants
+from .settings import SettingsConstants
+
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
 from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
-from seedsigner.models import QRType, Seed
+
+logger = logging.getLogger(__name__)
+
+
 
 ###
 ### DecodeQR Class
 ### Purpose: used to process images or string data from animated qr codes with psbt data to create binary/base64 psbt
 ###
-
 class DecodeQR:
 
     def __init__(self, **kwargs):
         self.complete = False
         self.qr_type = None
-        self.ur_decoder = URDecoder() # UR2 decoder
-        self.specter_qr = SpecterDecodePSBTQR() # Specter Desktop PSBT QR base64 decoder
-        self.legacy_ur = LegacyURDecodeQR() # UR Legacy decoder
-        self.base64_qr = Base64DecodeQR() # Single Segments Base64
-        self.base43_qr = Base43DecodeQR() # Single Segment Base43
+        self.ur_decoder = URDecoder()               # UR2 decoder
+        self.specter_qr = SpecterDecodePSBTQR()     # Specter Desktop PSBT QR base64 decoder
+        self.legacy_ur = LegacyURDecodeQR()         # UR Legacy decoder
+        self.base64_qr = Base64DecodeQR()           # Single Segments Base64
+        self.base43_qr = Base43DecodeQR()           # Single Segment Base43
+        self.settings_qr = SettingsQR()             # Settings config in .ini format
         self.wordlist = None
 
         for key, value in kwargs.items():
@@ -97,6 +108,12 @@ class DecodeQR:
                 self.complete = True
             return rt
 
+        elif self.qr_type == QRType.SETTINGS:
+            rt = self.settings_qr.add(qr_str, self.qr_type)
+            if rt == DecodeQRStatus.COMPLETE:
+                self.complete = True
+            return rt
+
         elif self.qr_type == QRType.SEEDMNEMONIC:
             rt = self.seedqr.add(qr_str, QRType.SEEDMNEMONIC)
             if rt == DecodeQRStatus.COMPLETE:
@@ -150,6 +167,12 @@ class DecodeQR:
 
     def getSeedPhrase(self):
         return self.seedqr.getSeedPhrase()
+    
+    def get_settings_data(self):
+        return self.settings_qr.settings
+    
+    def get_settings_config_name(self):
+        return self.settings_qr.config_name
 
     def getPercentComplete(self) -> int:
         if self.qr_type == QRType.PSBTUR2:
@@ -175,6 +198,7 @@ class DecodeQR:
         else:
             return 0
 
+    # TODO: Convert these to properties, python-ize naming convention
     def isComplete(self) -> bool:
         return self.complete
 
@@ -192,6 +216,10 @@ class DecodeQR:
         if self.qr_type in (QRType.SEEDSSQR, QRType.SEEDUR2, QRType.SEEDMNEMONIC, QRType.SEED4LETTERMNEMONIC):
             return True
         return False
+    
+    @property
+    def is_json(self):
+        return self.qr_type in [QRType.SETTINGS, QRType.JSON]
 
     def qrType(self):
         return self.qr_type
@@ -233,8 +261,12 @@ class DecodeQR:
             return QRType.SEED4LETTERMNEMONIC
         elif DecodeQR.isBase43PSBT(s):
             return QRType.PSBTBASE43
-        else:
-            return QRType.INVALID
+        
+        # config data
+        if "type=settings" in s:
+            return QRType.SETTINGS
+
+        return QRType.INVALID
 
     @staticmethod   
     def isBase64(s):
@@ -617,6 +649,97 @@ class SeedQR:
         if len(self.seed_phrase) in (12, 24):
             return True
         return False
+
+
+class SettingsQR:
+    def __init__(self, wordlist=None):
+        self.total_segments = 1
+        self.collected_segments = 0
+        self.complete = False
+        self.settings = {}
+        self.config_name = None
+
+    def add(self, segment, qr_type=QRType.SETTINGS):
+        print(f"SettingsQR: {segment}")
+        try:
+            self.settings["features"] = {}
+            for entry in segment.split(" "):
+                key = entry.split("=")[0].strip()
+                value = entry.split("=")[1].strip()
+                self.settings["features"][key] = value
+
+            # Remove values only needed for import
+            self.settings["features"].pop("type", None)
+            version = self.settings["features"].pop("version", None)
+            if not version or int(version) != 1:
+                raise Exception(f"Settings QR version {version} not supported")
+
+            self.config_name = self.settings["features"].pop("name", None)
+            if self.config_name:
+                self.config_name = self.config_name.replace("_", " ")
+            
+            # Have to translate the abbreviated settings into the human-readable values
+            # used in the normal Settings.
+            map_abbreviated_enable = {
+                "0": SettingsConstants.OPTION__DISABLED,
+                "1": SettingsConstants.OPTION__ENABLED,
+                "2": SettingsConstants.OPTION__PROMPT,
+            }
+            map_abbreviated_sig_types = {
+                "s": [SeedConstants.SINGLE_SIG],
+                "m": [SeedConstants.MULTISIG],
+                "b": [SeedConstants.SINGLE_SIG, SeedConstants.MULTISIG]
+            }
+            map_abbreviated_derivation_paths = {
+                "na": SeedConstants.NATIVE_SEGWIT,
+                "ne": SeedConstants.NESTED_SEGWIT,
+                "tr": SeedConstants.TAPROOT,
+                "cu": SeedConstants.CUSTOM_DERIVATION,
+            }
+
+            def convert_abbreviated_value(category, key, abbreviation_map, is_list=False, new_key_name=None):
+                try:
+                    if category not in self.settings or key not in self.settings[category]:
+                        logger.debug(f"{category} / {key} not found in settings")
+                        return
+                    value = self.settings[category][key]
+
+                    if not is_list:
+                        new_value = abbreviation_map.get(value)
+                        if not new_value:
+                            logger.error(f"No abbreviation map value for \"{value}\" for setting {key}")
+                            return
+                    else:
+                        # `value` is actually a comma-separated list; yielda list of map matches
+                        values = value.split(",")
+                        new_value = []
+                        for v in values:
+                            mapped_value = abbreviation_map.get(v)
+                            if not mapped_value:
+                                logger.error(f"No abbreviation map value for \"{v}\" for setting {key}")
+                                return
+                            new_value.append(mapped_value)
+                    if new_key_name:
+                        del self.settings[category][key]
+                        key = new_key_name
+                    self.settings[category][key] = new_value
+                except Exception as e:
+                    logger.exception(e)
+                    return
+
+            convert_abbreviated_value("features", "xpub", map_abbreviated_enable, new_key_name="xpub_export")
+            convert_abbreviated_value("features", "sigs", map_abbreviated_sig_types, new_key_name="sig_types")
+            convert_abbreviated_value("features", "derivation", map_abbreviated_derivation_paths, is_list=True, new_key_name="derivation_paths")
+            convert_abbreviated_value("features", "passphrase", map_abbreviated_enable)
+            convert_abbreviated_value("features", "priv_warn", map_abbreviated_enable, new_key_name="privacy_warnings")
+            convert_abbreviated_value("features", "dire_warn", map_abbreviated_enable, new_key_name="dire_warnings")
+
+            self.complete = True
+            self.collected_segments = 1
+            return DecodeQRStatus.COMPLETE
+        except Exception as e:
+            logger.exception(e)
+            return DecodeQRStatus.INVALID
 
 ###
 ### DecodeQRStatus Class IntEum

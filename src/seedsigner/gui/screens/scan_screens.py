@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont
 from threading import Thread
 
-from .screen import BaseTopNavScreen
-from ..components import GUIConstants, Fonts, calc_text_centering
+from .screen import BaseTopNavScreen, ButtonListScreen
+from ..components import GUIConstants, Fonts, TextArea, calc_text_centering
 
 from seedsigner.helpers import B
 from seedsigner.models import DecodeQR, DecodeQRStatus
@@ -88,3 +88,46 @@ class ScanScreen(BaseTopNavScreen):
                     break
 
         time.sleep(0.2) # time to let live preview thread complete to avoid race condition on display
+
+
+
+@dataclass
+class SettingsUpdatedScreen(ButtonListScreen):
+    config_name: str = None
+    title: str = "Settings QR"
+    is_bottom_list: bool = True
+
+    def __post_init__(self):
+        # Customize defaults
+        self.button_data = ["Home"]
+
+        super().__post_init__()
+
+        start_y = self.top_nav.height + 20
+        if self.config_name:
+            self.config_name_textarea = TextArea(
+                text=f'"{self.config_name}"',
+                is_text_centered=True,
+                auto_line_break=True,
+                screen_y=start_y
+            )
+            start_y = self.config_name_textarea.screen_y + 50
+        
+        self.success_textarea = TextArea(
+            text="Settings imported successfully!",
+            is_text_centered=True,
+            auto_line_break=True,
+            screen_y=start_y
+        )
+        
+
+    def _render(self):
+        super()._render()
+
+        if self.config_name:
+            self.config_name_textarea.render()
+        self.success_textarea.render()
+
+        # Write the screen updates
+        self.renderer.show_image()
+

@@ -17,4 +17,5 @@ class QRType(IntEnum):
     SEED4LETTERMNEMONIC = 9
     XPUBQR = 20
     SPECTERXPUBQR = 21
+    SETTINGS = 22
     INVALID = 100

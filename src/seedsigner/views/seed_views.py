@@ -54,12 +54,15 @@ class SeedOptionsView(View):
     def run(self):
         from seedsigner.gui.screens.seed_screens import SeedOptionsScreen
 
+        button_data = ["View Seed Words"]
+
+        if self.settings.export_xpub == SettingsConstants.OPTION__ENABLED:
+            button_data.append("Export Xpub")
+        
+        button_data.append("Export Seed as QR")
+
         screen = SeedOptionsScreen(
-            button_data = [
-                "View Seed Words",
-                "Export Xpub",
-                "Export Seed as QR",
-            ],
+            button_data=button_data,
             fingerprint=self.seed.get_fingerprint(self.settings.network),
             has_passphrase=self.seed.passphrase is not None
         )
@@ -69,12 +72,10 @@ class SeedOptionsView(View):
             # View seed words
             return Destination(ShowSeedWordsWarningView, view_args={"seed_num": self.seed_num})
 
-        elif selected_menu_num == 1:
-            # TODO: Locked-down "Uncle Jim" mode options to bypass the prompts and just
-            #   use the configured defaults (e.g. single sig, native segwit, Blue Wallet)
+        elif selected_menu_num == 1 and self.settings.export_xpub == SettingsConstants.OPTION__ENABLED:
             return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})
 
-        elif selected_menu_num == 2:
+        elif selected_menu_num == len(button_data) - 1:
             # TODO: Export Seed as QR
             return Destination(None)
 
@@ -395,13 +396,17 @@ class SeedValidView(View):
 
     def run(self):
         from seedsigner.gui.screens.seed_screens import SeedValidScreen
+
+        button_data=[("Scan a PSBT", "scan_inline")]
+
+        if self.settings.passphrase == SettingsConstants.OPTION__PROMPT:
+            button_data.append("Add Passphrase")
+        
+        button_data.append("Seed Tools")
+
         screen = SeedValidScreen(
             fingerprint=self.fingerprint,
-            button_data=[
-                ("Scan a PSBT", "scan_inline"),
-                "Add Passphrase",
-                "Seed Tools",
-            ],
+            button_data=button_data,
         )
         selected_menu_num = screen.display()
 
@@ -411,10 +416,10 @@ class SeedValidView(View):
             self.controller.storage.finalize_pending_seed()
             return Destination(ScanView, clear_history=True)
         
-        elif selected_menu_num == 1:
+        elif selected_menu_num == 1 and self.settings.passphrase == SettingsConstants.OPTION__PROMPT:
             return Destination(SeedAddPassphraseView)
 
-        elif selected_menu_num == 2:
+        elif selected_menu_num == len(button_data) - 1:
             # Jump straight to the Seed Tools for this seed
             seed_num = self.controller.storage.finalize_pending_seed()
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)

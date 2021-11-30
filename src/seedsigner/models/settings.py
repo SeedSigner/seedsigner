@@ -1,10 +1,13 @@
+import configparser
+import json
+
+from embit import bip39
+
 from .seed import SeedConstants
 from .singleton import ConfigurableSingleton
 from .qr_type import QRType
 from .encode_qr_density import EncodeQRDensity
 
-import configparser
-from embit import bip39
 
 
 class SettingsConstants:
@@ -20,12 +23,22 @@ class SettingsConstants:
         COORDINATOR__PROMPT,
     ]
 
+    OPTION__ENABLED = "Enabled"
+    OPTION__DISABLED = "Disabled"
+    OPTION__PROMPT = "Prompt"
+
+    ALL_OPTIONS = [
+        OPTION__ENABLED,
+        OPTION__DISABLED,
+        OPTION__PROMPT,
+    ]
+
 
 
 class Settings(ConfigurableSingleton):
 
     @classmethod
-    def configure_instance(cls, config=None):
+    def configure_instance(cls, config: configparser.ConfigParser = None):
         super().configure_instance(config)
 
         # Instantiate the one and only instance
@@ -34,21 +47,30 @@ class Settings(ConfigurableSingleton):
 
         # default internal data structure for settings
         settings._data = {
-            'system': {
-                'debug': False,
-                'default_language': "en",
-                'persistent_settings': False,
-                'wordlist': bip39.WORDLIST      # TODO: Just store the wordlist language
+            "system": {
+                "debug": False,
+                "default_language": "en",
+                "persistent_settings": False,
+                "wordlist": bip39.WORDLIST      # TODO: Just store the wordlist language
             },
-            'display': {
-                'text_color': "ORANGE",
-                'camera_rotation': 0,
+            "display": {
+                "text_color": "white",
+                "background_color": "black",
+                "camera_rotation": 0,
             },
-            'wallet': {
-                'network': SeedConstants.MAINNET,
-                'software': "Specter Desktop",
-                'qr_density': EncodeQRDensity.MEDIUM,
-                'custom_derivation': 'm/'
+            "wallet": {
+                "network": SeedConstants.MAINNET,
+                "software": SettingsConstants.COORDINATOR__SPECTER_DESKTOP,
+                "qr_density": EncodeQRDensity.MEDIUM,
+                "custom_derivation": "m/"
+            },
+            "features": {
+                "xpub_export": SettingsConstants.OPTION__ENABLED,        # ENABLED | DISABLED
+                "sig_types": SeedConstants.ALL_SIG_TYPES,                # [single_sig, multisig]
+                "script_types": [t["type"] for t in SeedConstants.ALL_SCRIPT_TYPES],  # [script_type1, ...]
+                "passphrase": SettingsConstants.OPTION__PROMPT,          # ENABLED | DISABLED | PROMPT
+                "privacy_warnings": SettingsConstants.OPTION__ENABLED,   # ENABLED | DISABLED
+                "dire_warnings": SettingsConstants.OPTION__ENABLED,      # ENABLED | DISABLED
             }
         }
 
@@ -60,7 +82,10 @@ class Settings(ConfigurableSingleton):
 
         settings.init_complete = True
 
-    def __config_to_data(self, config):
+    def __str__(self):
+        return json.dumps(self._data, indent=2)
+
+    def __config_to_data(self, config: configparser.ConfigParser):
         self.persistent = config.getboolean("system", "persistent_settings")
         self._data["system"]["debug"] = config.getboolean("system", "debug")
         self._data["system"]["default_language"] = config["system"]["default_language"]
@@ -70,6 +95,11 @@ class Settings(ConfigurableSingleton):
         self.software = config["wallet"]["software"]
         self.qr_density = int(config["wallet"]["qr_density"])
         self.custom_derivation = config["wallet"]["custom_derivation"]
+    
+
+    def update(self, new_settings: dict):
+        self._data.update(new_settings)
+
 
     ### persistent settings handling
 
@@ -233,6 +263,7 @@ class Settings(ConfigurableSingleton):
 
     @staticmethod
     def calc_derivation(network, wallet_type, script_type):
+        # TODO: Move this to Seed?
         if network == SeedConstants.MAINNET:
             network_path = "0'"
         elif network == SeedConstants.TESTNET:
@@ -261,3 +292,20 @@ class Settings(ConfigurableSingleton):
                 raise Exception("Unexpected script type")
         else:
             raise Exception("Unexpected wallet type")
+
+    # Features
+    @property
+    def export_xpub(self):
+        self._data["features"].get("export_xpub")
+
+    @property
+    def passphrase(self):
+        self._data["features"].get("passphrase")
+
+    @property
+    def privacy_warnings(self):
+        self._data["features"].get("privacy_warnings")
+
+    @property
+    def dire_warnings(self):
+        self._data["features"].get("dire_warnings")

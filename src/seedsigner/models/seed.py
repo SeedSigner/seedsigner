@@ -11,12 +11,15 @@ class SeedConstants:
     
     SINGLE_SIG = "single_sig"
     MULTISIG = "multisig"
+    ALL_SIG_TYPES = [
+        SINGLE_SIG,
+        MULTISIG,
+    ]
 
     NATIVE_SEGWIT = "native_segwit"
     NESTED_SEGWIT = "nested_segwit"
     TAPROOT = "taproot"
     CUSTOM_DERIVATION = "custom_derivation"
-
     ALL_SCRIPT_TYPES = [
         {"type": NATIVE_SEGWIT, "display_name": "Native Segwit"},
         {"type": NESTED_SEGWIT, "display_name": "Nested Segwit (legacy)"},

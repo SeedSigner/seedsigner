@@ -9,6 +9,7 @@ config = configparser.ConfigParser()
 config.read("settings.ini")
 
 # One-time setup to intialize the one and only Controller
+# TODO: Refactor how deep the ConfigParser needs to be passed around.
 Controller.configure_instance(config)
 
 # Get the one and only Controller instance and start our main loop
