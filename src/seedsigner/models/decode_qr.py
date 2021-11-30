@@ -690,7 +690,7 @@ class SettingsQR:
                 "m": [SeedConstants.MULTISIG],
                 "b": [SeedConstants.SINGLE_SIG, SeedConstants.MULTISIG]
             }
-            map_abbreviated_derivation_paths = {
+            map_abbreviated_scripts = {
                 "na": SeedConstants.NATIVE_SEGWIT,
                 "ne": SeedConstants.NESTED_SEGWIT,
                 "tr": SeedConstants.TAPROOT,
@@ -729,7 +729,7 @@ class SettingsQR:
 
             convert_abbreviated_value("features", "xpub", map_abbreviated_enable, new_key_name="xpub_export")
             convert_abbreviated_value("features", "sigs", map_abbreviated_sig_types, new_key_name="sig_types")
-            convert_abbreviated_value("features", "derivation", map_abbreviated_derivation_paths, is_list=True, new_key_name="derivation_paths")
+            convert_abbreviated_value("features", "scripts", map_abbreviated_scripts, is_list=True, new_key_name="script_types")
             convert_abbreviated_value("features", "passphrase", map_abbreviated_enable)
             convert_abbreviated_value("features", "priv_warn", map_abbreviated_enable, new_key_name="privacy_warnings")
             convert_abbreviated_value("features", "dire_warn", map_abbreviated_enable, new_key_name="dire_warnings")
