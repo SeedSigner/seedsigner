@@ -801,7 +801,11 @@ class SeedToolsView(View):
             self.roll_data += str(self.dice_selected)
 
         # Reset for the next UI render
-        self.dice_selected = 5
+        if self.roll_number > 45:
+            self.dice_selected = 5
+        else:
+            self.dice_selected = 2
+            
         if self.roll_number < 100:
             self.draw_dice(self.dice_selected)
 
