@@ -662,19 +662,21 @@ class SettingsQR:
     def add(self, segment, qr_type=QRType.SETTINGS):
         print(f"SettingsQR: {segment}")
         try:
-            self.settings["features"] = {}
+            self.settings = {}
+
+            # QR Settings format is space-separated key/value pairs
             for entry in segment.split(" "):
                 key = entry.split("=")[0].strip()
                 value = entry.split("=")[1].strip()
-                self.settings["features"][key] = value
+                self.settings[key] = value
 
             # Remove values only needed for import
-            self.settings["features"].pop("type", None)
-            version = self.settings["features"].pop("version", None)
+            self.settings.pop("type", None)
+            version = self.settings.pop("version", None)
             if not version or int(version) != 1:
                 raise Exception(f"Settings QR version {version} not supported")
 
-            self.config_name = self.settings["features"].pop("name", None)
+            self.config_name = self.settings.pop("name", None)
             if self.config_name:
                 self.config_name = self.config_name.replace("_", " ")
             
@@ -686,9 +688,8 @@ class SettingsQR:
                 "2": SettingsConstants.OPTION__PROMPT,
             }
             map_abbreviated_sig_types = {
-                "s": [SeedConstants.SINGLE_SIG],
-                "m": [SeedConstants.MULTISIG],
-                "b": [SeedConstants.SINGLE_SIG, SeedConstants.MULTISIG]
+                "s": SeedConstants.SINGLE_SIG,
+                "m": SeedConstants.MULTISIG,
             }
             map_abbreviated_scripts = {
                 "na": SeedConstants.NATIVE_SEGWIT,
@@ -696,13 +697,18 @@ class SettingsQR:
                 "tr": SeedConstants.TAPROOT,
                 "cu": SeedConstants.CUSTOM_DERIVATION,
             }
+            map_abbreviated_coordinators = {
+                "bw": SettingsConstants.COORDINATOR__BLUE_WALLET,
+                "sw": SettingsConstants.COORDINATOR__SPARROW,
+                "sd": SettingsConstants.COORDINATOR__SPECTER_DESKTOP,
+            }
 
             def convert_abbreviated_value(category, key, abbreviation_map, is_list=False, new_key_name=None):
                 try:
-                    if category not in self.settings or key not in self.settings[category]:
-                        logger.debug(f"{category} / {key} not found in settings")
+                    if key not in self.settings:
+                        logger.debug(f"'{key}' not found in settings")
                         return
-                    value = self.settings[category][key]
+                    value = self.settings[key]
 
                     if not is_list:
                         new_value = abbreviation_map.get(value)
@@ -710,7 +716,7 @@ class SettingsQR:
                             logger.error(f"No abbreviation map value for \"{value}\" for setting {key}")
                             return
                     else:
-                        # `value` is actually a comma-separated list; yielda list of map matches
+                        # `value` is a comma-separated list; yields list of map matches
                         values = value.split(",")
                         new_value = []
                         for v in values:
@@ -719,16 +725,19 @@ class SettingsQR:
                                 logger.error(f"No abbreviation map value for \"{v}\" for setting {key}")
                                 return
                             new_value.append(mapped_value)
+                    del self.settings[key]
                     if new_key_name:
-                        del self.settings[category][key]
                         key = new_key_name
+                    if category not in self.settings:
+                        self.settings[category] = {}
                     self.settings[category][key] = new_value
                 except Exception as e:
                     logger.exception(e)
                     return
 
+            convert_abbreviated_value("wallet", "coord", map_abbreviated_coordinators, is_list=True, new_key_name="coordinators")
             convert_abbreviated_value("features", "xpub", map_abbreviated_enable, new_key_name="xpub_export")
-            convert_abbreviated_value("features", "sigs", map_abbreviated_sig_types, new_key_name="sig_types")
+            convert_abbreviated_value("features", "sigs", map_abbreviated_sig_types, is_list=True, new_key_name="sig_types")
             convert_abbreviated_value("features", "scripts", map_abbreviated_scripts, is_list=True, new_key_name="script_types")
             convert_abbreviated_value("features", "passphrase", map_abbreviated_enable)
             convert_abbreviated_value("features", "priv_warn", map_abbreviated_enable, new_key_name="privacy_warnings")

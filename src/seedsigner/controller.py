@@ -11,11 +11,11 @@ from subprocess import call
 from threading import Thread
 
 from .models import (EncodeQRDensity, QRType, Seed, SeedStorage, Settings,
-    ConfigurableSingleton, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
+    Singleton, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
 
 
 
-class Controller(ConfigurableSingleton):
+class Controller(Singleton):
     """
         The Controller is a globally available singleton that maintains SeedSigner state.
 
@@ -34,50 +34,49 @@ class Controller(ConfigurableSingleton):
     """
     VERSION = "0.5.0"
 
-
     @classmethod
-    def configure_instance(cls, config=None):
+    def get_instance(cls):
         from .gui import Renderer
         from .helpers import Buttons
         from .views import ScreensaverView
+        # This is the only way to access the one and only instance
+        if cls._instance is None:
+            # Instantiate the one and only Controller instance
+            controller = cls.__new__(cls)
+            cls._instance = controller
 
-        super().configure_instance(config)
+            # Input Buttons
+            controller.buttons = Buttons.get_instance()
 
-        # Instantiate the one and only Controller instance
-        controller = cls.__new__(cls)
-        cls._instance = controller
+            # models
+            # TODO: Rename "storage" to something more indicative of its temp, in-memory state
+            controller.storage = SeedStorage()
+            controller.settings = Settings.get_instance()
 
-        # Input Buttons
-        controller.buttons = Buttons.get_instance()
+            # settings
+            controller.DEBUG = controller.settings.debug
+            controller.color = controller.settings.text_color
 
-        # models
-        # TODO: Rename "storage" to something more indicative of its temp, in-memory state
-        controller.storage = SeedStorage()
-        Settings.configure_instance(config)
-        controller.settings = Settings.get_instance()
+            # Configure the Renderer
+            Renderer.configure_instance({"text_color": controller.color})
 
-        # settings
-        controller.DEBUG = controller.settings.debug
-        controller.color = controller.settings.text_color
+            # TODO: Refactor so that we don't need the Renderer here
+            controller.renderer = Renderer.get_instance()
 
-        # Configure the Renderer
-        Renderer.configure_instance({"text_color": controller.color})
+            # Views
+            # controller.menu_view = MenuView()
+            # controller.seed_tools_view = SeedToolsView()
+            # controller.io_test_view = IOTestView()
+            # controller.signing_tools_view = SigningToolsView(controller.storage)
+            # controller.settings_tools_view = SettingsToolsView()
+            controller.screensaver = ScreensaverView(controller.buttons)
 
-        # TODO: Refactor so that we don't need the Renderer here
-        controller.renderer = Renderer.get_instance()
+            controller.back_stack = []
 
-        # Views
-        # controller.menu_view = MenuView()
-        # controller.seed_tools_view = SeedToolsView()
-        # controller.io_test_view = IOTestView()
-        # controller.signing_tools_view = SigningToolsView(controller.storage)
-        # controller.settings_tools_view = SettingsToolsView()
-        controller.screensaver = ScreensaverView(controller.buttons)
-
-        controller.back_stack = []
-
-        # Other behavior constants
-        controller.screensaver_activation_ms = 120 * 1000
+            # Other behavior constants
+            controller.screensaver_activation_ms = 120 * 1000
+    
+        return cls._instance
 
 
     @property
@@ -147,6 +146,12 @@ class Controller(ConfigurableSingleton):
                 next_destination = next_destination.run()
 
                 print(f"next_destination: {next_destination}")
+
+                if next_destination.skip_current_view:
+                    # Remove the current View from history; it's forwarding us straight
+                    # to the next View.
+                    self.pop_back_stack()
+
                 clear_history = next_destination.clear_history
                 if next_destination.View_cls == BackStackView:
                     # "Back" arrow was clicked; load the previous view

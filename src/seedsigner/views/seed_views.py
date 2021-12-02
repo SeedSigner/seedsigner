@@ -56,7 +56,8 @@ class SeedOptionsView(View):
 
         button_data = ["View Seed Words"]
 
-        if self.settings.export_xpub == SettingsConstants.OPTION__ENABLED:
+        print(f"{self.settings.xpub_export} == {SettingsConstants.OPTION__ENABLED}")
+        if self.settings.xpub_export == SettingsConstants.OPTION__ENABLED:
             button_data.append("Export Xpub")
         
         button_data.append("Export Seed as QR")
@@ -72,8 +73,8 @@ class SeedOptionsView(View):
             # View seed words
             return Destination(ShowSeedWordsWarningView, view_args={"seed_num": self.seed_num})
 
-        elif selected_menu_num == 1 and self.settings.export_xpub == SettingsConstants.OPTION__ENABLED:
-            return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})
+        elif selected_menu_num == 1 and self.settings.xpub_export == SettingsConstants.OPTION__ENABLED:
+            return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})                
 
         elif selected_menu_num == len(button_data) - 1:
             # TODO: Export Seed as QR
@@ -120,6 +121,10 @@ class SeedExportXpubSigTypeView(View):
 
 
     def run(self):
+        if len(self.settings.sig_types) == 1:
+            # Nothing to select; skip this screen
+            return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": self.settings.sig_types[0]}, skip_current_view=True)
+
         screen = LargeButtonScreen(
             title="Export Xpub",
             button_data=[
@@ -148,6 +153,12 @@ class SeedExportXpubScriptTypeView(View):
 
 
     def run(self):
+        args = {"seed_num": self.seed_num, "sig_type": self.sig_type}
+        if len(self.settings.sig_types) == 1:
+            # Nothing to select; skip this screen
+            args["script_type"] = self.settings.script_types[0]
+            return Destination(SeedExportXpubCoordinatorView, view_args=args, skip_current_view=True)
+
         screen = ButtonListScreen(
             title="Export Xpub",
             is_button_text_centered=False,
@@ -155,8 +166,6 @@ class SeedExportXpubScriptTypeView(View):
             button_data=[script_type["display_name"] for script_type in SeedConstants.ALL_SCRIPT_TYPES]
         )
         selected_menu_num = screen.display()
-
-        args = {"seed_num": self.seed_num, "sig_type": self.sig_type}
 
         if selected_menu_num < len(SeedConstants.ALL_SCRIPT_TYPES):
             args["script_type"] = SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num]["type"]
@@ -211,35 +220,26 @@ class SeedExportXpubCoordinatorView(View):
 
 
     def run(self):
-        default_coordinator = self.settings.software
-
-        # Set up how the list should be ordered
-        coordinator_list = []
-        if default_coordinator == SettingsConstants.COORDINATOR__PROMPT:
-            # Use the default list, but omit "Prompt"
-            coordinator_list = SettingsConstants.ALL_COORDINATORS[:-1]
-        else:
-            # List the selected coordinator first, then the rest (but omit "Prompt")
-            coordinator_list.append(default_coordinator)
-            for coordinator in SettingsConstants.ALL_COORDINATORS[:-1]:
-                if coordinator != default_coordinator:
-                    coordinator_list.append(coordinator)
+        args = {
+            "seed_num": self.seed_num,
+            "sig_type": self.sig_type,
+            "script_type": self.script_type,
+        }
+        if len(self.settings.coordinators) == 1:
+            # Nothing to select; skip this screen
+            args["coordinator"] = self.settings.coordinators[0]
+            return Destination(SeedExportXpubWarningView, view_args=args, skip_current_view=True)
 
         screen = ButtonListScreen(
             title="Export Xpub",
             is_button_text_centered=False,
             is_bottom_list=True,
-            button_data=coordinator_list,
+            button_data=self.settings.coordinators,
         )
         selected_menu_num = screen.display()
 
-        if selected_menu_num < len(coordinator_list):
-            args = {
-                "seed_num": self.seed_num,
-                "sig_type": self.sig_type,
-                "script_type": self.script_type,
-                "coordinator": SettingsConstants.ALL_COORDINATORS[selected_menu_num],
-            }
+        if selected_menu_num < len(self.settings.coordinators):
+            args["coordinator"] = self.settings.coordinators[selected_menu_num]
             return Destination(SeedExportXpubWarningView, view_args=args)
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:

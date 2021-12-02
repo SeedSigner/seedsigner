@@ -97,6 +97,7 @@ class Destination:
     """
     View_cls: View                  # The target View to route to
     view_args: dict = None          # The input args required to instantiate the target View
+    skip_current_view: bool = False  # The current View is just forwarding; omit current View from history
     clear_history: bool = False     # Optionally clears the back_stack to prevent "back"
 
     def __str__(self):
