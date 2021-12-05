@@ -225,7 +225,6 @@ class XPubQR:
             raise Exception('Wordlist Required')
             
         version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[network])
-        print(self.derivation)
         self.seed = Seed(mnemonic=self.seed_phrase, passphrase=self.passphrase, wordlist=self.wordlist)
         self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[network]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint

@@ -33,7 +33,7 @@ class ScanScreen(BaseTopNavScreen):
         self.instructions_background_y = self.canvas_height - self.instructions_background.height
 
         # Pre-calc where the instruction text goes
-        self.instructions_text = "Scan a Seed or PSBT"
+        self.instructions_text = "Scan a QR code"
         self.instructions_font = Fonts.get_font(GUIConstants.BUTTON_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
 
         # TODO: Add the QR code icon and adjust start_x
@@ -63,7 +63,11 @@ class ScanScreen(BaseTopNavScreen):
                         scan_text = str(self.decoder.getPercentComplete()) + "% Complete"
 
                     # TODO: Render TopNav & instructions_background w/transparency
-                    self.renderer.show_image_with_text(frame.resize((240,240)), scan_text, font=self.instructions_font, text_color="white", text_background=(0,0,0,225))
+                    # img = Image.new(mode='RGBA', size=(self.canvas_width, self.canvas_height))
+                    # img.paste(frame.resize((self.canvas_width, self.canvas_height)))
+                    self.renderer.show_image_with_text(frame.resize((self.canvas_width, self.canvas_height), resample=Image.NEAREST), scan_text, font=self.instructions_font, text_color="white", text_background=(0,0,0,225))
+                    # self.top_nav.render()
+                    # self.renderer.show_image()
 
                 time.sleep(0.1) # turn this up or down to tune performance while decoding psbt
                 if self.camera._video_stream is None:

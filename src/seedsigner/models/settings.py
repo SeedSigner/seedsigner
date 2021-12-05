@@ -67,9 +67,10 @@ class Settings(Singleton):
                     "xpub_export": SettingsConstants.OPTION__ENABLED,        # ENABLED | DISABLED
                     "sig_types": SeedConstants.ALL_SIG_TYPES,                # [single_sig, multisig]
                     "script_types": [t["type"] for t in SeedConstants.ALL_SCRIPT_TYPES],  # [script_type1, ...]
-                    "passphrase": SettingsConstants.OPTION__PROMPT,          # ENABLED | DISABLED | PROMPT
-                    "privacy_warnings": SettingsConstants.OPTION__ENABLED,   # ENABLED | DISABLED
-                    "dire_warnings": SettingsConstants.OPTION__ENABLED,      # ENABLED | DISABLED
+                    "show_xpub_details": SettingsConstants.OPTION__ENABLED,  # ENABLED | DISABLED
+                    "passphrase": SettingsConstants.OPTION__ENABLED,          # ENABLED | DISABLED | PROMPT
+                    "show_privacy_warnings": SettingsConstants.OPTION__ENABLED,   # ENABLED | DISABLED
+                    "show_dire_warnings": SettingsConstants.OPTION__ENABLED,      # ENABLED | DISABLED
                 }
             }
 
@@ -286,13 +287,17 @@ class Settings(Singleton):
         return self._data["features"].get("script_types")
 
     @property
+    def show_xpub_details(self) -> bool:
+        return self._data["features"].get("show_xpub_details") == SettingsConstants.OPTION__ENABLED
+
+    @property
     def passphrase(self):
         return self._data["features"].get("passphrase")
 
     @property
-    def privacy_warnings(self):
-        return self._data["features"].get("privacy_warnings")
+    def show_privacy_warnings(self) -> bool:
+        return self._data["features"].get("show_privacy_warnings") == SettingsConstants.OPTION__ENABLED
 
     @property
-    def dire_warnings(self):
-        return self._data["features"].get("dire_warnings")
+    def show_dire_warnings(self) -> bool:
+        return self._data["features"].get("show_dire_warnings") == SettingsConstants.OPTION__ENABLED

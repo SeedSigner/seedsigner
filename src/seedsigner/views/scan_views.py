@@ -1,5 +1,8 @@
 import json
 
+from seedsigner.models.settings import SettingsConstants
+from seedsigner.views.seed_views import SeedAddPassphrasePromptView
+
 from .view import BackStackView, MainMenuView, View, Destination
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
@@ -32,12 +35,19 @@ class ScanView(View):
                     self.controller.storage.set_pending_seed(
                         Seed(mnemonic=seed_mnemonic, wordlist=self.controller.settings.wordlist)
                     )
-                    return Destination(SeedValidView)
+                    if self.settings.passphrase == SettingsConstants.OPTION__PROMPT:
+                        # This setting means "Always Prompt" the user if they want to to
+                        #   set a passphrase.
+                        return Destination(SeedAddPassphrasePromptView)
+                    else:
+                        return Destination(SeedValidView)
 
             elif self.decoder.qr_type == QRType.SETTINGS:
                 from seedsigner.models.settings import Settings
                 settings = self.decoder.get_settings_data()
                 Settings.get_instance().update(new_settings=settings)
+
+                print(json.dumps(Settings.get_instance()._data, indent=4))
 
                 return Destination(SettingsUpdatedView, {"config_name": self.decoder.get_settings_config_name()})
 

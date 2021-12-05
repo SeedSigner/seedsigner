@@ -154,7 +154,7 @@ class SeedExportXpubScriptTypeView(View):
 
     def run(self):
         args = {"seed_num": self.seed_num, "sig_type": self.sig_type}
-        if len(self.settings.sig_types) == 1:
+        if len(self.settings.script_types) == 1:
             # Nothing to select; skip this screen
             args["script_type"] = self.settings.script_types[0]
             return Destination(SeedExportXpubCoordinatorView, view_args=args, skip_current_view=True)
@@ -163,7 +163,7 @@ class SeedExportXpubScriptTypeView(View):
             title="Export Xpub",
             is_button_text_centered=False,
             is_bottom_list=True,
-            button_data=[script_type["display_name"] for script_type in SeedConstants.ALL_SCRIPT_TYPES]
+            button_data=[script_type["display_name"] for script_type in SeedConstants.ALL_SCRIPT_TYPES if script_type["type"] in self.settings.script_types]
         )
         selected_menu_num = screen.display()
 
@@ -177,6 +177,7 @@ class SeedExportXpubScriptTypeView(View):
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
+
 
 
 class SeedExportXpubCustomDerivationView(View):
@@ -257,13 +258,14 @@ class SeedExportXpubWarningView(View):
 
 
     def run(self):
-        # from seedsigner.gui.screens.seed_screens import SeedExportXpubWalletScreen
-
-        screen = WarningScreen(
-            warning_headline="Privacy Leak!",
-            warning_text="""Xpub can be used to view all future transactions.""",
-        )
-        selected_menu_num = screen.display()
+        if self.settings.show_privacy_warnings:
+            screen = WarningScreen(
+                warning_headline="Privacy Leak!",
+                warning_text="""Xpub can be used to view all future transactions.""",
+            )
+            selected_menu_num = screen.display()
+        else:
+            selected_menu_num = 0
 
         if selected_menu_num == 0:
             # User clicked "I Understand"
@@ -310,29 +312,32 @@ class SeedExportXpubDetailsView(View):
                 script_type=self.script_type
             )
 
-        version = embit.bip32.detect_version(
-            derivation_path,
-            default="xpub",
-            network=embit.networks.NETWORKS[self.controller.settings.network]
-        )
+        if self.settings.show_xpub_details:
+            version = embit.bip32.detect_version(
+                derivation_path,
+                default="xpub",
+                network=embit.networks.NETWORKS[self.controller.settings.network]
+            )
 
-        root = embit.bip32.HDKey.from_seed(
-            self.seed.seed,
-            version=embit.networks.NETWORKS[self.controller.settings.network]["xprv"]
-        )
+            root = embit.bip32.HDKey.from_seed(
+                self.seed.seed,
+                version=embit.networks.NETWORKS[self.controller.settings.network]["xprv"]
+            )
 
-        fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
-        xprv = root.derive(derivation_path)
-        xpub = xprv.to_public()
-        xpub_base58 = xpub.to_string(version=version)
+            fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
+            xprv = root.derive(derivation_path)
+            xpub = xprv.to_public()
+            xpub_base58 = xpub.to_string(version=version)
 
-        screen = SeedExportXpubDetailsScreen(
-            fingerprint=fingerprint,
-            has_passphrase=self.seed.passphrase is not None,
-            derivation_path=derivation_path,
-            xpub=xpub_base58,
-        )
-        selected_menu_num = screen.display()
+            screen = SeedExportXpubDetailsScreen(
+                fingerprint=fingerprint,
+                has_passphrase=self.seed.passphrase is not None,
+                derivation_path=derivation_path,
+                xpub=xpub_base58,
+            )
+            selected_menu_num = screen.display()
+        else:
+            selected_menu_num = 0
 
         if selected_menu_num == 0:
             return Destination(
@@ -399,8 +404,10 @@ class SeedValidView(View):
 
         button_data=[("Scan a PSBT", "scan_inline")]
 
-        if self.settings.passphrase == SettingsConstants.OPTION__PROMPT:
+        if self.settings.passphrase == SettingsConstants.OPTION__ENABLED or (not self.seed.passphrase and self.settings.passphrase == SettingsConstants.OPTION__PROMPT):
             button_data.append("Add Passphrase")
+        elif self.seed.passphrase:
+            button_data.append("Edit Passphrase")
         
         button_data.append("Seed Tools")
 
@@ -416,7 +423,7 @@ class SeedValidView(View):
             self.controller.storage.finalize_pending_seed()
             return Destination(ScanView, clear_history=True)
         
-        elif selected_menu_num == 1 and self.settings.passphrase == SettingsConstants.OPTION__PROMPT:
+        elif selected_menu_num == 1 and len(button_data) > selected_menu_num + 1:
             return Destination(SeedAddPassphraseView)
 
         elif selected_menu_num == len(button_data) - 1:
@@ -431,12 +438,32 @@ class SeedValidView(View):
 
 
 
+class SeedAddPassphrasePromptView(View):
+    def run(self):
+        screen = LargeButtonScreen(
+            title="Add Passphrase?",
+            button_data=[
+                "Yes",
+                "No",
+            ]
+        )
+        selected_menu_num = screen.display()
+
+        if selected_menu_num == 0:
+            return Destination(SeedAddPassphraseView)
+
+        elif selected_menu_num == 1:
+            return Destination(SeedValidView)
+
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+            
+
+
 class SeedAddPassphraseView(View):
     def __init__(self):
         super().__init__()
-
         self.seed = self.controller.storage.get_pending_seed()
-        self.fingerprint = self.seed.get_fingerprint(network=self.controller.settings.network)
 
 
     def run(self):
