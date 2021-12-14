@@ -130,34 +130,26 @@ class Destination:
 class MainMenuView(View):
     def run(self):
         from .seed_views import SeedsMenuView
+        from .settings_views import SettingsMenuView
         from .scan_views import ScanView
         from seedsigner.gui.screens import LargeButtonScreen
-        screen= LargeButtonScreen(
+        menu_items = [
+            (("Scan", "scan"), ScanView),
+            (("Seeds", "seeds"), SeedsMenuView),
+            (("Tools", "tools"), None),
+            (("Settings", "settings"), SettingsMenuView),
+        ]
+        screen = LargeButtonScreen(
             title="Home",
             title_font_size=26,
-            button_data=[("Scan", "scan"),
-                         ("Seeds", "seeds"),
-                         ("Tools", "tools"),
-                         ("Settings", "settings")],
+            button_data=[entry[0] for entry in menu_items],
             show_back_button=False,
             show_power_button=True,
         )
         selected_menu_num = screen.display()
 
-        print(f"selected_menu_num: {selected_menu_num}")
-
-        if selected_menu_num == 0:
-            return Destination(ScanView)
-
-        elif selected_menu_num == 1:
-            return Destination(SeedsMenuView)
-
-        elif selected_menu_num == 2:
-            return Destination(None)
-            # return self.display_settings_menu
-
-        elif selected_menu_num == 3:
-            return Destination(None)
+        if selected_menu_num < len(menu_items):
+            return Destination(menu_items[selected_menu_num][1])
 
         elif selected_menu_num == RET_CODE__POWER_BUTTON:
             return Destination(PowerOffView)

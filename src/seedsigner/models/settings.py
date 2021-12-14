@@ -87,7 +87,7 @@ class Settings(Singleton):
     
 
     def save(self):
-        if self._data["system"]["persistent_settings"] == True and self.init_complete == True:
+        if self._data["system"]["persistent_settings"]:
             with open(Settings.SETTINGS_FILENAME, 'w') as settings_file:
                 json.dump(self._data, settings_file)
 
@@ -100,6 +100,12 @@ class Settings(Singleton):
                 self._data[category].pop(key, None)
                 self._data[category][key] = value
 
+
+    def set_value(self, category: str, key: str, value: any):
+        if category not in self._data or key not in self._data[category]:
+            raise Exception(f"Setting for {category}: {key} not found")
+        self._data[category][key] = value
+        self.save()
 
     ### persistent settings handling
 

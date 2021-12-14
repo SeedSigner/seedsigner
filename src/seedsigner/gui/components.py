@@ -340,6 +340,7 @@ class Button(BaseComponent):
     text: str = "Button Label"
     screen_x: int = 0
     screen_y: int = 0
+    scroll_y: int = 0
     width: int = None
     height: int = None
     icon_name: str = None   # Optional icon to accompany the text
@@ -408,16 +409,16 @@ class Button(BaseComponent):
             background_color = self.background_color
             font_color = self.font_color
 
-        self.image_draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.width, self.screen_y + self.height), fill=background_color, radius=GUIConstants.COMPONENT_PADDING)
+        self.image_draw.rounded_rectangle((self.screen_x, self.screen_y - self.scroll_y, self.screen_x + self.width, self.screen_y + self.height - self.scroll_y), fill=background_color, radius=GUIConstants.COMPONENT_PADDING)
 
         if self.text:
-            self.image_draw.text((self.text_x, self.text_y), self.text, fill=font_color, font=self.font)
+            self.image_draw.text((self.text_x, self.text_y - self.scroll_y), self.text, fill=font_color, font=self.font)
 
         if self.icon_name:
             icon = self.icon
             if self.is_selected:
                 icon = self.icon_selected
-            self.canvas.paste(icon, (self.icon_x, self.icon_y))
+            self.canvas.paste(icon, (self.icon_x, self.icon_y - self.scroll_y))
 
 
 
