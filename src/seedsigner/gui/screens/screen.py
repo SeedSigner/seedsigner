@@ -185,7 +185,7 @@ class ButtonListScreen(BaseTopNavScreen):
                 icon_name=icon_name,
                 is_icon_inline=True,
                 screen_x=GUIConstants.EDGE_PADDING,
-                screen_y=button_list_y + i * (button_height + GUIConstants.COMPONENT_PADDING),
+                screen_y=button_list_y + i * (button_height + GUIConstants.LIST_ITEM_PADDING),
                 width=self.canvas_width - (2 * GUIConstants.EDGE_PADDING),
                 height=button_height,
                 is_text_centered=self.is_button_text_centered,
@@ -196,13 +196,20 @@ class ButtonListScreen(BaseTopNavScreen):
             self.buttons.append(button)
         
         if self.has_scroll_arrows:
+            self.arrow_half_width = 10
             self.cur_scroll_y = 0
-            self.down_arrow_img = Image.new("RGBA", size=(self.canvas_width, 16), color="black")
-            self.down_arrow_img_y = self.canvas_height - 16
+            self.up_arrow_img = Image.new("RGBA", size=(2 * self.arrow_half_width, 8), color="black")
+            self.up_arrow_img_y = self.top_nav.height - 12
+            arrow_draw = ImageDraw.Draw(self.up_arrow_img)
+            arrow_draw.line((self.arrow_half_width, 1, 0, 7), fill=GUIConstants.BUTTON_FONT_COLOR)
+            arrow_draw.line((self.arrow_half_width, 1, 2 * self.arrow_half_width, 7), fill=GUIConstants.BUTTON_FONT_COLOR)
+
+            self.down_arrow_img = Image.new("RGBA", size=(2 * self.arrow_half_width, 8), color="black")
+            self.down_arrow_img_y = self.canvas_height - 16 + 2
             arrow_draw = ImageDraw.Draw(self.down_arrow_img)
             center_x = int(self.canvas_width / 2)
-            arrow_draw.line((center_x, 7, center_x - 10, 1), fill="white")
-            arrow_draw.line((center_x, 7, center_x + 10, 1), fill="white")
+            arrow_draw.line((self.arrow_half_width, 7, 0, 1), fill=GUIConstants.BUTTON_FONT_COLOR)
+            arrow_draw.line((self.arrow_half_width, 7, 2 * self.arrow_half_width, 1), fill=GUIConstants.BUTTON_FONT_COLOR)
 
         self.selected_button = 0
         self.buttons[0].is_selected = True
@@ -210,22 +217,53 @@ class ButtonListScreen(BaseTopNavScreen):
 
     def _render(self):
         super()._render()
-        for button in self.buttons:
-            button.render()
+        self._render_visible_buttons()
 
+
+    def _render_visible_buttons(self):
         if self.has_scroll_arrows:
+            self._render_up_arrow()
             self._render_down_arrow()
 
+        for i, button in enumerate(self.buttons):
+            if not self.has_scroll_arrows:
+                button.render()
+                continue
+
+            button_position_y = button.screen_y - button.scroll_y
+            if button_position_y >= self.top_nav.height and button_position_y < self.down_arrow_img_y:
+                if i == 0:
+                    # We rendered the top button; no more to scroll up for.
+                    self._hide_up_arrow()
+
+                if i == len(self.buttons) - 1:
+                    # We just pulled up the last button; no more to scroll down for.
+                    self._hide_down_arrow()
+
+                # Render the button after the arrows to cover up overlap
+                button.render()
+
+
+    def _render_up_arrow(self):
+        self.canvas.paste(self.up_arrow_img, (int(self.canvas_width / 2) - self.arrow_half_width, self.up_arrow_img_y))
 
     def _render_down_arrow(self):
-        self.canvas.paste(self.down_arrow_img, (0, self.down_arrow_img_y))
+        self.canvas.paste(self.down_arrow_img, (int(self.canvas_width / 2) - self.arrow_half_width, self.down_arrow_img_y))
 
+    def _hide_up_arrow(self):
+        self.image_draw.rectangle(
+            (
+                int(self.canvas_width / 2) - self.arrow_half_width, self.up_arrow_img_y,
+                int(self.canvas_width / 2) + self.arrow_half_width, self.up_arrow_img_y + self.up_arrow_img.height
+            ),
+            fill="black"
+        )
 
     def _hide_down_arrow(self):
         self.image_draw.rectangle(
             (
-                int((self.canvas_width - self.down_arrow_img.width) / 2), self.down_arrow_img_y,
-                int((self.canvas_width + self.down_arrow_img.width) / 2), self.down_arrow_img_y + self.down_arrow_img.height
+                int(self.canvas_width / 2) - self.arrow_half_width, self.down_arrow_img_y,
+                int(self.canvas_width / 2) + self.arrow_half_width, self.down_arrow_img_y + self.down_arrow_img.height
             ),
             fill="black"
         )
@@ -257,10 +295,7 @@ class ButtonListScreen(BaseTopNavScreen):
                         frame_scroll = cur_selected_button.screen_y - next_selected_button.screen_y
                         for button in self.buttons:
                             button.scroll_y -= frame_scroll
-                            button_position_y = button.screen_y - button.scroll_y
-                            if button_position_y >= self.top_nav.height and button_position_y < self.down_arrow_img_y:
-                                button.render()
-                        self._render_down_arrow()
+                        self._render_visible_buttons()
                     else:
                         cur_selected_button.render()
                         next_selected_button.render()
@@ -286,14 +321,9 @@ class ButtonListScreen(BaseTopNavScreen):
                     if self.has_scroll_arrows and next_selected_button.screen_y - next_selected_button.scroll_y + next_selected_button.height > self.down_arrow_img_y:
                         # Selected a Button that's off the bottom of the screen
                         frame_scroll = next_selected_button.screen_y - cur_selected_button.screen_y
-                        for i, button in enumerate(self.buttons):
+                        for button in self.buttons:
                             button.scroll_y += frame_scroll
-                            button_position_y = button.screen_y - button.scroll_y
-                            if button_position_y >= self.top_nav.height and button_position_y < self.down_arrow_img_y:
-                                button.render()
-                                if i == len(self.buttons) - 1:
-                                    # We just pulled up the last button; no more to scroll down for.
-                                    self._hide_down_arrow()
+                        self._render_visible_buttons()
                     else:
                         cur_selected_button.render()
                         next_selected_button.render()

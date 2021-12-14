@@ -12,9 +12,10 @@ from seedsigner.models import Singleton
 class GUIConstants:
     EDGE_PADDING = 8
     COMPONENT_PADDING = 8
+    LIST_ITEM_PADDING = 4
 
     TOP_NAV_TITLE_FONT_NAME = "OpenSans-SemiBold"
-    TOP_NAV_TITLE_FONT_SIZE = 19
+    TOP_NAV_TITLE_FONT_SIZE = 20
     TOP_NAV_HEIGHT = 48
     TOP_NAV_BUTTON_SIZE = 32
 
@@ -26,7 +27,8 @@ class GUIConstants:
 
     BUTTON_FONT_NAME = "OpenSans-SemiBold"
     BUTTON_FONT_SIZE = 18
-    BUTTON_HEIGHT = 36
+    BUTTON_FONT_COLOR = "#e8e8e8"
+    BUTTON_HEIGHT = 32
 
 
 
@@ -351,7 +353,8 @@ class Button(BaseComponent):
     selected_color: str = "orange"
     font_name: str = GUIConstants.BUTTON_FONT_NAME
     font_size: int = GUIConstants.BUTTON_FONT_SIZE
-    font_color: str = "#fcfcfc"
+    # font_color: str = "#fcfcfc"
+    font_color: str = GUIConstants.BUTTON_FONT_COLOR
     selected_font_color: str = "black"
     is_text_centered: bool = True
     is_selected: bool = False
@@ -409,7 +412,7 @@ class Button(BaseComponent):
             background_color = self.background_color
             font_color = self.font_color
 
-        self.image_draw.rounded_rectangle((self.screen_x, self.screen_y - self.scroll_y, self.screen_x + self.width, self.screen_y + self.height - self.scroll_y), fill=background_color, radius=GUIConstants.COMPONENT_PADDING)
+        self.image_draw.rounded_rectangle((self.screen_x, self.screen_y - self.scroll_y, self.screen_x + self.width, self.screen_y + self.height - self.scroll_y), fill=background_color, radius=8)
 
         if self.text:
             self.image_draw.text((self.text_x, self.text_y - self.scroll_y), self.text, fill=font_color, font=self.font)
