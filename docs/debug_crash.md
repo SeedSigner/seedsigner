@@ -20,9 +20,9 @@ At this point you should be signed into the pi user either on a HDMI display (vi
 
 Follow these steps to setup a debug session.
 
-`cd seedsigner/src`
+`cd /boot`
 
-`nano settings.ini`
+`sudo nano settings.ini`
 
 in nano editor change `debug = False` to `debug = True` (case sensitive). Save and exit settings.ini.
 

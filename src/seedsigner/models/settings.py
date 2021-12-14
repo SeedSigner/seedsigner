@@ -86,7 +86,7 @@ class Settings(Singleton):
         self.__writeSettingsIni(config)
 
     def __writeSettingsIni(self, config):
-        with open('settings.ini', 'w') as configfile:
+        with open('/boot/settings.ini', 'w') as configfile:
             config.write(configfile)
             configfile.close()
 

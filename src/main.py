@@ -6,7 +6,7 @@ from seedsigner.controller import Controller
 
 
 config = configparser.ConfigParser()
-config.read("settings.ini")
+config.read("/boot/settings.ini")
 
 # One-time setup to intialize the one and only Controller
 Controller.configure_instance(config)
