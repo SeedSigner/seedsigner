@@ -82,7 +82,13 @@ class Fonts(Singleton):
             cls.fonts[font_name] = {}
 
         if size not in cls.fonts[font_name]:
-            cls.fonts[font_name][size] = ImageFont.truetype(os.path.join(cls.font_path, f"{font_name}.ttf"), size)
+            try:
+                cls.fonts[font_name][size] = ImageFont.truetype(os.path.join(cls.font_path, f"{font_name}.ttf"), size)
+            except OSError as e:
+                if "cannot open resource" in str(e):
+                    raise Exception(f"Font {font_name}.ttf not found: {repr(e)}")
+                else:
+                    raise e
 
         return cls.fonts[font_name][size]
 
