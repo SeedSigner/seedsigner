@@ -2,8 +2,11 @@ import time
 
 from dataclasses import dataclass
 
+from seedsigner.models.seed import Seed
+from seedsigner.views.menu_view import MenuView
+
 from .screen import BaseScreen, BaseTopNavScreen, ButtonListScreen, WarningScreenMixin
-from ..components import Fonts, TextArea, GUIConstants, IconTextLine
+from ..components import Fonts, TextArea, GUIConstants, IconTextLine, calc_text_centering
 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.helpers import B
@@ -71,6 +74,71 @@ class SeedOptionsScreen(ButtonListScreen):
         super()._render()
         self.fingerprint_icontextline.render()
 
+
+@dataclass
+class SeedWordsScreen(ButtonListScreen):
+    title: str = "Seed Words"
+    seed: Seed = None
+    is_first_page: bool = True
+    is_bottom_list: bool = True
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        # Set up how to render the 12 words on this screen
+        mnemonic = self.seed.mnemonic_display_list
+        if len(mnemonic) == 12 or self.is_first_page:
+            self.mnemonic = mnemonic[:12]
+        else:
+            self.mnemonic = mnemonic[12:]
+
+    def _render(self):
+        super()._render()
+
+        font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, 16)
+
+        # Calc vertical placement for the numbers
+        (number_x, number_y) = calc_text_centering(
+            font=font,
+            text="1234567890",
+            is_text_centered=True,
+            box_width=20,
+            box_height=20
+        )
+        number_box_x = GUIConstants.EDGE_PADDING
+        number_box_y = self.top_nav.height
+        number_box_width = 20
+        number_box_height = 20
+        for index, word in enumerate(self.mnemonic):
+            if index == 6:
+                # Start of the second column of words
+                number_box_x = int(self.canvas_width / 2) + 4
+                number_box_y = self.top_nav.height
+
+            self.renderer.draw.rounded_rectangle(
+                (number_box_x, number_box_y, number_box_x + number_box_width, number_box_y + number_box_height),
+                fill="#202020",
+                radius=5
+            )
+            number_str = str(index + 1)
+            tw, th = font.getsize(number_str)
+            self.renderer.draw.text(
+                (number_box_x + int((number_box_width - tw) / 2), number_box_y + number_y),
+                font=font,
+                text=number_str,
+                fill="#0084ff"
+            )
+
+            # Now draw the word
+            self.renderer.draw.text(
+                (number_box_x + number_box_width + 4, number_box_y + number_y),
+                font=font,
+                text=word,
+                fill=GUIConstants.BODY_FONT_COLOR
+            )
+
+            number_box_y += number_box_height + 4
+        self.renderer.show_image()
 
 
 @dataclass

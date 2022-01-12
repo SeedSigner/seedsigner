@@ -112,26 +112,26 @@ class Keyboard:
                 if Keyboard.ADDITIONAL_KEYS[self.code]["font"] == Keyboard.COMPACT_KEY_FONT:
                     font = self.keyboard.additonal_key_compact_font
 
-            outline_color = "#2c2c2c"
             if not self.is_active:
                 rect_color = self.keyboard.background_color
-                font_color = "#666"  # Show the letter but render as gray
+                font_color = "#e8e8e8"  # Show the letter but render as gray
                 if self.is_selected:
                     # Inactive, selected just gets highlighted outline
                     outline_color = self.keyboard.highlight_color
             elif self.is_selected:
                 rect_color = self.keyboard.highlight_color  # Render solid background with the UI's hero color
-                font_color = self.keyboard.background_color
+                font_color = "black"
             else:
                 if self.is_additional_key:
-                    rect_color = "#111"
+                    # rect_color = "#111"
+                    rect_color = self.keyboard.background_color
                 else:
                     rect_color = self.keyboard.background_color
-                font_color = self.keyboard.highlight_color
+                font_color = "#e8e8e8"
 
-            self.keyboard.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.keyboard.x_width * self.size - 1, self.screen_y + self.keyboard.y_height), outline=outline_color, fill=rect_color, radius=4)
+            self.keyboard.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.keyboard.x_width * self.size - 1, self.screen_y + self.keyboard.y_height), fill=rect_color, radius=4)
             tw, th = self.keyboard.draw.textsize(self.letter, font=font)
-            self.keyboard.draw.text((self.screen_x + int((self.keyboard.x_width * self.size - tw) / 2), self.screen_y + int((self.keyboard.y_height - th)/2)), self.letter, fill=font_color, font=font)
+            self.keyboard.draw.text((self.screen_x + int((self.keyboard.x_width * self.size - tw) / 2), self.screen_y + int((self.keyboard.y_height - th)/2) - 1), self.letter, fill=font_color, font=font)
 
 
 
@@ -161,7 +161,7 @@ class Keyboard:
         else:
             self.font = Fonts.get_font("RobotoCondensed-Regular", 24)
         self.auto_wrap = auto_wrap
-        self.background_color = "black"
+        self.background_color = "#2c2c2c"
         self.highlight_color = highlight_color
 
         # Does the specified layout work?

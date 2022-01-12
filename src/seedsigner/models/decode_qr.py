@@ -572,7 +572,6 @@ class SeedQR:
             raise Exception('Wordlist Required')
 
     def add(self, segment, qr_type=QRType.SEEDSSQR):
-
         _4LETTER_WORDLIST = [word[:4].strip() for word in self.wordlist]
 
         if qr_type == QRType.SEEDSSQR:

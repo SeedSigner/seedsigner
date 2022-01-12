@@ -36,19 +36,58 @@ class SeedsMenuView(View):
             return Destination(SeedOptionsView, view_args={"seed_num": selected_menu_num})
 
         elif selected_menu_num == len(self.seeds):
-            # TODO: Load a Seed
-            raise Exception("Not yet implemented")
+            return Destination(LoadSeedView)
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
 
 
+class LoadSeedView(View):
+    def run(self):
+        screen = ButtonListScreen(
+            title="Load A Seed",
+            is_button_text_centered=False,
+            button_data=[
+                ("Scan Seed QR", "scan_inline"),
+                "Enter 24-word seed",
+                "Enter 12-word seed",
+                "Create a seed",
+            ]
+        )
+        selected_menu_num = screen.display()
+
+        if selected_menu_num == 0:
+            from .scan_views import ScanView
+            return Destination(ScanView)
+
+        if selected_menu_num == 1:
+            return Destination(MainMenuView)
+
+        if selected_menu_num == 2:
+            return Destination(MainMenuView)
+
+        if selected_menu_num == 3:
+            from .tools_views import ToolsMenuView
+            return Destination(ToolsMenuView)
+
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        raise Exception("Unhandled return option")
+
+
+
+
+"""****************************************************************************
+    Views for actions on individual seeds:
+****************************************************************************"""
+
 class SeedOptionsView(View):
     def __init__(self, seed_num: int):
         super().__init__()
         self.seed_num = seed_num
-        self.seed = self.controller.storage.seeds[self.seed_num]
+        self.seed = self.controller.get_seed(self.seed_num)
 
 
     def run(self):
@@ -71,7 +110,7 @@ class SeedOptionsView(View):
 
         if selected_menu_num == 0:
             # View seed words
-            return Destination(ShowSeedWordsWarningView, view_args={"seed_num": self.seed_num})
+            return Destination(SeedWordsWarningView, view_args={"seed_num": self.seed_num})
 
         elif selected_menu_num == 1 and self.settings.xpub_export == SettingsConstants.OPTION__ENABLED:
             return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})                
@@ -84,18 +123,17 @@ class SeedOptionsView(View):
             return Destination(BackStackView)
 
 
+
 """****************************************************************************
     View Seed Words flow
 ****************************************************************************"""
-class ShowSeedWordsWarningView(View):
+class SeedWordsWarningView(View):
     def __init__(self, seed_num: int):
         super().__init__()
         self.seed_num = seed_num
 
 
     def run(self):
-        # from seedsigner.gui.screens.seed_screens import SeedExportXpubWalletScreen
-
         screen = DireWarningScreen(
             warning_text="""You must keep your seed words private & away from all online devices.""",
         )
@@ -103,11 +141,45 @@ class ShowSeedWordsWarningView(View):
 
         if selected_menu_num == 0:
             # User clicked "I Understand"
-            raise Exception("not implemented yet")
+            return Destination(SeedWordsView, view_args={"seed_num": self.seed_num})
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
+
+
+class SeedWordsView(View):
+    def __init__(self, seed_num: int, is_first_page: bool = True):
+        super().__init__()
+        self.seed_num = seed_num
+        self.seed = self.controller.get_seed(self.seed_num)
+        self.is_first_page = is_first_page
+
+
+    def run(self):
+        from seedsigner.gui.screens.seed_screens import SeedWordsScreen
+        if self.is_first_page and len(self.seed.mnemonic_list) == 24:
+            button_data = ["Next"]
+        else:
+            button_data = ["Seed Options"]
+
+        screen = SeedWordsScreen(
+            seed=self.seed,
+            is_first_page=self.is_first_page,
+            button_data=button_data,
+        )
+        selected_menu_num = screen.display()
+
+        if selected_menu_num == 0:
+            if self.is_first_page and len(self.seed.mnemonic_list) == 24:
+                # Go on to page 2
+                return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "is_first_page": False})
+            else:
+                # Back to SeedOptions for this seed
+                return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num})
+
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
 
 
 
@@ -295,7 +367,7 @@ class SeedExportXpubDetailsView(View):
         self.script_type = script_type
         self.coordinator = coordinator
         self.seed_num = seed_num
-        self.seed = self.controller.storage.seeds[seed_num]
+        self.seed = self.controller.get_seed(self.seed_num)
 
 
     def run(self):
@@ -362,7 +434,7 @@ class SeedExportXpubQRDisplayView(View):
         from seedsigner.models.qr_type import QRType
 
         super().__init__()
-        self.seed = self.controller.storage.seeds[seed_num]
+        self.seed = self.controller.get_seed(seed_num)
 
         qr_type = QRType.XPUBQR
         if coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:

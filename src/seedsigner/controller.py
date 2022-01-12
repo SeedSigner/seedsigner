@@ -85,6 +85,13 @@ class Controller(Singleton):
         return Camera.get_instance()
 
 
+    def get_seed(self, seed_num: int) -> Seed:
+        if seed_num < len(self.storage.seeds):
+            return self.storage.seeds[seed_num]
+        else:
+            raise Exception(f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory.")
+
+
     def pop_back_stack(self):
         from .views import Destination
         if len(self.back_stack) > 0:

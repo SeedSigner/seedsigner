@@ -4,6 +4,7 @@ import pathlib
 
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from typing import Tuple
 
 from seedsigner.models import Singleton
 
@@ -38,7 +39,7 @@ def calc_text_centering(font: ImageFont,
                         box_width: int,
                         box_height: int,
                         start_x: int = 0,
-                        start_y: int = 0):
+                        start_y: int = 0) -> Tuple[int, int]:
     # see: https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html#text-anchors
     offset_x, offset_y = font.getoffset(text)
     (box_left, box_top, box_right, box_bottom) = font.getbbox(text, anchor='lt')

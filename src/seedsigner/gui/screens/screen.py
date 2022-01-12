@@ -461,24 +461,24 @@ class LargeButtonScreen(BaseTopNavScreen):
 
 @dataclass
 class WarningScreenMixin:
-    border_color: str = "yellow"
+    warning_color: str = "#FFD60A"
 
     def render_warning_edges(self):
         self.image_draw.line(
             (0, 0, self.canvas_width, 0),
-            fill=self.border_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
+            fill=self.warning_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
         )
         self.image_draw.line(
             (self.canvas_width, 0, self.canvas_width, self.canvas_height),
-            fill=self.border_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
+            fill=self.warning_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
         )
         self.image_draw.line(
             (self.canvas_width, self.canvas_height, 0, self.canvas_height),
-            fill=self.border_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
+            fill=self.warning_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
         )
         self.image_draw.line(
             (0, self.canvas_height, 0, 0),
-            fill=self.border_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
+            fill=self.warning_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
         )
 
 
@@ -491,7 +491,6 @@ class WarningScreen(WarningScreenMixin, ButtonListScreen):
     warning_icon_name: str = "warning"
     warning_headline: str = "Privacy Leak!"     # The colored text under the alert icon
     warning_text: str = ""                      # The body text of the warning
-    warning_color: str = "#FFD60A"
 
     def __post_init__(self):
         # Populate the required button_data for the ButtonListScreen

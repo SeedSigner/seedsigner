@@ -3,6 +3,7 @@ import unicodedata
 from binascii import hexlify
 from embit import bip39, bip32
 from embit.networks import NETWORKS
+from typing import List
 
 
 class SeedConstants:
@@ -58,19 +59,19 @@ class Seed:
     ### getters and setters
     
     @property
-    def mnemonic(self):
+    def mnemonic(self) -> str:
         return self._mnemonic
     
     @property
-    def mnemonic_list(self):
+    def mnemonic_list(self) -> List[str]:
         return self._mnemonic.split()
     
     @property
-    def mnemonic_display(self):
+    def mnemonic_display(self) -> str:
         return unicodedata.normalize("NFC", self._mnemonic)
     
     @property
-    def mnemonic_display_list(self):
+    def mnemonic_display_list(self) -> List[str]:
         return unicodedata.normalize("NFC", self._mnemonic).split()
 
     @mnemonic.setter

@@ -132,11 +132,12 @@ class MainMenuView(View):
         from .seed_views import SeedsMenuView
         from .settings_views import SettingsMenuView
         from .scan_views import ScanView
+        from .tools_views import ToolsMenuView
         from seedsigner.gui.screens import LargeButtonScreen
         menu_items = [
             (("Scan", "scan"), ScanView),
             (("Seeds", "seeds"), SeedsMenuView),
-            (("Tools", "tools"), None),
+            (("Tools", "tools"), ToolsMenuView),
             (("Settings", "settings"), SettingsMenuView),
         ]
         screen = LargeButtonScreen(
