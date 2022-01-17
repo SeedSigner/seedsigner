@@ -29,13 +29,19 @@ def generate_qr_template(qr_size, block_size=5, show_timing_marks=False):
             table {
                 margin-top: 1em;
                 border-collapse: collapse;
+                border: 1px solid black;
             }
             td {
                 padding:  0;
                 margin:  0;
-                border: 1px dotted #c8c8c8;
-                width: 11px;
+                # border: 1px dotted #c8c8c8;
+                width: 12px;
                 height: 12px;
+            }
+            .qrcell {
+                text-align: center;
+                font-size: 0.5em;
+                color: #999;
             }
             .qr_table {
                 margin-top: 5em;
@@ -81,6 +87,7 @@ def generate_qr_template(qr_size, block_size=5, show_timing_marks=False):
                 float: left;
             }
             .word_list {
+                font-size: 1em;
                 text-align: right;
                 padding-top: 2em;
                 padding-left: 1em;
@@ -129,9 +136,9 @@ def generate_qr_template(qr_size, block_size=5, show_timing_marks=False):
     for i in range(0, qr_size):
         html += """<tr>\n"""
         if i % block_size == 0:
-            html += f"""<td rowspan="{block_size}" class="row_name row_block_divider">{y_names.split(",")[int(i / block_size)]}</td>"""
+            html += f"""<td rowspan="{block_size}" class="row_name row_block_divider qrcell">{y_names.split(",")[int(i / block_size)]}</td>"""
         for j in range(0, qr_size):
-            html += f"""<td id="{i}_{j}"></td>"""
+            html += f"""<td class="qrcell" id="{i}_{j}">&middot;</td>"""
         html += """</tr>\n"""
     html += "</table>"
 
