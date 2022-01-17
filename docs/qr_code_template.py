@@ -40,8 +40,10 @@ def generate_qr_template(qr_size, block_size=5, show_timing_marks=False):
             }
             .qrcell {
                 text-align: center;
-                font-size: 0.5em;
-                color: #999;
+                font-size: 0.35em;
+                color: black;
+                width: 9px;
+                height: 9px;
             }
             .qr_table {
                 margin-top: 5em;
@@ -87,7 +89,7 @@ def generate_qr_template(qr_size, block_size=5, show_timing_marks=False):
                 float: left;
             }
             .word_list {
-                font-size: 1em;
+                font-size: 0.5em;
                 text-align: right;
                 padding-top: 2em;
                 padding-left: 1em;
