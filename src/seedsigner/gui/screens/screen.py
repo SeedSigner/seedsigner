@@ -1,10 +1,13 @@
-
-from ..components import (GUIConstants, BaseComponent, Button, IconButton, TopNav,
-    TextArea, load_icon)
+import datetime
+import time
 
 from dataclasses import dataclass
-from PIL import Image, ImageDraw
+from types import ClassMethodDescriptorType
+from PIL import Image, ImageDraw, ImageColor
 from typing import List
+
+from ..components import (ComponentThread, GUIConstants, BaseComponent, Button, IconButton, TopNav,
+    TextArea, load_icon)
 
 from seedsigner.helpers import B, Buttons
 
@@ -22,13 +25,28 @@ class BaseScreen(BaseComponent):
         super().__post_init__()
         
         self.hw_inputs = Buttons.get_instance()
+        self.threads = []
 
 
     def display(self):
-        self._render()
-        self.renderer.show_image()
+        try:
+            self._render()
+            self.renderer.show_image()
 
-        return self._run()
+            for t in self.threads:
+                t.start()
+
+            print("AFTER THREADS")
+            return self._run()
+        except Exception as e:
+            print(e)
+            print("------")
+            repr(e)
+            raise e
+        finally:
+            for t in self.threads:
+                t.stop()
+            print("Stopped threads")
 
 
     def clear_screen(self):
@@ -459,27 +477,69 @@ class LargeButtonScreen(BaseTopNavScreen):
 
 
 
+class WarningEdgesThread(ComponentThread):
+    def run(self):
+        screen = self.args[0]
+        print("render_warning_edges")
+        print(f"screen: {screen}")
+        inhale_step = 1
+        inhale_max = 10
+        inhale_hold = 12
+        cur_inhale_hold = 0
+        inhale_factor = 0
+        rgb = ImageColor.getrgb(screen.warning_color)
+        def render_border(color, width):
+            screen.image_draw.rounded_rectangle(
+                (0, 0, screen.canvas_width, screen.canvas_height),
+                fill=None,
+                outline=color,
+                width=width,
+                radius=5
+            )
+
+        while self.keep_running:
+            # Ramp the edges from a darker version out to full color
+            inhale_scalar = inhale_factor * int(255/inhale_max)
+            for index, n in enumerate(range(4, -1, -1)):
+                # Reverse range steadily increases rgb in brightness until reaching full.
+                # 34 == 0x22; just eyeballed a good step size
+
+                r = max(0, rgb[0] - 34*n - inhale_scalar)
+                g = max(0, rgb[1] - 34*n - inhale_scalar)
+                b = max(0, rgb[2] - 34*n - inhale_scalar)
+
+                # `index` shrinks the border at each step
+                render_border((r, g, b), GUIConstants.EDGE_PADDING - 2 - index)
+
+            # Write the screen updates
+            # TODO: Does this need to be thread-safe?
+            screen.renderer.show_image()
+            
+            if inhale_factor == inhale_max:
+                inhale_step = -1
+            elif inhale_factor == 0 and inhale_step == -1:
+                cur_inhale_hold += 1
+                if cur_inhale_hold > inhale_hold:
+                    inhale_step = 1
+                    cur_inhale_hold = 0
+                else:
+                    # It's about to be decremented below zero
+                    inhale_factor = 1
+            inhale_factor += inhale_step
+
+            # Target ~10fps
+            time.sleep(0.05)
+
+
+
 @dataclass
 class WarningScreenMixin:
-    warning_color: str = "#FFD60A"
+    warning_color: str = GUIConstants.WARNING_COLOR
 
-    def render_warning_edges(self):
-        self.image_draw.line(
-            (0, 0, self.canvas_width, 0),
-            fill=self.warning_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
-        )
-        self.image_draw.line(
-            (self.canvas_width, 0, self.canvas_width, self.canvas_height),
-            fill=self.warning_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
-        )
-        self.image_draw.line(
-            (self.canvas_width, self.canvas_height, 0, self.canvas_height),
-            fill=self.warning_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
-        )
-        self.image_draw.line(
-            (0, self.canvas_height, 0, 0),
-            fill=self.warning_color, width=int(GUIConstants.EDGE_PADDING / 2), joint="curve"
-        )
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.threads.append(WarningEdgesThread(args=(self,)))
 
 
 
@@ -522,7 +582,7 @@ class WarningScreen(WarningScreenMixin, ButtonListScreen):
         self.canvas.paste(self.warning_icon, (self.warning_icon_x, self.warning_icon_y))
         self.warning_headline_textarea.render()
         self.warning_text_textarea.render()
-        self.render_warning_edges()
+        # self.render_warning_edges()
 
 
 
@@ -531,5 +591,5 @@ class DireWarningScreen(WarningScreen):
     title: str = "Caution"
     warning_icon_name: str = "dire_warning"
     warning_headline: str = "Classified Info!"     # The colored text under the alert icon
-    warning_color: str = "red"
+    warning_color: str = GUIConstants.DIRE_WARNING_COLOR
 

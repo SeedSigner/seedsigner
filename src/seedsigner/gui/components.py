@@ -1,9 +1,11 @@
 import math
 import os
 import pathlib
+import sys
 
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from threading import Thread
 from typing import Tuple
 
 from seedsigner.models import Singleton
@@ -14,6 +16,10 @@ class GUIConstants:
     EDGE_PADDING = 8
     COMPONENT_PADDING = 8
     LIST_ITEM_PADDING = 4
+
+    BACKGROUND_COLOR = "black"
+    WARNING_COLOR = "#FFD60A"
+    DIRE_WARNING_COLOR = "red"
 
     TOP_NAV_TITLE_FONT_NAME = "OpenSans-SemiBold"
     TOP_NAV_TITLE_FONT_SIZE = 20
@@ -107,10 +113,10 @@ class BaseComponent:
         self.canvas_height = self.renderer.canvas_height
 
         if not self.image_draw:
-            self.image_draw = self.renderer.draw
+            self.set_image_draw(self.renderer.draw)
 
         if not self.canvas:
-            self.canvas = self.renderer.canvas
+            self.set_canvas(self.renderer.canvas)
 
 
     def set_image_draw(self, image_draw: ImageDraw):
@@ -122,6 +128,20 @@ class BaseComponent:
 
     def render(self):
         raise Exception("render() not implemented in the child class!")
+
+
+
+class ComponentThread(Thread):
+    def __init__(self, args):
+        super().__init__(daemon=True)
+        self.keep_running = True
+        self.args = args
+
+    def stop(self):
+        print("EXITING THREAD")
+        self.keep_running = False
+
+
 
 
 
@@ -249,6 +269,8 @@ class TextArea(BaseComponent):
     def render(self):
         # Render to a temp img scaled up by self.supersampling_factor, then resize down
         #   with bicubic resampling.
+        # TODO: Store resulting super-sampled image as a member var in __post_init__ and 
+        # just re-paste it here.
         img = Image.new("RGB", (self.supersampled_width, self.supersampled_height), self.background_color)
         draw = ImageDraw.Draw(img)
         cur_y = self.text_y
@@ -448,7 +470,7 @@ class TopNav(BaseComponent):
     text: str = "Screen Title"
     width: int = None
     height: int = GUIConstants.TOP_NAV_HEIGHT
-    background_color: str = "black"
+    background_color: str = GUIConstants.BACKGROUND_COLOR
     font_name: str = GUIConstants.TOP_NAV_TITLE_FONT_NAME
     font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE
     font_color: str = "#fcfcfc"
@@ -530,7 +552,14 @@ class TopNav(BaseComponent):
             self.power_button.is_selected = self.is_selected
             self.power_button.render()
 
-        self.image_draw.text((self.text_x, self.text_y), self.text, fill=self.font_color, font=self.font)
+        self.image_draw.text(
+            (self.text_x, self.text_y),
+            self.text,
+            font=self.font,
+            fill=self.font_color,
+            stroke_width=1,
+            stroke_fill=GUIConstants.BACKGROUND_COLOR,
+        )
 
 
 
