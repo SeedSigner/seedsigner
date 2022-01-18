@@ -89,8 +89,6 @@ class SeedWordsScreen(WarningScreenMixin, ButtonListScreen):
     def __post_init__(self):
         super().__post_init__()
 
-        self.top_nav.background_color = "#ff0000"
-
         # Can only render 12 words per screen
         mnemonic = self.seed.mnemonic_display_list
         if len(mnemonic) == 12 or self.is_first_page:
@@ -138,7 +136,10 @@ class SeedWordsScreen(WarningScreenMixin, ButtonListScreen):
                 fill="#202020",
                 radius=5 * supersampling_factor
             )
-            number_str = str(index + 1)
+            if self.is_first_page:
+                number_str = str(index + 1)
+            else:
+                number_str = str(index + 1 + 12)
             tw, th = font.getsize(number_str)
             draw.text(
                 (number_box_x + int((number_box_width - tw) / 2), number_box_y + number_y),
@@ -165,8 +166,6 @@ class SeedWordsScreen(WarningScreenMixin, ButtonListScreen):
     def _render(self):
         super()._render()
         self.canvas.paste(self.body_img, (self.body_x, self.body_y))
-
-        # self.render_warning_edges()
 
 
 

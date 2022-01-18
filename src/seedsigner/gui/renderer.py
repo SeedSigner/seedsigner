@@ -1,4 +1,5 @@
 from PIL import Image, ImageDraw, ImageFont
+from threading import Lock
 
 from seedsigner.gui.components import Fonts
 from seedsigner.helpers.st7789 import ST7789
@@ -13,6 +14,7 @@ class Renderer(ConfigurableSingleton):
     canvas = None
     draw = None
     disp = None
+    lock = Lock()
 
 
     @classmethod

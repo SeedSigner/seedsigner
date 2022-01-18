@@ -143,8 +143,6 @@ class ComponentThread(Thread):
 
 
 
-
-
 @dataclass
 class TextArea(BaseComponent):
     """
@@ -544,7 +542,6 @@ class TopNav(BaseComponent):
 
 
     def render(self):
-        self.image_draw.rectangle((0, 0, self.width, self.height), fill=self.background_color)
         if self.show_back_button:
             self.back_button.is_selected = self.is_selected
             self.back_button.render()

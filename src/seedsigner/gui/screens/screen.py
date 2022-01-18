@@ -143,22 +143,24 @@ class TextTopNavScreen(BaseTopNavScreen):
     def _run(self):
         while True:
             user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
-            if user_input == B.KEY_UP:
-                if not self.top_nav.is_selected:
-                    self.top_nav.is_selected = True
-                    self.top_nav.render()
 
-            elif user_input == B.KEY_DOWN:
-                if self.top_nav.is_selected:
-                    self.top_nav.is_selected = False
-                    self.top_nav.render()
+            with self.renderer.lock:
+                if user_input == B.KEY_UP:
+                    if not self.top_nav.is_selected:
+                        self.top_nav.is_selected = True
+                        self.top_nav.render()
 
-            elif user_input == B.KEY_PRESS:
-                if self.top_nav.is_selected:
-                    return self.top_nav.selected_button
+                elif user_input == B.KEY_DOWN:
+                    if self.top_nav.is_selected:
+                        self.top_nav.is_selected = False
+                        self.top_nav.render()
 
-            # Write the screen updates
-            self.renderer.show_image()
+                elif user_input == B.KEY_PRESS:
+                    if self.top_nav.is_selected:
+                        return self.top_nav.selected_button
+
+                # Write the screen updates
+                self.renderer.show_image()
 
 
 
@@ -290,69 +292,71 @@ class ButtonListScreen(BaseTopNavScreen):
     def _run(self):
         while True:
             user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
-            if user_input == B.KEY_UP:
-                if self.top_nav.is_selected:
-                    # Can't go up any further
-                    pass
-                elif self.selected_button == 0:
-                    # Move selection up to top_nav
-                    self.buttons[self.selected_button].is_selected = False
-                    self.buttons[self.selected_button].render()
-                    self.selected_button = None
 
-                    self.top_nav.is_selected = True
-                    self.top_nav.render()
-                else:
-                    cur_selected_button: Button = self.buttons[self.selected_button]
-                    self.selected_button -= 1
-                    next_selected_button: Button = self.buttons[self.selected_button]
-                    cur_selected_button.is_selected = False
-                    next_selected_button.is_selected = True
-                    if self.has_scroll_arrows and next_selected_button.screen_y - next_selected_button.scroll_y + next_selected_button.height < self.top_nav.height:
-                        # Selected a Button that's off the top of the screen
-                        frame_scroll = cur_selected_button.screen_y - next_selected_button.screen_y
-                        for button in self.buttons:
-                            button.scroll_y -= frame_scroll
-                        self._render_visible_buttons()
+            with self.renderer.lock:
+                if user_input == B.KEY_UP:
+                    if self.top_nav.is_selected:
+                        # Can't go up any further
+                        pass
+                    elif self.selected_button == 0:
+                        # Move selection up to top_nav
+                        self.buttons[self.selected_button].is_selected = False
+                        self.buttons[self.selected_button].render()
+                        self.selected_button = None
+
+                        self.top_nav.is_selected = True
+                        self.top_nav.render()
                     else:
-                        cur_selected_button.render()
-                        next_selected_button.render()
+                        cur_selected_button: Button = self.buttons[self.selected_button]
+                        self.selected_button -= 1
+                        next_selected_button: Button = self.buttons[self.selected_button]
+                        cur_selected_button.is_selected = False
+                        next_selected_button.is_selected = True
+                        if self.has_scroll_arrows and next_selected_button.screen_y - next_selected_button.scroll_y + next_selected_button.height < self.top_nav.height:
+                            # Selected a Button that's off the top of the screen
+                            frame_scroll = cur_selected_button.screen_y - next_selected_button.screen_y
+                            for button in self.buttons:
+                                button.scroll_y -= frame_scroll
+                            self._render_visible_buttons()
+                        else:
+                            cur_selected_button.render()
+                            next_selected_button.render()
 
-            elif user_input == B.KEY_DOWN:
-                if self.top_nav.is_selected:
-                    self.top_nav.is_selected = False
-                    self.top_nav.render()
+                elif user_input == B.KEY_DOWN:
+                    if self.top_nav.is_selected:
+                        self.top_nav.is_selected = False
+                        self.top_nav.render()
 
-                    self.selected_button = 0
-                    self.buttons[self.selected_button].is_selected = True
-                    self.buttons[self.selected_button].render()
+                        self.selected_button = 0
+                        self.buttons[self.selected_button].is_selected = True
+                        self.buttons[self.selected_button].render()
 
-                elif self.selected_button == len(self.buttons) - 1:
-                    pass
+                    elif self.selected_button == len(self.buttons) - 1:
+                        pass
 
-                else:
-                    cur_selected_button: Button = self.buttons[self.selected_button]
-                    self.selected_button += 1
-                    next_selected_button: Button = self.buttons[self.selected_button]
-                    cur_selected_button.is_selected = False
-                    next_selected_button.is_selected = True
-                    if self.has_scroll_arrows and next_selected_button.screen_y - next_selected_button.scroll_y + next_selected_button.height > self.down_arrow_img_y:
-                        # Selected a Button that's off the bottom of the screen
-                        frame_scroll = next_selected_button.screen_y - cur_selected_button.screen_y
-                        for button in self.buttons:
-                            button.scroll_y += frame_scroll
-                        self._render_visible_buttons()
                     else:
-                        cur_selected_button.render()
-                        next_selected_button.render()
+                        cur_selected_button: Button = self.buttons[self.selected_button]
+                        self.selected_button += 1
+                        next_selected_button: Button = self.buttons[self.selected_button]
+                        cur_selected_button.is_selected = False
+                        next_selected_button.is_selected = True
+                        if self.has_scroll_arrows and next_selected_button.screen_y - next_selected_button.scroll_y + next_selected_button.height > self.down_arrow_img_y:
+                            # Selected a Button that's off the bottom of the screen
+                            frame_scroll = next_selected_button.screen_y - cur_selected_button.screen_y
+                            for button in self.buttons:
+                                button.scroll_y += frame_scroll
+                            self._render_visible_buttons()
+                        else:
+                            cur_selected_button.render()
+                            next_selected_button.render()
 
-            elif user_input == B.KEY_PRESS:
-                if self.top_nav.is_selected:
-                    return self.top_nav.selected_button
-                return self.selected_button
+                elif user_input == B.KEY_PRESS:
+                    if self.top_nav.is_selected:
+                        return self.top_nav.selected_button
+                    return self.selected_button
 
-            # Write the screen updates
-            self.renderer.show_image()
+                # Write the screen updates
+                self.renderer.show_image()
 
 
 
@@ -434,60 +438,61 @@ class LargeButtonScreen(BaseTopNavScreen):
 
         while True:
             user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_LEFT, B.KEY_RIGHT, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
-            if user_input == B.KEY_UP:
-                if self.selected_button in [0, 1]:
-                    # Move selection up to top_nav
-                    self.top_nav.is_selected = True
-                    self.top_nav.render()
 
-                    self.buttons[self.selected_button].is_selected = False
-                    self.buttons[self.selected_button].render()
+            with self.renderer.lock:
+                if user_input == B.KEY_UP:
+                    if self.selected_button in [0, 1]:
+                        # Move selection up to top_nav
+                        self.top_nav.is_selected = True
+                        self.top_nav.render()
 
-                elif len(self.buttons) == 4:
-                    swap_selected_button(self.selected_button - 2)
+                        self.buttons[self.selected_button].is_selected = False
+                        self.buttons[self.selected_button].render()
 
-            elif user_input == B.KEY_DOWN:
-                if self.top_nav.is_selected:
-                    self.top_nav.is_selected = False
-                    self.top_nav.render()
+                    elif len(self.buttons) == 4:
+                        swap_selected_button(self.selected_button - 2)
 
-                    self.buttons[self.selected_button].is_selected = True
-                    self.buttons[self.selected_button].render()
-                elif self.selected_button in [2, 3]:
-                    # TODO: Trap selection at bottom or loop?
-                    pass
-                elif len(self.buttons) == 4:
-                    swap_selected_button(self.selected_button + 2)
+                elif user_input == B.KEY_DOWN:
+                    if self.top_nav.is_selected:
+                        self.top_nav.is_selected = False
+                        self.top_nav.render()
 
-            elif user_input == B.KEY_RIGHT and not self.top_nav.is_selected:
-                if self.selected_button in [0, 2]:
-                    swap_selected_button(self.selected_button + 1)
+                        self.buttons[self.selected_button].is_selected = True
+                        self.buttons[self.selected_button].render()
+                    elif self.selected_button in [2, 3]:
+                        # TODO: Trap selection at bottom or loop?
+                        pass
+                    elif len(self.buttons) == 4:
+                        swap_selected_button(self.selected_button + 2)
 
-            elif user_input == B.KEY_LEFT and not self.top_nav.is_selected:
-                if self.selected_button in [1, 3]:
-                    swap_selected_button(self.selected_button - 1)
+                elif user_input == B.KEY_RIGHT and not self.top_nav.is_selected:
+                    if self.selected_button in [0, 2]:
+                        swap_selected_button(self.selected_button + 1)
 
-            elif user_input == B.KEY_PRESS:
-                if self.top_nav.is_selected:
-                    return self.top_nav.selected_button
-                return self.selected_button
+                elif user_input == B.KEY_LEFT and not self.top_nav.is_selected:
+                    if self.selected_button in [1, 3]:
+                        swap_selected_button(self.selected_button - 1)
 
-            # Write the screen updates
-            self.renderer.show_image()
+                elif user_input == B.KEY_PRESS:
+                    if self.top_nav.is_selected:
+                        return self.top_nav.selected_button
+                    return self.selected_button
+
+                # Write the screen updates
+                self.renderer.show_image()
 
 
 
 class WarningEdgesThread(ComponentThread):
     def run(self):
         screen = self.args[0]
-        print("render_warning_edges")
-        print(f"screen: {screen}")
         inhale_step = 1
         inhale_max = 10
-        inhale_hold = 12
+        inhale_hold = 8
         cur_inhale_hold = 0
         inhale_factor = 0
         rgb = ImageColor.getrgb(screen.warning_color)
+
         def render_border(color, width):
             screen.image_draw.rounded_rectangle(
                 (0, 0, screen.canvas_width, screen.canvas_height),
@@ -498,22 +503,23 @@ class WarningEdgesThread(ComponentThread):
             )
 
         while self.keep_running:
-            # Ramp the edges from a darker version out to full color
-            inhale_scalar = inhale_factor * int(255/inhale_max)
-            for index, n in enumerate(range(4, -1, -1)):
-                # Reverse range steadily increases rgb in brightness until reaching full.
-                # 34 == 0x22; just eyeballed a good step size
+            with screen.renderer.lock:
+                # Ramp the edges from a darker version out to full color
+                inhale_scalar = inhale_factor * int(255/inhale_max)
+                for index, n in enumerate(range(4, -1, -1)):
+                    # Reverse range steadily increases rgb in brightness until reaching full.
+                    # 34 == 0x22; just eyeballed a good step size
 
-                r = max(0, rgb[0] - 34*n - inhale_scalar)
-                g = max(0, rgb[1] - 34*n - inhale_scalar)
-                b = max(0, rgb[2] - 34*n - inhale_scalar)
+                    r = max(0, rgb[0] - 34*n - inhale_scalar)
+                    g = max(0, rgb[1] - 34*n - inhale_scalar)
+                    b = max(0, rgb[2] - 34*n - inhale_scalar)
 
-                # `index` shrinks the border at each step
-                render_border((r, g, b), GUIConstants.EDGE_PADDING - 2 - index)
+                    # `index` shrinks the border at each step
+                    render_border((r, g, b), GUIConstants.EDGE_PADDING - 2 - index)
 
-            # Write the screen updates
-            # TODO: Does this need to be thread-safe?
-            screen.renderer.show_image()
+                # Write the screen updates
+                # TODO: Does this need to be thread-safe?
+                screen.renderer.show_image()
             
             if inhale_factor == inhale_max:
                 inhale_step = -1
@@ -582,7 +588,6 @@ class WarningScreen(WarningScreenMixin, ButtonListScreen):
         self.canvas.paste(self.warning_icon, (self.warning_icon_x, self.warning_icon_y))
         self.warning_headline_textarea.render()
         self.warning_text_textarea.render()
-        # self.render_warning_edges()
 
 
 
