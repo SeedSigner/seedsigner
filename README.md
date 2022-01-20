@@ -195,6 +195,8 @@ sudo apt-get update && sudo apt-get install -y wiringpi python3-pip python3-nump
 ### Install `zbar`
 v0.4.6 requires `zbar` at 0.23.x or higher.
 
+see: [https://github.com/mchehab/zbar](https://github.com/mchehab/zbar)
+
 #### Get the `zbar` binary
 TODO...
 
@@ -215,9 +217,6 @@ make
 make check
 sudo make install
 ```
-
-_Note: we will also be installing a fork of the python `pyzbar` repo, currently defined in `requirements.txt` (for now pointing to the fork in Keith's `kdmukai` github account)._
-
 
 Install the [C library for Broadcom BCM 2835](http://www.airspayce.com/mikem/bcm2835/):
 ```
@@ -260,6 +259,16 @@ cd seedsigner
 pip3 install -r requirements.txt
 cd ..
 ```
+
+#### `pyzbar`
+Note: we will also be installing a fork of the python `pyzbar` repo, currently defined in the above `requirements.txt` step (for now pointing to the fork in Keith's `kdmukai` github account [https://github.com/kdmukai/pyzbar](https://github.com/kdmukai/pyzbar). Changes are already merged into that repo's master branch).
+
+The fork is required because the main `pyzbar` repo has been abandoned. This [github issue](https://github.com/NaturalHistoryMuseum/pyzbar/issues/124#issuecomment-971967091) discusses the changes needed in order to support reading binary data from `zbar`, which is required for our `CompactSeedQR` format which write bytes data instead of strings. The changes specifically reference the following PRs which have already been merged into Keith's fork:
+* [PR 76](https://github.com/NaturalHistoryMuseum/pyzbar/pull/76/files): enables scanning to continue even when a null byte (`x\00`) is found.
+* [PR 82](https://github.com/NaturalHistoryMuseum/pyzbar/pull/82): enable `zbar`'s new binary mode. Note that this PR has a trivial bug that was fixed in Keith's fork.
+
+If the `requirements.txt` step fails on the forked `pyzbar` repo, manually clone the forked repo and within it run `pip install -e .`. This will install the local code as if it were a `pip` package.
+
 
 Modify the systemd to run SeedSigner at boot:
 ```
