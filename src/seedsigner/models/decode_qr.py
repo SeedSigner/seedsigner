@@ -250,6 +250,7 @@ class DecodeQR:
         if image is None:
             return None
 
+        # Are there any cases where defaulting `binary` to True causes problems?
         barcodes = pyzbar.decode(image, symbols=[ZBarSymbol.QRCODE], binary=is_binary)
 
         if barcodes:
