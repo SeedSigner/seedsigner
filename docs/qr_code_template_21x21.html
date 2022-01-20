@@ -6,6 +6,7 @@
 
         <style>
             body {
+                margin-top: 5em;
                 text-align: center;
                 font-family: "Open Sans", sans-serif;
                 -webkit-print-color-adjust: exact;
@@ -18,13 +19,26 @@
             table {
                 margin-top: 1em;
                 border-collapse: collapse;
+                border: 1px solid black;
             }
             td {
                 padding:  0;
                 margin:  0;
-                border: 1px dotted #c8c8c8;
-                width: 11px;
+                # border: 1px dotted #c8c8c8;
+                width: 12px;
                 height: 12px;
+            }
+            .qrcell {
+                text-align: center;
+                font-size: 0.35em;
+                color: black;
+                width: 9px;
+                height: 9px;
+            }
+            .qr_table {
+                margin-top: 5em;
+                margin-right: 4em;
+                float: right;
             }
             .filled {
                 background-color: black;
@@ -52,50 +66,114 @@
             .no_border {
                 border: none;
             }
+
+            .word_list_table {
+    margin-left: 10em;
+
+                float: left;
+            }
+            .word_list {
+                font-size: 0.5em;
+                text-align: right;
+                padding-top: 2em;
+                padding-left: 1em;
+                padding-right: 1em;
+            }
+            .word_row {
+                height: 2.5em;
+            }
+            .word_num {
+                width: 1em;
+                text-align: right;
+                color: #999;
+            }
+            .word_blank {
+                color: #ccc;
+            }
         </style>
         <body>
-    <div class="title">21x21 QR Code</div><table align="center"><tr rowspan="5"><td class="col_block_divider row_block_divider"></td><td colspan="5" class="col_name col_block_divider">1</td><td colspan="5" class="col_name col_block_divider">2</td><td colspan="5" class="col_name col_block_divider">3</td><td colspan="5" class="col_name col_block_divider">4</td><td colspan="5" class="col_name col_block_divider">5</td></tr><tr>
-<td rowspan="5" class="row_name row_block_divider">A</td><td id="0_0"></td><td id="0_1"></td><td id="0_2"></td><td id="0_3"></td><td id="0_4"></td><td id="0_5"></td><td id="0_6"></td><td id="0_7"></td><td id="0_8"></td><td id="0_9"></td><td id="0_10"></td><td id="0_11"></td><td id="0_12"></td><td id="0_13"></td><td id="0_14"></td><td id="0_15"></td><td id="0_16"></td><td id="0_17"></td><td id="0_18"></td><td id="0_19"></td><td id="0_20"></td></tr>
+    
+        <table align="center" class="word_list_table">
+            <tr>
+                <td class="word_list">
+    <div class="word_row">
+                <span class="word_num">1:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        <div class="word_row">
+                <span class="word_num">2:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        <div class="word_row">
+                <span class="word_num">3:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        <div class="word_row">
+                <span class="word_num">4:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        <div class="word_row">
+                <span class="word_num">5:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        <div class="word_row">
+                <span class="word_num">6:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        <div class="word_row">
+                <span class="word_num">7:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        <div class="word_row">
+                <span class="word_num">8:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        <div class="word_row">
+                <span class="word_num">9:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        <div class="word_row">
+                <span class="word_num">10:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        <div class="word_row">
+                <span class="word_num">11:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        <div class="word_row">
+                <span class="word_num">12:&nbsp;</span><span class="word_blank">____________________________</span>
+            </div>
+        </td></tr></table><table align="center" class="qr_table"><tr rowspan="5"><td class="col_block_divider row_block_divider"></td><td colspan="5" class="col_name col_block_divider">1</td><td colspan="5" class="col_name col_block_divider">2</td><td colspan="5" class="col_name col_block_divider">3</td><td colspan="5" class="col_name col_block_divider">4</td><td colspan="5" class="col_name col_block_divider">5</td></tr><tr>
+<td rowspan="5" class="row_name row_block_divider qrcell">A</td><td class="qrcell" id="0_0">&middot;</td><td class="qrcell" id="0_1">&middot;</td><td class="qrcell" id="0_2">&middot;</td><td class="qrcell" id="0_3">&middot;</td><td class="qrcell" id="0_4">&middot;</td><td class="qrcell" id="0_5">&middot;</td><td class="qrcell" id="0_6">&middot;</td><td class="qrcell" id="0_7">&middot;</td><td class="qrcell" id="0_8">&middot;</td><td class="qrcell" id="0_9">&middot;</td><td class="qrcell" id="0_10">&middot;</td><td class="qrcell" id="0_11">&middot;</td><td class="qrcell" id="0_12">&middot;</td><td class="qrcell" id="0_13">&middot;</td><td class="qrcell" id="0_14">&middot;</td><td class="qrcell" id="0_15">&middot;</td><td class="qrcell" id="0_16">&middot;</td><td class="qrcell" id="0_17">&middot;</td><td class="qrcell" id="0_18">&middot;</td><td class="qrcell" id="0_19">&middot;</td><td class="qrcell" id="0_20">&middot;</td></tr>
 <tr>
-<td id="1_0"></td><td id="1_1"></td><td id="1_2"></td><td id="1_3"></td><td id="1_4"></td><td id="1_5"></td><td id="1_6"></td><td id="1_7"></td><td id="1_8"></td><td id="1_9"></td><td id="1_10"></td><td id="1_11"></td><td id="1_12"></td><td id="1_13"></td><td id="1_14"></td><td id="1_15"></td><td id="1_16"></td><td id="1_17"></td><td id="1_18"></td><td id="1_19"></td><td id="1_20"></td></tr>
+<td class="qrcell" id="1_0">&middot;</td><td class="qrcell" id="1_1">&middot;</td><td class="qrcell" id="1_2">&middot;</td><td class="qrcell" id="1_3">&middot;</td><td class="qrcell" id="1_4">&middot;</td><td class="qrcell" id="1_5">&middot;</td><td class="qrcell" id="1_6">&middot;</td><td class="qrcell" id="1_7">&middot;</td><td class="qrcell" id="1_8">&middot;</td><td class="qrcell" id="1_9">&middot;</td><td class="qrcell" id="1_10">&middot;</td><td class="qrcell" id="1_11">&middot;</td><td class="qrcell" id="1_12">&middot;</td><td class="qrcell" id="1_13">&middot;</td><td class="qrcell" id="1_14">&middot;</td><td class="qrcell" id="1_15">&middot;</td><td class="qrcell" id="1_16">&middot;</td><td class="qrcell" id="1_17">&middot;</td><td class="qrcell" id="1_18">&middot;</td><td class="qrcell" id="1_19">&middot;</td><td class="qrcell" id="1_20">&middot;</td></tr>
 <tr>
-<td id="2_0"></td><td id="2_1"></td><td id="2_2"></td><td id="2_3"></td><td id="2_4"></td><td id="2_5"></td><td id="2_6"></td><td id="2_7"></td><td id="2_8"></td><td id="2_9"></td><td id="2_10"></td><td id="2_11"></td><td id="2_12"></td><td id="2_13"></td><td id="2_14"></td><td id="2_15"></td><td id="2_16"></td><td id="2_17"></td><td id="2_18"></td><td id="2_19"></td><td id="2_20"></td></tr>
+<td class="qrcell" id="2_0">&middot;</td><td class="qrcell" id="2_1">&middot;</td><td class="qrcell" id="2_2">&middot;</td><td class="qrcell" id="2_3">&middot;</td><td class="qrcell" id="2_4">&middot;</td><td class="qrcell" id="2_5">&middot;</td><td class="qrcell" id="2_6">&middot;</td><td class="qrcell" id="2_7">&middot;</td><td class="qrcell" id="2_8">&middot;</td><td class="qrcell" id="2_9">&middot;</td><td class="qrcell" id="2_10">&middot;</td><td class="qrcell" id="2_11">&middot;</td><td class="qrcell" id="2_12">&middot;</td><td class="qrcell" id="2_13">&middot;</td><td class="qrcell" id="2_14">&middot;</td><td class="qrcell" id="2_15">&middot;</td><td class="qrcell" id="2_16">&middot;</td><td class="qrcell" id="2_17">&middot;</td><td class="qrcell" id="2_18">&middot;</td><td class="qrcell" id="2_19">&middot;</td><td class="qrcell" id="2_20">&middot;</td></tr>
 <tr>
-<td id="3_0"></td><td id="3_1"></td><td id="3_2"></td><td id="3_3"></td><td id="3_4"></td><td id="3_5"></td><td id="3_6"></td><td id="3_7"></td><td id="3_8"></td><td id="3_9"></td><td id="3_10"></td><td id="3_11"></td><td id="3_12"></td><td id="3_13"></td><td id="3_14"></td><td id="3_15"></td><td id="3_16"></td><td id="3_17"></td><td id="3_18"></td><td id="3_19"></td><td id="3_20"></td></tr>
+<td class="qrcell" id="3_0">&middot;</td><td class="qrcell" id="3_1">&middot;</td><td class="qrcell" id="3_2">&middot;</td><td class="qrcell" id="3_3">&middot;</td><td class="qrcell" id="3_4">&middot;</td><td class="qrcell" id="3_5">&middot;</td><td class="qrcell" id="3_6">&middot;</td><td class="qrcell" id="3_7">&middot;</td><td class="qrcell" id="3_8">&middot;</td><td class="qrcell" id="3_9">&middot;</td><td class="qrcell" id="3_10">&middot;</td><td class="qrcell" id="3_11">&middot;</td><td class="qrcell" id="3_12">&middot;</td><td class="qrcell" id="3_13">&middot;</td><td class="qrcell" id="3_14">&middot;</td><td class="qrcell" id="3_15">&middot;</td><td class="qrcell" id="3_16">&middot;</td><td class="qrcell" id="3_17">&middot;</td><td class="qrcell" id="3_18">&middot;</td><td class="qrcell" id="3_19">&middot;</td><td class="qrcell" id="3_20">&middot;</td></tr>
 <tr>
-<td id="4_0"></td><td id="4_1"></td><td id="4_2"></td><td id="4_3"></td><td id="4_4"></td><td id="4_5"></td><td id="4_6"></td><td id="4_7"></td><td id="4_8"></td><td id="4_9"></td><td id="4_10"></td><td id="4_11"></td><td id="4_12"></td><td id="4_13"></td><td id="4_14"></td><td id="4_15"></td><td id="4_16"></td><td id="4_17"></td><td id="4_18"></td><td id="4_19"></td><td id="4_20"></td></tr>
+<td class="qrcell" id="4_0">&middot;</td><td class="qrcell" id="4_1">&middot;</td><td class="qrcell" id="4_2">&middot;</td><td class="qrcell" id="4_3">&middot;</td><td class="qrcell" id="4_4">&middot;</td><td class="qrcell" id="4_5">&middot;</td><td class="qrcell" id="4_6">&middot;</td><td class="qrcell" id="4_7">&middot;</td><td class="qrcell" id="4_8">&middot;</td><td class="qrcell" id="4_9">&middot;</td><td class="qrcell" id="4_10">&middot;</td><td class="qrcell" id="4_11">&middot;</td><td class="qrcell" id="4_12">&middot;</td><td class="qrcell" id="4_13">&middot;</td><td class="qrcell" id="4_14">&middot;</td><td class="qrcell" id="4_15">&middot;</td><td class="qrcell" id="4_16">&middot;</td><td class="qrcell" id="4_17">&middot;</td><td class="qrcell" id="4_18">&middot;</td><td class="qrcell" id="4_19">&middot;</td><td class="qrcell" id="4_20">&middot;</td></tr>
 <tr>
-<td rowspan="5" class="row_name row_block_divider">B</td><td id="5_0"></td><td id="5_1"></td><td id="5_2"></td><td id="5_3"></td><td id="5_4"></td><td id="5_5"></td><td id="5_6"></td><td id="5_7"></td><td id="5_8"></td><td id="5_9"></td><td id="5_10"></td><td id="5_11"></td><td id="5_12"></td><td id="5_13"></td><td id="5_14"></td><td id="5_15"></td><td id="5_16"></td><td id="5_17"></td><td id="5_18"></td><td id="5_19"></td><td id="5_20"></td></tr>
+<td rowspan="5" class="row_name row_block_divider qrcell">B</td><td class="qrcell" id="5_0">&middot;</td><td class="qrcell" id="5_1">&middot;</td><td class="qrcell" id="5_2">&middot;</td><td class="qrcell" id="5_3">&middot;</td><td class="qrcell" id="5_4">&middot;</td><td class="qrcell" id="5_5">&middot;</td><td class="qrcell" id="5_6">&middot;</td><td class="qrcell" id="5_7">&middot;</td><td class="qrcell" id="5_8">&middot;</td><td class="qrcell" id="5_9">&middot;</td><td class="qrcell" id="5_10">&middot;</td><td class="qrcell" id="5_11">&middot;</td><td class="qrcell" id="5_12">&middot;</td><td class="qrcell" id="5_13">&middot;</td><td class="qrcell" id="5_14">&middot;</td><td class="qrcell" id="5_15">&middot;</td><td class="qrcell" id="5_16">&middot;</td><td class="qrcell" id="5_17">&middot;</td><td class="qrcell" id="5_18">&middot;</td><td class="qrcell" id="5_19">&middot;</td><td class="qrcell" id="5_20">&middot;</td></tr>
 <tr>
-<td id="6_0"></td><td id="6_1"></td><td id="6_2"></td><td id="6_3"></td><td id="6_4"></td><td id="6_5"></td><td id="6_6"></td><td id="6_7"></td><td id="6_8"></td><td id="6_9"></td><td id="6_10"></td><td id="6_11"></td><td id="6_12"></td><td id="6_13"></td><td id="6_14"></td><td id="6_15"></td><td id="6_16"></td><td id="6_17"></td><td id="6_18"></td><td id="6_19"></td><td id="6_20"></td></tr>
+<td class="qrcell" id="6_0">&middot;</td><td class="qrcell" id="6_1">&middot;</td><td class="qrcell" id="6_2">&middot;</td><td class="qrcell" id="6_3">&middot;</td><td class="qrcell" id="6_4">&middot;</td><td class="qrcell" id="6_5">&middot;</td><td class="qrcell" id="6_6">&middot;</td><td class="qrcell" id="6_7">&middot;</td><td class="qrcell" id="6_8">&middot;</td><td class="qrcell" id="6_9">&middot;</td><td class="qrcell" id="6_10">&middot;</td><td class="qrcell" id="6_11">&middot;</td><td class="qrcell" id="6_12">&middot;</td><td class="qrcell" id="6_13">&middot;</td><td class="qrcell" id="6_14">&middot;</td><td class="qrcell" id="6_15">&middot;</td><td class="qrcell" id="6_16">&middot;</td><td class="qrcell" id="6_17">&middot;</td><td class="qrcell" id="6_18">&middot;</td><td class="qrcell" id="6_19">&middot;</td><td class="qrcell" id="6_20">&middot;</td></tr>
 <tr>
-<td id="7_0"></td><td id="7_1"></td><td id="7_2"></td><td id="7_3"></td><td id="7_4"></td><td id="7_5"></td><td id="7_6"></td><td id="7_7"></td><td id="7_8"></td><td id="7_9"></td><td id="7_10"></td><td id="7_11"></td><td id="7_12"></td><td id="7_13"></td><td id="7_14"></td><td id="7_15"></td><td id="7_16"></td><td id="7_17"></td><td id="7_18"></td><td id="7_19"></td><td id="7_20"></td></tr>
+<td class="qrcell" id="7_0">&middot;</td><td class="qrcell" id="7_1">&middot;</td><td class="qrcell" id="7_2">&middot;</td><td class="qrcell" id="7_3">&middot;</td><td class="qrcell" id="7_4">&middot;</td><td class="qrcell" id="7_5">&middot;</td><td class="qrcell" id="7_6">&middot;</td><td class="qrcell" id="7_7">&middot;</td><td class="qrcell" id="7_8">&middot;</td><td class="qrcell" id="7_9">&middot;</td><td class="qrcell" id="7_10">&middot;</td><td class="qrcell" id="7_11">&middot;</td><td class="qrcell" id="7_12">&middot;</td><td class="qrcell" id="7_13">&middot;</td><td class="qrcell" id="7_14">&middot;</td><td class="qrcell" id="7_15">&middot;</td><td class="qrcell" id="7_16">&middot;</td><td class="qrcell" id="7_17">&middot;</td><td class="qrcell" id="7_18">&middot;</td><td class="qrcell" id="7_19">&middot;</td><td class="qrcell" id="7_20">&middot;</td></tr>
 <tr>
-<td id="8_0"></td><td id="8_1"></td><td id="8_2"></td><td id="8_3"></td><td id="8_4"></td><td id="8_5"></td><td id="8_6"></td><td id="8_7"></td><td id="8_8"></td><td id="8_9"></td><td id="8_10"></td><td id="8_11"></td><td id="8_12"></td><td id="8_13"></td><td id="8_14"></td><td id="8_15"></td><td id="8_16"></td><td id="8_17"></td><td id="8_18"></td><td id="8_19"></td><td id="8_20"></td></tr>
+<td class="qrcell" id="8_0">&middot;</td><td class="qrcell" id="8_1">&middot;</td><td class="qrcell" id="8_2">&middot;</td><td class="qrcell" id="8_3">&middot;</td><td class="qrcell" id="8_4">&middot;</td><td class="qrcell" id="8_5">&middot;</td><td class="qrcell" id="8_6">&middot;</td><td class="qrcell" id="8_7">&middot;</td><td class="qrcell" id="8_8">&middot;</td><td class="qrcell" id="8_9">&middot;</td><td class="qrcell" id="8_10">&middot;</td><td class="qrcell" id="8_11">&middot;</td><td class="qrcell" id="8_12">&middot;</td><td class="qrcell" id="8_13">&middot;</td><td class="qrcell" id="8_14">&middot;</td><td class="qrcell" id="8_15">&middot;</td><td class="qrcell" id="8_16">&middot;</td><td class="qrcell" id="8_17">&middot;</td><td class="qrcell" id="8_18">&middot;</td><td class="qrcell" id="8_19">&middot;</td><td class="qrcell" id="8_20">&middot;</td></tr>
 <tr>
-<td id="9_0"></td><td id="9_1"></td><td id="9_2"></td><td id="9_3"></td><td id="9_4"></td><td id="9_5"></td><td id="9_6"></td><td id="9_7"></td><td id="9_8"></td><td id="9_9"></td><td id="9_10"></td><td id="9_11"></td><td id="9_12"></td><td id="9_13"></td><td id="9_14"></td><td id="9_15"></td><td id="9_16"></td><td id="9_17"></td><td id="9_18"></td><td id="9_19"></td><td id="9_20"></td></tr>
+<td class="qrcell" id="9_0">&middot;</td><td class="qrcell" id="9_1">&middot;</td><td class="qrcell" id="9_2">&middot;</td><td class="qrcell" id="9_3">&middot;</td><td class="qrcell" id="9_4">&middot;</td><td class="qrcell" id="9_5">&middot;</td><td class="qrcell" id="9_6">&middot;</td><td class="qrcell" id="9_7">&middot;</td><td class="qrcell" id="9_8">&middot;</td><td class="qrcell" id="9_9">&middot;</td><td class="qrcell" id="9_10">&middot;</td><td class="qrcell" id="9_11">&middot;</td><td class="qrcell" id="9_12">&middot;</td><td class="qrcell" id="9_13">&middot;</td><td class="qrcell" id="9_14">&middot;</td><td class="qrcell" id="9_15">&middot;</td><td class="qrcell" id="9_16">&middot;</td><td class="qrcell" id="9_17">&middot;</td><td class="qrcell" id="9_18">&middot;</td><td class="qrcell" id="9_19">&middot;</td><td class="qrcell" id="9_20">&middot;</td></tr>
 <tr>
-<td rowspan="5" class="row_name row_block_divider">C</td><td id="10_0"></td><td id="10_1"></td><td id="10_2"></td><td id="10_3"></td><td id="10_4"></td><td id="10_5"></td><td id="10_6"></td><td id="10_7"></td><td id="10_8"></td><td id="10_9"></td><td id="10_10"></td><td id="10_11"></td><td id="10_12"></td><td id="10_13"></td><td id="10_14"></td><td id="10_15"></td><td id="10_16"></td><td id="10_17"></td><td id="10_18"></td><td id="10_19"></td><td id="10_20"></td></tr>
+<td rowspan="5" class="row_name row_block_divider qrcell">C</td><td class="qrcell" id="10_0">&middot;</td><td class="qrcell" id="10_1">&middot;</td><td class="qrcell" id="10_2">&middot;</td><td class="qrcell" id="10_3">&middot;</td><td class="qrcell" id="10_4">&middot;</td><td class="qrcell" id="10_5">&middot;</td><td class="qrcell" id="10_6">&middot;</td><td class="qrcell" id="10_7">&middot;</td><td class="qrcell" id="10_8">&middot;</td><td class="qrcell" id="10_9">&middot;</td><td class="qrcell" id="10_10">&middot;</td><td class="qrcell" id="10_11">&middot;</td><td class="qrcell" id="10_12">&middot;</td><td class="qrcell" id="10_13">&middot;</td><td class="qrcell" id="10_14">&middot;</td><td class="qrcell" id="10_15">&middot;</td><td class="qrcell" id="10_16">&middot;</td><td class="qrcell" id="10_17">&middot;</td><td class="qrcell" id="10_18">&middot;</td><td class="qrcell" id="10_19">&middot;</td><td class="qrcell" id="10_20">&middot;</td></tr>
 <tr>
-<td id="11_0"></td><td id="11_1"></td><td id="11_2"></td><td id="11_3"></td><td id="11_4"></td><td id="11_5"></td><td id="11_6"></td><td id="11_7"></td><td id="11_8"></td><td id="11_9"></td><td id="11_10"></td><td id="11_11"></td><td id="11_12"></td><td id="11_13"></td><td id="11_14"></td><td id="11_15"></td><td id="11_16"></td><td id="11_17"></td><td id="11_18"></td><td id="11_19"></td><td id="11_20"></td></tr>
+<td class="qrcell" id="11_0">&middot;</td><td class="qrcell" id="11_1">&middot;</td><td class="qrcell" id="11_2">&middot;</td><td class="qrcell" id="11_3">&middot;</td><td class="qrcell" id="11_4">&middot;</td><td class="qrcell" id="11_5">&middot;</td><td class="qrcell" id="11_6">&middot;</td><td class="qrcell" id="11_7">&middot;</td><td class="qrcell" id="11_8">&middot;</td><td class="qrcell" id="11_9">&middot;</td><td class="qrcell" id="11_10">&middot;</td><td class="qrcell" id="11_11">&middot;</td><td class="qrcell" id="11_12">&middot;</td><td class="qrcell" id="11_13">&middot;</td><td class="qrcell" id="11_14">&middot;</td><td class="qrcell" id="11_15">&middot;</td><td class="qrcell" id="11_16">&middot;</td><td class="qrcell" id="11_17">&middot;</td><td class="qrcell" id="11_18">&middot;</td><td class="qrcell" id="11_19">&middot;</td><td class="qrcell" id="11_20">&middot;</td></tr>
 <tr>
-<td id="12_0"></td><td id="12_1"></td><td id="12_2"></td><td id="12_3"></td><td id="12_4"></td><td id="12_5"></td><td id="12_6"></td><td id="12_7"></td><td id="12_8"></td><td id="12_9"></td><td id="12_10"></td><td id="12_11"></td><td id="12_12"></td><td id="12_13"></td><td id="12_14"></td><td id="12_15"></td><td id="12_16"></td><td id="12_17"></td><td id="12_18"></td><td id="12_19"></td><td id="12_20"></td></tr>
+<td class="qrcell" id="12_0">&middot;</td><td class="qrcell" id="12_1">&middot;</td><td class="qrcell" id="12_2">&middot;</td><td class="qrcell" id="12_3">&middot;</td><td class="qrcell" id="12_4">&middot;</td><td class="qrcell" id="12_5">&middot;</td><td class="qrcell" id="12_6">&middot;</td><td class="qrcell" id="12_7">&middot;</td><td class="qrcell" id="12_8">&middot;</td><td class="qrcell" id="12_9">&middot;</td><td class="qrcell" id="12_10">&middot;</td><td class="qrcell" id="12_11">&middot;</td><td class="qrcell" id="12_12">&middot;</td><td class="qrcell" id="12_13">&middot;</td><td class="qrcell" id="12_14">&middot;</td><td class="qrcell" id="12_15">&middot;</td><td class="qrcell" id="12_16">&middot;</td><td class="qrcell" id="12_17">&middot;</td><td class="qrcell" id="12_18">&middot;</td><td class="qrcell" id="12_19">&middot;</td><td class="qrcell" id="12_20">&middot;</td></tr>
 <tr>
-<td id="13_0"></td><td id="13_1"></td><td id="13_2"></td><td id="13_3"></td><td id="13_4"></td><td id="13_5"></td><td id="13_6"></td><td id="13_7"></td><td id="13_8"></td><td id="13_9"></td><td id="13_10"></td><td id="13_11"></td><td id="13_12"></td><td id="13_13"></td><td id="13_14"></td><td id="13_15"></td><td id="13_16"></td><td id="13_17"></td><td id="13_18"></td><td id="13_19"></td><td id="13_20"></td></tr>
+<td class="qrcell" id="13_0">&middot;</td><td class="qrcell" id="13_1">&middot;</td><td class="qrcell" id="13_2">&middot;</td><td class="qrcell" id="13_3">&middot;</td><td class="qrcell" id="13_4">&middot;</td><td class="qrcell" id="13_5">&middot;</td><td class="qrcell" id="13_6">&middot;</td><td class="qrcell" id="13_7">&middot;</td><td class="qrcell" id="13_8">&middot;</td><td class="qrcell" id="13_9">&middot;</td><td class="qrcell" id="13_10">&middot;</td><td class="qrcell" id="13_11">&middot;</td><td class="qrcell" id="13_12">&middot;</td><td class="qrcell" id="13_13">&middot;</td><td class="qrcell" id="13_14">&middot;</td><td class="qrcell" id="13_15">&middot;</td><td class="qrcell" id="13_16">&middot;</td><td class="qrcell" id="13_17">&middot;</td><td class="qrcell" id="13_18">&middot;</td><td class="qrcell" id="13_19">&middot;</td><td class="qrcell" id="13_20">&middot;</td></tr>
 <tr>
-<td id="14_0"></td><td id="14_1"></td><td id="14_2"></td><td id="14_3"></td><td id="14_4"></td><td id="14_5"></td><td id="14_6"></td><td id="14_7"></td><td id="14_8"></td><td id="14_9"></td><td id="14_10"></td><td id="14_11"></td><td id="14_12"></td><td id="14_13"></td><td id="14_14"></td><td id="14_15"></td><td id="14_16"></td><td id="14_17"></td><td id="14_18"></td><td id="14_19"></td><td id="14_20"></td></tr>
+<td class="qrcell" id="14_0">&middot;</td><td class="qrcell" id="14_1">&middot;</td><td class="qrcell" id="14_2">&middot;</td><td class="qrcell" id="14_3">&middot;</td><td class="qrcell" id="14_4">&middot;</td><td class="qrcell" id="14_5">&middot;</td><td class="qrcell" id="14_6">&middot;</td><td class="qrcell" id="14_7">&middot;</td><td class="qrcell" id="14_8">&middot;</td><td class="qrcell" id="14_9">&middot;</td><td class="qrcell" id="14_10">&middot;</td><td class="qrcell" id="14_11">&middot;</td><td class="qrcell" id="14_12">&middot;</td><td class="qrcell" id="14_13">&middot;</td><td class="qrcell" id="14_14">&middot;</td><td class="qrcell" id="14_15">&middot;</td><td class="qrcell" id="14_16">&middot;</td><td class="qrcell" id="14_17">&middot;</td><td class="qrcell" id="14_18">&middot;</td><td class="qrcell" id="14_19">&middot;</td><td class="qrcell" id="14_20">&middot;</td></tr>
 <tr>
-<td rowspan="5" class="row_name row_block_divider">D</td><td id="15_0"></td><td id="15_1"></td><td id="15_2"></td><td id="15_3"></td><td id="15_4"></td><td id="15_5"></td><td id="15_6"></td><td id="15_7"></td><td id="15_8"></td><td id="15_9"></td><td id="15_10"></td><td id="15_11"></td><td id="15_12"></td><td id="15_13"></td><td id="15_14"></td><td id="15_15"></td><td id="15_16"></td><td id="15_17"></td><td id="15_18"></td><td id="15_19"></td><td id="15_20"></td></tr>
+<td rowspan="5" class="row_name row_block_divider qrcell">D</td><td class="qrcell" id="15_0">&middot;</td><td class="qrcell" id="15_1">&middot;</td><td class="qrcell" id="15_2">&middot;</td><td class="qrcell" id="15_3">&middot;</td><td class="qrcell" id="15_4">&middot;</td><td class="qrcell" id="15_5">&middot;</td><td class="qrcell" id="15_6">&middot;</td><td class="qrcell" id="15_7">&middot;</td><td class="qrcell" id="15_8">&middot;</td><td class="qrcell" id="15_9">&middot;</td><td class="qrcell" id="15_10">&middot;</td><td class="qrcell" id="15_11">&middot;</td><td class="qrcell" id="15_12">&middot;</td><td class="qrcell" id="15_13">&middot;</td><td class="qrcell" id="15_14">&middot;</td><td class="qrcell" id="15_15">&middot;</td><td class="qrcell" id="15_16">&middot;</td><td class="qrcell" id="15_17">&middot;</td><td class="qrcell" id="15_18">&middot;</td><td class="qrcell" id="15_19">&middot;</td><td class="qrcell" id="15_20">&middot;</td></tr>
 <tr>
-<td id="16_0"></td><td id="16_1"></td><td id="16_2"></td><td id="16_3"></td><td id="16_4"></td><td id="16_5"></td><td id="16_6"></td><td id="16_7"></td><td id="16_8"></td><td id="16_9"></td><td id="16_10"></td><td id="16_11"></td><td id="16_12"></td><td id="16_13"></td><td id="16_14"></td><td id="16_15"></td><td id="16_16"></td><td id="16_17"></td><td id="16_18"></td><td id="16_19"></td><td id="16_20"></td></tr>
+<td class="qrcell" id="16_0">&middot;</td><td class="qrcell" id="16_1">&middot;</td><td class="qrcell" id="16_2">&middot;</td><td class="qrcell" id="16_3">&middot;</td><td class="qrcell" id="16_4">&middot;</td><td class="qrcell" id="16_5">&middot;</td><td class="qrcell" id="16_6">&middot;</td><td class="qrcell" id="16_7">&middot;</td><td class="qrcell" id="16_8">&middot;</td><td class="qrcell" id="16_9">&middot;</td><td class="qrcell" id="16_10">&middot;</td><td class="qrcell" id="16_11">&middot;</td><td class="qrcell" id="16_12">&middot;</td><td class="qrcell" id="16_13">&middot;</td><td class="qrcell" id="16_14">&middot;</td><td class="qrcell" id="16_15">&middot;</td><td class="qrcell" id="16_16">&middot;</td><td class="qrcell" id="16_17">&middot;</td><td class="qrcell" id="16_18">&middot;</td><td class="qrcell" id="16_19">&middot;</td><td class="qrcell" id="16_20">&middot;</td></tr>
 <tr>
-<td id="17_0"></td><td id="17_1"></td><td id="17_2"></td><td id="17_3"></td><td id="17_4"></td><td id="17_5"></td><td id="17_6"></td><td id="17_7"></td><td id="17_8"></td><td id="17_9"></td><td id="17_10"></td><td id="17_11"></td><td id="17_12"></td><td id="17_13"></td><td id="17_14"></td><td id="17_15"></td><td id="17_16"></td><td id="17_17"></td><td id="17_18"></td><td id="17_19"></td><td id="17_20"></td></tr>
+<td class="qrcell" id="17_0">&middot;</td><td class="qrcell" id="17_1">&middot;</td><td class="qrcell" id="17_2">&middot;</td><td class="qrcell" id="17_3">&middot;</td><td class="qrcell" id="17_4">&middot;</td><td class="qrcell" id="17_5">&middot;</td><td class="qrcell" id="17_6">&middot;</td><td class="qrcell" id="17_7">&middot;</td><td class="qrcell" id="17_8">&middot;</td><td class="qrcell" id="17_9">&middot;</td><td class="qrcell" id="17_10">&middot;</td><td class="qrcell" id="17_11">&middot;</td><td class="qrcell" id="17_12">&middot;</td><td class="qrcell" id="17_13">&middot;</td><td class="qrcell" id="17_14">&middot;</td><td class="qrcell" id="17_15">&middot;</td><td class="qrcell" id="17_16">&middot;</td><td class="qrcell" id="17_17">&middot;</td><td class="qrcell" id="17_18">&middot;</td><td class="qrcell" id="17_19">&middot;</td><td class="qrcell" id="17_20">&middot;</td></tr>
 <tr>
-<td id="18_0"></td><td id="18_1"></td><td id="18_2"></td><td id="18_3"></td><td id="18_4"></td><td id="18_5"></td><td id="18_6"></td><td id="18_7"></td><td id="18_8"></td><td id="18_9"></td><td id="18_10"></td><td id="18_11"></td><td id="18_12"></td><td id="18_13"></td><td id="18_14"></td><td id="18_15"></td><td id="18_16"></td><td id="18_17"></td><td id="18_18"></td><td id="18_19"></td><td id="18_20"></td></tr>
+<td class="qrcell" id="18_0">&middot;</td><td class="qrcell" id="18_1">&middot;</td><td class="qrcell" id="18_2">&middot;</td><td class="qrcell" id="18_3">&middot;</td><td class="qrcell" id="18_4">&middot;</td><td class="qrcell" id="18_5">&middot;</td><td class="qrcell" id="18_6">&middot;</td><td class="qrcell" id="18_7">&middot;</td><td class="qrcell" id="18_8">&middot;</td><td class="qrcell" id="18_9">&middot;</td><td class="qrcell" id="18_10">&middot;</td><td class="qrcell" id="18_11">&middot;</td><td class="qrcell" id="18_12">&middot;</td><td class="qrcell" id="18_13">&middot;</td><td class="qrcell" id="18_14">&middot;</td><td class="qrcell" id="18_15">&middot;</td><td class="qrcell" id="18_16">&middot;</td><td class="qrcell" id="18_17">&middot;</td><td class="qrcell" id="18_18">&middot;</td><td class="qrcell" id="18_19">&middot;</td><td class="qrcell" id="18_20">&middot;</td></tr>
 <tr>
-<td id="19_0"></td><td id="19_1"></td><td id="19_2"></td><td id="19_3"></td><td id="19_4"></td><td id="19_5"></td><td id="19_6"></td><td id="19_7"></td><td id="19_8"></td><td id="19_9"></td><td id="19_10"></td><td id="19_11"></td><td id="19_12"></td><td id="19_13"></td><td id="19_14"></td><td id="19_15"></td><td id="19_16"></td><td id="19_17"></td><td id="19_18"></td><td id="19_19"></td><td id="19_20"></td></tr>
+<td class="qrcell" id="19_0">&middot;</td><td class="qrcell" id="19_1">&middot;</td><td class="qrcell" id="19_2">&middot;</td><td class="qrcell" id="19_3">&middot;</td><td class="qrcell" id="19_4">&middot;</td><td class="qrcell" id="19_5">&middot;</td><td class="qrcell" id="19_6">&middot;</td><td class="qrcell" id="19_7">&middot;</td><td class="qrcell" id="19_8">&middot;</td><td class="qrcell" id="19_9">&middot;</td><td class="qrcell" id="19_10">&middot;</td><td class="qrcell" id="19_11">&middot;</td><td class="qrcell" id="19_12">&middot;</td><td class="qrcell" id="19_13">&middot;</td><td class="qrcell" id="19_14">&middot;</td><td class="qrcell" id="19_15">&middot;</td><td class="qrcell" id="19_16">&middot;</td><td class="qrcell" id="19_17">&middot;</td><td class="qrcell" id="19_18">&middot;</td><td class="qrcell" id="19_19">&middot;</td><td class="qrcell" id="19_20">&middot;</td></tr>
 <tr>
-<td rowspan="5" class="row_name row_block_divider">E</td><td id="20_0"></td><td id="20_1"></td><td id="20_2"></td><td id="20_3"></td><td id="20_4"></td><td id="20_5"></td><td id="20_6"></td><td id="20_7"></td><td id="20_8"></td><td id="20_9"></td><td id="20_10"></td><td id="20_11"></td><td id="20_12"></td><td id="20_13"></td><td id="20_14"></td><td id="20_15"></td><td id="20_16"></td><td id="20_17"></td><td id="20_18"></td><td id="20_19"></td><td id="20_20"></td></tr>
+<td rowspan="5" class="row_name row_block_divider qrcell">E</td><td class="qrcell" id="20_0">&middot;</td><td class="qrcell" id="20_1">&middot;</td><td class="qrcell" id="20_2">&middot;</td><td class="qrcell" id="20_3">&middot;</td><td class="qrcell" id="20_4">&middot;</td><td class="qrcell" id="20_5">&middot;</td><td class="qrcell" id="20_6">&middot;</td><td class="qrcell" id="20_7">&middot;</td><td class="qrcell" id="20_8">&middot;</td><td class="qrcell" id="20_9">&middot;</td><td class="qrcell" id="20_10">&middot;</td><td class="qrcell" id="20_11">&middot;</td><td class="qrcell" id="20_12">&middot;</td><td class="qrcell" id="20_13">&middot;</td><td class="qrcell" id="20_14">&middot;</td><td class="qrcell" id="20_15">&middot;</td><td class="qrcell" id="20_16">&middot;</td><td class="qrcell" id="20_17">&middot;</td><td class="qrcell" id="20_18">&middot;</td><td class="qrcell" id="20_19">&middot;</td><td class="qrcell" id="20_20">&middot;</td></tr>
 </table><script>document.getElementById("0_0").classList.add("filled");
 document.getElementById("0_6").classList.add("filled");
 document.getElementById("1_0").classList.add("filled");
