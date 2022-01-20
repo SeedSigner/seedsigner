@@ -33,7 +33,7 @@ class Controller(Singleton):
         Note: In many/most cases you'll need to do the Controller import within a method
         rather than at the top in order avoid circular imports.
     """
-    VERSION = "0.4.5"
+    VERSION = "0.4.6"
 
 
     @classmethod

@@ -188,8 +188,36 @@ When you exit the System Configuration tool, you will be prompted to reboot the 
 
 Install these dependencies (you can use this entire text string to install them all at once):
 ```
-sudo apt-get update && sudo apt-get install -y wiringpi python3-pip python3-numpy python-pil libopenjp2-7 git python3-opencv libzbar0 python3-picamera libatlas-base-dev qrencode
+sudo apt-get update && sudo apt-get install -y wiringpi python3-pip python3-numpy python-pil libopenjp2-7 git python3-opencv python3-picamera libatlas-base-dev qrencode
 ```
+
+
+### Install `zbar`
+v0.4.6 requires `zbar` at 0.23.x or higher.
+
+#### Get the `zbar` binary
+TODO...
+
+#### Or install `zbar` by compiling from source
+```
+sudo apt-get install -y autopoint
+
+cd ~/
+git clone https://github.com/mchehab/zbar.git
+cd zbar
+git checkout 0.23.90
+```
+
+Configure the compiler settings and compile. Will take ~20min total?
+```
+autoreconf -vfi && ./configure
+make
+make check
+sudo make install
+```
+
+_Note: we will also be installing a fork of the python `pyzbar` repo, currently defined in `requirements.txt` (for now pointing to the fork in Keith's `kdmukai` github account)._
+
 
 Install the [C library for Broadcom BCM 2835](http://www.airspayce.com/mikem/bcm2835/):
 ```
