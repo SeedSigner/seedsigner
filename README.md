@@ -150,7 +150,6 @@ The manual SeedSigner installation and configuration process requires an interne
 For the following steps you'll need to either connect a keyboard & monitor to the network-connected Raspberry Pi you are working with, or SSH into the Pi if you're familiar with that process.
 
 ### Configure the Pi
-
 First things first, verify that you are using the correct version of the Raspberry Pi Lite operating system by typing the command:
 ```
 cat /etc/os-release
@@ -198,9 +197,13 @@ v0.4.6 requires `zbar` at 0.23.x or higher.
 see: [https://github.com/mchehab/zbar](https://github.com/mchehab/zbar)
 
 #### Get the `zbar` binary
-TODO...
+```
+curl -L http://raspbian.raspberrypi.org/raspbian/pool/main/z/zbar/libzbar0_0.23.90-1_armhf.deb --output libzbar0_0.23.90-1_armhf.deb
+sudo apt install ./libzbar0_0.23.90-1_armhf.deb
+```
 
 #### Or install `zbar` by compiling from source
+This step isn't necessary. It's only if you prefer to compile `zbar` from source. The whole process takes about 30 minutes.
 ```
 sudo apt-get install -y autopoint
 
@@ -210,7 +213,7 @@ cd zbar
 git checkout 0.23.90
 ```
 
-Configure the compiler settings and compile. Will take ~20min total?
+Configure the compiler settings and compile.
 ```
 autoreconf -vfi && ./configure
 make
@@ -218,7 +221,7 @@ make check
 sudo make install
 ```
 
-Install the [C library for Broadcom BCM 2835](http://www.airspayce.com/mikem/bcm2835/):
+### Install the [C library for Broadcom BCM 2835](http://www.airspayce.com/mikem/bcm2835/)
 ```
 wget http://www.airspayce.com/mikem/bcm2835/bcm2835-1.60.tar.gz
 tar zxvf bcm2835-1.60.tar.gz
@@ -229,7 +232,7 @@ cd ..
 rm bcm2835-1.60.tar.gz
 ```
 
-Install the "virtualenvwrapper" tool:
+### Set up `virtualenv`
 ```
 pip3 install virtualenvwrapper
 ```
@@ -248,12 +251,12 @@ source ~/.profile
 mkvirtualenv --python=python3 seedsigner-env
 ```
 
-Now download the SeedSigner code:
+### Download the SeedSigner code:
 ```
 git clone https://github.com/SeedSigner/seedsigner
 ```
 
-Install the necessary Python dependencies:
+### Install Python `pip` dependencies:
 ```
 cd seedsigner
 pip3 install -r requirements.txt
@@ -269,8 +272,7 @@ The fork is required because the main `pyzbar` repo has been abandoned. This [gi
 
 If the `requirements.txt` step fails on the forked `pyzbar` repo, manually clone the forked repo and within it run `pip install -e .`. This will install the local code as if it were a `pip` package.
 
-
-Modify the systemd to run SeedSigner at boot:
+### Configure `systemd` to run SeedSigner at boot:
 ```
 sudo nano /etc/systemd/system/seedsigner.service
 ```
@@ -301,13 +303,15 @@ sudo reboot
 
 After the Raspberry Pi reboots, you should see the SeedSigner splash screen and the SeedSigner menu subsequently appear on the LCD screen (note that it can take up to 60 seconds for the menu to appear).
 
-Next, disable and remove the system's virtual memory / swap file with the commands:
+### Further OS modifications
+Disable and remove the system's virtual memory / swap file with the commands:
 ```
 sudo apt remove dphys-swapfile
 sudo rm /var/swap
 ```
 
-For those who will use the SeedSigner installation for testing/development, it can be helpful to change the system's host name so it doesn't potentially conflict with other Raspberry Pi's that may already be present on your network. (For those who don't plan to use the installation for testing or development, you can skip this portion of the process.) To change the host name first edit the "hostname" with the command:
+## Local testing and development
+For those who will use the SeedSigner installation for testing/development, it can be helpful to change the system's host name so it doesn't potentially conflict with other Raspberry Pis that may already be present on your network. (For those who don't plan to use the installation for testing or development, you can skip this portion of the process.) To change the host name first edit the "hostname" with the command:
 ```
 sudo nano /etc/hostname
 ```
