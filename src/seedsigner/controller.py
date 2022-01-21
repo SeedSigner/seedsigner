@@ -159,6 +159,8 @@ class Controller(Singleton):
                 ret_val = self.show_persistent_settings_tool()
             elif ret_val == Path.CAMERA_ROTATION:
                 ret_val = self.show_camera_rotation_tool()
+            elif ret_val == Path.COMPACT_SEEDQR_ENABLED:
+                ret_val = self.show_compact_seedqr_enabled()
             elif ret_val == Path.DONATE:
                 ret_val = self.show_donate_tool()
             elif ret_val == Path.RESET:
@@ -1108,6 +1110,14 @@ class Controller(Singleton):
         r = self.settings_tools_view.display_camera_rotation()
         if r is not None:
             self.settings.camera_rotation = r
+
+        return Path.SETTINGS_SUB_MENU    ### Show Donate Screen and QR
+
+
+    def show_compact_seedqr_enabled(self):
+        r = self.settings_tools_view.display_compact_seedqr_enabled()
+        if r is not None:
+            self.settings.compact_seedqr_enabled = r
 
         return Path.SETTINGS_SUB_MENU    ### Show Donate Screen and QR
 

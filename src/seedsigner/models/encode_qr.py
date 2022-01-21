@@ -248,9 +248,6 @@ class CompactSeedQR(SeedQR):
         for i in range(0, math.ceil(len(binary_str) / 8)):
             # int conversion reads byte data as a string prefixed with '0b'
             as_bytes.append(int('0b' + binary_str[i*8:(i+1)*8], 2))
-
-        print(f"num bytes: {len(as_bytes)}")
-        print(as_bytes)
         
         # Must return data as `bytes` for `qrcode` to properly recognize it as byte data
         return bytes(as_bytes)

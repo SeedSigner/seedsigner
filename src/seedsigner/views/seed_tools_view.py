@@ -967,7 +967,10 @@ class SeedToolsView(View):
 
                 elif show_qr_option and ret_val == B.KEY_RIGHT:
                     # Show the resulting seed as a transcribable QR code
-                    self.display_seed_qr_options(seed_phrase)
+                    if self.controller.settings.compact_seedqr_enabled:
+                        self.display_seed_qr_options(seed_phrase)
+                    else:
+                        self.seed_phrase_as_qr(seed_phrase)
 
                     # Signal success to move forward
                     return True
@@ -994,7 +997,10 @@ class SeedToolsView(View):
 
                     elif show_qr_option and ret_val == B.KEY_RIGHT:
                         # Show the resulting seed as a transcribable QR code
-                        self.display_seed_qr_options(seed_phrase)
+                        if self.controller.settings.compact_seedqr_enabled:
+                            self.display_seed_qr_options(seed_phrase)
+                        else:
+                            self.seed_phrase_as_qr(seed_phrase)
 
                         # Signal success to move forward
                         return True
@@ -1025,7 +1031,7 @@ class SeedToolsView(View):
             return None
 
 
-    def seed_phrase_as_qr(self, seed_phrase, is_compact_seedqr=True):
+    def seed_phrase_as_qr(self, seed_phrase, is_compact_seedqr=False):
         if is_compact_seedqr:
             e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.COMPACTSEEDQR, wordlist=self.controller.settings.wordlist)
         else:

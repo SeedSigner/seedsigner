@@ -77,6 +77,14 @@ def test_compact_seedqr_handles_null_bytes():
     entropy = os.urandom(31) + b'\x00'
     run_encode_decode_test(entropy, mnemonic_length=24, qr_type=QRType.COMPACTSEEDQR)
 
+    # 24-word seed, multiple null bytes
+    entropy = os.urandom(5) + b'\x00' + os.urandom(5) + b'\x00' + os.urandom(20)
+    run_encode_decode_test(entropy, mnemonic_length=24, qr_type=QRType.COMPACTSEEDQR)
+
+    # 24-word seed, multiple null bytes in a row
+    entropy = os.urandom(10) + b'\x00\x00' + os.urandom(20)
+    run_encode_decode_test(entropy, mnemonic_length=24, qr_type=QRType.COMPACTSEEDQR)
+
     # 12-word seed, null bytes at the beginning
     entropy = b'\x00' + os.urandom(15)
     run_encode_decode_test(entropy, mnemonic_length=12, qr_type=QRType.COMPACTSEEDQR)
@@ -87,4 +95,12 @@ def test_compact_seedqr_handles_null_bytes():
 
     # 12-word seed, null bytes at the end
     entropy = os.urandom(15) + b'\x00'
+    run_encode_decode_test(entropy, mnemonic_length=12, qr_type=QRType.COMPACTSEEDQR)
+
+    # 12-word seed, multiple null bytes
+    entropy = os.urandom(5) + b'\x00' + os.urandom(5) + b'\x00' + os.urandom(4)
+    run_encode_decode_test(entropy, mnemonic_length=12, qr_type=QRType.COMPACTSEEDQR)
+
+    # 12-word seed, multiple null bytes in a row
+    entropy = os.urandom(10) + b'\x00\x00' + os.urandom(4)
     run_encode_decode_test(entropy, mnemonic_length=12, qr_type=QRType.COMPACTSEEDQR)
