@@ -432,10 +432,10 @@ def test_specter_wallet_json():
     
 def test_specter_wallet_json2():
     
-    1_part = '{"label": "Testnet Single Zone", "blockheight": 2090512, "descriptor": "wpkh([990a73ad/84h/1h/0h]tpubDDHQMDnFdan2GyHBsG32VW9qiygbhVizGRTjiS3H79M49FSvpsvLXqLgp1yC7r43dXVHozWavi2Fc4WHUpZmQYmzoQbit28qJhLjScbAQWU/0/*)#ujr0xunp","devices": [{"type": "seedsigner", "label": "Single Seed Zone Testnet"}]}'
+    part = '{"label": "Testnet Single Zone", "blockheight": 2090512, "descriptor": "wpkh([990a73ad/84h/1h/0h]tpubDDHQMDnFdan2GyHBsG32VW9qiygbhVizGRTjiS3H79M49FSvpsvLXqLgp1yC7r43dXVHozWavi2Fc4WHUpZmQYmzoQbit28qJhLjScbAQWU/0/*)#ujr0xunp","devices": [{"type": "seedsigner", "label": "Single Seed Zone Testnet"}]}'
     
     d = DecodeQR(wordlist=bip39.WORDLIST)
-    d.add_data(1_part)
+    d.add_data(part)
     
     assert d.qrType() == QRType.SPECTERWALLETQR
     assert d.isComplete() == True

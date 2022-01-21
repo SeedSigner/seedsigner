@@ -25,6 +25,8 @@ def test_singleton_get_instance_preserves_state():
 
         [display]
         text_color = ORANGE
+        qr_background_color = FFFFFF
+        camera_rotation = 0
 
         [wallet]
         network = main

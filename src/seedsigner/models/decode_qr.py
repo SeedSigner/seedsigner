@@ -71,7 +71,14 @@ class DecodeQR:
             return rt
 
         # Convert to string data
-        qr_str = data.decode('utf-8')
+        if type(data) == bytes:
+            # Should always be bytes, but the test suite has some manual datasets that
+            # are strings.
+            # TODO: Convert the test suite rather than handle here?
+            qr_str = data.decode('utf-8')
+        else:
+            # it's already str data
+            qr_str = data
 
         if self.qr_type == QRType.PSBTUR2:
 
@@ -268,7 +275,12 @@ class DecodeQR:
         logger.debug(len(s))
 
         try:
-            s = s.decode('utf-8')
+            # Convert to str data
+            if type(s) == bytes:
+                # Should always be bytes, but the test suite has some manual datasets that
+                # are strings.
+                # TODO: Convert the test suite rather than handle here?
+                s = s.decode('utf-8')
             # PSBT
             if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
                 return QRType.PSBTUR2
