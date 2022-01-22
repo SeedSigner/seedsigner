@@ -203,8 +203,10 @@ class Settings(Singleton):
     def getXPubType(software):
         if software == "Specter Desktop":
             return QRType.SPECTERXPUBQR
-        else:
+        elif software == "Blue Wallet":
             return QRType.XPUBQR
+        else:
+            return QRType.URXPUBQR
 
     @property
     def qr_density_name(self):

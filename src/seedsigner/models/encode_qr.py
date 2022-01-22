@@ -66,8 +66,10 @@ class EncodeQR:
             self.encoder = UREncodePSBTQR(self.psbt, self.qr_density)
         elif self.qr_type == QRType.SEEDSSQR:
             self.encoder = SeedSSQR(self.seed_phrase, self.wordlist)
-        elif self.qr_type == QRType.XPUBQR:
+        elif self.qr_type == QRType.URXPUBQR:
             self.encoder = URXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.qr_density, self.wordlist)
+        elif self.qr_type == QRType.XPUBQR:
+            self.encoder = XPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.wordlist)
         elif self.qr_type == QRType.SPECTERXPUBQR:
             self.encoder = SpecterXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.qr_density, self.wordlist)
         else:
@@ -229,7 +231,6 @@ class XPubQR:
             raise Exception('Wordlist Required')
             
         version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[network])
-        print(self.derivation)
         self.seed = Seed(mnemonic=self.seed_phrase, passphrase=self.passphrase, wordlist=self.wordlist)
         self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[network]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
