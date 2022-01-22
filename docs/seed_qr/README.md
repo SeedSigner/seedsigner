@@ -118,6 +118,12 @@ And see for yourself that the digit stream matches what was generated above from
 
 At this point it is trivial for a SeedSigner or other Bitcoin hardware wallets to parse the digit stream back into the individual BIP-39 wordlist indices and rebuild your entire mnemonic seed phrase.
 
+Looking back at the QR code capacity chart for Numeric data, we know exactly how large the resulting SeedQRs will be:
+```
+12-word mnemonic (48 digits) = 25x25
+24-word mnemonic (96 digits) = 29x29
+```
+
 # `CompactSeedQR` Specification
 The `CompactSeedQR` format builds upon the "Standard" `SeedQR` format by further optimizing how the data is stored in order to generate smaller QR codes that are easier to transcribe by hand.
 
@@ -126,7 +132,7 @@ Notice in the QR code capacity chart above that there's also a "Binary" column, 
 But here the unit being described isn't alphanumeric characters or numeric digits; it's max number of bytes.
 
 ```
-1 bytes = 8 bits
+1 byte = 8 bits
 ```
 
 Rather than having the QR format interpret our data as numbers or characters, we can directly encode the relevant bits that determine our Bitcoin private key.
@@ -160,7 +166,9 @@ We concatenate all those binary values to one large 132-bit stream:
 111100001000001101111000011101011110110011110100111011110001100100001011110101101110101001010000001111101111001010000101010010111010
 ```
 
-BIP-39 specifies a checksum word at the end of each mnemonic seed phrase. In a 12-word mnemonic, the last 4 bits are the checksum. In a 24-word mnemonic, the last 8 bits are the checksum. The checksum is trivially calculated from the prior bits (in this case, the first 128 bits of our stream). Therefore we do not need to include those bits in our CompactSeedQR.
+BIP-39 specifies a checksum word at the end of each mnemonic seed phrase. In a 12-word mnemonic, the last 4 bits are the checksum. In a 24-word mnemonic, the last 8 bits are the checksum.
+
+The checksum is trivially calculated from the prior bits (in this case, the first 128 bits of our stream). Therefore we do not need to include those bits in our CompactSeedQR.
 
 ```
 12-word mnemonic = 12 words * 11 bits per word = 132 bits
@@ -169,3 +177,12 @@ BIP-39 specifies a checksum word at the end of each mnemonic seed phrase. In a 1
 24-word mnemonic = 24 words * 11 bits per word = 264 bits
 24-word CompactSeedQR = 264 bits - 8 checksum bits = 256 bits
 ```
+
+How well will these bit streams fit in a "Binary" QR code? Referring back to the QR code capacity chart we find:
+```
+12-word mnemonic: 128bits / 8 bits per byte = 16 bytes = 21x21
+
+24-word mnemonic: 256bits / 8 bits per byte = 32 bytes = 25x25
+```
+
+So by using the optimally-efficient Binary encoding, we have made each CompactSeedQR one size smaller than its Standard SeedQR counterpart.
