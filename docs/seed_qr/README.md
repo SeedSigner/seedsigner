@@ -6,7 +6,9 @@ To speed up this key entry process we have defined a way to encode a private key
 
 The approach is specifically designed to encode the minimum possible amount of data in order to keep the resulting QR code small enough that it can be transcribed *by hand*. This sounds ridiculous at first, but remember that this is secret data that should never be stored in any digital medium. And even printers present some additional risk vectors.
 
-<img src="img/handmade_qr.jpg">
+<table align="center">
+    <tr><td><img src="img/handmade_qr.jpg"></td></tr>
+</table>
 
 *Obviously this SeedQR is just for demonstration purposes; never photograph your SeedQRs!*
 
@@ -16,6 +18,8 @@ We have defined two QR formats:
 * And a more advanced CompactSeedQR
 
 Specifications for each follow below, as well as discussion of the pros and cons of each format.
+
+
 
 ## Quick Review of BIP-39 Mnemonic Seed Phrases
 The typical method for backing up a Bitcoin private key is to store it as a [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) mnemonic seed phrase that consists of 12 or 24 words.
@@ -62,9 +66,9 @@ This digit stream is then encoded into a QR code.
 ### QR Code Data Formats
 It's important to note here that QR codes can encode data in a number of different ways:
 
-<img src="img/qrcode_capacity.png">
-
-*from: [https://www.qrcode.com/en/about/version.html](https://www.qrcode.com/en/about/version.html)*
+<table align="center">
+    <tr><td align="center"><img src="img/qrcode_capacity.png"><br/>https://www.qrcode.com/en/about/version.html</td></tr>
+</table>
 
 QR codes are typically used to encode a website url, in which case the "Alphanumeric" format has to be used (the encoded data can consist of upper- and lowercase letters, numbers, and certain allowed symbols).
 
@@ -102,13 +106,17 @@ Our SeedQR data will consist solely of numeric digits so that we can use the mor
 12 words * 4 digits per word = 48 digits
 ```
 
-48 numeric digits won't fit in a 21x21 (max Numeric capacity is 41) but will easily fit in a 25x25:
+48 numeric digits won't fit in a 21x21 using the "L" (Low) error correction mode (max Numeric capacity is 41) but will easily fit in a 25x25:
 
-<img src="img/standard_12word.png">
+<table align="center">
+    <tr><td><img src="img/standard_12word.png"></td></tr>
+</table>
 
 If you scan this QR code with your phone, you'll see the human-readable digit stream:
 
-<img src="img/phone_screenshot.jpg">
+<table align="center">
+    <tr><td><img src="img/phone_screenshot_standard.jpg"></td></tr>
+</table>
 
 And see for yourself that the digit stream matches what was generated above from the mnemonic seed word indices.
 
@@ -123,6 +131,15 @@ Looking back at the QR code capacity chart for Numeric data, we know exactly how
 12-word mnemonic (48 digits) = 25x25
 24-word mnemonic (96 digits) = 29x29
 ```
+
+Examples:
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/standard_12word.png"><br/>12-word Standard SeedQR</td>
+        <td align="center"><img src="img/vector1_standard_24word.png"><br/>24-word Standard SeedQR</td>
+    </tr>
+</table>
+
 
 # `CompactSeedQR` Specification
 The `CompactSeedQR` format builds upon the "Standard" `SeedQR` format by further optimizing how the data is stored in order to generate smaller QR codes that are easier to transcribe by hand.
@@ -178,7 +195,7 @@ The checksum is trivially calculated from the prior bits (in this case, the firs
 24-word CompactSeedQR = 264 bits - 8 checksum bits = 256 bits
 ```
 
-How well will these bit streams fit in a "Binary" QR code? Referring back to the QR code capacity chart we find:
+How well will these bit streams fit in a "Binary" QR code? Referring back to the QR code capacity chart we find the following for the "L" (Low) error correction mode:
 ```
 12-word mnemonic: 128bits / 8 bits per byte = 16 bytes = 21x21
 
@@ -186,3 +203,276 @@ How well will these bit streams fit in a "Binary" QR code? Referring back to the
 ```
 
 So by using the optimally-efficient Binary encoding, we have made each CompactSeedQR one size smaller than its Standard SeedQR counterpart.
+
+Examples:
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector4_compact_12word.png"><br/>12-word CompactSeedQR</td>
+        <td align="center"><img src="img/vector1_compact_24word.png"><br/>24-word CompactSeedQR</td>
+    </tr>
+</table>
+
+
+# Standard SeedQR vs CompactSeedQR
+
+Here are the two formats side-by-side.
+
+The same 12-word seed in each format:
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector4_standard_12word.png"><br/>Standard SeedQR (25x25)</td>
+        <td align="center"><img src="img/vector4_compact_12word.png"><br/>CompactSeedQR (21x21)</td>
+    </tr>
+</table>
+
+The same 24-word seed in each format:
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector1_standard_24word.png"><br/>Standard SeedQR (29x29)</td>
+        <td align="center"><img src="img/vector1_compact_24word.png"><br/>CompactSeedQR (25x25)</td>
+    </tr>
+</table>
+
+Since the goal of the SeedQR concept is to make it easy to transcribe by hand, it's natural to assume that the CompactSeedQR is better.
+
+Let's compare actual "real estate" in each size. All of our QR sizes have three large 8x8 registration blocks in the corners. 29x29 and 25x25 have a smaller 5x5 registration block in the lower right.
+
+```
+29x29 - (3*8x8) - 5x5 = 624 blocks
+25x25 - (3*8x8) - 5x5 = 408 blocks
+21x21 - (3*8x8)       = 249 blocks
+```
+
+So by shrinking a 24-word Standard SeedQR from 29x29 down to a CompactSeedQR at 25x25, we've reduced the area we have to manually transcribe to:
+
+```
+408 / 624 = 65%
+```
+
+And similarly, shrinking a 12-word 25x25 Standard SeedQR down to a CompactSeedQR at 21x21:
+
+```
+249 / 408 = 61%
+```
+
+But there are other tradeoffs to consider.
+
+## Recoverability
+If you lose your SeedSigner or somehow the project is abandoned or banned, how will you read back your SeedQR? 
+
+With the Standard SeedQR format this is trivial--any smartphone can decode the numeric digit stream. But the CompactSeedQR's raw byte data is not decipherable in the same way. Most QR readers today assume the data is either alphanumeric or human-readable numeric data. Because of this assumption, they misinterpret the binary format data:
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/phone_screenshot_standard.jpg"><br/>Standard SeedQR</td>
+        <td align="center"><img src="img/phone_screenshot_compact.jpg"><br/>CompactSeedQR</td>
+    </tr>
+</table>
+
+The clearly readable Standard SeedQR digit stream can be manually transcribed back to a mnemonic seed phrase with no other computer assistance, if need be.
+
+It's just the above process in reverse:
+```bash
+# 12-word Standard SeedQR digit stream
+192402220235174306311124037817700641198012901210
+
+# Separate out into 4-digit individual indices
+1924 0222 0235 1743 0631 1124 0378 1770 0641 1980 1290 1210
+
+# Look up each BIP-39 index number (index+1 if using the github list!)
+ 1. vacuum    1924
+ 2. bridge     222
+ 3. buddy      235
+ 4. supreme   1743
+ 5. exclude    631
+ 6. milk      1124
+ 7. consider   378
+ 8. tail      1770
+ 9. expand     641
+10. wasp      1980
+11. pattern   1290
+12. nuclear   1210
+```
+
+It would be much more difficult to manually recreate your seed from a CompactSeedQR. Tools like [zxing.org](https://zxing.org/w/decode.jspx) can help you get the binary data out as a hexidecimal string:
+
+<img src="img/zxing_screenshot.png">
+
+All 12-word CompactSeedQRs will start with `41 0` (that specifies the binary data format and says the length of the data is 16 bytes) and end with `0 ec` (unused byte and a half).
+
+All 24-word CompactSeedQRs will start with `42 0` (binary, data length is 32 bytes) and end with `0` (unused half a byte).
+
+The remaining hexidecimal data is just an alternate representation of the 128-bit entropy for your 12-word mnemonic (or 256 bits for a 24-word mnemonic). Various programming tools exist to convert from hex back into mnemonic form.
+
+
+## Obfuscation
+Conversely, having limited support for reading binary QR codes and the complications described above are seen by some as an added security feature. Should someone steal your CompactSeedQR or take a photo of it, they'll have to be fairly savvy to know how to decode it.
+
+
+# Some Additional Notes on QR Codes
+Our main use case is to be able to quickly initialize a SeedSigner with your Bitcoin private key. But using a QR code as your key loader--or even as your permanent backup etched in metal--has other advantages.
+
+QR codes are ubiquitous now so plenty of hardware and software exists to read and generate them.
+
+QR codes have built-in error correction. "L" is described as having a roughly 7% correction rate.
+
+In general, QR codes are incredibly resilient to unreadable blocks. For example, you often see the middle blocks intentionally covered over with a logo:
+
+<table align="center"><tr><td><img src="img/standard_24word_with_logo.png"></td></tr></table>
+
+This is right at the limit of SeedSigner's ability to read this 24-word SeedQR, despite the inaccessible blocks.
+
+Similarly, QR codes can withstand human error during the manual transcription process. A few mis-coded blocks, a smeared ink blob, or other physical blemishes will generally not cause any problems.
+
+
+# Test SeedQRs
+Sample test vectors to verify your own encode and decode implementations:
+
+---
+
+## Test Vector 1: 24-word seed
+```bash
+# 24-word seed
+attack pizza motion avocado network gather crop fresh patrol unusual wild holiday candy pony ranch winter theme error hybrid van cereal salon goddess expire
+
+# Standard SeedQR digit stream:
+011513251154012711900771041507421289190620080870026613431420201617920614089619290300152408010643
+
+# CompactSeedQR bitstream
+0000111001110100101101100100000100000111111110010100110011000000110011001111101011100110101000010011110111001011111011000011011001100010000101010100111111101100011001111110000011100000000010011001100111000000011110001001001001011001011111010001100100001010
+
+#CompactSeedQR bytestream
+b'\x0et\xb6A\x07\xf9L\xc0\xcc\xfa\xe6\xa1=\xcb\xec6b\x15O\xecg\xe0\xe0\t\x99\xc0x\x92Y}\x19\n'
+```
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector1_standard_24word.png"><br/>Standard SeedQR</td>
+        <td align="center"><img src="img/vector1_compact_24word.png"><br/>CompactSeedQR</td>
+    </tr>
+</table>
+
+---
+
+## Test Vector 2: 24-word seed
+Note that this vector and a few others below include a null byte character (`\x00`) in its CompactSeedQR bytestream. This is a particularly troublesome character for most QR readers; most will read this character as an instruction to stop reading any further data.
+
+Take extra care to confirm that your implementation correcly reads these characters and all remaining data after it!
+
+```bash
+# 24-word seed:
+atom solve joy ugly ankle message setup typical bean era cactus various odor refuse element afraid meadow quick medal plate wisdom swap noble shallow
+
+# Standard SeedQR digit stream:
+011416550964188800731119157218870156061002561932122514430573003611011405110613292018175411971576
+
+# CompactSeedQR bitstream:
+0000111001011001110111011110001001110110000000001001001100010111111100010010011101011111000100111000100110001000100000000111100011001001100100110110100011010001111010000010010010001001101101011111011000101001010100110001111111000101101101101010010101101110
+
+# CompactSeedQR bytestream:
+b"\x0eY\xdd\xe2v\x00\x93\x17\xf1'_\x13\x89\x88\x80x\xc9\x93h\xd1\xe8$\x89\xb5\xf6)S\x1f\xc5\xb6\xa5n"
+```
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector2_standard_24word.png"><br/>Standard SeedQR</td>
+        <td align="center"><img src="img/vector2_compact_24word.png"><br/>CompactSeedQR</td>
+    </tr>
+</table>
+
+---
+
+## Test Vector 3: 24 word seed
+```bash
+# 24-word seed:
+sound federal bonus bleak light raise false engage round stock update render quote truck quality fringe palace foot recipe labor glow tortoise potato still
+
+# Standard SeedQR digit stream:
+166206750203018810361417065805941507171219081456140818651401074412730727143709940798183613501710
+
+# CompactSeedQR bitstream:
+1100111111001010100011000110010110001011110010000001100101100010010101001001001001010010101111000111101011000011101110100101101100001011000000011101001001101011110010101110100010011111001010110101111011001110101111100010011000111101110010110010101000110110
+
+# CompactSeedQR bytestream:
+b'\xcf\xca\x8ce\x8b\xc8\x19bT\x92R\xbcz\xc3\xba[\x0b\x01\xd2k\xca\xe8\x9f+^\xce\xbe&=\xcb*6'
+```
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector3_standard_24word.png"><br/>Standard SeedQR</td>
+        <td align="center"><img src="img/vector3_compact_24word.png"><br/>CompactSeedQR</td>
+    </tr>
+</table>
+
+---
+
+## Test Vector 4: 12-word seed
+```bash
+# 12-word seed:
+forum undo fragile fade shy sign arrest garment culture tube off merit
+
+# Standard SeedQR digit stream:
+073318950739065415961602009907670428187212261116
+
+# CompactSeedQR bitstream:
+01011011101111011001110101110001101010001110110001111001100100001000001100011010111111110011010110011101010000100110010101000101
+
+# CompactSeedQR bytestream:
+b'[\xbd\x9dq\xa8\xecy\x90\x83\x1a\xff5\x9dBeE'
+```
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector4_standard_12word.png"><br/>Standard SeedQR</td>
+        <td align="center"><img src="img/vector4_compact_12word.png"><br/>CompactSeedQR</td>
+    </tr>
+</table>
+
+---
+
+## Test Vector 5: 12-word seed
+```bash
+# 12-word seed:
+good battle boil exact add seed angle hurry success glad carbon whisper
+
+# Standard SeedQR digit stream:
+080301540200062600251559007008931730078802752004
+
+# CompactSeedQR bitstream:
+01100100011000100110100001100100001001110010000000110011100001011100001000110011011111011101100001001100010100001000100111111101
+
+# CompactSeedQR bytestream:
+b"dbhd' 3\x85\xc23}\xd8LP\x89\xfd"
+```
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector5_standard_12word.png"><br/>Standard SeedQR</td>
+        <td align="center"><img src="img/vector5_compact_12word.png"><br/>CompactSeedQR</td>
+    </tr>
+</table>
+
+---
+
+## Test Vector 6: 12-word seed
+```bash
+# 12-word seed:
+approve fruit lens brass ring actual stool coin doll boss strong rate
+
+# Standard SeedQR digit stream:
+008607501025021714880023171503630517020917211425
+
+# CompactSeedQR bitstream:
+00001010110010111011101000000000100011011001101110100000000001011111010110011001011010110100000010100011010001110101110011011001
+
+# CompactSeedQR bytestream:
+b'\n\xcb\xba\x00\x8d\x9b\xa0\x05\xf5\x99k@\xa3G\\\xd9'
+```
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector6_standard_12word.png"><br/>Standard SeedQR</td>
+        <td align="center"><img src="img/vector6_compact_12word.png"><br/>CompactSeedQR</td>
+    </tr>
+</table>
+
