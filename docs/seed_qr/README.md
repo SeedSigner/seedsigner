@@ -1,0 +1,1 @@
+# SeedQR Format Specification
