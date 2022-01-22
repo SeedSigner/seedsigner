@@ -361,7 +361,7 @@ b'\x0et\xb6A\x07\xf9L\xc0\xcc\xfa\xe6\xa1=\xcb\xec6b\x15O\xecg\xe0\xe0\t\x99\xc0
 ## Test Vector 2: 24-word seed
 Note that this vector and a few others below include a null byte character (`\x00`) in its CompactSeedQR bytestream. This is a particularly troublesome character for most QR readers; most will read this character as an instruction to stop reading any further data.
 
-Take extra care to confirm that your implementation correcly reads these characters and all remaining data after it!
+Take extra care to confirm that your implementation correctly reads these characters and all remaining data after it!
 
 ```bash
 # 24-word seed:
