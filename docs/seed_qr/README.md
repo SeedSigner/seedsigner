@@ -7,10 +7,8 @@ To speed up this key entry process we have defined a way to encode a private key
 The approach is specifically designed to encode the minimum possible amount of data in order to keep the resulting QR code small enough that it can be transcribed *by hand*. This sounds ridiculous at first, but remember that this is secret data that should never be stored in any digital medium. And even printers present some additional risk vectors.
 
 <table align="center">
-    <tr><td><img src="img/handmade_qr.jpg"></td></tr>
+    <tr><td><img src="img/handmade_qr.jpg"><br/><em>Obviously this SeedQR is just for demonstration purposes; never photograph your SeedQRs!</em></td></tr>
 </table>
-
-*Obviously this SeedQR is just for demonstration purposes; never photograph your SeedQRs!*
 
 
 We have defined two QR formats:
@@ -67,7 +65,7 @@ This digit stream is then encoded into a QR code.
 It's important to note here that QR codes can encode data in a number of different ways:
 
 <table align="center">
-    <tr><td align="center"><img src="img/qrcode_capacity.png"><br/>https://www.qrcode.com/en/about/version.html</td></tr>
+    <tr><td align="center"><img src="img/qrcode_capacity.png"><br/><em><a href="https://www.qrcode.com/en/about/version.html">qrcode.com</a></em></td></tr>
 </table>
 
 QR codes are typically used to encode a website url, in which case the "Alphanumeric" format has to be used (the encoded data can consist of upper- and lowercase letters, numbers, and certain allowed symbols).
@@ -254,6 +252,12 @@ And similarly, shrinking a 12-word 25x25 Standard SeedQR down to a CompactSeedQR
 ```
 249 / 408 = 61%
 ```
+
+If you're manually punching holes into a metal SeedQR plate, that's cutting out about 35-40% of the work!
+
+<table align="center">
+    <tr><td><img src="img/seedqr_plate.jpg"></td></tr>
+</table>
 
 But there are other tradeoffs to consider.
 
