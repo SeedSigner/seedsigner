@@ -33,6 +33,7 @@ def test_singleton_get_instance_preserves_state():
         software = Prompt
         qr_density = 2
         custom_derivation = m/0/0
+        compact_seedqr_enabled = False
     """
     config = configparser.ConfigParser()
     config.read_string(settings)

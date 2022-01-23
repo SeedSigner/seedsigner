@@ -318,7 +318,7 @@ Our main use case is to be able to quickly initialize a SeedSigner with your Bit
 
 QR codes are ubiquitous now so plenty of hardware and software exists to read and generate them.
 
-QR codes have built-in error correction. "L" is described as having a roughly 7% correction rate.
+QR codes have built-in error correction. The "L" error correction mode is described as having a roughly 7% correction rate.
 
 In general, QR codes are incredibly resilient to unreadable blocks. For example, you often see the middle blocks intentionally covered over with a logo:
 
@@ -336,16 +336,16 @@ Sample test vectors to verify your own encode and decode implementations:
 
 ## Test Vector 1: 24-word seed
 ```bash
-# 24-word seed
+# 24-word seed:
 attack pizza motion avocado network gather crop fresh patrol unusual wild holiday candy pony ranch winter theme error hybrid van cereal salon goddess expire
 
 # Standard SeedQR digit stream:
 011513251154012711900771041507421289190620080870026613431420201617920614089619290300152408010643
 
-# CompactSeedQR bitstream
+# CompactSeedQR bitstream:
 0000111001110100101101100100000100000111111110010100110011000000110011001111101011100110101000010011110111001011111011000011011001100010000101010100111111101100011001111110000011100000000010011001100111000000011110001001001001011001011111010001100100001010
 
-#CompactSeedQR bytestream
+# CompactSeedQR bytestream:
 b'\x0et\xb6A\x07\xf9L\xc0\xcc\xfa\xe6\xa1=\xcb\xec6b\x15O\xecg\xe0\xe0\t\x99\xc0x\x92Y}\x19\n'
 ```
 
