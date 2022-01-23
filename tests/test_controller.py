@@ -18,6 +18,13 @@ def test_singleton_get_instance_without_configure_fails():
 
 def test_singleton_get_instance_preserves_state():
     """ Changes to the Controller singleton should be preserved across calls to get_instance() """
+
+    # Must reset Singleton instances; pytest cannot properly isolate Singletons for us
+    # automatically.
+    # TODO: Cleaner solution here would be nice.
+    Settings._instance = None
+    Controller._instance = None
+
     settings = """
         [system]
         debug = False
@@ -58,6 +65,7 @@ def test_missing_settings_get_defaults():
 
     # Must reset Singleton instances; pytest cannot properly isolate Singletons for us
     # automatically.
+    # TODO: Cleaner solution here would be nice.
     Settings._instance = None
     Controller._instance = None
 
