@@ -48,6 +48,8 @@ class Settings(Singleton):
         settings.init_complete = True
 
     def __config_to_data(self, config):
+        # TODO: Make each get resilient to the possibility of the field being missing in
+        # the `settings.ini`
         self.persistent = config.getboolean("system", "persistent_settings")
         self._data["system"]["debug"] = config.getboolean("system", "debug")
         self._data["system"]["default_language"] = config["system"]["default_language"]
@@ -58,7 +60,9 @@ class Settings(Singleton):
         self.software = config["wallet"]["software"]
         self.qr_density = int(config["wallet"]["qr_density"])
         self.custom_derivation = config["wallet"]["custom_derivation"]
-        self.compact_seedqr_enabled = config.getboolean("wallet", "compact_seedqr_enabled")
+
+        if "compact_seedqr_enabled"in config["wallet"]:
+            self.compact_seedqr_enabled = config.getboolean("wallet", "compact_seedqr_enabled")
 
     ### persistent settings handling
 

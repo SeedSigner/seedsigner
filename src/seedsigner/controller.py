@@ -46,7 +46,17 @@ class Controller(Singleton):
 
 
     @classmethod
-    def configure_instance(cls, config=None):
+    def configure_instance(cls, config=None, disable_hardware=False):
+        """
+            - `disable_hardware` is only meant to be used by the test suite so that it
+            can keep re-initializing a Controller in however many tests it needs to. But
+            this is only possible if the hardware isn't already being reserved. Without
+            this you get:
+
+            RuntimeError: Conflicting edge detection already enabled for this GPIO channel
+
+            each time you try to re-initialize a Controller.
+        """
         # Must be called before the first get_instance() call
         if cls._instance:
             raise Exception("Instance already configured")
@@ -56,7 +66,10 @@ class Controller(Singleton):
         cls._instance = controller
 
         # Input Buttons
-        controller.buttons = Buttons()
+        if disable_hardware:
+            controller.buttons = None
+        else:
+            controller.buttons = Buttons()
 
         # models
         controller.storage = SeedStorage()
