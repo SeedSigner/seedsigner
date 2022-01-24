@@ -134,6 +134,28 @@ The upper and lower portions of the enclosure can be printed using a standard FD
 
 ---------------
 
+# SeedQR Printable Templates
+You can use SeedSigner to export your seed to a hand-transcribed SeedQR format that enables you to instantly load your seed back into SeedSigner.
+
+[More information about SeedQRs](docs/seed_qr/README.md)
+
+<table align="center">
+    <tr><td><img src="docs/seed_qr/img/handmade_qr.jpg"></td></tr>
+</table>
+
+Standard SeedQR templates:
+* [12-word SeedQR template (25x25)](docs/seed_qr/printable_templates/12words_seedqr_template.pdf)
+* [24-word SeedQR template (29x29)](docs/seed_qr/printable_templates/24words_seedqr_template.pdf)
+* [Baseball card template: 24-word SeedQR (29x29)](docs/seed_qr/printable_templates/Seed_QR_Card.pdf)
+
+CompactSeedQR templates:
+* [12-word CompactSeedQR template (21x21)](docs/seed_qr/printable_templates/compact_seedqr/12words_compactseedqr_template.pdf)
+* [24-word CompactSeedQR template (25x25)](docs/seed_qr/printable_templates/compact_seedqr/24words_compactseedqr_template.pdf)
+
+_note: CompactSeedQR is an advanced feature that can be enabled in Settings_
+
+---------------
+
 # Manual Software Installation Instructions:
 
 Begin by acquiring a specific copy of the Raspberry Pi Lite operating system, dated 2021-05-28; this version can be found here:
