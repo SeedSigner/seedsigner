@@ -48,7 +48,7 @@ def generate_qr_template(qr_size, num_words=24, block_size=5, show_timing_marks=
             .filled {
                 background-color: black;
                 border: none;
-                color: #ccc;
+                color: white;
             }
             .col_name, .row_name {
                 text-align: center;
@@ -288,7 +288,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     html = generate_qr_template(qr_size=args.qr_size, num_words=args.num_words, block_size=args.block_size, show_timing_marks=args.timing_marks)
-    file = open(f"qr_code_template_{args.num_words}words_{args.qr_size}x{args.qr_size}.html", "w")
+    file = open(f"{args.num_words}words_seedqr_template-{args.qr_size}x{args.qr_size}.html", "w")
     file.write(html)
     file.close()
 
