@@ -170,7 +170,7 @@ class SeedStorage:
 	def save_passphrase(self, passphrase, slot_num = 0) -> bool:
 		return self.add_passphrase_to_slot(passphrase, slot_num=slot_num)
 
-	def get_seed_phrase(self, slot_num) -> []:
+	def get_seed_phrase(self, slot_num) -> list:
 		if self.slots[slot_num - 1] == -1:
 			return []
 

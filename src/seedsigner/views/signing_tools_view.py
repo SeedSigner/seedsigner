@@ -1,6 +1,5 @@
 # Internal file class dependencies
 from . import View
-from seedsigner.helpers import Buttons, B
 
 # External Dependencies
 import time

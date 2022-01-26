@@ -518,7 +518,6 @@ class WarningEdgesThread(ComponentThread):
                     render_border((r, g, b), GUIConstants.EDGE_PADDING - 2 - index)
 
                 # Write the screen updates
-                # TODO: Does this need to be thread-safe?
                 screen.renderer.show_image()
             
             if inhale_factor == inhale_max:

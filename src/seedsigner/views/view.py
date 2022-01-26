@@ -47,7 +47,7 @@ class View:
         from seedsigner.gui import Renderer
         from seedsigner.models import Settings
 
-        self.controller = Controller.get_instance()
+        self.controller: Controller = Controller.get_instance()
         self.settings = Settings.get_instance()
 
         # TODO: Pull all rendering-related code out of Views and into gui.screens implementations

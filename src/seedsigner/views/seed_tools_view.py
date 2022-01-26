@@ -7,8 +7,9 @@ from PIL.ImageOps import autocontrast
 
 from . import View
 
+from seedsigner.helpers import QR, mnemonic_generation
 from seedsigner.gui.components import Fonts
-from seedsigner.helpers import B, QR, Keyboard, TextEntryDisplay, mnemonic_generation
+from seedsigner.gui.keyboard import B, Keyboard, TextEntryDisplay
 from seedsigner.models import (DecodeQR, DecodeQRStatus, QRType, EncodeQR, Settings,
     Seed, SeedStorage)
 

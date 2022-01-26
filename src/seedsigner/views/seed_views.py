@@ -474,7 +474,10 @@ class SeedValidView(View):
     def run(self):
         from seedsigner.gui.screens.seed_screens import SeedValidScreen
 
-        button_data=[("Scan a PSBT", "scan_inline")]
+        if self.controller.psbt:
+            button_data=["Sign PSBT"]
+        else:
+            button_data=[("Scan a PSBT", "scan_inline")]
 
         if self.settings.passphrase == SettingsConstants.OPTION__ENABLED or (not self.seed.passphrase and self.settings.passphrase == SettingsConstants.OPTION__PROMPT):
             button_data.append("Add Passphrase")
@@ -490,10 +493,15 @@ class SeedValidView(View):
         selected_menu_num = screen.display()
 
         if selected_menu_num == 0:
-            # Jump back to the Scan mode, but this time to sign a PSBT
-            from .scan_views import ScanView
             self.controller.storage.finalize_pending_seed()
-            return Destination(ScanView, clear_history=True)
+            if self.controller.psbt:
+                # We have a pending psbt to sign!
+                from .psbt_views import PSBTOverviewView
+                return Destination(PSBTOverviewView, view_args={"seed_num": len(self.controller.storage.seeds) - 1})
+            else:
+                # Jump back to the Scan mode, but this time to sign a PSBT
+                from .scan_views import ScanView
+                return Destination(ScanView, clear_history=True)
         
         elif selected_menu_num == 1 and len(button_data) > selected_menu_num + 1:
             return Destination(SeedAddPassphraseView)

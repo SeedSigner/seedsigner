@@ -336,7 +336,7 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
             icon_name="fingerprint",
             label_text="Fingerprint",
             value_text=self.fingerprint,
-            screen_x=8,
+            screen_x=GUIConstants.COMPONENT_PADDING,
             screen_y=self.top_nav.height,
         )
 
@@ -344,16 +344,16 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
             icon_name="fingerprint",
             label_text="Derivation",
             value_text=self.derivation_path,
-            screen_x=8,
-            screen_y=self.fingerprint_line.screen_y + self.fingerprint_line.height + 8,
+            screen_x=GUIConstants.COMPONENT_PADDING,
+            screen_y=self.fingerprint_line.screen_y + self.fingerprint_line.height + GUIConstants.COMPONENT_PADDING,
         )
 
         self.xpub_line = IconTextLine(
             icon_name="fingerprint",
             label_text="Xpub",
             value_text=self.xpub,
-            screen_x=8,
-            screen_y=self.derivation_line.screen_y + self.derivation_line.height + 8,
+            screen_x=GUIConstants.COMPONENT_PADDING,
+            screen_y=self.derivation_line.screen_y + self.derivation_line.height + GUIConstants.COMPONENT_PADDING,
         )
 
 

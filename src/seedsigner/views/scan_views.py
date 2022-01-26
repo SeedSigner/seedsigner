@@ -1,6 +1,8 @@
 import json
+from seedsigner.models.psbt_parser import PSBTParser
 
 from seedsigner.models.settings import SettingsConstants
+from seedsigner.views.psbt_views import PSBTSelectSeedView
 from seedsigner.views.seed_views import SeedAddPassphrasePromptView
 
 from .view import BackStackView, MainMenuView, View, Destination
@@ -23,7 +25,6 @@ class ScanView(View):
 
         if self.decoder.isComplete():
             if self.decoder.isSeed():
-                # first QR is Seed
                 seed_mnemonic = self.decoder.getSeedPhrase()
                 if not seed_mnemonic:
                     # seed is not valid, Exit if not valid with message
@@ -41,6 +42,11 @@ class ScanView(View):
                         return Destination(SeedAddPassphrasePromptView)
                     else:
                         return Destination(SeedValidView)
+            
+            elif self.decoder.isPSBT():
+                psbt = self.decoder.getPSBT()
+                self.controller.psbt = psbt
+                return Destination(PSBTSelectSeedView)
 
             elif self.decoder.qr_type == QRType.SETTINGS:
                 from seedsigner.models.settings import Settings

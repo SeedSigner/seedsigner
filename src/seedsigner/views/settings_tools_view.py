@@ -1,6 +1,7 @@
 # SeedSigner file class dependencies
 from . import View
-from seedsigner.helpers import B, QR, Keyboard, TextEntryDisplay
+from seedsigner.helpers import B, QR
+from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.models import EncodeQRDensity
 
 

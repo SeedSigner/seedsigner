@@ -2,15 +2,13 @@ import os
 import sys
 import time
 
-from binascii import hexlify
-from dataclasses import dataclass
-from embit import bip32
-from embit.networks import NETWORKS
-from multiprocessing import Process, Queue
 from subprocess import call
 from threading import Thread
 
-from .models import (EncodeQRDensity, QRType, Seed, SeedStorage, Settings,
+from embit.psbt import PSBT
+from seedsigner.gui.renderer import Renderer
+
+from .models import (EncodeQRDensity, Seed, SeedStorage, Settings,
     Singleton, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
 
 
@@ -32,7 +30,19 @@ class Controller(Singleton):
         Note: In many/most cases you'll need to do the Controller import within a method
         rather than at the top in order avoid circular imports.
     """
+    from .helpers import Buttons
+
     VERSION = "0.5.0"
+
+    # Declare class member vars with type hints to enable richer IDE support throughout
+    # the code.
+    buttons: Buttons = None
+    storage: SeedStorage = None
+    settings: Settings = None
+    psbt: PSBT = None
+    psbt_parser: PSBTParser = None
+    renderer: Renderer = None
+
 
     @classmethod
     def get_instance(cls):
@@ -52,6 +62,10 @@ class Controller(Singleton):
             # TODO: Rename "storage" to something more indicative of its temp, in-memory state
             controller.storage = SeedStorage()
             controller.settings = Settings.get_instance()
+
+            # Store one working psbt in memory
+            controller.psbt = None
+            controller.psbt_parser = None
 
             # settings
             controller.DEBUG = controller.settings.debug

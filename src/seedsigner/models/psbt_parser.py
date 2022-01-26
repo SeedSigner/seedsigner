@@ -15,6 +15,7 @@ class PSBTParser():
         self.change_amount = 0
         self.fee_amount = 0
         self.input_amount = 0
+        self.num_inputs = 0
         self.destination_addresses = []
         self.self_addresses = []
 
@@ -22,6 +23,10 @@ class PSBTParser():
 
         if self.seed:
             self.parse(self.psbt,self.seed,self.network)
+
+    @property
+    def num_receive_addrs(self) -> int:
+        return len(self.destination_addresses)
 
     def __setRoot(self, seed: Seed, network):
         self.root = bip32.HDKey.from_seed(seed.seed, version=NETWORKS[network]["xprv"])
@@ -54,6 +59,7 @@ class PSBTParser():
 
     def __parseInputs(self):
         self.input_amount = 0
+        self.num_inputs = len(self.psbt.inputs)
         for inp in self.psbt.inputs:
             if inp.witness_utxo:
                 self.input_amount += inp.witness_utxo.value

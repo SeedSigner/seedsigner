@@ -32,6 +32,9 @@ class GUIConstants:
     BODY_FONT_COLOR = "#fcfcfc"
     BODY_LINE_SPACING = 0.25
 
+    LABEL_FONT_SIZE = BODY_FONT_SIZE - 2
+    LABEL_FONT_COLOR = "#666"
+
     BUTTON_FONT_NAME = "OpenSans-SemiBold"
     BUTTON_FONT_SIZE = 18
     BUTTON_FONT_COLOR = "#e8e8e8"
