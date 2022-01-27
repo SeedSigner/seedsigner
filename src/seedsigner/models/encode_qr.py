@@ -346,7 +346,7 @@ class URXPubQR(XPubQR):
                 else:
                     arr[i] = PathComponent(int(e), False)
                     
-            return Keypath(arr, self.root.my_fingerprint, None)
+            return Keypath(arr, self.root.my_fingerprint, len(arr))
             
         origin = derivation_to_keypath(derivation)
         
