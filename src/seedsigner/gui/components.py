@@ -136,10 +136,9 @@ class BaseComponent:
 
 
 class ComponentThread(Thread):
-    def __init__(self, args):
+    def __init__(self):
         super().__init__(daemon=True)
         self.keep_running = True
-        self.args = args
 
     def stop(self):
         print("EXITING THREAD")
@@ -563,6 +562,13 @@ class TopNav(BaseComponent):
         )
 
 
+def linear_interp(a, b, t):
+    return (
+        int((1.0 - t)*a[0] + t*b[0]),
+        int((1.0 - t)*a[1] + t*b[1])
+    )
+
+
 def calc_bezier_curve(p1: Tuple[int,int], p2: Tuple[int,int], p3: Tuple[int,int], segments: int) -> List[Tuple[Tuple[int,int], Tuple[int,int]]]:
     """
         Calculates the points of a bezier curve between points p1 and p3 with p2 as a
@@ -577,12 +583,6 @@ def calc_bezier_curve(p1: Tuple[int,int], p2: Tuple[int,int], p3: Tuple[int,int]
         Q1 = (1 - t)*L1(t) + t*L2(t)
     """
     t_step = 1.0 / segments
-
-    def linear_interp(a, b, t):
-        return (
-            int((1.0 - t)*a[0] + t*b[0]),
-            int((1.0 - t)*a[1] + t*b[1])
-        )
 
     points = [p1]
     for i in range(1, segments + 1):

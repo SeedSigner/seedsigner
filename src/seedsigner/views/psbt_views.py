@@ -93,10 +93,10 @@ class PSBTOverviewMockView(View):
             spend_amount=384734,
             change_amount=84783,
             fee_amount=1313,
-            num_inputs=1,
+            num_inputs=2,
             destination_addresses=[
                 "bc1q3lg2qc933hd4ke9xjwm68e3rxz94525d5vchy75",
-                # "bc1qkf4jqc933hd4ke9xjwm68e3rxz94525d5vchy75",
+                "bc1qkf4jqc933hd4ke9xjwm68e3rxz94525d5vchy75",
                 # "bc1q9de6qc933hd4ke9xjwm68e3rxz94525d5vchy75",
                 # "hello"
             ],
@@ -104,7 +104,7 @@ class PSBTOverviewMockView(View):
         selected_menu_num = screen.display()
 
         if selected_menu_num == 0:
-            pass
+            return Destination(MainMenuView)
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)

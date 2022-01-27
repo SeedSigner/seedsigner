@@ -1,11 +1,15 @@
-import dataclasses
+import random
+from re import M
+import time
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from typing import List
 
+from seedsigner.gui.renderer import Renderer
+
 from .screen import BaseTopNavScreen, ButtonListScreen
-from ..components import (BaseComponent, GUIConstants, Fonts, IconTextLine, TextArea,
-    calc_text_centering, calc_bezier_curve)
+from ..components import (BaseComponent, ComponentThread, GUIConstants, Fonts, IconTextLine, TextArea,
+    calc_text_centering, calc_bezier_curve, linear_interp)
 
 
 
@@ -27,16 +31,6 @@ class PSBTOverviewScreen(ButtonListScreen):
         super().__post_init__()
 
         self.components: List[BaseComponent] = []
-
-        # # Prep the "spend:" label
-        # self.components.append(TextArea(
-        #     text="spend:",
-        #     screen_y=self.top_nav.height - GUIConstants.COMPONENT_PADDING,
-        #     font_size=GUIConstants.LABEL_FONT_SIZE,
-        #     font_color=GUIConstants.LABEL_FONT_COLOR,
-        #     is_text_centered=True,
-        #     auto_line_break=False,
-        # ))
 
         # Prep the headline amount being spent in large callout
         # icon_text_lines_y = self.components[-1].screen_y + self.components[-1].height
@@ -76,8 +70,8 @@ class PSBTOverviewScreen(ButtonListScreen):
         if vertical_center % 2 == 1:
             vertical_center += 1
 
-        association_line_color = "#999"
-        association_line_width = ssf
+        association_line_color = "#666"
+        association_line_width = 3*ssf
         # chart_font_color = GUIConstants.BODY_FONT_COLOR
         chart_font_color = "#ddd"
         
@@ -88,8 +82,7 @@ class PSBTOverviewScreen(ButtonListScreen):
         elif self.num_inputs > 5:
             inputs_column.append("input 1")
             inputs_column.append("input 2")
-            # inputs_column.append("     [ ... ]")
-            inputs_column.append("     [ ... ]")
+            inputs_column.append("[ ... ]")
             inputs_column.append(f"input {self.num_inputs-1}")
             inputs_column.append(f"input {self.num_inputs}")
         else:
@@ -109,17 +102,15 @@ class PSBTOverviewScreen(ButtonListScreen):
 
         # We can calculate how wide the destination col can be
         max_destination_col_width = image.width - (GUIConstants.EDGE_PADDING*ssf + max_inputs_text_width + \
-            int(GUIConstants.COMPONENT_PADDING*ssf/2) + curve_width + \
+            int(GUIConstants.COMPONENT_PADDING*ssf/4) + curve_width + \
                 center_bar_width + \
-                    curve_width + int(GUIConstants.COMPONENT_PADDING*ssf/2) + \
+                    curve_width + int(GUIConstants.COMPONENT_PADDING*ssf/4) + \
                         GUIConstants.EDGE_PADDING*ssf)
         
         if self.num_inputs == 1:
             # Use up more of the space on the input side
             max_destination_col_width += curve_width
         
-        print(f"max_destination_col_width: {max_destination_col_width}")
-
         # Now let's maximize the actual destination col by adjusting our addr truncation
         def calculate_destination_col_width(truncate_at: int):
             def truncate_destination_addr(addr):
@@ -143,7 +134,7 @@ class PSBTOverviewScreen(ButtonListScreen):
             if self.change_amount > 0 and self.destination_addresses:
                 destination_column.append("change")
 
-            destination_column.append(f"fee: {self.fee_amount:,}")
+            destination_column.append(f"fee")
 
             max_destination_text_width = 0
             for destination in destination_column:
@@ -160,7 +151,6 @@ class PSBTOverviewScreen(ButtonListScreen):
             for i in range(6, 13):
                 (new_width, new_col_text) = calculate_destination_col_width(truncate_at=i)
                 if new_width > max_destination_col_width:
-                    print(f"new_width: {new_width}")
                     break
                 destination_text_width = new_width
                 destination_column = new_col_text
@@ -168,10 +158,10 @@ class PSBTOverviewScreen(ButtonListScreen):
         destination_col_x = image.width - (destination_text_width + GUIConstants.EDGE_PADDING*ssf)
 
         # Now we can finalize our center bar values
-        center_bar_x = GUIConstants.EDGE_PADDING*ssf + max_inputs_text_width + int(GUIConstants.COMPONENT_PADDING*ssf/2) + curve_width
+        center_bar_x = GUIConstants.EDGE_PADDING*ssf + max_inputs_text_width + curve_width
 
         # Center bar stretches to fill any excess width
-        center_bar_width = (destination_col_x - int(GUIConstants.COMPONENT_PADDING*ssf/2) - curve_width) - center_bar_x 
+        center_bar_width = destination_col_x - int(GUIConstants.COMPONENT_PADDING*ssf/4) - curve_width - center_bar_x 
 
         # Position each input row
         num_rendered_inputs = len(inputs_column)
@@ -191,9 +181,13 @@ class PSBTOverviewScreen(ButtonListScreen):
         inputs_conjunction_x = center_bar_x
         inputs_x = GUIConstants.EDGE_PADDING*ssf
 
+        input_curves = []
         for input in inputs_column:
+            # Calculate right-justified input display
+            tw, th = font.getsize(input)
+            cur_x = inputs_x + max_inputs_text_width - tw
             draw.text(
-                (inputs_x, inputs_y),
+                (cur_x, inputs_y),
                 text=input,
                 font=font,
                 fill=chart_font_color,
@@ -202,7 +196,7 @@ class PSBTOverviewScreen(ButtonListScreen):
             # Render the association line from the conjunction point
             # First calculate a bezier curve to an inflection point
             start_pt = (
-                inputs_x + max_inputs_text_width + int(GUIConstants.COMPONENT_PADDING/2)*ssf,
+                inputs_x + max_inputs_text_width,
                 inputs_y + int(chart_text_height/2)
             )
             conjunction_pt = (inputs_conjunction_x, vertical_center)
@@ -210,11 +204,12 @@ class PSBTOverviewScreen(ButtonListScreen):
                 int(start_pt[0]*0.5 + conjunction_pt[0]*0.5), 
                 int(start_pt[1]*0.5 + conjunction_pt[1]*0.5)
             )
+
             bezier_points = calc_bezier_curve(
                 start_pt,
                 (mid_pt[0], start_pt[1]),
                 mid_pt,
-                4
+                3
             )
             # We don't need the "final" point as it's repeated below
             bezier_points.pop()
@@ -225,8 +220,10 @@ class PSBTOverviewScreen(ButtonListScreen):
                 mid_pt,
                 (int(mid_pt[0]*curve_bias + conjunction_pt[0]*(1.0-curve_bias)), conjunction_pt[1]),
                 conjunction_pt,
-                4
+                3
             )
+
+            input_curves.append(bezier_points)
 
             prev_pt = bezier_points[0]
             for pt in bezier_points[1:]:
@@ -269,6 +266,7 @@ class PSBTOverviewScreen(ButtonListScreen):
         destination_conjunction_x = center_bar_x + center_bar_width
         recipients_text_x = destination_col_x
 
+        output_curves = []
         for destination in destination_column:
             draw.text(
                 (recipients_text_x, destination_y),
@@ -288,11 +286,12 @@ class PSBTOverviewScreen(ButtonListScreen):
                 int(conjunction_pt[0]*0.5 + end_pt[0]*0.5), 
                 int(conjunction_pt[1]*0.5 + end_pt[1]*0.5)
             )
+
             bezier_points = calc_bezier_curve(
                 conjunction_pt,
                 (mid_pt[0], conjunction_pt[1]),
                 mid_pt,
-                4
+                3
             )
             # We don't need the "final" point as it's repeated below
             bezier_points.pop()
@@ -303,8 +302,10 @@ class PSBTOverviewScreen(ButtonListScreen):
                 mid_pt,
                 (int(mid_pt[0]*curve_bias + end_pt[0]*(1.0-curve_bias)), end_pt[1]),
                 end_pt,
-                4
+                3
             )
+
+            output_curves.append(bezier_points)
 
             prev_pt = bezier_points[0]
             for pt in bezier_points[1:]:
@@ -322,6 +323,17 @@ class PSBTOverviewScreen(ButtonListScreen):
         image = image.resize((self.canvas_width, chart_height), Image.LANCZOS)
         self.chart_img = image.filter(ImageFilter.SHARPEN)
 
+        # Pass input and output curves to the animation thread
+        self.threads.append(
+            PSBTOverviewScreen.TxExplorerAnimationThread(
+                inputs=input_curves,
+                outputs=output_curves,
+                supersampling_factor=ssf,
+                offset_y=self.chart_y,
+                renderer=self.renderer
+            )
+        )
+
 
     def _render(self):
         super()._render()
@@ -333,3 +345,79 @@ class PSBTOverviewScreen(ButtonListScreen):
 
         # Write the screen updates
         self.renderer.show_image()
+
+
+    class TxExplorerAnimationThread(ComponentThread):
+        def __init__(self, inputs, outputs, supersampling_factor, offset_y, renderer: Renderer):
+            super().__init__()
+
+            # Translate the point coords into renderer space
+            ssf = supersampling_factor
+            self.inputs = [[(int(i[0]/ssf), int(i[1]/ssf + offset_y)) for i in curve] for curve in inputs]
+            self.outputs = [[(int(i[0]/ssf), int(i[1]/ssf + offset_y)) for i in curve] for curve in outputs]
+            self.renderer = renderer
+
+
+        def run(self):
+            pulse_color = "orange"
+            reset_color = "#666"
+            line_width = 3
+
+            pulses = []
+
+            # The center bar needs to be segmented to support animation across it
+            start_pt = self.inputs[0][-1]
+            end_pt = self.outputs[0][0]
+            center_bar_pts = [
+                start_pt,
+                linear_interp(start_pt, end_pt, 0.25),
+                linear_interp(start_pt, end_pt, 0.50),
+                linear_interp(start_pt, end_pt, 0.75),
+                end_pt,
+            ]
+
+            def draw_line_segment(curves, i, j, color):
+                for points in curves:
+                    pt1 = points[i]
+                    pt2 = points[j]
+                    self.renderer.draw.line(
+                        (pt1[0], pt1[1], pt2[0], pt2[1]),
+                        fill=color,
+                        width=line_width
+                    )
+
+            prev_color = reset_color
+            while self.keep_running:
+                with self.renderer.lock:
+                    # Only generate a new pulse at random intervals for the N inputs
+                    if not pulses or (
+                        prev_color == pulse_color and pulses[-1][0] == 4):
+                        # Create a new pulse
+                        if prev_color == pulse_color:
+                            pulses.append([0, reset_color])
+                        else:
+                            pulses.append([0, pulse_color])
+                        prev_color = pulses[-1][1]
+
+                    for pulse_num, pulse in enumerate(pulses):
+                        i = pulse[0]
+                        color = pulse[1]
+                        if i < len(self.inputs[0]) - 1:
+                            # We're in the input curves
+                            draw_line_segment(self.inputs, i, i+1, color)
+                        elif i < len(self.inputs[0]) + len(center_bar_pts) - 2:
+                            # We're in the center bar
+                            index = i - len(self.inputs[0]) + 1
+                            draw_line_segment([center_bar_pts], index, index+1, color)
+                        elif i < len(self.inputs[0]) + len(center_bar_pts) - 2 + len(self.outputs[0]) - 1:
+                            index = i - (len(self.inputs[0]) + len(center_bar_pts) - 2)
+                            draw_line_segment(self.outputs, index, index+1, color)
+                        else:
+                            # This pulse is done
+                            del pulses[pulse_num]
+
+                        pulse[0] += 1
+
+                    self.renderer.show_image()
+
+                time.sleep(0.01)
