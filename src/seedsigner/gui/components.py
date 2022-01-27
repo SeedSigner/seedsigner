@@ -6,7 +6,7 @@ import sys
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from threading import Thread
-from typing import Tuple
+from typing import List, Tuple
 
 from seedsigner.models import Singleton
 
@@ -29,11 +29,12 @@ class GUIConstants:
     BODY_FONT_NAME = "OpenSans-Regular"
     BODY_FONT_SIZE = 17
     BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE
+    BODY_FONT_MIN_SIZE = 15
     BODY_FONT_COLOR = "#fcfcfc"
     BODY_LINE_SPACING = 0.25
 
-    LABEL_FONT_SIZE = BODY_FONT_SIZE - 2
-    LABEL_FONT_COLOR = "#666"
+    LABEL_FONT_SIZE = BODY_FONT_MIN_SIZE
+    LABEL_FONT_COLOR = "#777"
 
     BUTTON_FONT_NAME = "OpenSans-SemiBold"
     BUTTON_FONT_SIZE = 18
@@ -111,7 +112,7 @@ class BaseComponent:
 
     def __post_init__(self):
         from seedsigner.gui import Renderer
-        self.renderer = Renderer.get_instance()
+        self.renderer: Renderer = Renderer.get_instance()
         self.canvas_width = self.renderer.canvas_width
         self.canvas_height = self.renderer.canvas_height
 
@@ -562,4 +563,37 @@ class TopNav(BaseComponent):
         )
 
 
+def calc_bezier_curve(p1: Tuple[int,int], p2: Tuple[int,int], p3: Tuple[int,int], segments: int) -> List[Tuple[Tuple[int,int], Tuple[int,int]]]:
+    """
+        Calculates the points of a bezier curve between points p1 and p3 with p2 as a
+        control point influencing the amount of curve deflection.
+
+        Bezier curve calcs start with two trivial linear interpolations of each line
+        segment:
+        L1 = p1 to p2 = (1 - t)*p1 + t*p2
+        L2 = p2 to p3 = (1 - t)*p2 + t*p3
+
+        And then interpolate over the two line segments
+        Q1 = (1 - t)*L1(t) + t*L2(t)
+    """
+    t_step = 1.0 / segments
+
+    def linear_interp(a, b, t):
+        return (
+            int((1.0 - t)*a[0] + t*b[0]),
+            int((1.0 - t)*a[1] + t*b[1])
+        )
+
+    points = [p1]
+    for i in range(1, segments + 1):
+        t = t_step * i
+        if i == segments:
+            points.append(p3)
+            break
+        l1_t = linear_interp(p1, p2, t)
+        l2_t = linear_interp(p2, p3, t)
+        q1 = linear_interp(l1_t, l2_t, t)
+        points.append(q1)
+    
+    return points
 

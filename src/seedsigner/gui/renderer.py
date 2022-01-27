@@ -11,8 +11,8 @@ class Renderer(ConfigurableSingleton):
     buttons = None
     canvas_width = 0
     canvas_height = 0
-    canvas = None
-    draw = None
+    canvas: Image = None
+    draw: ImageDraw = None
     disp = None
     lock = Lock()
 
@@ -34,6 +34,8 @@ class Renderer(ConfigurableSingleton):
         renderer.canvas_height = renderer.disp.height
         renderer.canvas = Image.new('RGB', (renderer.canvas_width, renderer.canvas_height))
         renderer.draw = ImageDraw.Draw(renderer.canvas)
+
+        draw = ImageDraw.Draw(renderer.canvas)
 
 
     def show_image(self, image=None, alpha_overlay=None):

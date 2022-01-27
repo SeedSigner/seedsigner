@@ -66,7 +66,6 @@ class PSBTOverviewView(View):
         )
 
 
-
     def run(self):
         from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen
         psbt_parser: PSBTParser = self.controller.psbt_parser
@@ -75,7 +74,32 @@ class PSBTOverviewView(View):
             change_amount=psbt_parser.change_amount,
             fee_amount=psbt_parser.fee_amount,
             num_inputs=psbt_parser.num_inputs,
-            num_receive_addrs=psbt_parser.num_receive_addrs,
+            destination_addresses=psbt_parser.destination_addresses,
+        )
+        selected_menu_num = screen.display()
+
+        if selected_menu_num == 0:
+            pass
+
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+
+
+class PSBTOverviewMockView(View):
+    def run(self):
+        from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen
+        screen = PSBTOverviewScreen(
+            spend_amount=384734,
+            change_amount=84783,
+            fee_amount=1313,
+            num_inputs=1,
+            destination_addresses=[
+                "bc1q3lg2qc933hd4ke9xjwm68e3rxz94525d5vchy75",
+                # "bc1qkf4jqc933hd4ke9xjwm68e3rxz94525d5vchy75",
+                # "bc1q9de6qc933hd4ke9xjwm68e3rxz94525d5vchy75",
+                # "hello"
+            ],
         )
         selected_menu_num = screen.display()
 
