@@ -93,10 +93,10 @@ class PSBTOverviewMockView(View):
             spend_amount=384734,
             change_amount=84783,
             fee_amount=1313,
-            num_inputs=2,
+            num_inputs=1,
             destination_addresses=[
                 "bc1q3lg2qc933hd4ke9xjwm68e3rxz94525d5vchy75",
-                "bc1qkf4jqc933hd4ke9xjwm68e3rxz94525d5vchy75",
+                # "bc1qkf4jqc933hd4ke9xjwm68e3rxz94525d5vchy75",
                 # "bc1q9de6qc933hd4ke9xjwm68e3rxz94525d5vchy75",
                 # "hello"
             ],

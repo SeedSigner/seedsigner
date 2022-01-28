@@ -72,7 +72,7 @@ class PSBTOverviewScreen(ButtonListScreen):
 
         association_line_color = "#666"
         association_line_width = 3*ssf
-        # chart_font_color = GUIConstants.BODY_FONT_COLOR
+        curve_steps = 4
         chart_font_color = "#ddd"
         
         # First calculate how wide the inputs col will be
@@ -107,9 +107,9 @@ class PSBTOverviewScreen(ButtonListScreen):
                     curve_width + int(GUIConstants.COMPONENT_PADDING*ssf/4) + \
                         GUIConstants.EDGE_PADDING*ssf)
         
-        if self.num_inputs == 1:
-            # Use up more of the space on the input side
-            max_destination_col_width += curve_width
+        # if self.num_inputs == 1:
+        #     # Use up more of the space on the input side
+        #     max_destination_col_width += curve_width
         
         # Now let's maximize the actual destination col by adjusting our addr truncation
         def calculate_destination_col_width(truncate_at: int):
@@ -158,7 +158,7 @@ class PSBTOverviewScreen(ButtonListScreen):
         destination_col_x = image.width - (destination_text_width + GUIConstants.EDGE_PADDING*ssf)
 
         # Now we can finalize our center bar values
-        center_bar_x = GUIConstants.EDGE_PADDING*ssf + max_inputs_text_width + curve_width
+        center_bar_x = GUIConstants.EDGE_PADDING*ssf + max_inputs_text_width + int(GUIConstants.COMPONENT_PADDING*ssf/4) + curve_width
 
         # Center bar stretches to fill any excess width
         center_bar_width = destination_col_x - int(GUIConstants.COMPONENT_PADDING*ssf/4) - curve_width - center_bar_x 
@@ -193,10 +193,10 @@ class PSBTOverviewScreen(ButtonListScreen):
                 fill=chart_font_color,
             )
 
-            # Render the association line from the conjunction point
+            # Render the association line to the conjunction point
             # First calculate a bezier curve to an inflection point
             start_pt = (
-                inputs_x + max_inputs_text_width,
+                inputs_x + max_inputs_text_width + int(GUIConstants.COMPONENT_PADDING*ssf/4),
                 inputs_y + int(chart_text_height/2)
             )
             conjunction_pt = (inputs_conjunction_x, vertical_center)
@@ -205,23 +205,31 @@ class PSBTOverviewScreen(ButtonListScreen):
                 int(start_pt[1]*0.5 + conjunction_pt[1]*0.5)
             )
 
-            bezier_points = calc_bezier_curve(
-                start_pt,
-                (mid_pt[0], start_pt[1]),
-                mid_pt,
-                3
-            )
-            # We don't need the "final" point as it's repeated below
-            bezier_points.pop()
+            if len(inputs_column) == 1:
+                # Use fewer segments for single input straight line
+                bezier_points = [
+                    start_pt,
+                    linear_interp(start_pt, conjunction_pt, 0.33),
+                    linear_interp(start_pt, conjunction_pt, 0.66),
+                    conjunction_pt
+                ]
+            else:
+                bezier_points = calc_bezier_curve(
+                    start_pt,
+                    (mid_pt[0], start_pt[1]),
+                    mid_pt,
+                    curve_steps
+                )
+                # We don't need the "final" point as it's repeated below
+                bezier_points.pop()
 
-            # Now render the second half after the inflection point
-            curve_bias = 1.0
-            bezier_points += calc_bezier_curve(
-                mid_pt,
-                (int(mid_pt[0]*curve_bias + conjunction_pt[0]*(1.0-curve_bias)), conjunction_pt[1]),
-                conjunction_pt,
-                3
-            )
+                # Now render the second half after the inflection point
+                bezier_points += calc_bezier_curve(
+                    mid_pt,
+                    (mid_pt[0], conjunction_pt[1]),
+                    conjunction_pt,
+                    curve_steps
+                )
 
             input_curves.append(bezier_points)
 
@@ -291,7 +299,7 @@ class PSBTOverviewScreen(ButtonListScreen):
                 conjunction_pt,
                 (mid_pt[0], conjunction_pt[1]),
                 mid_pt,
-                3
+                curve_steps
             )
             # We don't need the "final" point as it's repeated below
             bezier_points.pop()
@@ -302,7 +310,7 @@ class PSBTOverviewScreen(ButtonListScreen):
                 mid_pt,
                 (int(mid_pt[0]*curve_bias + end_pt[0]*(1.0-curve_bias)), end_pt[1]),
                 end_pt,
-                3
+                curve_steps
             )
 
             output_curves.append(bezier_points)
@@ -368,15 +376,21 @@ class PSBTOverviewScreen(ButtonListScreen):
             # The center bar needs to be segmented to support animation across it
             start_pt = self.inputs[0][-1]
             end_pt = self.outputs[0][0]
-            center_bar_pts = [
-                start_pt,
-                linear_interp(start_pt, end_pt, 0.25),
-                linear_interp(start_pt, end_pt, 0.50),
-                linear_interp(start_pt, end_pt, 0.75),
-                end_pt,
-            ]
+            if start_pt == end_pt:
+                # In single input the center bar width can be zeroed out.
+                # Ugly hack: Insert this line segment that will be skipped otherwise.
+                center_bar_pts = [end_pt, self.outputs[0][1]]
+            else:
+                center_bar_pts = [
+                    start_pt,
+                    linear_interp(start_pt, end_pt, 0.25),
+                    linear_interp(start_pt, end_pt, 0.50),
+                    linear_interp(start_pt, end_pt, 0.75),
+                    end_pt,
+                ]
 
             def draw_line_segment(curves, i, j, color):
+                # print(f"draw: {curves[0][i]} to {curves[0][j]}")
                 for points in curves:
                     pt1 = points[i]
                     pt2 = points[j]
@@ -391,13 +405,16 @@ class PSBTOverviewScreen(ButtonListScreen):
                 with self.renderer.lock:
                     # Only generate a new pulse at random intervals for the N inputs
                     if not pulses or (
-                        prev_color == pulse_color and pulses[-1][0] == 4):
+                        prev_color == pulse_color and pulses[-1][0] == 10):
                         # Create a new pulse
+                        # Build a list that we can flow across from left right. But
+                        # 
                         if prev_color == pulse_color:
                             pulses.append([0, reset_color])
                         else:
                             pulses.append([0, pulse_color])
                         prev_color = pulses[-1][1]
+                        # print("created pulse")
 
                     for pulse_num, pulse in enumerate(pulses):
                         i = pulse[0]
@@ -420,4 +437,4 @@ class PSBTOverviewScreen(ButtonListScreen):
 
                     self.renderer.show_image()
 
-                time.sleep(0.01)
+                time.sleep(0.02)
