@@ -223,7 +223,14 @@ mkvirtualenv --python=python3 seedsigner-env
 
 Now download the SeedSigner code:
 ```
-git clone https://github.com/SeedSigner/seedsigner
+git clone --recursive https://github.com/SeedSigner/seedsigner
+```
+
+If you have already cloned in the past and just need to init/pull submodules:
+```
+cd seedsigner
+git submodule update --init
+cd ..
 ```
 
 Install the necessary Python dependencies:

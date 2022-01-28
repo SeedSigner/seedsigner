@@ -10,6 +10,8 @@ from seedsigner.helpers.ur2.ur_decoder import URDecoder
 from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
 from seedsigner.models import QRType, Seed
 
+from urtypes.crypto import PSBT as UR_PSBT
+
 ###
 ### DecodeQR Class
 ### Purpose: used to process images or string data from animated qr codes with psbt data to create binary/base64 psbt
@@ -141,7 +143,8 @@ class DecodeQR:
         if self.complete:
             if self.qr_type == QRType.PSBTUR2:
                 cbor = self.ur_decoder.result_message().cbor
-                return cbor_decode(cbor)
+                return UR_PSBT.from_cbor(cbor).data
+                # return cbor_decode(cbor)
             elif self.qr_type == QRType.PSBTSPECTER:
                 return self.specter_qr.getData()
             elif self.qr_type == QRType.PSBTURLEGACY:
