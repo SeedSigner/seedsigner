@@ -1057,6 +1057,7 @@ class SeedToolsView(View):
             # Border must accommodate the 3 blocks outside the center 5x5 mask plus up to
             # 4 empty blocks inside the 5x5 mask (21x21 has a 1-block final col/row).
             qr_border = 7
+            qr_blocks_per_zoom = 5
             if len(seed_phrase) == 24:
                 if is_compact_seedqr:
                     num_modules = 25
@@ -1065,8 +1066,12 @@ class SeedToolsView(View):
             else:
                 if is_compact_seedqr:
                     num_modules = 21
+
+                    # Optimize for 21x21
+                    qr_blocks_per_zoom = 7
                 else:
                     num_modules = 25
+
             width = (qr_border + num_modules + qr_border) * pixels_per_block
             height = width
             data = e.nextPart()
@@ -1089,8 +1094,8 @@ class SeedToolsView(View):
             block_mask = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
             draw = ImageDraw.Draw(block_mask)
 
-            mask_width = int((View.canvas_width - 5 * pixels_per_block)/2)
-            mask_height = int((View.canvas_height - 5 * pixels_per_block)/2)
+            mask_width = int((View.canvas_width - qr_blocks_per_zoom * pixels_per_block)/2)
+            mask_height = int((View.canvas_height - qr_blocks_per_zoom * pixels_per_block)/2)
             mask_rgba = (0, 0, 0, 226)
             draw.rectangle((0, 0, View.canvas_width, mask_height), fill=mask_rgba)
             draw.rectangle((0, View.canvas_height - mask_height - 1, View.canvas_width, View.canvas_height), fill=mask_rgba)
@@ -1146,29 +1151,27 @@ class SeedToolsView(View):
             )
 
             while True:
-                # View.draw_text_over_image("click to exit", font=View.ASSISTANT18, text_color="BLACK", text_background="ORANGE")
-
                 input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
                 if input == B.KEY_RIGHT:
-                    next_x = cur_x + 5 * pixels_per_block
+                    next_x = cur_x + qr_blocks_per_zoom * pixels_per_block
                     cur_block_x += 1
                     if next_x > width - View.canvas_width:
                         next_x = cur_x
                         cur_block_x -= 1
                 elif input == B.KEY_LEFT:
-                    next_x = cur_x - 5 * pixels_per_block
+                    next_x = cur_x - qr_blocks_per_zoom * pixels_per_block
                     cur_block_x -= 1
                     if next_x < 0:
                         next_x = cur_x
                         cur_block_x += 1
                 elif input == B.KEY_DOWN:
-                    next_y = cur_y + 5 * pixels_per_block
+                    next_y = cur_y + qr_blocks_per_zoom * pixels_per_block
                     cur_block_y += 1
                     if next_y > height - View.canvas_height:
                         next_y = cur_y
                         cur_block_y -= 1
                 elif input == B.KEY_UP:
-                    next_y = cur_y - 5 * pixels_per_block
+                    next_y = cur_y - qr_blocks_per_zoom * pixels_per_block
                     cur_block_y -= 1
                     if next_y < 0:
                         next_y = cur_y
