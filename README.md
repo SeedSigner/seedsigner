@@ -207,11 +207,19 @@ Set the following:
 
 When you exit the System Configuration tool, you will be prompted to reboot the system; allow the system to reboot and continue with these instructions.
 
-Install these dependencies (you can use this entire text string to install them all at once):
+
+### Change the default password
+Change the system's password from the default "raspberry". Do do this, use the command:
+```
+passwd
+```
+You will be prompted to enter the current password (raspberry) and then to enter a new password twice. In our prepared release image, the password used is `AirG@pped!` (without quotes).
+
+
+### Install dependencies
 ```
 sudo apt-get update && sudo apt-get install -y wiringpi python3-pip python3-numpy python-pil libopenjp2-7 git python3-opencv python3-picamera libatlas-base-dev qrencode
 ```
-
 
 ### Install `zbar`
 v0.4.6 requires `zbar` at 0.23.x or higher.
@@ -273,26 +281,51 @@ source ~/.profile
 mkvirtualenv --python=python3 seedsigner-env
 ```
 
+For convenience you can configure your `.profile` to auto-activate the SeedSigner virtualenv when you ssh in. Once again `nano ~/.profile` and add at the end:
+```
+workon seedsigner-env
+```
+
+  Optional: If you're going to be testing new code on the SeedSigner, you'll find yourself often needing to kill the SeedSigner code that automatically runs at startup (we'll be configuring this further down). As an extra convenience you can list the process id so that you can then kill it from the terminal:
+  ```
+  ps aux | grep main.py
+  ```
+
+Save your changes with `CTRL-X` and `y`.
+
+
 ### Download the SeedSigner code:
 ```
 git clone https://github.com/SeedSigner/seedsigner
+cd seedsigner
 ```
+
+If you want to run a specific branch within the main SeedSigner repo, switch to it with:
+```
+git checkout yourtargetbranch
+```
+
+And if you want to test a pull request (PR), for example PR #123:
+```
+git fetch origin pull/123/head:pr_123
+git checkout pr_123
+```
+
+where `pr_123` is any name you want to give to the new branch in your local repo that will hold the PR.
+
 
 ### Install Python `pip` dependencies:
 ```
-cd seedsigner
 pip3 install -r requirements.txt
 cd ..
 ```
 
 #### `pyzbar`
-Note: we will also be installing a fork of the python `pyzbar` repo, currently defined in the above `requirements.txt` step (for now pointing to the fork in Keith's `kdmukai` github account [https://github.com/kdmukai/pyzbar](https://github.com/kdmukai/pyzbar). Changes are already merged into that repo's master branch).
+Note: The `requirements.txt` installs a fork of the python `pyzbar` repo (for now pointing to the fork in Keith's `kdmukai` github account [https://github.com/kdmukai/pyzbar](https://github.com/kdmukai/pyzbar)).
 
-The fork is required because the main `pyzbar` repo has been abandoned. This [github issue](https://github.com/NaturalHistoryMuseum/pyzbar/issues/124#issuecomment-971967091) discusses the changes needed in order to support reading binary data from `zbar`, which is required for our `CompactSeedQR` format which write bytes data instead of strings. The changes specifically reference the following PRs which have already been merged into Keith's fork:
+The fork is required because the main `pyzbar` repo has been abandoned. This [github issue](https://github.com/NaturalHistoryMuseum/pyzbar/issues/124#issuecomment-971967091) discusses the changes needed in order to support reading binary data from `zbar`, which is required for our `CompactSeedQR` format which writes byte data instead of strings. The changes specifically reference the following PRs which have already been merged into Keith's fork:
 * [PR 76](https://github.com/NaturalHistoryMuseum/pyzbar/pull/76/files): enables scanning to continue even when a null byte (`x\00`) is found.
 * [PR 82](https://github.com/NaturalHistoryMuseum/pyzbar/pull/82): enable `zbar`'s new binary mode. Note that this PR has a trivial bug that was fixed in Keith's fork.
-
-If the `requirements.txt` step fails on the forked `pyzbar` repo, manually clone the forked repo and within it run `pip install -e .`. This will install the local code as if it were a `pip` package.
 
 ### Configure `systemd` to run SeedSigner at boot:
 ```
@@ -314,6 +347,8 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
+_Note: If you'll be testing new code on the SeedSigner, you'll want to omit the `Restart=always` line._
+
 Use `CTRL-X` and `y` to exit and save changes.
 
 Run `sudo systemctl enable seedsigner.service` to enable service on boot. (This will restart the seedsigner code automatically at startup and if it crashes.)
@@ -328,7 +363,8 @@ After the Raspberry Pi reboots, you should see the SeedSigner splash screen and 
 ### Further OS modifications
 Disable and remove the system's virtual memory / swap file with the commands:
 ```
-sudo apt remove dphys-swapfile
+sudo apt remove dphys-swapfile -y
+sudo apt autoremove -y
 sudo rm /var/swap
 ```
 
@@ -343,12 +379,78 @@ sudo nano /etc/hosts
 ```
 and change "raspberrypi" to "seedsigner" (or the other name you previously chose). Use `CTRL-X` and `y` to exit and save changes.
 
-It's also a good idea to change the system's password from the default "raspberry". Do do this, use the command:
-```
-passwd
-```
-You will be prompted to enter the current password (raspberry) and then to enter a new password twice. In our prepared release image, the password used is "AirG@pped!" (without quotes).
+### Set a static IP
+Your local machine that `ssh`s into the SeedSigner can sometimes get confused if you're connecting to different SeedSigners that are all identified as `pi@seedsigner.local`. In this case it helps to set a static ip and just `ssh` directly to that instead.
 
+First find your current `nameserver`:
+```
+sudo cat /etc/resolv.conf
+```
+
+This is the address of your local machine that is connected to your SeedSigner via usb (or it'll be the wifi router's address if you're using a Raspi with wifi and are keeping it enabled for `ssh` access).
+
+Set a static ip: `sudo nano /etc/dhcpcd.conf` and add to the end:
+```
+interface usb0
+static ip_address=192.168.1.200/24
+static routers=192.168.1.254
+static domain_name_servers=192.168.1.254
+```
+
+* `interface` will be `usb0` for usb connections; `wlan0` for wifi.
+* `static ip_address` is the ip address you want the SeedSigner to use. It should match the `nameserver` ip you found above for all but the last part of the ip (note: the `/24` should always be included as-is).
+* `static routers` should be your `nameserver` ip.
+* `static domain_name_servers` should also be the `nameserver` ip.
+
+`CTRL-X` and `y` to save changes.
+
+After your next reboot, access this SeedSigner using its new static ip:
+```
+ssh pi@192.168.1.200
+```
+
+### More convenient `ssh` access:
+Power SeedSigner devs will find themselves connecting to a lot of different SeedSigners. This can cause headaches with `ssh`'s built-in protections; a different device that uses the same `ssh` credentials is normally a potential spoofing attack. But we're doing this to ourselves on purpose and so we can carve out exceptions.
+
+On your local machine, run `nano ~/.ssh/config` and add to the end:
+```
+host seedsigner.local
+ StrictHostKeyChecking no
+ UserKnownHostsFile /dev/null
+ User pi
+ LogLevel QUIET
+
+host 192.168.1.200
+ StrictHostKeyChecking no
+ UserKnownHostsFile /dev/null
+ User pi
+ LogLevel QUIET
+```
+
+The first entry prevents warnings for the default `pi@seedsigner.local` connections.
+
+The second entry does the same for a specific static ip; you'll want this if you configure all your SeedSigners to use the same static ip.
+
+`CTRL-X` and `y` to save changes.
+
+
+#### Bypass `ssh` password
+You can also configure the SeedSigner so that you don't have to enter the `pi` password when you `ssh` in.
+
+run `ssh-copy-id` with the same values that you connect via `ssh`:
+```
+ssh-copy-id pi@seedsigner.local
+
+# or if you're connecting over static ip, something like:
+ssh-copy-id pi@192.168.1.200
+```
+
+You'll be prompted to enter the password to complete it.
+
+_Note: If you don't have any ssh keys on your local machine, you'll need to create a set with `ssh-keygen -t ed25519 -C "your_email@example.com"`. Then try running `ssh-copy-id` again._
+
+
+## Disable wifi/Bluetooth when using other Raspi boards
 If you plan to use your installation on a Raspberry Pi that is not a Zero version 1.3, but rather on a Raspberry Pi that has WiFi and Bluetooth capabilities, it is a good idea to disable the following WiFi & Bluetooth, as well as other relevant services (assuming you are not creating this installation for testing/development purposes). Enter the followiing commands to disable WiFi, Bluetooth, & other relevant services:
 ```
 sudo systemctl disable bluetooth.service
@@ -371,7 +473,8 @@ dtoverlay=pi3-disable-wifi
 
 If you used option #2 above and don't plan to continue to access your SeedSigner via SSH over USB, it is a good idea to reverse the steps you took to enable it -- those instructions can be found near the end of [this guide](docs/usb_relay.md).
 
-Please remember that it can take up to a minute for the GUI to appear when subsequently powering your SeedSigner on.
+Please remember that it can take up to a minute for the GUI to appear when powering your SeedSigner on.
+
 
 ### Optional: Run the tests
 see: [tests/README.md](tests/README.md)
