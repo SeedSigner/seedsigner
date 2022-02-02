@@ -4,6 +4,17 @@
 
 ---------------
 
+* [Project Summary](#project-summary)
+* [Shopping List](#shopping-list)
+* [Software Installation](#software-installation)
+  * [Verifying Your Software](#verifying-your-software)
+* [Enclosure Designs](#enclosure-designs)
+* [SeedQR Printable Templates](#seedqr-printable-templates)
+* [Manual Installation Instructions](#manual-installation-instructions)
+
+
+---------------
+
 # Project Summary
 
 The goal of SeedSigner is to lower the cost and complexity of Bitcoin multi-signature wallet use. To accomplish this goal, SeedSigner offers anyone the opportunity to build a verifiably air-gapped, stateless Bitcoin signing device using inexpensive, publicly available hardware components (usually < $50). SeedSigner helps users save with Bitcoin by assisting with trustless private key generation and multi-signature wallet setup, and helps users transact with Bitcoin via a secure, air-gapped QR-exchange signing model.
@@ -72,7 +83,7 @@ The quickest and easiest way to install the software is to download the most rec
 
 After downloading the .zip file, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go. If your goal is a more trustless installation, you can follow the [manual installation instructions](docs/manual_installation.md).
 
-## Important Note on Software Authenticity Verification
+## Verifying Your Software
 You can verify the data integrity and authenticity of the latest release with as little as three commands (though moving forward you will have to replace the version in the following commands with the version number you are attempting to validate). This process assumes that you have navigated to a folder where you have these four relevant files present:
 
 * seedsigner_pubkey.gpg (from the main folder of this repo)
