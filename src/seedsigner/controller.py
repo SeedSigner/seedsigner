@@ -158,9 +158,13 @@ class Controller(Singleton):
             while True:
                 if next_destination.View_cls is None or next_destination.View_cls == MainMenuView:
                     # None is a special case; render the Home screen
+
+                    # DEBUGGING
+                    # from .views.psbt_views import PSBTReceiveAddrView
+                    # next_destination = Destination(PSBTReceiveAddrView, view_args={"output_num": 0})
+                    # /DEBUGGING
+
                     # next_destination = Destination(MainMenuView)
-                    from .views.psbt_views import PSBTOverviewMockView
-                    next_destination = Destination(PSBTOverviewMockView)
 
                     # Home always wipes the back_stack
                     self.clear_back_stack()

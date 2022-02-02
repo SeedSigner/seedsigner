@@ -484,9 +484,9 @@ class LargeButtonScreen(BaseTopNavScreen):
 
 
 class WarningEdgesThread(ComponentThread):
-    def __init__(self, screen: BaseScreen):
-        super().__init()
-        self.screen = screen
+    def __init__(self, args):
+        super().__init__()
+        self.args = args
 
 
     def run(self):

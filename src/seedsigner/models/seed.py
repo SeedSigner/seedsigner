@@ -9,6 +9,7 @@ from typing import List
 class SeedConstants:
     MAINNET = "main"
     TESTNET = "test"
+    REGTEST = "regtest"
     
     SINGLE_SIG = "single_sig"
     MULTISIG = "multisig"

@@ -8,7 +8,7 @@ from typing import List
 from seedsigner.gui.renderer import Renderer
 
 from .screen import BaseTopNavScreen, ButtonListScreen
-from ..components import (BaseComponent, ComponentThread, GUIConstants, Fonts, IconTextLine, TextArea,
+from ..components import (BaseComponent, ComponentThread, FormattedAddress, GUIConstants, Fonts, IconTextLine, TextArea,
     calc_text_centering, calc_bezier_curve, linear_interp)
 
 
@@ -35,10 +35,14 @@ class PSBTOverviewScreen(ButtonListScreen):
         # Prep the headline amount being spent in large callout
         # icon_text_lines_y = self.components[-1].screen_y + self.components[-1].height
         icon_text_lines_y = self.top_nav.height
+        if self.spend_amount <= 1e6:
+            amount_display = f"{self.spend_amount:,} sats"
+        else:
+            amount_display = f"{self.spend_amount/1e8:,} btc"
         self.components.append(IconTextLine(
             icon_name="btc_logo_30x30",
             is_text_centered=True,
-            value_text=f" {self.spend_amount:,} sats",
+            value_text=f" {amount_display}",
             font_size=24,
             screen_x=GUIConstants.COMPONENT_PADDING,
             screen_y=icon_text_lines_y,
@@ -403,18 +407,16 @@ class PSBTOverviewScreen(ButtonListScreen):
             prev_color = reset_color
             while self.keep_running:
                 with self.renderer.lock:
-                    # Only generate a new pulse at random intervals for the N inputs
+                    # Only generate one new pulse at a time; trailing "reset_color" pulse
+                    # erases the most recent pulse.
                     if not pulses or (
                         prev_color == pulse_color and pulses[-1][0] == 10):
                         # Create a new pulse
-                        # Build a list that we can flow across from left right. But
-                        # 
                         if prev_color == pulse_color:
                             pulses.append([0, reset_color])
                         else:
                             pulses.append([0, pulse_color])
                         prev_color = pulses[-1][1]
-                        # print("created pulse")
 
                     for pulse_num, pulse in enumerate(pulses):
                         i = pulse[0]
@@ -432,9 +434,86 @@ class PSBTOverviewScreen(ButtonListScreen):
                         else:
                             # This pulse is done
                             del pulses[pulse_num]
+                            continue
 
                         pulse[0] += 1
 
                     self.renderer.show_image()
 
                 time.sleep(0.02)
+
+
+
+@dataclass
+class PSBTAddressDetailsScreen(ButtonListScreen):
+    is_bottom_list: bool = True
+    background_color: str = GUIConstants.BACKGROUND_COLOR
+    address: str = None
+    amount: int = 0
+    address_number: int = 1
+    num_addresses: int = 0
+    is_change: bool = False
+
+    def __post_init__(self):
+        # Customize defaults
+        if self.num_addresses > 1:
+            self.title = f"""{"Change" if self.is_change else "Receive"} {self.address_number}"""
+        else:
+            self.title = "Change" if self.is_change else "Receive"
+
+
+        if self.address_number < self.num_addresses:
+            self.button_data = [f"""Next {"Change" if self.is_change else "Receive"} Addr"""]
+        else:
+            self.button_data = ["Next"]
+
+        super().__post_init__()
+
+        # Figuring out how to vertically center the sats and the address is
+        # difficult so we just render to a temp image and paste it in place.
+        img = Image.new("RGB", (self.canvas_width, self.buttons[0].screen_y - self.top_nav.height), self.background_color)
+        draw = ImageDraw.Draw(img)
+
+        if self.amount <= 1e6:
+            amount_display = f"{self.amount:,} sats"
+        else:
+            amount_display = f"{self.amount/1e8:,} btc"
+        icon_text_line = IconTextLine(
+            image_draw=draw,
+            canvas=img,
+            icon_name="btc_logo_30x30",
+            is_text_centered=True,
+            value_text=f" {amount_display}",
+            font_size=20,
+            screen_x=GUIConstants.COMPONENT_PADDING,
+            screen_y=0,
+        )
+
+        formatted_address = FormattedAddress(
+            image_draw=draw,
+            canvas=img,
+            width=self.canvas_width - 2*GUIConstants.EDGE_PADDING,
+            screen_x=GUIConstants.EDGE_PADDING,
+            screen_y=icon_text_line.height + GUIConstants.COMPONENT_PADDING,
+            font_size=24,
+            address=self.address,
+        )
+
+        # Render each to the temp img we passed in
+        icon_text_line.render()
+        formatted_address.render()
+
+        self.body_img = img.crop((
+            0,
+            0,
+            self.canvas_width,
+            formatted_address.screen_y + formatted_address.height
+        ))
+        available_height = self.buttons[0].screen_y - self.top_nav.height
+        self.body_img_y = self.top_nav.height + int((available_height - self.body_img.height - GUIConstants.COMPONENT_PADDING)/2)
+
+
+    def _render(self):
+        super()._render()
+        self.canvas.paste(self.body_img, (0, self.body_img_y))
+

@@ -33,6 +33,8 @@ class GUIConstants:
     BODY_FONT_COLOR = "#fcfcfc"
     BODY_LINE_SPACING = 0.25
 
+    FIXED_WIDTH_FONT_NAME = "Inconsolata-Regular"
+
     LABEL_FONT_SIZE = BODY_FONT_MIN_SIZE
     LABEL_FONT_COLOR = "#777"
 
@@ -87,7 +89,7 @@ class Fonts(Singleton):
     fonts = {}
 
     @classmethod
-    def get_font(cls, font_name, size):
+    def get_font(cls, font_name, size) -> ImageFont.FreeTypeFont:
         # Cache already-loaded fonts
         if font_name not in cls.fonts:
             cls.fonts[font_name] = {}
@@ -353,6 +355,8 @@ class IconTextLine(BaseComponent):
             if self.label_text:
                 self.label_textarea.screen_x = self.icon_x + self.icon.width + self.icon_horizontal_spacer
             self.value_textarea.screen_x = self.icon_x + self.icon.width + self.icon_horizontal_spacer
+        
+        self.height = self.value_textarea.screen_y + self.value_textarea.height - self.screen_y
 
 
     def render(self):
@@ -360,6 +364,117 @@ class IconTextLine(BaseComponent):
             self.label_textarea.render()
         self.value_textarea.render()
         self.canvas.paste(self.icon, (self.icon_x, self.icon_y))
+
+
+
+@dataclass
+class FormattedAddress(BaseComponent):
+    """
+        Display a Bitcoin address in a "{first 7} {middle} {last 7}" formatted view with
+        a possible/likely line break in the middle and using a fixed-width font:
+
+        bc1q567 abcdefg1234567abcdefg
+        1234567abcdefg1234567 1234567
+
+        single sig taproot:       62
+        multisig native segwit:   62
+        multisig nested segwit:   34
+        single sig native segwit: 42
+    """
+    width: int = 0
+    screen_x: int = 0
+    screen_y: int = 0
+    address: str = None
+    font_name: str = GUIConstants.FIXED_WIDTH_FONT_NAME
+    font_size: int = 24
+    font_accent_color: str = "orange"
+    font_base_color: str = GUIConstants.LABEL_FONT_COLOR
+
+    def __post_init__(self):
+        super().__post_init__()
+        if self.width == 0:
+            self.width = self.renderer.canvas_width
+        
+        self.font = Fonts.get_font(self.font_name, self.font_size)
+        self.accent_font = Fonts.get_font("Inconsolata-SemiBold", self.font_size)
+
+        # Fixed width font means we only have to measure one max-height character
+        char_width, char_height = self.font.getsize("Q")
+
+        n = 7
+        display_str = f"{self.address[:n]} {self.address[n:-1*n]} {self.address[-1*n:]}"
+
+        max_chars_per_line = math.floor(self.width / char_width)
+        num_lines = math.ceil(len(display_str)/max_chars_per_line)
+        
+        # Recalc chars per line to even out all x lines to the same width
+        max_chars_per_line  = math.ceil(len(display_str) / num_lines)
+
+        self.text_params = []
+
+        remaining_display_str = display_str
+        addr_lines_x = self.screen_x + int((self.width - char_width*max_chars_per_line) / 2)
+        cur_y = 0
+
+        for i in range(0, num_lines):
+            cur_str = remaining_display_str[:max_chars_per_line]
+            if i == 0:
+                # Split cur_str into two sections to highlight first_n
+                self.text_params.append((
+                    (addr_lines_x, cur_y),
+                    cur_str.split()[0],
+                    self.font_accent_color,
+                    self.accent_font
+                ))
+                self.text_params.append((
+                    (
+                        addr_lines_x + char_width*(n+1),
+                        cur_y
+                    ),
+                    cur_str.split()[1],
+                    self.font_base_color,
+                    self.font
+                ))
+            elif i == num_lines - 1:
+                # Split cur_str into two sections to highlight last_n
+                self.text_params.append((
+                    (
+                        addr_lines_x,
+                        cur_y
+                    ),
+                    cur_str.split()[0],
+                    self.font_base_color,
+                    self.font
+                ))
+                self.text_params.append((
+                    (
+                        addr_lines_x + char_width*(len(cur_str) - (n)),
+                        cur_y
+                    ),
+                    cur_str.split()[1],
+                    self.font_accent_color,
+                    self.accent_font
+                ))
+            else:
+                self.text_params.append((
+                    (
+                        addr_lines_x,
+                        cur_y
+                    ),
+                    cur_str,
+                    self.font_base_color,
+                    self.font
+                ))
+
+            remaining_display_str = remaining_display_str[max_chars_per_line:]
+            cur_y += char_height
+        
+        self.height = cur_y
+    
+
+    def render(self):
+        for p in self.text_params:
+            self.image_draw.text((p[0][0], p[0][1] + self.screen_y), text=p[1], fill=p[2], font=p[3])
 
 
 

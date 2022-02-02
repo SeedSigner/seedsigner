@@ -364,8 +364,6 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
         self.derivation_line.render()
         self.xpub_line.render()
 
-        self.render_warning_edges()
-
         # Write the screen updates
         self.renderer.show_image()
 

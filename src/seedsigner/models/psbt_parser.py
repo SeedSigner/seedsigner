@@ -1,6 +1,7 @@
 from embit import psbt, script, ec, bip32, bip39
 from embit.networks import NETWORKS
 from io import BytesIO
+from typing import Tuple
 from seedsigner.models import Seed
 
 class PSBTParser():
@@ -13,10 +14,13 @@ class PSBTParser():
         self.policy = None
         self.spend_amount = 0
         self.change_amount = 0
+        self.change_addresses = []
+        self.change_amounts = []
         self.fee_amount = 0
         self.input_amount = 0
         self.num_inputs = 0
         self.destination_addresses = []
+        self.destination_amounts = []
         self.self_addresses = []
 
         self.root = None
@@ -24,9 +28,6 @@ class PSBTParser():
         if self.seed:
             self.parse(self.psbt,self.seed,self.network)
 
-    @property
-    def num_receive_addrs(self) -> int:
-        return len(self.destination_addresses)
 
     def __setRoot(self, seed: Seed, network):
         self.root = bip32.HDKey.from_seed(seed.seed, version=NETWORKS[network]["xprv"])
@@ -73,8 +74,10 @@ class PSBTParser():
     def __parseOutputs(self):
         self.spend_amount = 0
         self.change_amount = 0
+        self.change_addresses = []
         self.fee_amount = 0
         self.destination_addresses = []
+        self.destination_amounts = []
         self.self_addresses = []
         for i, out in enumerate(self.psbt.outputs):
             out_policy = PSBTParser.__get_policy(out, self.psbt.tx.vout[i].script_pubkey, self.psbt.xpubs)
@@ -115,11 +118,16 @@ class PSBTParser():
                 if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
                     is_change = True
             if is_change:
+                addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[self.network])
+                self.self_addresses.append(addr)
+                self.change_addresses.append(addr)
+                self.change_amounts.append(self.psbt.tx.vout[i].value)
                 self.change_amount += self.psbt.tx.vout[i].value
-                self.self_addresses.append(self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[self.network]))
             else:
+                addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[self.network])
+                self.destination_addresses.append(addr)
+                self.destination_amounts.append(self.psbt.tx.vout[i].value)
                 self.spend_amount += self.psbt.tx.vout[i].value
-                self.destination_addresses.append(self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[self.network]))
 
         self.fee_amount = self.psbt.fee()
         return True

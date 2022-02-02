@@ -1,6 +1,5 @@
 import json
 
-from embit import psbt
 from seedsigner.models.psbt_parser import PSBTParser
 
 from seedsigner.models.settings import SettingsConstants
@@ -79,7 +78,7 @@ class PSBTOverviewView(View):
         selected_menu_num = screen.display()
 
         if selected_menu_num == 0:
-            pass
+            return Destination(PSBTAddressDetailsView, view_args={"address_num": 0, "is_change": len(psbt_parser.destination_addresses) == 0})
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -93,12 +92,12 @@ class PSBTOverviewMockView(View):
             spend_amount=384734,
             change_amount=84783,
             fee_amount=1313,
-            num_inputs=1,
+            num_inputs=12,
             destination_addresses=[
                 "bc1q3lg2qc933hd4ke9xjwm68e3rxz94525d5vchy75",
-                # "bc1qkf4jqc933hd4ke9xjwm68e3rxz94525d5vchy75",
-                # "bc1q9de6qc933hd4ke9xjwm68e3rxz94525d5vchy75",
-                # "hello"
+                "bc1qkf4jqc933hd4ke9xjwm68e3rxz94525d5vchy75",
+                "bc1q9de6qc933hd4ke9xjwm68e3rxz94525d5vchy75",
+                "hello"
             ],
         )
         selected_menu_num = screen.display()
@@ -106,5 +105,67 @@ class PSBTOverviewMockView(View):
         if selected_menu_num == 0:
             return Destination(MainMenuView)
 
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+
+class PSBTAddressDetailsView(View):
+    def __init__(self, address_num, is_change=False):
+        super().__init__()
+        self.address_num = address_num
+        self.is_change = is_change
+
+
+    def run(self):
+        from seedsigner.gui.screens.psbt_screens import PSBTAddressDetailsScreen
+
+        psbt_parser: PSBTParser = self.controller.psbt_parser
+
+        if not psbt_parser:
+            # Should not be able to get here
+            return Destination(MainMenuView)
+
+        if self.is_change:
+            screen = PSBTAddressDetailsScreen(
+                address=psbt_parser.change_addresses[self.address_num],
+                amount=psbt_parser.change_amounts[self.address_num],
+                address_number=self.address_num + 1,   # Screen title starts count at 1
+                num_addresses=len(psbt_parser.change_addresses),
+                is_change=self.is_change
+            )
+        else:
+            screen = PSBTAddressDetailsScreen(
+                address=psbt_parser.destination_addresses[self.address_num],
+                amount=psbt_parser.destination_amounts[self.address_num],
+                address_number=self.address_num + 1,   # Screen title starts count at 1
+                num_addresses=len(psbt_parser.destination_addresses),
+                is_change=self.is_change
+            )
+
+
+        # self.address = "bc1p2805rrtn627nvvmwlj89htyyxyg588lazc2ytef5ejyrwpfpsxnqca4eg7"
+        # self.address = "bc1qhzp0n0vyv9lrzh27rxrc2wfu05jhzcz5626dylpgl4cjt2q9uq4s8359wx"
+        # self.address = "bc1qj2k6cy7yx7490zn6y7dkg70lc8kdhruvdn36d8"
+        # self.address = "3Ge7DUnW63PFpQh826HQeGMmdtyd4Cj3s9"
+        # self.amount = 78942
+        selected_menu_num = screen.display()
+
+        if selected_menu_num == 0:
+            if not self.is_change:
+                if self.address_num < len(psbt_parser.destination_addresses) - 1:
+                    # Show the next receive addr
+                    return Destination(PSBTAddressDetailsView, view_args={"address_num": self.address_num + 1, "is_change": False})
+                else:
+                    # Move on to display change
+                    return Destination(PSBTAddressDetailsView, view_args={"address_num": 0, "is_change": True})
+            else:
+                if self.address_num < len(psbt_parser.change_addresses) - 1:
+                    # Show the next change addr
+                    return Destination(PSBTAddressDetailsView, view_args={"address_num": self.address_num + 1, "is_change": True})
+                else:
+                    # Move on to display fee and sign PSBT
+                    # TODO
+                    return Destination(MainMenuView, view_args={})
+ 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
