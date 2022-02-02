@@ -115,23 +115,13 @@ class SettingsUpdatedScreen(ButtonListScreen):
                 auto_line_break=True,
                 screen_y=start_y
             )
+            self.components.append(self.config_name_textarea)
             start_y = self.config_name_textarea.screen_y + 50
         
-        self.success_textarea = TextArea(
+        self.components.append(TextArea(
             text="Settings imported successfully!",
             is_text_centered=True,
             auto_line_break=True,
             screen_y=start_y
-        )
-        
-
-    def _render(self):
-        super()._render()
-
-        if self.config_name:
-            self.config_name_textarea.render()
-        self.success_textarea.render()
-
-        # Write the screen updates
-        self.renderer.show_image()
+        ))
 

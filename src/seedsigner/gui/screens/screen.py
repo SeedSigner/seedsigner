@@ -4,7 +4,7 @@ import time
 from dataclasses import dataclass
 from types import ClassMethodDescriptorType
 from PIL import Image, ImageDraw, ImageColor
-from typing import List
+from typing import List, Tuple
 
 from ..components import (ComponentThread, GUIConstants, BaseComponent, Button, IconButton, TopNav,
     TextArea, load_icon)
@@ -25,7 +25,18 @@ class BaseScreen(BaseComponent):
         super().__post_init__()
         
         self.hw_inputs = Buttons.get_instance()
-        self.threads = []
+
+        # Implementation classes can add their own ComponentThreads to run in parallel
+        # with the main execution thread.
+        self.threads: List[ComponentThread] = []
+
+        # Implementation classes can add additional BaseComponent-derived objects to the
+        # list. They'll be called to `render()` themselves in BaseScreen._render().
+        self.components: List[BaseComponent] = []
+
+        # Implementation classes can add PIL.Image objs here. Format is a tuple of the
+        # Image and its (x,y) paste coords.
+        self.paste_images: List[Tuple] = []
 
 
     def display(self):
@@ -56,8 +67,15 @@ class BaseScreen(BaseComponent):
             fill=0,
         )
 
+
     def _render(self):
         self.clear_screen()
+        for component in self.components:
+            component.render()
+
+        for img, coords in self.paste_images:
+            self.canvas.paste(img, coords)
+
 
     def _run(self):
         """
@@ -102,10 +120,7 @@ class BaseTopNavScreen(BaseScreen):
         )
         self.is_input_in_top_nav = False
 
-
-    def _render(self):
-        super()._render()
-        self.top_nav.render()
+        self.components.append(self.top_nav)
 
 
     def _run(self):
@@ -133,11 +148,7 @@ class TextTopNavScreen(BaseTopNavScreen):
             font_size=self.text_font_size,
             is_text_centered=self.is_text_centered
         )
-
-
-    def _render(self):
-        super()._render()
-        self.text_area.render()
+        self.components.append(self.text_area)
 
 
     def _run(self):
@@ -414,18 +425,13 @@ class LargeButtonScreen(BaseTopNavScreen):
                 button = Button(**button_args)
 
             self.buttons.append(button)
+            self.components.append(button)
 
             if i == 1:
                 button_start_y += button_height + GUIConstants.COMPONENT_PADDING
 
         self.buttons[0].is_selected = True
         self.selected_button = 0
-
-
-    def _render(self):
-        super()._render()
-        for button in self.buttons:
-            button.render()
 
 
     def _run(self):
@@ -568,16 +574,18 @@ class WarningScreen(WarningScreenMixin, ButtonListScreen):
         super().__post_init__()
 
         self.warning_icon = load_icon(self.warning_icon_name)
-        self.warning_icon_y = self.top_nav.height
-        self.warning_icon_x = int((self.canvas_width - self.warning_icon.width) / 2)
-        warning_headline_y = self.warning_icon_y + self.warning_icon.height + 4
+        warning_icon_y = self.top_nav.height
+        warning_icon_x = int((self.canvas_width - self.warning_icon.width) / 2)
+        self.paste_images.append((self.warning_icon, (warning_icon_x, warning_icon_y)))
 
+        warning_headline_y = warning_icon_y + self.warning_icon.height + 4
         self.warning_headline_textarea = TextArea(
             text=self.warning_headline,
             width=self.canvas_width,
             screen_y=warning_headline_y,
             font_color=self.warning_color,
         )
+        self.components.append(self.warning_headline_textarea)
 
         warning_text_y = warning_headline_y + self.warning_headline_textarea.height + 8
         self.warning_text_textarea = TextArea(
@@ -585,13 +593,7 @@ class WarningScreen(WarningScreenMixin, ButtonListScreen):
             width=self.canvas_width,
             screen_y=warning_text_y,
         )
-
-
-    def _render(self):
-        super()._render()
-        self.canvas.paste(self.warning_icon, (self.warning_icon_x, self.warning_icon_y))
-        self.warning_headline_textarea.render()
-        self.warning_text_textarea.render()
+        self.components.append(self.warning_text_textarea)
 
 
 

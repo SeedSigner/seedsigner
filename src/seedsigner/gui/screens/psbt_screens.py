@@ -26,11 +26,9 @@ class PSBTOverviewScreen(ButtonListScreen):
 
     def __post_init__(self):
         # Customize defaults
-        self.button_data = ["Next"]
+        self.button_data = ["Review Details"]
 
         super().__post_init__()
-
-        self.components: List[BaseComponent] = []
 
         # Prep the headline amount being spent in large callout
         # icon_text_lines_y = self.components[-1].screen_y + self.components[-1].height
@@ -333,7 +331,7 @@ class PSBTOverviewScreen(ButtonListScreen):
 
         # Resize to target and sharpen final image
         image = image.resize((self.canvas_width, chart_height), Image.LANCZOS)
-        self.chart_img = image.filter(ImageFilter.SHARPEN)
+        self.paste_images.append((image.filter(ImageFilter.SHARPEN), (self.chart_x, self.chart_y)))
 
         # Pass input and output curves to the animation thread
         self.threads.append(
@@ -347,16 +345,11 @@ class PSBTOverviewScreen(ButtonListScreen):
         )
 
 
-    def _render(self):
-        super()._render()
+    # def _render(self):
+    #     super()._render()
 
-        for component in self.components:
-            component.render()
-
-        self.canvas.paste(self.chart_img, (self.chart_x, self.chart_y))
-
-        # Write the screen updates
-        self.renderer.show_image()
+    #     # Write the screen updates
+    #     self.renderer.show_image()
 
 
     class TxExplorerAnimationThread(ComponentThread):
@@ -445,6 +438,44 @@ class PSBTOverviewScreen(ButtonListScreen):
 
 
 @dataclass
+class PSBTAmountDetailsScreen(ButtonListScreen):
+    title: str = "PSBT Details"
+    is_bottom_list: bool = True
+    spend_amount: int = 0
+    change_amount: int = 0
+    fee_amount: int = 0
+    num_inputs: int = 0
+    num_recipients: int = 0
+
+    rbf_enabled: bool = True
+    script_type: str = "Native Segwit"  # Native Segwit, Nested Segwit, Taproot
+    script_policy: str = "Single Sig"   # "Single Sig", "2-of-3 Multisig", etc
+
+    def __post_init__(self):
+        # Customize defaults
+        self.button_data = ["Review Recipients"]
+
+        super().__post_init__()
+
+
+
+@dataclass
+class PSBTScriptDetailsScreen(ButtonListScreen):
+    title: str = "PSBT Details"
+    is_bottom_list: bool = True
+    script_type: str = "Native Segwit"  # Native Segwit, Nested Segwit, Taproot
+    script_policy: str = "Single Sig"   # "Single Sig", "2-of-3 Multisig", etc
+    rbf_enabled: bool = True
+
+    def __post_init__(self):
+        # Customize defaults
+        self.button_data = ["Review Recipients"]
+
+        super().__post_init__()
+
+
+
+@dataclass
 class PSBTAddressDetailsScreen(ButtonListScreen):
     is_bottom_list: bool = True
     background_color: str = GUIConstants.BACKGROUND_COLOR
@@ -510,10 +541,7 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
             formatted_address.screen_y + formatted_address.height
         ))
         available_height = self.buttons[0].screen_y - self.top_nav.height
-        self.body_img_y = self.top_nav.height + int((available_height - self.body_img.height - GUIConstants.COMPONENT_PADDING)/2)
+        body_img_y = self.top_nav.height + int((available_height - self.body_img.height - GUIConstants.COMPONENT_PADDING)/2)
 
-
-    def _render(self):
-        super()._render()
-        self.canvas.paste(self.body_img, (0, self.body_img_y))
+        self.paste_images.append((self.body_img, (0, body_img_y)))
 

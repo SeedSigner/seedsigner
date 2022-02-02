@@ -109,7 +109,37 @@ class PSBTOverviewMockView(View):
             return Destination(BackStackView)
 
 
+
+class PSBTAmountDetailsView(View):
+    """
+        Follows the Overview pictogram. Shows:
+        + total input value
+        - recipients' value
+        - fees
+        -------------------
+        + change value
+    """
+    def run(self):
+        from seedsigner.gui.screens.psbt_screens import PSBTAddressDetailsScreen
+
+        psbt_parser: PSBTParser = self.controller.psbt_parser
+        if not psbt_parser:
+            # Should not be able to get here
+            return Destination(MainMenuView)
+        
+
+class PSBTScriptDetailsView(View):
+    """
+        Shows script type
+    """
+    pass
+
+
+
 class PSBTAddressDetailsView(View):
+    """
+        Shows the recipient's address and amount they will receive
+    """
     def __init__(self, address_num, is_change=False):
         super().__init__()
         self.address_num = address_num
@@ -169,3 +199,10 @@ class PSBTAddressDetailsView(View):
  
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
+
+
+"""
+15 bcrt1q6tymx7mgag7806c53j895lnr5ka0jm3ut2w3n2 
+1.48 2MsUBEppWxXfBa6REz2gtTDCGZHcvi27X3q 
+21000 bcrt1q3ydh4j6as3h4eld8sfeyg8gllqd2s3fp0au99r9mgzkalpr262zqvj40kf 
+"""

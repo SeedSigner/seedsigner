@@ -32,6 +32,7 @@ class SeedValidScreen(ButtonListScreen):
             auto_line_break=False,
             screen_y=self.top_nav.height + int((self.buttons[0].screen_y - self.top_nav.height) / 2) - 30
         )
+        self.components.append(self.title_textarea)
 
         self.fingerprint_icontl = IconTextLine(
             icon_name="fingerprint",
@@ -41,15 +42,7 @@ class SeedValidScreen(ButtonListScreen):
             screen_x = -4,
             screen_y=self.title_textarea.screen_y + self.title_textarea.height
         )
-
-    def _render(self):
-        super()._render()
-
-        self.title_textarea.render()
-        self.fingerprint_icontl.render()
-
-        # Write the screen updates
-        self.renderer.show_image()
+        self.components.append(self.fingerprint_icontl)
 
 
 
@@ -64,17 +57,13 @@ class SeedOptionsScreen(ButtonListScreen):
     def __post_init__(self):
         super().__post_init__()
 
-        self.fingerprint_icontextline = IconTextLine(
+        self.components.append(IconTextLine(
             icon_name="fingerprint",
             value_text=self.fingerprint,
             is_text_centered=True,
             screen_y=self.top_nav.height
-        )
+        ))
 
-
-    def _render(self):
-        super()._render()
-        self.fingerprint_icontextline.render()
 
 
 @dataclass
@@ -161,11 +150,7 @@ class SeedWordsScreen(WarningScreenMixin, ButtonListScreen):
         # Resize to target and sharpen final image
         self.body_img = self.body_img.resize((self.canvas_width, self.body_height), Image.LANCZOS)
         self.body_img = self.body_img.filter(ImageFilter.SHARPEN)
-
-
-    def _render(self):
-        super()._render()
-        self.canvas.paste(self.body_img, (self.body_x, self.body_y))
+        self.paste_images.append((self.body_img, (self.body_x, self.body_y)))
 
 
 
@@ -339,6 +324,7 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
             screen_x=GUIConstants.COMPONENT_PADDING,
             screen_y=self.top_nav.height,
         )
+        self.components.append(self.fingerprint_line)
 
         self.derivation_line = IconTextLine(
             icon_name="fingerprint",
@@ -347,6 +333,7 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
             screen_x=GUIConstants.COMPONENT_PADDING,
             screen_y=self.fingerprint_line.screen_y + self.fingerprint_line.height + GUIConstants.COMPONENT_PADDING,
         )
+        self.components.append(self.derivation_line)
 
         self.xpub_line = IconTextLine(
             icon_name="fingerprint",
@@ -355,17 +342,7 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
             screen_x=GUIConstants.COMPONENT_PADDING,
             screen_y=self.derivation_line.screen_y + self.derivation_line.height + GUIConstants.COMPONENT_PADDING,
         )
-
-
-    def _render(self):
-        super()._render()
-
-        self.fingerprint_line.render()
-        self.derivation_line.render()
-        self.xpub_line.render()
-
-        # Write the screen updates
-        self.renderer.show_image()
+        self.components.append(self.xpub_line)
 
 
 
