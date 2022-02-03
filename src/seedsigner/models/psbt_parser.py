@@ -28,6 +28,9 @@ class PSBTParser():
         if self.seed:
             self.parse(self.psbt,self.seed,self.network)
 
+    @property
+    def num_destinations(self):
+        return len(self.destination_addresses)
 
     def __setRoot(self, seed: Seed, network):
         self.root = bip32.HDKey.from_seed(seed.seed, version=NETWORKS[network]["xprv"])

@@ -1,7 +1,9 @@
+from os import getuid
 import random
-from re import M
 import time
+
 from dataclasses import dataclass
+from decimal import Decimal
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from typing import List
 
@@ -439,23 +441,141 @@ class PSBTOverviewScreen(ButtonListScreen):
 
 @dataclass
 class PSBTAmountDetailsScreen(ButtonListScreen):
-    title: str = "PSBT Details"
-    is_bottom_list: bool = True
-    spend_amount: int = 0
-    change_amount: int = 0
-    fee_amount: int = 0
+    input_amount: int = 0
     num_inputs: int = 0
+    spend_amount: int = 0
     num_recipients: int = 0
+    fee_amount: int = 0
+    change_amount: int = 0
 
-    rbf_enabled: bool = True
-    script_type: str = "Native Segwit"  # Native Segwit, Nested Segwit, Taproot
-    script_policy: str = "Single Sig"   # "Single Sig", "2-of-3 Multisig", etc
 
     def __post_init__(self):
         # Customize defaults
+        self.title = "PSBT Details"
         self.button_data = ["Review Recipients"]
+        self.is_bottom_list = True
 
         super().__post_init__()
+
+        if self.input_amount > 1e6:
+            denomination = "btc"
+            self.input_amount /= 1e8
+            self.spend_amount /= 1e8
+            self.change_amount /= 1e8
+            self.input_amount = f"{self.input_amount:,.8f}"
+            self.spend_amount = f"{self.spend_amount:,.8f}"
+            self.change_amount = f"{self.change_amount:,.8f}"
+
+            # Note: We keep the fee denominated in sats; just left pad it so it still
+            # lines up properly.
+            self.fee_amount = f"{self.fee_amount:10}"
+        else:
+            denomination = "sats"
+            self.input_amount = f"{self.input_amount:,}"
+            self.spend_amount = f"{self.spend_amount:,}"
+            self.fee_amount = f"{self.fee_amount:,}"
+            self.change_amount = f"{self.change_amount:,}"
+
+        longest_amount = max(len(self.input_amount), len(self.spend_amount), len(self.fee_amount), len(self.change_amount))
+        if len(self.input_amount) < longest_amount:
+            self.input_amount = " " * (longest_amount - len(self.input_amount)) + self.input_amount
+
+        if len(self.spend_amount) < longest_amount:
+            self.spend_amount = " " * (longest_amount - len(self.spend_amount)) + self.spend_amount
+
+        if len(self.fee_amount) < longest_amount:
+            self.fee_amount = " " * (longest_amount - len(self.fee_amount)) + self.fee_amount
+
+        if len(self.change_amount) < longest_amount:
+            self.change_amount = " " * (longest_amount - len(self.change_amount)) + self.change_amount
+
+        # Render the info to temp Image
+        body_width = self.canvas_width - 2*GUIConstants.EDGE_PADDING
+        body_height = self.buttons[0].screen_y - self.top_nav.height - 2*GUIConstants.COMPONENT_PADDING
+        ssf = 2  # Super-sampling factor
+        image = Image.new("RGB", (body_width*ssf, body_height*ssf))
+        draw = ImageDraw.Draw(image)
+
+        body_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE*ssf)
+        fixed_width_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, (GUIConstants.BODY_FONT_SIZE + 4)*ssf)
+        digits_width, digits_height = fixed_width_font.getsize(self.input_amount + "+")
+
+        # if denomination == 'btc':
+        #     # Render background digit grouping zones
+        #     first_zone_start, th = fixed_width_font.getsize(f" {self.input_amount[:-6]}")
+        #     second_zone_start, th = fixed_width_font.getsize(f" {self.input_amount[:-3]}")
+        #     zone_height = int(digits_height * 1.2 * 4) + 12*ssf
+        #     draw.rectangle(
+        #         (
+        #             first_zone_start, 0,
+        #             second_zone_start, zone_height
+        #         ),
+        #         fill="#444"
+        #     )
+        #     draw.rectangle(
+        #         (
+        #             second_zone_start, 0,
+        #             digits_width, zone_height
+        #         ),
+        #         fill="#888"
+        #     )
+
+        # Draw each line of the equation
+        cur_y = 0
+        if denomination == 'btc':
+            display_str = f" {self.input_amount}"
+            main_zone = display_str[:-6]
+            mid_zone = display_str[-6:-3]
+            end_zone = display_str[-3:]
+            main_zone_width, th = fixed_width_font.getsize(main_zone)
+            mid_zone_width, th = fixed_width_font.getsize(end_zone)
+            draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
+            draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill="#777")
+            draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill="#444")
+        else:
+            draw.text((0, cur_y), text=f" {self.input_amount}", font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
+        draw.text((digits_width, cur_y), text=f""" {self.num_inputs} input{"s" if self.num_inputs > 1 else ""}""", font=body_font, fill=GUIConstants.LABEL_FONT_COLOR)
+
+        cur_y += int(digits_height * 1.2)
+        if denomination == 'btc':
+            display_str = f"-{self.spend_amount}"
+            main_zone = display_str[:-6]
+            mid_zone = display_str[-6:-3]
+            end_zone = display_str[-3:]
+            main_zone_width, th = fixed_width_font.getsize(main_zone)
+            mid_zone_width, th = fixed_width_font.getsize(end_zone)
+            draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
+            draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill="#777")
+            draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill="#444")
+        else:
+            draw.text((0, cur_y), text=f"-{self.spend_amount}", font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
+        draw.text((digits_width, cur_y), text=f""" {self.num_recipients} recipient{"s" if self.num_recipients > 1 else ""}""", font=body_font, fill=GUIConstants.LABEL_FONT_COLOR)
+
+        cur_y += int(digits_height * 1.2)
+        draw.text((0, cur_y), text=f"-{self.fee_amount}", font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
+        draw.text((digits_width, cur_y), text=f""" fee {"(in sats)" if denomination == 'btc' else ""}""", font=body_font, fill=GUIConstants.LABEL_FONT_COLOR)
+
+        cur_y += int(digits_height * 1.2) + 4 * ssf
+        draw.line((0, cur_y, image.width, cur_y), fill=GUIConstants.BODY_FONT_COLOR, width=1)
+        cur_y += 8 * ssf
+
+        if denomination == 'btc':
+            display_str = f" {self.change_amount}"
+            main_zone = display_str[:-6]
+            mid_zone = display_str[-6:-3]
+            end_zone = display_str[-3:]
+            main_zone_width, th = fixed_width_font.getsize(main_zone)
+            mid_zone_width, th = fixed_width_font.getsize(end_zone)
+            draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
+            draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill="#777")
+            draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill="#444")
+        else:
+            draw.text((0, cur_y), text=f" {self.change_amount}", font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
+        draw.text((digits_width, cur_y), text=f" {denomination} change", font=body_font, fill="darkorange")
+
+        # Resize to target and sharpen final image
+        image = image.resize((body_width, body_height), Image.LANCZOS)
+        self.paste_images.append((image.filter(ImageFilter.SHARPEN), (GUIConstants.EDGE_PADDING, self.top_nav.height + GUIConstants.COMPONENT_PADDING)))
 
 
 
@@ -463,7 +583,7 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
 class PSBTScriptDetailsScreen(ButtonListScreen):
     title: str = "PSBT Details"
     is_bottom_list: bool = True
-    script_type: str = "Native Segwit"  # Native Segwit, Nested Segwit, Taproot
+    script_type: str = "Native Segwit"  # Native Segwit, Nested Segwit, Taproot, Custom Derivation
     script_policy: str = "Single Sig"   # "Single Sig", "2-of-3 Multisig", etc
     rbf_enabled: bool = True
 

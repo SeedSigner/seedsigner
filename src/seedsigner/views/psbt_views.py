@@ -1,5 +1,7 @@
 import json
 
+from embit import psbt
+
 from seedsigner.models.psbt_parser import PSBTParser
 
 from seedsigner.models.settings import SettingsConstants
@@ -78,7 +80,7 @@ class PSBTOverviewView(View):
         selected_menu_num = screen.display()
 
         if selected_menu_num == 0:
-            return Destination(PSBTAddressDetailsView, view_args={"address_num": 0, "is_change": len(psbt_parser.destination_addresses) == 0})
+            return Destination(PSBTAmountDetailsView)
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -120,19 +122,39 @@ class PSBTAmountDetailsView(View):
         + change value
     """
     def run(self):
-        from seedsigner.gui.screens.psbt_screens import PSBTAddressDetailsScreen
+        from seedsigner.gui.screens.psbt_screens import PSBTAmountDetailsScreen
 
         psbt_parser: PSBTParser = self.controller.psbt_parser
         if not psbt_parser:
             # Should not be able to get here
             return Destination(MainMenuView)
         
+        screen = PSBTAmountDetailsScreen(
+            input_amount=psbt_parser.input_amount,
+            num_inputs=psbt_parser.num_inputs,
+            spend_amount=psbt_parser.spend_amount,
+            num_recipients=psbt_parser.num_destinations,
+            fee_amount=psbt_parser.fee_amount,
+            change_amount=psbt_parser.change_amount,
+        )
+        selected_menu_num = screen.display()
+
+        if selected_menu_num == 0:
+            return Destination(PSBTAddressDetailsView, view_args={"address_num": 0, "is_change": len(psbt_parser.destination_addresses) == 0})
+
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+
 
 class PSBTScriptDetailsView(View):
     """
         Shows script type
     """
     pass
+
+            # return Destination(PSBTAddressDetailsView, view_args={"address_num": 0, "is_change": len(psbt_parser.destination_addresses) == 0})
+
 
 
 
