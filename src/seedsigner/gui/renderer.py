@@ -2,7 +2,7 @@ from PIL import Image, ImageDraw, ImageFont
 from threading import Lock
 
 from seedsigner.gui.components import Fonts
-from seedsigner.helpers.st7789 import ST7789
+from seedsigner.helpers.ST7789 import ST7789
 from seedsigner.models import ConfigurableSingleton
 
 
