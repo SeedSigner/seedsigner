@@ -1,12 +1,16 @@
 import datetime
+from pydoc import render_doc
 import time
 
 from dataclasses import dataclass
 from types import ClassMethodDescriptorType
 from PIL import Image, ImageDraw, ImageColor
 from typing import List, Tuple
+from seedsigner.gui.renderer import Renderer
 
-from ..components import (ComponentThread, GUIConstants, BaseComponent, Button, IconButton, TopNav,
+from seedsigner.helpers.threads import BaseThread
+
+from ..components import (GUIConstants, BaseComponent, Button, IconButton, TopNav,
     TextArea, load_icon)
 
 from seedsigner.helpers import B, Buttons
@@ -26,9 +30,9 @@ class BaseScreen(BaseComponent):
         
         self.hw_inputs = Buttons.get_instance()
 
-        # Implementation classes can add their own ComponentThreads to run in parallel
-        # with the main execution thread.
-        self.threads: List[ComponentThread] = []
+        # Implementation classes can add their own BaseThread to run in parallel with the
+        # main execution thread.
+        self.threads: List[BaseThread] = []
 
         # Implementation classes can add additional BaseComponent-derived objects to the
         # list. They'll be called to `render()` themselves in BaseScreen._render().
@@ -41,13 +45,13 @@ class BaseScreen(BaseComponent):
 
     def display(self):
         try:
-            self._render()
-            self.renderer.show_image()
+            with self.renderer.lock:
+                self._render()
+                self.renderer.show_image()
 
             for t in self.threads:
                 t.start()
 
-            print("AFTER THREADS")
             return self._run()
         except Exception as e:
             print(e)
@@ -57,7 +61,6 @@ class BaseScreen(BaseComponent):
         finally:
             for t in self.threads:
                 t.stop()
-            print("Stopped threads")
 
 
     def clear_screen(self):
@@ -99,6 +102,36 @@ class BaseScreen(BaseComponent):
         """
         raise Exception("Must implement in a child class")
 
+
+
+class LoadingScreenThread(BaseThread):
+    def run(self):
+        renderer: Renderer = Renderer.get_instance()
+        bounding_box = (
+            int(renderer.canvas_width/4),
+            int(renderer.canvas_height/4),
+            int(renderer.canvas_width*3/4),
+            int(renderer.canvas_height*3/4),
+        )
+        position = 0
+        arc_sweep = 45
+
+        # Need to flush the screen
+        with renderer.lock:
+            renderer.draw.rectangle((0, 0, renderer.canvas_width, renderer.canvas_height), fill=GUIConstants.BACKGROUND_COLOR)
+
+        while self.keep_running:
+            with renderer.lock:
+                renderer.draw.rectangle(bounding_box, fill=GUIConstants.BACKGROUND_COLOR)
+                renderer.draw.arc(
+                    bounding_box,
+                    start=position,
+                    end=position + arc_sweep,
+                    fill="orange",
+                    width=GUIConstants.COMPONENT_PADDING
+                )
+                renderer.show_image()
+            position += arc_sweep
 
 
 @dataclass
@@ -489,7 +522,7 @@ class LargeButtonScreen(BaseTopNavScreen):
 
 
 
-class WarningEdgesThread(ComponentThread):
+class WarningEdgesThread(BaseThread):
     def __init__(self, args):
         super().__init__()
         self.args = args

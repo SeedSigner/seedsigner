@@ -160,11 +160,9 @@ class Controller(Singleton):
                     # None is a special case; render the Home screen
 
                     # DEBUGGING
-                    # from .views.psbt_views import PSBTReceiveAddrView
-                    # next_destination = Destination(PSBTReceiveAddrView, view_args={"output_num": 0})
                     # /DEBUGGING
 
-                    # next_destination = Destination(MainMenuView)
+                    next_destination = Destination(MainMenuView)
 
                     # Home always wipes the back_stack
                     self.clear_back_stack()

@@ -1,4 +1,5 @@
 
+from seedsigner.gui.screens.screen import LoadingScreenThread
 from .view import View, Destination, BackStackView, MainMenuView
 
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
@@ -375,6 +376,10 @@ class SeedExportXpubDetailsView(View):
         from binascii import hexlify
         from seedsigner.gui.screens.seed_screens import SeedExportXpubDetailsScreen
 
+        # The calc_derivation takes a few moments. Run the loading screen while we wait.
+        self.loading_screen = LoadingScreenThread()
+        self.loading_screen.start()
+
         if self.script_type == SeedConstants.CUSTOM_DERIVATION:
             derivation_path = self.settings.custom_derivation
         else:
@@ -407,8 +412,12 @@ class SeedExportXpubDetailsView(View):
                 derivation_path=derivation_path,
                 xpub=xpub_base58,
             )
+
+            self.loading_screen.stop()
+
             selected_menu_num = screen.display()
         else:
+            self.loading_screen.stop()
             selected_menu_num = 0
 
         if selected_menu_num == 0:

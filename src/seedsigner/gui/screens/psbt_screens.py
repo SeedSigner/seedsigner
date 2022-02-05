@@ -1,24 +1,21 @@
-from os import getuid
-import random
 import time
 
 from dataclasses import dataclass
-from decimal import Decimal
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from os import getuid
+from PIL import Image, ImageDraw, ImageFilter
 from typing import List
 
 from seedsigner.gui.renderer import Renderer
+from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
 
-from .screen import BaseTopNavScreen, ButtonListScreen
-from ..components import (BaseComponent, ComponentThread, FormattedAddress, GUIConstants, Fonts, IconTextLine, TextArea,
-    calc_text_centering, calc_bezier_curve, linear_interp)
+from .screen import ButtonListScreen
+from ..components import (FormattedAddress, GUIConstants, Fonts, IconTextLine, TextArea,
+    calc_bezier_curve, linear_interp)
 
 
 
 @dataclass
 class PSBTOverviewScreen(ButtonListScreen):
-    title: str = "Review PSBT"
-    is_bottom_list: bool = True
     spend_amount: int = 0
     change_amount: int = 0
     fee_amount: int = 0
@@ -28,7 +25,12 @@ class PSBTOverviewScreen(ButtonListScreen):
 
     def __post_init__(self):
         # Customize defaults
+        self.title = "Review PSBT"
+        self.is_bottom_list = True
         self.button_data = ["Review Details"]
+
+        # This screen can take a while to load while parsing the PSBT
+        self.show_loading_screen = True
 
         super().__post_init__()
 
@@ -347,14 +349,8 @@ class PSBTOverviewScreen(ButtonListScreen):
         )
 
 
-    # def _render(self):
-    #     super()._render()
 
-    #     # Write the screen updates
-    #     self.renderer.show_image()
-
-
-    class TxExplorerAnimationThread(ComponentThread):
+    class TxExplorerAnimationThread(BaseThread):
         def __init__(self, inputs, outputs, supersampling_factor, offset_y, renderer: Renderer):
             super().__init__()
 
@@ -435,7 +431,7 @@ class PSBTOverviewScreen(ButtonListScreen):
 
                     self.renderer.show_image()
 
-                time.sleep(0.02)
+                # time.sleep(0.02)
 
 
 
@@ -579,26 +575,24 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
 
 
 
-@dataclass
-class PSBTScriptDetailsScreen(ButtonListScreen):
-    title: str = "PSBT Details"
-    is_bottom_list: bool = True
-    script_type: str = "Native Segwit"  # Native Segwit, Nested Segwit, Taproot, Custom Derivation
-    script_policy: str = "Single Sig"   # "Single Sig", "2-of-3 Multisig", etc
-    rbf_enabled: bool = True
+# @dataclass
+# class PSBTScriptDetailsScreen(ButtonListScreen):
+#     title: str = "PSBT Details"
+#     is_bottom_list: bool = True
+#     script_type: str = "Native Segwit"  # Native Segwit, Nested Segwit, Taproot, Custom Derivation
+#     script_policy: str = "Single Sig"   # "Single Sig", "2-of-3 Multisig", etc
+#     rbf_enabled: bool = True
 
-    def __post_init__(self):
-        # Customize defaults
-        self.button_data = ["Review Recipients"]
+#     def __post_init__(self):
+#         # Customize defaults
+#         self.button_data = ["Review Recipients"]
 
-        super().__post_init__()
+#         super().__post_init__()
 
 
 
 @dataclass
 class PSBTAddressDetailsScreen(ButtonListScreen):
-    is_bottom_list: bool = True
-    background_color: str = GUIConstants.BACKGROUND_COLOR
     address: str = None
     amount: int = 0
     address_number: int = 1
@@ -607,22 +601,27 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
 
     def __post_init__(self):
         # Customize defaults
+        self.is_bottom_list = True
+        self.button_data = []
+
+        if self.is_change:
+            self.button_data.append("Verify Change")
+
         if self.num_addresses > 1:
             self.title = f"""{"Change" if self.is_change else "Receive"} {self.address_number}"""
         else:
             self.title = "Change" if self.is_change else "Receive"
 
-
         if self.address_number < self.num_addresses:
-            self.button_data = [f"""Next {"Change" if self.is_change else "Receive"} Addr"""]
+            self.button_data.append(f"""Next {"Change" if self.is_change else "Receive"} Addr""")
         else:
-            self.button_data = ["Next"]
+            self.button_data.append("Next")
 
         super().__post_init__()
 
         # Figuring out how to vertically center the sats and the address is
         # difficult so we just render to a temp image and paste it in place.
-        img = Image.new("RGB", (self.canvas_width, self.buttons[0].screen_y - self.top_nav.height), self.background_color)
+        img = Image.new("RGB", (self.canvas_width, self.buttons[0].screen_y - self.top_nav.height), GUIConstants.BACKGROUND_COLOR)
         draw = ImageDraw.Draw(img)
 
         if self.amount <= 1e6:
@@ -648,6 +647,7 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
             screen_y=icon_text_line.height + GUIConstants.COMPONENT_PADDING,
             font_size=24,
             address=self.address,
+            max_lines=2 if self.is_change else None,
         )
 
         # Render each to the temp img we passed in
@@ -665,3 +665,66 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
 
         self.paste_images.append((self.body_img, (0, body_img_y)))
 
+
+
+@dataclass
+class PSBTSingleSigChangeVerificationScreen(ButtonListScreen):
+    change_address: str = None
+    threadsafe_counter: ThreadsafeCounter = None
+
+    def __post_init__(self):
+        # Customize defaults
+        self.title = "Verify Change"
+        self.is_bottom_list = True
+        self.button_data = ["Skip 10", "Cancel"]
+
+        super().__post_init__()
+
+        label = TextArea(
+            text="change address",
+            font_size=GUIConstants.LABEL_FONT_SIZE,
+            font_color=GUIConstants.LABEL_FONT_COLOR,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING
+        )
+        self.components.append(label)
+
+        address_display = TextArea(
+            text=f"{self.change_address[:6]}...{self.change_address[-6:]}",
+            font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
+            font_size=GUIConstants.BODY_FONT_SIZE + 2,
+            screen_y=label.screen_y + label.height
+        )
+        self.components.append(address_display)
+
+        self.threads.append(PSBTSingleSigChangeVerificationScreen.ProgressThread(
+            renderer=self.renderer,
+            screen_y=address_display.screen_y + address_display.height + GUIConstants.COMPONENT_PADDING,
+            threadsafe_counter=self.threadsafe_counter,
+        ))
+
+
+    class ProgressThread(BaseThread):
+        def __init__(self, renderer: Renderer, screen_y: int, threadsafe_counter: ThreadsafeCounter):
+            self.renderer = renderer
+            self.screen_y = screen_y
+            self.threadsafe_counter = threadsafe_counter
+            super().__init__()
+        
+        def run(self):
+            font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE)
+            tw, th = font.getsize("Checking address 001")
+            while self.keep_running:
+                with self.renderer.lock:
+                    # Need to clear the pixels
+                    # self.renderer.draw.rectangle((0, self.screen_y, self.renderer.canvas_width, self.screen_y + th), fill=GUIConstants.BACKGROUND_COLOR)
+
+                    textarea = TextArea(
+                        text=f"Checking address {self.threadsafe_counter.cur_count}",
+                        font_name=GUIConstants.BODY_FONT_NAME,
+                        font_size=GUIConstants.BODY_FONT_SIZE,
+                        screen_y=self.screen_y
+                    )
+                    textarea.render()
+                    # self.renderer.draw.text((int((self.renderer.canvas_width - tw)/2), self.screen_y), text=f"Checking address {self.threadsafe_counter.cur_count}", font=font, fill=GUIConstants.BODY_FONT_COLOR)
+                    self.renderer.show_image()
+                time.sleep(0.1)

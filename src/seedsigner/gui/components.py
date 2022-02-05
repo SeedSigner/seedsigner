@@ -137,17 +137,6 @@ class BaseComponent:
 
 
 
-class ComponentThread(Thread):
-    def __init__(self):
-        super().__init__(daemon=True)
-        self.keep_running = True
-
-    def stop(self):
-        print("EXITING THREAD")
-        self.keep_running = False
-
-
-
 @dataclass
 class TextArea(BaseComponent):
     """
@@ -380,11 +369,14 @@ class FormattedAddress(BaseComponent):
         multisig native segwit:   62
         multisig nested segwit:   34
         single sig native segwit: 42
+
+        * max_lines: forces truncation on long addresses to fit
     """
     width: int = 0
     screen_x: int = 0
     screen_y: int = 0
     address: str = None
+    max_lines: int = None
     font_name: str = GUIConstants.FIXED_WIDTH_FONT_NAME
     font_size: int = 24
     font_accent_color: str = "orange"
@@ -435,6 +427,7 @@ class FormattedAddress(BaseComponent):
                     self.font_base_color,
                     self.font
                 ))
+
             elif i == num_lines - 1:
                 # Split cur_str into two sections to highlight last_n
                 self.text_params.append((
@@ -455,7 +448,33 @@ class FormattedAddress(BaseComponent):
                     self.font_accent_color,
                     self.accent_font
                 ))
+
+            elif self.max_lines and i == self.max_lines - 1:
+                # We can't fit the whole address. Have to truncate here and highlight the
+                # last_n.
+                self.text_params.append((
+                    (
+                        addr_lines_x,
+                        cur_y
+                    ),
+                    cur_str[:-1*n - 3] + "...",
+                    self.font_base_color,
+                    self.font
+                ))
+                self.text_params.append((
+                    (
+                        addr_lines_x + char_width*(len(cur_str) - (n)),
+                        cur_y
+                    ),
+                    self.address[-1*n:],
+                    self.font_accent_color,
+                    self.accent_font
+                ))
+                cur_y += char_height
+                break
+
             else:
+                # This is a middle line with no highlighted section
                 self.text_params.append((
                     (
                         addr_lines_x,

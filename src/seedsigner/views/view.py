@@ -26,15 +26,14 @@ class BackStackView:
     objects). For the sake of code cleanliness and separation of concerns, the View code
     should not know anything about pixel-level rendering.
 
-    Sequences that require multiple pages/screens can be should be implemented as a
-    series of separate Views. Exceptions can be made for complex interactive sequences,
-    but in general, if your View is instantiating multiple Screens, you're probably
-    putting too much functionality in that View.
+    Sequences that require multiple pages/screens should be implemented as a series of
+    separate Views. Exceptions can be made for complex interactive sequences, but in
+    general, if your View is instantiating multiple Screens, you're probably putting too
+    much functionality in that View.
 
     As with http requests, Views can receive input vars to inform their behavior. Views
     can also prepare the next set of vars to set up the next View that should be
-    displayed (akin to `return redirect(url, param1=x, param2=y))`).
-
+    displayed (akin to Flask's `return redirect(url, param1=x, param2=y))`).
 """
 class View:
     # TODO: Obviated by seedsigner.gui.components.TopNav
