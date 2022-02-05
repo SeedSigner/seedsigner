@@ -2,3 +2,4 @@
 __pycache__/
 src/seedsigner.egg-info/
 .nova
+.vscode
