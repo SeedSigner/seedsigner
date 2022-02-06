@@ -148,11 +148,10 @@ class MainMenuView(View):
         )
         selected_menu_num = screen.display()
 
-        if selected_menu_num < len(menu_items):
-            return Destination(menu_items[selected_menu_num][1])
-
-        elif selected_menu_num == RET_CODE__POWER_BUTTON:
+        if selected_menu_num == RET_CODE__POWER_BUTTON:
             return Destination(PowerOffView)
+
+        return Destination(menu_items[selected_menu_num][1])
 
 
 

@@ -83,6 +83,12 @@ def load_icon(icon_name: str, load_selected_variant: bool = False):
         return (icon, icon_selected)
 
 
+def load_image(image_name: str):
+    image_url = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "img", image_name)
+    image = Image.open(image_url).convert("RGB")
+    return image
+
+
 
 class Fonts(Singleton):
     font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")

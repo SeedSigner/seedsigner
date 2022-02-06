@@ -14,11 +14,11 @@ from seedsigner.models.qr_type import QRType
 
 
 class ScanView(View):
-
     def run(self):
         from seedsigner.gui.screens.scan_screens import ScanScreen
 
         # Run the live preview and QR code capture process
+        # TODO: Does this belong in its own BaseThread?
         self.decoder = DecodeQR(wordlist=self.settings.wordlist)
         screen = ScanScreen(decoder=self.decoder)
         screen.display()
@@ -46,6 +46,7 @@ class ScanView(View):
             elif self.decoder.isPSBT():
                 psbt = self.decoder.getPSBT()
                 self.controller.psbt = psbt
+                self.controller.psbt_parser = None
                 return Destination(PSBTSelectSeedView)
 
             elif self.decoder.qr_type == QRType.SETTINGS:
@@ -73,10 +74,9 @@ class SettingsUpdatedView(View):
         screen = SettingsUpdatedScreen(config_name=self.config_name)
         selected_menu_num = screen.display()
 
-        if selected_menu_num == 0:
-            return Destination(MainMenuView)
-
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
+        # Only one exit point
+        return Destination(MainMenuView)
 

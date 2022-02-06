@@ -1,9 +1,6 @@
-import datetime
-from pydoc import render_doc
 import time
 
 from dataclasses import dataclass
-from types import ClassMethodDescriptorType
 from PIL import Image, ImageDraw, ImageColor
 from typing import List, Tuple
 from seedsigner.gui.renderer import Renderer
@@ -11,7 +8,7 @@ from seedsigner.gui.renderer import Renderer
 from seedsigner.helpers.threads import BaseThread
 
 from ..components import (GUIConstants, BaseComponent, Button, IconButton, TopNav,
-    TextArea, load_icon)
+    TextArea, load_icon, load_image)
 
 from seedsigner.helpers import B, Buttons
 
@@ -105,31 +102,68 @@ class BaseScreen(BaseComponent):
 
 
 class LoadingScreenThread(BaseThread):
+    def __init__(self, text: str = None):
+        super().__init__()
+        self.text =text
+
+
     def run(self):
         renderer: Renderer = Renderer.get_instance()
+
+        center_image = load_image("btc_logo_60x60.png")
+        orbit_gap = 2*GUIConstants.COMPONENT_PADDING
         bounding_box = (
-            int(renderer.canvas_width/4),
-            int(renderer.canvas_height/4),
-            int(renderer.canvas_width*3/4),
-            int(renderer.canvas_height*3/4),
+            int((renderer.canvas_width - center_image.width)/2 - orbit_gap),
+            int((renderer.canvas_height - center_image.height)/2 - orbit_gap),
+            int((renderer.canvas_width + center_image.width)/2 + orbit_gap),
+            int((renderer.canvas_height + center_image.height)/2 + orbit_gap),
         )
         position = 0
         arc_sweep = 45
+        arc_color = "#ff9416"
+        arc_trailing_color = "#80490b"
 
         # Need to flush the screen
         with renderer.lock:
             renderer.draw.rectangle((0, 0, renderer.canvas_width, renderer.canvas_height), fill=GUIConstants.BACKGROUND_COLOR)
+            renderer.canvas.paste(center_image, (bounding_box[0] + orbit_gap, bounding_box[1] + orbit_gap))
+
+            if self.text:
+                TextArea(
+                    text=self.text,
+                    font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
+                    screen_y=int((renderer.canvas_height - bounding_box[3])/2),
+                ).render()
 
         while self.keep_running:
             with renderer.lock:
-                renderer.draw.rectangle(bounding_box, fill=GUIConstants.BACKGROUND_COLOR)
+                # Render leading arc
                 renderer.draw.arc(
                     bounding_box,
                     start=position,
                     end=position + arc_sweep,
-                    fill="orange",
+                    fill=arc_color,
                     width=GUIConstants.COMPONENT_PADDING
                 )
+
+                # Render trailing arc
+                renderer.draw.arc(
+                    bounding_box,
+                    start=position - arc_sweep,
+                    end=position,
+                    fill=arc_trailing_color,
+                    width=GUIConstants.COMPONENT_PADDING
+                )
+
+                # Erase previous trailing arc leading arc
+                renderer.draw.arc(
+                    bounding_box,
+                    start=position - 2*arc_sweep,
+                    end=position - arc_sweep,
+                    fill=GUIConstants.BACKGROUND_COLOR,
+                    width=GUIConstants.COMPONENT_PADDING
+                )
+
                 renderer.show_image()
             position += arc_sweep
 

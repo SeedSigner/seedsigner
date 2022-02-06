@@ -518,6 +518,8 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
 
         # Draw each line of the equation
         cur_y = 0
+        secondary_digit_color = "#777"
+        tertiary_digit_color = "#777"
         if denomination == 'btc':
             display_str = f" {self.input_amount}"
             main_zone = display_str[:-6]
@@ -526,8 +528,8 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
             main_zone_width, th = fixed_width_font.getsize(main_zone)
             mid_zone_width, th = fixed_width_font.getsize(end_zone)
             draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
-            draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill="#777")
-            draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill="#444")
+            draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill=secondary_digit_color)
+            draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)
         else:
             draw.text((0, cur_y), text=f" {self.input_amount}", font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
         draw.text((digits_width, cur_y), text=f""" {self.num_inputs} input{"s" if self.num_inputs > 1 else ""}""", font=body_font, fill=GUIConstants.LABEL_FONT_COLOR)
@@ -541,14 +543,14 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
             main_zone_width, th = fixed_width_font.getsize(main_zone)
             mid_zone_width, th = fixed_width_font.getsize(end_zone)
             draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
-            draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill="#777")
-            draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill="#444")
+            draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill=secondary_digit_color)
+            draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)
         else:
             draw.text((0, cur_y), text=f"-{self.spend_amount}", font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
         draw.text((digits_width, cur_y), text=f""" {self.num_recipients} recipient{"s" if self.num_recipients > 1 else ""}""", font=body_font, fill=GUIConstants.LABEL_FONT_COLOR)
 
         cur_y += int(digits_height * 1.2)
-        draw.text((0, cur_y), text=f"-{self.fee_amount}", font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
+        draw.text((0, cur_y), text=f"-{self.fee_amount}", font=fixed_width_font, fill=tertiary_digit_color)
         draw.text((digits_width, cur_y), text=f""" fee {"(in sats)" if denomination == 'btc' else ""}""", font=body_font, fill=GUIConstants.LABEL_FONT_COLOR)
 
         cur_y += int(digits_height * 1.2) + 4 * ssf
@@ -563,8 +565,8 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
             main_zone_width, th = fixed_width_font.getsize(main_zone)
             mid_zone_width, th = fixed_width_font.getsize(end_zone)
             draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
-            draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill="#777")
-            draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill="#444")
+            draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill=secondary_digit_color)
+            draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)
         else:
             draw.text((0, cur_y), text=f" {self.change_amount}", font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
         draw.text((digits_width, cur_y), text=f" {denomination} change", font=body_font, fill="darkorange")
@@ -572,22 +574,6 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
         # Resize to target and sharpen final image
         image = image.resize((body_width, body_height), Image.LANCZOS)
         self.paste_images.append((image.filter(ImageFilter.SHARPEN), (GUIConstants.EDGE_PADDING, self.top_nav.height + GUIConstants.COMPONENT_PADDING)))
-
-
-
-# @dataclass
-# class PSBTScriptDetailsScreen(ButtonListScreen):
-#     title: str = "PSBT Details"
-#     is_bottom_list: bool = True
-#     script_type: str = "Native Segwit"  # Native Segwit, Nested Segwit, Taproot, Custom Derivation
-#     script_policy: str = "Single Sig"   # "Single Sig", "2-of-3 Multisig", etc
-#     rbf_enabled: bool = True
-
-#     def __post_init__(self):
-#         # Customize defaults
-#         self.button_data = ["Review Recipients"]
-
-#         super().__post_init__()
 
 
 
@@ -608,14 +594,17 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
             self.button_data.append("Verify Change")
 
         if self.num_addresses > 1:
-            self.title = f"""{"Change" if self.is_change else "Receive"} {self.address_number}"""
+            self.title = f"""{"Change" if self.is_change else "Receive"} #{self.address_number}"""
         else:
             self.title = "Change" if self.is_change else "Receive"
 
         if self.address_number < self.num_addresses:
-            self.button_data.append(f"""Next {"Change" if self.is_change else "Receive"} Addr""")
+            self.button_data.append(f"""Next {"Change" if self.is_change else "Receiver"} Addr""")
         else:
-            self.button_data.append("Next")
+            if self.is_change:
+                self.button_data.append("Skip Verification")
+            else:
+                self.button_data.append("Next")
 
         super().__post_init__()
 

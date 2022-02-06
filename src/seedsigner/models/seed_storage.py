@@ -19,7 +19,7 @@ class SeedStorage:
 	def get_pending_seed(self) -> Seed:
 		return self.pending_seed
 
-	def finalize_pending_seed(self):
+	def finalize_pending_seed(self) -> int:
 		# Finally store the pending seed and return its index
 		self.seeds.append(self.pending_seed)
 		self.pending_seed = None

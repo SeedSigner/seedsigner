@@ -1,5 +1,5 @@
-
 from seedsigner.gui.screens.screen import LoadingScreenThread
+from seedsigner.models.psbt_parser import PSBTParser
 from .view import View, Destination, BackStackView, MainMenuView
 
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
@@ -94,13 +94,23 @@ class SeedOptionsView(View):
     def run(self):
         from seedsigner.gui.screens.seed_screens import SeedOptionsScreen
 
-        button_data = ["View Seed Words"]
+        SIGN_PSBT = "Sign PSBT"
+        VIEW_WORDS = "View Seed Words"
+        EXPORT_XPUB = "Export Xpub"
+        EXPORT_SEEDQR = "Export Seed as QR"
+        button_data = []
 
-        print(f"{self.settings.xpub_export} == {SettingsConstants.OPTION__ENABLED}")
-        if self.settings.xpub_export == SettingsConstants.OPTION__ENABLED:
-            button_data.append("Export Xpub")
+        if self.controller.psbt:
+            if not PSBTParser.has_matching_fingerprint(self.controller.psbt, self.seed, network=self.settings.network):
+                SIGN_PSBT += " (?)"
+            button_data.append(SIGN_PSBT)
         
-        button_data.append("Export Seed as QR")
+        button_data.append(VIEW_WORDS)
+
+        if self.settings.xpub_export == SettingsConstants.OPTION__ENABLED:
+            button_data.append(EXPORT_XPUB)
+        
+        button_data.append(EXPORT_SEEDQR)
 
         screen = SeedOptionsScreen(
             button_data=button_data,
@@ -109,19 +119,22 @@ class SeedOptionsView(View):
         )
         selected_menu_num = screen.display()
 
-        if selected_menu_num == 0:
-            # View seed words
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        if button_data[selected_menu_num] == SIGN_PSBT:
+            from seedsigner.views.psbt_views import PSBTOverviewView
+            return Destination(PSBTOverviewView, view_args={"seed_num": self.seed_num})
+
+        elif button_data[selected_menu_num] == VIEW_WORDS:
             return Destination(SeedWordsWarningView, view_args={"seed_num": self.seed_num})
 
-        elif selected_menu_num == 1 and self.settings.xpub_export == SettingsConstants.OPTION__ENABLED:
+        elif button_data[selected_menu_num] == EXPORT_XPUB and self.settings.xpub_export == SettingsConstants.OPTION__ENABLED:
             return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})                
 
-        elif selected_menu_num == len(button_data) - 1:
-            # TODO: Export Seed as QR
-            return Destination(None)
-
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
+        elif button_data[selected_menu_num] == EXPORT_SEEDQR:
+            return None
+            # return Destination(SeedExportSeedQRView, view_args={"seed_num": self.seed_num})
 
 
 
@@ -159,10 +172,15 @@ class SeedWordsView(View):
 
     def run(self):
         from seedsigner.gui.screens.seed_screens import SeedWordsScreen
+
+        NEXT_12 = "Next"
+        SEED_OPTIONS = "Seed Options"
+
+        button_data = []
         if self.is_first_page and len(self.seed.mnemonic_list) == 24:
-            button_data = ["Next"]
+            button_data.append(NEXT_12)
         else:
-            button_data = ["Seed Options"]
+            button_data.append(SEED_OPTIONS)
 
         screen = SeedWordsScreen(
             seed=self.seed,
@@ -171,16 +189,17 @@ class SeedWordsView(View):
         )
         selected_menu_num = screen.display()
 
-        if selected_menu_num == 0:
-            if self.is_first_page and len(self.seed.mnemonic_list) == 24:
-                # Go on to page 2
-                return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "is_first_page": False})
-            else:
-                # Back to SeedOptions for this seed
-                return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num})
-
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
+
+        if button_data[selected_menu_num] == NEXT_12:
+            # Go on to page 2
+            return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "is_first_page": False})
+
+        elif button_data[selected_menu_num] == SEED_OPTIONS:
+            # Back to SeedOptions for this seed; cannot back ("<") to this View.
+            return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
+
 
 
 
@@ -198,23 +217,25 @@ class SeedExportXpubSigTypeView(View):
             # Nothing to select; skip this screen
             return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": self.settings.sig_types[0]}, skip_current_view=True)
 
+        SINGLE_SIG = "Single Sig"
+        MULTISIG = "Multisig"
+        button_data=[SINGLE_SIG, MULTISIG]
+
         screen = LargeButtonScreen(
             title="Export Xpub",
-            button_data=[
-                "Single Sig",
-                "Multisig",
-            ]
+            button_data=button_data
         )
         selected_menu_num = screen.display()
 
-        if selected_menu_num == 0:
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        if button_data[selected_menu_num] == SINGLE_SIG:
             return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": SeedConstants.SINGLE_SIG})
 
-        elif selected_menu_num == 1:
+        elif button_data[selected_menu_num] == MULTISIG:
             return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": SeedConstants.MULTISIG})
 
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
 
 
 
@@ -377,7 +398,7 @@ class SeedExportXpubDetailsView(View):
         from seedsigner.gui.screens.seed_screens import SeedExportXpubDetailsScreen
 
         # The calc_derivation takes a few moments. Run the loading screen while we wait.
-        self.loading_screen = LoadingScreenThread()
+        self.loading_screen = LoadingScreenThread(text="Generating xpub...")
         self.loading_screen.start()
 
         if self.script_type == SeedConstants.CUSTOM_DERIVATION:
@@ -482,18 +503,34 @@ class SeedValidView(View):
 
     def run(self):
         from seedsigner.gui.screens.seed_screens import SeedValidScreen
+        from .psbt_views import PSBTOverviewView
 
+        SIGN_PSBT = "Sign PSBT (?)"
+        SCAN_PSBT = ("Scan a PSBT", "scan_inline")
+        PASSPHRASE = "Add Passphrase"
+        SEED_TOOLS = "Seed Tools"
+        button_data = []
+
+        # Can we auto-route past this screen entirely?
         if self.controller.psbt:
-            button_data=["Sign PSBT"]
+            if PSBTParser.has_matching_fingerprint(psbt=self.controller.psbt, seed=self.seed, network=self.settings.network):
+                # The Seed we just entered can sign the psbt we have in memory.
+                # Immediately forward on to the PSBT Overview.
+                seed_num = self.controller.storage.finalize_pending_seed()
+                return Destination(PSBTOverviewView, view_args={"seed_num": seed_num}, clear_history=True)
+            else:
+                # We can't be sure if we can sign the PSBT with this new key
+                button_data.append(SIGN_PSBT)
         else:
-            button_data=[("Scan a PSBT", "scan_inline")]
+            button_data.append(SCAN_PSBT)
 
         if self.settings.passphrase == SettingsConstants.OPTION__ENABLED or (not self.seed.passphrase and self.settings.passphrase == SettingsConstants.OPTION__PROMPT):
-            button_data.append("Add Passphrase")
+            button_data.append(PASSPHRASE)
         elif self.seed.passphrase:
-            button_data.append("Edit Passphrase")
+            PASSPHRASE = "Edit Passphrase"
+            button_data.append(PASSPHRASE)
         
-        button_data.append("Seed Tools")
+        button_data.append(SEED_TOOLS)
 
         screen = SeedValidScreen(
             fingerprint=self.fingerprint,
@@ -501,52 +538,52 @@ class SeedValidView(View):
         )
         selected_menu_num = screen.display()
 
-        if selected_menu_num == 0:
-            self.controller.storage.finalize_pending_seed()
-            if self.controller.psbt:
-                # We have a pending psbt to sign!
-                from .psbt_views import PSBTOverviewView
-                return Destination(PSBTOverviewView, view_args={"seed_num": len(self.controller.storage.seeds) - 1})
-            else:
-                # Jump back to the Scan mode, but this time to sign a PSBT
-                from .scan_views import ScanView
-                return Destination(ScanView, clear_history=True)
-        
-        elif selected_menu_num == 1 and len(button_data) > selected_menu_num + 1:
-            return Destination(SeedAddPassphraseView)
-
-        elif selected_menu_num == len(button_data) - 1:
-            # Jump straight to the Seed Tools for this seed
-            seed_num = self.controller.storage.finalize_pending_seed()
-            return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
-
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
             # Back button should clear out the pending seed and start over
             self.controller.storage.clear_pending_seed()
             return Destination(BackStackView)
+
+        if button_data[selected_menu_num] == SIGN_PSBT:
+            self.controller.storage.finalize_pending_seed()
+            return Destination(PSBTOverviewView, view_args={"seed_num": len(self.controller.storage.seeds) - 1}, clear_history=True)
+
+        elif type(button_data[selected_menu_num]) == tuple and button_data[selected_menu_num][0] == SCAN_PSBT[0]:
+            self.controller.storage.finalize_pending_seed()
+            # Jump back to the Scan mode, but this time to sign a PSBT
+            from .scan_views import ScanView
+            return Destination(ScanView, clear_history=True)
+        
+        elif button_data[selected_menu_num] == PASSPHRASE:
+            return Destination(SeedAddPassphraseView)
+
+        if button_data[selected_menu_num] == SEED_TOOLS:
+            # Jump straight to the Seed Tools for this seed
+            seed_num = self.controller.storage.finalize_pending_seed()
+            return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
 
 
 
 class SeedAddPassphrasePromptView(View):
     def run(self):
+        YES = "Yes"
+        NO = "No"
+        button_data = [YES, NO]
+
         screen = LargeButtonScreen(
             title="Add Passphrase?",
-            button_data=[
-                "Yes",
-                "No",
-            ]
+            button_data=button_data
         )
         selected_menu_num = screen.display()
 
-        if selected_menu_num == 0:
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        if button_data[selected_menu_num] == YES:
             return Destination(SeedAddPassphraseView)
 
-        elif selected_menu_num == 1:
+        elif button_data[selected_menu_num] == NO:
             return Destination(SeedValidView)
 
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-            
 
 
 class SeedAddPassphraseView(View):
@@ -563,5 +600,6 @@ class SeedAddPassphraseView(View):
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
+        # The new passphrase will be the return value
         self.seed.passphrase = ret
         return Destination(SeedValidView)

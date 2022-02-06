@@ -1,15 +1,17 @@
+from binascii import hexlify
 from embit import psbt, script, ec, bip32, bip39
 from embit.networks import NETWORKS
+from embit.psbt import PSBT
 from io import BytesIO
-from typing import Tuple
+from typing import List
 from seedsigner.models import Seed
 
 class PSBTParser():
 
-    def __init__(self, p, seed: Seed, network="main"):
+    def __init__(self, p: PSBT, seed: Seed, network="main"):
         self.seed = seed
         self.network = network
-        self.psbt = p
+        self.psbt: PSBT = p
 
         self.policy = None
         self.spend_amount = 0
@@ -232,3 +234,33 @@ class PSBTParser():
         if len(cosigners) != len(pubkeys):
             raise RuntimeError("Can't get all cosigners")
         return sorted(cosigners)
+
+
+    @classmethod
+    def get_input_fingerprints(cls, psbt: PSBT) -> List[str]:
+        """
+            Exctracts the fingerprint from each input's derivation path.
+
+            TODO: It's unclear if these derivations/fingerprints would ever be missing.
+            Research on PSBT standard and known wallet coordinator implementations
+            needed.
+        """
+        fingerprints = set()
+        for input in psbt.inputs:
+            for pub, derivation_path in input.bip32_derivations.items():
+                fingerprints.add(hexlify(derivation_path.fingerprint).decode())
+        return list(fingerprints)
+
+
+    @classmethod
+    def has_matching_fingerprint(cls, psbt: PSBT, seed: Seed, network: str = "main"):
+        """
+            Extracts the fingerprint from each psbt input utxo. Returns True if any match
+            the current seed.
+        """
+        seed_fingerprint = seed.get_fingerprint(network)
+        for input in psbt.inputs:
+            for pub, derivation_path in input.bip32_derivations.items():
+                if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():
+                    return True
+        return False

@@ -125,7 +125,8 @@ class Controller(Singleton):
     def start(self) -> None:
         from .views import View, Destination, OpeningSplashView, MainMenuView, BackStackView
 
-        opening_splash = OpeningSplashView()
+        # Disabled to save some time during dev...
+        # opening_splash = OpeningSplashView()
         # opening_splash.start()
 
         """ Class references can be stored as variables in python!
@@ -156,32 +157,34 @@ class Controller(Singleton):
         try:
             next_destination = Destination(MainMenuView)
             while True:
-                if next_destination.View_cls is None or next_destination.View_cls == MainMenuView:
-                    # None is a special case; render the Home screen
-
-                    # DEBUGGING
-                    # /DEBUGGING
-
+                # Destination(None) is a special case; render the Home screen
+                if next_destination.View_cls is None:
                     next_destination = Destination(MainMenuView)
 
+                if next_destination.View_cls == MainMenuView:
                     # Home always wipes the back_stack
                     self.clear_back_stack()
-
+                
                 print(f"Executing {next_destination}")
                 next_destination = next_destination.run()
 
-                print(f"next_destination: {next_destination}")
+                if not next_destination:
+                    # Should only happen during dev when you hit an unimplemented option
+                    next_destination = Destination(None)
 
                 if next_destination.skip_current_view:
                     # Remove the current View from history; it's forwarding us straight
                     # to the next View.
                     self.pop_back_stack()
 
+                # Hang on to this reference...
                 clear_history = next_destination.clear_history
+
                 if next_destination.View_cls == BackStackView:
                     # "Back" arrow was clicked; load the previous view
                     next_destination = self.pop_back_stack()
 
+                # ...now apply it, if needed
                 if clear_history:
                     self.clear_back_stack()
 
@@ -192,32 +195,6 @@ class Controller(Singleton):
         finally:
             # Clear the screen when exiting
             self.renderer.display_blank_screen()
-
-        # if self.DEBUG:
-        #     # Let Exceptions halt execution
-        #     try:
-        #         self.show_main_menu()
-        #     finally:
-        #         # Clear the screen when exiting
-        #         self.renderer.display_blank_screen()
-
-        # else:
-        #     # Handle Unexpected crashes by restarting up to 3 times
-        #     crash_cnt = 0
-        #     while True:
-        #         try:
-        #             self.show_main_menu()
-        #         except Exception as error:
-        #             if crash_cnt >= 3:
-        #                 break
-        #             else:
-        #                 print('Caught this error: ' + repr(error)) # debug
-        #                 self.renderer.draw_modal(["Crashed ..."], "", "restarting")
-        #                 time.sleep(5)
-
-        #             crash_cnt += 1
-
-        #     self.renderer.draw_modal(["Crashed ..."], "", "requires hard restart")
 
 
     def start_screensaver(self):
