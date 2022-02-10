@@ -1,11 +1,9 @@
 import math
 import os
 import pathlib
-import sys
 
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from threading import Thread
 from typing import List, Tuple
 
 from seedsigner.models import Singleton
@@ -20,6 +18,11 @@ class GUIConstants:
     BACKGROUND_COLOR = "black"
     WARNING_COLOR = "#FFD60A"
     DIRE_WARNING_COLOR = "red"
+
+    ICON_FONT_NAME = "Font_Awesome_6_Free-Solid-900"
+    ICON_FONT_SIZE = 22
+    ICON_INLINE_FONT_SIZE = 24
+    ICON_LARGE_BUTTON_SIZE = 36
 
     TOP_NAV_TITLE_FONT_NAME = "OpenSans-SemiBold"
     TOP_NAV_TITLE_FONT_SIZE = 20
@@ -42,6 +45,23 @@ class GUIConstants:
     BUTTON_FONT_SIZE = 18
     BUTTON_FONT_COLOR = "#e8e8e8"
     BUTTON_HEIGHT = 32
+
+
+
+class FontAwesomeIconConstants:
+    CHEVRON_LEFT = "\uf053"
+    CIRCLE_CHECK = "\uf058"
+    CIRCLE_EXCLAMATION = "\uf06a"
+    FINGERPRINT = "\uf577"
+    GEAR = "\uf013"
+    KEY = "\uf084"
+    LOCK = "\uf023"
+    MAP = "\uf279"
+    POWER_OFF = "\uf011"
+    SCREWDRIVER_WRENCH = "\uf7d9"
+    TRIANGLE_EXCLAMATION = "\uf071"
+    QRCODE = "\uf029"
+    X = "\u0058"
 
 
 
@@ -95,14 +115,14 @@ class Fonts(Singleton):
     fonts = {}
 
     @classmethod
-    def get_font(cls, font_name, size) -> ImageFont.FreeTypeFont:
+    def get_font(cls, font_name, size, file_extension: str = "ttf") -> ImageFont.FreeTypeFont:
         # Cache already-loaded fonts
         if font_name not in cls.fonts:
             cls.fonts[font_name] = {}
-
+        
         if size not in cls.fonts[font_name]:
             try:
-                cls.fonts[font_name][size] = ImageFont.truetype(os.path.join(cls.font_path, f"{font_name}.ttf"), size)
+                cls.fonts[font_name][size] = ImageFont.truetype(os.path.join(cls.font_path, f"{font_name}.{file_extension}"), size)
             except OSError as e:
                 if "cannot open resource" in str(e):
                     raise Exception(f"Font {font_name}.ttf not found: {repr(e)}")
@@ -284,7 +304,25 @@ class TextArea(BaseComponent):
 
 
 @dataclass
-class IconTextLine(BaseComponent):
+class FontAwesomeIcon(BaseComponent):
+    screen_x: int = 0
+    screen_y: int = 0
+    icon_name: str = FontAwesomeIconConstants.QRCODE
+    icon_size: int = GUIConstants.ICON_FONT_SIZE
+    icon_color: str = GUIConstants.BODY_FONT_COLOR
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME, self.icon_size, file_extension="otf")
+        self.width, self.height = self.icon_font.getsize(self.icon_name)
+    
+    def render(self):
+        self.image_draw.text((self.screen_x, self.screen_y), text=self.icon_name, font=self.icon_font, fill=self.icon_color)
+
+
+
+@dataclass
+class PngIconTextLine(BaseComponent):
     """
         Renders an icon next to a label/value pairing (or just value)
     """
@@ -363,6 +401,97 @@ class IconTextLine(BaseComponent):
 
 
 @dataclass
+class IconTextLine(BaseComponent):
+    """
+        Renders an icon next to a label/value pairing (or just value)
+        # TODO: Eliminate repeated code with PngIconTextLine
+    """
+    icon_name: str = FontAwesomeIconConstants.CIRCLE_CHECK
+    icon_size: int = GUIConstants.ICON_FONT_SIZE
+    icon_color: str = GUIConstants.BODY_FONT_COLOR
+    label_text: str = None
+    value_text: str = "73c5da0a"
+    font_size: int = GUIConstants.BODY_FONT_SIZE
+    is_text_centered: bool = False
+    screen_x: int = 0
+    screen_y: int = 0
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.icon = FontAwesomeIcon(
+            screen_x=self.screen_x,
+            screen_y=0,    # We'll update this later below
+            icon_name=self.icon_name,
+            icon_size=self.icon_size,
+            icon_color=self.icon_color
+        )
+
+        self.icon_horizontal_spacer = int(GUIConstants.COMPONENT_PADDING/2)
+
+        text_screen_x = self.screen_x + self.icon.width + self.icon_horizontal_spacer
+        if self.label_text:
+            self.label_textarea = TextArea(
+                image_draw=self.image_draw,
+                canvas=self.canvas,
+                text=self.label_text,
+                font_size=GUIConstants.BODY_FONT_SIZE - 2,
+                font_color="#666",
+                edge_padding=0,
+                is_text_centered=False,
+                auto_line_break=False,
+                screen_x=text_screen_x,
+                screen_y=self.screen_y,
+            )
+        else:
+            self.label_textarea = None        
+        
+        value_textarea_screen_y = self.screen_y
+        if self.label_text:
+            value_textarea_screen_y += self.label_textarea.height
+        self.value_textarea = TextArea(
+            image_draw=self.image_draw,
+            canvas=self.canvas,
+            text=self.value_text,
+            font_size=self.font_size,
+            edge_padding=0,
+            is_text_centered=False,
+            auto_line_break=False,
+            screen_x=text_screen_x,
+            screen_y=value_textarea_screen_y,
+        )
+
+        if self.label_text:
+            self.height = self.label_textarea.height + self.value_textarea.height
+            icon_y = self.screen_y + int((self.height - self.icon.height) / 2)
+            max_textarea_width = max(self.label_textarea.width, self.value_textarea.width)
+        else:
+            self.height = self.value_textarea.height
+            icon_y = self.screen_y
+            max_textarea_width = self.value_textarea.width
+        
+        # Now we can update the icon's y position
+        self.icon.screen_y = icon_y
+        
+        if self.is_text_centered:
+            total_width = max_textarea_width + self.icon.width + self.icon_horizontal_spacer
+            self.icon.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - total_width) / 2)
+            if self.label_text:
+                self.label_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
+            self.value_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
+        
+        self.height = self.value_textarea.screen_y + self.value_textarea.height - self.screen_y
+
+
+    def render(self):
+        if self.label_textarea:
+            self.label_textarea.render()
+        self.value_textarea.render()
+        self.icon.render()
+
+
+
+@dataclass
 class FormattedAddress(BaseComponent):
     """
         Display a Bitcoin address in a "{first 7} {middle} {last 7}" formatted view with
@@ -401,98 +530,126 @@ class FormattedAddress(BaseComponent):
 
         n = 7
         display_str = f"{self.address[:n]} {self.address[n:-1*n]} {self.address[-1*n:]}"
-
-        max_chars_per_line = math.floor(self.width / char_width)
-        num_lines = math.ceil(len(display_str)/max_chars_per_line)
-        
-        # Recalc chars per line to even out all x lines to the same width
-        max_chars_per_line  = math.ceil(len(display_str) / num_lines)
-
         self.text_params = []
-
-        remaining_display_str = display_str
-        addr_lines_x = self.screen_x + int((self.width - char_width*max_chars_per_line) / 2)
         cur_y = 0
 
-        for i in range(0, num_lines):
-            cur_str = remaining_display_str[:max_chars_per_line]
-            if i == 0:
-                # Split cur_str into two sections to highlight first_n
-                self.text_params.append((
-                    (addr_lines_x, cur_y),
-                    cur_str.split()[0],
-                    self.font_accent_color,
-                    self.accent_font
-                ))
-                self.text_params.append((
-                    (
-                        addr_lines_x + char_width*(n+1),
-                        cur_y
-                    ),
-                    cur_str.split()[1],
-                    self.font_base_color,
-                    self.font
-                ))
-
-            elif i == num_lines - 1:
-                # Split cur_str into two sections to highlight last_n
-                self.text_params.append((
-                    (
-                        addr_lines_x,
-                        cur_y
-                    ),
-                    cur_str.split()[0],
-                    self.font_base_color,
-                    self.font
-                ))
-                self.text_params.append((
-                    (
-                        addr_lines_x + char_width*(len(cur_str) - (n)),
-                        cur_y
-                    ),
-                    cur_str.split()[1],
-                    self.font_accent_color,
-                    self.accent_font
-                ))
-
-            elif self.max_lines and i == self.max_lines - 1:
-                # We can't fit the whole address. Have to truncate here and highlight the
-                # last_n.
-                self.text_params.append((
-                    (
-                        addr_lines_x,
-                        cur_y
-                    ),
-                    cur_str[:-1*n - 3] + "...",
-                    self.font_base_color,
-                    self.font
-                ))
-                self.text_params.append((
-                    (
-                        addr_lines_x + char_width*(len(cur_str) - (n)),
-                        cur_y
-                    ),
-                    self.address[-1*n:],
-                    self.font_accent_color,
-                    self.accent_font
-                ))
-                cur_y += char_height
-                break
-
-            else:
-                # This is a middle line with no highlighted section
-                self.text_params.append((
-                    (
-                        addr_lines_x,
-                        cur_y
-                    ),
-                    cur_str,
-                    self.font_base_color,
-                    self.font
-                ))
-
-            remaining_display_str = remaining_display_str[max_chars_per_line:]
+        if self.max_lines == 1:
+            addr_lines_x = int((self.width - char_width*(2*n + 3))/2)
+            # Can only show first/last n truncated
+            self.text_params.append((
+                (addr_lines_x, cur_y),
+                display_str.split()[0],
+                self.font_accent_color,
+                self.accent_font
+            ))
+            self.text_params.append((
+                (
+                    addr_lines_x + char_width*n,
+                    cur_y
+                ),
+                "...",
+                self.font_base_color,
+                self.font
+            ))
+            self.text_params.append((
+                (
+                    addr_lines_x + char_width*(n + 3),
+                    cur_y
+                ),
+                display_str.split()[2],
+                self.font_accent_color,
+                self.accent_font
+            ))
             cur_y += char_height
+
+        else:
+            max_chars_per_line = math.floor(self.width / char_width)
+            num_lines = math.ceil(len(display_str)/max_chars_per_line)
+            
+            # Recalc chars per line to even out all x lines to the same width
+            max_chars_per_line  = math.ceil(len(display_str) / num_lines)
+
+            remaining_display_str = display_str
+            addr_lines_x = self.screen_x + int((self.width - char_width*max_chars_per_line) / 2)
+            for i in range(0, num_lines):
+                cur_str = remaining_display_str[:max_chars_per_line]
+                if i == 0:
+                    # Split cur_str into two sections to highlight first_n
+                    self.text_params.append((
+                        (addr_lines_x, cur_y),
+                        cur_str.split()[0],
+                        self.font_accent_color,
+                        self.accent_font
+                    ))
+                    self.text_params.append((
+                        (
+                            addr_lines_x + char_width*(n+1),
+                            cur_y
+                        ),
+                        cur_str.split()[1],
+                        self.font_base_color,
+                        self.font
+                    ))
+
+                elif i == num_lines - 1:
+                    # Split cur_str into two sections to highlight last_n
+                    self.text_params.append((
+                        (
+                            addr_lines_x,
+                            cur_y
+                        ),
+                        cur_str.split()[0],
+                        self.font_base_color,
+                        self.font
+                    ))
+                    self.text_params.append((
+                        (
+                            addr_lines_x + char_width*(len(cur_str) - (n)),
+                            cur_y
+                        ),
+                        cur_str.split()[1],
+                        self.font_accent_color,
+                        self.accent_font
+                    ))
+
+                elif self.max_lines and i == self.max_lines - 1:
+                    # We can't fit the whole address. Have to truncate here and highlight the
+                    # last_n.
+                    self.text_params.append((
+                        (
+                            addr_lines_x,
+                            cur_y
+                        ),
+                        cur_str[:-1*n - 3] + "...",
+                        self.font_base_color,
+                        self.font
+                    ))
+                    self.text_params.append((
+                        (
+                            addr_lines_x + char_width*(len(cur_str) - (n)),
+                            cur_y
+                        ),
+                        self.address[-1*n:],
+                        self.font_accent_color,
+                        self.accent_font
+                    ))
+                    cur_y += char_height
+                    break
+
+                else:
+                    # This is a middle line with no highlighted section
+                    self.text_params.append((
+                        (
+                            addr_lines_x,
+                            cur_y
+                        ),
+                        cur_str,
+                        self.font_base_color,
+                        self.font
+                    ))
+
+                remaining_display_str = remaining_display_str[max_chars_per_line:]
+                cur_y += char_height
         
         self.height = cur_y
     
@@ -516,6 +673,8 @@ class Button(BaseComponent):
     width: int = None
     height: int = None
     icon_name: str = None   # Optional icon to accompany the text
+    icon_size: int = GUIConstants.ICON_INLINE_FONT_SIZE
+    icon_color: str = GUIConstants.BODY_FONT_COLOR
     icon_y_offset: int = 2
     is_icon_inline: bool = True    # True = render next to text; False = render centered above text
     text_y_offset: int = 0
@@ -558,7 +717,8 @@ class Button(BaseComponent):
         # Preload the icon and its "_selected" variant
         if self.icon_name:
             icon_padding = 8
-            (self.icon, self.icon_selected) = load_icon(self.icon_name, load_selected_variant=True)
+            self.icon = FontAwesomeIcon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.icon_color)
+            self.icon_selected = FontAwesomeIcon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.selected_font_color)
 
             if self.is_icon_inline:
                 if self.text:
@@ -572,6 +732,9 @@ class Button(BaseComponent):
             else:
                 self.icon_x = self.screen_x + int((self.width - self.icon.width) / 2)
                 self.icon_y = self.screen_y + self.icon_y_offset
+
+            self.icon.screen_x = self.icon_x
+            self.icon_selected.screen_x = self.icon_x
 
 
     def render(self):
@@ -591,7 +754,8 @@ class Button(BaseComponent):
             icon = self.icon
             if self.is_selected:
                 icon = self.icon_selected
-            self.canvas.paste(icon, (self.icon_x, self.icon_y - self.scroll_y))
+            icon.screen_y = self.icon_y + self.scroll_y
+            icon.render()
 
 
 
@@ -601,6 +765,7 @@ class IconButton(Button):
         A button that is primarily a big icon (e.g. the Home screen buttons) w/text below
         the icon.
     """
+    icon_size: int = GUIConstants.ICON_LARGE_BUTTON_SIZE
     is_icon_inline: bool = False
     icon_y_offset: int = 8
 
@@ -630,7 +795,8 @@ class TopNav(BaseComponent):
         if self.show_back_button:
             self.back_button = IconButton(
                 text=None,
-                icon_name="back",
+                icon_name=FontAwesomeIconConstants.CHEVRON_LEFT,
+                icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,
                 width=GUIConstants.TOP_NAV_BUTTON_SIZE,
@@ -641,7 +807,8 @@ class TopNav(BaseComponent):
         if self.show_power_button:
             self.power_button = IconButton(
                 text=None,
-                icon_name="power",
+                icon_name=FontAwesomeIconConstants.POWER_OFF,
+                icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_x=self.width - GUIConstants.TOP_NAV_BUTTON_SIZE - GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,
                 width=GUIConstants.TOP_NAV_BUTTON_SIZE,

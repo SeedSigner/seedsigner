@@ -2,7 +2,7 @@ import time
 
 from dataclasses import dataclass
 
-from seedsigner.gui.components import Fonts
+from seedsigner.gui.components import FontAwesomeIconConstants, Fonts
 from seedsigner.gui.screens import (RET_CODE__POWER_BUTTON, ButtonListScreen,
     TextTopNavScreen)
 
@@ -134,10 +134,10 @@ class MainMenuView(View):
         from .tools_views import ToolsMenuView
         from seedsigner.gui.screens import LargeButtonScreen
         menu_items = [
-            (("Scan", "scan"), ScanView),
-            (("Seeds", "seeds"), SeedsMenuView),
-            (("Tools", "tools"), ToolsMenuView),
-            (("Settings", "settings"), SettingsMenuView),
+            (("Scan", FontAwesomeIconConstants.QRCODE), ScanView),
+            (("Seeds", FontAwesomeIconConstants.KEY), SeedsMenuView),
+            (("Tools", FontAwesomeIconConstants.SCREWDRIVER_WRENCH), ToolsMenuView),
+            (("Settings", FontAwesomeIconConstants.GEAR), SettingsMenuView),
         ]
         screen = LargeButtonScreen(
             title="Home",

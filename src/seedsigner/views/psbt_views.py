@@ -1,23 +1,13 @@
-import json
-from threading import Thread
 import time
-from typing import Counter
 
-from embit import psbt
-from seedsigner.gui.components import TextArea
-from seedsigner.gui.screens.seed_screens import SeedValidScreen
-from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
-from seedsigner.models import psbt_parser
-
-from seedsigner.models.psbt_parser import PSBTParser
-
-from seedsigner.models.settings import SettingsConstants
+from seedsigner.gui.components import FontAwesomeIconConstants
 
 from .view import BackStackView, MainMenuView, View, Destination
 
+from seedsigner.gui.screens import psbt_screens
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonListScreen, LoadingScreenThread
-from seedsigner.models import DecodeQR, Seed
-from seedsigner.models.qr_type import QRType
+from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
+from seedsigner.models.psbt_parser import PSBTParser
 
 
 
@@ -31,19 +21,19 @@ class PSBTSelectSeedView(View):
         
         seeds = self.controller.storage.seeds
 
-        SCAN_SEED = ("Scan a seed", "scan_inline")
+        SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
         ENTER_WORDS = "Enter 12/24 words"
         button_data = []
         for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.network)
-            if not PSBTParser.has_matching_fingerprint(psbt=self.controller.psbt, seed=seed, network=self.settings.network):
+            if not PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=seed, network=self.settings.network):
                 # Doesn't look like this seed can sign the current PSBT
                 button_str += " (?)"
             
             if seed.passphrase is not None:
                 # TODO: Include lock icon on right side of button
                 pass
-            button_data.append((button_str, "fingerprint_inline"))
+            button_data.append((button_str, FontAwesomeIconConstants.FINGERPRINT))
         button_data.append(SCAN_SEED)
         button_data.append(ENTER_WORDS)
 
@@ -59,7 +49,8 @@ class PSBTSelectSeedView(View):
 
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
-            return Destination(PSBTOverviewView, view_args={"seed_num": selected_menu_num})
+            self.controller.psbt_seed = self.controller.storage.seeds[selected_menu_num]
+            return Destination(PSBTOverviewView)
 
         elif button_data[selected_menu_num] == SCAN_SEED:
             from seedsigner.views.scan_views import ScanView
@@ -71,32 +62,27 @@ class PSBTSelectSeedView(View):
 
 
 
-
 class PSBTOverviewView(View):
-    def __init__(self, seed_num: int):
+    def __init__(self):
         super().__init__()
-        self.seed_num = seed_num
-        self.seed = self.controller.get_seed(self.seed_num)
 
         # The PSBTParser takes a while to read the PSBT. Run the loading screen while we
         # wait.
         self.loading_screen = LoadingScreenThread(text="Parsing PSBT...")
         self.loading_screen.start()
 
-        if not self.controller.psbt_parser or self.controller.psbt_parser.seed != self.seed:
+        if not self.controller.psbt_parser or self.controller.psbt_parser.seed != self.controller.psbt_seed:
             # Must run the PSBTParser or re-parse
             self.controller.psbt_parser = PSBTParser(
                 self.controller.psbt,
-                seed=self.seed,
+                seed=self.controller.psbt_seed,
                 network=self.controller.settings.network
             )
 
 
     def run(self):
-        from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen
-
         psbt_parser = self.controller.psbt_parser
-        screen = PSBTOverviewScreen(
+        screen = psbt_screens.PSBTOverviewScreen(
             spend_amount=psbt_parser.spend_amount,
             change_amount=psbt_parser.change_amount,
             fee_amount=psbt_parser.fee_amount,
@@ -108,6 +94,22 @@ class PSBTOverviewView(View):
         self.loading_screen.stop()
 
         # Run the overview screen
+        selected_menu_num = screen.display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        if psbt_parser.change_amount == 0:
+            return Destination(PSBTNoChangeWarningView)
+
+        else:
+            return Destination(PSBTAmountDetailsView)
+
+
+
+class PSBTNoChangeWarningView(View):
+    def run(self):
+        screen = psbt_screens.PSBTNoChangeWarningScreen()
         selected_menu_num = screen.display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -164,59 +166,40 @@ class PSBTAddressDetailsView(View):
 
 
     def run(self):
-        from seedsigner.gui.screens.psbt_screens import PSBTAddressDetailsScreen
-
         psbt_parser: PSBTParser = self.controller.psbt_parser
 
         if not psbt_parser:
             # Should not be able to get here
             return Destination(MainMenuView)
 
-        if self.is_change:
-            screen = PSBTAddressDetailsScreen(
-                address=psbt_parser.change_addresses[self.address_num],
-                amount=psbt_parser.change_amounts[self.address_num],
-                address_number=self.address_num + 1,   # Screen title starts count at 1
-                num_addresses=len(psbt_parser.change_addresses),
-                is_change=self.is_change
-            )
+        title = "Sending"
+        if psbt_parser.num_destinations > 1:
+            title += f" (#{self.address_num + 1})"
+
+        button_data = []
+        if self.address_num < psbt_parser.num_destinations - 1:
+            button_data.append("Next Recipient")
         else:
-            screen = PSBTAddressDetailsScreen(
-                address=psbt_parser.destination_addresses[self.address_num],
-                amount=psbt_parser.destination_amounts[self.address_num],
-                address_number=self.address_num + 1,   # Screen title starts count at 1
-                num_addresses=len(psbt_parser.destination_addresses),
-                is_change=self.is_change
-            )
+            button_data.append("Next")
 
+        screen = psbt_screens.PSBTAddressDetailsScreen(
+            title=title,
+            button_data=button_data,
+            address=psbt_parser.destination_addresses[self.address_num],
+            amount=psbt_parser.destination_amounts[self.address_num],
+            is_change=self.is_change,
+        )
 
-        # self.address = "bc1p2805rrtn627nvvmwlj89htyyxyg588lazc2ytef5ejyrwpfpsxnqca4eg7"
-        # self.address = "bc1qhzp0n0vyv9lrzh27rxrc2wfu05jhzcz5626dylpgl4cjt2q9uq4s8359wx"
-        # self.address = "bc1qj2k6cy7yx7490zn6y7dkg70lc8kdhruvdn36d8"
-        # self.address = "3Ge7DUnW63PFpQh826HQeGMmdtyd4Cj3s9"
-        # self.amount = 78942
         selected_menu_num = screen.display()
 
-        if self.is_change:
-            if selected_menu_num == 0:
-                # Verify this change addr
-                return Destination(PSBTSingleSigChangeVerificationView, view_args={"change_address_num": self.address_num})
-            elif selected_menu_num == 1:
-                # Skipping verification
-                if self.address_num < len(psbt_parser.change_addresses) - 1:
-                    return Destination(PSBTAddressDetailsView, view_args={"address_num": self.address_num + 1, "is_change": True})
-                else:
-                    # There's no more change to verify. Move on to sign the PSBT.
-                    return Destination(MainMenuView, view_args={})
-
-        elif selected_menu_num == 0:
+        if selected_menu_num == 0:
             if self.address_num < len(psbt_parser.destination_addresses) - 1:
                 # Show the next receive addr
                 return Destination(PSBTAddressDetailsView, view_args={"address_num": self.address_num + 1, "is_change": False})
 
             elif psbt_parser.change_amount > 0:
                 # Move on to display change
-                return Destination(PSBTAddressDetailsView, view_args={"address_num": 0, "is_change": True})
+                return Destination(PSBTChangeDetailsView, view_args={"change_address_num": 0})
 
             else:
                 # There's no change output to verify. Move on to sign the PSBT.
@@ -227,116 +210,68 @@ class PSBTAddressDetailsView(View):
 
 
 
-# TODO: Move this to `seed_views` as the address verification util
-class PSBTSingleSigChangeVerificationView(View):
+class PSBTChangeDetailsView(View):
     """
     """
     def __init__(self, change_address_num):
         super().__init__()
         self.change_address_num = change_address_num
-    
+
 
     def run(self):
-        from seedsigner.gui.screens.psbt_screens import PSBTSingleSigChangeVerificationScreen
-
         psbt_parser: PSBTParser = self.controller.psbt_parser
-        if not psbt_parser:
+
+        if not psbt_parser or psbt_parser.is_multisig:
             # Should not be able to get here
             return Destination(MainMenuView)
-        
-        address = psbt_parser.change_addresses[self.change_address_num]
-        threadsafe_counter = ThreadsafeCounter()
 
-        change_verification_thread = PSBTSingleSigChangeVerificationView.ChangeVerificationThread(
-            psbt_parser=psbt_parser,
-            address=address,
-            threadsafe_counter=threadsafe_counter
-        )
-        change_verification_thread.start()
+        # Can we verify this change addr?
+        change_data = psbt_parser.get_change_data(change_num=self.change_address_num)
 
-        screen = PSBTSingleSigChangeVerificationScreen(
-            change_address=psbt_parser.change_addresses[self.change_address_num],
-            threadsafe_counter=threadsafe_counter,
+        # Single-sig verification is easy. We expect to find a single fingerprint
+        # and derivation path.
+        print(f"seed fingerprint: {self.controller.psbt_seed.get_fingerprint(self.settings.network)}")
+        print(change_data)
+
+        if self.controller.psbt_seed.get_fingerprint(self.settings.network) != change_data.get("fingerprint")[0]:
+            # TODO: Something is wrong with this psbt(?). Reroute to warning?
+            return Destination(MainMenuView)
+
+        fingerprint = change_data.get("fingerprint")[0]
+        derivation_path = change_data.get("derivation_path")[0]
+
+        # 'm/84h/1h/0h/1/0' would be a change addr while 'm/84h/1h/0h/0/0' is a self-receive
+        is_own_change_addr = int(derivation_path.split("/")[-2]) == 1
+        own_addr_index = int(derivation_path.split("/")[-1])
+
+        # TODO: Generate address from seed at derivation_path and compare with
+        # change_data["address"]
+
+        title = "Your Change"
+        if psbt_parser.num_change_outputs > 1:
+            title += f" (#{self.change_address_num + 1})"
+
+        screen = psbt_screens.PSBTChangeDetailsScreen(
+            title=title,
+            button_data=["Next"],
+            address=change_data.get("address"),
+            amount=change_data.get("amount"),
+            fingerprint=fingerprint,
+            derivation_path=derivation_path,
+            is_own_change_addr=is_own_change_addr,
+            own_addr_index=own_addr_index,
         )
+
         selected_menu_num = screen.display()
-
-        change_verification_thread.stop()
 
         if selected_menu_num == 0:
             if self.change_address_num < len(psbt_parser.change_addresses) - 1:
-                # Show the next change addr
-                return Destination(PSBTAddressDetailsView, view_args={"address_num": self.change_address_num + 1, "is_change": True})
+                return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
+            else:
+                # There's no more change to verify. Move on to sign the PSBT.
+                return Destination(MainMenuView, view_args={})
 
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
 
-    class ChangeVerificationThread(BaseThread):
-        def __init__(self, psbt_parser: PSBTParser, address: str, threadsafe_counter: ThreadsafeCounter):
-            super().__init__()
-            self.psbt_parser = psbt_parser
-            self.address = address
-            self.threadsafe_counter = threadsafe_counter
-            self.verified_index: int = 0
-            self.verified_index_is_change: bool = None
-
-            print("Instantiated verification thread")
-
-
-        def run(self):
-            while self.keep_running:
-                # Do work to verify addr
-                # ...
-
-                # For now mocking that up with time consuming... sleep
-                time.sleep(0.25)
-
-                # Increment our index counter
-                self.threadsafe_counter.increment()
-
-                if self.threadsafe_counter.cur_count % 10 == 0:
-                    print(f"Incremented to {self.threadsafe_counter.cur_count}")
-
-                # On successfully verifying addr, set:
-                # self.verified_index = self.counter.cur_count
-                # self.verified_index_is_change = True
-                # break   # Will instance stick around if run() exits?
-
-                # TODO: This should be in `Seed` or `PSBT` utility class
-                # def verify_single_sig_addr(self, address:str):
-                #     import embit
-                #     network = embit.NETWORKS[self.settings.network]
-                #     version = embit.bip32.detect_version(derivation, default="xpub", network=network)
-                #     root = embit.bip32.HDKey.from_seed(seed.seed, version=network["xprv"])
-                #     fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
-                #     xprv = root.derive(derivation)
-                #     xpub = xprv.to_public()
-                #     for i in range(500):
-                #         r_pubkey = xpub.derive([0,i]).key
-                #         c_pubkey = xpub.derive([1,i]).key
-                        
-                #         recieve_address = ""
-                #         change_address = ""
-                        
-                #         if "P2PKH" in address_type:
-                #             recieve_address = embit.script.p2pkh(r_pubkey).address(network=network)
-                #             change_address = embit.script.p2pkh(c_pubkey).address(network=network)
-                #         elif "Bech32" in address_type:
-                #             recieve_address = embit.script.p2wpkh(r_pubkey).address(network=network)
-                #             change_address = embit.script.p2wpkh(c_pubkey).address(network=network)
-                #         elif "P2SH" in address_type:
-                #             recieve_address = embit.script.p2sh(embit.script.p2wpkh(r_pubkey)).address(network=network)
-                #             change_address = embit.script.p2sh(embit.script.p2wpkh(c_pubkey)).address(network=network)
-                            
-                #         if address == recieve_address:
-                #             self.menu_view.draw_modal(["Receive Address "+str(i), "Verified"], "", "Right to Exit")
-                #             input = self.buttons.wait_for([B.KEY_RIGHT])
-                #             return Path.MAIN_MENU
-                #         if address == change_address:
-                #             self.menu_view.draw_modal(["Change Address "+str(i), "Verified"], "", "Right to Exit")
-                #             input = self.buttons.wait_for([B.KEY_RIGHT])
-                #             return Path.MAIN_MENU
-                #         else:
-                #             self.menu_view.draw_modal(["Checking Address "+str(i), "..."], "", "Right to Abort")
-                #             if self.buttons.check_for_low(B.KEY_RIGHT) or self.buttons.check_for_low(B.KEY_LEFT):
-                #                 return Path.MAIN_MENU

@@ -1,15 +1,12 @@
-import time
-
 from dataclasses import dataclass
-from os import getuid
 from PIL import Image, ImageDraw, ImageFilter
 from typing import List
 
 from seedsigner.gui.renderer import Renderer
-from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
+from seedsigner.helpers.threads import BaseThread
 
-from .screen import ButtonListScreen
-from ..components import (FormattedAddress, GUIConstants, Fonts, IconTextLine, TextArea,
+from .screen import ButtonListScreen, WarningScreen
+from ..components import (FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, PngIconTextLine, TextArea,
     calc_bezier_curve, linear_interp)
 
 
@@ -41,7 +38,7 @@ class PSBTOverviewScreen(ButtonListScreen):
             amount_display = f"{self.spend_amount:,} sats"
         else:
             amount_display = f"{self.spend_amount/1e8:,} btc"
-        self.components.append(IconTextLine(
+        self.components.append(PngIconTextLine(
             icon_name="btc_logo_30x30",
             is_text_centered=True,
             value_text=f" {amount_display}",
@@ -137,10 +134,10 @@ class PSBTOverviewScreen(ButtonListScreen):
                 destination_column.append(f"[ ... ]")
                 destination_column.append(f"recipient {len(self.destination_addresses)}")
 
+            destination_column.append(f"fee")
+
             if self.change_amount > 0 and self.destination_addresses:
                 destination_column.append("change")
-
-            destination_column.append(f"fee")
 
             max_destination_text_width = 0
             for destination in destination_column:
@@ -431,7 +428,25 @@ class PSBTOverviewScreen(ButtonListScreen):
 
                     self.renderer.show_image()
 
+                # No need to CPU limit when running in its own thread?
                 # time.sleep(0.02)
+
+
+
+@dataclass
+class PSBTNoChangeWarningScreen(WarningScreen):
+    fingerprint: str = None
+
+    def __post_init__(self):
+        # Customize defaults
+        self.title: str = "Caution"
+        self.button_label: str = "Continue"
+        self.is_bottom_list: bool = True
+        self.warning_icon_name: str = "warning"
+        self.warning_headline: str = "Full Spend!"     # The colored text under the alert icon
+        self.warning_text: str = "This PSBT spends its entire input value. No change is coming back to your wallet."                      # The body text of the warning
+
+        super().__post_init__()
 
 
 
@@ -496,80 +511,56 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
         fixed_width_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, (GUIConstants.BODY_FONT_SIZE + 4)*ssf)
         digits_width, digits_height = fixed_width_font.getsize(self.input_amount + "+")
 
-        # if denomination == 'btc':
-        #     # Render background digit grouping zones
-        #     first_zone_start, th = fixed_width_font.getsize(f" {self.input_amount[:-6]}")
-        #     second_zone_start, th = fixed_width_font.getsize(f" {self.input_amount[:-3]}")
-        #     zone_height = int(digits_height * 1.2 * 4) + 12*ssf
-        #     draw.rectangle(
-        #         (
-        #             first_zone_start, 0,
-        #             second_zone_start, zone_height
-        #         ),
-        #         fill="#444"
-        #     )
-        #     draw.rectangle(
-        #         (
-        #             second_zone_start, 0,
-        #             digits_width, zone_height
-        #         ),
-        #         fill="#888"
-        #     )
-
         # Draw each line of the equation
         cur_y = 0
-        secondary_digit_color = "#777"
-        tertiary_digit_color = "#777"
-        if denomination == 'btc':
-            display_str = f" {self.input_amount}"
-            main_zone = display_str[:-6]
-            mid_zone = display_str[-6:-3]
-            end_zone = display_str[-3:]
-            main_zone_width, th = fixed_width_font.getsize(main_zone)
-            mid_zone_width, th = fixed_width_font.getsize(end_zone)
-            draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
-            draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill=secondary_digit_color)
-            draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)
-        else:
-            draw.text((0, cur_y), text=f" {self.input_amount}", font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
-        draw.text((digits_width, cur_y), text=f""" {self.num_inputs} input{"s" if self.num_inputs > 1 else ""}""", font=body_font, fill=GUIConstants.LABEL_FONT_COLOR)
+
+        def render_amount(cur_y, amount_str, info_text, info_text_color=GUIConstants.LABEL_FONT_COLOR):
+            secondary_digit_color = "#777"
+            tertiary_digit_color = "#777"
+            if denomination == 'btc':
+                display_str = amount_str
+                main_zone = display_str[:-6]
+                mid_zone = display_str[-6:-3]
+                end_zone = display_str[-3:]
+                main_zone_width, th = fixed_width_font.getsize(main_zone)
+                mid_zone_width, th = fixed_width_font.getsize(end_zone)
+                draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
+                draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill=secondary_digit_color)
+                draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)
+            else:
+                draw.text((0, cur_y), text=amount_str, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
+            draw.text((digits_width, cur_y), text=info_text, font=body_font, fill=info_text_color)
+
+        render_amount(
+            cur_y,
+            f" {self.input_amount}",
+            info_text=f""" {self.num_inputs} input{"s" if self.num_inputs > 1 else ""}""",
+        )
 
         cur_y += int(digits_height * 1.2)
-        if denomination == 'btc':
-            display_str = f"-{self.spend_amount}"
-            main_zone = display_str[:-6]
-            mid_zone = display_str[-6:-3]
-            end_zone = display_str[-3:]
-            main_zone_width, th = fixed_width_font.getsize(main_zone)
-            mid_zone_width, th = fixed_width_font.getsize(end_zone)
-            draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
-            draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill=secondary_digit_color)
-            draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)
-        else:
-            draw.text((0, cur_y), text=f"-{self.spend_amount}", font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
-        draw.text((digits_width, cur_y), text=f""" {self.num_recipients} recipient{"s" if self.num_recipients > 1 else ""}""", font=body_font, fill=GUIConstants.LABEL_FONT_COLOR)
+        render_amount(
+            cur_y,
+            f"-{self.spend_amount}",
+            info_text=f""" {self.num_recipients} recipient{"s" if self.num_recipients > 1 else ""}""",
+        )
 
         cur_y += int(digits_height * 1.2)
-        draw.text((0, cur_y), text=f"-{self.fee_amount}", font=fixed_width_font, fill=tertiary_digit_color)
-        draw.text((digits_width, cur_y), text=f""" fee {"(in sats)" if denomination == 'btc' else ""}""", font=body_font, fill=GUIConstants.LABEL_FONT_COLOR)
+        render_amount(
+            cur_y,
+            f"-{self.fee_amount}",
+            info_text=f""" fee""",
+        )
 
         cur_y += int(digits_height * 1.2) + 4 * ssf
         draw.line((0, cur_y, image.width, cur_y), fill=GUIConstants.BODY_FONT_COLOR, width=1)
         cur_y += 8 * ssf
 
-        if denomination == 'btc':
-            display_str = f" {self.change_amount}"
-            main_zone = display_str[:-6]
-            mid_zone = display_str[-6:-3]
-            end_zone = display_str[-3:]
-            main_zone_width, th = fixed_width_font.getsize(main_zone)
-            mid_zone_width, th = fixed_width_font.getsize(end_zone)
-            draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
-            draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill=secondary_digit_color)
-            draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)
-        else:
-            draw.text((0, cur_y), text=f" {self.change_amount}", font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
-        draw.text((digits_width, cur_y), text=f" {denomination} change", font=body_font, fill="darkorange")
+        render_amount(
+            cur_y,
+            f" {self.change_amount}",
+            info_text=f" {denomination} change",
+            info_text_color="darkorange"
+        )
 
         # Resize to target and sharpen final image
         image = image.resize((body_width, body_height), Image.LANCZOS)
@@ -581,56 +572,59 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
 class PSBTAddressDetailsScreen(ButtonListScreen):
     address: str = None
     amount: int = 0
-    address_number: int = 1
-    num_addresses: int = 0
     is_change: bool = False
 
     def __post_init__(self):
         # Customize defaults
         self.is_bottom_list = True
-        self.button_data = []
 
-        if self.is_change:
-            self.button_data.append("Verify Change")
+        # Set up the screen title
 
-        if self.num_addresses > 1:
-            self.title = f"""{"Change" if self.is_change else "Receive"} #{self.address_number}"""
-        else:
-            self.title = "Change" if self.is_change else "Receive"
-
-        if self.address_number < self.num_addresses:
-            self.button_data.append(f"""Next {"Change" if self.is_change else "Receiver"} Addr""")
-        else:
-            if self.is_change:
-                self.button_data.append("Skip Verification")
-            else:
-                self.button_data.append("Next")
+        # Set up the bottom button label for our next step
 
         super().__post_init__()
 
+        center_img_height = self.buttons[0].screen_y - self.top_nav.height
+
+        # if self.is_change and not self.is_multisig:
+        #     # Show confirmed change data
+        #     is_change_derivation_path = self.derivation_path.split("/")[-2] == "1"
+        #     change_addr_index = self.derivation_path.split("/")[-1]
+        #     change_confirmed = IconTextLine(
+        #         icon_name="fingerprint",
+        #         label_text="address confirmed",
+        #         value_text=f"""{self.fingerprint}: {"change" if is_change_derivation_path else "addr"} #{change_addr_index}""",
+        #         is_text_centered=True,
+        #         screen_y = self.buttons[0].screen_y - 2*GUIConstants.COMPONENT_PADDING - 2*GUIConstants.BODY_FONT_SIZE,
+        #     )
+        #     self.components.append(change_confirmed)
+
+        #     # Readjust how much vertical space the center_img has to work with
+        #     center_img_height = change_confirmed.screen_y - self.top_nav.height
+
         # Figuring out how to vertically center the sats and the address is
         # difficult so we just render to a temp image and paste it in place.
-        img = Image.new("RGB", (self.canvas_width, self.buttons[0].screen_y - self.top_nav.height), GUIConstants.BACKGROUND_COLOR)
-        draw = ImageDraw.Draw(img)
+        center_img = Image.new("RGB", (self.canvas_width, center_img_height), GUIConstants.BACKGROUND_COLOR)
+        draw = ImageDraw.Draw(center_img)
 
-        if self.amount <= 1e6:
+        if self.amount <= 1e7:
             amount_display = f"{self.amount:,} sats"
         else:
             amount_display = f"{self.amount/1e8:,} btc"
-        icon_text_line = IconTextLine(
+        icon_text_line = PngIconTextLine(
             image_draw=draw,
-            canvas=img,
+            canvas=center_img,
             icon_name="btc_logo_30x30",
             is_text_centered=True,
             value_text=f" {amount_display}",
-            font_size=20,
+            font_size=22,
             screen_x=GUIConstants.COMPONENT_PADDING,
             screen_y=0,
         )
 
         formatted_address = FormattedAddress(
             image_draw=draw,
-            canvas=img,
+            canvas=center_img,
             width=self.canvas_width - 2*GUIConstants.EDGE_PADDING,
             screen_x=GUIConstants.EDGE_PADDING,
             screen_y=icon_text_line.height + GUIConstants.COMPONENT_PADDING,
@@ -643,77 +637,57 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
         icon_text_line.render()
         formatted_address.render()
 
-        self.body_img = img.crop((
+        self.body_img = center_img.crop((
             0,
             0,
             self.canvas_width,
             formatted_address.screen_y + formatted_address.height
         ))
-        available_height = self.buttons[0].screen_y - self.top_nav.height
-        body_img_y = self.top_nav.height + int((available_height - self.body_img.height - GUIConstants.COMPONENT_PADDING)/2)
+        body_img_y = self.top_nav.height + int((center_img_height - self.body_img.height - GUIConstants.COMPONENT_PADDING)/2)
 
         self.paste_images.append((self.body_img, (0, body_img_y)))
 
 
 
 @dataclass
-class PSBTSingleSigChangeVerificationScreen(ButtonListScreen):
-    change_address: str = None
-    threadsafe_counter: ThreadsafeCounter = None
+class PSBTChangeDetailsScreen(ButtonListScreen):
+    title: str = "Your Change"
+    amount: int = 0
+    address: str = None
+    fingerprint: str = None
+    derivation_path: str = None
+    is_own_change_addr: bool = True
+    own_addr_index: int = 0
 
     def __post_init__(self):
         # Customize defaults
-        self.title = "Verify Change"
         self.is_bottom_list = True
-        self.button_data = ["Skip 10", "Cancel"]
-
         super().__post_init__()
 
-        label = TextArea(
-            text="change address",
-            font_size=GUIConstants.LABEL_FONT_SIZE,
-            font_color=GUIConstants.LABEL_FONT_COLOR,
+        self.components.append(PngIconTextLine(
+            icon_name="btc_logo_30x30",
+            value_text=f" {self.amount} sats" if self.amount < 1e6 else f"{self.amount/1e8:0.8f} btc",
+            font_size=22,
+            is_text_centered=True,
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING
-        )
-        self.components.append(label)
-
-        address_display = TextArea(
-            text=f"{self.change_address[:6]}...{self.change_address[-6:]}",
-            font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
-            font_size=GUIConstants.BODY_FONT_SIZE + 2,
-            screen_y=label.screen_y + label.height
-        )
-        self.components.append(address_display)
-
-        self.threads.append(PSBTSingleSigChangeVerificationScreen.ProgressThread(
-            renderer=self.renderer,
-            screen_y=address_display.screen_y + address_display.height + GUIConstants.COMPONENT_PADDING,
-            threadsafe_counter=self.threadsafe_counter,
+        ))
+        self.components.append(FormattedAddress(
+            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+            address=self.address,
+            max_lines=1,
         ))
 
-
-    class ProgressThread(BaseThread):
-        def __init__(self, renderer: Renderer, screen_y: int, threadsafe_counter: ThreadsafeCounter):
-            self.renderer = renderer
-            self.screen_y = screen_y
-            self.threadsafe_counter = threadsafe_counter
-            super().__init__()
-        
-        def run(self):
-            font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE)
-            tw, th = font.getsize("Checking address 001")
-            while self.keep_running:
-                with self.renderer.lock:
-                    # Need to clear the pixels
-                    # self.renderer.draw.rectangle((0, self.screen_y, self.renderer.canvas_width, self.screen_y + th), fill=GUIConstants.BACKGROUND_COLOR)
-
-                    textarea = TextArea(
-                        text=f"Checking address {self.threadsafe_counter.cur_count}",
-                        font_name=GUIConstants.BODY_FONT_NAME,
-                        font_size=GUIConstants.BODY_FONT_SIZE,
-                        screen_y=self.screen_y
-                    )
-                    textarea.render()
-                    # self.renderer.draw.text((int((self.renderer.canvas_width - tw)/2), self.screen_y), text=f"Checking address {self.threadsafe_counter.cur_count}", font=font, fill=GUIConstants.BODY_FONT_COLOR)
-                    self.renderer.show_image()
-                time.sleep(0.1)
+        self.components.append(IconTextLine(
+            icon_name=FontAwesomeIconConstants.FINGERPRINT,
+            icon_color="blue",
+            value_text=f"""{self.fingerprint}: {"Change" if self.is_own_change_addr else "Addr"} #{self.own_addr_index}""",
+            is_text_centered=False,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+        ))
+        self.components.append(IconTextLine(
+            icon_name=FontAwesomeIconConstants.CIRCLE_CHECK,
+            icon_color="#44ff00",
+            value_text="Address verified!",
+            is_text_centered=False,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+        ))

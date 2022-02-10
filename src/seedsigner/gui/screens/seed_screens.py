@@ -3,12 +3,13 @@ import time
 from dataclasses import dataclass
 
 from PIL import Image, ImageDraw, ImageFilter
+from seedsigner.gui.renderer import Renderer
+from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
 
 from seedsigner.models.seed import Seed
-from seedsigner.views.menu_view import MenuView
 
 from .screen import BaseScreen, BaseTopNavScreen, ButtonListScreen, WarningScreenMixin
-from ..components import Fonts, TextArea, GUIConstants, IconTextLine, calc_text_centering
+from ..components import FontAwesomeIconConstants, Fonts, IconTextLine, TextArea, GUIConstants, PngIconTextLine, calc_text_centering
 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.helpers import B
@@ -35,11 +36,11 @@ class SeedValidScreen(ButtonListScreen):
         self.components.append(self.title_textarea)
 
         self.fingerprint_icontl = IconTextLine(
-            icon_name="fingerprint",
+            icon_name=FontAwesomeIconConstants.FINGERPRINT,
+            icon_color="blue",
             value_text=self.fingerprint,
             font_size=GUIConstants.BODY_FONT_SIZE + 2,
             is_text_centered=True,
-            screen_x = -4,
             screen_y=self.title_textarea.screen_y + self.title_textarea.height
         )
         self.components.append(self.fingerprint_icontl)
@@ -58,7 +59,8 @@ class SeedOptionsScreen(ButtonListScreen):
         super().__post_init__()
 
         self.components.append(IconTextLine(
-            icon_name="fingerprint",
+            icon_name=FontAwesomeIconConstants.FINGERPRINT,
+            icon_color="blue",
             value_text=self.fingerprint,
             is_text_centered=True,
             screen_y=self.top_nav.height
@@ -318,7 +320,8 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
 
         # Set up the fingerprint and passphrase displays
         self.fingerprint_line = IconTextLine(
-            icon_name="fingerprint",
+            icon_name=FontAwesomeIconConstants.FINGERPRINT,
+            icon_color="blue",
             label_text="Fingerprint",
             value_text=self.fingerprint,
             screen_x=GUIConstants.COMPONENT_PADDING,
@@ -327,7 +330,7 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
         self.components.append(self.fingerprint_line)
 
         self.derivation_line = IconTextLine(
-            icon_name="fingerprint",
+            icon_name=FontAwesomeIconConstants.MAP,
             label_text="Derivation",
             value_text=self.derivation_path,
             screen_x=GUIConstants.COMPONENT_PADDING,
@@ -336,7 +339,7 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
         self.components.append(self.derivation_line)
 
         self.xpub_line = IconTextLine(
-            icon_name="fingerprint",
+            icon_name=FontAwesomeIconConstants.X,
             label_text="Xpub",
             value_text=self.xpub,
             screen_x=GUIConstants.COMPONENT_PADDING,
@@ -656,3 +659,74 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 pass
 
             self.renderer.show_image()
+
+
+
+@dataclass
+class SingleSigAddressVerificationScreen(ButtonListScreen):
+    """
+        Not yet exposed in the UI. This was moved from the PSBT Verification flow since
+        we don't need to brute force iterate the change addrs there. But this can still
+        be useful for a generalized address verification process. Probably makes sense to
+        have a screen before this that prompts for the index num but also give the user
+        the choice to just start the brute force search.
+    """
+    change_address: str = None
+    threadsafe_counter: ThreadsafeCounter = None
+
+    def __post_init__(self):
+        # Customize defaults
+        self.title = "Verify Change"
+        self.is_bottom_list = True
+        self.button_data = ["Skip 10", "Cancel"]
+
+        super().__post_init__()
+
+        label = TextArea(
+            text="change address",
+            font_size=GUIConstants.LABEL_FONT_SIZE,
+            font_color=GUIConstants.LABEL_FONT_COLOR,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING
+        )
+        self.components.append(label)
+
+        address_display = TextArea(
+            text=f"{self.change_address[:6]}...{self.change_address[-6:]}",
+            font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
+            font_size=GUIConstants.BODY_FONT_SIZE + 2,
+            screen_y=label.screen_y + label.height
+        )
+        self.components.append(address_display)
+
+        self.threads.append(SingleSigAddressVerificationScreen.ProgressThread(
+            renderer=self.renderer,
+            screen_y=address_display.screen_y + address_display.height + GUIConstants.COMPONENT_PADDING,
+            threadsafe_counter=self.threadsafe_counter,
+        ))
+
+
+    class ProgressThread(BaseThread):
+        def __init__(self, renderer: Renderer, screen_y: int, threadsafe_counter: ThreadsafeCounter):
+            self.renderer = renderer
+            self.screen_y = screen_y
+            self.threadsafe_counter = threadsafe_counter
+            super().__init__()
+        
+        def run(self):
+            font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE)
+            tw, th = font.getsize("Checking address 001")
+            while self.keep_running:
+                with self.renderer.lock:
+                    # Need to clear the pixels
+                    # self.renderer.draw.rectangle((0, self.screen_y, self.renderer.canvas_width, self.screen_y + th), fill=GUIConstants.BACKGROUND_COLOR)
+
+                    textarea = TextArea(
+                        text=f"Checking address {self.threadsafe_counter.cur_count}",
+                        font_name=GUIConstants.BODY_FONT_NAME,
+                        font_size=GUIConstants.BODY_FONT_SIZE,
+                        screen_y=self.screen_y
+                    )
+                    textarea.render()
+                    # self.renderer.draw.text((int((self.renderer.canvas_width - tw)/2), self.screen_y), text=f"Checking address {self.threadsafe_counter.cur_count}", font=font, fill=GUIConstants.BODY_FONT_COLOR)
+                    self.renderer.show_image()
+                time.sleep(0.1)

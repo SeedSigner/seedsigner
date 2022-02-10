@@ -1,9 +1,15 @@
-from seedsigner.gui.screens.screen import LoadingScreenThread
-from seedsigner.models.psbt_parser import PSBTParser
+import embit
+from binascii import hexlify
+
+from seedsigner.gui.components import FontAwesomeIconConstants
+
 from .view import View, Destination, BackStackView, MainMenuView
 
+from seedsigner.gui.screens.screen import LoadingScreenThread
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    LargeButtonScreen, WarningScreen, DireWarningScreen)
+    LargeButtonScreen, WarningScreen, DireWarningScreen, seed_screens)
+from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
+from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.seed import SeedConstants
 from seedsigner.models.settings import Settings, SettingsConstants
 
@@ -23,7 +29,7 @@ class SeedsMenuView(View):
     def run(self):
         button_data = []
         for seed in self.seeds:
-            button_data.append((seed["fingerprint"], "fingerprint_inline"))
+            button_data.append((seed["fingerprint"], FontAwesomeIconConstants.FINGERPRINT))
         button_data.append("Load a seed")
 
         screen = ButtonListScreen(
@@ -92,8 +98,6 @@ class SeedOptionsView(View):
 
 
     def run(self):
-        from seedsigner.gui.screens.seed_screens import SeedOptionsScreen
-
         SIGN_PSBT = "Sign PSBT"
         VIEW_WORDS = "View Seed Words"
         EXPORT_XPUB = "Export Xpub"
@@ -101,7 +105,7 @@ class SeedOptionsView(View):
         button_data = []
 
         if self.controller.psbt:
-            if not PSBTParser.has_matching_fingerprint(self.controller.psbt, self.seed, network=self.settings.network):
+            if not PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.network):
                 SIGN_PSBT += " (?)"
             button_data.append(SIGN_PSBT)
         
@@ -112,7 +116,7 @@ class SeedOptionsView(View):
         
         button_data.append(EXPORT_SEEDQR)
 
-        screen = SeedOptionsScreen(
+        screen = seed_screens.SeedOptionsScreen(
             button_data=button_data,
             fingerprint=self.seed.get_fingerprint(self.settings.network),
             has_passphrase=self.seed.passphrase is not None
@@ -171,8 +175,6 @@ class SeedWordsView(View):
 
 
     def run(self):
-        from seedsigner.gui.screens.seed_screens import SeedWordsScreen
-
         NEXT_12 = "Next"
         SEED_OPTIONS = "Seed Options"
 
@@ -182,7 +184,7 @@ class SeedWordsView(View):
         else:
             button_data.append(SEED_OPTIONS)
 
-        screen = SeedWordsScreen(
+        screen = seed_screens.SeedWordsScreen(
             seed=self.seed,
             is_first_page=self.is_first_page,
             button_data=button_data,
@@ -199,7 +201,6 @@ class SeedWordsView(View):
         elif button_data[selected_menu_num] == SEED_OPTIONS:
             # Back to SeedOptions for this seed; cannot back ("<") to this View.
             return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
-
 
 
 
@@ -235,7 +236,6 @@ class SeedExportXpubSigTypeView(View):
 
         elif button_data[selected_menu_num] == MULTISIG:
             return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": SeedConstants.MULTISIG})
-
 
 
 
@@ -283,8 +283,7 @@ class SeedExportXpubCustomDerivationView(View):
         self.custom_derivation_path = self.settings.custom_derivation
 
     def run(self):
-        from seedsigner.gui.screens.seed_screens import SeedExportXpubCustomDerivationScreen
-        screen = SeedExportXpubCustomDerivationScreen(
+        screen = seed_screens.SeedExportXpubCustomDerivationScreen(
             derivation_path=self.custom_derivation_path
         )
         ret = screen.display()
@@ -393,10 +392,6 @@ class SeedExportXpubDetailsView(View):
 
 
     def run(self):
-        import embit
-        from binascii import hexlify
-        from seedsigner.gui.screens.seed_screens import SeedExportXpubDetailsScreen
-
         # The calc_derivation takes a few moments. Run the loading screen while we wait.
         self.loading_screen = LoadingScreenThread(text="Generating xpub...")
         self.loading_screen.start()
@@ -427,7 +422,7 @@ class SeedExportXpubDetailsView(View):
             xpub = xprv.to_public()
             xpub_base58 = xpub.to_string(version=version)
 
-            screen = SeedExportXpubDetailsScreen(
+            screen = seed_screens.SeedExportXpubDetailsScreen(
                 fingerprint=fingerprint,
                 has_passphrase=self.seed.passphrase is not None,
                 derivation_path=derivation_path,
@@ -482,8 +477,7 @@ class SeedExportXpubQRDisplayView(View):
 
 
     def run(self):
-        from seedsigner.gui.screens.seed_screens import SeedExportXpubQRDisplayScreen
-        screen = SeedExportXpubQRDisplayScreen(qr_encoder=self.qr_encoder)
+        screen = seed_screens.SeedExportXpubQRDisplayScreen(qr_encoder=self.qr_encoder)
         screen.display()
 
         return Destination(MainMenuView)
@@ -502,22 +496,22 @@ class SeedValidView(View):
 
 
     def run(self):
-        from seedsigner.gui.screens.seed_screens import SeedValidScreen
         from .psbt_views import PSBTOverviewView
 
         SIGN_PSBT = "Sign PSBT (?)"
-        SCAN_PSBT = ("Scan a PSBT", "scan_inline")
+        SCAN_PSBT = ("Scan a PSBT", FontAwesomeIconConstants.QRCODE)
         PASSPHRASE = "Add Passphrase"
         SEED_TOOLS = "Seed Tools"
         button_data = []
 
         # Can we auto-route past this screen entirely?
         if self.controller.psbt:
-            if PSBTParser.has_matching_fingerprint(psbt=self.controller.psbt, seed=self.seed, network=self.settings.network):
+            if PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=self.seed, network=self.settings.network):
                 # The Seed we just entered can sign the psbt we have in memory.
                 # Immediately forward on to the PSBT Overview.
                 seed_num = self.controller.storage.finalize_pending_seed()
-                return Destination(PSBTOverviewView, view_args={"seed_num": seed_num}, clear_history=True)
+                self.controller.psbt_seed = self.seed
+                return Destination(PSBTOverviewView, clear_history=True)
             else:
                 # We can't be sure if we can sign the PSBT with this new key
                 button_data.append(SIGN_PSBT)
@@ -532,7 +526,7 @@ class SeedValidView(View):
         
         button_data.append(SEED_TOOLS)
 
-        screen = SeedValidScreen(
+        screen = seed_screens.SeedValidScreen(
             fingerprint=self.fingerprint,
             button_data=button_data,
         )
@@ -593,8 +587,7 @@ class SeedAddPassphraseView(View):
 
 
     def run(self):
-        from seedsigner.gui.screens.seed_screens import SeedAddPassphraseScreen
-        screen = SeedAddPassphraseScreen(passphrase=self.seed.passphrase)
+        screen = seed_screens.SeedAddPassphraseScreen(passphrase=self.seed.passphrase)
         ret = screen.display()
 
         if ret == RET_CODE__BACK_BUTTON:
@@ -603,3 +596,116 @@ class SeedAddPassphraseView(View):
         # The new passphrase will be the return value
         self.seed.passphrase = ret
         return Destination(SeedValidView)
+
+
+
+class PSBTSingleSigChangeVerificationView(View):
+    """
+    """
+    def __init__(self, change_address_num):
+        super().__init__()
+        self.change_address_num = change_address_num
+    
+
+    def run(self):
+        psbt_parser: PSBTParser = self.controller.psbt_parser
+        if not psbt_parser:
+            # Should not be able to get here
+            return Destination(MainMenuView)
+        
+        address = psbt_parser.change_addresses[self.change_address_num]
+        threadsafe_counter = ThreadsafeCounter()
+
+        change_verification_thread = PSBTSingleSigChangeVerificationView.ChangeVerificationThread(
+            psbt_parser=psbt_parser,
+            address=address,
+            threadsafe_counter=threadsafe_counter
+        )
+        change_verification_thread.start()
+
+        screen = seed_screens.SingleSigAddressVerificationScreen(
+            change_address=psbt_parser.change_addresses[self.change_address_num],
+            threadsafe_counter=threadsafe_counter,
+        )
+        selected_menu_num = screen.display()
+
+        change_verification_thread.stop()
+
+        if selected_menu_num == 0:
+            if self.change_address_num < len(psbt_parser.change_addresses) - 1:
+                # Show the next change addr
+                return Destination(PSBTAddressDetailsView, view_args={"address_num": self.change_address_num + 1, "is_change": True})
+
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+
+    class ChangeVerificationThread(BaseThread):
+        def __init__(self, psbt_parser: PSBTParser, address: str, threadsafe_counter: ThreadsafeCounter):
+            super().__init__()
+            self.psbt_parser = psbt_parser
+            self.address = address
+            self.threadsafe_counter = threadsafe_counter
+            self.verified_index: int = 0
+            self.verified_index_is_change: bool = None
+
+            print("Instantiated verification thread")
+
+
+        def run(self):
+            while self.keep_running:
+                # Do work to verify addr
+                # ...
+
+                # For now mocking that up with time consuming... sleep
+                time.sleep(0.25)
+
+                # Increment our index counter
+                self.threadsafe_counter.increment()
+
+                if self.threadsafe_counter.cur_count % 10 == 0:
+                    print(f"Incremented to {self.threadsafe_counter.cur_count}")
+
+                # On successfully verifying addr, set:
+                # self.verified_index = self.counter.cur_count
+                # self.verified_index_is_change = True
+                # break   # Will instance stick around if run() exits?
+
+                # TODO: This should be in `Seed` or `PSBT` utility class
+                # def verify_single_sig_addr(self, address:str):
+                #     import embit
+                #     network = embit.NETWORKS[self.settings.network]
+                #     version = embit.bip32.detect_version(derivation, default="xpub", network=network)
+                #     root = embit.bip32.HDKey.from_seed(seed.seed, version=network["xprv"])
+                #     fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
+                #     xprv = root.derive(derivation)
+                #     xpub = xprv.to_public()
+                #     for i in range(500):
+                #         r_pubkey = xpub.derive([0,i]).key
+                #         c_pubkey = xpub.derive([1,i]).key
+                        
+                #         recieve_address = ""
+                #         change_address = ""
+                        
+                #         if "P2PKH" in address_type:
+                #             recieve_address = embit.script.p2pkh(r_pubkey).address(network=network)
+                #             change_address = embit.script.p2pkh(c_pubkey).address(network=network)
+                #         elif "Bech32" in address_type:
+                #             recieve_address = embit.script.p2wpkh(r_pubkey).address(network=network)
+                #             change_address = embit.script.p2wpkh(c_pubkey).address(network=network)
+                #         elif "P2SH" in address_type:
+                #             recieve_address = embit.script.p2sh(embit.script.p2wpkh(r_pubkey)).address(network=network)
+                #             change_address = embit.script.p2sh(embit.script.p2wpkh(c_pubkey)).address(network=network)
+                            
+                #         if address == recieve_address:
+                #             self.menu_view.draw_modal(["Receive Address "+str(i), "Verified"], "", "Right to Exit")
+                #             input = self.buttons.wait_for([B.KEY_RIGHT])
+                #             return Path.MAIN_MENU
+                #         if address == change_address:
+                #             self.menu_view.draw_modal(["Change Address "+str(i), "Verified"], "", "Right to Exit")
+                #             input = self.buttons.wait_for([B.KEY_RIGHT])
+                #             return Path.MAIN_MENU
+                #         else:
+                #             self.menu_view.draw_modal(["Checking Address "+str(i), "..."], "", "Right to Abort")
+                #             if self.buttons.check_for_low(B.KEY_RIGHT) or self.buttons.check_for_low(B.KEY_LEFT):
+                #                 return Path.MAIN_MENU

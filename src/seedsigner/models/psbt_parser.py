@@ -16,19 +16,32 @@ class PSBTParser():
         self.policy = None
         self.spend_amount = 0
         self.change_amount = 0
-        self.change_addresses = []
-        self.change_amounts = []
+        self.change_data = []
         self.fee_amount = 0
         self.input_amount = 0
         self.num_inputs = 0
         self.destination_addresses = []
         self.destination_amounts = []
-        self.self_addresses = []
 
         self.root = None
 
         if self.seed:
             self.parse(self.psbt,self.seed,self.network)
+
+    def get_change_data(self, change_num: int) -> dict:
+        if change_num < len(self.change_data):
+            return self.change_data[change_num]
+    
+    @property
+    def num_change_outputs(self):
+        return len(self.change_data)
+
+    @property
+    def is_multisig(self):
+        """
+            Multisig psbts will have "m" and "n" defined in policy
+        """
+        return "m" in self.policy
 
     @property
     def num_destinations(self):
@@ -79,11 +92,10 @@ class PSBTParser():
     def __parseOutputs(self):
         self.spend_amount = 0
         self.change_amount = 0
-        self.change_addresses = []
+        self.change_data = []
         self.fee_amount = 0
         self.destination_addresses = []
         self.destination_amounts = []
-        self.self_addresses = []
         for i, out in enumerate(self.psbt.outputs):
             out_policy = PSBTParser.__get_policy(out, self.psbt.tx.vout[i].script_pubkey, self.psbt.xpubs)
             is_change = False
@@ -124,9 +136,20 @@ class PSBTParser():
                     is_change = True
             if is_change:
                 addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[self.network])
-                self.self_addresses.append(addr)
-                self.change_addresses.append(addr)
-                self.change_amounts.append(self.psbt.tx.vout[i].value)
+                fingerprints = None
+                derivation_paths = None
+                if len(self.psbt.outputs[i].bip32_derivations) > 0:
+                    fingerprints = []
+                    derivation_paths = []
+                    for d, derivation_path in self.psbt.outputs[i].bip32_derivations.items():
+                        fingerprints.append(hexlify(derivation_path.fingerprint).decode())
+                        derivation_paths.append(bip32.path_to_str(derivation_path.derivation))
+                self.change_data.append({
+                    "address": addr,
+                    "amount": self.psbt.tx.vout[i].value,
+                    "fingerprint": fingerprints,
+                    "derivation_path": derivation_paths,
+                })
                 self.change_amount += self.psbt.tx.vout[i].value
             else:
                 addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[self.network])
@@ -253,7 +276,7 @@ class PSBTParser():
 
 
     @classmethod
-    def has_matching_fingerprint(cls, psbt: PSBT, seed: Seed, network: str = "main"):
+    def has_matching_input_fingerprint(cls, psbt: PSBT, seed: Seed, network: str = "main"):
         """
             Extracts the fingerprint from each psbt input utxo. Returns True if any match
             the current seed.

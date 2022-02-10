@@ -645,20 +645,21 @@ class WarningScreen(WarningScreenMixin, ButtonListScreen):
         warning_icon_x = int((self.canvas_width - self.warning_icon.width) / 2)
         self.paste_images.append((self.warning_icon, (warning_icon_x, warning_icon_y)))
 
-        warning_headline_y = warning_icon_y + self.warning_icon.height + 4
-        self.warning_headline_textarea = TextArea(
-            text=self.warning_headline,
-            width=self.canvas_width,
-            screen_y=warning_headline_y,
-            font_color=self.warning_color,
-        )
-        self.components.append(self.warning_headline_textarea)
+        next_y = warning_icon_y + self.warning_icon.height + 4
+        if self.warning_headline:
+            self.warning_headline_textarea = TextArea(
+                text=self.warning_headline,
+                width=self.canvas_width,
+                screen_y=next_y,
+                font_color=self.warning_color,
+            )
+            self.components.append(self.warning_headline_textarea)
+            next_y = next_y + self.warning_headline_textarea.height + 8
 
-        warning_text_y = warning_headline_y + self.warning_headline_textarea.height + 8
         self.warning_text_textarea = TextArea(
             text=self.warning_text,
             width=self.canvas_width,
-            screen_y=warning_text_y,
+            screen_y=next_y,
         )
         self.components.append(self.warning_text_textarea)
 
