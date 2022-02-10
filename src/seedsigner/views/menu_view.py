@@ -11,44 +11,6 @@ import time
 import re
 
 
-
-class SeedToolsMenuView(View):
-    def run(self, **kwargs):
-        title = "Store a Seed"
-        if self.controller.storage.num_of_saved_seeds() > 0:
-            if self.controller.storage.num_of_saved_seeds() < 3:
-                title = "View/Store Seeds"
-            else:
-                title = "View Seeds"
-
-        selected_menu_num = ButtonListScreen(
-            title=title,
-            button_labels=["Temp Seed Storage",
-                           "Seed Passphrase",
-                           "Export xPub",
-                           "Calc Last Word",
-                           "New Seed w/Dice",
-                           "New Seed w/Image"]
-        ).display()
-
-        return_views = [
-            Path.SAVE_SEED,
-            Path.PASSPHRASE_SEED,
-            Path.GEN_XPUB,
-            Path.GEN_LAST_WORD,
-            Path.DICE_GEN_SEED,
-            Path.IMAGE_GEN_SEED,
-        ]
-
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            from . import MainMenuView
-            return MainMenuView
-
-        return return_views[selected_menu_num]
-
-
-
-
 """
     OLD CODE BELOW:
 """
@@ -88,7 +50,7 @@ class MenuView(View):
     def display_settings_menu(self) -> int:
         lines = [
             "... [ Return to Main ]",
-            f"Wallet: {Settings.get_instance().software}",
+            f"Wallet: {Settings.get_instance().coordinators}",
             f"Network: {Settings.get_instance().network}",
             f"QR Density: {Settings.get_instance().qr_density_name}",
             "Input / Output Tests",

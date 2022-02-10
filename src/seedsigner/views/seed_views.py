@@ -2,14 +2,17 @@ import embit
 from binascii import hexlify
 
 from seedsigner.gui.components import FontAwesomeIconConstants
+from seedsigner.models.decode_qr import SeedQR
 
 from .view import View, Destination, BackStackView, MainMenuView
 
-from seedsigner.gui.screens.screen import LoadingScreenThread
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     LargeButtonScreen, WarningScreen, DireWarningScreen, seed_screens)
+from seedsigner.gui.screens.screen import LoadingScreenThread, QRDisplayScreen
 from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
+from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
+from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import SeedConstants
 from seedsigner.models.settings import Settings, SettingsConstants
 
@@ -52,37 +55,40 @@ class SeedsMenuView(View):
 
 class LoadSeedView(View):
     def run(self):
+        SEED_QR = ("Scan a SeedQR", FontAwesomeIconConstants.QRCODE)
+        TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+        TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+        CREATE = ("Create a seed", FontAwesomeIconConstants.PLUS)
+        button_data=[
+            SEED_QR,
+            TYPE_24WORD,
+            TYPE_12WORD,
+            CREATE,
+        ]
+
         screen = ButtonListScreen(
             title="Load A Seed",
             is_button_text_centered=False,
-            button_data=[
-                ("Scan Seed QR", "scan_inline"),
-                "Enter 24-word seed",
-                "Enter 12-word seed",
-                "Create a seed",
-            ]
+            button_data=button_data
         )
         selected_menu_num = screen.display()
 
-        if selected_menu_num == 0:
-            from .scan_views import ScanView
-            return Destination(ScanView)
-
-        if selected_menu_num == 1:
-            return Destination(MainMenuView)
-
-        if selected_menu_num == 2:
-            return Destination(MainMenuView)
-
-        if selected_menu_num == 3:
-            from .tools_views import ToolsMenuView
-            return Destination(ToolsMenuView)
-
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
-        raise Exception("Unhandled return option")
+        if button_data[selected_menu_num] == SEED_QR:
+            from .scan_views import ScanView
+            return Destination(ScanView)
+        
+        elif button_data[selected_menu_num] == TYPE_24WORD:
+            return Destination(MainMenuView)
 
+        elif button_data[selected_menu_num] == TYPE_12WORD:
+            return Destination(MainMenuView)
+
+        elif button_data[selected_menu_num] == CREATE:
+            from .tools_views import ToolsMenuView
+            return Destination(ToolsMenuView)
 
 
 
@@ -455,9 +461,6 @@ class SeedExportXpubDetailsView(View):
 
 class SeedExportXpubQRDisplayView(View):
     def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, derivation_path: str):
-        from seedsigner.models.encode_qr import EncodeQR
-        from seedsigner.models.qr_type import QRType
-
         super().__init__()
         self.seed = self.controller.get_seed(seed_num)
 
@@ -477,8 +480,8 @@ class SeedExportXpubQRDisplayView(View):
 
 
     def run(self):
-        screen = seed_screens.SeedExportXpubQRDisplayScreen(qr_encoder=self.qr_encoder)
-        screen.display()
+        screen = QRDisplayScreen(qr_encoder=self.qr_encoder)
+        ret = screen.display()
 
         return Destination(MainMenuView)
 
@@ -500,8 +503,8 @@ class SeedValidView(View):
 
         SIGN_PSBT = "Sign PSBT (?)"
         SCAN_PSBT = ("Scan a PSBT", FontAwesomeIconConstants.QRCODE)
-        PASSPHRASE = "Add Passphrase"
-        SEED_TOOLS = "Seed Tools"
+        PASSPHRASE = ("Add Passphrase", FontAwesomeIconConstants.UNLOCK)
+        SEED_TOOLS = "Seed Options"
         button_data = []
 
         # Can we auto-route past this screen entirely?
@@ -539,9 +542,10 @@ class SeedValidView(View):
 
         if button_data[selected_menu_num] == SIGN_PSBT:
             self.controller.storage.finalize_pending_seed()
-            return Destination(PSBTOverviewView, view_args={"seed_num": len(self.controller.storage.seeds) - 1}, clear_history=True)
+            self.controller.psbt_seed = self.seed
+            return Destination(PSBTOverviewView, clear_history=True)
 
-        elif type(button_data[selected_menu_num]) == tuple and button_data[selected_menu_num][0] == SCAN_PSBT[0]:
+        elif button_data[selected_menu_num] == SCAN_PSBT:
             self.controller.storage.finalize_pending_seed()
             # Jump back to the Scan mode, but this time to sign a PSBT
             from .scan_views import ScanView

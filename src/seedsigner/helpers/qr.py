@@ -11,15 +11,15 @@ class QR:
         qr = qrcode.QRCode( version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=5, border=border )
         qr.add_data(data)
         qr.make(fit=True)
-        return(qr.make_image(fill_color="black", back_color="white").resize((width,height)).convert('RGB'))
+        return(qr.make_image(fill_color="black", back_color="#444").resize((width,height)).convert('RGB'))
 
-    def qrimage_io(self, data, width=240, height=240, border=3):
+    def qrimage_io(self, data, width=240, height=240, border=3, background_color="808080"):
         if 1 <= border <= 10:
             border_str = str(border)
         else:
             border_str = "3"
 
-        cmd = 'qrencode -m '+border_str+' -s 3 -l L --foreground=000000 --background=FFFFFF -t PNG -o "/dev/shm/qrcode.png" "' + str(data) + '"'
+        cmd = f"""qrencode -m {border_str} -s 3 -l L --foreground=000000 --background={background_color} -t PNG -o "/dev/shm/qrcode.png" "{str(data)}" """
         rv = subprocess.call(cmd, shell=True)
 
         # if qrencode fails, fall back to only encoder

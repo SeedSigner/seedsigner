@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from lzma import is_check_supported
 from PIL import Image, ImageDraw, ImageFilter
 from typing import List
 
@@ -6,7 +7,7 @@ from seedsigner.gui.renderer import Renderer
 from seedsigner.helpers.threads import BaseThread
 
 from .screen import ButtonListScreen, WarningScreen
-from ..components import (FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, PngIconTextLine, TextArea,
+from ..components import (Button, FontAwesomeIcon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, PngIconTextLine, TextArea,
     calc_bezier_curve, linear_interp)
 
 
@@ -682,12 +683,54 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
             icon_color="blue",
             value_text=f"""{self.fingerprint}: {"Change" if self.is_own_change_addr else "Addr"} #{self.own_addr_index}""",
             is_text_centered=False,
+            screen_x=GUIConstants.EDGE_PADDING,
             screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
         ))
         self.components.append(IconTextLine(
             icon_name=FontAwesomeIconConstants.CIRCLE_CHECK,
-            icon_color="#44ff00",
+            icon_color="#00dd00",
             value_text="Address verified!",
             is_text_centered=False,
+            screen_x=GUIConstants.EDGE_PADDING,
             screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+        ))
+
+
+
+@dataclass
+class PSBTFinalizeScreen(ButtonListScreen):
+    def __post_init__(self):
+        # Customize defaults
+        self.title = "Sign PSBT"
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        icon = FontAwesomeIcon(
+            icon_name=FontAwesomeIconConstants.PAPER_PLANE,
+            icon_color="#00dd00",
+            icon_size=GUIConstants.ICON_LARGE_BUTTON_SIZE,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING
+        )
+        icon.screen_x = int((self.canvas_width - icon.width)/2)
+        self.components.append(icon)
+
+        self.components.append(TextArea(
+            text="Click to authorize this transaction",
+            screen_y=icon.screen_y + icon.height + GUIConstants.COMPONENT_PADDING
+        ))
+
+
+
+@dataclass
+class PSBTSelectCoordinatorScreen(ButtonListScreen):
+    def __post_init__(self):
+        # Customize defaults
+        self.title = "Signed PSBT"
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text="Export as a QR code for:",
+            is_text_centered=True,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
         ))

@@ -6,6 +6,7 @@ from typing import List, Tuple
 from seedsigner.gui.renderer import Renderer
 
 from seedsigner.helpers.threads import BaseThread
+from seedsigner.models.encode_qr import EncodeQR
 
 from ..components import (GUIConstants, BaseComponent, Button, IconButton, TopNav,
     TextArea, load_icon, load_image)
@@ -553,6 +554,27 @@ class LargeButtonScreen(BaseTopNavScreen):
 
                 # Write the screen updates
                 self.renderer.show_image()
+
+
+
+@dataclass
+class QRDisplayScreen(BaseScreen):
+    qr_encoder: EncodeQR = None
+
+    def _run(self):
+        while self.qr_encoder.totalParts() > 1:
+            image = self.qr_encoder.nextPartImage(240,240,2)
+            self.renderer.show_image(image)
+            time.sleep(0.1)
+            if self.hw_inputs.check_for_low(B.KEY_RIGHT):
+                break
+
+        if self.qr_encoder.totalParts() == 1:
+            image = self.qr_encoder.nextPartImage(240,240,1)
+            self.renderer.show_image(image)
+            self.hw_inputs.wait_for([B.KEY_RIGHT])
+
+        # TODO: handle left as BACK
 
 
 

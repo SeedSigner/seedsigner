@@ -49,17 +49,23 @@ class GUIConstants:
 
 
 class FontAwesomeIconConstants:
+    CAMERA = "\uf030"
     CHEVRON_LEFT = "\uf053"
     CIRCLE_CHECK = "\uf058"
     CIRCLE_EXCLAMATION = "\uf06a"
+    DICE = "\uf522"
     FINGERPRINT = "\uf577"
     GEAR = "\uf013"
     KEY = "\uf084"
+    KEYBOARD = "\uf11c"
     LOCK = "\uf023"
     MAP = "\uf279"
+    PAPER_PLANE = "\uf1d8"
+    PLUS = "\u002b"
     POWER_OFF = "\uf011"
     SCREWDRIVER_WRENCH = "\uf7d9"
     TRIANGLE_EXCLAMATION = "\uf071"
+    UNLOCK = "\uf09c"
     QRCODE = "\uf029"
     X = "\u0058"
 

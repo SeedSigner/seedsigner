@@ -1,11 +1,14 @@
 import time
+from embit.psbt import PSBT
 
-from seedsigner.gui.components import FontAwesomeIconConstants
+from seedsigner.models.encode_qr import EncodeQR
+from seedsigner.models.settings import SettingsConstants
 
 from .view import BackStackView, MainMenuView, View, Destination
 
+from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import psbt_screens
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonListScreen, LoadingScreenThread
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonListScreen, LoadingScreenThread, QRDisplayScreen, WarningScreen
 from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.psbt_parser import PSBTParser
 
@@ -172,7 +175,7 @@ class PSBTAddressDetailsView(View):
             # Should not be able to get here
             return Destination(MainMenuView)
 
-        title = "Sending"
+        title = "Will Send"
         if psbt_parser.num_destinations > 1:
             title += f" (#{self.address_num + 1})"
 
@@ -265,13 +268,120 @@ class PSBTChangeDetailsView(View):
         selected_menu_num = screen.display()
 
         if selected_menu_num == 0:
-            if self.change_address_num < len(psbt_parser.change_addresses) - 1:
+            if self.change_address_num < psbt_parser.num_change_outputs - 1:
                 return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
             else:
                 # There's no more change to verify. Move on to sign the PSBT.
-                return Destination(MainMenuView, view_args={})
+                return Destination(PSBTFinalizeView)
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
 
+
+class PSBTFinalizeView(View):
+    """
+    """
+    def run(self):
+        psbt_parser: PSBTParser = self.controller.psbt_parser
+        psbt: PSBT = self.controller.psbt
+
+        if not psbt_parser:
+            # Should not be able to get here
+            return Destination(MainMenuView)
+
+        screen = psbt_screens.PSBTFinalizeScreen(
+            button_data=["Approve PSBT"]
+        )
+        selected_menu_num = screen.display()
+
+        if selected_menu_num == 0:
+            # Sign PSBT
+            loading_screen = LoadingScreenThread(text="Signing PSBT...")
+            loading_screen.start()
+
+            sig_cnt = PSBTParser.sigCount(psbt)
+            psbt.sign_with(psbt_parser.root)
+            trimmed_psbt = PSBTParser.trim(psbt)
+
+            loading_screen.stop()
+
+            if sig_cnt == PSBTParser.sigCount(trimmed_psbt):
+                # Signing failed / didn't do anything
+                # TODO: Are there different failure scenarios that we can detect?
+                # Would be nice to alter the message on the next screen w/more detail.
+                return Destination(PSBTSigningErrorView)
+            
+            else:
+                self.controller.psbt = trimmed_psbt
+
+                if len(self.settings.coordinators) == 1:
+                    return Destination(PSBTSignedQRDisplayView, view_args={"coordinator": self.settings.coordinators[0]})
+                else:
+                    return Destination(PSBTSelectCoordinatorView)
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+
+
+class PSBTSelectCoordinatorView(View):
+    def run(self):
+        button_data = [c for c in self.settings.coordinators]
+        screen = psbt_screens.PSBTSelectCoordinatorScreen(
+            button_data=button_data
+        )
+        selected_menu_num = screen.display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        return Destination(PSBTSignedQRDisplayView, view_args={"coordinator": button_data[selected_menu_num]})
+
+
+
+class PSBTSignedQRDisplayView(View):
+    def __init__(self, coordinator: str):
+        super().__init__()
+        self.coordinator = coordinator
+
+    def run(self):
+        qr_encoder = EncodeQR(
+            psbt=self.controller.psbt, 
+            qr_type=self.settings.qr_psbt_type(self.coordinator), 
+            qr_density=self.settings.qr_density,
+            wordlist=self.settings.wordlist
+        )
+        screen = QRDisplayScreen(qr_encoder=qr_encoder)
+        ret = screen.display()
+
+        # We're done with this PSBT. Remove all related data
+        self.controller.psbt = None
+        self.controller.psbt_parser = None
+        self.controller.psbt_seed = None
+
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTSigningErrorView(View):
+    def run(self):
+        psbt_parser: PSBTParser = self.controller.psbt_parser
+        if not psbt_parser:
+            # Should not be able to get here
+            return Destination(MainMenuView)
+
+        screen = WarningScreen(
+            title="Finalize PSBT",
+            warning_icon_name="warning",
+            warning_headline="Signing Failed",
+            warning_text="",
+            button_data=["Select Diff Seed"],
+        )
+        selected_menu_num = screen.display()
+
+        if selected_menu_num == 0:
+            return Destination(PSBTSelectSeedView, clear_history=True)
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)

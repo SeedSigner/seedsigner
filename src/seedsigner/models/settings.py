@@ -185,16 +185,16 @@ class Settings(Singleton):
         return self._data["wallet"]["coordinators"]
 
     @property
-    def software(self):
-        return self._data["wallet"]["software"]
+    def coordinators(self):
+        return self._data["wallet"]["coordinators"]
 
-    @software.setter
-    def software(self, value):
+    @coordinators.setter
+    def coordinators(self, value):
         if value in SettingsConstants.ALL_COORDINATORS:
-            self._data["wallet"]["software"] = value
+            self._data["wallet"]["coordinators"] = value
             self.save()
         else:
-            raise Exception("Unexpected wallet.software settings.json value")
+            raise Exception("Unexpected wallet.coordinators settings.json value")
 
     @property
     def qr_density(self):
@@ -208,16 +208,15 @@ class Settings(Singleton):
         else:
             raise Exception("Unexpected wallet.qr_density settings.json value")
 
-    @property
-    def qr_psbt_type(self):
-        if self.software in [SettingsConstants.COORDINATOR__SPECTER_DESKTOP]:
+    def qr_psbt_type(self, coordinator):
+        if coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
             return QRType.PSBTSPECTER
         else:
             return QRType.PSBTUR2
 
     @property
     def qr_xpub_type(self):
-        return Settings.getXPubType(self.software)
+        return Settings.getXPubType(self.coordinators)
 
     @staticmethod
     def getXPubType(software):
