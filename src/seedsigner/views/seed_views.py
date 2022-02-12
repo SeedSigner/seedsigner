@@ -55,10 +55,10 @@ class SeedsMenuView(View):
 
 class LoadSeedView(View):
     def run(self):
-        SEED_QR = ("Scan a SeedQR", FontAwesomeIconConstants.QRCODE)
+        SEED_QR = (" Scan a SeedQR", FontAwesomeIconConstants.QRCODE)
         TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
         TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
-        CREATE = ("Create a seed", FontAwesomeIconConstants.PLUS)
+        CREATE = (" Create a seed", FontAwesomeIconConstants.PLUS)
         button_data=[
             SEED_QR,
             TYPE_24WORD,

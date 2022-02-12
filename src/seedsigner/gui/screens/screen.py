@@ -8,7 +8,7 @@ from seedsigner.gui.renderer import Renderer
 from seedsigner.helpers.threads import BaseThread
 from seedsigner.models.encode_qr import EncodeQR
 
-from ..components import (GUIConstants, BaseComponent, Button, IconButton, TopNav,
+from ..components import (CheckedSelectionButton, GUIConstants, BaseComponent, Button, IconButton, TopNav,
     TextArea, load_icon, load_image)
 
 from seedsigner.helpers import B, Buttons
@@ -253,9 +253,13 @@ class ButtonListScreen(BaseTopNavScreen):
     button_font_size: int = GUIConstants.BUTTON_FONT_SIZE
     button_selected_color: str = "orange"
 
+    # Params for version of list used for Settings
+    Button_cls = Button
+    checked_buttons: List[int] = None
+
+
     def __post_init__(self):
         super().__post_init__()
-
         button_height = GUIConstants.BUTTON_HEIGHT
         if len(self.button_data) == 1:
             button_list_height = button_height
@@ -276,12 +280,19 @@ class ButtonListScreen(BaseTopNavScreen):
         self.buttons: List[Button] = []
         for i, button_label in enumerate(self.button_data):
             if type(button_label) == tuple:
-                (button_label, icon_name) = button_label
+                if len(button_label) == 2:
+                    (button_label, icon_name) = button_label
+                    icon_color = GUIConstants.BUTTON_FONT_COLOR
+                elif len(button_label) == 3:
+                    (button_label, icon_name, icon_color) = button_label
             else:
                 icon_name = None
-            button = Button(
+                icon_color = None
+
+            button_kwargs = dict(
                 text=button_label,
                 icon_name=icon_name,
+                icon_color=icon_color,
                 is_icon_inline=True,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=button_list_y + i * (button_height + GUIConstants.LIST_ITEM_PADDING),
@@ -292,6 +303,9 @@ class ButtonListScreen(BaseTopNavScreen):
                 font_size=self.button_font_size,
                 selected_color=self.button_selected_color
             )
+            if self.checked_buttons and i in self.checked_buttons:
+                button_kwargs["is_checked"] = True
+            button = self.Button_cls(**button_kwargs)
             self.buttons.append(button)
         
         if self.has_scroll_arrows:
@@ -310,8 +324,7 @@ class ButtonListScreen(BaseTopNavScreen):
             arrow_draw.line((self.arrow_half_width, 7, 0, 1), fill=GUIConstants.BUTTON_FONT_COLOR)
             arrow_draw.line((self.arrow_half_width, 7, 2 * self.arrow_half_width, 1), fill=GUIConstants.BUTTON_FONT_COLOR)
 
-        self.selected_button = 0
-        self.buttons[0].is_selected = True
+        self.buttons[self.selected_button].is_selected = True
 
 
     def _render(self):

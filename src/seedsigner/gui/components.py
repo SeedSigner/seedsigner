@@ -51,7 +51,9 @@ class GUIConstants:
 class FontAwesomeIconConstants:
     CAMERA = "\uf030"
     CHEVRON_LEFT = "\uf053"
+    CHEVRON_RIGHT = "\uf054"
     CIRCLE_CHECK = "\uf058"
+    CIRCLE_CHEVRON_RIGHT = "\uf138"
     CIRCLE_EXCLAMATION = "\uf06a"
     DICE = "\uf522"
     FINGERPRINT = "\uf577"
@@ -61,9 +63,11 @@ class FontAwesomeIconConstants:
     LOCK = "\uf023"
     MAP = "\uf279"
     PAPER_PLANE = "\uf1d8"
-    PLUS = "\u002b"
+    PLUS = "+"
     POWER_OFF = "\uf011"
     SCREWDRIVER_WRENCH = "\uf7d9"
+    SQUARE = "\uf0c8"
+    SQUARE_CHECK = "\uf14a"
     TRIANGLE_EXCLAMATION = "\uf071"
     UNLOCK = "\uf09c"
     QRCODE = "\uf029"
@@ -680,7 +684,8 @@ class Button(BaseComponent):
     height: int = None
     icon_name: str = None   # Optional icon to accompany the text
     icon_size: int = GUIConstants.ICON_INLINE_FONT_SIZE
-    icon_color: str = GUIConstants.BODY_FONT_COLOR
+    icon_color: str = GUIConstants.BUTTON_FONT_COLOR
+    selected_icon_color: str = "black"
     icon_y_offset: int = 2
     is_icon_inline: bool = True    # True = render next to text; False = render centered above text
     text_y_offset: int = 0
@@ -703,6 +708,9 @@ class Button(BaseComponent):
 
         if not self.height:
             self.height = GUIConstants.BUTTON_HEIGHT
+        
+        if not self.icon_color:
+            self.icon_color = GUIConstants.BUTTON_FONT_COLOR
 
         self.font = Fonts.get_font(self.font_name, self.font_size)
 
@@ -722,9 +730,9 @@ class Button(BaseComponent):
 
         # Preload the icon and its "_selected" variant
         if self.icon_name:
-            icon_padding = 8
+            icon_padding = GUIConstants.COMPONENT_PADDING
             self.icon = FontAwesomeIcon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.icon_color)
-            self.icon_selected = FontAwesomeIcon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.selected_font_color)
+            self.icon_selected = FontAwesomeIcon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.selected_icon_color)
 
             if self.is_icon_inline:
                 if self.text:
@@ -760,9 +768,41 @@ class Button(BaseComponent):
             icon = self.icon
             if self.is_selected:
                 icon = self.icon_selected
-            icon.screen_y = self.icon_y + self.scroll_y
+            icon.screen_y = self.icon_y - self.scroll_y
             icon.render()
 
+
+@dataclass
+class CheckedSelectionButton(Button):
+    is_checked: bool = False
+
+    def __post_init__(self):
+        self.is_text_centered = False
+        self.icon_name = FontAwesomeIconConstants.CIRCLE_CHECK
+        self.icon_color = "#00dd00"
+        super().__post_init__()
+
+        if not self.is_checked:
+            # Remove the checkmark icon but leave the text_x spacing as-is
+            self.icon_name = None
+            self.icon = None
+            self.icon_selected = None
+
+
+
+@dataclass
+class CheckboxButton(Button):
+    is_checked: bool = False
+
+    def __post_init__(self):
+        self.is_text_centered = False
+        if self.is_checked:
+            self.icon_name = FontAwesomeIconConstants.SQUARE_CHECK
+            self.icon_color = "#00dd00"
+        else:
+            self.icon_name = FontAwesomeIconConstants.SQUARE
+            self.icon_color = GUIConstants.BODY_FONT_COLOR
+        super().__post_init__()
 
 
 @dataclass
@@ -875,11 +915,13 @@ class TopNav(BaseComponent):
         )
 
 
+
 def linear_interp(a, b, t):
     return (
         int((1.0 - t)*a[0] + t*b[0]),
         int((1.0 - t)*a[1] + t*b[1])
     )
+
 
 
 def calc_bezier_curve(p1: Tuple[int,int], p2: Tuple[int,int], p3: Tuple[int,int], segments: int) -> List[Tuple[Tuple[int,int], Tuple[int,int]]]:

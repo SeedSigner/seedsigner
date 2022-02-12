@@ -738,7 +738,7 @@ class Controller(Singleton):
     def show_wallet_tool(self):
         r = self.settings_tools_view.display_wallet_selection()
         if r is not None:
-            self.settings.software = r
+            self.settings.coordinators = r
 
         return Path.SETTINGS_SUB_MENU
 
