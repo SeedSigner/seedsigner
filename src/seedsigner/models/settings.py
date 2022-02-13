@@ -38,20 +38,20 @@ class SettingsConstants:
 
     LANGUAGE__ENGLISH = "English"
 
-    ALL_LANGUAUGES = [
+    ALL_LANGUAGES = [
         LANGUAGE__ENGLISH,
     ]
 
-    # Individual settings
+
+    # Individual settings entry attr_names
     SETTING__LANGUAGE = "language"
-    SETTING__PERSISITENT_SETTINGS = "persistent_settings"
+    SETTING__PERSISTENT_SETTINGS = "persistent_settings"
     SETTING__COORDINATORS = "coordinators"
 
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
 
     SETTING__DEBUG = "debug"
-
 
 
     # Structural constants
@@ -75,6 +75,43 @@ class SettingsConstants:
 
 
 
+@dataclass
+class SettingsEntry:
+    """
+        Defines all the parameters for a single settings entry.
+
+        * category: Mostly for organizational purposes when displaying options in the
+            SettingsQR UI. Potentially an additional sub-level breakout in the menus
+            on the device itself, too.
+    """
+    # TODO: Handle multi-language `display_name` and `help_text`
+    category: str
+    attr_name: str
+    display_name: str
+    verbose_name: str = None
+    abbreviated_name: str = None
+    visibility: str = SettingsConstants.VISIBILITY__GENERAL
+    type: str = SettingsConstants.TYPE__ENABLED_DISABLED
+    help_text: str = None
+    possible_values: List[str] = None
+    possible_values_abbreviated: List[str] = None
+    default_value: str = None
+
+    def __post_init__(self):
+        if self.type == SettingsConstants.TYPE__ENABLED_DISABLED:
+            self.possible_values = [SettingsConstants.OPTION__ENABLED,
+                                    SettingsConstants.OPTION__DISABLED]
+
+        elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT:
+            self.possible_values = [SettingsConstants.OPTION__ENABLED,
+                                    SettingsConstants.OPTION__DISABLED,
+                                    SettingsConstants.OPTION__PROMPT]
+
+        elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQURIED:
+            self.possible_values = [SettingsConstants.ALL_OPTIONS]
+
+
+
 class SettingsDefinition:
     """
         Master list of all settings, their possible options, their defaults, on-device
@@ -88,50 +125,17 @@ class SettingsDefinition:
         Used to generate a master json file that documents all these params which can
         then be read in by the SettingsQR UI to auto-generate the necessary html inputs.
     """
-
-    @dataclass
-    class SettingsEntry:
-        """
-            Defines all the parameters for a single settings entry.
-        """
-        # TODO: Handle multi-language `display_name` and `help_text`
-        category: str
-        attr_name: str
-        display_name: str
-        verbose_name: str = None
-        abbreviated_name: str = None
-        visibility: str = SettingsConstants.VISIBILITY__GENERAL
-        type: str = SettingsConstants.TYPE__ENABLED_DISABLED
-        help_text: str = None
-        possible_values: List[str] = None
-        possible_values_abbreviated: List[str] = None
-        default_value: str = None
-
-        def __post_init__(self):
-            if self.type == SettingsConstants.TYPE__ENABLED_DISABLED:
-                self.possible_values = [SettingsConstants.OPTION__ENABLED,
-                                        SettingsConstants.OPTION__DISABLED]
-
-            elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT:
-                self.possible_values = [SettingsConstants.OPTION__ENABLED,
-                                        SettingsConstants.OPTION__DISABLED,
-                                        SettingsConstants.OPTION__PROMPT]
-
-            elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQURIED:
-                self.possible_values = [SettingsConstants.ALL_OPTIONS]
-    
-    
     settings_entries: List[SettingsEntry] = [
         # General options
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__LANGUAGE,
                       display_name="Language",
                       type=SettingsConstants.TYPE__SELECT_1,
-                      possible_values=SettingsConstants.ALL_LANGUAUGES,
+                      possible_values=SettingsConstants.ALL_LANGUAGES,
                       default_value=SettingsConstants.LANGUAGE__ENGLISH),
      
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
-                      attr_name=SettingsConstants.SETTING__PERSISITENT_SETTINGS,
+                      attr_name=SettingsConstants.SETTING__PERSISTENT_SETTINGS,
                       display_name="Persistent Settings",
                       help_text="Store Settings on SD card",
                       default_value=SettingsConstants.OPTION__DISABLED),
@@ -265,7 +269,7 @@ class Settings(Singleton):
     
 
     def save(self):
-        if self._data["system"]["persistent_settings"]:
+        if self.persistent_settings:
             with open(Settings.SETTINGS_FILENAME, 'w') as settings_file:
                 json.dump(self._data, settings_file)
 
@@ -295,21 +299,8 @@ class Settings(Singleton):
     ### persistent settings handling
 
     @property
-    def persistent(self):
-        return self._data["system"]["persistent_settings"]
-
-    @persistent.setter
-    def persistent(self, value: bool):
-        if type(value) == bool:
-            self._data["system"]["persistent_settings"] = value
-            if value:
-                self.save()
-            else:
-                # persistence is changed to false, remove SETTINGS_FILE
-                if os.path.exists(Settings.SETTINGS_FILENAME):
-                    os.remove(Settings.SETTINGS_FILENAME)
-        else:
-            raise Exception("Unexpected system.persistent_settings settings.json value")
+    def persistent_settings(self):
+        return self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] == SettingsConstants.OPTION__ENABLED
 
     @property
     def persistent_display(self):
@@ -342,7 +333,7 @@ class Settings(Singleton):
 
     @property
     def camera_rotation(self):
-        return "0"
+        return 0
 
     @camera_rotation.setter
     def camera_rotation(self, value: int):
@@ -368,19 +359,7 @@ class Settings(Singleton):
 
     @property
     def coordinators(self):
-        return self._data["wallet"]["coordinators"]
-
-    @property
-    def coordinators(self):
-        return self._data["wallet"]["coordinators"]
-
-    @coordinators.setter
-    def coordinators(self, value):
-        if value in SettingsConstants.ALL_COORDINATORS:
-            self._data["wallet"]["coordinators"] = value
-            self.save()
-        else:
-            raise Exception("Unexpected wallet.coordinators settings.json value")
+        return self._data[SettingsConstants.SETTING__COORDINATORS]
 
     @property
     def qr_density(self):
