@@ -1,4 +1,4 @@
-embit==0.4.8
+embit==0.4.10
 numpy==1.21.1
 picamera==1.13
 Pillow==8.2.0
@@ -7,3 +7,4 @@ qrcode==6.1
 RPi.GPIO==0.7.0
 six==1.16.0
 spidev==3.5
+-e src/vendor/urtypes

@@ -1,0 +1,3 @@
+[submodule "urtypes"]
+	path = src/vendor/urtypes
+	url = https://github.com/jreesun/urtypes.git

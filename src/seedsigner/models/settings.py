@@ -212,8 +212,6 @@ class SettingsDefinition:
     def to_html(cls):
         return ""
 
-
-
 class Settings(Singleton):
     SETTINGS_FILENAME = "settings.json"
 
@@ -330,6 +328,15 @@ class Settings(Singleton):
     def text_color(self):
         from seedsigner.gui.components import GUIConstants
         return GUIConstants.BODY_FONT_COLOR
+    
+    @property
+    def qr_background_color(self):
+        return self._data["display"]["qr_background_color"]
+        
+    @qr_background_color.setter
+    def qr_background_color(self, value):
+        self._data["display"]["qr_background_color"] = value
+        self.__writeConfig()
 
     @property
     def camera_rotation(self):
@@ -387,8 +394,10 @@ class Settings(Singleton):
     def getXPubType(software):
         if software == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
             return QRType.SPECTERXPUBQR
-        else:
+        elif software == "Blue Wallet":
             return QRType.XPUBQR
+        else:
+            return QRType.URXPUBQR
 
     @property
     def qr_density_name(self):

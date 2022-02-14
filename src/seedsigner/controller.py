@@ -1,8 +1,14 @@
 import os
 import sys
 import time
-
+import re
+from multiprocessing import Process, Queue
 from subprocess import call
+import os, sys
+from embit import bip32, script, ec
+from embit.networks import NETWORKS
+from embit.descriptor import Descriptor
+from binascii import hexlify
 from threading import Thread
 
 from embit.psbt import PSBT
@@ -68,8 +74,10 @@ class Controller(Singleton):
             controller.psbt_parser = None
 
             # settings
+            # TODO: Remove these
             controller.DEBUG = controller.settings.debug
             controller.color = controller.settings.text_color
+            controller.current_bg_qr_color = controller.settings.qr_background_color
 
             # Configure the Renderer
             Renderer.configure_instance({"text_color": controller.color})
@@ -476,9 +484,9 @@ class Controller(Singleton):
 
         self.storage.save_passphrase(passphrase, slot_num)
         if r in (0,1):
-            self.renderer.draw_modal(["Passphrase Added", passphrase, "Added to Slot #" + str(slot_num)], "", "Right to Continue")
+            self.menu_view.draw_passphrase("Passphrase Added", passphrase, "Right to Continue")
         elif r == 2:
-            self.renderer.draw_modal(["Passphrase Updated", passphrase, "Added to Slot #" + str(slot_num)], "", "Right to Continue")
+            self.menu_view.draw_passphrase("Passphrase Updated", passphrase, "Right to Continue")
         self.buttons.wait_for([B.KEY_RIGHT])
 
         return Path.SEED_TOOLS_SUB_MENU
@@ -603,6 +611,208 @@ class Controller(Singleton):
             else:
                 return Path.MAIN_MENU
 
+        elif decoder.isComplete() and decoder.isAddress():
+            
+            address = decoder.getAddress()
+            address_type = decoder.getAddressType()
+
+            self.menu_view.draw_address(address)
+            self.buttons.wait_for([B.KEY_RIGHT])
+            
+            validate_network = NETWORKS[self.settings.network]
+            validate_network_text = self.settings.network
+            if "main" in address_type:
+                validate_network = NETWORKS["main"]
+                validate_network_text = "main"
+            elif "test" in address_type:
+                validate_network = NETWORKS["test"]
+                validate_network_text = "test"
+                
+            r = 0
+            if address_type in ("Bech32-main", "Bech32-test") and len(address) == 62:
+                r = 2
+            else:
+                # check single sig vs multi sig address
+                r = self.menu_view.display_generic_selection_menu(["Single Sig Seed", "JSON Wallet Desc"], "Validate Bitcoin Address")
+            
+            if r == 1:
+                
+                # validate single sig using seed
+            
+                # No valid seed yet, If there is a saved seed, ask to use saved seed
+                if self.storage.num_of_saved_seeds() > 0:
+                    r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Save Seed?")
+                    if r == 1: #Yes
+                        slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
+                        if slot_num == 0:
+                            return Path.MAIN_MENU
+                        seed = self.storage.get_seed(slot_num)
+                        used_saved_seed = True
+    
+                if not seed:
+                    # no valid seed yet, gather seed phrase
+                    # display menu to select 12 or 24 word seed for last word
+                    ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Cancel ]")
+                    if ret_val == Path.SEED_WORD_12:
+                        seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(12)
+                    elif ret_val == Path.SEED_WORD_24:
+                        seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(24)
+                    elif ret_val == Path.SEED_WORD_QR:
+                        seed.mnemonic = self.seed_tools_view.read_seed_phrase_qr()
+                    else:
+                        return Path.MAIN_MENU
+    
+                    if not seed:
+                        return Path.MAIN_MENU
+                        
+                # check if seed phrase is valid
+                self.menu_view.draw_modal(["Validating Seed ..."])
+                if not seed:
+                    self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
+                    input = self.buttons.wait_for([B.KEY_RIGHT])
+                    return Path.MAIN_MENU
+    
+                if len(seed.passphrase) == 0:
+                    r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
+                    if r == 1:
+                        # display a tool to pick letters/numbers to make a passphrase
+                        seed.passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
+                        if len(seed.passphrase) == 0:
+                            self.menu_view.draw_modal(["No passphrase added", "to seed words"], "", "Left to Exit, Right to Continue")
+                            input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
+                            if input == B.KEY_LEFT:
+                                return Path.MAIN_MENU
+                        else:
+                            self.menu_view.draw_modal(["Optional passphrase", "added to seed words", seed.passphrase], "", "Right to Continue")
+                            self.buttons.wait_for([B.KEY_RIGHT])
+    
+                # display seed phrase
+                while True:
+                    r = self.seed_tools_view.display_seed_phrase(seed.mnemonic_list, seed.passphrase, "Right to Continue")
+                    if r == True:
+                        break
+                    else:
+                        # Cancel
+                        return Path.MAIN_MENU
+                        
+                # Ask to save seed
+                if self.storage.slot_avaliable() and used_saved_seed == False:
+                    r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Seed?")
+                    if r == 1: #Yes
+                        slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
+                        if slot_num in (1,2,3):
+                            self.storage.add_seed(seed, slot_num)
+                            self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
+                            input = self.buttons.wait_for([B.KEY_RIGHT])
+                
+                #      
+                # Validate if address from seed
+                #
+                 
+                # choose derivation standard
+                r = self.menu_view.display_generic_selection_menu(["Native Segwit", "Nested Segwit", "Custom"], "Derivation Path?")
+                if r == 1:
+                    script_type = "native segwit"
+                elif r == 2:
+                    script_type = "nested segwit"
+                elif r == 3:
+                    script_type = "custom"
+                
+                # calculated derivation or get custom from keyboard entry
+                if script_type == "custom":
+                    derivation = self.settings_tools_view.draw_derivation_keyboard_entry(existing_derivation=self.settings.custom_derivation)
+                    self.settings.custom_derivation = derivation # save for next time
+                else:
+                    derivation = Settings.calc_derivation(validate_network_text, "single sig", script_type)
+                    
+                if derivation == "" or derivation == None:
+                    self.menu_view.draw_modal(["Invalid Derivation", "try again"], "", "Right to Continue")
+                    return Path.SEED_TOOLS_SUB_MENU
+        
+                self.menu_view.draw_modal(["Checking Address", ""], "", "")
+        
+                version = bip32.detect_version(derivation, default="xpub", network=validate_network)
+                root = bip32.HDKey.from_seed(seed.seed, version=validate_network["xprv"])
+                fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
+                xprv = root.derive(derivation)
+                xpub = xprv.to_public()
+                
+                for i in range(500):
+                    r_pubkey = xpub.derive([0,i]).key
+                    c_pubkey = xpub.derive([1,i]).key
+                    
+                    recieve_address = ""
+                    change_address = ""
+                    
+                    if "P2PKH" in address_type:
+                        recieve_address = script.p2pkh(r_pubkey).address(network=validate_network)
+                        change_address = script.p2pkh(c_pubkey).address(network=validate_network)
+                    elif "Bech32" in address_type:
+                        recieve_address = script.p2wpkh(r_pubkey).address(network=validate_network)
+                        change_address = script.p2wpkh(c_pubkey).address(network=validate_network)
+                    elif "P2SH" in address_type:
+                        recieve_address = script.p2sh(script.p2wpkh(r_pubkey)).address(network=validate_network)
+                        change_address = script.p2sh(script.p2wpkh(c_pubkey)).address(network=validate_network)
+                        
+                    if address == recieve_address:
+                        self.menu_view.draw_modal(["Receive Address "+str(i), "Verified"], "", "Right to Exit")
+                        input = self.buttons.wait_for([B.KEY_RIGHT])
+                        return Path.MAIN_MENU
+                    if address == change_address:
+                        self.menu_view.draw_modal(["Change Address "+str(i), "Verified"], "", "Right to Exit")
+                        input = self.buttons.wait_for([B.KEY_RIGHT])
+                        return Path.MAIN_MENU
+                    else:
+                        self.menu_view.draw_modal(["Checking Address "+str(i), "..."], "", "Right to Abort")
+                        if self.buttons.check_for_low(B.KEY_RIGHT) or self.buttons.check_for_low(B.KEY_LEFT):
+                            return Path.MAIN_MENU
+                
+            if r == 2:
+                
+                # second QR scan need PSBT now
+                decoder2 = scan_qr("Scan Backup JSON QR")
+                
+                if decoder2.isComplete() and decoder2.isWalletDescriptor():
+                    desc_str = decoder2.getWalletDescriptor()
+                    desc_str = desc_str.replace("\n","").replace(" ","")
+                    try:
+                        if len(re.findall (r'\[([0-9,a-f,A-F]+?)(\/[0-9,\/,h\']+?)\].*?(\/0\/\*)', desc_str)) > 0:
+                            p = re.compile(r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h\']+?\].*?)(\/0\/\*)')
+                            desc_str = p.sub(r'\1/{0,1}/*', desc_str)
+                        elif len(re.findall (r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])', desc_str)) > 0:
+                            p = re.compile(r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])')
+                            desc_str = p.sub(r'\1/{0,1}/*\2', desc_str)
+                    except:
+                       desc_str = decoder2.getWalletDescriptor()
+                    print(desc_str)
+                    desc = Descriptor.from_string(desc_str)
+                else:
+                    return Path.MAIN_MENU
+                
+                #      
+                # Validate if address from descriptor
+                #
+                
+                for i in range(1000):
+                    r_derived = desc.derive(i,branch_index=0)
+                    c_derived = desc.derive(i,branch_index=1)
+                    
+                    recieve_address = r_derived.address(validate_network)
+                    change_address = c_derived.address(validate_network)
+                    
+                    if address == recieve_address:
+                        self.menu_view.draw_modal(["Recieved Address "+str(i), "Verified"], "", "Right to Exit")
+                        input = self.buttons.wait_for([B.KEY_RIGHT])
+                        return Path.MAIN_MENU
+                    if address == change_address:
+                        self.menu_view.draw_modal(["Change Address "+str(i), "Verified"], "", "Right to Exit")
+                        input = self.buttons.wait_for([B.KEY_RIGHT])
+                        return Path.MAIN_MENU
+                    else:
+                        self.menu_view.draw_modal(["Checking Address "+str(i), "..."], "", "Right to Abort")
+                        if self.buttons.check_for_low(B.KEY_RIGHT) or self.buttons.check_for_low(B.KEY_LEFT):
+                            return Path.MAIN_MENU
+                    
         elif ( decoder.isComplete() and not decoder.isPSBT() ) or decoder.isInvalid():
             self.renderer.draw_modal(["Not a valid PSBT QR"], "", "Right to Exit")
             input = self.buttons.wait_for([B.KEY_RIGHT])
@@ -701,11 +911,20 @@ class Controller(Singleton):
         self.renderer.draw_modal(["Generating PSBT QR ..."])
         e = EncodeQR(psbt=trimmed_psbt, qr_type=self.settings.qr_psbt_type, qr_density=self.settings.qr_density, wordlist=self.settings.wordlist)
         while True:
-            image = e.nextPartImage(240,240,1)
-            self.renderer.show_image(image)
-            time.sleep(0.05)
-            if self.buttons.check_for_low(B.KEY_RIGHT):
+            cur_time = int(time.time() * 1000)
+            if cur_time - self.buttons.last_input_time > self.screensaver_activation_ms and not self.screensaver.is_running:
+                self.start_screensaver()
+                self.buttons.update_last_input_time()
+            else:
+                image = e.nextPartImage(240,240,1,background=self.current_bg_qr_color)
+                View.DispShowImage(image)
+                time.sleep(0.05)
+                if self.buttons.check_for_low(B.KEY_RIGHT):
                     break
+                elif self.buttons.check_for_low(B.KEY_UP):
+                    self.prev_qr_background_color()
+                elif self.buttons.check_for_low(B.KEY_DOWN):
+                    self.next_qr_background_color()
 
         # Return to Main Menu
         return Path.MAIN_MENU
@@ -779,6 +998,47 @@ class Controller(Singleton):
 
         return Path.SETTINGS_SUB_MENU
 
+    ### next_qr_background_colors()
+    
+    def next_qr_background_color(self):
+        if self.current_bg_qr_color == "FFFFFF":
+            self.current_bg_qr_color = "DDDDDD"
+        elif self.current_bg_qr_color == "DDDDDD":
+            self.current_bg_qr_color = "BBBBBB"
+        elif self.current_bg_qr_color == "BBBBBB":
+            self.current_bg_qr_color = "999999"
+        elif self.current_bg_qr_color == "999999":
+            self.current_bg_qr_color = "777777"
+        elif self.current_bg_qr_color == "777777":
+            self.current_bg_qr_color = "555555"
+        elif self.current_bg_qr_color == "555555":
+            self.current_bg_qr_color = "333333"
+        elif self.current_bg_qr_color == "333333":
+            self.current_bg_qr_color = "FFFFFF"
+        
+        self.settings.qr_background_color = self.current_bg_qr_color
+        
+    ### prev_qr_background_colors()
+    
+    def prev_qr_background_color(self):
+        if self.current_bg_qr_color == "333333":
+            self.current_bg_qr_color = "555555"
+        elif self.current_bg_qr_color == "555555":
+            self.current_bg_qr_color = "777777"
+        elif self.current_bg_qr_color == "777777":
+            self.current_bg_qr_color = "999999"
+        elif self.current_bg_qr_color == "999999":
+            self.current_bg_qr_color = "BBBBBB"
+        elif self.current_bg_qr_color == "BBBBBB":
+            self.current_bg_qr_color = "DDDDDD"
+        elif self.current_bg_qr_color == "DDDDDD":
+            self.current_bg_qr_color = "FFFFFF"
+        elif self.current_bg_qr_color == "FFFFFF":
+            self.current_bg_qr_color = "333333"
+            
+        self.settings.qr_background_color = self.current_bg_qr_color
+
+    ### Show Donate Screen and QR
 
     def show_camera_rotation_tool(self):
         r = self.settings_tools_view.display_camera_rotation()

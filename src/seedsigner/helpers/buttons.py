@@ -146,7 +146,11 @@ class Buttons(Singleton):
         return True
 
     def check_for_low(self, key) -> bool:
-        return self.GPIO.input(key) == self.GPIO.LOW
+        if self.GPIO.input(key) == self.GPIO.LOW:
+            self.update_last_input_time()
+            return True
+        else:
+            return False
 
     def has_any_input(self) -> bool:
         for key in B.ALL_KEYS:

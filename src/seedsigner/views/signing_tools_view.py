@@ -44,7 +44,7 @@ class SigningToolsView(View):
             receiving_addr_str2 += "receiving addresses"
         elif len(p.destination_addresses) == 1:
             receiving_addr_str1 += "receiving address"
-            receiving_addr_str2 += "last 13: ..." + p.destination_addresses[0][-13:]
+            receiving_addr_str2 += "last 13: ... " + p.destination_addresses[0][-13:]
         else:
             receiving_addr_str1 += "Self-Transfer"
         
@@ -52,7 +52,7 @@ class SigningToolsView(View):
         self.draw.text(((240 - tw) / 2, 75), receiving_addr_str1, fill=View.color, font=Fonts.get_font("Assistant-Medium", 22))
         if len(receiving_addr_str2) > 0:
             tw, th = self.draw.textsize(receiving_addr_str2, font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 100), receiving_addr_str2, fill=View.color, font=Fonts.get_font("Assistant-Medium", 22))
+            self.draw.text(((240 - tw) / 2, 105), receiving_addr_str2, fill=View.color, font=Fonts.get_font("Assistant-Medium", 22))
 
 
         if p.spend_amount > 0:
