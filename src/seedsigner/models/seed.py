@@ -7,9 +7,10 @@ from typing import List
 
 
 class SeedConstants:
-    MAINNET = "main"
-    TESTNET = "test"
-    REGTEST = "regtest"
+    MAINNET = ("main", "Mainnet")
+    TESTNET = ("test", "Testnet")
+    REGTEST = ("regtest", "Regtest")
+    ALL_NETWORKS = [MAINNET, TESTNET, REGTEST]
     
     SINGLE_SIG = "single_sig"
     MULTISIG = "multisig"

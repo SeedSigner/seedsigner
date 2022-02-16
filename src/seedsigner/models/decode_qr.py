@@ -698,6 +698,7 @@ class SeedQR:
         return False
 
 
+# TODO: Refactor this to work with the new SettingsDefinition
 class SettingsQR:
     def __init__(self, wordlist=None):
         self.total_segments = 1

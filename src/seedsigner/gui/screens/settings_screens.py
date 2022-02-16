@@ -7,7 +7,7 @@ from seedsigner.models.settings import SettingsConstants
 
 
 @dataclass
-class SettingsEntryUpdateScreen(ButtonListScreen):
+class SettingsEntryUpdateSelectionScreen(ButtonListScreen):
     display_name: str = None
     help_text: str = None
     checked_buttons: List[int] = None

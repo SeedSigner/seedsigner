@@ -28,8 +28,8 @@ class PSBTSelectSeedView(View):
         ENTER_WORDS = "Enter 12/24 words"
         button_data = []
         for seed in seeds:
-            button_str = seed.get_fingerprint(self.settings.network)
-            if not PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=seed, network=self.settings.network):
+            button_str = seed.get_fingerprint(self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK))
+            if not PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 # Doesn't look like this seed can sign the current PSBT
                 button_str += " (?)"
             
@@ -40,12 +40,11 @@ class PSBTSelectSeedView(View):
         button_data.append(SCAN_SEED)
         button_data.append(ENTER_WORDS)
 
-        screen = ButtonListScreen(
+        selected_menu_num = ButtonListScreen(
             title="Select Signer",
             is_button_text_centered=False,
             button_data=button_data
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -79,7 +78,7 @@ class PSBTOverviewView(View):
             self.controller.psbt_parser = PSBTParser(
                 self.controller.psbt,
                 seed=self.controller.psbt_seed,
-                network=self.controller.settings.network
+                network=self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK)
             )
 
 
@@ -112,8 +111,7 @@ class PSBTOverviewView(View):
 
 class PSBTNoChangeWarningView(View):
     def run(self):
-        screen = psbt_screens.PSBTNoChangeWarningScreen()
-        selected_menu_num = screen.display()
+        selected_menu_num = psbt_screens.PSBTNoChangeWarningScreen().display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -140,15 +138,14 @@ class PSBTAmountDetailsView(View):
             # Should not be able to get here
             return Destination(MainMenuView)
         
-        screen = PSBTAmountDetailsScreen(
+        selected_menu_num = PSBTAmountDetailsScreen(
             input_amount=psbt_parser.input_amount,
             num_inputs=psbt_parser.num_inputs,
             spend_amount=psbt_parser.spend_amount,
             num_recipients=psbt_parser.num_destinations,
             fee_amount=psbt_parser.fee_amount,
             change_amount=psbt_parser.change_amount,
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -185,15 +182,13 @@ class PSBTAddressDetailsView(View):
         else:
             button_data.append("Next")
 
-        screen = psbt_screens.PSBTAddressDetailsScreen(
+        selected_menu_num = psbt_screens.PSBTAddressDetailsScreen(
             title=title,
             button_data=button_data,
             address=psbt_parser.destination_addresses[self.address_num],
             amount=psbt_parser.destination_amounts[self.address_num],
             is_change=self.is_change,
-        )
-
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == 0:
             if self.address_num < len(psbt_parser.destination_addresses) - 1:
@@ -233,10 +228,10 @@ class PSBTChangeDetailsView(View):
 
         # Single-sig verification is easy. We expect to find a single fingerprint
         # and derivation path.
-        print(f"seed fingerprint: {self.controller.psbt_seed.get_fingerprint(self.settings.network)}")
+        print(f"seed fingerprint: {self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))}")
         print(change_data)
 
-        if self.controller.psbt_seed.get_fingerprint(self.settings.network) != change_data.get("fingerprint")[0]:
+        if self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)) != change_data.get("fingerprint")[0]:
             # TODO: Something is wrong with this psbt(?). Reroute to warning?
             return Destination(MainMenuView)
 
@@ -254,7 +249,7 @@ class PSBTChangeDetailsView(View):
         if psbt_parser.num_change_outputs > 1:
             title += f" (#{self.change_address_num + 1})"
 
-        screen = psbt_screens.PSBTChangeDetailsScreen(
+        selected_menu_num = psbt_screens.PSBTChangeDetailsScreen(
             title=title,
             button_data=["Next"],
             address=change_data.get("address"),
@@ -263,9 +258,7 @@ class PSBTChangeDetailsView(View):
             derivation_path=derivation_path,
             is_own_change_addr=is_own_change_addr,
             own_addr_index=own_addr_index,
-        )
-
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == 0:
             if self.change_address_num < psbt_parser.num_change_outputs - 1:
@@ -290,10 +283,9 @@ class PSBTFinalizeView(View):
             # Should not be able to get here
             return Destination(MainMenuView)
 
-        screen = psbt_screens.PSBTFinalizeScreen(
+        selected_menu_num = psbt_screens.PSBTFinalizeScreen(
             button_data=["Approve PSBT"]
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == 0:
             # Sign PSBT
@@ -315,8 +307,8 @@ class PSBTFinalizeView(View):
             else:
                 self.controller.psbt = trimmed_psbt
 
-                if len(self.settings.coordinators) == 1:
-                    return Destination(PSBTSignedQRDisplayView, view_args={"coordinator": self.settings.coordinators[0]})
+                if len(self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)) == 1:
+                    return Destination(PSBTSignedQRDisplayView, view_args={"coordinator": self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[0]})
                 else:
                     return Destination(PSBTSelectCoordinatorView)
 
@@ -327,11 +319,10 @@ class PSBTFinalizeView(View):
 
 class PSBTSelectCoordinatorView(View):
     def run(self):
-        button_data = [c for c in self.settings.coordinators]
-        screen = psbt_screens.PSBTSelectCoordinatorScreen(
+        button_data = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)
+        selected_menu_num = psbt_screens.PSBTSelectCoordinatorScreen(
             button_data=button_data
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -347,13 +338,12 @@ class PSBTSignedQRDisplayView(View):
 
     def run(self):
         qr_encoder = EncodeQR(
-            psbt=self.controller.psbt, 
-            qr_type=self.settings.qr_psbt_type(self.coordinator), 
-            qr_density=self.settings.qr_density,
+            psbt=self.controller.psbt,
+            qr_type=self.settings.qr_psbt_type(self.coordinator),
+            qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
             wordlist=self.settings.wordlist
         )
-        screen = QRDisplayScreen(qr_encoder=qr_encoder)
-        ret = screen.display()
+        ret = QRDisplayScreen(qr_encoder=qr_encoder).display()
 
         # We're done with this PSBT. Remove all related data
         self.controller.psbt = None
@@ -371,14 +361,13 @@ class PSBTSigningErrorView(View):
             # Should not be able to get here
             return Destination(MainMenuView)
 
-        screen = WarningScreen(
+        selected_menu_num = WarningScreen(
             title="Finalize PSBT",
             warning_icon_name="warning",
             warning_headline="Signing Failed",
             warning_text="",
             button_data=["Select Diff Seed"],
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == 0:
             return Destination(PSBTSelectSeedView, clear_history=True)

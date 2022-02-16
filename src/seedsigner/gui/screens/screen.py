@@ -2,7 +2,7 @@ import time
 
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageColor
-from typing import List, Tuple
+from typing import Any, List, Tuple
 from seedsigner.gui.renderer import Renderer
 
 from seedsigner.helpers.threads import BaseThread
@@ -41,7 +41,7 @@ class BaseScreen(BaseComponent):
         self.paste_images: List[Tuple] = []
 
 
-    def display(self):
+    def display(self) -> Any:
         try:
             with self.renderer.lock:
                 self._render()

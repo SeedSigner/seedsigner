@@ -55,7 +55,6 @@ class View:
         self.canvas_height = self.renderer.canvas_height
 
         self.buttons = self.controller.buttons
-        self.color = self.controller.color
 
 
     def run(self, **kwargs):
@@ -63,28 +62,6 @@ class View:
             self.screen.display()
         else:
             raise Exception("Must implement in the child class")
-
-    ###
-    ### Reusable components
-    ###
-    # TODO: Obviated by seedsigner.gui.components.TopNav
-    def render_previous_button(self, highlight=False):
-        # Set up the "back" arrow in the upper left
-        arrow = "<"
-        word_font = Fonts.get_font("RobotoCondensed-Bold", 26)
-        top_padding = -3
-        bottom_padding = 3
-        side_padding = 3
-        tw, th = word_font.getsize(arrow)
-        self.previous_button_width = tw + 2 * side_padding
-        if highlight:
-            font_color = "black"
-            background_color = self.color
-        else:
-            font_color = self.color
-            background_color = "black"
-        self.renderer.draw.rectangle((0,0, self.previous_button_width, th + top_padding + bottom_padding), fill=background_color)
-        self.renderer.draw.text((side_padding, top_padding), arrow, fill=font_color, font=word_font)
 
 
 

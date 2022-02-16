@@ -111,20 +111,22 @@ class SeedOptionsView(View):
         button_data = []
 
         if self.controller.psbt:
-            if not PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.network):
+            if not PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
+                # This seed does not seem to be a signer for this PSBT
+                # TODO: How sure are we? Should disable this entirely if we're 100% sure?
                 SIGN_PSBT += " (?)"
             button_data.append(SIGN_PSBT)
         
         button_data.append(VIEW_WORDS)
 
-        if self.settings.xpub_export == SettingsConstants.OPTION__ENABLED:
+        if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             button_data.append(EXPORT_XPUB)
         
         button_data.append(EXPORT_SEEDQR)
 
         screen = seed_screens.SeedOptionsScreen(
             button_data=button_data,
-            fingerprint=self.seed.get_fingerprint(self.settings.network),
+            fingerprint=self.seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
             has_passphrase=self.seed.passphrase is not None
         )
         selected_menu_num = screen.display()
@@ -139,7 +141,7 @@ class SeedOptionsView(View):
         elif button_data[selected_menu_num] == VIEW_WORDS:
             return Destination(SeedWordsWarningView, view_args={"seed_num": self.seed_num})
 
-        elif button_data[selected_menu_num] == EXPORT_XPUB and self.settings.xpub_export == SettingsConstants.OPTION__ENABLED:
+        elif button_data[selected_menu_num] == EXPORT_XPUB and self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})                
 
         elif button_data[selected_menu_num] == EXPORT_SEEDQR:
@@ -474,7 +476,7 @@ class SeedExportXpubQRDisplayView(View):
             derivation=derivation_path,
             network=self.settings.network,
             qr_type=qr_type,
-            qr_density=self.settings.qr_density,
+            qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
             wordlist=self.seed.wordlist
         )
 

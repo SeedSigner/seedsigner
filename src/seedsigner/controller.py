@@ -1,21 +1,7 @@
-import os
-import sys
-import time
-import re
-from multiprocessing import Process, Queue
-from subprocess import call
-import os, sys
-from embit import bip32, script, ec
-from embit.networks import NETWORKS
-from embit.descriptor import Descriptor
-from binascii import hexlify
-from threading import Thread
-
 from embit.psbt import PSBT
 from seedsigner.gui.renderer import Renderer
 
-from .models import (EncodeQRDensity, Seed, SeedStorage, Settings,
-    Singleton, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
+from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
 
 
 
@@ -38,7 +24,7 @@ class Controller(Singleton):
     """
     from .helpers import Buttons
 
-    VERSION = "0.5.0"
+    VERSION = "0.5.0 prerelease 1"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
@@ -67,30 +53,16 @@ class Controller(Singleton):
             # models
             # TODO: Rename "storage" to something more indicative of its temp, in-memory state
             controller.storage = SeedStorage()
+
             controller.settings = Settings.get_instance()
 
             # Store one working psbt in memory
             controller.psbt = None
             controller.psbt_parser = None
 
-            # settings
-            # TODO: Remove these
-            controller.DEBUG = controller.settings.debug
-            controller.color = controller.settings.text_color
-            controller.current_bg_qr_color = controller.settings.qr_background_color
-
             # Configure the Renderer
-            Renderer.configure_instance({"text_color": controller.color})
+            Renderer.configure_instance()
 
-            # TODO: Refactor so that we don't need the Renderer here
-            controller.renderer = Renderer.get_instance()
-
-            # Views
-            # controller.menu_view = MenuView()
-            # controller.seed_tools_view = SeedToolsView()
-            # controller.io_test_view = IOTestView()
-            # controller.signing_tools_view = SigningToolsView(controller.storage)
-            # controller.settings_tools_view = SettingsToolsView()
             controller.screensaver = ScreensaverView(controller.buttons)
 
             controller.back_stack = []
@@ -134,8 +106,8 @@ class Controller(Singleton):
         from .views import View, Destination, OpeningSplashView, MainMenuView, BackStackView
 
         # Disabled to save some time during dev...
-        # opening_splash = OpeningSplashView()
-        # opening_splash.start()
+        opening_splash = OpeningSplashView()
+        opening_splash.start()
 
         """ Class references can be stored as variables in python!
 
@@ -202,13 +174,14 @@ class Controller(Singleton):
 
         finally:
             # Clear the screen when exiting
-            self.renderer.display_blank_screen()
+            Renderer.get_instance().display_blank_screen()
 
 
     def start_screensaver(self):
         self.screensaver.start()
 
 
+"""
     ### Menu
     ### Menu View handles navigation within the menu
     ### Sub Menu's like Seed Tools, Signing Tools, Settings are all in the Menu View
@@ -965,7 +938,7 @@ class Controller(Singleton):
 
     def show_qr_density_tool(self):
         r = self.settings_tools_view.display_qr_density_selection()
-        if r in (EncodeQRDensity.LOW, EncodeQRDensity.MEDIUM, EncodeQRDensity.HIGH):
+        if r in (EncodeQR.DENSITY__LOW, EncodeQR.DENSITY__MEDIUM, EncodeQR.DENSITY__HIGH):
             self.settings.qr_density = r
 
         return Path.SETTINGS_SUB_MENU
@@ -1084,3 +1057,4 @@ class Controller(Singleton):
 
         return Path.MAIN_MENU
 
+"""

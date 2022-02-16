@@ -41,13 +41,12 @@ class SettingsMenuView(View):
             title = "Dev Options"
             next = None
 
-        screen = ButtonListScreen(
+        selected_menu_num = ButtonListScreen(
             title=title,
             is_button_text_centered=False,
             button_data=button_data,
             selected_button=selected_button,
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             if self.visibility == SettingsConstants.VISIBILITY__GENERAL:
@@ -61,76 +60,94 @@ class SettingsMenuView(View):
             return next
 
         else:
-            return Destination(SettingsEntryUpdateView, view_args={"attr_name": settings_entries[selected_menu_num].attr_name})
+            # TODO: Free-entry types (are there any?) will need their own SettingsEntryUpdateFreeEntryView(?).
+            return Destination(SettingsEntryUpdateSelectionView, view_args={"attr_name": settings_entries[selected_menu_num].attr_name})
 
 
 
-class SettingsEntryUpdateView(View):
+class SettingsEntryUpdateSelectionView(View):
+    """
+        Handles changes to all selection-type settings (Multiselect, SELECT_1,
+        Enabled/Disabled, etc).
+    """
     def __init__(self, attr_name: str):
         super().__init__()
         self.settings_entry = SettingsDefinition.get_settings_entry(attr_name)
-        self.selected_button = 0
 
 
     def run(self):
-        button_data = self.settings_entry.possible_values
         cur_value = self.settings.get_value(self.settings_entry.attr_name)
+        button_data = []
         checked_buttons = []
-        for i, value in enumerate(button_data):
+        selected_button = None
+        for i, value in enumerate(self.settings_entry.selection_options):
+            print(value)
+            if type(value) == tuple:
+                value, display_name = value
+            else:
+                display_name = value
+            button_data.append(display_name)
             if (type(cur_value) == list and value in cur_value) or value == cur_value:
                 checked_buttons.append(i)
 
-        screen = settings_screens.SettingsEntryUpdateScreen(
+                if selected_button is None:
+                    # Highlight the selection (for multiselect highlight the first
+                    # selected option).
+                    selected_button = i
+                    print(f"setting selected_button: {i} - {display_name}")
+
+        ret_value = settings_screens.SettingsEntryUpdateSelectionScreen(
             display_name=self.settings_entry.display_name,
             help_text=self.settings_entry.help_text,
             button_data=button_data,
-            selected_button=self.selected_button,
+            selected_button=selected_button,
             checked_buttons=checked_buttons,
             settings_entry_type=self.settings_entry.type,
+        ).display()
+
+        destination = None
+        settings_menu_view_destination = Destination(
+            SettingsMenuView,
+            view_args={
+                "visibility": self.settings_entry.visibility,
+                "selected_attr": self.settings_entry.attr_name
+            }
         )
-        ret_value = screen.display()
 
-        if self.settings_entry.type == SettingsConstants.TYPE__MULTISELECT:
-            if ret_value == RET_CODE__BACK_BUTTON:
-                return Destination(
-                    SettingsMenuView,
-                    view_args={
-                        "visibility": self.settings_entry.visibility,
-                        "selected_attr": self.settings_entry.attr_name
-                    }
-                )
+        if ret_value == RET_CODE__BACK_BUTTON:
+            return settings_menu_view_destination
 
+        value = self.settings_entry.get_selection_option_value(ret_value)
+
+        if self.settings_entry.type == SettingsConstants.TYPE__FREE_ENTRY:
+            updated_value = ret_value
+            destination = settings_menu_view_destination
+
+        elif self.settings_entry.type == SettingsConstants.TYPE__MULTISELECT:
+            updated_value = list(cur_value)
             if ret_value not in checked_buttons:
                 # This is a new selection to add
-                cur_value.append(self.settings_entry.possible_values[ret_value])
+                updated_value.append(value)
             else:
                 # This is a de-select to remove
-                cur_value.remove(self.settings_entry.possible_values[ret_value])
-            
-            # Save the updated selections
-            self.settings.set_value(
-                attr_name=self.settings_entry.attr_name,
-                value=cur_value
-            )
-            # Multiselects stay in place; re-initialize where in the list we left off
-            # TODO: get Screen.scroll_y to pass in?
-            self.selected_button = ret_value
-            return self.run()
-
-        elif ret_value == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
+                updated_value.remove(value)
 
         else:
-            self.settings.set_value(
-                attr_name=self.settings_entry.attr_name,
-                value=self.settings_entry.possible_values[ret_value]
-            )
+            # All other types are single selects (e.g. Enabled/Disabled, SELECT_1)
+            updated_value = value
+        
+        print(updated_value)
 
-            return Destination(
-                SettingsMenuView,
-                view_args={
-                    "visibility": self.settings_entry.visibility,
-                    "selected_attr": self.settings_entry.attr_name
-                }
-            )
+        self.settings.set_value(
+            attr_name=self.settings_entry.attr_name,
+            value=updated_value
+        )
+
+        if destination:
+            return destination
+
+        # All selects stay in place; re-initialize where in the list we left off
+        # TODO: get Screen.scroll_y to pass in?
+        self.selected_button = ret_value
+        return self.run()
 

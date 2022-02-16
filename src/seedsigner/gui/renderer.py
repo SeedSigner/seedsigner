@@ -18,24 +18,24 @@ class Renderer(ConfigurableSingleton):
 
 
     @classmethod
-    def configure_instance(cls, config=None):
+    def configure_instance(cls, config={}):
+        from seedsigner.models.settings import Settings
         super().configure_instance(config)
 
         # Instantiate the one and only Renderer instance
         renderer = cls.__new__(cls)
         cls._instance = renderer
 
-        renderer.color = config["text_color"]
+        # TODO: Use Settings values to wire up diff hardware params
+        settings = Settings.get_instance()
 
         # Eventually we'll be able to plug in other display controllers
         renderer.disp = ST7789()
-
         renderer.canvas_width = renderer.disp.width
         renderer.canvas_height = renderer.disp.height
+
         renderer.canvas = Image.new('RGB', (renderer.canvas_width, renderer.canvas_height))
         renderer.draw = ImageDraw.Draw(renderer.canvas)
-
-        draw = ImageDraw.Draw(renderer.canvas)
 
 
     def show_image(self, image=None, alpha_overlay=None):

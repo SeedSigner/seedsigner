@@ -3,12 +3,12 @@ import json
 import os
 
 from embit import bip39
-from typing import List
+from typing import Any, List
 
 from .seed import SeedConstants
 from .singleton import Singleton
 from .qr_type import QRType
-from .encode_qr_density import EncodeQRDensity
+from .encode_qr import EncodeQR
 
 
 
@@ -17,7 +17,6 @@ class SettingsConstants:
     COORDINATOR__BLUE_WALLET = "BlueWallet"
     COORDINATOR__SPARROW = "Sparrow"
     COORDINATOR__SPECTER_DESKTOP = "Specter Desktop"
-
     ALL_COORDINATORS = [
         COORDINATOR__BLUE_WALLET,
         COORDINATOR__SPARROW,
@@ -28,7 +27,6 @@ class SettingsConstants:
     OPTION__DISABLED = "Disabled"
     OPTION__PROMPT = "Prompt"
     OPTION__REQUIRED = "Required"
-
     ALL_OPTIONS = [
         OPTION__ENABLED,
         OPTION__DISABLED,
@@ -36,18 +34,28 @@ class SettingsConstants:
         OPTION__REQUIRED,
     ]
 
-    LANGUAGE__ENGLISH = "English"
-
+    LANGUAGE__ENGLISH = ("en", "English")
     ALL_LANGUAGES = [
         LANGUAGE__ENGLISH,
     ]
 
+    ROTATION__0 = (0, "0°")
+    ROTATION__90 = (90, "90°")
+    ROTATION__180 = (180, "180°")
+    ROTATION__270 = (270, "270°")
+    ALL_ROTATIONS = [
+        ROTATION__0, ROTATION__90, ROTATION__180, ROTATION__270
+    ]
 
     # Individual settings entry attr_names
     SETTING__LANGUAGE = "language"
     SETTING__PERSISTENT_SETTINGS = "persistent_settings"
     SETTING__COORDINATORS = "coordinators"
 
+    SETTING__NETWORK = "network"
+    SETTING__QR_DENSITY = "qr_density"
+    SETTING__XPUB_EXPORT = "xpub_export"
+    SETTING__CAMERA_ROTATION = "camera_rotation"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
 
@@ -93,22 +101,57 @@ class SettingsEntry:
     visibility: str = SettingsConstants.VISIBILITY__GENERAL
     type: str = SettingsConstants.TYPE__ENABLED_DISABLED
     help_text: str = None
-    possible_values: List[str] = None
-    possible_values_abbreviated: List[str] = None
+    selection_options: List[str] = None
+    selection_options_abbreviated: List[str] = None
     default_value: str = None
 
     def __post_init__(self):
         if self.type == SettingsConstants.TYPE__ENABLED_DISABLED:
-            self.possible_values = [SettingsConstants.OPTION__ENABLED,
-                                    SettingsConstants.OPTION__DISABLED]
+            self.selection_options = [SettingsConstants.OPTION__ENABLED,
+                                      SettingsConstants.OPTION__DISABLED]
 
         elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT:
-            self.possible_values = [SettingsConstants.OPTION__ENABLED,
-                                    SettingsConstants.OPTION__DISABLED,
-                                    SettingsConstants.OPTION__PROMPT]
+            self.selection_options = [SettingsConstants.OPTION__ENABLED,
+                                      SettingsConstants.OPTION__DISABLED,
+                                      SettingsConstants.OPTION__PROMPT]
 
         elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQURIED:
-            self.possible_values = [SettingsConstants.ALL_OPTIONS]
+            self.selection_options = [SettingsConstants.ALL_OPTIONS]
+    
+
+    @property
+    def selection_options_display_names(self) -> List[str]:
+        if type(self.selection_options[0]) == tuple:
+            return [v[1] for v in self.selection_options]
+        else:
+            # Always return a copy so the original can't be altered
+            return list(self.selection_options)
+
+
+    def get_selection_option_value(self, i: int):
+        value = self.selection_options[i]
+        if type(value) == tuple:
+            value = value[0]
+        return value
+
+
+    def get_selection_option_display_name(self, i: int) -> str:
+        value = self.selection_options[i]
+        if type(value) == tuple:
+            value = value[1]
+        return value
+    
+    
+    def get_selection_option_display_name_by_value(self, value) -> str:
+        for option in self.selection_options:
+            if type(option) == tuple:
+                option_value = option[0]
+                display_name = option[1]
+            else:
+                option_value = option
+                display_name = option
+            if option_value == value:
+                return display_name
 
 
 
@@ -131,32 +174,62 @@ class SettingsDefinition:
                       attr_name=SettingsConstants.SETTING__LANGUAGE,
                       display_name="Language",
                       type=SettingsConstants.TYPE__SELECT_1,
-                      possible_values=SettingsConstants.ALL_LANGUAGES,
+                      selection_options=SettingsConstants.ALL_LANGUAGES,
                       default_value=SettingsConstants.LANGUAGE__ENGLISH),
      
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__PERSISTENT_SETTINGS,
-                      display_name="Persistent Settings",
+                      display_name="Persistent settings",
                       help_text="Store Settings on SD card",
                       default_value=SettingsConstants.OPTION__DISABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__WALLET,
                       attr_name=SettingsConstants.SETTING__COORDINATORS,
-                      display_name="Coordinator Software",
+                      display_name="Coordinator software",
                       type=SettingsConstants.TYPE__MULTISELECT,
-                      possible_values=SettingsConstants.ALL_COORDINATORS,
+                      selection_options=SettingsConstants.ALL_COORDINATORS,
                       default_value=SettingsConstants.ALL_COORDINATORS),
 
         # Advanced options
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__NETWORK,
+                      display_name="Bitcoin network",
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      selection_options=SeedConstants.ALL_NETWORKS,
+                      default_value=SeedConstants.MAINNET[0]),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__QR_DENSITY,
+                      display_name="QR code density",
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      selection_options=EncodeQR.ALL_DENSITIES,
+                      default_value=EncodeQR.DENSITY__MEDIUM),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__XPUB_EXPORT,
+                      display_name="Xpub export",
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__ENABLED),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__QR_DENSITY,
+                      display_name="QR code density",
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      selection_options=SettingsConstants.ALL_ROTATIONS,
+                      default_value=SettingsConstants.ROTATION__0),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__PRIVACY_WARNINGS,
-                      display_name="Show Privacy Warnings",
+                      display_name="Show privacy warnings",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__ENABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__DIRE_WARNINGS,
-                      display_name="Show Dire Warnings",
+                      display_name="Show dire warnings",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__ENABLED),
 
@@ -187,7 +260,7 @@ class SettingsDefinition:
 
     @classmethod
     def parse_abbreviated_ini(cls, abbreviated_ini: str) -> dict:
-        return False
+        raise Exception("Not implemented, maybe not needed")
 
 
     @classmethod
@@ -205,12 +278,14 @@ class SettingsDefinition:
 
     @classmethod
     def to_json(cls):
-        return json.dumps({})
+        raise Exception("Not implemented")
     
 
     @classmethod
     def to_html(cls):
-        return ""
+        raise Exception("Not implemented, maybe not needed")
+
+
 
 class Settings(Singleton):
     SETTINGS_FILENAME = "settings.json"
@@ -240,7 +315,7 @@ class Settings(Singleton):
             #     "wallet": {
             #         "network": SeedConstants.MAINNET,
             #         "coordinators": SettingsConstants.ALL_COORDINATORS,
-            #         "qr_density": EncodeQRDensity.MEDIUM,
+            #         "qr_density": EncodeQR.DENSITY__MEDIUM,
             #         "custom_derivation": "m/"
             #     },
             #     "features": {
@@ -254,7 +329,7 @@ class Settings(Singleton):
             #     }
             # }
 
-            # # Read persistent settings, if it exists
+            # TODO: Read persistent settings, if it exists
             # if os.path.exists(Settings.SETTINGS_FILENAME):
             #     with open(Settings.SETTINGS_FILENAME) as settings_file:
             #         settings._data.update(json.load(settings_file))
@@ -287,43 +362,45 @@ class Settings(Singleton):
         self._data[attr_name] = value
         # self.save()
     
-    # TODO: auto-intialize dict keys as getter properties?
+
     def get_value(self, attr_name: str):
         if attr_name not in self._data:
             raise Exception(f"Setting for {attr_name} not found")
         return self._data[attr_name]
 
 
-    ### persistent settings handling
+    def get_value_display_name(self, attr_name: str) -> str:
+        if attr_name not in self._data:
+            raise Exception(f"Setting for {attr_name} not found")
+        settings_entry = SettingsDefinition.get_settings_entry(attr_name)
+        if settings_entry.type in [SettingsConstants.TYPE__FREE_ENTRY, SettingsConstants.TYPE__MULTISELECT]:
+            raise Exception(f"Unsupported SettingsEntry.type: {settings_entry.type}")
+        return settings_entry.get_selection_option_display_name_by_value(value=self._data[attr_name])
+    
+
+    def get_multiselect_value_display_names(self, attr_name: str) -> List[str]:
+        if attr_name not in self._data:
+            raise Exception(f"Setting for {attr_name} not found")
+        settings_entry = SettingsDefinition.get_settings_entry(attr_name)
+        if settings_entry.type != SettingsConstants.TYPE__MULTISELECT:
+            raise Exception(f"Unsupported SettingsEntry.type: {settings_entry.type}")
+
+        display_names = []
+        for value in self._data[attr_name]:
+            display_names.append(settings_entry.get_selection_option_display_name_by_value(value))
+        return display_names
+
+
 
     @property
-    def persistent_settings(self):
+    def persistent_settings(self) -> bool:
         return self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] == SettingsConstants.OPTION__ENABLED
 
     @property
-    def persistent_display(self):
-        if self.persistent:
-            return "Yes"
-        else:
-            return "No"
+    def debug(self) -> bool:
+        return self._data[SettingsConstants.SETTING__DEBUG] == SettingsConstants.OPTION__ENABLED
 
-    ### system
-
-    @property
-    def debug(self):
-        return False
-
-    @property
-    def language(self):
-        return "en"
-        
-    @property
-    def wordlist(self):
-        # TODO: Support BIP-39 wordlists in other languages
-        return bip39.WORDLIST
-
-    ### display
-
+    # TODO: Deeper support for GUI-wide color customization
     @property
     def text_color(self):
         from seedsigner.gui.components import GUIConstants
@@ -332,55 +409,10 @@ class Settings(Singleton):
     @property
     def qr_background_color(self):
         return self._data["display"]["qr_background_color"]
-        
-    @qr_background_color.setter
-    def qr_background_color(self, value):
-        self._data["display"]["qr_background_color"] = value
-        self.__writeConfig()
 
-    @property
-    def camera_rotation(self):
-        return 0
 
-    @camera_rotation.setter
-    def camera_rotation(self, value: int):
-        if value in [0, 90, 180, 270]:
-            self._data["display"]["camera_rotation"] = value
-            self.save()
-        else:
-            raise Exception("Unexpected display.camera_rotation settings.json value")
-
-    ### wallet
-
-    @property
-    def network(self):
-        return SeedConstants.MAINNET
-
-    @network.setter
-    def network(self, value):
-        if value in [SeedConstants.MAINNET, SeedConstants.TESTNET]:
-            self._data["wallet"]["network"] = value
-            self.save()
-        else:
-            raise Exception("Unexpected wallet.network settings.json value")
-
-    @property
-    def coordinators(self):
-        return self._data[SettingsConstants.SETTING__COORDINATORS]
-
-    @property
-    def qr_density(self):
-        return self._data["wallet"]["qr_density"]
-
-    @qr_density.setter
-    def qr_density(self, value):
-        if value in (EncodeQRDensity.LOW, EncodeQRDensity.MEDIUM, EncodeQRDensity.HIGH, int(EncodeQRDensity.LOW), int(EncodeQRDensity.MEDIUM), int(EncodeQRDensity.HIGH)):
-            self._data["wallet"]["qr_density"] = int(value)
-            self.save()
-        else:
-            raise Exception("Unexpected wallet.qr_density settings.json value")
-
-    def qr_psbt_type(self, coordinator):
+    @staticmethod
+    def qr_psbt_type(coordinator):
         if coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
             return QRType.PSBTSPECTER
         else:
@@ -388,27 +420,16 @@ class Settings(Singleton):
 
     @property
     def qr_xpub_type(self):
-        return Settings.getXPubType(self.coordinators)
+        return Settings.getXPubType(self._data[SettingsConstants.SETTING__COORDINATORS])
 
     @staticmethod
-    def getXPubType(software):
-        if software == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
+    def getXPubType(coordinators):
+        if coordinators == [SettingsConstants.COORDINATOR__SPECTER_DESKTOP]:
             return QRType.SPECTERXPUBQR
-        elif software == "Blue Wallet":
+        elif coordinators == [SettingsConstants.COORDINATOR__BLUE_WALLET]:
             return QRType.XPUBQR
         else:
             return QRType.URXPUBQR
-
-    @property
-    def qr_density_name(self):
-        if self.qr_density == EncodeQRDensity.LOW:
-            return "Low"
-        elif self.qr_density == EncodeQRDensity.MEDIUM:
-            return "Medium"
-        elif self.qr_density == EncodeQRDensity.HIGH:
-            return "High"
-        else:
-            return "Unknown"
 
     @property
     def custom_derivation(self):
@@ -419,64 +440,3 @@ class Settings(Singleton):
         # TODO: parse and validate custom derivation path
         self._data["wallet"]["custom_derivation"] = value
         self.save()
-
-    @staticmethod
-    def calc_derivation(network, wallet_type, script_type):
-        # TODO: Move this to Seed?
-        if network == SeedConstants.MAINNET:
-            network_path = "0'"
-        elif network == SeedConstants.TESTNET:
-            network_path = "1'"
-        else:
-            raise Exception("Unexpected network")
-
-        if wallet_type == SeedConstants.SINGLE_SIG:
-            if script_type == SeedConstants.NATIVE_SEGWIT:
-                return f"m/84'/{network_path}/0'"
-            elif script_type == SeedConstants.NESTED_SEGWIT:
-                return f"m/49'/{network_path}/0'"
-            elif script_type == SeedConstants.TAPROOT:
-                return f"m/86'/{network_path}/0'"
-            else:
-                raise Exception("Unexpected script type")
-
-        elif wallet_type == SeedConstants.MULTISIG:
-            if script_type == SeedConstants.NATIVE_SEGWIT:
-                return f"m/48'/{network_path}/0'/2'"
-            elif script_type == SeedConstants.NESTED_SEGWIT:
-                return f"m/48'/{network_path}/0'/1'"
-            elif script_type == SeedConstants.TAPROOT:
-                raise Exception("Taproot multisig/musig not yet supported")
-            else:
-                raise Exception("Unexpected script type")
-        else:
-            raise Exception("Unexpected wallet type")
-
-    # Features
-    @property
-    def xpub_export(self):
-        return self._data["features"].get("xpub_export")
-    
-    @property
-    def sig_types(self) -> List[str]:
-        return self._data["features"].get("sig_types")
-
-    @property
-    def script_types(self) -> List[str]:
-        return self._data["features"].get("script_types")
-
-    @property
-    def show_xpub_details(self) -> bool:
-        return self._data["features"].get("show_xpub_details") == SettingsConstants.OPTION__ENABLED
-
-    @property
-    def passphrase(self):
-        return "Enabled"
-
-    @property
-    def show_privacy_warnings(self) -> bool:
-        return self._data["features"].get("show_privacy_warnings") == SettingsConstants.OPTION__ENABLED
-
-    @property
-    def show_dire_warnings(self) -> bool:
-        return self._data["features"].get("show_dire_warnings") == SettingsConstants.OPTION__ENABLED

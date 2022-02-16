@@ -78,7 +78,7 @@ def test_specter_xpub_qr():
 
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.SPECTERXPUBQR, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQRDensity.LOW, wordlist=bip39.WORDLIST)
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.SPECTERXPUBQR, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQR.DENSITY__LOW, wordlist=bip39.WORDLIST)
 
     assert e.nextPart() == "p1of4 [c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDN"
     assert e.nextPart() == "p2of4 c5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBo"
@@ -89,7 +89,7 @@ def test_ur_xpub_qr():
     
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
     
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.URXPUBQR, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQRDensity.MEDIUM, wordlist=bip39.WORDLIST)
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.URXPUBQR, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQR.DENSITY__MEDIUM, wordlist=bip39.WORDLIST)
     
     assert e.nextPart() == "UR:CRYPTO-ACCOUNT/1-4/LPADAACSJKCYYNRDRTYAHDCAOEADCYSSMECPONAOLYTAADMETAADDLOXAXHDCLAOKSRLNLKPUEGYATHPMNRTAAOLAH"
     assert e.nextPart() == "UR:CRYPTO-ACCOUNT/2-4/LPAOAACSJKCYYNRDRTYAHDCASNKKGHZMLUZORPVDGUOTECSTTKTOLPCWPTNTLKZTTIZTBEAAHDCXVDTPMYQDLAWNGL"

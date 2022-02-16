@@ -7,18 +7,22 @@ from seedsigner.helpers.ur2.cbor_lite import CBOREncoder
 from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.bcur import (bc32encode, cbor_encode, bcur_encode)
 from seedsigner.helpers.qr import QR
-from seedsigner.models import Seed, QRType, EncodeQRDensity
+from seedsigner.models import Seed, QRType
 
 from urtypes.crypto import PSBT as UR_PSBT
 from urtypes.crypto import Account, HDKey, Output, Keypath, PathComponent, SCRIPT_EXPRESSION_TAG_MAP
 
-###
-### EncodeQR Class
-### Purpose: used to encode psbt for displaying as qr image
-###
+
 
 class EncodeQR:
-
+    """
+       Encode psbt for displaying as qr image
+    """
+    DENSITY__LOW = "Low"
+    DENSITY__MEDIUM = "Medium"
+    DENSITY__HIGH = "High"
+    ALL_DENSITIES = [DENSITY__LOW, DENSITY__MEDIUM, DENSITY__HIGH]
+    
     WORDLIST = None
 
     def __init__(self, **kwargs):
@@ -57,7 +61,7 @@ class EncodeQR:
             raise Exception('Encoder Type Required')
 
         if self.qr_density == None:
-            self.qr_density = EncodeQRDensity.MEDIUM
+            self.qr_density = EncodeQR.DENSITY__MEDIUM
 
         self.encoder = None
         if self.qr_type == QRType.PSBTSPECTER:
@@ -108,11 +112,11 @@ class UREncodePSBTQR:
         
         qr_ur_bytes = UR("crypto-psbt", UR_PSBT(self.psbt.serialize()).to_cbor())
 
-        if qr_density == EncodeQRDensity.LOW:
+        if qr_density == EncodeQR.DENSITY__LOW:
             self.qr_max_fragement_size = 10
-        elif qr_density == EncodeQRDensity.MEDIUM:
+        elif qr_density == EncodeQR.DENSITY__MEDIUM:
             self.qr_max_fragement_size = 30
-        elif qr_density == EncodeQRDensity.HIGH:
+        elif qr_density == EncodeQR.DENSITY__HIGH:
             self.qr_max_fragement_size = 120
 
         self.ur2_encode = UREncoder(qr_ur_bytes,self.qr_max_fragement_size,0)
@@ -135,11 +139,11 @@ class SpecterEncodePSBTQR:
         self.part_num_sent = 0
         self.sent_complete = False
 
-        if qr_density == EncodeQRDensity.LOW:
+        if qr_density == EncodeQR.DENSITY__LOW:
             self.qr_max_fragement_size = 40
-        elif qr_density == EncodeQRDensity.MEDIUM:
+        elif qr_density == EncodeQR.DENSITY__MEDIUM:
             self.qr_max_fragement_size = 65
-        elif qr_density == EncodeQRDensity.HIGH:
+        elif qr_density == EncodeQR.DENSITY__HIGH:
             self.qr_max_fragement_size = 90
 
         self.__createParts()
@@ -263,11 +267,11 @@ class SpecterXPubQR(XPubQR):
 
     def __init__(self, seed_phrase, passphrase, derivation, network, qr_density, wordlist):
         self.qr_max_fragement_size = 65
-        if qr_density == EncodeQRDensity.LOW:
+        if qr_density == EncodeQR.DENSITY__LOW:
             self.qr_max_fragement_size = 40
-        elif qr_density == EncodeQRDensity.MEDIUM:
+        elif qr_density == EncodeQR.DENSITY__MEDIUM:
             self.qr_max_fragement_size = 65
-        elif qr_density == EncodeQRDensity.HIGH:
+        elif qr_density == EncodeQR.DENSITY__HIGH:
             self.qr_max_fragement_size = 90
 
         XPubQR.__init__(self, seed_phrase, passphrase, derivation, network, wordlist)
@@ -323,11 +327,11 @@ class URXPubQR(XPubQR):
         
         XPubQR.__init__(self, seed_phrase, passphrase, derivation, network, wordlist)
         
-        if qr_density == EncodeQRDensity.LOW:
+        if qr_density == EncodeQR.DENSITY__LOW:
             self.qr_max_fragement_size = 10
-        elif qr_density == EncodeQRDensity.MEDIUM:
+        elif qr_density == EncodeQR.DENSITY__MEDIUM:
             self.qr_max_fragement_size = 30
-        elif qr_density == EncodeQRDensity.HIGH:
+        elif qr_density == EncodeQR.DENSITY__HIGH:
             self.qr_max_fragement_size = 120
         
         def derivation_to_keypath(path: str) -> list:
