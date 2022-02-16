@@ -8,7 +8,6 @@ from seedsigner.models import Seed
 from seedsigner.models.seed import SeedConstants
 
 class PSBTParser():
-
     def __init__(self, p: PSBT, seed: Seed, network="main"):
         self.seed = seed
         self.network = network

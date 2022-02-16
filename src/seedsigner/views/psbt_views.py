@@ -28,7 +28,7 @@ class PSBTSelectSeedView(View):
         ENTER_WORDS = "Enter 12/24 words"
         button_data = []
         for seed in seeds:
-            button_str = seed.get_fingerprint(self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK))
+            button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
             if not PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 # Doesn't look like this seed can sign the current PSBT
                 button_str += " (?)"
