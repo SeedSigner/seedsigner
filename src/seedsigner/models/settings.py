@@ -39,22 +39,27 @@ class SettingsConstants:
         LANGUAGE__ENGLISH,
     ]
 
-    ROTATION__0 = (0, "0°")
-    ROTATION__90 = (90, "90°")
-    ROTATION__180 = (180, "180°")
-    ROTATION__270 = (270, "270°")
-    ALL_ROTATIONS = [
-        ROTATION__0, ROTATION__90, ROTATION__180, ROTATION__270
+    CAMERA_ROTATION__0 = (0, "0°")
+    CAMERA_ROTATION__90 = (90, "90°")
+    CAMERA_ROTATION__180 = (180, "180°")
+    CAMERA_ROTATION__270 = (270, "270°")
+    ALL_CAMERA_ROTATIONS = [
+        CAMERA_ROTATION__0,
+        CAMERA_ROTATION__90,
+        CAMERA_ROTATION__180,
+        CAMERA_ROTATION__270
     ]
 
     # Individual settings entry attr_names
     SETTING__LANGUAGE = "language"
+    SETTING__WORDLIST_LANGUAGE = "wordlist_language"
     SETTING__PERSISTENT_SETTINGS = "persistent_settings"
     SETTING__COORDINATORS = "coordinators"
 
     SETTING__NETWORK = "network"
     SETTING__QR_DENSITY = "qr_density"
     SETTING__XPUB_EXPORT = "xpub_export"
+    SETTING__PASSPHRASE = "passphrase"
     SETTING__CAMERA_ROTATION = "camera_rotation"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
@@ -63,6 +68,7 @@ class SettingsConstants:
 
 
     # Structural constants
+    # TODO: Not using these for display purposes yet/ever?
     CATEGORY__SYSTEM = "system"
     CATEGORY__DISPLAY = "display"
     CATEGORY__WALLET = "wallet"
@@ -103,7 +109,7 @@ class SettingsEntry:
     help_text: str = None
     selection_options: List[str] = None
     selection_options_abbreviated: List[str] = None
-    default_value: str = None
+    default_value: Any = None
 
     def __post_init__(self):
         if self.type == SettingsConstants.TYPE__ENABLED_DISABLED:
@@ -117,6 +123,9 @@ class SettingsEntry:
 
         elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQURIED:
             self.selection_options = [SettingsConstants.ALL_OPTIONS]
+        
+        if type(self.default_value) == tuple:
+            self.default_value = self.default_value[0]
     
 
     @property
@@ -170,12 +179,24 @@ class SettingsDefinition:
     """
     settings_entries: List[SettingsEntry] = [
         # General options
+
+        # TODO: Full babel multilanguage support! Until then, type == HIDDEN
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__LANGUAGE,
                       display_name="Language",
                       type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__HIDDEN,
                       selection_options=SettingsConstants.ALL_LANGUAGES,
                       default_value=SettingsConstants.LANGUAGE__ENGLISH),
+
+        # TODO: Support other bip-39 wordlist languages! Until then, type == HIDDEN
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__WORDLIST_LANGUAGE,
+                      display_name="Mnemonic language",
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__HIDDEN,
+                      selection_options=SeedConstants.ALL_WORDLIST_LANGUAGES,
+                      default_value=SeedConstants.WORDLIST_LANGUAGE__ENGLISH),
      
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__PERSISTENT_SETTINGS,
@@ -197,7 +218,7 @@ class SettingsDefinition:
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SeedConstants.ALL_NETWORKS,
-                      default_value=SeedConstants.MAINNET[0]),
+                      default_value=SeedConstants.MAINNET),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__QR_DENSITY,
@@ -214,12 +235,19 @@ class SettingsDefinition:
                       default_value=SettingsConstants.OPTION__ENABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
-                      attr_name=SettingsConstants.SETTING__QR_DENSITY,
-                      display_name="QR code density",
+                      attr_name=SettingsConstants.SETTING__PASSPHRASE,
+                      display_name="BIP-39 passphrase",
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      selection_options=SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQURIED,
+                      default_value=SettingsConstants.OPTION__ENABLED),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__CAMERA_ROTATION,
+                      display_name="Camera rotation",
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      selection_options=SettingsConstants.ALL_ROTATIONS,
-                      default_value=SettingsConstants.ROTATION__0),
+                      selection_options=SettingsConstants.ALL_CAMERA_ROTATIONS,
+                      default_value=SettingsConstants.CAMERA_ROTATION__0),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__PRIVACY_WARNINGS,

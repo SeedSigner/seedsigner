@@ -341,7 +341,7 @@ class PSBTSignedQRDisplayView(View):
             psbt=self.controller.psbt,
             qr_type=self.settings.qr_psbt_type(self.coordinator),
             qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
-            wordlist=self.settings.wordlist
+            wordlist=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE),
         )
         ret = QRDisplayScreen(qr_encoder=qr_encoder).display()
 

@@ -1,11 +1,9 @@
-from enum import IntEnum
-from embit import psbt, bip32
-from embit.networks import NETWORKS
 from binascii import b2a_base64, hexlify
+from dataclasses import dataclass
+from embit import bip32
+from embit.networks import NETWORKS
 from seedsigner.helpers.ur2.ur_encoder import UREncoder
-from seedsigner.helpers.ur2.cbor_lite import CBOREncoder
 from seedsigner.helpers.ur2.ur import UR
-from seedsigner.helpers.bcur import (bc32encode, cbor_encode, bcur_encode)
 from seedsigner.helpers.qr import QR
 from seedsigner.models import Seed, QRType
 
@@ -14,10 +12,20 @@ from urtypes.crypto import Account, HDKey, Output, Keypath, PathComponent, SCRIP
 
 
 
+@dataclass
 class EncodeQR:
     """
        Encode psbt for displaying as qr image
     """
+    psbt = None
+    seed_phrase = None
+    passphrase = None
+    derivation = None
+    network = None
+    qr_type = None
+    qr_density = None
+    wordlist_language_code = None
+
     DENSITY__LOW = "Low"
     DENSITY__MEDIUM = "Medium"
     DENSITY__HIGH = "High"
@@ -25,37 +33,9 @@ class EncodeQR:
     
     WORDLIST = None
 
-    def __init__(self, **kwargs):
-        self.psbt = None
-        self.seed_phrase = None
-        self.passphrase = None
-        self.derivation = None
-        self.network = None
-        self.qr_type = None
-        self.qr_density = None
-        self.qr = QR()
-        self.wordlist = None
 
-        for key, value in kwargs.items():
-            if key == "psbt":
-                self.psbt = value
-            elif key == "seed_phrase":
-                self.seed_phrase = value
-            elif key == "passphrase":
-                self.passphrase = value
-            elif key == "derivation":
-                self.derivation = value
-            elif key == "network":
-                self.network = value
-            elif key == "qr_type":
-                self.qr_type = value
-            elif key == "qr_density":
-                self.qr_density = value
-            elif key == "wordlist":
-                self.wordlist = value
-                
-        if self.wordlist == None:
-            raise Exception('Wordlist Required')
+    def __post_init__(self):
+        self.qr = QR()
 
         if self.qr_type == None:
             raise Exception('Encoder Type Required')
@@ -69,24 +49,28 @@ class EncodeQR:
         elif self.qr_type == QRType.PSBTUR2:
             self.encoder = UREncodePSBTQR(self.psbt, self.qr_density)
         elif self.qr_type == QRType.SEEDSSQR:
-            self.encoder = SeedSSQR(self.seed_phrase, self.wordlist)
+            self.encoder = SeedSSQR(self.seed_phrase, self.wordlist_language_code)
         elif self.qr_type == QRType.URXPUBQR:
-            self.encoder = URXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.qr_density, self.wordlist)
+            self.encoder = URXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.qr_density, self.wordlist_language_code)
         elif self.qr_type == QRType.XPUBQR:
-            self.encoder = XPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.wordlist)
+            self.encoder = XPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.wordlist_language_code)
         elif self.qr_type == QRType.SPECTERXPUBQR:
-            self.encoder = SpecterXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.qr_density, self.wordlist)
+            self.encoder = SpecterXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.qr_density, self.wordlist_language_code)
         else:
             raise Exception('Encoder Type not Supported')
+
 
     def totalParts(self):
         return self.encoder.seqLen()
 
+
     def nextPart(self):
         return self.encoder.nextPart()
 
+
     def part2Image(self, part, width=240, height=240, border=3):
         return self.qr.qrimage_io(part, width, height, border)
+
 
     def nextPartImage(self, width=240, height=240, border=3, background="FFFFFF"):
         part = self.nextPart()
@@ -95,17 +79,21 @@ class EncodeQR:
         else:
             return self.qr.qrimage_io(part, width, height, border, background=background)
 
+
     def isComplete(self):
         return self.encoder.isComplete()
+
 
     def getQRDensity(self):
         return self.qr_density
 
+
     def getQRType(self):
         return self.qr_type
 
-class UREncodePSBTQR:
 
+
+class UREncodePSBTQR:
     def __init__(self, p, qr_density):
         self.psbt = p
         self.qr_max_fragement_size = 20
@@ -121,17 +109,21 @@ class UREncodePSBTQR:
 
         self.ur2_encode = UREncoder(qr_ur_bytes,self.qr_max_fragement_size,0)
 
+
     def seqLen(self):
         return self.ur2_encode.fountain_encoder.seq_len()
+
 
     def nextPart(self) -> str:
         return self.ur2_encode.next_part().upper()
 
+
     def isComplete(self):
         return self.ur2_encode.is_complete()
 
-class SpecterEncodePSBTQR:
 
+
+class SpecterEncodePSBTQR:
     def __init__(self, p, qr_density):
         self.psbt = p
         self.qr_max_fragement_size = 65
@@ -148,8 +140,8 @@ class SpecterEncodePSBTQR:
 
         self.__createParts()
 
-    def __createParts(self):
 
+    def __createParts(self):
         base64_psbt = b2a_base64(self.psbt.serialize())
 
         if base64_psbt[-1:] == b"\n":
@@ -175,8 +167,10 @@ class SpecterEncodePSBTQR:
                 stop = len(base64_psbt)
             cnt += 1
 
+
     def seqLen(self):
         return len(self.parts)
+
 
     def nextPart(self) -> str:
         # if part num sent is gt number of parts, start at 0
@@ -194,39 +188,44 @@ class SpecterEncodePSBTQR:
 
         return part
 
+
     def isComplete(self):
         return self.sent_complete
 
-class SeedSSQR:
 
-    def __init__(self, seed_phrase, wordlist):
+
+class SeedSSQR:
+    def __init__(self, seed_phrase, wordlist_language_code: str):
         self.seed_phrase = seed_phrase
-        self.wordlist = wordlist
+        self.wordlist = Seed.get_wordlist(wordlist_language_code)
         
         if self.wordlist == None:
             raise Exception('Wordlist Required')
 
+
     def seqLen(self):
         return 1
+
 
     def nextPart(self):
         data = ""
         for word in self.seed_phrase:
             index = self.wordlist.index(word)
             data += str("%04d" % index)
-
         return data
+
 
     def isComplete(self):
         return True
 
-class XPubQR:
 
-    def __init__(self, seed_phrase, passphrase, derivation, network, wordlist):
+
+class XPubQR:
+    def __init__(self, seed_phrase, passphrase, derivation, network, wordlist_language_code):
         self.seed_phrase = seed_phrase
         self.passphrase = passphrase
         self.derivation = derivation
-        self.wordlist = wordlist
+        self.wordlist = Seed.get_wordlist(wordlist_language_code)
         self.parts = []
         self.part_num_sent = 0
         self.sent_complete = False
@@ -235,7 +234,7 @@ class XPubQR:
             raise Exception('Wordlist Required')
             
         version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[network])
-        self.seed = Seed(mnemonic=self.seed_phrase, passphrase=self.passphrase, wordlist=self.wordlist)
+        self.seed = Seed(mnemonic=self.seed_phrase, passphrase=self.passphrase, wordlist_language_code=wordlist_language_code)
         self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[network]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
         self.xprv = self.root.derive(self.derivation)
@@ -248,24 +247,29 @@ class XPubQR:
         if isinstance(self, XPubQR):
             self.__createParts()
 
+
     def __createParts(self):
         self.parts = []
         self.parts.append(self.xpubstring)
+
 
     def nextPart(self) -> str:
         if len(self.parts) > 0:
             self.sent_complete = True
             return self.parts[0]
 
+
     def seqLen(self):
         return len(self.parts)
+
 
     def isComplete(self):
         return self.sent_complete
 
-class SpecterXPubQR(XPubQR):
 
-    def __init__(self, seed_phrase, passphrase, derivation, network, qr_density, wordlist):
+
+class SpecterXPubQR(XPubQR):
+    def __init__(self, seed_phrase, passphrase, derivation, network, qr_density, wordlist_language_code):
         self.qr_max_fragement_size = 65
         if qr_density == EncodeQR.DENSITY__LOW:
             self.qr_max_fragement_size = 40
@@ -274,11 +278,11 @@ class SpecterXPubQR(XPubQR):
         elif qr_density == EncodeQR.DENSITY__HIGH:
             self.qr_max_fragement_size = 90
 
-        XPubQR.__init__(self, seed_phrase, passphrase, derivation, network, wordlist)
+        super().__init__(seed_phrase, passphrase, derivation, network, wordlist_language_code)
         self.__createParts()
 
-    def __createParts(self):
 
+    def __createParts(self):
         self.parts = []
 
         start = 0
@@ -299,6 +303,7 @@ class SpecterXPubQR(XPubQR):
                 stop = len(self.xpubstring)
             cnt += 1
 
+
     def nextPart(self) -> str:
         # if part num sent is gt number of parts, start at 0
         if self.part_num_sent > (len(self.parts) - 1):
@@ -315,17 +320,19 @@ class SpecterXPubQR(XPubQR):
 
         return part
 
+
     def seqLen(self):
         return len(self.parts)
+
 
     def isComplete(self):
         return self.sent_complete
     
-class URXPubQR(XPubQR):
-    
-    def __init__(self, seed_phrase, passphrase, derivation, network, qr_density, wordlist):
-        
-        XPubQR.__init__(self, seed_phrase, passphrase, derivation, network, wordlist)
+
+
+class URXPubQR(XPubQR):    
+    def __init__(self, seed_phrase, passphrase, derivation, network, qr_density, wordlist_language_code):
+        super().__init__(seed_phrase, passphrase, derivation, network, wordlist_language_code)
         
         if qr_density == EncodeQR.DENSITY__LOW:
             self.qr_max_fragement_size = 10
@@ -386,12 +393,15 @@ class URXPubQR(XPubQR):
         qr_ur_bytes = UR("crypto-account", ur_account.to_cbor())
 
         self.ur2_encode = UREncoder(qr_ur_bytes, self.qr_max_fragement_size, 0)
-        
+
+
     def seqLen(self):
             return self.ur2_encode.fountain_encoder.seq_len()
 
+
     def nextPart(self) -> str:
         return self.ur2_encode.next_part().upper()
+
 
     def isComplete(self):
         return self.ur2_encode.is_complete()

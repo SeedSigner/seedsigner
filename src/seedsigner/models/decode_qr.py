@@ -1,41 +1,38 @@
-from pyzbar import pyzbar
-from pyzbar.pyzbar import ZBarSymbol
-from enum import IntEnum
-import re
-import json
 import base64
 import json
 import logging
 import re
 
 from binascii import a2b_base64, b2a_base64
-from embit import psbt
 from enum import IntEnum
+from embit import psbt
 from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
+from urtypes.crypto import PSBT as UR_PSBT
+
+from seedsigner.helpers.ur2.ur_decoder import URDecoder
+from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
 
 from . import QRType, Seed
 from .seed import SeedConstants
 from .settings import SettingsConstants
 
-from seedsigner.helpers.ur2.ur_decoder import URDecoder
-from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
 
 logger = logging.getLogger(__name__)
 
 
-
-from urtypes.crypto import PSBT as UR_PSBT
 
 ###
 ### DecodeQR Class
 ### Purpose: used to process images or string data from animated qr codes with psbt data to create binary/base64 psbt
 ###
 class DecodeQR:
-
-    def __init__(self, **kwargs):
+    def __init__(self, qr_type=None, wordlist_language_code=None):
         self.complete = False
-        self.qr_type = None
+        self.qr_type = qr_type
+        self.wordlist_language_code = wordlist_language_code
+
+        # TODO: We don't need to instantiate these ahead of time
         self.ur_decoder = URDecoder() # UR2 decoder
         self.specter_qr = SpecterDecodePSBTQR() # Specter Desktop PSBT QR base64 decoder
         self.legacy_ur = LegacyURDecodeQR() # UR Legacy decoder
@@ -44,18 +41,8 @@ class DecodeQR:
         self.address_qr = BitcoinAddressQR() # Single Segment bitcoin address
         self.specter_wallet_qr = SpecterDecodeWalletQR() # Specter Desktop Wallet Export decoder
         self.settings_qr = SettingsQR()             # Settings config in .ini format
-        self.wordlist = None
+        self.seedqr = SeedQR(wordlist_language_code=wordlist_language_code)
 
-        for key, value in kwargs.items():
-            if key == "qr_type":
-                self.qr_type = value
-            if key == "wordlist":
-                self.wordlist = value
-                
-        if self.wordlist == None:
-            raise Exception('Wordlist Required')
-            
-        self.seedqr = SeedQR(wordlist=self.wordlist)
 
     def addImage(self, image):
         qr_str = DecodeQR.QR2Str(image)
@@ -64,11 +51,12 @@ class DecodeQR:
 
         return self.addString(qr_str)
 
+
     def addString(self, qr_str):
         if qr_str == None:
             return DecodeQRStatus.FALSE
 
-        qr_type = DecodeQR.SegmentType(qr_str, wordlist=self.wordlist)
+        qr_type = DecodeQR.SegmentType(qr_str, wordlist_language_code=self.wordlist_language_code)
 
         if self.qr_type == None:
             self.qr_type = qr_type
@@ -76,7 +64,6 @@ class DecodeQR:
             raise Exception('QR Fragement Unexpected Type Change')
 
         if self.qr_type == QRType.PSBTUR2:
-
             self.ur_decoder.receive_part(qr_str)
             if self.ur_decoder.is_complete():
                 self.complete = True
@@ -84,28 +71,24 @@ class DecodeQR:
             return DecodeQRStatus.PART_COMPLETE # segment added to ur2 decoder
 
         elif self.qr_type == QRType.PSBTSPECTER:
-
             rt = self.specter_qr.add(qr_str)
             if rt == DecodeQRStatus.COMPLETE:
                 self.complete = True
             return rt
 
         elif self.qr_type == QRType.PSBTURLEGACY:
-
             rt = self.legacy_ur.add(qr_str)
             if rt == DecodeQRStatus.COMPLETE:
                 self.complete = True
             return rt
 
         elif self.qr_type == QRType.PSBTBASE64:
-
             rt = self.base64_qr.add(qr_str)
             if rt == DecodeQRStatus.COMPLETE:
                 self.complete = True
             return rt
             
         elif self.qr_type == QRType.PSBTBASE43:
-            
             rt = self.base43_qr.add(qr_str)
             if rt == DecodeQRStatus.COMPLETE:
                 self.complete = True
@@ -150,6 +133,7 @@ class DecodeQR:
         else:
             return DecodeQRStatus.INVALID
 
+
     def getPSBT(self):
         if self.complete:
             data = self.getDataPSBT()
@@ -159,6 +143,7 @@ class DecodeQR:
                 except:
                     return None
         return None
+
 
     def getDataPSBT(self):
         if self.complete:
@@ -176,6 +161,7 @@ class DecodeQR:
                 return self.base43_qr.getData()
         return None
 
+
     def getBase64PSBT(self):
         if self.complete:
             data = self.getDataPSBT()
@@ -187,23 +173,30 @@ class DecodeQR:
             return b64_psbt.decode("utf-8")
         return None
 
+
     def getSeedPhrase(self):
         return self.seedqr.getSeedPhrase()
-    
+
+
     def get_settings_data(self):
         return self.settings_qr.settings
-    
+
+
     def get_settings_config_name(self):
         return self.settings_qr.config_name
-        
+
+
     def getAddress(self):
         return self.address_qr.getAddress()
-        
+
+
     def getAddressType(self):
         return self.address_qr.getAddressType()
-        
+
+
     def getWalletDescriptor(self):
         return self.specter_wallet_qr.getWalletDescriptor()
+
 
     def getPercentComplete(self) -> int:
         if self.qr_type == QRType.PSBTUR2:
@@ -229,41 +222,50 @@ class DecodeQR:
         else:
             return 0
 
+
     # TODO: Convert these to properties, python-ize naming convention
     def isComplete(self) -> bool:
         return self.complete
+
 
     def isInvalid(self) -> bool:
         if self.qr_type == QRType.INVALID:
             return True
         return False
 
+
     def isPSBT(self) -> bool:
         if self.qr_type in (QRType.PSBTUR2, QRType.PSBTSPECTER, QRType.PSBTURLEGACY, QRType.PSBTBASE64, QRType.PSBTBASE43):
             return True
         return False
+
 
     def isSeed(self):
         if self.qr_type in (QRType.SEEDSSQR, QRType.SEEDUR2, QRType.SEEDMNEMONIC, QRType.SEED4LETTERMNEMONIC):
             return True
         return False
     
+
     @property
     def is_json(self):
         return self.qr_type in [QRType.SETTINGS, QRType.JSON]
         
+
     def isAddress(self):
         if self.qr_type == QRType.BITCOINADDRESSQR:
             return True
         return False
         
+
     def isWalletDescriptor(self):
         if self.qr_type in (QRType.SPECTERWALLETQR, QRType.URWALLETQR, QRType.BLUEWALLETQR):
             return True
         return False
 
+
     def qrType(self):
         return self.qr_type
+
 
     @staticmethod
     def QR2Str(image) -> str:
@@ -276,9 +278,9 @@ class DecodeQR:
             # Only pull and return the first barcode
             return barcode.data.decode("utf-8")
 
-    @staticmethod
-    def SegmentType(s, wordlist=None):
 
+    @staticmethod
+    def SegmentType(s, wordlist_language_code=None):
         # PSBT
         if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
             return QRType.PSBTUR2
@@ -297,12 +299,6 @@ class DecodeQR:
         elif re.search(r'^\{\"label\".*\"descriptor\"\:.*', desc_str, re.IGNORECASE):
             # if json starting with label and contains descriptor, assume specter wallet json
             return QRType.SPECTERWALLETQR
-
-        # create 4 letter wordlist only if not PSBT (performance gain)
-        try:
-            _4LETTER_WORDLIST = [word[:4].strip() for word in wordlist]
-        except:
-            _4LETTER_WORDLIST = []
         
         # Seed
         if re.search(r'\d{48,96}', s):
@@ -313,7 +309,14 @@ class DecodeQR:
             return QRType.BITCOINADDRESSQR
         
         # Seed
-        elif all(x in wordlist for x in s.strip().split(" ")):
+        # create 4 letter wordlist only if not PSBT (performance gain)
+        wordlist = Seed.get_wordlist(wordlist_language_code)
+        try:
+            _4LETTER_WORDLIST = [word[:4].strip() for word in wordlist]
+        except:
+            _4LETTER_WORDLIST = []
+
+        if all(x in wordlist for x in s.strip().split(" ")):
             # checks if all words in list are in bip39 word list
             return QRType.SEEDMNEMONIC
         elif all(x in _4LETTER_WORDLIST for x in s.strip().split(" ")):
@@ -328,12 +331,14 @@ class DecodeQR:
 
         return QRType.INVALID
 
+
     @staticmethod   
     def isBase64(s):
         try:
             return base64.b64encode(base64.b64decode(s)) == s.encode('ascii')
         except Exception:
             return False
+
 
     @staticmethod   
     def isBase64PSBT(s):
@@ -345,6 +350,7 @@ class DecodeQR:
             return False
         return False
 
+
     @staticmethod
     def isBase43PSBT(s):
         try:
@@ -352,8 +358,8 @@ class DecodeQR:
             return True
         except Exception:
             return False
-        return False
-    
+
+
     @staticmethod
     def base43Decode(s):
         chars = b'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ$*+-./:' #base43 chars
@@ -389,7 +395,8 @@ class DecodeQR:
         result.extend(b'\x00' * nPad)
         result.reverse()
         return bytes(result)
-        
+
+
     @staticmethod
     def isBitcoinAddress(s):
     
@@ -400,18 +407,19 @@ class DecodeQR:
         else:
             return False
 
+
+
 ###
 ### SpecterDecodePSBTQR Class
 ### Purpose: used in DecodePSBTQR to decode Specter Desktop Animated QR PSBT encoding
 ###
-
 class SpecterDecodePSBTQR:
-
     def __init__(self):
         self.total_segments = None
         self.collected_segments = 0
         self.complete = False
         self.segments = []
+
 
     def add(self, segment):
         if self.total_segments == None:
@@ -430,12 +438,14 @@ class SpecterDecodePSBTQR:
 
         return DecodeQRStatus.PART_EXISTING # segment not added because it's already been added
 
+
     def getBase64Data(self) -> str:
         base64 = "".join(self.segments)
         if self.complete and DecodeQR.isBase64(base64):
             return base64
 
         return None
+
 
     def getData(self):
         base64 = self.getBase64Data()
@@ -444,8 +454,10 @@ class SpecterDecodePSBTQR:
 
         return None
 
+
     def is_complete(self) -> bool:
         return self.complete
+
 
     @staticmethod
     def currentSegmentNum(segment) -> int:
@@ -454,6 +466,7 @@ class SpecterDecodePSBTQR:
                 return int(re.search(r'^p(\d+)of(\d+) ', segment, re.IGNORECASE).group(1))
         raise Exception('Unable to parse Specter Desktop segment')
 
+
     @staticmethod
     def totalSegmentNum(segment) -> int:
         if DecodeQR.SegmentType(segment) == QRType.PSBTSPECTER:
@@ -461,22 +474,24 @@ class SpecterDecodePSBTQR:
                 return int(re.search(r'^p(\d+)of(\d+) ', segment, re.IGNORECASE).group(2))
         raise Exception('Unable to parse Specter Desktop segment')
 
+
     @staticmethod
     def parseSegment(segment) -> str:
         return segment.split(" ")[-1].strip()
+
+
 
 ###
 ### LegacyURDecodeQR Class
 ### Purpose: used in DecodeQR to decode Legacy UR animated qr encoding
 ###
-
 class LegacyURDecodeQR:
-
     def __init__(self):
         self.total_segments = None
         self.collected_segments = 0
         self.complete = False
         self.segments = []
+
 
     def add(self, segment):
         if self.total_segments == None:
@@ -495,6 +510,7 @@ class LegacyURDecodeQR:
 
         return DecodeQRStatus.PART_EXISTING # segment not added because it's already been added
 
+
     def getBase64Data(self) -> str:
         bc32_cbor = "".join(self.segments)
         raw = cbor_decode(bc32decode(bc32_cbor))
@@ -505,6 +521,7 @@ class LegacyURDecodeQR:
 
         return None
 
+
     def getData(self):
         if not self.complete:
             return None
@@ -513,8 +530,10 @@ class LegacyURDecodeQR:
         raw = cbor_decode(bc32decode(bc32_cbor))
         return raw
 
+
     def is_complete(self) -> bool:
         return self.complete
+
 
     @staticmethod
     def currentSegmentNum(segment) -> int:
@@ -525,6 +544,7 @@ class LegacyURDecodeQR:
                 raise Exception('Unexpected Legacy UR Error')
         raise Exception('Unable to parse Legacy UR segment')
 
+
     @staticmethod
     def totalSegmentNum(segment) -> int:
         if DecodeQR.SegmentType(segment) == QRType.PSBTURLEGACY:
@@ -534,23 +554,25 @@ class LegacyURDecodeQR:
                 return 1
         raise Exception('Unable to parse Legacy UR segment')
 
+
     @staticmethod
     def parseSegment(segment) -> str:
         return segment.split("/")[-1].strip()
+
+
 
 ###
 ### Base64DecodeQR Class
 ### Purpose: used in DecodeQR to decode single frame base64 encoded qr image
 ###          does not support animated qr because no indicator or segments or their order
 ###
-
 class Base64DecodeQR:
-
     def __init__(self):
         self.total_segments = 1
         self.collected_segments = 0
         self.complete = False
         self.data = None
+
 
     def add(self, segment):
         if DecodeQR.isBase64(segment):
@@ -561,8 +583,10 @@ class Base64DecodeQR:
 
         return DecodeQRStatus.INVALID
 
+
     def getBase64Data(self) -> str:
         return self.data
+
 
     def getData(self):
         base64 = self.getBase64Data()
@@ -572,19 +596,19 @@ class Base64DecodeQR:
         return None
 
 
+
 ###
 ### Base43DecodeQR Class
 ### Purpose: used in DecodeQR to decode single frame base43 encoded qr image
 ###          does not support animated qr because no indicator or segments or their order
 ###
-
 class Base43DecodeQR:
-
     def __init__(self):
         self.total_segments = 1
         self.collected_segments = 0
         self.complete = False
         self.data = None
+
 
     def add(self, segment):
         if DecodeQR.isBase43PSBT(segment):
@@ -595,8 +619,10 @@ class Base43DecodeQR:
 
         return DecodeQRStatus.INVALID
 
+
     def getData(self):
         return self.data
+
 
 
 ###
@@ -606,18 +632,15 @@ class Base43DecodeQR:
 ###          Mnemonic seed phrase representation of a seed as a qr is supported
 ###          does not support animated qr because no indicator or segments or their order
 ###
-
 class SeedQR:
-
-    def __init__(self, wordlist=None):
+    def __init__(self, wordlist_language_code):
         self.total_segments = 1
         self.collected_segments = 0
         self.complete = False
         self.seed_phrase = []
-        self.wordlist = wordlist
-        
-        if self.wordlist == None:
-            raise Exception('Wordlist Required')
+        self.wordlist_language_code = wordlist_language_code
+        self.wordlist = Seed.get_wordlist(wordlist_language_code)
+
 
     def add(self, segment, qr_type=QRType.SEEDSSQR):
         _4LETTER_WORDLIST = [word[:4].strip() for word in self.wordlist]
@@ -648,7 +671,7 @@ class SeedQR:
 
             try:
                 # embit mnemonic code to validate
-                seed = Seed(segment, passphrase="", wordlist=self.wordlist)
+                seed = Seed(segment, passphrase="", wordlist_language_code=self.wordlist_language_code)
                 if not seed:
                     # seed is not valid, return invalid
                     return DecodeQRStatus.INVALID
@@ -670,7 +693,7 @@ class SeedQR:
                     words.append(self.wordlist[_4LETTER_WORDLIST.index(s)])
 
                 # embit mnemonic code to validate
-                seed = Seed(words, passphrase="", wordlist=self.wordlist)
+                seed = Seed(words, passphrase="", wordlist_language_code=self.wordlist_language_code)
                 if not seed:
                     # seed is not valid, return invalid
                     return DecodeQRStatus.INVALID
@@ -687,10 +710,12 @@ class SeedQR:
 
             return DecodeQRStatus.INVALID
 
+
     def getSeedPhrase(self):
         if self.complete:
             return self.seed_phrase[:]
         return []
+
 
     def is1224Phrase(self):
         if len(self.seed_phrase) in (12, 24):
@@ -698,14 +723,16 @@ class SeedQR:
         return False
 
 
+
 # TODO: Refactor this to work with the new SettingsDefinition
 class SettingsQR:
-    def __init__(self, wordlist=None):
+    def __init__(self):
         self.total_segments = 1
         self.collected_segments = 0
         self.complete = False
         self.settings = {}
         self.config_name = None
+
 
     def add(self, segment, qr_type=QRType.SETTINGS):
         print(f"SettingsQR: {segment}")
@@ -799,22 +826,22 @@ class SettingsQR:
             logger.exception(e)
             return DecodeQRStatus.INVALID
 
+
+
 ###
 ### BitcoinAddressQR Class
 ### Purpose: used in DecodeQR to decode single frame representing a bitcoin address
 ###
-
 class BitcoinAddressQR:
-
-    def __init__(self, wordlist=None):
+    def __init__(self):
         self.total_segments = 1
         self.collected_segments = 0
         self.complete = False
         self.address = None
         self.address_type = None
 
-    def add(self, segment, qr_type=QRType.BITCOINADDRESSQR):
-        
+
+    def add(self, segment, qr_type=QRType.BITCOINADDRESSQR):        
         r = re.search(r'((bc1|tb1|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})', segment)
         if r != None:
             self.address = r.group(1)
@@ -844,12 +871,14 @@ class BitcoinAddressQR:
                 return DecodeQRStatus.COMPLETE
 
         return DecodeQRStatus.INVALID
-        
+
+
     def getAddress(self):
         if self.address != None:
             return self.address
         return None
         
+
     def getAddressType(self):
         if self.address != None:
             if self.address_type != None:
@@ -858,18 +887,19 @@ class BitcoinAddressQR:
                 return "Unknown"
         return None
 
+
+
 ###
 ### SpecterDecodeWalletQR Class
 ### Purpose: used in DecodeQR to decode animated frames to get a wallet descriptor from Specter Desktop
 ###
-
 class SpecterDecodeWalletQR:
-    
     def __init__(self):
         self.total_segments = None
         self.collected_segments = 0
         self.complete = False
         self.segments = []
+
 
     def add(self, segment):
         if self.total_segments == None:
@@ -890,7 +920,8 @@ class SpecterDecodeWalletQR:
             return DecodeQRStatus.PART_COMPLETE # new segment added
 
         return DecodeQRStatus.PART_EXISTING # segment not added because it's already been added
-        
+
+
     def validateJson(self) -> str:
         try:
             j = "".join(self.segments)
@@ -898,7 +929,8 @@ class SpecterDecodeWalletQR:
         except json.decoder.JSONDecodeError:
             return False
         return True
-        
+
+
     def validateWalletDescriptor(self):
         if self.validateJson():
             j = "".join(self.segments)
@@ -906,7 +938,8 @@ class SpecterDecodeWalletQR:
             if "descriptor" in data:
                 return True
             return False
-        
+
+
     def getWalletDescriptor(self) -> str:
         if self.validateWalletDescriptor():
             j = "".join(self.segments)
@@ -914,10 +947,12 @@ class SpecterDecodeWalletQR:
             return data['descriptor']
         return None
 
+
     def is_complete(self) -> bool:
         if self.complete and self.validateWalletDescriptor():
             return True
         return False
+
 
     @staticmethod
     def currentSegmentNum(segment) -> int:
@@ -927,6 +962,7 @@ class SpecterDecodeWalletQR:
             else:
                 return 1
 
+
     @staticmethod
     def totalSegmentNum(segment) -> int:
         if DecodeQR.SegmentType(segment) == QRType.SPECTERWALLETQR:
@@ -935,6 +971,7 @@ class SpecterDecodeWalletQR:
             else:
                 return 1
 
+
     @staticmethod
     def parseSegment(segment) -> str:
         try:
@@ -942,14 +979,16 @@ class SpecterDecodeWalletQR:
         except:
             return segment
 
+
+
 ###
 ### DecodeQRStatus Class IntEum
 ### Purpose: used in DecodeQR to communicate status of adding qr frame/segment
 ###
-
 class DecodeQRStatus(IntEnum):
     PART_COMPLETE = 1
     PART_EXISTING = 2
     COMPLETE = 3
     FALSE = 4
     INVALID = 5
+

@@ -3,7 +3,7 @@ from seedsigner.models.psbt_parser import PSBTParser
 
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.psbt_views import PSBTSelectSeedView
-from seedsigner.views.seed_views import SeedAddPassphrasePromptView
+from seedsigner.views.seed_views import SeedAddPassphrasePromptView, SeedAddPassphraseView
 
 from .view import BackStackView, MainMenuView, View, Destination
 
@@ -19,7 +19,8 @@ class ScanView(View):
 
         # Run the live preview and QR code capture process
         # TODO: Does this belong in its own BaseThread?
-        self.decoder = DecodeQR(wordlist=self.settings.wordlist)
+        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+        self.decoder = DecodeQR(wordlist_language_code=wordlist_language_code)
         screen = ScanScreen(decoder=self.decoder)
         screen.display()
 
@@ -34,12 +35,12 @@ class ScanView(View):
                     #   pending (might set a passphrase, SeedXOR, etc) until finalized.
                     from .seed_views import SeedValidView
                     self.controller.storage.set_pending_seed(
-                        Seed(mnemonic=seed_mnemonic, wordlist=self.controller.settings.wordlist)
+                        Seed(mnemonic=seed_mnemonic, wordlist_language_code=wordlist_language_code)
                     )
-                    if self.settings.passphrase == SettingsConstants.OPTION__PROMPT:
-                        # This setting means "Always Prompt" the user if they want to to
-                        #   set a passphrase.
+                    if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__PROMPT:
                         return Destination(SeedAddPassphrasePromptView)
+                    elif self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
+                        return Destination(SeedAddPassphraseView)
                     else:
                         return Destination(SeedValidView)
             

@@ -5,6 +5,8 @@ import time
 from PIL import ImageDraw, Image
 from PIL.ImageOps import autocontrast
 
+from seedsigner.models.settings import SettingsConstants
+
 from . import View
 
 from seedsigner.helpers import QR, mnemonic_generation
@@ -362,13 +364,11 @@ class SeedToolsView(View):
 
 
 
-
-
     ###
     ### Display Last Word
     ###
     def display_last_word(self, partial_seed_phrase) -> list:
-        finalseed = mnemonic_generation.calculate_checksum(partial_seed_phrase, wordlist=self.controller.settings.wordlist)
+        finalseed = mnemonic_generation.calculate_checksum(partial_seed_phrase, wordlist=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
         last_word = finalseed[-1]
 
         self.renderer.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
@@ -384,6 +384,7 @@ class SeedToolsView(View):
 
         input = self.buttons.wait_for([B.KEY_RIGHT])
         return finalseed
+
 
 
     ###

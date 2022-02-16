@@ -24,7 +24,7 @@ class SeedsMenuView(View):
         self.seeds = []
         for seed in self.controller.storage.seeds:
             self.seeds.append({
-                "fingerprint": seed.get_fingerprint(self.settings.network),
+                "fingerprint": seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
                 "has_passphrase": seed.passphrase is not None
             })
 
@@ -408,7 +408,7 @@ class SeedExportXpubDetailsView(View):
             derivation_path = self.settings.custom_derivation
         else:
             derivation_path = Settings.calc_derivation(
-                network=self.controller.settings.network,
+                network=self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK),
                 wallet_type=self.sig_type,
                 script_type=self.script_type
             )
@@ -417,12 +417,12 @@ class SeedExportXpubDetailsView(View):
             version = embit.bip32.detect_version(
                 derivation_path,
                 default="xpub",
-                network=embit.networks.NETWORKS[self.controller.settings.network]
+                network=embit.networks.NETWORKS[self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK)]
             )
 
             root = embit.bip32.HDKey.from_seed(
                 self.seed.seed,
-                version=embit.networks.NETWORKS[self.controller.settings.network]["xprv"]
+                version=embit.networks.NETWORKS[self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK)]["xprv"]
             )
 
             fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
@@ -474,7 +474,7 @@ class SeedExportXpubQRDisplayView(View):
             seed_phrase=self.seed.mnemonic_list,
             passphrase=self.seed.passphrase,
             derivation=derivation_path,
-            network=self.settings.network,
+            network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
             qr_type=qr_type,
             qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
             wordlist=self.seed.wordlist
@@ -497,7 +497,7 @@ class SeedValidView(View):
         super().__init__()
 
         self.seed = self.controller.storage.get_pending_seed()
-        self.fingerprint = self.seed.get_fingerprint(network=self.controller.settings.network)
+        self.fingerprint = self.seed.get_fingerprint(network=self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK))
 
 
     def run(self):
@@ -511,7 +511,7 @@ class SeedValidView(View):
 
         # Can we auto-route past this screen entirely?
         if self.controller.psbt:
-            if PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=self.seed, network=self.settings.network):
+            if PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 # The Seed we just entered can sign the psbt we have in memory.
                 # Immediately forward on to the PSBT Overview.
                 seed_num = self.controller.storage.finalize_pending_seed()
@@ -523,10 +523,14 @@ class SeedValidView(View):
         else:
             button_data.append(SCAN_PSBT)
 
-        if self.settings.passphrase == SettingsConstants.OPTION__ENABLED or (not self.seed.passphrase and self.settings.passphrase == SettingsConstants.OPTION__PROMPT):
-            button_data.append(PASSPHRASE)
-        elif self.seed.passphrase:
+        if self.seed.passphrase:
             PASSPHRASE = "Edit Passphrase"
+            button_data.append(PASSPHRASE)
+
+        elif self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) in [
+                SettingsConstants.OPTION__ENABLED,
+                SettingsConstants.OPTION__PROMPT,
+                SettingsConstants.OPTION__REQUIRED]:
             button_data.append(PASSPHRASE)
         
         button_data.append(SEED_TOOLS)
@@ -680,7 +684,7 @@ class PSBTSingleSigChangeVerificationView(View):
                 # TODO: This should be in `Seed` or `PSBT` utility class
                 # def verify_single_sig_addr(self, address:str):
                 #     import embit
-                #     network = embit.NETWORKS[self.settings.network]
+                #     network = embit.NETWORKS[self.settings.get_value(SettingsConstants.SETTING__NETWORK)]
                 #     version = embit.bip32.detect_version(derivation, default="xpub", network=network)
                 #     root = embit.bip32.HDKey.from_seed(seed.seed, version=network["xprv"])
                 #     fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
