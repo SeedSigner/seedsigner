@@ -8,10 +8,10 @@ from seedsigner.models import Seed
 from seedsigner.models.seed import SeedConstants
 
 class PSBTParser():
-    def __init__(self, p: PSBT, seed: Seed, network="main"):
+    def __init__(self, p: PSBT, seed: Seed, network: str = SeedConstants.MAINNET):
+        self.psbt: PSBT = p
         self.seed = seed
         self.network = network
-        self.psbt: PSBT = p
 
         self.policy = None
         self.spend_amount = 0
@@ -25,8 +25,9 @@ class PSBTParser():
 
         self.root = None
 
-        if self.seed:
-            self.parse(self.psbt,self.seed,self.network)
+        if self.seed is not None:
+            self.parse()
+
 
     def get_change_data(self, change_num: int) -> dict:
         if change_num < len(self.change_data):
@@ -47,24 +48,20 @@ class PSBTParser():
     def num_destinations(self):
         return len(self.destination_addresses)
 
-    def __setRoot(self, seed: Seed, network):
-        self.root = bip32.HDKey.from_seed(seed.seed, version=NETWORKS[network]["xprv"])
+    def __setRoot(self):
+        self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[self.network]["xprv"])
+        print(f"root: {self.root}")
 
-    def parse(self, p, seed: Seed, network="main"):
-        is_psbt_empty = False
-        try:
-            if p == None:
-                is_psbt_empty = True
-        except:
-            pass
-
-        if is_psbt_empty:
+    def parse(self):
+        if self.psbt is None:
+            print(f"self.psbt is None!!")
             return False
 
-        if not seed:
+        if not self.seed:
+            print("self.seed is None!")
             return False
 
-        self.__setRoot(seed, network)
+        self.__setRoot()
 
         rt = self.__parseInputs()
         if rt == False:
@@ -78,6 +75,7 @@ class PSBTParser():
 
     def __parseInputs(self):
         self.input_amount = 0
+        print(f"psbt.inputs: {self.psbt.inputs}")
         self.num_inputs = len(self.psbt.inputs)
         for inp in self.psbt.inputs:
             if inp.witness_utxo:

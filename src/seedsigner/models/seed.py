@@ -56,10 +56,17 @@ class Seed:
                  mnemonic = None,
                  passphrase = "",
                  wordlist_language_code = SeedConstants.WORDLIST_LANGUAGE__ENGLISH[0]) -> None:
-        self._mnemonic = mnemonic
-        self.passphrase = passphrase
         self.wordlist_language_code = wordlist_language_code
-        self._valid = self._generate_seed()
+
+        # The setters trigger a _generate_seed() call so we have to get the order right.
+        self._passphrase = ""
+
+        # First set the mnemonic go through its setter's filtering
+        self.mnemonic = mnemonic
+
+        if passphrase:
+            # Now run the passphrase's setter filter to change the final seed
+            self.passphrase = passphrase
 
 
     @staticmethod
@@ -67,14 +74,16 @@ class Seed:
         # TODO: Support other bip-39 wordlist languages!
         if wordlist_language_code == SeedConstants.WORDLIST_LANGUAGE__ENGLISH[0]:
             return bip39.WORDLIST
+        else:
+            raise Exception(f"Unrecognized wordlist_language_code {wordlist_language_code}")
 
 
     def _generate_seed(self) -> bool:
-        self.seed = None
         try:
-            self.seed = bip39.mnemonic_to_seed(self._mnemonic, password=self.passphrase, wordlist=self.wordlist)
+            self.seed = bip39.mnemonic_to_seed(self.mnemonic, password=self.passphrase, wordlist=self.wordlist)
             return True
         except Exception as e:
+            print(repr(e))
             return False
 
 

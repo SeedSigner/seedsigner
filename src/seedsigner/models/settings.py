@@ -218,7 +218,7 @@ class SettingsDefinition:
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SeedConstants.ALL_NETWORKS,
-                      default_value=SeedConstants.MAINNET),
+                      default_value=SeedConstants.REGTEST),         # DEBUGGING!
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__QR_DENSITY,

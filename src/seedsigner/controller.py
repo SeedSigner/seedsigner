@@ -32,6 +32,7 @@ class Controller(Singleton):
     storage: SeedStorage = None
     settings: Settings = None
     psbt: PSBT = None
+    psbt_seed: Seed = None
     psbt_parser: PSBTParser = None
     renderer: Renderer = None
 
@@ -106,8 +107,8 @@ class Controller(Singleton):
         from .views import View, Destination, OpeningSplashView, MainMenuView, BackStackView
 
         # Disabled to save some time during dev...
-        opening_splash = OpeningSplashView()
-        opening_splash.start()
+        # opening_splash = OpeningSplashView()
+        # opening_splash.start()
 
         """ Class references can be stored as variables in python!
 

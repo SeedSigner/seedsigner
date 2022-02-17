@@ -84,6 +84,7 @@ class PSBTOverviewView(View):
 
     def run(self):
         psbt_parser = self.controller.psbt_parser
+
         screen = psbt_screens.PSBTOverviewScreen(
             spend_amount=psbt_parser.spend_amount,
             change_amount=psbt_parser.change_amount,
@@ -341,7 +342,7 @@ class PSBTSignedQRDisplayView(View):
             psbt=self.controller.psbt,
             qr_type=self.settings.qr_psbt_type(self.coordinator),
             qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
-            wordlist=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE),
+            wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE),
         )
         ret = QRDisplayScreen(qr_encoder=qr_encoder).display()
 

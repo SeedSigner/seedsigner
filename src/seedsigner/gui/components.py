@@ -37,6 +37,7 @@ class GUIConstants:
     BODY_LINE_SPACING = 0.25
 
     FIXED_WIDTH_FONT_NAME = "Inconsolata-Regular"
+    FIXED_WIDTH_EMPHASIS_FONT_NAME = "Inconsolata-SemiBold"
 
     LABEL_FONT_SIZE = BODY_FONT_MIN_SIZE
     LABEL_FONT_COLOR = "#777"
@@ -533,7 +534,7 @@ class FormattedAddress(BaseComponent):
             self.width = self.renderer.canvas_width
         
         self.font = Fonts.get_font(self.font_name, self.font_size)
-        self.accent_font = Fonts.get_font("Inconsolata-SemiBold", self.font_size)
+        self.accent_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, self.font_size)
 
         # Fixed width font means we only have to measure one max-height character
         char_width, char_height = self.font.getsize("Q")

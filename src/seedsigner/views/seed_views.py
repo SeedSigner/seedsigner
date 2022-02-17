@@ -136,7 +136,7 @@ class SeedOptionsView(View):
 
         if button_data[selected_menu_num] == SIGN_PSBT:
             from seedsigner.views.psbt_views import PSBTOverviewView
-            return Destination(PSBTOverviewView, view_args={"seed_num": self.seed_num})
+            return Destination(PSBTOverviewView)
 
         elif button_data[selected_menu_num] == VIEW_WORDS:
             return Destination(SeedWordsWarningView, view_args={"seed_num": self.seed_num})
@@ -499,6 +499,8 @@ class SeedValidView(View):
         self.seed = self.controller.storage.get_pending_seed()
         self.fingerprint = self.seed.get_fingerprint(network=self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK))
 
+        print(self.seed)
+        print(self.seed.seed)
 
     def run(self):
         from .psbt_views import PSBTOverviewView

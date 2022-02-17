@@ -1,7 +1,9 @@
 from binascii import b2a_base64, hexlify
 from dataclasses import dataclass
+from typing import List
 from embit import bip32
 from embit.networks import NETWORKS
+from embit.psbt import PSBT
 from seedsigner.helpers.ur2.ur_encoder import UREncoder
 from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.qr import QR
@@ -17,14 +19,16 @@ class EncodeQR:
     """
        Encode psbt for displaying as qr image
     """
-    psbt = None
-    seed_phrase = None
-    passphrase = None
-    derivation = None
-    network = None
-    qr_type = None
-    qr_density = None
-    wordlist_language_code = None
+    # TODO: Refactor so that this is a base class with implementation classes for each
+    # QR type. No reason exterior code can't directly instantiate the encoder it needs.
+    psbt: PSBT = None
+    seed_phrase: List[str] = None
+    passphrase: str = None
+    derivation: str = None
+    network: str = None
+    qr_type: str = None
+    qr_density: str = None
+    wordlist_language_code: str = None
 
     DENSITY__LOW = "Low"
     DENSITY__MEDIUM = "Medium"
@@ -72,12 +76,12 @@ class EncodeQR:
         return self.qr.qrimage_io(part, width, height, border)
 
 
-    def nextPartImage(self, width=240, height=240, border=3, background="FFFFFF"):
+    def nextPartImage(self, width=240, height=240, border=3, background_color="FFFFFF"):
         part = self.nextPart()
         if self.qr_type == QRType.SEEDSSQR:
             return self.qr.qrimage(part, width, height, border)
         else:
-            return self.qr.qrimage_io(part, width, height, border, background=background)
+            return self.qr.qrimage_io(part, width, height, border, background_color=background_color)
 
 
     def isComplete(self):
@@ -195,7 +199,7 @@ class SpecterEncodePSBTQR:
 
 
 class SeedSSQR:
-    def __init__(self, seed_phrase, wordlist_language_code: str):
+    def __init__(self, seed_phrase: List[str], wordlist_language_code: str):
         self.seed_phrase = seed_phrase
         self.wordlist = Seed.get_wordlist(wordlist_language_code)
         
