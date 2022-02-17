@@ -66,6 +66,9 @@ class SettingsConstants:
 
     SETTING__DEBUG = "debug"
 
+    # Hidden settings value to store internal state data
+    SETTING__QR_BRIGHTNESS = "qr_background_color"
+
 
     # Structural constants
     # TODO: Not using these for display purposes yet/ever?
@@ -267,6 +270,14 @@ class SettingsDefinition:
                       display_name="Debug",
                       visibility=SettingsConstants.VISIBILITY__DEVELOPER,
                       default_value=SettingsConstants.OPTION__DISABLED),
+        
+        # "Hidden" settings with no UI interaction
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__QR_BRIGHTNESS,
+                      display_name="QR background color",
+                      type=SettingsConstants.TYPE__FREE_ENTRY,
+                      visibility=SettingsConstants.VISIBILITY__HIDDEN,
+                      default_value=189),
     ]
 
 
