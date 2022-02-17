@@ -222,9 +222,9 @@ class SeedExportXpubSigTypeView(View):
 
 
     def run(self):
-        if len(self.settings.sig_types) == 1:
+        if len(self.settings.get_value(SettingsConstants.SETTING__SIG_TYPES)) == 1:
             # Nothing to select; skip this screen
-            return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": self.settings.sig_types[0]}, skip_current_view=True)
+            return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": self.settings.get_value(SettingsConstants.SETTING__SIG_TYPES)[0]}, skip_current_view=True)
 
         SINGLE_SIG = "Single Sig"
         MULTISIG = "Multisig"
@@ -256,23 +256,23 @@ class SeedExportXpubScriptTypeView(View):
 
     def run(self):
         args = {"seed_num": self.seed_num, "sig_type": self.sig_type}
-        if len(self.settings.script_types) == 1:
+        if len(self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)) == 1:
             # Nothing to select; skip this screen
-            args["script_type"] = self.settings.script_types[0]
+            args["script_type"] = self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)[0]
             return Destination(SeedExportXpubCoordinatorView, view_args=args, skip_current_view=True)
 
         screen = ButtonListScreen(
             title="Export Xpub",
             is_button_text_centered=False,
             is_bottom_list=True,
-            button_data=[script_type["display_name"] for script_type in SeedConstants.ALL_SCRIPT_TYPES if script_type["type"] in self.settings.script_types]
+            button_data=self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES),
         )
         selected_menu_num = screen.display()
 
         if selected_menu_num < len(SeedConstants.ALL_SCRIPT_TYPES):
-            args["script_type"] = SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num]["type"]
+            args["script_type"] = SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num][0]
 
-            if SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num]["type"] == SeedConstants.CUSTOM_DERIVATION:
+            if SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num][0] == SeedConstants.CUSTOM_DERIVATION:
                 return Destination(SeedExportXpubCustomDerivationView, view_args=args)
 
             return Destination(SeedExportXpubCoordinatorView, view_args=args)
@@ -327,21 +327,21 @@ class SeedExportXpubCoordinatorView(View):
             "sig_type": self.sig_type,
             "script_type": self.script_type,
         }
-        if len(self.settings.coordinators) == 1:
+        if len(self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)) == 1:
             # Nothing to select; skip this screen
-            args["coordinator"] = self.settings.coordinators[0]
+            args["coordinator"] = self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[0]
             return Destination(SeedExportXpubWarningView, view_args=args, skip_current_view=True)
 
         screen = ButtonListScreen(
             title="Export Xpub",
             is_button_text_centered=False,
             is_bottom_list=True,
-            button_data=self.settings.coordinators,
+            button_data=self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS),
         )
         selected_menu_num = screen.display()
 
-        if selected_menu_num < len(self.settings.coordinators):
-            args["coordinator"] = self.settings.coordinators[selected_menu_num]
+        if selected_menu_num < len(self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)):
+            args["coordinator"] = self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[selected_menu_num]
             return Destination(SeedExportXpubWarningView, view_args=args)
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -359,7 +359,7 @@ class SeedExportXpubWarningView(View):
 
 
     def run(self):
-        if self.settings.show_privacy_warnings:
+        if self.settings.get_value(SettingsConstants.SETTING__PRIVACY_WARNINGS) == SettingsConstants.OPTION__ENABLED:
             screen = WarningScreen(
                 warning_headline="Privacy Leak!",
                 warning_text="""Xpub can be used to view all future transactions.""",
@@ -407,13 +407,13 @@ class SeedExportXpubDetailsView(View):
         if self.script_type == SeedConstants.CUSTOM_DERIVATION:
             derivation_path = self.settings.custom_derivation
         else:
-            derivation_path = Settings.calc_derivation(
+            derivation_path = PSBTParser.calc_derivation(
                 network=self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK),
                 wallet_type=self.sig_type,
                 script_type=self.script_type
             )
 
-        if self.settings.show_xpub_details:
+        if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__ENABLED:
             version = embit.bip32.detect_version(
                 derivation_path,
                 default="xpub",
@@ -477,7 +477,7 @@ class SeedExportXpubQRDisplayView(View):
             network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
             qr_type=qr_type,
             qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
-            wordlist=self.seed.wordlist
+            wordlist_language_code=self.seed.wordlist_language_code
         )
 
 

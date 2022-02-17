@@ -7,6 +7,8 @@ from typing import List
 from seedsigner.models import Seed
 from seedsigner.models.seed import SeedConstants
 
+
+
 class PSBTParser():
     def __init__(self, p: PSBT, seed: Seed, network: str = SeedConstants.MAINNET):
         self.psbt: PSBT = p
@@ -183,6 +185,9 @@ class PSBTParser():
         if network == SeedConstants.MAINNET:
             network_path = "0'"
         elif network == SeedConstants.TESTNET:
+            network_path = "1'"
+        elif network == SeedConstants.REGTEST:
+            # TODO: Is this right?
             network_path = "1'"
         else:
             raise Exception("Unexpected network")

@@ -34,21 +34,22 @@ class SettingsConstants:
         OPTION__REQUIRED,
     ]
 
-    LANGUAGE__ENGLISH = ("en", "English")
+    LANGUAGE__ENGLISH = "en"
     ALL_LANGUAGES = [
-        LANGUAGE__ENGLISH,
+        (LANGUAGE__ENGLISH, "English"),
     ]
 
-    CAMERA_ROTATION__0 = (0, "0°")
-    CAMERA_ROTATION__90 = (90, "90°")
-    CAMERA_ROTATION__180 = (180, "180°")
-    CAMERA_ROTATION__270 = (270, "270°")
+    CAMERA_ROTATION__0 = 0
+    CAMERA_ROTATION__90 = 90
+    CAMERA_ROTATION__180 = 180
+    CAMERA_ROTATION__270 = 270
     ALL_CAMERA_ROTATIONS = [
-        CAMERA_ROTATION__0,
-        CAMERA_ROTATION__90,
-        CAMERA_ROTATION__180,
-        CAMERA_ROTATION__270
+        (CAMERA_ROTATION__0, "0°"),
+        (CAMERA_ROTATION__90, "90°"),
+        (CAMERA_ROTATION__180, "180°"),
+        (CAMERA_ROTATION__270, "270°"),
     ]
+
 
     # Individual settings entry attr_names
     SETTING__LANGUAGE = "language"
@@ -59,6 +60,9 @@ class SettingsConstants:
     SETTING__NETWORK = "network"
     SETTING__QR_DENSITY = "qr_density"
     SETTING__XPUB_EXPORT = "xpub_export"
+    SETTING__SIG_TYPES = "sig_types"
+    SETTING__SCRIPT_TYPES = "script_types"
+    SETTING__XPUB_DETAILS = "xpub_details"
     SETTING__PASSPHRASE = "passphrase"
     SETTING__CAMERA_ROTATION = "camera_rotation"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
@@ -126,10 +130,13 @@ class SettingsEntry:
 
         elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQURIED:
             self.selection_options = [SettingsConstants.ALL_OPTIONS]
-        
-        if type(self.default_value) == tuple:
+
+        # Account for List[tuple] and tuple formats as default_value        
+        if type(self.default_value) == list and type(self.default_value[0]) == tuple:
+            self.default_value = [v[0] for v in self.default_value]
+        elif type(self.default_value) == tuple:
             self.default_value = self.default_value[0]
-    
+
 
     @property
     def selection_options_display_names(self) -> List[str]:
@@ -234,6 +241,28 @@ class SettingsDefinition:
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__XPUB_EXPORT,
                       display_name="Xpub export",
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__ENABLED),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__SIG_TYPES,
+                      display_name="Sig types",
+                      type=SettingsConstants.TYPE__MULTISELECT,
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      selection_options=SeedConstants.ALL_SIG_TYPES,
+                      default_value=SeedConstants.ALL_SIG_TYPES),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__SCRIPT_TYPES,
+                      display_name="Script types",
+                      type=SettingsConstants.TYPE__MULTISELECT,
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      selection_options=SeedConstants.ALL_SCRIPT_TYPES,
+                      default_value=[SeedConstants.NATIVE_SEGWIT, SeedConstants.NESTED_SEGWIT]),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__XPUB_DETAILS,
+                      display_name="Show xpub details",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__ENABLED),
 

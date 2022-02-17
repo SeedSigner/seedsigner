@@ -7,16 +7,20 @@ from typing import List
 
 
 class SeedConstants:
-    MAINNET = ("main", "Mainnet")
-    TESTNET = ("test", "Testnet")
-    REGTEST = ("regtest", "Regtest")
-    ALL_NETWORKS = [MAINNET, TESTNET, REGTEST]
+    MAINNET = "main"
+    TESTNET = "test"
+    REGTEST = "regtest"
+    ALL_NETWORKS = [
+        (MAINNET, "Mainnet"),
+        (TESTNET, "Testnet"),
+        (REGTEST, "Regtest")
+    ]
     
     SINGLE_SIG = "single_sig"
     MULTISIG = "multisig"
     ALL_SIG_TYPES = [
-        SINGLE_SIG,
-        MULTISIG,
+        (SINGLE_SIG, "Single Sig"),
+        (MULTISIG, "Multisig"),
     ]
 
     NATIVE_SEGWIT = "native_segwit"
@@ -24,29 +28,29 @@ class SeedConstants:
     TAPROOT = "taproot"
     CUSTOM_DERIVATION = "custom_derivation"
     ALL_SCRIPT_TYPES = [
-        {"type": NATIVE_SEGWIT, "display_name": "Native Segwit"},
-        {"type": NESTED_SEGWIT, "display_name": "Nested Segwit (legacy)"},
-        {"type": TAPROOT, "display_name": "Taproot"},
-        {"type": CUSTOM_DERIVATION, "display_name": "Custom Derivation"},
+        (NATIVE_SEGWIT, "Native Segwit"),
+        (NESTED_SEGWIT, "Nested Segwit (legacy)"),
+        (TAPROOT, "Taproot"),
+        (CUSTOM_DERIVATION, "Custom Derivation"),
     ]
 
-    WORDLIST_LANGUAGE__ENGLISH = ("en", "English")
-    WORDLIST_LANGUAGE__CHINESE_SIMPLIFIED = ("zh_Hans_CN", "简体中文")
-    WORDLIST_LANGUAGE__CHINESE_TRADITIONAL = ("zh_Hant_TW", "繁體中文")
-    WORDLIST_LANGUAGE__FRENCH = ("fr", "Français")
-    WORDLIST_LANGUAGE__ITALIAN = ("it", "Italiano")
-    WORDLIST_LANGUAGE__JAPANESE = ("jp", "日本語")
-    WORDLIST_LANGUAGE__KOREAN = ("kr", "한국어")
-    WORDLIST_LANGUAGE__PORTUGUESE = ("pt", "Português")
+    WORDLIST_LANGUAGE__ENGLISH = "en"
+    WORDLIST_LANGUAGE__CHINESE_SIMPLIFIED = "zh_Hans_CN"
+    WORDLIST_LANGUAGE__CHINESE_TRADITIONAL = "zh_Hant_TW"
+    WORDLIST_LANGUAGE__FRENCH = "fr"
+    WORDLIST_LANGUAGE__ITALIAN = "it"
+    WORDLIST_LANGUAGE__JAPANESE = "jp"
+    WORDLIST_LANGUAGE__KOREAN = "kr"
+    WORDLIST_LANGUAGE__PORTUGUESE = "pt"
     ALL_WORDLIST_LANGUAGES = [
-        WORDLIST_LANGUAGE__ENGLISH,
-        # WORDLIST_LANGUAGE__CHINESE_SIMPLIFIED,
-        # WORDLIST_LANGUAGE__CHINESE_TRADITIONAL,
-        # WORDLIST_LANGUAGE__FRENCH,
-        # WORDLIST_LANGUAGE__ITALIAN,
-        # WORDLIST_LANGUAGE__JAPANESE,
-        # WORDLIST_LANGUAGE__KOREAN,
-        # WORDLIST_LANGUAGE__PORTUGUESE,
+        (WORDLIST_LANGUAGE__ENGLISH, "English"),
+        # (WORDLIST_LANGUAGE__CHINESE_SIMPLIFIED, "简体中文"),
+        # (WORDLIST_LANGUAGE__CHINESE_TRADITIONAL, "繁體中文"),
+        # (WORDLIST_LANGUAGE__FRENCH, "Français"),
+        # (WORDLIST_LANGUAGE__ITALIAN, "Italiano"),
+        # (WORDLIST_LANGUAGE__JAPANESE, "日本語"),
+        # (WORDLIST_LANGUAGE__KOREAN, "한국어"),
+        # (WORDLIST_LANGUAGE__PORTUGUESE, "Português"),
     ]
 
 
@@ -55,7 +59,7 @@ class Seed:
     def __init__(self,
                  mnemonic = None,
                  passphrase = "",
-                 wordlist_language_code = SeedConstants.WORDLIST_LANGUAGE__ENGLISH[0]) -> None:
+                 wordlist_language_code = SeedConstants.WORDLIST_LANGUAGE__ENGLISH) -> None:
         self.wordlist_language_code = wordlist_language_code
 
         # The setters trigger a _generate_seed() call so we have to get the order right.
@@ -70,9 +74,9 @@ class Seed:
 
 
     @staticmethod
-    def get_wordlist(wordlist_language_code: str = SeedConstants.WORDLIST_LANGUAGE__ENGLISH[0]):
+    def get_wordlist(wordlist_language_code: str = SeedConstants.WORDLIST_LANGUAGE__ENGLISH):
         # TODO: Support other bip-39 wordlist languages!
-        if wordlist_language_code == SeedConstants.WORDLIST_LANGUAGE__ENGLISH[0]:
+        if wordlist_language_code == SeedConstants.WORDLIST_LANGUAGE__ENGLISH:
             return bip39.WORDLIST
         else:
             raise Exception(f"Unrecognized wordlist_language_code {wordlist_language_code}")

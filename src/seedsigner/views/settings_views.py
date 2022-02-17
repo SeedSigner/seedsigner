@@ -73,15 +73,14 @@ class SettingsEntryUpdateSelectionView(View):
     def __init__(self, attr_name: str):
         super().__init__()
         self.settings_entry = SettingsDefinition.get_settings_entry(attr_name)
+        self.selected_button = None
 
 
     def run(self):
         cur_value = self.settings.get_value(self.settings_entry.attr_name)
         button_data = []
         checked_buttons = []
-        selected_button = None
         for i, value in enumerate(self.settings_entry.selection_options):
-            print(value)
             if type(value) == tuple:
                 value, display_name = value
             else:
@@ -90,17 +89,20 @@ class SettingsEntryUpdateSelectionView(View):
             if (type(cur_value) == list and value in cur_value) or value == cur_value:
                 checked_buttons.append(i)
 
-                if selected_button is None:
+                if self.selected_button is None:
                     # Highlight the selection (for multiselect highlight the first
                     # selected option).
-                    selected_button = i
+                    self.selected_button = i
                     print(f"setting selected_button: {i} - {display_name}")
+        
+        if not self.selected_button:
+            self.selected_button = 0
 
         ret_value = settings_screens.SettingsEntryUpdateSelectionScreen(
             display_name=self.settings_entry.display_name,
             help_text=self.settings_entry.help_text,
             button_data=button_data,
-            selected_button=selected_button,
+            selected_button=self.selected_button,
             checked_buttons=checked_buttons,
             settings_entry_type=self.settings_entry.type,
         ).display()
