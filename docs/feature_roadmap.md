@@ -1,11 +1,11 @@
-# v0.5.0 Pre-Release Roadmap
+# Feature Roadmap
 
-A rough feature set grouping for each v0.5.0 preview release.
+Current focus: v0.5.0 preview releases.
 
 *Note: It may or may not make sense to do minor bugfix preview releases along the way (e.g. 1.0 -> 1.1).*
 
 
-## Pre-Release 1.x
+## v0.5.0 Pre-Release 1.x
 * Scan SeedQR / CompactSeedQR
 * Set passphrase
 * View seed words w/configurable warnings
@@ -21,7 +21,7 @@ A rough feature set grouping for each v0.5.0 preview release.
 Screens will be functional but not necessarily in their final presentation state (icons, text, positioning, etc).
 
 
-## Pre-Release 2.x
+## v0.5.0 Pre-Release 2.x
 * Existing screen refinement (visual presentation, text, etc)
 * Create new seed via image entropy
 * Manual mnemonic seed word entry
@@ -30,7 +30,7 @@ Screens will be functional but not necessarily in their final presentation state
 * Single sig address scan and verification
 
 
-## Pre-Release 3.x
+## v0.5.0 Pre-Release 3.x
 * Further existing screen refinement
 * "Final" bugfixes
 * Create new seed via dice rolls
@@ -40,3 +40,20 @@ Screens will be functional but not necessarily in their final presentation state
 
 ## Initial v0.5.0 Release
 All of the above!
+
+
+## Beyond v0.5.0
+These features will not be included in the initial v0.5.0 release and will have varying degrees of priority for subsequent releases (or possibly not at all).
+
+* Multi-language support
+* Custom OS, possibly with swappable SD card PSBT and multisig wallet descriptor storage
+* Decoy game mode at launch (Snake, Tetris, Sudoku...?)
+* BIP-39 wordlists in additional languages
+* Address message signing
+* UI color scheme customization
+
+
+# v0.6 and Beyond...?
+* Alternate hardware profile / touchscreen
+* PGP signer
+* Liquid?
