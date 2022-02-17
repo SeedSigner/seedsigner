@@ -31,6 +31,7 @@ Screens will be functional but not necessarily in their final presentation state
 * Single sig address scan and verification
 * QR display framerate speed controls, pop up guide UI
 * SettingsQR standalone UI refinement
+* Fix broken tests
 
 
 ## v0.5.0 Pre-Release 3.x
@@ -39,6 +40,7 @@ Screens will be functional but not necessarily in their final presentation state
 * Create new seed via dice rolls
 * Custom derivation paths in xpub export flow
 * Multisig wallet descriptor QR scan(?) and addr verification(?)
+* Improve test suite coverage
 
 
 ## Initial v0.5.0 Release
