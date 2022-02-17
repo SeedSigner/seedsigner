@@ -15,6 +15,7 @@ A rough feature set grouping for each v0.5.0 preview release.
 * "Full Spend" (no change) warning
 * Fully verify PSBT change addrs
 * Send signed PSBT via QR
+* Subset of configurable Settings w/persistent storage
 * SettingsQR integration proof-of-concept
 
 Screens will be functional but not necessarily in their final presentation state (icons, text, positioning, etc).
