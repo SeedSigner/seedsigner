@@ -7,7 +7,7 @@ Current focus: v0.5.0 preview releases.
 
 ## v0.5.0 Pre-Release 1.x
 * Scan SeedQR / CompactSeedQR
-* Set passphrase
+* Add/Edit passphrase
 * View seed words w/configurable warnings
 * Export xpub w/configurable warnings and flow determined by Settings
 * Scan PSBT
@@ -16,7 +16,7 @@ Current focus: v0.5.0 preview releases.
 * Fully verify PSBT change addrs
 * Send signed PSBT via QR
 * QR display dimming/brightness controls
-* Subset of configurable Settings; persistent storage
+* Subset of configurable Settings; persistent Settings storage
 * SettingsQR integration proof-of-concept
 
 Screens will be functional but not necessarily in their final presentation state (icons, text, positioning, etc).
