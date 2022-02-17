@@ -16,7 +16,7 @@ Current focus: v0.5.0 preview releases.
 * Fully verify PSBT change addrs
 * Send signed PSBT via QR
 * QR display dimming/brightness controls
-* Subset of configurable Settings w/persistent storage
+* Subset of configurable Settings; persistent storage
 * SettingsQR integration proof-of-concept
 
 Screens will be functional but not necessarily in their final presentation state (icons, text, positioning, etc).
@@ -30,6 +30,7 @@ Screens will be functional but not necessarily in their final presentation state
 * SeedQR/CompactSeedQR manual transcription UI
 * Single sig address scan and verification
 * QR display framerate speed controls, pop up guide UI
+* SettingsQR standalone UI refinement
 
 
 ## v0.5.0 Pre-Release 3.x
