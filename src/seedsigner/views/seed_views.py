@@ -1,10 +1,11 @@
+import time
 import embit
 from binascii import hexlify
 
 from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.models.decode_qr import SeedQR
 
-from .view import View, Destination, BackStackView, MainMenuView
+from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
 
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     LargeButtonScreen, WarningScreen, DireWarningScreen, seed_screens)
@@ -13,7 +14,7 @@ from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
-from seedsigner.models.seed import SeedConstants
+from seedsigner.models.seed import Seed, SeedConstants
 from seedsigner.models.settings import Settings, SettingsConstants
 
 
@@ -35,12 +36,11 @@ class SeedsMenuView(View):
             button_data.append((seed["fingerprint"], FontAwesomeIconConstants.FINGERPRINT))
         button_data.append("Load a seed")
 
-        screen = ButtonListScreen(
+        selected_menu_num = ButtonListScreen(
             title="In-Memory Seeds",
             is_button_text_centered=False,
             button_data=button_data
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if len(self.seeds) > 0 and selected_menu_num < len(self.seeds):
             return Destination(SeedOptionsView, view_args={"seed_num": selected_menu_num})
@@ -66,12 +66,11 @@ class LoadSeedView(View):
             CREATE,
         ]
 
-        screen = ButtonListScreen(
+        selected_menu_num = ButtonListScreen(
             title="Load A Seed",
             is_button_text_centered=False,
             button_data=button_data
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -81,10 +80,10 @@ class LoadSeedView(View):
             return Destination(ScanView)
         
         elif button_data[selected_menu_num] == TYPE_24WORD:
-            return Destination(MainMenuView)
+            return Destination(NotYetImplementedView)
 
         elif button_data[selected_menu_num] == TYPE_12WORD:
-            return Destination(MainMenuView)
+            return Destination(NotYetImplementedView)
 
         elif button_data[selected_menu_num] == CREATE:
             from .tools_views import ToolsMenuView
@@ -124,12 +123,11 @@ class SeedOptionsView(View):
         
         button_data.append(EXPORT_SEEDQR)
 
-        screen = seed_screens.SeedOptionsScreen(
+        selected_menu_num = seed_screens.SeedOptionsScreen(
             button_data=button_data,
             fingerprint=self.seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
             has_passphrase=self.seed.passphrase is not None
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -145,7 +143,7 @@ class SeedOptionsView(View):
             return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})                
 
         elif button_data[selected_menu_num] == EXPORT_SEEDQR:
-            return None
+            return Destination(NotYetImplementedView)
             # return Destination(SeedExportSeedQRView, view_args={"seed_num": self.seed_num})
 
 
@@ -160,10 +158,9 @@ class SeedWordsWarningView(View):
 
 
     def run(self):
-        screen = DireWarningScreen(
+        selected_menu_num = DireWarningScreen(
             warning_text="""You must keep your seed words private & away from all online devices.""",
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == 0:
             # User clicked "I Understand"
@@ -192,12 +189,11 @@ class SeedWordsView(View):
         else:
             button_data.append(SEED_OPTIONS)
 
-        screen = seed_screens.SeedWordsScreen(
+        selected_menu_num = seed_screens.SeedWordsScreen(
             seed=self.seed,
             is_first_page=self.is_first_page,
             button_data=button_data,
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -230,11 +226,10 @@ class SeedExportXpubSigTypeView(View):
         MULTISIG = "Multisig"
         button_data=[SINGLE_SIG, MULTISIG]
 
-        screen = LargeButtonScreen(
+        selected_menu_num = LargeButtonScreen(
             title="Export Xpub",
             button_data=button_data
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -261,13 +256,12 @@ class SeedExportXpubScriptTypeView(View):
             args["script_type"] = self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)[0]
             return Destination(SeedExportXpubCoordinatorView, view_args=args, skip_current_view=True)
 
-        screen = ButtonListScreen(
+        selected_menu_num = ButtonListScreen(
             title="Export Xpub",
             is_button_text_centered=False,
             is_bottom_list=True,
             button_data=self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES),
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num < len(SeedConstants.ALL_SCRIPT_TYPES):
             args["script_type"] = SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num][0]
@@ -291,10 +285,9 @@ class SeedExportXpubCustomDerivationView(View):
         self.custom_derivation_path = self.settings.custom_derivation
 
     def run(self):
-        screen = seed_screens.SeedExportXpubCustomDerivationScreen(
+        ret = seed_screens.SeedExportXpubCustomDerivationScreen(
             derivation_path=self.custom_derivation_path
-        )
-        ret = screen.display()
+        ).display()
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -332,13 +325,12 @@ class SeedExportXpubCoordinatorView(View):
             args["coordinator"] = self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[0]
             return Destination(SeedExportXpubWarningView, view_args=args, skip_current_view=True)
 
-        screen = ButtonListScreen(
+        selected_menu_num = ButtonListScreen(
             title="Export Xpub",
             is_button_text_centered=False,
             is_bottom_list=True,
             button_data=self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS),
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num < len(self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)):
             args["coordinator"] = self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[selected_menu_num]
@@ -360,11 +352,10 @@ class SeedExportXpubWarningView(View):
 
     def run(self):
         if self.settings.get_value(SettingsConstants.SETTING__PRIVACY_WARNINGS) == SettingsConstants.OPTION__ENABLED:
-            screen = WarningScreen(
+            selected_menu_num = WarningScreen(
                 warning_headline="Privacy Leak!",
                 warning_text="""Xpub can be used to view all future transactions.""",
-            )
-            selected_menu_num = screen.display()
+            ).display()
         else:
             selected_menu_num = 0
 
@@ -482,8 +473,7 @@ class SeedExportXpubQRDisplayView(View):
 
 
     def run(self):
-        screen = QRDisplayScreen(qr_encoder=self.qr_encoder)
-        ret = screen.display()
+        QRDisplayScreen(qr_encoder=self.qr_encoder).display()
 
         return Destination(MainMenuView)
 
@@ -495,12 +485,9 @@ class SeedExportXpubQRDisplayView(View):
 class SeedValidView(View):
     def __init__(self):
         super().__init__()
-
         self.seed = self.controller.storage.get_pending_seed()
         self.fingerprint = self.seed.get_fingerprint(network=self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK))
 
-        print(self.seed)
-        print(self.seed.seed)
 
     def run(self):
         from .psbt_views import PSBTOverviewView
@@ -537,11 +524,10 @@ class SeedValidView(View):
         
         button_data.append(SEED_TOOLS)
 
-        screen = seed_screens.SeedValidScreen(
+        selected_menu_num = seed_screens.SeedValidScreen(
             fingerprint=self.fingerprint,
             button_data=button_data,
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             # Back button should clear out the pending seed and start over
@@ -575,11 +561,10 @@ class SeedAddPassphrasePromptView(View):
         NO = "No"
         button_data = [YES, NO]
 
-        screen = LargeButtonScreen(
+        selected_menu_num = LargeButtonScreen(
             title="Add Passphrase?",
             button_data=button_data
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -599,8 +584,7 @@ class SeedAddPassphraseView(View):
 
 
     def run(self):
-        screen = seed_screens.SeedAddPassphraseScreen(passphrase=self.seed.passphrase)
-        ret = screen.display()
+        ret = seed_screens.SeedAddPassphraseScreen(passphrase=self.seed.passphrase).display()
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -611,63 +595,63 @@ class SeedAddPassphraseView(View):
 
 
 
-class PSBTSingleSigChangeVerificationView(View):
+class SeedSingleSigAddressVerificationView(View):
     """
+        TODO: Reserved for Nick.
+        
+        This was previously part of the PSBT flow but was moved here when we
+        figured out how to avoid having to brute force the change addr verification.
+
+        But instead this code can be altered to be used to brute force single sig
+        address validation as its own separate flow.
+
+        Creates a worker thread to brute force calculate addresses. Writes its
+        iteration status to a shared `ThreadsafeCounter`.
+
+        The `ThreadsafeCounter` is sent to the display Screen which is monitored in
+        its own `ProgressThread` to show the current iteration onscreen.
     """
-    def __init__(self, change_address_num):
+    def __init__(self, seed_num: int, address: str):
         super().__init__()
-        self.change_address_num = change_address_num
+        self.seed = self.controller.get_seed(seed_num)
+        self.address = address
     
 
     def run(self):
-        psbt_parser: PSBTParser = self.controller.psbt_parser
-        if not psbt_parser:
-            # Should not be able to get here
-            return Destination(MainMenuView)
-        
-        address = psbt_parser.change_addresses[self.change_address_num]
         threadsafe_counter = ThreadsafeCounter()
 
-        change_verification_thread = PSBTSingleSigChangeVerificationView.ChangeVerificationThread(
-            psbt_parser=psbt_parser,
-            address=address,
+        addr_verification_thread = SeedSingleSigAddressVerificationView.SingleSigAddressVerificationThread(
+            address=self.address,
+            seed=self.seed,
             threadsafe_counter=threadsafe_counter
         )
-        change_verification_thread.start()
+        addr_verification_thread.start()
 
-        screen = seed_screens.SingleSigAddressVerificationScreen(
-            change_address=psbt_parser.change_addresses[self.change_address_num],
+        selected_menu_num = seed_screens.SingleSigAddressVerificationScreen(
+            address=self.address,
             threadsafe_counter=threadsafe_counter,
-        )
-        selected_menu_num = screen.display()
+        ).display()
 
-        change_verification_thread.stop()
+        addr_verification_thread.stop()
 
-        if selected_menu_num == 0:
-            if self.change_address_num < len(psbt_parser.change_addresses) - 1:
-                # Show the next change addr
-                return Destination(PSBTAddressDetailsView, view_args={"address_num": self.change_address_num + 1, "is_change": True})
 
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
 
-    class ChangeVerificationThread(BaseThread):
-        def __init__(self, psbt_parser: PSBTParser, address: str, threadsafe_counter: ThreadsafeCounter):
+    class SingleSigAddressVerificationThread(BaseThread):
+        def __init__(self, address: str, seed: Seed, threadsafe_counter: ThreadsafeCounter):
             super().__init__()
-            self.psbt_parser = psbt_parser
             self.address = address
             self.threadsafe_counter = threadsafe_counter
             self.verified_index: int = 0
             self.verified_index_is_change: bool = None
 
-            print("Instantiated verification thread")
-
 
         def run(self):
             while self.keep_running:
                 # Do work to verify addr
-                # ...
+                # TODO: Reserved for Nick
 
                 # For now mocking that up with time consuming... sleep
                 time.sleep(0.25)

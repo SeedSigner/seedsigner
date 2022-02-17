@@ -58,6 +58,11 @@ class ScanView(View):
                 print(json.dumps(Settings.get_instance()._data, indent=4))
 
                 return Destination(SettingsUpdatedView, {"config_name": self.decoder.get_settings_config_name()})
+            
+            elif self.decoder.qr_type == QRType.BITCOINADDRESSQR:
+                # TODO: Reserved for Nick!
+                raise Exception("Not yet implemented!")
+
 
         return Destination(MainMenuView)
 

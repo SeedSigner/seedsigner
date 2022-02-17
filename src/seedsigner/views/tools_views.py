@@ -1,11 +1,7 @@
-
 from seedsigner.gui.components import FontAwesomeIconConstants
-from .view import View, Destination, BackStackView, MainMenuView
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
 
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    LargeButtonScreen, WarningScreen, DireWarningScreen)
-from seedsigner.models.seed import SeedConstants
-from seedsigner.models.settings import Settings, SettingsConstants
+from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
 
 
 
@@ -26,11 +22,11 @@ class ToolsMenuView(View):
             return Destination(BackStackView)
 
         if button_data[selected_menu_num] == IMAGE:
-            return Destination(MainMenuView)
+            return Destination(NotYetImplementedView)
 
         elif button_data[selected_menu_num] == DICE:
-            return Destination(MainMenuView)
+            return Destination(NotYetImplementedView)
 
         if button_data[selected_menu_num] == KEYBOARD:
-            return Destination(MainMenuView)
+            return Destination(NotYetImplementedView)
 

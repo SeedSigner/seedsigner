@@ -1,10 +1,8 @@
-import time
-
 from dataclasses import dataclass
 
-from seedsigner.gui.components import FontAwesomeIconConstants, Fonts
-from seedsigner.gui.screens import (RET_CODE__POWER_BUTTON, ButtonListScreen,
-    TextTopNavScreen)
+from seedsigner.gui.components import FontAwesomeIconConstants
+from seedsigner.gui.screens import (RET_CODE__POWER_BUTTON, TextTopNavScreen)
+from seedsigner.gui.screens.screen import WarningScreen
 
 
 
@@ -135,18 +133,25 @@ class MainMenuView(View):
 class PowerOffView(View):
     def run(self):
         from subprocess import call
-        screen = TextTopNavScreen(
+        TextTopNavScreen(
             title="Powering Down",
             text="Please wait about 30 seconds before disconnecting power.",
-            text_font_size=22,
             show_back_button=False
-        )
-        screen.display()
+        ).display()
 
-        # call("sudo shutdown --poweroff now", shell=True)
-        time.sleep(10)
+        call("sudo shutdown --poweroff now", shell=True)
 
-        # TODO: Remove debugging
+
+class NotYetImplementedView(View):
+    """
+        Temporary View to use during dev.
+    """
+    def run(self):
+        WarningScreen(
+            title="Work In Progress",
+            warning_headline="Not Yet Implemented",
+            warning_text="This is still on our to-do list!",
+            button_label="Back to Main Menu",
+        ).display()
+
         return Destination(MainMenuView)
-        # END debugging
-

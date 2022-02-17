@@ -9,7 +9,7 @@ from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.seed import Seed
 
 from .screen import BaseScreen, BaseTopNavScreen, ButtonListScreen, WarningScreenMixin
-from ..components import FontAwesomeIconConstants, Fonts, IconTextLine, TextArea, GUIConstants, PngIconTextLine, calc_text_centering
+from ..components import FontAwesomeIconConstants, Fonts, FormattedAddress, IconTextLine, TextArea, GUIConstants, PngIconTextLine, calc_text_centering
 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.helpers import B
@@ -639,13 +639,21 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
 @dataclass
 class SingleSigAddressVerificationScreen(ButtonListScreen):
     """
+        TODO: Reserved for Nick
+        
         Not yet exposed in the UI. This was moved from the PSBT Verification flow since
         we don't need to brute force iterate the change addrs there. But this can still
         be useful for a generalized address verification process. Probably makes sense to
         have a screen before this that prompts for the index num but also give the user
         the choice to just start the brute force search.
+
+        "Skip 10" feature not yet implemented. To do this you would simply increment the
+        `ThreadsafeCounter` via its `increment(step=10)` method. Because it is
+        threadsafe, the next brute force round by the
+        `SingleSigAddressVerificationThread` can just check its value and resume its work
+        from the updated index.
     """
-    change_address: str = None
+    address: str = None
     threadsafe_counter: ThreadsafeCounter = None
 
     def __post_init__(self):
@@ -657,17 +665,16 @@ class SingleSigAddressVerificationScreen(ButtonListScreen):
         super().__post_init__()
 
         label = TextArea(
-            text="change address",
+            text="Address",
             font_size=GUIConstants.LABEL_FONT_SIZE,
             font_color=GUIConstants.LABEL_FONT_COLOR,
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING
         )
         self.components.append(label)
 
-        address_display = TextArea(
-            text=f"{self.change_address[:6]}...{self.change_address[-6:]}",
-            font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
-            font_size=GUIConstants.BODY_FONT_SIZE + 2,
+        address_display = FormattedAddress(
+            address=self.address,
+            max_lines=1,
             screen_y=label.screen_y + label.height
         )
         self.components.append(address_display)
