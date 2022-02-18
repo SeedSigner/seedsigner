@@ -262,9 +262,9 @@ class DecodeQR:
         # Are there any cases where defaulting `binary` to True causes problems?
         barcodes = pyzbar.decode(image, symbols=[ZBarSymbol.QRCODE], binary=is_binary)
 
-        if barcodes:
-            logger.debug("--------------- extract_qr_data ---------------")
-            logger.debug(barcodes)
+        # if barcodes:
+        #     logger.debug("--------------- extract_qr_data ---------------")
+        #     logger.debug(barcodes)
 
         for barcode in barcodes:
             # Only pull and return the first barcode
@@ -272,9 +272,9 @@ class DecodeQR:
 
     @staticmethod
     def SegmentType(s, wordlist=None):
-        logger.debug("-------------- DecodeQR.SegmentType --------------")
-        logger.debug(type(s))
-        logger.debug(len(s))
+        # logger.debug("-------------- DecodeQR.SegmentType --------------")
+        # logger.debug(type(s))
+        # logger.debug(len(s))
 
         try:
             # Convert to str data
@@ -337,7 +337,7 @@ class DecodeQR:
                 bitstream = ""
                 for b in s:
                     bitstream += bin(b).lstrip('0b').zfill(8)
-                logger.debug(bitstream)
+                # logger.debug(bitstream)
 
                 return QRType.COMPACTSEEDQR
             except Exception as e:
