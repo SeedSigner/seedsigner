@@ -85,4 +85,14 @@ def test_specter_xpub_qr():
     assert e.nextPart() == "p3of4 MxfrVggXj5NJmaNEToWpax8GMMucozvAdqf1bW1J"
     assert e.nextPart() == "p4of4 sZsfdBzsK3VUC5"
 
+def test_ur_xpub_qr():
+    
+    mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
+    
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.URXPUBQR, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQRDensity.MEDIUM, wordlist=bip39.WORDLIST)
+    
+    assert e.nextPart() == "UR:CRYPTO-ACCOUNT/1-4/LPADAACSJKCYYNRDRTYAHDCAOEADCYSSMECPONAOLYTAADMETAADDLOXAXHDCLAOKSRLNLKPUEGYATHPMNRTAAOLAH"
+    assert e.nextPart() == "UR:CRYPTO-ACCOUNT/2-4/LPAOAACSJKCYYNRDRTYAHDCASNKKGHZMLUZORPVDGUOTECSTTKTOLPCWPTNTLKZTTIZTBEAAHDCXVDTPMYQDLAWNGL"
+    assert e.nextPart() == "UR:CRYPTO-ACCOUNT/3-4/LPAXAACSJKCYYNRDRTYAHDCARSTDSPZSBZSPGERLGDATUYNLPYBTGYIYYKBTWTAOSWKSVTSGCHBYDKYAVDSEPDJLAT"
+    assert e.nextPart() == "UR:CRYPTO-ACCOUNT/4-4/LPAAAACSJKCYYNRDRTYAHDCAAMTAADDYOEADLOCSDYYKADYKAEYKAOYKAOCYSSMECPONAYCYIOREKKJKAECADRRKIE"
 

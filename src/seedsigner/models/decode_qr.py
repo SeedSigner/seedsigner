@@ -14,6 +14,7 @@ from seedsigner.models import QRType, Seed
 logger = logging.getLogger(__name__)
 
 
+from urtypes.crypto import PSBT as UR_PSBT
 
 ###
 ### DecodeQR Class
@@ -163,7 +164,8 @@ class DecodeQR:
         if self.complete:
             if self.qr_type == QRType.PSBTUR2:
                 cbor = self.ur_decoder.result_message().cbor
-                return cbor_decode(cbor)
+                return UR_PSBT.from_cbor(cbor).data
+                # return cbor_decode(cbor)
             elif self.qr_type == QRType.PSBTSPECTER:
                 return self.specter_qr.getData()
             elif self.qr_type == QRType.PSBTURLEGACY:
@@ -386,7 +388,7 @@ class DecodeQR:
         for c in v[::-1]:
             digit = chars.find(bytes([c]))
             if digit == -1:
-                raise BaseDecodeError('Forbidden character {} for base {}'.format(c, 43))
+                raise Exception('Forbidden character {} for base {}'.format(c, 43))
             # naive but slow variant:   long_value += digit * (base**i)
             long_value += digit * power_of_base
             power_of_base *= 43
@@ -587,15 +589,6 @@ class Base64DecodeQR:
 
         return None
 
-    # TODO: Should this be static? Need to fix 'self' reference here
-    @staticmethod
-    def currentSegmentNum(segment) -> int:
-        return self.collected_segments
-
-    @staticmethod
-    def totalSegmentNum(segment) -> int:
-        return self.total_segments
-
     @staticmethod
     def parseSegment(segment) -> str:
         return segment
@@ -625,15 +618,6 @@ class Base43DecodeQR:
 
     def getData(self):
         return self.data
-
-    # TODO: Should this be static? Need to fix 'self' reference here
-    @staticmethod
-    def currentSegmentNum(segment) -> int:
-        return self.collected_segments
-
-    @staticmethod
-    def totalSegmentNum(segment) -> int:
-        return self.total_segments
 
     @staticmethod
     def parseSegment(segment) -> str:

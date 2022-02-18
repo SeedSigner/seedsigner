@@ -152,8 +152,13 @@ Where `297` is the process id listed in the output above (it'll be different eac
 
 ### Download the SeedSigner code:
 ```
-git clone https://github.com/SeedSigner/seedsigner
+git clone --recursive https://github.com/SeedSigner/seedsigner
 cd seedsigner
+```
+
+If you have already cloned in the past and just need to init/pull submodules:
+```
+git submodule update --init
 ```
 
 If you want to run a specific branch within the main SeedSigner repo, switch to it with:
