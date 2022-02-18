@@ -673,7 +673,10 @@ class SeedToolsView(View):
 
                 elif show_qr_option and ret_val == B.KEY_RIGHT:
                     # Show the resulting seed as a transcribable QR code
-                    self.seed_phrase_as_qr(seed_phrase)
+                    if self.controller.settings.compact_seedqr_enabled:
+                        self.display_seed_qr_options(seed_phrase)
+                    else:
+                        self.seed_phrase_as_qr(seed_phrase)
 
                     # Signal success to move forward
                     return True
@@ -700,7 +703,10 @@ class SeedToolsView(View):
 
                     elif show_qr_option and ret_val == B.KEY_RIGHT:
                         # Show the resulting seed as a transcribable QR code
-                        self.seed_phrase_as_qr(seed_phrase)
+                        if self.controller.settings.compact_seedqr_enabled:
+                            self.display_seed_qr_options(seed_phrase)
+                        else:
+                            self.seed_phrase_as_qr(seed_phrase)
 
                         # Signal success to move forward
                         return True
@@ -712,10 +718,39 @@ class SeedToolsView(View):
                 return True
 
 
-    def seed_phrase_as_qr(self, seed_phrase):
-        e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEEDSSQR, wordlist=self.controller.settings.wordlist)
-        image = e.nextPartImage(240, 240, 3)
-        self.renderer.show_image_with_text(image, "click to zoom, right to exit", font=Fonts.get_font("Assistant-Medium", 18), text_color="BLACK", text_background="ORANGE")
+    def display_seed_qr_options(self, seed_phrase) -> int:
+        if len(seed_phrase) == 24:
+            standard = "29x29"
+            compact = "25x25"
+        else:
+            standard = "25x25"
+            compact = "21x21"
+        r = self.controller.menu_view.display_generic_selection_menu(
+            ["... [ Return to Seed Tools ]", f"Standard SeedQR: {standard}", f"Compact SeedQR: {compact}"],
+            "Transcribe SeedQR"
+        )
+        if r == 2:
+            return self.seed_phrase_as_qr(seed_phrase, is_compact_seedqr=False)
+        elif r == 3:
+            return self.seed_phrase_as_qr(seed_phrase, is_compact_seedqr=True)
+        else:
+            return None
+
+
+    def seed_phrase_as_qr(self, seed_phrase, is_compact_seedqr=False):
+        if is_compact_seedqr:
+            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.COMPACTSEEDQR, wordlist=self.controller.settings.wordlist)
+        else:
+            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEEDQR, wordlist=self.controller.settings.wordlist)
+        data = e.nextPart()
+        qr = QR()
+        image = qr.qrimage(
+            data=data,
+            width=240,
+            height=240,
+            border=3,
+            style=QR.STYLE__ROUNDED).convert("RGBA")
+        View.DispShowImageWithText(image, "click to zoom, right to exit", font=View.ASSISTANT18, text_color="BLACK", text_background="ORANGE")
 
         input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_PRESS])
         if input == B.KEY_RIGHT:
@@ -724,15 +759,35 @@ class SeedToolsView(View):
         elif input == B.KEY_PRESS:
             # Render an oversized QR code that we can view up close
             pixels_per_block = 24
-            qr_border = 4
-            width = (qr_border + 25 + qr_border) * pixels_per_block
-            height = width
+
+            # Border must accommodate the 3 blocks outside the center 5x5 mask plus up to
+            # 4 empty blocks inside the 5x5 mask (21x21 has a 1-block final col/row).
+            qr_border = 7
+            qr_blocks_per_zoom = 5
             if len(seed_phrase) == 24:
-                width = (qr_border + 29 + qr_border) * pixels_per_block
-                height = width
+                if is_compact_seedqr:
+                    num_modules = 25
+                else:
+                    num_modules = 29
+            else:
+                if is_compact_seedqr:
+                    num_modules = 21
+
+                    # Optimize for 21x21
+                    qr_blocks_per_zoom = 7
+                else:
+                    num_modules = 25
+
+            width = (qr_border + num_modules + qr_border) * pixels_per_block
+            height = width
             data = e.nextPart()
             qr = QR()
-            image = qr.qrimage(data, width=width, height=height, border=qr_border).convert("RGBA")
+            image = qr.qrimage(
+                data,
+                width=width,
+                height=height,
+                border=qr_border,
+                style=QR.STYLE__ROUNDED).convert("RGBA")
 
             # Render gridlines but leave the 1-block border as-is
             draw = ImageDraw.Draw(image)
@@ -745,8 +800,8 @@ class SeedToolsView(View):
             block_mask = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
             draw = ImageDraw.Draw(block_mask)
 
-            mask_width = int((self.canvas_width - 5 * pixels_per_block)/2)
-            mask_height = int((self.canvas_height - 5 * pixels_per_block)/2)
+            mask_width = int((self.canvas_width - qr_blocks_per_zoom * pixels_per_block)/2)
+            mask_height = int((self.canvas_height - qr_blocks_per_zoom * pixels_per_block)/2)
             mask_rgba = (0, 0, 0, 226)
             draw.rectangle((0, 0, self.canvas_width, mask_height), fill=mask_rgba)
             draw.rectangle((0, self.canvas_height - mask_height - 1, self.canvas_width, self.canvas_height), fill=mask_rgba)
@@ -802,29 +857,27 @@ class SeedToolsView(View):
             )
 
             while True:
-                # self.draw_text_over_image("click to exit", font=Fonts.get_font("Assistant-Medium", 18), text_color="BLACK", text_background="ORANGE")
-
                 input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS])
                 if input == B.KEY_RIGHT:
-                    next_x = cur_x + 5 * pixels_per_block
+                    next_x = cur_x + qr_blocks_per_zoom * pixels_per_block
                     cur_block_x += 1
                     if next_x > width - self.canvas_width:
                         next_x = cur_x
                         cur_block_x -= 1
                 elif input == B.KEY_LEFT:
-                    next_x = cur_x - 5 * pixels_per_block
+                    next_x = cur_x - qr_blocks_per_zoom * pixels_per_block
                     cur_block_x -= 1
                     if next_x < 0:
                         next_x = cur_x
                         cur_block_x += 1
                 elif input == B.KEY_DOWN:
-                    next_y = cur_y + 5 * pixels_per_block
+                    next_y = cur_y + qr_blocks_per_zoom * pixels_per_block
                     cur_block_y += 1
                     if next_y > height - self.canvas_height:
                         next_y = cur_y
                         cur_block_y -= 1
                 elif input == B.KEY_UP:
-                    next_y = cur_y - 5 * pixels_per_block
+                    next_y = cur_y - qr_blocks_per_zoom * pixels_per_block
                     cur_block_y -= 1
                     if next_y < 0:
                         next_y = cur_y

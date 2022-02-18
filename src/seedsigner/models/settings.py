@@ -65,6 +65,7 @@ class SettingsConstants:
     SETTING__XPUB_DETAILS = "xpub_details"
     SETTING__PASSPHRASE = "passphrase"
     SETTING__CAMERA_ROTATION = "camera_rotation"
+    SETTING__COMPACT_SEEDQR = "compact_seedqr"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
 
@@ -89,7 +90,7 @@ class SettingsConstants:
     # TODO: Is there really a difference between ENABLED and PROMPT?
     TYPE__ENABLED_DISABLED = "enabled_disabled"
     TYPE__ENABLED_DISABLED_PROMPT = "enabled_disabled_prompt"
-    TYPE__ENABLED_DISABLED_PROMPT_REQURIED = "enabled_disabled_prompt_required"
+    TYPE__ENABLED_DISABLED_PROMPT_REQUIRED = "enabled_disabled_prompt_required"
     TYPE__SELECT_1 = "select_1"
     TYPE__MULTISELECT = "multiselect"
     TYPE__FREE_ENTRY = "free_entry"
@@ -128,7 +129,7 @@ class SettingsEntry:
                                       SettingsConstants.OPTION__DISABLED,
                                       SettingsConstants.OPTION__PROMPT]
 
-        elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQURIED:
+        elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQUIRED:
             self.selection_options = [SettingsConstants.ALL_OPTIONS]
 
         # Account for List[tuple] and tuple formats as default_value        
@@ -270,7 +271,7 @@ class SettingsDefinition:
                       attr_name=SettingsConstants.SETTING__PASSPHRASE,
                       display_name="BIP-39 passphrase",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      selection_options=SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQURIED,
+                      selection_options=SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQUIRED,
                       default_value=SettingsConstants.OPTION__ENABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
@@ -280,6 +281,12 @@ class SettingsDefinition:
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SettingsConstants.ALL_CAMERA_ROTATIONS,
                       default_value=SettingsConstants.CAMERA_ROTATION__0),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__COMPACT_SEEDQR,
+                      display_name="CompactSeedQR",
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__DISABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__PRIVACY_WARNINGS,

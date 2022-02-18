@@ -34,10 +34,6 @@ class BackStackView:
     displayed (akin to Flask's `return redirect(url, param1=x, param2=y))`).
 """
 class View:
-    # TODO: Obviated by seedsigner.gui.components.TopNav
-    previous_button_width: int = None
-
-
     def __init__(self) -> None:
         # Import here to avoid circular imports
         from seedsigner.controller import Controller
@@ -140,6 +136,7 @@ class PowerOffView(View):
         ).display()
 
         call("sudo shutdown --poweroff now", shell=True)
+
 
 
 class NotYetImplementedView(View):

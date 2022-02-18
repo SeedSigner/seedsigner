@@ -60,7 +60,7 @@ def test_seedsigner_qr():
 
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), qr_type=QRType.SEEDSSQR, wordlist=bip39.WORDLIST)
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), qr_type=QRType.SEEDQR, wordlist=bip39.WORDLIST)
 
     print(e.nextPart())
 

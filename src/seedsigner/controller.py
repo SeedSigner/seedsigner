@@ -1,5 +1,7 @@
 from embit.psbt import PSBT
 from seedsigner.gui.renderer import Renderer
+from seedsigner.helpers.buttons import Buttons
+from seedsigner.views.screensaver import ScreensaverView
 
 from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
 
@@ -43,33 +45,57 @@ class Controller(Singleton):
         from .helpers import Buttons
         from .views import ScreensaverView
         # This is the only way to access the one and only instance
-        if cls._instance is None:
+        if cls._instance:
+            return cls._instance
+        else:
             # Instantiate the one and only Controller instance
-            controller = cls.__new__(cls)
-            cls._instance = controller
+            return cls.configure_instance()
 
-            # Input Buttons
-            controller.buttons = Buttons.get_instance()
 
-            # models
-            # TODO: Rename "storage" to something more indicative of its temp, in-memory state
-            controller.storage = SeedStorage()
+    @classmethod
+    def configure_instance(cls, disable_hardware=False):
+        """
+            - `disable_hardware` is only meant to be used by the test suite so that it
+            can keep re-initializing a Controller in however many tests it needs to. But
+            this is only possible if the hardware isn't already being reserved. Without
+            this you get:
 
-            controller.settings = Settings.get_instance()
+            RuntimeError: Conflicting edge detection already enabled for this GPIO channel
 
-            # Store one working psbt in memory
-            controller.psbt = None
-            controller.psbt_parser = None
+            each time you try to re-initialize a Controller.
+        """
+        # Must be called before the first get_instance() call
+        if cls._instance:
+            raise Exception("Instance already configured")
 
-            # Configure the Renderer
-            Renderer.configure_instance()
+        # Instantiate the one and only Controller instance
+        controller = cls.__new__(cls)
+        cls._instance = controller
 
-            controller.screensaver = ScreensaverView(controller.buttons)
+        # Input Buttons
+        if disable_hardware:
+            controller.buttons = None
+        else:
+            controller.buttons = Buttons()
 
-            controller.back_stack = []
+        # models
+        # TODO: Rename "storage" to something more indicative of its temp, in-memory state
+        controller.storage = SeedStorage()
+        controller.settings = Settings.get_instance()
 
-            # Other behavior constants
-            controller.screensaver_activation_ms = 120 * 1000
+        # Store one working psbt in memory
+        controller.psbt = None
+        controller.psbt_parser = None
+
+        # Configure the Renderer
+        Renderer.configure_instance()
+
+        controller.screensaver = ScreensaverView(controller.buttons)
+
+        controller.back_stack = []
+
+        # Other behavior constants
+        controller.screensaver_activation_ms = 120 * 1000
     
         return cls._instance
 
@@ -220,6 +246,8 @@ class Controller(Singleton):
                 ret_val = self.show_persistent_settings_tool()
             elif ret_val == Path.CAMERA_ROTATION:
                 ret_val = self.show_camera_rotation_tool()
+            elif ret_val == Path.COMPACT_SEEDQR_ENABLED:
+                ret_val = self.show_compact_seedqr_enabled()
             elif ret_val == Path.DONATE:
                 ret_val = self.show_donate_tool()
             elif ret_val == Path.RESET:
@@ -1018,6 +1046,14 @@ class Controller(Singleton):
         r = self.settings_tools_view.display_camera_rotation()
         if r is not None:
             self.settings.camera_rotation = r
+
+        return Path.SETTINGS_SUB_MENU    ### Show Donate Screen and QR
+
+
+    def show_compact_seedqr_enabled(self):
+        r = self.settings_tools_view.display_compact_seedqr_enabled()
+        if r is not None:
+            self.settings.compact_seedqr_enabled = r
 
         return Path.SETTINGS_SUB_MENU    ### Show Donate Screen and QR
 
