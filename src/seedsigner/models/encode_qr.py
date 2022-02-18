@@ -1,3 +1,5 @@
+import math
+
 from enum import IntEnum
 from embit import psbt, bip32
 from embit.networks import NETWORKS
@@ -61,8 +63,10 @@ class EncodeQR:
             self.encoder = SpecterEncodePSBTQR(self.psbt, self.qr_density)
         elif self.qr_type == QRType.PSBTUR2:
             self.encoder = UREncodePSBTQR(self.psbt, self.qr_density)
-        elif self.qr_type == QRType.SEEDSSQR:
-            self.encoder = SeedSSQR(self.seed_phrase, self.wordlist)
+        elif self.qr_type == QRType.SEEDQR:
+            self.encoder = SeedQR(self.seed_phrase, self.wordlist)
+        elif self.qr_type == QRType.COMPACTSEEDQR:
+            self.encoder = CompactSeedQR(self.seed_phrase, self.wordlist)
         elif self.qr_type == QRType.XPUBQR:
             self.encoder = XPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.wordlist)
         elif self.qr_type == QRType.SPECTERXPUBQR:
@@ -81,7 +85,7 @@ class EncodeQR:
 
     def nextPartImage(self, width=240, height=240, border=3, background="FFFFFF"):
         part = self.nextPart()
-        if self.qr_type == QRType.SEEDSSQR:
+        if self.qr_type == QRType.SEEDQR:
             return self.qr.qrimage(part, width, height, border)
         else:
             return self.qr.qrimage_io(part, width, height, border, background=background)
@@ -190,8 +194,9 @@ class SpecterEncodePSBTQR:
     def isComplete(self):
         return self.sent_complete
 
-class SeedSSQR:
 
+
+class SeedQR:
     def __init__(self, seed_phrase, wordlist):
         self.seed_phrase = seed_phrase
         self.wordlist = wordlist
@@ -199,22 +204,57 @@ class SeedSSQR:
         if self.wordlist == None:
             raise Exception('Wordlist Required')
 
+
     def seqLen(self):
         return 1
 
+
     def nextPart(self):
         data = ""
+
+        # Output as Numeric data format
         for word in self.seed_phrase:
             index = self.wordlist.index(word)
             data += str("%04d" % index)
-
+        
         return data
+
 
     def isComplete(self):
         return True
 
-class XPubQR:
 
+class CompactSeedQR(SeedQR):
+    def nextPart(self):
+        # Output as binary data format
+        binary_str = ""
+        for word in self.seed_phrase:
+            index = self.wordlist.index(word)
+
+            # Convert index to binary, strip out '0b' prefix; zero-pad to 11 bits
+            binary_str += bin(index).split('b')[1].zfill(11)
+
+        # We can exclude the checksum bits at the end
+        if len(self.seed_phrase) == 24:
+            # 8 checksum bits in a 24-word seed
+            binary_str = binary_str[:-8]
+
+        elif len(self.seed_phrase) == 12:
+            # 4 checksum bits in a 12-word seed
+            binary_str = binary_str[:-4]
+
+        # Now convert to bytes, 8 bits at a time
+        as_bytes = bytearray()
+        for i in range(0, math.ceil(len(binary_str) / 8)):
+            # int conversion reads byte data as a string prefixed with '0b'
+            as_bytes.append(int('0b' + binary_str[i*8:(i+1)*8], 2))
+        
+        # Must return data as `bytes` for `qrcode` to properly recognize it as byte data
+        return bytes(as_bytes)
+
+
+
+class XPubQR:
     def __init__(self, seed_phrase, passphrase, derivation, network, wordlist):
         self.seed_phrase = seed_phrase
         self.passphrase = passphrase
