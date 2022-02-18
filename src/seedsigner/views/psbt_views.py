@@ -8,8 +8,8 @@ from .view import BackStackView, MainMenuView, View, Destination
 
 from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import psbt_screens
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonListScreen, LoadingScreenThread, QRDisplayScreen, WarningScreen
-from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
+from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen,
+    LoadingScreenThread, QRDisplayScreen, WarningScreen)
 from seedsigner.models.psbt_parser import PSBTParser
 
 
@@ -202,7 +202,7 @@ class PSBTAddressDetailsView(View):
 
             else:
                 # There's no change output to verify. Move on to sign the PSBT.
-                return Destination(MainMenuView, view_args={})
+                return Destination(PSBTFinalizeView)
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -301,7 +301,7 @@ class PSBTFinalizeView(View):
 
             if sig_cnt == PSBTParser.sigCount(trimmed_psbt):
                 # Signing failed / didn't do anything
-                # TODO: Are there different failure scenarios that we can detect?
+                # TODO: Reserved for Nick. Are there different failure scenarios that we can detect?
                 # Would be nice to alter the message on the next screen w/more detail.
                 return Destination(PSBTSigningErrorView)
             
@@ -363,11 +363,11 @@ class PSBTSigningErrorView(View):
             return Destination(MainMenuView)
 
         selected_menu_num = WarningScreen(
-            title="Finalize PSBT",
+            title="PSBT Error",
             warning_icon_name="warning",
             warning_headline="Signing Failed",
-            warning_text="",
-            button_data=["Select Diff Seed"],
+            warning_text="Signing with this seed did not add a valid signature.",
+            button_label="Select Diff Seed",
         ).display()
 
         if selected_menu_num == 0:

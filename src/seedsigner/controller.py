@@ -76,7 +76,7 @@ class Controller(Singleton):
         if disable_hardware:
             controller.buttons = None
         else:
-            controller.buttons = Buttons()
+            controller.buttons = Buttons.get_instance()
 
         # models
         # TODO: Rename "storage" to something more indicative of its temp, in-memory state
