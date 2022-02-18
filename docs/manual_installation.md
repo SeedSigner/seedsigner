@@ -131,24 +131,29 @@ workon seedsigner-env
 ```
 
 Optional: If you're going to be testing new code on the SeedSigner, you'll find yourself often needing to kill the SeedSigner code that automatically runs at startup (we'll be configuring this further down). As an extra convenience you can list the process id so that you can then kill it from the terminal:
-```
-ps aux | grep main.py
-```
 
-Save your changes with `CTRL-X` and `y`.
+<details>
+   <summary>Optional: expand to see additional instructions</summary>
 
-Now when you `ssh` in you'll see something like:
-```
-pi         297 65.4  9.7  74096 36736 ?        Rsl  09:26  10:29 /home/pi/.envs/seedsigner-env/bin/python main.py
-pi         857  0.0  0.4   7332  1876 pts/0    S+   09:42   0:00 grep --color=auto main.py
-```
-
-The top line is our SeedSigner code running. To stop it, run:
-```
-kill 297
-```
-Where `297` is the process id listed in the output above (it'll be different each time).
-
+    Optional: If you're going to be testing new code on the SeedSigner, you'll find yourself often needing to kill the SeedSigner code that automatically runs at startup (we'll be configuring this further down). As an extra convenience you can list the process id so that you can then kill it from the terminal:
+    ```
+    ps aux | grep main.py
+    ```
+    
+    Save your changes with `CTRL-X` and `y`.
+    
+    Now when you `ssh` in you'll see something like:
+    ```
+    pi         297 65.4  9.7  74096 36736 ?        Rsl  09:26  10:29 /home/pi/.envs/seedsigner-env/bin/python main.py
+    pi         857  0.0  0.4   7332  1876 pts/0    S+   09:42   0:00 grep --color=auto main.py
+    ```
+    
+    The top line is our SeedSigner code running. To stop it, run:
+    ```
+    kill 297
+    ```
+    Where `297` is the process id listed in the output above (it'll be different each time).
+</details>
 
 ### Download the SeedSigner code:
 ```
@@ -156,23 +161,28 @@ git clone --recursive https://github.com/SeedSigner/seedsigner
 cd seedsigner
 ```
 
-If you have already cloned in the past and just need to init/pull submodules:
-```
-git submodule update --init
-```
+##### Additional git related instructions for testing and updates
 
-If you want to run a specific branch within the main SeedSigner repo, switch to it with:
-```
-git checkout yourtargetbranch
-```
-
-And if you want to test a pull request (PR), for example PR #123:
-```
-git fetch origin pull/123/head:pr_123
-git checkout pr_123
-```
-
-where `pr_123` is any name you want to give to the new branch in your local repo that will hold the PR.
+<details>
+   <summary>Optional: expand to see additional instructions</summary>
+   If you have already cloned in the past and just need to init/pull submodules:
+   ```
+   git submodule update --init
+   ```
+   
+   If you want to run a specific branch within the main SeedSigner repo, switch to it with:
+   ```
+   git checkout yourtargetbranch
+   ```
+   
+   And if you want to test a pull request (PR), for example PR #123:
+   ```
+   git fetch origin pull/123/head:pr_123
+   git checkout pr_123
+   ```
+   
+   where `pr_123` is any name you want to give to the new branch in your local repo that will hold the PR.
+</details>
 
 
 ### Install Python `pip` dependencies:
