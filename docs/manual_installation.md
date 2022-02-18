@@ -76,6 +76,10 @@ sudo apt install ./libzbar0_0.23.90-1_armhf.deb
 
 #### Or install `zbar` by compiling from source
 This step isn't necessary. It's only if you prefer to compile `zbar` from source. The whole process takes about 30 minutes.
+
+<details>
+   <summary>Optional: expand to see compile from source instructions</summary>
+
 ```
 sudo apt-get install -y autopoint
 
@@ -92,6 +96,8 @@ make
 make check
 sudo make install
 ```
+
+</details>
 
 ### Install the [C library for Broadcom BCM 2835](http://www.airspayce.com/mikem/bcm2835/)
 ```
@@ -121,8 +127,6 @@ Now create the python virtualenv for SeedSigner with these two commands:
 ```
 source ~/.profile
 mkvirtualenv --python=python3 seedsigner-env
-cd seedsigner
-setvirtualenvproject
 ```
 
 For convenience you can configure your `.profile` to auto-activate the SeedSigner virtualenv when you ssh in. Once again `nano ~/.profile` and add at the end:
