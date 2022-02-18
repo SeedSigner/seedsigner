@@ -94,8 +94,6 @@ class View:
         # 240x240 display with hardware SPI:
         View.bus = 0
         View.device = 0
-
-        # TODO: Add `disable_hardware` option for test suite here, too?
         View.disp = ST7789(SPI.SpiDev(View.bus, View.device),View.RST, View.DC, View.BL)
         View.disp.Init()
 

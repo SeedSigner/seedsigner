@@ -3,17 +3,12 @@ from pyzbar.pyzbar import ZBarSymbol
 from enum import IntEnum
 import re
 import json
-import logging
 import base64
-from embit import psbt, bip39
+from embit import psbt
 from binascii import a2b_base64, b2a_base64
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
 from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
 from seedsigner.models import QRType, Seed
-
-logger = logging.getLogger(__name__)
-
-
 
 ###
 ### DecodeQR Class
@@ -46,39 +41,22 @@ class DecodeQR:
         self.seedqr = SeedQR(wordlist=self.wordlist)
 
     def addImage(self, image):
-        data = DecodeQR.extract_qr_data(image, is_binary=True)
-        if data == None:
+        qr_str = DecodeQR.QR2Str(image)
+        if qr_str == None:
             return DecodeQRStatus.FALSE
 
-        return self.add_data(data)
+        return self.addString(qr_str)
 
-    def add_data(self, data):
-        if data == None:
+    def addString(self, qr_str):
+        if qr_str == None:
             return DecodeQRStatus.FALSE
 
-        qr_type = DecodeQR.SegmentType(data, wordlist=self.wordlist)
+        qr_type = DecodeQR.SegmentType(qr_str, wordlist=self.wordlist)
 
         if self.qr_type == None:
             self.qr_type = qr_type
         elif self.qr_type != qr_type:
             raise Exception('QR Fragement Unexpected Type Change')
-
-        # Process the binary formats first
-        if self.qr_type == QRType.COMPACTSEEDQR:
-            rt = self.seedqr.add(data, QRType.COMPACTSEEDQR)
-            if rt == DecodeQRStatus.COMPLETE:
-                self.complete = True
-            return rt
-
-        # Convert to string data
-        if type(data) == bytes:
-            # Should always be bytes, but the test suite has some manual datasets that
-            # are strings.
-            # TODO: Convert the test suite rather than handle here?
-            qr_str = data.decode('utf-8')
-        else:
-            # it's already str data
-            qr_str = data
 
         if self.qr_type == QRType.PSBTUR2:
 
@@ -116,8 +94,8 @@ class DecodeQR:
                 self.complete = True
             return rt
 
-        elif self.qr_type == QRType.SEEDQR:
-            rt = self.seedqr.add(qr_str, QRType.SEEDQR)
+        elif self.qr_type == QRType.SEEDSSQR:
+            rt = self.seedqr.add(qr_str, QRType.SEEDSSQR)
             if rt == DecodeQRStatus.COMPLETE:
                 self.complete = True
             return rt
@@ -235,7 +213,7 @@ class DecodeQR:
         return False
 
     def isSeed(self):
-        if self.qr_type in (QRType.SEEDQR, QRType.COMPACTSEEDQR, QRType.SEEDUR2, QRType.SEEDMNEMONIC, QRType.SEED4LETTERMNEMONIC):
+        if self.qr_type in (QRType.SEEDSSQR, QRType.SEEDUR2, QRType.SEEDMNEMONIC, QRType.SEED4LETTERMNEMONIC):
             return True
         return False
         
@@ -253,95 +231,62 @@ class DecodeQR:
         return self.qr_type
 
     @staticmethod
-    def extract_qr_data(image, is_binary=False) -> str:
+    def QR2Str(image) -> str:
         if image is None:
             return None
 
-        # Are there any cases where defaulting `binary` to True causes problems?
-        barcodes = pyzbar.decode(image, symbols=[ZBarSymbol.QRCODE], binary=is_binary)
-
-        if barcodes:
-            logger.debug("--------------- extract_qr_data ---------------")
-            logger.debug(barcodes)
+        barcodes = pyzbar.decode(image, symbols=[ZBarSymbol.QRCODE])
 
         for barcode in barcodes:
             # Only pull and return the first barcode
-            return barcode.data
+            return barcode.data.decode("utf-8")
 
     @staticmethod
     def SegmentType(s, wordlist=None):
-        logger.debug("-------------- DecodeQR.SegmentType --------------")
-        logger.debug(type(s))
-        logger.debug(len(s))
 
+        # PSBT
+        if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
+            return QRType.PSBTUR2
+        elif re.search(r'^p(\d+)of(\d+) ([A-Za-z0-9+\/=]+$)', s, re.IGNORECASE): #must be base64 characters only in segment
+            return QRType.PSBTSPECTER
+        elif re.search("^UR:BYTES/", s, re.IGNORECASE):
+            return QRType.PSBTURLEGACY
+        elif DecodeQR.isBase64PSBT(s):
+            return QRType.PSBTBASE64
+            
+        # Wallet Descriptor
+        desc_str = s.replace("\n","").replace(" ","")
+        if re.search(r'^p(\d+)of(\d+) ', s, re.IGNORECASE):
+            # when not a SPECTER Base64 PSBT from above, assume it's json
+            return QRType.SPECTERWALLETQR
+        elif re.search(r'^\{\"label\".*\"descriptor\"\:.*', desc_str, re.IGNORECASE):
+            # if json starting with label and contains descriptor, assume specter wallet json
+            return QRType.SPECTERWALLETQR
+
+        # create 4 letter wordlist only if not PSBT (performance gain)
         try:
-            # Convert to str data
-            if type(s) == bytes:
-                # Should always be bytes, but the test suite has some manual datasets that
-                # are strings.
-                # TODO: Convert the test suite rather than handle here?
-                s = s.decode('utf-8')
-            # PSBT
-            if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
-                return QRType.PSBTUR2
-            elif re.search(r'^p(\d+)of(\d+) ([A-Za-z0-9+\/=]+$)', s, re.IGNORECASE): #must be base64 characters only in segment
-                return QRType.PSBTSPECTER
-            elif re.search("^UR:BYTES/", s, re.IGNORECASE):
-                return QRType.PSBTURLEGACY
-            elif DecodeQR.isBase64PSBT(s):
-                return QRType.PSBTBASE64
-                
-            # Wallet Descriptor
-            desc_str = s.replace("\n","").replace(" ","")
-            if re.search(r'^p(\d+)of(\d+) ', s, re.IGNORECASE):
-                # when not a SPECTER Base64 PSBT from above, assume it's json
-                return QRType.SPECTERWALLETQR
-            elif re.search(r'^\{\"label\".*\"descriptor\"\:.*', desc_str, re.IGNORECASE):
-                # if json starting with label and contains descriptor, assume specter wallet json
-                return QRType.SPECTERWALLETQR
-
-            # create 4 letter wordlist only if not PSBT (performance gain)
-            try:
-                _4LETTER_WORDLIST = [word[:4].strip() for word in wordlist]
-            except:
-                _4LETTER_WORDLIST = []
-            
-            # Seed
-            if re.search(r'\d{48,96}', s):
-                return QRType.SEEDQR
-                
-            # Bitcoin Address
-            elif DecodeQR.isBitcoinAddress(s):
-                return QRType.BITCOINADDRESSQR
-            
-            # Seed
-            elif all(x in wordlist for x in s.strip().split(" ")):
-                # checks if all words in list are in bip39 word list
-                return QRType.SEEDMNEMONIC
-            elif all(x in _4LETTER_WORDLIST for x in s.strip().split(" ")):
-                # checks if all 4 letter words are in list are in 4 letter bip39 word list
-                return QRType.SEED4LETTERMNEMONIC
-            elif DecodeQR.isBase43PSBT(s):
-                return QRType.PSBTBASE43
-        except UnicodeDecodeError:
-            # Probably this isn't meant to be string data; check if it's valid byte data
-            # below.
-            pass
+            _4LETTER_WORDLIST = [word[:4].strip() for word in wordlist]
+        except:
+            _4LETTER_WORDLIST = []
         
-        # Is it byte data?
-        # 32 bytes for 24-word CompactSeedQR; 16 bytes for 12-word CompactSeedQR
-        if len(s) == 32 or len(s) == 16:
-            try:
-                bitstream = ""
-                for b in s:
-                    bitstream += bin(b).lstrip('0b').zfill(8)
-                logger.debug(bitstream)
-
-                return QRType.COMPACTSEEDQR
-            except Exception as e:
-                # Couldn't extract byte data; assume it's not a byte format
-                pass
-
+        # Seed
+        if re.search(r'\d{48,96}', s):
+            return QRType.SEEDSSQR
+            
+        # Bitcoin Address
+        elif DecodeQR.isBitcoinAddress(s):
+            return QRType.BITCOINADDRESSQR
+        
+        # Seed
+        elif all(x in wordlist for x in s.strip().split(" ")):
+            # checks if all words in list are in bip39 word list
+            return QRType.SEEDMNEMONIC
+        elif all(x in _4LETTER_WORDLIST for x in s.strip().split(" ")):
+            # checks if all 4 letter words are in list are in 4 letter bip39 word list
+            return QRType.SEED4LETTERMNEMONIC
+        elif DecodeQR.isBase43PSBT(s):
+            return QRType.PSBTBASE43
+        
         return QRType.INVALID
 
     @staticmethod   
@@ -587,7 +532,6 @@ class Base64DecodeQR:
 
         return None
 
-    # TODO: Should this be static? Need to fix 'self' reference here
     @staticmethod
     def currentSegmentNum(segment) -> int:
         return self.collected_segments
@@ -626,7 +570,6 @@ class Base43DecodeQR:
     def getData(self):
         return self.data
 
-    # TODO: Should this be static? Need to fix 'self' reference here
     @staticmethod
     def currentSegmentNum(segment) -> int:
         return self.collected_segments
@@ -659,11 +602,11 @@ class SeedQR:
         if self.wordlist == None:
             raise Exception('Wordlist Required')
 
-    def add(self, segment, qr_type=QRType.SEEDQR):
-        # `segment` data will either be bytes or str, depending on the qr_type
-        logger.debug(qr_type)
+    def add(self, segment, qr_type=QRType.SEEDSSQR):
 
-        if qr_type == QRType.SEEDQR:
+        _4LETTER_WORDLIST = [word[:4].strip() for word in self.wordlist]
+
+        if qr_type == QRType.SEEDSSQR:
 
             try:
                 self.seed_phrase = []
@@ -685,17 +628,8 @@ class SeedQR:
             except Exception as e:
                 return DecodeQRStatus.INVALID
 
-        if qr_type == QRType.COMPACTSEEDQR:
-            try:
-                self.seed_phrase = bip39.mnemonic_from_bytes(segment).split()
-                self.complete = True
-                self.collected_segments = 1
-                return DecodeQRStatus.COMPLETE
-            except Exception as e:
-                logger.exception(repr(e))
-                return DecodeQRStatus.INVALID
-
         elif qr_type == QRType.SEEDMNEMONIC:
+
             try:
                 # embit mnemonic code to validate
                 seed = Seed(segment, passphrase="", wordlist=self.wordlist)
@@ -717,8 +651,6 @@ class SeedQR:
                 sl = segment.strip().split(" ")
                 words = []
                 for s in sl:
-                    # TODO: Pre-calculate this once on startup
-                    _4LETTER_WORDLIST = [word[:4].strip() for word in self.wordlist]
                     words.append(self.wordlist[_4LETTER_WORDLIST.index(s)])
 
                 # embit mnemonic code to validate

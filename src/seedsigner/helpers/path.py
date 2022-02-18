@@ -29,7 +29,6 @@ class Path:
     QR_DENSITY_SETTING = 65
     PERSISTENT_SETTINGS = 67
     CAMERA_ROTATION = 69
-    COMPACT_SEEDQR_ENABLED = 70
     RESET = 68
 
     # Seed Slots
