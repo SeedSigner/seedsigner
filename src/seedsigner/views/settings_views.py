@@ -77,7 +77,7 @@ class SettingsEntryUpdateSelectionView(View):
 
 
     def run(self):
-        cur_value = self.settings.get_value(self.settings_entry.attr_name)
+        initial_value = self.settings.get_value(self.settings_entry.attr_name)
         button_data = []
         checked_buttons = []
         for i, value in enumerate(self.settings_entry.selection_options):
@@ -86,14 +86,13 @@ class SettingsEntryUpdateSelectionView(View):
             else:
                 display_name = value
             button_data.append(display_name)
-            if (type(cur_value) == list and value in cur_value) or value == cur_value:
+            if (type(initial_value) == list and value in initial_value) or value == initial_value:
                 checked_buttons.append(i)
 
                 if self.selected_button is None:
                     # Highlight the selection (for multiselect highlight the first
                     # selected option).
                     self.selected_button = i
-                    print(f"setting selected_button: {i} - {display_name}")
         
         if not self.selected_button:
             self.selected_button = 0
@@ -126,7 +125,7 @@ class SettingsEntryUpdateSelectionView(View):
             destination = settings_menu_view_destination
 
         elif self.settings_entry.type == SettingsConstants.TYPE__MULTISELECT:
-            updated_value = list(cur_value)
+            updated_value = list(initial_value)
             if ret_value not in checked_buttons:
                 # This is a new selection to add
                 updated_value.append(value)
@@ -136,9 +135,11 @@ class SettingsEntryUpdateSelectionView(View):
 
         else:
             # All other types are single selects (e.g. Enabled/Disabled, SELECT_1)
-            updated_value = value
-        
-        print(updated_value)
+            if value == initial_value:
+                # No change, return to menu
+                return settings_menu_view_destination
+            else:
+                updated_value = value
 
         self.settings.set_value(
             attr_name=self.settings_entry.attr_name,
@@ -149,7 +150,6 @@ class SettingsEntryUpdateSelectionView(View):
             return destination
 
         # All selects stay in place; re-initialize where in the list we left off
-        # TODO: get Screen.scroll_y to pass in?
         self.selected_button = ret_value
         return self.run()
 

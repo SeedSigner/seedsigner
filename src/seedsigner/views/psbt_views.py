@@ -2,6 +2,7 @@ import time
 from embit.psbt import PSBT
 
 from seedsigner.models.encode_qr import EncodeQR
+from seedsigner.models.qr_type import QRType
 from seedsigner.models.settings import SettingsConstants
 
 from .view import BackStackView, MainMenuView, View, Destination
@@ -336,11 +337,15 @@ class PSBTSignedQRDisplayView(View):
     def __init__(self, coordinator: str):
         super().__init__()
         self.coordinator = coordinator
-
+    
     def run(self):
+        qr_psbt_type = QRType.PSBTUR2
+        if self.coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
+            qr_psbt_type = QRType.PSBTSPECTER
+
         qr_encoder = EncodeQR(
             psbt=self.controller.psbt,
-            qr_type=self.settings.qr_psbt_type(self.coordinator),
+            qr_type=qr_psbt_type,
             qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
             wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE),
         )

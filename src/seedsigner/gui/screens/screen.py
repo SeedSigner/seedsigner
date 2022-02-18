@@ -325,7 +325,12 @@ class ButtonListScreen(BaseTopNavScreen):
             arrow_draw.line((self.arrow_half_width, 7, 0, 1), fill=GUIConstants.BUTTON_FONT_COLOR)
             arrow_draw.line((self.arrow_half_width, 7, 2 * self.arrow_half_width, 1), fill=GUIConstants.BUTTON_FONT_COLOR)
 
-        self.buttons[self.selected_button].is_selected = True
+        cur_selected_button = self.buttons[self.selected_button]
+        cur_selected_button.is_selected = True
+        if self.has_scroll_arrows:
+            frame_scroll = self.buttons[0].screen_y - cur_selected_button.screen_y
+            for button in self.buttons:
+                button.scroll_y -= frame_scroll
 
 
     def _render(self):
@@ -384,21 +389,23 @@ class ButtonListScreen(BaseTopNavScreen):
 
     def _run(self):
         while True:
-            user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
+            user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_LEFT, B.KEY_RIGHT, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
 
             with self.renderer.lock:
-                if user_input == B.KEY_UP:
+                if not self.top_nav.is_selected and (user_input == B.KEY_LEFT or (user_input == B.KEY_UP and self.selected_button == 0)):
+                    # SHORTCUT to escape long menu screens!
+                    # OR keyed UP from the top of the list.
+                    # Move selection up to top_nav
+                    self.buttons[self.selected_button].is_selected = False
+                    self.buttons[self.selected_button].render()
+
+                    self.top_nav.is_selected = True
+                    self.top_nav.render()
+
+                elif user_input == B.KEY_UP:
                     if self.top_nav.is_selected:
                         # Can't go up any further
                         pass
-                    elif self.selected_button == 0:
-                        # Move selection up to top_nav
-                        self.buttons[self.selected_button].is_selected = False
-                        self.buttons[self.selected_button].render()
-                        self.selected_button = None
-
-                        self.top_nav.is_selected = True
-                        self.top_nav.render()
                     else:
                         cur_selected_button: Button = self.buttons[self.selected_button]
                         self.selected_button -= 1
@@ -415,17 +422,21 @@ class ButtonListScreen(BaseTopNavScreen):
                             cur_selected_button.render()
                             next_selected_button.render()
 
-                elif user_input == B.KEY_DOWN:
+                elif user_input == B.KEY_DOWN or (self.top_nav.is_selected and user_input == B.KEY_RIGHT):
+                    if self.selected_button == len(self.buttons) - 1:
+                        # Already at the bottom of the list. Nowhere to go. But may need
+                        # to re-render if we're returning from top_nav; otherwise skip
+                        # this update loop.
+                        if not self.top_nav.is_selected:
+                            continue
+
                     if self.top_nav.is_selected:
                         self.top_nav.is_selected = False
                         self.top_nav.render()
 
-                        self.selected_button = 0
-                        self.buttons[self.selected_button].is_selected = True
-                        self.buttons[self.selected_button].render()
-
-                    elif self.selected_button == len(self.buttons) - 1:
-                        pass
+                        cur_selected_button = None
+                        next_selected_button = self.buttons[self.selected_button]
+                        next_selected_button.is_selected = True
 
                     else:
                         cur_selected_button: Button = self.buttons[self.selected_button]
@@ -433,15 +444,17 @@ class ButtonListScreen(BaseTopNavScreen):
                         next_selected_button: Button = self.buttons[self.selected_button]
                         cur_selected_button.is_selected = False
                         next_selected_button.is_selected = True
-                        if self.has_scroll_arrows and next_selected_button.screen_y - next_selected_button.scroll_y + next_selected_button.height > self.down_arrow_img_y:
-                            # Selected a Button that's off the bottom of the screen
-                            frame_scroll = next_selected_button.screen_y - cur_selected_button.screen_y
-                            for button in self.buttons:
-                                button.scroll_y += frame_scroll
-                            self._render_visible_buttons()
-                        else:
+
+                    if self.has_scroll_arrows and next_selected_button.screen_y - next_selected_button.scroll_y + next_selected_button.height > self.down_arrow_img_y:
+                        # Selected a Button that's off the bottom of the screen
+                        frame_scroll = next_selected_button.screen_y - cur_selected_button.screen_y
+                        for button in self.buttons:
+                            button.scroll_y += frame_scroll
+                        self._render_visible_buttons()
+                    else:
+                        if cur_selected_button:
                             cur_selected_button.render()
-                            next_selected_button.render()
+                        next_selected_button.render()
 
                 elif user_input == B.KEY_PRESS:
                     if self.top_nav.is_selected:
@@ -547,8 +560,8 @@ class LargeButtonScreen(BaseTopNavScreen):
 
                         self.buttons[self.selected_button].is_selected = True
                         self.buttons[self.selected_button].render()
+
                     elif self.selected_button in [2, 3]:
-                        # TODO: Trap selection at bottom or loop?
                         pass
                     elif len(self.buttons) == 4:
                         swap_selected_button(self.selected_button + 2)
@@ -556,10 +569,25 @@ class LargeButtonScreen(BaseTopNavScreen):
                 elif user_input == B.KEY_RIGHT and not self.top_nav.is_selected:
                     if self.selected_button in [0, 2]:
                         swap_selected_button(self.selected_button + 1)
+                
+                elif user_input == B.KEY_RIGHT and self.top_nav.is_selected and not self.top_nav.show_power_button:
+                    self.top_nav.is_selected = False
+                    self.top_nav.render()
+
+                    self.buttons[self.selected_button].is_selected = True
+                    self.buttons[self.selected_button].render()
 
                 elif user_input == B.KEY_LEFT and not self.top_nav.is_selected:
                     if self.selected_button in [1, 3]:
                         swap_selected_button(self.selected_button - 1)
+                    else:
+                        # Left from the far edge takes us up to the BACK arrow
+                        if self.top_nav.show_back_button:
+                            self.top_nav.is_selected = True
+                            self.top_nav.render()
+
+                            self.buttons[self.selected_button].is_selected = False
+                            self.buttons[self.selected_button].render()
 
                 elif user_input == B.KEY_PRESS:
                     if self.top_nav.is_selected:

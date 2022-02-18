@@ -27,11 +27,12 @@ Screens will be functional but not necessarily in their final presentation state
 * Create new seed via image entropy
 * Manual mnemonic seed word entry
 * 12th/24th word calc
-* SeedQR/CompactSeedQR manual transcription UI
+* SeedQR/CompactSeedQR manual transcription UI w/configurable UI style (dots vs grid)
 * Single sig address scan and verification
 * QR display framerate speed controls, pop up guide UI
 * SettingsQR standalone UI refinement
 * Fix broken tests
+* Scrollable ListButtonView w/upper canvas area
 
 
 ## v0.5.0 Pre-Release 3.x
@@ -39,6 +40,7 @@ Screens will be functional but not necessarily in their final presentation state
 * "Final" bugfixes
 * Create new seed via dice rolls
 * Custom derivation paths in xpub export flow
+* HRF partner logo on startup
 * Improve test suite coverage
 
 
@@ -51,6 +53,7 @@ These features will not be included in the initial v0.5.0 release and will have 
 
 * Multisig wallet descriptor QR scan(?) and addr verification(?)
 * Multi-language support
+* Multisig: sign PSBT with multiple keys at once.
 * Custom OS, possibly with swappable SD card PSBT and multisig wallet descriptor storage
 * Decoy game mode at launch (Snake, Tetris, Sudoku...?)
 * BIP-39 wordlists in additional languages

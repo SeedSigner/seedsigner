@@ -1,28 +1,17 @@
-from dataclasses import dataclass
 import json
 import os
 
-from embit import bip39
+from dataclasses import dataclass
 from typing import Any, List
 
 from .seed import SeedConstants
 from .singleton import Singleton
-from .qr_type import QRType
 from .encode_qr import EncodeQR
 
 
 
 class SettingsConstants:
-    # User-facing selection options
-    COORDINATOR__BLUE_WALLET = "BlueWallet"
-    COORDINATOR__SPARROW = "Sparrow"
-    COORDINATOR__SPECTER_DESKTOP = "Specter Desktop"
-    ALL_COORDINATORS = [
-        COORDINATOR__BLUE_WALLET,
-        COORDINATOR__SPARROW,
-        COORDINATOR__SPECTER_DESKTOP,
-    ]
-
+    # Basic defaults
     OPTION__ENABLED = "Enabled"
     OPTION__DISABLED = "Disabled"
     OPTION__PROMPT = "Prompt"
@@ -32,6 +21,16 @@ class SettingsConstants:
         OPTION__DISABLED,
         OPTION__PROMPT,
         OPTION__REQUIRED,
+    ]
+
+    # User-facing selection options
+    COORDINATOR__BLUE_WALLET = "BlueWallet"
+    COORDINATOR__SPARROW = "Sparrow"
+    COORDINATOR__SPECTER_DESKTOP = "Specter Desktop"
+    ALL_COORDINATORS = [
+        COORDINATOR__BLUE_WALLET,
+        COORDINATOR__SPARROW,
+        COORDINATOR__SPECTER_DESKTOP,
     ]
 
     LANGUAGE__ENGLISH = "en"
@@ -50,8 +49,7 @@ class SettingsConstants:
         (CAMERA_ROTATION__270, "270°"),
     ]
 
-
-    # Individual settings entry attr_names
+    # Individual SettingsEntry attr_names
     SETTING__LANGUAGE = "language"
     SETTING__WORDLIST_LANGUAGE = "wordlist_language"
     SETTING__PERSISTENT_SETTINGS = "persistent_settings"
@@ -71,12 +69,12 @@ class SettingsConstants:
 
     SETTING__DEBUG = "debug"
 
-    # Hidden settings value to store internal state data
+    # Hidden settings
     SETTING__QR_BRIGHTNESS = "qr_background_color"
 
 
     # Structural constants
-    # TODO: Not using these for display purposes yet/ever?
+    # TODO: Not using these for display purposes yet (ever?)
     CATEGORY__SYSTEM = "system"
     CATEGORY__DISPLAY = "display"
     CATEGORY__WALLET = "wallet"
@@ -105,6 +103,10 @@ class SettingsEntry:
         * category: Mostly for organizational purposes when displaying options in the
             SettingsQR UI. Potentially an additional sub-level breakout in the menus
             on the device itself, too.
+        
+        * selection_options: May be specified as a List(Any) or List(tuple(Any, str)).
+            The tuple form is to provide a human-readable display_name. Probably all
+            entries should shift to using the tuple form.
     """
     # TODO: Handle multi-language `display_name` and `help_text`
     category: str
@@ -375,76 +377,76 @@ class Settings(Singleton):
 
             settings._data = SettingsDefinition.get_defaults()
 
-            # # default internal data structure for settings
-            # settings._data = {
-            #     "system": {
-            #         "debug": False,
-            #         "default_language": "en",
-            #         "persistent_settings": False,
-            #     },
-            #     "display": {
-            #         "text_color": "white",
-            #         "background_color": "black",
-            #         "camera_rotation": 0,
-            #     },
-            #     "wallet": {
-            #         "network": SeedConstants.MAINNET,
-            #         "coordinators": SettingsConstants.ALL_COORDINATORS,
-            #         "qr_density": EncodeQR.DENSITY__MEDIUM,
-            #         "custom_derivation": "m/"
-            #     },
-            #     "features": {
-            #         "xpub_export": SettingsConstants.OPTION__ENABLED,        # ENABLED | DISABLED
-            #         "sig_types": SeedConstants.ALL_SIG_TYPES,                # [single_sig, multisig]
-            #         "script_types": [t["type"] for t in SeedConstants.ALL_SCRIPT_TYPES],  # [script_type1, ...]
-            #         "show_xpub_details": SettingsConstants.OPTION__ENABLED,  # ENABLED | DISABLED
-            #         "passphrase": SettingsConstants.OPTION__ENABLED,          # ENABLED | DISABLED | PROMPT
-            #         "show_privacy_warnings": SettingsConstants.OPTION__ENABLED,   # ENABLED | DISABLED
-            #         "show_dire_warnings": SettingsConstants.OPTION__ENABLED,      # ENABLED | DISABLED
-            #     }
-            # }
-
-            # TODO: Read persistent settings, if it exists
-            # if os.path.exists(Settings.SETTINGS_FILENAME):
-            #     with open(Settings.SETTINGS_FILENAME) as settings_file:
-            #         settings._data.update(json.load(settings_file))
+            # Read persistent settings file, if it exists
+            if os.path.exists(Settings.SETTINGS_FILENAME):
+                with open(Settings.SETTINGS_FILENAME) as settings_file:
+                    settings.update(json.load(settings_file))
 
         return cls._instance
 
 
     def __str__(self):
-        return json.dumps(self._data, indent=2)
+        return json.dumps(self._data, indent=4)
     
 
     def save(self):
-        if self.persistent_settings:
+        if self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] == SettingsConstants.OPTION__ENABLED:
             with open(Settings.SETTINGS_FILENAME, 'w') as settings_file:
-                json.dump(self._data, settings_file)
+                json.dump(self._data, settings_file, indent=4)
 
 
     def update(self, new_settings: dict):
         # Can't just merge the _data dict; have to replace keys they have in common
         #   (otherwise list values will be merged instead of replaced).
-        for category, category_settings in new_settings.items():
-            for key, value in category_settings.items():
-                self._data[category].pop(key, None)
-                self._data[category][key] = value
+        for key, value in new_settings.items():
+            self._data.pop(key, None)
+            self._data[key] = value
 
 
     def set_value(self, attr_name: str, value: any):
+        """
+            Updates the attr's current value.
+
+            Note that for multiselect, the value must be a List.
+        """
         if attr_name not in self._data:
             raise Exception(f"Setting for {attr_name} not found")
+
+        if SettingsDefinition.get_settings_entry(attr_name).type == SettingsConstants.TYPE__MULTISELECT:
+            if type(value) != list:
+                raise Exception(f"value must be a List for {attr_name}")
+        
+        # Special handling for toggling persistence
+        if attr_name == SettingsConstants.SETTING__PERSISTENT_SETTINGS and value == SettingsConstants.OPTION__DISABLED:
+            os.remove(self.SETTINGS_FILENAME)
+            print(f"Removed {self.SETTINGS_FILENAME}")
+
         self._data[attr_name] = value
-        # self.save()
+        self.save()
     
 
     def get_value(self, attr_name: str):
+        """
+            Returns the attr's current value.
+
+            Note that for multiselect, the current value is a List.
+        """
         if attr_name not in self._data:
             raise Exception(f"Setting for {attr_name} not found")
         return self._data[attr_name]
 
 
     def get_value_display_name(self, attr_name: str) -> str:
+        """
+            Figures out the mapping from value to display_name for the current value's
+            tuple(value, display_name) definition, if it's defined that way.
+            
+            If the selection_options are defined as simple strings, we just return the
+            string.
+
+            Cannot be used for multiselect (use get_multiselect_value_display_names
+            instead) or free entry types (there is no tuple mapping).
+        """
         if attr_name not in self._data:
             raise Exception(f"Setting for {attr_name} not found")
         settings_entry = SettingsDefinition.get_settings_entry(attr_name)
@@ -454,6 +456,9 @@ class Settings(Singleton):
     
 
     def get_multiselect_value_display_names(self, attr_name: str) -> List[str]:
+        """
+            Returns a List of all the selected values' display_names.
+        """
         if attr_name not in self._data:
             raise Exception(f"Setting for {attr_name} not found")
         settings_entry = SettingsDefinition.get_settings_entry(attr_name)
@@ -467,51 +472,15 @@ class Settings(Singleton):
 
 
 
-    @property
-    def persistent_settings(self) -> bool:
-        return self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] == SettingsConstants.OPTION__ENABLED
+    """
+        Intentionally keeping the properties very limited to avoid an expectation of
+        boilerplate property code for every SettingsEntry.
 
+        It's more cumbersome, but instead use:
+
+        settings.get_value(SettingsConstants.SETTING__MY_SETTING_ATTR)
+    """
     @property
     def debug(self) -> bool:
         return self._data[SettingsConstants.SETTING__DEBUG] == SettingsConstants.OPTION__ENABLED
 
-    # TODO: Deeper support for GUI-wide color customization
-    @property
-    def text_color(self):
-        from seedsigner.gui.components import GUIConstants
-        return GUIConstants.BODY_FONT_COLOR
-    
-    @property
-    def qr_background_color(self):
-        return self._data["display"]["qr_background_color"]
-
-
-    @staticmethod
-    def qr_psbt_type(coordinator):
-        if coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
-            return QRType.PSBTSPECTER
-        else:
-            return QRType.PSBTUR2
-
-    @property
-    def qr_xpub_type(self):
-        return Settings.getXPubType(self._data[SettingsConstants.SETTING__COORDINATORS])
-
-    @staticmethod
-    def getXPubType(coordinators):
-        if coordinators == [SettingsConstants.COORDINATOR__SPECTER_DESKTOP]:
-            return QRType.SPECTERXPUBQR
-        elif coordinators == [SettingsConstants.COORDINATOR__BLUE_WALLET]:
-            return QRType.XPUBQR
-        else:
-            return QRType.URXPUBQR
-
-    @property
-    def custom_derivation(self):
-        return self._data["wallet"]["custom_derivation"]
-
-    @custom_derivation.setter
-    def custom_derivation(self, value):
-        # TODO: parse and validate custom derivation path
-        self._data["wallet"]["custom_derivation"] = value
-        self.save()

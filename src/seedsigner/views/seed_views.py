@@ -457,9 +457,12 @@ class SeedExportXpubQRDisplayView(View):
         super().__init__()
         self.seed = self.controller.get_seed(seed_num)
 
-        qr_type = QRType.XPUBQR
         if coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
             qr_type = QRType.SPECTERXPUBQR
+        elif coordinator == SettingsConstants.COORDINATOR__BLUE_WALLET:
+            qr_type = QRType.XPUBQR
+        else:
+            qr_type = QRType.URXPUBQR
 
         self.qr_encoder = EncodeQR(
             seed_phrase=self.seed.mnemonic_list,
