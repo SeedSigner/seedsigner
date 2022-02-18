@@ -39,7 +39,6 @@ Screens will be functional but not necessarily in their final presentation state
 * "Final" bugfixes
 * Create new seed via dice rolls
 * Custom derivation paths in xpub export flow
-* Multisig wallet descriptor QR scan(?) and addr verification(?)
 * Improve test suite coverage
 
 
@@ -50,6 +49,7 @@ All of the above!
 ## Beyond v0.5.0
 These features will not be included in the initial v0.5.0 release and will have varying degrees of priority for subsequent releases (or possibly not at all).
 
+* Multisig wallet descriptor QR scan(?) and addr verification(?)
 * Multi-language support
 * Custom OS, possibly with swappable SD card PSBT and multisig wallet descriptor storage
 * Decoy game mode at launch (Snake, Tetris, Sudoku...?)

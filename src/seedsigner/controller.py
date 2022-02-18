@@ -24,7 +24,7 @@ class Controller(Singleton):
     """
     from .helpers import Buttons
 
-    VERSION = "v0.5.0 prerelease-1.0"
+    VERSION = "0.5.0 prerelease-1.0"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
