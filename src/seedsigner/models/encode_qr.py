@@ -1,3 +1,5 @@
+import math
+
 from enum import IntEnum
 from embit import psbt, bip32
 from embit.networks import NETWORKS
@@ -8,6 +10,9 @@ from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.bcur import (bc32encode, cbor_encode, bcur_encode)
 from seedsigner.helpers.qr import QR
 from seedsigner.models import Seed, QRType, EncodeQRDensity
+
+from urtypes.crypto import PSBT as UR_PSBT
+from urtypes.crypto import Account, HDKey, Output, Keypath, PathComponent, SCRIPT_EXPRESSION_TAG_MAP
 
 ###
 ### EncodeQR Class
@@ -61,8 +66,12 @@ class EncodeQR:
             self.encoder = SpecterEncodePSBTQR(self.psbt, self.qr_density)
         elif self.qr_type == QRType.PSBTUR2:
             self.encoder = UREncodePSBTQR(self.psbt, self.qr_density)
-        elif self.qr_type == QRType.SEEDSSQR:
-            self.encoder = SeedSSQR(self.seed_phrase, self.wordlist)
+        elif self.qr_type == QRType.SEEDQR:
+            self.encoder = SeedQR(self.seed_phrase, self.wordlist)
+        elif self.qr_type == QRType.COMPACTSEEDQR:
+            self.encoder = CompactSeedQR(self.seed_phrase, self.wordlist)
+        elif self.qr_type == QRType.URXPUBQR:
+            self.encoder = URXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.qr_density, self.wordlist)
         elif self.qr_type == QRType.XPUBQR:
             self.encoder = XPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.wordlist)
         elif self.qr_type == QRType.SPECTERXPUBQR:
@@ -81,7 +90,7 @@ class EncodeQR:
 
     def nextPartImage(self, width=240, height=240, border=3, background="FFFFFF"):
         part = self.nextPart()
-        if self.qr_type == QRType.SEEDSSQR:
+        if self.qr_type == QRType.SEEDQR:
             return self.qr.qrimage(part, width, height, border)
         else:
             return self.qr.qrimage_io(part, width, height, border, background=background)
@@ -100,10 +109,8 @@ class UREncodePSBTQR:
     def __init__(self, p, qr_density):
         self.psbt = p
         self.qr_max_fragement_size = 20
-
-        cbor_encoder = CBOREncoder()
-        cbor_encoder.encodeBytes(self.psbt.serialize())
-        qr_ur_bytes = UR("crypto-psbt", cbor_encoder.get_bytes())
+        
+        qr_ur_bytes = UR("crypto-psbt", UR_PSBT(self.psbt.serialize()).to_cbor())
 
         if qr_density == EncodeQRDensity.LOW:
             self.qr_max_fragement_size = 10
@@ -190,8 +197,9 @@ class SpecterEncodePSBTQR:
     def isComplete(self):
         return self.sent_complete
 
-class SeedSSQR:
 
+
+class SeedQR:
     def __init__(self, seed_phrase, wordlist):
         self.seed_phrase = seed_phrase
         self.wordlist = wordlist
@@ -199,22 +207,57 @@ class SeedSSQR:
         if self.wordlist == None:
             raise Exception('Wordlist Required')
 
+
     def seqLen(self):
         return 1
 
+
     def nextPart(self):
         data = ""
+
+        # Output as Numeric data format
         for word in self.seed_phrase:
             index = self.wordlist.index(word)
             data += str("%04d" % index)
-
+        
         return data
+
 
     def isComplete(self):
         return True
 
-class XPubQR:
 
+class CompactSeedQR(SeedQR):
+    def nextPart(self):
+        # Output as binary data format
+        binary_str = ""
+        for word in self.seed_phrase:
+            index = self.wordlist.index(word)
+
+            # Convert index to binary, strip out '0b' prefix; zero-pad to 11 bits
+            binary_str += bin(index).split('b')[1].zfill(11)
+
+        # We can exclude the checksum bits at the end
+        if len(self.seed_phrase) == 24:
+            # 8 checksum bits in a 24-word seed
+            binary_str = binary_str[:-8]
+
+        elif len(self.seed_phrase) == 12:
+            # 4 checksum bits in a 12-word seed
+            binary_str = binary_str[:-4]
+
+        # Now convert to bytes, 8 bits at a time
+        as_bytes = bytearray()
+        for i in range(0, math.ceil(len(binary_str) / 8)):
+            # int conversion reads byte data as a string prefixed with '0b'
+            as_bytes.append(int('0b' + binary_str[i*8:(i+1)*8], 2))
+        
+        # Must return data as `bytes` for `qrcode` to properly recognize it as byte data
+        return bytes(as_bytes)
+
+
+
+class XPubQR:
     def __init__(self, seed_phrase, passphrase, derivation, network, wordlist):
         self.seed_phrase = seed_phrase
         self.passphrase = passphrase
@@ -228,7 +271,6 @@ class XPubQR:
             raise Exception('Wordlist Required')
             
         version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[network])
-        print(self.derivation)
         self.seed = Seed(mnemonic=self.seed_phrase, passphrase=self.passphrase, wordlist=self.wordlist)
         self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[network]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
@@ -314,3 +356,78 @@ class SpecterXPubQR(XPubQR):
 
     def isComplete(self):
         return self.sent_complete
+    
+class URXPubQR(XPubQR):
+    
+    def __init__(self, seed_phrase, passphrase, derivation, network, qr_density, wordlist):
+        
+        XPubQR.__init__(self, seed_phrase, passphrase, derivation, network, wordlist)
+        
+        if qr_density == EncodeQRDensity.LOW:
+            self.qr_max_fragement_size = 10
+        elif qr_density == EncodeQRDensity.MEDIUM:
+            self.qr_max_fragement_size = 30
+        elif qr_density == EncodeQRDensity.HIGH:
+            self.qr_max_fragement_size = 120
+        
+        def derivation_to_keypath(path: str) -> list:
+            arr = path.split("/")
+            if arr[0] == "m":
+                arr = arr[1:]
+            if len(arr) == 0:
+                return Keypath([],self.root.my_fingerprint, None)
+            if arr[-1] == "":
+                # trailing slash
+                arr = arr[:-1]
+
+            for i, e in enumerate(arr):
+                if e[-1] == "h" or e[-1] == "'":
+                    arr[i] = PathComponent(int(e[:-1]), True)
+                else:
+                    arr[i] = PathComponent(int(e), False)
+                    
+            return Keypath(arr, self.root.my_fingerprint, len(arr))
+            
+        origin = derivation_to_keypath(derivation)
+        
+        self.ur_hdkey = HDKey({ 'key': self.xpub.key.serialize(),
+        'chain_code': self.xpub.chain_code,
+        'origin': origin,
+        'parent_fingerprint': self.xpub.fingerprint})
+
+        ur_outputs = []
+
+        if len(origin.components) > 0:
+            if origin.components[0].index == 84: # Native Single Sig
+                ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[404]],self.ur_hdkey))
+            elif origin.components[0].index == 49: # Nested Single Sig
+                ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[400], SCRIPT_EXPRESSION_TAG_MAP[404]],self.ur_hdkey))
+            elif origin.components[0].index == 48: # Multisig
+                if len(origin.components) >= 4:
+                    if origin.components[3].index == 2:  # Native Multisig
+                        ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[401]],self.ur_hdkey))
+                    elif origin.components[3].index == 1:  # Nested Multisig
+                        ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[400], SCRIPT_EXPRESSION_TAG_MAP[401]],self.ur_hdkey))
+        
+        # If empty, add all script types
+        if len(ur_outputs) == 0:
+            ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[404]],self.ur_hdkey))
+            ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[400], SCRIPT_EXPRESSION_TAG_MAP[404]],self.ur_hdkey))
+            ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[401]],self.ur_hdkey))
+            ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[400], SCRIPT_EXPRESSION_TAG_MAP[401]],self.ur_hdkey))
+            ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[403]],self.ur_hdkey))
+        
+        ur_account = Account(self.root.my_fingerprint, ur_outputs)
+
+        qr_ur_bytes = UR("crypto-account", ur_account.to_cbor())
+
+        self.ur2_encode = UREncoder(qr_ur_bytes, self.qr_max_fragement_size, 0)
+        
+    def seqLen(self):
+            return self.ur2_encode.fountain_encoder.seq_len()
+
+    def nextPart(self) -> str:
+        return self.ur2_encode.next_part().upper()
+
+    def isComplete(self):
+        return self.ur2_encode.is_complete()

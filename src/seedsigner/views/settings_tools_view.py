@@ -64,7 +64,6 @@ class SettingsToolsView(View):
             return None
 
     def display_persistent_settings(self) -> bool:
-
         lines = ["... [ Return to Settings ]"]
         lines.append("Yes")
         lines.append("No")
@@ -82,10 +81,10 @@ class SettingsToolsView(View):
 
     def display_camera_rotation(self) -> int:
         lines = ["... [ Return to Settings ]"]
-        lines.append("0 (default)")
-        lines.append("90")
-        lines.append("180")
-        lines.append("270")
+        lines.append("0° (default)")
+        lines.append("90°")
+        lines.append("180°")
+        lines.append("270°")
 
         r = self.controller.menu_view.display_generic_selection_menu(lines, "Camera Rotation")
         if r == 1:
@@ -123,7 +122,6 @@ class SettingsToolsView(View):
     ###
     ### Custom Derivation Path
     ###
-    
     def draw_derivation_keyboard_entry(self, existing_derivation = "m/"):
         def render_right_panel():
             row_height = 28
@@ -274,3 +272,19 @@ class SettingsToolsView(View):
             text_entry_display.render(self.derivation)
     
             View.DispShowImage()
+
+
+    def display_compact_seedqr_enabled(self) -> bool:
+        lines = ["... [ Return to Settings ]"]
+        lines.append("Enable")
+        lines.append("Disable")
+
+        r = self.controller.menu_view.display_generic_selection_menu(lines, "Compact SeedQR")
+        if r == 1:
+            return None
+        elif r == 2:
+            return True
+        elif r == 3:
+            return False
+        else:
+            return None
