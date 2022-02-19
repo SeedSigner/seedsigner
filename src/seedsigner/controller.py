@@ -1,5 +1,6 @@
 from embit.psbt import PSBT
 from seedsigner.gui.renderer import Renderer
+from seedsigner.gui.screens.screen import WarningScreen
 from seedsigner.helpers.buttons import Buttons
 from seedsigner.views.screensaver import ScreensaverView
 
@@ -132,9 +133,15 @@ class Controller(Singleton):
     def start(self) -> None:
         from .views import View, Destination, OpeningSplashView, MainMenuView, BackStackView
 
-        # Disabled to save some time during dev...
-        # opening_splash = OpeningSplashView()
-        # opening_splash.start()
+        opening_splash = OpeningSplashView()
+        opening_splash.start()
+
+        WarningScreen(
+            title="Warning",
+            warning_headline="Pre-Release Code",
+            warning_text="Do not use this with real funds or to create new secure keys!",
+        ).display()
+
 
         """ Class references can be stored as variables in python!
 
@@ -171,7 +178,7 @@ class Controller(Singleton):
                 if next_destination.View_cls == MainMenuView:
                     # Home always wipes the back_stack
                     self.clear_back_stack()
-                
+
                 print(f"Executing {next_destination}")
                 next_destination = next_destination.run()
 
