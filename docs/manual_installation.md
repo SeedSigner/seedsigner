@@ -51,49 +51,45 @@ When you exit the System Configuration tool, you will be prompted to reboot the 
 
 
 ### Change the default password
-Change the system's password from the default "raspberry". Do do this, use the command:
+Change the system's default password from the default "raspberry". Run the command:
 ```
 passwd
 ```
-You will be prompted to enter the current password (raspberry) and then to enter a new password twice. In our prepared release image, the password used is `AirG@pped!` (without quotes).
+You will be prompted to enter the current password ("raspberry") and then to enter a new password twice. In our prepared release image, the password used is `AirG@pped!`.
 
 
 ### Install dependencies
+Copy this entire box and run it as one command (will take 15-20min to complete):
 ```
-sudo apt-get update && sudo apt-get install -y wiringpi python3-pip python3-numpy python-pil libopenjp2-7 git python3-opencv python3-picamera libatlas-base-dev qrencode
+sudo apt-get update && sudo apt-get install -y wiringpi python3-pip \
+   python3-numpy python-pil libopenjp2-7 git python3-opencv \
+   python3-picamera libatlas-base-dev qrencode
 ```
 
 ### Install `zbar`
-v0.4.6 requires `zbar` at 0.23.x or higher.
+`zbar` is "an open source software suite for reading bar codes" (more info here: [https://github.com/mchehab/zbar](https://github.com/mchehab/zbar)).
 
-see: [https://github.com/mchehab/zbar](https://github.com/mchehab/zbar)
+SeedSigner requires `zbar` at 0.23.x or higher.
 
-#### Get the `zbar` binary
+Download the binary:
 ```
 curl -L http://raspbian.raspberrypi.org/raspbian/pool/main/z/zbar/libzbar0_0.23.90-1_armhf.deb --output libzbar0_0.23.90-1_armhf.deb
+```
+
+And then install it:
+```
 sudo apt install ./libzbar0_0.23.90-1_armhf.deb
 ```
 
-#### Or install `zbar` by compiling from source
-This step isn't necessary. It's only if you prefer to compile `zbar` from source. The whole process takes about 30 minutes.
+Cleanup:
 ```
-sudo apt-get install -y autopoint
-
-cd ~/
-git clone https://github.com/mchehab/zbar.git
-cd zbar
-git checkout 0.23.90
-```
-
-Configure the compiler settings and compile.
-```
-autoreconf -vfi && ./configure
-make
-make check
-sudo make install
+rm libzbar0_0.23.90-1_armhf.deb
 ```
 
 ### Install the [C library for Broadcom BCM 2835](http://www.airspayce.com/mikem/bcm2835/)
+This library "provides functions for reading digital inputs and setting digital outputs, using SPI and I2C, and for accessing the system timers."
+
+Run each of the following individual steps:
 ```
 wget http://www.airspayce.com/mikem/bcm2835/bcm2835-1.60.tar.gz
 tar zxvf bcm2835-1.60.tar.gz
@@ -102,6 +98,7 @@ sudo ./configure
 sudo make && sudo make check && sudo make install
 cd ..
 rm bcm2835-1.60.tar.gz
+sudo rm -rf bcm2835-1.60
 ```
 
 ### Set up `virtualenv`
@@ -121,8 +118,6 @@ Now create the python virtualenv for SeedSigner with these two commands:
 ```
 source ~/.profile
 mkvirtualenv --python=python3 seedsigner-env
-cd seedsigner
-setvirtualenvproject
 ```
 
 For convenience you can configure your `.profile` to auto-activate the SeedSigner virtualenv when you ssh in. Once again `nano ~/.profile` and add at the end:
@@ -178,7 +173,6 @@ where `pr_123` is any name you want to give to the new branch in your local repo
 ### Install Python `pip` dependencies:
 ```
 pip3 install -r requirements.txt
-cd ..
 ```
 
 #### `pyzbar`
@@ -212,9 +206,12 @@ _Note: If you'll be testing new code on the SeedSigner, you'll want to omit the 
 
 Use `CTRL-X` and `y` to exit and save changes.
 
-Run `sudo systemctl enable seedsigner.service` to enable service on boot. (This will restart the seedsigner code automatically at startup and if it crashes.)
+Configure the service to start running (this will restart the seedsigner code automatically at startup and if it crashes):
+```
+sudo systemctl enable seedsigner.service
+```
 
-Now reboot the Raspberry Pi with the command:
+Now reboot the Raspberry Pi:
 ```
 sudo reboot
 ```
