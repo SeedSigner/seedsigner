@@ -33,7 +33,7 @@ class Controller(Singleton):
         Note: In many/most cases you'll need to do the Controller import within a method
         rather than at the top in order avoid circular imports.
     """
-    VERSION = "0.4.5"
+    VERSION = "0.4.6"
 
 
     @classmethod
@@ -46,7 +46,17 @@ class Controller(Singleton):
 
 
     @classmethod
-    def configure_instance(cls, config=None):
+    def configure_instance(cls, config=None, disable_hardware=False):
+        """
+            - `disable_hardware` is only meant to be used by the test suite so that it
+            can keep re-initializing a Controller in however many tests it needs to. But
+            this is only possible if the hardware isn't already being reserved. Without
+            this you get:
+
+            RuntimeError: Conflicting edge detection already enabled for this GPIO channel
+
+            each time you try to re-initialize a Controller.
+        """
         # Must be called before the first get_instance() call
         if cls._instance:
             raise Exception("Instance already configured")
@@ -56,7 +66,10 @@ class Controller(Singleton):
         cls._instance = controller
 
         # Input Buttons
-        controller.buttons = Buttons()
+        if disable_hardware:
+            controller.buttons = None
+        else:
+            controller.buttons = Buttons()
 
         # models
         controller.storage = SeedStorage()
@@ -159,6 +172,8 @@ class Controller(Singleton):
                 ret_val = self.show_persistent_settings_tool()
             elif ret_val == Path.CAMERA_ROTATION:
                 ret_val = self.show_camera_rotation_tool()
+            elif ret_val == Path.COMPACT_SEEDQR_ENABLED:
+                ret_val = self.show_compact_seedqr_enabled()
             elif ret_val == Path.DONATE:
                 ret_val = self.show_donate_tool()
             elif ret_val == Path.RESET:
@@ -705,7 +720,7 @@ class Controller(Singleton):
             
                 # No valid seed yet, If there is a saved seed, ask to use saved seed
                 if self.storage.num_of_saved_seeds() > 0:
-                    r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Save Seed?")
+                    r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Saved Seed?")
                     if r == 1: #Yes
                         slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
                         if slot_num == 0:
@@ -887,7 +902,7 @@ class Controller(Singleton):
         if not seed:
             # No valid seed yet, If there is a saved seed, ask to use saved seed
             if self.storage.num_of_saved_seeds() > 0:
-                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Save Seed?")
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Saved Seed?")
                 if r == 1: #Yes
                     slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
                     if slot_num == 0:
@@ -1108,6 +1123,14 @@ class Controller(Singleton):
         r = self.settings_tools_view.display_camera_rotation()
         if r is not None:
             self.settings.camera_rotation = r
+
+        return Path.SETTINGS_SUB_MENU    ### Show Donate Screen and QR
+
+
+    def show_compact_seedqr_enabled(self):
+        r = self.settings_tools_view.display_compact_seedqr_enabled()
+        if r is not None:
+            self.settings.compact_seedqr_enabled = r
 
         return Path.SETTINGS_SUB_MENU    ### Show Donate Screen and QR
 

@@ -124,13 +124,20 @@ class MenuView(View):
     ### Settings Menu
 
     def display_settings_menu(self) -> int:
-        lines = ["... [ Return to Main ]", "Wallet: <wallet>", "Network: <network>", "QR Density: <density>", "Input / Output Tests", "Persistent Settings: <persistent>", "Camera Rotation", "Version Info", "Donate to SeedSigner", "Reset SeedSigner"]
+        lines = [
+            "... [ Return to Main ]",
+            f"Wallet: {Settings.get_instance().software}",
+            f"Network: {Settings.get_instance().network}",
+            f"QR Density: {Settings.get_instance().qr_density_name}",
+            "Input / Output Tests",
+            f"Persistent Settings: {Settings.get_instance().persistent_display}",
+            f"Camera Rotation: {Settings.get_instance().camera_rotation}°",
+            f"Compact SeedQR: {'Enabled' if Settings.get_instance().compact_seedqr_enabled else 'Disabled'}",
+            "Version Info",
+            "Donate to SeedSigner",
+            "Reset SeedSigner"
+        ]
         input = 0
-        
-        lines[1] = lines[1].replace("<wallet>", Settings.get_instance().software)
-        lines[2] = lines[2].replace("<network>", Settings.get_instance().network)
-        lines[3] = lines[3].replace("<density>", Settings.get_instance().qr_density_name)
-        lines[5] = lines[5].replace("<persistent>", Settings.get_instance().persistent_display)
 
         # Draw Menu
         self.selected_menu_num = 1
@@ -159,10 +166,12 @@ class MenuView(View):
                 elif self.selected_menu_num == 7:
                     return Path.CAMERA_ROTATION
                 elif self.selected_menu_num == 8:
-                    return Path.VERSION_INFO
+                    return Path.COMPACT_SEEDQR_ENABLED
                 elif self.selected_menu_num == 9:
-                    return Path.DONATE
+                    return Path.VERSION_INFO
                 elif self.selected_menu_num == 10:
+                    return Path.DONATE
+                elif self.selected_menu_num == 11:
                     return Path.RESET
         raise Exception("Unhandled case")
 

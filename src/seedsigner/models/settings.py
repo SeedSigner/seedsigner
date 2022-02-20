@@ -34,7 +34,8 @@ class Settings(Singleton):
                 'network': "main",
                 'software': "Specter Desktop",
                 'qr_density': EncodeQRDensity.MEDIUM,
-                'custom_derivation': 'm/0/0'
+                'custom_derivation': 'm/0/0',
+                'compact_seedqr_enabled': False,
             }
         }
 
@@ -47,16 +48,21 @@ class Settings(Singleton):
         settings.init_complete = True
 
     def __config_to_data(self, config):
+        # TODO: Make each get resilient to the possibility of the field being missing in
+        # the `settings.ini`
         self.persistent = config.getboolean("system", "persistent_settings")
         self._data["system"]["debug"] = config.getboolean("system", "debug")
         self._data["system"]["default_language"] = config["system"]["default_language"]
         self._data["display"]["text_color"] = config["display"]["text_color"]
+        self.qr_background_color = config["display"]["qr_background_color"]
         self._data["display"]["camera_rotation"] = int(config["display"]["camera_rotation"])
         self.network = config["wallet"]["network"]
         self.software = config["wallet"]["software"]
         self.qr_density = int(config["wallet"]["qr_density"])
         self.custom_derivation = config["wallet"]["custom_derivation"]
-        self.qr_background_color = config["display"]["qr_background_color"]
+
+        if "compact_seedqr_enabled"in config["wallet"]:
+            self.compact_seedqr_enabled = config.getboolean("wallet", "compact_seedqr_enabled")
 
     ### persistent settings handling
 
@@ -203,8 +209,10 @@ class Settings(Singleton):
     def getXPubType(software):
         if software == "Specter Desktop":
             return QRType.SPECTERXPUBQR
-        else:
+        elif software == "Blue Wallet":
             return QRType.XPUBQR
+        else:
+            return QRType.URXPUBQR
 
     @property
     def qr_density_name(self):
@@ -225,7 +233,17 @@ class Settings(Singleton):
     def custom_derivation(self, value):
         # TODO: parse and validate custom derivation path
         self._data["wallet"]["custom_derivation"] = value
-            
+        self.__writeConfig()
+
+    @property
+    def compact_seedqr_enabled(self):
+        return self._data["wallet"]["compact_seedqr_enabled"]
+
+    @compact_seedqr_enabled.setter
+    def compact_seedqr_enabled(self, value):
+        self._data["wallet"]["compact_seedqr_enabled"] = value
+        self.__writeConfig()
+
     @staticmethod
     def calc_derivation(network, wallet_type, script_type):
         if network == "main":
