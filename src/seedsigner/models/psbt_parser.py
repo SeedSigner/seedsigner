@@ -34,10 +34,12 @@ class PSBTParser():
     def get_change_data(self, change_num: int) -> dict:
         if change_num < len(self.change_data):
             return self.change_data[change_num]
-    
+
+
     @property
     def num_change_outputs(self):
         return len(self.change_data)
+
 
     @property
     def is_multisig(self):
@@ -46,13 +48,16 @@ class PSBTParser():
         """
         return "m" in self.policy
 
+
     @property
     def num_destinations(self):
         return len(self.destination_addresses)
 
-    def __setRoot(self):
-        self.root = bip32.HDKey.from_seed(self.seed.seed, version=NETWORKS[self.network]["xprv"])
+
+    def _set_root(self):
+        self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[self.network]["xprv"])
         print(f"root: {self.root}")
+
 
     def parse(self):
         if self.psbt is None:
@@ -63,33 +68,35 @@ class PSBTParser():
             print("self.seed is None!")
             return False
 
-        self.__setRoot()
+        self._set_root()
 
-        rt = self.__parseInputs()
+        rt = self._parse_inputs()
         if rt == False:
             return False
 
-        rt = self.__parseOutputs()
+        rt = self._parse_outputs()
         if rt == False:
             return False
 
         return True
 
-    def __parseInputs(self):
+
+    def _parse_inputs(self):
         self.input_amount = 0
         print(f"psbt.inputs: {self.psbt.inputs}")
         self.num_inputs = len(self.psbt.inputs)
         for inp in self.psbt.inputs:
             if inp.witness_utxo:
                 self.input_amount += inp.witness_utxo.value
-                inp_policy = PSBTParser.__get_policy(inp, inp.witness_utxo.script_pubkey, self.psbt.xpubs)
+                inp_policy = PSBTParser._get_policy(inp, inp.witness_utxo.script_pubkey, self.psbt.xpubs)
                 if self.policy == None:
                     self.policy = inp_policy
                 else:
                     if self.policy != inp_policy:
                         raise RuntimeError("Mixed inputs in the transaction")
 
-    def __parseOutputs(self):
+
+    def _parse_outputs(self):
         self.spend_amount = 0
         self.change_amount = 0
         self.change_data = []
@@ -97,7 +104,7 @@ class PSBTParser():
         self.destination_addresses = []
         self.destination_amounts = []
         for i, out in enumerate(self.psbt.outputs):
-            out_policy = PSBTParser.__get_policy(out, self.psbt.tx.vout[i].script_pubkey, self.psbt.xpubs)
+            out_policy = PSBTParser._get_policy(out, self.psbt.tx.vout[i].script_pubkey, self.psbt.xpubs)
             is_change = False
 
             # if policy is the same - probably change
@@ -160,6 +167,7 @@ class PSBTParser():
         self.fee_amount = self.psbt.fee()
         return True
 
+
     @staticmethod
     def trim(tx):
         trimmed_psbt = psbt.PSBT(tx.tx)
@@ -170,8 +178,9 @@ class PSBTParser():
 
         return trimmed_psbt
 
+
     @staticmethod
-    def sigCount(tx):
+    def sig_count(tx):
         cnt = 0
         for i, inp in enumerate(tx.inputs):
             cnt += len(list(inp.partial_sigs.keys()))
@@ -216,7 +225,7 @@ class PSBTParser():
 
 
     @staticmethod
-    def __get_policy(scope, scriptpubkey, xpubs):
+    def _get_policy(scope, scriptpubkey, xpubs):
         """Parse scope and get policy"""
         # we don't know the policy yet, let's parse it
         script_type = scriptpubkey.script_type()
@@ -233,18 +242,18 @@ class PSBTParser():
         policy = {"type": script_type}
         # expected multisig
         if "p2wsh" in script_type and scope.witness_script is not None:
-            m, n, pubkeys = PSBTParser.__parse_multisig(scope.witness_script)
+            m, n, pubkeys = PSBTParser._parse_multisig(scope.witness_script)
             # check pubkeys are derived from cosigners
             try:
-                cosigners = PSBTParser.__get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
+                cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
                 policy.update({"m": m, "n": n, "cosigners": cosigners})
             except:
                 policy.update({"m": m, "n": n})
         return policy
 
-    # returns m, n, and pubkeys from multisig script
+
     @staticmethod
-    def __parse_multisig(sc):
+    def _parse_multisig(sc):
         """Takes a script and extracts m,n and pubkeys from it"""
         # OP_m <len:pubkey> ... <len:pubkey> OP_n OP_CHECKMULTISIG
         # check min size
@@ -271,8 +280,9 @@ class PSBTParser():
             raise ValueError("Invalid multisig script")
         return m, n, pubkeys
 
+
     @staticmethod
-    def __get_cosigners(pubkeys, derivations, xpubs):
+    def _get_cosigners(pubkeys, derivations, xpubs):
         """Returns xpubs used to derive pubkeys using global xpub field from psbt"""
         cosigners = []
         for i, pubkey in enumerate(pubkeys):
@@ -295,8 +305,8 @@ class PSBTParser():
         return sorted(cosigners)
 
 
-    @classmethod
-    def get_input_fingerprints(cls, psbt: PSBT) -> List[str]:
+    @staticmethod
+    def get_input_fingerprints(psbt: PSBT) -> List[str]:
         """
             Exctracts the fingerprint from each input's derivation path.
 
@@ -311,8 +321,8 @@ class PSBTParser():
         return list(fingerprints)
 
 
-    @classmethod
-    def has_matching_input_fingerprint(cls, psbt: PSBT, seed: Seed, network: str = "main"):
+    @staticmethod
+    def has_matching_input_fingerprint(psbt: PSBT, seed: Seed, network: str = "main"):
         """
             Extracts the fingerprint from each psbt input utxo. Returns True if any match
             the current seed.

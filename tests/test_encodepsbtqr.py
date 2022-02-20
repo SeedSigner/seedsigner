@@ -16,8 +16,8 @@ def test_ur_qr_encode():
 
     cnt = 0
     while cnt <= 10:
-        fragment = e.nextPart()
-        img = e.part2Image(fragment)
+        fragment = e.next_part()
+        img = e.part_to_image(fragment)
         cnt += 1
 
 
@@ -31,7 +31,7 @@ def test_specter_qr_encode():
 
     cnt = 0
     while cnt <= 10:
-        fragment = e.nextPart()
+        fragment = e.next_part()
         if (cnt+1) == 1:
             assert fragment == "p1of117 cHNidP8BAIkCAAAAAaLlQ/VRNpx3IFtoRTOCnq2xfJwg/n7R9XB0TTTnlX/UHQAAA"
         elif (cnt+1) == 2:
@@ -55,7 +55,7 @@ def test_specter_qr_encode():
         elif (cnt+1) == 11:
             assert fragment == "p11of117 REKtbWkqONAvETqIlMPWJ/f1uBvSCGFm+zzDYnnEBtuAYjZiQrzj9mFLQz4JUwAAC"
         
-        img = e.part2Image(fragment)
+        img = e.part_to_image(fragment)
         cnt += 1
 
 def test_seedsigner_qr():
@@ -64,9 +64,9 @@ def test_seedsigner_qr():
 
     e = EncodeQR(seed_phrase=mnemonic.split(" "), qr_type=QRType.SEEDQR)
 
-    print(e.nextPart())
+    print(e.next_part())
 
-    assert e.nextPart() == "121802020768124106400009195602431595117715840445"
+    assert e.next_part() == "121802020768124106400009195602431595117715840445"
 
 def test_xpub_qr():
 
@@ -74,7 +74,7 @@ def test_xpub_qr():
 
     e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUBQR, network="test", derivation="m/48h/1h/0h/2h")
 
-    assert e.nextPart() == "[c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDNc5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBoMxfrVggXj5NJmaNEToWpax8GMMucozvAdqf1bW1JsZsfdBzsK3VUC5"
+    assert e.next_part() == "[c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDNc5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBoMxfrVggXj5NJmaNEToWpax8GMMucozvAdqf1bW1JsZsfdBzsK3VUC5"
 
 def test_specter_xpub_qr():
 
@@ -82,10 +82,10 @@ def test_specter_xpub_qr():
 
     e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.SPECTERXPUBQR, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQR.DENSITY__LOW)
 
-    assert e.nextPart() == "p1of4 [c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDN"
-    assert e.nextPart() == "p2of4 c5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBo"
-    assert e.nextPart() == "p3of4 MxfrVggXj5NJmaNEToWpax8GMMucozvAdqf1bW1J"
-    assert e.nextPart() == "p4of4 sZsfdBzsK3VUC5"
+    assert e.next_part() == "p1of4 [c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDN"
+    assert e.next_part() == "p2of4 c5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBo"
+    assert e.next_part() == "p3of4 MxfrVggXj5NJmaNEToWpax8GMMucozvAdqf1bW1J"
+    assert e.next_part() == "p4of4 sZsfdBzsK3VUC5"
 
 def test_ur_xpub_qr():
     
@@ -93,8 +93,8 @@ def test_ur_xpub_qr():
     
     e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.URXPUBQR, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQR.DENSITY__MEDIUM)
     
-    assert e.nextPart() == "UR:CRYPTO-ACCOUNT/1-4/LPADAACSJKCYYNRDRTYAHDCAOEADCYSSMECPONAOLYTAADMETAADDLOXAXHDCLAOKSRLNLKPUEGYATHPMNRTAAOLAH"
-    assert e.nextPart() == "UR:CRYPTO-ACCOUNT/2-4/LPAOAACSJKCYYNRDRTYAHDCASNKKGHZMLUZORPVDGUOTECSTTKTOLPCWPTNTLKZTTIZTBEAAHDCXVDTPMYQDLAWNGL"
-    assert e.nextPart() == "UR:CRYPTO-ACCOUNT/3-4/LPAXAACSJKCYYNRDRTYAHDCARSTDSPZSBZSPGERLGDATUYNLPYBTGYIYYKBTWTAOSWKSVTSGCHBYDKYAVDSEPDJLAT"
-    assert e.nextPart() == "UR:CRYPTO-ACCOUNT/4-4/LPAAAACSJKCYYNRDRTYAHDCAAMTAADDYOEADLOCSDYYKADYKAEYKAOYKAOCYSSMECPONAYCYIOREKKJKAECADRRKIE"
+    assert e.next_part() == "UR:CRYPTO-ACCOUNT/1-4/LPADAACSJKCYYNRDRTYAHDCAOEADCYSSMECPONAOLYTAADMETAADDLOXAXHDCLAOKSRLNLKPUEGYATHPMNRTAAOLAH"
+    assert e.next_part() == "UR:CRYPTO-ACCOUNT/2-4/LPAOAACSJKCYYNRDRTYAHDCASNKKGHZMLUZORPVDGUOTECSTTKTOLPCWPTNTLKZTTIZTBEAAHDCXVDTPMYQDLAWNGL"
+    assert e.next_part() == "UR:CRYPTO-ACCOUNT/3-4/LPAXAACSJKCYYNRDRTYAHDCARSTDSPZSBZSPGERLGDATUYNLPYBTGYIYYKBTWTAOSWKSVTSGCHBYDKYAVDSEPDJLAT"
+    assert e.next_part() == "UR:CRYPTO-ACCOUNT/4-4/LPAAAACSJKCYYNRDRTYAHDCAAMTAADDYOEADLOCSDYYKADYKAEYKAOYKAOCYSSMECPONAYCYIOREKKJKAECADRRKIE"
 

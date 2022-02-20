@@ -294,13 +294,13 @@ class PSBTFinalizeView(View):
             loading_screen = LoadingScreenThread(text="Signing PSBT...")
             loading_screen.start()
 
-            sig_cnt = PSBTParser.sigCount(psbt)
+            sig_cnt = PSBTParser.sig_count(psbt)
             psbt.sign_with(psbt_parser.root)
             trimmed_psbt = PSBTParser.trim(psbt)
 
             loading_screen.stop()
 
-            if sig_cnt == PSBTParser.sigCount(trimmed_psbt):
+            if sig_cnt == PSBTParser.sig_count(trimmed_psbt):
                 # Signing failed / didn't do anything
                 # TODO: Reserved for Nick. Are there different failure scenarios that we can detect?
                 # Would be nice to alter the message on the next screen w/more detail.

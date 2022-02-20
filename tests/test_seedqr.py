@@ -16,7 +16,7 @@ def run_encode_decode_test(entropy: bytes, mnemonic_length, qr_type):
     assert len(seed_phrase) == mnemonic_length
 
     e = EncodeQR(seed_phrase=seed_phrase, qr_type=qr_type, wordlist=bip39.WORDLIST)
-    data = e.nextPart()
+    data = e.next_part()
     print(data)
 
     qr = QR()

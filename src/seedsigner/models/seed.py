@@ -55,26 +55,31 @@ class SeedConstants:
 
 
 
+class InvalidSeedException(Exception):
+    pass
+
+
+
 class Seed:
     def __init__(self,
-                 mnemonic = None,
-                 passphrase = "",
-                 wordlist_language_code = SeedConstants.WORDLIST_LANGUAGE__ENGLISH) -> None:
+                 mnemonic: List[str] = None,
+                 passphrase: str = "",
+                 wordlist_language_code: str = SeedConstants.WORDLIST_LANGUAGE__ENGLISH) -> None:
         self.wordlist_language_code = wordlist_language_code
 
-        # The setters trigger a _generate_seed() call so we have to get the order right.
-        self._passphrase = ""
+        if not mnemonic:
+            raise Exception("Must initialize a Seed with a mnemonic List[str]")
+        self._mnemonic: List[str] = unicodedata.normalize("NFKD", " ".join(mnemonic).strip()).split()
 
-        # First set the mnemonic go through its setter's filtering
-        self.mnemonic = mnemonic
+        self._passphrase: str = ""
+        self.set_passphrase(passphrase, regenerate_seed=False)
 
-        if passphrase:
-            # Now run the passphrase's setter filter to change the final seed
-            self.passphrase = passphrase
+        self.seed_bytes: bytes = None
+        self._generate_seed()
 
 
     @staticmethod
-    def get_wordlist(wordlist_language_code: str = SeedConstants.WORDLIST_LANGUAGE__ENGLISH):
+    def get_wordlist(wordlist_language_code: str = SeedConstants.WORDLIST_LANGUAGE__ENGLISH) -> List[str]:
         # TODO: Support other bip-39 wordlist languages!
         if wordlist_language_code == SeedConstants.WORDLIST_LANGUAGE__ENGLISH:
             return bip39.WORDLIST
@@ -84,41 +89,30 @@ class Seed:
 
     def _generate_seed(self) -> bool:
         try:
-            self.seed = bip39.mnemonic_to_seed(self.mnemonic, password=self.passphrase, wordlist=self.wordlist)
-            return True
+            self.seed_bytes = bip39.mnemonic_to_seed(self.mnemonic_str, password=self._passphrase, wordlist=self.wordlist)
         except Exception as e:
             print(repr(e))
-            return False
+            raise InvalidSeedException(repr(e))
 
 
     @property
-    def mnemonic(self) -> str:
-        return self._mnemonic
+    def mnemonic_str(self) -> str:
+        return " ".join(self._mnemonic)
     
 
     @property
     def mnemonic_list(self) -> List[str]:
-        return self._mnemonic.split()
+        return self._mnemonic
     
 
     @property
-    def mnemonic_display(self) -> str:
-        return unicodedata.normalize("NFC", self._mnemonic)
+    def mnemonic_display_str(self) -> str:
+        return unicodedata.normalize("NFC", " ".join(self._mnemonic))
     
 
     @property
     def mnemonic_display_list(self) -> List[str]:
-        return unicodedata.normalize("NFC", self._mnemonic).split()
-
-
-    @mnemonic.setter
-    def mnemonic(self, value):
-        if isinstance(value, list):
-            self._mnemonic = unicodedata.normalize("NFKD", " ".join(value).strip())
-        elif isinstance(value, str):
-            self._mnemonic = unicodedata.normalize("NFKD", value.strip())
-            
-        self._valid = self._generate_seed()
+        return unicodedata.normalize("NFC", " ".join(self._mnemonic)).split()
 
 
     @property
@@ -131,35 +125,36 @@ class Seed:
         return unicodedata.normalize("NFC", self._passphrase)
 
 
-    @passphrase.setter
-    def passphrase(self, value):
-        if isinstance(value, str):
-            self._passphrase = unicodedata.normalize("NFKD", value)
+    def set_passphrase(self, passphrase: str, regenerate_seed: bool = True):
+        if passphrase:
+            self._passphrase = unicodedata.normalize("NFKD", passphrase)
+        else:
+            # Passphrase must always have a string value, even if it's just the empty
+            # string.
+            self._passphrase = ""
 
-        self._valid = self._generate_seed()
+        if regenerate_seed:
+            # Regenerate the internal seed since passphrase changes the result
+            self._generate_seed()
 
 
     @property
-    def wordlist(self):
+    def wordlist(self) -> List[str]:
         return Seed.get_wordlist(self.wordlist_language_code)
 
 
-    @wordlist.setter
-    def wordlist(self, language_code: str):
+    def set_wordlist_language_code(self, language_code: str):
         # TODO: Support other bip-39 wordlist languages!
         raise Exception("Not yet implemented!")
 
 
-    def get_fingerprint(self, network: str = "main"):
-        root = bip32.HDKey.from_seed(self.seed, version=NETWORKS[network]["xprv"])
+    def get_fingerprint(self, network: str = SeedConstants.MAINNET) -> str:
+        root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[network]["xprv"])
         return hexlify(root.child(0).fingerprint).decode('utf-8')
         
     
     ### override operators    
     def __eq__(self, other):
         if isinstance(other, Seed):
-            return self.seed == other.seed
+            return self.seed_bytes == other.seed_bytes
         return False
-        
-    def __bool__(self):
-        return self._valid

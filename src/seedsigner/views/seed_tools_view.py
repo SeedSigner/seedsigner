@@ -742,7 +742,7 @@ class SeedToolsView(View):
             e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.COMPACTSEEDQR, wordlist=self.controller.settings.wordlist)
         else:
             e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEEDQR, wordlist=self.controller.settings.wordlist)
-        data = e.nextPart()
+        data = e.next_part()
         qr = QR()
         image = qr.qrimage(
             data=data,
@@ -780,7 +780,7 @@ class SeedToolsView(View):
 
             width = (qr_border + num_modules + qr_border) * pixels_per_block
             height = width
-            data = e.nextPart()
+            data = e.next_part()
             qr = QR()
             image = qr.qrimage(
                 data,

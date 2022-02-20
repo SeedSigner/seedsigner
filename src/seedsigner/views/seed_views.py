@@ -412,7 +412,7 @@ class SeedExportXpubDetailsView(View):
             )
 
             root = embit.bip32.HDKey.from_seed(
-                self.seed.seed,
+                self.seed.seed_bytes,
                 version=embit.networks.NETWORKS[self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK)]["xprv"]
             )
 
@@ -593,7 +593,7 @@ class SeedAddPassphraseView(View):
             return Destination(BackStackView)
         
         # The new passphrase will be the return value
-        self.seed.passphrase = ret
+        self.seed.set_passphrase(ret)
         return Destination(SeedValidView)
 
 

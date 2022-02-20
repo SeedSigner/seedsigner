@@ -608,8 +608,8 @@ class QRDisplayScreen(BaseScreen):
         settings = Settings.get_instance()
         cur_brightness = settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS)
 
-        if self.qr_encoder.totalParts() == 1:
-            image = self.qr_encoder.nextPartImage(240,240,1)
+        if self.qr_encoder.total_parts() == 1:
+            image = self.qr_encoder.next_part_image(240,240,1)
             self.renderer.show_image(image)
             self.hw_inputs.wait_for([B.KEY_RIGHT])
 
@@ -617,7 +617,7 @@ class QRDisplayScreen(BaseScreen):
             while True:
                 # convert the cur_brightness integer (31-255) into hex triplets
                 hex_color = (hex(cur_brightness).split('x')[1]) * 3
-                image = self.qr_encoder.nextPartImage(240,240, border=2, background_color=hex_color)
+                image = self.qr_encoder.next_part_image(240,240, border=2, background_color=hex_color)
                 self.renderer.show_image(image)
 
                 # Target n held frames per second before rendering next QR image

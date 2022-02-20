@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 ### Purpose: used to process images or string data from animated qr codes with psbt data to create binary/base64 psbt
 ###
 class DecodeQR:
-    def __init__(self, qr_type=None, wordlist_language_code=None):
+    def __init__(self, qr_type=None, wordlist_language_code=SeedConstants.WORDLIST_LANGUAGE__ENGLISH):
         self.complete = False
         self.qr_type = qr_type
         self.wordlist_language_code = wordlist_language_code
