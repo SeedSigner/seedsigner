@@ -21,11 +21,6 @@ from .settings import SettingsConstants
 logger = logging.getLogger(__name__)
 
 
-
-logger = logging.getLogger(__name__)
-
-
-
 ###
 ### DecodeQR Class
 ### Purpose: used to process images or string data from animated qr codes with psbt data to create binary/base64 psbt
@@ -376,7 +371,7 @@ class DecodeQR:
                 bitstream = ""
                 for b in s:
                     bitstream += bin(b).lstrip('0b').zfill(8)
-                logger.debug(bitstream)
+                # logger.debug(bitstream)
 
                 return QRType.COMPACTSEEDQR
             except Exception as e:

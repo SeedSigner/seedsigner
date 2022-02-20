@@ -63,9 +63,9 @@ class EncodeQR:
         elif self.qr_type == QRType.SPECTERXPUBQR:
             self.encoder = SpecterXPubQR(self.seed_phrase, self.passphrase, self.derivation, self.network, self.qr_density, self.wordlist_language_code)
         elif self.qr_type == QRType.SEEDQR:
-            self.encoder = SeedQR(self.seed_phrase, self.wordlist)
+            self.encoder = SeedQR(self.seed_phrase, self.wordlist_language_code)
         elif self.qr_type == QRType.COMPACTSEEDQR:
-            self.encoder = CompactSeedQR(self.seed_phrase, self.wordlist)
+            self.encoder = CompactSeedQR(self.seed_phrase, self.wordlist_language_code)
         else:
             raise Exception('Encoder Type not Supported')
 
@@ -379,6 +379,83 @@ class URXPubQR(XPubQR):
         elif qr_density == EncodeQR.DENSITY__MEDIUM:
             self.qr_max_fragement_size = 30
         elif qr_density == EncodeQR.DENSITY__HIGH:
+            self.qr_max_fragement_size = 120
+        
+        def derivation_to_keypath(path: str) -> list:
+            arr = path.split("/")
+            if arr[0] == "m":
+                arr = arr[1:]
+            if len(arr) == 0:
+                return Keypath([],self.root.my_fingerprint, None)
+            if arr[-1] == "":
+                # trailing slash
+                arr = arr[:-1]
+
+            for i, e in enumerate(arr):
+                if e[-1] == "h" or e[-1] == "'":
+                    arr[i] = PathComponent(int(e[:-1]), True)
+                else:
+                    arr[i] = PathComponent(int(e), False)
+                    
+            return Keypath(arr, self.root.my_fingerprint, len(arr))
+            
+        origin = derivation_to_keypath(derivation)
+        
+        self.ur_hdkey = HDKey({ 'key': self.xpub.key.serialize(),
+        'chain_code': self.xpub.chain_code,
+        'origin': origin,
+        'parent_fingerprint': self.xpub.fingerprint})
+
+        ur_outputs = []
+
+        if len(origin.components) > 0:
+            if origin.components[0].index == 84: # Native Single Sig
+                ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[404]],self.ur_hdkey))
+            elif origin.components[0].index == 49: # Nested Single Sig
+                ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[400], SCRIPT_EXPRESSION_TAG_MAP[404]],self.ur_hdkey))
+            elif origin.components[0].index == 48: # Multisig
+                if len(origin.components) >= 4:
+                    if origin.components[3].index == 2:  # Native Multisig
+                        ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[401]],self.ur_hdkey))
+                    elif origin.components[3].index == 1:  # Nested Multisig
+                        ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[400], SCRIPT_EXPRESSION_TAG_MAP[401]],self.ur_hdkey))
+        
+        # If empty, add all script types
+        if len(ur_outputs) == 0:
+            ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[404]],self.ur_hdkey))
+            ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[400], SCRIPT_EXPRESSION_TAG_MAP[404]],self.ur_hdkey))
+            ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[401]],self.ur_hdkey))
+            ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[400], SCRIPT_EXPRESSION_TAG_MAP[401]],self.ur_hdkey))
+            ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[403]],self.ur_hdkey))
+        
+        ur_account = Account(self.root.my_fingerprint, ur_outputs)
+
+        qr_ur_bytes = UR("crypto-account", ur_account.to_cbor())
+
+        self.ur2_encode = UREncoder(qr_ur_bytes, self.qr_max_fragement_size, 0)
+
+
+    def seqLen(self):
+            return self.ur2_encode.fountain_encoder.seq_len()
+
+
+    def nextPart(self) -> str:
+        return self.ur2_encode.next_part().upper()
+
+
+    def isComplete(self):
+        return self.sent_complete
+
+
+
+class URXPubQR(XPubQR):
+    def __init__(self, seed_phrase, passphrase, derivation, network, qr_density, wordlist_language_code):
+        super().__init__(self, seed_phrase, passphrase, derivation, network, wordlist_language_code)
+        if qr_density == EncodeQR.LOW:
+            self.qr_max_fragement_size = 10
+        elif qr_density == EncodeQR.MEDIUM:
+            self.qr_max_fragement_size = 30
+        elif qr_density == EncodeQR.HIGH:
             self.qr_max_fragement_size = 120
         
         def derivation_to_keypath(path: str) -> list:

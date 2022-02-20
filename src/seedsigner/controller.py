@@ -650,7 +650,7 @@ class Controller(Singleton):
             
                 # No valid seed yet, If there is a saved seed, ask to use saved seed
                 if self.storage.num_of_saved_seeds() > 0:
-                    r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Save Seed?")
+                    r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Saved Seed?")
                     if r == 1: #Yes
                         slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
                         if slot_num == 0:
@@ -832,7 +832,7 @@ class Controller(Singleton):
         if not seed:
             # No valid seed yet, If there is a saved seed, ask to use saved seed
             if self.storage.num_of_saved_seeds() > 0:
-                r = self.renderer.display_generic_selection_menu(["Yes", "No"], "Use Save Seed?")
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Saved Seed?")
                 if r == 1: #Yes
                     slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
                     if slot_num == 0:
