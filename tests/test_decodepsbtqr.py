@@ -45,16 +45,16 @@ def test_ur_qr_decode_multisig():
     d = DecodeQR()
     for i in qrcodes:
         d.add_data(i)
-        assert d.qrType() == QRType.PSBTUR2
+        assert d.qr_type == QRType.PSBT__UR2
 
     #complete should be true
-    assert d.isComplete() == True
+    assert d.is_complete
 
     base64_psbt = "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"
 
-    assert base64_psbt == d.getBase64PSBT()
+    assert base64_psbt == d.get_base64_psbt()
 
-    tx = d.getPSBT()
+    tx = d.get_psbt()
 
     assert str(tx) == base64_psbt
 
@@ -67,16 +67,16 @@ def test_base64_single_frame_singlsig():
     d = DecodeQR()
     for i in qrcodes:
         d.add_data(i)
-        assert d.qrType() == QRType.PSBTBASE64
+        assert d.qr_type == QRType.PSBT__BASE64
 
     #complete should be true
-    assert d.isComplete() == True
+    assert d.is_complete
 
     base64_psbt = "cHNidP8BAHICAAAAAQDo5ey+2HIrNUkExsFhsImv1OK1cYA9x/bRjYQD+0UaAQAAAAD9////Apg6AAAAAAAAF6kUVuVZEcdpQ2zgABa9dRUNYHD4VuaHgSYAAAAAAAAWABQaLE4t0JbDRg4pNnmcf+cAWIcyawAAAAAAAQEfqGEAAAAAAAAWABRyuw9od6yuS0yiZljV0X12wG9e5CIGA/ZlEZvQubb6PmcnK+vlnd8aftYnrQ8wHYSxsD8tDp61GIshjoFUAACAAQAAgAAAAIAAAAAAAAAAAAAAAA=="
 
-    assert base64_psbt == d.getBase64PSBT()
+    assert base64_psbt == d.get_base64_psbt()
 
-    tx = d.getPSBT()
+    tx = d.get_psbt()
 
     assert str(tx) == base64_psbt
 
@@ -112,18 +112,18 @@ def test_ur2_sparrow_singlesig_to_self():
     d = DecodeQR()
     for i in qrcodes:
         d.add_data(i)
-        assert d.qrType() == QRType.PSBTUR2
+        assert d.qr_type == QRType.PSBT__UR2
 
     #complete should be true
-    assert d.isComplete() == True
+    assert d.is_complete
 
     base64_psbt = "cHNidP8BAHECAAAAAQDo5ey+2HIrNUkExsFhsImv1OK1cYA9x/bRjYQD+0UaAQAAAAD9////AttBAAAAAAAAFgAUGixOLdCWw0YOKTZ5nH/nAFiHMmtAHwAAAAAAABYAFNbrl43uCJEN4CVjgbO9UzQYq3lB2XUfAE8BBDWHzwOUjfDCgAAAAIf4/x8q+YwsIsMjQZZKiYxG68KbV4Z0mlcxTbrtu8ApA/iB9364EPRoi0aEmjfRmywFry7wyW6Im2SQIsigPN9KEIshjoFUAACAAQAAgAAAAIAAAQDhAgAAAALAWfdi74cSytbNZS6q6ATuemMciRZLi4R6i5i/DiMi1gEAAAAjIgAgcrZ/i7xlN8a8hjVVz0uQfxgD1HO1qu0TMghmm3IbPYP9////L2V6qwld7RyRTMTgADRAw5x8TOHxFgbaB5Qaj/DeqNIAAAAAIyIAIKW/0WF/IrUNuRJzwe6t2qoxZV+Fs4OFO/F+DeatKRAl/f///wKqrwIAAAAAABepFB3sNOahaifEYp68aLkLTgfCxgNTh6hhAAAAAAAAFgAUcrsPaHesrktMomZY1dF9dsBvXuSOdR8AAQEfqGEAAAAAAAAWABRyuw9od6yuS0yiZljV0X12wG9e5AEDBAEAAAAiBgP2ZRGb0Lm2+j5nJyvr5Z3fGn7WJ60PMB2EsbA/LQ6etRiLIY6BVAAAgAEAAIAAAACAAAAAAAAAAAAAIgIDrP6rQqucOQEIEVa/N98mmnQ50B5IGGLEvCTDXAZJ0coYiyGOgVQAAIABAACAAAAAgAEAAAAAAAAAACICA+PijXYEywnDo/b1PUqGK6TA1kod1Ww5UiMjx8R9/4BDGIshjoFUAACAAQAAgAAAAIAAAAAAAwAAAAA="
 
-    assert base64_psbt == d.getBase64PSBT()
+    assert base64_psbt == d.get_base64_psbt()
 
-    tx = d.getPSBT()
+    tx = d.get_psbt()
 
-    assert str(tx) == d.getBase64PSBT()
+    assert str(tx) == d.get_base64_psbt()
 
 
 def test_base64_2_input_p2wsh():
@@ -131,9 +131,9 @@ def test_base64_2_input_p2wsh():
 
     d = DecodeQR()
     d.add_data(base64_psbt)
-    assert d.qrType() == QRType.PSBTBASE64
+    assert d.qr_type == QRType.PSBT__BASE64
 
-    tx = d.getPSBT()
+    tx = d.get_psbt()
 
     assert str(tx) == base64_psbt
 
@@ -158,9 +158,9 @@ def test_base64_1_input_p2sh_p2wsh():
 
     d = DecodeQR()
     d.add_data(base64_psbt)
-    assert d.qrType() == QRType.PSBTBASE64
+    assert d.qr_type == QRType.PSBT__BASE64
 
-    tx = d.getPSBT()
+    tx = d.get_psbt()
 
     assert str(tx) == base64_psbt
 
@@ -213,12 +213,12 @@ def test_ur_legacy():
     for i in qrcodes:
         if d.add_data(i) == DecodeQRStatus.COMPLETE:
             break
-        assert d.qrType() == QRType.PSBTURLEGACY
+        assert d.qr_type == QRType.PSBT__LEGACY_UR
 
     #complete should be true
-    assert d.isComplete() == True
+    assert d.is_complete
 
-    tx = d.getPSBT()
+    tx = d.get_psbt()
 
     mnemonic = "zone zone zone zone zone abandon ability able abandon ability able abstract"
     pp = PSBTParser(tx,Seed(mnemonic, wordlist=bip39.WORDLIST),"test")
@@ -247,12 +247,12 @@ def test_specter_multisig_animated_qr():
     for i in qrcodes:
         if d.add_data(i) == DecodeQRStatus.COMPLETE:
             break
-        assert d.qrType() == QRType.PSBTSPECTER
+        assert d.qr_type == QRType.PSBT__SPECTER
 
     #complete should be true
-    assert d.isComplete() == True
+    assert d.is_complete
 
-    tx = d.getPSBT()
+    tx = d.get_psbt()
 
     mnemonic = "zone zone zone zone zone abandon ability able abandon ability able abstract"
     pp = PSBTParser(tx,Seed(mnemonic, wordlist=bip39.WORDLIST),"test")
@@ -285,12 +285,12 @@ def test_specter_multisig_animated_qr():
     for i in qrcodes2:
         if d2.add_data(i) == DecodeQRStatus.COMPLETE:
             break
-        assert d2.qrType() == QRType.PSBTSPECTER
+        assert d2.qr_type == QRType.PSBT__SPECTER
 
     #complete should be true
-    assert d2.isComplete() == True
+    assert d2.is_complete
 
-    tx2 = d2.getPSBT()
+    tx2 = d2.get_psbt()
 
     mnemonic2 = "able bacon cable able bacon cable abandon abandon abandon abandon abandon access"
     pp2 = PSBTParser(tx2,Seed(mnemonic2, wordlist=bip39.WORDLIST),"test")
@@ -317,7 +317,7 @@ def test_mnemonic_qr():
     d = DecodeQR()
 
     assert d.add_data(mnemonic) == DecodeQRStatus.COMPLETE
-    assert d.getSeedPhrase() == mnemonic.split()
+    assert d.get_seed_phrase() == mnemonic.split()
 
     bad_mnemonic = "height useless trap grow lion found off key clown transfer enroll"
     d2 = DecodeQR()
@@ -333,8 +333,8 @@ def test_short_4_letter_mnemonic_qr():
     d = DecodeQR()
     d.add_data(short_nm)
 
-    assert d.isComplete() == True
-    assert d.getSeedPhrase() == ["height", "demise", "useless", "trap", "grow", "lion", "found", "off", "key", "clown", "transfer", "enroll"]
+    assert d.is_complete
+    assert d.get_seed_phrase() == ["height", "demise", "useless", "trap", "grow", "lion", "found", "off", "key", "clown", "transfer", "enroll"]
 
 def test_bitcoin_address():
     
@@ -357,55 +357,55 @@ def test_bitcoin_address():
     d = DecodeQR()
     d.add_data(bad1)
     
-    assert d.qrType() == QRType.INVALID
+    assert d.qr_type == QRType.INVALID
     
     d = DecodeQR()
     d.add_data(legacy_address1)
     
-    assert d.getAddress() == legacy_address1
-    assert d.getAddressType() == "P2PKH-main"
+    assert d.get_address() == legacy_address1
+    assert d.get_address_type() == "P2PKH-main"
     
     d = DecodeQR()
     d.add_data(legacy_address2)
     
-    assert d.getAddress() == legacy_address2
-    assert d.getAddressType() == "P2PKH-main"
+    assert d.get_address() == legacy_address2
+    assert d.get_address_type() == "P2PKH-main"
     
     d = DecodeQR()
     d.add_data(main_bech32_address)
     
-    assert d.getAddress() == main_bech32_address
-    assert d.getAddressType() == "Bech32-main"
+    assert d.get_address() == main_bech32_address
+    assert d.get_address_type() == "Bech32-main"
     
     d = DecodeQR()
     d.add_data(test_bech32_address)
     
-    assert d.getAddress() == test_bech32_address
-    assert d.getAddressType() == "Bech32-test"
+    assert d.get_address() == test_bech32_address
+    assert d.get_address_type() == "Bech32-test"
     
     d = DecodeQR()
     d.add_data(main_nested_segwit_address)
     
-    assert d.getAddress() == main_nested_segwit_address
-    assert d.getAddressType() == "P2SH-main"
+    assert d.get_address() == main_nested_segwit_address
+    assert d.get_address_type() == "P2SH-main"
     
     d = DecodeQR()
     d.add_data(test_nested_segwit_address)
     
-    assert d.getAddress() == test_nested_segwit_address
-    assert d.getAddressType() == "P2SH-test"
+    assert d.get_address() == test_nested_segwit_address
+    assert d.get_address_type() == "P2SH-test"
     
     d = DecodeQR()
     d.add_data(main_bech32_address2)
     
-    assert d.getAddress() == "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
-    assert d.getAddressType() == "Bech32-main"
+    assert d.get_address() == "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+    assert d.get_address_type() == "Bech32-main"
     
     d = DecodeQR()
     d.add_data(main_bech32_address3)
     
-    assert d.getAddress() == "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
-    assert d.getAddressType() == "Bech32-main"
+    assert d.get_address() == "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+    assert d.get_address_type() == "Bech32-main"
 
 
 def test_seed_qr():
@@ -414,8 +414,8 @@ def test_seed_qr():
     d = DecodeQR()
     d.add_data(seed)
     
-    assert d.qrType() == QRType.SEEDQR
-    assert d.getSeedPhrase() == "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash".split()
+    assert d.qr_type == QRType.SEED__SEEDQR
+    assert d.get_seed_phrase() == "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash".split()
 
 
 def test_specter_wallet_json():    
@@ -430,9 +430,9 @@ def test_specter_wallet_json():
     d.add_data(parts[2])
     d.add_data(parts[0])
     
-    assert d.qrType() == QRType.SPECTERWALLETQR
-    assert d.isComplete() == True
-    assert d.getWalletDescriptor() == "wsh(sortedmulti(4,[e0811b6b/48h/0h/0h/2h]xpub6E8v7uy63pCeJvHe5W8ea8zTnCtKMFgMRb5bueWWcUFMw6sWmUwTqxM8cFiKQRWkA2Fxth9HJZufJwjWTTvU1UGZNpTrh9khrswYMgeHiCt/0/*,[852b308f/48h/0h/0h/2h]xpub6ErhgAWfnEqW7xDBm1iLq5JjNyUS65YUFnjHLrRv9zmdDEtuE75bpWQ8o6bSBnpT6AkrrsA8eA5SmEFArZn11KEPaZJzx9mHTXPWZCsxLyh/0/*,[7edf9c59/48h/0h/0h/2h]xpub6DaFfKoe7WpofrbYeNo3Wv2AiLUMeyrPwotXfukFxUHbK4JxaLHTd5394QtH5wnjFzBgr2YnJpHhXv25Zsqv2APmMFvH1DsKHj5LCr3pmXs/0/*,[b433e095/48h/0h/0h/2h]xpub6EF51itHko2YhGTjVeuYbBgJjVbTzzpYzn2a3JwZHpDrMePRVgXGBHMx2Yv1KwgLsUn9i7ExcAo8uqMx4pDjVRY9J7qnceFAwRRj16dd5AS/0/*,[184d07eb/48h/0h/0h/2h]xpub6EEoTpcQu7N4R8D84pJjZ69j3minevnYLDDoo2HBzYBXTQ4rGVf4XGTyCYFwJuZdsF9MyFYJNzYEjg5LGMA1ubTGWuDnjHAZz6ficVRDTSy/0/*,[3e451efe/48h/0h/0h/2h]xpub6ExQPvQxGBMaPxr8Fv7Vq91ztJFFX3VWvtpvex6UPZ1AptTeuAiJGCtKkgwJkrwpMZMagh9ex6rL4sM8axfFcdQbERoFCRUKTJxrBkJh56g/0/*))#c44hel9e"
+    assert d.qr_type == QRType.WALLET__SPECTER
+    assert d.is_complete
+    assert d.get_wallet_descriptor() == "wsh(sortedmulti(4,[e0811b6b/48h/0h/0h/2h]xpub6E8v7uy63pCeJvHe5W8ea8zTnCtKMFgMRb5bueWWcUFMw6sWmUwTqxM8cFiKQRWkA2Fxth9HJZufJwjWTTvU1UGZNpTrh9khrswYMgeHiCt/0/*,[852b308f/48h/0h/0h/2h]xpub6ErhgAWfnEqW7xDBm1iLq5JjNyUS65YUFnjHLrRv9zmdDEtuE75bpWQ8o6bSBnpT6AkrrsA8eA5SmEFArZn11KEPaZJzx9mHTXPWZCsxLyh/0/*,[7edf9c59/48h/0h/0h/2h]xpub6DaFfKoe7WpofrbYeNo3Wv2AiLUMeyrPwotXfukFxUHbK4JxaLHTd5394QtH5wnjFzBgr2YnJpHhXv25Zsqv2APmMFvH1DsKHj5LCr3pmXs/0/*,[b433e095/48h/0h/0h/2h]xpub6EF51itHko2YhGTjVeuYbBgJjVbTzzpYzn2a3JwZHpDrMePRVgXGBHMx2Yv1KwgLsUn9i7ExcAo8uqMx4pDjVRY9J7qnceFAwRRj16dd5AS/0/*,[184d07eb/48h/0h/0h/2h]xpub6EEoTpcQu7N4R8D84pJjZ69j3minevnYLDDoo2HBzYBXTQ4rGVf4XGTyCYFwJuZdsF9MyFYJNzYEjg5LGMA1ubTGWuDnjHAZz6ficVRDTSy/0/*,[3e451efe/48h/0h/0h/2h]xpub6ExQPvQxGBMaPxr8Fv7Vq91ztJFFX3VWvtpvex6UPZ1AptTeuAiJGCtKkgwJkrwpMZMagh9ex6rL4sM8axfFcdQbERoFCRUKTJxrBkJh56g/0/*))#c44hel9e"
 
 
 def test_specter_wallet_json2():
@@ -441,5 +441,5 @@ def test_specter_wallet_json2():
     d = DecodeQR()
     d.add_data(part)
     
-    assert d.qrType() == QRType.SPECTERWALLETQR
-    assert d.isComplete() == True
+    assert d.qr_type == QRType.WALLET__SPECTER
+    assert d.is_complete

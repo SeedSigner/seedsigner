@@ -5,7 +5,7 @@ from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.psbt_views import PSBTSelectSeedView
 from seedsigner.views.seed_views import SeedAddPassphrasePromptView, SeedAddPassphraseView
 
-from .view import BackStackView, MainMenuView, View, Destination
+from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models import DecodeQR, Seed
@@ -24,9 +24,9 @@ class ScanView(View):
         screen = ScanScreen(decoder=self.decoder)
         screen.display()
 
-        if self.decoder.isComplete():
-            if self.decoder.isSeed():
-                seed_mnemonic = self.decoder.getSeedPhrase()
+        if self.decoder.is_complete:
+            if self.decoder.is_seed:
+                seed_mnemonic = self.decoder.get_seed_phrase()
                 if not seed_mnemonic:
                     # seed is not valid, Exit if not valid with message
                     raise Exception("Not yet implemented!")
@@ -44,13 +44,13 @@ class ScanView(View):
                     else:
                         return Destination(SeedValidView)
             
-            elif self.decoder.isPSBT():
-                psbt = self.decoder.getPSBT()
+            elif self.decoder.is_psbt:
+                psbt = self.decoder.get_psbt()
                 self.controller.psbt = psbt
                 self.controller.psbt_parser = None
                 return Destination(PSBTSelectSeedView)
 
-            elif self.decoder.qr_type == QRType.SETTINGS:
+            elif self.decoder.is_settings:
                 from seedsigner.models.settings import Settings
                 settings = self.decoder.get_settings_data()
                 Settings.get_instance().update(new_settings=settings)
@@ -59,10 +59,18 @@ class ScanView(View):
 
                 return Destination(SettingsUpdatedView, {"config_name": self.decoder.get_settings_config_name()})
             
-            elif self.decoder.qr_type == QRType.BITCOINADDRESSQR:
+            elif self.decoder.is_wallet_descriptor:
+                # TODO
+                print("Implement QR scanning for wallet descriptors!")
+                return Destination(NotYetImplementedView)
+            
+            elif self.decoder.is_address:
                 # TODO: Reserved for Nick!
-                raise Exception("Not yet implemented!")
-
+                print("Implement QR scanning for Bitcoin addresses!")
+                return Destination(NotYetImplementedView)
+            
+            else:
+                return Destination(NotYetImplementedView)
 
         return Destination(MainMenuView)
 

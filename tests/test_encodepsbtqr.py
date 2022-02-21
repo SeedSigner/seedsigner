@@ -12,7 +12,7 @@ def test_ur_qr_encode():
 
     tx = psbt.PSBT.parse(a2b_base64(base64_psbt))
 
-    e = EncodeQR(psbt=tx, qr_type=QRType.PSBTUR2)
+    e = EncodeQR(psbt=tx, qr_type=QRType.PSBT__UR2)
 
     cnt = 0
     while cnt <= 10:
@@ -27,7 +27,7 @@ def test_specter_qr_encode():
 
     tx = psbt.PSBT.parse(a2b_base64(base64_psbt))
 
-    e = EncodeQR(psbt=tx, qr_type=QRType.PSBTSPECTER)
+    e = EncodeQR(psbt=tx, qr_type=QRType.PSBT__SPECTER)
 
     cnt = 0
     while cnt <= 10:
@@ -62,7 +62,7 @@ def test_seedsigner_qr():
 
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), qr_type=QRType.SEEDQR)
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), qr_type=QRType.SEED__SEEDQR)
 
     print(e.next_part())
 
@@ -72,7 +72,7 @@ def test_xpub_qr():
 
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUBQR, network="test", derivation="m/48h/1h/0h/2h")
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUB, network="test", derivation="m/48h/1h/0h/2h")
 
     assert e.next_part() == "[c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDNc5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBoMxfrVggXj5NJmaNEToWpax8GMMucozvAdqf1bW1JsZsfdBzsK3VUC5"
 
@@ -80,7 +80,7 @@ def test_specter_xpub_qr():
 
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.SPECTERXPUBQR, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQR.DENSITY__LOW)
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUB__SPECTER, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQR.DENSITY__LOW)
 
     assert e.next_part() == "p1of4 [c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDN"
     assert e.next_part() == "p2of4 c5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBo"
@@ -91,7 +91,7 @@ def test_ur_xpub_qr():
     
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
     
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.URXPUBQR, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQR.DENSITY__MEDIUM)
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUB__UR, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQR.DENSITY__MEDIUM)
     
     assert e.next_part() == "UR:CRYPTO-ACCOUNT/1-4/LPADAACSJKCYYNRDRTYAHDCAOEADCYSSMECPONAOLYTAADMETAADDLOXAXHDCLAOKSRLNLKPUEGYATHPMNRTAAOLAH"
     assert e.next_part() == "UR:CRYPTO-ACCOUNT/2-4/LPAOAACSJKCYYNRDRTYAHDCASNKKGHZMLUZORPVDGUOTECSTTKTOLPCWPTNTLKZTTIZTBEAAHDCXVDTPMYQDLAWNGL"

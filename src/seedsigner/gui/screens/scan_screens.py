@@ -59,8 +59,8 @@ class ScanScreen(BaseTopNavScreen):
                 frame = self.camera.read_video_stream(as_image=True)
                 if frame is not None:
                     scan_text = self.instructions_text
-                    if self.decoder.getPercentComplete() > 0 and self.decoder.isPSBT():
-                        scan_text = str(self.decoder.getPercentComplete()) + "% Complete"
+                    if self.decoder.get_percent_complete() > 0 and self.decoder.is_psbt:
+                        scan_text = str(self.decoder.get_percent_complete()) + "% Complete"
 
                     # TODO: Render TopNav & instructions_background w/transparency
                     # img = Image.new(mode='RGBA', size=(self.canvas_width, self.canvas_height))
@@ -80,7 +80,7 @@ class ScanScreen(BaseTopNavScreen):
         while True:
             frame = self.camera.read_video_stream()
             if frame is not None:
-                status = self.decoder.addImage(frame)
+                status = self.decoder.add_image(frame)
 
                 if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
                     self.camera.stop_video_stream_mode()

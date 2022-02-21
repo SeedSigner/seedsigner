@@ -339,9 +339,9 @@ class PSBTSignedQRDisplayView(View):
         self.coordinator = coordinator
     
     def run(self):
-        qr_psbt_type = QRType.PSBTUR2
+        qr_psbt_type = QRType.PSBT__UR2
         if self.coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
-            qr_psbt_type = QRType.PSBTSPECTER
+            qr_psbt_type = QRType.PSBT__SPECTER
 
         qr_encoder = EncodeQR(
             psbt=self.controller.psbt,

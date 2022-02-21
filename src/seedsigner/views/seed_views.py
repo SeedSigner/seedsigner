@@ -3,7 +3,7 @@ import embit
 from binascii import hexlify
 
 from seedsigner.gui.components import FontAwesomeIconConstants
-from seedsigner.models.decode_qr import SeedQR
+from seedsigner.models.decode_qr import SeedQrDecoder
 
 from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
 
@@ -458,11 +458,11 @@ class SeedExportXpubQRDisplayView(View):
         self.seed = self.controller.get_seed(seed_num)
 
         if coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
-            qr_type = QRType.SPECTERXPUBQR
+            qr_type = QRType.XPUB__SPECTER
         elif coordinator == SettingsConstants.COORDINATOR__BLUE_WALLET:
-            qr_type = QRType.XPUBQR
+            qr_type = QRType.XPUB
         else:
-            qr_type = QRType.URXPUBQR
+            qr_type = QRType.XPUB__UR
 
         self.qr_encoder = EncodeQR(
             seed_phrase=self.seed.mnemonic_list,

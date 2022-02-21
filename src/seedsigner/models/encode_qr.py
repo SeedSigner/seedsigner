@@ -56,14 +56,14 @@ class EncodeQR:
         self.encoder: BaseQrEncoder = None
 
         # PSBT formats
-        if self.qr_type == QRType.PSBTSPECTER:
+        if self.qr_type == QRType.PSBT__SPECTER:
             self.encoder = SpecterPsbtQrEncoder(psbt=self.psbt, qr_density=self.qr_density)
 
-        elif self.qr_type == QRType.PSBTUR2:
+        elif self.qr_type == QRType.PSBT__UR2:
             self.encoder = UrPsbtQrEncoder(psbt=self.psbt, qr_density=self.qr_density)
 
         # XPUB formats
-        elif self.qr_type == QRType.XPUBQR:
+        elif self.qr_type == QRType.XPUB:
             self.encoder = XpubQrEncoder(
                 seed_phrase=self.seed_phrase,
                 passphrase=self.passphrase,
@@ -72,7 +72,7 @@ class EncodeQR:
                 wordlist_language_code=self.wordlist_language_code
             )
 
-        elif self.qr_type == QRType.URXPUBQR:
+        elif self.qr_type == QRType.XPUB__UR:
             self.encoder = UrXpubQrEncoder(
                 qr_density=self.qr_density,
                 seed_phrase=self.seed_phrase,
@@ -82,7 +82,7 @@ class EncodeQR:
                 wordlist_language_code=self.wordlist_language_code
             )
 
-        elif self.qr_type == QRType.SPECTERXPUBQR:
+        elif self.qr_type == QRType.XPUB__SPECTER:
             self.encoder = SpecterXPubQrEncoder(
                 qr_density=self.qr_density,
                 seed_phrase=self.seed_phrase,
@@ -94,11 +94,11 @@ class EncodeQR:
 
 
         # SeedQR formats
-        elif self.qr_type == QRType.SEEDQR:
+        elif self.qr_type == QRType.SEED__SEEDQR:
             self.encoder = SeedQrEncoder(seed_phrase=self.seed_phrase,
                                          wordlist_language_code=self.wordlist_language_code)
 
-        elif self.qr_type == QRType.COMPACTSEEDQR:
+        elif self.qr_type == QRType.SEED__COMPACTSEEDQR:
             self.encoder = CompactSeedQrEncoder(seed_phrase=self.seed_phrase,
                                                 wordlist_language_code=self.wordlist_language_code)
 
@@ -120,7 +120,7 @@ class EncodeQR:
 
     def next_part_image(self, width=240, height=240, border=3, background_color="bdbdbd"):
         part = self.next_part()
-        if self.qr_type == QRType.SEEDQR:
+        if self.qr_type == QRType.SEED__SEEDQR:
             return self.qr.qrimage(part, width, height, border)
         else:
             return self.qr.qrimage_io(part, width, height, border, background_color=background_color)

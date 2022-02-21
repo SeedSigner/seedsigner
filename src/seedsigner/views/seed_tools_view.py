@@ -739,9 +739,9 @@ class SeedToolsView(View):
 
     def seed_phrase_as_qr(self, seed_phrase, is_compact_seedqr=False):
         if is_compact_seedqr:
-            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.COMPACTSEEDQR, wordlist=self.controller.settings.wordlist)
+            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEED__COMPACTSEEDQR, wordlist=self.controller.settings.wordlist)
         else:
-            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEEDQR, wordlist=self.controller.settings.wordlist)
+            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEED__SEEDQR, wordlist=self.controller.settings.wordlist)
         data = e.next_part()
         qr = QR()
         image = qr.qrimage(
@@ -907,7 +907,7 @@ class SeedToolsView(View):
                 frame = self.controller.camera.read_video_stream(as_image=True)
                 if frame is not None:
                     self.renderer.show_image_with_text(frame.resize((240,240)), "Scan Seed QR", font=Fonts.get_font("Assistant-Medium", 22), text_color=self.color, text_background=(0,0,0,225))
-                    status = decoder.addImage(frame)
+                    status = decoder.add_image(frame)
 
                     if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
                         break
@@ -917,9 +917,9 @@ class SeedToolsView(View):
                         self.words = []
                         return self.words[:]
 
-            if decoder.isComplete() and decoder.isSeed():
-                self.words = decoder.getSeedPhrase()
-            elif not decoder.isPSBT():
+            if decoder.is_complete and decoder.is_seed:
+                self.words = decoder.get_seed_phrase()
+            elif not decoder.is_psbt:
                 self.draw_modal(["Not a valid Seed QR"], "", "Right to Exit")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
             else:
