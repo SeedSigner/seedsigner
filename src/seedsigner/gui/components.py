@@ -66,6 +66,7 @@ class FontAwesomeIconConstants:
     PAPER_PLANE = "\uf1d8"
     PLUS = "+"
     POWER_OFF = "\uf011"
+    ROTATE_RIGHT = "\uf2f9"
     SCREWDRIVER_WRENCH = "\uf7d9"
     SQUARE = "\uf0c8"
     SQUARE_CHECK = "\uf14a"

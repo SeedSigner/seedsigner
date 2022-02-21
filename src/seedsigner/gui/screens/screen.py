@@ -170,6 +170,7 @@ class LoadingScreenThread(BaseThread):
             position += arc_sweep
 
 
+
 @dataclass
 class BaseTopNavScreen(BaseScreen):
     title: str = "Screen Title"

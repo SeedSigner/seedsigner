@@ -2,7 +2,8 @@ from dataclasses import dataclass
 
 from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import (RET_CODE__POWER_BUTTON, TextTopNavScreen)
-from seedsigner.gui.screens.screen import WarningScreen
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, LargeButtonScreen, WarningScreen
+from seedsigner.helpers.threads import BaseThread
 
 
 
@@ -120,22 +121,74 @@ class MainMenuView(View):
         selected_menu_num = screen.display()
 
         if selected_menu_num == RET_CODE__POWER_BUTTON:
-            return Destination(PowerOffView)
+            return Destination(PowerOptionsView)
 
         return Destination(menu_items[selected_menu_num][1])
 
 
 
-class PowerOffView(View):
+class PowerOptionsView(View):
     def run(self):
-        from subprocess import call
-        TextTopNavScreen(
-            title="Powering Down",
-            text="Please wait about 30 seconds before disconnecting power.",
-            show_back_button=False
+        RESET = ("Reset", FontAwesomeIconConstants.ROTATE_RIGHT)
+        POWER_OFF = ("Power Off", FontAwesomeIconConstants.POWER_OFF)
+        button_data = [RESET, POWER_OFF]
+        selected_menu_num = LargeButtonScreen(
+            title="Reset / Power",
+            show_back_button=True,
+            button_data=button_data
         ).display()
 
-        call("sudo shutdown --poweroff now", shell=True)
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        elif button_data[selected_menu_num] == RESET:
+            return Destination(ResetView)
+        
+        elif button_data[selected_menu_num] == POWER_OFF:
+            return Destination(PowerOffView)
+
+
+
+class ResetView(View):
+    def run(self):
+        thread = ResetView.DoResetThread()
+        thread.start()
+        TextTopNavScreen(
+            title="Resetting",
+            text="SeedSigner is restarting. All data will be wiped.",
+            show_back_button=False,
+        ).display()
+
+
+    class DoResetThread(BaseThread):
+        def run(self):
+            import time
+            from subprocess import call
+            while self.keep_running:
+                time.sleep(5)
+                # Kill the SeedSigner process; systemd will automatically restart it.
+                call("kill $(ps aux | grep '[p]ython3 main.py' | awk '{print $2}')", shell=True)
+
+
+
+class PowerOffView(View):
+    def run(self):
+        thread = PowerOffView.PowerOffThread()
+        thread.start()
+        TextTopNavScreen(
+            title="Powering Off",
+            text="Please wait about 30 seconds before disconnecting power.",
+            show_back_button=False,
+        ).display()
+
+
+    class PowerOffThread(BaseThread):
+        def run(self):
+            import time
+            from subprocess import call
+            while self.keep_running:
+                time.sleep(5)
+                call("sudo shutdown --poweroff now", shell=True)
 
 
 
