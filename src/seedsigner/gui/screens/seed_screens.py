@@ -9,7 +9,7 @@ from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.seed import Seed
 
 from .screen import BaseScreen, BaseTopNavScreen, ButtonListScreen, WarningScreenMixin
-from ..components import FontAwesomeIconConstants, Fonts, FormattedAddress, IconTextLine, TextArea, GUIConstants, PngIconTextLine, calc_text_centering
+from ..components import FontAwesomeIconConstants, Fonts, FormattedAddress, IconTextLine, SeedSignerCustomIconConstants, TextArea, GUIConstants, calc_text_centering
 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.helpers import B
@@ -36,7 +36,7 @@ class SeedValidScreen(ButtonListScreen):
         self.components.append(self.title_textarea)
 
         self.fingerprint_icontl = IconTextLine(
-            icon_name=FontAwesomeIconConstants.FINGERPRINT,
+            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
             icon_color="blue",
             value_text=self.fingerprint,
             font_size=GUIConstants.BODY_FONT_SIZE + 2,
@@ -59,7 +59,7 @@ class SeedOptionsScreen(ButtonListScreen):
         super().__post_init__()
 
         self.components.append(IconTextLine(
-            icon_name=FontAwesomeIconConstants.FINGERPRINT,
+            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
             icon_color="blue",
             value_text=self.fingerprint,
             is_text_centered=True,
@@ -179,7 +179,7 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
             canvas=self.renderer.canvas,
             rect=(text_entry_side_padding,text_entry_top_y, self.renderer.canvas_width - right_panel_buttons_width - GUIConstants.COMPONENT_PADDING, text_entry_bottom_y),
             font=font,
-            font_color="orange",
+            font_color=GUIConstants.ACCENT_COLOR,
             cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
             is_centered=False,
             has_outline=True,
@@ -214,11 +214,11 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
         key_y = int(self.renderer.canvas_height - row_height) / 2 - 1 - 60
         font = Fonts.get_font("RobotoCondensed-Regular", 24)
         background_color = "#111"
-        font_color = "orange"
+        font_color = GUIConstants.ACCENT_COLOR
         button3_text = "Save"
         tw, th = font.getsize(button3_text)
         key_y = int(self.renderer.canvas_height - row_height) / 2 - 1 + 60
-        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline="orange", fill=background_color, radius=5, width=1)
+        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
         self.renderer.draw.text((self.renderer.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button3_text, fill=font_color)
 
         self.text_entry_display.render(self.derivation_path)
@@ -320,7 +320,7 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
 
         # Set up the fingerprint and passphrase displays
         self.fingerprint_line = IconTextLine(
-            icon_name=FontAwesomeIconConstants.FINGERPRINT,
+            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
             icon_color="blue",
             label_text="Fingerprint",
             value_text=self.fingerprint,
@@ -330,7 +330,7 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
         self.components.append(self.fingerprint_line)
 
         self.derivation_line = IconTextLine(
-            icon_name=FontAwesomeIconConstants.MAP,
+            icon_name=SeedSignerCustomIconConstants.PATH,
             label_text="Derivation",
             value_text=self.derivation_path,
             screen_x=GUIConstants.COMPONENT_PADDING,
@@ -376,7 +376,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             canvas=self.renderer.canvas,
             rect=(text_entry_side_padding,text_entry_top_y, self.canvas_width - self.right_panel_buttons_width - 1, text_entry_bottom_y),
             font=font,
-            font_color="orange",
+            font_color=GUIConstants.ACCENT_COLOR,
             cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
             is_centered=False,
             has_outline=True,
@@ -444,34 +444,34 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         key_y = int(self.canvas_height - row_height) / 2 - 1 - 60
 
         background_color = "#111"
-        font_color = "orange"
+        font_color = GUIConstants.ACCENT_COLOR
         font = Fonts.get_font("RobotoCondensed-Regular", 24)
         tw, th = font.getsize(button1_text)
         if self.button1_is_active:
-            background_color = "orange"
+            background_color = GUIConstants.ACCENT_COLOR
             font_color = "#111"
-        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline="orange", fill=background_color, radius=5, width=1)
+        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
         self.renderer.draw.text((self.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button1_text, fill=font_color)
 
         background_color = "#111"
-        font_color = "orange"
+        font_color = GUIConstants.ACCENT_COLOR
         tw, th = font.getsize(button2_text)
         if self.button2_is_active:
-            background_color = "orange"
+            background_color = GUIConstants.ACCENT_COLOR
             font_color = "#111"
         key_y = int(self.canvas_height - row_height) / 2 - 1
-        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline="orange", fill=background_color, radius=5, width=1)
+        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
         self.renderer.draw.text((self.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button2_text, fill=font_color)
 
         background_color = "#111"
-        font_color = "orange"
+        font_color = GUIConstants.ACCENT_COLOR
         button3_text = "Save"
         tw, th = font.getsize(button3_text)
         if self.button3_is_active:
-            background_color = "orange"
+            background_color = GUIConstants.ACCENT_COLOR
             font_color = "#111"
         key_y = int(self.canvas_height - row_height) / 2 - 1 + 60
-        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline="orange", fill=background_color, radius=5, width=1)
+        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
         self.renderer.draw.text((self.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button3_text, fill=font_color)
 
 

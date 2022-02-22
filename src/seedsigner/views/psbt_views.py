@@ -7,7 +7,7 @@ from seedsigner.models.settings import SettingsConstants
 
 from .view import BackStackView, MainMenuView, View, Destination
 
-from seedsigner.gui.components import FontAwesomeIconConstants
+from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 from seedsigner.gui.screens import psbt_screens
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     LoadingScreenThread, QRDisplayScreen, WarningScreen)
@@ -37,7 +37,7 @@ class PSBTSelectSeedView(View):
             if seed.passphrase is not None:
                 # TODO: Include lock icon on right side of button
                 pass
-            button_data.append((button_str, FontAwesomeIconConstants.FINGERPRINT))
+            button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT))
         button_data.append(SCAN_SEED)
         button_data.append(ENTER_WORDS)
 

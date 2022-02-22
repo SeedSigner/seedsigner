@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw
 
 from .view import View
 
-from seedsigner.gui.components import Fonts
+from seedsigner.gui.components import Fonts, GUIConstants
 
 
 
@@ -40,7 +40,7 @@ class OpeningSplashView(LogoView):
         y = int(self.renderer.canvas_height / 2) + 40
 
         draw = ImageDraw.Draw(self.logo)
-        draw.text((x, y), version, fill="orange", font=font)
+        draw.text((x, y), version, fill=GUIConstants.ACCENT_COLOR, font=font)
         self.renderer.show_image(self.logo)
         time.sleep(3)
 

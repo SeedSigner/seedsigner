@@ -136,10 +136,12 @@ class Controller(Singleton):
         opening_splash = OpeningSplashView()
         opening_splash.start()
 
+        # TODO: Remove for v0.5.0 production release
         WarningScreen(
             title="Warning",
             warning_headline="Pre-Release Code",
             warning_text="Do not use this with real funds or to create new secure keys!",
+            show_back_button=False,
         ).display()
 
 

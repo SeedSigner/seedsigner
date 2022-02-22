@@ -18,11 +18,15 @@ class GUIConstants:
     BACKGROUND_COLOR = "black"
     WARNING_COLOR = "#FFD60A"
     DIRE_WARNING_COLOR = "red"
+    BITCOIN_ORANGE = "#ff9416"
+    ACCENT_COLOR = "orange"
 
-    ICON_FONT_NAME = "Font_Awesome_6_Free-Solid-900"
+    ICON_FONT_NAME__FONT_AWESOME = "Font_Awesome_6_Free-Solid-900"
+    ICON_FONT_NAME__SEEDSIGNER = "seedsigner-glyphs"
     ICON_FONT_SIZE = 22
     ICON_INLINE_FONT_SIZE = 24
     ICON_LARGE_BUTTON_SIZE = 36
+    ICON_PRIMARY_SCREEN_SIZE = 44
 
     TOP_NAV_TITLE_FONT_NAME = "OpenSans-SemiBold"
     TOP_NAV_TITLE_FONT_SIZE = 20
@@ -51,13 +55,14 @@ class GUIConstants:
 
 class FontAwesomeIconConstants:
     CAMERA = "\uf030"
-    CHEVRON_LEFT = "\uf053"
-    CHEVRON_RIGHT = "\uf054"
-    CIRCLE_CHECK = "\uf058"
+    # CHEVRON_LEFT = "\uf053"
+    # CHEVRON_RIGHT = "\uf054"
+    SOLID_CIRCLE_CHECK = "\uf058"
+    CIRCLE = "\uf111"
     CIRCLE_CHEVRON_RIGHT = "\uf138"
-    CIRCLE_EXCLAMATION = "\uf06a"
+    # CIRCLE_EXCLAMATION = "\uf06a"
     DICE = "\uf522"
-    FINGERPRINT = "\uf577"
+    # FINGERPRINT = "\uf577"
     GEAR = "\uf013"
     KEY = "\uf084"
     KEYBOARD = "\uf11c"
@@ -74,6 +79,24 @@ class FontAwesomeIconConstants:
     UNLOCK = "\uf09c"
     QRCODE = "\uf029"
     X = "\u0058"
+
+
+
+class SeedSignerCustomIconConstants:
+    LARGE_CHEVRON_LEFT = "\ue900"
+    SMALL_CHEVRON_RIGHT = "\ue901"
+    PAGE_DOWN = "\ue902"
+    PAGE_UP = "\ue903"
+    CIRCLE_X = "\ue904"
+    CIRCLE_EXCLAMATION = "\ue905"
+    CIRCLE_CHECK = "\ue906"
+    FINGERPRINT = "\ue907"
+    PATH = "\ue908"
+    BITCOIN_LOGO = "\ue909"
+    BITCOIN_LOGO_2 = "\ue90a"
+
+    MIN_VALUE = LARGE_CHEVRON_LEFT
+    MAX_VALUE = BITCOIN_LOGO_2
 
 
 
@@ -316,16 +339,20 @@ class TextArea(BaseComponent):
 
 
 @dataclass
-class FontAwesomeIcon(BaseComponent):
+class Icon(BaseComponent):
     screen_x: int = 0
     screen_y: int = 0
-    icon_name: str = FontAwesomeIconConstants.QRCODE
+    icon_name: str = SeedSignerCustomIconConstants.BITCOIN_LOGO
     icon_size: int = GUIConstants.ICON_FONT_SIZE
     icon_color: str = GUIConstants.BODY_FONT_COLOR
 
     def __post_init__(self):
         super().__post_init__()
-        self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME, self.icon_size, file_extension="otf")
+
+        if SeedSignerCustomIconConstants.MIN_VALUE <= self.icon_name and self.icon_name <= SeedSignerCustomIconConstants.MAX_VALUE:
+            self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__SEEDSIGNER, self.icon_size, file_extension="otf")
+        else:
+            self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__FONT_AWESOME, self.icon_size, file_extension="otf")
         self.width, self.height = self.icon_font.getsize(self.icon_name)
     
     def render(self):
@@ -334,91 +361,11 @@ class FontAwesomeIcon(BaseComponent):
 
 
 @dataclass
-class PngIconTextLine(BaseComponent):
-    """
-        Renders an icon next to a label/value pairing (or just value)
-    """
-    icon_name: str = "fingerprint"
-    label_text: str = None
-    value_text: str = "73c5da0a"
-    font_size: int = GUIConstants.BODY_FONT_SIZE
-    is_text_centered: bool = False
-    screen_x: int = 0
-    screen_y: int = 0
-
-    def __post_init__(self):
-        super().__post_init__()
-
-        self.icon = load_icon(self.icon_name)
-        self.icon_x = self.screen_x
-        self.icon_horizontal_spacer = 0
-
-        text_screen_x = self.screen_x + self.icon.width + self.icon_horizontal_spacer
-        if self.label_text:
-            self.label_textarea = TextArea(
-                image_draw=self.image_draw,
-                canvas=self.canvas,
-                text=self.label_text,
-                font_size=GUIConstants.BODY_FONT_SIZE - 2,
-                font_color="#666",
-                edge_padding=0,
-                is_text_centered=False,
-                auto_line_break=False,
-                screen_x=text_screen_x,
-                screen_y=self.screen_y,
-            )
-        else:
-            self.label_textarea = None        
-        
-        value_textarea_screen_y = self.screen_y
-        if self.label_text:
-            value_textarea_screen_y += self.label_textarea.height
-        self.value_textarea = TextArea(
-            image_draw=self.image_draw,
-            canvas=self.canvas,
-            text=self.value_text,
-            font_size=self.font_size,
-            edge_padding=0,
-            is_text_centered=False,
-            auto_line_break=False,
-            screen_x=text_screen_x,
-            screen_y=value_textarea_screen_y,
-        )
-
-        if self.label_text:
-            self.height = self.label_textarea.height + self.value_textarea.height
-            self.icon_y = self.screen_y + int((self.height - self.icon.height) / 2)
-            max_textarea_width = max(self.label_textarea.width, self.value_textarea.width)
-        else:
-            self.height = self.value_textarea.height
-            self.icon_y = self.screen_y
-            max_textarea_width = self.value_textarea.width
-        
-        if self.is_text_centered:
-            total_width = max_textarea_width + self.icon.width + self.icon_horizontal_spacer
-            self.icon_x = self.screen_x + int((self.canvas_width - self.screen_x - total_width) / 2)
-            if self.label_text:
-                self.label_textarea.screen_x = self.icon_x + self.icon.width + self.icon_horizontal_spacer
-            self.value_textarea.screen_x = self.icon_x + self.icon.width + self.icon_horizontal_spacer
-        
-        self.height = self.value_textarea.screen_y + self.value_textarea.height - self.screen_y
-
-
-    def render(self):
-        if self.label_textarea:
-            self.label_textarea.render()
-        self.value_textarea.render()
-        self.canvas.paste(self.icon, (self.icon_x, self.icon_y))
-
-
-
-@dataclass
 class IconTextLine(BaseComponent):
     """
         Renders an icon next to a label/value pairing (or just value)
-        # TODO: Eliminate repeated code with PngIconTextLine
     """
-    icon_name: str = FontAwesomeIconConstants.CIRCLE_CHECK
+    icon_name: str = SeedSignerCustomIconConstants.CIRCLE_CHECK
     icon_size: int = GUIConstants.ICON_FONT_SIZE
     icon_color: str = GUIConstants.BODY_FONT_COLOR
     label_text: str = None
@@ -431,7 +378,10 @@ class IconTextLine(BaseComponent):
     def __post_init__(self):
         super().__post_init__()
 
-        self.icon = FontAwesomeIcon(
+        
+        self.icon = Icon(
+            image_draw=self.image_draw,
+            canvas=self.canvas,
             screen_x=self.screen_x,
             screen_y=0,    # We'll update this later below
             icon_name=self.icon_name,
@@ -512,10 +462,10 @@ class FormattedAddress(BaseComponent):
         bc1q567 abcdefg1234567abcdefg
         1234567abcdefg1234567 1234567
 
-        single sig taproot:       62
-        multisig native segwit:   62
-        multisig nested segwit:   34
-        single sig native segwit: 42
+        single sig taproot:       62 chars
+        multisig native segwit:   62 chars
+        multisig nested segwit:   34 chars
+        single sig native segwit: 42 chars
 
         * max_lines: forces truncation on long addresses to fit
     """
@@ -526,7 +476,7 @@ class FormattedAddress(BaseComponent):
     max_lines: int = None
     font_name: str = GUIConstants.FIXED_WIDTH_FONT_NAME
     font_size: int = 24
-    font_accent_color: str = "orange"
+    font_accent_color: str = GUIConstants.ACCENT_COLOR
     font_base_color: str = GUIConstants.LABEL_FONT_COLOR
 
     def __post_init__(self):
@@ -692,7 +642,7 @@ class Button(BaseComponent):
     is_icon_inline: bool = True    # True = render next to text; False = render centered above text
     text_y_offset: int = 0
     background_color: str = "#2c2c2c"
-    selected_color: str = "orange"
+    selected_color: str = GUIConstants.ACCENT_COLOR
     font_name: str = GUIConstants.BUTTON_FONT_NAME
     font_size: int = GUIConstants.BUTTON_FONT_SIZE
     # font_color: str = "#fcfcfc"
@@ -733,8 +683,8 @@ class Button(BaseComponent):
         # Preload the icon and its "_selected" variant
         if self.icon_name:
             icon_padding = GUIConstants.COMPONENT_PADDING
-            self.icon = FontAwesomeIcon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.icon_color)
-            self.icon_selected = FontAwesomeIcon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.selected_icon_color)
+            self.icon = Icon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.icon_color)
+            self.icon_selected = Icon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.selected_icon_color)
 
             if self.is_icon_inline:
                 if self.text:
@@ -780,7 +730,7 @@ class CheckedSelectionButton(Button):
 
     def __post_init__(self):
         self.is_text_centered = False
-        self.icon_name = FontAwesomeIconConstants.CIRCLE_CHECK
+        self.icon_name = FontAwesomeIconConstants.SOLID_CIRCLE_CHECK
         self.icon_color = "#00dd00"
         super().__post_init__()
 
@@ -843,7 +793,7 @@ class TopNav(BaseComponent):
         if self.show_back_button:
             self.back_button = IconButton(
                 text=None,
-                icon_name=FontAwesomeIconConstants.CHEVRON_LEFT,
+                icon_name=SeedSignerCustomIconConstants.LARGE_CHEVRON_LEFT,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,

@@ -2,8 +2,7 @@ import time
 import embit
 from binascii import hexlify
 
-from seedsigner.gui.components import FontAwesomeIconConstants
-from seedsigner.models.decode_qr import SeedQrDecoder
+from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 
 from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
 
@@ -33,7 +32,7 @@ class SeedsMenuView(View):
     def run(self):
         button_data = []
         for seed in self.seeds:
-            button_data.append((seed["fingerprint"], FontAwesomeIconConstants.FINGERPRINT))
+            button_data.append((seed["fingerprint"], SeedSignerCustomIconConstants.FINGERPRINT))
         button_data.append("Load a seed")
 
         selected_menu_num = ButtonListScreen(
@@ -103,7 +102,7 @@ class SeedOptionsView(View):
 
 
     def run(self):
-        SIGN_PSBT = "Sign PSBT"
+        REVIEW_PSBT = "Review PSBT"
         VIEW_WORDS = "View Seed Words"
         EXPORT_XPUB = "Export Xpub"
         EXPORT_SEEDQR = "Export Seed as QR"
@@ -113,8 +112,8 @@ class SeedOptionsView(View):
             if not PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 # This seed does not seem to be a signer for this PSBT
                 # TODO: How sure are we? Should disable this entirely if we're 100% sure?
-                SIGN_PSBT += " (?)"
-            button_data.append(SIGN_PSBT)
+                REVIEW_PSBT += " (?)"
+            button_data.append(REVIEW_PSBT)
         
         button_data.append(VIEW_WORDS)
 
@@ -132,7 +131,7 @@ class SeedOptionsView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        if button_data[selected_menu_num] == SIGN_PSBT:
+        if button_data[selected_menu_num] == REVIEW_PSBT:
             from seedsigner.views.psbt_views import PSBTOverviewView
             return Destination(PSBTOverviewView)
 

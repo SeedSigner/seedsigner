@@ -9,7 +9,7 @@ from seedsigner.helpers.threads import BaseThread
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.settings import SettingsConstants
 
-from ..components import (CheckedSelectionButton, GUIConstants, BaseComponent, Button, IconButton, TopNav,
+from ..components import (CheckedSelectionButton, GUIConstants, BaseComponent, Button, Icon, IconButton, SeedSignerCustomIconConstants, TopNav,
     TextArea, load_icon, load_image)
 
 from seedsigner.helpers import B, Buttons
@@ -253,7 +253,7 @@ class ButtonListScreen(BaseTopNavScreen):
     is_bottom_list: bool = False
     button_font_name: str = GUIConstants.BUTTON_FONT_NAME
     button_font_size: int = GUIConstants.BUTTON_FONT_SIZE
-    button_selected_color: str = "orange"
+    button_selected_color: str = GUIConstants.ACCENT_COLOR
 
     # Params for version of list used for Settings
     Button_cls = Button
@@ -472,7 +472,7 @@ class LargeButtonScreen(BaseTopNavScreen):
     button_data: list = None                  # list can be a mix of str or tuple(label: str, icon_name: str)
     button_font_name: str = GUIConstants.BUTTON_FONT_NAME
     button_font_size: int = 20
-    button_selected_color: str = "orange"
+    button_selected_color: str = GUIConstants.ACCENT_COLOR
 
     def __post_init__(self):
         super().__post_init__()
@@ -717,7 +717,8 @@ class WarningScreen(WarningScreenMixin, ButtonListScreen):
     title: str = "Caution"
     button_label: str = "I Understand"
     is_bottom_list: bool = True
-    warning_icon_name: str = "warning"
+    warning_icon_name: str = SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION
+    warning_icon_size=GUIConstants.ICON_PRIMARY_SCREEN_SIZE
     warning_headline: str = "Privacy Leak!"     # The colored text under the alert icon
     warning_text: str = ""                      # The body text of the warning
 
@@ -726,12 +727,16 @@ class WarningScreen(WarningScreenMixin, ButtonListScreen):
         self.button_data = [self.button_label]
         super().__post_init__()
 
-        self.warning_icon = load_icon(self.warning_icon_name)
-        warning_icon_y = self.top_nav.height
-        warning_icon_x = int((self.canvas_width - self.warning_icon.width) / 2)
-        self.paste_images.append((self.warning_icon, (warning_icon_x, warning_icon_y)))
+        self.warning_icon = Icon(
+            icon_name=self.warning_icon_name,
+            icon_size=self.warning_icon_size,
+            icon_color=self.warning_color,
+        )
+        self.warning_icon.screen_y = self.top_nav.height - int(GUIConstants.COMPONENT_PADDING/2)
+        self.warning_icon.screen_x = int((self.canvas_width - self.warning_icon.width) / 2)
+        self.components.append(self.warning_icon)
 
-        next_y = warning_icon_y + self.warning_icon.height + 4
+        next_y = self.warning_icon.screen_y + self.warning_icon.height + 4
         if self.warning_headline:
             self.warning_headline_textarea = TextArea(
                 text=self.warning_headline,
@@ -754,7 +759,7 @@ class WarningScreen(WarningScreenMixin, ButtonListScreen):
 @dataclass
 class DireWarningScreen(WarningScreen):
     title: str = "Caution"
-    warning_icon_name: str = "dire_warning"
+    warning_icon_name: str = SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION
     warning_headline: str = "Classified Info!"     # The colored text under the alert icon
     warning_color: str = GUIConstants.DIRE_WARNING_COLOR
 

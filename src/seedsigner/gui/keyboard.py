@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont
 from typing import Tuple
 
-from seedsigner.gui.components import Fonts
+from seedsigner.gui.components import Fonts, GUIConstants
 from seedsigner.helpers.buttons import B
 
 
@@ -146,7 +146,7 @@ class Keyboard:
                  additional_keys=[KEY_BACKSPACE],
                  auto_wrap=[WRAP_TOP, WRAP_BOTTOM, WRAP_LEFT, WRAP_RIGHT],
                  render_now=True,
-                 highlight_color: str = "orange"):
+                 highlight_color: str = GUIConstants.ACCENT_COLOR):
         """
             `auto_wrap` specifies which edges the keyboard is allowed to loop back when
             navigating past the end.

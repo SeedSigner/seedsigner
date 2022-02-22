@@ -7,7 +7,7 @@ from seedsigner.gui.renderer import Renderer
 from seedsigner.helpers.threads import BaseThread
 
 from .screen import ButtonListScreen, WarningScreen
-from ..components import (Button, FontAwesomeIcon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, PngIconTextLine, TextArea,
+from ..components import (Button, Icon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, SeedSignerCustomIconConstants, TextArea,
     calc_bezier_curve, linear_interp)
 
 
@@ -39,12 +39,13 @@ class PSBTOverviewScreen(ButtonListScreen):
             amount_display = f"{self.spend_amount:,} sats"
         else:
             amount_display = f"{self.spend_amount/1e8:,} btc"
-        self.components.append(PngIconTextLine(
-            icon_name="btc_logo_30x30",
+        self.components.append(IconTextLine(
+            icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO,
+            icon_color=GUIConstants.ACCENT_COLOR,
+            icon_size=34,
             is_text_centered=True,
-            value_text=f" {amount_display}",
+            value_text=f"{amount_display}",
             font_size=24,
-            screen_x=GUIConstants.COMPONENT_PADDING,
             screen_y=icon_text_lines_y,
         ))
 
@@ -360,7 +361,7 @@ class PSBTOverviewScreen(ButtonListScreen):
 
 
         def run(self):
-            pulse_color = "orange"
+            pulse_color = GUIConstants.ACCENT_COLOR
             reset_color = "#666"
             line_width = 3
 
@@ -443,7 +444,6 @@ class PSBTNoChangeWarningScreen(WarningScreen):
         self.title: str = "Caution"
         self.button_label: str = "Continue"
         self.is_bottom_list: bool = True
-        self.warning_icon_name: str = "warning"
         self.warning_headline: str = "Full Spend!"     # The colored text under the alert icon
         self.warning_text: str = "This PSBT spends its entire input value. No change is coming back to your wallet."                      # The body text of the warning
 
@@ -463,7 +463,7 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
 
     def __post_init__(self):
         # Customize defaults
-        self.title = "PSBT Details"
+        self.title = "PSBT Math"
         self.button_data = ["Review Recipients"]
         self.is_bottom_list = True
 
@@ -508,16 +508,17 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
         image = Image.new("RGB", (body_width*ssf, body_height*ssf))
         draw = ImageDraw.Draw(image)
 
-        body_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE*ssf)
-        fixed_width_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, (GUIConstants.BODY_FONT_SIZE + 4)*ssf)
+        body_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, (GUIConstants.BODY_FONT_SIZE)*ssf)
+        fixed_width_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, (GUIConstants.BODY_FONT_SIZE + 6)*ssf)
         digits_width, digits_height = fixed_width_font.getsize(self.input_amount + "+")
 
         # Draw each line of the equation
         cur_y = 0
 
         def render_amount(cur_y, amount_str, info_text, info_text_color=GUIConstants.LABEL_FONT_COLOR):
-            secondary_digit_color = "#777"
-            tertiary_digit_color = "#777"
+            secondary_digit_color = "#888"
+            tertiary_digit_color = "#666"
+            digit_group_spacing = 2 * ssf
             if denomination == 'btc':
                 display_str = amount_str
                 main_zone = display_str[:-6]
@@ -526,11 +527,11 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
                 main_zone_width, th = fixed_width_font.getsize(main_zone)
                 mid_zone_width, th = fixed_width_font.getsize(end_zone)
                 draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
-                draw.text((main_zone_width, cur_y), text=mid_zone, font=fixed_width_font, fill=secondary_digit_color)
-                draw.text((main_zone_width + mid_zone_width, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)
+                draw.text((main_zone_width + digit_group_spacing, cur_y), text=mid_zone, font=fixed_width_font, fill=secondary_digit_color)
+                draw.text((main_zone_width + digit_group_spacing + mid_zone_width + digit_group_spacing, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)
             else:
                 draw.text((0, cur_y), text=amount_str, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
-            draw.text((digits_width, cur_y), text=info_text, font=body_font, fill=info_text_color)
+            draw.text((digits_width + 2*digit_group_spacing, cur_y), text=info_text, font=body_font, fill=info_text_color)
 
         render_amount(
             cur_y,
@@ -560,7 +561,7 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
             cur_y,
             f" {self.change_amount}",
             info_text=f" {denomination} change",
-            info_text_color="darkorange"
+            info_text_color="darkorange"  # super-sampling alters the perceived color
         )
 
         # Resize to target and sharpen final image
@@ -579,29 +580,9 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
         # Customize defaults
         self.is_bottom_list = True
 
-        # Set up the screen title
-
-        # Set up the bottom button label for our next step
-
         super().__post_init__()
 
         center_img_height = self.buttons[0].screen_y - self.top_nav.height
-
-        # if self.is_change and not self.is_multisig:
-        #     # Show confirmed change data
-        #     is_change_derivation_path = self.derivation_path.split("/")[-2] == "1"
-        #     change_addr_index = self.derivation_path.split("/")[-1]
-        #     change_confirmed = IconTextLine(
-        #         icon_name="fingerprint",
-        #         label_text="address confirmed",
-        #         value_text=f"""{self.fingerprint}: {"change" if is_change_derivation_path else "addr"} #{change_addr_index}""",
-        #         is_text_centered=True,
-        #         screen_y = self.buttons[0].screen_y - 2*GUIConstants.COMPONENT_PADDING - 2*GUIConstants.BODY_FONT_SIZE,
-        #     )
-        #     self.components.append(change_confirmed)
-
-        #     # Readjust how much vertical space the center_img has to work with
-        #     center_img_height = change_confirmed.screen_y - self.top_nav.height
 
         # Figuring out how to vertically center the sats and the address is
         # difficult so we just render to a temp image and paste it in place.
@@ -612,14 +593,16 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
             amount_display = f"{self.amount:,} sats"
         else:
             amount_display = f"{self.amount/1e8:,} btc"
-        icon_text_line = PngIconTextLine(
+
+        icon_text_line = IconTextLine(
             image_draw=draw,
             canvas=center_img,
-            icon_name="btc_logo_30x30",
+            icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO,
+            icon_color=GUIConstants.ACCENT_COLOR,
+            icon_size=28,
             is_text_centered=True,
-            value_text=f" {amount_display}",
+            value_text=f"{amount_display}",
             font_size=22,
-            screen_x=GUIConstants.COMPONENT_PADDING,
             screen_y=0,
         )
 
@@ -665,9 +648,11 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
         self.is_bottom_list = True
         super().__post_init__()
 
-        self.components.append(PngIconTextLine(
-            icon_name="btc_logo_30x30",
-            value_text=f" {self.amount} sats" if self.amount < 1e6 else f"{self.amount/1e8:0.8f} btc",
+        self.components.append(IconTextLine(
+            icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO,
+            icon_color=GUIConstants.ACCENT_COLOR,
+            icon_size=28,
+            value_text=f"{self.amount} sats" if self.amount < 1e6 else f"{self.amount/1e8:0.8f} btc",
             font_size=22,
             is_text_centered=True,
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING
@@ -679,7 +664,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
         ))
 
         self.components.append(IconTextLine(
-            icon_name=FontAwesomeIconConstants.FINGERPRINT,
+            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
             icon_color="blue",
             value_text=f"""{self.fingerprint}: {"Change" if self.is_own_change_addr else "Addr"} #{self.own_addr_index}""",
             is_text_centered=False,
@@ -687,7 +672,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
             screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
         ))
         self.components.append(IconTextLine(
-            icon_name=FontAwesomeIconConstants.CIRCLE_CHECK,
+            icon_name=SeedSignerCustomIconConstants.CIRCLE_CHECK,
             icon_color="#00dd00",
             value_text="Address verified!",
             is_text_centered=False,
@@ -705,7 +690,7 @@ class PSBTFinalizeScreen(ButtonListScreen):
         self.is_bottom_list = True
         super().__post_init__()
 
-        icon = FontAwesomeIcon(
+        icon = Icon(
             icon_name=FontAwesomeIconConstants.PAPER_PLANE,
             icon_color="#00dd00",
             icon_size=GUIConstants.ICON_LARGE_BUTTON_SIZE,
