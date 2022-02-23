@@ -4,9 +4,7 @@ import os
 from dataclasses import dataclass
 from typing import Any, List
 
-from .seed import SeedConstants
 from .singleton import Singleton
-from .encode_qr import EncodeQR
 
 
 
@@ -49,6 +47,64 @@ class SettingsConstants:
         (CAMERA_ROTATION__270, "270°"),
     ]
 
+    # QR code constants
+    DENSITY__LOW = "L"
+    DENSITY__MEDIUM = "M"
+    DENSITY__HIGH = "H"
+    ALL_DENSITIES = [
+        (DENSITY__LOW, "Low"),
+        (DENSITY__MEDIUM, "Medium"),
+        (DENSITY__HIGH, "High"),
+    ]
+
+    # Seed-related constants
+    MAINNET = "main"
+    TESTNET = "test"
+    REGTEST = "regtest"
+    ALL_NETWORKS = [
+        (MAINNET, "Mainnet"),
+        (TESTNET, "Testnet"),
+        (REGTEST, "Regtest")
+    ]
+    
+    SINGLE_SIG = "single_sig"
+    MULTISIG = "multisig"
+    ALL_SIG_TYPES = [
+        (SINGLE_SIG, "Single Sig"),
+        (MULTISIG, "Multisig"),
+    ]
+
+    NATIVE_SEGWIT = "native_segwit"
+    NESTED_SEGWIT = "nested_segwit"
+    TAPROOT = "taproot"
+    CUSTOM_DERIVATION = "custom_derivation"
+    ALL_SCRIPT_TYPES = [
+        (NATIVE_SEGWIT, "Native Segwit"),
+        (NESTED_SEGWIT, "Nested Segwit (legacy)"),
+        (TAPROOT, "Taproot"),
+        (CUSTOM_DERIVATION, "Custom Derivation"),
+    ]
+
+    WORDLIST_LANGUAGE__ENGLISH = "en"
+    WORDLIST_LANGUAGE__CHINESE_SIMPLIFIED = "zh_Hans_CN"
+    WORDLIST_LANGUAGE__CHINESE_TRADITIONAL = "zh_Hant_TW"
+    WORDLIST_LANGUAGE__FRENCH = "fr"
+    WORDLIST_LANGUAGE__ITALIAN = "it"
+    WORDLIST_LANGUAGE__JAPANESE = "jp"
+    WORDLIST_LANGUAGE__KOREAN = "kr"
+    WORDLIST_LANGUAGE__PORTUGUESE = "pt"
+    ALL_WORDLIST_LANGUAGES = [
+        (WORDLIST_LANGUAGE__ENGLISH, "English"),
+        # (WORDLIST_LANGUAGE__CHINESE_SIMPLIFIED, "简体中文"),
+        # (WORDLIST_LANGUAGE__CHINESE_TRADITIONAL, "繁體中文"),
+        # (WORDLIST_LANGUAGE__FRENCH, "Français"),
+        # (WORDLIST_LANGUAGE__ITALIAN, "Italiano"),
+        # (WORDLIST_LANGUAGE__JAPANESE, "日本語"),
+        # (WORDLIST_LANGUAGE__KOREAN, "한국어"),
+        # (WORDLIST_LANGUAGE__PORTUGUESE, "Português"),
+    ]
+
+    
     # Individual SettingsEntry attr_names
     SETTING__LANGUAGE = "language"
     SETTING__WORDLIST_LANGUAGE = "wordlist_language"
@@ -118,7 +174,6 @@ class SettingsEntry:
     type: str = SettingsConstants.TYPE__ENABLED_DISABLED
     help_text: str = None
     selection_options: List[str] = None
-    selection_options_abbreviated: List[str] = None
     default_value: Any = None
 
     def __post_init__(self):
@@ -176,6 +231,37 @@ class SettingsEntry:
                 return display_name
 
 
+    def to_dict(self) -> dict:
+        if self.selection_options:
+            selection_options = []
+            for option in self.selection_options:
+                if type(option) == tuple:
+                    label = option[0]
+                    value = option[1]
+                else:
+                    label = option
+                    value = option
+                selection_options.append({
+                    "option_name": label,
+                    "value": value
+                })
+        else:
+            selection_options = None
+
+        return {
+            "category": self.category,
+            "attr_name": self.attr_name,
+            "display_name": self.display_name,
+            "verbose_name": self.verbose_name,
+            "abbreviated_name": self.abbreviated_name,
+            "visibility": self.visibility,
+            "type": self.type,
+            "help_text": self.help_text,
+            "selection_options": selection_options,
+            "default_value": self.default_value,
+        }
+
+
 
 class SettingsDefinition:
     """
@@ -190,6 +276,10 @@ class SettingsDefinition:
         Used to generate a master json file that documents all these params which can
         then be read in by the SettingsQR UI to auto-generate the necessary html inputs.
     """
+    # Increment if there are any breaking changes; write migrations to bridge from
+    # incompatible prior versions.
+    version: int = 1
+
     settings_entries: List[SettingsEntry] = [
         # General options
 
@@ -208,8 +298,8 @@ class SettingsDefinition:
                       display_name="Mnemonic language",
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__HIDDEN,
-                      selection_options=SeedConstants.ALL_WORDLIST_LANGUAGES,
-                      default_value=SeedConstants.WORDLIST_LANGUAGE__ENGLISH),
+                      selection_options=SettingsConstants.ALL_WORDLIST_LANGUAGES,
+                      default_value=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH),
      
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__PERSISTENT_SETTINGS,
@@ -230,16 +320,16 @@ class SettingsDefinition:
                       display_name="Bitcoin network",
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      selection_options=SeedConstants.ALL_NETWORKS,
-                      default_value=SeedConstants.REGTEST),         # DEBUGGING!
+                      selection_options=SettingsConstants.ALL_NETWORKS,
+                      default_value=SettingsConstants.REGTEST),         # DEBUGGING!
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__QR_DENSITY,
                       display_name="QR code density",
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      selection_options=EncodeQR.ALL_DENSITIES,
-                      default_value=EncodeQR.DENSITY__MEDIUM),
+                      selection_options=SettingsConstants.ALL_DENSITIES,
+                      default_value=SettingsConstants.DENSITY__MEDIUM),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__XPUB_EXPORT,
@@ -252,16 +342,16 @@ class SettingsDefinition:
                       display_name="Sig types",
                       type=SettingsConstants.TYPE__MULTISELECT,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      selection_options=SeedConstants.ALL_SIG_TYPES,
-                      default_value=SeedConstants.ALL_SIG_TYPES),
+                      selection_options=SettingsConstants.ALL_SIG_TYPES,
+                      default_value=SettingsConstants.ALL_SIG_TYPES),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__SCRIPT_TYPES,
                       display_name="Script types",
                       type=SettingsConstants.TYPE__MULTISELECT,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      selection_options=SeedConstants.ALL_SCRIPT_TYPES,
-                      default_value=[SeedConstants.NATIVE_SEGWIT, SeedConstants.NESTED_SEGWIT]),
+                      selection_options=SettingsConstants.ALL_SCRIPT_TYPES,
+                      default_value=[SettingsConstants.NATIVE_SEGWIT, SettingsConstants.NESTED_SEGWIT]),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__XPUB_DETAILS,
@@ -354,13 +444,14 @@ class SettingsDefinition:
 
 
     @classmethod
-    def to_json(cls):
-        raise Exception("Not implemented")
-    
-
-    @classmethod
-    def to_html(cls):
-        raise Exception("Not implemented, maybe not needed")
+    def to_dict(cls) -> dict:
+        output = {
+            "settings_entries": [],
+        }
+        for settings_entry in cls.settings_entries:
+            output["settings_entries"].append(settings_entry.to_dict())
+        
+        return output
 
 
 

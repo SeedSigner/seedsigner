@@ -16,7 +16,7 @@ from seedsigner.models import Seed, QRType
 from urtypes.crypto import PSBT as UR_PSBT
 from urtypes.crypto import Account, HDKey, Output, Keypath, PathComponent, SCRIPT_EXPRESSION_TAG_MAP
 
-from seedsigner.models.seed import SeedConstants
+from seedsigner.models.settings import SettingsConstants
 
 
 
@@ -28,21 +28,15 @@ class EncodeQR:
     # TODO: Refactor so that this is a base class with implementation classes for each
     # QR type. No reason exterior code can't directly instantiate the encoder it needs.
 
-    # Class constants to be referenced internally and externally
-    DENSITY__LOW = "Low"
-    DENSITY__MEDIUM = "Medium"
-    DENSITY__HIGH = "High"
-    ALL_DENSITIES = [DENSITY__LOW, DENSITY__MEDIUM, DENSITY__HIGH]
-
     # Dataclass input vars on __init__()
     psbt: PSBT = None
     seed_phrase: List[str] = None
     passphrase: str = None
     derivation: str = None
-    network: str = SeedConstants.MAINNET
+    network: str = SettingsConstants.MAINNET
     qr_type: str = None
-    qr_density: str = DENSITY__MEDIUM
-    wordlist_language_code: str = SeedConstants.WORDLIST_LANGUAGE__ENGLISH
+    qr_density: str = SettingsConstants.DENSITY__MEDIUM
+    wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
 
     def __post_init__(self):
         self.qr = QR()
@@ -51,7 +45,7 @@ class EncodeQR:
             raise Exception('qr_type is required')
 
         if self.qr_density == None:
-            self.qr_density = EncodeQR.DENSITY__MEDIUM
+            self.qr_density = SettingsConstants.DENSITY__MEDIUM
 
         self.encoder: BaseQrEncoder = None
 
@@ -169,11 +163,11 @@ class UrPsbtQrEncoder(BasePsbtQrEncoder):
         
         qr_ur_bytes = UR("crypto-psbt", UR_PSBT(self.psbt.serialize()).to_cbor())
 
-        if qr_density == EncodeQR.DENSITY__LOW:
+        if qr_density == SettingsConstants.DENSITY__LOW:
             self.qr_max_fragment_size = 10
-        elif qr_density == EncodeQR.DENSITY__MEDIUM:
+        elif qr_density == SettingsConstants.DENSITY__MEDIUM:
             self.qr_max_fragment_size = 30
-        elif qr_density == EncodeQR.DENSITY__HIGH:
+        elif qr_density == SettingsConstants.DENSITY__HIGH:
             self.qr_max_fragment_size = 120
 
         self.ur2_encode = UREncoder(ur=qr_ur_bytes, max_fragment_len=self.qr_max_fragment_size)
@@ -201,11 +195,11 @@ class SpecterPsbtQrEncoder(BasePsbtQrEncoder):
         self.part_num_sent = 0
         self.sent_complete = False
 
-        if qr_density == EncodeQR.DENSITY__LOW:
+        if qr_density == SettingsConstants.DENSITY__LOW:
             self.qr_max_fragement_size = 40
-        elif qr_density == EncodeQR.DENSITY__MEDIUM:
+        elif qr_density == SettingsConstants.DENSITY__MEDIUM:
             self.qr_max_fragement_size = 65
-        elif qr_density == EncodeQR.DENSITY__HIGH:
+        elif qr_density == SettingsConstants.DENSITY__HIGH:
             self.qr_max_fragement_size = 90
 
         self._create_parts()
@@ -382,11 +376,11 @@ class SpecterXPubQrEncoder(XpubQrEncoder):
     def __init__(self, qr_density, **kwargs):
         # Must set up qr_max_fragment_size before calling super().__init__()
         self.qr_max_fragment_size = 65
-        if qr_density == EncodeQR.DENSITY__LOW:
+        if qr_density == SettingsConstants.DENSITY__LOW:
             self.qr_max_fragment_size = 40
-        elif qr_density == EncodeQR.DENSITY__MEDIUM:
+        elif qr_density == SettingsConstants.DENSITY__MEDIUM:
             self.qr_max_fragment_size = 65
-        elif qr_density == EncodeQR.DENSITY__HIGH:
+        elif qr_density == SettingsConstants.DENSITY__HIGH:
             self.qr_max_fragment_size = 90
 
         super().__init__(**kwargs)
@@ -436,11 +430,11 @@ class UrXpubQrEncoder(XpubQrEncoder):
     def __init__(self, qr_density, **kwargs):
         super().__init__(**kwargs)
         
-        if qr_density == EncodeQR.DENSITY__LOW:
+        if qr_density == SettingsConstants.DENSITY__LOW:
             self.qr_max_fragment_size = 10
-        elif qr_density == EncodeQR.DENSITY__MEDIUM:
+        elif qr_density == SettingsConstants.DENSITY__MEDIUM:
             self.qr_max_fragment_size = 30
-        elif qr_density == EncodeQR.DENSITY__HIGH:
+        elif qr_density == SettingsConstants.DENSITY__HIGH:
             self.qr_max_fragment_size = 120
         
         def derivation_to_keypath(path: str) -> list:

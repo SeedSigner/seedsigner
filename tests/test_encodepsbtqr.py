@@ -4,7 +4,9 @@ from seedsigner.models import EncodeQR, QRType, EncodeQRDensity
 from embit import psbt, bip39
 from binascii import a2b_base64
 
-from seedsigner.models.seed import SeedConstants
+from seedsigner.models.settings import SettingsConstants
+
+
 
 def test_ur_qr_encode():
 
@@ -80,7 +82,7 @@ def test_specter_xpub_qr():
 
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUB__SPECTER, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQR.DENSITY__LOW)
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUB__SPECTER, network="test", derivation="m/48h/1h/0h/2h", qr_density=SettingsConstants.DENSITY__LOW)
 
     assert e.next_part() == "p1of4 [c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDN"
     assert e.next_part() == "p2of4 c5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBo"
@@ -91,7 +93,7 @@ def test_ur_xpub_qr():
     
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
     
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUB__UR, network="test", derivation="m/48h/1h/0h/2h", qr_density=EncodeQR.DENSITY__MEDIUM)
+    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUB__UR, network="test", derivation="m/48h/1h/0h/2h", qr_density=SettingsConstants.DENSITY__MEDIUM)
     
     assert e.next_part() == "UR:CRYPTO-ACCOUNT/1-4/LPADAACSJKCYYNRDRTYAHDCAOEADCYSSMECPONAOLYTAADMETAADDLOXAXHDCLAOKSRLNLKPUEGYATHPMNRTAAOLAH"
     assert e.next_part() == "UR:CRYPTO-ACCOUNT/2-4/LPAOAACSJKCYYNRDRTYAHDCASNKKGHZMLUZORPVDGUOTECSTTKTOLPCWPTNTLKZTTIZTBEAAHDCXVDTPMYQDLAWNGL"

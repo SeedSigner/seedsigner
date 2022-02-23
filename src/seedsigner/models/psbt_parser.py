@@ -5,12 +5,12 @@ from embit.psbt import PSBT
 from io import BytesIO
 from typing import List
 from seedsigner.models import Seed
-from seedsigner.models.seed import SeedConstants
+from seedsigner.models.settings import SettingsConstants
 
 
 
 class PSBTParser():
-    def __init__(self, p: PSBT, seed: Seed, network: str = SeedConstants.MAINNET):
+    def __init__(self, p: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET):
         self.psbt: PSBT = p
         self.seed = seed
         self.network = network
@@ -191,32 +191,32 @@ class PSBTParser():
     @staticmethod
     def calc_derivation(network, wallet_type, script_type):
         # TODO: Move this to Seed?
-        if network == SeedConstants.MAINNET:
+        if network == SettingsConstants.MAINNET:
             network_path = "0'"
-        elif network == SeedConstants.TESTNET:
+        elif network == SettingsConstants.TESTNET:
             network_path = "1'"
-        elif network == SeedConstants.REGTEST:
+        elif network == SettingsConstants.REGTEST:
             # TODO: Is this right?
             network_path = "1'"
         else:
             raise Exception("Unexpected network")
 
-        if wallet_type == SeedConstants.SINGLE_SIG:
-            if script_type == SeedConstants.NATIVE_SEGWIT:
+        if wallet_type == SettingsConstants.SINGLE_SIG:
+            if script_type == SettingsConstants.NATIVE_SEGWIT:
                 return f"m/84'/{network_path}/0'"
-            elif script_type == SeedConstants.NESTED_SEGWIT:
+            elif script_type == SettingsConstants.NESTED_SEGWIT:
                 return f"m/49'/{network_path}/0'"
-            elif script_type == SeedConstants.TAPROOT:
+            elif script_type == SettingsConstants.TAPROOT:
                 return f"m/86'/{network_path}/0'"
             else:
                 raise Exception("Unexpected script type")
 
-        elif wallet_type == SeedConstants.MULTISIG:
-            if script_type == SeedConstants.NATIVE_SEGWIT:
+        elif wallet_type == SettingsConstants.MULTISIG:
+            if script_type == SettingsConstants.NATIVE_SEGWIT:
                 return f"m/48'/{network_path}/0'/2'"
-            elif script_type == SeedConstants.NESTED_SEGWIT:
+            elif script_type == SettingsConstants.NESTED_SEGWIT:
                 return f"m/48'/{network_path}/0'/1'"
-            elif script_type == SeedConstants.TAPROOT:
+            elif script_type == SettingsConstants.TAPROOT:
                 raise Exception("Taproot multisig/musig not yet supported")
             else:
                 raise Exception("Unexpected script type")

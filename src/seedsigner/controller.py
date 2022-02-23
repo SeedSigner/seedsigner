@@ -3,6 +3,7 @@ from seedsigner.gui.renderer import Renderer
 from seedsigner.gui.screens.screen import WarningScreen
 from seedsigner.helpers.buttons import Buttons
 from seedsigner.views.screensaver import ScreensaverView
+from seedsigner.views.view import NotYetImplementedView
 
 from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
 
@@ -114,7 +115,7 @@ class Controller(Singleton):
             raise Exception(f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory.")
 
 
-    def pop_back_stack(self):
+    def pop_prev_from_back_stack(self):
         from .views import Destination
         if len(self.back_stack) > 0:
             # Pop the top View (which is the current View_cls)
@@ -186,19 +187,19 @@ class Controller(Singleton):
 
                 if not next_destination:
                     # Should only happen during dev when you hit an unimplemented option
-                    next_destination = Destination(None)
+                    next_destination = Destination(NotYetImplementedView)
 
                 if next_destination.skip_current_view:
                     # Remove the current View from history; it's forwarding us straight
-                    # to the next View.
-                    self.pop_back_stack()
+                    # to the next View so it should be as if this View never happened.
+                    self.back_stack.pop()
 
                 # Hang on to this reference...
                 clear_history = next_destination.clear_history
 
                 if next_destination.View_cls == BackStackView:
                     # "Back" arrow was clicked; load the previous view
-                    next_destination = self.pop_back_stack()
+                    next_destination = self.pop_prev_from_back_stack()
 
                 # ...now apply it, if needed
                 if clear_history:
@@ -976,7 +977,7 @@ class Controller(Singleton):
 
     def show_qr_density_tool(self):
         r = self.settings_tools_view.display_qr_density_selection()
-        if r in (EncodeQR.DENSITY__LOW, EncodeQR.DENSITY__MEDIUM, EncodeQR.DENSITY__HIGH):
+        if r in (SettingsConstants.DENSITY__LOW, SettingsConstants.DENSITY__MEDIUM, SettingsConstants.DENSITY__HIGH):
             self.settings.qr_density = r
 
         return Path.SETTINGS_SUB_MENU

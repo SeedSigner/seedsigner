@@ -13,8 +13,8 @@ from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
-from seedsigner.models.seed import Seed, SeedConstants
-from seedsigner.models.settings import Settings, SettingsConstants
+from seedsigner.models.seed import Seed
+from seedsigner.models.settings import SettingsConstants
 
 
 
@@ -138,8 +138,8 @@ class SeedOptionsView(View):
         elif button_data[selected_menu_num] == VIEW_WORDS:
             return Destination(SeedWordsWarningView, view_args={"seed_num": self.seed_num})
 
-        elif button_data[selected_menu_num] == EXPORT_XPUB and self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
-            return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})                
+        elif button_data[selected_menu_num] == EXPORT_XPUB:
+            return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})
 
         elif button_data[selected_menu_num] == EXPORT_SEEDQR:
             return Destination(NotYetImplementedView)
@@ -157,13 +157,19 @@ class SeedWordsWarningView(View):
 
 
     def run(self):
+        destination = Destination(SeedWordsView, view_args={"seed_num": self.seed_num})
+        if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__DISABLED:
+            # Forward straight to showing the words
+            destination.skip_current_view = True
+            return destination
+
         selected_menu_num = DireWarningScreen(
             warning_text="""You must keep your seed words private & away from all online devices.""",
         ).display()
 
         if selected_menu_num == 0:
             # User clicked "I Understand"
-            return Destination(SeedWordsView, view_args={"seed_num": self.seed_num})
+            return destination
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -234,10 +240,10 @@ class SeedExportXpubSigTypeView(View):
             return Destination(BackStackView)
 
         if button_data[selected_menu_num] == SINGLE_SIG:
-            return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": SeedConstants.SINGLE_SIG})
+            return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": SettingsConstants.SINGLE_SIG})
 
         elif button_data[selected_menu_num] == MULTISIG:
-            return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": SeedConstants.MULTISIG})
+            return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": SettingsConstants.MULTISIG})
 
 
 
@@ -262,10 +268,10 @@ class SeedExportXpubScriptTypeView(View):
             button_data=self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES),
         ).display()
 
-        if selected_menu_num < len(SeedConstants.ALL_SCRIPT_TYPES):
-            args["script_type"] = SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num][0]
+        if selected_menu_num < len(SettingsConstants.ALL_SCRIPT_TYPES):
+            args["script_type"] = SettingsConstants.ALL_SCRIPT_TYPES[selected_menu_num][0]
 
-            if SeedConstants.ALL_SCRIPT_TYPES[selected_menu_num][0] == SeedConstants.CUSTOM_DERIVATION:
+            if SettingsConstants.ALL_SCRIPT_TYPES[selected_menu_num][0] == SettingsConstants.CUSTOM_DERIVATION:
                 return Destination(SeedExportXpubCustomDerivationView, view_args=args)
 
             return Destination(SeedExportXpubCoordinatorView, view_args=args)
@@ -350,25 +356,28 @@ class SeedExportXpubWarningView(View):
 
 
     def run(self):
-        if self.settings.get_value(SettingsConstants.SETTING__PRIVACY_WARNINGS) == SettingsConstants.OPTION__ENABLED:
-            selected_menu_num = WarningScreen(
-                warning_headline="Privacy Leak!",
-                warning_text="""Xpub can be used to view all future transactions.""",
-            ).display()
-        else:
-            selected_menu_num = 0
+        destination = Destination(
+            SeedExportXpubDetailsView,
+            view_args={
+                "seed_num": self.seed_num,
+                "sig_type": self.sig_type,
+                "script_type": self.script_type,
+                "coordinator": self.coordinator,
+            }
+        )
+
+        if self.settings.get_value(SettingsConstants.SETTING__PRIVACY_WARNINGS) == SettingsConstants.OPTION__DISABLED:
+            destination.skip_current_view = True
+            return destination
+
+        selected_menu_num = WarningScreen(
+            warning_headline="Privacy Leak!",
+            warning_text="""Xpub can be used to view all future transactions.""",
+        ).display()
 
         if selected_menu_num == 0:
             # User clicked "I Understand"
-            return Destination(
-                SeedExportXpubDetailsView,
-                view_args={
-                    "seed_num": self.seed_num,
-                    "sig_type": self.sig_type,
-                    "script_type": self.script_type,
-                    "coordinator": self.coordinator,
-                }
-            )
+            return destination
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -394,7 +403,7 @@ class SeedExportXpubDetailsView(View):
         self.loading_screen = LoadingScreenThread(text="Generating xpub...")
         self.loading_screen.start()
 
-        if self.script_type == SeedConstants.CUSTOM_DERIVATION:
+        if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
             derivation_path = self.settings.custom_derivation
         else:
             derivation_path = PSBTParser.calc_derivation(

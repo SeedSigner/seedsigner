@@ -5,53 +5,7 @@ from embit import bip39, bip32
 from embit.networks import NETWORKS
 from typing import List
 
-
-class SeedConstants:
-    MAINNET = "main"
-    TESTNET = "test"
-    REGTEST = "regtest"
-    ALL_NETWORKS = [
-        (MAINNET, "Mainnet"),
-        (TESTNET, "Testnet"),
-        (REGTEST, "Regtest")
-    ]
-    
-    SINGLE_SIG = "single_sig"
-    MULTISIG = "multisig"
-    ALL_SIG_TYPES = [
-        (SINGLE_SIG, "Single Sig"),
-        (MULTISIG, "Multisig"),
-    ]
-
-    NATIVE_SEGWIT = "native_segwit"
-    NESTED_SEGWIT = "nested_segwit"
-    TAPROOT = "taproot"
-    CUSTOM_DERIVATION = "custom_derivation"
-    ALL_SCRIPT_TYPES = [
-        (NATIVE_SEGWIT, "Native Segwit"),
-        (NESTED_SEGWIT, "Nested Segwit (legacy)"),
-        (TAPROOT, "Taproot"),
-        (CUSTOM_DERIVATION, "Custom Derivation"),
-    ]
-
-    WORDLIST_LANGUAGE__ENGLISH = "en"
-    WORDLIST_LANGUAGE__CHINESE_SIMPLIFIED = "zh_Hans_CN"
-    WORDLIST_LANGUAGE__CHINESE_TRADITIONAL = "zh_Hant_TW"
-    WORDLIST_LANGUAGE__FRENCH = "fr"
-    WORDLIST_LANGUAGE__ITALIAN = "it"
-    WORDLIST_LANGUAGE__JAPANESE = "jp"
-    WORDLIST_LANGUAGE__KOREAN = "kr"
-    WORDLIST_LANGUAGE__PORTUGUESE = "pt"
-    ALL_WORDLIST_LANGUAGES = [
-        (WORDLIST_LANGUAGE__ENGLISH, "English"),
-        # (WORDLIST_LANGUAGE__CHINESE_SIMPLIFIED, "简体中文"),
-        # (WORDLIST_LANGUAGE__CHINESE_TRADITIONAL, "繁體中文"),
-        # (WORDLIST_LANGUAGE__FRENCH, "Français"),
-        # (WORDLIST_LANGUAGE__ITALIAN, "Italiano"),
-        # (WORDLIST_LANGUAGE__JAPANESE, "日本語"),
-        # (WORDLIST_LANGUAGE__KOREAN, "한국어"),
-        # (WORDLIST_LANGUAGE__PORTUGUESE, "Português"),
-    ]
+from seedsigner.models.settings import SettingsConstants
 
 
 
@@ -64,7 +18,7 @@ class Seed:
     def __init__(self,
                  mnemonic: List[str] = None,
                  passphrase: str = "",
-                 wordlist_language_code: str = SeedConstants.WORDLIST_LANGUAGE__ENGLISH) -> None:
+                 wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> None:
         self.wordlist_language_code = wordlist_language_code
 
         if not mnemonic:
@@ -79,9 +33,9 @@ class Seed:
 
 
     @staticmethod
-    def get_wordlist(wordlist_language_code: str = SeedConstants.WORDLIST_LANGUAGE__ENGLISH) -> List[str]:
+    def get_wordlist(wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> List[str]:
         # TODO: Support other bip-39 wordlist languages!
-        if wordlist_language_code == SeedConstants.WORDLIST_LANGUAGE__ENGLISH:
+        if wordlist_language_code == SettingsConstants.WORDLIST_LANGUAGE__ENGLISH:
             return bip39.WORDLIST
         else:
             raise Exception(f"Unrecognized wordlist_language_code {wordlist_language_code}")
@@ -148,7 +102,7 @@ class Seed:
         raise Exception("Not yet implemented!")
 
 
-    def get_fingerprint(self, network: str = SeedConstants.MAINNET) -> str:
+    def get_fingerprint(self, network: str = SettingsConstants.MAINNET) -> str:
         root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[network]["xprv"])
         return hexlify(root.child(0).fingerprint).decode('utf-8')
         

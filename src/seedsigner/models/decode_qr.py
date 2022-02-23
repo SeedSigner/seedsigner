@@ -14,7 +14,6 @@ from seedsigner.helpers.ur2.ur_decoder import URDecoder
 from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
 
 from . import QRType, Seed
-from .seed import SeedConstants
 from .settings import SettingsConstants
 
 
@@ -38,7 +37,7 @@ class DecodeQR:
     """
         Used to process images or string data from animated qr codes.
     """
-    def __init__(self, wordlist_language_code: str = SeedConstants.WORDLIST_LANGUAGE__ENGLISH):
+    def __init__(self, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH):
         self.wordlist_language_code = wordlist_language_code
         self.complete = False
         self.qr_type = None
@@ -775,14 +774,14 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
                 "2": SettingsConstants.OPTION__PROMPT,
             }
             map_abbreviated_sig_types = {
-                "s": SeedConstants.SINGLE_SIG,
-                "m": SeedConstants.MULTISIG,
+                "s": SettingsConstants.SINGLE_SIG,
+                "m": SettingsConstants.MULTISIG,
             }
             map_abbreviated_scripts = {
-                "na": SeedConstants.NATIVE_SEGWIT,
-                "ne": SeedConstants.NESTED_SEGWIT,
-                "tr": SeedConstants.TAPROOT,
-                "cu": SeedConstants.CUSTOM_DERIVATION,
+                "na": SettingsConstants.NATIVE_SEGWIT,
+                "ne": SettingsConstants.NESTED_SEGWIT,
+                "tr": SettingsConstants.TAPROOT,
+                "cu": SettingsConstants.CUSTOM_DERIVATION,
             }
             map_abbreviated_coordinators = {
                 "bw": SettingsConstants.COORDINATOR__BLUE_WALLET,

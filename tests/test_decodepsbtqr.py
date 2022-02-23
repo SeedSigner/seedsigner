@@ -3,8 +3,6 @@ from mock import MagicMock
 from seedsigner.models import Seed, DecodeQR, DecodeQRStatus, QRType, PSBTParser
 from embit import psbt, bip39
 
-from seedsigner.models.seed import SeedConstants
-
 
 
 # this is an of this bug: https://github.com/Foundation-Devices/foundation-ur-py/issues/3

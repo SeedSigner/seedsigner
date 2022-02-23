@@ -55,14 +55,10 @@ class GUIConstants:
 
 class FontAwesomeIconConstants:
     CAMERA = "\uf030"
-    # CHEVRON_LEFT = "\uf053"
-    # CHEVRON_RIGHT = "\uf054"
     SOLID_CIRCLE_CHECK = "\uf058"
     CIRCLE = "\uf111"
     CIRCLE_CHEVRON_RIGHT = "\uf138"
-    # CIRCLE_EXCLAMATION = "\uf06a"
     DICE = "\uf522"
-    # FINGERPRINT = "\uf577"
     GEAR = "\uf013"
     KEY = "\uf084"
     KEYBOARD = "\uf11c"

@@ -52,7 +52,7 @@ All of the above!
 These features will not be included in the initial v0.5.0 release and will have varying degrees of priority for subsequent releases (or possibly not at all).
 
 * Multisig wallet descriptor QR scan(?) and addr verification(?)
-* Multi-language support
+* Multi-language support (Transifex free for open source projects)
 * Multisig: sign PSBT with multiple keys at once.
 * Custom OS, possibly with swappable SD card PSBT and multisig wallet descriptor storage
 * Decoy game mode at launch (Snake, Tetris, Sudoku...?)
