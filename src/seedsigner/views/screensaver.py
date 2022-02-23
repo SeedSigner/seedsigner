@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw
 
 from .view import View
 
-from seedsigner.gui.components import Fonts, GUIConstants
+from seedsigner.gui.components import Fonts, GUIConstants, load_image
 
 
 
@@ -15,9 +15,7 @@ class LogoView:
     def __init__(self):
         from seedsigner.gui import Renderer
         self.renderer = Renderer.get_instance()
-        dirname = os.path.dirname(__file__)
-        logo_url = os.path.join(dirname, "../../", "seedsigner", "resources", "logo_black_240.png")
-        self.logo = Image.open(logo_url)
+        self.logo = load_image("logo_black_240.png")
 
 
 
@@ -33,7 +31,7 @@ class OpeningSplashView(LogoView):
             self.renderer.disp.ShowImage(Image.alpha_composite(background, self.logo), 0, 0)
 
         # Display version num and hold for a few seconds
-        font = Fonts.get_font("RobotoCondensed-Regular", 22)
+        font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.TOP_NAV_TITLE_FONT_SIZE)
         version = f"v{controller.VERSION}"
         tw, th = font.getsize(version)
         x = int((self.renderer.canvas_width - tw) / 2)
@@ -59,7 +57,6 @@ class ScreensaverView(LogoView):
         self.min_coords = (0, 0)
         self.max_coords = (self.logo.size[0], self.logo.size[1])
 
-        max_increment = 25
         self.increment_x = self.rand_increment()
         self.increment_y = self.rand_increment()
         self.cur_x = int(self.logo.size[0] / 2)
