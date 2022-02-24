@@ -231,13 +231,13 @@ class SettingsEntry:
             selection_options = []
             for option in self.selection_options:
                 if type(option) == tuple:
-                    label = option[0]
-                    value = option[1]
+                    value = option[0]
+                    display_name = option[1]
                 else:
-                    label = option
+                    display_name = option
                     value = option
                 selection_options.append({
-                    "option_name": label,
+                    "display_name": display_name,
                     "value": value
                 })
         else:
