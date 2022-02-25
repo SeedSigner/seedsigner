@@ -1,6 +1,7 @@
 import time
 import embit
 from binascii import hexlify
+from embit.networks import NETWORKS
 
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 
@@ -407,21 +408,22 @@ class SeedExportXpubDetailsView(View):
             derivation_path = self.settings.custom_derivation
         else:
             derivation_path = PSBTParser.calc_derivation(
-                network=self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK),
+                network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
                 wallet_type=self.sig_type,
                 script_type=self.script_type
             )
 
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__ENABLED:
+            embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.settings.get_value(SettingsConstants.SETTING__NETWORK))]
             version = embit.bip32.detect_version(
                 derivation_path,
                 default="xpub",
-                network=embit.networks.NETWORKS[self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK)]
+                network=embit_network
             )
 
             root = embit.bip32.HDKey.from_seed(
                 self.seed.seed_bytes,
-                version=embit.networks.NETWORKS[self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK)]["xprv"]
+                version=embit_network["xprv"]
             )
 
             fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
@@ -497,7 +499,7 @@ class SeedValidView(View):
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
-        self.fingerprint = self.seed.get_fingerprint(network=self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK))
+        self.fingerprint = self.seed.get_fingerprint(network=self.settings.get_value(SettingsConstants.SETTING__NETWORK))
 
 
     def run(self):

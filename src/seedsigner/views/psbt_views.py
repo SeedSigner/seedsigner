@@ -79,7 +79,7 @@ class PSBTOverviewView(View):
             self.controller.psbt_parser = PSBTParser(
                 self.controller.psbt,
                 seed=self.controller.psbt_seed,
-                network=self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK)
+                network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)
             )
 
 

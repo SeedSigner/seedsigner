@@ -5,25 +5,29 @@ from typing import Any, List
 
 class SettingsConstants:
     # Basic defaults
-    OPTION__ENABLED = "Enabled"
-    OPTION__DISABLED = "Disabled"
-    OPTION__PROMPT = "Prompt"
-    OPTION__REQUIRED = "Required"
-    ALL_OPTIONS = [
-        OPTION__ENABLED,
-        OPTION__DISABLED,
-        OPTION__PROMPT,
-        OPTION__REQUIRED,
+    OPTION__ENABLED = "E"
+    OPTION__DISABLED = "D"
+    OPTION__PROMPT = "P"
+    OPTION__REQUIRED = "R"
+    OPTIONS__ENABLED_DISABLED = [
+        (OPTION__ENABLED, "Enabled"),
+        (OPTION__DISABLED, "Disabled"),
+    ]
+    OPTIONS__ENABLED_DISABLED_PROMPT = OPTIONS__ENABLED_DISABLED + [
+        (OPTION__PROMPT, "Prompt"),
+    ]
+    ALL_OPTIONS = OPTIONS__ENABLED_DISABLED_PROMPT + [
+        (OPTION__REQUIRED, "Required"),
     ]
 
     # User-facing selection options
-    COORDINATOR__BLUE_WALLET = "BlueWallet"
-    COORDINATOR__SPARROW = "Sparrow"
-    COORDINATOR__SPECTER_DESKTOP = "Specter Desktop"
+    COORDINATOR__BLUE_WALLET = "bw"
+    COORDINATOR__SPARROW = "spa"
+    COORDINATOR__SPECTER_DESKTOP = "spd"
     ALL_COORDINATORS = [
-        COORDINATOR__BLUE_WALLET,
-        COORDINATOR__SPARROW,
-        COORDINATOR__SPECTER_DESKTOP,
+        (COORDINATOR__BLUE_WALLET, "BlueWallet"),
+        (COORDINATOR__SPARROW, "Sparrow"),
+        (COORDINATOR__SPECTER_DESKTOP, "Specter Desktop"),
     ]
 
     LANGUAGE__ENGLISH = "en"
@@ -53,26 +57,36 @@ class SettingsConstants:
     ]
 
     # Seed-related constants
-    MAINNET = "main"
-    TESTNET = "test"
-    REGTEST = "regtest"
+    MAINNET = "M"
+    TESTNET = "T"
+    REGTEST = "R"
     ALL_NETWORKS = [
         (MAINNET, "Mainnet"),
         (TESTNET, "Testnet"),
         (REGTEST, "Regtest")
     ]
+
+    @classmethod
+    def map_network_to_embit(cls, network) -> str:
+        if network == SettingsConstants.MAINNET:
+            return "main"
+        elif network == SettingsConstants.TESTNET:
+            return "test"
+        if network == SettingsConstants.REGTEST:
+            return "regtest"
     
-    SINGLE_SIG = "single_sig"
-    MULTISIG = "multisig"
+
+    SINGLE_SIG = "ss"
+    MULTISIG = "ms"
     ALL_SIG_TYPES = [
         (SINGLE_SIG, "Single Sig"),
         (MULTISIG, "Multisig"),
     ]
 
-    NATIVE_SEGWIT = "native_segwit"
-    NESTED_SEGWIT = "nested_segwit"
-    TAPROOT = "taproot"
-    CUSTOM_DERIVATION = "custom_derivation"
+    NATIVE_SEGWIT = "nat"
+    NESTED_SEGWIT = "nes"
+    TAPROOT = "tr"
+    CUSTOM_DERIVATION = "cus"
     ALL_SCRIPT_TYPES = [
         (NATIVE_SEGWIT, "Native Segwit"),
         (NESTED_SEGWIT, "Nested Segwit (legacy)"),
@@ -173,13 +187,10 @@ class SettingsEntry:
 
     def __post_init__(self):
         if self.type == SettingsConstants.TYPE__ENABLED_DISABLED:
-            self.selection_options = [SettingsConstants.OPTION__ENABLED,
-                                      SettingsConstants.OPTION__DISABLED]
+            self.selection_options = SettingsConstants.OPTIONS__ENABLED_DISABLED
 
         elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT:
-            self.selection_options = [SettingsConstants.OPTION__ENABLED,
-                                      SettingsConstants.OPTION__DISABLED,
-                                      SettingsConstants.OPTION__PROMPT]
+            self.selection_options = SettingsConstants.OPTIONS__ENABLED_DISABLED_PROMPT
 
         elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQUIRED:
             self.selection_options = [SettingsConstants.ALL_OPTIONS]

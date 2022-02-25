@@ -103,7 +103,7 @@ class Seed:
 
 
     def get_fingerprint(self, network: str = SettingsConstants.MAINNET) -> str:
-        root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[network]["xprv"])
+        root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
         return hexlify(root.child(0).fingerprint).decode('utf-8')
         
     

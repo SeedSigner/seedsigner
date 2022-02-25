@@ -673,7 +673,7 @@ class SeedToolsView(View):
 
                 elif show_qr_option and ret_val == B.KEY_RIGHT:
                     # Show the resulting seed as a transcribable QR code
-                    if self.controller.settings.compact_seedqr_enabled:
+                    if self.settings.compact_seedqr_enabled:
                         self.display_seed_qr_options(seed_phrase)
                     else:
                         self.seed_phrase_as_qr(seed_phrase)
@@ -703,7 +703,7 @@ class SeedToolsView(View):
 
                     elif show_qr_option and ret_val == B.KEY_RIGHT:
                         # Show the resulting seed as a transcribable QR code
-                        if self.controller.settings.compact_seedqr_enabled:
+                        if self.settings.compact_seedqr_enabled:
                             self.display_seed_qr_options(seed_phrase)
                         else:
                             self.seed_phrase_as_qr(seed_phrase)
@@ -739,9 +739,9 @@ class SeedToolsView(View):
 
     def seed_phrase_as_qr(self, seed_phrase, is_compact_seedqr=False):
         if is_compact_seedqr:
-            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEED__COMPACTSEEDQR, wordlist=self.controller.settings.wordlist)
+            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEED__COMPACTSEEDQR, wordlist=self.settings.wordlist)
         else:
-            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEED__SEEDQR, wordlist=self.controller.settings.wordlist)
+            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEED__SEEDQR, wordlist=self.settings.wordlist)
         data = e.next_part()
         qr = QR()
         image = qr.qrimage(
@@ -902,7 +902,7 @@ class SeedToolsView(View):
         self.draw_modal(["Scanning..."], "Seed QR" ,"Right to Exit")
         try:
             self.controller.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
-            decoder = DecodeQR(wordlist=self.controller.settings.wordlist)
+            decoder = DecodeQR(wordlist=self.settings.wordlist)
             while True:
                 frame = self.controller.camera.read_video_stream(as_image=True)
                 if frame is not None:

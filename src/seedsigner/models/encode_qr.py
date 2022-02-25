@@ -332,11 +332,11 @@ class XpubQrEncoder(BaseQrEncoder):
         if self.wordlist == None:
             raise Exception('Wordlist Required')
             
-        version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[self.network])
+        version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
         self.seed = Seed(mnemonic=self.seed_phrase,
                          passphrase=self.passphrase,
                          wordlist_language_code=wordlist_language_code)
-        self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[self.network]["xprv"])
+        self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(self.network)]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
         self.xprv = self.root.derive(self.derivation)
         self.xpub = self.xprv.to_public()

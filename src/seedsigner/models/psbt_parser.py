@@ -55,7 +55,7 @@ class PSBTParser():
 
 
     def _set_root(self):
-        self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[self.network]["xprv"])
+        self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(self.network)]["xprv"])
         print(f"root: {self.root}")
 
 
@@ -142,7 +142,7 @@ class PSBTParser():
                 if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
                     is_change = True
             if is_change:
-                addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[self.network])
+                addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
                 fingerprints = None
                 derivation_paths = None
                 if len(self.psbt.outputs[i].bip32_derivations) > 0:
@@ -159,7 +159,7 @@ class PSBTParser():
                 })
                 self.change_amount += self.psbt.tx.vout[i].value
             else:
-                addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[self.network])
+                addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
                 self.destination_addresses.append(addr)
                 self.destination_amounts.append(self.psbt.tx.vout[i].value)
                 self.spend_amount += self.psbt.tx.vout[i].value
@@ -322,7 +322,7 @@ class PSBTParser():
 
 
     @staticmethod
-    def has_matching_input_fingerprint(psbt: PSBT, seed: Seed, network: str = "main"):
+    def has_matching_input_fingerprint(psbt: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET):
         """
             Extracts the fingerprint from each psbt input utxo. Returns True if any match
             the current seed.
