@@ -5,7 +5,7 @@ from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.settings import SettingsConstants
 
-from .view import BackStackView, MainMenuView, View, Destination
+from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 from seedsigner.gui.screens import psbt_screens
@@ -228,6 +228,8 @@ class PSBTChangeDetailsView(View):
         # Can we verify this change addr?
         change_data = psbt_parser.get_change_data(change_num=self.change_address_num)
 
+        # TODO: MULTISIG!
+
         # Single-sig verification is easy. We expect to find a single fingerprint
         # and derivation path.
         print(f"seed fingerprint: {self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))}")
@@ -235,7 +237,7 @@ class PSBTChangeDetailsView(View):
 
         if self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)) != change_data.get("fingerprint")[0]:
             # TODO: Something is wrong with this psbt(?). Reroute to warning?
-            return Destination(MainMenuView)
+            return Destination(NotYetImplementedView)
 
         fingerprint = change_data.get("fingerprint")[0]
         derivation_path = change_data.get("derivation_path")[0]

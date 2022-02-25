@@ -158,6 +158,11 @@ class SettingsConstants:
     TYPE__MULTISELECT = "multiselect"
     TYPE__FREE_ENTRY = "free_entry"
 
+    ALL_ENABLED_DISABLED_TYPES = [
+        TYPE__ENABLED_DISABLED,
+        TYPE__ENABLED_DISABLED_PROMPT,
+        TYPE__ENABLED_DISABLED_PROMPT_REQUIRED,
+    ]
 
 
 @dataclass

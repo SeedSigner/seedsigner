@@ -26,7 +26,7 @@ class Settings(Singleton):
             # Read persistent settings file, if it exists
             if os.path.exists(Settings.SETTINGS_FILENAME):
                 with open(Settings.SETTINGS_FILENAME) as settings_file:
-                    settings.update(json.load(settings_file))
+                    settings.update(json.load(settings_file), disable_missing_entries=False)
 
         return cls._instance
 
@@ -41,7 +41,41 @@ class Settings(Singleton):
                 json.dump(self._data, settings_file, indent=4)
 
 
-    def update(self, new_settings: dict):
+    def update(self, new_settings: dict, disable_missing_entries: bool = True):
+        """
+            * disable_missing_entries: The SettingsQR Generator omits any multiselect
+                fields with zero selections or disabled Enabled/Disabled toggles. So if a
+                field is missing, interpret it as such. But if this is set to False, keep
+                the existing value for the field; most likely this is a new setting that
+                the user may not have a value for when loading their persistent settings,
+                in which case this would preserve the new field's default value.
+        """
+        for entry in SettingsDefinition.settings_entries:
+            if entry.attr_name not in new_settings:
+                if not disable_missing_entries:
+                    # Setting is missing; insert default
+                    new_settings[entry.attr_name] = entry.default_value
+                
+                elif entry.visibility == SettingsConstants.VISIBILITY__HIDDEN:
+                    # Missing hidden values always get their default
+                    new_settings[entry.attr_name] = entry.default_value
+
+                elif entry.type == SettingsConstants.TYPE__MULTISELECT:
+                    # Clear out the multiselect
+                    new_settings[entry.attr_name] = []
+
+                elif entry.type in SettingsConstants.ALL_ENABLED_DISABLED_TYPES:
+                    # Set DISABLED for this missing setting
+                    new_settings[entry.attr_name] = SettingsConstants.OPTION__DISABLED
+
+            else:
+                # Clean the incoming data, if necessary
+                if entry.type == SettingsConstants.TYPE__MULTISELECT:
+                    if type(new_settings[entry.attr_name]) == str:
+                        # Break comma-separated SettingsQR input into List
+                        new_settings[entry.attr_name] = new_settings[entry.attr_name].split(",")
+
+
         # Can't just merge the _data dict; have to replace keys they have in common
         #   (otherwise list values will be merged instead of replaced).
         for key, value in new_settings.items():
