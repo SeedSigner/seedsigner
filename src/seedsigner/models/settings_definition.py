@@ -471,10 +471,6 @@ if __name__ == "__main__":
     import os
     print("Exporting SettingsDefinition to json")
 
-    # output_dir = os.path.join("seedsigner", "resources")
-    # if not os.path.isdir(output_dir):
-    #     raise Exception("Must run from the src/ directory!)")
-
     output_file = "settings_definition.json"
     with open(output_file, 'w') as json_file:
         json.dump(SettingsDefinition.to_dict(), json_file, indent=4)
