@@ -746,12 +746,13 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
 
 
     def add(self, segment, qr_type=QRType.SETTINGS):
-        print(f"SettingsQR: {segment}")
+        print(f"SettingsQR:\n{segment}")
         try:
             self.settings = {}
 
-            # QR Settings format is space-separated key/value pairs
-            for entry in segment.split(" "):
+            # QR Settings format is space-separated key/value pairs, but should also
+            # parse \n-separated keys.
+            for entry in segment.split():
                 key = entry.split("=")[0].strip()
                 value = entry.split("=")[1].strip()
                 self.settings[key] = value

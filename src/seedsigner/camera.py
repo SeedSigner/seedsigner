@@ -20,7 +20,7 @@ class Camera(Singleton):
         from seedsigner.models import Settings
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
-        cls._instance._camera_rotation = Settings.get_instance().get_value(SettingsConstants.SETTING__CAMERA_ROTATION)
+        cls._instance._camera_rotation = int(Settings.get_instance().get_value(SettingsConstants.SETTING__CAMERA_ROTATION))
         return cls._instance
 
 
