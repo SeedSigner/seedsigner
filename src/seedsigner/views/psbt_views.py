@@ -152,8 +152,11 @@ class PSBTAmountDetailsView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        # Only one exit point
-        return Destination(PSBTAddressDetailsView, view_args={"address_num": 0, "is_change": len(psbt_parser.destination_addresses) == 0})
+        if len(psbt_parser.destination_addresses) > 0:
+            return Destination(PSBTAddressDetailsView, view_args={"address_num": 0})
+        else:
+            # This is a self-transfer
+            return Destination(PSBTChangeDetailsView, view_args={"change_address_num": 0})
 
 
 
@@ -164,7 +167,6 @@ class PSBTAddressDetailsView(View):
     def __init__(self, address_num, is_change=False):
         super().__init__()
         self.address_num = address_num
-        self.is_change = is_change
 
 
     def run(self):
@@ -189,7 +191,6 @@ class PSBTAddressDetailsView(View):
             button_data=button_data,
             address=psbt_parser.destination_addresses[self.address_num],
             amount=psbt_parser.destination_amounts[self.address_num],
-            is_change=self.is_change,
         ).display()
 
         if selected_menu_num == 0:

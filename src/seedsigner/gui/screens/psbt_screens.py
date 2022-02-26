@@ -35,10 +35,18 @@ class PSBTOverviewScreen(ButtonListScreen):
         # Prep the headline amount being spent in large callout
         # icon_text_lines_y = self.components[-1].screen_y + self.components[-1].height
         icon_text_lines_y = self.top_nav.height
-        if self.spend_amount <= 1e6:
-            amount_display = f"{self.spend_amount:,} sats"
+
+
+        if not self.destination_addresses:
+            # This is a self-transfer
+            spend_amount = self.change_amount
         else:
-            amount_display = f"{self.spend_amount/1e8:,} btc"
+            spend_amount = self.spend_amount
+
+        if spend_amount <= 1e6:
+            amount_display = f"{spend_amount:,} sats"
+        else:
+            amount_display = f"{spend_amount/1e8:,} btc"
         self.components.append(IconTextLine(
             icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO,
             icon_color=GUIConstants.ACCENT_COLOR,
@@ -539,12 +547,15 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
             info_text=f""" {self.num_inputs} input{"s" if self.num_inputs > 1 else ""}""",
         )
 
-        cur_y += int(digits_height * 1.2)
-        render_amount(
-            cur_y,
-            f"-{self.spend_amount}",
-            info_text=f""" {self.num_recipients} recipient{"s" if self.num_recipients > 1 else ""}""",
-        )
+        # spend_amount will be zero on self-transfers; only display when there's an
+        # external recipient.
+        if self.num_recipients > 0:
+            cur_y += int(digits_height * 1.2)
+            render_amount(
+                cur_y,
+                f"-{self.spend_amount}",
+                info_text=f""" {self.num_recipients} recipient{"s" if self.num_recipients > 1 else ""}""",
+            )
 
         cur_y += int(digits_height * 1.2)
         render_amount(
@@ -574,7 +585,6 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
 class PSBTAddressDetailsScreen(ButtonListScreen):
     address: str = None
     amount: int = 0
-    is_change: bool = False
 
     def __post_init__(self):
         # Customize defaults
@@ -614,7 +624,6 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
             screen_y=icon_text_line.height + GUIConstants.COMPONENT_PADDING,
             font_size=24,
             address=self.address,
-            max_lines=2 if self.is_change else None,
         )
 
         # Render each to the temp img we passed in
