@@ -58,6 +58,8 @@ class DecodeQR:
 
         qr_type = DecodeQR.detect_segment_type(data, wordlist_language_code=self.wordlist_language_code)
 
+        print(qr_type)
+
         if self.qr_type == None:
             self.qr_type = qr_type
 
@@ -272,8 +274,8 @@ class DecodeQR:
         barcodes = pyzbar.decode(image, symbols=[ZBarSymbol.QRCODE], binary=is_binary)
 
         # if barcodes:
-        #     logger.debug("--------------- extract_qr_data ---------------")
-        #     logger.debug(barcodes)
+            # print("--------------- extract_qr_data ---------------")
+            # print(barcodes)
 
         for barcode in barcodes:
             # Only pull and return the first barcode
@@ -282,9 +284,9 @@ class DecodeQR:
 
     @staticmethod
     def detect_segment_type(s, wordlist_language_code=None):
-        # logger.debug("-------------- DecodeQR.detect_segment_type --------------")
-        # logger.debug(type(s))
-        # logger.debug(len(s))
+        # print("-------------- DecodeQR.detect_segment_type --------------")
+        # print(type(s))
+        # print(len(s))
 
         try:
             # Convert to str data
@@ -293,6 +295,7 @@ class DecodeQR:
                 # are strings.
                 # TODO: Convert the test suite rather than handle here?
                 s = s.decode('utf-8')
+
             # PSBT
             if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
                 return QRType.PSBT__UR2
@@ -359,7 +362,7 @@ class DecodeQR:
                 bitstream = ""
                 for b in s:
                     bitstream += bin(b).lstrip('0b').zfill(8)
-                # logger.debug(bitstream)
+                # print(bitstream)
 
                 return QRType.SEED__COMPACTSEEDQR
             except Exception as e:
@@ -683,12 +686,14 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
 
         elif qr_type == QRType.SEED__MNEMONIC:
             try:
+                seed_phrase_list = self.seed_phrase = segment.strip().split(" ")
+
                 # embit mnemonic code to validate
-                seed = Seed(segment, passphrase="", wordlist_language_code=self.wordlist_language_code)
+                seed = Seed(seed_phrase_list, passphrase="", wordlist_language_code=self.wordlist_language_code)
                 if not seed:
                     # seed is not valid, return invalid
                     return DecodeQRStatus.INVALID
-                self.seed_phrase = segment.strip().split(" ")
+                self.seed_phrase = seed_phrase_list
                 if self.is_12_or_24_word_phrase() == False:
                         return DecodeQRStatus.INVALID
                 self.complete = True
@@ -699,9 +704,9 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
 
         elif qr_type == QRType.SEED__FOUR_LETTER_MNEMONIC:
             try:
-                sl = segment.strip().split(" ")
+                seed_phrase_list = segment.strip().split(" ")
                 words = []
-                for s in sl:
+                for s in seed_phrase_list:
                     # TODO: Pre-calculate this once on startup
                     _4LETTER_WORDLIST = [word[:4].strip() for word in self.wordlist]
                     words.append(self.wordlist[_4LETTER_WORDLIST.index(s)])
@@ -746,7 +751,7 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
 
 
     def add(self, segment, qr_type=QRType.SETTINGS):
-        print(f"SettingsQR:\n{segment}")
+        # print(f"SettingsQR:\n{segment}")
         try:
             self.settings = {}
 
@@ -793,7 +798,7 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
             def convert_abbreviated_value(category, key, abbreviation_map, is_list=False, new_key_name=None):
                 try:
                     if key not in self.settings:
-                        logger.debug(f"'{key}' not found in settings")
+                        print(f"'{key}' not found in settings")
                         return
                     value = self.settings[key]
 
