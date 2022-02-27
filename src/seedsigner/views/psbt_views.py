@@ -107,7 +107,7 @@ class PSBTOverviewView(View):
             return Destination(PSBTNoChangeWarningView)
 
         else:
-            return Destination(PSBTAmountDetailsView)
+            return Destination(PSBTMathView)
 
 
 
@@ -119,11 +119,11 @@ class PSBTNoChangeWarningView(View):
             return Destination(BackStackView)
 
         # Only one exit point
-        return Destination(PSBTAmountDetailsView)
+        return Destination(PSBTMathView)
 
 
 
-class PSBTAmountDetailsView(View):
+class PSBTMathView(View):
     """
         Follows the Overview pictogram. Shows:
         + total input value
@@ -133,14 +133,14 @@ class PSBTAmountDetailsView(View):
         + change value
     """
     def run(self):
-        from seedsigner.gui.screens.psbt_screens import PSBTAmountDetailsScreen
+        from seedsigner.gui.screens.psbt_screens import PSBTMathScreen
 
         psbt_parser: PSBTParser = self.controller.psbt_parser
         if not psbt_parser:
             # Should not be able to get here
             return Destination(MainMenuView)
         
-        selected_menu_num = PSBTAmountDetailsScreen(
+        selected_menu_num = PSBTMathScreen(
             input_amount=psbt_parser.input_amount,
             num_inputs=psbt_parser.num_inputs,
             spend_amount=psbt_parser.spend_amount,

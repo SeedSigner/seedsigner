@@ -460,7 +460,7 @@ class PSBTNoChangeWarningScreen(WarningScreen):
 
 
 @dataclass
-class PSBTAmountDetailsScreen(ButtonListScreen):
+class PSBTMathScreen(ButtonListScreen):
     input_amount: int = 0
     num_inputs: int = 0
     spend_amount: int = 0
@@ -523,10 +523,13 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
         # Draw each line of the equation
         cur_y = 0
 
-        def render_amount(cur_y, amount_str, info_text, info_text_color=GUIConstants.LABEL_FONT_COLOR):
+        def render_amount(cur_y, amount_str, info_text, info_text_color=GUIConstants.BODY_FONT_COLOR):
             secondary_digit_color = "#888"
             tertiary_digit_color = "#666"
             digit_group_spacing = 2 * ssf
+            # secondary_digit_color = GUIConstants.BODY_FONT_COLOR
+            # tertiary_digit_color = GUIConstants.BODY_FONT_COLOR
+            # digit_group_spacing = 0
             if denomination == 'btc':
                 display_str = amount_str
                 main_zone = display_str[:-6]
@@ -544,7 +547,8 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
         render_amount(
             cur_y,
             f" {self.input_amount}",
-            info_text=f""" {self.num_inputs} input{"s" if self.num_inputs > 1 else ""}""",
+            # info_text=f""" {self.num_inputs} input{"s" if self.num_inputs > 1 else ""}""",
+            info_text=f""" input{"s" if self.num_inputs > 1 else ""}""",
         )
 
         # spend_amount will be zero on self-transfers; only display when there's an
@@ -554,7 +558,8 @@ class PSBTAmountDetailsScreen(ButtonListScreen):
             render_amount(
                 cur_y,
                 f"-{self.spend_amount}",
-                info_text=f""" {self.num_recipients} recipient{"s" if self.num_recipients > 1 else ""}""",
+                # info_text=f""" {self.num_recipients} recipient{"s" if self.num_recipients > 1 else ""}""",
+                info_text=f""" recipient{"s" if self.num_recipients > 1 else ""}""",
             )
 
         cur_y += int(digits_height * 1.2)
