@@ -647,10 +647,12 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
     title: str = "Your Change"
     amount: int = 0
     address: str = None
+    is_multisig: bool = False
     fingerprint: str = None
     derivation_path: str = None
-    is_own_change_addr: bool = True
-    own_addr_index: int = 0
+    is_change_derivation_path: bool = True
+    derivation_path_addr_index: int = 0
+    is_change_addr_verified: bool = False
 
     def __post_init__(self):
         # Customize defaults
@@ -672,22 +674,30 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
             max_lines=1,
         ))
 
+        screen_y = self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING
+        if self.is_multisig and not self.is_change_addr_verified:
+            # Adjust the vertical spacing
+            screen_y -= GUIConstants.COMPONENT_PADDING
         self.components.append(IconTextLine(
             icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
             icon_color="blue",
-            value_text=f"""{self.fingerprint}: {"Change" if self.is_own_change_addr else "Addr"} #{self.own_addr_index}""",
+            value_text=f"""{"Multisig" if self.is_multisig else self.fingerprint}: {"Change" if self.is_change_derivation_path else "Addr"} #{self.derivation_path_addr_index}""",
             is_text_centered=False,
             screen_x=GUIConstants.EDGE_PADDING,
-            screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+            screen_y=screen_y,
         ))
-        self.components.append(IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.CIRCLE_CHECK,
-            icon_color="#00dd00",
-            value_text="Address verified!",
-            is_text_centered=False,
-            screen_x=GUIConstants.EDGE_PADDING,
-            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
-        ))
+
+        if self.is_change_addr_verified:
+            self.components.append(IconTextLine(
+                icon_name=SeedSignerCustomIconConstants.CIRCLE_CHECK,
+                icon_color="#00dd00",
+                value_text="Address verified!",
+                is_text_centered=False,
+                screen_x=GUIConstants.EDGE_PADDING,
+                screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+            ))
+        else:
+            pass
 
 
 

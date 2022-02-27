@@ -222,33 +222,63 @@ class PSBTChangeDetailsView(View):
     def run(self):
         psbt_parser: PSBTParser = self.controller.psbt_parser
 
-        if not psbt_parser or psbt_parser.is_multisig:
+        if not psbt_parser:
             # Should not be able to get here
             return Destination(MainMenuView)
 
         # Can we verify this change addr?
         change_data = psbt_parser.get_change_data(change_num=self.change_address_num)
-
-        # TODO: MULTISIG!
+        """
+            change_data:
+            {
+                'address': 'bc1q............', 
+                'amount': 397621401, 
+                'fingerprint': ['22bde1a9', '73c5da0a'], 
+                'derivation_path': ['m/48h/1h/0h/2h/1/0', 'm/48h/1h/0h/2h/1/0']
+            }
+        """
 
         # Single-sig verification is easy. We expect to find a single fingerprint
         # and derivation path.
-        print(f"seed fingerprint: {self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))}")
+        seed_fingerprint = self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+        print(f"seed fingerprint: {seed_fingerprint}")
         print(change_data)
 
-        if self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)) != change_data.get("fingerprint")[0]:
+        if seed_fingerprint not in change_data.get("fingerprint"):
             # TODO: Something is wrong with this psbt(?). Reroute to warning?
             return Destination(NotYetImplementedView)
 
-        fingerprint = change_data.get("fingerprint")[0]
-        derivation_path = change_data.get("derivation_path")[0]
+        i = change_data.get("fingerprint").index(seed_fingerprint)
+        derivation_path = change_data.get("derivation_path")[i]
 
         # 'm/84h/1h/0h/1/0' would be a change addr while 'm/84h/1h/0h/0/0' is a self-receive
-        is_own_change_addr = int(derivation_path.split("/")[-2]) == 1
-        own_addr_index = int(derivation_path.split("/")[-1])
+        is_change_derivation_path = int(derivation_path.split("/")[-2]) == 1
+        derivation_path_addr_index = int(derivation_path.split("/")[-1])
 
-        # TODO: Generate address from seed at derivation_path and compare with
-        # change_data["address"]
+        VERIFY_MULTISIG = "Verify Multisig Change"
+        NEXT = "Next"
+
+        is_change_addr_verified = False
+        if psbt_parser.is_multisig:
+            # TODO: 
+            # if the known-good multisig descriptor is already onboard:
+                # calc change addr...
+                # is_change_addr_verified = True
+                # button_data = [VERIFY_MULTISIG, NEXT]
+
+            # else:
+                # Have the Screen offer to load in the multisig descriptor.            
+                # button_data = [VERIFY_MULTISIG, NEXT]
+
+            # Temp value while awaiting above
+            button_data = [VERIFY_MULTISIG, NEXT]
+        else:
+            # Single sig
+            # TODO: Generate address from seed at derivation_path and compare with
+            # change_data["address"]
+            # Save for Nick
+            is_change_addr_verified = True
+            button_data = ["Next"]
 
         title = "Your Change"
         if psbt_parser.num_change_outputs > 1:
@@ -256,23 +286,28 @@ class PSBTChangeDetailsView(View):
 
         selected_menu_num = psbt_screens.PSBTChangeDetailsScreen(
             title=title,
-            button_data=["Next"],
+            button_data=button_data,
             address=change_data.get("address"),
             amount=change_data.get("amount"),
-            fingerprint=fingerprint,
+            is_multisig=psbt_parser.is_multisig,
+            fingerprint=seed_fingerprint,
             derivation_path=derivation_path,
-            is_own_change_addr=is_own_change_addr,
-            own_addr_index=own_addr_index,
+            is_change_derivation_path=is_change_derivation_path,
+            derivation_path_addr_index=derivation_path_addr_index,
+            is_change_addr_verified=is_change_addr_verified,
         ).display()
 
-        if selected_menu_num == 0:
+        if button_data[selected_menu_num] == NEXT:
             if self.change_address_num < psbt_parser.num_change_outputs - 1:
                 return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
             else:
                 # There's no more change to verify. Move on to sign the PSBT.
                 return Destination(PSBTFinalizeView)
+            
+        elif button_data[selected_menu_num] == VERIFY_MULTISIG:
+            return Destination(NotYetImplementedView)
 
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
 
