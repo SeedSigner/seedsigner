@@ -1,3 +1,4 @@
+import math
 import time
 
 from dataclasses import dataclass
@@ -9,7 +10,7 @@ from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.seed import Seed
 
 from .screen import BaseScreen, BaseTopNavScreen, ButtonListScreen, WarningScreenMixin
-from ..components import FontAwesomeIconConstants, Fonts, FormattedAddress, IconTextLine, SeedSignerCustomIconConstants, TextArea, GUIConstants, calc_text_centering
+from ..components import FontAwesomeIconConstants, Fonts, FormattedAddress, IconTextLine, SeedSignerCustomIconConstants, TextArea, GUIConstants, TextDoesNotFitException, calc_text_centering
 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.helpers import B
@@ -633,6 +634,74 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 pass
 
             self.renderer.show_image()
+
+
+
+@dataclass
+class SeedReviewPassphraseScreen(ButtonListScreen):
+    fingerprint_without: str = None
+    fingerprint_with: str = None
+    passphrase: str = None
+
+    def __post_init__(self):
+        # Customize defaults
+        self.title = "Verify Passphrase"
+        self.is_bottom_list = True
+
+        super().__post_init__()
+
+        self.components.append(IconTextLine(
+            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
+            icon_color="blue",
+            label_text="changes fingerprint",
+            value_text=f"{self.fingerprint_without} >> {self.fingerprint_with}",
+            is_text_centered=True,
+            screen_y = self.buttons[0].screen_y - GUIConstants.COMPONENT_PADDING - int(GUIConstants.BODY_FONT_SIZE*2.5)
+        ))
+
+        available_height = self.components[-1].screen_y - self.top_nav.height + GUIConstants.COMPONENT_PADDING
+        print(f"available_height: {available_height}")
+        max_font_size = GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 8
+        min_font_size = GUIConstants.TOP_NAV_TITLE_FONT_SIZE - 4
+        font_size = max_font_size
+        max_lines = 3
+        passphrase = [self.passphrase]
+        found_solution = False
+        for font_size in range(max_font_size, min_font_size, -2):
+            if found_solution:
+                break
+            for num_lines in range(1, max_lines+1):
+                print(f"font_size: {font_size} | num_lines: {num_lines}")
+                font = Fonts.get_font(font_name=GUIConstants.FIXED_WIDTH_FONT_NAME, size=font_size)
+                char_width, char_height = font.getsize("X")
+
+                # Break the passphrase into n lines
+                chars_per_line = math.ceil(len(self.passphrase) / num_lines)
+                passphrase = []
+                for i in range(0, len(self.passphrase), chars_per_line):
+                    passphrase.append(self.passphrase[i:i+chars_per_line])
+                print(passphrase)
+                
+                # See if it fits in this configuration
+                print(f"width: {char_width * len(passphrase[0])} | height: {num_lines * char_height}")
+                if char_width * len(passphrase[0]) <= self.canvas_width - 2*GUIConstants.EDGE_PADDING:
+                    # Width is good...
+                    if num_lines * char_height <= available_height:
+                        # And the height is good!
+                        found_solution = True
+                        break
+
+        # Set up each line of text
+        screen_y = self.top_nav.height + int((available_height - char_height*num_lines)/2) - GUIConstants.COMPONENT_PADDING
+        for line in passphrase:
+            self.components.append(TextArea(
+                text=line,
+                font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
+                font_size=font_size,
+                is_text_centered=True,
+                screen_y=screen_y,
+            ))
+            screen_y += char_height + 2
 
 
 

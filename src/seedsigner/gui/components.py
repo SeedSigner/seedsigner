@@ -164,6 +164,11 @@ class Fonts(Singleton):
 
 
 
+class TextDoesNotFitException(Exception):
+    pass
+
+
+
 @dataclass
 class BaseComponent:
     image_draw: ImageDraw = None
@@ -293,8 +298,12 @@ class TextArea(BaseComponent):
                 else:
                     # Candidate line is possibly shorter than necessary.
                     return _binary_len_search(index, max_index)
+            
+            if len(self.text.split()) == 1:
+                # No whitespace chars to split on!
+                raise TextDoesNotFitException("Text cannot fit in target rect with this font/size")
 
-            words = self.text.split(" ")
+            words = self.text.split()
             while words:
                 (index, tw) = _binary_len_search(0, len(words))
                 _add_text_line(" ".join(words[0:index]), tw)
@@ -302,7 +311,7 @@ class TextArea(BaseComponent):
 
             total_text_height = self.text_height * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
             if self.height is not None and total_text_height > self.supersampled_height + 2 * GUIConstants.COMPONENT_PADDING * self.supersampling_factor:
-                raise Exception("Text cannot fit in target rect with this font/size")
+                raise TextDoesNotFitException("Text cannot fit in target rect with this font/size")
             else:
                 self.supersampled_height = total_text_height
 
@@ -374,7 +383,6 @@ class IconTextLine(BaseComponent):
     def __post_init__(self):
         super().__post_init__()
 
-        
         self.icon = Icon(
             image_draw=self.image_draw,
             canvas=self.canvas,
@@ -832,6 +840,12 @@ class TopNav(BaseComponent):
             start_x=0,
             start_y=0
         )
+
+        if self.show_back_button:
+            # Don't let the title intrude on the BACK button
+            min_x = self.back_button.screen_x + self.back_button.width + GUIConstants.COMPONENT_PADDING
+            if self.text_x < min_x:
+                self.text_x = min_x
 
 
     @property

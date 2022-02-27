@@ -510,6 +510,7 @@ class PSBTMathScreen(ButtonListScreen):
             self.change_amount = " " * (longest_amount - len(self.change_amount)) + self.change_amount
 
         # Render the info to temp Image
+        # TODO: Test rendering the numeric amounts without the supersampling
         body_width = self.canvas_width - 2*GUIConstants.EDGE_PADDING
         body_height = self.buttons[0].screen_y - self.top_nav.height - 2*GUIConstants.COMPONENT_PADDING
         ssf = 2  # Super-sampling factor

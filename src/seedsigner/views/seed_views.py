@@ -604,7 +604,47 @@ class SeedAddPassphraseView(View):
         
         # The new passphrase will be the return value
         self.seed.set_passphrase(ret)
-        return Destination(SeedValidView)
+        return Destination(SeedReviewPassphraseView)
+
+
+
+class SeedReviewPassphraseView(View):
+    """
+        Display the completed passphrase back to the user.
+    """
+    def __init__(self):
+        super().__init__()
+        self.seed = self.controller.storage.get_pending_seed()
+
+
+    def run(self):
+        EDIT = "Edit passphrase"
+        CONTINUE = "Continue"
+        button_data = [EDIT, CONTINUE]
+
+        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        passphrase = self.seed.passphrase
+        fingerprint_with = self.seed.get_fingerprint(network=network)
+        self.seed.set_passphrase("")
+        fingerprint_without = self.seed.get_fingerprint(network=network)
+        self.seed.set_passphrase(passphrase)
+        
+        selected_menu_num = seed_screens.SeedReviewPassphraseScreen(
+            fingerprint_without=fingerprint_without,
+            fingerprint_with=fingerprint_with,
+            # passphrase=self.seed.passphrase,
+            passphrase="123456789012345678901234567890123456",
+            button_data=button_data,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        elif button_data[selected_menu_num] == EDIT:
+            return Destination(SeedAddPassphraseView)
+        
+        elif button_data[selected_menu_num] == CONTINUE:
+            return Destination(SeedValidView)
 
 
 
