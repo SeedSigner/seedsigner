@@ -670,10 +670,10 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
         for font_size in range(max_font_size, min_font_size, -2):
             if found_solution:
                 break
+            font = Fonts.get_font(font_name=GUIConstants.FIXED_WIDTH_FONT_NAME, size=font_size)
+            char_width, char_height = font.getsize("X")
             for num_lines in range(1, max_lines+1):
                 print(f"font_size: {font_size} | num_lines: {num_lines}")
-                font = Fonts.get_font(font_name=GUIConstants.FIXED_WIDTH_FONT_NAME, size=font_size)
-                char_width, char_height = font.getsize("X")
 
                 # Break the passphrase into n lines
                 chars_per_line = math.ceil(len(self.passphrase) / num_lines)
