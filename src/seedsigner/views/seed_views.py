@@ -632,8 +632,7 @@ class SeedReviewPassphraseView(View):
         selected_menu_num = seed_screens.SeedReviewPassphraseScreen(
             fingerprint_without=fingerprint_without,
             fingerprint_with=fingerprint_with,
-            # passphrase=self.seed.passphrase,
-            passphrase="123456789012345678901234567890123456",
+            passphrase=self.seed.passphrase,
             button_data=button_data,
         ).display()
 
