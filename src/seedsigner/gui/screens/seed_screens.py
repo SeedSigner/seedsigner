@@ -28,21 +28,15 @@ class SeedValidScreen(ButtonListScreen):
     def __post_init__(self):
         super().__post_init__()
 
-        self.title_textarea = TextArea(
-            text="Fingerprint:",
-            is_text_centered=True,
-            auto_line_break=False,
-            screen_y=self.top_nav.height + int((self.buttons[0].screen_y - self.top_nav.height) / 2) - 30
-        )
-        self.components.append(self.title_textarea)
-
         self.fingerprint_icontl = IconTextLine(
             icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
             icon_color="blue",
+            icon_size=GUIConstants.ICON_FONT_SIZE + 12,
+            label_text="fingerprint",
             value_text=self.fingerprint,
             font_size=GUIConstants.BODY_FONT_SIZE + 2,
             is_text_centered=True,
-            screen_y=self.title_textarea.screen_y + self.title_textarea.height
+            screen_y=self.top_nav.height + int((self.buttons[0].screen_y - self.top_nav.height) / 2) - 30
         )
         self.components.append(self.fingerprint_icontl)
 
@@ -101,8 +95,8 @@ class SeedWordsScreen(WarningScreenMixin, ButtonListScreen):
             font=font,
             text="1234567890",
             is_text_centered=True,
-            box_width=20 * supersampling_factor,
-            box_height=20 * supersampling_factor
+            total_width=20 * supersampling_factor,
+            total_height=20 * supersampling_factor
         )
         number_box_x = GUIConstants.EDGE_PADDING * supersampling_factor
         number_box_y =  GUIConstants.COMPONENT_PADDING * supersampling_factor

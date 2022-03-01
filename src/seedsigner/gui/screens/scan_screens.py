@@ -41,8 +41,8 @@ class ScanScreen(BaseTopNavScreen):
             font=self.instructions_font,
             text=self.instructions_text,
             is_text_centered=True,
-            box_width=self.canvas_width,
-            box_height=self.instructions_background.height,
+            total_width=self.canvas_width,
+            total_height=self.instructions_background.height,
             start_x=0,
             start_y=0
         )

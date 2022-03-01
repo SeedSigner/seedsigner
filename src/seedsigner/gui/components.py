@@ -99,26 +99,32 @@ class SeedSignerCustomIconConstants:
 def calc_text_centering(font: ImageFont,
                         text: str,
                         is_text_centered: bool,
-                        box_width: int,
-                        box_height: int,
+                        total_width: int,
+                        total_height: int,
                         start_x: int = 0,
                         start_y: int = 0) -> Tuple[int, int]:
     # see: https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html#text-anchors
+
+    # Gap between the starting coordinate and the first marking.
     offset_x, offset_y = font.getoffset(text)
+
+    # Bounding box of the actual pixels rendered.
     (box_left, box_top, box_right, box_bottom) = font.getbbox(text, anchor='lt')
+
+    # Ascender/descender are oversized ranges baked into the font.
     ascent, descent = font.getmetrics()
 
-    # print(f"----- {text} -----")
-    # print(f"offset_x, offset_y: ({offset_x}, {offset_y})")
-    # print(f"(box_left, box_top, box_right, box_bottom): ({box_left}, {box_top}, {box_right}, {box_bottom})")
-    # print(f"ascent, descent: ({ascent}, {descent})")
+    print(f"""----- "{text}" / {font.getname()} -----""")
+    print(f"offset_x: {offset_x} | offset_y: {offset_y})")
+    print(f"box_left: {box_left} |  box_top: {box_top} | box_right: {box_right} | box_bottom: {box_bottom}")
+    print(f"ascent: {ascent} | descent: {descent})")
 
     if is_text_centered:
-        text_x = int((box_width - (box_right - offset_x)) / 2) - offset_x
+        text_x = int((total_width - (box_right - offset_x)) / 2) - offset_x
     else:
         text_x = GUIConstants.COMPONENT_PADDING
 
-    text_y = int((box_height - (ascent - offset_y)) / 2) - offset_y
+    text_y = int((total_height - (ascent - offset_y)) / 2) - offset_y
 
     return (start_x + text_x, start_y + text_y)
 
@@ -628,7 +634,8 @@ class FormattedAddress(BaseComponent):
 
 @dataclass
 class Button(BaseComponent):
-    # TODO: Rename the seedsigner.helpers.Buttons class (to Inputs?)
+    # TODO: Rename the seedsigner.helpers.Buttons class (to Inputs?) to reduce confusion
+    # with this GUI component.
     """
         Attrs with defaults must be listed last.
     """
@@ -642,7 +649,7 @@ class Button(BaseComponent):
     icon_size: int = GUIConstants.ICON_INLINE_FONT_SIZE
     icon_color: str = GUIConstants.BUTTON_FONT_COLOR
     selected_icon_color: str = "black"
-    icon_y_offset: int = 2
+    icon_y_offset: int = 0
     is_icon_inline: bool = True    # True = render next to text; False = render centered above text
     text_y_offset: int = 0
     background_color: str = "#2c2c2c"
@@ -671,18 +678,35 @@ class Button(BaseComponent):
         self.font = Fonts.get_font(self.font_name, self.font_size)
 
         if self.text:
-            (self.text_x, self.text_y) = calc_text_centering(
-                font=self.font,
-                text=self.text,
-                is_text_centered=self.is_text_centered,
-                box_width=self.width,
-                box_height=self.height - self.text_y_offset,
-                start_x=self.screen_x,
-                start_y=self.screen_y + self.text_y_offset
-            )
-        elif self.icon_name and self.is_icon_inline:
-            self.text_x = self.screen_x + int(self.width / 2)
-            self.text_y = self.screen_y + int(self.height / 2)
+            # (self.text_x, self.text_y) = calc_text_centering(
+            #     font=self.font,
+            #     text=self.text,
+            #     is_text_centered=self.is_text_centered,
+            #     total_width=self.width,
+            #     total_height=self.height - self.text_y_offset,
+            #     start_x=self.screen_x,
+            #     start_y=self.screen_y + self.text_y_offset
+            # )
+            if self.is_text_centered:
+                # TODO: Only apply screen_x at render
+                self.text_x = int(self.width/2) + self.screen_x
+                self.text_anchor = "ms"  # centered horizontally, baseline
+            else:
+                self.text_x = self.screen_x + GUIConstants.COMPONENT_PADDING
+                self.text_anchor = "ls"  # left, baseline
+            
+            # Calc true pixel height (any anchor from "baseline" will work)
+            (left, top, self.text_width, bottom) = self.font.getbbox(self.text, anchor="ls")
+            print(f"left: {left} |  top: {top} | right: {self.text_width} | bottom: {bottom}")
+
+            # Note: "top" is negative when measured from a "baseline" anchor
+            self.text_height = -1 * top
+
+            # TODO: Only apply screen_y at render
+            if self.text_y_offset:
+                self.text_y = self.text_y_offset + self.text_height + self.screen_y
+            else:
+                self.text_y = self.height - int((self.height - self.text_height)/2) + self.screen_y
 
         # Preload the icon and its "_selected" variant
         if self.icon_name:
@@ -691,17 +715,22 @@ class Button(BaseComponent):
             self.icon_selected = Icon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.selected_icon_color)
 
             if self.is_icon_inline:
-                if self.text:
-                    if self.is_text_centered:
-                        # Shift the text's centering
-                        self.text_x += int((self.icon.width + icon_padding) / 2)
-                    else:
-                        self.text_x += self.icon.width + icon_padding
-                self.icon_x = self.text_x - (self.icon.width + icon_padding)
-                self.icon_y = self.text_y + self.icon_y_offset
+                # TODO: Only apply screen_* at render
+                if self.is_text_centered:
+                    # Shift the text's centering
+                    self.text_x += int((self.icon.width + icon_padding) / 2)
+                    self.icon_x = self.text_x - int(self.text_width/2) - (self.icon.width + icon_padding)
+                else:
+                    self.text_x += self.icon.width + icon_padding
+                    self.icon_x = self.screen_x + GUIConstants.COMPONENT_PADDING
+
             else:
                 self.icon_x = self.screen_x + int((self.width - self.icon.width) / 2)
-                self.icon_y = self.screen_y + self.icon_y_offset
+
+            if self.icon_y_offset:
+                self.icon_y = self.icon_y_offset + self.screen_y
+            else:
+                self.icon_y = int((self.height - self.icon.height)/2) + self.screen_y
 
             self.icon.screen_x = self.icon_x
             self.icon_selected.screen_x = self.icon_x
@@ -718,7 +747,13 @@ class Button(BaseComponent):
         self.image_draw.rounded_rectangle((self.screen_x, self.screen_y - self.scroll_y, self.screen_x + self.width, self.screen_y + self.height - self.scroll_y), fill=background_color, radius=8)
 
         if self.text:
-            self.image_draw.text((self.text_x, self.text_y - self.scroll_y), self.text, fill=font_color, font=self.font)
+            self.image_draw.text(
+                (self.text_x, self.text_y - self.scroll_y),
+                self.text,
+                fill=font_color,
+                font=self.font,
+                anchor=self.text_anchor
+            )
 
         if self.icon_name:
             icon = self.icon
@@ -759,6 +794,7 @@ class CheckboxButton(Button):
             self.icon_name = FontAwesomeIconConstants.SQUARE
             self.icon_color = GUIConstants.BODY_FONT_COLOR
         super().__post_init__()
+
 
 
 @dataclass
@@ -818,11 +854,12 @@ class TopNav(BaseComponent):
                 icon_y_offset=4,
             )
 
+        # TODO: Complete this code if we want title font size to dynamically size itself
         # if not self.font:
         #     # Pre-calc how much room the title bar text will take up. Use the biggest font
         #     #   that will fit.
-        #     max_font_width = self.width - (2 * self.back_button.width) - (4 * EDGE_PADDING)
-        #     for font in Fonts.ASSISTANT_BOLD:
+        #     max_font_width = self.width - self.back_button.width - GUIConstants.COMPONENT_PADDING - 2*GUIConstants.EDGE_PADDING
+        #     for font_size in range(GUIConstants.):
         #         self.text_width, self.text_height = font.getsize(self.text)
         #         if self.text_width < max_font_width:
         #             self.font = font
@@ -830,13 +867,12 @@ class TopNav(BaseComponent):
         #             self.text_y = int((self.height - self.text_height) / 2)
         #             break
 
-        # else:
         (self.text_x, self.text_y) = calc_text_centering(
             font=self.font,
             text=self.text,
             is_text_centered=True,
-            box_width=self.width,
-            box_height=self.height,
+            total_width=self.width,
+            total_height=self.height,
             start_x=0,
             start_y=0
         )

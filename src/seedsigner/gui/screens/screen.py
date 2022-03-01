@@ -228,8 +228,10 @@ class TextTopNavScreen(BaseTopNavScreen):
             with self.renderer.lock:
                 if user_input == B.KEY_UP:
                     if not self.top_nav.is_selected:
-                        self.top_nav.is_selected = True
-                        self.top_nav.render()
+                        # Only move navigation up there if there's something to select
+                        if self.top_nav.show_back_button or self.top_nav.show_power_button:
+                            self.top_nav.is_selected = True
+                            self.top_nav.render()
 
                 elif user_input == B.KEY_DOWN:
                     if self.top_nav.is_selected:
@@ -397,11 +399,13 @@ class ButtonListScreen(BaseTopNavScreen):
                     # SHORTCUT to escape long menu screens!
                     # OR keyed UP from the top of the list.
                     # Move selection up to top_nav
-                    self.buttons[self.selected_button].is_selected = False
-                    self.buttons[self.selected_button].render()
+                    # Only move navigation up there if there's something to select
+                    if self.top_nav.show_back_button or self.top_nav.show_power_button:
+                        self.buttons[self.selected_button].is_selected = False
+                        self.buttons[self.selected_button].render()
 
-                    self.top_nav.is_selected = True
-                    self.top_nav.render()
+                        self.top_nav.is_selected = True
+                        self.top_nav.render()
 
                 elif user_input == B.KEY_UP:
                     if self.top_nav.is_selected:
@@ -515,7 +519,7 @@ class LargeButtonScreen(BaseTopNavScreen):
             }
             if icon_name:
                 button_args["icon_name"] = icon_name
-                button_args["text_y_offset"] = int(48 / 240 * self.renderer.canvas_height)
+                button_args["text_y_offset"] = int(48 / 240 * self.renderer.canvas_height) + GUIConstants.COMPONENT_PADDING
                 button = IconButton(**button_args)
             else:
                 button = Button(**button_args)

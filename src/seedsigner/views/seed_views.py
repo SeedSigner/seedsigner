@@ -525,14 +525,12 @@ class SeedValidView(View):
         else:
             button_data.append(SCAN_PSBT)
 
-        if self.seed.passphrase:
-            PASSPHRASE = "Edit Passphrase"
-            button_data.append(PASSPHRASE)
-
-        elif self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) in [
+        if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) in [
                 SettingsConstants.OPTION__ENABLED,
                 SettingsConstants.OPTION__PROMPT,
                 SettingsConstants.OPTION__REQUIRED]:
+            if self.seed.passphrase:
+                PASSPHRASE = "Edit Passphrase"
             button_data.append(PASSPHRASE)
         
         button_data.append(SEED_TOOLS)
@@ -543,11 +541,13 @@ class SeedValidView(View):
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
-            # Back button should clear out the pending seed and start over
+            # Back button should clear out the pending seed
             self.controller.storage.clear_pending_seed()
-            return Destination(BackStackView)
 
-        if button_data[selected_menu_num] == SIGN_PSBT:
+            # "BACK" might mean back to the AddPassphrase View
+            return Destination(BackStackView, clear_history=True)
+
+        elif button_data[selected_menu_num] == SIGN_PSBT:
             self.controller.storage.finalize_pending_seed()
             self.controller.psbt_seed = self.seed
             return Destination(PSBTOverviewView, clear_history=True)
@@ -561,7 +561,7 @@ class SeedValidView(View):
         elif button_data[selected_menu_num] == PASSPHRASE:
             return Destination(SeedAddPassphraseView)
 
-        if button_data[selected_menu_num] == SEED_TOOLS:
+        elif button_data[selected_menu_num] == SEED_TOOLS:
             # Jump straight to the Seed Tools for this seed
             seed_num = self.controller.storage.finalize_pending_seed()
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
@@ -615,6 +615,7 @@ class SeedReviewPassphraseView(View):
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
+        print(f"SeedReviewPassphraseView self.seed: {self.seed}")
 
 
     def run(self):
@@ -622,6 +623,7 @@ class SeedReviewPassphraseView(View):
         CONTINUE = "Continue"
         button_data = [EDIT, CONTINUE]
 
+        # Get the before/after fingerprints
         network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
         passphrase = self.seed.passphrase
         fingerprint_with = self.seed.get_fingerprint(network=network)
@@ -629,11 +631,14 @@ class SeedReviewPassphraseView(View):
         fingerprint_without = self.seed.get_fingerprint(network=network)
         self.seed.set_passphrase(passphrase)
         
+        # Because we have ane explicit "Edit" button, we disable "BACK" to keep the
+        # routing options sane.
         selected_menu_num = seed_screens.SeedReviewPassphraseScreen(
             fingerprint_without=fingerprint_without,
             fingerprint_with=fingerprint_with,
             passphrase=self.seed.passphrase,
             button_data=button_data,
+            show_back_button=False,
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
