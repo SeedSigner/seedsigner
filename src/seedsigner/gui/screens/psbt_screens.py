@@ -144,7 +144,7 @@ class PSBTOverviewScreen(ButtonListScreen):
 
             if self.num_self_transfer_outputs > 0:
                 for i in range(0, self.num_self_transfer_outputs):
-                    destination_column.append(f"self transfer")
+                    destination_column.append(f"self-transfer")
 
             destination_column.append(f"fee")
 
