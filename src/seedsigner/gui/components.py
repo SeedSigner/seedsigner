@@ -835,8 +835,12 @@ class TopNav(BaseComponent):
     font_name: str = GUIConstants.TOP_NAV_TITLE_FONT_NAME
     font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE
     font_color: str = "#fcfcfc"
-    show_back_button: bool = True
-    show_power_button: bool = False
+    show_left_button: bool = True
+    left_button_icon_name: str = SeedSignerCustomIconConstants.LARGE_CHEVRON_LEFT
+    left_button_icon_color: str = GUIConstants.BUTTON_FONT_COLOR
+    show_right_button: bool = False
+    right_button_icon_name: str = FontAwesomeIconConstants.POWER_OFF
+    right_button_icon_color: str = GUIConstants.BUTTON_FONT_COLOR
     is_selected: bool = False
 
 
@@ -847,20 +851,22 @@ class TopNav(BaseComponent):
 
         self.font = Fonts.get_font(self.font_name, self.font_size)
 
-        if self.show_back_button:
+        if self.show_left_button:
             self.back_button = IconButton(
-                icon_name=SeedSignerCustomIconConstants.LARGE_CHEVRON_LEFT,
+                icon_name=self.left_button_icon_name,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
+                icon_color=self.left_button_icon_color,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,
                 width=GUIConstants.TOP_NAV_BUTTON_SIZE,
                 height=GUIConstants.TOP_NAV_BUTTON_SIZE,
             )
 
-        if self.show_power_button:
+        if self.show_right_button:
             self.power_button = IconButton(
-                icon_name=FontAwesomeIconConstants.POWER_OFF,
+                icon_name=self.right_button_icon_name,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
+                icon_color=self.right_button_icon_color,
                 screen_x=self.width - GUIConstants.TOP_NAV_BUTTON_SIZE - GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,
                 width=GUIConstants.TOP_NAV_BUTTON_SIZE,
@@ -890,7 +896,7 @@ class TopNav(BaseComponent):
             start_y=0
         )
 
-        if self.show_back_button:
+        if self.show_left_button:
             # Don't let the title intrude on the BACK button
             min_x = self.back_button.screen_x + self.back_button.width + GUIConstants.COMPONENT_PADDING
             if self.text_x < min_x:
@@ -902,17 +908,17 @@ class TopNav(BaseComponent):
         from .screens import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
         if not self.is_selected:
             return None
-        if self.show_back_button:
+        if self.show_left_button:
             return RET_CODE__BACK_BUTTON
-        if self.show_power_button:
+        if self.show_right_button:
             return RET_CODE__POWER_BUTTON
 
 
     def render(self):
-        if self.show_back_button:
+        if self.show_left_button:
             self.back_button.is_selected = self.is_selected
             self.back_button.render()
-        if self.show_power_button:
+        if self.show_right_button:
             self.power_button.is_selected = self.is_selected
             self.power_button.render()
 

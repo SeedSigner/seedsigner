@@ -505,23 +505,21 @@ class SeedValidView(View):
     def run(self):
         from .psbt_views import PSBTOverviewView
 
-        SIGN_PSBT = "Sign PSBT (?)"
+        SIGN_PSBT = "Review PSBT"
         SCAN_PSBT = ("Scan a PSBT", FontAwesomeIconConstants.QRCODE)
         PASSPHRASE = ("Add Passphrase", FontAwesomeIconConstants.UNLOCK)
         SEED_TOOLS = "Seed Options"
         button_data = []
 
-        # Can we auto-route past this screen entirely?
         if self.controller.psbt:
-            if PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
-                # The Seed we just entered can sign the psbt we have in memory.
-                SIGN_PSBT = "Sign PSBT"
-            #     # Immediately forward on to the PSBT Overview.
-            #     seed_num = self.controller.storage.finalize_pending_seed()
-            #     self.controller.psbt_seed = self.seed
-            #     return Destination(PSBTOverviewView, clear_history=True)
-
-            # Don't auto-route to a signable psbt. Just display it.
+            if not PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
+                # Seed doesn't match any input fingerprints
+                # TODO: Is there ever a use-case for letting someone try to sign with a
+                # seed that doesn't match? 
+                SIGN_PSBT += " (?)"
+            else:
+                # Don't auto-route to a signable psbt. Just display the button.
+                pass
             button_data.append(SIGN_PSBT)
         else:
             button_data.append(SCAN_PSBT)
@@ -542,12 +540,8 @@ class SeedValidView(View):
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
-            # Back button should clear out the pending seed
-            self.controller.storage.clear_pending_seed()
-
-            # BACK means exit/cancel; returning to MainMenuView also automatically wipes
-            # the back_stack history.
-            return Destination(MainMenuView)
+            # Warning message that this will discard the pending seed
+            return Destination(SeedDiscardView)
 
         elif button_data[selected_menu_num] == SIGN_PSBT:
             self.controller.storage.finalize_pending_seed()
@@ -567,6 +561,27 @@ class SeedValidView(View):
             # Jump straight to the Seed Tools for this seed
             seed_num = self.controller.storage.finalize_pending_seed()
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
+
+
+
+class SeedDiscardView(View):
+    def run(self):
+        YES = "Yes"
+        NO = "No"
+        button_data = [YES, NO]
+
+        selected_menu_num = LargeButtonScreen(
+            title="Discard Seed?",
+            button_data=button_data,
+            show_top_nav_left_button=False,
+        ).display()
+
+        if button_data[selected_menu_num] == YES:
+            self.controller.storage.clear_pending_seed()
+            return Destination(MainMenuView)
+
+        elif button_data[selected_menu_num] == NO:
+            return Destination(SeedValidView)
 
 
 
@@ -640,7 +655,7 @@ class SeedReviewPassphraseView(View):
             fingerprint_with=fingerprint_with,
             passphrase=self.seed.passphrase,
             button_data=button_data,
-            show_top_nav_back_button=False,
+            show_top_nav_left_button=False,
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:

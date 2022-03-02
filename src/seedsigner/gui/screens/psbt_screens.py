@@ -18,6 +18,8 @@ class PSBTOverviewScreen(ButtonListScreen):
     change_amount: int = 0
     fee_amount: int = 0
     num_inputs: int = 0
+    num_self_transfer_outputs: int = 0
+    num_change_outputs: int = 0
     destination_addresses: List[str] = None
     
 
@@ -131,11 +133,7 @@ class PSBTOverviewScreen(ButtonListScreen):
             
             destination_column = []
 
-            if not self.destination_addresses:
-                # This is an internal transfer; no external addresses
-                destination_column.append(f"self transfer")
-
-            elif len(self.destination_addresses) <= 3:
+            if len(self.destination_addresses) <= 3:
                 for addr in self.destination_addresses:
                     destination_column.append(truncate_destination_addr(addr))
             else:
@@ -144,10 +142,15 @@ class PSBTOverviewScreen(ButtonListScreen):
                 destination_column.append(f"[ ... ]")
                 destination_column.append(f"recipient {len(self.destination_addresses)}")
 
+            if self.num_self_transfer_outputs > 0:
+                for i in range(0, self.num_self_transfer_outputs):
+                    destination_column.append(f"self transfer")
+
             destination_column.append(f"fee")
 
-            if self.change_amount > 0 and self.destination_addresses:
-                destination_column.append("change")
+            if self.num_change_outputs > 0:
+                for i in range(0, self.num_change_outputs):
+                    destination_column.append("change")
 
             max_destination_text_width = 0
             for destination in destination_column:

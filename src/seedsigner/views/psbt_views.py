@@ -86,11 +86,33 @@ class PSBTOverviewView(View):
     def run(self):
         psbt_parser = self.controller.psbt_parser
 
+        change_data = psbt_parser.change_data
+        """
+            change_data = [
+                {
+                    'address': 'bc1q............', 
+                    'amount': 397621401, 
+                    'fingerprint': ['22bde1a9', '73c5da0a'], 
+                    'derivation_path': ['m/48h/1h/0h/2h/1/0', 'm/48h/1h/0h/2h/1/0']
+                }, {},
+            ]
+        """
+        num_change_outputs = 0
+        num_self_transfer_outputs = 0
+        for change_output in change_data:
+            print(f"""{change_output["derivation_path"][0]}""")
+            if change_output["derivation_path"][0].split("/")[-2] == "1":
+                num_change_outputs += 1
+            else:
+                num_self_transfer_outputs += 1
+
         screen = psbt_screens.PSBTOverviewScreen(
             spend_amount=psbt_parser.spend_amount,
             change_amount=psbt_parser.change_amount,
             fee_amount=psbt_parser.fee_amount,
             num_inputs=psbt_parser.num_inputs,
+            num_self_transfer_outputs=num_self_transfer_outputs,
+            num_change_outputs=num_change_outputs,
             destination_addresses=psbt_parser.destination_addresses,
         )
 
@@ -255,8 +277,16 @@ class PSBTChangeDetailsView(View):
         is_change_derivation_path = int(derivation_path.split("/")[-2]) == 1
         derivation_path_addr_index = int(derivation_path.split("/")[-1])
 
-        VERIFY_MULTISIG = "Verify Multisig Change"
         NEXT = "Next"
+
+        if is_change_derivation_path:
+            title = "Your Change"
+            VERIFY_MULTISIG = "Verify Multisig Change"
+        else:
+            title = "Self-Transfer"
+            VERIFY_MULTISIG = "Verify Multisig Addr"
+        # if psbt_parser.num_change_outputs > 1:
+        #     title += f" (#{self.change_address_num + 1})"
 
         is_change_addr_verified = False
         if psbt_parser.is_multisig:
@@ -278,11 +308,7 @@ class PSBTChangeDetailsView(View):
             # change_data["address"]
             # Save for Nick
             is_change_addr_verified = True
-            button_data = ["Next"]
-
-        title = "Your Change"
-        if psbt_parser.num_change_outputs > 1:
-            title += f" (#{self.change_address_num + 1})"
+            button_data = [NEXT]
 
         selected_menu_num = psbt_screens.PSBTChangeDetailsScreen(
             title=title,
@@ -297,7 +323,10 @@ class PSBTChangeDetailsView(View):
             is_change_addr_verified=is_change_addr_verified,
         ).display()
 
-        if button_data[selected_menu_num] == NEXT:
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == NEXT:
             if self.change_address_num < psbt_parser.num_change_outputs - 1:
                 return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
             else:
@@ -306,9 +335,6 @@ class PSBTChangeDetailsView(View):
             
         elif button_data[selected_menu_num] == VERIFY_MULTISIG:
             return Destination(NotYetImplementedView)
-
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
 
 
 

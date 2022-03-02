@@ -9,7 +9,7 @@ from seedsigner.helpers.threads import BaseThread
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.settings import SettingsConstants
 
-from ..components import (CheckedSelectionButton, GUIConstants, BaseComponent, Button, Icon, IconButton, LargeIconButton, SeedSignerCustomIconConstants, TopNav,
+from ..components import (CheckedSelectionButton, FontAwesomeIconConstants, GUIConstants, BaseComponent, Button, Icon, IconButton, LargeIconButton, SeedSignerCustomIconConstants, TopNav,
     TextArea, load_icon, load_image)
 
 from seedsigner.helpers import B, Buttons
@@ -180,8 +180,10 @@ class LoadingScreenThread(BaseThread):
 class BaseTopNavScreen(BaseScreen):
     title: str = "Screen Title"
     title_font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE
-    show_top_nav_back_button: bool = True
-    show_top_nav_power_button: bool = False
+    show_top_nav_left_button: bool = True
+    top_nav_left_button_icon_name: str = SeedSignerCustomIconConstants.LARGE_CHEVRON_LEFT
+    show_top_nav_right_button: bool = False
+    top_nav_right_button_icon_name: str = FontAwesomeIconConstants.POWER_OFF
 
     def __post_init__(self):
         super().__post_init__()
@@ -190,8 +192,10 @@ class BaseTopNavScreen(BaseScreen):
             font_size=self.title_font_size,
             width=self.canvas_width,
             height=GUIConstants.TOP_NAV_HEIGHT,
-            show_back_button=self.show_top_nav_back_button,
-            show_power_button=self.show_top_nav_power_button,
+            show_left_button=self.show_top_nav_left_button,
+            left_button_icon_name=self.top_nav_left_button_icon_name,
+            show_right_button=self.show_top_nav_right_button,
+            right_button_icon_name=self.top_nav_right_button_icon_name,
         )
         self.is_input_in_top_nav = False
 
@@ -234,7 +238,7 @@ class TextTopNavScreen(BaseTopNavScreen):
                 if user_input == B.KEY_UP:
                     if not self.top_nav.is_selected:
                         # Only move navigation up there if there's something to select
-                        if self.top_nav.show_back_button or self.top_nav.show_power_button:
+                        if self.top_nav.show_left_button or self.top_nav.show_right_button:
                             self.top_nav.is_selected = True
                             self.top_nav.render()
 
@@ -405,7 +409,7 @@ class ButtonListScreen(BaseTopNavScreen):
                     # OR keyed UP from the top of the list.
                     # Move selection up to top_nav
                     # Only move navigation up there if there's something to select
-                    if self.top_nav.show_back_button or self.top_nav.show_power_button:
+                    if self.top_nav.show_left_button or self.top_nav.show_right_button:
                         self.buttons[self.selected_button].is_selected = False
                         self.buttons[self.selected_button].render()
 
@@ -580,7 +584,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                     if self.selected_button in [0, 2]:
                         swap_selected_button(self.selected_button + 1)
                 
-                elif user_input == B.KEY_RIGHT and self.top_nav.is_selected and not self.top_nav.show_power_button:
+                elif user_input == B.KEY_RIGHT and self.top_nav.is_selected and not self.top_nav.show_right_button:
                     self.top_nav.is_selected = False
                     self.top_nav.render()
 
@@ -592,7 +596,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                         swap_selected_button(self.selected_button - 1)
                     else:
                         # Left from the far edge takes us up to the BACK arrow
-                        if self.top_nav.show_back_button:
+                        if self.top_nav.show_left_button:
                             self.top_nav.is_selected = True
                             self.top_nav.render()
 

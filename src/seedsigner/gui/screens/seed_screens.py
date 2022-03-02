@@ -9,12 +9,11 @@ from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
 
 from seedsigner.models.seed import Seed
 
-from .screen import BaseScreen, BaseTopNavScreen, ButtonListScreen, WarningScreenMixin
+from .screen import BaseTopNavScreen, ButtonListScreen, WarningScreenMixin
 from ..components import FontAwesomeIconConstants, Fonts, FormattedAddress, IconTextLine, SeedSignerCustomIconConstants, TextArea, GUIConstants, TextDoesNotFitException, calc_text_centering
 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.helpers import B
-from seedsigner.models.encode_qr import EncodeQR
 
 
 
@@ -27,7 +26,8 @@ class SeedValidScreen(ButtonListScreen):
 
     def __post_init__(self):
         # TODO: Replace this with explicit "Continue"/"Discard" options
-        self.show_top_nav_back_button = True
+        self.show_top_nav_left_button = True
+        self.top_nav_left_button_icon_name = FontAwesomeIconConstants.X
 
         super().__post_init__()
 
