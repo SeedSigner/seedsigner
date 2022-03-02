@@ -26,7 +26,9 @@ class SeedValidScreen(ButtonListScreen):
     button_data: list = None
 
     def __post_init__(self):
-        self.show_top_nav_back_button = False
+        # TODO: Replace this with explicit "Continue"/"Discard" options
+        self.show_top_nav_back_button = True
+
         super().__post_init__()
 
         self.fingerprint_icontl = IconTextLine(

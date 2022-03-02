@@ -515,13 +515,14 @@ class SeedValidView(View):
         if self.controller.psbt:
             if PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 # The Seed we just entered can sign the psbt we have in memory.
-                # Immediately forward on to the PSBT Overview.
-                seed_num = self.controller.storage.finalize_pending_seed()
-                self.controller.psbt_seed = self.seed
-                return Destination(PSBTOverviewView, clear_history=True)
-            else:
-                # We can't be sure if we can sign the PSBT with this new key
-                button_data.append(SIGN_PSBT)
+                SIGN_PSBT = "Sign PSBT"
+            #     # Immediately forward on to the PSBT Overview.
+            #     seed_num = self.controller.storage.finalize_pending_seed()
+            #     self.controller.psbt_seed = self.seed
+            #     return Destination(PSBTOverviewView, clear_history=True)
+
+            # Don't auto-route to a signable psbt. Just display it.
+            button_data.append(SIGN_PSBT)
         else:
             button_data.append(SCAN_PSBT)
 

@@ -734,8 +734,8 @@ class Button(BaseComponent):
             if self.icon_y_offset:
                 self.icon_y = self.icon_y_offset
             else:
-                print(f"self.icon_name: {self.icon_name} | self.height: {self.height} | self.icon.height: {self.icon.height}")
-                print(f"\t\tself.width: {self.width} | self.icon.width: {self.icon.width}")
+                # print(f"self.icon_name: {self.icon_name} | self.height: {self.height} | self.icon.height: {self.icon.height}")
+                # print(f"\t\tself.width: {self.width} | self.icon.width: {self.icon.width}")
                 self.icon_y = math.ceil((self.height - self.icon.height)/2)
 
             self.icon.screen_x = self.icon_x
