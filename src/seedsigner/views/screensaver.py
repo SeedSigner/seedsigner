@@ -6,14 +6,23 @@ from PIL import Image, ImageDraw
 
 from . import View
 
-from seedsigner.helpers import B
+from seedsigner.helpers import B, touchscreen
 
 
 class LogoView(View):
-    def __init__(self):
+    def __init__(self, disp, q):
+        print("inside logo")
+        # View.disp = touchscreen.touchscreen()
+        # View.disp.Init()
+        View.disp = disp
         dirname = os.path.dirname(__file__)
         logo_url = os.path.join(dirname, "../../", "seedsigner", "resources", "logo_black_240.png")
         self.logo = Image.open(logo_url)
+        View.canvas_width = View.WIDTH
+        View.canvas_height = View.HEIGHT
+        View.canvas = Image.new('RGB', (View.canvas_width, View.canvas_height))
+        View.draw = ImageDraw.Draw(View.canvas)
+        
 
 
 
@@ -26,7 +35,8 @@ class OpeningSplashView(LogoView):
         for i in range(250, -1, -25):
             self.logo.putalpha(255 - i)
             background = Image.new("RGBA", self.logo.size, (0,0,0))
-            View.disp.ShowImage(Image.alpha_composite(background, self.logo), 0, 0)
+            # View.disp.ShowImage(Image.alpha_composite(background, self.logo), 0, 0)
+            View.q.put((Image.alpha_composite(background, self.logo), 0, 0))
 
         # Display version num and hold for a few seconds
         font = View.ROBOTOCONDENSED_REGULAR_22
@@ -43,8 +53,8 @@ class OpeningSplashView(LogoView):
 
 
 class ScreensaverView(LogoView):
-    def __init__(self, buttons):
-        super().__init__()
+    def __init__(self, buttons, disp, q):
+        super().__init__(disp, q)
 
         self.buttons = buttons
 

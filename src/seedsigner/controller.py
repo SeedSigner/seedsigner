@@ -9,12 +9,15 @@ from embit.networks import NETWORKS
 from embit.descriptor import Descriptor
 from binascii import hexlify
 from threading import Thread
+from queue import Queue
 
 # Internal file class dependencies
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
     SettingsToolsView, IOTestView, OpeningSplashView, ScreensaverView)
 from .helpers import Buttons, B, Path, Singleton
 from .models import (EncodeQRDensity, QRType, Seed, SeedStorage, Settings, DecodeQR, DecodeQRStatus, EncodeQR, PSBTParser)
+
+from seedsigner.helpers import touchscreen
 
 class Controller(Singleton):
     """
@@ -65,11 +68,19 @@ class Controller(Singleton):
         controller = cls.__new__(cls)
         cls._instance = controller
 
+        controller.q = Queue()
+        print("init display")
+        controller.disp = touchscreen.touchscreen(controller.q)
+        controller.disp.Init()
+
+
+
         # Input Buttons
         if disable_hardware:
+            print("disabling the buttons for now")
             controller.buttons = None
         else:
-            controller.buttons = Buttons()
+            controller.buttons = Buttons(controller.disp)
 
         # models
         controller.storage = SeedStorage()
@@ -81,25 +92,28 @@ class Controller(Singleton):
         controller.color = controller.settings.text_color
         controller.current_bg_qr_color = controller.settings.qr_background_color
 
+
+
         # Views
-        controller.menu_view = MenuView()
-        controller.seed_tools_view = SeedToolsView()
-        controller.io_test_view = IOTestView()
-        controller.signing_tools_view = SigningToolsView(controller.storage)
-        controller.settings_tools_view = SettingsToolsView()
-        controller.screensaver = ScreensaverView(controller.buttons)
+        controller.menu_view = MenuView(controller.disp, controller.q)
+        controller.seed_tools_view = SeedToolsView(controller.disp, controller.q)
+        # controller.io_test_view = IOTestView()
+        # controller.signing_tools_view = SigningToolsView(controller.storage)
+        controller.settings_tools_view = SettingsToolsView(controller.disp, controller.q)
+        controller.screensaver = ScreensaverView(controller.buttons, controller.disp, controller.q)
 
         controller.screensaver_activation_ms = 120 * 1000
 
 
     @property
     def camera(self):
-        from .camera import Camera
-        return Camera.get_instance()
+        if not os.getenv("NOTAPI", False):
+            from .camera import Camera
+            return Camera.get_instance()
 
 
     def start(self) -> None:
-        opening_splash = OpeningSplashView()
+        opening_splash = OpeningSplashView(self.disp, self.q)
         opening_splash.start()
 
         if self.DEBUG:

@@ -1,5 +1,7 @@
 import spidev
-import RPi.GPIO as GPIO
+import os
+if not os.getenv("NOTAPI", False):
+    import RPi.GPIO as GPIO
 import time
 import numpy as np
 
