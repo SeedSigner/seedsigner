@@ -1,7 +1,9 @@
 from dataclasses import dataclass
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
+from typing import Tuple
 
-from . import B
+from seedsigner.gui.components import Fonts, GUIConstants
+from seedsigner.helpers.buttons import B
 
 
 
@@ -110,31 +112,31 @@ class Keyboard:
                 if Keyboard.ADDITIONAL_KEYS[self.code]["font"] == Keyboard.COMPACT_KEY_FONT:
                     font = self.keyboard.additonal_key_compact_font
 
-            outline_color = "#333"
             if not self.is_active:
                 rect_color = self.keyboard.background_color
-                font_color = "#666"  # Show the letter but render as gray
+                font_color = "#e8e8e8"  # Show the letter but render as gray
                 if self.is_selected:
                     # Inactive, selected just gets highlighted outline
                     outline_color = self.keyboard.highlight_color
             elif self.is_selected:
                 rect_color = self.keyboard.highlight_color  # Render solid background with the UI's hero color
-                font_color = self.keyboard.background_color
+                font_color = "black"
             else:
                 if self.is_additional_key:
-                    rect_color = "#111"
+                    # rect_color = "#111"
+                    rect_color = self.keyboard.background_color
                 else:
                     rect_color = self.keyboard.background_color
-                font_color = self.keyboard.highlight_color
+                font_color = "#e8e8e8"
 
-            self.keyboard.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.keyboard.x_width * self.size - 1, self.screen_y + self.keyboard.y_height), outline=outline_color, fill=rect_color, radius=4)
+            self.keyboard.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.keyboard.x_width * self.size - 1, self.screen_y + self.keyboard.y_height), fill=rect_color, radius=4)
             tw, th = self.keyboard.draw.textsize(self.letter, font=font)
-            self.keyboard.draw.text((self.screen_x + int((self.keyboard.x_width * self.size - tw) / 2), self.screen_y + int((self.keyboard.y_height - th)/2)), self.letter, fill=font_color, font=font)
+            self.keyboard.draw.text((self.screen_x + int((self.keyboard.x_width * self.size - tw) / 2), self.screen_y + int((self.keyboard.y_height - th)/2) - 1), self.letter, fill=font_color, font=font)
 
 
 
-    def __init__(self, 
-                 draw,
+    def __init__(self,
+                 draw: ImageDraw,
                  charset="1234567890abcdefghijklmnopqrstuvwxyz",
                  selected_char="a",
                  rows=4,
@@ -143,15 +145,12 @@ class Keyboard:
                  font=None,
                  additional_keys=[KEY_BACKSPACE],
                  auto_wrap=[WRAP_TOP, WRAP_BOTTOM, WRAP_LEFT, WRAP_RIGHT],
-                 render_now=True):
+                 render_now=True,
+                 highlight_color: str = GUIConstants.ACCENT_COLOR):
         """
             `auto_wrap` specifies which edges the keyboard is allowed to loop back when
             navigating past the end.
         """
-
-        # Import here to avoid circular import problems
-        from seedsigner.views import View
-
         self.draw = draw
         self.charset = charset
         self.rows = rows
@@ -160,10 +159,10 @@ class Keyboard:
         if font:
             self.font = font
         else:
-            self.font = View.ROBOTOCONDENSED_REGULAR_24
+            self.font = Fonts.get_font("RobotoCondensed-Regular", 24)
         self.auto_wrap = auto_wrap
-        self.background_color = "black"
-        self.highlight_color = View.color
+        self.background_color = "#2c2c2c"
+        self.highlight_color = highlight_color
 
         # Does the specified layout work?
         additional_key_spaces = 0
@@ -177,7 +176,7 @@ class Keyboard:
 
         # Set up the rendering and state params
         self.active_keys = list(self.charset)
-        self.additonal_key_compact_font = View.ROBOTOCONDENSED_BOLD_18
+        self.additonal_key_compact_font = Fonts.get_font("RobotoCondensed-Bold", 18)
         self.x_start = rect[0]
         self.y_start = rect[1]
         self.x_gap = 1
@@ -257,7 +256,7 @@ class Keyboard:
             that section, as in when changing `active_keys` or swapping to alternate
             charsets (e.g. alpha to special symbols).
 
-            Does NOT call View.DispShowImage to avoid multiple calls on the same screen.
+            Does NOT call self.renderer.show_image to avoid multiple calls on the same screen.
         """
         # Start with a clear screen
         self.draw.rectangle(self.rect, outline=0, fill=0)
@@ -352,7 +351,7 @@ class Keyboard:
             Returns the character currently highlighted or one of the EXIT_* codes if the
             user has navigated off the keyboard past an edge that is not in `auto_wrap`.
 
-            Does NOT call View.DispShowImage to avoid multiple calls on the same screen.
+            Does NOT call self.renderer.show_image to avoid multiple calls on the same screen.
         """
         key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
 
@@ -477,10 +476,10 @@ class TextEntryDisplayConstants:
 
 @dataclass
 class TextEntryDisplay(TextEntryDisplayConstants):
-    draw: any
-    rect: (int,int,int,int)
-    font: any
-    font_color: any
+    canvas: Image
+    rect: Tuple[int,int,int,int]
+    font: ImageFont
+    font_color: str
     cursor_mode: str = TextEntryDisplayConstants.CURSOR_MODE__BLOCK
     is_centered: bool = True
     has_outline: bool = False
@@ -497,9 +496,6 @@ class TextEntryDisplay(TextEntryDisplayConstants):
 
 
     def render(self, cur_text=None, cursor_position=None):
-        # Import here to avoid circular import problems
-        from seedsigner.views import View
-
         """ Render the live text entry display """
         if cur_text is not None:
             self.cur_text = cur_text
@@ -580,5 +576,5 @@ class TextEntryDisplay(TextEntryDisplayConstants):
             draw.line((cursor_bar_x - cursor_bar_serif_half_width, self.height - 3, cursor_bar_x + cursor_bar_serif_half_width, self.height - 3), fill=cursor_bar_color)
 
         # Paste the display onto the main canvas
-        View.canvas.paste(image, (self.rect[0], self.rect[1]))
+        self.canvas.paste(image, (self.rect[0], self.rect[1]))
 

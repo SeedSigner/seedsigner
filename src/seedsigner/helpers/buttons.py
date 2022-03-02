@@ -1,9 +1,10 @@
 import RPi.GPIO as GPIO
 import time
 
+from seedsigner.models import Singleton
 
 
-class Buttons:
+class Buttons(Singleton):
     KEY_UP_PIN = 6
     KEY_DOWN_PIN = 19
     KEY_LEFT_PIN = 5
@@ -14,29 +15,37 @@ class Buttons:
     KEY2_PIN = 20
     KEY3_PIN = 16
 
-    def __init__(self) -> None:
-        #init GPIO
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(Buttons.KEY_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)    # Input with pull-up
-        GPIO.setup(Buttons.KEY_DOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
-        GPIO.setup(Buttons.KEY_LEFT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
-        GPIO.setup(Buttons.KEY_RIGHT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
-        GPIO.setup(Buttons.KEY_PRESS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
-        GPIO.setup(Buttons.KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
-        GPIO.setup(Buttons.KEY2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
-        GPIO.setup(Buttons.KEY3_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
 
-        self.GPIO = GPIO
-        self.override_ind = False
+    @classmethod
+    def get_instance(cls):
+        # This is the only way to access the one and only instance
+        if cls._instance is None:
+            cls._instance = cls.__new__(cls)
 
-        self.add_events([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS, B.KEY_LEFT, B.KEY_RIGHT, B.KEY1, B.KEY2, B.KEY3])
+            #init GPIO
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(Buttons.KEY_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)    # Input with pull-up
+            GPIO.setup(Buttons.KEY_DOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
+            GPIO.setup(Buttons.KEY_LEFT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
+            GPIO.setup(Buttons.KEY_RIGHT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
+            GPIO.setup(Buttons.KEY_PRESS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
+            GPIO.setup(Buttons.KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
+            GPIO.setup(Buttons.KEY2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
+            GPIO.setup(Buttons.KEY3_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
 
-        # Track state over time so we can apply input delays/ignores as needed
-        self.cur_input = None           # Track which direction or button was last pressed
-        self.cur_input_started = None   # Track when that input began
-        self.last_input_time = int(time.time() * 1000)  # How long has it been since the last input?
-        self.first_repeat_threshold = 175  # Long-press time required before returning continuous input
-        self.next_repeat_threshold = 250  # Amount of time where we no longer consider input a continuous hold
+            cls._instance.GPIO = GPIO
+            cls._instance.override_ind = False
+
+            cls._instance.add_events([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS, B.KEY_LEFT, B.KEY_RIGHT, B.KEY1, B.KEY2, B.KEY3])
+
+            # Track state over time so we can apply input delays/ignores as needed
+            cls._instance.cur_input = None           # Track which direction or button was last pressed
+            cls._instance.cur_input_started = None   # Track when that input began
+            cls._instance.last_input_time = int(time.time() * 1000)  # How long has it been since the last input?
+            cls._instance.first_repeat_threshold = 175  # Long-press time required before returning continuous input
+            cls._instance.next_repeat_threshold = 250  # Amount of time where we no longer consider input a continuous hold
+
+        return cls._instance
 
 
     def wait_for(self, keys=[], check_release=True, release_keys=[]) -> int:

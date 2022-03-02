@@ -1,25 +1,27 @@
-# External Dependencies
-from re import L
-from PIL import ImageDraw, Image
-from PIL.ImageOps import autocontrast
-
 import hashlib
 import math
 import os
 import time
+from PIL import ImageDraw, Image
+from PIL.ImageOps import autocontrast
 
-# Internal file class dependencies
+from seedsigner.models.settings import SettingsConstants
+
 from . import View
-from seedsigner.helpers import B, QR, Keyboard, TextEntryDisplay, mnemonic_generation
-from seedsigner.models import DecodeQR, DecodeQRStatus, QRType, EncodeQR, Settings, Seed
-from seedsigner.models import SeedStorage
+
+from seedsigner.helpers import QR, mnemonic_generation
+from seedsigner.gui.components import Fonts
+from seedsigner.gui.keyboard import B, Keyboard, TextEntryDisplay
+from seedsigner.models import (DecodeQR, DecodeQRStatus, QRType, EncodeQR, Settings,
+    Seed, SeedStorage)
+
+
 
 class SeedToolsView(View):
-
     ALPHABET = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
 
     def __init__(self) -> None:
-        View.__init__(self)
+        super().__init__()
 
         # Gather words and seed display information
         self.words = []
@@ -37,19 +39,9 @@ class SeedToolsView(View):
         self.roll_data = ""
         self.dice_seed_phrase = []
 
-        # Gather passphrase display information
-        self.passphrase = ""
-        self.pass_lower = "abcdefghijklmnopqrstuvwxyz"
-        self.pass_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        self.pass_number = "0123456789"
-        self.pass_symbol = "!\"#$%&'()*+,=./;:<>?@[]|-_`~"
-        self.pass_letter = ""
-        self.pass_case_toggle = "lower"
-
     ###
     ### Display Gather Words Screen
     ###
-
     def display_manual_seed_entry(self, num_words):
         self.seed_length = num_words
         self.reset()
@@ -87,7 +79,7 @@ class SeedToolsView(View):
                 (has access to all vars in the parent's context)
             """
             # Clear the right panel
-            View.draw.rectangle((keyboard_width, text_entry_display_height, View.canvas_width, View.canvas_height), fill="black")
+            self.renderer.draw.rectangle((keyboard_width, text_entry_display_height, self.canvas_width, self.canvas_height), fill="black")
 
             if not self.possible_words:
                 return
@@ -101,7 +93,7 @@ class SeedToolsView(View):
 
             list_starting_index = self.selected_possible_words_index - highlighted_row
 
-            word_font = View.ROBOTOCONDENSED_REGULAR_22
+            word_font = Fonts.get_font("RobotoCondensed-Regular", 22)
             for row, i in enumerate(range(list_starting_index, list_starting_index + num_possible_rows)):
                 if i < 0:
                     # We're near the top of the list, not enough items to fill above the highlighted row
@@ -113,20 +105,20 @@ class SeedToolsView(View):
                 if len(self.possible_words) <= i:
                     break
 
-                View.draw.text((x, y + row * row_height), self.possible_words[i], fill=View.color, font=word_font)
+                self.renderer.draw.text((x, y + row * row_height), self.possible_words[i], fill=self.color, font=word_font)
 
             # Render the SELECT outline
             if highlight_word:
-                fill_color = View.color
+                fill_color = self.color
                 font_color = "black"
             else:
                 fill_color = "#111"
-                font_color = View.color
-            View.draw.rounded_rectangle((keyboard_width + 4, y + (3 * row_height) - 2, 250, y + (4 * row_height) + 2), outline=View.color, fill=fill_color, radius=5, width=1)
+                font_color = self.color
+            self.renderer.draw.rounded_rectangle((keyboard_width + 4, y + (3 * row_height) - 2, 250, y + (4 * row_height) + 2), outline=self.color, fill=fill_color, radius=5, width=1)
 
             if self.possible_words:
-                word_font = View.ROBOTOCONDENSED_BOLD_24
-                View.draw.text((x, y + 3 * row_height), self.possible_words[self.selected_possible_words_index], fill=font_color, font=word_font)
+                word_font = Fonts.get_font("RobotoCondensed-Regular", 24)
+                self.renderer.draw.text((x, y + 3 * row_height), self.possible_words[self.selected_possible_words_index], fill=font_color, font=word_font)
 
             render_possible_matches_arrows()
 
@@ -136,38 +128,37 @@ class SeedToolsView(View):
             row_height = 26
             arrow_button_width = 25
             arrow_padding = 5
-            key_x = View.canvas_width - arrow_button_width
+            key_x = self.canvas_width - arrow_button_width
             key_y = text_entry_display_height - int(row_height / 2) + int(0.75 * row_height)
             background_color = "#111"
-            arrow_color = View.color
+            arrow_color = self.color
             if arrow_up_is_active:
-                background_color = View.color
+                background_color = self.color
                 arrow_color = "#111"
-            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
-            View.draw.polygon(
+            self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=self.color, fill=background_color, radius=5, width=1)
+            self.renderer.draw.polygon(
                 [(key_x + int(arrow_button_width)/2 + 1, key_y + arrow_padding),  # centered top point
-                (View.canvas_width - arrow_padding + 1, key_y + row_height - arrow_padding),  # bottom right point
+                (self.canvas_width - arrow_padding + 1, key_y + row_height - arrow_padding),  # bottom right point
                 (key_x + arrow_padding + 1, key_y + row_height - arrow_padding)],  # bottom left point
                 fill=arrow_color
             )
 
             background_color = "#111"
-            arrow_color = View.color
+            arrow_color = self.color
             if arrow_down_is_active:
-                background_color = View.color
+                background_color = self.color
                 arrow_color = "#111"
             key_y = text_entry_display_height - int(row_height / 2) + int(5.25 * row_height)
-            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
-            View.draw.polygon(
+            self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=self.color, fill=background_color, radius=5, width=1)
+            self.renderer.draw.polygon(
                 [(key_x + int(arrow_button_width)/2 + 1, key_y + row_height - arrow_padding),  # bottom centered point
-                (View.canvas_width - arrow_padding + 1, key_y + arrow_padding),  # right top point
+                (self.canvas_width - arrow_padding + 1, key_y + arrow_padding),  # right top point
                 (key_x + arrow_padding + 1, key_y + arrow_padding)], # left top point
                 fill=arrow_color
             )
 
-
         # Clear the screen
-        View.draw.rectangle((0,0, View.canvas_width,View.canvas_height), fill="black")
+        self.renderer.draw.rectangle((0,0, self.canvas_width,self.canvas_height), fill="black")
 
         self.render_previous_button()
         previous_button_is_active = False
@@ -183,8 +174,7 @@ class SeedToolsView(View):
         text_entry_display_height = 39
 
         # TODO: support other BIP39 languages/charsets
-        keyboard = Keyboard(View.draw,
-                            charset=self.possible_alphabet,
+        keyboard = Keyboard(charset=self.possible_alphabet,
                             rows=5,
                             cols=6,
                             rect=(0,text_entry_display_height + 1, keyboard_width,240),
@@ -193,10 +183,9 @@ class SeedToolsView(View):
         # Render the top text entry display
         self.letters = initial_letters
         text_entry_display = TextEntryDisplay(
-            View.draw,
-            rect=(self.previous_button_width,0, View.canvas_width,text_entry_display_height),
-            font=View.ROBOTOCONDENSED_BOLD_26,
-            font_color=View.color,
+            rect=(self.previous_button_width,0, self.canvas_width,text_entry_display_height),
+            font=Fonts.get_font("RobotoCondensed-Bold", 26),
+            font_color=self.color,
             cur_text=f"{num_word}: " + "".join(self.letters)
         )
         text_entry_display.render()
@@ -213,11 +202,11 @@ class SeedToolsView(View):
         keyboard.render_keys()
         render_possible_matches()
 
-        View.DispShowImage()
+        self.renderer.show_image()
 
         # Start the interactive update loop
         while True:
-            input = View.buttons.wait_for(
+            input = self.buttons.wait_for(
                 [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3],
                 check_release=True,
                 release_keys=[B.KEY_PRESS, B.KEY2]
@@ -315,7 +304,7 @@ class SeedToolsView(View):
                 self.letters = list(final_selection + " ")
                 render_possible_matches(highlight_word=final_selection)
                 text_entry_display.render(f"{num_word}: " + "".join(self.letters))
-                View.DispShowImage()
+                self.renderer.show_image()
 
                 return final_selection
 
@@ -371,324 +360,36 @@ class SeedToolsView(View):
             # Render the text entry display and cursor block
             text_entry_display.render(f"{num_word}: " + "".join(self.letters))
 
-            View.DispShowImage()
+            self.renderer.show_image()
 
 
-    def draw_passphrase_keyboard_entry(self, existing_passphrase = ""):
-        def render_right_panel(button1_text="ABC", button2_text="123"):
-            # Render the up/down arrow buttons for KEY1 and KEY3
-            row_height = 28
-            right_button_left_margin = 10
-            right_button_width = right_panel_buttons_width - right_button_left_margin
-            font_padding_right = 2
-            font_padding_top = 1
-            key_x = View.canvas_width - right_button_width
-            key_y = int(View.canvas_height - row_height) / 2 - 1 - 60
-
-            background_color = "#111"
-            font_color = View.color
-            font = View.ROBOTOCONDENSED_BOLD_24
-            tw, th = font.getsize(button1_text)
-            if button1_is_active:
-                background_color = View.color
-                font_color = "#111"
-            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
-            View.draw.text((View.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button1_text, fill=font_color)
-
-            background_color = "#111"
-            font_color = View.color
-            tw, th = font.getsize(button2_text)
-            if button2_is_active:
-                background_color = View.color
-                font_color = "#111"
-            key_y = int(View.canvas_height - row_height) / 2 - 1
-            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
-            View.draw.text((View.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button2_text, fill=font_color)
-
-            background_color = "#111"
-            font_color = View.color
-            button3_text = "Save"
-            tw, th = font.getsize(button3_text)
-            if button3_is_active:
-                background_color = View.color
-                font_color = "#111"
-            key_y = int(View.canvas_height - row_height) / 2 - 1 + 60
-            View.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=View.color, fill=background_color, radius=5, width=1)
-            View.draw.text((View.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button3_text, fill=font_color)
-
-        # Clear the screen
-        View.draw.rectangle((0,0, View.canvas_width,View.canvas_height), fill="black")
-
-        self.render_previous_button()
-        previous_button_is_active = False
-
-        # Have to ensure that we don't carry any effects from a previous run
-        # TODO: This shouldn't be a member var
-        if existing_passphrase:
-            self.passphrase = existing_passphrase
-        else:
-            self.passphrase = ""
-
-        # Set up the keyboard params
-        right_panel_buttons_width = 60
-
-        # render top title banner
-        font = View.ROBOTOCONDENSED_REGULAR_20
-        title = "Enter Passphrase"
-        title_top_padding = 0
-        title_bottom_padding = 10
-        tw, th = font.getsize(title)
-        View.draw.text((int(View.canvas_width - tw) / 2, title_top_padding), text=title, font=font, fill=View.color)
-        title_height = th + title_top_padding + title_bottom_padding
-
-        # Render the live text entry display
-        font = View.ROBOTOCONDENSED_REGULAR_28
-        tw, th = font.getsize("!\"#$%&'()*+,=./;:<>?@[]|-_`~ ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 1234567890")  # All possible chars for max range
-        text_entry_side_padding = 0
-        text_entry_top_padding = 1
-        text_entry_bottom_padding = 10
-        text_entry_top_y = title_height + text_entry_top_padding
-        text_entry_bottom_y = text_entry_top_y + 3 + th + 3
-        text_entry_display = TextEntryDisplay(
-            View.draw,
-            rect=(text_entry_side_padding,text_entry_top_y, View.canvas_width - right_panel_buttons_width - 1, text_entry_bottom_y),
-            font=font,
-            font_color=View.color,
-            cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
-            is_centered=False,
-            has_outline=True,
-            cur_text=''.join(self.passphrase)
-        )
-        text_entry_display.render()
-        cursor_position = len(self.passphrase)
-
-        keyboard_start_y = text_entry_bottom_y + text_entry_bottom_padding
-        keyboard_abc = Keyboard(
-            View.draw,
-            charset="".join(SeedToolsView.ALPHABET),
-            rows=4,
-            cols=9,
-            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
-            additional_keys=[Keyboard.KEY_SPACE_5, Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
-            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT]
-        )
-
-        keyboard_ABC = Keyboard(
-            View.draw,
-            charset="".join(SeedToolsView.ALPHABET).upper(),
-            rows=4,
-            cols=9,
-            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
-            additional_keys=[Keyboard.KEY_SPACE_5, Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
-            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
-            render_now=False
-        )
-
-        keyboard_digits = Keyboard(
-            View.draw,
-            charset="1234567890",
-            rows=3,
-            cols=5,
-            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
-            additional_keys=[Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
-            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
-            render_now=False
-        )
-
-        keyboard_symbols = Keyboard(
-            View.draw,
-            charset="!@#$%^&*()-+_=[]{}\\|;:'\",.<>/?`~",
-            rows=4,
-            cols=10,
-            rect=(0, keyboard_start_y, View.canvas_width - right_panel_buttons_width, View.canvas_height),
-            additional_keys=[Keyboard.KEY_SPACE_4, Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
-            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
-            render_now=False
-        )
-
-        button1_is_active = False
-        button2_is_active = False
-        button3_is_active = False
-        KEYBOARD__LOWERCASE = 0
-        KEYBOARD__UPPERCASE = 1
-        KEYBOARD__DIGITS = 2
-        KEYBOARD__SYMBOLS = 3
-        KEYBOARD__LOWERCASE_BUTTON_TEXT = "abc"
-        KEYBOARD__UPPERCASE_BUTTON_TEXT = "ABC"
-        KEYBOARD__DIGITS_BUTTON_TEXT = "123"
-        KEYBOARD__SYMBOLS_BUTTON_TEXT = "!@#"
-        cur_keyboard = keyboard_abc
-        cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
-        cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
-        render_right_panel()
-
-        View.DispShowImage()
-
-        # Start the interactive update loop
-        while True:
-            input = View.buttons.wait_for(
-                [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3],
-                check_release=True,
-                release_keys=[B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3]
-            )
-
-            keyboard_swap = False
-
-            # Check our two possible exit conditions
-            if input == B.KEY3:
-                # Save!
-                if len(self.passphrase) > 0:
-                    return self.passphrase.strip()
-
-            elif input == B.KEY_PRESS and previous_button_is_active:
-                # Prev button clicked; return empty string to signal cancel.
-                return ""
-
-            # Check for keyboard swaps
-            if input == B.KEY1:
-                # Return to the same button2 keyboard, if applicable
-                if cur_keyboard == keyboard_digits:
-                    cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
-                elif cur_keyboard == keyboard_symbols:
-                    cur_button2_text = KEYBOARD__SYMBOLS_BUTTON_TEXT
-
-                if cur_button1_text == KEYBOARD__LOWERCASE_BUTTON_TEXT:
-                    keyboard_abc.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard = keyboard_abc
-                    cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
-                    render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
-                else:
-                    keyboard_ABC.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard = keyboard_ABC
-                    cur_button1_text = KEYBOARD__LOWERCASE_BUTTON_TEXT
-                    render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
-                cur_keyboard.render_keys()
-                keyboard_swap = True
-                ret_val = None
-
-            elif input == B.KEY2:
-                # Return to the same button1 keyboard, if applicable
-                if cur_keyboard == keyboard_abc:
-                    cur_button1_text = KEYBOARD__LOWERCASE_BUTTON_TEXT
-                elif cur_keyboard == keyboard_ABC:
-                    cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
-
-                if cur_button2_text == KEYBOARD__DIGITS_BUTTON_TEXT:
-                    keyboard_digits.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard = keyboard_digits
-                    cur_keyboard.render_keys()
-                    cur_button2_text = KEYBOARD__SYMBOLS_BUTTON_TEXT
-                    render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
-                else:
-                    keyboard_symbols.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard = keyboard_symbols
-                    cur_keyboard.render_keys()
-                    cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
-                    render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
-                cur_keyboard.render_keys()
-                keyboard_swap = True
-                ret_val = None
-
-            else:
-                # Process normal input
-                if input in [B.KEY_UP, B.KEY_DOWN] and previous_button_is_active:
-                    # We're navigating off the previous button
-                    previous_button_is_active = False
-                    self.render_previous_button(highlight=False)
-
-                    # Override the actual input w/an ENTER signal for the Keyboard
-                    if input == B.KEY_DOWN:
-                        input = Keyboard.ENTER_TOP
-                    else:
-                        input = Keyboard.ENTER_BOTTOM
-                elif input in [B.KEY_LEFT, B.KEY_RIGHT] and previous_button_is_active:
-                    # ignore
-                    continue
-
-                ret_val = cur_keyboard.update_from_input(input)
-
-            # Now process the result from the keyboard
-            if ret_val in Keyboard.EXIT_DIRECTIONS:
-                self.render_previous_button(highlight=True)
-                previous_button_is_active = True
-
-            elif ret_val in Keyboard.ADDITIONAL_KEYS and input == B.KEY_PRESS:
-                if ret_val == Keyboard.KEY_BACKSPACE["code"]:
-                    if cursor_position == 0:
-                        pass
-                    elif cursor_position == len(self.passphrase):
-                        self.passphrase = self.passphrase[:-1]
-                    else:
-                        self.passphrase = self.passphrase[:cursor_position - 1] + self.passphrase[cursor_position:]
-
-                    cursor_position -= 1
-
-                elif ret_val == Keyboard.KEY_CURSOR_LEFT["code"]:
-                    cursor_position -= 1
-                    if cursor_position < 0:
-                        cursor_position = 0
-
-                elif ret_val == Keyboard.KEY_CURSOR_RIGHT["code"]:
-                    cursor_position += 1
-                    if cursor_position > len(self.passphrase):
-                        cursor_position = len(self.passphrase)
-
-                elif ret_val == Keyboard.KEY_SPACE["code"]:
-                    if cursor_position == len(self.passphrase):
-                        self.passphrase += " "
-                    else:
-                        self.passphrase = self.passphrase[:cursor_position] + " " + self.passphrase[cursor_position:]
-                    cursor_position += 1
-
-                # Update the text entry display and cursor
-                text_entry_display.render(self.passphrase, cursor_position)
-
-            elif input == B.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
-                # User has locked in the current letter
-                if cursor_position == len(self.passphrase):
-                    self.passphrase += ret_val
-                else:
-                    self.passphrase = self.passphrase[:cursor_position] + ret_val + self.passphrase[cursor_position:]
-                cursor_position += 1
-
-                # Update the text entry display and cursor
-                text_entry_display.render(self.passphrase, cursor_position)
-
-            elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN] or keyboard_swap:
-                # Live joystick movement; haven't locked this new letter in yet.
-                # Leave current spot blank for now. Only update the active keyboard keys
-                # when a selection has been locked in (KEY_PRESS) or removed ("del").
-                pass
-
-            View.DispShowImage()
 
     ###
     ### Display Last Word
     ###
-
     def display_last_word(self, partial_seed_phrase) -> list:
-        finalseed = mnemonic_generation.calculate_checksum(partial_seed_phrase, wordlist=self.controller.settings.wordlist)
+        finalseed = mnemonic_generation.calculate_checksum(partial_seed_phrase, wordlist=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
         last_word = finalseed[-1]
 
-        self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        tw, th = self.draw.textsize("The final word is :", font=View.ASSISTANT23)
-        self.draw.text(((240 - tw) / 2, 60), "The final word is :", fill=View.color, font=View.ASSISTANT23)
-        tw, th = self.draw.textsize(last_word, font=View.ASSISTANT50)
-        self.draw.text(((240 - tw) / 2, 90), last_word, fill=View.color, font=View.ASSISTANT50)
+        self.renderer.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
+        tw, th = self.renderer.draw.textsize("The final word is :", font=Fonts.get_font("Assistant-Medium", 23))
+        self.renderer.draw.text(((240 - tw) / 2, 60), "The final word is :", fill=self.color, font=Fonts.get_font("Assistant-Medium", 23))
+        tw, th = self.renderer.draw.textsize(last_word, font=Fonts.get_font("Assistant-Medium", 50))
+        self.renderer.draw.text(((240 - tw) / 2, 90), last_word, fill=self.color, font=Fonts.get_font("Assistant-Medium", 50))
 
-        tw, th = View.draw.textsize("Right to Continue", font=View.ASSISTANT18)
-        View.draw.text(((240 - tw) / 2, 210), "Right to Continue", fill=View.color, font=View.ASSISTANT18)
+        tw, th = self.renderer.draw.textsize("Right to Continue", font=Fonts.get_font("Assistant-Medium", 18))
+        self.renderer.draw.text(((240 - tw) / 2, 210), "Right to Continue", fill=self.color, font=Fonts.get_font("Assistant-Medium", 18))
 
-
-        View.DispShowImage()
+        self.renderer.show_image()
 
         input = self.buttons.wait_for([B.KEY_RIGHT])
         return finalseed
 
+
+
     ###
     ### Display Seed from Dice
     ###
-
     def display_generate_seed_from_dice(self):
         self.roll_number = 1
         self.dice_selected = 5
@@ -718,6 +419,7 @@ class SeedToolsView(View):
                 self.dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(self.roll_data)
                 return self.dice_seed_phrase[:]
 
+
     def dice_arrow_up(self):
         new_selection = 0
         if self.dice_selected == 4:
@@ -732,6 +434,7 @@ class SeedToolsView(View):
 
         return True
 
+
     def dice_arrow_down(self):
         new_selection = 0
         if self.dice_selected == 1:
@@ -745,6 +448,7 @@ class SeedToolsView(View):
             self.draw_dice(new_selection)
 
         return True
+
 
     def dice_arrow_right(self):
         new_selection = 0
@@ -761,6 +465,7 @@ class SeedToolsView(View):
             self.draw_dice(new_selection)
 
         return True
+
 
     def dice_arrow_left(self):
         if self.dice_selected == 1:
@@ -795,6 +500,7 @@ class SeedToolsView(View):
 
         return True
 
+
     def dice_arrow_press(self):
         self.roll_number += 1
         self.roll_data += str(self.dice_selected)
@@ -810,95 +516,95 @@ class SeedToolsView(View):
 
         return True
 
-    def draw_dice(self, dice_selected):
 
-        self.draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
-        self.draw.text((45, 5), "Dice roll: " + str(self.roll_number) + "/99", fill=View.color, font=View.ASSISTANT26)
+    def draw_dice(self, dice_selected):
+        self.renderer.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
+        self.renderer.draw.text((45, 5), "Dice roll: " + str(self.roll_number) + "/99", fill=self.color, font=Fonts.get_font("Assistant-Medium", 26))
 
         # when dice is selected, rect fill will be orange and ellipse will be black, ellipse outline will be the black
         # when dice is not selected, rect will will be black and ellipse will be orange, ellipse outline will be orange
 
         # dice 1
         if dice_selected == 1:
-            self.draw.rectangle((5, 50, 75, 120),   outline=View.color, fill=View.color)
-            self.draw.ellipse([(34, 79), (46, 91)], outline="BLACK",  fill="BLACK")
+            self.renderer.draw.rectangle((5, 50, 75, 120),   outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(34, 79), (46, 91)], outline="BLACK",  fill="BLACK")
         else:
-            self.draw.rectangle((5, 50, 75, 120),   outline=View.color, fill="BLACK")
-            self.draw.ellipse([(34, 79), (46, 91)], outline=View.color, fill=View.color)
+            self.renderer.draw.rectangle((5, 50, 75, 120),   outline=self.color, fill="BLACK")
+            self.renderer.draw.ellipse([(34, 79), (46, 91)], outline=self.color, fill=self.color)
 
         # dice 2
         if dice_selected == 2:
-            self.draw.rectangle((85, 50, 155, 120), outline=View.color, fill=View.color)
-            self.draw.ellipse([(100, 60), (112, 72)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(128, 98), (140, 110)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.rectangle((85, 50, 155, 120), outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(100, 60), (112, 72)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(128, 98), (140, 110)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((85, 50, 155, 120), outline=View.color, fill="BLACK")
-            self.draw.ellipse([(100, 60), (112, 72)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(128, 98), (140, 110)], outline=View.color, fill=View.color)
+            self.renderer.draw.rectangle((85, 50, 155, 120), outline=self.color, fill="BLACK")
+            self.renderer.draw.ellipse([(100, 60), (112, 72)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(128, 98), (140, 110)], outline=self.color, fill=self.color)
 
         # dice 3
         if dice_selected == 3:
-            self.draw.rectangle((165, 50, 235, 120), outline=View.color, fill=View.color)
-            self.draw.ellipse([(180, 60), (192, 72)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(194, 79), (206, 91)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(208, 98), (220, 110)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.rectangle((165, 50, 235, 120), outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(180, 60), (192, 72)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(194, 79), (206, 91)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(208, 98), (220, 110)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((165, 50, 235, 120), outline=View.color, fill="BLACK")
-            self.draw.ellipse([(180, 60), (192, 72)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(194, 79), (206, 91)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(208, 98), (220, 110)], outline=View.color, fill=View.color)
+            self.renderer.draw.rectangle((165, 50, 235, 120), outline=self.color, fill="BLACK")
+            self.renderer.draw.ellipse([(180, 60), (192, 72)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(194, 79), (206, 91)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(208, 98), (220, 110)], outline=self.color, fill=self.color)
 
         # dice 4
         if dice_selected == 4:
-            self.draw.rectangle((5, 130, 75, 200), outline=View.color, fill=View.color)
-            self.draw.ellipse([(20, 140), (32, 152)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(20, 174), (32, 186)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(48, 140), (60, 152)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(48, 174), (60, 186)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.rectangle((5, 130, 75, 200), outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(20, 140), (32, 152)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(20, 174), (32, 186)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(48, 140), (60, 152)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(48, 174), (60, 186)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((5, 130, 75, 200), outline=View.color, fill="BLACK")
-            self.draw.ellipse([(20, 140), (32, 152)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(20, 174), (32, 186)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(48, 140), (60, 152)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(48, 174), (60, 186)], outline=View.color, fill=View.color)
+            self.renderer.draw.rectangle((5, 130, 75, 200), outline=self.color, fill="BLACK")
+            self.renderer.draw.ellipse([(20, 140), (32, 152)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(20, 174), (32, 186)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(48, 140), (60, 152)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(48, 174), (60, 186)], outline=self.color, fill=self.color)
 
         # dice 5
         if dice_selected == 5:
-            self.draw.rectangle((85, 130, 155, 200), outline=View.color, fill=View.color)
-            self.draw.ellipse([(100, 140), (112, 152)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(100, 178), (112, 190)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(114, 159), (126, 171)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(128, 140), (140, 152)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(128, 178), (140, 190)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.rectangle((85, 130, 155, 200), outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(100, 140), (112, 152)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(100, 178), (112, 190)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(114, 159), (126, 171)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(128, 140), (140, 152)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(128, 178), (140, 190)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((85, 130, 155, 200), outline=View.color, fill="BLACK")
-            self.draw.ellipse([(100, 140), (112, 152)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(100, 178), (112, 190)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(114, 159), (126, 171)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(128, 140), (140, 152)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(128, 178), (140, 190)], outline=View.color, fill=View.color)
+            self.renderer.draw.rectangle((85, 130, 155, 200), outline=self.color, fill="BLACK")
+            self.renderer.draw.ellipse([(100, 140), (112, 152)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(100, 178), (112, 190)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(114, 159), (126, 171)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(128, 140), (140, 152)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(128, 178), (140, 190)], outline=self.color, fill=self.color)
 
         # dice 6
         if dice_selected == 6:
-            self.draw.rectangle((165, 130, 235, 200), outline=View.color, fill=View.color)
-            self.draw.ellipse([(180, 140), (192, 152)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(180, 157), (192, 169)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(180, 174), (192, 186)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(208, 140), (220, 152)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(208, 157), (220, 169)], outline="BLACK", fill="BLACK")
-            self.draw.ellipse([(208, 174), (220, 186)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.rectangle((165, 130, 235, 200), outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(180, 140), (192, 152)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(180, 157), (192, 169)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(180, 174), (192, 186)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(208, 140), (220, 152)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(208, 157), (220, 169)], outline="BLACK", fill="BLACK")
+            self.renderer.draw.ellipse([(208, 174), (220, 186)], outline="BLACK", fill="BLACK")
         else:
-            self.draw.rectangle((165, 130, 235, 200), outline=View.color, fill="BLACK")
-            self.draw.ellipse([(180, 140), (192, 152)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(180, 157), (192, 169)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(180, 174), (192, 186)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(208, 140), (220, 152)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(208, 157), (220, 169)], outline=View.color, fill=View.color)
-            self.draw.ellipse([(208, 174), (220, 186)], outline=View.color, fill=View.color)
+            self.renderer.draw.rectangle((165, 130, 235, 200), outline=self.color, fill="BLACK")
+            self.renderer.draw.ellipse([(180, 140), (192, 152)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(180, 157), (192, 169)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(180, 174), (192, 186)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(208, 140), (220, 152)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(208, 157), (220, 169)], outline=self.color, fill=self.color)
+            self.renderer.draw.ellipse([(208, 174), (220, 186)], outline=self.color, fill=self.color)
 
         # bottom text
-        self.draw.text((18, 210), "Press Control Stick to Select", fill=View.color, font=View.ASSISTANT18)
-        View.DispShowImage()
+        self.renderer.draw.text((18, 210), "Press Control Stick to Select", fill=self.color, font=Fonts.get_font("Assistant-Medium", 18))
+        self.renderer.show_image()
 
         self.dice_selected = dice_selected
 
@@ -911,7 +617,7 @@ class SeedToolsView(View):
 
         def display_seed_phrase_page(draw, seed_phrase, passphrase=None, bottom=bottom, page_num=1):
             """ Internal helper method to render 12 words of the seed phrase """
-            draw.rectangle((0, 0, View.canvas_width, View.canvas_height), outline=0, fill=0)
+            draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
 
             word_positions = [
                 # Left column
@@ -932,20 +638,20 @@ class SeedToolsView(View):
                     title = "Seed Phrase (2/2)"
                     word_index_offset = 12  # Skip ahead one page worth of words
 
-            tw, th = View.draw.textsize(title, font=View.ASSISTANT18)
-            draw.text(((240 - tw) / 2, 2), title, fill=View.color, font=View.ASSISTANT18)
+            tw, th = self.renderer.draw.textsize(title, font=Fonts.get_font("Assistant-Medium", 18))
+            draw.text(((240 - tw) / 2, 2), title, fill=self.color, font=Fonts.get_font("Assistant-Medium", 18))
 
             for i in range(0, max_range):
-                draw.text(word_positions[i], f"{i + 1 + word_index_offset}: " + seed_phrase[i + word_index_offset] , fill=View.color, font=View.ASSISTANT22)
+                draw.text(word_positions[i], f"{i + 1 + word_index_offset}: " + seed_phrase[i + word_index_offset] , fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
 
             if passphrase and ((len(seed_phrase) > 12 and page_num == 2) or (len(seed_phrase) <= 12 and page_num == 1)):
                 disp_passphrase = "Passphrase: ************"
-                tw, th = View.draw.textsize(disp_passphrase, font=View.ASSISTANT18)
-                draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=View.color, font=View.ASSISTANT18)
+                tw, th = self.renderer.draw.textsize(disp_passphrase, font=Fonts.get_font("Assistant-Medium", 18))
+                draw.text(((240 - tw) / 2, 185), disp_passphrase, fill=self.color, font=Fonts.get_font("Assistant-Medium", 18))
 
-            tw, th = View.draw.textsize(bottom, font=View.ASSISTANT18)
-            draw.text(((240 - tw) / 2, 212), bottom, fill=View.color, font=View.ASSISTANT18)
-            View.DispShowImage()
+            tw, th = self.renderer.draw.textsize(bottom, font=Fonts.get_font("Assistant-Medium", 18))
+            draw.text(((240 - tw) / 2, 212), bottom, fill=self.color, font=Fonts.get_font("Assistant-Medium", 18))
+            self.renderer.show_image()
 
 
         wait_for_buttons = [B.KEY_RIGHT, B.KEY_LEFT]
@@ -958,7 +664,7 @@ class SeedToolsView(View):
         cur_page = 1
         while True:
             if len(seed_phrase) in (11,12):
-                display_seed_phrase_page(self.draw, seed_phrase, passphrase, bottom)
+                display_seed_phrase_page(self.renderer.draw, seed_phrase, passphrase, bottom)
                 ret_val = self.buttons.wait_for(wait_for_buttons)
 
                 if ret_val == B.KEY_LEFT:
@@ -967,7 +673,7 @@ class SeedToolsView(View):
 
                 elif show_qr_option and ret_val == B.KEY_RIGHT:
                     # Show the resulting seed as a transcribable QR code
-                    if self.controller.settings.compact_seedqr_enabled:
+                    if self.settings.compact_seedqr_enabled:
                         self.display_seed_qr_options(seed_phrase)
                     else:
                         self.seed_phrase_as_qr(seed_phrase)
@@ -980,7 +686,7 @@ class SeedToolsView(View):
                     return True
 
             elif len(seed_phrase) in (23,24):
-                display_seed_phrase_page(self.draw, seed_phrase, passphrase, bottom, page_num=cur_page)
+                display_seed_phrase_page(self.renderer.draw, seed_phrase, passphrase, bottom, page_num=cur_page)
                 ret_val = self.buttons.wait_for(wait_for_buttons)
 
                 if cur_page == 1:
@@ -997,7 +703,7 @@ class SeedToolsView(View):
 
                     elif show_qr_option and ret_val == B.KEY_RIGHT:
                         # Show the resulting seed as a transcribable QR code
-                        if self.controller.settings.compact_seedqr_enabled:
+                        if self.settings.compact_seedqr_enabled:
                             self.display_seed_qr_options(seed_phrase)
                         else:
                             self.seed_phrase_as_qr(seed_phrase)
@@ -1033,10 +739,10 @@ class SeedToolsView(View):
 
     def seed_phrase_as_qr(self, seed_phrase, is_compact_seedqr=False):
         if is_compact_seedqr:
-            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.COMPACTSEEDQR, wordlist=self.controller.settings.wordlist)
+            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEED__COMPACTSEEDQR, wordlist=self.settings.wordlist)
         else:
-            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEEDQR, wordlist=self.controller.settings.wordlist)
-        data = e.nextPart()
+            e = EncodeQR(seed_phrase=seed_phrase, qr_type=QRType.SEED__SEEDQR, wordlist=self.settings.wordlist)
+        data = e.next_part()
         qr = QR()
         image = qr.qrimage(
             data=data,
@@ -1074,7 +780,7 @@ class SeedToolsView(View):
 
             width = (qr_border + num_modules + qr_border) * pixels_per_block
             height = width
-            data = e.nextPart()
+            data = e.next_part()
             qr = QR()
             image = qr.qrimage(
                 data,
@@ -1091,47 +797,47 @@ class SeedToolsView(View):
 
             # Prep the semi-transparent mask overlay
             # make a blank image for the overlay, initialized to transparent
-            block_mask = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
+            block_mask = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
             draw = ImageDraw.Draw(block_mask)
 
-            mask_width = int((View.canvas_width - qr_blocks_per_zoom * pixels_per_block)/2)
-            mask_height = int((View.canvas_height - qr_blocks_per_zoom * pixels_per_block)/2)
+            mask_width = int((self.canvas_width - qr_blocks_per_zoom * pixels_per_block)/2)
+            mask_height = int((self.canvas_height - qr_blocks_per_zoom * pixels_per_block)/2)
             mask_rgba = (0, 0, 0, 226)
-            draw.rectangle((0, 0, View.canvas_width, mask_height), fill=mask_rgba)
-            draw.rectangle((0, View.canvas_height - mask_height - 1, View.canvas_width, View.canvas_height), fill=mask_rgba)
-            draw.rectangle((0, mask_height, mask_width, View.canvas_height - mask_height), fill=mask_rgba)
-            draw.rectangle((View.canvas_width - mask_width - 1, mask_height, View.canvas_width, View.canvas_height - mask_height), fill=mask_rgba)
+            draw.rectangle((0, 0, self.canvas_width, mask_height), fill=mask_rgba)
+            draw.rectangle((0, self.canvas_height - mask_height - 1, self.canvas_width, self.canvas_height), fill=mask_rgba)
+            draw.rectangle((0, mask_height, mask_width, self.canvas_height - mask_height), fill=mask_rgba)
+            draw.rectangle((self.canvas_width - mask_width - 1, mask_height, self.canvas_width, self.canvas_height - mask_height), fill=mask_rgba)
 
             # Draw a box around the cutout portion of the mask for better visibility
-            draw.line((mask_width, mask_height, mask_width, View.canvas_height - mask_height), fill=View.color)
-            draw.line((View.canvas_width - mask_width, mask_height, View.canvas_width - mask_width, View.canvas_height - mask_height), fill=View.color)
-            draw.line((mask_width, mask_height, View.canvas_width - mask_width, mask_height), fill=View.color)
-            draw.line((mask_width, View.canvas_height - mask_height, View.canvas_width - mask_width, View.canvas_height - mask_height), fill=View.color)
+            draw.line((mask_width, mask_height, mask_width, self.canvas_height - mask_height), fill=self.color)
+            draw.line((self.canvas_width - mask_width, mask_height, self.canvas_width - mask_width, self.canvas_height - mask_height), fill=self.color)
+            draw.line((mask_width, mask_height, self.canvas_width - mask_width, mask_height), fill=self.color)
+            draw.line((mask_width, self.canvas_height - mask_height, self.canvas_width - mask_width, self.canvas_height - mask_height), fill=self.color)
 
             msg = "click to exit"
-            tw, th = draw.textsize(msg, font=View.ASSISTANT18)
-            draw.text(((View.canvas_width - tw) / 2, View.canvas_height - th - 2), msg, fill=View.color, font=View.ASSISTANT18)
+            tw, th = draw.textsize(msg, font=Fonts.get_font("Assistant-Medium", 18))
+            draw.text(((self.canvas_width - tw) / 2, self.canvas_height - th - 2), msg, fill=self.color, font=Fonts.get_font("Assistant-Medium", 18))
 
             def draw_block_labels(cur_block_x, cur_block_y):
                 # Create overlay for block labels (e.g. "D-5")
                 block_labels_x = ["1", "2", "3", "4", "5", "6"]
                 block_labels_y = ["A", "B", "C", "D", "E", "F"]
 
-                block_labels = Image.new("RGBA", (View.canvas_width, View.canvas_height), (255,255,255,0))
+                block_labels = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
                 draw = ImageDraw.Draw(block_labels)
-                draw.rectangle((mask_width, 0, View.canvas_width - mask_width, pixels_per_block), fill=View.color)
-                draw.rectangle((0, mask_height, pixels_per_block, View.canvas_height - mask_height), fill=View.color)
+                draw.rectangle((mask_width, 0, self.canvas_width - mask_width, pixels_per_block), fill=self.color)
+                draw.rectangle((0, mask_height, pixels_per_block, self.canvas_height - mask_height), fill=self.color)
 
-                label_font = View.ASSISTANT26
+                label_font = Fonts.get_font("Assistant-Medium", 26)
                 x_label = block_labels_x[cur_block_x]
                 tw, th = draw.textsize(x_label, font=label_font)
 
                 # note: have to nudge the y-coord up (the extra "- 4") for some reason
-                draw.text(((View.canvas_width - tw) / 2, ((pixels_per_block - th) / 2) - 4), x_label, fill="BLACK", font=label_font)
+                draw.text(((self.canvas_width - tw) / 2, ((pixels_per_block - th) / 2) - 4), x_label, fill="BLACK", font=label_font)
 
                 y_label = block_labels_y[cur_block_y]
                 tw, th = draw.textsize(y_label, font=label_font)
-                draw.text(((pixels_per_block - tw) / 2, (View.canvas_height - th) / 2), y_label, fill="BLACK", font=label_font)
+                draw.text(((pixels_per_block - tw) / 2, (self.canvas_height - th) / 2), y_label, fill="BLACK", font=label_font)
 
                 return block_labels
 
@@ -1145,8 +851,8 @@ class SeedToolsView(View):
             next_x = cur_x
             next_y = cur_y
 
-            View.DispShowImage(
-                image.crop((cur_x, cur_y, cur_x + View.canvas_width, cur_y + View.canvas_height)),
+            self.renderer.show_image(
+                image.crop((cur_x, cur_y, cur_x + self.canvas_width, cur_y + self.canvas_height)),
                 alpha_overlay=Image.alpha_composite(block_mask, block_labels)
             )
 
@@ -1155,7 +861,7 @@ class SeedToolsView(View):
                 if input == B.KEY_RIGHT:
                     next_x = cur_x + qr_blocks_per_zoom * pixels_per_block
                     cur_block_x += 1
-                    if next_x > width - View.canvas_width:
+                    if next_x > width - self.canvas_width:
                         next_x = cur_x
                         cur_block_x -= 1
                 elif input == B.KEY_LEFT:
@@ -1167,7 +873,7 @@ class SeedToolsView(View):
                 elif input == B.KEY_DOWN:
                     next_y = cur_y + qr_blocks_per_zoom * pixels_per_block
                     cur_block_y += 1
-                    if next_y > height - View.canvas_height:
+                    if next_y > height - self.canvas_height:
                         next_y = cur_y
                         cur_block_y -= 1
                 elif input == B.KEY_UP:
@@ -1183,7 +889,7 @@ class SeedToolsView(View):
                 block_labels = draw_block_labels(cur_block_x, cur_block_y)
 
                 if cur_x != next_x or cur_y != next_y:
-                    View.disp_show_image_pan(
+                    self.renderer.show_image_pan(
                         image,
                         cur_x, cur_y, next_x, next_y,
                         rate=pixels_per_block,
@@ -1196,12 +902,12 @@ class SeedToolsView(View):
         self.draw_modal(["Scanning..."], "Seed QR" ,"Right to Exit")
         try:
             self.controller.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
-            decoder = DecodeQR(wordlist=self.controller.settings.wordlist)
+            decoder = DecodeQR(wordlist=self.settings.wordlist)
             while True:
                 frame = self.controller.camera.read_video_stream(as_image=True)
                 if frame is not None:
-                    View.DispShowImageWithText(frame.resize((240,240)), "Scan Seed QR", font=View.ASSISTANT22, text_color=View.color, text_background=(0,0,0,225))
-                    status = decoder.addImage(frame)
+                    self.renderer.show_image_with_text(frame.resize((240,240)), "Scan Seed QR", font=Fonts.get_font("Assistant-Medium", 22), text_color=self.color, text_background=(0,0,0,225))
+                    status = decoder.add_image(frame)
 
                     if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
                         break
@@ -1211,9 +917,9 @@ class SeedToolsView(View):
                         self.words = []
                         return self.words[:]
 
-            if decoder.isComplete() and decoder.isSeed():
-                self.words = decoder.getSeedPhrase()
-            elif not decoder.isPSBT():
+            if decoder.is_complete and decoder.is_seed:
+                self.words = decoder.get_seed_phrase()
+            elif not decoder.is_psbt:
                 self.draw_modal(["Not a valid Seed QR"], "", "Right to Exit")
                 input = self.buttons.wait_for([B.KEY_RIGHT])
             else:
@@ -1239,7 +945,7 @@ class SeedToolsView(View):
         while True:
             frame = self.controller.camera.read_video_stream(as_image=True)
             if frame is not None:
-                View.DispShowImageWithText(frame, "click joystick", text_color=View.color, text_background=(0,0,0,225))
+                self.renderer.show_image_with_text(frame, "click joystick", text_color=self.color, text_background=(0,0,0,225))
                 if len(preview_images) < max_entropy_frames:
                     preview_images.append(frame)
 
@@ -1270,14 +976,14 @@ class SeedToolsView(View):
         ).crop(
             (120, 0, 600, 480)
         ).resize(
-            (View.canvas_width, View.canvas_height), Image.BICUBIC
+            (self.canvas_width, self.canvas_height), Image.BICUBIC
         )
 
-        View.DispShowImageWithText(
+        self.renderer.show_image_with_text(
             display_version,
             text=" < reshoot  |  accept > ",
-            font=View.ROBOTOCONDENSED_REGULAR_22,
-            text_color=View.color,
+            font=Fonts.get_font("RobotoCondensed-Regular", 22),
+            text_color=self.color,
             text_background=(0,0,0,225)
         )
 

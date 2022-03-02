@@ -3,7 +3,9 @@ import numpy
 
 from picamera import PiCamera
 from PIL import Image
-from seedsigner.helpers import PiVideoStream, Singleton
+from seedsigner.models import Singleton
+from seedsigner.helpers import PiVideoStream
+from seedsigner.models.settings import SettingsConstants
 
 
 
@@ -18,7 +20,7 @@ class Camera(Singleton):
         from seedsigner.models import Settings
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
-        cls._instance._camera_rotation = Settings.get_instance().camera_rotation
+        cls._instance._camera_rotation = int(Settings.get_instance().get_value(SettingsConstants.SETTING__CAMERA_ROTATION))
         return cls._instance
 
 
