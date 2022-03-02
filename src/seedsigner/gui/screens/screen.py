@@ -9,7 +9,7 @@ from seedsigner.helpers.threads import BaseThread
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.settings import SettingsConstants
 
-from ..components import (CheckedSelectionButton, GUIConstants, BaseComponent, Button, Icon, IconButton, SeedSignerCustomIconConstants, TopNav,
+from ..components import (CheckedSelectionButton, GUIConstants, BaseComponent, Button, Icon, IconButton, LargeIconButton, SeedSignerCustomIconConstants, TopNav,
     TextArea, load_icon, load_image)
 
 from seedsigner.helpers import B, Buttons
@@ -40,6 +40,9 @@ class BaseScreen(BaseComponent):
         # Implementation classes can add PIL.Image objs here. Format is a tuple of the
         # Image and its (x,y) paste coords.
         self.paste_images: List[Tuple] = []
+
+        # Tracks position on scrollable pages, determines which elements are visible.
+        self.scroll_y = 0
 
 
     def display(self) -> Any:
@@ -72,6 +75,8 @@ class BaseScreen(BaseComponent):
 
     def _render(self):
         self.clear_screen()
+
+        # TODO: Check self.scroll_y and only render visible elements
         for component in self.components:
             component.render()
 
@@ -175,8 +180,8 @@ class LoadingScreenThread(BaseThread):
 class BaseTopNavScreen(BaseScreen):
     title: str = "Screen Title"
     title_font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE
-    show_back_button: bool = True
-    show_power_button: bool = False
+    show_top_nav_back_button: bool = True
+    show_top_nav_power_button: bool = False
 
     def __post_init__(self):
         super().__post_init__()
@@ -185,8 +190,8 @@ class BaseTopNavScreen(BaseScreen):
             font_size=self.title_font_size,
             width=self.canvas_width,
             height=GUIConstants.TOP_NAV_HEIGHT,
-            show_back_button=self.show_back_button,
-            show_power_button=self.show_power_button,
+            show_back_button=self.show_top_nav_back_button,
+            show_power_button=self.show_top_nav_power_button,
         )
         self.is_input_in_top_nav = False
 
@@ -520,7 +525,7 @@ class LargeButtonScreen(BaseTopNavScreen):
             if icon_name:
                 button_args["icon_name"] = icon_name
                 button_args["text_y_offset"] = int(48 / 240 * self.renderer.canvas_height) + GUIConstants.COMPONENT_PADDING
-                button = IconButton(**button_args)
+                button = LargeIconButton(**button_args)
             else:
                 button = Button(**button_args)
 

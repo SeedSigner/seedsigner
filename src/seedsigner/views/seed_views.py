@@ -544,8 +544,9 @@ class SeedValidView(View):
             # Back button should clear out the pending seed
             self.controller.storage.clear_pending_seed()
 
-            # "BACK" might mean back to the AddPassphrase View
-            return Destination(BackStackView, clear_history=True)
+            # BACK means exit/cancel; returning to MainMenuView also automatically wipes
+            # the back_stack history.
+            return Destination(MainMenuView)
 
         elif button_data[selected_menu_num] == SIGN_PSBT:
             self.controller.storage.finalize_pending_seed()
@@ -638,7 +639,7 @@ class SeedReviewPassphraseView(View):
             fingerprint_with=fingerprint_with,
             passphrase=self.seed.passphrase,
             button_data=button_data,
-            show_back_button=False,
+            show_top_nav_back_button=False,
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:

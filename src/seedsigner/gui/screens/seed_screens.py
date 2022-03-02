@@ -26,6 +26,7 @@ class SeedValidScreen(ButtonListScreen):
     button_data: list = None
 
     def __post_init__(self):
+        self.show_top_nav_back_button = False
         super().__post_init__()
 
         self.fingerprint_icontl = IconTextLine(

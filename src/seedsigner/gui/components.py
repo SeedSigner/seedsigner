@@ -114,10 +114,10 @@ def calc_text_centering(font: ImageFont,
     # Ascender/descender are oversized ranges baked into the font.
     ascent, descent = font.getmetrics()
 
-    print(f"""----- "{text}" / {font.getname()} -----""")
-    print(f"offset_x: {offset_x} | offset_y: {offset_y})")
-    print(f"box_left: {box_left} |  box_top: {box_top} | box_right: {box_right} | box_bottom: {box_bottom}")
-    print(f"ascent: {ascent} | descent: {descent})")
+    # print(f"""----- "{text}" / {font.getname()} -----""")
+    # print(f"offset_x: {offset_x} | offset_y: {offset_y})")
+    # print(f"box_left: {box_left} |  box_top: {box_top} | box_right: {box_right} | box_bottom: {box_bottom}")
+    # print(f"ascent: {ascent} | descent: {descent})")
 
     if is_text_centered:
         text_x = int((total_width - (box_right - offset_x)) / 2) - offset_x
@@ -364,10 +364,19 @@ class Icon(BaseComponent):
             self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__SEEDSIGNER, self.icon_size, file_extension="otf")
         else:
             self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__FONT_AWESOME, self.icon_size, file_extension="otf")
-        self.width, self.height = self.icon_font.getsize(self.icon_name)
-    
+        
+        # Set width/height based on exact pixels that are rendered
+        (left, top, self.width, self.height) = self.icon_font.getbbox(self.icon_name, anchor="lt")
+
+
     def render(self):
-        self.image_draw.text((self.screen_x, self.screen_y), text=self.icon_name, font=self.icon_font, fill=self.icon_color)
+        self.image_draw.text(
+            (self.screen_x, self.screen_y),
+            text=self.icon_name,
+            font=self.icon_font,
+            fill=self.icon_color,
+            anchor="lt",  # left, top anchor to avoid "ascender" gap space
+        )
 
 
 
@@ -678,35 +687,25 @@ class Button(BaseComponent):
         self.font = Fonts.get_font(self.font_name, self.font_size)
 
         if self.text:
-            # (self.text_x, self.text_y) = calc_text_centering(
-            #     font=self.font,
-            #     text=self.text,
-            #     is_text_centered=self.is_text_centered,
-            #     total_width=self.width,
-            #     total_height=self.height - self.text_y_offset,
-            #     start_x=self.screen_x,
-            #     start_y=self.screen_y + self.text_y_offset
-            # )
             if self.is_text_centered:
-                # TODO: Only apply screen_x at render
-                self.text_x = int(self.width/2) + self.screen_x
+                self.text_x = int(self.width/2)
                 self.text_anchor = "ms"  # centered horizontally, baseline
             else:
-                self.text_x = self.screen_x + GUIConstants.COMPONENT_PADDING
+                self.text_x = GUIConstants.COMPONENT_PADDING
                 self.text_anchor = "ls"  # left, baseline
             
             # Calc true pixel height (any anchor from "baseline" will work)
             (left, top, self.text_width, bottom) = self.font.getbbox(self.text, anchor="ls")
-            print(f"left: {left} |  top: {top} | right: {self.text_width} | bottom: {bottom}")
+            # print(f"left: {left} |  top: {top} | right: {self.text_width} | bottom: {bottom}")
 
             # Note: "top" is negative when measured from a "baseline" anchor
             self.text_height = -1 * top
 
             # TODO: Only apply screen_y at render
             if self.text_y_offset:
-                self.text_y = self.text_y_offset + self.text_height + self.screen_y
+                self.text_y = self.text_y_offset + self.text_height
             else:
-                self.text_y = self.height - int((self.height - self.text_height)/2) + self.screen_y
+                self.text_y = self.height - int((self.height - self.text_height)/2)
 
         # Preload the icon and its "_selected" variant
         if self.icon_name:
@@ -718,19 +717,26 @@ class Button(BaseComponent):
                 # TODO: Only apply screen_* at render
                 if self.is_text_centered:
                     # Shift the text's centering
-                    self.text_x += int((self.icon.width + icon_padding) / 2)
-                    self.icon_x = self.text_x - int(self.text_width/2) - (self.icon.width + icon_padding)
+                    if self.text:
+                        self.text_x += int((self.icon.width + icon_padding) / 2)
+                        self.icon_x = self.text_x - int(self.text_width/2) - (self.icon.width + icon_padding)
+                    else:
+                        self.icon_x = math.ceil((self.width - self.icon.width)/2)
+
                 else:
-                    self.text_x += self.icon.width + icon_padding
-                    self.icon_x = self.screen_x + GUIConstants.COMPONENT_PADDING
+                    if self.text:
+                        self.text_x += self.icon.width + icon_padding
+                    self.icon_x = GUIConstants.COMPONENT_PADDING
 
             else:
-                self.icon_x = self.screen_x + int((self.width - self.icon.width) / 2)
+                self.icon_x = int((self.width - self.icon.width) / 2)
 
             if self.icon_y_offset:
-                self.icon_y = self.icon_y_offset + self.screen_y
+                self.icon_y = self.icon_y_offset
             else:
-                self.icon_y = int((self.height - self.icon.height)/2) + self.screen_y
+                print(f"self.icon_name: {self.icon_name} | self.height: {self.height} | self.icon.height: {self.icon.height}")
+                print(f"\t\tself.width: {self.width} | self.icon.width: {self.icon.width}")
+                self.icon_y = math.ceil((self.height - self.icon.height)/2)
 
             self.icon.screen_x = self.icon_x
             self.icon_selected.screen_x = self.icon_x
@@ -748,7 +754,7 @@ class Button(BaseComponent):
 
         if self.text:
             self.image_draw.text(
-                (self.text_x, self.text_y - self.scroll_y),
+                (self.screen_x + self.text_x, self.screen_y + self.text_y - self.scroll_y),
                 self.text,
                 fill=font_color,
                 font=self.font,
@@ -759,7 +765,8 @@ class Button(BaseComponent):
             icon = self.icon
             if self.is_selected:
                 icon = self.icon_selected
-            icon.screen_y = self.icon_y - self.scroll_y
+            icon.screen_y = self.screen_y + self.icon_y - self.scroll_y
+            icon.screen_x = self.screen_x + self.icon_x
             icon.render()
 
 
@@ -800,12 +807,22 @@ class CheckboxButton(Button):
 @dataclass
 class IconButton(Button):
     """
+        A button that is just an icon (e.g. the BACK arrow)
+    """
+    icon_size: int = GUIConstants.ICON_INLINE_FONT_SIZE
+    text: str = None
+    is_icon_inline: bool = False
+
+
+
+@dataclass
+class LargeIconButton(IconButton):
+    """
         A button that is primarily a big icon (e.g. the Home screen buttons) w/text below
         the icon.
     """
     icon_size: int = GUIConstants.ICON_LARGE_BUTTON_SIZE
-    is_icon_inline: bool = False
-    icon_y_offset: int = 8
+    icon_y_offset: int = GUIConstants.COMPONENT_PADDING
 
 
 
@@ -832,26 +849,22 @@ class TopNav(BaseComponent):
 
         if self.show_back_button:
             self.back_button = IconButton(
-                text=None,
                 icon_name=SeedSignerCustomIconConstants.LARGE_CHEVRON_LEFT,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,
                 width=GUIConstants.TOP_NAV_BUTTON_SIZE,
                 height=GUIConstants.TOP_NAV_BUTTON_SIZE,
-                icon_y_offset=4,
             )
 
         if self.show_power_button:
             self.power_button = IconButton(
-                text=None,
                 icon_name=FontAwesomeIconConstants.POWER_OFF,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_x=self.width - GUIConstants.TOP_NAV_BUTTON_SIZE - GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,
                 width=GUIConstants.TOP_NAV_BUTTON_SIZE,
                 height=GUIConstants.TOP_NAV_BUTTON_SIZE,
-                icon_y_offset=4,
             )
 
         # TODO: Complete this code if we want title font size to dynamically size itself
