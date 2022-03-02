@@ -10,8 +10,8 @@ import re
 
 class MenuView(View):
 
-    def __init__(self) -> None:
-        View.__init__(self)
+    def __init__(self, disp, q) -> None:
+        View.__init__(self, disp, q)
 
         self.menu_lines = []
         self.selected_menu_num = 1
@@ -38,6 +38,7 @@ class MenuView(View):
 
         # Wait for Button Input (specifically menu selection/press)
         while True:
+            print("wait for button press MAIN MENU")
             if ret_val == 0:
                 input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             else:
@@ -77,6 +78,7 @@ class MenuView(View):
 
         # Wait for Button Input (specifically menu selection/press)
         while True:
+            print("wait for button press SEED TOOLS MENU")
             input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if input == B.KEY_UP:
                 self.menu_up()
@@ -107,6 +109,7 @@ class MenuView(View):
 
         # Wait for Button Input (specifically menu selection/press)
         while True:
+            print("wait for button press SIGNING TOOLS MENU")
             input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if input == B.KEY_UP:
                 self.menu_up()
@@ -145,6 +148,7 @@ class MenuView(View):
 
         # Wait for Button Input (specifically menu selection/press)
         while True:
+            print("wait for button press SETTINGS MENU")
             input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if input == B.KEY_UP:
                 self.menu_up()
@@ -198,6 +202,7 @@ class MenuView(View):
 
          # Wait for Button Input (specifically menu selection/press)
         while True:
+            print("wait for button press 12/24 WORDS MENU")
             input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
             if input == B.KEY_UP:
                 self.menu_up()
