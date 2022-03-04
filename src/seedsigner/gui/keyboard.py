@@ -112,9 +112,11 @@ class Keyboard:
                 if Keyboard.ADDITIONAL_KEYS[self.code]["font"] == Keyboard.COMPACT_KEY_FONT:
                     font = self.keyboard.additonal_key_compact_font
 
+            outline_color = "#333"
             if not self.is_active:
-                rect_color = self.keyboard.background_color
-                font_color = "#e8e8e8"  # Show the letter but render as gray
+                rect_color = self.keyboard.deactivated_background_color
+                font_color = "#333"  # Show the letter but render as gray
+                outline_color = self.keyboard.deactivated_background_color
                 if self.is_selected:
                     # Inactive, selected just gets highlighted outline
                     outline_color = self.keyboard.highlight_color
@@ -129,9 +131,21 @@ class Keyboard:
                     rect_color = self.keyboard.background_color
                 font_color = "#e8e8e8"
 
-            self.keyboard.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.keyboard.x_width * self.size - 1, self.screen_y + self.keyboard.y_height), fill=rect_color, radius=4)
+            self.keyboard.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.keyboard.x_width * self.size - 1, self.screen_y + self.keyboard.y_height), outline=outline_color, fill=rect_color, radius=4)
             tw, th = self.keyboard.draw.textsize(self.letter, font=font)
-            self.keyboard.draw.text((self.screen_x + int((self.keyboard.x_width * self.size - tw) / 2), self.screen_y + int((self.keyboard.y_height - th)/2) - 1), self.letter, fill=font_color, font=font)
+
+            # Fixed-width fonts will all have same height, ignoring below baseline (e.g. "Q" or "q")
+            (left, top, right, bottom) = font.getbbox("X", anchor="ls")
+            self.keyboard.draw.text(
+                (
+                    self.screen_x + int(self.keyboard.x_width * self.size / 2),
+                    self.screen_y + self.keyboard.y_height + int(top/2)  # "top" is negative when measuring from baseline
+                ),
+                self.letter,
+                fill=font_color,
+                font=font,
+                anchor="ms"
+            )
 
 
 
@@ -159,9 +173,10 @@ class Keyboard:
         if font:
             self.font = font
         else:
-            self.font = Fonts.get_font("RobotoCondensed-Regular", 24)
+            self.font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 22)
         self.auto_wrap = auto_wrap
-        self.background_color = "#2c2c2c"
+        self.background_color = GUIConstants.BUTTON_BACKGROUND_COLOR
+        self.deactivated_background_color = GUIConstants.BACKGROUND_COLOR
         self.highlight_color = highlight_color
 
         # Does the specified layout work?
@@ -179,9 +194,9 @@ class Keyboard:
         self.additonal_key_compact_font = Fonts.get_font("RobotoCondensed-Bold", 18)
         self.x_start = rect[0]
         self.y_start = rect[1]
-        self.x_gap = 1
+        self.x_gap = 2
         self.x_width = int((rect[2] - rect[0]) / cols) - self.x_gap
-        self.y_gap = 6
+        self.y_gap = 2
         self.y_height = int((rect[3] - rect[1]) / rows) - self.y_gap
         self.additional_key_entered_from_x = None
 
@@ -479,10 +494,11 @@ class TextEntryDisplay(TextEntryDisplayConstants):
     canvas: Image
     rect: Tuple[int,int,int,int]
     font: ImageFont
-    font_color: str
+    font_color: str = GUIConstants.BODY_FONT_COLOR
+    accent_color: str = GUIConstants.ACCENT_COLOR
+    background_color: str = GUIConstants.BUTTON_BACKGROUND_COLOR
     cursor_mode: str = TextEntryDisplayConstants.CURSOR_MODE__BLOCK
     is_centered: bool = True
-    has_outline: bool = False
     cur_text: str = " "
     text_offset = 0
 
@@ -504,8 +520,10 @@ class TextEntryDisplay(TextEntryDisplayConstants):
         image = Image.new("RGB", (self.width + 1, self.height + 1), "black")
         draw = ImageDraw.Draw(image)
 
-        if self.has_outline:
-            draw.rectangle((0, 0, self.width, self.height), fill="black", outline=self.font_color)
+        draw.rounded_rectangle((0, 0, self.width, self.height), fill=self.background_color, radius=4)
+
+        (left, top, right, bottom) = self.font.getbbox("X", anchor="ls")  # measure from baseline
+        text_height = -1 * top  # "top" is negative when measuring from baseline; ignoring below baseline
 
         if self.cursor_mode == TextEntryDisplay.CURSOR_MODE__BLOCK:
             cursor_block_width = 18
@@ -516,7 +534,7 @@ class TextEntryDisplay(TextEntryDisplayConstants):
             if self.is_centered:
                 self.text_offset = int(self.width - tw - cursor_block_width)/2
             else:
-                self.text_offset = 3
+                self.text_offset = GUIConstants.COMPONENT_PADDING
             cursor_block_offset = self.text_offset + tw - 1
             if cursor_block_offset == 0:
                 cursor_block_offset = 1
@@ -526,12 +544,14 @@ class TextEntryDisplay(TextEntryDisplayConstants):
                 # Shift the display left
                 cursor_block_offset -= end_pos_x - self.width + 1
                 self.text_offset -= end_pos_x - self.width + 1
-
-            draw.text((self.text_offset, 3), self.cur_text[:-1], fill=self.font_color, font=self.font)
+            
+            draw.text((self.text_offset, self.height - int(text_height/2)), self.cur_text[:-1], fill=self.font_color, font=self.font, anchor="ls")
 
             # Draw the highlighted cursor block
-            draw.rectangle((cursor_block_offset, 1, cursor_block_offset + cursor_block_width, self.height - 1), fill="#111")
-            draw.text((cursor_block_offset + 1,  3), self.cur_text[-1], fill=self.font_color, font=self.font)
+            # cursor_color = "#666"
+            cursor_color = self.accent_color
+            draw.rectangle((cursor_block_offset, 1, cursor_block_offset + cursor_block_width, self.height - 1), fill=cursor_color)
+            draw.text((cursor_block_offset + 1, self.height - int(text_height/2)), self.cur_text[-1], fill=GUIConstants.BUTTON_SELECTED_FONT_COLOR, font=self.font, anchor="ls")
 
         else:
             cursor_bar_offset = 1
@@ -567,7 +587,7 @@ class TextEntryDisplay(TextEntryDisplayConstants):
 
                 cursor_bar_x = self.text_offset + tw_left
 
-            draw.text((self.text_offset, 3), self.cur_text, fill=self.font_color, font=self.font)
+            draw.text((self.text_offset, int((self.height - text_height)/2)), self.cur_text, fill=self.font_color, font=self.font)
 
             # Render as an "I" bar
             cursor_bar_color = "#ccc"

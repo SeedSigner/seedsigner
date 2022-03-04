@@ -100,7 +100,7 @@ class EncodeQR:
             raise Exception('QR Type not supported')
 
 
-    def total_parts(self):
+    def total_parts(self) -> int:
         return self.encoder.seq_len()
 
 

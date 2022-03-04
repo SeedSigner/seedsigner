@@ -37,7 +37,7 @@ class GUIConstants:
     BODY_FONT_SIZE = 17
     BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE
     BODY_FONT_MIN_SIZE = 15
-    BODY_FONT_COLOR = "#fcfcfc"
+    BODY_FONT_COLOR = "#f8f8f8"
     BODY_LINE_SPACING = 0.25
 
     FIXED_WIDTH_FONT_NAME = "Inconsolata-Regular"
@@ -49,7 +49,9 @@ class GUIConstants:
     BUTTON_FONT_NAME = "OpenSans-SemiBold"
     BUTTON_FONT_SIZE = 18
     BUTTON_FONT_COLOR = "#e8e8e8"
+    BUTTON_BACKGROUND_COLOR = "#2c2c2c"
     BUTTON_HEIGHT = 32
+    BUTTON_SELECTED_FONT_COLOR = "black"
 
 
 
@@ -661,13 +663,13 @@ class Button(BaseComponent):
     icon_y_offset: int = 0
     is_icon_inline: bool = True    # True = render next to text; False = render centered above text
     text_y_offset: int = 0
-    background_color: str = "#2c2c2c"
+    background_color: str = GUIConstants.BUTTON_BACKGROUND_COLOR
     selected_color: str = GUIConstants.ACCENT_COLOR
     font_name: str = GUIConstants.BUTTON_FONT_NAME
     font_size: int = GUIConstants.BUTTON_FONT_SIZE
     # font_color: str = "#fcfcfc"
     font_color: str = GUIConstants.BUTTON_FONT_COLOR
-    selected_font_color: str = "black"
+    selected_font_color: str = GUIConstants.BUTTON_SELECTED_FONT_COLOR
     is_text_centered: bool = True
     is_selected: bool = False
 
@@ -852,7 +854,7 @@ class TopNav(BaseComponent):
         self.font = Fonts.get_font(self.font_name, self.font_size)
 
         if self.show_left_button:
-            self.back_button = IconButton(
+            self.left_button = IconButton(
                 icon_name=self.left_button_icon_name,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 icon_color=self.left_button_icon_color,
@@ -863,7 +865,7 @@ class TopNav(BaseComponent):
             )
 
         if self.show_right_button:
-            self.power_button = IconButton(
+            self.right_button = IconButton(
                 icon_name=self.right_button_icon_name,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 icon_color=self.right_button_icon_color,
@@ -885,7 +887,6 @@ class TopNav(BaseComponent):
         #             self.text_x = int((self.width - self.text_width) / 2)
         #             self.text_y = int((self.height - self.text_height) / 2)
         #             break
-
         (self.text_x, self.text_y) = calc_text_centering(
             font=self.font,
             text=self.text,
@@ -898,7 +899,7 @@ class TopNav(BaseComponent):
 
         if self.show_left_button:
             # Don't let the title intrude on the BACK button
-            min_x = self.back_button.screen_x + self.back_button.width + GUIConstants.COMPONENT_PADDING
+            min_x = self.left_button.screen_x + self.left_button.width + GUIConstants.COMPONENT_PADDING
             if self.text_x < min_x:
                 self.text_x = min_x
 
@@ -916,11 +917,11 @@ class TopNav(BaseComponent):
 
     def render(self):
         if self.show_left_button:
-            self.back_button.is_selected = self.is_selected
-            self.back_button.render()
+            self.left_button.is_selected = self.is_selected
+            self.left_button.render()
         if self.show_right_button:
-            self.power_button.is_selected = self.is_selected
-            self.power_button.render()
+            self.right_button.is_selected = self.is_selected
+            self.right_button.render()
 
         self.image_draw.text(
             (self.text_x, self.text_y),

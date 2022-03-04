@@ -2,19 +2,400 @@ import math
 import time
 
 from dataclasses import dataclass
+from typing import List
 
 from PIL import Image, ImageDraw, ImageFilter
 from seedsigner.gui.renderer import Renderer
 from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
 
 from seedsigner.models.seed import Seed
+from seedsigner.models.settings_definition import SettingsConstants
 
-from .screen import BaseTopNavScreen, ButtonListScreen, WarningScreenMixin
-from ..components import FontAwesomeIconConstants, Fonts, FormattedAddress, IconTextLine, SeedSignerCustomIconConstants, TextArea, GUIConstants, TextDoesNotFitException, calc_text_centering
+from .screen import RET_CODE__BACK_BUTTON, BaseTopNavScreen, ButtonListScreen, WarningScreenMixin
+from ..components import (FontAwesomeIconConstants, Fonts, FormattedAddress,
+    IconTextLine, SeedSignerCustomIconConstants, TextArea, GUIConstants,
+    calc_text_centering)
 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.helpers import B
 
+
+
+@dataclass
+class SeedMnemonicEntryScreen(BaseTopNavScreen):
+    initial_letters: list = None
+    wordlist: list = None
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.possible_alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+        # Set up the keyboard params
+        self.keyboard_width = 128
+        text_entry_display_y = self.top_nav.height
+        text_entry_display_height = 30
+
+        self.text_entry_display = TextEntryDisplay(
+            canvas=self.canvas,
+            rect=(
+                GUIConstants.EDGE_PADDING,
+                text_entry_display_y,
+                GUIConstants.EDGE_PADDING + self.keyboard_width,
+                text_entry_display_y + text_entry_display_height
+            ),
+            font=Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 24),
+            is_centered=False,
+            cur_text="".join(self.initial_letters)
+        )
+
+        self.arrow_up_is_active = False
+        self.arrow_down_is_active = False
+
+        # TODO: support other BIP39 languages/charsets
+        self.keyboard = Keyboard(
+            draw=self.image_draw,
+            charset=self.possible_alphabet,
+            font=Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 24),
+            rows=5,
+            cols=6,
+            rect=(
+                GUIConstants.EDGE_PADDING,
+                text_entry_display_y + text_entry_display_height + 6,
+                GUIConstants.EDGE_PADDING + self.keyboard_width,
+                self.canvas_height
+            ),
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT]
+        )
+
+        self.letters = self.initial_letters
+
+        # Initialize the current matches
+        self.possible_words = []
+        if len(self.letters) > 1:
+            self.letters.append(" ")    # "Lock in" the last letter as if KEY_PRESS
+            self.calc_possible_alphabet()
+            self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
+            self.keyboard.set_selected_key(selected_letter=self.letters[-2])
+        else:
+            self.keyboard.set_selected_key(selected_letter=self.letters[-1])
+
+
+    def calc_possible_alphabet(self, new_letter = False):
+        if (self.letters and len(self.letters) > 1 and new_letter == False) or (len(self.letters) > 0 and new_letter == True):
+            search_letters = self.letters[:]
+            if new_letter == False:
+                search_letters.pop()
+            self.calc_possible_words()
+            letter_num = len(search_letters)
+            possible_letters = []
+            for word in self.possible_words:
+                if len(word)-1 >= letter_num:
+                    possible_letters.append(word[letter_num])
+            # remove duplicates and keep order
+            self.possible_alphabet = list(dict.fromkeys(possible_letters))[:]
+        else:
+            self.possible_alphabet = "abcdefghijklmnopqrstuvwxyz"
+            self.possible_words = []
+
+
+    def calc_possible_words(self):
+        self.possible_words = [i for i in self.wordlist if i.startswith("".join(self.letters).strip())]
+        self.selected_possible_words_index = 0        
+
+
+    def render_possible_matches(self, highlight_word=None):
+        """ Internal helper method to render the KEY 1, 2, 3 word candidates.
+            (has access to all vars in the parent's context)
+        """
+        # Clear the right panel
+        self.renderer.draw.rectangle(
+            (
+                GUIConstants.EDGE_PADDING + self.keyboard_width,
+                self.top_nav.height,
+                self.canvas_width,
+                self.canvas_height
+            ),
+            fill=GUIConstants.BACKGROUND_COLOR
+        )
+
+        if not self.possible_words:
+            return
+
+        # word_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE+2)
+        word_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE+4)
+
+        row_height = 28
+        word_indent = 4
+        x = GUIConstants.EDGE_PADDING + self.keyboard_width + 4
+        y = self.top_nav.height - int(row_height / 2)
+
+        highlighted_row = 3
+        num_possible_rows = 11
+
+        if not highlight_word:
+            list_starting_index = self.selected_possible_words_index - highlighted_row
+            for row, i in enumerate(range(list_starting_index, list_starting_index + num_possible_rows)):
+                if i < 0:
+                    # We're near the top of the list, not enough items to fill above the highlighted row
+                    continue
+                if row == highlighted_row:
+                    # Leave the highlighted row to be rendered below
+                    continue
+
+                if len(self.possible_words) <= i:
+                    break
+
+                self.renderer.draw.text(
+                    (x + word_indent, y + row * row_height),
+                    self.possible_words[i],
+                    fill="#ddd",
+                    font=word_font
+                )
+
+        # Render the SELECT outline
+        fill_color = GUIConstants.ACCENT_COLOR
+        font_color = GUIConstants.BUTTON_SELECTED_FONT_COLOR
+        radius = 5
+        self.renderer.draw.rounded_rectangle(
+            (
+                x,
+                y + (3 * row_height),
+                self.canvas_width + 2*radius,  # render off the right edge so the rounding is clipped
+                y + (4 * row_height)
+            ),
+            outline=GUIConstants.ACCENT_COLOR,
+            fill=fill_color,
+            radius=5,
+        )
+
+        if self.possible_words:
+            word_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE+6)
+            self.renderer.draw.text(
+                (x + word_indent, y + 3 * row_height),
+                self.possible_words[self.selected_possible_words_index],
+                fill=font_color,
+                font=word_font
+            )
+
+        self.render_possible_matches_arrows()
+
+
+    def render_possible_matches_arrows(self):
+        # Render the up/down arrow buttons for KEY1 and KEY3
+        row_height = 26
+        arrow_button_width = 25
+        arrow_padding = 5
+        key_x = self.canvas_width - arrow_button_width
+        key_y = self.top_nav.height - int(row_height / 2) + int(0.75 * row_height)
+        background_color = "#111"
+        arrow_color = GUIConstants.ACCENT_COLOR
+        if self.arrow_up_is_active:
+            background_color = GUIConstants.ACCENT_COLOR
+            arrow_color = "#111"
+        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
+        self.renderer.draw.polygon(
+            [(key_x + int(arrow_button_width)/2 + 1, key_y + arrow_padding),  # centered top point
+            (self.canvas_width - arrow_padding + 1, key_y + row_height - arrow_padding),  # bottom right point
+            (key_x + arrow_padding + 1, key_y + row_height - arrow_padding)],  # bottom left point
+            fill=arrow_color
+        )
+
+        background_color = "#111"
+        arrow_color = GUIConstants.ACCENT_COLOR
+        if self.arrow_down_is_active:
+            background_color = GUIConstants.ACCENT_COLOR
+            arrow_color = "#111"
+        key_y = self.top_nav.height - int(row_height / 2) + int(5.25 * row_height)
+        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
+        self.renderer.draw.polygon(
+            [(key_x + int(arrow_button_width)/2 + 1, key_y + row_height - arrow_padding),  # bottom centered point
+            (self.canvas_width - arrow_padding + 1, key_y + arrow_padding),  # right top point
+            (key_x + arrow_padding + 1, key_y + arrow_padding)], # left top point
+            fill=arrow_color
+        )
+
+
+    def _render(self):
+        super()._render()
+        self.keyboard.render_keys()
+        self.text_entry_display.render()
+        self.render_possible_matches()
+
+        self.renderer.show_image()
+
+
+    def _run(self):
+        while True:
+            input = self.hw_inputs.wait_for(
+                [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3],
+                check_release=True,
+                release_keys=[B.KEY_PRESS, B.KEY2]
+            )
+
+            if self.is_input_in_top_nav:
+                if input == B.KEY_PRESS:
+                    # User clicked the "back" arrow
+                    return RET_CODE__BACK_BUTTON
+
+                elif input == B.KEY_UP:
+                    input = Keyboard.ENTER_BOTTOM
+                    self.is_input_in_top_nav = False
+                    # Re-render it without the highlight
+                    self.top_nav.left_button.is_selected = False
+                    self.top_nav.left_button.render()
+
+                elif input == B.KEY_DOWN:
+                    input = Keyboard.ENTER_TOP
+                    self.is_input_in_top_nav = False
+                    # Re-render it without the highlight
+                    self.top_nav.left_button.is_selected = False
+                    self.top_nav.left_button.render()
+
+                elif input in [B.KEY_RIGHT, B.KEY_LEFT]:
+                    # no action in this context
+                    continue
+
+            ret_val = self.keyboard.update_from_input(input)
+
+            if ret_val in Keyboard.EXIT_DIRECTIONS:
+                self.is_input_in_top_nav = True
+                self.top_nav.left_button.is_selected = True
+                self.top_nav.left_button.render()
+
+            elif ret_val in Keyboard.ADDITIONAL_KEYS:
+                if input == B.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                    self.letters = self.letters[:-2]
+                    self.letters.append(" ")
+
+                    # Reactivate keys after deleting last letter
+                    self.calc_possible_alphabet()
+                    self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
+                    self.keyboard.render_keys()
+                        
+                    # Update the right-hand possible matches area
+                    self.render_possible_matches()
+
+                elif ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                    # We're just hovering over DEL but haven't clicked. Show blank (" ")
+                    #   in the live text entry display at the top.
+                    self.letters = self.letters[:-1]
+                    self.letters.append(" ")
+
+            # Has the user made a final selection of a candidate word?
+            final_selection = None
+            if input == B.KEY1 and self.possible_words:
+                # Scroll the list up
+                self.selected_possible_words_index -= 1
+                if self.selected_possible_words_index < 0:
+                    self.selected_possible_words_index = 0
+
+                if not self.arrow_up_is_active:
+                    # Flash the up arrow as selected
+                    self.arrow_up_is_active = True
+                    self.render_possible_matches_arrows()
+
+                # Update the right-hand possible matches area
+                self.render_possible_matches()
+
+            elif input == B.KEY2:
+                if self.possible_words:
+                    final_selection = self.possible_words[self.selected_possible_words_index]
+
+            elif input == B.KEY3 and self.possible_words:
+                # Scroll the list down
+                self.selected_possible_words_index += 1
+                if self.selected_possible_words_index >= len(self.possible_words):
+                    self.selected_possible_words_index = len(self.possible_words) - 1
+
+                if not self.arrow_down_is_active:
+                    # Flash the down arrow as selected
+                    self.arrow_down_is_active = True
+                    self.render_possible_matches_arrows()
+
+                # Update the right-hand possible matches area
+                self.render_possible_matches()
+
+            if input is not B.KEY1 and self.arrow_up_is_active:
+                # Deactivate the arrow and redraw
+                self.arrow_up_is_active = False
+                self.render_possible_matches_arrows()
+
+            if input is not B.KEY3 and self.arrow_down_is_active:
+                # Deactivate the arrow and redraw
+                self.arrow_down_is_active = False
+                self.render_possible_matches_arrows()
+
+            if final_selection:
+                # Animate the selection storage, then return the word to the caller
+                self.letters = list(final_selection + " ")
+                self.render_possible_matches(highlight_word=final_selection)
+                self.text_entry_display.cur_text = "''.join(self.letters)"
+                self.text_entry_display.render()
+                self.renderer.show_image()
+
+                return final_selection
+
+            elif input == B.KEY_PRESS and ret_val in self.possible_alphabet:
+                # User has locked in the current letter
+                if self.letters[-1] != " ":
+                    # We'll save that locked in letter next but for now update the
+                    # live text entry display with blank (" ") so that we don't try
+                    # to autocalc matches against a second copy of the letter they
+                    # just selected. e.g. They KEY_PRESS on "s" to build "mus". If
+                    # we advance the live block cursor AND display "s" in it, the
+                    # current word would then be "muss" with no matches. If "mus"
+                    # can get us to our match, we don't want it to disappear right
+                    # as we KEY_PRESS.
+                    self.letters.append(" ")
+                else:
+                    # clicked same letter twice in a row. Because of the above, an
+                    # immediate second click of the same letter would lock in "ap "
+                    # (note the space) instead of "app". So we replace that trailing
+                    # space with the correct repeated letter and then, as above,
+                    # append a trailing blank.
+                    self.letters = self.letters[:-1]
+                    self.letters.append(ret_val)
+                    self.letters.append(" ")
+
+                # Recalc and deactivate keys after advancing
+                self.calc_possible_alphabet()
+                self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
+                    
+                # Update the right-hand possible matches area
+                self.render_possible_matches()
+
+                if len(self.possible_alphabet) == 1:
+                    # If there's only one possible letter left, select it
+                    self.keyboard.set_selected_key(self.possible_alphabet[0])
+
+                self.keyboard.render_keys()
+
+            elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN]:
+                if ret_val in self.possible_alphabet:
+                    # Live joystick movement; haven't locked this new letter in yet.
+                    # Replace the last letter w/the currently selected one. But don't
+                    # call `calc_possible_alphabet()` because we want to still be able
+                    # to freely float to a different letter; only update the active
+                    # keyboard keys when a selection has been locked in (KEY_PRESS) or
+                    # removed ("del").
+                    self.letters = self.letters[:-1]
+                    self.letters.append(ret_val)
+                    self.calc_possible_words()  # live update our matches as we move
+
+                    # Update the right-hand possible matches area
+                    self.render_possible_matches()
+                
+                else:
+                    # We've navigated to a deactivated letter
+                    pass
+
+            # Render the text entry display and cursor block
+            self.text_entry_display.cur_text = ''.join(self.letters)
+            self.text_entry_display.render()
+
+            # Now issue one call to send the pixels to the screen
+            self.renderer.show_image()
 
 
 @dataclass
@@ -377,7 +758,6 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             font_color=GUIConstants.ACCENT_COLOR,
             cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
             is_centered=False,
-            has_outline=True,
             cur_text=''.join(self.passphrase)
         )
 
@@ -657,7 +1037,6 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
         ))
 
         available_height = self.components[-1].screen_y - self.top_nav.height + GUIConstants.COMPONENT_PADDING
-        print(f"available_height: {available_height}")
         max_font_size = GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 8
         min_font_size = GUIConstants.TOP_NAV_TITLE_FONT_SIZE - 4
         font_size = max_font_size
@@ -670,17 +1049,13 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
             font = Fonts.get_font(font_name=GUIConstants.FIXED_WIDTH_FONT_NAME, size=font_size)
             char_width, char_height = font.getsize("X")
             for num_lines in range(1, max_lines+1):
-                print(f"font_size: {font_size} | num_lines: {num_lines}")
-
                 # Break the passphrase into n lines
                 chars_per_line = math.ceil(len(self.passphrase) / num_lines)
                 passphrase = []
                 for i in range(0, len(self.passphrase), chars_per_line):
                     passphrase.append(self.passphrase[i:i+chars_per_line])
-                print(passphrase)
                 
                 # See if it fits in this configuration
-                print(f"width: {char_width * len(passphrase[0])} | height: {num_lines * char_height}")
                 if char_width * len(passphrase[0]) <= self.canvas_width - 2*GUIConstants.EDGE_PADDING:
                     # Width is good...
                     if num_lines * char_height <= available_height:

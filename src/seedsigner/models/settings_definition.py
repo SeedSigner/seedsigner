@@ -22,10 +22,12 @@ class SettingsConstants:
 
     # User-facing selection options
     COORDINATOR__BLUE_WALLET = "bw"
+    COORDINATOR__NUNCHUK = "nun"
     COORDINATOR__SPARROW = "spa"
     COORDINATOR__SPECTER_DESKTOP = "spd"
     ALL_COORDINATORS = [
         (COORDINATOR__BLUE_WALLET, "BlueWallet"),
+        (COORDINATOR__NUNCHUK, "Nunchuk"),
         (COORDINATOR__SPARROW, "Sparrow"),
         (COORDINATOR__SPECTER_DESKTOP, "Specter Desktop"),
     ]

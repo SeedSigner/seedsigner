@@ -622,31 +622,27 @@ class QRDisplayScreen(BaseScreen):
         settings = Settings.get_instance()
         cur_brightness = settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS)
 
-        if self.qr_encoder.total_parts() == 1:
-            image = self.qr_encoder.next_part_image(240,240,1)
+        # Loop whether the QR is a single frame or animated; each loop might adjust
+        # brightness setting.
+        while True:
+            # convert the cur_brightness integer (31-255) into hex triplets
+            hex_color = (hex(cur_brightness).split('x')[1]) * 3
+            image = self.qr_encoder.next_part_image(240,240, border=2, background_color=hex_color)
             self.renderer.show_image(image)
-            self.hw_inputs.wait_for([B.KEY_RIGHT])
 
-        else:
-            while True:
-                # convert the cur_brightness integer (31-255) into hex triplets
-                hex_color = (hex(cur_brightness).split('x')[1]) * 3
-                image = self.qr_encoder.next_part_image(240,240, border=2, background_color=hex_color)
-                self.renderer.show_image(image)
+            # Target n held frames per second before rendering next QR image
+            time.sleep(5/30.0)
 
-                # Target n held frames per second before rendering next QR image
-                time.sleep(5/30.0)
+            if self.hw_inputs.check_for_low(B.KEY_DOWN):
+                # Reduce QR code background brightness
+                cur_brightness = max(31, cur_brightness - 31)
 
-                if self.hw_inputs.check_for_low(B.KEY_DOWN):
-                    # Reduce QR code background brightness
-                    cur_brightness = max(31, cur_brightness - 31)
+            elif self.hw_inputs.check_for_low(B.KEY_UP):
+                # Incrase QR code background brightness
+                cur_brightness = min(cur_brightness + 31, 255)
 
-                elif self.hw_inputs.check_for_low(B.KEY_UP):
-                    # Incrase QR code background brightness
-                    cur_brightness = min(cur_brightness + 31, 255)
-
-                elif self.hw_inputs.check_for_low(B.KEY_RIGHT):
-                    break
+            elif self.hw_inputs.check_for_low(B.KEY_RIGHT):
+                break
 
 
         settings.set_value(SettingsConstants.SETTING__QR_BRIGHTNESS, cur_brightness)

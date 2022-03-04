@@ -28,17 +28,18 @@ class Controller(Singleton):
     """
     from .helpers import Buttons
 
-    VERSION = "0.5.0 Pre-Release 1"
+    VERSION = "0.5.0 Pre-Release 2"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
     buttons: Buttons = None
     storage: SeedStorage = None
     settings: Settings = None
+    renderer: Renderer = None
+
     psbt: PSBT = None
     psbt_seed: Seed = None
     psbt_parser: PSBTParser = None
-    renderer: Renderer = None
 
 
     @classmethod
@@ -134,16 +135,16 @@ class Controller(Singleton):
     def start(self) -> None:
         from .views import View, Destination, OpeningSplashView, MainMenuView, BackStackView
 
-        opening_splash = OpeningSplashView()
-        opening_splash.start()
+        # opening_splash = OpeningSplashView()
+        # opening_splash.start()
 
-        # TODO: Remove for v0.5.0 production release
-        WarningScreen(
-            title="Warning",
-            warning_headline="Pre-Release Code",
-            warning_text="Do not use this with real funds or to create new secure keys!",
-            show_top_nav_left_button=False,
-        ).display()
+        # # TODO: Remove for v0.5.0 production release
+        # WarningScreen(
+        #     title="Warning",
+        #     warning_headline="Pre-Release Code",
+        #     warning_text="Do not use this with real funds or to create new secure keys!",
+        #     show_top_nav_left_button=False,
+        # ).display()
 
 
         """ Class references can be stored as variables in python!
