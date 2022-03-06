@@ -392,6 +392,7 @@ class IconTextLine(BaseComponent):
     icon_color: str = GUIConstants.BODY_FONT_COLOR
     label_text: str = None
     value_text: str = "73c5da0a"
+    font_name: str = GUIConstants.BODY_FONT_NAME
     font_size: int = GUIConstants.BODY_FONT_SIZE
     is_text_centered: bool = False
     screen_x: int = 0
@@ -432,10 +433,12 @@ class IconTextLine(BaseComponent):
         value_textarea_screen_y = self.screen_y
         if self.label_text:
             value_textarea_screen_y += self.label_textarea.height
+
         self.value_textarea = TextArea(
             image_draw=self.image_draw,
             canvas=self.canvas,
             text=self.value_text,
+            font_name=self.font_name,
             font_size=self.font_size,
             edge_padding=0,
             is_text_centered=False,

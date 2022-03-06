@@ -720,7 +720,9 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
         self.xpub_line = IconTextLine(
             icon_name=FontAwesomeIconConstants.X,
             label_text="Xpub",
-            value_text=self.xpub,
+            value_text=f"{self.xpub[:18]}...",
+            font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
+            font_size=GUIConstants.BODY_FONT_SIZE + 2,
             screen_x=GUIConstants.COMPONENT_PADDING,
             screen_y=self.derivation_line.screen_y + self.derivation_line.height + GUIConstants.COMPONENT_PADDING,
         )
