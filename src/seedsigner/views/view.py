@@ -164,10 +164,15 @@ class ResetView(View):
         def run(self):
             import time
             from subprocess import call
-            while self.keep_running:
-                time.sleep(5)
-                # Kill the SeedSigner process; systemd will automatically restart it.
-                call("kill $(ps aux | grep '[p]ython3 main.py' | awk '{print $2}')", shell=True)
+
+            # Give the screen just enough time to display the reset message before
+            # exiting.
+            time.sleep(0.25)
+
+            # Kill the SeedSigner process; systemd will automatically restart it.
+            # `.*` is a wildcard to detect `python3 -u main.py` with or without the
+            # `-u` flag.
+            call("kill $(ps aux | grep '[p]ython3 .*main.py' | awk '{print $2}')", shell=True)
 
 
 

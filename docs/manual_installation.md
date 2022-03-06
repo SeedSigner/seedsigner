@@ -190,14 +190,14 @@ Description=Seedsigner
 [Service]
 User=pi
 WorkingDirectory=/home/pi/seedsigner/src/
-ExecStart=/home/pi/.envs/seedsigner-env/bin/python main.py
+ExecStart=/home/pi/.envs/seedsigner-env/bin/python -u main.py
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-_Note: If you'll be testing new code on the SeedSigner, you'll want to omit the `Restart=always` line._
+_Note: For local dev you'll want to edit the `Restart=always` line to `Restart=no`. This way when your dev code crashes it won't keep trying to restart itself. Note that the UI "Reset" will no longer work when auto-restarts are disabled._
 
 Use `CTRL-X` and `y` to exit and save changes.
 

@@ -687,6 +687,7 @@ class SeedExportXpubQRDisplayView(View):
         super().__init__()
         self.seed = self.controller.get_seed(seed_num)
 
+        qr_density = self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY)
         if coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
             qr_type = QRType.XPUB__SPECTER
 
@@ -708,7 +709,7 @@ class SeedExportXpubQRDisplayView(View):
             derivation=derivation_path,
             network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
             qr_type=qr_type,
-            qr_density=qr_density if qr_density else self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
+            qr_density=qr_density,
             wordlist_language_code=self.seed.wordlist_language_code
         )
 
