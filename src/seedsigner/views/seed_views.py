@@ -353,6 +353,7 @@ class SeedOptionsView(View):
 
         if button_data[selected_menu_num] == REVIEW_PSBT:
             from seedsigner.views.psbt_views import PSBTOverviewView
+            self.controller.psbt_seed = self.controller.get_seed(selected_menu_num)
             return Destination(PSBTOverviewView)
 
         if button_data[selected_menu_num] == SCAN_PSBT:

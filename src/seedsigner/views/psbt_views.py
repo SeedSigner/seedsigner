@@ -52,7 +52,7 @@ class PSBTSelectSeedView(View):
 
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
-            self.controller.psbt_seed = self.controller.storage.seeds[selected_menu_num]
+            self.controller.psbt_seed = self.controller.get_seed(selected_menu_num)
             return Destination(PSBTOverviewView)
 
         elif button_data[selected_menu_num] == SCAN_SEED:
@@ -433,10 +433,10 @@ class PSBTSigningErrorView(View):
 
         selected_menu_num = WarningScreen(
             title="PSBT Error",
-            warning_icon_name="warning",
+            warning_icon_name=SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION,
             warning_headline="Signing Failed",
             warning_text="Signing with this seed did not add a valid signature.",
-            button_label="Select Diff Seed",
+            button_data=["Select Diff Seed"],
         ).display()
 
         if selected_menu_num == 0:

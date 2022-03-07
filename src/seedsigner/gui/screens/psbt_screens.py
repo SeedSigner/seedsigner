@@ -277,6 +277,7 @@ class PSBTOverviewScreen(ButtonListScreen):
         num_rendered_destinations = len(destination_column)
         if num_rendered_destinations == 1:
             destination_y = vertical_center - int(chart_text_height/2)
+            destination_y_spacing = 0
         else:
             destination_y = int((image.height - num_rendered_destinations*chart_text_height) / (num_rendered_destinations + 1))
             destination_y_spacing = destination_y + chart_text_height
