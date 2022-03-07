@@ -37,7 +37,7 @@ class SeedsMenuView(View):
 
         button_data = []
         for seed in self.seeds:
-            button_data.append((seed["fingerprint"], SeedSignerCustomIconConstants.FINGERPRINT))
+            button_data.append((seed["fingerprint"], SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
         button_data.append("Load a seed")
 
         selected_menu_num = ButtonListScreen(
@@ -130,14 +130,14 @@ class SeedMnemonicEntryView(View):
                 # TODO: Route to invalid mnemonic View
                 return Destination(NotYetImplementedView)
 
-            return Destination(SeedValidView)
+            return Destination(SeedFinalizeView)
 
 
 
 """****************************************************************************
     Loading seeds, passphrases, etc
 ****************************************************************************"""
-class SeedValidView(View):
+class SeedFinalizeView(View):
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
@@ -145,26 +145,10 @@ class SeedValidView(View):
 
 
     def run(self):
-        from .psbt_views import PSBTOverviewView
-
-        SIGN_PSBT = "Review PSBT"
-        SCAN_PSBT = ("Scan a PSBT", FontAwesomeIconConstants.QRCODE)
         PASSPHRASE = ("Add Passphrase", FontAwesomeIconConstants.UNLOCK)
-        SEED_TOOLS = "Seed Options"
+        FINALIZE = "Done"
+        CANCEL = ("Cancel", None, None, "red")
         button_data = []
-
-        if self.controller.psbt:
-            if not PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
-                # Seed doesn't match any input fingerprints
-                # TODO: Is there ever a use-case for letting someone try to sign with a
-                # seed that doesn't match? 
-                SIGN_PSBT += " (?)"
-            else:
-                # Don't auto-route to a signable psbt. Just display the button.
-                pass
-            button_data.append(SIGN_PSBT)
-        else:
-            button_data.append(SCAN_PSBT)
 
         if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) in [
                 SettingsConstants.OPTION__ENABLED,
@@ -174,56 +158,65 @@ class SeedValidView(View):
                 PASSPHRASE = "Edit Passphrase"
             button_data.append(PASSPHRASE)
         
-        button_data.append(SEED_TOOLS)
+        button_data.append(FINALIZE)
+        button_data.append(CANCEL)
 
-        selected_menu_num = seed_screens.SeedValidScreen(
+        selected_menu_num = seed_screens.SeedFinalizeScreen(
             fingerprint=self.fingerprint,
             button_data=button_data,
         ).display()
 
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            # Warning message that this will discard the pending seed
-            return Destination(SeedDiscardView)
-
-        elif button_data[selected_menu_num] == SIGN_PSBT:
-            self.controller.storage.finalize_pending_seed()
-            self.controller.psbt_seed = self.seed
-            return Destination(PSBTOverviewView, clear_history=True)
-
-        elif button_data[selected_menu_num] == SCAN_PSBT:
-            self.controller.storage.finalize_pending_seed()
-            # Jump back to the Scan mode, but this time to sign a PSBT
-            from .scan_views import ScanView
-            return Destination(ScanView, clear_history=True)
-        
-        elif button_data[selected_menu_num] == PASSPHRASE:
+        if button_data[selected_menu_num] == PASSPHRASE:
             return Destination(SeedAddPassphraseView)
 
-        elif button_data[selected_menu_num] == SEED_TOOLS:
-            # Jump straight to the Seed Tools for this seed
+        elif button_data[selected_menu_num] == FINALIZE:
             seed_num = self.controller.storage.finalize_pending_seed()
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
+
+        elif button_data[selected_menu_num] == CANCEL:
+            return Destination(SeedDiscardView)
 
 
 
 class SeedDiscardView(View):
-    def run(self):
-        YES = "Yes"
-        NO = "No"
-        button_data = [YES, NO]
+    def __init__(self, seed_num: int = None):
+        super().__init__()
+        self.seed_num = seed_num
+        print(f"self.seed_num: {self.seed_num}")
+        if self.seed_num is not None:
+            self.seed = self.controller.get_seed(self.seed_num)
+        else:
+            self.seed = self.controller.storage.pending_seed
 
-        selected_menu_num = LargeButtonScreen(
+
+    def run(self):
+        KEEP = "Keep Seed"
+        DISCARD = ("Discard", None, None, "red")
+        button_data = [KEEP, DISCARD]
+
+        fingerprint = self.seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+        selected_menu_num = WarningScreen(
             title="Discard Seed?",
+            warning_headline=None,
+            warning_text=f"Remove seed {fingerprint} from memory?",
+            show_back_button=False,
             button_data=button_data,
-            show_top_nav_left_button=False,
         ).display()
 
-        if button_data[selected_menu_num] == YES:
-            self.controller.storage.clear_pending_seed()
-            return Destination(MainMenuView)
+        print(f"selected_menu_num: {selected_menu_num}")
 
-        elif button_data[selected_menu_num] == NO:
-            return Destination(SeedValidView)
+        if button_data[selected_menu_num] == KEEP:
+            if self.seed_num is not None:
+                return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num})
+            else:
+                return Destination(SeedFinalizeView)
+
+        elif button_data[selected_menu_num] == DISCARD:
+            if self.seed_num is not None:
+                self.controller.discard_seed(self.seed_num)
+            else:
+                self.controller.storage.clear_pending_seed()
+            return Destination(MainMenuView)
 
 
 
@@ -245,7 +238,7 @@ class SeedAddPassphrasePromptView(View):
             return Destination(SeedAddPassphraseView)
 
         elif button_data[selected_menu_num] == NO:
-            return Destination(SeedValidView)
+            return Destination(SeedFinalizeView)
 
 
 
@@ -297,7 +290,7 @@ class SeedReviewPassphraseView(View):
             fingerprint_with=fingerprint_with,
             passphrase=self.seed.passphrase,
             button_data=button_data,
-            show_top_nav_left_button=False,
+            show_back_button=False,
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -307,7 +300,7 @@ class SeedReviewPassphraseView(View):
             return Destination(SeedAddPassphraseView)
         
         elif button_data[selected_menu_num] == CONTINUE:
-            return Destination(SeedValidView)
+            return Destination(SeedFinalizeView)
 
 
 
@@ -323,10 +316,13 @@ class SeedOptionsView(View):
 
 
     def run(self):
+        SCAN_PSBT = ("Scan PSBT", FontAwesomeIconConstants.QRCODE)
         REVIEW_PSBT = "Review PSBT"
         VIEW_WORDS = "View Seed Words"
         EXPORT_XPUB = "Export Xpub"
         EXPORT_SEEDQR = "Export Seed as QR"
+        DISCARD = ("Discard Seed", None, None, "red")
+
         button_data = []
 
         if self.controller.psbt:
@@ -335,6 +331,8 @@ class SeedOptionsView(View):
                 # TODO: How sure are we? Should disable this entirely if we're 100% sure?
                 REVIEW_PSBT += " (?)"
             button_data.append(REVIEW_PSBT)
+        else:
+            button_data.append(SCAN_PSBT)
         
         button_data.append(VIEW_WORDS)
 
@@ -342,6 +340,7 @@ class SeedOptionsView(View):
             button_data.append(EXPORT_XPUB)
         
         button_data.append(EXPORT_SEEDQR)
+        button_data.append(DISCARD)
 
         selected_menu_num = seed_screens.SeedOptionsScreen(
             button_data=button_data,
@@ -356,6 +355,10 @@ class SeedOptionsView(View):
             from seedsigner.views.psbt_views import PSBTOverviewView
             return Destination(PSBTOverviewView)
 
+        if button_data[selected_menu_num] == SCAN_PSBT:
+            from seedsigner.views.scan_views import ScanView
+            return Destination(ScanView)
+
         elif button_data[selected_menu_num] == VIEW_WORDS:
             return Destination(SeedWordsWarningView, view_args={"seed_num": self.seed_num})
 
@@ -365,6 +368,9 @@ class SeedOptionsView(View):
         elif button_data[selected_menu_num] == EXPORT_SEEDQR:
             return Destination(NotYetImplementedView)
             # return Destination(SeedExportSeedQRView, view_args={"seed_num": self.seed_num})
+
+        elif button_data[selected_menu_num] == DISCARD:
+            return Destination(SeedDiscardView, view_args={"seed_num": self.seed_num})
 
 
 

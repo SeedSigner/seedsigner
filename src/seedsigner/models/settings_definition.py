@@ -375,8 +375,9 @@ class SettingsDefinition:
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__PASSPHRASE,
                       display_name="BIP-39 passphrase",
+                      type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      selection_options=SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQUIRED,
+                      selection_options=SettingsConstants.ALL_OPTIONS,
                       default_value=SettingsConstants.OPTION__ENABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,

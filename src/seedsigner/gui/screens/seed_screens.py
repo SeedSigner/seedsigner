@@ -11,7 +11,7 @@ from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
-from .screen import RET_CODE__BACK_BUTTON, BaseTopNavScreen, ButtonListScreen, WarningScreenMixin
+from .screen import RET_CODE__BACK_BUTTON, BaseTopNavScreen, ButtonListScreen, WarningEdgesMixin
 from ..components import (FontAwesomeIconConstants, Fonts, FormattedAddress,
     IconTextLine, SeedSignerCustomIconConstants, TextArea, GUIConstants,
     calc_text_centering)
@@ -398,17 +398,16 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
             self.renderer.show_image()
 
 
+
 @dataclass
-class SeedValidScreen(ButtonListScreen):
+class SeedFinalizeScreen(ButtonListScreen):
     fingerprint: str = None
-    title: str = "Seed Valid"
+    title: str = "Finalize Seed"
     is_bottom_list: bool = True
     button_data: list = None
 
     def __post_init__(self):
-        # TODO: Replace this with explicit "Continue"/"Discard" options
-        self.show_top_nav_left_button = True
-        self.top_nav_left_button_icon_name = FontAwesomeIconConstants.X
+        self.show_back_button = False
 
         super().__post_init__()
 
@@ -429,26 +428,22 @@ class SeedValidScreen(ButtonListScreen):
 @dataclass
 class SeedOptionsScreen(ButtonListScreen):
     # Customize defaults
-    title: str = "Seed Options"
     is_bottom_list: bool = True
     fingerprint: str = None
     has_passphrase: bool = False
 
     def __post_init__(self):
+        self.top_nav_icon_name = SeedSignerCustomIconConstants.FINGERPRINT
+        self.top_nav_icon_color = "blue"
+        self.title = self.fingerprint
+        self.is_button_text_centered = False
         super().__post_init__()
 
-        self.components.append(IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
-            icon_color="blue",
-            value_text=self.fingerprint,
-            is_text_centered=True,
-            screen_y=self.top_nav.height
-        ))
 
 
 
 @dataclass
-class SeedWordsScreen(WarningScreenMixin, ButtonListScreen):
+class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
     title: str = "Seed Words"
     seed: Seed = None
     is_first_page: bool = True
@@ -680,7 +675,7 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
 
 
 @dataclass
-class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
+class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
     # Customize defaults
     title: str = "Xpub Details"
     is_bottom_list: bool = True
@@ -704,7 +699,7 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
             label_text="Fingerprint",
             value_text=self.fingerprint,
             screen_x=GUIConstants.COMPONENT_PADDING,
-            screen_y=self.top_nav.height,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
         )
         self.components.append(self.fingerprint_line)
 
@@ -713,7 +708,7 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
             label_text="Derivation",
             value_text=self.derivation_path,
             screen_x=GUIConstants.COMPONENT_PADDING,
-            screen_y=self.fingerprint_line.screen_y + self.fingerprint_line.height + GUIConstants.COMPONENT_PADDING,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + int(1.5*GUIConstants.COMPONENT_PADDING),
         )
         self.components.append(self.derivation_line)
 
@@ -724,9 +719,10 @@ class SeedExportXpubDetailsScreen(WarningScreenMixin, ButtonListScreen):
             font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
             font_size=GUIConstants.BODY_FONT_SIZE + 2,
             screen_x=GUIConstants.COMPONENT_PADDING,
-            screen_y=self.derivation_line.screen_y + self.derivation_line.height + GUIConstants.COMPONENT_PADDING,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + int(1.5*GUIConstants.COMPONENT_PADDING),
         )
         self.components.append(self.xpub_line)
+
 
 
 

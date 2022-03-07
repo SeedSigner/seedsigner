@@ -178,24 +178,24 @@ class LoadingScreenThread(BaseThread):
 
 @dataclass
 class BaseTopNavScreen(BaseScreen):
+    top_nav_icon_name: str = None
+    top_nav_icon_color: str = None
     title: str = "Screen Title"
     title_font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE
-    show_top_nav_left_button: bool = True
-    top_nav_left_button_icon_name: str = SeedSignerCustomIconConstants.LARGE_CHEVRON_LEFT
-    show_top_nav_right_button: bool = False
-    top_nav_right_button_icon_name: str = FontAwesomeIconConstants.POWER_OFF
+    show_back_button: bool = True
+    show_power_button: bool = False
 
     def __post_init__(self):
         super().__post_init__()
         self.top_nav = TopNav(
+            icon_name=self.top_nav_icon_name,
+            icon_color=self.top_nav_icon_color,
             text=self.title,
             font_size=self.title_font_size,
             width=self.canvas_width,
             height=GUIConstants.TOP_NAV_HEIGHT,
-            show_left_button=self.show_top_nav_left_button,
-            left_button_icon_name=self.top_nav_left_button_icon_name,
-            show_right_button=self.show_top_nav_right_button,
-            right_button_icon_name=self.top_nav_right_button_icon_name,
+            show_back_button=self.show_back_button,
+            show_power_button=self.show_power_button,
         )
         self.is_input_in_top_nav = False
 
@@ -238,7 +238,7 @@ class TextTopNavScreen(BaseTopNavScreen):
                 if user_input == B.KEY_UP:
                     if not self.top_nav.is_selected:
                         # Only move navigation up there if there's something to select
-                        if self.top_nav.show_left_button or self.top_nav.show_right_button:
+                        if self.top_nav.show_back_button or self.top_nav.show_power_button:
                             self.top_nav.is_selected = True
                             self.top_nav.render()
 
@@ -292,15 +292,19 @@ class ButtonListScreen(BaseTopNavScreen):
 
         self.buttons: List[Button] = []
         for i, button_label in enumerate(self.button_data):
+            icon_name = None
+            icon_color = None
+            button_label_color = GUIConstants.BUTTON_FONT_COLOR
             if type(button_label) == tuple:
                 if len(button_label) == 2:
                     (button_label, icon_name) = button_label
                     icon_color = GUIConstants.BUTTON_FONT_COLOR
+
                 elif len(button_label) == 3:
                     (button_label, icon_name, icon_color) = button_label
-            else:
-                icon_name = None
-                icon_color = None
+
+                elif len(button_label) == 4:
+                    (button_label, icon_name, icon_color, button_label_color) = button_label
 
             button_kwargs = dict(
                 text=button_label,
@@ -314,6 +318,7 @@ class ButtonListScreen(BaseTopNavScreen):
                 is_text_centered=self.is_button_text_centered,
                 font_name=self.button_font_name,
                 font_size=self.button_font_size,
+                font_color=button_label_color,
                 selected_color=self.button_selected_color
             )
             if self.checked_buttons and i in self.checked_buttons:
@@ -409,7 +414,7 @@ class ButtonListScreen(BaseTopNavScreen):
                     # OR keyed UP from the top of the list.
                     # Move selection up to top_nav
                     # Only move navigation up there if there's something to select
-                    if self.top_nav.show_left_button or self.top_nav.show_right_button:
+                    if self.top_nav.show_back_button or self.top_nav.show_power_button:
                         self.buttons[self.selected_button].is_selected = False
                         self.buttons[self.selected_button].render()
 
@@ -584,7 +589,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                     if self.selected_button in [0, 2]:
                         swap_selected_button(self.selected_button + 1)
                 
-                elif user_input == B.KEY_RIGHT and self.top_nav.is_selected and not self.top_nav.show_right_button:
+                elif user_input == B.KEY_RIGHT and self.top_nav.is_selected and not self.top_nav.show_power_button:
                     self.top_nav.is_selected = False
                     self.top_nav.render()
 
@@ -596,7 +601,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                         swap_selected_button(self.selected_button - 1)
                     else:
                         # Left from the far edge takes us up to the BACK arrow
-                        if self.top_nav.show_left_button:
+                        if self.top_nav.show_back_button:
                             self.top_nav.is_selected = True
                             self.top_nav.render()
 
@@ -711,7 +716,7 @@ class WarningEdgesThread(BaseThread):
 
 
 @dataclass
-class WarningScreenMixin:
+class WarningEdgesMixin:
     warning_color: str = GUIConstants.WARNING_COLOR
 
     def __post_init__(self):
@@ -722,18 +727,18 @@ class WarningScreenMixin:
 
 
 @dataclass
-class WarningScreen(WarningScreenMixin, ButtonListScreen):
+class WarningScreen(WarningEdgesMixin, ButtonListScreen):
     title: str = "Caution"
-    button_label: str = "I Understand"
-    is_bottom_list: bool = True
     warning_icon_name: str = SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION
     warning_icon_size=GUIConstants.ICON_PRIMARY_SCREEN_SIZE
     warning_headline: str = "Privacy Leak!"     # The colored text under the alert icon
     warning_text: str = ""                      # The body text of the warning
+    button_data: list = None
 
     def __post_init__(self):
-        # Populate the required button_data for the ButtonListScreen
-        self.button_data = [self.button_label]
+        self.is_bottom_list: bool = True
+        if not self.button_data:
+            self.button_data = ["I Understand"]
         super().__post_init__()
 
         self.warning_icon = Icon(
@@ -754,9 +759,10 @@ class WarningScreen(WarningScreenMixin, ButtonListScreen):
                 font_color=self.warning_color,
             )
             self.components.append(self.warning_headline_textarea)
-            next_y = next_y + self.warning_headline_textarea.height + 8
+            next_y = next_y + self.warning_headline_textarea.height
 
         self.warning_text_textarea = TextArea(
+            height=self.buttons[0].screen_y - next_y,
             text=self.warning_text,
             width=self.canvas_width,
             screen_y=next_y,

@@ -33,7 +33,7 @@ class ScanView(View):
                 else:
                     # Found a valid mnemonic seed! All new seeds should be considered
                     #   pending (might set a passphrase, SeedXOR, etc) until finalized.
-                    from .seed_views import SeedValidView
+                    from .seed_views import SeedFinalizeView
                     self.controller.storage.set_pending_seed(
                         Seed(mnemonic=seed_mnemonic, wordlist_language_code=wordlist_language_code)
                     )
@@ -42,7 +42,7 @@ class ScanView(View):
                     elif self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
                         return Destination(SeedAddPassphraseView)
                     else:
-                        return Destination(SeedValidView)
+                        return Destination(SeedFinalizeView)
             
             elif self.decoder.is_psbt:
                 psbt = self.decoder.get_psbt()

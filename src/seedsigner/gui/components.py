@@ -38,7 +38,7 @@ class GUIConstants:
     BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE
     BODY_FONT_MIN_SIZE = 15
     BODY_FONT_COLOR = "#f8f8f8"
-    BODY_LINE_SPACING = 0.25
+    BODY_LINE_SPACING = COMPONENT_PADDING
 
     FIXED_WIDTH_FONT_NAME = "Inconsolata-Regular"
     FIXED_WIDTH_EMPHASIS_FONT_NAME = "Inconsolata-SemiBold"
@@ -67,6 +67,7 @@ class FontAwesomeIconConstants:
     LOCK = "\uf023"
     MAP = "\uf279"
     PAPER_PLANE = "\uf1d8"
+    PEN = "\uf304"
     PLUS = "+"
     POWER_OFF = "\uf011"
     ROTATE_RIGHT = "\uf2f9"
@@ -226,6 +227,7 @@ class TextArea(BaseComponent):
     height: int = None      # None = special case: autosize to min height
     screen_x: int = 0
     screen_y: int = 0
+    min_text_x: int = None
     background_color: str = "black"
     font_name: str = GUIConstants.BODY_FONT_NAME
     font_size: int = GUIConstants.BODY_FONT_SIZE
@@ -238,6 +240,7 @@ class TextArea(BaseComponent):
 
     def __post_init__(self):
         super().__post_init__()
+
         if not self.width:
             self.width = self.canvas_width
 
@@ -250,12 +253,15 @@ class TextArea(BaseComponent):
             self.supersampled_height = None
         else:
             self.supersampled_height = self.supersampling_factor * self.height
-        self.line_spacing = int(GUIConstants.BODY_LINE_SPACING * self.font_size)
+        self.line_spacing = GUIConstants.BODY_LINE_SPACING
 
         # We have to figure out if and where to make line breaks in the text so that it
         #   fits in its bounding rect (plus accounting for edge padding) using its given
         #   font.
-        full_text_width, self.text_height = self.font.getsize(self.text)
+        # full_text_width, self.text_height = self.font.getsize(self.text)
+        (left, top, full_text_width, bottom) = self.font.getbbox(self.text, anchor="ls")  # Measure from baseline
+        self.text_height = -1 * top
+        self.bbox_height = self.text_height + bottom
 
         # Stores each line of text and its rendering starting x-coord
         self.text_lines = []
@@ -265,6 +271,8 @@ class TextArea(BaseComponent):
                 text_x = int((self.supersampled_width - width) / 2)
             else:
                 text_x = self.supersampling_factor * self.edge_padding
+            if self.min_text_x is not None and text_x < self.min_text_x:
+                text_x = self.min_text_x
             self.text_lines.append({"text": text, "text_x": text_x})
 
             if width > self.text_width:
@@ -275,11 +283,12 @@ class TextArea(BaseComponent):
             _add_text_line(self.text, full_text_width)
 
             if self.height is None:
-                self.text_y = 0
-                self.supersampled_height = self.text_height
+                self.text_y = self.text_height
+                self.supersampled_height = self.bbox_height
+                self.height = int(self.bbox_height / self.supersampling_factor)
             else:
                 # Vertical starting point calc is easy in this case
-                self.text_y = int(((self.supersampling_factor * self.supersampled_height) - self.text_height) / 2)
+                self.text_y = self.text_height + int((self.supersampled_height - self.text_height)/2)
             
             self.text_width = full_text_width
 
@@ -317,19 +326,25 @@ class TextArea(BaseComponent):
                 _add_text_line(" ".join(words[0:index]), tw)
                 words = words[index:]
 
-            total_text_height = self.text_height * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
-            if self.height is not None and total_text_height > self.supersampled_height + 2 * GUIConstants.COMPONENT_PADDING * self.supersampling_factor:
-                raise TextDoesNotFitException("Text cannot fit in target rect with this font/size")
-            else:
+            total_text_height = self.bbox_height * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
+            if self.height is None:
+                # Autoscale height to text lines
                 self.supersampled_height = total_text_height
+                self.height = int(self.supersampled_height / self.supersampling_factor)
+                self.text_y = self.text_height
 
-            # Vertically center the text's starting point
-            self.text_y = int((self.supersampled_height - total_text_height) / 2)
+            else:
+                if total_text_height > self.height * self.supersampling_factor + 2*GUIConstants.COMPONENT_PADDING * self.supersampling_factor:
+                    raise TextDoesNotFitException("Text cannot fit in target rect with this font/size")
+
+                # Vertically center the multiline text's starting point
+                self.supersampled_height = self.height * self.supersampling_factor
+                self.text_y = self.text_height + int((self.supersampled_height - total_text_height)/2)
 
         # Make sure the width/height that get referenced outside this obj are
         #   specified and restored to their normal scaling factor.
-        self.height = int(self.supersampled_height / self.supersampling_factor)
         self.width = int(self.text_width / self.supersampling_factor)
+        self.text_height = int(self.text_height / self.supersampling_factor)
 
 
     def render(self):
@@ -341,9 +356,10 @@ class TextArea(BaseComponent):
         draw = ImageDraw.Draw(img)
         cur_y = self.text_y
 
+        # print(f"self.bbox_height: {self.bbox_height}")
         for line in self.text_lines:
-            draw.text((line["text_x"], cur_y), line["text"], fill=self.font_color, font=self.font)
-            cur_y += self.text_height + self.line_spacing
+            draw.text((line["text_x"], cur_y), line["text"], fill=self.font_color, font=self.font, anchor="ls")
+            cur_y += self.bbox_height + self.line_spacing
 
         resized = img.resize((int(self.supersampled_width / self.supersampling_factor), self.height), Image.LANCZOS)
         resized = resized.filter(ImageFilter.SHARPEN)
@@ -387,6 +403,7 @@ class IconTextLine(BaseComponent):
     """
         Renders an icon next to a label/value pairing (or just value)
     """
+    height: int = None
     icon_name: str = SeedSignerCustomIconConstants.CIRCLE_CHECK
     icon_size: int = GUIConstants.ICON_FONT_SIZE
     icon_color: str = GUIConstants.BODY_FONT_COLOR
@@ -400,6 +417,9 @@ class IconTextLine(BaseComponent):
 
     def __post_init__(self):
         super().__post_init__()
+
+        if self.height is not None and self.label_text:
+            raise Exception("Can't currently support vertical auto-centering and label text")
 
         self.icon = Icon(
             image_draw=self.image_draw,
@@ -432,11 +452,13 @@ class IconTextLine(BaseComponent):
         
         value_textarea_screen_y = self.screen_y
         if self.label_text:
-            value_textarea_screen_y += self.label_textarea.height
+            label_padding_y = GUIConstants.COMPONENT_PADDING
+            value_textarea_screen_y += self.label_textarea.text_height + label_padding_y
 
         self.value_textarea = TextArea(
             image_draw=self.image_draw,
             canvas=self.canvas,
+            height=self.height,
             text=self.value_text,
             font_name=self.font_name,
             font_size=self.font_size,
@@ -448,15 +470,16 @@ class IconTextLine(BaseComponent):
         )
 
         if self.label_text:
-            self.height = self.label_textarea.height + self.value_textarea.height
-            icon_y = self.screen_y + int((self.height - self.icon.height) / 2)
+            if not self.height:
+                self.height = self.label_textarea.height + label_padding_y + self.value_textarea.height
             max_textarea_width = max(self.label_textarea.width, self.value_textarea.width)
         else:
-            self.height = self.value_textarea.height
-            icon_y = self.screen_y
+            if not self.height:
+                self.height = self.value_textarea.height
             max_textarea_width = self.value_textarea.width
         
         # Now we can update the icon's y position
+        icon_y = self.screen_y + int((self.height - self.icon.height)/2)
         self.icon.screen_y = icon_y
         
         if self.is_text_centered:
@@ -465,8 +488,6 @@ class IconTextLine(BaseComponent):
             if self.label_text:
                 self.label_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
             self.value_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
-        
-        self.height = self.value_textarea.screen_y + self.value_textarea.height - self.screen_y
 
 
     def render(self):
@@ -670,7 +691,6 @@ class Button(BaseComponent):
     selected_color: str = GUIConstants.ACCENT_COLOR
     font_name: str = GUIConstants.BUTTON_FONT_NAME
     font_size: int = GUIConstants.BUTTON_FONT_SIZE
-    # font_color: str = "#fcfcfc"
     font_color: str = GUIConstants.BUTTON_FONT_COLOR
     selected_font_color: str = GUIConstants.BUTTON_SELECTED_FONT_COLOR
     is_text_centered: bool = True
@@ -837,15 +857,13 @@ class TopNav(BaseComponent):
     width: int = None
     height: int = GUIConstants.TOP_NAV_HEIGHT
     background_color: str = GUIConstants.BACKGROUND_COLOR
+    icon_name: str = None
+    icon_color: str = GUIConstants.BODY_FONT_COLOR
     font_name: str = GUIConstants.TOP_NAV_TITLE_FONT_NAME
     font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE
     font_color: str = "#fcfcfc"
-    show_left_button: bool = True
-    left_button_icon_name: str = SeedSignerCustomIconConstants.LARGE_CHEVRON_LEFT
-    left_button_icon_color: str = GUIConstants.BUTTON_FONT_COLOR
-    show_right_button: bool = False
-    right_button_icon_name: str = FontAwesomeIconConstants.POWER_OFF
-    right_button_icon_color: str = GUIConstants.BUTTON_FONT_COLOR
+    show_back_button: bool = True
+    show_power_button: bool = False
     is_selected: bool = False
 
 
@@ -856,55 +874,55 @@ class TopNav(BaseComponent):
 
         self.font = Fonts.get_font(self.font_name, self.font_size)
 
-        if self.show_left_button:
+        if self.show_back_button:
             self.left_button = IconButton(
-                icon_name=self.left_button_icon_name,
+                icon_name=SeedSignerCustomIconConstants.LARGE_CHEVRON_LEFT,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
-                icon_color=self.left_button_icon_color,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,
                 width=GUIConstants.TOP_NAV_BUTTON_SIZE,
                 height=GUIConstants.TOP_NAV_BUTTON_SIZE,
             )
 
-        if self.show_right_button:
+        if self.show_power_button:
             self.right_button = IconButton(
-                icon_name=self.right_button_icon_name,
+                icon_name=FontAwesomeIconConstants.POWER_OFF,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
-                icon_color=self.right_button_icon_color,
                 screen_x=self.width - GUIConstants.TOP_NAV_BUTTON_SIZE - GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,
                 width=GUIConstants.TOP_NAV_BUTTON_SIZE,
                 height=GUIConstants.TOP_NAV_BUTTON_SIZE,
             )
 
-        # TODO: Complete this code if we want title font size to dynamically size itself
-        # if not self.font:
-        #     # Pre-calc how much room the title bar text will take up. Use the biggest font
-        #     #   that will fit.
-        #     max_font_width = self.width - self.back_button.width - GUIConstants.COMPONENT_PADDING - 2*GUIConstants.EDGE_PADDING
-        #     for font_size in range(GUIConstants.):
-        #         self.text_width, self.text_height = font.getsize(self.text)
-        #         if self.text_width < max_font_width:
-        #             self.font = font
-        #             self.text_x = int((self.width - self.text_width) / 2)
-        #             self.text_y = int((self.height - self.text_height) / 2)
-        #             break
-        (self.text_x, self.text_y) = calc_text_centering(
-            font=self.font,
-            text=self.text,
-            is_text_centered=True,
-            total_width=self.width,
-            total_height=self.height,
-            start_x=0,
-            start_y=0
-        )
-
-        if self.show_left_button:
+        min_x = 0
+        if self.show_back_button:
             # Don't let the title intrude on the BACK button
             min_x = self.left_button.screen_x + self.left_button.width + GUIConstants.COMPONENT_PADDING
-            if self.text_x < min_x:
-                self.text_x = min_x
+
+        if self.icon_name:
+            self.title = IconTextLine(
+                screen_x=0,
+                screen_y=0,
+                height=self.height,
+                icon_name=self.icon_name,
+                icon_color=self.icon_color,
+                icon_size=GUIConstants.ICON_FONT_SIZE + 4,
+                value_text=self.text,
+                is_text_centered=True,
+                font_name=self.font_name,
+                font_size=self.font_size,
+            )
+        else:
+            self.title = TextArea(
+                screen_x=0,
+                screen_y=0,
+                min_text_x=min_x,
+                height=self.height,
+                text=self.text,
+                is_text_centered=True,
+                font_name=self.font_name,
+                font_size=self.font_size,
+            )
 
 
     @property
@@ -912,28 +930,29 @@ class TopNav(BaseComponent):
         from .screens import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
         if not self.is_selected:
             return None
-        if self.show_left_button:
+        if self.show_back_button:
             return RET_CODE__BACK_BUTTON
-        if self.show_right_button:
+        if self.show_power_button:
             return RET_CODE__POWER_BUTTON
 
 
     def render(self):
-        if self.show_left_button:
+        self.title.render()
+        if self.show_back_button:
             self.left_button.is_selected = self.is_selected
             self.left_button.render()
-        if self.show_right_button:
+        if self.show_power_button:
             self.right_button.is_selected = self.is_selected
             self.right_button.render()
 
-        self.image_draw.text(
-            (self.text_x, self.text_y),
-            self.text,
-            font=self.font,
-            fill=self.font_color,
-            stroke_width=1,
-            stroke_fill=GUIConstants.BACKGROUND_COLOR,
-        )
+        # self.image_draw.text(
+        #     (self.text_x, self.text_y),
+        #     self.text,
+        #     font=self.font,
+        #     fill=self.font_color,
+        #     stroke_width=1,
+        #     stroke_fill=GUIConstants.BACKGROUND_COLOR,
+        # )
 
 
 

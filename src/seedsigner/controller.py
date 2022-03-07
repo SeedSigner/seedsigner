@@ -116,6 +116,13 @@ class Controller(Singleton):
             raise Exception(f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory.")
 
 
+    def discard_seed(self, seed_num: int):
+        if seed_num < len(self.storage.seeds):
+            del self.storage.seeds[seed_num]
+        else:
+            raise Exception(f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory.")
+
+
     def pop_prev_from_back_stack(self):
         from .views import Destination
         if len(self.back_stack) > 0:
@@ -138,13 +145,13 @@ class Controller(Singleton):
         # opening_splash = OpeningSplashView()
         # opening_splash.start()
 
-        # # TODO: Remove for v0.5.0 production release
-        # WarningScreen(
-        #     title="Warning",
-        #     warning_headline="Pre-Release Code",
-        #     warning_text="Do not use this with real funds or to create new secure keys!",
-        #     show_top_nav_left_button=False,
-        # ).display()
+        # TODO: Remove for v0.5.0 production release
+        WarningScreen(
+            title="Warning",
+            warning_headline="Pre-Release Code",
+            warning_text="Do not use this with real funds or to create new secure keys!",
+            show_back_button=False,
+        ).display()
 
 
         """ Class references can be stored as variables in python!

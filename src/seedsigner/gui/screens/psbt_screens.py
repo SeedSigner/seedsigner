@@ -453,7 +453,7 @@ class PSBTNoChangeWarningScreen(WarningScreen):
     def __post_init__(self):
         # Customize defaults
         self.title: str = "Caution"
-        self.button_label: str = "Continue"
+        self.button_data: list = ["Continue"]
         self.is_bottom_list: bool = True
         self.warning_headline: str = "Full Spend!"     # The colored text under the alert icon
         self.warning_text: str = "This PSBT spends its entire input value. No change is coming back to your wallet."                      # The body text of the warning

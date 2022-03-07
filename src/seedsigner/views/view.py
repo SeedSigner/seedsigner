@@ -115,8 +115,8 @@ class MainMenuView(View):
             title="Home",
             title_font_size=26,
             button_data=[entry[0] for entry in menu_items],
-            show_top_nav_left_button=False,
-            show_top_nav_right_button=True,
+            show_back_button=False,
+            show_power_button=True,
         )
         selected_menu_num = screen.display()
 
@@ -134,7 +134,7 @@ class PowerOptionsView(View):
         button_data = [RESET, POWER_OFF]
         selected_menu_num = LargeButtonScreen(
             title="Reset / Power",
-            show_top_nav_left_button=True,
+            show_back_button=True,
             button_data=button_data
         ).display()
 
@@ -156,7 +156,7 @@ class ResetView(View):
         TextTopNavScreen(
             title="Resetting",
             text="SeedSigner is restarting. All data will be wiped.",
-            show_top_nav_left_button=False,
+            show_back_button=False,
         ).display()
 
 
@@ -183,7 +183,7 @@ class PowerOffView(View):
         TextTopNavScreen(
             title="Powering Off",
             text="Please wait about 30 seconds before disconnecting power.",
-            show_top_nav_left_button=False,
+            show_back_button=False,
         ).display()
 
 
@@ -206,7 +206,7 @@ class NotYetImplementedView(View):
             title="Work In Progress",
             warning_headline="Not Yet Implemented",
             warning_text="This is still on our to-do list!",
-            button_label="Back to Main Menu",
+            button_data=["Back to Main Menu"],
         ).display()
 
         return Destination(MainMenuView)
