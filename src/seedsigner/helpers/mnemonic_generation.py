@@ -5,8 +5,10 @@ from embit import bip39
 from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 from typing import List
 
+from seedsigner.models.seed import Seed
 
-def calculate_checksum(partial_mnemonic: list, wordlist) -> List[str]:
+
+def calculate_checksum(partial_mnemonic: list, wordlist_language_code: str) -> List[str]:
     """ Provide 11- or 23-word mnemonic, returns complete mnemonic w/checksum as a list """
     if len(partial_mnemonic) not in [11, 23]:
         raise Exception("Pass in a 11- or 23-word mnemonic")
@@ -23,7 +25,7 @@ def calculate_checksum(partial_mnemonic: list, wordlist) -> List[str]:
     # Convert the resulting mnemonic to bytes, but we `ignore_checksum` validation
     # because we have to assume it's incorrect since we just hard-coded it above; we'll
     # fix that next.
-    mnemonic_bytes = bip39.mnemonic_to_bytes(unicodedata.normalize("NFKD", " ".join(mnemonic_copy)), ignore_checksum=True, wordlist=wordlist)
+    mnemonic_bytes = bip39.mnemonic_to_bytes(unicodedata.normalize("NFKD", " ".join(mnemonic_copy)), ignore_checksum=True, wordlist=Seed.get_wordlist(wordlist_language_code))
 
     # This function will convert the bytes back into a mnemonic, but it will also
     # calculate the proper checksum bits while doing so. For a 12-word seed it will just

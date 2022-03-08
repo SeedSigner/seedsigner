@@ -258,8 +258,8 @@ class TextArea(BaseComponent):
         # We have to figure out if and where to make line breaks in the text so that it
         #   fits in its bounding rect (plus accounting for edge padding) using its given
         #   font.
-        # full_text_width, self.text_height = self.font.getsize(self.text)
-        (left, top, full_text_width, bottom) = self.font.getbbox(self.text, anchor="ls")  # Measure from baseline
+        # Measure from left baseline ("ls")
+        (left, top, full_text_width, bottom) = self.font.getbbox(self.text, anchor="ls")
         self.text_height = -1 * top
         self.bbox_height = self.text_height + bottom
 

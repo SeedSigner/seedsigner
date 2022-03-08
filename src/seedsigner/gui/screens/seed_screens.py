@@ -330,7 +330,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                 # Animate the selection storage, then return the word to the caller
                 self.letters = list(final_selection + " ")
                 self.render_possible_matches(highlight_word=final_selection)
-                self.text_entry_display.cur_text = "''.join(self.letters)"
+                self.text_entry_display.cur_text = ''.join(self.letters)
                 self.text_entry_display.render()
                 self.renderer.show_image()
 
@@ -438,7 +438,6 @@ class SeedOptionsScreen(ButtonListScreen):
         self.title = self.fingerprint
         self.is_button_text_centered = False
         super().__post_init__()
-
 
 
 
@@ -722,7 +721,6 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
             screen_y=self.components[-1].screen_y + self.components[-1].height + int(1.5*GUIConstants.COMPONENT_PADDING),
         )
         self.components.append(self.xpub_line)
-
 
 
 

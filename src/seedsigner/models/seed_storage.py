@@ -51,23 +51,21 @@ class SeedStorage:
     def pending_mnemonic(self) -> List[str]:
         # Always return a copy so that the internal List can't be altered
         return list(self._pending_mnemonic)
-    
 
-    def append_to_pending_mnemonic(self, word: str):
-        self._pending_mnemonic.append(word)
-    
+
+    @property
+    def pending_mnemonic_length(self) -> int:
+        return len(self._pending_mnemonic)
+
+
+    def init_pending_mnemonic(self, num_words:int = 12):
+        self._pending_mnemonic = [None] * num_words
+
 
     def update_pending_mnemonic(self, word: str, index: int):
-        if len(self._pending_mnemonic) == index:
-            # We're adding to the end
-            self._pending_mnemonic.append(word)
-
-        elif len(self._pending_mnemonic) > index:
-            # We're replacing an existing value
-            self._pending_mnemonic[index] = word
-
-        else:
+        if index >= len(self._pending_mnemonic):
             raise Exception(f"index {index} is too high")
+        self._pending_mnemonic[index] = word
     
 
     def get_pending_mnemonic_word(self, index: int) -> str:

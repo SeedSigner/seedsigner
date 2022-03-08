@@ -1,12 +1,12 @@
-import time
+from typing import List
 import embit
+import time
 from binascii import hexlify
 from embit.networks import NETWORKS
 
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
-
 from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
 
+from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     LargeButtonScreen, WarningScreen, DireWarningScreen, seed_screens)
 from seedsigner.gui.screens.screen import LoadingScreenThread, QRDisplayScreen
@@ -14,7 +14,7 @@ from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
-from seedsigner.models.seed import Seed
+from seedsigner.models.seed import InvalidSeedException, Seed
 from seedsigner.models.settings import SettingsConstants
 
 
@@ -84,10 +84,12 @@ class LoadSeedView(View):
             return Destination(ScanView)
         
         elif button_data[selected_menu_num] == TYPE_24WORD:
-            return Destination(SeedMnemonicEntryView, view_args={"num_words": 24})
+            self.controller.storage.init_pending_mnemonic(num_words=24)
+            return Destination(SeedMnemonicEntryView)
 
         elif button_data[selected_menu_num] == TYPE_12WORD:
-            return Destination(SeedMnemonicEntryView, view_args={"num_words": 12})
+            self.controller.storage.init_pending_mnemonic(num_words=12)
+            return Destination(SeedMnemonicEntryView)
 
         elif button_data[selected_menu_num] == CREATE:
             from .tools_views import ToolsMenuView
@@ -96,11 +98,11 @@ class LoadSeedView(View):
 
 
 class SeedMnemonicEntryView(View):
-    def __init__(self, num_words: int = 24, cur_word_index: int = 0):
+    def __init__(self, cur_word_index: int = 0, is_calc_final_word: bool=False):
         super().__init__()
-        self.num_words = num_words
         self.cur_word_index = cur_word_index
         self.cur_word = self.controller.storage.get_pending_mnemonic_word(cur_word_index)
+        self.is_calc_final_word = is_calc_final_word
 
 
     def run(self):
@@ -112,7 +114,13 @@ class SeedMnemonicEntryView(View):
 
         if ret == RET_CODE__BACK_BUTTON:
             if self.cur_word_index > 0:
-                return Destination(SeedMnemonicEntryView, view_args={"num_words": self.num_words, "cur_word_index": self.cur_word_index - 1})
+                return Destination(
+                    SeedMnemonicEntryView,
+                    view_args={
+                        "cur_word_index": self.cur_word_index - 1,
+                        "is_calc_final_word": self.is_calc_final_word
+                    }
+                )
             else:
                 self.controller.storage.discard_pending_mnemonic()
                 return Destination(MainMenuView)
@@ -120,17 +128,64 @@ class SeedMnemonicEntryView(View):
         # ret will be our new mnemonic word
         self.controller.storage.update_pending_mnemonic(ret, self.cur_word_index)
 
-        if self.cur_word_index < self.num_words - 1:
-            return Destination(SeedMnemonicEntryView, view_args={"num_words": self.num_words, "cur_word_index": self.cur_word_index + 1})
+        if self.is_calc_final_word and self.cur_word_index == self.controller.storage.pending_mnemonic_length - 2:
+            # Time to calculate the last word
+            # TODO: Option to add missing entropy for the last word:
+            #   * 3 bits for a 24-word seed
+            #   * 7 bits for a 12-word seed
+            from seedsigner.helpers import mnemonic_generation
+            from seedsigner.views.tools_views import ToolsCalcFinalWordShowFinalWordView
+            full_mnemonic = mnemonic_generation.calculate_checksum(
+                self.controller.storage.pending_mnemonic[:-1],  # Must omit the last word's empty value
+                wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+            )
+            self.controller.storage.update_pending_mnemonic(full_mnemonic[-1], self.cur_word_index+1)
+            return Destination(ToolsCalcFinalWordShowFinalWordView)
+
+        if self.cur_word_index < self.controller.storage.pending_mnemonic_length - 1:
+            return Destination(
+                SeedMnemonicEntryView,
+                view_args={
+                    "cur_word_index": self.cur_word_index + 1,
+                    "is_calc_final_word": self.is_calc_final_word
+                }
+            )
         else:
             # Attempt to finalize the mnemonic
             try:
                 self.controller.storage.convert_pending_mnemonic_to_pending_seed()
-            except Seed.InvalidSeedException:
-                # TODO: Route to invalid mnemonic View
-                return Destination(NotYetImplementedView)
+            except InvalidSeedException:
+                return Destination(SeedMnemonicInvalidView)
 
             return Destination(SeedFinalizeView)
+
+
+
+class SeedMnemonicInvalidView(View):
+    def __init__(self):
+        super().__init__()
+        self.mnemonic: List[str] = self.controller.storage.pending_mnemonic
+
+
+    def run(self):
+        EDIT = "Review & Edit"
+        DISCARD = ("Discard", None, None, "red")
+        button_data = [EDIT, DISCARD]
+
+        selected_menu_num = WarningScreen(
+            title="Invalid Mnemonic!",
+            warning_headline=None,
+            warning_text=f"Did not yield a valid seed.",
+            show_back_button=False,
+            button_data=button_data,
+        ).display()
+
+        if button_data[selected_menu_num] == EDIT:
+            return Destination(SeedMnemonicEntryView, view_args={"cur_word_index": 0})
+
+        elif button_data[selected_menu_num] == DISCARD:
+            self.controller.storage.discard_pending_mnemonic()
+            return Destination(MainMenuView)
 
 
 
@@ -318,8 +373,8 @@ class SeedOptionsView(View):
     def run(self):
         SCAN_PSBT = ("Scan PSBT", FontAwesomeIconConstants.QRCODE)
         REVIEW_PSBT = "Review PSBT"
-        VIEW_WORDS = "View Seed Words"
         EXPORT_XPUB = "Export Xpub"
+        VIEW_WORDS = "View Seed Words"
         EXPORT_SEEDQR = "Export Seed as QR"
         DISCARD = ("Discard Seed", None, None, "red")
 
@@ -334,11 +389,10 @@ class SeedOptionsView(View):
         else:
             button_data.append(SCAN_PSBT)
         
-        button_data.append(VIEW_WORDS)
-
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             button_data.append(EXPORT_XPUB)
         
+        button_data.append(VIEW_WORDS)
         button_data.append(EXPORT_SEEDQR)
         button_data.append(DISCARD)
 
