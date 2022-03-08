@@ -59,6 +59,7 @@ These features will not be included in the initial v0.5.0 release and will have 
 * BIP-39 wordlists in additional languages
 * Address message signing
 * UI color scheme customization
+* Specify missing entropy for 12th/24th word calc
 
 
 # v0.6 and Beyond...?

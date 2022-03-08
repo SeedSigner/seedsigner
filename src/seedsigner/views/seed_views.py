@@ -175,7 +175,7 @@ class SeedMnemonicInvalidView(View):
         selected_menu_num = WarningScreen(
             title="Invalid Mnemonic!",
             warning_headline=None,
-            warning_text=f"Did not yield a valid seed.",
+            warning_text=f"Checksum failure; not a valid seed phrase.",
             show_back_button=False,
             button_data=button_data,
         ).display()

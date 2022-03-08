@@ -401,10 +401,10 @@ class Icon(BaseComponent):
 @dataclass
 class IconTextLine(BaseComponent):
     """
-        Renders an icon next to a label/value pairing (or just value)
+        Renders an icon next to a label/value pairing. Icon is optional as is label.
     """
     height: int = None
-    icon_name: str = SeedSignerCustomIconConstants.CIRCLE_CHECK
+    icon_name: str = None
     icon_size: int = GUIConstants.ICON_FONT_SIZE
     icon_color: str = GUIConstants.BODY_FONT_COLOR
     label_text: str = None
@@ -421,19 +421,23 @@ class IconTextLine(BaseComponent):
         if self.height is not None and self.label_text:
             raise Exception("Can't currently support vertical auto-centering and label text")
 
-        self.icon = Icon(
-            image_draw=self.image_draw,
-            canvas=self.canvas,
-            screen_x=self.screen_x,
-            screen_y=0,    # We'll update this later below
-            icon_name=self.icon_name,
-            icon_size=self.icon_size,
-            icon_color=self.icon_color
-        )
+        if self.icon_name:
+            self.icon = Icon(
+                image_draw=self.image_draw,
+                canvas=self.canvas,
+                screen_x=self.screen_x,
+                screen_y=0,    # We'll update this later below
+                icon_name=self.icon_name,
+                icon_size=self.icon_size,
+                icon_color=self.icon_color
+            )
 
-        self.icon_horizontal_spacer = int(GUIConstants.COMPONENT_PADDING/2)
+            self.icon_horizontal_spacer = int(GUIConstants.COMPONENT_PADDING/2)
 
-        text_screen_x = self.screen_x + self.icon.width + self.icon_horizontal_spacer
+            text_screen_x = self.screen_x + self.icon.width + self.icon_horizontal_spacer
+        else:
+            text_screen_x = self.screen_x
+
         if self.label_text:
             self.label_textarea = TextArea(
                 image_draw=self.image_draw,
@@ -479,22 +483,30 @@ class IconTextLine(BaseComponent):
             max_textarea_width = self.value_textarea.width
         
         # Now we can update the icon's y position
-        icon_y = self.screen_y + int((self.height - self.icon.height)/2)
-        self.icon.screen_y = icon_y
+        if self.icon_name:
+            icon_y = self.screen_y + int((self.height - self.icon.height)/2)
+            self.icon.screen_y = icon_y
         
         if self.is_text_centered:
-            total_width = max_textarea_width + self.icon.width + self.icon_horizontal_spacer
-            self.icon.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - total_width) / 2)
-            if self.label_text:
-                self.label_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
-            self.value_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
+            if self.icon_name:
+                total_width = max_textarea_width + self.icon.width + self.icon_horizontal_spacer
+                self.icon.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - total_width) / 2)
+                if self.label_text:
+                    self.label_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
+                self.value_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
+            else:
+                if self.label_text:
+                    self.label_textarea.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - max_textarea_width + (max_textarea_width - self.label_textarea.width))/2)
+                self.value_textarea.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - max_textarea_width + (max_textarea_width - self.value_textarea.width))/2)
 
 
     def render(self):
         if self.label_textarea:
             self.label_textarea.render()
         self.value_textarea.render()
-        self.icon.render()
+
+        if self.icon_name:
+            self.icon.render()
 
 
 

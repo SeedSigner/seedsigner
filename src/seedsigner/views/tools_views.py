@@ -1,6 +1,7 @@
 from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
 from seedsigner.gui.screens.tools_screens import ToolsCalcFinalWordShowFinalWordScreen
+from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView
 
 from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
@@ -30,7 +31,7 @@ class ToolsMenuView(View):
             return Destination(NotYetImplementedView)
 
         if button_data[selected_menu_num] == KEYBOARD:
-            return Destination(ToolsCalcFinalWordNumWordsView)
+            return Destination(ToolsCalcFinalWordNumWordsView, )
 
 
 
@@ -52,7 +53,13 @@ class ToolsCalcFinalWordNumWordsView(View):
 
         elif button_data[selected_menu_num] == TWELVE:
             self.controller.storage.init_pending_mnemonic(12)
-            return Destination(SeedMnemonicEntryView, view_args={"is_calc_final_word": True})
+            # return Destination(SeedMnemonicEntryView, view_args={"is_calc_final_word": True})
+
+            # DEBUGGING
+            self.controller.storage._pending_mnemonic = ["abandon"] * 10
+            self.controller.storage._pending_mnemonic.append(None)
+            self.controller.storage._pending_mnemonic.append(None)
+            return Destination(SeedMnemonicEntryView, view_args={"is_calc_final_word": True, "cur_word_index": 10})
 
         elif button_data[selected_menu_num] == TWENTY_FOUR:
             self.controller.storage.init_pending_mnemonic(24)
@@ -73,6 +80,7 @@ class ToolsCalcFinalWordShowFinalWordView(View):
         selected_menu_num = ToolsCalcFinalWordShowFinalWordScreen(
             final_word=final_word,
             mnemonic_word_length=mnemonic_word_length,
+            fingerprint=self.controller.storage.get_pending_mnemonic_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
             button_data=button_data,
         ).display()
 
