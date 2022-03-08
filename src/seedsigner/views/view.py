@@ -5,7 +5,8 @@ import pathlib
 import spidev as SPI
 import time
 from multiprocessing import Queue
-from seedsigner.helpers import B, ST7789
+from seedsigner.helpers import B, ST7789, touchscreen
+
 
 
 ### Generic View Class to Instatiate Display
@@ -78,7 +79,7 @@ class View:
     previous_button_width = None
 
 
-    def __init__(self) -> None:
+    def __init__(self, screen, q) -> None:
         # Import here to avoid circular imports
         from seedsigner.controller import Controller
         self.controller = Controller.get_instance()
@@ -91,14 +92,19 @@ class View:
         View.canvas = Image.new('RGB', (View.canvas_width, View.canvas_height))
         View.draw = ImageDraw.Draw(View.canvas)
 
+        View.q = q
         # 240x240 display with hardware SPI:
         View.bus = 0
         View.device = 0
 
         # TODO: Add `disable_hardware` option for test suite here, too?
-        View.disp = ST7789(SPI.SpiDev(View.bus, View.device),View.RST, View.DC, View.BL)
-        View.disp.Init()
-
+        # View.disp = ST7789(SPI.SpiDev(View.bus, View.device),View.RST, View.DC, View.BL)
+        print("init display")
+        # View.disp = touchscreen.touchscreen()
+        # View.disp.Init()
+        View.disp = screen
+        # import code
+        # code.interact(local=dict(globals(), **locals())) 
         self.queue = Queue()
 
 
@@ -115,7 +121,8 @@ class View:
             # Always keep a copy of the current display in the canvas
             View.canvas.paste(image)
 
-        View.disp.ShowImage(image, 0, 0)
+        View.q.put((image, 0, 0))
+        # View.disp.ShowImage(image, 0, 0)
 
 
     def disp_show_image_pan(image, start_x, start_y, end_x, end_y, rate, alpha_overlay=None):

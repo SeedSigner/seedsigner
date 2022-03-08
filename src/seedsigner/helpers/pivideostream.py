@@ -1,6 +1,8 @@
-# import the necessary packages
-from picamera.array import PiRGBArray
-from picamera import PiCamera
+import os
+if not os.getenv("NOTAPI", False):
+	# import the necessary packages
+	from picamera.array import PiRGBArray
+	from picamera import PiCamera
 from threading import Thread
 import time
 
