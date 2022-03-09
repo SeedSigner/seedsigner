@@ -1,25 +1,16 @@
-import hashlib
 import math
-import os
 import time
 from PIL import ImageDraw, Image
-from PIL.ImageOps import autocontrast
-
-from seedsigner.models.settings import SettingsConstants
 
 from . import View
 
 from seedsigner.helpers import QR, mnemonic_generation
 from seedsigner.gui.components import Fonts
-from seedsigner.gui.keyboard import B, Keyboard, TextEntryDisplay
-from seedsigner.models import (DecodeQR, DecodeQRStatus, QRType, EncodeQR, Settings,
-    Seed, SeedStorage)
+from seedsigner.models import DecodeQR, DecodeQRStatus, QRType, EncodeQR
 
 
 
 class SeedToolsView(View):
-    ALPHABET = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
-
     def __init__(self) -> None:
         super().__init__()
 
@@ -480,20 +471,3 @@ class SeedToolsView(View):
 
         return self.words[:]
 
-
-    ###
-    ### Utility Methods
-    ###
-
-    def reset(self):
-        self.words.clear()
-        self.possible_alphabet = SeedToolsView.ALPHABET[:]
-        self.letters.clear()
-        self.letters.append(self.possible_alphabet[0])
-        self.possible_words.clear()
-        self.passphrase = ""
-
-        return
-
-
- 

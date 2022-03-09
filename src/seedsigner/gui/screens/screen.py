@@ -5,14 +5,14 @@ from PIL import Image, ImageDraw, ImageColor
 from typing import Any, List, Tuple
 from seedsigner.gui.renderer import Renderer
 
-from seedsigner.helpers.threads import BaseThread
+from seedsigner.models.threads import BaseThread
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.settings import SettingsConstants
 
-from ..components import (CheckedSelectionButton, FontAwesomeIconConstants, GUIConstants, BaseComponent, Button, Icon, IconButton, LargeIconButton, SeedSignerCustomIconConstants, TopNav,
-    TextArea, load_icon, load_image)
+from ..components import (GUIConstants, BaseComponent, Button, Icon, LargeIconButton, SeedSignerCustomIconConstants, TopNav,
+    TextArea, load_image)
 
-from seedsigner.helpers import B, Buttons
+from seedsigner.hardware.buttons import HardwareButtonsConstants, HardwareButtons
 
 
 # Must be huge numbers to avoid conflicting with the selected_button returned by the
@@ -27,7 +27,7 @@ class BaseScreen(BaseComponent):
     def __post_init__(self):
         super().__post_init__()
         
-        self.hw_inputs = Buttons.get_instance()
+        self.hw_inputs = HardwareButtons.get_instance()
 
         # Implementation classes can add their own BaseThread to run in parallel with the
         # main execution thread.
@@ -232,22 +232,30 @@ class TextTopNavScreen(BaseTopNavScreen):
 
     def _run(self):
         while True:
-            user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
+            user_input = self.hw_inputs.wait_for(
+                [
+                    HardwareButtonsConstants.KEY_UP,
+                    HardwareButtonsConstants.KEY_DOWN,
+                    HardwareButtonsConstants.KEY_PRESS
+                ],
+                check_release=True,
+                release_keys=[HardwareButtonsConstants.KEY_PRESS]
+            )
 
             with self.renderer.lock:
-                if user_input == B.KEY_UP:
+                if user_input == HardwareButtonsConstants.KEY_UP:
                     if not self.top_nav.is_selected:
                         # Only move navigation up there if there's something to select
                         if self.top_nav.show_back_button or self.top_nav.show_power_button:
                             self.top_nav.is_selected = True
                             self.top_nav.render()
 
-                elif user_input == B.KEY_DOWN:
+                elif user_input == HardwareButtonsConstants.KEY_DOWN:
                     if self.top_nav.is_selected:
                         self.top_nav.is_selected = False
                         self.top_nav.render()
 
-                elif user_input == B.KEY_PRESS:
+                elif user_input == HardwareButtonsConstants.KEY_PRESS:
                     if self.top_nav.is_selected:
                         return self.top_nav.selected_button
 
@@ -406,10 +414,24 @@ class ButtonListScreen(BaseTopNavScreen):
 
     def _run(self):
         while True:
-            user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_LEFT, B.KEY_RIGHT, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
+            user_input = self.hw_inputs.wait_for(
+                [
+                    HardwareButtonsConstants.KEY_UP,
+                    HardwareButtonsConstants.KEY_DOWN,
+                    HardwareButtonsConstants.KEY_LEFT,
+                    HardwareButtonsConstants.KEY_RIGHT,
+                    HardwareButtonsConstants.KEY_PRESS
+                ],
+                check_release=True,
+                release_keys=[HardwareButtonsConstants.KEY_PRESS]
+            )
 
             with self.renderer.lock:
-                if not self.top_nav.is_selected and (user_input == B.KEY_LEFT or (user_input == B.KEY_UP and self.selected_button == 0)):
+                if not self.top_nav.is_selected and (
+                        user_input == HardwareButtonsConstants.KEY_LEFT or (
+                            user_input == HardwareButtonsConstants.KEY_UP and self.selected_button == 0
+                        )
+                    ):
                     # SHORTCUT to escape long menu screens!
                     # OR keyed UP from the top of the list.
                     # Move selection up to top_nav
@@ -421,7 +443,7 @@ class ButtonListScreen(BaseTopNavScreen):
                         self.top_nav.is_selected = True
                         self.top_nav.render()
 
-                elif user_input == B.KEY_UP:
+                elif user_input == HardwareButtonsConstants.KEY_UP:
                     if self.top_nav.is_selected:
                         # Can't go up any further
                         pass
@@ -441,7 +463,9 @@ class ButtonListScreen(BaseTopNavScreen):
                             cur_selected_button.render()
                             next_selected_button.render()
 
-                elif user_input == B.KEY_DOWN or (self.top_nav.is_selected and user_input == B.KEY_RIGHT):
+                elif user_input == HardwareButtonsConstants.KEY_DOWN or (
+                        self.top_nav.is_selected and user_input == HardwareButtonsConstants.KEY_RIGHT
+                    ):
                     if self.selected_button == len(self.buttons) - 1:
                         # Already at the bottom of the list. Nowhere to go. But may need
                         # to re-render if we're returning from top_nav; otherwise skip
@@ -464,7 +488,9 @@ class ButtonListScreen(BaseTopNavScreen):
                         cur_selected_button.is_selected = False
                         next_selected_button.is_selected = True
 
-                    if self.has_scroll_arrows and next_selected_button.screen_y - next_selected_button.scroll_y + next_selected_button.height > self.down_arrow_img_y:
+                    if self.has_scroll_arrows and (
+                            next_selected_button.screen_y - next_selected_button.scroll_y + next_selected_button.height > self.down_arrow_img_y
+                        ):
                         # Selected a Button that's off the bottom of the screen
                         frame_scroll = next_selected_button.screen_y - cur_selected_button.screen_y
                         for button in self.buttons:
@@ -475,7 +501,7 @@ class ButtonListScreen(BaseTopNavScreen):
                             cur_selected_button.render()
                         next_selected_button.render()
 
-                elif user_input == B.KEY_PRESS:
+                elif user_input == HardwareButtonsConstants.KEY_PRESS:
                     if self.top_nav.is_selected:
                         return self.top_nav.selected_button
                     return self.selected_button
@@ -557,10 +583,20 @@ class LargeButtonScreen(BaseTopNavScreen):
             self.buttons[self.selected_button].render()
 
         while True:
-            user_input = self.hw_inputs.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_LEFT, B.KEY_RIGHT, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
+            user_input = self.hw_inputs.wait_for(
+                [
+                    HardwareButtonsConstants.KEY_UP,
+                    HardwareButtonsConstants.KEY_DOWN,
+                    HardwareButtonsConstants.KEY_LEFT,
+                    HardwareButtonsConstants.KEY_RIGHT,
+                    HardwareButtonsConstants.KEY_PRESS
+                ],
+                check_release=True,
+                release_keys=[HardwareButtonsConstants.KEY_PRESS]
+            )
 
             with self.renderer.lock:
-                if user_input == B.KEY_UP:
+                if user_input == HardwareButtonsConstants.KEY_UP:
                     if self.selected_button in [0, 1]:
                         # Move selection up to top_nav
                         self.top_nav.is_selected = True
@@ -572,7 +608,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                     elif len(self.buttons) == 4:
                         swap_selected_button(self.selected_button - 2)
 
-                elif user_input == B.KEY_DOWN:
+                elif user_input == HardwareButtonsConstants.KEY_DOWN:
                     if self.top_nav.is_selected:
                         self.top_nav.is_selected = False
                         self.top_nav.render()
@@ -585,18 +621,20 @@ class LargeButtonScreen(BaseTopNavScreen):
                     elif len(self.buttons) == 4:
                         swap_selected_button(self.selected_button + 2)
 
-                elif user_input == B.KEY_RIGHT and not self.top_nav.is_selected:
+                elif user_input == HardwareButtonsConstants.KEY_RIGHT and not self.top_nav.is_selected:
                     if self.selected_button in [0, 2]:
                         swap_selected_button(self.selected_button + 1)
                 
-                elif user_input == B.KEY_RIGHT and self.top_nav.is_selected and not self.top_nav.show_power_button:
+                elif (user_input == HardwareButtonsConstants.KEY_RIGHT and
+                        self.top_nav.is_selected and not self.top_nav.show_power_button
+                    ):
                     self.top_nav.is_selected = False
                     self.top_nav.render()
 
                     self.buttons[self.selected_button].is_selected = True
                     self.buttons[self.selected_button].render()
 
-                elif user_input == B.KEY_LEFT and not self.top_nav.is_selected:
+                elif user_input == HardwareButtonsConstants.KEY_LEFT and not self.top_nav.is_selected:
                     if self.selected_button in [1, 3]:
                         swap_selected_button(self.selected_button - 1)
                     else:
@@ -608,7 +646,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                             self.buttons[self.selected_button].is_selected = False
                             self.buttons[self.selected_button].render()
 
-                elif user_input == B.KEY_PRESS:
+                elif user_input == HardwareButtonsConstants.KEY_PRESS:
                     if self.top_nav.is_selected:
                         return self.top_nav.selected_button
                     return self.selected_button
@@ -638,15 +676,15 @@ class QRDisplayScreen(BaseScreen):
             # Target n held frames per second before rendering next QR image
             time.sleep(5/30.0)
 
-            if self.hw_inputs.check_for_low(B.KEY_DOWN):
+            if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_DOWN):
                 # Reduce QR code background brightness
                 cur_brightness = max(31, cur_brightness - 31)
 
-            elif self.hw_inputs.check_for_low(B.KEY_UP):
+            elif self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_UP):
                 # Incrase QR code background brightness
                 cur_brightness = min(cur_brightness + 31, 255)
 
-            elif self.hw_inputs.check_for_low(B.KEY_RIGHT):
+            elif self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT):
                 break
 
 

@@ -2,11 +2,11 @@ import time
 
 from dataclasses import dataclass
 from PIL.Image import Image
-from seedsigner.camera import Camera
+from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import Fonts, GUIConstants, IconTextLine, SeedSignerCustomIconConstants, TextArea
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen
-from seedsigner.helpers.buttons import B
+from seedsigner.hardware.buttons import HardwareButtonsConstants
 
 
 
@@ -35,14 +35,14 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
                 if len(preview_images) < max_entropy_frames:
                     preview_images.append(frame)
 
-            if self.hw_inputs.check_for_low(B.KEY_LEFT):
+            if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
                 # Have to manually update last input time since we're not in a wait_for loop
                 self.hw_inputs.update_last_input_time()
                 self.words = []
                 self.camera.stop_video_stream_mode()
                 return RET_CODE__BACK_BUTTON
 
-            elif self.hw_inputs.check_for_low(B.KEY_PRESS):
+            elif self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_PRESS):
                 # Have to manually update last input time since we're not in a wait_for loop
                 self.hw_inputs.update_last_input_time()
                 self.camera.stop_video_stream_mode()
@@ -62,8 +62,8 @@ class ToolsImageEntropyFinalImageScreen(BaseScreen):
             text_background=(0,0,0,225)
         )
 
-        input = self.hw_inputs.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
-        if input == B.KEY_LEFT:
+        input = self.hw_inputs.wait_for([HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT])
+        if input == HardwareButtonsConstants.KEY_LEFT:
             return RET_CODE__BACK_BUTTON
 
 

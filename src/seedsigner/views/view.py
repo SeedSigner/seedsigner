@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import (RET_CODE__POWER_BUTTON, TextTopNavScreen)
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, LargeButtonScreen, WarningScreen
-from seedsigner.helpers.threads import BaseThread
+from seedsigner.models.threads import BaseThread
 
 
 

@@ -1,10 +1,10 @@
 import RPi.GPIO as GPIO
 import time
 
-from seedsigner.models import Singleton
+from seedsigner.models.singleton import Singleton
 
 
-class Buttons(Singleton):
+class HardwareButtons(Singleton):
     KEY_UP_PIN = 6
     KEY_DOWN_PIN = 19
     KEY_LEFT_PIN = 5
@@ -24,19 +24,19 @@ class Buttons(Singleton):
 
             #init GPIO
             GPIO.setmode(GPIO.BCM)
-            GPIO.setup(Buttons.KEY_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)    # Input with pull-up
-            GPIO.setup(Buttons.KEY_DOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
-            GPIO.setup(Buttons.KEY_LEFT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
-            GPIO.setup(Buttons.KEY_RIGHT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
-            GPIO.setup(Buttons.KEY_PRESS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
-            GPIO.setup(Buttons.KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
-            GPIO.setup(Buttons.KEY2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
-            GPIO.setup(Buttons.KEY3_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
+            GPIO.setup(HardwareButtons.KEY_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)    # Input with pull-up
+            GPIO.setup(HardwareButtons.KEY_DOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
+            GPIO.setup(HardwareButtons.KEY_LEFT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
+            GPIO.setup(HardwareButtons.KEY_RIGHT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
+            GPIO.setup(HardwareButtons.KEY_PRESS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
+            GPIO.setup(HardwareButtons.KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
+            GPIO.setup(HardwareButtons.KEY2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
+            GPIO.setup(HardwareButtons.KEY3_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
 
             cls._instance.GPIO = GPIO
             cls._instance.override_ind = False
 
-            cls._instance.add_events([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS, B.KEY_LEFT, B.KEY_RIGHT, B.KEY1, B.KEY2, B.KEY3])
+            cls._instance.add_events([HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT, HardwareButtonsConstants.KEY1, HardwareButtonsConstants.KEY2, HardwareButtonsConstants.KEY3])
 
             # Track state over time so we can apply input delays/ignores as needed
             cls._instance.cur_input = None           # Track which direction or button was last pressed
@@ -74,13 +74,13 @@ class Buttons(Singleton):
                 continue
 
             for key in keys:
-                if not check_release or ((check_release and key in release_keys and B.release_lock) or check_release and key not in release_keys):
+                if not check_release or ((check_release and key in release_keys and HardwareButtonsConstants.release_lock) or check_release and key not in release_keys):
                     # when check release is False or the release lock is released (True)
                     if self.GPIO.input(key) == GPIO.LOW or self.override_ind:
-                        B.release_lock = False
+                        HardwareButtonsConstants.release_lock = False
                         if self.override_ind:
                             self.override_ind = False
-                            return B.OVERRIDE
+                            return HardwareButtonsConstants.OVERRIDE
 
                         if self.cur_input != key:
                             self.cur_input = key
@@ -125,16 +125,16 @@ class Buttons(Singleton):
 
     def add_events(self, keys=[]):
         for key in keys:
-            GPIO.add_event_detect(key, self.GPIO.RISING, callback=Buttons.rising_callback)
+            GPIO.add_event_detect(key, self.GPIO.RISING, callback=HardwareButtons.rising_callback)
 
 
     def rising_callback(channel):
-        B.release_lock = True
+        HardwareButtonsConstants.release_lock = True
 
 
     def trigger_override(self, force_release = False) -> bool:
         if force_release:
-            B.release_lock = True
+            HardwareButtonsConstants.release_lock = True
 
         if not self.override_ind:
             self.override_ind = True
@@ -142,7 +142,7 @@ class Buttons(Singleton):
         return False
 
     def force_release(self) -> bool:
-        B.release_lock = True
+        HardwareButtonsConstants.release_lock = True
         return True
 
     def check_for_low(self, key) -> bool:
@@ -153,7 +153,7 @@ class Buttons(Singleton):
             return False
 
     def has_any_input(self) -> bool:
-        for key in B.ALL_KEYS:
+        for key in HardwareButtonsConstants.ALL_KEYS:
             if self.GPIO.input(key) == GPIO.LOW:
                 return True
         return False
@@ -164,7 +164,7 @@ class Buttons(Singleton):
 # class used as short hand for static button/channel lookup values
 # TODO: Implement `release_lock` functionality as a global somewhere. Mixes up design
 #   patterns to have a static constants class plus a settable global value.
-class B:
+class HardwareButtonsConstants:
     KEY_UP = 6
     KEY_DOWN = 19
     KEY_LEFT = 5
@@ -185,5 +185,7 @@ class B:
         KEY2,
         KEY3,
     ]
+
+    KEYS__LEFT_RIGHT_UP_DOWN = [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN]
 
     release_lock = True # released when True, locked when False

@@ -6,7 +6,7 @@ from typing import List
 
 from PIL import Image, ImageDraw, ImageFilter
 from seedsigner.gui.renderer import Renderer
-from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
+from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
@@ -17,7 +17,7 @@ from ..components import (FontAwesomeIconConstants, Fonts, FormattedAddress,
     calc_text_centering)
 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
-from seedsigner.helpers import B
+from seedsigner.hardware.buttons import HardwareButtonsConstants
 
 
 
@@ -228,31 +228,31 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
     def _run(self):
         while True:
             input = self.hw_inputs.wait_for(
-                [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3],
+                HardwareButtonsConstants.ALL_KEYS,
                 check_release=True,
-                release_keys=[B.KEY_PRESS, B.KEY2]
+                release_keys=[HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY2]
             )
 
             if self.is_input_in_top_nav:
-                if input == B.KEY_PRESS:
+                if input == HardwareButtonsConstants.KEY_PRESS:
                     # User clicked the "back" arrow
                     return RET_CODE__BACK_BUTTON
 
-                elif input == B.KEY_UP:
+                elif input == HardwareButtonsConstants.KEY_UP:
                     input = Keyboard.ENTER_BOTTOM
                     self.is_input_in_top_nav = False
                     # Re-render it without the highlight
                     self.top_nav.left_button.is_selected = False
                     self.top_nav.left_button.render()
 
-                elif input == B.KEY_DOWN:
+                elif input == HardwareButtonsConstants.KEY_DOWN:
                     input = Keyboard.ENTER_TOP
                     self.is_input_in_top_nav = False
                     # Re-render it without the highlight
                     self.top_nav.left_button.is_selected = False
                     self.top_nav.left_button.render()
 
-                elif input in [B.KEY_RIGHT, B.KEY_LEFT]:
+                elif input in [HardwareButtonsConstants.KEY_RIGHT, HardwareButtonsConstants.KEY_LEFT]:
                     # no action in this context
                     continue
 
@@ -264,7 +264,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                 self.top_nav.left_button.render()
 
             elif ret_val in Keyboard.ADDITIONAL_KEYS:
-                if input == B.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                if input == HardwareButtonsConstants.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["code"]:
                     self.letters = self.letters[:-2]
                     self.letters.append(" ")
 
@@ -284,7 +284,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
 
             # Has the user made a final selection of a candidate word?
             final_selection = None
-            if input == B.KEY1 and self.possible_words:
+            if input == HardwareButtonsConstants.KEY1 and self.possible_words:
                 # Scroll the list up
                 self.selected_possible_words_index -= 1
                 if self.selected_possible_words_index < 0:
@@ -298,11 +298,11 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                 # Update the right-hand possible matches area
                 self.render_possible_matches()
 
-            elif input == B.KEY2:
+            elif input == HardwareButtonsConstants.KEY2:
                 if self.possible_words:
                     final_selection = self.possible_words[self.selected_possible_words_index]
 
-            elif input == B.KEY3 and self.possible_words:
+            elif input == HardwareButtonsConstants.KEY3 and self.possible_words:
                 # Scroll the list down
                 self.selected_possible_words_index += 1
                 if self.selected_possible_words_index >= len(self.possible_words):
@@ -316,12 +316,12 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                 # Update the right-hand possible matches area
                 self.render_possible_matches()
 
-            if input is not B.KEY1 and self.arrow_up_is_active:
+            if input is not HardwareButtonsConstants.KEY1 and self.arrow_up_is_active:
                 # Deactivate the arrow and redraw
                 self.arrow_up_is_active = False
                 self.render_possible_matches_arrows()
 
-            if input is not B.KEY3 and self.arrow_down_is_active:
+            if input is not HardwareButtonsConstants.KEY3 and self.arrow_down_is_active:
                 # Deactivate the arrow and redraw
                 self.arrow_down_is_active = False
                 self.render_possible_matches_arrows()
@@ -336,7 +336,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
 
                 return final_selection
 
-            elif input == B.KEY_PRESS and ret_val in self.possible_alphabet:
+            elif input == HardwareButtonsConstants.KEY_PRESS and ret_val in self.possible_alphabet:
                 # User has locked in the current letter
                 if self.letters[-1] != " ":
                     # We'll save that locked in letter next but for now update the
@@ -371,7 +371,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
 
                 self.keyboard.render_keys()
 
-            elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN]:
+            elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
                 if ret_val in self.possible_alphabet:
                     # Live joystick movement; haven't locked this new letter in yet.
                     # Replace the last letter w/the currently selected one. But don't
@@ -604,33 +604,33 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
         # Start the interactive update loop
         while True:
             input = self.hw_inputs.wait_for(
-                [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY3],
+                HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + [HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3],
                 check_release=True,
-                release_keys=[B.KEY_PRESS, B.KEY3]
+                release_keys=[HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3]
             )
     
             # Check our two possible exit conditions
-            if input == B.KEY3:
+            if input == HardwareButtonsConstants.KEY3:
                 # Save!
                 if len(self.derivation_path) > 0:
                     return self.derivation_path.strip()
     
-            elif self.top_nav.is_selected and input == B.KEY_PRESS:
+            elif self.top_nav.is_selected and input == HardwareButtonsConstants.KEY_PRESS:
                 # Prev button clicked; return empty string to signal cancel.
                 return self.top_nav.selected_button
     
             # Process normal input
-            if input in [B.KEY_UP, B.KEY_DOWN] and self.top_nav.is_selected:
+            if input in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN] and self.top_nav.is_selected:
                 # We're navigating off the previous button
                 self.top_nav.is_selected = False
                 self.top_nav.render()
     
                 # Override the actual input w/an ENTER signal for the Keyboard
-                if input == B.KEY_DOWN:
+                if input == HardwareButtonsConstants.KEY_DOWN:
                     input = Keyboard.ENTER_TOP
                 else:
                     input = Keyboard.ENTER_BOTTOM
-            elif input in [B.KEY_LEFT, B.KEY_RIGHT] and self.top_nav.is_selected:
+            elif input in [HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT] and self.top_nav.is_selected:
                 # ignore
                 continue
     
@@ -641,7 +641,7 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
                 self.top_nav.is_selected = True
                 self.top_nav.render()
     
-            elif ret_val in Keyboard.ADDITIONAL_KEYS and input == B.KEY_PRESS:
+            elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
                 if ret_val == Keyboard.KEY_BACKSPACE["code"]:
                     if len(self.derivation_path) <= 2:
                         pass
@@ -652,7 +652,7 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
                         self.derivation_path = self.derivation_path[:cursor_position - 1] + self.derivation_path[cursor_position:]
                         cursor_position -= 1
     
-            elif input == B.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
+            elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
                 # User has locked in the current letter
                 if cursor_position == len(self.derivation_path):
                     self.derivation_path += ret_val
@@ -660,7 +660,7 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
                     self.derivation_path = self.derivation_path[:cursor_position] + ret_val + self.derivation_path[cursor_position:]
                 cursor_position += 1
     
-            elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN]:
+            elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
                 # Live joystick movement; haven't locked this new letter in yet.
                 # Leave current spot blank for now. Only update the active keyboard keys
                 # when a selection has been locked in (KEY_PRESS) or removed ("del").
@@ -873,25 +873,25 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         # Start the interactive update loop
         while True:
             input = self.hw_inputs.wait_for(
-                [B.KEY_UP, B.KEY_DOWN, B.KEY_RIGHT, B.KEY_LEFT, B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3],
+                HardwareButtonsConstants.ALL_KEYS,
                 check_release=True,
-                release_keys=[B.KEY_PRESS, B.KEY1, B.KEY2, B.KEY3]
+                release_keys=[HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY1, HardwareButtonsConstants.KEY2, HardwareButtonsConstants.KEY3]
             )
 
             keyboard_swap = False
 
             # Check our two possible exit conditions
-            if input == B.KEY3:
+            if input == HardwareButtonsConstants.KEY3:
                 # Save!
                 if len(self.passphrase) > 0:
                     return self.passphrase.strip()
 
-            elif input == B.KEY_PRESS and self.top_nav.is_selected:
+            elif input == HardwareButtonsConstants.KEY_PRESS and self.top_nav.is_selected:
                 # Back button clicked
                 return self.top_nav.selected_button
 
             # Check for keyboard swaps
-            if input == B.KEY1:
+            if input == HardwareButtonsConstants.KEY1:
                 # Return to the same button2 keyboard, if applicable
                 if cur_keyboard == self.keyboard_digits:
                     cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
@@ -912,7 +912,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 keyboard_swap = True
                 ret_val = None
 
-            elif input == B.KEY2:
+            elif input == HardwareButtonsConstants.KEY2:
                 # Return to the same button1 keyboard, if applicable
                 if cur_keyboard == self.keyboard_abc:
                     cur_button1_text = KEYBOARD__LOWERCASE_BUTTON_TEXT
@@ -937,17 +937,17 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
 
             else:
                 # Process normal input
-                if input in [B.KEY_UP, B.KEY_DOWN] and self.top_nav.is_selected:
+                if input in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN] and self.top_nav.is_selected:
                     # We're navigating off the previous button
                     self.top_nav.is_selected = False
                     self.top_nav.render()
 
                     # Override the actual input w/an ENTER signal for the Keyboard
-                    if input == B.KEY_DOWN:
+                    if input == HardwareButtonsConstants.KEY_DOWN:
                         input = Keyboard.ENTER_TOP
                     else:
                         input = Keyboard.ENTER_BOTTOM
-                elif input in [B.KEY_LEFT, B.KEY_RIGHT] and self.top_nav.is_selected:
+                elif input in [HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT] and self.top_nav.is_selected:
                     # ignore
                     continue
 
@@ -958,7 +958,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 self.top_nav.is_selected = True
                 self.top_nav.render()
 
-            elif ret_val in Keyboard.ADDITIONAL_KEYS and input == B.KEY_PRESS:
+            elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
                 if ret_val == Keyboard.KEY_BACKSPACE["code"]:
                     if cursor_position == 0:
                         pass
@@ -989,7 +989,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 # Update the text entry display and cursor
                 self.text_entry_display.render(self.passphrase, cursor_position)
 
-            elif input == B.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
+            elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
                 # User has locked in the current letter
                 if cursor_position == len(self.passphrase):
                     self.passphrase += ret_val
@@ -1000,7 +1000,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 # Update the text entry display and cursor
                 self.text_entry_display.render(self.passphrase, cursor_position)
 
-            elif input in [B.KEY_RIGHT, B.KEY_LEFT, B.KEY_UP, B.KEY_DOWN] or keyboard_swap:
+            elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN or keyboard_swap:
                 # Live joystick movement; haven't locked this new letter in yet.
                 # Leave current spot blank for now. Only update the active keyboard keys
                 # when a selection has been locked in (KEY_PRESS) or removed ("del").

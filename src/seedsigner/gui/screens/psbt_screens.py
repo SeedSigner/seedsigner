@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFilter
 from typing import List
 
 from seedsigner.gui.renderer import Renderer
-from seedsigner.helpers.threads import BaseThread
+from seedsigner.models.threads import BaseThread
 
 from .screen import ButtonListScreen, WarningScreen
 from ..components import (Button, Icon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, SeedSignerCustomIconConstants, TextArea,

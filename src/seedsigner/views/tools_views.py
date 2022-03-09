@@ -5,7 +5,7 @@ import time
 from PIL import Image
 from PIL.ImageOps import autocontrast
 
-from seedsigner.camera import Camera
+from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
 from seedsigner.gui.screens.tools_screens import ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsCalcFinalWordShowFinalWordScreen

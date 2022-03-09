@@ -7,7 +7,7 @@ from threading import Thread
 from .screen import BaseTopNavScreen, ButtonListScreen
 from ..components import GUIConstants, Fonts, TextArea, calc_text_centering
 
-from seedsigner.helpers import B
+from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.models import DecodeQR, DecodeQRStatus
 
 
@@ -17,7 +17,7 @@ class ScanScreen(BaseTopNavScreen):
     decoder: DecodeQR = None
 
     def __post_init__(self):
-        from seedsigner.camera import Camera
+        from seedsigner.hardware.camera import Camera
 
         # Customize defaults
         self.title = "Scan"
@@ -87,7 +87,7 @@ class ScanScreen(BaseTopNavScreen):
                     break
                 
                 # TODO: KEY_UP gives control to NavBar; use its back arrow to cancel
-                if self.hw_inputs.check_for_low(B.KEY_RIGHT) or self.hw_inputs.check_for_low(B.KEY_LEFT):
+                if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
                     self.camera.stop_video_stream_mode()
                     break
 

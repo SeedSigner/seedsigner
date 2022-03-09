@@ -10,7 +10,7 @@ from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustom
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     LargeButtonScreen, WarningScreen, DireWarningScreen, seed_screens)
 from seedsigner.gui.screens.screen import LoadingScreenThread, QRDisplayScreen
-from seedsigner.helpers.threads import BaseThread, ThreadsafeCounter
+from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
@@ -407,7 +407,7 @@ class SeedOptionsView(View):
 
         if button_data[selected_menu_num] == REVIEW_PSBT:
             from seedsigner.views.psbt_views import PSBTOverviewView
-            self.controller.psbt_seed = self.controller.get_seed(selected_menu_num)
+            self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
             return Destination(PSBTOverviewView)
 
         if button_data[selected_menu_num] == SCAN_PSBT:

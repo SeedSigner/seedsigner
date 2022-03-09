@@ -3,7 +3,7 @@ from PIL import Image, ImageDraw, ImageFont
 from typing import Tuple
 
 from seedsigner.gui.components import Fonts, GUIConstants
-from seedsigner.helpers.buttons import B
+from seedsigner.hardware.buttons import HardwareButtonsConstants
 
 
 
@@ -374,7 +374,7 @@ class Keyboard:
         key.is_selected = False
         key.render_key()
 
-        if input == B.KEY_RIGHT:
+        if input == HardwareButtonsConstants.KEY_RIGHT:
             self.selected_key["x"] = key.index_x + key.size
             new_key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
             if new_key is None:
@@ -387,7 +387,7 @@ class Keyboard:
                     self.selected_key["x"] -= 1
                     return Keyboard.EXIT_RIGHT
 
-        elif input == B.KEY_LEFT:
+        elif input == HardwareButtonsConstants.KEY_LEFT:
             key = self.get_selected_key()
             self.selected_key["x"] = key.index_x - 1
             if self.selected_key["x"] < 0:
@@ -400,14 +400,14 @@ class Keyboard:
                     self.selected_key["x"] += 1
                     return Keyboard.EXIT_LEFT
 
-        elif input == B.KEY_DOWN:
+        elif input == HardwareButtonsConstants.KEY_DOWN:
             new_index_x, new_index_y, keyboard_exit = self.get_key_below(self.selected_key["x"], self.selected_key["y"])
             self.selected_key["x"] = new_index_x
             self.selected_key["y"] = new_index_y
             if keyboard_exit:
                 return keyboard_exit
 
-        elif input == B.KEY_UP:
+        elif input == HardwareButtonsConstants.KEY_UP:
             new_index_x, new_index_y, keyboard_exit = self.get_key_above(self.selected_key["x"], self.selected_key["y"])
             self.selected_key["x"] = new_index_x
             self.selected_key["y"] = new_index_y
