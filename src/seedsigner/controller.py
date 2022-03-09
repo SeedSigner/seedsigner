@@ -1,4 +1,6 @@
+from typing import List
 from embit.psbt import PSBT
+from PIL.Image import Image
 from seedsigner.gui.renderer import Renderer
 from seedsigner.gui.screens.screen import WarningScreen
 from seedsigner.helpers.buttons import Buttons
@@ -40,6 +42,9 @@ class Controller(Singleton):
     psbt: PSBT = None
     psbt_seed: Seed = None
     psbt_parser: PSBTParser = None
+
+    image_entropy_preview_frames: List[Image] = None
+    image_entropy_final_image: Image = None
 
 
     @classmethod

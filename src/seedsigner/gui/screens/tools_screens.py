@@ -1,9 +1,70 @@
-
+import time
 
 from dataclasses import dataclass
-from seedsigner.gui.components import GUIConstants, IconTextLine, SeedSignerCustomIconConstants, TextArea
+from PIL.Image import Image
+from seedsigner.camera import Camera
+from seedsigner.gui.components import Fonts, GUIConstants, IconTextLine, SeedSignerCustomIconConstants, TextArea
 
-from seedsigner.gui.screens.screen import ButtonListScreen
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen
+from seedsigner.helpers.buttons import B
+
+
+
+@dataclass
+class ToolsImageEntropyLivePreviewScreen(BaseScreen):
+    def __post_init__(self):
+        # Customize defaults
+        self.title = "Initializing Camera..."
+
+        # Initialize the base class
+        super().__post_init__()
+
+        self.camera = Camera.get_instance()
+        self.camera.start_video_stream_mode(resolution=(240, 240), framerate=24, format="rgb")
+
+
+    def _run(self):
+        # save preview image frames to use as additional entropy below
+        preview_images = []
+        max_entropy_frames = 50
+
+        while True:
+            frame = self.camera.read_video_stream(as_image=True)
+            if frame is not None:
+                self.renderer.show_image_with_text(frame, "click joystick", text_color=GUIConstants.BODY_FONT_COLOR, text_background=(0,0,0,225))
+                if len(preview_images) < max_entropy_frames:
+                    preview_images.append(frame)
+
+            if self.hw_inputs.check_for_low(B.KEY_LEFT):
+                # Have to manually update last input time since we're not in a wait_for loop
+                self.hw_inputs.update_last_input_time()
+                self.words = []
+                self.camera.stop_video_stream_mode()
+                return RET_CODE__BACK_BUTTON
+
+            elif self.hw_inputs.check_for_low(B.KEY_PRESS):
+                # Have to manually update last input time since we're not in a wait_for loop
+                self.hw_inputs.update_last_input_time()
+                self.camera.stop_video_stream_mode()
+                return preview_images
+
+
+@dataclass
+class ToolsImageEntropyFinalImageScreen(BaseScreen):
+    final_image: Image = None
+
+    def _run(self):
+        self.renderer.show_image_with_text(
+            self.final_image,
+            text=" < reshoot  |  accept > ",
+            font=Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE),
+            text_color=GUIConstants.BODY_FONT_COLOR,
+            text_background=(0,0,0,225)
+        )
+
+        input = self.hw_inputs.wait_for([B.KEY_LEFT, B.KEY_RIGHT])
+        if input == B.KEY_LEFT:
+            return RET_CODE__BACK_BUTTON
 
 
 

@@ -20,7 +20,7 @@ class ScanScreen(BaseTopNavScreen):
         from seedsigner.camera import Camera
 
         # Customize defaults
-        title = "Scan"
+        self.title = "Scan"
 
         # Initialize the base class
         super().__post_init__()

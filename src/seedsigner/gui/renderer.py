@@ -1,7 +1,7 @@
 from PIL import Image, ImageDraw, ImageFont
 from threading import Lock
 
-from seedsigner.gui.components import Fonts
+from seedsigner.gui.components import Fonts, GUIConstants
 from seedsigner.helpers.ST7789 import ST7789
 from seedsigner.models import ConfigurableSingleton
 
@@ -84,6 +84,7 @@ class Renderer(ConfigurableSingleton):
             self.disp.ShowImage(crop, 0, 0)
 
 
+    # TODO: Remove all references
     def show_image_with_text(self, image, text, font=None, text_color="GREY", text_background=None):
         image_copy = image.copy().convert("RGBA")
         draw = ImageDraw.Draw(image_copy)
@@ -91,7 +92,7 @@ class Renderer(ConfigurableSingleton):
         text_overlay = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
         text_overlay_draw = ImageDraw.Draw(text_overlay)
         if not font:
-            font = Fonts.get_font("Assistant-Medium", 18)
+            font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE)
         tw, th = text_overlay_draw.textsize(text, font=font)
         if text_background:
             text_overlay_draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), fill=text_background)
