@@ -141,14 +141,10 @@ class ToolsImageEntropyMnemonicLengthView(View):
 
         if mnemonic_length == 12:
             # 12-word mnemonic only uses the first 128 bits / 16 bytes of entropy
-            print(len(final_hash))
-            print(final_hash)
             final_hash = final_hash[:16]
-            print(final_hash)
 
         # Generate the mnemonic
         mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash)
-        print(mnemonic)
 
         # Image should never get saved nor stick around in memory
         seed_entropy_image = None
