@@ -33,6 +33,12 @@ class BackStackView:
     As with http requests, Views can receive input vars to inform their behavior. Views
     can also prepare the next set of vars to set up the next View that should be
     displayed (akin to Flask's `return redirect(url, param1=x, param2=y))`).
+
+    Navigation guidance:
+    "Next" - Continue to next step
+    "Done" - End of flow, return to entry point (non-destructive)
+    "OK/Close" - Exit current screen (non-destructive)
+    "Cancel" - End task and return to entry point (destructive)
 """
 class View:
     def __init__(self) -> None:

@@ -517,6 +517,7 @@ class LargeButtonScreen(BaseTopNavScreen):
     button_font_name: str = GUIConstants.BUTTON_FONT_NAME
     button_font_size: int = 20
     button_selected_color: str = GUIConstants.ACCENT_COLOR
+    selected_button: int = 0
 
     def __post_init__(self):
         super().__post_init__()
@@ -570,8 +571,7 @@ class LargeButtonScreen(BaseTopNavScreen):
             if i == 1:
                 button_start_y += button_height + GUIConstants.COMPONENT_PADDING
 
-        self.buttons[0].is_selected = True
-        self.selected_button = 0
+        self.buttons[self.selected_button].is_selected = True
 
 
     def _run(self):

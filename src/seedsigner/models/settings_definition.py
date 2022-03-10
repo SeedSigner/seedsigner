@@ -13,6 +13,14 @@ class SettingsConstants:
         (OPTION__ENABLED, "Enabled"),
         (OPTION__DISABLED, "Disabled"),
     ]
+    OPTIONS__PROMPT_REQUIRED_DISABLED = [
+        (OPTION__PROMPT, "Prompt"),
+        (OPTION__REQUIRED, "Required"),
+        (OPTION__DISABLED, "Disabled"),
+    ]
+    OPTIONS__ENABLED_DISABLED_REQUIRED = OPTIONS__ENABLED_DISABLED +[
+        (OPTION__REQUIRED, "Required"),
+    ]
     OPTIONS__ENABLED_DISABLED_PROMPT = OPTIONS__ENABLED_DISABLED + [
         (OPTION__PROMPT, "Prompt"),
     ]
@@ -244,6 +252,18 @@ class SettingsEntry:
                 return display_name
 
 
+    def get_selection_option_value_by_display_name(self, display_name: str):
+        for option in self.selection_options:
+            if type(option) == tuple:
+                option_value = option[0]
+                option_display_name = option[1]
+            else:
+                option_value = option
+                option_display_name = option
+            if option_display_name == display_name:
+                return option_value
+
+
     def to_dict(self) -> dict:
         if self.selection_options:
             selection_options = []
@@ -377,7 +397,7 @@ class SettingsDefinition:
                       display_name="BIP-39 passphrase",
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      selection_options=SettingsConstants.ALL_OPTIONS,
+                      selection_options=SettingsConstants.OPTIONS__ENABLED_DISABLED_REQUIRED,
                       default_value=SettingsConstants.OPTION__ENABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,

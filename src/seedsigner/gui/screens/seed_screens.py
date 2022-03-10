@@ -443,43 +443,49 @@ class SeedOptionsScreen(ButtonListScreen):
 
 @dataclass
 class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
-    title: str = "Seed Words"
     seed: Seed = None
-    is_first_page: bool = True
+    page_index: int = 0
+    num_pages: int = 3
     is_bottom_list: bool = True
     warning_color: str = GUIConstants.DIRE_WARNING_COLOR
 
 
     def __post_init__(self):
+        self.title = f"Seed Words: {self.page_index+1}/{self.num_pages}"
         super().__post_init__()
 
-        # Can only render 12 words per screen
+        # Can only render 4 words per screen
+        words_per_page = 4
         mnemonic = self.seed.mnemonic_display_list
-        if len(mnemonic) == 12 or self.is_first_page:
-            self.mnemonic = mnemonic[:12]
-        else:
-            self.mnemonic = mnemonic[12:]
+
+        # Slice the mnemonic to our current 4-word section
+        self.mnemonic = mnemonic[self.page_index*words_per_page:(self.page_index + 1)*words_per_page]
 
         self.body_x = 0
         self.body_y = self.top_nav.height - int(GUIConstants.COMPONENT_PADDING / 2)
         self.body_height = self.buttons[0].screen_y - self.body_y
 
         # Have to supersample the whole body since it's all at the small font size
-        supersampling_factor = 2
-        font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, 16 * supersampling_factor)
+        supersampling_factor = 1
+        font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, (GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2) * supersampling_factor)
 
-        # Calc vertical placement for the numbers
-        (number_x, number_y) = calc_text_centering(
-            font=font,
-            text="1234567890",
-            is_text_centered=True,
-            total_width=20 * supersampling_factor,
-            total_height=20 * supersampling_factor
-        )
-        number_box_x = GUIConstants.EDGE_PADDING * supersampling_factor
-        number_box_y =  GUIConstants.COMPONENT_PADDING * supersampling_factor
-        number_box_width = 20 * supersampling_factor
-        number_box_height = 20 * supersampling_factor
+        # Calc horizontal center based on longest word
+        max_word_width = 0
+        for word in self.mnemonic:
+            (left, top, right, bottom) = font.getbbox(word, anchor="ls")
+            if right > max_word_width:
+                max_word_width = right
+
+        # Measure the max digit height for the numbering boxes, from baseline
+        number_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE * supersampling_factor)
+        (left, top, right, bottom) = number_font.getbbox("24", anchor="ls")
+        number_height = -1 * top
+        number_width = right
+        number_box_width = number_width + int(GUIConstants.COMPONENT_PADDING/2 * supersampling_factor)
+        number_box_height = number_box_width
+
+        number_box_x = int((self.canvas_width * supersampling_factor - number_box_width - GUIConstants.COMPONENT_PADDING*supersampling_factor - max_word_width))/2
+        number_box_y = GUIConstants.COMPONENT_PADDING * supersampling_factor
 
         # Set up our temp supersampled rendering surface
         self.body_img = Image.new(
@@ -490,37 +496,30 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
         draw = ImageDraw.Draw(self.body_img)
 
         for index, word in enumerate(self.mnemonic):
-            if index == 6:
-                # Start of the second column of words
-                number_box_x = (int(self.canvas_width / 2) + 4) * supersampling_factor
-                number_box_y = GUIConstants.COMPONENT_PADDING * supersampling_factor
-
             draw.rounded_rectangle(
                 (number_box_x, number_box_y, number_box_x + number_box_width, number_box_y + number_box_height),
                 fill="#202020",
                 radius=5 * supersampling_factor
             )
-            if self.is_first_page:
-                number_str = str(index + 1)
-            else:
-                number_str = str(index + 1 + 12)
-            tw, th = font.getsize(number_str)
+            baseline_y = number_box_y + number_box_height - int((number_box_height - number_height)/2)
             draw.text(
-                (number_box_x + int((number_box_width - tw) / 2), number_box_y + number_y),
-                font=font,
-                text=number_str,
-                fill="#0084ff"
+                (number_box_x + int(number_box_width/2), baseline_y),
+                font=number_font,
+                text=str(self.page_index * words_per_page + index + 1),
+                fill="#0084ff",
+                anchor="ms"  # Middle (centered), baSeline
             )
 
             # Now draw the word
             draw.text(
-                (number_box_x + number_box_width + (4 * supersampling_factor), number_box_y + number_y),
+                (number_box_x + number_box_width + (GUIConstants.COMPONENT_PADDING * supersampling_factor), baseline_y),
                 font=font,
                 text=word,
-                fill=GUIConstants.BODY_FONT_COLOR
+                fill=GUIConstants.BODY_FONT_COLOR,
+                anchor="ls",  # Left, baSeline
             )
 
-            number_box_y += number_box_height + (4 * supersampling_factor)
+            number_box_y += number_box_height + (int(1.5*GUIConstants.COMPONENT_PADDING) * supersampling_factor)
 
         # Resize to target and sharpen final image
         self.body_img = self.body_img.resize((self.canvas_width, self.body_height), Image.LANCZOS)

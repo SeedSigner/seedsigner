@@ -3,7 +3,7 @@ from seedsigner.models.psbt_parser import PSBTParser
 
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.psbt_views import PSBTSelectSeedView
-from seedsigner.views.seed_views import SeedAddPassphrasePromptView, SeedAddPassphraseView
+from seedsigner.views.seed_views import SeedAddPassphraseView
 
 from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
@@ -37,9 +37,7 @@ class ScanView(View):
                     self.controller.storage.set_pending_seed(
                         Seed(mnemonic=seed_mnemonic, wordlist_language_code=wordlist_language_code)
                     )
-                    if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__PROMPT:
-                        return Destination(SeedAddPassphrasePromptView)
-                    elif self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
+                    if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
                         return Destination(SeedAddPassphraseView)
                     else:
                         return Destination(SeedFinalizeView)

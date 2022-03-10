@@ -4,6 +4,7 @@ import time
 
 from PIL import Image
 from PIL.ImageOps import autocontrast
+from seedsigner.gui.screens.screen import LargeButtonScreen
 
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants
@@ -45,6 +46,9 @@ class ToolsMenuView(View):
 
 
 
+"""****************************************************************************
+    Image entropy Views
+****************************************************************************"""
 class ToolsImageEntropyLivePreviewView(View):
     def run(self):
         self.controller.image_entropy_preview_frames = None
@@ -99,10 +103,14 @@ class ToolsImageEntropyMnemonicLengthView(View):
         TWENTYFOUR_WORDS = "24 words"
         button_data = [TWELVE_WORDS, TWENTYFOUR_WORDS]
 
-        selected_menu_num = ButtonListScreen(
+        # selected_menu_num = ButtonListScreen(
+        #     title="Mnemonic Length?",
+        #     button_data=button_data,
+        # ).display()
+
+        selected_menu_num = LargeButtonScreen(
             title="Mnemonic Length?",
             button_data=button_data,
-            is_bottom_list=True,
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -164,6 +172,9 @@ class ToolsImageEntropyMnemonicLengthView(View):
 
 
 
+"""****************************************************************************
+    Calc final word Views
+****************************************************************************"""
 class ToolsCalcFinalWordNumWordsView(View):
     def run(self):
         TWELVE = "12 words"

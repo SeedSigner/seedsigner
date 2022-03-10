@@ -42,7 +42,7 @@ class HardwareButtons(Singleton):
             cls._instance.cur_input = None           # Track which direction or button was last pressed
             cls._instance.cur_input_started = None   # Track when that input began
             cls._instance.last_input_time = int(time.time() * 1000)  # How long has it been since the last input?
-            cls._instance.first_repeat_threshold = 175  # Long-press time required before returning continuous input
+            cls._instance.first_repeat_threshold = 225  # Long-press time required before returning continuous input
             cls._instance.next_repeat_threshold = 250  # Amount of time where we no longer consider input a continuous hold
 
         return cls._instance

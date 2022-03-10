@@ -74,6 +74,8 @@ class Settings(Singleton):
                     if type(new_settings[entry.attr_name]) == str:
                         # Break comma-separated SettingsQR input into List
                         new_settings[entry.attr_name] = new_settings[entry.attr_name].split(",")
+                
+                # TODO: If value is not in entry.selection_options...
 
 
         # Can't just merge the _data dict; have to replace keys they have in common
