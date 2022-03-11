@@ -1,0 +1,9 @@
+embit==0.4.10
+numpy==1.21.1
+Pillow==8.2.0
+-e git+https://github.com/kdmukai/pyzbar.git@c3c237821c6a20b17953efe59b90df0b514a1c03#egg=pyzbar
+qrcode==7.3.1
+six==1.16.0
+spidev==3.5
+opencv-python==4.5.5
+urtypes @ git+https://github.com/jreesun/urtypes.git@e0d0db277ec2339650343eaf7b220fffb9233241
