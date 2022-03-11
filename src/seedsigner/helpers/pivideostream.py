@@ -7,6 +7,7 @@ from threading import Thread
 import time
 import cv2
 import numpy as np
+from time import sleep
 
 # Modified from: https://github.com/jrosebr1/imutils
 class PiVideoStream:
@@ -45,7 +46,10 @@ class PiVideoStream:
 		# for f in self.stream:
 		while True:
 			ret, frame = self.cap.read()
+			frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 			self.frame = frame
+			
+			sleep(0.25)
 			# grab the frame from the stream and clear the stream in
 			# preparation for the next frame
 			# self.frame = f.array

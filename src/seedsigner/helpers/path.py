@@ -7,10 +7,12 @@ class Path:
     SEED_TOOLS_SUB_MENU = 10
     SIGNING_TOOLS_SUB_MENU = 11
     SETTINGS_SUB_MENU = 12
+    PSBT_SIGN_SUB_MENU = 13
     SEED_WORD_12 = 20
     SEED_WORD_24 = 21
     POWER_OFF = 22
     SEED_WORD_QR = 23
+
 
     # Tools / Functions Routes
     GEN_LAST_WORD = 40

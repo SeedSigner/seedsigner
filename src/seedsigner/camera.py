@@ -1,7 +1,9 @@
+import os
 import io
 import numpy
 
-from picamera import PiCamera
+if not os.getenv("NOTAPI", False):
+    from picamera import PiCamera
 from PIL import Image
 from seedsigner.helpers import PiVideoStream, Singleton
 
@@ -78,7 +80,7 @@ class Camera(Singleton):
         # "Rewind" the stream to the beginning so we can read its content
         # stream.seek(0)
         # return Image.open(stream)
-        return Image.fromarray(self._video_stream.frame.astype('uint8'), 'RGB').rotate(90)
+        return Image.fromarray(self._video_stream.frame.astype('uint8'), 'BGR')
 
 
     def stop_single_frame_mode(self):
