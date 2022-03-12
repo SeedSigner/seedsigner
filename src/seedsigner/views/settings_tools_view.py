@@ -50,6 +50,18 @@ class SettingsToolsView(View):
         else:
             return None
 
+
+    def display_saved_psbts(self) -> str:
+        r = self.controller.menu_view.display_generic_selection_menu(["... [ Return to Settings ]", "Low", "Medium", "High"], "Which QR Density?")
+        if r == 2:
+            return EncodeQRDensity.LOW
+        elif r == 3:
+            return EncodeQRDensity.MEDIUM
+        elif r == 4:
+            return EncodeQRDensity.HIGH
+        else:
+            return None
+
     ### Display QR Density Selection
 
     def display_qr_density_selection(self) -> str:

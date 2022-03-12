@@ -5,11 +5,14 @@ from multiprocessing import Process, Queue
 from subprocess import call
 import os, sys
 from embit import bip32, script, ec
+import traceback
 from embit.networks import NETWORKS
 from embit.descriptor import Descriptor
 from binascii import hexlify
 from threading import Thread
 from queue import Queue
+from datetime import datetime
+from pathlib import Path as Pathlib
 
 # Internal file class dependencies
 from .views import (View, MenuView, SeedToolsView,SigningToolsView, 
@@ -97,8 +100,8 @@ class Controller(Singleton):
         # Views
         controller.menu_view = MenuView(controller.disp, controller.q)
         controller.seed_tools_view = SeedToolsView(controller.disp, controller.q)
-        # controller.io_test_view = IOTestView()
-        # controller.signing_tools_view = SigningToolsView(controller.storage)
+        controller.io_test_view = IOTestView(controller.disp, controller.q)
+        controller.signing_tools_view = SigningToolsView(controller.storage, controller.disp, controller.q)
         controller.settings_tools_view = SettingsToolsView(controller.disp, controller.q)
         controller.screensaver = ScreensaverView(controller.buttons, controller.disp, controller.q)
 
@@ -107,9 +110,9 @@ class Controller(Singleton):
 
     @property
     def camera(self):
-        if not os.getenv("NOTAPI", False):
-            from .camera import Camera
-            return Camera.get_instance()
+        # if not os.getenv("NOTAPI", False):
+        from .camera import Camera
+        return Camera.get_instance()
 
 
     def start(self) -> None:
@@ -135,6 +138,7 @@ class Controller(Singleton):
                         break
                     else:
                         print('Caught this error: ' + repr(error)) # debug
+                        print(traceback.format_exc())
                         self.menu_view.draw_modal(["Crashed ..."], "", "restarting")
                         time.sleep(5)
 
@@ -194,6 +198,9 @@ class Controller(Singleton):
                 ret_val = self.show_reset_tool()
             elif ret_val == Path.POWER_OFF:
                 ret_val = self.show_power_off()
+            elif ret_val == Path.PSBT_SIGN_SUB_MENU:
+                ret_val = self.sign_psbt()
+
 
         raise Exception("Unhandled case")
 
@@ -553,6 +560,14 @@ class Controller(Singleton):
         xpub = xprv.to_public()
         xpub_base58 = xpub.to_string(version=version)
 
+        with open(f"/home/skorn/Desktop/xpub-{fingerprint}.txt", "w") as f:
+            f.write(xpub_base58)
+            f.write("\n")
+            f.write(derivation)
+            f.write("\n")
+            f.write(fingerprint)
+            f.write("\n")
+
         self.signing_tools_view.display_xpub_info(fingerprint, derivation, xpub_base58)
         self.buttons.wait_for([B.KEY_RIGHT])
 
@@ -590,10 +605,145 @@ class Controller(Singleton):
         return Path.MAIN_MENU
 
     ### Sign Transactions
+    def sign_psbt(self):
+        seed = Seed(wordlist=self.settings.wordlist)
+        used_saved_seed = False
+
+        base_path = Pathlib("/home/skorn/Desktop/psbt/")
+        psbt_names = [p.name for p in list(base_path.rglob("*.psbt")) ]
+
+        psbt_names.append("... [ Return to Main ]")
+
+        r = self.menu_view.display_generic_selection_menu(psbt_names, "Select PSBT?")
+        print(f"got selected: {r}")
+        exit_index = len(psbt_names)
+        if r == exit_index:
+            return Path.MAIN_MENU
+        else:
+            psbt_filename = psbt_names[r-1]
+            with open(base_path.joinpath(psbt_filename),'r') as f:
+                psbtdata = f.read()
+
+            decoder = DecodeQR(wordlist=self.settings.wordlist)
+            decoder.qr_type = QRType.PSBTBASE64
+            decoder.add_data(psbtdata)
+
+            self.menu_view.draw_modal(["Validating PSBT"])
+            psbt = decoder.getPSBT()
+
+            # show transaction information before sign
+            self.menu_view.draw_modal(["Parsing PSBT"])
+            p = PSBTParser(psbt,seed,self.settings.network)
+            self.signing_tools_view.display_transaction_information(p)
+            
+            input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
+            if input == B.KEY_LEFT:
+                return Path.MAIN_MENU
+
+            # validate single sig using seed
+        
+            # No valid seed yet, If there is a saved seed, ask to use saved seed
+            if self.storage.num_of_saved_seeds() > 0:
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Use Saved Seed?")
+                if r == 1: #Yes
+                    slot_num = self.menu_view.display_saved_seed_menu(self.storage,3,None)
+                    if slot_num == 0:
+                        return Path.MAIN_MENU
+                    seed = self.storage.get_seed(slot_num)
+                    used_saved_seed = True
+
+            if not seed:
+                # no valid seed yet, gather seed phrase
+                # display menu to select 12 or 24 word seed for last word
+                ret_val = self.menu_view.display_qr_12_24_word_menu("... [ Cancel ]")
+                if ret_val == Path.SEED_WORD_12:
+                    seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(12)
+                elif ret_val == Path.SEED_WORD_24:
+                    seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(24)
+                elif ret_val == Path.SEED_WORD_QR:
+                    seed.mnemonic = self.seed_tools_view.read_seed_phrase_qr()
+                else:
+                    return Path.MAIN_MENU
+
+                if not seed:
+                    return Path.MAIN_MENU
+                    
+            # check if seed phrase is valid
+            self.menu_view.draw_modal(["Validating Seed ..."])
+            if not seed:
+                self.menu_view.draw_modal(["Seed Invalid", "check seed phrase", "and try again"], "", "Right to Continue")
+                input = self.buttons.wait_for([B.KEY_RIGHT])
+                return Path.MAIN_MENU
+
+            if len(seed.passphrase) == 0:
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Add Seed Passphrase?")
+                if r == 1:
+                    # display a tool to pick letters/numbers to make a passphrase
+                    seed.passphrase = self.seed_tools_view.draw_passphrase_keyboard_entry()
+                    if len(seed.passphrase) == 0:
+                        self.menu_view.draw_modal(["No passphrase added", "to seed words"], "", "Left to Exit, Right to Continue")
+                        input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT])
+                        if input == B.KEY_LEFT:
+                            return Path.MAIN_MENU
+                    else:
+                        self.menu_view.draw_modal(["Optional passphrase", "added to seed words", seed.passphrase], "", "Right to Continue")
+                        self.buttons.wait_for([B.KEY_RIGHT])
+
+            # display seed phrase
+            while True:
+                r = self.seed_tools_view.display_seed_phrase(seed.mnemonic_list, seed.passphrase, "Right to Continue")
+                if r == True:
+                    break
+                else:
+                    # Cancel
+                    return Path.MAIN_MENU
+                    
+            # Ask to save seed
+            if self.storage.slot_avaliable() and used_saved_seed == False:
+                r = self.menu_view.display_generic_selection_menu(["Yes", "No"], "Save Seed?")
+                if r == 1: #Yes
+                    slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
+                    if slot_num in (1,2,3):
+                        self.storage.add_seed(seed, slot_num)
+                        self.menu_view.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Continue")
+                        input = self.buttons.wait_for([B.KEY_RIGHT])
+
+
+            self.menu_view.draw_modal(["Parsing PSBT"])
+            p = PSBTParser(psbt, seed, self.settings.network)
+            self.signing_tools_view.display_transaction_information(p)
+
+
+            # Sign PSBT
+            self.menu_view.draw_modal(["PSBT Signing ..."])
+            sig_cnt = PSBTParser.sigCount(psbt)
+
+
+            psbt.sign_with(p.root)
+            trimmed_psbt = PSBTParser.trim(psbt)
+
+            if sig_cnt == PSBTParser.sigCount(trimmed_psbt):
+                self.menu_view.draw_modal(["Signing failed", "left to exit", "or right to continue", "to display PSBT QR"], "", "")
+                input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
+                if input == B.KEY_LEFT:
+                    return Path.MAIN_MENU
+
+            # TODO: handle multisig case. Increment filename smarter
+            signed_filename = f"{psbt_filename}.signed"
+            
+            with open(base_path.joinpath(signed_filename), "wb") as f:
+                f.write(trimmed_psbt.serialize())
+
+            self.menu_view.draw_modal(["PSBT Signed", f"Saved to Filename: {signed_filename}"], "", "Right to Continue")
+            input = self.buttons.wait_for([B.KEY_RIGHT])
+
 
     def show_sign_transaction(self):
         seed = Seed(wordlist=self.settings.wordlist)
         used_saved_seed = False
+
+        decoder = DecodeQR(wordlist=self.settings.wordlist)
+        decoder.qr_type = QRType.PSBTBASE64
 
         # reusable qr scan function
         def scan_qr(scan_text="Scan QR"):
@@ -999,6 +1149,11 @@ class Controller(Singleton):
             input = self.buttons.wait_for([B.KEY_RIGHT, B.KEY_LEFT], False)
             if input == B.KEY_LEFT:
                 return Path.MAIN_MENU
+
+
+        with open(f"/home/skorn/Desktop/txn-{datetime.utcnow().replace(microsecond=0).isoformat()}-signed.psbt", "wb") as f:
+            f.write(trimmed_psbt.serialize())
+
 
         # Display Animated QR Code
         self.menu_view.draw_modal(["Generating PSBT QR ..."])

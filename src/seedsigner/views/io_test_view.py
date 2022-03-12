@@ -10,8 +10,8 @@ from seedsigner.helpers import B
 
 class IOTestView(View):
 
-    def __init__(self) -> None:
-        View.__init__(self)
+    def __init__(self, disp, q) -> None:
+        View.__init__(self, disp, q)
         self.redraw = False
         self.redraw_complete = False
         self.qr_text = "Scan ANY QR Code"

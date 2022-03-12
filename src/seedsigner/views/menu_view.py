@@ -25,7 +25,7 @@ class MenuView(View):
     def display_main_menu(self, sub_menu = None) -> int:
         ret_val = 0
         input = 0
-        lines = ["Seed Tools", "Scan QR", "Settings", "Power Off"]
+        lines = ["Seed Tools", "Scan QR", "Sign PSBT", "Settings", "Power Off"]
 
         if sub_menu == Path.SEED_TOOLS_SUB_MENU:
             return self.display_seed_tools_menu()
@@ -53,8 +53,10 @@ class MenuView(View):
                 elif self.selected_menu_num == 2:
                     ret_val = Path.SIGN_TRANSACTION
                 elif self.selected_menu_num == 3:
-                    ret_val = self.display_settings_menu()
+                    ret_val = Path.PSBT_SIGN_SUB_MENU
                 elif self.selected_menu_num == 4:
+                    ret_val = self.display_settings_menu()
+                elif self.selected_menu_num == 5:
                     ret_val = Path.POWER_OFF
 
                 if ret_val != Path.MAIN_MENU: # When no main menu, return to controller
