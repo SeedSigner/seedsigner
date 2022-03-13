@@ -18,6 +18,7 @@ class GUIConstants:
     BACKGROUND_COLOR = "black"
     WARNING_COLOR = "#FFD60A"
     DIRE_WARNING_COLOR = "red"
+    SUCCESS_COLOR = "#00dd00"
     BITCOIN_ORANGE = "#ff9416"
     ACCENT_COLOR = "orange"
 
@@ -320,12 +321,18 @@ class TextArea(BaseComponent):
                 # No whitespace chars to split on!
                 raise TextDoesNotFitException("Text cannot fit in target rect with this font/size")
 
-            words = self.text.split()
-            while words:
-                (index, tw) = _binary_len_search(0, len(words))
-                _add_text_line(" ".join(words[0:index]), tw)
-                words = words[index:]
+            for line in self.text.split("\n"):
+                words = line.split()
+                if not words:
+                    # It's a blank line
+                    _add_text_line("", 0)
+                else:
+                    while words:
+                        (index, tw) = _binary_len_search(0, len(words))
+                        _add_text_line(" ".join(words[0:index]), tw)
+                        words = words[index:]
 
+            # TODO: Don't render blank lines as full height
             total_text_height = self.bbox_height * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
             if self.height is None:
                 # Autoscale height to text lines
@@ -412,6 +419,7 @@ class IconTextLine(BaseComponent):
     font_name: str = GUIConstants.BODY_FONT_NAME
     font_size: int = GUIConstants.BODY_FONT_SIZE
     is_text_centered: bool = False
+    auto_line_break: bool = False
     screen_x: int = 0
     screen_y: int = 0
 
@@ -468,7 +476,7 @@ class IconTextLine(BaseComponent):
             font_size=self.font_size,
             edge_padding=0,
             is_text_centered=False,
-            auto_line_break=False,
+            auto_line_break=self.auto_line_break,
             screen_x=text_screen_x,
             screen_y=value_textarea_screen_y,
         )

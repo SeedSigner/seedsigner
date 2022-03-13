@@ -103,12 +103,7 @@ class ToolsImageEntropyMnemonicLengthView(View):
         TWENTYFOUR_WORDS = "24 words"
         button_data = [TWELVE_WORDS, TWENTYFOUR_WORDS]
 
-        # selected_menu_num = ButtonListScreen(
-        #     title="Mnemonic Length?",
-        #     button_data=button_data,
-        # ).display()
-
-        selected_menu_num = LargeButtonScreen(
+        selected_menu_num = ButtonListScreen(
             title="Mnemonic Length?",
             button_data=button_data,
         ).display()

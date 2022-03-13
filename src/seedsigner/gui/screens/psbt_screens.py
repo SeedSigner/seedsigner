@@ -721,7 +721,7 @@ class PSBTFinalizeScreen(ButtonListScreen):
 
         icon = Icon(
             icon_name=FontAwesomeIconConstants.PAPER_PLANE,
-            icon_color="#00dd00",
+            icon_color=GUIConstants.SUCCESS_COLOR,
             icon_size=GUIConstants.ICON_LARGE_BUTTON_SIZE,
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING
         )

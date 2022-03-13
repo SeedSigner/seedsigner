@@ -694,6 +694,50 @@ class QRDisplayScreen(BaseScreen):
 
 
 
+@dataclass
+class LargeIconStatusScreen(ButtonListScreen):
+    title: str = "Success!"
+    status_icon_name: str = SeedSignerCustomIconConstants.CIRCLE_CHECK
+    status_icon_size: int = GUIConstants.ICON_PRIMARY_SCREEN_SIZE
+    status_color: str = GUIConstants.SUCCESS_COLOR
+    status_headline: str = "Success!"  # The colored text under the large icon
+    text: str = ""                          # The body text of the screen
+    button_data: list = None
+
+    def __post_init__(self):
+        self.is_bottom_list: bool = True
+        if not self.button_data:
+            self.button_data = ["OK"]
+        super().__post_init__()
+
+        self.status_icon = Icon(
+            icon_name=self.status_icon_name,
+            icon_size=self.status_icon_size,
+            icon_color=self.status_color,
+        )
+        self.status_icon.screen_y = self.top_nav.height - int(GUIConstants.COMPONENT_PADDING/2)
+        self.status_icon.screen_x = int((self.canvas_width - self.status_icon.width) / 2)
+        self.components.append(self.status_icon)
+
+        next_y = self.status_icon.screen_y + self.status_icon.height + 4
+        if self.status_headline:
+            self.warning_headline_textarea = TextArea(
+                text=self.status_headline,
+                width=self.canvas_width,
+                screen_y=next_y,
+                font_color=self.status_color,
+            )
+            self.components.append(self.warning_headline_textarea)
+            next_y = next_y + self.warning_headline_textarea.height
+
+        self.components.append(TextArea(
+            height=self.buttons[0].screen_y - next_y,
+            text=self.text,
+            width=self.canvas_width,
+            screen_y=next_y,
+        ))
+
+
 class WarningEdgesThread(BaseThread):
     def __init__(self, args):
         super().__init__()
@@ -707,15 +751,15 @@ class WarningEdgesThread(BaseThread):
         inhale_hold = 8
         cur_inhale_hold = 0
         inhale_factor = 0
-        rgb = ImageColor.getrgb(screen.warning_color)
+        rgb = ImageColor.getrgb(screen.status_color)
 
         def render_border(color, width):
-            screen.image_draw.rounded_rectangle(
+            screen.image_draw.rectangle(
                 (0, 0, screen.canvas_width, screen.canvas_height),
                 fill=None,
                 outline=color,
                 width=width,
-                radius=5
+                # radius=5
             )
 
         while self.keep_running:
@@ -755,7 +799,7 @@ class WarningEdgesThread(BaseThread):
 
 @dataclass
 class WarningEdgesMixin:
-    warning_color: str = GUIConstants.WARNING_COLOR
+    status_color: str = GUIConstants.WARNING_COLOR
 
     def __post_init__(self):
         super().__post_init__()
@@ -765,54 +809,21 @@ class WarningEdgesMixin:
 
 
 @dataclass
-class WarningScreen(WarningEdgesMixin, ButtonListScreen):
+class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
     title: str = "Caution"
-    warning_icon_name: str = SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION
-    warning_icon_size=GUIConstants.ICON_PRIMARY_SCREEN_SIZE
-    warning_headline: str = "Privacy Leak!"     # The colored text under the alert icon
-    warning_text: str = ""                      # The body text of the warning
-    button_data: list = None
+    status_icon_name: str = SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION
+    status_color: str = "yellow"
+    status_headline: str = "Privacy Leak!"     # The colored text under the alert icon
 
     def __post_init__(self):
-        self.is_bottom_list: bool = True
         if not self.button_data:
             self.button_data = ["I Understand"]
         super().__post_init__()
 
-        self.warning_icon = Icon(
-            icon_name=self.warning_icon_name,
-            icon_size=self.warning_icon_size,
-            icon_color=self.warning_color,
-        )
-        self.warning_icon.screen_y = self.top_nav.height - int(GUIConstants.COMPONENT_PADDING/2)
-        self.warning_icon.screen_x = int((self.canvas_width - self.warning_icon.width) / 2)
-        self.components.append(self.warning_icon)
-
-        next_y = self.warning_icon.screen_y + self.warning_icon.height + 4
-        if self.warning_headline:
-            self.warning_headline_textarea = TextArea(
-                text=self.warning_headline,
-                width=self.canvas_width,
-                screen_y=next_y,
-                font_color=self.warning_color,
-            )
-            self.components.append(self.warning_headline_textarea)
-            next_y = next_y + self.warning_headline_textarea.height
-
-        self.warning_text_textarea = TextArea(
-            height=self.buttons[0].screen_y - next_y,
-            text=self.warning_text,
-            width=self.canvas_width,
-            screen_y=next_y,
-        )
-        self.components.append(self.warning_text_textarea)
-
-
 
 @dataclass
 class DireWarningScreen(WarningScreen):
-    title: str = "Caution"
-    warning_icon_name: str = SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION
-    warning_headline: str = "Classified Info!"     # The colored text under the alert icon
-    warning_color: str = GUIConstants.DIRE_WARNING_COLOR
+    status_headline: str = "Classified Info!"     # The colored text under the alert icon
+    status_color: str = GUIConstants.DIRE_WARNING_COLOR
+
 

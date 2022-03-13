@@ -15,6 +15,7 @@ from seedsigner.models import DecodeQR, DecodeQRStatus
 @dataclass
 class ScanScreen(BaseTopNavScreen):
     decoder: DecodeQR = None
+    instructions_text: str = "Scan a QR code"
 
     def __post_init__(self):
         from seedsigner.hardware.camera import Camera
@@ -33,7 +34,6 @@ class ScanScreen(BaseTopNavScreen):
         self.instructions_background_y = self.canvas_height - self.instructions_background.height
 
         # Pre-calc where the instruction text goes
-        self.instructions_text = "Scan a QR code"
         self.instructions_font = Fonts.get_font(GUIConstants.BUTTON_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
 
         # TODO: Add the QR code icon and adjust start_x

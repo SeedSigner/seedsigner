@@ -39,15 +39,16 @@ class Renderer(ConfigurableSingleton):
 
 
     def show_image(self, image=None, alpha_overlay=None):
-        if image == None:
-            image = self.canvas
-
         if alpha_overlay:
+            if image == None:
+                image = self.canvas
             image = Image.alpha_composite(image, alpha_overlay)
 
-        # Always write to the current canvas, rather than trying to replace it
-        self.canvas.paste(image)
-        self.disp.ShowImage(image, 0, 0)
+        if image:
+            # Always write to the current canvas, rather than trying to replace it
+            self.canvas.paste(image)
+
+        self.disp.ShowImage(self.canvas, 0, 0)
 
 
     def show_image_pan(self, image, start_x, start_y, end_x, end_y, rate, alpha_overlay=None):
@@ -87,7 +88,6 @@ class Renderer(ConfigurableSingleton):
     # TODO: Remove all references
     def show_image_with_text(self, image, text, font=None, text_color="GREY", text_background=None):
         image_copy = image.copy().convert("RGBA")
-        draw = ImageDraw.Draw(image_copy)
 
         text_overlay = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
         text_overlay_draw = ImageDraw.Draw(text_overlay)

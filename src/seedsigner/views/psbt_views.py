@@ -433,9 +433,9 @@ class PSBTSigningErrorView(View):
 
         selected_menu_num = WarningScreen(
             title="PSBT Error",
-            warning_icon_name=SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION,
-            warning_headline="Signing Failed",
-            warning_text="Signing with this seed did not add a valid signature.",
+            status_icon_name=SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION,
+            status_headline="Signing Failed",
+            text="Signing with this seed did not add a valid signature.",
             button_data=["Select Diff Seed"],
         ).display()
 

@@ -6,12 +6,14 @@ from typing import List
 
 from PIL import Image, ImageDraw, ImageFilter
 from seedsigner.gui.renderer import Renderer
+from seedsigner.helpers.qr import QR
+from seedsigner.models.qr_type import QRType
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
-from .screen import RET_CODE__BACK_BUTTON, BaseTopNavScreen, ButtonListScreen, WarningEdgesMixin
+from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, WarningEdgesMixin
 from ..components import (FontAwesomeIconConstants, Fonts, FormattedAddress,
     IconTextLine, SeedSignerCustomIconConstants, TextArea, GUIConstants,
     calc_text_centering)
@@ -447,7 +449,7 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
     page_index: int = 0
     num_pages: int = 3
     is_bottom_list: bool = True
-    warning_color: str = GUIConstants.DIRE_WARNING_COLOR
+    status_color: str = GUIConstants.DIRE_WARNING_COLOR
 
 
     def __post_init__(self):
@@ -1069,6 +1071,276 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
                 screen_y=screen_y,
             ))
             screen_y += char_height + 2
+
+
+
+@dataclass
+class SeedTranscribeSeedQRFormatScreen(ButtonListScreen):
+    def __post_init__(self):
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        self.components.append(IconTextLine(
+            label_text="Standard",
+            value_text="BIP-39 wordlist indices",
+            is_text_centered=False,
+            auto_line_break=True,
+            screen_x=GUIConstants.EDGE_PADDING,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+        ))
+        self.components.append(IconTextLine(
+            label_text="Compact",
+            value_text="Raw entropy bits",
+            is_text_centered=False,
+            screen_x=GUIConstants.EDGE_PADDING,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+        ))
+
+        # self.components.append(TextArea(
+        #     text="Learn more about the SeedQR formats at:",
+        #     is_text_centered=True,
+        #     screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+        # ))
+        # self.components.append(TextArea(
+        #     text="seedsigner.com",
+        #     is_text_centered=True,
+        #     screen_y=self.components[-1].screen_y + self.components[-1].height,
+        #     height=self.buttons[0].screen_y - (self.components[-1].screen_y + self.components[-1].height),
+        # ))
+
+
+@dataclass
+class SeedTranscribeSeedQRWholeQRScreen(WarningEdgesMixin, ButtonListScreen):
+    qr_data: str = None
+    num_modules: int = None
+
+    def __post_init__(self):
+        self.title = "Transcribe SeedQR"
+        self.button_data = [f"Begin {self.num_modules}x{self.num_modules}"]
+        self.is_bottom_list = True
+        self.status_color = GUIConstants.DIRE_WARNING_COLOR
+        super().__post_init__()
+
+        qr_height = self.buttons[0].screen_y - self.top_nav.height - GUIConstants.COMPONENT_PADDING
+        qr_width = qr_height
+
+        qr = QR()
+        qr_image = qr.qrimage(
+            data=self.qr_data,
+            width=qr_width,
+            height=qr_height,
+            border=1,
+            style=QR.STYLE__ROUNDED
+        ).convert("RGBA")
+
+        self.paste_images.append((qr_image, (int((self.canvas_width - qr_width)/2), self.top_nav.height)))
+
+        # self.instructions = TextArea(
+        #     text="< back  |  click to begin",
+        #     background_color=GUIConstants.BACKGROUND_COLOR,
+        #     is_text_centered=False,
+        #     screen_y=self.canvas_height - GUIConstants.BODY_FONT_SIZE - 2*GUIConstants.COMPONENT_PADDING,
+        #     height=GUIConstants.BODY_FONT_SIZE + 2*GUIConstants.COMPONENT_PADDING,
+        # )
+
+
+
+@dataclass
+class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
+    qr_data: str = None
+    num_modules: int = None
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        # Render an oversized QR code that we can view up close
+        self.pixels_per_block = 24
+
+        # Border must accommodate the 3 blocks outside the center 5x5 mask plus up to
+        # 1 empty block inside the 5x5 mask (29x29 has a 4-block final col/row).
+        self.qr_border = 4
+        if self.num_modules == 21:
+            # Optimize for 21x21
+            self.qr_blocks_per_zoom = 7
+        else:
+            self.qr_blocks_per_zoom = 5
+
+        self.qr_width = (self.qr_border + self.num_modules + self.qr_border) * self.pixels_per_block
+        self.height = self.qr_width
+        qr = QR()
+        self.qr_image = qr.qrimage(
+            self.qr_data,
+            width=self.qr_width,
+            height=self.height,
+            border=self.qr_border,
+            style=QR.STYLE__ROUNDED
+        ).convert("RGBA")
+
+        # Render gridlines but leave the 1-block border as-is
+        draw = ImageDraw.Draw(self.qr_image)
+        for i in range(self.qr_border, math.floor(self.qr_width/self.pixels_per_block) - self.qr_border):
+            draw.line((i * self.pixels_per_block, self.qr_border * self.pixels_per_block, i * self.pixels_per_block, self.height - self.qr_border * self.pixels_per_block), fill="#bbb")
+            draw.line((self.qr_border * self.pixels_per_block, i * self.pixels_per_block, self.qr_width - self.qr_border * self.pixels_per_block, i * self.pixels_per_block), fill="#bbb")
+
+        # Prep the semi-transparent mask overlay
+        # make a blank image for the overlay, initialized to transparent
+        self.block_mask = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
+        draw = ImageDraw.Draw(self.block_mask)
+
+        self.mask_width = int((self.canvas_width - self.qr_blocks_per_zoom * self.pixels_per_block)/2)
+        self.mask_height = int((self.canvas_height - self.qr_blocks_per_zoom * self.pixels_per_block)/2)
+        mask_rgba = (0, 0, 0, 226)
+        draw.rectangle((0, 0, self.canvas_width, self.mask_height), fill=mask_rgba)
+        draw.rectangle((0, self.canvas_height - self.mask_height - 1, self.canvas_width, self.canvas_height), fill=mask_rgba)
+        draw.rectangle((0, self.mask_height, self.mask_width, self.canvas_height - self.mask_height), fill=mask_rgba)
+        draw.rectangle((self.canvas_width - self.mask_width - 1, self.mask_height, self.canvas_width, self.canvas_height - self.mask_height), fill=mask_rgba)
+
+        # Draw a box around the cutout portion of the mask for better visibility
+        draw.line((self.mask_width, self.mask_height, self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
+        draw.line((self.canvas_width - self.mask_width, self.mask_height, self.canvas_width - self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
+        draw.line((self.mask_width, self.mask_height, self.canvas_width - self.mask_width, self.mask_height), fill=GUIConstants.ACCENT_COLOR)
+        draw.line((self.mask_width, self.canvas_height - self.mask_height, self.canvas_width - self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
+
+        msg = "click to exit"
+        font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE)
+        (left, top, right, bottom) = font.getbbox(msg, anchor="ls")
+        msg_height = -1 * top
+        msg_width = right
+        # draw.rectangle(
+        #     (
+        #         int((self.canvas_width - msg_width)/2 - GUIConstants.COMPONENT_PADDING),
+        #         self.canvas_height - msg_height - GUIConstants.COMPONENT_PADDING,
+        #         int((self.canvas_width + msg_width)/2 + GUIConstants.COMPONENT_PADDING),
+        #         self.canvas_height
+        #     ),
+        #     fill=GUIConstants.BACKGROUND_COLOR,
+        # )
+        # draw.text(
+        #     (int(self.canvas_width/2), self.canvas_height - int(GUIConstants.COMPONENT_PADDING/2)),
+        #     msg,
+        #     fill=GUIConstants.BODY_FONT_COLOR,
+        #     font=font,
+        #     anchor="ms"  # Middle, baSeline
+        # )
+        TextArea(
+            canvas=self.block_mask,
+            image_draw=draw,
+            text=msg,
+            background_color=GUIConstants.BACKGROUND_COLOR,
+            is_text_centered=True,
+            screen_y=self.canvas_height - GUIConstants.BODY_FONT_SIZE - GUIConstants.COMPONENT_PADDING,
+            height=GUIConstants.BODY_FONT_SIZE + GUIConstants.COMPONENT_PADDING,
+        ).render()
+
+
+    def draw_block_labels(self, cur_block_x, cur_block_y):
+        # Create overlay for block labels (e.g. "D-5")
+        block_labels_x = ["1", "2", "3", "4", "5", "6"]
+        block_labels_y = ["A", "B", "C", "D", "E", "F"]
+
+        block_labels = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
+        draw = ImageDraw.Draw(block_labels)
+        draw.rectangle((self.mask_width, 0, self.canvas_width - self.mask_width, self.pixels_per_block), fill=GUIConstants.ACCENT_COLOR)
+        draw.rectangle((0, self.mask_height, self.pixels_per_block, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
+
+        label_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 8)
+        x_label = block_labels_x[cur_block_x]
+        (left, top, right, bottom) = label_font.getbbox(x_label, anchor="ls")
+        x_label_height = -1 * top
+
+        draw.text(
+            (int(self.canvas_width/2), self.pixels_per_block - int((self.pixels_per_block - x_label_height)/2)),
+            text=x_label,
+            fill=GUIConstants.BUTTON_SELECTED_FONT_COLOR,
+            font=label_font,
+            anchor="ms",  # Middle, baSeline
+        )
+
+        y_label = block_labels_y[cur_block_y]
+        (left, top, right, bottom) = label_font.getbbox(y_label, anchor="ls")
+        y_label_height = -1 * top
+        draw.text(
+            (int(self.pixels_per_block/2), int((self.canvas_height + y_label_height) / 2)),
+            text=y_label,
+            fill=GUIConstants.BUTTON_SELECTED_FONT_COLOR,
+            font=label_font,
+            anchor="ms",  # Middle, baSeline
+        )
+
+        return block_labels
+
+
+    def _run(self):
+        # Track our current coordinates for the upper left corner of our view
+        cur_block_x = 0
+        cur_block_y = 0
+        cur_x = self.qr_border * self.pixels_per_block - self.mask_width
+        cur_y = self.qr_border * self.pixels_per_block - self.mask_height
+        next_x = cur_x
+        next_y = cur_y
+
+        block_labels = self.draw_block_labels(0, 0)
+
+        self.renderer.show_image(
+            self.qr_image.crop((cur_x, cur_y, cur_x + self.canvas_width, cur_y + self.canvas_height)),
+            alpha_overlay=Image.alpha_composite(self.block_mask, block_labels)
+        )
+
+        while True:
+            input = self.hw_inputs.wait_for(HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + [HardwareButtonsConstants.KEY_PRESS])
+            if input == HardwareButtonsConstants.KEY_RIGHT:
+                next_x = cur_x + self.qr_blocks_per_zoom * self.pixels_per_block
+                cur_block_x += 1
+                if next_x > self.qr_width - self.canvas_width:
+                    next_x = cur_x
+                    cur_block_x -= 1
+            elif input == HardwareButtonsConstants.KEY_LEFT:
+                next_x = cur_x - self.qr_blocks_per_zoom * self.pixels_per_block
+                cur_block_x -= 1
+                if next_x < 0:
+                    next_x = cur_x
+                    cur_block_x += 1
+            elif input == HardwareButtonsConstants.KEY_DOWN:
+                next_y = cur_y + self.qr_blocks_per_zoom * self.pixels_per_block
+                cur_block_y += 1
+                if next_y > self.height - self.canvas_height:
+                    next_y = cur_y
+                    cur_block_y -= 1
+            elif input == HardwareButtonsConstants.KEY_UP:
+                next_y = cur_y - self.qr_blocks_per_zoom * self.pixels_per_block
+                cur_block_y -= 1
+                if next_y < 0:
+                    next_y = cur_y
+                    cur_block_y += 1
+            elif input == HardwareButtonsConstants.KEY_PRESS:
+                return
+
+            # Create overlay for block labels (e.g. "D-5")
+            block_labels = self.draw_block_labels(cur_block_x, cur_block_y)
+
+            if cur_x != next_x or cur_y != next_y:
+                self.renderer.show_image_pan(
+                    self.qr_image,
+                    cur_x, cur_y, next_x, next_y,
+                    rate=self.pixels_per_block,
+                    alpha_overlay=Image.alpha_composite(self.block_mask, block_labels)
+                )
+                cur_x = next_x
+                cur_y = next_y
+
+
+
+@dataclass
+class SeedTranscribeSeedQRConfirmQRPromptScreen(ButtonListScreen):
+    def __post_init__(self):
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text="Optionally scan your transcribed SeedQR to confirm that it reads back correctly.",
+            screen_y=self.top_nav.height,
+            height=self.buttons[0].screen_y - self.top_nav.height,
+        ))
 
 
 

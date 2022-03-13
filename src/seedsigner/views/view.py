@@ -210,8 +210,8 @@ class NotYetImplementedView(View):
     def run(self):
         WarningScreen(
             title="Work In Progress",
-            warning_headline="Not Yet Implemented",
-            warning_text="This is still on our to-do list!",
+            status_headline="Not Yet Implemented",
+            text="This is still on our to-do list!",
             button_data=["Back to Main Menu"],
         ).display()
 
