@@ -2,7 +2,7 @@ from PIL import Image, ImageDraw, ImageFont
 from threading import Lock
 
 from seedsigner.gui.components import Fonts, GUIConstants
-from seedsigner.hardware.ST7789 import ST7789
+from seedsigner.hardware.framebuffer import Framebuffer
 from seedsigner.models import ConfigurableSingleton
 
 
@@ -30,11 +30,11 @@ class Renderer(ConfigurableSingleton):
         settings = Settings.get_instance()
 
         # Eventually we'll be able to plug in other display controllers
-        renderer.disp = ST7789()
+        renderer.disp = Framebuffer(0)
         renderer.canvas_width = renderer.disp.width
         renderer.canvas_height = renderer.disp.height
 
-        renderer.canvas = Image.new('RGB', (renderer.canvas_width, renderer.canvas_height))
+        renderer.canvas = Image.new('RGBA', (renderer.canvas_width, renderer.canvas_height))
         renderer.draw = ImageDraw.Draw(renderer.canvas)
 
 
@@ -48,7 +48,7 @@ class Renderer(ConfigurableSingleton):
             # Always write to the current canvas, rather than trying to replace it
             self.canvas.paste(image)
 
-        self.disp.ShowImage(self.canvas, 0, 0)
+        self.disp.show(self.canvas)
 
 
     def show_image_pan(self, image, start_x, start_y, end_x, end_y, rate, alpha_overlay=None):
@@ -82,7 +82,7 @@ class Renderer(ConfigurableSingleton):
             # Always keep a copy of the current display in the canvas
             self.canvas.paste(crop)
 
-            self.disp.ShowImage(crop, 0, 0)
+            self.disp.show(crop)
 
 
     # TODO: Remove all references
