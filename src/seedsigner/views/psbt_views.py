@@ -1,4 +1,3 @@
-import time
 from embit.psbt import PSBT
 
 from seedsigner.models.encode_qr import EncodeQR
@@ -37,7 +36,7 @@ class PSBTSelectSeedView(View):
             if seed.passphrase is not None:
                 # TODO: Include lock icon on right side of button
                 pass
-            button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT))
+            button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
         button_data.append(SCAN_SEED)
         button_data.append(ENTER_WORDS)
 
@@ -135,7 +134,11 @@ class PSBTOverviewView(View):
 
 class PSBTNoChangeWarningView(View):
     def run(self):
-        selected_menu_num = psbt_screens.PSBTNoChangeWarningScreen().display()
+        selected_menu_num = WarningScreen(
+            status_headline="Full Spend!",
+            text="This PSBT spends its entire input value. No change is coming back to your wallet.",
+            button_data=["Continue"],
+        ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -155,14 +158,12 @@ class PSBTMathView(View):
         + change value
     """
     def run(self):
-        from seedsigner.gui.screens.psbt_screens import PSBTMathScreen
-
         psbt_parser: PSBTParser = self.controller.psbt_parser
         if not psbt_parser:
             # Should not be able to get here
             return Destination(MainMenuView)
         
-        selected_menu_num = PSBTMathScreen(
+        selected_menu_num = psbt_screens.PSBTMathScreen(
             input_amount=psbt_parser.input_amount,
             num_inputs=psbt_parser.num_inputs,
             spend_amount=psbt_parser.spend_amount,
@@ -294,7 +295,7 @@ class PSBTChangeDetailsView(View):
             # if the known-good multisig descriptor is already onboard:
                 # calc change addr...
                 # is_change_addr_verified = True
-                # button_data = [VERIFY_MULTISIG, NEXT]
+                # button_data = [NEXT]
 
             # else:
                 # Have the Screen offer to load in the multisig descriptor.            
@@ -413,7 +414,7 @@ class PSBTSignedQRDisplayView(View):
             qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
             wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE),
         )
-        ret = QRDisplayScreen(qr_encoder=qr_encoder).display()
+        QRDisplayScreen(qr_encoder=qr_encoder).display()
 
         # We're done with this PSBT. Remove all related data
         self.controller.psbt = None
@@ -431,6 +432,7 @@ class PSBTSigningErrorView(View):
             # Should not be able to get here
             return Destination(MainMenuView)
 
+        # Just a WarningScreen here; only use DireWarningScreen for true security risks.
         selected_menu_num = WarningScreen(
             title="PSBT Error",
             status_icon_name=SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION,

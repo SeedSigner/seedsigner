@@ -160,10 +160,9 @@ class ToolsImageEntropyMnemonicLengthView(View):
         # Add the mnemonic as an in-memory Seed
         seed = Seed(mnemonic, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
         self.controller.storage.set_pending_seed(seed)
-        seed_num = self.controller.storage.finalize_pending_seed()
         
         # Cannot return BACK to this View
-        return Destination(SeedWordsWarningView, view_args={"seed_num": seed_num}, clear_history=True)
+        return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
 
 
 
