@@ -130,7 +130,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         row_height = 28
         word_indent = 4
         x = GUIConstants.EDGE_PADDING + self.keyboard_width + 4
-        y = self.top_nav.height - int(row_height / 2)
+        y = self.top_nav.height
 
         highlighted_row = 3
         num_possible_rows = 11
@@ -189,7 +189,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         arrow_button_width = 25
         arrow_padding = 5
         key_x = self.canvas_width - arrow_button_width
-        key_y = self.top_nav.height - int(row_height / 2) + int(0.75 * row_height)
+        key_y = self.top_nav.height + int(0.75 * row_height)
         background_color = "#111"
         arrow_color = GUIConstants.ACCENT_COLOR
         if self.arrow_up_is_active:
@@ -208,7 +208,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         if self.arrow_down_is_active:
             background_color = GUIConstants.ACCENT_COLOR
             arrow_color = "#111"
-        key_y = self.top_nav.height - int(row_height / 2) + int(5.25 * row_height)
+        key_y = self.top_nav.height + int(5.25 * row_height)
         self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
         self.renderer.draw.polygon(
             [(key_x + int(arrow_button_width)/2 + 1, key_y + row_height - arrow_padding),  # bottom centered point
