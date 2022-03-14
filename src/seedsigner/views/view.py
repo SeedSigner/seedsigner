@@ -176,9 +176,9 @@ class ResetView(View):
             time.sleep(0.25)
 
             # Kill the SeedSigner process; systemd will automatically restart it.
-            # `.*` is a wildcard to detect `python3 -u main.py` with or without the
-            # `-u` flag.
-            call("kill $(ps aux | grep '[p]ython3 .*main.py' | awk '{print $2}')", shell=True)
+            # `.*` is a wildcard to detect either `python`` or `python3` and with or
+            # without the `-u` flag.
+            call("kill $(ps aux | grep '[p]ython.*main.py' | awk '{print $2}')", shell=True)
 
 
 

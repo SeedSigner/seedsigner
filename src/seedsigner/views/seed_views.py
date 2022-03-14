@@ -282,7 +282,7 @@ class SeedReviewPassphraseView(View):
         
         elif button_data[selected_menu_num] == DONE:
             seed_num = self.controller.storage.finalize_pending_seed()
-            return Destination(SeedOptionsView, view_args={"seed_num": seed_num})
+            return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
             
             
             
@@ -719,7 +719,10 @@ class SeedWordsView(View):
     def __init__(self, seed_num: int, page_index: int = 0):
         super().__init__()
         self.seed_num = seed_num
-        self.seed = self.controller.get_seed(self.seed_num)
+        if self.seed_num is None:
+            self.seed = self.controller.storage.get_pending_seed()
+        else:
+            self.seed = self.controller.get_seed(self.seed_num)
         self.page_index = page_index
         self.num_pages=int(len(self.seed.mnemonic_list)/4)
 
@@ -729,7 +732,7 @@ class SeedWordsView(View):
         DONE = "Done"
 
         button_data = []
-        if self.page_index < self.num_pages - 1:
+        if self.page_index < self.num_pages - 1 or self.seed_num is None:
             button_data.append(NEXT)
         else:
             button_data.append(DONE)
@@ -745,7 +748,10 @@ class SeedWordsView(View):
             return Destination(BackStackView)
 
         if button_data[selected_menu_num] == NEXT:
-            return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": self.page_index + 1})
+            if self.seed_num is None and self.page_index == self.num_pages - 1:
+                return Destination(SeedFinalizeView)
+            else:
+                return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": self.page_index + 1})
 
         elif button_data[selected_menu_num] == DONE:
             # Must clear history to avoid BACK button returning to private info

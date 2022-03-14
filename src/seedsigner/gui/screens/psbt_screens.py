@@ -36,7 +36,7 @@ class PSBTOverviewScreen(ButtonListScreen):
 
         # Prep the headline amount being spent in large callout
         # icon_text_lines_y = self.components[-1].screen_y + self.components[-1].height
-        icon_text_lines_y = self.top_nav.height
+        icon_text_lines_y = self.top_nav.height + GUIConstants.COMPONENT_PADDING
 
 
         if not self.destination_addresses:
@@ -448,22 +448,6 @@ class PSBTOverviewScreen(ButtonListScreen):
 
 
 @dataclass
-class PSBTNoChangeWarningScreen(WarningScreen):
-    fingerprint: str = None
-
-    def __post_init__(self):
-        # Customize defaults
-        self.title: str = "Caution"
-        self.button_data: list = ["Continue"]
-        self.is_bottom_list: bool = True
-        self.warning_headline: str = "Full Spend!"     # The colored text under the alert icon
-        self.warning_text: str = "This PSBT spends its entire input value. No change is coming back to your wallet."                      # The body text of the warning
-
-        super().__post_init__()
-
-
-
-@dataclass
 class PSBTMathScreen(ButtonListScreen):
     input_amount: int = 0
     num_inputs: int = 0
@@ -623,7 +607,7 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
             is_text_centered=True,
             value_text=f"{amount_display}",
             font_size=22,
-            screen_y=0,
+            screen_y=int(GUIConstants.COMPONENT_PADDING/2),
         )
 
         formatted_address = FormattedAddress(
