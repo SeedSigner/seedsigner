@@ -236,10 +236,9 @@ class TextTopNavScreen(BaseTopNavScreen):
                 [
                     HardwareButtonsConstants.KEY_UP,
                     HardwareButtonsConstants.KEY_DOWN,
-                    HardwareButtonsConstants.KEY_PRESS
-                ],
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
                 check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS]
+                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
             )
 
             with self.renderer.lock:
@@ -255,7 +254,7 @@ class TextTopNavScreen(BaseTopNavScreen):
                         self.top_nav.is_selected = False
                         self.top_nav.render()
 
-                elif user_input == HardwareButtonsConstants.KEY_PRESS:
+                elif user_input in HardwareButtonsConstants.KEYS__ANYCLICK:
                     if self.top_nav.is_selected:
                         return self.top_nav.selected_button
 
@@ -420,10 +419,9 @@ class ButtonListScreen(BaseTopNavScreen):
                     HardwareButtonsConstants.KEY_DOWN,
                     HardwareButtonsConstants.KEY_LEFT,
                     HardwareButtonsConstants.KEY_RIGHT,
-                    HardwareButtonsConstants.KEY_PRESS
-                ],
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
                 check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS]
+                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
             )
 
             with self.renderer.lock:
@@ -501,7 +499,7 @@ class ButtonListScreen(BaseTopNavScreen):
                             cur_selected_button.render()
                         next_selected_button.render()
 
-                elif user_input == HardwareButtonsConstants.KEY_PRESS:
+                elif user_input in HardwareButtonsConstants.KEYS__ANYCLICK:
                     if self.top_nav.is_selected:
                         return self.top_nav.selected_button
                     return self.selected_button
@@ -588,11 +586,10 @@ class LargeButtonScreen(BaseTopNavScreen):
                     HardwareButtonsConstants.KEY_UP,
                     HardwareButtonsConstants.KEY_DOWN,
                     HardwareButtonsConstants.KEY_LEFT,
-                    HardwareButtonsConstants.KEY_RIGHT,
-                    HardwareButtonsConstants.KEY_PRESS
-                ],
+                    HardwareButtonsConstants.KEY_RIGHT
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
                 check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS]
+                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
             )
 
             with self.renderer.lock:
@@ -646,7 +643,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                             self.buttons[self.selected_button].is_selected = False
                             self.buttons[self.selected_button].render()
 
-                elif user_input == HardwareButtonsConstants.KEY_PRESS:
+                elif user_input in HardwareButtonsConstants.KEYS__ANYCLICK:
                     if self.top_nav.is_selected:
                         return self.top_nav.selected_button
                     return self.selected_button

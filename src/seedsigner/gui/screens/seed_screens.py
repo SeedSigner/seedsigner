@@ -1287,7 +1287,7 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
         )
 
         while True:
-            input = self.hw_inputs.wait_for(HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + [HardwareButtonsConstants.KEY_PRESS])
+            input = self.hw_inputs.wait_for(HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + HardwareButtonsConstants.KEYS__ANYCLICK)
             if input == HardwareButtonsConstants.KEY_RIGHT:
                 next_x = cur_x + self.qr_blocks_per_zoom * self.pixels_per_block
                 cur_block_x += 1
@@ -1312,7 +1312,7 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
                 if next_y < 0:
                     next_y = cur_y
                     cur_block_y += 1
-            elif input == HardwareButtonsConstants.KEY_PRESS:
+            elif input in HardwareButtonsConstants.KEYS__ANYCLICK:
                 return
 
             # Create overlay for block labels (e.g. "D-5")
