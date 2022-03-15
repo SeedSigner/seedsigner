@@ -281,6 +281,7 @@ class PSBTChangeDetailsView(View):
         derivation_path_addr_index = int(derivation_path.split("/")[-1])
 
         NEXT = "Next"
+        EXIT = "Exit"
 
         if is_change_derivation_path:
             title = "Your Change"
@@ -331,9 +332,26 @@ class PSBTChangeDetailsView(View):
                 
             except:
                 is_change_addr_verified = False
+                
+                button_data = [NEXT]
 
+        if is_change_addr_verified == False and psbt_parser.is_multisig == False:
+            
+            button_data = [EXIT, NEXT]
+            
+            selected_menu_num = WarningScreen(
+                title="Change Address",
+                status_icon_name=SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION,
+                status_headline="Address Failed Verification",
+                text="Change address verification failed with single sig seed.",
+                button_data=[EXIT, NEXT],
+            ).display()
+            
+            if button_data[selected_menu_num] == EXIT:
+                return Destination(MainMenuView, clear_history=True)
+                
             button_data = [NEXT]
-
+                
         selected_menu_num = psbt_screens.PSBTChangeDetailsScreen(
             title=title,
             button_data=button_data,
@@ -359,6 +377,7 @@ class PSBTChangeDetailsView(View):
             
         elif button_data[selected_menu_num] == VERIFY_MULTISIG:
             return Destination(NotYetImplementedView)
+            
 
 
 
