@@ -769,17 +769,6 @@ class SeedTranscribeSeedQRFormatView(View):
 
 
     def run(self):
-        if self.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR) != SettingsConstants.OPTION__ENABLED:
-            # Only configured for standard SeedQR
-            return Destination(
-                SeedTranscribeSeedQRWarningView,
-                view_args={
-                    "seed_num": self.seed_num,
-                    "seedqr_format": QRType.SEED__SEEDQR,
-                },
-                skip_current_view=True,
-            )
-
         seed = self.controller.get_seed(self.seed_num)
         if len(seed.mnemonic_list) == 12:
             STANDARD = "Standard: 25x25"
@@ -791,6 +780,18 @@ class SeedTranscribeSeedQRFormatView(View):
             COMPACT = "Compact: 25x25"
             num_modules_standard = 29
             num_modules_compact = 25
+
+        if self.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR) != SettingsConstants.OPTION__ENABLED:
+            # Only configured for standard SeedQR
+            return Destination(
+                SeedTranscribeSeedQRWarningView,
+                view_args={
+                    "seed_num": self.seed_num,
+                    "seedqr_format": QRType.SEED__SEEDQR,
+                    "num_modules": num_modules_standard,
+                },
+                skip_current_view=True,
+            )
 
         button_data = [STANDARD, COMPACT]
 

@@ -144,8 +144,8 @@ class Controller(Singleton):
         from .views import Destination, MainMenuView, BackStackView
         from .views.screensaver import OpeningSplashView
 
-        # opening_splash = OpeningSplashView()
-        # opening_splash.start()
+        opening_splash = OpeningSplashView()
+        opening_splash.start()
 
         # TODO: Remove for v0.5.0 production release
         WarningScreen(
