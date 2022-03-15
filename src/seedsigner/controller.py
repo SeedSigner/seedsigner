@@ -1,13 +1,20 @@
-from typing import List
+import logging
+import traceback
+
 from embit.psbt import PSBT
 from PIL.Image import Image
+from typing import List
+
 from seedsigner.gui.renderer import Renderer
 from seedsigner.gui.screens.screen import WarningScreen
 from seedsigner.hardware.buttons import HardwareButtons
 from seedsigner.views.screensaver import ScreensaverView
-from seedsigner.views.view import NotYetImplementedView
+from seedsigner.views.view import NotYetImplementedView, UnhandledExceptionView
 
 from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
+
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -29,7 +36,7 @@ class Controller(Singleton):
         rather than at the top in order avoid circular imports.
     """
 
-    VERSION = "0.5.0 Pre-Release 2"
+    VERSION = "0.5.0 Pre-Release 3"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
@@ -192,8 +199,25 @@ class Controller(Singleton):
                     # Home always wipes the back_stack
                     self.clear_back_stack()
 
-                print(f"Executing {next_destination}")
-                next_destination = next_destination.run()
+                try:
+                    print(f"Executing {next_destination}")
+                    next_destination = next_destination.run()
+                except Exception as e:
+                    logger.exception(e)
+
+                    # Extract the last debugging line that includes a line number reference
+                    line_info = None
+                    for i in range(len(traceback.format_exc().splitlines()) - 1, 0, -1):
+                        traceback_line = traceback.format_exc().splitlines()[i]
+                        if ", line " in traceback_line:
+                            line_info = traceback_line.split("/")[-1].replace("\"", "").replace("line ", "")
+                            break
+                    error = [
+                        traceback.format_exc().splitlines()[-1].split(":")[0],   # Exception type (e.g. IndexError)
+                        line_info,
+                        traceback.format_exc().splitlines()[-1].split(":")[-1],  # Exception message
+                    ]
+                    next_destination = Destination(UnhandledExceptionView, view_args={"error": error}, clear_history=True)
 
                 if not next_destination:
                     # Should only happen during dev when you hit an unimplemented option

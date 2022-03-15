@@ -1,18 +1,22 @@
+import logging
+from typing import List
+
 from embit.psbt import PSBT
 from embit import script
 from embit.networks import NETWORKS
 
+from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 from seedsigner.models.encode_qr import EncodeQR
+from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.settings import SettingsConstants
-
-from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
-
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 from seedsigner.gui.screens import psbt_screens
-from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen,
+from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, DireWarningScreen,
     LoadingScreenThread, QRDisplayScreen, WarningScreen)
-from seedsigner.models.psbt_parser import PSBTParser
+
+from .view import BackStackView, MainMenuView, NotYetImplementedView, UnhandledExceptionView, View, Destination
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -281,7 +285,6 @@ class PSBTChangeDetailsView(View):
         derivation_path_addr_index = int(derivation_path.split("/")[-1])
 
         NEXT = "Next"
-        EXIT = "Exit"
 
         if is_change_derivation_path:
             title = "Your Change"
@@ -310,8 +313,10 @@ class PSBTChangeDetailsView(View):
             button_data = [VERIFY_MULTISIG, NEXT]
         else:
             # Single sig
-            
             try:
+                loading_screen = LoadingScreenThread(text="Verifying Change...")
+                loading_screen.start()
+
                 # convert change address to script pubkey to get script type
                 pubkey = script.address_to_scriptpubkey(change_data["address"])
                 script_type = pubkey.script_type()
@@ -320,37 +325,29 @@ class PSBTChangeDetailsView(View):
                 change_path = '/'.join(derivation_path.split("/")[-2:])
                 wallet_path = '/'.join(derivation_path.split("/")[:-2])
                 
-                xpub = self.controller.psbt_seed.get_xpub(wallet_path=wallet_path, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+                xpub = self.controller.psbt_seed.get_xpub(
+                    wallet_path=wallet_path,
+                    network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+                )
                 
                 # take script type and call script method to generate address from seed / derivation
                 scriptcall = getattr(script, script_type)
                 network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-                calc_address = scriptcall(xpub.derive(change_path).key).address(network=NETWORKS[SettingsConstants.map_network_to_embit(network)])
-                
+                calc_address = scriptcall(
+                    xpub.derive(change_path).key
+                ).address(
+                    network=NETWORKS[SettingsConstants.map_network_to_embit(network)]
+                )
+
                 if change_data["address"] == calc_address:
                     is_change_addr_verified = True
-                
-            except:
-                is_change_addr_verified = False
-                
-            button_data = [NEXT]
+                    button_data = [NEXT]
+
+            finally:
+                loading_screen.stop()
 
         if is_change_addr_verified == False and psbt_parser.is_multisig == False:
-            
-            button_data = [EXIT, NEXT]
-            
-            selected_menu_num = WarningScreen(
-                title="Change Address",
-                status_icon_name=SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION,
-                status_headline="Address Failed Verification",
-                text="Change address verification failed with single sig seed.",
-                button_data=[EXIT, NEXT],
-            ).display()
-            
-            if button_data[selected_menu_num] == EXIT:
-                return Destination(MainMenuView, clear_history=True)
-                
-            button_data = [NEXT]
+            return Destination(PSBTSingleSigAddressVerificationFailedView, clear_history=True)
                 
         selected_menu_num = psbt_screens.PSBTChangeDetailsScreen(
             title=title,
@@ -378,6 +375,24 @@ class PSBTChangeDetailsView(View):
         elif button_data[selected_menu_num] == VERIFY_MULTISIG:
             return Destination(NotYetImplementedView)
             
+
+
+class PSBTSingleSigAddressVerificationFailedView(View):
+    def run(self):
+        DireWarningScreen(
+            title="Suspicious PSBT",
+            status_headline="Address Verification Failed",
+            text="PSBT's change address could not be generated from your seed.",
+            button_data=["Discard PSBT"],
+            show_back_button=False,
+        ).display()
+
+        # Clear out the bad PSBT
+        self.controller.psbt = None
+        self.controller.psbt_parser = None
+        self.controller.psbt_seed = None
+        
+        return Destination(MainMenuView, clear_history=True)
 
 
 

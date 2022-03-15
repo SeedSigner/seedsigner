@@ -1,8 +1,9 @@
 from dataclasses import dataclass
+from typing import List
 
 from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import (RET_CODE__POWER_BUTTON, TextTopNavScreen)
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, LargeButtonScreen, WarningScreen
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, DireWarningScreen, LargeButtonScreen, WarningScreen
 from seedsigner.models.threads import BaseThread
 
 
@@ -216,3 +217,21 @@ class NotYetImplementedView(View):
         ).display()
 
         return Destination(MainMenuView)
+
+
+
+class UnhandledExceptionView(View):
+    def __init__(self, error: List[str]):
+        self.error = error
+
+
+    def run(self):
+        DireWarningScreen(
+            title="System Error",
+            status_headline=self.error[0],
+            text=self.error[1] + "\n" + self.error[2],
+            button_data=["OK"],
+            show_back_button=False,
+        ).display()
+        
+        return Destination(MainMenuView, clear_history=True)
