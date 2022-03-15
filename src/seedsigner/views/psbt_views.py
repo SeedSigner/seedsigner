@@ -333,7 +333,7 @@ class PSBTChangeDetailsView(View):
             except:
                 is_change_addr_verified = False
                 
-                button_data = [NEXT]
+            button_data = [NEXT]
 
         if is_change_addr_verified == False and psbt_parser.is_multisig == False:
             
