@@ -305,10 +305,28 @@ class PSBTChangeDetailsView(View):
             button_data = [VERIFY_MULTISIG, NEXT]
         else:
             # Single sig
-            # TODO: Generate address from seed at derivation_path and compare with
-            # change_data["address"]
-            # Save for Nick
-            is_change_addr_verified = True
+            
+            try:
+                # convert change address to script pubkey to get script type
+                pubkey = script.address_to_scriptpubkey(change_data["address"])
+                script_type = pubkey.script_type()
+                
+                # extract derivation path to get wallet and change derivation
+                change_path = '/'.join(derivation_path.split("/")[-2:])
+                wallet_path = '/'.join(derivation_path.split("/")[:-2])
+                
+                xpub = self.controller.psbt_seed.get_xpub(wallet_path=wallet_path, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+                
+                # take script type and call script method to generate address from seed / derivation
+                scriptcall = getattr(script, script_type)
+                calc_address = scriptcall(xpub.derive(change_path).key).address(network=NETWORKS[network])
+                
+                if change_data["address"] == calc_address:
+                    is_change_addr_verified = True
+                
+            except:
+                is_change_addr_verified = False
+
             button_data = [NEXT]
 
         selected_menu_num = psbt_screens.PSBTChangeDetailsScreen(

@@ -106,6 +106,11 @@ class Seed:
         root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
         return hexlify(root.child(0).fingerprint).decode('utf-8')
         
+    def get_xpub(self, wallet_path: str = '/', network: str = SettingsConstants.MAINNET):
+        root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
+        xprv = root.derive(wallet_path)
+        xpub = xprv.to_public()
+        return xpub
     
     ### override operators    
     def __eq__(self, other):
