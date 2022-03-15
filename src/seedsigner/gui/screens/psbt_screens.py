@@ -689,6 +689,15 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
             ))
+        elif self.is_multisig == False and self.is_change_addr_verified == False:
+            self.components.append(IconTextLine(
+                icon_name=SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION,
+                icon_color=GUIConstants.DIRE_WARNING_COLOR,
+                value_text="Failed verification!",
+                is_text_centered=False,
+                screen_x=GUIConstants.EDGE_PADDING,
+                screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+            ))
         else:
             pass
 
