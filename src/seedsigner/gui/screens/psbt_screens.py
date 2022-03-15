@@ -133,18 +133,17 @@ class PSBTOverviewScreen(ButtonListScreen):
             
             destination_column = []
 
-            if len(self.destination_addresses) <= 3:
+            if len(self.destination_addresses) + self.num_self_transfer_outputs <= 3:
                 for addr in self.destination_addresses:
                     destination_column.append(truncate_destination_addr(addr))
+
+                for i in range(0, self.num_self_transfer_outputs):
+                    destination_column.append(f"self-transfer")
             else:
                 # destination_column.append(f"{len(self.destination_addresses)} recipients")
                 destination_column.append(f"recipient 1")
                 destination_column.append(f"[ ... ]")
-                destination_column.append(f"recipient {len(self.destination_addresses)}")
-
-            if self.num_self_transfer_outputs > 0:
-                for i in range(0, self.num_self_transfer_outputs):
-                    destination_column.append(f"self-transfer")
+                destination_column.append(f"recipient {len(self.destination_addresses) + self.num_self_transfer_outputs}")
 
             destination_column.append(f"fee")
 
@@ -159,7 +158,7 @@ class PSBTOverviewScreen(ButtonListScreen):
             
             return (max_destination_text_width, destination_column)
         
-        if len(self.destination_addresses) > 3:
+        if len(self.destination_addresses) + self.num_self_transfer_outputs > 3:
             # We're not going to display any destination addrs so truncation doesn't matter
             (destination_text_width, destination_column) = calculate_destination_col_width(truncate_at=0)
         else:
