@@ -1,4 +1,6 @@
 from embit.psbt import PSBT
+from embit import script
+from embit.networks import NETWORKS
 
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
@@ -302,6 +304,8 @@ class PSBTChangeDetailsView(View):
                 # button_data = [VERIFY_MULTISIG, NEXT]
 
             # Temp value while awaiting above
+            # TODO: complete multi sig change address verification
+
             button_data = [VERIFY_MULTISIG, NEXT]
         else:
             # Single sig
@@ -319,7 +323,8 @@ class PSBTChangeDetailsView(View):
                 
                 # take script type and call script method to generate address from seed / derivation
                 scriptcall = getattr(script, script_type)
-                calc_address = scriptcall(xpub.derive(change_path).key).address(network=NETWORKS[network])
+                network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+                calc_address = scriptcall(xpub.derive(change_path).key).address(network=NETWORKS[SettingsConstants.map_network_to_embit(network)])
                 
                 if change_data["address"] == calc_address:
                     is_change_addr_verified = True
