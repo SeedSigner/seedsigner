@@ -556,7 +556,6 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
             font_color=GUIConstants.ACCENT_COLOR,
             cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
             is_centered=False,
-            has_outline=True,
             cur_text=''.join(self.derivation_path)
         )
 
