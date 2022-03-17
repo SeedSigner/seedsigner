@@ -28,7 +28,7 @@ class OpeningSplashView(LogoView):
         for i in range(250, -1, -25):
             self.logo.putalpha(255 - i)
             background = Image.new("RGBA", self.logo.size, (0,0,0))
-            self.renderer.disp.ShowImage(Image.alpha_composite(background, self.logo), 0, 0)
+            self.renderer.disp.show(Image.alpha_composite(background, self.logo))
 
         # Display version num and hold for a few seconds
         font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.TOP_NAV_TITLE_FONT_SIZE)
