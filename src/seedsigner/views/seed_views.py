@@ -290,7 +290,6 @@ class SeedDiscardView(View):
     def __init__(self, seed_num: int = None):
         super().__init__()
         self.seed_num = seed_num
-        print(f"self.seed_num: {self.seed_num}")
         if self.seed_num is not None:
             self.seed = self.controller.get_seed(self.seed_num)
         else:
@@ -311,20 +310,19 @@ class SeedDiscardView(View):
             button_data=button_data,
         ).display()
 
-        print(f"selected_menu_num: {selected_menu_num}")
-
         if button_data[selected_menu_num] == KEEP:
+            # Use skip_current_view=True to prevent BACK from landing on this warning screen
             if self.seed_num is not None:
-                return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num})
+                return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, skip_current_view=True)
             else:
-                return Destination(SeedFinalizeView)
+                return Destination(SeedFinalizeView, skip_current_view=True)
 
         elif button_data[selected_menu_num] == DISCARD:
             if self.seed_num is not None:
                 self.controller.discard_seed(self.seed_num)
             else:
                 self.controller.storage.clear_pending_seed()
-            return Destination(MainMenuView)
+            return Destination(MainMenuView, clear_history=True)
 
 
 
@@ -342,8 +340,7 @@ class SeedOptionsView(View):
         SCAN_PSBT = ("Scan PSBT", FontAwesomeIconConstants.QRCODE)
         REVIEW_PSBT = "Review PSBT"
         EXPORT_XPUB = "Export Xpub"
-        VIEW_WORDS = "View Seed Words"
-        EXPORT_SEEDQR = "Export Seed as QR"
+        BACKUP = ("Backup Seed", None, None, None, FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT)
         DISCARD = ("Discard Seed", None, None, "red")
 
         button_data = []
@@ -359,9 +356,8 @@ class SeedOptionsView(View):
         
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             button_data.append(EXPORT_XPUB)
-        
-        button_data.append(VIEW_WORDS)
-        button_data.append(EXPORT_SEEDQR)
+
+        button_data.append(BACKUP)
         button_data.append(DISCARD)
 
         selected_menu_num = seed_screens.SeedOptionsScreen(
@@ -382,17 +378,43 @@ class SeedOptionsView(View):
             from seedsigner.views.scan_views import ScanView
             return Destination(ScanView)
 
-        elif button_data[selected_menu_num] == VIEW_WORDS:
-            return Destination(SeedWordsWarningView, view_args={"seed_num": self.seed_num})
-
         elif button_data[selected_menu_num] == EXPORT_XPUB:
             return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})
 
-        elif button_data[selected_menu_num] == EXPORT_SEEDQR:
-            return Destination(SeedTranscribeSeedQRFormatView, view_args={"seed_num": self.seed_num})
+        elif button_data[selected_menu_num] == BACKUP:
+            return Destination(SeedBackupView, view_args={"seed_num": self.seed_num})
 
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView, view_args={"seed_num": self.seed_num})
+
+
+
+class SeedBackupView(View):
+    def __init__(self, seed_num):
+        super().__init__()
+        self.seed_num = seed_num
+        self.seed = self.controller.get_seed(self.seed_num)
+    
+
+    def run(self):
+        VIEW_WORDS = "View Seed Words"
+        EXPORT_SEEDQR = "Export as SeedQR"
+        button_data = [VIEW_WORDS, EXPORT_SEEDQR]
+
+        selected_menu_num = ButtonListScreen(
+            title="Backup Seed",
+            button_data=button_data,
+            is_bottom_list=True,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == VIEW_WORDS:
+            return Destination(SeedWordsWarningView, view_args={"seed_num": self.seed_num})
+
+        elif button_data[selected_menu_num] == EXPORT_SEEDQR:
+            return Destination(SeedTranscribeSeedQRFormatView, view_args={"seed_num": self.seed_num})
 
 
 
@@ -549,11 +571,12 @@ class SeedExportXpubWarningView(View):
                 "sig_type": self.sig_type,
                 "script_type": self.script_type,
                 "coordinator": self.coordinator,
-            }
+            },
+            skip_current_view=True,  # Prevent going BACK to WarningViews
         )
 
         if self.settings.get_value(SettingsConstants.SETTING__PRIVACY_WARNINGS) == SettingsConstants.OPTION__DISABLED:
-            destination.skip_current_view = True
+            # Skip the WarningView entirely
             return destination
 
         selected_menu_num = WarningScreen(
@@ -696,10 +719,13 @@ class SeedWordsWarningView(View):
 
 
     def run(self):
-        destination = Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": 0})
+        destination = Destination(
+            SeedWordsView,
+            view_args={"seed_num": self.seed_num, "page_index": 0},
+            skip_current_view=True,  # Prevent going BACK to WarningViews
+        )
         if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__DISABLED:
             # Forward straight to showing the words
-            destination.skip_current_view = True
             return destination
 
         selected_menu_num = DireWarningScreen(
@@ -836,12 +862,12 @@ class SeedTranscribeSeedQRWarningView(View):
                 "seed_num": self.seed_num,
                 "seedqr_format": self.seedqr_format,
                 "num_modules": self.num_modules,
-            }
+            },
+            skip_current_view=True,  # Prevent going BACK to WarningViews
         )
 
         if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__DISABLED:
             # Forward straight to transcribing the SeedQR
-            destination.skip_current_view = True
             return destination
 
         selected_menu_num = DireWarningScreen(

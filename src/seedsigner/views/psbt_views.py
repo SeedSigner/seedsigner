@@ -150,7 +150,10 @@ class PSBTNoChangeWarningView(View):
             return Destination(BackStackView)
 
         # Only one exit point
-        return Destination(PSBTMathView)
+        return Destination(
+            PSBTMathView,
+            skip_current_view=True,  # Prevent going BACK to WarningViews
+        )
 
 
 
@@ -314,7 +317,11 @@ class PSBTChangeDetailsView(View):
         else:
             # Single sig
             try:
-                loading_screen = LoadingScreenThread(text="Verifying Change...")
+                if is_change_derivation_path:
+                    loading_screen_text = "Verifying Change..."
+                else:
+                    loading_screen_text = "Verifying Self-Transfer..."
+                loading_screen = LoadingScreenThread(text=loading_screen_text)
                 loading_screen.start()
 
                 # convert change address to script pubkey to get script type

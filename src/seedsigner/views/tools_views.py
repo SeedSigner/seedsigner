@@ -222,3 +222,4 @@ class ToolsCalcFinalWordShowFinalWordView(View):
         
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView)
+

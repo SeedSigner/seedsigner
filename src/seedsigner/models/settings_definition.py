@@ -337,7 +337,7 @@ class SettingsDefinition:
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__PERSISTENT_SETTINGS,
                       display_name="Persistent settings",
-                      help_text="Store Settings on SD card",
+                      help_text="Store Settings on SD card.",
                       default_value=SettingsConstants.OPTION__DISABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__WALLET,
@@ -427,11 +427,12 @@ class SettingsDefinition:
                       default_value=SettingsConstants.OPTION__ENABLED),
 
         # Developer options
-        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
-                      attr_name=SettingsConstants.SETTING__DEBUG,
-                      display_name="Debug",
-                      visibility=SettingsConstants.VISIBILITY__DEVELOPER,
-                      default_value=SettingsConstants.OPTION__DISABLED),
+        # TODO: No real Developer options needed yet. Disable for now.
+        # SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+        #               attr_name=SettingsConstants.SETTING__DEBUG,
+        #               display_name="Debug",
+        #               visibility=SettingsConstants.VISIBILITY__DEVELOPER,
+        #               default_value=SettingsConstants.OPTION__DISABLED),
         
         # "Hidden" settings with no UI interaction
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,

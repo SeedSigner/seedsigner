@@ -301,7 +301,10 @@ class ButtonListScreen(BaseTopNavScreen):
         for i, button_label in enumerate(self.button_data):
             icon_name = None
             icon_color = None
-            button_label_color = GUIConstants.BUTTON_FONT_COLOR
+            right_icon_name = None
+            button_label_color = None
+
+            # TODO: Define an actual class for button_data?
             if type(button_label) == tuple:
                 if len(button_label) == 2:
                     (button_label, icon_name) = button_label
@@ -313,11 +316,15 @@ class ButtonListScreen(BaseTopNavScreen):
                 elif len(button_label) == 4:
                     (button_label, icon_name, icon_color, button_label_color) = button_label
 
+                elif len(button_label) == 5:
+                    (button_label, icon_name, icon_color, button_label_color, right_icon_name) = button_label
+
             button_kwargs = dict(
                 text=button_label,
                 icon_name=icon_name,
-                icon_color=icon_color,
+                icon_color=icon_color if icon_color else GUIConstants.BUTTON_FONT_COLOR,
                 is_icon_inline=True,
+                right_icon_name=right_icon_name,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=button_list_y + i * (button_height + GUIConstants.LIST_ITEM_PADDING),
                 width=self.canvas_width - (2 * GUIConstants.EDGE_PADDING),
@@ -325,7 +332,7 @@ class ButtonListScreen(BaseTopNavScreen):
                 is_text_centered=self.is_button_text_centered,
                 font_name=self.button_font_name,
                 font_size=self.button_font_size,
-                font_color=button_label_color,
+                font_color=button_label_color if button_label_color else GUIConstants.BUTTON_FONT_COLOR,
                 selected_color=self.button_selected_color
             )
             if self.checked_buttons and i in self.checked_buttons:
@@ -700,6 +707,8 @@ class LargeIconStatusScreen(ButtonListScreen):
     status_headline: str = "Success!"  # The colored text under the large icon
     text: str = ""                          # The body text of the screen
     button_data: list = None
+    allow_text_overflow: bool = False
+
 
     def __post_init__(self):
         self.is_bottom_list: bool = True
@@ -723,6 +732,7 @@ class LargeIconStatusScreen(ButtonListScreen):
                 width=self.canvas_width,
                 screen_y=next_y,
                 font_color=self.status_color,
+                allow_text_overflow=self.allow_text_overflow,
             )
             self.components.append(self.warning_headline_textarea)
             next_y = next_y + self.warning_headline_textarea.height
@@ -732,6 +742,7 @@ class LargeIconStatusScreen(ButtonListScreen):
             text=self.text,
             width=self.canvas_width,
             screen_y=next_y,
+            allow_text_overflow=self.allow_text_overflow,
         ))
 
 
@@ -759,38 +770,43 @@ class WarningEdgesThread(BaseThread):
                 # radius=5
             )
 
-        while self.keep_running:
-            with screen.renderer.lock:
-                # Ramp the edges from a darker version out to full color
-                inhale_scalar = inhale_factor * int(255/inhale_max)
-                for index, n in enumerate(range(4, -1, -1)):
-                    # Reverse range steadily increases rgb in brightness until reaching full.
-                    # 34 == 0x22; just eyeballed a good step size
+        try:
+            while self.keep_running:
+                with screen.renderer.lock:
+                    # Ramp the edges from a darker version out to full color
+                    inhale_scalar = inhale_factor * int(255/inhale_max)
+                    for index, n in enumerate(range(4, -1, -1)):
+                        # Reverse range steadily increases rgb in brightness until reaching full.
+                        # 34 == 0x22; just eyeballed a good step size
 
-                    r = max(0, rgb[0] - 34*n - inhale_scalar)
-                    g = max(0, rgb[1] - 34*n - inhale_scalar)
-                    b = max(0, rgb[2] - 34*n - inhale_scalar)
+                        r = max(0, rgb[0] - 34*n - inhale_scalar)
+                        g = max(0, rgb[1] - 34*n - inhale_scalar)
+                        b = max(0, rgb[2] - 34*n - inhale_scalar)
 
-                    # `index` shrinks the border at each step
-                    render_border((r, g, b), GUIConstants.EDGE_PADDING - 2 - index)
+                        # `index` shrinks the border at each step
+                        render_border((r, g, b), GUIConstants.EDGE_PADDING - 2 - index)
 
-                # Write the screen updates
-                screen.renderer.show_image()
-            
-            if inhale_factor == inhale_max:
-                inhale_step = -1
-            elif inhale_factor == 0 and inhale_step == -1:
-                cur_inhale_hold += 1
-                if cur_inhale_hold > inhale_hold:
-                    inhale_step = 1
-                    cur_inhale_hold = 0
-                else:
-                    # It's about to be decremented below zero
-                    inhale_factor = 1
-            inhale_factor += inhale_step
+                    # Write the screen updates
+                    screen.renderer.show_image()
+                
+                if inhale_factor == inhale_max:
+                    inhale_step = -1
+                elif inhale_factor == 0 and inhale_step == -1:
+                    cur_inhale_hold += 1
+                    if cur_inhale_hold > inhale_hold:
+                        inhale_step = 1
+                        cur_inhale_hold = 0
+                    else:
+                        # It's about to be decremented below zero
+                        inhale_factor = 1
+                inhale_factor += inhale_step
 
-            # Target ~10fps
-            time.sleep(0.05)
+                # Target ~10fps
+                time.sleep(0.05)
+
+        except KeyboardInterrupt as e:
+            self.stop()
+            raise e
 
 
 
@@ -815,6 +831,7 @@ class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
     def __post_init__(self):
         if not self.button_data:
             self.button_data = ["I Understand"]
+
         super().__post_init__()
 
 

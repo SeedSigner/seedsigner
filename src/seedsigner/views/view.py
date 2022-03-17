@@ -78,7 +78,8 @@ class Destination:
     skip_current_view: bool = False  # The current View is just forwarding; omit current View from history
     clear_history: bool = False     # Optionally clears the back_stack to prevent "back"
 
-    def __str__(self):
+
+    def __repr__(self):
         if self.View_cls is None:
             out = "None"
         else:
@@ -91,12 +92,26 @@ class Destination:
             out += f" | clear_history: {self.clear_history}"
         return out
 
+
     def run(self):
         if not self.view_args:
             # Can't unpack (**) None so we replace with an empty dict
             self.view_args = {}
         # Instantiate the `View_cls` and run() it with the `view_args` dict
         return self.View_cls(**self.view_args).run()
+
+
+    def __eq__(self, obj):
+        """
+            Equality test IGNORES the skip_current_view and clear_history options
+        """
+        return (isinstance(obj, Destination) and 
+            obj.View_cls == self.View_cls and
+            obj.view_args == self.view_args)
+    
+
+    def __ne__(self, obj):
+        return not obj == self
 
 
 
@@ -118,6 +133,7 @@ class MainMenuView(View):
             (("Tools", FontAwesomeIconConstants.SCREWDRIVER_WRENCH), ToolsMenuView),
             (("Settings", FontAwesomeIconConstants.GEAR), SettingsMenuView),
         ]
+
         screen = LargeButtonScreen(
             title="Home",
             title_font_size=26,
@@ -232,6 +248,7 @@ class UnhandledExceptionView(View):
             text=self.error[1] + "\n" + self.error[2],
             button_data=["OK"],
             show_back_button=False,
+            allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
         ).display()
         
         return Destination(MainMenuView, clear_history=True)

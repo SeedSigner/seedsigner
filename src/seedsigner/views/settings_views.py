@@ -29,13 +29,20 @@ class SettingsMenuView(View):
 
         if self.visibility == SettingsConstants.VISIBILITY__GENERAL:
             title = "Settings"
-            button_data.append(("Advanced", FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT))
+
+            # Set up the next nested level of menuing
+            button_data.append(("Advanced", None, None, None, FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT))
             next = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
 
+            button_data.append("I/O Test")
+
         elif self.visibility == SettingsConstants.VISIBILITY__ADVANCED:
-            button_data.append(("Developer Options", FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT))
             title = "Advanced"
-            next = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__DEVELOPER})
+
+            # So far there are no real Developer options; disabling for now
+            # button_data.append(("Developer Options", None, None, None, FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT))
+            # next = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__DEVELOPER})
+            next = None
         
         elif self.visibility == SettingsConstants.VISIBILITY__DEVELOPER:
             title = "Dev Options"
@@ -58,6 +65,9 @@ class SettingsMenuView(View):
         
         elif selected_menu_num == len(settings_entries):
             return next
+
+        elif selected_menu_num == len(settings_entries) + 1:
+            return Destination(IOTestView)
 
         else:
             # TODO: Free-entry types (are there any?) will need their own SettingsEntryUpdateFreeEntryView(?).
@@ -153,3 +163,13 @@ class SettingsEntryUpdateSelectionView(View):
         self.selected_button = ret_value
         return self.run()
 
+
+
+"""****************************************************************************
+    Misc
+****************************************************************************"""
+class IOTestView(View):
+    def run(self):
+        settings_screens.IOTestScreen().display()
+
+        return Destination(SettingsMenuView)

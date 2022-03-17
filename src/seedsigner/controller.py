@@ -1,3 +1,4 @@
+import enum
 import logging
 import traceback
 
@@ -9,13 +10,25 @@ from seedsigner.gui.renderer import Renderer
 from seedsigner.gui.screens.screen import WarningScreen
 from seedsigner.hardware.buttons import HardwareButtons
 from seedsigner.views.screensaver import ScreensaverView
-from seedsigner.views.view import NotYetImplementedView, UnhandledExceptionView
+from seedsigner.views.view import Destination, NotYetImplementedView, UnhandledExceptionView
 
 from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
 
 
 logger = logging.getLogger(__name__)
 
+
+
+class BackStack(List[Destination]):
+    def __repr__(self):
+        if len(self) == 0:
+            return "[]"
+        out = "[\n"
+        for index, destination in reversed(list(enumerate(self))):
+            out += f"    {index:2d}: {destination}\n"
+        out += "]"
+        return out
+            
 
 
 class Controller(Singleton):
@@ -51,6 +64,9 @@ class Controller(Singleton):
 
     image_entropy_preview_frames: List[Image] = None
     image_entropy_final_image: Image = None
+
+    back_stack: BackStack = None
+    screensaver: ScreensaverView = None
 
 
     @classmethod
@@ -103,7 +119,7 @@ class Controller(Singleton):
 
         controller.screensaver = ScreensaverView(controller.buttons)
 
-        controller.back_stack = []
+        controller.back_stack = BackStack()
 
         # Other behavior constants
         controller.screensaver_activation_ms = 120 * 1000
@@ -144,11 +160,11 @@ class Controller(Singleton):
     
 
     def clear_back_stack(self):
-        self.back_stack = []
+        self.back_stack = BackStack()
 
 
     def start(self) -> None:
-        from .views import Destination, MainMenuView, BackStackView
+        from .views import MainMenuView, BackStackView
         from .views.screensaver import OpeningSplashView
 
         opening_splash = OpeningSplashView()
@@ -198,26 +214,15 @@ class Controller(Singleton):
                 if next_destination.View_cls == MainMenuView:
                     # Home always wipes the back_stack
                     self.clear_back_stack()
+                
+                print(f"back_stack: {self.back_stack}")
 
                 try:
                     print(f"Executing {next_destination}")
                     next_destination = next_destination.run()
                 except Exception as e:
-                    logger.exception(e)
-
-                    # Extract the last debugging line that includes a line number reference
-                    line_info = None
-                    for i in range(len(traceback.format_exc().splitlines()) - 1, 0, -1):
-                        traceback_line = traceback.format_exc().splitlines()[i]
-                        if ", line " in traceback_line:
-                            line_info = traceback_line.split("/")[-1].replace("\"", "").replace("line ", "")
-                            break
-                    error = [
-                        traceback.format_exc().splitlines()[-1].split(":")[0],   # Exception type (e.g. IndexError)
-                        line_info,
-                        traceback.format_exc().splitlines()[-1].split(":")[-1],  # Exception message
-                    ]
-                    next_destination = Destination(UnhandledExceptionView, view_args={"error": error}, clear_history=True)
+                    # Display user-friendly error screen w/debugging info
+                    next_destination = self.handle_exception(e)
 
                 if not next_destination:
                     # Should only happen during dev when you hit an unimplemented option
@@ -226,7 +231,8 @@ class Controller(Singleton):
                 if next_destination.skip_current_view:
                     # Remove the current View from history; it's forwarding us straight
                     # to the next View so it should be as if this View never happened.
-                    self.back_stack.pop()
+                    current_view = self.back_stack.pop()
+                    print(f"Skipping current view: {current_view}")
 
                 # Hang on to this reference...
                 clear_history = next_destination.clear_history
@@ -241,16 +247,62 @@ class Controller(Singleton):
 
                 # The next_destination up always goes on the back_stack, even if it's the
                 #   one we just popped.
-                self.back_stack.append(next_destination)
+                # Do not push a "new" destination if it is the same as the current one on
+                # the top of the stack.
+                if len(self.back_stack) == 0 or self.back_stack[-1] != next_destination:
+                    print(f"Appending next destination: {next_destination}")
+                    self.back_stack.append(next_destination)
+                else:
+                    print(f"NOT appending {next_destination}")
+                
+                print("-" * 30)
 
         finally:
+            if self.screensaver.is_running:
+                self.screensaver.stop()
+
             # Clear the screen when exiting
+            print("Clearing screen, exiting")
             Renderer.get_instance().display_blank_screen()
 
 
     def start_screensaver(self):
         self.screensaver.start()
 
+
+    def handle_exception(self, e) -> Destination:
+        """
+            Displays a user-friendly error screen and includes debugging info to help
+            devs diagnose what went wrong.
+
+            Shows:
+                * Exception type
+                * python file, line num, method name
+                * Exception message
+        """
+        logger.exception(e)
+
+        # The final exception output line is:
+        # "foo.bar.ExceptionType: The exception message"
+        # So we extract the Exception type and trim off any "foo.bar." namespacing:
+        last_line = traceback.format_exc().splitlines()[-1]
+        exception_type = last_line.split(":")[0].split(".")[-1]
+        exception_msg = last_line.split(":")[1]
+
+        # Scan for the last debugging line that includes a line number reference
+        line_info = None
+        for i in range(len(traceback.format_exc().splitlines()) - 1, 0, -1):
+            traceback_line = traceback.format_exc().splitlines()[i]
+            if ", line " in traceback_line:
+                line_info = traceback_line.split("/")[-1].replace("\"", "").replace("line ", "")
+                break
+        
+        error = [
+            exception_type,
+            line_info,
+            exception_msg,
+        ]
+        return Destination(UnhandledExceptionView, view_args={"error": error}, clear_history=True)
 
 """
 
