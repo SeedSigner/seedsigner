@@ -1,4 +1,5 @@
 from seedsigner.gui.components import FontAwesomeIconConstants
+from seedsigner.models.decode_qr import DecodeQR
 
 from .view import View, Destination, BackStackView, MainMenuView
 
@@ -34,7 +35,7 @@ class SettingsMenuView(View):
             button_data.append(("Advanced", None, None, None, FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT))
             next = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
 
-            button_data.append("I/O Test")
+            button_data.append("I/O test")
 
         elif self.visibility == SettingsConstants.VISIBILITY__ADVANCED:
             title = "Advanced"
@@ -170,6 +171,11 @@ class SettingsEntryUpdateSelectionView(View):
 ****************************************************************************"""
 class IOTestView(View):
     def run(self):
-        settings_screens.IOTestScreen().display()
+        settings_screens.IOTestScreen(
+            instructions_text="Live camera feed",
+            resolution=(240,240),
+            framerate=24,
+            auto_deactivate_buttons=True,
+        ).display()
 
         return Destination(SettingsMenuView)

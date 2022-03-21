@@ -247,12 +247,12 @@ class TextTopNavScreen(BaseTopNavScreen):
                         # Only move navigation up there if there's something to select
                         if self.top_nav.show_back_button or self.top_nav.show_power_button:
                             self.top_nav.is_selected = True
-                            self.top_nav.render()
+                            self.top_nav.render_buttons()
 
                 elif user_input == HardwareButtonsConstants.KEY_DOWN:
                     if self.top_nav.is_selected:
                         self.top_nav.is_selected = False
-                        self.top_nav.render()
+                        self.top_nav.render_buttons()
 
                 elif user_input in HardwareButtonsConstants.KEYS__ANYCLICK:
                     if self.top_nav.is_selected:
@@ -446,7 +446,7 @@ class ButtonListScreen(BaseTopNavScreen):
                         self.buttons[self.selected_button].render()
 
                         self.top_nav.is_selected = True
-                        self.top_nav.render()
+                        self.top_nav.render_buttons()
 
                 elif user_input == HardwareButtonsConstants.KEY_UP:
                     if self.top_nav.is_selected:
@@ -480,7 +480,7 @@ class ButtonListScreen(BaseTopNavScreen):
 
                     if self.top_nav.is_selected:
                         self.top_nav.is_selected = False
-                        self.top_nav.render()
+                        self.top_nav.render_buttons()
 
                         cur_selected_button = None
                         next_selected_button = self.buttons[self.selected_button]
@@ -604,7 +604,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                     if self.selected_button in [0, 1]:
                         # Move selection up to top_nav
                         self.top_nav.is_selected = True
-                        self.top_nav.render()
+                        self.top_nav.render_buttons()
 
                         self.buttons[self.selected_button].is_selected = False
                         self.buttons[self.selected_button].render()
@@ -615,7 +615,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                 elif user_input == HardwareButtonsConstants.KEY_DOWN:
                     if self.top_nav.is_selected:
                         self.top_nav.is_selected = False
-                        self.top_nav.render()
+                        self.top_nav.render_buttons()
 
                         self.buttons[self.selected_button].is_selected = True
                         self.buttons[self.selected_button].render()
@@ -633,7 +633,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                         self.top_nav.is_selected and not self.top_nav.show_power_button
                     ):
                     self.top_nav.is_selected = False
-                    self.top_nav.render()
+                    self.top_nav.render_buttons()
 
                     self.buttons[self.selected_button].is_selected = True
                     self.buttons[self.selected_button].render()
@@ -645,7 +645,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                         # Left from the far edge takes us up to the BACK arrow
                         if self.top_nav.show_back_button:
                             self.top_nav.is_selected = True
-                            self.top_nav.render()
+                            self.top_nav.render_buttons()
 
                             self.buttons[self.selected_button].is_selected = False
                             self.buttons[self.selected_button].render()

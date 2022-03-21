@@ -152,7 +152,7 @@ class MainMenuView(View):
 
 class PowerOptionsView(View):
     def run(self):
-        RESET = ("Reset", FontAwesomeIconConstants.ROTATE_RIGHT)
+        RESET = ("Restart", FontAwesomeIconConstants.ROTATE_RIGHT)
         POWER_OFF = ("Power Off", FontAwesomeIconConstants.POWER_OFF)
         button_data = [RESET, POWER_OFF]
         selected_menu_num = LargeButtonScreen(
@@ -165,20 +165,20 @@ class PowerOptionsView(View):
             return Destination(BackStackView)
         
         elif button_data[selected_menu_num] == RESET:
-            return Destination(ResetView)
+            return Destination(RestartView)
         
         elif button_data[selected_menu_num] == POWER_OFF:
             return Destination(PowerOffView)
 
 
 
-class ResetView(View):
+class RestartView(View):
     def run(self):
-        thread = ResetView.DoResetThread()
+        thread = RestartView.DoResetThread()
         thread.start()
         TextTopNavScreen(
-            title="Resetting",
-            text="SeedSigner is restarting. All data will be wiped.",
+            title="Restarting",
+            text="SeedSigner is restarting. All in-memory data will be wiped.",
             show_back_button=False,
         ).display()
 

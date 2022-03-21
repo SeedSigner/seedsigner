@@ -57,6 +57,10 @@ class GUIConstants:
 
 
 class FontAwesomeIconConstants:
+    ANGLE_DOWN = "\uf107"
+    ANGLE_LEFT = "\uf104"
+    ANGLE_RIGHT = "\uf105"
+    ANGLE_UP = "\uf106"
     CAMERA = "\uf030"
     CARET_DOWN = "\uf0d7"
     CARET_LEFT = "\uf0d9"
@@ -392,7 +396,6 @@ class TextArea(BaseComponent):
         draw = ImageDraw.Draw(img)
         cur_y = self.text_y
 
-        # print(f"self.bbox_height: {self.bbox_height}")
         for line in self.text_lines:
             draw.text((line["text_x"], cur_y), line["text"], fill=self.font_color, font=self.font, anchor="ls")
             cur_y += self.bbox_height + self.line_spacing
@@ -420,7 +423,8 @@ class Icon(BaseComponent):
             self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__FONT_AWESOME, self.icon_size, file_extension="otf")
         
         # Set width/height based on exact pixels that are rendered
-        (left, top, self.width, self.height) = self.icon_font.getbbox(self.icon_name, anchor="lt")
+        (left, top, self.width, bottom) = self.icon_font.getbbox(self.icon_name, anchor="ls")
+        self.height = -1 * top
 
 
     def render(self):
@@ -745,6 +749,8 @@ class Button(BaseComponent):
     font_size: int = GUIConstants.BUTTON_FONT_SIZE
     font_color: str = GUIConstants.BUTTON_FONT_COLOR
     selected_font_color: str = GUIConstants.BUTTON_SELECTED_FONT_COLOR
+    outline_color: str = None
+    selected_outline_color: str = None
     is_text_centered: bool = True
     is_selected: bool = False
 
@@ -763,7 +769,7 @@ class Button(BaseComponent):
 
         self.font = Fonts.get_font(self.font_name, self.font_size)
 
-        if self.text:
+        if self.text is not None:
             if self.is_text_centered:
                 self.text_x = int(self.width/2)
                 self.text_anchor = "ms"  # centered horizontally, baseline
@@ -811,8 +817,6 @@ class Button(BaseComponent):
             if self.icon_y_offset:
                 self.icon_y = self.icon_y_offset
             else:
-                # print(f"self.icon_name: {self.icon_name} | self.height: {self.height} | self.icon.height: {self.icon.height}")
-                # print(f"\t\tself.width: {self.width} | self.icon.width: {self.icon.width}")
                 self.icon_y = math.ceil((self.height - self.icon.height)/2)
 
         if self.right_icon_name:
@@ -827,13 +831,26 @@ class Button(BaseComponent):
         if self.is_selected:
             background_color = self.selected_color
             font_color = self.selected_font_color
+            outline_color = self.selected_outline_color
         else:
             background_color = self.background_color
             font_color = self.font_color
+            outline_color = self.outline_color
 
-        self.image_draw.rounded_rectangle((self.screen_x, self.screen_y - self.scroll_y, self.screen_x + self.width, self.screen_y + self.height - self.scroll_y), fill=background_color, radius=8)
+        self.image_draw.rounded_rectangle(
+            (
+                self.screen_x,
+                self.screen_y - self.scroll_y,
+                self.screen_x + self.width,
+                self.screen_y + self.height - self.scroll_y
+            ),
+            fill=background_color,
+            radius=8,
+            outline=outline_color,
+            width=2,
+        )
 
-        if self.text:
+        if self.text is not None:
             self.image_draw.text(
                 (self.screen_x + self.text_x, self.screen_y + self.text_y - self.scroll_y),
                 self.text,
@@ -857,6 +874,7 @@ class Button(BaseComponent):
             icon.screen_y = self.screen_y + self.right_icon_y - self.scroll_y
             icon.screen_x = self.screen_x + self.right_icon_x
             icon.render()
+
 
 
 @dataclass
@@ -1002,6 +1020,10 @@ class TopNav(BaseComponent):
 
     def render(self):
         self.title.render()
+        self.render_buttons()
+    
+
+    def render_buttons(self):
         if self.show_back_button:
             self.left_button.is_selected = self.is_selected
             self.left_button.render()

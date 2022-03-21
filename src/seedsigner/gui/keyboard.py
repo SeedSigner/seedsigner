@@ -131,15 +131,25 @@ class Keyboard:
                     rect_color = self.keyboard.background_color
                 font_color = "#e8e8e8"
 
-            self.keyboard.draw.rounded_rectangle((self.screen_x, self.screen_y, self.screen_x + self.keyboard.x_width * self.size - 1, self.screen_y + self.keyboard.y_height), outline=outline_color, fill=rect_color, radius=4)
-            tw, th = self.keyboard.draw.textsize(self.letter, font=font)
+            self.keyboard.draw.rounded_rectangle(
+                (
+                    self.screen_x,
+                    self.screen_y,
+                    self.screen_x + self.keyboard.key_width * self.size - 1,
+                    self.screen_y + self.keyboard.key_height
+                ),
+                outline=outline_color,
+                fill=rect_color,
+                radius=4
+            )
 
             # Fixed-width fonts will all have same height, ignoring below baseline (e.g. "Q" or "q")
             (left, top, right, bottom) = font.getbbox("X", anchor="ls")
+            text_height = -1 * top
             self.keyboard.draw.text(
                 (
-                    self.screen_x + int(self.keyboard.x_width * self.size / 2),
-                    self.screen_y + self.keyboard.y_height + int(top/2)  # "top" is negative when measuring from baseline
+                    self.screen_x + int(self.keyboard.key_width * self.size / 2),
+                    self.screen_y + self.keyboard.key_height - int((self.keyboard.key_height - text_height)/2)
                 ),
                 self.letter,
                 fill=font_color,
@@ -156,7 +166,6 @@ class Keyboard:
                  rows=4,
                  cols=10,
                  rect=(0,40, 240,240),
-                 font=None,
                  additional_keys=[KEY_BACKSPACE],
                  auto_wrap=[WRAP_TOP, WRAP_BOTTOM, WRAP_LEFT, WRAP_RIGHT],
                  render_now=True,
@@ -170,10 +179,8 @@ class Keyboard:
         self.rows = rows
         self.cols = cols
         self.rect = rect
-        if font:
-            self.font = font
-        else:
-            self.font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 22)
+        self.font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 24)
+
         self.auto_wrap = auto_wrap
         self.background_color = GUIConstants.BUTTON_BACKGROUND_COLOR
         self.deactivated_background_color = GUIConstants.BACKGROUND_COLOR
@@ -195,9 +202,11 @@ class Keyboard:
         self.x_start = rect[0]
         self.y_start = rect[1]
         self.x_gap = 2
-        self.x_width = int((rect[2] - rect[0]) / cols) - self.x_gap
+        self.key_width = int((rect[2] - rect[0]) / cols) - self.x_gap
+        self.width = cols * (self.key_width) + (cols - 1) * self.x_gap
         self.y_gap = 2
-        self.y_height = int((rect[3] - rect[1]) / rows) - self.y_gap
+        self.key_height = int((rect[3] - rect[1]) / rows) - self.y_gap
+        self.height = rows * (self.key_height) + (rows - 1) * self.y_gap
         self.additional_key_entered_from_x = None
 
         # Two-dimensional list of Key obj row data
@@ -223,12 +232,12 @@ class Keyboard:
                     is_selected=is_selected,
                     keyboard=self
                 ))
-                cur_x += self.x_width + self.x_gap
+                cur_x += self.key_width + self.x_gap
                 cur_index_x += 1
             self.keys.append(cur_row)
-            if i < rows -1:
+            if i < rows - 1:
                 # increment to the next row and continue
-                cur_y += self.y_height + self.y_gap
+                cur_y += self.key_height + self.y_gap
             else:
                 # It's the last row; add the additional keys at the end
                 for additional_key in additional_keys:
@@ -243,7 +252,7 @@ class Keyboard:
                         size=additional_key["size"],
                         is_additional_key=True,
                     ))
-                    cur_x += self.x_width * additional_key["size"] + self.x_gap
+                    cur_x += self.key_width * additional_key["size"] + self.x_gap
                     cur_index_x += additional_key["size"]
 
         if render_now:
@@ -493,8 +502,8 @@ class TextEntryDisplayConstants:
 class TextEntryDisplay(TextEntryDisplayConstants):
     canvas: Image
     rect: Tuple[int,int,int,int]
-    font: ImageFont
-    font_color: str = GUIConstants.BODY_FONT_COLOR
+    font_name: str = GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME
+    font_size: int = 24
     accent_color: str = GUIConstants.ACCENT_COLOR
     background_color: str = GUIConstants.BUTTON_BACKGROUND_COLOR
     cursor_mode: str = TextEntryDisplayConstants.CURSOR_MODE__BLOCK
@@ -502,9 +511,15 @@ class TextEntryDisplay(TextEntryDisplayConstants):
     cur_text: str = " "
     text_offset = 0
 
+
+    def __post_init__(self):
+        self.font = Fonts.get_font(self.font_name, self.font_size)
+
+
     @property
     def width(self):
         return self.rect[2] - self.rect[0]
+
 
     @property
     def height(self):
@@ -530,12 +545,13 @@ class TextEntryDisplay(TextEntryDisplayConstants):
             cursor_block_height = 33
 
             # Draw n-1 of the selected letters
-            tw, th = self.font.getsize(self.cur_text[:-1])
+            (left, top, right, bottom) = self.font.getbbox(self.cur_text[:-1], anchor="ls")
+            text_width = right
             if self.is_centered:
-                self.text_offset = int(self.width - tw - cursor_block_width)/2
+                self.text_offset = int(self.width - text_width - cursor_block_width)/2
             else:
                 self.text_offset = GUIConstants.COMPONENT_PADDING
-            cursor_block_offset = self.text_offset + tw - 1
+            cursor_block_offset = self.text_offset + text_width - 1
             if cursor_block_offset == 0:
                 cursor_block_offset = 1
 
@@ -545,23 +561,23 @@ class TextEntryDisplay(TextEntryDisplayConstants):
                 cursor_block_offset -= end_pos_x - self.width + 1
                 self.text_offset -= end_pos_x - self.width + 1
             
-            draw.text((self.text_offset, self.height - int(text_height/2)), self.cur_text[:-1], fill=self.font_color, font=self.font, anchor="ls")
+            draw.text((self.text_offset, self.height - int(text_height/2)), self.cur_text[:-1], fill=GUIConstants.ACCENT_COLOR, font=self.font, anchor="ls")
 
             # Draw the highlighted cursor block
-            # cursor_color = "#666"
-            cursor_color = self.accent_color
+            cursor_color = "#666"
             draw.rectangle((cursor_block_offset, 1, cursor_block_offset + cursor_block_width, self.height - 1), fill=cursor_color)
-            draw.text((cursor_block_offset + 1, self.height - int(text_height/2)), self.cur_text[-1], fill=GUIConstants.BUTTON_SELECTED_FONT_COLOR, font=self.font, anchor="ls")
+            draw.text((cursor_block_offset + 1, self.height - int(text_height/2)), self.cur_text[-1], fill=GUIConstants.ACCENT_COLOR, font=self.font, anchor="ls")
 
         else:
-            cursor_bar_offset = 1
             cursor_bar_serif_half_width = 4
-            tw, th = self.font.getsize(self.cur_text)
             if self.is_centered:
                 # self.text_offset = int(self.width - tw)/2
                 raise Exception("Centered cursor bars not fully implemented")
 
-            end_pos_x = 3 + tw + cursor_bar_serif_half_width + 3
+            (left, top, right, bottom) = self.font.getbbox(cur_text if cur_text else "", anchor="ls")  # measure from baseline
+            text_width = right
+
+            end_pos_x = 3 + text_width + cursor_bar_serif_half_width + 3
             if end_pos_x < self.width:
                 # The entire cur_text plus the cursor bar fits
                 self.text_offset = 3 + cursor_bar_serif_half_width
@@ -574,7 +590,6 @@ class TextEntryDisplay(TextEntryDisplayConstants):
 
                 # Is the cursor at either extreme?
                 tw_left, th = self.font.getsize(self.cur_text[:cursor_position])
-                tw_right, th = self.font.getsize(self.cur_text[cursor_position:])
 
                 if self.text_offset + tw_left + cursor_bar_serif_half_width + 3 >= self.width:
                     # Cursor is at the extreme right; have to push the full tw_right off
@@ -587,7 +602,16 @@ class TextEntryDisplay(TextEntryDisplayConstants):
 
                 cursor_bar_x = self.text_offset + tw_left
 
-            draw.text((self.text_offset, int((self.height - text_height)/2)), self.cur_text, fill=self.font_color, font=self.font)
+            draw.text(
+                (
+                    self.text_offset,
+                    self.height - int((self.height - text_height)/2)
+                ),
+                self.cur_text,
+                fill=self.accent_color,
+                font=self.font,
+                anchor="ls"
+            )
 
             # Render as an "I" bar
             cursor_bar_color = "#ccc"

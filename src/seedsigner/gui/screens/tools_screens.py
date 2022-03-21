@@ -27,11 +27,27 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
         # save preview image frames to use as additional entropy below
         preview_images = []
         max_entropy_frames = 50
+        instructions_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
 
         while True:
             frame = self.camera.read_video_stream(as_image=True)
             if frame is not None:
-                self.renderer.show_image_with_text(frame, "click joystick", text_color=GUIConstants.BODY_FONT_COLOR, text_background=(0,0,0,225))
+                self.renderer.canvas.paste(frame)
+
+                self.renderer.draw.text(
+                    xy=(
+                        int(self.renderer.canvas_width/2),
+                        self.renderer.canvas_height - GUIConstants.EDGE_PADDING
+                    ),
+                    text="< back  |  click joystick",
+                    fill=GUIConstants.BODY_FONT_COLOR,
+                    font=instructions_font,
+                    stroke_width=4,
+                    stroke_fill=GUIConstants.BACKGROUND_COLOR,
+                    anchor="ms"
+                )
+                self.renderer.show_image()
+
                 if len(preview_images) < max_entropy_frames:
                     preview_images.append(frame)
 
@@ -46,6 +62,23 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
                 # Have to manually update last input time since we're not in a wait_for loop
                 self.hw_inputs.update_last_input_time()
                 self.camera.stop_video_stream_mode()
+
+                self.renderer.canvas.paste(frame)
+
+                self.renderer.draw.text(
+                    xy=(
+                        int(self.renderer.canvas_width/2),
+                        self.renderer.canvas_height - GUIConstants.EDGE_PADDING
+                    ),
+                    text="Capturing image...",
+                    fill=GUIConstants.ACCENT_COLOR,
+                    font=instructions_font,
+                    stroke_width=4,
+                    stroke_fill=GUIConstants.BACKGROUND_COLOR,
+                    anchor="ms"
+                )
+                self.renderer.show_image()
+
                 return preview_images
 
 
@@ -54,13 +87,22 @@ class ToolsImageEntropyFinalImageScreen(BaseScreen):
     final_image: Image = None
 
     def _run(self):
-        self.renderer.show_image_with_text(
-            self.final_image,
+        instructions_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
+
+        self.renderer.canvas.paste(self.final_image)
+        self.renderer.draw.text(
+            xy=(
+                int(self.renderer.canvas_width/2),
+                self.renderer.canvas_height - GUIConstants.EDGE_PADDING
+            ),
             text=" < reshoot  |  accept > ",
-            font=Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE),
-            text_color=GUIConstants.BODY_FONT_COLOR,
-            text_background=(0,0,0,225)
+            fill=GUIConstants.BODY_FONT_COLOR,
+            font=instructions_font,
+            stroke_width=4,
+            stroke_fill=GUIConstants.BACKGROUND_COLOR,
+            anchor="ms"
         )
+        self.renderer.show_image()
 
         input = self.hw_inputs.wait_for([HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT])
         if input == HardwareButtonsConstants.KEY_LEFT:

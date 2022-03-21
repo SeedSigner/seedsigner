@@ -14,7 +14,7 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
 from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, WarningEdgesMixin
-from ..components import (FontAwesomeIconConstants, Fonts, FormattedAddress,
+from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddress, IconButton,
     IconTextLine, SeedSignerCustomIconConstants, TextArea, GUIConstants,
     calc_text_centering)
 
@@ -38,19 +38,6 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         text_entry_display_y = self.top_nav.height
         text_entry_display_height = 30
 
-        self.text_entry_display = TextEntryDisplay(
-            canvas=self.canvas,
-            rect=(
-                GUIConstants.EDGE_PADDING,
-                text_entry_display_y,
-                GUIConstants.EDGE_PADDING + self.keyboard_width,
-                text_entry_display_y + text_entry_display_height
-            ),
-            font=Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 24),
-            is_centered=False,
-            cur_text="".join(self.initial_letters)
-        )
-
         self.arrow_up_is_active = False
         self.arrow_down_is_active = False
 
@@ -58,7 +45,6 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         self.keyboard = Keyboard(
             draw=self.image_draw,
             charset=self.possible_alphabet,
-            font=Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 24),
             rows=5,
             cols=6,
             rect=(
@@ -68,6 +54,18 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                 self.canvas_height
             ),
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT]
+        )
+
+        self.text_entry_display = TextEntryDisplay(
+            canvas=self.canvas,
+            rect=(
+                GUIConstants.EDGE_PADDING,
+                text_entry_display_y,
+                GUIConstants.EDGE_PADDING + self.keyboard.width,
+                text_entry_display_y + text_entry_display_height
+            ),
+            is_centered=False,
+            cur_text="".join(self.initial_letters)
         )
 
         self.letters = self.initial_letters
@@ -81,6 +79,48 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
             self.keyboard.set_selected_key(selected_letter=self.letters[-2])
         else:
             self.keyboard.set_selected_key(selected_letter=self.letters[-1])
+
+        self.matches_list_x = GUIConstants.EDGE_PADDING + self.keyboard.width + GUIConstants.COMPONENT_PADDING
+        self.matches_list_y = self.top_nav.height
+        self.highlighted_row_y = int((self.canvas_height - GUIConstants.BUTTON_HEIGHT)/2)
+
+        self.matches_list_highlight_button = Button(
+            text="abcdefghijklmnopqrstuvwxyz",
+            is_text_centered=False,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_size=GUIConstants.BUTTON_FONT_SIZE+4,
+            screen_x=self.matches_list_x,
+            screen_y=self.highlighted_row_y,
+            width=self.canvas_width - self.matches_list_x + GUIConstants.COMPONENT_PADDING,
+            height=int(0.75*GUIConstants.BUTTON_HEIGHT),
+        )
+
+        arrow_button_width = GUIConstants.BUTTON_HEIGHT + GUIConstants.EDGE_PADDING
+        arrow_button_height = int(0.75*GUIConstants.BUTTON_HEIGHT)
+        self.matches_list_up_button = IconButton(
+            icon_name=FontAwesomeIconConstants.ANGLE_UP,
+            icon_size=GUIConstants.ICON_INLINE_FONT_SIZE + 2,
+            is_text_centered=False,
+            screen_x=self.canvas_width - arrow_button_width + GUIConstants.COMPONENT_PADDING,
+            screen_y=self.highlighted_row_y - 3*GUIConstants.COMPONENT_PADDING - GUIConstants.BUTTON_HEIGHT,
+            width=arrow_button_width,
+            height=arrow_button_height,
+        )
+
+        self.matches_list_down_button = IconButton(
+            icon_name=FontAwesomeIconConstants.ANGLE_DOWN,
+            icon_size=GUIConstants.ICON_INLINE_FONT_SIZE + 2,
+            is_text_centered=False,
+            screen_x=self.canvas_width - arrow_button_width + GUIConstants.COMPONENT_PADDING,
+            screen_y=self.highlighted_row_y + GUIConstants.BUTTON_HEIGHT + 3*GUIConstants.COMPONENT_PADDING,
+            width=arrow_button_width,
+            height=arrow_button_height,
+        )
+
+        self.word_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE+4)
+        (left, top, right, bottom) = self.word_font.getbbox("abcdefghijklmnopqrstuvwxyz", anchor="ls")
+        self.word_font_height = -1 * top
+        self.matches_list_row_height = self.word_font_height + GUIConstants.COMPONENT_PADDING
 
 
     def calc_possible_alphabet(self, new_letter = False):
@@ -110,30 +150,37 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         """ Internal helper method to render the KEY 1, 2, 3 word candidates.
             (has access to all vars in the parent's context)
         """
-        # Clear the right panel
-        self.renderer.draw.rectangle(
-            (
-                GUIConstants.EDGE_PADDING + self.keyboard_width,
-                self.top_nav.height,
-                self.canvas_width,
-                self.canvas_height
-            ),
-            fill=GUIConstants.BACKGROUND_COLOR
-        )
+        # Render the possibler matches to a temp ImageDraw surface and paste it in
+        # BUT render the currently highlighted match as a normal Button element
 
         if not self.possible_words:
+            # Clear the right panel
+            self.renderer.draw.rectangle(
+                (
+                    self.matches_list_x,
+                    self.top_nav.height,
+                    self.canvas_width,
+                    self.matches_list_y
+                ),
+                fill=GUIConstants.BACKGROUND_COLOR
+            )
             return
 
-        # word_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE+2)
-        word_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE+4)
+        img = Image.new(
+            "RGB",
+            (
+                self.canvas_width - self.matches_list_x,
+                self.canvas_height
+            ),
+            GUIConstants.BACKGROUND_COLOR
+        )
+        draw = ImageDraw.Draw(img)
 
-        row_height = 28
-        word_indent = 4
-        x = GUIConstants.EDGE_PADDING + self.keyboard_width + 4
-        y = self.top_nav.height - int(row_height / 2)
+        word_indent = GUIConstants.COMPONENT_PADDING
 
         highlighted_row = 3
         num_possible_rows = 11
+        y = self.highlighted_row_y - GUIConstants.LIST_ITEM_PADDING - 3 * self.matches_list_row_height
 
         if not highlight_word:
             list_starting_index = self.selected_possible_words_index - highlighted_row
@@ -141,81 +188,49 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                 if i < 0:
                     # We're near the top of the list, not enough items to fill above the highlighted row
                     continue
+
                 if row == highlighted_row:
                     # Leave the highlighted row to be rendered below
                     continue
 
                 if len(self.possible_words) <= i:
+                    # No more possible words to render
                     break
 
-                self.renderer.draw.text(
-                    (x + word_indent, y + row * row_height),
+                if row < highlighted_row:
+                    cur_y = self.highlighted_row_y - GUIConstants.COMPONENT_PADDING - (highlighted_row - row - 1) * self.matches_list_row_height
+
+                elif row > highlighted_row:
+                    cur_y = self.highlighted_row_y + self.matches_list_highlight_button.height + (row - highlighted_row) * self.matches_list_row_height
+
+                # else draw the nth row
+                draw.text(
+                    (word_indent, cur_y),
                     self.possible_words[i],
                     fill="#ddd",
-                    font=word_font
+                    font=self.word_font,
+                    anchor="ls",
                 )
 
-        # Render the SELECT outline
-        fill_color = GUIConstants.ACCENT_COLOR
-        font_color = GUIConstants.BUTTON_SELECTED_FONT_COLOR
-        radius = 5
-        self.renderer.draw.rounded_rectangle(
-            (
-                x,
-                y + (3 * row_height),
-                self.canvas_width + 2*radius,  # render off the right edge so the rounding is clipped
-                y + (4 * row_height)
+        self.canvas.paste(
+            img.crop(
+                (
+                    0,
+                    self.top_nav.height,
+                    img.width,
+                    img.height
+                )
             ),
-            outline=GUIConstants.ACCENT_COLOR,
-            fill=fill_color,
-            radius=5,
+            (self.matches_list_x, self.matches_list_y)
         )
 
-        if self.possible_words:
-            word_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE+6)
-            self.renderer.draw.text(
-                (x + word_indent, y + 3 * row_height),
-                self.possible_words[self.selected_possible_words_index],
-                fill=font_color,
-                font=word_font
-            )
+        # Now render the buttons over the matches list
+        self.matches_list_highlight_button.text = self.possible_words[self.selected_possible_words_index]
+        self.matches_list_highlight_button.is_selected = True
+        self.matches_list_highlight_button.render()
 
-        self.render_possible_matches_arrows()
-
-
-    def render_possible_matches_arrows(self):
-        # Render the up/down arrow buttons for KEY1 and KEY3
-        row_height = 26
-        arrow_button_width = 25
-        arrow_padding = 5
-        key_x = self.canvas_width - arrow_button_width
-        key_y = self.top_nav.height - int(row_height / 2) + int(0.75 * row_height)
-        background_color = "#111"
-        arrow_color = GUIConstants.ACCENT_COLOR
-        if self.arrow_up_is_active:
-            background_color = GUIConstants.ACCENT_COLOR
-            arrow_color = "#111"
-        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
-        self.renderer.draw.polygon(
-            [(key_x + int(arrow_button_width)/2 + 1, key_y + arrow_padding),  # centered top point
-            (self.canvas_width - arrow_padding + 1, key_y + row_height - arrow_padding),  # bottom right point
-            (key_x + arrow_padding + 1, key_y + row_height - arrow_padding)],  # bottom left point
-            fill=arrow_color
-        )
-
-        background_color = "#111"
-        arrow_color = GUIConstants.ACCENT_COLOR
-        if self.arrow_down_is_active:
-            background_color = GUIConstants.ACCENT_COLOR
-            arrow_color = "#111"
-        key_y = self.top_nav.height - int(row_height / 2) + int(5.25 * row_height)
-        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
-        self.renderer.draw.polygon(
-            [(key_x + int(arrow_button_width)/2 + 1, key_y + row_height - arrow_padding),  # bottom centered point
-            (self.canvas_width - arrow_padding + 1, key_y + arrow_padding),  # right top point
-            (key_x + arrow_padding + 1, key_y + arrow_padding)], # left top point
-            fill=arrow_color
-        )
+        self.matches_list_up_button.render()
+        self.matches_list_down_button.render()
 
 
     def _render(self):
@@ -295,10 +310,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                 if not self.arrow_up_is_active:
                     # Flash the up arrow as selected
                     self.arrow_up_is_active = True
-                    self.render_possible_matches_arrows()
-
-                # Update the right-hand possible matches area
-                self.render_possible_matches()
+                    self.matches_list_up_button.is_selected = True
 
             elif input == HardwareButtonsConstants.KEY2:
                 if self.possible_words:
@@ -313,20 +325,17 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                 if not self.arrow_down_is_active:
                     # Flash the down arrow as selected
                     self.arrow_down_is_active = True
-                    self.render_possible_matches_arrows()
-
-                # Update the right-hand possible matches area
-                self.render_possible_matches()
+                    self.matches_list_down_button.is_selected = True
 
             if input is not HardwareButtonsConstants.KEY1 and self.arrow_up_is_active:
-                # Deactivate the arrow and redraw
+                # Deactivate the UP arrow and redraw
                 self.arrow_up_is_active = False
-                self.render_possible_matches_arrows()
+                self.matches_list_up_button.is_selected = False
 
             if input is not HardwareButtonsConstants.KEY3 and self.arrow_down_is_active:
-                # Deactivate the arrow and redraw
+                # Deactivate the DOWN arrow and redraw
                 self.arrow_down_is_active = False
-                self.render_possible_matches_arrows()
+                self.matches_list_down_button.is_selected = False
 
             if final_selection:
                 # Animate the selection storage, then return the word to the caller
@@ -363,9 +372,6 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                 # Recalc and deactivate keys after advancing
                 self.calc_possible_alphabet()
                 self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
-                    
-                # Update the right-hand possible matches area
-                self.render_possible_matches()
 
                 if len(self.possible_alphabet) == 1:
                     # If there's only one possible letter left, select it
@@ -384,9 +390,6 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                     self.letters = self.letters[:-1]
                     self.letters.append(ret_val)
                     self.calc_possible_words()  # live update our matches as we move
-
-                    # Update the right-hand possible matches area
-                    self.render_possible_matches()
                 
                 else:
                     # We've navigated to a deactivated letter
@@ -395,6 +398,9 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
             # Render the text entry display and cursor block
             self.text_entry_display.cur_text = ''.join(self.letters)
             self.text_entry_display.render()
+
+            # Update the right-hand possible matches area
+            self.render_possible_matches()
 
             # Now issue one call to send the pixels to the screen
             self.renderer.show_image()
@@ -540,36 +546,52 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
 
         # Set up the keyboard params
         right_panel_buttons_width = 60
+        hw_button_x = self.canvas_width - right_panel_buttons_width + GUIConstants.COMPONENT_PADDING
+        hw_button_y = int(self.canvas_height - GUIConstants.BUTTON_HEIGHT) / 2 + 60
         
-        # Set up the live text entry display
-        font = Fonts.get_font("RobotoCondensed-Regular", 28)
-        tw, th = font.getsize("m/1234567890")  # All possible chars for max range
-        text_entry_side_padding = 0
-        text_entry_top_padding = 1
-        text_entry_bottom_padding = 10
-        text_entry_top_y = self.top_nav.height + text_entry_top_padding
-        text_entry_bottom_y = text_entry_top_y + 3 + th + 3
+        keyboard_width = self.canvas_width - (GUIConstants.EDGE_PADDING + GUIConstants.COMPONENT_PADDING + right_panel_buttons_width - GUIConstants.COMPONENT_PADDING)
+        text_entry_display_y = self.top_nav.height
+        text_entry_display_height = 30
+
+        keyboard_start_y = text_entry_display_y + text_entry_display_height + GUIConstants.COMPONENT_PADDING
+        rows = 3
+        self.keyboard_digits = Keyboard(
+            draw=self.renderer.draw,
+            charset="/'0123456789",
+            rows=rows,
+            cols=6,
+            rect=(
+                GUIConstants.EDGE_PADDING,
+                keyboard_start_y,
+                GUIConstants.EDGE_PADDING + keyboard_width,
+                keyboard_start_y + rows * GUIConstants.BUTTON_HEIGHT + (rows - 1) * 2
+            ),
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+            render_now=False
+        )
+        self.keyboard_digits.set_selected_key(selected_letter="0")
+
         self.text_entry_display = TextEntryDisplay(
             canvas=self.renderer.canvas,
-            rect=(text_entry_side_padding,text_entry_top_y, self.renderer.canvas_width - right_panel_buttons_width - GUIConstants.COMPONENT_PADDING, text_entry_bottom_y),
-            font=font,
-            font_color=GUIConstants.ACCENT_COLOR,
+            rect=(
+                GUIConstants.EDGE_PADDING,
+                text_entry_display_y,
+                self.canvas_width - GUIConstants.EDGE_PADDING,
+                text_entry_display_y + text_entry_display_height
+            ),
             cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
             is_centered=False,
             cur_text=''.join(self.derivation_path)
         )
 
-        keyboard_start_y = text_entry_bottom_y + text_entry_bottom_padding
-        self.keyboard_digits = Keyboard(
-            draw=self.renderer.draw,
-            charset="/'0123456789",
-            rows=3,
-            cols=6,
-            rect=(0, keyboard_start_y, self.renderer.canvas_width - right_panel_buttons_width - GUIConstants.COMPONENT_PADDING, self.renderer.canvas_height),
-            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
-            render_now=False
+        # Render the right button panel (only has a Key3 "Save" button)
+        self.exit_button = IconButton(
+            icon_name=FontAwesomeIconConstants.SOLID_CIRCLE_CHECK,
+            icon_color=GUIConstants.SUCCESS_COLOR,
+            width=right_panel_buttons_width,
+            screen_x=hw_button_x,
+            screen_y=hw_button_y,
         )
-        self.keyboard_digits.set_selected_key(selected_letter="/")
 
 
     def _render(self):
@@ -577,23 +599,7 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
 
         self.keyboard_digits.render_keys()
 
-        # Render the right button panel (only has a Key3 "Save" button)
-        row_height = 28
-        right_button_left_margin = 10
-        right_button_width = 60
-        font_padding_right = 2
-        font_padding_top = 1
-        key_x = self.renderer.canvas_width - right_button_width
-        key_y = int(self.renderer.canvas_height - row_height) / 2 - 1 - 60
-        font = Fonts.get_font("RobotoCondensed-Regular", 24)
-        background_color = "#111"
-        font_color = GUIConstants.ACCENT_COLOR
-        button3_text = "Save"
-        tw, th = font.getsize(button3_text)
-        key_y = int(self.renderer.canvas_height - row_height) / 2 - 1 + 60
-        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
-        self.renderer.draw.text((self.renderer.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button3_text, fill=font_color)
-
+        self.exit_button.render()
         self.text_entry_display.render(self.derivation_path)
         self.renderer.show_image()
     
@@ -612,6 +618,9 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
             # Check our two possible exit conditions
             if input == HardwareButtonsConstants.KEY3:
                 # Save!
+                self.exit_button.is_selected = True
+                self.exit_button.render()
+                self.renderer.show_image()
                 if len(self.derivation_path) > 0:
                     return self.derivation_path.strip()
     
@@ -623,7 +632,7 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
             if input in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN] and self.top_nav.is_selected:
                 # We're navigating off the previous button
                 self.top_nav.is_selected = False
-                self.top_nav.render()
+                self.top_nav.render_buttons()
     
                 # Override the actual input w/an ENTER signal for the Keyboard
                 if input == HardwareButtonsConstants.KEY_DOWN:
@@ -639,7 +648,7 @@ class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
             # Now process the result from the keyboard
             if ret_val in Keyboard.EXIT_DIRECTIONS:
                 self.top_nav.is_selected = True
-                self.top_nav.render()
+                self.top_nav.render_buttons()
     
             elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
                 if ret_val == Keyboard.KEY_BACKSPACE["code"]:
@@ -729,6 +738,12 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
     title: str = "Add Passphrase"
     passphrase: str = ""
 
+    KEYBOARD__LOWERCASE_BUTTON_TEXT = "abc"
+    KEYBOARD__UPPERCASE_BUTTON_TEXT = "ABC"
+    KEYBOARD__DIGITS_BUTTON_TEXT = "123"
+    KEYBOARD__SYMBOLS_BUTTON_TEXT = "!@#"
+
+
     def __post_init__(self):
         super().__post_init__()
 
@@ -738,33 +753,30 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         keys_symbol = "!\"#$%&'()*+,=./;:<>?@[]|-_`~"
 
         # Set up the keyboard params
-        self.right_panel_buttons_width = 60
+        self.right_panel_buttons_width = 56
 
-        font = Fonts.get_font("RobotoCondensed-Regular", 28)
-        tw, th = font.getsize(keys_lower + keys_upper + keys_number + keys_symbol)      # All possible chars for max size measurements
-        text_entry_side_padding = 0
-        text_entry_top_padding = 1
-        text_entry_bottom_padding = 10
-        text_entry_top_y = self.top_nav.height + text_entry_top_padding
-        text_entry_bottom_y = text_entry_top_y + 3 + th + 3
-        self.text_entry_display = TextEntryDisplay(
-            canvas=self.renderer.canvas,
-            rect=(text_entry_side_padding,text_entry_top_y, self.canvas_width - self.right_panel_buttons_width - 1, text_entry_bottom_y),
-            font=font,
-            font_color=GUIConstants.ACCENT_COLOR,
-            cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
-            is_centered=False,
-            cur_text=''.join(self.passphrase)
-        )
+        max_cols = 9
+        text_entry_display_y = self.top_nav.height
+        text_entry_display_height = 30
 
-        keyboard_start_y = text_entry_bottom_y + text_entry_bottom_padding
+        keyboard_start_y = text_entry_display_y + text_entry_display_height + GUIConstants.COMPONENT_PADDING
         self.keyboard_abc = Keyboard(
             draw=self.renderer.draw,
             charset=keys_lower,
             rows=4,
-            cols=9,
-            rect=(0, keyboard_start_y, self.canvas_width - self.right_panel_buttons_width, self.canvas_height),
-            additional_keys=[Keyboard.KEY_SPACE_5, Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
+            cols=max_cols,
+            rect=(
+                GUIConstants.COMPONENT_PADDING,
+                keyboard_start_y,
+                self.canvas_width - GUIConstants.COMPONENT_PADDING - self.right_panel_buttons_width,
+                self.canvas_height - GUIConstants.EDGE_PADDING
+            ),
+            additional_keys=[
+                Keyboard.KEY_SPACE_5,
+                Keyboard.KEY_CURSOR_LEFT,
+                Keyboard.KEY_CURSOR_RIGHT,
+                Keyboard.KEY_BACKSPACE
+            ],
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT]
         )
 
@@ -772,9 +784,19 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             draw=self.renderer.draw,
             charset=keys_upper,
             rows=4,
-            cols=9,
-            rect=(0, keyboard_start_y, self.canvas_width - self.right_panel_buttons_width, self.canvas_height),
-            additional_keys=[Keyboard.KEY_SPACE_5, Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
+            cols=max_cols,
+            rect=(
+                GUIConstants.COMPONENT_PADDING,
+                keyboard_start_y,
+                self.canvas_width - GUIConstants.COMPONENT_PADDING - self.right_panel_buttons_width,
+                self.canvas_height - GUIConstants.EDGE_PADDING
+            ),
+            additional_keys=[
+                Keyboard.KEY_SPACE_5,
+                Keyboard.KEY_CURSOR_LEFT,
+                Keyboard.KEY_CURSOR_RIGHT,
+                Keyboard.KEY_BACKSPACE
+            ],
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )
@@ -784,8 +806,17 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             charset=keys_number,
             rows=3,
             cols=5,
-            rect=(0, keyboard_start_y, self.canvas_width - self.right_panel_buttons_width, self.canvas_height),
-            additional_keys=[Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
+            rect=(
+                GUIConstants.COMPONENT_PADDING,
+                keyboard_start_y,
+                self.canvas_width - GUIConstants.COMPONENT_PADDING - self.right_panel_buttons_width,
+                self.canvas_height - GUIConstants.EDGE_PADDING
+            ),
+            additional_keys=[
+                Keyboard.KEY_CURSOR_LEFT,
+                Keyboard.KEY_CURSOR_RIGHT,
+                Keyboard.KEY_BACKSPACE
+            ],
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )
@@ -794,66 +825,78 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             draw=self.renderer.draw,
             charset=keys_symbol,
             rows=4,
-            cols=10,
-            rect=(0, keyboard_start_y, self.canvas_width - self.right_panel_buttons_width, self.canvas_height),
-            additional_keys=[Keyboard.KEY_SPACE_4, Keyboard.KEY_CURSOR_LEFT, Keyboard.KEY_CURSOR_RIGHT, Keyboard.KEY_BACKSPACE],
+            cols=max_cols,
+            rect=(
+                GUIConstants.COMPONENT_PADDING,
+                keyboard_start_y,
+                self.canvas_width - GUIConstants.COMPONENT_PADDING - self.right_panel_buttons_width,
+                self.canvas_height - GUIConstants.EDGE_PADDING
+            ),
+            additional_keys=[
+                Keyboard.KEY_SPACE_4,
+                Keyboard.KEY_CURSOR_LEFT,
+                Keyboard.KEY_CURSOR_RIGHT,
+                Keyboard.KEY_BACKSPACE
+            ],
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )
 
-        self.button1_is_active = False
-        self.button2_is_active = False
-        self.button3_is_active = False
+        self.text_entry_display = TextEntryDisplay(
+            canvas=self.renderer.canvas,
+            rect=(
+                GUIConstants.EDGE_PADDING,
+                text_entry_display_y,
+                self.canvas_width - self.right_panel_buttons_width,
+                text_entry_display_y + text_entry_display_height
+            ),
+            cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
+            is_centered=False,
+            cur_text=''.join(self.passphrase)
+        )
 
+        # Nudge the buttons off the right edge w/padding
+        hw_button_x = self.canvas_width - self.right_panel_buttons_width + GUIConstants.COMPONENT_PADDING
 
+        # Calc center button position first
+        hw_button_y = int((self.canvas_height - GUIConstants.BUTTON_HEIGHT)/2)
 
-    def render_right_panel(self, button1_text="ABC", button2_text="123"):
-        # Render the up/down arrow buttons for KEY1 and KEY3
-        row_height = 28
-        right_button_left_margin = 10
-        right_button_width = self.right_panel_buttons_width - right_button_left_margin
-        font_padding_right = 2
-        font_padding_top = 1
-        key_x = self.canvas_width - right_button_width
-        key_y = int(self.canvas_height - row_height) / 2 - 1 - 60
+        self.hw_button1 = Button(
+            text=self.KEYBOARD__UPPERCASE_BUTTON_TEXT,
+            is_text_centered=False,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_size=GUIConstants.BUTTON_FONT_SIZE + 4,
+            width=self.right_panel_buttons_width,
+            screen_x=hw_button_x,
+            screen_y=hw_button_y - 3*GUIConstants.COMPONENT_PADDING - GUIConstants.BUTTON_HEIGHT,
+        )
 
-        background_color = "#111"
-        font_color = GUIConstants.ACCENT_COLOR
-        font = Fonts.get_font("RobotoCondensed-Regular", 24)
-        tw, th = font.getsize(button1_text)
-        if self.button1_is_active:
-            background_color = GUIConstants.ACCENT_COLOR
-            font_color = "#111"
-        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
-        self.renderer.draw.text((self.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button1_text, fill=font_color)
+        self.hw_button2 = Button(
+            text=self.KEYBOARD__DIGITS_BUTTON_TEXT,
+            is_text_centered=False,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_size=GUIConstants.BUTTON_FONT_SIZE + 4,
+            width=self.right_panel_buttons_width,
+            screen_x=hw_button_x,
+            screen_y=hw_button_y,
+        )
 
-        background_color = "#111"
-        font_color = GUIConstants.ACCENT_COLOR
-        tw, th = font.getsize(button2_text)
-        if self.button2_is_active:
-            background_color = GUIConstants.ACCENT_COLOR
-            font_color = "#111"
-        key_y = int(self.canvas_height - row_height) / 2 - 1
-        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
-        self.renderer.draw.text((self.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button2_text, fill=font_color)
-
-        background_color = "#111"
-        font_color = GUIConstants.ACCENT_COLOR
-        button3_text = "Save"
-        tw, th = font.getsize(button3_text)
-        if self.button3_is_active:
-            background_color = GUIConstants.ACCENT_COLOR
-            font_color = "#111"
-        key_y = int(self.canvas_height - row_height) / 2 - 1 + 60
-        self.renderer.draw.rounded_rectangle((key_x, key_y, 250, key_y + row_height), outline=GUIConstants.ACCENT_COLOR, fill=background_color, radius=5, width=1)
-        self.renderer.draw.text((self.canvas_width - tw - font_padding_right, key_y + font_padding_top), font=font, text=button3_text, fill=font_color)
+        self.hw_button3 = IconButton(
+            icon_name=FontAwesomeIconConstants.SOLID_CIRCLE_CHECK,
+            icon_color=GUIConstants.SUCCESS_COLOR,
+            width=self.right_panel_buttons_width,
+            screen_x=hw_button_x,
+            screen_y=hw_button_y + 3*GUIConstants.COMPONENT_PADDING + GUIConstants.BUTTON_HEIGHT,
+        )
 
 
     def _render(self):
         super()._render()
 
         self.text_entry_display.render()
-        self.render_right_panel()
+        self.hw_button1.render()
+        self.hw_button2.render()
+        self.hw_button3.render()
         self.keyboard_abc.render_keys()
 
         self.renderer.show_image()
@@ -862,13 +905,9 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
     def _run(self):
         cursor_position = len(self.passphrase)
 
-        KEYBOARD__LOWERCASE_BUTTON_TEXT = "abc"
-        KEYBOARD__UPPERCASE_BUTTON_TEXT = "ABC"
-        KEYBOARD__DIGITS_BUTTON_TEXT = "123"
-        KEYBOARD__SYMBOLS_BUTTON_TEXT = "!@#"
         cur_keyboard = self.keyboard_abc
-        cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
-        cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
+        cur_button1_text = self.KEYBOARD__UPPERCASE_BUTTON_TEXT
+        cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
 
         # Start the interactive update loop
         while True:
@@ -883,6 +922,11 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             # Check our two possible exit conditions
             if input == HardwareButtonsConstants.KEY3:
                 # Save!
+                # First light up key3
+                self.hw_button3.is_selected = True
+                self.hw_button3.render()
+                self.renderer.show_image()
+
                 if len(self.passphrase) > 0:
                     return self.passphrase.strip()
 
@@ -892,46 +936,62 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
 
             # Check for keyboard swaps
             if input == HardwareButtonsConstants.KEY1:
+                # First light up key1
+                self.hw_button1.is_selected = True
+                self.hw_button1.render()
+
                 # Return to the same button2 keyboard, if applicable
                 if cur_keyboard == self.keyboard_digits:
-                    cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
+                    cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
                 elif cur_keyboard == self.keyboard_symbols:
-                    cur_button2_text = KEYBOARD__SYMBOLS_BUTTON_TEXT
+                    cur_button2_text = self.KEYBOARD__SYMBOLS_BUTTON_TEXT
 
-                if cur_button1_text == KEYBOARD__LOWERCASE_BUTTON_TEXT:
+                if cur_button1_text == self.KEYBOARD__LOWERCASE_BUTTON_TEXT:
                     self.keyboard_abc.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
                     cur_keyboard = self.keyboard_abc
-                    cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
-                    self.render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
+                    cur_button1_text = self.KEYBOARD__UPPERCASE_BUTTON_TEXT
                 else:
                     self.keyboard_ABC.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
                     cur_keyboard = self.keyboard_ABC
-                    cur_button1_text = KEYBOARD__LOWERCASE_BUTTON_TEXT
-                    self.render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
+                    cur_button1_text = self.KEYBOARD__LOWERCASE_BUTTON_TEXT
                 cur_keyboard.render_keys()
+
+                # Show the changes; this loop will have two renders
+                self.renderer.show_image()
+
                 keyboard_swap = True
                 ret_val = None
 
             elif input == HardwareButtonsConstants.KEY2:
+                # First light up key2
+                self.hw_button2.is_selected = True
+                self.hw_button2.render()
+                self.renderer.show_image()
+
+                # And reset for next redraw
+                self.hw_button2.is_selected = False
+
                 # Return to the same button1 keyboard, if applicable
                 if cur_keyboard == self.keyboard_abc:
-                    cur_button1_text = KEYBOARD__LOWERCASE_BUTTON_TEXT
+                    cur_button1_text = self.KEYBOARD__LOWERCASE_BUTTON_TEXT
                 elif cur_keyboard == self.keyboard_ABC:
-                    cur_button1_text = KEYBOARD__UPPERCASE_BUTTON_TEXT
+                    cur_button1_text = self.KEYBOARD__UPPERCASE_BUTTON_TEXT
 
-                if cur_button2_text == KEYBOARD__DIGITS_BUTTON_TEXT:
+                if cur_button2_text == self.KEYBOARD__DIGITS_BUTTON_TEXT:
                     self.keyboard_digits.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
                     cur_keyboard = self.keyboard_digits
                     cur_keyboard.render_keys()
-                    cur_button2_text = KEYBOARD__SYMBOLS_BUTTON_TEXT
-                    self.render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
+                    cur_button2_text = self.KEYBOARD__SYMBOLS_BUTTON_TEXT
                 else:
                     self.keyboard_symbols.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
                     cur_keyboard = self.keyboard_symbols
                     cur_keyboard.render_keys()
-                    cur_button2_text = KEYBOARD__DIGITS_BUTTON_TEXT
-                    self.render_right_panel(button1_text=cur_button1_text, button2_text=cur_button2_text)
+                    cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
                 cur_keyboard.render_keys()
+
+                # Show the changes; this loop will have two renders
+                self.renderer.show_image()
+
                 keyboard_swap = True
                 ret_val = None
 
@@ -940,7 +1000,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 if input in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN] and self.top_nav.is_selected:
                     # We're navigating off the previous button
                     self.top_nav.is_selected = False
-                    self.top_nav.render()
+                    self.top_nav.render_buttons()
 
                     # Override the actual input w/an ENTER signal for the Keyboard
                     if input == HardwareButtonsConstants.KEY_DOWN:
@@ -956,7 +1016,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             # Now process the result from the keyboard
             if ret_val in Keyboard.EXIT_DIRECTIONS:
                 self.top_nav.is_selected = True
-                self.top_nav.render()
+                self.top_nav.render_buttons()
 
             elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
                 if ret_val == Keyboard.KEY_BACKSPACE["code"]:
@@ -1005,6 +1065,15 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 # Leave current spot blank for now. Only update the active keyboard keys
                 # when a selection has been locked in (KEY_PRESS) or removed ("del").
                 pass
+        
+            if keyboard_swap:
+                # Show the hw buttons' updated text and not active state
+                self.hw_button1.text = cur_button1_text
+                self.hw_button2.text = cur_button2_text                
+                self.hw_button1.is_selected = False
+                self.hw_button2.is_selected = False
+                self.hw_button1.render()
+                self.hw_button2.render()
 
             self.renderer.show_image()
 
@@ -1095,17 +1164,6 @@ class SeedTranscribeSeedQRFormatScreen(ButtonListScreen):
             screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
         ))
 
-        # self.components.append(TextArea(
-        #     text="Learn more about the SeedQR formats at:",
-        #     is_text_centered=True,
-        #     screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
-        # ))
-        # self.components.append(TextArea(
-        #     text="seedsigner.com",
-        #     is_text_centered=True,
-        #     screen_y=self.components[-1].screen_y + self.components[-1].height,
-        #     height=self.buttons[0].screen_y - (self.components[-1].screen_y + self.components[-1].height),
-        # ))
 
 
 @dataclass
@@ -1133,14 +1191,6 @@ class SeedTranscribeSeedQRWholeQRScreen(WarningEdgesMixin, ButtonListScreen):
         ).convert("RGBA")
 
         self.paste_images.append((qr_image, (int((self.canvas_width - qr_width)/2), self.top_nav.height)))
-
-        # self.instructions = TextArea(
-        #     text="< back  |  click to begin",
-        #     background_color=GUIConstants.BACKGROUND_COLOR,
-        #     is_text_centered=False,
-        #     screen_y=self.canvas_height - GUIConstants.BODY_FONT_SIZE - 2*GUIConstants.COMPONENT_PADDING,
-        #     height=GUIConstants.BODY_FONT_SIZE + 2*GUIConstants.COMPONENT_PADDING,
-        # )
 
 
 
