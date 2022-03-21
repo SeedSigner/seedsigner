@@ -58,9 +58,12 @@ class Controller(Singleton):
     settings: Settings = None
     renderer: Renderer = None
 
+    # TODO: Refactor these attrs that survive across multiple Screens
     psbt: PSBT = None
     psbt_seed: Seed = None
     psbt_parser: PSBTParser = None
+
+    unverified_address = None
 
     image_entropy_preview_frames: List[Image] = None
     image_entropy_final_image: Image = None

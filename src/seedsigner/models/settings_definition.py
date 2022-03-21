@@ -93,6 +93,7 @@ class SettingsConstants:
         (MULTISIG, "Multisig"),
     ]
 
+    LEGACY_P2PKH = "leg"  # Intentionally excluded from ALL_SCRIPT_TYPES
     NATIVE_SEGWIT = "nat"
     NESTED_SEGWIT = "nes"
     TAPROOT = "tr"

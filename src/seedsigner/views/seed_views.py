@@ -1,24 +1,25 @@
-from typing import List
 import embit
 import time
+
+from typing import List
 from binascii import hexlify
 from embit.networks import NETWORKS
 from seedsigner.models.decode_qr import DecodeQR
 
-from seedsigner.models.settings_definition import SettingsDefinition
-
-from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
-
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    LargeButtonScreen, WarningScreen, DireWarningScreen, seed_screens)
-from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
-from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import InvalidSeedException, Seed
-from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.settings import Settings, SettingsConstants
+from seedsigner.models.settings_definition import SettingsDefinition, SettingsEntry
+from seedsigner.models.threads import BaseThread, ThreadsafeCounter
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
+    WarningScreen, DireWarningScreen, seed_screens)
+from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
+
+from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
+
 
 
 
@@ -339,12 +340,18 @@ class SeedOptionsView(View):
     def run(self):
         SCAN_PSBT = ("Scan PSBT", FontAwesomeIconConstants.QRCODE)
         REVIEW_PSBT = "Review PSBT"
+        VERIFY_ADDRESS = "Verify Addr"
         EXPORT_XPUB = "Export Xpub"
         BACKUP = ("Backup Seed", None, None, None, FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT)
         DISCARD = ("Discard Seed", None, None, "red")
 
         button_data = []
 
+        if self.controller.unverified_address:
+            addr = self.controller.unverified_address["address"][:7]
+            VERIFY_ADDRESS += f" {addr}"
+            button_data.append(VERIFY_ADDRESS)
+        
         if self.controller.psbt:
             if not PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 # This seed does not seem to be a signer for this PSBT
@@ -377,6 +384,9 @@ class SeedOptionsView(View):
         if button_data[selected_menu_num] == SCAN_PSBT:
             from seedsigner.views.scan_views import ScanView
             return Destination(ScanView)
+
+        elif button_data[selected_menu_num] == VERIFY_ADDRESS:
+            return Destination(SeedSingleSigAddressVerificationView, view_args={"seed_num": self.seed_num})
 
         elif button_data[selected_menu_num] == EXPORT_XPUB:
             return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})
@@ -1046,113 +1056,262 @@ class SeedTranscribeSeedQRConfirmScanView(View):
                 return Destination(BackStackView, skip_current_view=True)
 
 
+
+class SeedSingleSigAddressVerificationSelectSeedView(View):
+    def __init__(self, address: str, script_type: str, sig_type: str, network: str):
+        super().__init__()
+        derivation_path = PSBTParser.calc_derivation(
+            network=network,
+            wallet_type=sig_type,
+            script_type=script_type
+        )
+
+        print(derivation_path)
+
+        self.controller.unverified_address = dict(
+            address=address,
+            derivation_path=derivation_path,
+            script_type=script_type,
+            sig_type=sig_type,
+            network=network
+        )
+
+
+    def run(self):
+        seeds = self.controller.storage.seeds
+
+        SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
+        ENTER_WORDS = "Enter 12/24 words"
+        button_data = []
+        for seed in seeds:
+            button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+            
+            if seed.passphrase is not None:
+                # TODO: Include lock icon on right side of button
+                pass
+            button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+        button_data.append(SCAN_SEED)
+        button_data.append(ENTER_WORDS)
+
+        selected_menu_num = ButtonListScreen(
+            title="Verify Address For",
+            is_button_text_centered=False,
+            button_data=button_data
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        if len(seeds) > 0 and selected_menu_num < len(seeds):
+            # User selected one of the n seeds
+            return Destination(
+                SeedSingleSigAddressVerificationView,
+                view_args=dict(
+                    seed_num=selected_menu_num,
+                )
+            )
+
+        elif button_data[selected_menu_num] == SCAN_SEED:
+            from seedsigner.views.scan_views import ScanView
+            return Destination(ScanView)
+
+        elif button_data[selected_menu_num] == ENTER_WORDS:
+            # TODO
+            return None        
+        
+
+
 class SeedSingleSigAddressVerificationView(View):
     """
-        TODO: Reserved for Nick.
-        
-        This was previously part of the PSBT flow but was moved here when we
-        figured out how to avoid having to brute force the change addr verification.
-
-        But instead this code can be altered to be used to brute force single sig
-        address validation as its own separate flow.
-
-        Creates a worker thread to brute force calculate addresses. Writes its
+        Creates a worker thread to brute-force calculate addresses. Writes its
         iteration status to a shared `ThreadsafeCounter`.
 
         The `ThreadsafeCounter` is sent to the display Screen which is monitored in
         its own `ProgressThread` to show the current iteration onscreen.
     """
-    def __init__(self, seed_num: int, address: str):
+    def __init__(self, seed_num: int):
         super().__init__()
+        self.seed_num = seed_num
         self.seed = self.controller.get_seed(seed_num)
-        self.address = address
-    
+        self.address = self.controller.unverified_address["address"]
+        self.derivation_path = self.controller.unverified_address["derivation_path"]
+        self.script_type = self.controller.unverified_address["script_type"]
+        self.sig_type = self.controller.unverified_address["sig_type"]
+        self.network = self.controller.unverified_address["network"]
+
+        if self.script_type == SettingsConstants.TAPROOT:
+            # TODO: Taproot addr verification
+            return Destination(NotYetImplementedView)
+
+        # TODO: This should be in `Seed` or `PSBT` utility class
+        embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.network)]
+        root = embit.bip32.HDKey.from_seed(self.seed.seed_bytes, version=embit_network["xprv"])
+        xprv = root.derive(self.derivation_path)
+        self.xpub = xprv.to_public()
+
+        print(self.derivation_path)
+
+        # The ThreadsafeCounter will be shared by the brute-force thread to keep track of
+        # its current addr index number and the Screen to display its progress and
+        # respond to UI requests to jump the index ahead.
+        self.threadsafe_counter = ThreadsafeCounter()
+
+        # Shared coordination var so the display thread can detect success
+        self.verified_index = ThreadsafeCounter(initial_value=None)
+        self.verified_index_is_change = ThreadsafeCounter(initial_value=None)
+
+        # Create the brute-force calculation thread that will run in the background
+        self.addr_verification_thread = self.SingleSigAddressVerificationThread(
+            address=self.address,
+            xpub=self.xpub,
+            script_type=self.script_type,
+            network=embit_network,
+            threadsafe_counter=self.threadsafe_counter,
+            verified_index=self.verified_index,
+            verified_index_is_change=self.verified_index_is_change,
+        )
+
 
     def run(self):
-        threadsafe_counter = ThreadsafeCounter()
+        # Start brute-force calculations from the zero-th index
+        self.addr_verification_thread.start()
 
-        addr_verification_thread = SeedSingleSigAddressVerificationView.SingleSigAddressVerificationThread(
-            address=self.address,
-            seed=self.seed,
-            threadsafe_counter=threadsafe_counter
-        )
-        addr_verification_thread.start()
+        SKIP_10 = "Skip 10"
+        CANCEL = "Cancel"
+        button_data = [SKIP_10, CANCEL]
 
-        selected_menu_num = seed_screens.SingleSigAddressVerificationScreen(
-            address=self.address,
-            threadsafe_counter=threadsafe_counter,
-        ).display()
+        script_type_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES)
+        script_type_display = script_type_settings_entry.get_selection_option_display_name_by_value(self.script_type)
 
-        addr_verification_thread.stop()
+        sig_type_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SIG_TYPES)
+        sig_type_display = sig_type_settings_entry.get_selection_option_display_name_by_value(self.sig_type)
+
+        network_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__NETWORK)
+        network_display = network_settings_entry.get_selection_option_display_name_by_value(self.network)
+
+        # Display the Screen to show the brute-forcing progress.
+        # Using a loop here to handle the SKIP_10 button presses to increment the counter
+        # and resume displaying the screen. User won't even notice that the Screen is
+        # being re-constructed.
+        while True:
+            selected_menu_num = seed_screens.SingleSigAddressVerificationScreen(
+                address=self.address,
+                derivation_path=self.derivation_path,
+                script_type=script_type_display,
+                sig_type=sig_type_display,
+                network=network_display,
+                threadsafe_counter=self.threadsafe_counter,
+                verified_index=self.verified_index,
+                button_data=button_data,
+            ).display()
+
+            if self.verified_index.cur_count is not None:
+                break
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                break
+
+            if button_data[selected_menu_num] == SKIP_10:
+                self.threadsafe_counter.increment(10)
+
+            elif button_data[selected_menu_num] == CANCEL:
+                break
+
+        if self.verified_index.cur_count is not None:
+            # Successfully verified the addr; update the data
+            self.controller.unverified_address["verified_index"] = self.verified_index.cur_count
+            self.controller.unverified_address["verified_index_is_change"] = self.verified_index_is_change.cur_count == 1
+            import json
+            print(json.dumps(self.controller.unverified_address, indent=4))
+            return Destination(AddressVerificationSuccessView, view_args=dict(seed_num=self.seed_num))
 
 
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
+        else:
+            # Halt the thread if the user gave up (will already be stopped if it verified the
+            # target addr).
+            self.addr_verification_thread.stop()
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON or button_data[selected_menu_num] == CANCEL:
+                return Destination(BackStackView)
+        
+        return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num))
 
 
     class SingleSigAddressVerificationThread(BaseThread):
-        def __init__(self, address: str, seed: Seed, threadsafe_counter: ThreadsafeCounter):
+        def __init__(self, address: str, xpub: str, script_type: str, network: str, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter, verified_index_is_change: ThreadsafeCounter):
             super().__init__()
             self.address = address
+            self.xpub = xpub
+            self.script_type = script_type
+            self.network = network
             self.threadsafe_counter = threadsafe_counter
-            self.verified_index: int = 0
-            self.verified_index_is_change: bool = None
+            self.verified_index = verified_index
+            self.verified_index_is_change = verified_index_is_change
 
 
         def run(self):
             while self.keep_running:
-                # Do work to verify addr
-                # TODO: Reserved for Nick
+                if self.threadsafe_counter.cur_count % 10 == 0:
+                    print(f"Incremented to {self.threadsafe_counter.cur_count}")
+                
+                i = self.threadsafe_counter.cur_count
 
-                # For now mocking that up with time consuming... sleep
-                time.sleep(0.25)
+                r_pubkey = self.xpub.derive([0,i]).key
+                c_pubkey = self.xpub.derive([1,i]).key
+                
+                recieve_address = ""
+                change_address = ""
+                
+                if self.script_type == SettingsConstants.NATIVE_SEGWIT:
+                    recieve_address = embit.script.p2wpkh(r_pubkey).address(network=self.network)
+                    change_address = embit.script.p2wpkh(c_pubkey).address(network=self.network)
+                elif self.script_type == SettingsConstants.NESTED_SEGWIT:
+                    recieve_address = embit.script.p2sh(embit.script.p2wpkh(r_pubkey)).address(network=self.network)
+                    change_address = embit.script.p2sh(embit.script.p2wpkh(c_pubkey)).address(network=self.network)
+                elif self.script_type == SettingsConstants.LEGACY_P2PKH:
+                    recieve_address = embit.script.p2pkh(r_pubkey).address(network=self.network)
+                    change_address = embit.script.p2pkh(c_pubkey).address(network=self.network)
+                elif self.script_type == SettingsConstants.TAPROOT:
+                    # TODO: Not yet implemented!
+                    raise Exception("Taproot verification not yet implemented!")
+                    
+                if self.address == recieve_address:
+                    print(f"Verified receive addr #{i}!")
+                    self.verified_index.set_value(i)
+                    self.verified_index_is_change.set_value(0)
+                    self.keep_running = False
+                    break
+
+                elif self.address == change_address:
+                    print(f"Verified change addr #{i}!")
+                    self.verified_index.set_value(i)
+                    self.verified_index_is_change.set_value(1)
+                    self.keep_running = False
+                    break
 
                 # Increment our index counter
                 self.threadsafe_counter.increment()
 
-                if self.threadsafe_counter.cur_count % 10 == 0:
-                    print(f"Incremented to {self.threadsafe_counter.cur_count}")
 
-                # On successfully verifying addr, set:
-                # self.verified_index = self.counter.cur_count
-                # self.verified_index_is_change = True
-                # break   # Will instance stick around if run() exits?
 
-                # TODO: This should be in `Seed` or `PSBT` utility class
-                # def verify_single_sig_addr(self, address:str):
-                #     import embit
-                #     network = embit.NETWORKS[self.settings.get_value(SettingsConstants.SETTING__NETWORK)]
-                #     version = embit.bip32.detect_version(derivation, default="xpub", network=network)
-                #     root = embit.bip32.HDKey.from_seed(seed.seed, version=network["xprv"])
-                #     fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
-                #     xprv = root.derive(derivation)
-                #     xpub = xprv.to_public()
-                #     for i in range(500):
-                #         r_pubkey = xpub.derive([0,i]).key
-                #         c_pubkey = xpub.derive([1,i]).key
-                        
-                #         recieve_address = ""
-                #         change_address = ""
-                        
-                #         if "P2PKH" in address_type:
-                #             recieve_address = embit.script.p2pkh(r_pubkey).address(network=network)
-                #             change_address = embit.script.p2pkh(c_pubkey).address(network=network)
-                #         elif "Bech32" in address_type:
-                #             recieve_address = embit.script.p2wpkh(r_pubkey).address(network=network)
-                #             change_address = embit.script.p2wpkh(c_pubkey).address(network=network)
-                #         elif "P2SH" in address_type:
-                #             recieve_address = embit.script.p2sh(embit.script.p2wpkh(r_pubkey)).address(network=network)
-                #             change_address = embit.script.p2sh(embit.script.p2wpkh(c_pubkey)).address(network=network)
-                            
-                #         if address == recieve_address:
-                #             self.menu_view.draw_modal(["Receive Address "+str(i), "Verified"], "", "Right to Exit")
-                #             input = self.buttons.wait_for([B.KEY_RIGHT])
-                #             return Path.MAIN_MENU
-                #         if address == change_address:
-                #             self.menu_view.draw_modal(["Change Address "+str(i), "Verified"], "", "Right to Exit")
-                #             input = self.buttons.wait_for([B.KEY_RIGHT])
-                #             return Path.MAIN_MENU
-                #         else:
-                #             self.menu_view.draw_modal(["Checking Address "+str(i), "..."], "", "Right to Abort")
-                #             if self.buttons.check_for_low(B.KEY_RIGHT) or self.buttons.check_for_low(B.KEY_LEFT):
-                #                 return Path.MAIN_MENU
+class AddressVerificationSuccessView(View):
+    def __init__(self, seed_num: int):
+        super().__init__()
+        self.seed_num = seed_num
+        self.seed = self.controller.get_seed(seed_num)
+    
+
+    def run(self):
+        address = self.controller.unverified_address["address"]
+        derivation_path = self.controller.unverified_address["derivation_path"]
+        script_type = self.controller.unverified_address["script_type"]
+        sig_type = self.controller.unverified_address["sig_type"]
+        network = self.controller.unverified_address["network"]
+        verified_index = self.controller.unverified_address["verified_index"]
+        verified_index_is_change = self.controller.unverified_address["verified_index_is_change"]
+
+        selected_menu_num = LargeIconStatusScreen(
+            status_headline="Address Verified",
+            text=f"""{address[:7]} = seed {self.seed.get_fingerprint()}'s {"change" if verified_index_is_change else "receive"} addr #{verified_index}."""
+        ).display()
+

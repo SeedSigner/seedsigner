@@ -560,10 +560,13 @@ class FormattedAddress(BaseComponent):
         bc1q567 abcdefg1234567abcdefg
         1234567abcdefg1234567 1234567
 
+        single sig native segwit: 42 chars (44 for regtest)
+        nested single sig:        34 chars (35 for regtest)
+
+        multisig native segwit:   64 chars (66 for regtest)
+        multisig nested segwit:   34 chars (35 for regtest?)
+ 
         single sig taproot:       62 chars
-        multisig native segwit:   62 chars
-        multisig nested segwit:   34 chars
-        single sig native segwit: 42 chars
 
         * max_lines: forces truncation on long addresses to fit
     """

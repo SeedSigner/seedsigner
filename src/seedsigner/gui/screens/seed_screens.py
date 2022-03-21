@@ -19,7 +19,7 @@ from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddr
     calc_text_centering)
 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
-from seedsigner.hardware.buttons import HardwareButtonsConstants
+from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
 
 
 
@@ -1396,14 +1396,6 @@ class SeedTranscribeSeedQRConfirmQRPromptScreen(ButtonListScreen):
 @dataclass
 class SingleSigAddressVerificationScreen(ButtonListScreen):
     """
-        TODO: Reserved for Nick
-        
-        Not yet exposed in the UI. This was moved from the PSBT Verification flow since
-        we don't need to brute force iterate the change addrs there. But this can still
-        be useful for a generalized address verification process. Probably makes sense to
-        have a screen before this that prompts for the index num but also give the user
-        the choice to just start the brute force search.
-
         "Skip 10" feature not yet implemented. To do this you would simply increment the
         `ThreadsafeCounter` via its `increment(step=10)` method. Because it is
         threadsafe, the next brute force round by the
@@ -1411,60 +1403,87 @@ class SingleSigAddressVerificationScreen(ButtonListScreen):
         from the updated index.
     """
     address: str = None
+    derivation_path: str = None
+    script_type: str = None
+    sig_type: str = None
+    network: str = None
     threadsafe_counter: ThreadsafeCounter = None
+    verified_index: ThreadsafeCounter = None
+
 
     def __post_init__(self):
         # Customize defaults
-        self.title = "Verify Change"
+        self.title = "Verify Address"
         self.is_bottom_list = True
         self.button_data = ["Skip 10", "Cancel"]
 
         super().__post_init__()
 
-        label = TextArea(
-            text="Address",
-            font_size=GUIConstants.LABEL_FONT_SIZE,
-            font_color=GUIConstants.LABEL_FONT_COLOR,
-            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING
-        )
-        self.components.append(label)
-
         address_display = FormattedAddress(
             address=self.address,
             max_lines=1,
-            screen_y=label.screen_y + label.height
+            screen_y=self.top_nav.height
         )
         self.components.append(address_display)
 
+        self.components.append(TextArea(
+            text=f"{self.sig_type} - {self.script_type}",
+            font_size=GUIConstants.LABEL_FONT_SIZE,
+            font_color=GUIConstants.LABEL_FONT_COLOR,
+            is_text_centered=True,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+        ))
+
+        self.components.append(TextArea(
+            text=self.network,
+            font_size=GUIConstants.LABEL_FONT_SIZE,
+            font_color=GUIConstants.LABEL_FONT_COLOR,
+            is_text_centered=True,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+        ))
+
         self.threads.append(SingleSigAddressVerificationScreen.ProgressThread(
             renderer=self.renderer,
-            screen_y=address_display.screen_y + address_display.height + GUIConstants.COMPONENT_PADDING,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
             threadsafe_counter=self.threadsafe_counter,
+            verified_index=self.verified_index,
         ))
+    
+
+    def _run_callback(self):
+        # Exit the screen on success via a non-None value
+        print(f"verified_index: {self.verified_index.cur_count}")
+        if self.verified_index.cur_count is not None:
+            print("Screen callback returning success!")
+            return 1
 
 
     class ProgressThread(BaseThread):
-        def __init__(self, renderer: Renderer, screen_y: int, threadsafe_counter: ThreadsafeCounter):
+        def __init__(self, renderer: Renderer, screen_y: int, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter):
             self.renderer = renderer
             self.screen_y = screen_y
             self.threadsafe_counter = threadsafe_counter
+            self.verified_index = verified_index
             super().__init__()
         
+
         def run(self):
             font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE)
-            tw, th = font.getsize("Checking address 001")
             while self.keep_running:
-                with self.renderer.lock:
-                    # Need to clear the pixels
-                    # self.renderer.draw.rectangle((0, self.screen_y, self.renderer.canvas_width, self.screen_y + th), fill=GUIConstants.BACKGROUND_COLOR)
+                if self.verified_index.cur_count is not None:
+                    # Have to trigger a hw_input event to break the Screen out of the wait_for loop
+                    HardwareButtons.get_instance().trigger_override(force_release=True)
+                    return
 
-                    textarea = TextArea(
-                        text=f"Checking address {self.threadsafe_counter.cur_count}",
-                        font_name=GUIConstants.BODY_FONT_NAME,
-                        font_size=GUIConstants.BODY_FONT_SIZE,
-                        screen_y=self.screen_y
-                    )
+                textarea = TextArea(
+                    text=f"Checking address {self.threadsafe_counter.cur_count}",
+                    font_name=GUIConstants.BODY_FONT_NAME,
+                    font_size=GUIConstants.BODY_FONT_SIZE,
+                    screen_y=self.screen_y
+                )
+
+                with self.renderer.lock:
                     textarea.render()
-                    # self.renderer.draw.text((int((self.renderer.canvas_width - tw)/2), self.screen_y), text=f"Checking address {self.threadsafe_counter.cur_count}", font=font, fill=GUIConstants.BODY_FONT_COLOR)
                     self.renderer.show_image()
+
                 time.sleep(0.1)

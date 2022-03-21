@@ -202,6 +202,17 @@ class BaseTopNavScreen(BaseScreen):
         self.components.append(self.top_nav)
 
 
+    def _run_callback(self):
+        """
+            Optional implementation step that's called during each _run() loop.
+
+            Loop will continue if it returns None.
+            If it returns a value, the Screen will exit and relay that return value to
+            its parent View.
+        """
+        pass
+
+
     def _run(self):
         raise Exception("Must implement in a child class")
 
@@ -420,6 +431,10 @@ class ButtonListScreen(BaseTopNavScreen):
 
     def _run(self):
         while True:
+            ret = self._run_callback()
+            if ret is not None:
+                return ret
+
             user_input = self.hw_inputs.wait_for(
                 [
                     HardwareButtonsConstants.KEY_UP,
@@ -430,6 +445,8 @@ class ButtonListScreen(BaseTopNavScreen):
                 check_release=True,
                 release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
             )
+
+            print(user_input)
 
             with self.renderer.lock:
                 if not self.top_nav.is_selected and (
@@ -588,6 +605,10 @@ class LargeButtonScreen(BaseTopNavScreen):
             self.buttons[self.selected_button].render()
 
         while True:
+            ret = self._run_callback()
+            if ret is not None:
+                return ret
+
             user_input = self.hw_inputs.wait_for(
                 [
                     HardwareButtonsConstants.KEY_UP,
@@ -672,6 +693,10 @@ class QRDisplayScreen(BaseScreen):
         # Loop whether the QR is a single frame or animated; each loop might adjust
         # brightness setting.
         while True:
+            ret = self._run_callback()
+            if ret is not None:
+                return ret
+
             # convert the cur_brightness integer (31-255) into hex triplets
             hex_color = (hex(cur_brightness).split('x')[1]) * 3
             image = self.qr_encoder.next_part_image(240,240, border=2, background_color=hex_color)
