@@ -1395,23 +1395,19 @@ class AddressVerificationSuccessView(View):
 
 class MultisigWalletDescriptorView(View):
     def run(self):
-        # Move to PSBTParser?
         descriptor = self.controller.multisig_wallet_descriptor
 
-        # Multisig descriptor: wsh(sortedmulti(2,[<fingerprint>/<derivation_path>]<xpub>/0/*,[<fingerprint]/<derivation_path>]<xpub>/0/*))#3jhtf6yx
-        parts = descriptor.split("sortedmulti(")[1].split(",")
-        print(parts)
-        m = parts[0]
-        n = len(parts) - 1
         fingerprints = []
-        for part in parts[1:]:
-            fingerprint = part.split("/")[0].split("[")[1]
+        for key in descriptor.keys:
+            fingerprint = hexlify(key.fingerprint).decode()
             fingerprints.append(fingerprint)
+        
+        policy = descriptor.brief_policy.split("multisig")[0].strip()
         
         print(fingerprints)
 
         selected_menu_num = seed_screens.MultisigWalletDescriptorScreen(
-            m_of_n=(m, n),
+            policy=policy,
             fingerprints=fingerprints,
         ).display()
 

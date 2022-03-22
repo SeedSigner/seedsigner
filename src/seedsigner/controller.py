@@ -1,7 +1,7 @@
-import enum
 import logging
 import traceback
 
+from embit.descriptor import Descriptor
 from embit.psbt import PSBT
 from PIL.Image import Image
 from typing import List
@@ -65,7 +65,7 @@ class Controller(Singleton):
 
     unverified_address = None
 
-    multisig_wallet_descriptor = None
+    multisig_wallet_descriptor: Descriptor = None
 
     image_entropy_preview_frames: List[Image] = None
     image_entropy_final_image: Image = None

@@ -1,5 +1,7 @@
 import json
 
+from embit.descriptor import Descriptor
+
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models import DecodeQR, Seed
 from seedsigner.models.settings import SettingsConstants
@@ -56,10 +58,10 @@ class ScanView(View):
             
             elif self.decoder.is_wallet_descriptor:
                 from seedsigner.views.seed_views import MultisigWalletDescriptorView
-                descriptor = self.decoder.get_wallet_descriptor()
-                print(descriptor)
+                descriptor_str = self.decoder.get_wallet_descriptor()
+                descriptor = Descriptor.from_string(descriptor_str)
 
-                if "sortedmulti" not in descriptor:
+                if not descriptor.is_basic_multisig:
                     # TODO: Handle single-sig descriptors
                     return Destination(NotYetImplementedView)
 

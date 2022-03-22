@@ -1517,7 +1517,7 @@ class SingleSigAddressVerificationScreen(ButtonListScreen):
 
 @dataclass
 class MultisigWalletDescriptorScreen(ButtonListScreen):
-    m_of_n: Tuple[int,int] = None
+    policy: str = None
     fingerprints: List[str] = None
 
     def __post_init__(self):
@@ -1528,7 +1528,7 @@ class MultisigWalletDescriptorScreen(ButtonListScreen):
 
         self.components.append(IconTextLine(
             label_text="Policy",
-            value_text=f"{self.m_of_n[0]} of {self.m_of_n[1]}",
+            value_text=self.policy,
             font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
             screen_y=self.top_nav.height,
             is_text_centered=True,
