@@ -2,7 +2,7 @@ import math
 import time
 
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 
 from PIL import Image, ImageDraw, ImageFilter
 from seedsigner.gui.renderer import Renderer
@@ -1512,3 +1512,35 @@ class SingleSigAddressVerificationScreen(ButtonListScreen):
                     self.renderer.show_image()
 
                 time.sleep(0.1)
+
+
+
+@dataclass
+class MultisigWalletDescriptorScreen(ButtonListScreen):
+    m_of_n: Tuple[int,int] = None
+    fingerprints: List[str] = None
+
+    def __post_init__(self):
+        self.title = "Descriptor Loaded"
+        self.is_bottom_list = True
+        self.button_data = ["OK"]
+        super().__post_init__()
+
+        self.components.append(IconTextLine(
+            label_text="Policy",
+            value_text=f"{self.m_of_n[0]} of {self.m_of_n[1]}",
+            font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
+            screen_y=self.top_nav.height,
+            is_text_centered=True,
+        ))
+
+        self.components.append(IconTextLine(
+            label_text="Signing Keys",
+            value_text=" ".join(self.fingerprints),
+            font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 4,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+            is_text_centered=True,
+            auto_line_break=True,
+            allow_text_overflow=True,
+        ))

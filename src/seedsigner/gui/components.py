@@ -453,6 +453,7 @@ class IconTextLine(BaseComponent):
     font_size: int = GUIConstants.BODY_FONT_SIZE
     is_text_centered: bool = False
     auto_line_break: bool = False
+    allow_text_overflow: bool = False
     screen_x: int = 0
     screen_y: int = 0
 
@@ -487,10 +488,11 @@ class IconTextLine(BaseComponent):
                 font_size=GUIConstants.BODY_FONT_SIZE - 2,
                 font_color="#666",
                 edge_padding=0,
-                is_text_centered=False,
+                is_text_centered=self.is_text_centered if not self.icon_name else False,
                 auto_line_break=False,
                 screen_x=text_screen_x,
                 screen_y=self.screen_y,
+                allow_text_overflow=False
             )
         else:
             self.label_textarea = None        
@@ -508,8 +510,9 @@ class IconTextLine(BaseComponent):
             font_name=self.font_name,
             font_size=self.font_size,
             edge_padding=0,
-            is_text_centered=False,
+            is_text_centered=self.is_text_centered if not self.icon_name else False,
             auto_line_break=self.auto_line_break,
+            allow_text_overflow=self.allow_text_overflow,
             screen_x=text_screen_x,
             screen_y=value_textarea_screen_y,
         )
@@ -535,10 +538,10 @@ class IconTextLine(BaseComponent):
                 if self.label_text:
                     self.label_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
                 self.value_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
-            else:
-                if self.label_text:
-                    self.label_textarea.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - max_textarea_width + (max_textarea_width - self.label_textarea.width))/2)
-                self.value_textarea.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - max_textarea_width + (max_textarea_width - self.value_textarea.width))/2)
+            # else:
+            #     if self.label_text:
+            #         self.label_textarea.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - max_textarea_width + (max_textarea_width - self.label_textarea.width))/2)
+            #     self.value_textarea.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - max_textarea_width + (max_textarea_width - self.value_textarea.width))/2)
 
 
     def render(self):

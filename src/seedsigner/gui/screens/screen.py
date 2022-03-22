@@ -84,6 +84,17 @@ class BaseScreen(BaseComponent):
             self.canvas.paste(img, coords)
 
 
+    def _run_callback(self):
+        """
+            Optional implementation step that's called during each _run() loop.
+
+            Loop will continue if it returns None.
+            If it returns a value, the Screen will exit and relay that return value to
+            its parent View.
+        """
+        pass
+
+
     def _run(self):
         """
             Screen can run on its own until it returns a final exit input from the user.
@@ -200,17 +211,6 @@ class BaseTopNavScreen(BaseScreen):
         self.is_input_in_top_nav = False
 
         self.components.append(self.top_nav)
-
-
-    def _run_callback(self):
-        """
-            Optional implementation step that's called during each _run() loop.
-
-            Loop will continue if it returns None.
-            If it returns a value, the Screen will exit and relay that return value to
-            its parent View.
-        """
-        pass
 
 
     def _run(self):

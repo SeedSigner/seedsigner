@@ -11,12 +11,13 @@ from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import InvalidSeedException, Seed
-from seedsigner.models.settings import Settings, SettingsConstants
-from seedsigner.models.settings_definition import SettingsDefinition, SettingsEntry
+from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
 from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
+from seedsigner.views.scan_views import ScanView
 
 from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
 
@@ -1057,7 +1058,6 @@ class SeedTranscribeSeedQRConfirmScanView(View):
 
 
 
-
 """****************************************************************************
     Address verification
 ****************************************************************************"""
@@ -1391,3 +1391,32 @@ class AddressVerificationSuccessView(View):
 
         return Destination(MainMenuView)
 
+
+
+class MultisigWalletDescriptorView(View):
+    def run(self):
+        # Move to PSBTParser?
+        descriptor = self.controller.multisig_wallet_descriptor
+
+        # Multisig descriptor: wsh(sortedmulti(2,[<fingerprint>/<derivation_path>]<xpub>/0/*,[<fingerprint]/<derivation_path>]<xpub>/0/*))#3jhtf6yx
+        parts = descriptor.split("sortedmulti(")[1].split(",")
+        print(parts)
+        m = parts[0]
+        n = len(parts) - 1
+        fingerprints = []
+        for part in parts[1:]:
+            fingerprint = part.split("/")[0].split("[")[1]
+            fingerprints.append(fingerprint)
+        
+        print(fingerprints)
+
+        selected_menu_num = seed_screens.MultisigWalletDescriptorScreen(
+            m_of_n=(m, n),
+            fingerprints=fingerprints,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            self.controller.multisig_wallet_descriptor = None
+            return Destination(BackStackView)
+        
+        return Destination(MainMenuView)

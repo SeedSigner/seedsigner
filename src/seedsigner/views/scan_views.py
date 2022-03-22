@@ -1,15 +1,10 @@
 import json
-from seedsigner.models.psbt_parser import PSBTParser
-
-from seedsigner.models.settings import SettingsConstants
-from seedsigner.views.psbt_views import PSBTSelectSeedView
-from seedsigner.views.seed_views import AddressVerificationStartView, SeedAddPassphraseView, SeedSingleSigAddressVerificationSelectSeedView, SeedSingleSigAddressVerificationView
-
-from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models import DecodeQR, Seed
-from seedsigner.models.qr_type import QRType
+from seedsigner.models.settings import SettingsConstants
+
+from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
 
 
@@ -38,11 +33,13 @@ class ScanView(View):
                         Seed(mnemonic=seed_mnemonic, wordlist_language_code=wordlist_language_code)
                     )
                     if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
+                        from seedsigner.views.seed_views import SeedAddPassphraseView
                         return Destination(SeedAddPassphraseView)
                     else:
                         return Destination(SeedFinalizeView)
             
             elif self.decoder.is_psbt:
+                from seedsigner.views.psbt_views import PSBTSelectSeedView
                 psbt = self.decoder.get_psbt()
                 self.controller.psbt = psbt
                 self.controller.psbt_parser = None
@@ -58,11 +55,19 @@ class ScanView(View):
                 return Destination(SettingsUpdatedView, {"config_name": self.decoder.get_settings_config_name()})
             
             elif self.decoder.is_wallet_descriptor:
-                # TODO
-                print("Implement QR scanning for wallet descriptors!")
-                return Destination(NotYetImplementedView)
+                from seedsigner.views.seed_views import MultisigWalletDescriptorView
+                descriptor = self.decoder.get_wallet_descriptor()
+                print(descriptor)
+
+                if "sortedmulti" not in descriptor:
+                    # TODO: Handle single-sig descriptors
+                    return Destination(NotYetImplementedView)
+
+                self.controller.multisig_wallet_descriptor = descriptor
+                return Destination(MultisigWalletDescriptorView)
             
             elif self.decoder.is_address:
+                from seedsigner.views.seed_views import AddressVerificationStartView
                 address = self.decoder.get_address()
                 (script_type, network) = self.decoder.get_address_type()
 

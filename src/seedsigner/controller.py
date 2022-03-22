@@ -65,6 +65,8 @@ class Controller(Singleton):
 
     unverified_address = None
 
+    multisig_wallet_descriptor = None
+
     image_entropy_preview_frames: List[Image] = None
     image_entropy_final_image: Image = None
 
