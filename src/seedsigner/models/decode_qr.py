@@ -91,6 +91,9 @@ class DecodeQR:
             elif self.qr_type == QRType.WALLET__SPECTER:
                 self.decoder = SpecterWalletQrDecoder() # Specter Desktop Wallet Export decoder
 
+            elif self.qr_type == QRType.WALLET__GENERIC:
+                self.decoder = GenericWalletQrDecoder()
+
         elif self.qr_type != qr_type:
             raise Exception('QR Fragment Unexpected Type Change')
 
@@ -259,7 +262,7 @@ class DecodeQR:
 
     @property
     def is_wallet_descriptor(self):
-        return self.qr_type in [QRType.WALLET__SPECTER, QRType.WALLET__UR, QRType.WALLET__BLUEWALLET]
+        return self.qr_type in [QRType.WALLET__SPECTER, QRType.WALLET__UR, QRType.WALLET__BLUEWALLET, QRType.WALLET__GENERIC]
     
 
     @property
@@ -319,6 +322,9 @@ class DecodeQR:
             elif re.search(r'^\{\"label\".*\"descriptor\"\:.*', desc_str, re.IGNORECASE):
                 # if json starting with label and contains descriptor, assume specter wallet json
                 return QRType.WALLET__SPECTER
+            
+            elif "sortedmulti" in s:
+                return QRType.WALLET__GENERIC
 
             # Seed
             if re.search(r'\d{48,96}', s):
@@ -984,3 +990,27 @@ class SpecterWalletQrDecoder(BaseAnimatedQrDecoder):
             return re.search(r'^p(\d+)of(\d+) (.+$)', segment, re.IGNORECASE).group(3)
         except:
             return segment
+
+
+
+class GenericWalletQrDecoder(BaseSingleFrameQrDecoder):
+    def __init__(self):
+        super().__init__()
+        self.descriptor = None
+
+
+    def add(self, segment, qr_type=QRType.WALLET__GENERIC):
+        from embit.descriptor import Descriptor
+        try:
+            # Validate via embit
+            Descriptor.from_string(segment)
+            self.descriptor = segment
+            return DecodeQRStatus.COMPLETE
+        except Exception as e:
+            print(repr(e))
+        return DecodeQRStatus.INVALID
+    
+
+    def get_wallet_descriptor(self):
+        return self.descriptor
+
