@@ -69,6 +69,15 @@ class Controller(Singleton):
 
     image_entropy_preview_frames: List[Image] = None
     image_entropy_final_image: Image = None
+    # TODO: end refactor section
+
+    # Destination placeholder for when we need to jump out to a side flow but intend to
+    # return navigation to the main flow (e.g. PSBT flow, load multisig descriptor,
+    # then resume PSBT flow).
+    FLOW__PSBT = "psbt"
+    FLOW__VERIFY_MULTISIG_ADDR = "multisig_addr"
+    FLOW__VERIFY_SINGLESIG_ADDR = "singlesig_addr"
+    resume_main_flow: str = None
 
     back_stack: BackStack = None
     screensaver: ScreensaverView = None

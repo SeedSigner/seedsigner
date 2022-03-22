@@ -1516,6 +1516,21 @@ class SingleSigAddressVerificationScreen(ButtonListScreen):
 
 
 @dataclass
+class LoadMultisigWalletDescriptorScreen(ButtonListScreen):
+    def __post_init__(self):
+        self.title = "Multisig Verification"
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text="Load your multisig wallet descriptor to verify change or self-transfer addrs.",
+            screen_y=self.top_nav.height,
+            height=self.buttons[0].screen_y - self.top_nav.height,
+        ))
+
+
+
+@dataclass
 class MultisigWalletDescriptorScreen(ButtonListScreen):
     policy: str = None
     fingerprints: List[str] = None
@@ -1523,7 +1538,6 @@ class MultisigWalletDescriptorScreen(ButtonListScreen):
     def __post_init__(self):
         self.title = "Descriptor Loaded"
         self.is_bottom_list = True
-        self.button_data = ["OK"]
         super().__post_init__()
 
         self.components.append(IconTextLine(

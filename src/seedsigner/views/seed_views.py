@@ -4,6 +4,7 @@ import time
 from typing import List
 from binascii import hexlify
 from embit.networks import NETWORKS
+from seedsigner.controller import Controller
 from seedsigner.models.decode_qr import DecodeQR
 
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
@@ -17,6 +18,7 @@ from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
 from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
+from seedsigner.views.psbt_views import PSBTChangeDetailsView
 from seedsigner.views.scan_views import ScanView
 
 from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
@@ -339,6 +341,8 @@ class SeedOptionsView(View):
 
 
     def run(self):
+        from seedsigner.views.psbt_views import PSBTOverviewView
+
         SCAN_PSBT = ("Scan PSBT", FontAwesomeIconConstants.QRCODE)
         REVIEW_PSBT = "Review PSBT"
         VERIFY_ADDRESS = "Verify Addr"
@@ -349,12 +353,23 @@ class SeedOptionsView(View):
         button_data = []
 
         if self.controller.unverified_address:
+            if self.controller.resume_main_flow == Controller.FLOW__VERIFY_SINGLESIG_ADDR:
+                # Jump straight back into the single sig addr verification flow
+                self.controller.resume_main_flow = None
+                return Destination(SeedSingleSigAddressVerificationView, view_args=dict(seed_num=self.seed_num), skip_current_view=True)
+
             addr = self.controller.unverified_address["address"][:7]
             VERIFY_ADDRESS += f" {addr}"
             button_data.append(VERIFY_ADDRESS)
         
         if self.controller.psbt:
-            if not PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
+            if PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
+                if self.controller.resume_main_flow and self.controller.resume_main_flow == Controller.FLOW__PSBT:
+                    # Re-route us directly back to the start of the PSBT flow
+                    self.controller.resume_main_flow = None
+                    self.controller.psbt_seed = self.seed
+                    return Destination(PSBTOverviewView, skip_current_view=True)
+            else:
                 # This seed does not seem to be a signer for this PSBT
                 # TODO: How sure are we? Should disable this entirely if we're 100% sure?
                 REVIEW_PSBT += " (?)"
@@ -378,7 +393,6 @@ class SeedOptionsView(View):
             return Destination(BackStackView)
 
         if button_data[selected_menu_num] == REVIEW_PSBT:
-            from seedsigner.views.psbt_views import PSBTOverviewView
             self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
             return Destination(PSBTOverviewView)
 
@@ -1064,12 +1078,12 @@ class SeedTranscribeSeedQRConfirmScanView(View):
 class AddressVerificationStartView(View):
     def __init__(self, address: str, script_type: str, network: str):
         super().__init__()
-
         self.controller.unverified_address = dict(
             address=address,
             script_type=script_type,
             network=network
         )
+
 
     def run(self):
         if self.controller.unverified_address["script_type"] == SettingsConstants.NESTED_SEGWIT:
@@ -1080,7 +1094,14 @@ class AddressVerificationStartView(View):
             if len(self.controller.unverified_address["address"]) >= 62:
                 # Mainnet/testnet are 62, regtest is 64
                 sig_type = SettingsConstants.MULTISIG
-                destination = Destination(NotYetImplementedView)
+                if self.controller.multisig_wallet_descriptor:
+                    # Can jump straight to the brute-force multisig verification View
+                    # TODO
+                    destination = Destination(NotYetImplementedView)
+                else:
+                    self.controller.resume_main_flow = Controller.FLOW__VERIFY_MULTISIG_ADDR
+                    destination = Destination(LoadMultisigWalletDescriptorView)
+
             else:
                 sig_type = SettingsConstants.SINGLE_SIG
                 destination = Destination(SeedSingleSigAddressVerificationSelectSeedView)
@@ -1176,7 +1197,7 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-
+        
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
             return Destination(
@@ -1186,7 +1207,9 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
                 )
             )
 
-        elif button_data[selected_menu_num] == SCAN_SEED:
+        self.controller.resume_main_flow = Controller.FLOW__VERIFY_SINGLESIG_ADDR
+
+        if button_data[selected_menu_num] == SCAN_SEED:
             from seedsigner.views.scan_views import ScanView
             return Destination(ScanView)
 
@@ -1393,6 +1416,21 @@ class AddressVerificationSuccessView(View):
 
 
 
+class LoadMultisigWalletDescriptorView(View):
+    def run(self):
+        SCAN = ("Scan Descriptor", FontAwesomeIconConstants.QRCODE)
+        CANCEL = "Cancel"
+        button_data = [SCAN, CANCEL]
+        selected_menu_num = seed_screens.LoadMultisigWalletDescriptorScreen(
+            button_data=button_data,
+            show_back_button=False,
+        ).display()
+
+        if button_data[selected_menu_num] == SCAN:
+            return Destination(ScanView)
+
+
+
 class MultisigWalletDescriptorView(View):
     def run(self):
         descriptor = self.controller.multisig_wallet_descriptor
@@ -1406,13 +1444,36 @@ class MultisigWalletDescriptorView(View):
         
         print(fingerprints)
 
+        RETURN = "Return to PSBT"
+        VERIFY = "Verify Addr"
+        OK = "OK"
+
+        button_data = [OK]
+        if self.controller.resume_main_flow:
+            if self.controller.resume_main_flow == Controller.FLOW__PSBT:
+                button_data = [RETURN]
+            elif self.controller.resume_main_flow == Controller.FLOW__VERIFY_MULTISIG_ADDR and self.controller.unverified_address:
+                VERIFY += f" {self.controller.unverified_address[:7]}"
+                button_data = [VERIFY]
+
         selected_menu_num = seed_screens.MultisigWalletDescriptorScreen(
             policy=policy,
             fingerprints=fingerprints,
+            button_data=button_data,
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             self.controller.multisig_wallet_descriptor = None
             return Destination(BackStackView)
         
+        elif button_data[selected_menu_num] == RETURN:
+            # Jump straight back to PSBT change verification
+            self.controller.resume_main_flow = None
+            return Destination(PSBTChangeDetailsView, view_args=dict(change_address_num=0))
+
+        elif button_data[selected_menu_num] == VERIFY:
+            self.controller.resume_main_flow = None
+            # TODO: Route properly when multisig brute-force addr verification is done
+            return Destination(NotYetImplementedView)
+
         return Destination(MainMenuView)

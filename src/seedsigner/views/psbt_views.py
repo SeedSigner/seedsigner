@@ -4,6 +4,7 @@ from typing import List
 from embit.psbt import PSBT
 from embit import script
 from embit.networks import NETWORKS
+from seedsigner.controller import Controller
 
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 from seedsigner.models.encode_qr import EncodeQR
@@ -14,7 +15,7 @@ from seedsigner.gui.screens import psbt_screens
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, DireWarningScreen,
     LoadingScreenThread, QRDisplayScreen, WarningScreen)
 
-from .view import BackStackView, MainMenuView, NotYetImplementedView, UnhandledExceptionView, View, Destination
+from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
 logger = logging.getLogger(__name__)
 
@@ -59,14 +60,17 @@ class PSBTSelectSeedView(View):
             # User selected one of the n seeds
             self.controller.psbt_seed = self.controller.get_seed(selected_menu_num)
             return Destination(PSBTOverviewView)
+        
+        # The remaining flows are a sub-flow; resume PSBT flow once the seed is loaded.
+        self.controller.resume_main_flow = Controller.FLOW__PSBT
 
-        elif button_data[selected_menu_num] == SCAN_SEED:
+        if button_data[selected_menu_num] == SCAN_SEED:
             from seedsigner.views.scan_views import ScanView
             return Destination(ScanView)
 
         elif button_data[selected_menu_num] == ENTER_WORDS:
-            # TODO
-            return None
+            from seedsigner.views.seed_views import SeedMnemonicEntryView
+            return Destination(SeedMnemonicEntryView)
 
 
 
@@ -300,20 +304,17 @@ class PSBTChangeDetailsView(View):
 
         is_change_addr_verified = False
         if psbt_parser.is_multisig:
-            # TODO: 
             # if the known-good multisig descriptor is already onboard:
+            if self.controller.multisig_wallet_descriptor:
+                # Reserved for Nick
                 # calc change addr...
                 # is_change_addr_verified = True
-                # button_data = [NEXT]
+                button_data = [NEXT]
 
-            # else:
+            else:
                 # Have the Screen offer to load in the multisig descriptor.            
-                # button_data = [VERIFY_MULTISIG, NEXT]
+                button_data = [VERIFY_MULTISIG, NEXT]
 
-            # Temp value while awaiting above
-            # TODO: complete multi sig change address verification
-
-            button_data = [VERIFY_MULTISIG, NEXT]
         else:
             # Single sig
             try:
@@ -380,7 +381,9 @@ class PSBTChangeDetailsView(View):
                 return Destination(PSBTFinalizeView)
             
         elif button_data[selected_menu_num] == VERIFY_MULTISIG:
-            return Destination(NotYetImplementedView)
+            from seedsigner.views.seed_views import LoadMultisigWalletDescriptorView
+            self.controller.resume_main_flow = Controller.FLOW__PSBT
+            return Destination(LoadMultisigWalletDescriptorView)
             
 
 
