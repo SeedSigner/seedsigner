@@ -5,9 +5,8 @@ from typing import List
 from seedsigner.gui.components import Button, CheckboxButton, CheckedSelectionButton, FontAwesomeIconConstants, GUIConstants, IconButton, TextArea
 from seedsigner.gui.screens.scan_screens import ScanScreen
 
-from seedsigner.gui.screens.screen import ButtonListScreen, TextTopNavScreen
-from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
-from seedsigner.models.decode_qr import DecodeQRStatus
+from seedsigner.gui.screens.screen import ButtonListScreen
+from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.models.settings import SettingsConstants
 
 
@@ -52,9 +51,6 @@ class SettingsEntryUpdateSelectionScreen(ButtonListScreen):
 class IOTestScreen(ScanScreen):
     def __post_init__(self):
         super().__post_init__()
-
-        # Pull the ScanScreen's live preview thread out before it can get started
-        self.preview_thread = self.threads.pop()
 
         # D-pad pictogram
         input_button_width = GUIConstants.BUTTON_HEIGHT

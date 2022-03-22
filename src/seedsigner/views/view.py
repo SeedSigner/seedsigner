@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import List
 
 from seedsigner.gui.components import FontAwesomeIconConstants
-from seedsigner.gui.screens import (RET_CODE__POWER_BUTTON, TextTopNavScreen)
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, DireWarningScreen, LargeButtonScreen, WarningScreen
+from seedsigner.gui.screens import RET_CODE__POWER_BUTTON
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, DireWarningScreen, LargeButtonScreen, PowerOffScreen, ResetScreen, WarningScreen
 from seedsigner.models.threads import BaseThread
 
 
@@ -176,11 +176,7 @@ class RestartView(View):
     def run(self):
         thread = RestartView.DoResetThread()
         thread.start()
-        TextTopNavScreen(
-            title="Restarting",
-            text="SeedSigner is restarting. All in-memory data will be wiped.",
-            show_back_button=False,
-        ).display()
+        ResetScreen().display()
 
 
     class DoResetThread(BaseThread):
@@ -203,11 +199,7 @@ class PowerOffView(View):
     def run(self):
         thread = PowerOffView.PowerOffThread()
         thread.start()
-        TextTopNavScreen(
-            title="Powering Off",
-            text="Please wait about 30 seconds before disconnecting power.",
-            show_back_button=False,
-        ).display()
+        PowerOffScreen().display()
 
 
     class PowerOffThread(BaseThread):

@@ -1057,32 +1057,103 @@ class SeedTranscribeSeedQRConfirmScanView(View):
 
 
 
-class SeedSingleSigAddressVerificationSelectSeedView(View):
-    def __init__(self, address: str, script_type: str, sig_type: str, network: str):
-        super().__init__()
-        derivation_path = PSBTParser.calc_derivation(
-            network=network,
-            wallet_type=sig_type,
-            script_type=script_type
-        )
 
-        print(derivation_path)
+"""****************************************************************************
+    Address verification
+****************************************************************************"""
+class AddressVerificationStartView(View):
+    def __init__(self, address: str, script_type: str, network: str):
+        super().__init__()
 
         self.controller.unverified_address = dict(
             address=address,
-            derivation_path=derivation_path,
             script_type=script_type,
-            sig_type=sig_type,
             network=network
         )
 
+    def run(self):
+        if self.controller.unverified_address["script_type"] == SettingsConstants.NESTED_SEGWIT:
+            # No way to differentiate single sig from multisig
+            return Destination(AddressVerificationSigTypeView, skip_current_view=True)
 
+        if self.controller.unverified_address["script_type"] == SettingsConstants.NATIVE_SEGWIT:
+            if len(self.controller.unverified_address["address"]) >= 62:
+                # Mainnet/testnet are 62, regtest is 64
+                sig_type = SettingsConstants.MULTISIG
+                destination = Destination(NotYetImplementedView)
+            else:
+                sig_type = SettingsConstants.SINGLE_SIG
+                destination = Destination(SeedSingleSigAddressVerificationSelectSeedView)
+
+        elif self.controller.unverified_address["script_type"] == SettingsConstants.TAPROOT:
+            destination = Destination(NotYetImplementedView)
+
+        elif self.controller.unverified_address["script_type"] == SettingsConstants.LEGACY_P2PKH:
+            destination = Destination(NotYetImplementedView)
+
+        derivation_path = PSBTParser.calc_derivation(
+            network=self.controller.unverified_address["network"],
+            wallet_type=sig_type,
+            script_type=self.controller.unverified_address["script_type"]
+        )
+
+        self.controller.unverified_address["sig_type"] = sig_type
+        self.controller.unverified_address["derivation_path"] = derivation_path
+
+        import json
+        print(json.dumps(self.controller.unverified_address, indent=4))
+
+        return destination
+
+
+
+class AddressVerificationSigTypeView(View):
+    def run(self):
+        sig_type_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SIG_TYPES)
+        SINGLE_SIG = sig_type_settings_entry.get_selection_option_display_name_by_value(SettingsConstants.SINGLE_SIG)
+        MULTISIG = sig_type_settings_entry.get_selection_option_display_name_by_value(SettingsConstants.MULTISIG)
+
+        button_data = [SINGLE_SIG, MULTISIG]
+        selected_menu_num = seed_screens.AddressVerificationSigTypeScreen(
+            title="Verify Address",
+            text="Sig type can't be auto-detected from this address. Please specify:",
+            button_data=button_data,
+            is_bottom_list=True,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            self.controller.unverified_address = None
+            return Destination(BackStackView)
+        
+        elif button_data[selected_menu_num] == SINGLE_SIG:
+            sig_type = SettingsConstants.SINGLE_SIG
+            destination = Destination(SeedSingleSigAddressVerificationSelectSeedView)
+
+        elif button_data[selected_menu_num] == MULTISIG:
+            destination = Destination(NotYetImplementedView)
+
+        self.controller.unverified_address["sig_type"] = sig_type
+        derivation_path = PSBTParser.calc_derivation(
+            network=self.controller.unverified_address["network"],
+            wallet_type=sig_type,
+            script_type=self.controller.unverified_address["script_type"]
+        )
+        self.controller.unverified_address["derivation_path"] = derivation_path
+
+        return destination
+
+
+
+class SeedSingleSigAddressVerificationSelectSeedView(View):
     def run(self):
         seeds = self.controller.storage.seeds
 
         SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
         ENTER_WORDS = "Enter 12/24 words"
         button_data = []
+
+        text = "Load the seed to verify"
+
         for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
             
@@ -1090,11 +1161,15 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
                 # TODO: Include lock icon on right side of button
                 pass
             button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+
+            text = "Select seed to verify"
+
         button_data.append(SCAN_SEED)
         button_data.append(ENTER_WORDS)
 
-        selected_menu_num = ButtonListScreen(
-            title="Verify Address For",
+        selected_menu_num = seed_screens.SeedSingleSigAddressVerificationSelectSeedScreen(
+            title="Verify Address",
+            text=text,
             is_button_text_centered=False,
             button_data=button_data
         ).display()
@@ -1116,9 +1191,8 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
             return Destination(ScanView)
 
         elif button_data[selected_menu_num] == ENTER_WORDS:
-            # TODO
-            return None        
-        
+            return Destination(SeedMnemonicEntryView)
+
 
 
 class SeedSingleSigAddressVerificationView(View):
@@ -1314,4 +1388,6 @@ class AddressVerificationSuccessView(View):
             status_headline="Address Verified",
             text=f"""{address[:7]} = seed {self.seed.get_fingerprint()}'s {"change" if verified_index_is_change else "receive"} addr #{verified_index}."""
         ).display()
+
+        return Destination(MainMenuView)
 

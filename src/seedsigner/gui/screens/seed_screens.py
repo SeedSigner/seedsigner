@@ -11,7 +11,7 @@ from seedsigner.models.qr_type import QRType
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
 from seedsigner.models.seed import Seed
-from seedsigner.models.settings_definition import SettingsConstants
+from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
 from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, WarningEdgesMixin
 from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddress, IconButton,
@@ -1394,6 +1394,35 @@ class SeedTranscribeSeedQRConfirmQRPromptScreen(ButtonListScreen):
 
 
 @dataclass
+class AddressVerificationSigTypeScreen(ButtonListScreen):
+    text: str = ""
+
+    def __post_init__(self):
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text=self.text,
+            screen_y=self.top_nav.height,
+        ))
+
+
+
+@dataclass
+class SeedSingleSigAddressVerificationSelectSeedScreen(ButtonListScreen):
+    text: str = ""
+
+    def __post_init__(self):
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text=self.text,
+            screen_y=self.top_nav.height,
+        ))
+
+
+@dataclass
 class SingleSigAddressVerificationScreen(ButtonListScreen):
     """
         "Skip 10" feature not yet implemented. To do this you would simply increment the
@@ -1407,6 +1436,7 @@ class SingleSigAddressVerificationScreen(ButtonListScreen):
     script_type: str = None
     sig_type: str = None
     network: str = None
+    is_mainnet: bool = None
     threadsafe_counter: ThreadsafeCounter = None
     verified_index: ThreadsafeCounter = None
 
@@ -1426,16 +1456,11 @@ class SingleSigAddressVerificationScreen(ButtonListScreen):
         )
         self.components.append(address_display)
 
+        text = f"{self.sig_type} - {self.script_type}"
+        if not self.is_mainnet:
+            text += f" ({self.network})"
         self.components.append(TextArea(
-            text=f"{self.sig_type} - {self.script_type}",
-            font_size=GUIConstants.LABEL_FONT_SIZE,
-            font_color=GUIConstants.LABEL_FONT_COLOR,
-            is_text_centered=True,
-            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
-        ))
-
-        self.components.append(TextArea(
-            text=self.network,
+            text=text,
             font_size=GUIConstants.LABEL_FONT_SIZE,
             font_color=GUIConstants.LABEL_FONT_COLOR,
             is_text_centered=True,

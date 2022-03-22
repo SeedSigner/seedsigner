@@ -219,62 +219,6 @@ class BaseTopNavScreen(BaseScreen):
 
 
 @dataclass
-class TextTopNavScreen(BaseTopNavScreen):
-    text: str = "Body text"
-    is_text_centered: bool = True
-    text_font_name: str = GUIConstants.BODY_FONT_NAME
-    text_font_size: int = GUIConstants.BODY_FONT_SIZE
-
-    def __post_init__(self):
-        super().__post_init__()
-
-        self.text_area = TextArea(
-            text=self.text,
-            screen_x=0,
-            screen_y=self.top_nav.height,
-            width=self.canvas_width,
-            height=self.canvas_height - self.top_nav.height,
-            font_name=self.text_font_name,
-            font_size=self.text_font_size,
-            is_text_centered=self.is_text_centered
-        )
-        self.components.append(self.text_area)
-
-
-    def _run(self):
-        while True:
-            user_input = self.hw_inputs.wait_for(
-                [
-                    HardwareButtonsConstants.KEY_UP,
-                    HardwareButtonsConstants.KEY_DOWN,
-                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
-                check_release=True,
-                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
-            )
-
-            with self.renderer.lock:
-                if user_input == HardwareButtonsConstants.KEY_UP:
-                    if not self.top_nav.is_selected:
-                        # Only move navigation up there if there's something to select
-                        if self.top_nav.show_back_button or self.top_nav.show_power_button:
-                            self.top_nav.is_selected = True
-                            self.top_nav.render_buttons()
-
-                elif user_input == HardwareButtonsConstants.KEY_DOWN:
-                    if self.top_nav.is_selected:
-                        self.top_nav.is_selected = False
-                        self.top_nav.render_buttons()
-
-                elif user_input in HardwareButtonsConstants.KEYS__ANYCLICK:
-                    if self.top_nav.is_selected:
-                        return self.top_nav.selected_button
-
-                # Write the screen updates
-                self.renderer.show_image()
-
-
-
-@dataclass
 class ButtonListScreen(BaseTopNavScreen):
     button_data: list = None                  # list can be a mix of str or tuple(label: str, icon_name: str)
     selected_button: int = 0
@@ -771,6 +715,7 @@ class LargeIconStatusScreen(ButtonListScreen):
         ))
 
 
+
 class WarningEdgesThread(BaseThread):
     def __init__(self, args):
         super().__init__()
@@ -860,9 +805,45 @@ class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
         super().__post_init__()
 
 
+
 @dataclass
 class DireWarningScreen(WarningScreen):
     status_headline: str = "Classified Info!"     # The colored text under the alert icon
     status_color: str = GUIConstants.DIRE_WARNING_COLOR
 
 
+@dataclass
+class ResetScreen(BaseTopNavScreen):
+    def __post_init__(self):
+        self.title = "Restarting"
+        self.show_back_button = False
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text="SeedSigner is restarting.\n\nAll in-memory data will be wiped.",
+            screen_y=self.top_nav.height,
+            height=self.canvas_height - self.top_nav.height,
+        ))
+    
+    def _run(self):
+        while True:
+            pass
+
+
+
+@dataclass
+class PowerOffScreen(BaseTopNavScreen):
+    def __post_init__(self):
+        self.title = "Powering Off"
+        self.show_back_button = False
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text="Please wait about 30 seconds before disconnecting power.",
+            screen_y=self.top_nav.height,
+            height=self.canvas_height - self.top_nav.height,
+        ))
+
+    def _run(self):
+        while True:
+            pass

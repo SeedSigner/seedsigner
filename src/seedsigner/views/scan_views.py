@@ -3,7 +3,7 @@ from seedsigner.models.psbt_parser import PSBTParser
 
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.psbt_views import PSBTSelectSeedView
-from seedsigner.views.seed_views import SeedAddPassphraseView, SeedSingleSigAddressVerificationSelectSeedView, SeedSingleSigAddressVerificationView
+from seedsigner.views.seed_views import AddressVerificationStartView, SeedAddPassphraseView, SeedSingleSigAddressVerificationSelectSeedView, SeedSingleSigAddressVerificationView
 
 from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
@@ -65,32 +65,15 @@ class ScanView(View):
             elif self.decoder.is_address:
                 address = self.decoder.get_address()
                 (script_type, network) = self.decoder.get_address_type()
-                print(f"script_type: {script_type} | network: {network}")
 
-                sig_type = SettingsConstants.SINGLE_SIG
-                if script_type == SettingsConstants.NATIVE_SEGWIT and len(address) >= 62:
-                    # Mainnet/testnet are 62, regtest is 64
-                    sig_type = SettingsConstants.MULTISIG
-
-                elif script_type == SettingsConstants.NESTED_SEGWIT:
-                    # TODO: No way to differentiate single sig from multisig
-                    print("Need to manually ask if single sig or multisig")
-                    return Destination(NotYetImplementedView)
-
-                if sig_type == SettingsConstants.SINGLE_SIG:
-                    return Destination(
-                        SeedSingleSigAddressVerificationSelectSeedView,
-                        view_args={
-                            "address": self.decoder.get_address(),
-                            "script_type": script_type,
-                            "sig_type": sig_type,
-                            "network": network,
-                        }
-                    )
-                else:
-                    # TODO: Multisig address verification
-                    print("Not yet able to verify multisig addrs!")
-                    return Destination(NotYetImplementedView)
+                return Destination(
+                    AddressVerificationStartView,
+                    view_args={
+                        "address": address,
+                        "script_type": script_type,
+                        "network": network,
+                    }
+                )
             
             else:
                 return Destination(NotYetImplementedView)
