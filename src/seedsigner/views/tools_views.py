@@ -9,7 +9,7 @@ from seedsigner.gui.screens.screen import LargeButtonScreen
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
-from seedsigner.gui.screens.tools_screens import ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsCalcFinalWordShowFinalWordScreen
+from seedsigner.gui.screens.tools_screens import ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsCalcFinalWordShowFinalWordScreen
 from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
@@ -39,7 +39,7 @@ class ToolsMenuView(View):
             return Destination(ToolsImageEntropyLivePreviewView)
 
         elif button_data[selected_menu_num] == DICE:
-            return Destination(NotYetImplementedView)
+            return Destination(ToolsDiceEntropyMnemonicLengthView)
 
         elif button_data[selected_menu_num] == KEYBOARD:
             return Destination(ToolsCalcFinalWordNumWordsView)
@@ -167,6 +167,60 @@ class ToolsImageEntropyMnemonicLengthView(View):
 
 
 """****************************************************************************
+    Dice rolls Views
+****************************************************************************"""
+class ToolsDiceEntropyMnemonicLengthView(View):
+    def run(self):
+        TWELVE = "12 words (50 rolls)"
+        TWENTY_FOUR = "24 words (99 rolls)"
+        
+        button_data = [TWELVE, TWENTY_FOUR]
+        selected_menu_num = ButtonListScreen(
+            title="Mnemonic Length",
+            is_bottom_list=True,
+            is_button_text_centered=True,
+            button_data=button_data,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == TWELVE:
+            return Destination(ToolsDiceEntropyEntryView, view_args=dict(total_rolls=50))
+
+        elif button_data[selected_menu_num] == TWENTY_FOUR:
+            return Destination(ToolsDiceEntropyEntryView, view_args=dict(total_rolls=99))
+
+
+
+class ToolsDiceEntropyEntryView(View):
+    def __init__(self, total_rolls: int):
+        super().__init__()
+        self.total_rolls = total_rolls
+    
+
+    def run(self):
+        ret = ToolsDiceEntropyEntryScreen(
+            total_rolls=self.total_rolls,
+        ).display()
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        print(ret)
+        dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret)
+        print(dice_seed_phrase)
+
+        # Add the mnemonic as an in-memory Seed
+        seed = Seed(dice_seed_phrase, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+        self.controller.storage.set_pending_seed(seed)
+
+        # Cannot return BACK to this View
+        return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
+
+
+
+"""****************************************************************************
     Calc final word Views
 ****************************************************************************"""
 class ToolsCalcFinalWordNumWordsView(View):
@@ -222,3 +276,4 @@ class ToolsCalcFinalWordShowFinalWordView(View):
         
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView)
+

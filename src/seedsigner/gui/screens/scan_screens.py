@@ -1,51 +1,103 @@
 import time
 
 from dataclasses import dataclass
-from PIL import Image, ImageDraw, ImageFont
-from threading import Thread
+from typing import List, Tuple
 
-from .screen import BaseTopNavScreen, ButtonListScreen
-from ..components import GUIConstants, Fonts, TextArea, calc_text_centering
-
+from seedsigner.gui import renderer
 from seedsigner.hardware.buttons import HardwareButtonsConstants
+from seedsigner.hardware.camera import Camera
 from seedsigner.models import DecodeQR, DecodeQRStatus
+from seedsigner.models.threads import BaseThread
+
+from .screen import BaseScreen, BaseTopNavScreen, ButtonListScreen
+from ..components import BaseComponent, Button, GUIConstants, Fonts, IconButton, TextArea, calc_text_centering
+
 
 
 
 @dataclass
-class ScanScreen(BaseTopNavScreen):
+class ScanScreen(BaseScreen):
     decoder: DecodeQR = None
     instructions_text: str = "Scan a QR code"
+    resolution: Tuple[int,int] = (480, 480)
+    framerate: int = 12
+    auto_deactivate_buttons: bool = False  # Used by the I/O test screen
 
     def __post_init__(self):
         from seedsigner.hardware.camera import Camera
-
-        # Customize defaults
-        self.title = "Scan"
-
         # Initialize the base class
         super().__post_init__()
 
         self.camera = Camera.get_instance()
-        self.camera.start_video_stream_mode(resolution=(480, 480), framerate=12, format="rgb")
+        self.camera.start_video_stream_mode(resolution=self.resolution, framerate=self.framerate, format="rgb")
 
-        # Prep the bottom semi-transparent instruction bar
-        self.instructions_background = Image.new("RGBA", (self.canvas_width, 40), color="black")
-        self.instructions_background_y = self.canvas_height - self.instructions_background.height
+        self.threads.append(ScanScreen.LivePreviewThread(
+            camera=self.camera,
+            decoder=self.decoder,
+            renderer=self.renderer,
+            instructions_text=self.instructions_text,
+            components=self.components,
+            auto_deactivate_buttons=self.auto_deactivate_buttons,
+        ))
 
-        # Pre-calc where the instruction text goes
-        self.instructions_font = Fonts.get_font(GUIConstants.BUTTON_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
 
-        # TODO: Add the QR code icon and adjust start_x
-        (self.instructions_text_x, self.instructions_text_y) = calc_text_centering(
-            font=self.instructions_font,
-            text=self.instructions_text,
-            is_text_centered=True,
-            total_width=self.canvas_width,
-            total_height=self.instructions_background.height,
-            start_x=0,
-            start_y=0
-        )
+    class LivePreviewThread(BaseThread):
+        def __init__(self, camera: Camera, decoder: DecodeQR, renderer: renderer, instructions_text: str, components: List[BaseComponent], auto_deactivate_buttons: bool):
+            self.camera = camera
+            self.decoder = decoder
+            self.renderer = renderer
+            self.instructions_text = instructions_text
+            self.components = components
+            self.auto_deactivate_buttons = auto_deactivate_buttons
+            super().__init__()
+
+
+        def run(self):
+            instructions_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
+            while self.keep_running:
+                frame = self.camera.read_video_stream(as_image=True)
+                if frame is not None:
+                    scan_text = self.instructions_text
+                    if self.decoder and self.decoder.get_percent_complete() > 0 and self.decoder.is_psbt:
+                        scan_text = str(self.decoder.get_percent_complete()) + "% Complete"
+
+                    with self.renderer.lock:
+                        if frame.width > self.renderer.canvas_width or frame.height > self.renderer.canvas_height:
+                            frame = frame.resize(
+                                (self.renderer.canvas_width, self.renderer.canvas_height)
+                            )
+                        self.renderer.canvas.paste(
+                            frame,
+                            (0, 0)
+                        )
+
+                        self.renderer.draw.text(
+                            xy=(
+                                int(self.renderer.canvas_width/2),
+                                self.renderer.canvas_height - GUIConstants.EDGE_PADDING
+                            ),
+                            text=scan_text,
+                            fill=GUIConstants.BODY_FONT_COLOR,
+                            font=instructions_font,
+                            stroke_width=4,
+                            stroke_fill=GUIConstants.BACKGROUND_COLOR,
+                            anchor="ms"
+                        )
+
+                        # Need to re-render all onscreen UI components since we just overwrote
+                        # the screen.
+                        for component in self.components:
+                            component.render()
+                            if self.auto_deactivate_buttons and type(component) in [Button, IconButton]:
+                                if component.is_selected:
+                                    # deactivate for the next round
+                                    component.is_selected = False
+
+                        self.renderer.show_image()
+
+                time.sleep(0.1) # turn this up or down to tune performance while decoding psbt
+                if self.camera._video_stream is None:
+                    break
 
 
     def _run(self):
@@ -54,29 +106,6 @@ class ScanScreen(BaseTopNavScreen):
             Screen. Once interaction starts, the display updates have to be managed in
             _run(). The live preview is an extra-complex case.
         """
-        def live_preview():
-            while True:
-                frame = self.camera.read_video_stream(as_image=True)
-                if frame is not None:
-                    scan_text = self.instructions_text
-                    if self.decoder.get_percent_complete() > 0 and self.decoder.is_psbt:
-                        scan_text = str(self.decoder.get_percent_complete()) + "% Complete"
-
-                    # TODO: Render TopNav & instructions_background w/transparency
-                    # img = Image.new(mode='RGBA', size=(self.canvas_width, self.canvas_height))
-                    # img.paste(frame.resize((self.canvas_width, self.canvas_height)))
-                    self.renderer.show_image_with_text(frame.resize((self.canvas_width, self.canvas_height), resample=Image.NEAREST), scan_text, font=self.instructions_font, text_color="white", text_background=(0,0,0,225))
-                    # self.top_nav.render()
-                    # self.renderer.show_image()
-
-                time.sleep(0.1) # turn this up or down to tune performance while decoding psbt
-                if self.camera._video_stream is None:
-                    break
-
-        # putting live preview in its own thread to improve psbt decoding performance
-        t = Thread(target=live_preview)
-        t.start()
-
         while True:
             frame = self.camera.read_video_stream()
             if frame is not None:
@@ -90,8 +119,6 @@ class ScanScreen(BaseTopNavScreen):
                 if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
                     self.camera.stop_video_stream_mode()
                     break
-
-        time.sleep(0.2) # time to let live preview thread complete to avoid race condition on display
 
 
 

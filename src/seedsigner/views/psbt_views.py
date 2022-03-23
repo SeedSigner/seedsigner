@@ -1,16 +1,23 @@
-from embit.psbt import PSBT
+import logging
+from typing import List
 
+from embit.psbt import PSBT
+from embit import script
+from embit.networks import NETWORKS
+from seedsigner.controller import Controller
+
+from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 from seedsigner.models.encode_qr import EncodeQR
+from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.settings import SettingsConstants
+from seedsigner.gui.screens import psbt_screens
+from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, DireWarningScreen,
+    LoadingScreenThread, QRDisplayScreen, WarningScreen)
 
 from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
-from seedsigner.gui.screens import psbt_screens
-from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    LoadingScreenThread, QRDisplayScreen, WarningScreen)
-from seedsigner.models.psbt_parser import PSBTParser
+logger = logging.getLogger(__name__)
 
 
 
@@ -53,14 +60,17 @@ class PSBTSelectSeedView(View):
             # User selected one of the n seeds
             self.controller.psbt_seed = self.controller.get_seed(selected_menu_num)
             return Destination(PSBTOverviewView)
+        
+        # The remaining flows are a sub-flow; resume PSBT flow once the seed is loaded.
+        self.controller.resume_main_flow = Controller.FLOW__PSBT
 
-        elif button_data[selected_menu_num] == SCAN_SEED:
+        if button_data[selected_menu_num] == SCAN_SEED:
             from seedsigner.views.scan_views import ScanView
             return Destination(ScanView)
 
         elif button_data[selected_menu_num] == ENTER_WORDS:
-            # TODO
-            return None
+            from seedsigner.views.seed_views import SeedMnemonicEntryView
+            return Destination(SeedMnemonicEntryView)
 
 
 
@@ -144,7 +154,10 @@ class PSBTNoChangeWarningView(View):
             return Destination(BackStackView)
 
         # Only one exit point
-        return Destination(PSBTMathView)
+        return Destination(
+            PSBTMathView,
+            skip_current_view=True,  # Prevent going BACK to WarningViews
+        )
 
 
 
@@ -291,25 +304,56 @@ class PSBTChangeDetailsView(View):
 
         is_change_addr_verified = False
         if psbt_parser.is_multisig:
-            # TODO: 
             # if the known-good multisig descriptor is already onboard:
-                # calc change addr...
-                # is_change_addr_verified = True
-                # button_data = [NEXT]
+            if self.controller.multisig_wallet_descriptor:
+                is_change_addr_verified = psbt_parser.verify_multisig_output(self.controller.multisig_wallet_descriptor, change_num=self.change_address_num)
+                button_data = [NEXT]
 
-            # else:
+            else:
                 # Have the Screen offer to load in the multisig descriptor.            
-                # button_data = [VERIFY_MULTISIG, NEXT]
+                button_data = [VERIFY_MULTISIG, NEXT]
 
-            # Temp value while awaiting above
-            button_data = [VERIFY_MULTISIG, NEXT]
         else:
             # Single sig
-            # TODO: Generate address from seed at derivation_path and compare with
-            # change_data["address"]
-            # Save for Nick
-            is_change_addr_verified = True
-            button_data = [NEXT]
+            try:
+                if is_change_derivation_path:
+                    loading_screen_text = "Verifying Change..."
+                else:
+                    loading_screen_text = "Verifying Self-Transfer..."
+                loading_screen = LoadingScreenThread(text=loading_screen_text)
+                loading_screen.start()
+
+                # convert change address to script pubkey to get script type
+                pubkey = script.address_to_scriptpubkey(change_data["address"])
+                script_type = pubkey.script_type()
+                
+                # extract derivation path to get wallet and change derivation
+                change_path = '/'.join(derivation_path.split("/")[-2:])
+                wallet_path = '/'.join(derivation_path.split("/")[:-2])
+                
+                xpub = self.controller.psbt_seed.get_xpub(
+                    wallet_path=wallet_path,
+                    network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+                )
+                
+                # take script type and call script method to generate address from seed / derivation
+                scriptcall = getattr(script, script_type)
+                network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+                calc_address = scriptcall(
+                    xpub.derive(change_path).key
+                ).address(
+                    network=NETWORKS[SettingsConstants.map_network_to_embit(network)]
+                )
+
+                if change_data["address"] == calc_address:
+                    is_change_addr_verified = True
+                    button_data = [NEXT]
+
+            finally:
+                loading_screen.stop()
+
+        if is_change_addr_verified == False and (not psbt_parser.is_multisig or self.controller.multisig_wallet_descriptor is not None):
+            return Destination(PSBTAddressVerificationFailedView, view_args=dict(is_change=is_change_derivation_path, is_multisig=psbt_parser.is_multisig), clear_history=True)
 
         selected_menu_num = psbt_screens.PSBTChangeDetailsScreen(
             title=title,
@@ -335,7 +379,41 @@ class PSBTChangeDetailsView(View):
                 return Destination(PSBTFinalizeView)
             
         elif button_data[selected_menu_num] == VERIFY_MULTISIG:
-            return Destination(NotYetImplementedView)
+            from seedsigner.views.seed_views import LoadMultisigWalletDescriptorView
+            self.controller.resume_main_flow = Controller.FLOW__PSBT
+            return Destination(LoadMultisigWalletDescriptorView)
+            
+
+
+class PSBTAddressVerificationFailedView(View):
+    def __init__(self, is_change: bool = True, is_multisig: bool = False):
+        super().__init__()
+        self.is_change = is_change
+        self.is_multisig = is_multisig
+
+
+    def run(self):
+        if self.is_multisig:
+            title = "Caution"
+            text = f"""PSBT's {"change" if self.is_change else "self-transfer"} address could not be verified with your multisig wallet descriptor."""
+        else:
+            title = "Suspicious PSBT"
+            text = f"""PSBT's {"change" if self.is_change else "self-transfer"} address could not be generated from your seed."""
+        
+        DireWarningScreen(
+            title=title,
+            status_headline="Address Verification Failed",
+            text=text,
+            button_data=["Discard PSBT"],
+            show_back_button=False,
+        ).display()
+
+        # Clear out the bad PSBT
+        self.controller.psbt = None
+        self.controller.psbt_parser = None
+        self.controller.psbt_seed = None
+        
+        return Destination(MainMenuView, clear_history=True)
 
 
 

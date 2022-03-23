@@ -1,8 +1,9 @@
 from dataclasses import dataclass
+from typing import List
 
 from seedsigner.gui.components import FontAwesomeIconConstants
-from seedsigner.gui.screens import (RET_CODE__POWER_BUTTON, TextTopNavScreen)
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, LargeButtonScreen, WarningScreen
+from seedsigner.gui.screens import RET_CODE__POWER_BUTTON
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, DireWarningScreen, LargeButtonScreen, PowerOffScreen, ResetScreen, WarningScreen
 from seedsigner.models.threads import BaseThread
 
 
@@ -77,7 +78,8 @@ class Destination:
     skip_current_view: bool = False  # The current View is just forwarding; omit current View from history
     clear_history: bool = False     # Optionally clears the back_stack to prevent "back"
 
-    def __str__(self):
+
+    def __repr__(self):
         if self.View_cls is None:
             out = "None"
         else:
@@ -90,12 +92,26 @@ class Destination:
             out += f" | clear_history: {self.clear_history}"
         return out
 
+
     def run(self):
         if not self.view_args:
             # Can't unpack (**) None so we replace with an empty dict
             self.view_args = {}
         # Instantiate the `View_cls` and run() it with the `view_args` dict
         return self.View_cls(**self.view_args).run()
+
+
+    def __eq__(self, obj):
+        """
+            Equality test IGNORES the skip_current_view and clear_history options
+        """
+        return (isinstance(obj, Destination) and 
+            obj.View_cls == self.View_cls and
+            obj.view_args == self.view_args)
+    
+
+    def __ne__(self, obj):
+        return not obj == self
 
 
 
@@ -117,6 +133,7 @@ class MainMenuView(View):
             (("Tools", FontAwesomeIconConstants.SCREWDRIVER_WRENCH), ToolsMenuView),
             (("Settings", FontAwesomeIconConstants.GEAR), SettingsMenuView),
         ]
+
         screen = LargeButtonScreen(
             title="Home",
             title_font_size=26,
@@ -135,7 +152,7 @@ class MainMenuView(View):
 
 class PowerOptionsView(View):
     def run(self):
-        RESET = ("Reset", FontAwesomeIconConstants.ROTATE_RIGHT)
+        RESET = ("Restart", FontAwesomeIconConstants.ROTATE_RIGHT)
         POWER_OFF = ("Power Off", FontAwesomeIconConstants.POWER_OFF)
         button_data = [RESET, POWER_OFF]
         selected_menu_num = LargeButtonScreen(
@@ -148,22 +165,18 @@ class PowerOptionsView(View):
             return Destination(BackStackView)
         
         elif button_data[selected_menu_num] == RESET:
-            return Destination(ResetView)
+            return Destination(RestartView)
         
         elif button_data[selected_menu_num] == POWER_OFF:
             return Destination(PowerOffView)
 
 
 
-class ResetView(View):
+class RestartView(View):
     def run(self):
-        thread = ResetView.DoResetThread()
+        thread = RestartView.DoResetThread()
         thread.start()
-        TextTopNavScreen(
-            title="Resetting",
-            text="SeedSigner is restarting. All data will be wiped.",
-            show_back_button=False,
-        ).display()
+        ResetScreen().display()
 
 
     class DoResetThread(BaseThread):
@@ -186,11 +199,7 @@ class PowerOffView(View):
     def run(self):
         thread = PowerOffView.PowerOffThread()
         thread.start()
-        TextTopNavScreen(
-            title="Powering Off",
-            text="Please wait about 30 seconds before disconnecting power.",
-            show_back_button=False,
-        ).display()
+        PowerOffScreen().display()
 
 
     class PowerOffThread(BaseThread):
@@ -216,3 +225,22 @@ class NotYetImplementedView(View):
         ).display()
 
         return Destination(MainMenuView)
+
+
+
+class UnhandledExceptionView(View):
+    def __init__(self, error: List[str]):
+        self.error = error
+
+
+    def run(self):
+        DireWarningScreen(
+            title="System Error",
+            status_headline=self.error[0],
+            text=self.error[1] + "\n" + self.error[2],
+            button_data=["OK"],
+            show_back_button=False,
+            allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
+        ).display()
+        
+        return Destination(MainMenuView, clear_history=True)

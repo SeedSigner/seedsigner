@@ -1,24 +1,28 @@
-from typing import List
 import embit
 import time
+
+from typing import List
 from binascii import hexlify
 from embit.networks import NETWORKS
+from seedsigner.controller import Controller
 from seedsigner.models.decode_qr import DecodeQR
 
-from seedsigner.models.settings_definition import SettingsDefinition
-
-from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
-
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    LargeButtonScreen, WarningScreen, DireWarningScreen, seed_screens)
-from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
-from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import InvalidSeedException, Seed
 from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.settings_definition import SettingsDefinition
+from seedsigner.models.threads import BaseThread, ThreadsafeCounter
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
+    WarningScreen, DireWarningScreen, seed_screens)
+from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
+from seedsigner.views.psbt_views import PSBTChangeDetailsView
+from seedsigner.views.scan_views import ScanView
+
+from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
+
 
 
 
@@ -290,7 +294,6 @@ class SeedDiscardView(View):
     def __init__(self, seed_num: int = None):
         super().__init__()
         self.seed_num = seed_num
-        print(f"self.seed_num: {self.seed_num}")
         if self.seed_num is not None:
             self.seed = self.controller.get_seed(self.seed_num)
         else:
@@ -311,20 +314,19 @@ class SeedDiscardView(View):
             button_data=button_data,
         ).display()
 
-        print(f"selected_menu_num: {selected_menu_num}")
-
         if button_data[selected_menu_num] == KEEP:
+            # Use skip_current_view=True to prevent BACK from landing on this warning screen
             if self.seed_num is not None:
-                return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num})
+                return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, skip_current_view=True)
             else:
-                return Destination(SeedFinalizeView)
+                return Destination(SeedFinalizeView, skip_current_view=True)
 
         elif button_data[selected_menu_num] == DISCARD:
             if self.seed_num is not None:
                 self.controller.discard_seed(self.seed_num)
             else:
                 self.controller.storage.clear_pending_seed()
-            return Destination(MainMenuView)
+            return Destination(MainMenuView, clear_history=True)
 
 
 
@@ -339,17 +341,35 @@ class SeedOptionsView(View):
 
 
     def run(self):
+        from seedsigner.views.psbt_views import PSBTOverviewView
+
         SCAN_PSBT = ("Scan PSBT", FontAwesomeIconConstants.QRCODE)
         REVIEW_PSBT = "Review PSBT"
+        VERIFY_ADDRESS = "Verify Addr"
         EXPORT_XPUB = "Export Xpub"
-        VIEW_WORDS = "View Seed Words"
-        EXPORT_SEEDQR = "Export Seed as QR"
+        BACKUP = ("Backup Seed", None, None, None, FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT)
         DISCARD = ("Discard Seed", None, None, "red")
 
         button_data = []
 
+        if self.controller.unverified_address:
+            if self.controller.resume_main_flow == Controller.FLOW__VERIFY_SINGLESIG_ADDR:
+                # Jump straight back into the single sig addr verification flow
+                self.controller.resume_main_flow = None
+                return Destination(SeedSingleSigAddressVerificationView, view_args=dict(seed_num=self.seed_num), skip_current_view=True)
+
+            addr = self.controller.unverified_address["address"][:7]
+            VERIFY_ADDRESS += f" {addr}"
+            button_data.append(VERIFY_ADDRESS)
+        
         if self.controller.psbt:
-            if not PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
+            if PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
+                if self.controller.resume_main_flow and self.controller.resume_main_flow == Controller.FLOW__PSBT:
+                    # Re-route us directly back to the start of the PSBT flow
+                    self.controller.resume_main_flow = None
+                    self.controller.psbt_seed = self.seed
+                    return Destination(PSBTOverviewView, skip_current_view=True)
+            else:
                 # This seed does not seem to be a signer for this PSBT
                 # TODO: How sure are we? Should disable this entirely if we're 100% sure?
                 REVIEW_PSBT += " (?)"
@@ -359,9 +379,8 @@ class SeedOptionsView(View):
         
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             button_data.append(EXPORT_XPUB)
-        
-        button_data.append(VIEW_WORDS)
-        button_data.append(EXPORT_SEEDQR)
+
+        button_data.append(BACKUP)
         button_data.append(DISCARD)
 
         selected_menu_num = seed_screens.SeedOptionsScreen(
@@ -374,7 +393,6 @@ class SeedOptionsView(View):
             return Destination(BackStackView)
 
         if button_data[selected_menu_num] == REVIEW_PSBT:
-            from seedsigner.views.psbt_views import PSBTOverviewView
             self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
             return Destination(PSBTOverviewView)
 
@@ -382,17 +400,46 @@ class SeedOptionsView(View):
             from seedsigner.views.scan_views import ScanView
             return Destination(ScanView)
 
-        elif button_data[selected_menu_num] == VIEW_WORDS:
-            return Destination(SeedWordsWarningView, view_args={"seed_num": self.seed_num})
+        elif button_data[selected_menu_num] == VERIFY_ADDRESS:
+            return Destination(SeedSingleSigAddressVerificationView, view_args={"seed_num": self.seed_num})
 
         elif button_data[selected_menu_num] == EXPORT_XPUB:
             return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})
 
-        elif button_data[selected_menu_num] == EXPORT_SEEDQR:
-            return Destination(SeedTranscribeSeedQRFormatView, view_args={"seed_num": self.seed_num})
+        elif button_data[selected_menu_num] == BACKUP:
+            return Destination(SeedBackupView, view_args={"seed_num": self.seed_num})
 
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView, view_args={"seed_num": self.seed_num})
+
+
+
+class SeedBackupView(View):
+    def __init__(self, seed_num):
+        super().__init__()
+        self.seed_num = seed_num
+        self.seed = self.controller.get_seed(self.seed_num)
+    
+
+    def run(self):
+        VIEW_WORDS = "View Seed Words"
+        EXPORT_SEEDQR = "Export as SeedQR"
+        button_data = [VIEW_WORDS, EXPORT_SEEDQR]
+
+        selected_menu_num = ButtonListScreen(
+            title="Backup Seed",
+            button_data=button_data,
+            is_bottom_list=True,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == VIEW_WORDS:
+            return Destination(SeedWordsWarningView, view_args={"seed_num": self.seed_num})
+
+        elif button_data[selected_menu_num] == EXPORT_SEEDQR:
+            return Destination(SeedTranscribeSeedQRFormatView, view_args={"seed_num": self.seed_num})
 
 
 
@@ -453,12 +500,13 @@ class SeedExportXpubScriptTypeView(View):
             button_data=button_data,
         ).display()
 
-        if selected_menu_num < len(SettingsConstants.ALL_SCRIPT_TYPES):
+        if selected_menu_num < len(button_data):
+
             script_types_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES)
             selected_display_name = button_data[selected_menu_num]
             args["script_type"] = script_types_settings_entry.get_selection_option_value_by_display_name(selected_display_name)
 
-            if button_data[selected_menu_num] == SettingsConstants.CUSTOM_DERIVATION:
+            if args["script_type"] == SettingsConstants.CUSTOM_DERIVATION:
                 return Destination(SeedExportXpubCustomDerivationView, view_args=args)
 
             return Destination(SeedExportXpubCoordinatorView, view_args=args)
@@ -474,7 +522,7 @@ class SeedExportXpubCustomDerivationView(View):
         self.seed_num = seed_num
         self.sig_type = sig_type
         self.script_type = script_type
-        self.custom_derivation_path = self.settings.custom_derivation
+        self.custom_derivation_path = "m/"
 
     def run(self):
         ret = seed_screens.SeedExportXpubCustomDerivationScreen(
@@ -485,7 +533,7 @@ class SeedExportXpubCustomDerivationView(View):
             return Destination(BackStackView)
         
         # ret should be the custom derivation path; store it in Settings
-        self.settings.custom_derivation = ret
+        custom_derivation = ret
 
         return Destination(
             SeedExportXpubCoordinatorView,
@@ -493,17 +541,19 @@ class SeedExportXpubCustomDerivationView(View):
                 "seed_num": self.seed_num,
                 "sig_type": self.sig_type,
                 "script_type": self.script_type,
+                "custom_derivation": custom_derivation,
             }
         )
 
 
 
 class SeedExportXpubCoordinatorView(View):
-    def __init__(self, seed_num: int, sig_type: str, script_type: str):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, custom_derivation: str = None):
         super().__init__()
         self.seed_num = seed_num
         self.sig_type = sig_type
         self.script_type = script_type
+        self.custom_derivation = custom_derivation
 
 
     def run(self):
@@ -511,6 +561,7 @@ class SeedExportXpubCoordinatorView(View):
             "seed_num": self.seed_num,
             "sig_type": self.sig_type,
             "script_type": self.script_type,
+            "custom_derivation": self.custom_derivation,
         }
         if len(self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)) == 1:
             # Nothing to select; skip this screen
@@ -533,12 +584,13 @@ class SeedExportXpubCoordinatorView(View):
 
 
 class SeedExportXpubWarningView(View):
-    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, custom_derivation: str):
         super().__init__()
         self.seed_num = seed_num
         self.sig_type = sig_type
         self.script_type = script_type
         self.coordinator = coordinator
+        self.custom_derivation = custom_derivation
 
 
     def run(self):
@@ -549,11 +601,13 @@ class SeedExportXpubWarningView(View):
                 "sig_type": self.sig_type,
                 "script_type": self.script_type,
                 "coordinator": self.coordinator,
-            }
+                "custom_derivation": self.custom_derivation,
+            },
+            skip_current_view=True,  # Prevent going BACK to WarningViews
         )
 
         if self.settings.get_value(SettingsConstants.SETTING__PRIVACY_WARNINGS) == SettingsConstants.OPTION__DISABLED:
-            destination.skip_current_view = True
+            # Skip the WarningView entirely
             return destination
 
         selected_menu_num = WarningScreen(
@@ -575,11 +629,13 @@ class SeedExportXpubDetailsView(View):
         Collects the user input from all the previous screens leading up to this and
         finally calculates the xpub and displays the summary view to the user.
     """
-    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, custom_derivation: str):
         super().__init__()
         self.sig_type = sig_type
         self.script_type = script_type
         self.coordinator = coordinator
+        self.custom_derivation = custom_derivation
+        
         self.seed_num = seed_num
         self.seed = self.controller.get_seed(self.seed_num)
 
@@ -590,7 +646,7 @@ class SeedExportXpubDetailsView(View):
         self.loading_screen.start()
 
         if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
-            derivation_path = self.settings.custom_derivation
+            derivation_path = self.custom_derivation
         else:
             derivation_path = PSBTParser.calc_derivation(
                 network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
@@ -696,10 +752,13 @@ class SeedWordsWarningView(View):
 
 
     def run(self):
-        destination = Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": 0})
+        destination = Destination(
+            SeedWordsView,
+            view_args={"seed_num": self.seed_num, "page_index": 0},
+            skip_current_view=True,  # Prevent going BACK to WarningViews
+        )
         if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__DISABLED:
             # Forward straight to showing the words
-            destination.skip_current_view = True
             return destination
 
         selected_menu_num = DireWarningScreen(
@@ -836,12 +895,12 @@ class SeedTranscribeSeedQRWarningView(View):
                 "seed_num": self.seed_num,
                 "seedqr_format": self.seedqr_format,
                 "num_modules": self.num_modules,
-            }
+            },
+            skip_current_view=True,  # Prevent going BACK to WarningViews
         )
 
         if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__DISABLED:
             # Forward straight to transcribing the SeedQR
-            destination.skip_current_view = True
             return destination
 
         selected_menu_num = DireWarningScreen(
@@ -1012,113 +1071,409 @@ class SeedTranscribeSeedQRConfirmScanView(View):
                 return Destination(BackStackView, skip_current_view=True)
 
 
+
+"""****************************************************************************
+    Address verification
+****************************************************************************"""
+class AddressVerificationStartView(View):
+    def __init__(self, address: str, script_type: str, network: str):
+        super().__init__()
+        self.controller.unverified_address = dict(
+            address=address,
+            script_type=script_type,
+            network=network
+        )
+
+
+    def run(self):
+        if self.controller.unverified_address["script_type"] == SettingsConstants.NESTED_SEGWIT:
+            # No way to differentiate single sig from multisig
+            return Destination(AddressVerificationSigTypeView, skip_current_view=True)
+
+        if self.controller.unverified_address["script_type"] == SettingsConstants.NATIVE_SEGWIT:
+            if len(self.controller.unverified_address["address"]) >= 62:
+                # Mainnet/testnet are 62, regtest is 64
+                sig_type = SettingsConstants.MULTISIG
+                if self.controller.multisig_wallet_descriptor:
+                    # Can jump straight to the brute-force multisig verification View
+                    # TODO
+                    destination = Destination(NotYetImplementedView)
+                else:
+                    self.controller.resume_main_flow = Controller.FLOW__VERIFY_MULTISIG_ADDR
+                    destination = Destination(LoadMultisigWalletDescriptorView)
+
+            else:
+                sig_type = SettingsConstants.SINGLE_SIG
+                destination = Destination(SeedSingleSigAddressVerificationSelectSeedView)
+
+        elif self.controller.unverified_address["script_type"] == SettingsConstants.TAPROOT:
+            destination = Destination(NotYetImplementedView)
+
+        elif self.controller.unverified_address["script_type"] == SettingsConstants.LEGACY_P2PKH:
+            destination = Destination(NotYetImplementedView)
+
+        derivation_path = PSBTParser.calc_derivation(
+            network=self.controller.unverified_address["network"],
+            wallet_type=sig_type,
+            script_type=self.controller.unverified_address["script_type"]
+        )
+
+        self.controller.unverified_address["sig_type"] = sig_type
+        self.controller.unverified_address["derivation_path"] = derivation_path
+
+        import json
+        print(json.dumps(self.controller.unverified_address, indent=4))
+
+        return destination
+
+
+
+class AddressVerificationSigTypeView(View):
+    def run(self):
+        sig_type_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SIG_TYPES)
+        SINGLE_SIG = sig_type_settings_entry.get_selection_option_display_name_by_value(SettingsConstants.SINGLE_SIG)
+        MULTISIG = sig_type_settings_entry.get_selection_option_display_name_by_value(SettingsConstants.MULTISIG)
+
+        button_data = [SINGLE_SIG, MULTISIG]
+        selected_menu_num = seed_screens.AddressVerificationSigTypeScreen(
+            title="Verify Address",
+            text="Sig type can't be auto-detected from this address. Please specify:",
+            button_data=button_data,
+            is_bottom_list=True,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            self.controller.unverified_address = None
+            return Destination(BackStackView)
+        
+        elif button_data[selected_menu_num] == SINGLE_SIG:
+            sig_type = SettingsConstants.SINGLE_SIG
+            destination = Destination(SeedSingleSigAddressVerificationSelectSeedView)
+
+        elif button_data[selected_menu_num] == MULTISIG:
+            destination = Destination(NotYetImplementedView)
+
+        self.controller.unverified_address["sig_type"] = sig_type
+        derivation_path = PSBTParser.calc_derivation(
+            network=self.controller.unverified_address["network"],
+            wallet_type=sig_type,
+            script_type=self.controller.unverified_address["script_type"]
+        )
+        self.controller.unverified_address["derivation_path"] = derivation_path
+
+        return destination
+
+
+
+class SeedSingleSigAddressVerificationSelectSeedView(View):
+    def run(self):
+        seeds = self.controller.storage.seeds
+
+        SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
+        ENTER_WORDS = "Enter 12/24 words"
+        button_data = []
+
+        text = "Load the seed to verify"
+
+        for seed in seeds:
+            button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+            
+            if seed.passphrase is not None:
+                # TODO: Include lock icon on right side of button
+                pass
+            button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+
+            text = "Select seed to verify"
+
+        button_data.append(SCAN_SEED)
+        button_data.append(ENTER_WORDS)
+
+        selected_menu_num = seed_screens.SeedSingleSigAddressVerificationSelectSeedScreen(
+            title="Verify Address",
+            text=text,
+            is_button_text_centered=False,
+            button_data=button_data
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        if len(seeds) > 0 and selected_menu_num < len(seeds):
+            # User selected one of the n seeds
+            return Destination(
+                SeedSingleSigAddressVerificationView,
+                view_args=dict(
+                    seed_num=selected_menu_num,
+                )
+            )
+
+        self.controller.resume_main_flow = Controller.FLOW__VERIFY_SINGLESIG_ADDR
+
+        if button_data[selected_menu_num] == SCAN_SEED:
+            from seedsigner.views.scan_views import ScanView
+            return Destination(ScanView)
+
+        elif button_data[selected_menu_num] == ENTER_WORDS:
+            return Destination(SeedMnemonicEntryView)
+
+
+
 class SeedSingleSigAddressVerificationView(View):
     """
-        TODO: Reserved for Nick.
-        
-        This was previously part of the PSBT flow but was moved here when we
-        figured out how to avoid having to brute force the change addr verification.
-
-        But instead this code can be altered to be used to brute force single sig
-        address validation as its own separate flow.
-
-        Creates a worker thread to brute force calculate addresses. Writes its
+        Creates a worker thread to brute-force calculate addresses. Writes its
         iteration status to a shared `ThreadsafeCounter`.
 
         The `ThreadsafeCounter` is sent to the display Screen which is monitored in
         its own `ProgressThread` to show the current iteration onscreen.
     """
-    def __init__(self, seed_num: int, address: str):
+    def __init__(self, seed_num: int):
         super().__init__()
+        self.seed_num = seed_num
         self.seed = self.controller.get_seed(seed_num)
-        self.address = address
-    
+        self.address = self.controller.unverified_address["address"]
+        self.derivation_path = self.controller.unverified_address["derivation_path"]
+        self.script_type = self.controller.unverified_address["script_type"]
+        self.sig_type = self.controller.unverified_address["sig_type"]
+        self.network = self.controller.unverified_address["network"]
+
+        if self.script_type == SettingsConstants.TAPROOT:
+            # TODO: Taproot addr verification
+            return Destination(NotYetImplementedView)
+
+        # TODO: This should be in `Seed` or `PSBT` utility class
+        embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.network)]
+        root = embit.bip32.HDKey.from_seed(self.seed.seed_bytes, version=embit_network["xprv"])
+        xprv = root.derive(self.derivation_path)
+        self.xpub = xprv.to_public()
+
+        print(self.derivation_path)
+
+        # The ThreadsafeCounter will be shared by the brute-force thread to keep track of
+        # its current addr index number and the Screen to display its progress and
+        # respond to UI requests to jump the index ahead.
+        self.threadsafe_counter = ThreadsafeCounter()
+
+        # Shared coordination var so the display thread can detect success
+        self.verified_index = ThreadsafeCounter(initial_value=None)
+        self.verified_index_is_change = ThreadsafeCounter(initial_value=None)
+
+        # Create the brute-force calculation thread that will run in the background
+        self.addr_verification_thread = self.SingleSigAddressVerificationThread(
+            address=self.address,
+            xpub=self.xpub,
+            script_type=self.script_type,
+            network=embit_network,
+            threadsafe_counter=self.threadsafe_counter,
+            verified_index=self.verified_index,
+            verified_index_is_change=self.verified_index_is_change,
+        )
+
 
     def run(self):
-        threadsafe_counter = ThreadsafeCounter()
+        # Start brute-force calculations from the zero-th index
+        self.addr_verification_thread.start()
 
-        addr_verification_thread = SeedSingleSigAddressVerificationView.SingleSigAddressVerificationThread(
-            address=self.address,
-            seed=self.seed,
-            threadsafe_counter=threadsafe_counter
-        )
-        addr_verification_thread.start()
+        SKIP_10 = "Skip 10"
+        CANCEL = "Cancel"
+        button_data = [SKIP_10, CANCEL]
 
-        selected_menu_num = seed_screens.SingleSigAddressVerificationScreen(
-            address=self.address,
-            threadsafe_counter=threadsafe_counter,
-        ).display()
+        script_type_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES)
+        script_type_display = script_type_settings_entry.get_selection_option_display_name_by_value(self.script_type)
 
-        addr_verification_thread.stop()
+        sig_type_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SIG_TYPES)
+        sig_type_display = sig_type_settings_entry.get_selection_option_display_name_by_value(self.sig_type)
+
+        network_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__NETWORK)
+        network_display = network_settings_entry.get_selection_option_display_name_by_value(self.network)
+
+        # Display the Screen to show the brute-forcing progress.
+        # Using a loop here to handle the SKIP_10 button presses to increment the counter
+        # and resume displaying the screen. User won't even notice that the Screen is
+        # being re-constructed.
+        while True:
+            selected_menu_num = seed_screens.SingleSigAddressVerificationScreen(
+                address=self.address,
+                derivation_path=self.derivation_path,
+                script_type=script_type_display,
+                sig_type=sig_type_display,
+                network=network_display,
+                threadsafe_counter=self.threadsafe_counter,
+                verified_index=self.verified_index,
+                button_data=button_data,
+            ).display()
+
+            if self.verified_index.cur_count is not None:
+                break
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                break
+
+            if button_data[selected_menu_num] == SKIP_10:
+                self.threadsafe_counter.increment(10)
+
+            elif button_data[selected_menu_num] == CANCEL:
+                break
+
+        if self.verified_index.cur_count is not None:
+            # Successfully verified the addr; update the data
+            self.controller.unverified_address["verified_index"] = self.verified_index.cur_count
+            self.controller.unverified_address["verified_index_is_change"] = self.verified_index_is_change.cur_count == 1
+            import json
+            print(json.dumps(self.controller.unverified_address, indent=4))
+            return Destination(AddressVerificationSuccessView, view_args=dict(seed_num=self.seed_num))
 
 
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
+        else:
+            # Halt the thread if the user gave up (will already be stopped if it verified the
+            # target addr).
+            self.addr_verification_thread.stop()
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON or button_data[selected_menu_num] == CANCEL:
+                return Destination(BackStackView)
+        
+        return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num))
 
 
     class SingleSigAddressVerificationThread(BaseThread):
-        def __init__(self, address: str, seed: Seed, threadsafe_counter: ThreadsafeCounter):
+        def __init__(self, address: str, xpub: str, script_type: str, network: str, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter, verified_index_is_change: ThreadsafeCounter):
             super().__init__()
             self.address = address
+            self.xpub = xpub
+            self.script_type = script_type
+            self.network = network
             self.threadsafe_counter = threadsafe_counter
-            self.verified_index: int = 0
-            self.verified_index_is_change: bool = None
+            self.verified_index = verified_index
+            self.verified_index_is_change = verified_index_is_change
 
 
         def run(self):
             while self.keep_running:
-                # Do work to verify addr
-                # TODO: Reserved for Nick
+                if self.threadsafe_counter.cur_count % 10 == 0:
+                    print(f"Incremented to {self.threadsafe_counter.cur_count}")
+                
+                i = self.threadsafe_counter.cur_count
 
-                # For now mocking that up with time consuming... sleep
-                time.sleep(0.25)
+                r_pubkey = self.xpub.derive([0,i]).key
+                c_pubkey = self.xpub.derive([1,i]).key
+                
+                recieve_address = ""
+                change_address = ""
+                
+                if self.script_type == SettingsConstants.NATIVE_SEGWIT:
+                    recieve_address = embit.script.p2wpkh(r_pubkey).address(network=self.network)
+                    change_address = embit.script.p2wpkh(c_pubkey).address(network=self.network)
+                elif self.script_type == SettingsConstants.NESTED_SEGWIT:
+                    recieve_address = embit.script.p2sh(embit.script.p2wpkh(r_pubkey)).address(network=self.network)
+                    change_address = embit.script.p2sh(embit.script.p2wpkh(c_pubkey)).address(network=self.network)
+                elif self.script_type == SettingsConstants.LEGACY_P2PKH:
+                    recieve_address = embit.script.p2pkh(r_pubkey).address(network=self.network)
+                    change_address = embit.script.p2pkh(c_pubkey).address(network=self.network)
+                elif self.script_type == SettingsConstants.TAPROOT:
+                    # TODO: Not yet implemented!
+                    raise Exception("Taproot verification not yet implemented!")
+                    
+                if self.address == recieve_address:
+                    print(f"Verified receive addr #{i}!")
+                    self.verified_index.set_value(i)
+                    self.verified_index_is_change.set_value(0)
+                    self.keep_running = False
+                    break
+
+                elif self.address == change_address:
+                    print(f"Verified change addr #{i}!")
+                    self.verified_index.set_value(i)
+                    self.verified_index_is_change.set_value(1)
+                    self.keep_running = False
+                    break
 
                 # Increment our index counter
                 self.threadsafe_counter.increment()
 
-                if self.threadsafe_counter.cur_count % 10 == 0:
-                    print(f"Incremented to {self.threadsafe_counter.cur_count}")
 
-                # On successfully verifying addr, set:
-                # self.verified_index = self.counter.cur_count
-                # self.verified_index_is_change = True
-                # break   # Will instance stick around if run() exits?
 
-                # TODO: This should be in `Seed` or `PSBT` utility class
-                # def verify_single_sig_addr(self, address:str):
-                #     import embit
-                #     network = embit.NETWORKS[self.settings.get_value(SettingsConstants.SETTING__NETWORK)]
-                #     version = embit.bip32.detect_version(derivation, default="xpub", network=network)
-                #     root = embit.bip32.HDKey.from_seed(seed.seed, version=network["xprv"])
-                #     fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
-                #     xprv = root.derive(derivation)
-                #     xpub = xprv.to_public()
-                #     for i in range(500):
-                #         r_pubkey = xpub.derive([0,i]).key
-                #         c_pubkey = xpub.derive([1,i]).key
-                        
-                #         recieve_address = ""
-                #         change_address = ""
-                        
-                #         if "P2PKH" in address_type:
-                #             recieve_address = embit.script.p2pkh(r_pubkey).address(network=network)
-                #             change_address = embit.script.p2pkh(c_pubkey).address(network=network)
-                #         elif "Bech32" in address_type:
-                #             recieve_address = embit.script.p2wpkh(r_pubkey).address(network=network)
-                #             change_address = embit.script.p2wpkh(c_pubkey).address(network=network)
-                #         elif "P2SH" in address_type:
-                #             recieve_address = embit.script.p2sh(embit.script.p2wpkh(r_pubkey)).address(network=network)
-                #             change_address = embit.script.p2sh(embit.script.p2wpkh(c_pubkey)).address(network=network)
-                            
-                #         if address == recieve_address:
-                #             self.menu_view.draw_modal(["Receive Address "+str(i), "Verified"], "", "Right to Exit")
-                #             input = self.buttons.wait_for([B.KEY_RIGHT])
-                #             return Path.MAIN_MENU
-                #         if address == change_address:
-                #             self.menu_view.draw_modal(["Change Address "+str(i), "Verified"], "", "Right to Exit")
-                #             input = self.buttons.wait_for([B.KEY_RIGHT])
-                #             return Path.MAIN_MENU
-                #         else:
-                #             self.menu_view.draw_modal(["Checking Address "+str(i), "..."], "", "Right to Abort")
-                #             if self.buttons.check_for_low(B.KEY_RIGHT) or self.buttons.check_for_low(B.KEY_LEFT):
-                #                 return Path.MAIN_MENU
+class AddressVerificationSuccessView(View):
+    def __init__(self, seed_num: int):
+        super().__init__()
+        self.seed_num = seed_num
+        self.seed = self.controller.get_seed(seed_num)
+    
+
+    def run(self):
+        address = self.controller.unverified_address["address"]
+        derivation_path = self.controller.unverified_address["derivation_path"]
+        script_type = self.controller.unverified_address["script_type"]
+        sig_type = self.controller.unverified_address["sig_type"]
+        network = self.controller.unverified_address["network"]
+        verified_index = self.controller.unverified_address["verified_index"]
+        verified_index_is_change = self.controller.unverified_address["verified_index_is_change"]
+
+        selected_menu_num = LargeIconStatusScreen(
+            status_headline="Address Verified",
+            text=f"""{address[:7]} = seed {self.seed.get_fingerprint()}'s {"change" if verified_index_is_change else "receive"} addr #{verified_index}."""
+        ).display()
+
+        return Destination(MainMenuView)
+
+
+
+class LoadMultisigWalletDescriptorView(View):
+    def run(self):
+        SCAN = ("Scan Descriptor", FontAwesomeIconConstants.QRCODE)
+        CANCEL = "Cancel"
+        button_data = [SCAN, CANCEL]
+        selected_menu_num = seed_screens.LoadMultisigWalletDescriptorScreen(
+            button_data=button_data,
+            show_back_button=False,
+        ).display()
+
+        if button_data[selected_menu_num] == SCAN:
+            return Destination(ScanView)
+
+
+
+class MultisigWalletDescriptorView(View):
+    def run(self):
+        descriptor = self.controller.multisig_wallet_descriptor
+
+        fingerprints = []
+        for key in descriptor.keys:
+            fingerprint = hexlify(key.fingerprint).decode()
+            fingerprints.append(fingerprint)
+        
+        policy = descriptor.brief_policy.split("multisig")[0].strip()
+        
+        print(fingerprints)
+
+        RETURN = "Return to PSBT"
+        VERIFY = "Verify Addr"
+        OK = "OK"
+
+        button_data = [OK]
+        if self.controller.resume_main_flow:
+            if self.controller.resume_main_flow == Controller.FLOW__PSBT:
+                button_data = [RETURN]
+            elif self.controller.resume_main_flow == Controller.FLOW__VERIFY_MULTISIG_ADDR and self.controller.unverified_address:
+                VERIFY += f" {self.controller.unverified_address[:7]}"
+                button_data = [VERIFY]
+
+        selected_menu_num = seed_screens.MultisigWalletDescriptorScreen(
+            policy=policy,
+            fingerprints=fingerprints,
+            button_data=button_data,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            self.controller.multisig_wallet_descriptor = None
+            return Destination(BackStackView)
+        
+        elif button_data[selected_menu_num] == RETURN:
+            # Jump straight back to PSBT change verification
+            self.controller.resume_main_flow = None
+            return Destination(PSBTChangeDetailsView, view_args=dict(change_address_num=0))
+
+        elif button_data[selected_menu_num] == VERIFY:
+            self.controller.resume_main_flow = None
+            # TODO: Route properly when multisig brute-force addr verification is done
+            return Destination(NotYetImplementedView)
+
+        return Destination(MainMenuView)

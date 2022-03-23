@@ -12,6 +12,7 @@ from urtypes.crypto import PSBT as UR_PSBT
 
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
 from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
+from seedsigner.models.psbt_parser import PSBTParser
 
 from . import QRType, Seed
 from .settings import SettingsConstants
@@ -89,6 +90,9 @@ class DecodeQR:
 
             elif self.qr_type == QRType.WALLET__SPECTER:
                 self.decoder = SpecterWalletQrDecoder() # Specter Desktop Wallet Export decoder
+
+            elif self.qr_type == QRType.WALLET__GENERIC:
+                self.decoder = GenericWalletQrDecoder()
 
         elif self.qr_type != qr_type:
             raise Exception('QR Fragment Unexpected Type Change')
@@ -258,7 +262,7 @@ class DecodeQR:
 
     @property
     def is_wallet_descriptor(self):
-        return self.qr_type in [QRType.WALLET__SPECTER, QRType.WALLET__UR, QRType.WALLET__BLUEWALLET]
+        return self.qr_type in [QRType.WALLET__SPECTER, QRType.WALLET__UR, QRType.WALLET__BLUEWALLET, QRType.WALLET__GENERIC]
     
 
     @property
@@ -318,6 +322,9 @@ class DecodeQR:
             elif re.search(r'^\{\"label\".*\"descriptor\"\:.*', desc_str, re.IGNORECASE):
                 # if json starting with label and contains descriptor, assume specter wallet json
                 return QRType.WALLET__SPECTER
+            
+            elif "sortedmulti" in s:
+                return QRType.WALLET__GENERIC
 
             # Seed
             if re.search(r'\d{48,96}', s):
@@ -855,32 +862,58 @@ class BitcoinAddressQrDecoder(BaseSingleFrameQrDecoder):
         self.address_type = None
 
 
-    def add(self, segment, qr_type=QRType.BITCOIN_ADDRESS):        
-        r = re.search(r'((bc1|tb1|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})', segment)
+    def add(self, segment, qr_type=QRType.BITCOIN_ADDRESS):
+        r = re.search(r'((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})', segment)
         if r != None:
             self.address = r.group(1)
         
-            if re.search(r'^((bc1|tb1|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', self.address) != None:
+            if re.search(r'^((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})$', self.address) != None:
                 self.complete = True
                 self.collected_segments = 1
                 
                 # get address type
-                r = re.search(r'^((bc1|tb1|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', self.address)
+                r = re.search(r'^((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})$', self.address)
                 if r != None:
                     r = r.group(2)
                 
                 if r == "1":
-                    self.address_type = "P2PKH-main" # Legacy
+                    # Legacy P2PKH. mainnet
+                    self.address_type = (SettingsConstants.LEGACY_P2PKH, SettingsConstants.MAINNET)
+
                 elif r == "m" or r == "n":
-                    self.address_type = "P2PKH-test" # Legacy
+                    self.address_type = (SettingsConstants.LEGACY_P2PKH, SettingsConstants.TESTNET)
+
                 elif r == "3":
-                    self.address_type = "P2SH-main" # Nested Segwit Single Sig (P2WPKH in P2SH) or Multisig (P2WSH in P2SH)
+                    # Nested Segwit Single Sig (P2WPKH in P2SH) or Multisig (P2WSH in P2SH); mainnet
+                    self.address_type = (SettingsConstants.NESTED_SEGWIT, SettingsConstants.MAINNET)
+
                 elif r == "2":
-                    self.address_type = "P2SH-test" # Nested Segwit Single Sig (P2WPKH in P2SH) or Multisig (P2WSH in P2SH)
-                elif r == "bc1":
-                    self.address_type = "Bech32-main" 
-                elif r == "tb1":
-                    self.address_type = "Bech32-test"
+                    # Nested Segwit Single Sig (P2WPKH in P2SH) or Multisig (P2WSH in P2SH); testnet
+                    self.address_type = (SettingsConstants.NESTED_SEGWIT, SettingsConstants.TESTNET)
+
+                elif r == "bc1q":
+                    # Native Segwit (single sig or multisig), mainnet 
+                    self.address_type = (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.MAINNET)
+
+                elif r == "tb1q":
+                    # Native Segwit (single sig or multisig), testnet
+                    self.address_type = (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.TESTNET)
+
+                elif r == "bcrt1q":
+                    # Native Segwit (single sig or multisig), regtest
+                    self.address_type = (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.REGTEST)
+
+                elif r == "bc1p":
+                    # Native Segwit (single sig or multisig), mainnet 
+                    self.address_type = (SettingsConstants.TAPROOT, SettingsConstants.MAINNET)
+
+                elif r == "tb1p":
+                    # Native Segwit (single sig or multisig), testnet
+                    self.address_type = (SettingsConstants.TAPROOT, SettingsConstants.TESTNET)
+
+                elif r == "bcrt1p":
+                    # Native Segwit (single sig or multisig), regtest
+                    self.address_type = (SettingsConstants.TAPROOT, SettingsConstants.REGTEST)
                 
                 return DecodeQRStatus.COMPLETE
 
@@ -957,3 +990,27 @@ class SpecterWalletQrDecoder(BaseAnimatedQrDecoder):
             return re.search(r'^p(\d+)of(\d+) (.+$)', segment, re.IGNORECASE).group(3)
         except:
             return segment
+
+
+
+class GenericWalletQrDecoder(BaseSingleFrameQrDecoder):
+    def __init__(self):
+        super().__init__()
+        self.descriptor = None
+
+
+    def add(self, segment, qr_type=QRType.WALLET__GENERIC):
+        from embit.descriptor import Descriptor
+        try:
+            # Validate via embit
+            Descriptor.from_string(segment)
+            self.descriptor = segment
+            return DecodeQRStatus.COMPLETE
+        except Exception as e:
+            print(repr(e))
+        return DecodeQRStatus.INVALID
+    
+
+    def get_wallet_descriptor(self):
+        return self.descriptor
+
