@@ -1,9 +1,11 @@
 from binascii import hexlify
 from embit import psbt, script, ec, bip32, bip39
+from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
 from embit.psbt import PSBT
 from io import BytesIO
 from typing import List
+
 from seedsigner.models import Seed
 from seedsigner.models.settings import SettingsConstants
 
@@ -152,6 +154,7 @@ class PSBTParser():
                         fingerprints.append(hexlify(derivation_path.fingerprint).decode())
                         derivation_paths.append(bip32.path_to_str(derivation_path.derivation))
                 self.change_data.append({
+                    "output_index": i,
                     "address": addr,
                     "amount": self.psbt.tx.vout[i].value,
                     "fingerprint": fingerprints,
@@ -333,3 +336,12 @@ class PSBTParser():
                 if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():
                     return True
         return False
+
+
+    def verify_multisig_output(self, descriptor: Descriptor, change_num: int) -> bool:
+        change_data = self.get_change_data(change_num)
+        i = change_data["output_index"]
+        output = self.psbt.outputs[i]
+        is_owner = descriptor.owns(output)
+        print(f"{self.psbt.tx.vout[i].script_pubkey.address()} | {output.value} | {is_owner}")
+        return is_owner

@@ -58,7 +58,8 @@ class Controller(Singleton):
     settings: Settings = None
     renderer: Renderer = None
 
-    # TODO: Refactor these attrs that survive across multiple Screens
+    # TODO: Refactor these flow-related attrs that survive across multiple Screens.
+    # TODO: Should all in-memory flow-related attrs get wiped on MainMenuView?
     psbt: PSBT = None
     psbt_seed: Seed = None
     psbt_parser: PSBTParser = None

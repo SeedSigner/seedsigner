@@ -306,9 +306,7 @@ class PSBTChangeDetailsView(View):
         if psbt_parser.is_multisig:
             # if the known-good multisig descriptor is already onboard:
             if self.controller.multisig_wallet_descriptor:
-                # Reserved for Nick
-                # calc change addr...
-                # is_change_addr_verified = True
+                is_change_addr_verified = psbt_parser.verify_multisig_output(self.controller.multisig_wallet_descriptor, change_num=self.change_address_num)
                 button_data = [NEXT]
 
             else:
@@ -354,9 +352,9 @@ class PSBTChangeDetailsView(View):
             finally:
                 loading_screen.stop()
 
-        if is_change_addr_verified == False and psbt_parser.is_multisig == False:
-            return Destination(PSBTSingleSigAddressVerificationFailedView, clear_history=True)
-                
+        if is_change_addr_verified == False and (not psbt_parser.is_multisig or self.controller.multisig_wallet_descriptor is not None):
+            return Destination(PSBTAddressVerificationFailedView, view_args=dict(is_change=is_change_derivation_path, is_multisig=psbt_parser.is_multisig), clear_history=True)
+
         selected_menu_num = psbt_screens.PSBTChangeDetailsScreen(
             title=title,
             button_data=button_data,
@@ -387,12 +385,25 @@ class PSBTChangeDetailsView(View):
             
 
 
-class PSBTSingleSigAddressVerificationFailedView(View):
+class PSBTAddressVerificationFailedView(View):
+    def __init__(self, is_change: bool = True, is_multisig: bool = False):
+        super().__init__()
+        self.is_change = is_change
+        self.is_multisig = is_multisig
+
+
     def run(self):
+        if self.is_multisig:
+            title = "Caution"
+            text = f"""PSBT's {"change" if self.is_change else "self-transfer"} address could not be verified with your multisig wallet descriptor."""
+        else:
+            title = "Suspicious PSBT"
+            text = f"""PSBT's {"change" if self.is_change else "self-transfer"} address could not be generated from your seed."""
+        
         DireWarningScreen(
-            title="Suspicious PSBT",
+            title=title,
             status_headline="Address Verification Failed",
-            text="PSBT's change address could not be generated from your seed.",
+            text=text,
             button_data=["Discard PSBT"],
             show_back_button=False,
         ).display()

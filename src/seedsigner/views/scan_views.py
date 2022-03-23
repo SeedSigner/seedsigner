@@ -1,4 +1,5 @@
 import json
+import re
 
 from embit.descriptor import Descriptor
 
@@ -59,10 +60,25 @@ class ScanView(View):
             elif self.decoder.is_wallet_descriptor:
                 from seedsigner.views.seed_views import MultisigWalletDescriptorView
                 descriptor_str = self.decoder.get_wallet_descriptor()
+
+                try:
+                    # We need to replace `/0/*` wildcards with `/{0,1}/*` in order to use
+                    # the Descriptor to verify change, too.
+                    orig_descriptor_str = descriptor_str
+                    if len(re.findall (r'\[([0-9,a-f,A-F]+?)(\/[0-9,\/,h\']+?)\].*?(\/0\/\*)', descriptor_str)) > 0:
+                        p = re.compile(r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h\']+?\].*?)(\/0\/\*)')
+                        descriptor_str = p.sub(r'\1/{0,1}/*', descriptor_str)
+                    elif len(re.findall (r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])', descriptor_str)) > 0:
+                        p = re.compile(r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])')
+                        descriptor_str = p.sub(r'\1/{0,1}/*\2', descriptor_str)
+                except Exception as e:
+                    print(repr(e))
+                    descriptor_str = orig_descriptor_str
+
                 descriptor = Descriptor.from_string(descriptor_str)
 
                 if not descriptor.is_basic_multisig:
-                    # TODO: Handle single-sig descriptors
+                    # TODO: Handle single-sig descriptors?
                     return Destination(NotYetImplementedView)
 
                 self.controller.multisig_wallet_descriptor = descriptor
