@@ -103,7 +103,7 @@ class ScreensaverView(LogoView):
                     crop = self.image.crop((
                         self.cur_x, self.cur_y,
                         self.cur_x + self.renderer.canvas_width, self.cur_y + self.renderer.canvas_height))
-                    self.renderer.disp.ShowImage(crop, 0, 0)
+                    self.renderer.disp.show(crop)
 
                     self.cur_x += self.increment_x
                     self.cur_y += self.increment_y
