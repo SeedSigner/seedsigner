@@ -431,13 +431,17 @@ class Icon(BaseComponent):
 
 
     def render(self):
-        self.image_draw.text(
-            (self.screen_x, self.screen_y),
+        img = Image.new("RGBA", (self.width, self.height), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(img)
+
+        draw.text(
+            (0, 0),
             text=self.icon_name,
             font=self.icon_font,
             fill=self.icon_color,
             anchor="lt",  # left, top anchor to avoid "ascender" gap space
         )
+        self.canvas.alpha_composite(img, (self.screen_x, self.screen_y))
 
 
 

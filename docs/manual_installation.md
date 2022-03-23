@@ -145,6 +145,80 @@ kill 297
 Where `297` is the process id listed in the output above (it'll be different each time).
 
 
+### Install framebuffer drivers for Waveshares 1.3" LCD HAT
+
+Installation of the FBCP Driver:
+```
+sudo apt-get install cmake -y
+cd ~
+wget https://www.waveshare.com/w/upload/f/f9/Waveshare_fbcp.7z
+sudo apt-get install p7zip-full
+7z x Waveshare_fbcp.7z -o./waveshare_fbcp
+cd waveshare_fbcp
+mkdir build
+cd build
+cmake -DSPI_BUS_CLOCK_DIVISOR=20 -DWAVESHARE_1INCH3_LCD_HAT=ON -DBACKLIGHT_CONTROL=ON -DSTATISTICS=0 ..
+make -j
+sudo cp ~/waveshare_fbcp/build/fbcp /usr/local/bin/fbcp
+```
+
+The build files can be cleared out:
+```
+cd
+rm Waveshare_fbcp.7z
+rm -r waveshare_fbcp
+```
+
+This driver needs to run at startup, so we create a service:
+```
+sudo nano /etc/systemd/system/fbcp.service
+```
+
+Add the following contents to the text file that was created:
+```
+[Unit]
+Description=Waveshare FBCP Driver
+
+[Service]
+User=pi
+ExecStart=/usr/local/bin/fbcp
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+Then `CTRL-X` and `y` to exit and save changes.
+
+Finally, we have to configure it in the boot config:
+```
+sudo nano /boot/config.txt
+```
+
+And add the following lines to the end of the file:
+```
+hdmi_force_hotplug=1
+hdmi_cvt=240 240 60 1 0 0 0
+hdmi_group=2
+hdmi_mode=87
+display_rotate=0
+```
+
+Finally, removing the boot sequence and terminal login from the screen:
+```
+sudo nano /boot/cmdline.txt
+```
+
+and append the following setting at the of the line. Make sure to add a space between the existing settings and this one:
+```
+fbcon=map:2
+````
+
+Save your changes with `CTRL-X` and `y`.
+
+The complete guide can be found on [Waveshare 1.3inch LCD HAT Wiki](https://www.waveshare.com/wiki/1.3inch_LCD_HAT), under the Guides for Pi tab.
+
+
+
 ### Download the SeedSigner code:
 ```
 git clone https://github.com/SeedSigner/seedsigner

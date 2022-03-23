@@ -28,7 +28,7 @@ class OpeningSplashView(LogoView):
         for i in range(250, -1, -25):
             self.logo.putalpha(255 - i)
             background = Image.new("RGBA", self.logo.size, (0,0,0))
-            self.renderer.disp.ShowImage(Image.alpha_composite(background, self.logo), 0, 0)
+            self.renderer.disp.show(Image.alpha_composite(background, self.logo))
 
         # Display version num and hold for a few seconds
         font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.TOP_NAV_TITLE_FONT_SIZE)
@@ -51,7 +51,7 @@ class ScreensaverView(LogoView):
         self.buttons = buttons
 
         # Paste the logo in a bigger image that is 2x the size of the logo
-        self.image = Image.new("RGB", (2 * self.logo.size[0], 2 * self.logo.size[1]), (0,0,0))
+        self.image = Image.new("RGBA", (2 * self.logo.size[0], 2 * self.logo.size[1]), (0,0,0))
         self.image.paste(self.logo, (int(self.logo.size[0] / 2), int(self.logo.size[1] / 2)))
 
         self.min_coords = (0, 0)
