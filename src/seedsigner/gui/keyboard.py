@@ -162,6 +162,8 @@ class Keyboard:
     def __init__(self,
                  draw: ImageDraw,
                  charset="1234567890abcdefghijklmnopqrstuvwxyz",
+                 font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+                 font_size=24,
                  selected_char="a",
                  rows=4,
                  cols=10,
@@ -179,7 +181,7 @@ class Keyboard:
         self.rows = rows
         self.cols = cols
         self.rect = rect
-        self.font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 24)
+        self.font = Fonts.get_font(font_name, font_size)
 
         self.auto_wrap = auto_wrap
         self.background_color = GUIConstants.BUTTON_BACKGROUND_COLOR

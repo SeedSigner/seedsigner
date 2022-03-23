@@ -180,6 +180,9 @@ class Fonts(Singleton):
         if font_name not in cls.fonts:
             cls.fonts[font_name] = {}
         
+        if font_name in [GUIConstants.ICON_FONT_NAME__FONT_AWESOME, GUIConstants.ICON_FONT_NAME__SEEDSIGNER]:
+            file_extension = "otf"
+        
         if size not in cls.fonts[font_name]:
             try:
                 cls.fonts[font_name][size] = ImageFont.truetype(os.path.join(cls.font_path, f"{font_name}.{file_extension}"), size)
