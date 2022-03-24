@@ -1152,7 +1152,12 @@ class AddressVerificationSigTypeView(View):
             destination = Destination(SeedSingleSigAddressVerificationSelectSeedView)
 
         elif button_data[selected_menu_num] == MULTISIG:
-            destination = Destination(NotYetImplementedView)
+            sig_type = SettingsConstants.MULTISIG
+            if self.controller.multisig_wallet_descriptor:
+                destination = Destination(SeedAddressVerificationView)
+            else:
+                self.controller.resume_main_flow = Controller.FLOW__VERIFY_MULTISIG_ADDR
+                destination = Destination(LoadMultisigWalletDescriptorView)
 
         self.controller.unverified_address["sig_type"] = sig_type
         derivation_path = PSBTParser.calc_derivation(
@@ -1292,6 +1297,7 @@ class SeedAddressVerificationView(View):
 
         network_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__NETWORK)
         network_display = network_settings_entry.get_selection_option_display_name_by_value(self.network)
+        mainnet = network_settings_entry.get_selection_option_display_name_by_value(SettingsConstants.MAINNET)
 
         # Display the Screen to show the brute-forcing progress.
         # Using a loop here to handle the SKIP_10 button presses to increment the counter
@@ -1304,6 +1310,7 @@ class SeedAddressVerificationView(View):
                 script_type=script_type_display,
                 sig_type=sig_type_display,
                 network=network_display,
+                is_mainnet=network_display == mainnet,
                 threadsafe_counter=self.threadsafe_counter,
                 verified_index=self.verified_index,
                 button_data=button_data,
@@ -1450,7 +1457,7 @@ class AddressVerificationSuccessView(View):
 
         LargeIconStatusScreen(
             status_headline="Address Verified",
-            text=f"""{address[:7]} = {source}'s {"change" if verified_index_is_change else "receive"} addr #{verified_index}."""
+            text=f"""{address[:7]} = {source}'s {"change" if verified_index_is_change else "receive"} address #{verified_index}."""
         ).display()
 
         return Destination(MainMenuView)

@@ -1524,7 +1524,7 @@ class LoadMultisigWalletDescriptorScreen(ButtonListScreen):
         super().__post_init__()
 
         self.components.append(TextArea(
-            text="Load your multisig wallet descriptor to verify change or self-transfer addrs.",
+            text="Load your multisig wallet descriptor to verify your receive/self-transfer or change address.",
             screen_y=self.top_nav.height,
             height=self.buttons[0].screen_y - self.top_nav.height,
         ))
