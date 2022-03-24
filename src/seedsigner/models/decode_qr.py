@@ -13,7 +13,6 @@ from urtypes.crypto import Account, HDKey, Output, Keypath, PathComponent, SCRIP
 from urtypes.bytes import Bytes
 
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
-from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
 from seedsigner.models.psbt_parser import PSBTParser
 
 from . import QRType, Seed
