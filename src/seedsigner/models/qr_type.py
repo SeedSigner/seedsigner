@@ -27,6 +27,6 @@ class QRType:
     WALLET__GENERIC = "wallet__generic"
     OUTPUT__UR = "output__ur"
     ACCOUNT__UR = "account__ur"
-    LEGACY__UR = "legacy__ur"
+    BYTES__UR = "bytes__ur"
 
     INVALID = "invalid"
