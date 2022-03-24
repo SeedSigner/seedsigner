@@ -1422,14 +1422,14 @@ class SeedSingleSigAddressVerificationSelectSeedScreen(ButtonListScreen):
         ))
 
 
+
 @dataclass
-class SingleSigAddressVerificationScreen(ButtonListScreen):
+class SeedAddressVerificationScreen(ButtonListScreen):
     """
-        "Skip 10" feature not yet implemented. To do this you would simply increment the
-        `ThreadsafeCounter` via its `increment(step=10)` method. Because it is
-        threadsafe, the next brute force round by the
-        `SingleSigAddressVerificationThread` can just check its value and resume its work
-        from the updated index.
+        "Skip 10" feature increments the `ThreadsafeCounter` via its `increment(step=10)`
+        method. Because it is threadsafe, the next brute force round by the
+        `BruteForceAddressVerificationThread` can just check the ThreadsafeCounter's
+        value and resume its work from the updated index.
     """
     address: str = None
     derivation_path: str = None
@@ -1445,6 +1445,7 @@ class SingleSigAddressVerificationScreen(ButtonListScreen):
         # Customize defaults
         self.title = "Verify Address"
         self.is_bottom_list = True
+        self.show_back_button = False
         self.button_data = ["Skip 10", "Cancel"]
 
         super().__post_init__()
@@ -1467,7 +1468,7 @@ class SingleSigAddressVerificationScreen(ButtonListScreen):
             screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
         ))
 
-        self.threads.append(SingleSigAddressVerificationScreen.ProgressThread(
+        self.threads.append(SeedAddressVerificationScreen.ProgressThread(
             renderer=self.renderer,
             screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
             threadsafe_counter=self.threadsafe_counter,
@@ -1523,7 +1524,7 @@ class LoadMultisigWalletDescriptorScreen(ButtonListScreen):
         super().__post_init__()
 
         self.components.append(TextArea(
-            text="Load your multisig wallet descriptor to verify change or self-transfer addrs.",
+            text="Load your multisig wallet descriptor to verify your receive/self-transfer or change address.",
             screen_y=self.top_nav.height,
             height=self.buttons[0].screen_y - self.top_nav.height,
         ))
