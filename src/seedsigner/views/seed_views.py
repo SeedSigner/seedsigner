@@ -3,6 +3,7 @@ import time
 
 from typing import List
 from binascii import hexlify
+from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
 from seedsigner.controller import Controller
 from seedsigner.models.decode_qr import DecodeQR
@@ -356,7 +357,7 @@ class SeedOptionsView(View):
             if self.controller.resume_main_flow == Controller.FLOW__VERIFY_SINGLESIG_ADDR:
                 # Jump straight back into the single sig addr verification flow
                 self.controller.resume_main_flow = None
-                return Destination(SeedSingleSigAddressVerificationView, view_args=dict(seed_num=self.seed_num), skip_current_view=True)
+                return Destination(SeedAddressVerificationView, view_args=dict(seed_num=self.seed_num), skip_current_view=True)
 
             addr = self.controller.unverified_address["address"][:7]
             VERIFY_ADDRESS += f" {addr}"
@@ -401,7 +402,7 @@ class SeedOptionsView(View):
             return Destination(ScanView)
 
         elif button_data[selected_menu_num] == VERIFY_ADDRESS:
-            return Destination(SeedSingleSigAddressVerificationView, view_args={"seed_num": self.seed_num})
+            return Destination(SeedAddressVerificationView, view_args={"seed_num": self.seed_num})
 
         elif button_data[selected_menu_num] == EXPORT_XPUB:
             return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})
@@ -1095,9 +1096,8 @@ class AddressVerificationStartView(View):
                 # Mainnet/testnet are 62, regtest is 64
                 sig_type = SettingsConstants.MULTISIG
                 if self.controller.multisig_wallet_descriptor:
-                    # Can jump straight to the brute-force multisig verification View
-                    # TODO
-                    destination = Destination(NotYetImplementedView)
+                    # Can jump straight to the brute-force verification View
+                    destination = Destination(SeedAddressVerificationView)
                 else:
                     self.controller.resume_main_flow = Controller.FLOW__VERIFY_MULTISIG_ADDR
                     destination = Destination(LoadMultisigWalletDescriptorView)
@@ -1110,6 +1110,7 @@ class AddressVerificationStartView(View):
             destination = Destination(NotYetImplementedView)
 
         elif self.controller.unverified_address["script_type"] == SettingsConstants.LEGACY_P2PKH:
+            # TODO: detect single sig vs multisig or have to prompt?
             destination = Destination(NotYetImplementedView)
 
         derivation_path = PSBTParser.calc_derivation(
@@ -1201,7 +1202,7 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
             return Destination(
-                SeedSingleSigAddressVerificationView,
+                SeedAddressVerificationView,
                 view_args=dict(
                     seed_num=selected_menu_num,
                 )
@@ -1218,18 +1219,28 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
 
 
 
-class SeedSingleSigAddressVerificationView(View):
+class SeedAddressVerificationView(View):
     """
         Creates a worker thread to brute-force calculate addresses. Writes its
         iteration status to a shared `ThreadsafeCounter`.
 
         The `ThreadsafeCounter` is sent to the display Screen which is monitored in
         its own `ProgressThread` to show the current iteration onscreen.
+
+        Performs single sig verification on `seed_num` if specified, otherwise assumes
+        multisig.
     """
-    def __init__(self, seed_num: int):
+    def __init__(self, seed_num: int = None):
         super().__init__()
         self.seed_num = seed_num
-        self.seed = self.controller.get_seed(seed_num)
+        self.is_multisig = self.controller.unverified_address["sig_type"] == SettingsConstants.MULTISIG
+        if not self.is_multisig:
+            if seed_num is None:
+                raise Exception("Can't validate a single sig addr without specifying a seed")
+            self.seed_num = seed_num
+            self.seed = self.controller.get_seed(seed_num)
+        else:
+            self.seed = None
         self.address = self.controller.unverified_address["address"]
         self.derivation_path = self.controller.unverified_address["derivation_path"]
         self.script_type = self.controller.unverified_address["script_type"]
@@ -1242,11 +1253,6 @@ class SeedSingleSigAddressVerificationView(View):
 
         # TODO: This should be in `Seed` or `PSBT` utility class
         embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.network)]
-        root = embit.bip32.HDKey.from_seed(self.seed.seed_bytes, version=embit_network["xprv"])
-        xprv = root.derive(self.derivation_path)
-        self.xpub = xprv.to_public()
-
-        print(self.derivation_path)
 
         # The ThreadsafeCounter will be shared by the brute-force thread to keep track of
         # its current addr index number and the Screen to display its progress and
@@ -1258,9 +1264,10 @@ class SeedSingleSigAddressVerificationView(View):
         self.verified_index_is_change = ThreadsafeCounter(initial_value=None)
 
         # Create the brute-force calculation thread that will run in the background
-        self.addr_verification_thread = self.SingleSigAddressVerificationThread(
+        self.addr_verification_thread = self.BruteForceAddressVerificationThread(
             address=self.address,
-            xpub=self.xpub,
+            seed=self.seed,
+            descriptor=self.controller.multisig_wallet_descriptor,
             script_type=self.script_type,
             network=embit_network,
             threadsafe_counter=self.threadsafe_counter,
@@ -1291,7 +1298,7 @@ class SeedSingleSigAddressVerificationView(View):
         # and resume displaying the screen. User won't even notice that the Screen is
         # being re-constructed.
         while True:
-            selected_menu_num = seed_screens.SingleSigAddressVerificationScreen(
+            selected_menu_num = seed_screens.SeedAddressVerificationScreen(
                 address=self.address,
                 derivation_path=self.derivation_path,
                 script_type=script_type_display,
@@ -1322,28 +1329,34 @@ class SeedSingleSigAddressVerificationView(View):
             print(json.dumps(self.controller.unverified_address, indent=4))
             return Destination(AddressVerificationSuccessView, view_args=dict(seed_num=self.seed_num))
 
-
         else:
             # Halt the thread if the user gave up (will already be stopped if it verified the
             # target addr).
             self.addr_verification_thread.stop()
 
-            if selected_menu_num == RET_CODE__BACK_BUTTON or button_data[selected_menu_num] == CANCEL:
-                return Destination(BackStackView)
-        
-        return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num))
+        return Destination(MainMenuView)
 
 
-    class SingleSigAddressVerificationThread(BaseThread):
-        def __init__(self, address: str, xpub: str, script_type: str, network: str, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter, verified_index_is_change: ThreadsafeCounter):
+
+    class BruteForceAddressVerificationThread(BaseThread):
+        def __init__(self, address: str, seed: Seed, descriptor: Descriptor, script_type: str, network: str, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter, verified_index_is_change: ThreadsafeCounter):
+            """
+                Either seed or descriptor will be None
+            """
             super().__init__()
             self.address = address
-            self.xpub = xpub
+            self.seed = seed
+            self.descriptor = descriptor
             self.script_type = script_type
             self.network = network
             self.threadsafe_counter = threadsafe_counter
             self.verified_index = verified_index
             self.verified_index_is_change = verified_index_is_change
+
+            if self.seed:
+                root = embit.bip32.HDKey.from_seed(self.seed.seed_bytes, version=network["xprv"])
+                xprv = root.derive(self.derivation_path)
+                self.xpub = xprv.to_public()
 
 
         def run(self):
@@ -1353,26 +1366,12 @@ class SeedSingleSigAddressVerificationView(View):
                 
                 i = self.threadsafe_counter.cur_count
 
-                r_pubkey = self.xpub.derive([0,i]).key
-                c_pubkey = self.xpub.derive([1,i]).key
-                
-                recieve_address = ""
-                change_address = ""
-                
-                if self.script_type == SettingsConstants.NATIVE_SEGWIT:
-                    recieve_address = embit.script.p2wpkh(r_pubkey).address(network=self.network)
-                    change_address = embit.script.p2wpkh(c_pubkey).address(network=self.network)
-                elif self.script_type == SettingsConstants.NESTED_SEGWIT:
-                    recieve_address = embit.script.p2sh(embit.script.p2wpkh(r_pubkey)).address(network=self.network)
-                    change_address = embit.script.p2sh(embit.script.p2wpkh(c_pubkey)).address(network=self.network)
-                elif self.script_type == SettingsConstants.LEGACY_P2PKH:
-                    recieve_address = embit.script.p2pkh(r_pubkey).address(network=self.network)
-                    change_address = embit.script.p2pkh(c_pubkey).address(network=self.network)
-                elif self.script_type == SettingsConstants.TAPROOT:
-                    # TODO: Not yet implemented!
-                    raise Exception("Taproot verification not yet implemented!")
+                if self.descriptor:
+                    (receive_address, change_address) = self.derive_multisig(i)
+                else:
+                    (receive_address, change_address) = self.derive_single_sig(i)
                     
-                if self.address == recieve_address:
+                if self.address == receive_address:
                     print(f"Verified receive addr #{i}!")
                     self.verified_index.set_value(i)
                     self.verified_index_is_change.set_value(0)
@@ -1390,26 +1389,68 @@ class SeedSingleSigAddressVerificationView(View):
                 self.threadsafe_counter.increment()
 
 
+        def derive_single_sig(self, index):
+            r_pubkey = self.xpub.derive([0,index]).key
+            c_pubkey = self.xpub.derive([1,index]).key
+            
+            receive_address = ""
+            change_address = ""
+            
+            if self.script_type == SettingsConstants.NATIVE_SEGWIT:
+                receive_address = embit.script.p2wpkh(r_pubkey).address(network=self.network)
+                change_address = embit.script.p2wpkh(c_pubkey).address(network=self.network)
+            elif self.script_type == SettingsConstants.NESTED_SEGWIT:
+                receive_address = embit.script.p2sh(embit.script.p2wpkh(r_pubkey)).address(network=self.network)
+                change_address = embit.script.p2sh(embit.script.p2wpkh(c_pubkey)).address(network=self.network)
+            elif self.script_type == SettingsConstants.LEGACY_P2PKH:
+                receive_address = embit.script.p2pkh(r_pubkey).address(network=self.network)
+                change_address = embit.script.p2pkh(c_pubkey).address(network=self.network)
+            elif self.script_type == SettingsConstants.TAPROOT:
+                # TODO: Not yet implemented!
+                raise Exception("Taproot verification not yet implemented!")
+            
+            return (receive_address, change_address)
+        
+
+        def derive_multisig(self, index):
+            if self.script_type in [SettingsConstants.NATIVE_SEGWIT, SettingsConstants.NESTED_SEGWIT]:
+                receive_address = self.descriptor.derive(index, branch_index=0).script_pubkey().address(network=self.network)
+                change_address = self.descriptor.derive(index, branch_index=1).script_pubkey().address(network=self.network)
+
+            elif self.script_type == SettingsConstants.LEGACY_P2PKH:
+                # TODO: Not yet implemented!
+                raise Exception("Taproot verification not yet implemented!")
+
+            elif self.script_type == SettingsConstants.TAPROOT:
+                # TODO: Not yet implemented!
+                raise Exception("Taproot verification not yet implemented!")
+            
+            return (receive_address, change_address)
+
+
 
 class AddressVerificationSuccessView(View):
     def __init__(self, seed_num: int):
         super().__init__()
         self.seed_num = seed_num
-        self.seed = self.controller.get_seed(seed_num)
+        if self.seed_num is not None:
+            self.seed = self.controller.get_seed(seed_num)
     
 
     def run(self):
         address = self.controller.unverified_address["address"]
-        derivation_path = self.controller.unverified_address["derivation_path"]
-        script_type = self.controller.unverified_address["script_type"]
         sig_type = self.controller.unverified_address["sig_type"]
-        network = self.controller.unverified_address["network"]
         verified_index = self.controller.unverified_address["verified_index"]
         verified_index_is_change = self.controller.unverified_address["verified_index_is_change"]
 
-        selected_menu_num = LargeIconStatusScreen(
+        if sig_type == SettingsConstants.MULTISIG:
+            source = "multisig"
+        else:
+            source = f"seed {self.seed.get_fingerprint()}"
+
+        LargeIconStatusScreen(
             status_headline="Address Verified",
-            text=f"""{address[:7]} = seed {self.seed.get_fingerprint()}'s {"change" if verified_index_is_change else "receive"} addr #{verified_index}."""
+            text=f"""{address[:7]} = {source}'s {"change" if verified_index_is_change else "receive"} addr #{verified_index}."""
         ).display()
 
         return Destination(MainMenuView)
@@ -1453,7 +1494,7 @@ class MultisigWalletDescriptorView(View):
             if self.controller.resume_main_flow == Controller.FLOW__PSBT:
                 button_data = [RETURN]
             elif self.controller.resume_main_flow == Controller.FLOW__VERIFY_MULTISIG_ADDR and self.controller.unverified_address:
-                VERIFY += f" {self.controller.unverified_address[:7]}"
+                VERIFY += f""" {self.controller.unverified_address["address"][:7]}"""
                 button_data = [VERIFY]
 
         selected_menu_num = seed_screens.MultisigWalletDescriptorScreen(
@@ -1474,6 +1515,6 @@ class MultisigWalletDescriptorView(View):
         elif button_data[selected_menu_num] == VERIFY:
             self.controller.resume_main_flow = None
             # TODO: Route properly when multisig brute-force addr verification is done
-            return Destination(NotYetImplementedView)
+            return Destination(SeedAddressVerificationView)
 
         return Destination(MainMenuView)
