@@ -4,7 +4,6 @@ class QRType:
     """
     PSBT__BASE64 = "psbt__base64"
     PSBT__SPECTER = "psbt__specter"
-    PSBT__LEGACY_UR = "psbt__legacy_ur"
     PSBT__BASE43 = "psbt__base43"
     PSBT__UR2 = "psbt__ur2"
 
@@ -24,7 +23,10 @@ class QRType:
 
     WALLET__SPECTER = "wallet__specter"
     WALLET__UR = "wallet__ur"
-    WALLET__BLUEWALLET = "wallet__bluewallet"
+    WALLET__CONFIGFILE = "wallet__configfile"
     WALLET__GENERIC = "wallet__generic"
+    OUTPUT__UR = "output__ur"
+    ACCOUNT__UR = "account__ur"
+    LEGACY__UR = "legacy__ur"
 
     INVALID = "invalid"
