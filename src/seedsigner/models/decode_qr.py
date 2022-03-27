@@ -278,7 +278,8 @@ class DecodeQR:
         if self.qr_type in [QRType.BYTES__UR]:
             cbor = self.decoder.result_message().cbor
             raw = Bytes.from_cbor(cbor).data
-            check = 'multisig setup file' in raw.decode("utf-8").lower()
+            data = raw.decode("utf-8").lower()
+            check = 'policy:' in data and "format:" in data and "derivation:" in data
         
         return check
 
@@ -572,7 +573,7 @@ class DecodeQR:
             descriptor += ',[' + x['xfp'] + derivation + "]" + x['key'] + "/{0,1}/*"
         
         descriptor += script_close
-        
+
         return descriptor
 
 class BaseQrDecoder:

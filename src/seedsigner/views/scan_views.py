@@ -79,6 +79,7 @@ class ScanView(View):
 
                 if not descriptor.is_basic_multisig:
                     # TODO: Handle single-sig descriptors?
+                    print(f"Received single sig descriptor: {descriptor}")
                     return Destination(NotYetImplementedView)
 
                 self.controller.multisig_wallet_descriptor = descriptor
