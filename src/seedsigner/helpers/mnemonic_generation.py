@@ -43,6 +43,10 @@ def generate_mnemonic_from_bytes(entropy_bytes) -> List[str]:
 def generate_mnemonic_from_dice(roll_data: str) -> List[str]:
     entropy_bytes = hashlib.sha256(roll_data.encode()).digest()
 
+    if len(roll_data) == 50:
+        # 12-word mnemonic; only use 128bits / 16 bytes
+        entropy_bytes = entropy_bytes[:16]
+
     # Return as a list
     return bip39.mnemonic_from_bytes(entropy_bytes).split()
 

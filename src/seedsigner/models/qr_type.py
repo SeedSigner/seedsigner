@@ -25,5 +25,6 @@ class QRType:
     WALLET__SPECTER = "wallet__specter"
     WALLET__UR = "wallet__ur"
     WALLET__BLUEWALLET = "wallet__bluewallet"
+    WALLET__GENERIC = "wallet__generic"
 
     INVALID = "invalid"

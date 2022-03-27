@@ -187,5 +187,6 @@ class HardwareButtonsConstants:
     ]
 
     KEYS__LEFT_RIGHT_UP_DOWN = [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN]
+    KEYS__ANYCLICK = [KEY_PRESS, KEY1, KEY2, KEY3]
 
     release_lock = True # released when True, locked when False

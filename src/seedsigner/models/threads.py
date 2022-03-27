@@ -38,5 +38,9 @@ class ThreadsafeCounter:
         # Updates must be locked
         with self._lock:
             self.count += step
+    
+    def set_value(self, value: int):
+        with self._lock:
+            self.count = value
 
 

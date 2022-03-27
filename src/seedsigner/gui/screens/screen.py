@@ -84,6 +84,17 @@ class BaseScreen(BaseComponent):
             self.canvas.paste(img, coords)
 
 
+    def _run_callback(self):
+        """
+            Optional implementation step that's called during each _run() loop.
+
+            Loop will continue if it returns None.
+            If it returns a value, the Screen will exit and relay that return value to
+            its parent View.
+        """
+        pass
+
+
     def _run(self):
         """
             Screen can run on its own until it returns a final exit input from the user.
@@ -208,63 +219,6 @@ class BaseTopNavScreen(BaseScreen):
 
 
 @dataclass
-class TextTopNavScreen(BaseTopNavScreen):
-    text: str = "Body text"
-    is_text_centered: bool = True
-    text_font_name: str = GUIConstants.BODY_FONT_NAME
-    text_font_size: int = GUIConstants.BODY_FONT_SIZE
-
-    def __post_init__(self):
-        super().__post_init__()
-
-        self.text_area = TextArea(
-            text=self.text,
-            screen_x=0,
-            screen_y=self.top_nav.height,
-            width=self.canvas_width,
-            height=self.canvas_height - self.top_nav.height,
-            font_name=self.text_font_name,
-            font_size=self.text_font_size,
-            is_text_centered=self.is_text_centered
-        )
-        self.components.append(self.text_area)
-
-
-    def _run(self):
-        while True:
-            user_input = self.hw_inputs.wait_for(
-                [
-                    HardwareButtonsConstants.KEY_UP,
-                    HardwareButtonsConstants.KEY_DOWN,
-                    HardwareButtonsConstants.KEY_PRESS
-                ],
-                check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS]
-            )
-
-            with self.renderer.lock:
-                if user_input == HardwareButtonsConstants.KEY_UP:
-                    if not self.top_nav.is_selected:
-                        # Only move navigation up there if there's something to select
-                        if self.top_nav.show_back_button or self.top_nav.show_power_button:
-                            self.top_nav.is_selected = True
-                            self.top_nav.render()
-
-                elif user_input == HardwareButtonsConstants.KEY_DOWN:
-                    if self.top_nav.is_selected:
-                        self.top_nav.is_selected = False
-                        self.top_nav.render()
-
-                elif user_input == HardwareButtonsConstants.KEY_PRESS:
-                    if self.top_nav.is_selected:
-                        return self.top_nav.selected_button
-
-                # Write the screen updates
-                self.renderer.show_image()
-
-
-
-@dataclass
 class ButtonListScreen(BaseTopNavScreen):
     button_data: list = None                  # list can be a mix of str or tuple(label: str, icon_name: str)
     selected_button: int = 0
@@ -302,7 +256,10 @@ class ButtonListScreen(BaseTopNavScreen):
         for i, button_label in enumerate(self.button_data):
             icon_name = None
             icon_color = None
-            button_label_color = GUIConstants.BUTTON_FONT_COLOR
+            right_icon_name = None
+            button_label_color = None
+
+            # TODO: Define an actual class for button_data?
             if type(button_label) == tuple:
                 if len(button_label) == 2:
                     (button_label, icon_name) = button_label
@@ -314,11 +271,15 @@ class ButtonListScreen(BaseTopNavScreen):
                 elif len(button_label) == 4:
                     (button_label, icon_name, icon_color, button_label_color) = button_label
 
+                elif len(button_label) == 5:
+                    (button_label, icon_name, icon_color, button_label_color, right_icon_name) = button_label
+
             button_kwargs = dict(
                 text=button_label,
                 icon_name=icon_name,
-                icon_color=icon_color,
+                icon_color=icon_color if icon_color else GUIConstants.BUTTON_FONT_COLOR,
                 is_icon_inline=True,
+                right_icon_name=right_icon_name,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=button_list_y + i * (button_height + GUIConstants.LIST_ITEM_PADDING),
                 width=self.canvas_width - (2 * GUIConstants.EDGE_PADDING),
@@ -326,7 +287,7 @@ class ButtonListScreen(BaseTopNavScreen):
                 is_text_centered=self.is_button_text_centered,
                 font_name=self.button_font_name,
                 font_size=self.button_font_size,
-                font_color=button_label_color,
+                font_color=button_label_color if button_label_color else GUIConstants.BUTTON_FONT_COLOR,
                 selected_color=self.button_selected_color
             )
             if self.checked_buttons and i in self.checked_buttons:
@@ -414,17 +375,22 @@ class ButtonListScreen(BaseTopNavScreen):
 
     def _run(self):
         while True:
+            ret = self._run_callback()
+            if ret is not None:
+                return ret
+
             user_input = self.hw_inputs.wait_for(
                 [
                     HardwareButtonsConstants.KEY_UP,
                     HardwareButtonsConstants.KEY_DOWN,
                     HardwareButtonsConstants.KEY_LEFT,
                     HardwareButtonsConstants.KEY_RIGHT,
-                    HardwareButtonsConstants.KEY_PRESS
-                ],
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
                 check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS]
+                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
             )
+
+            print(user_input)
 
             with self.renderer.lock:
                 if not self.top_nav.is_selected and (
@@ -441,7 +407,7 @@ class ButtonListScreen(BaseTopNavScreen):
                         self.buttons[self.selected_button].render()
 
                         self.top_nav.is_selected = True
-                        self.top_nav.render()
+                        self.top_nav.render_buttons()
 
                 elif user_input == HardwareButtonsConstants.KEY_UP:
                     if self.top_nav.is_selected:
@@ -475,7 +441,7 @@ class ButtonListScreen(BaseTopNavScreen):
 
                     if self.top_nav.is_selected:
                         self.top_nav.is_selected = False
-                        self.top_nav.render()
+                        self.top_nav.render_buttons()
 
                         cur_selected_button = None
                         next_selected_button = self.buttons[self.selected_button]
@@ -501,7 +467,7 @@ class ButtonListScreen(BaseTopNavScreen):
                             cur_selected_button.render()
                         next_selected_button.render()
 
-                elif user_input == HardwareButtonsConstants.KEY_PRESS:
+                elif user_input in HardwareButtonsConstants.KEYS__ANYCLICK:
                     if self.top_nav.is_selected:
                         return self.top_nav.selected_button
                     return self.selected_button
@@ -583,16 +549,19 @@ class LargeButtonScreen(BaseTopNavScreen):
             self.buttons[self.selected_button].render()
 
         while True:
+            ret = self._run_callback()
+            if ret is not None:
+                return ret
+
             user_input = self.hw_inputs.wait_for(
                 [
                     HardwareButtonsConstants.KEY_UP,
                     HardwareButtonsConstants.KEY_DOWN,
                     HardwareButtonsConstants.KEY_LEFT,
-                    HardwareButtonsConstants.KEY_RIGHT,
-                    HardwareButtonsConstants.KEY_PRESS
-                ],
+                    HardwareButtonsConstants.KEY_RIGHT
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
                 check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS]
+                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
             )
 
             with self.renderer.lock:
@@ -600,7 +569,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                     if self.selected_button in [0, 1]:
                         # Move selection up to top_nav
                         self.top_nav.is_selected = True
-                        self.top_nav.render()
+                        self.top_nav.render_buttons()
 
                         self.buttons[self.selected_button].is_selected = False
                         self.buttons[self.selected_button].render()
@@ -611,7 +580,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                 elif user_input == HardwareButtonsConstants.KEY_DOWN:
                     if self.top_nav.is_selected:
                         self.top_nav.is_selected = False
-                        self.top_nav.render()
+                        self.top_nav.render_buttons()
 
                         self.buttons[self.selected_button].is_selected = True
                         self.buttons[self.selected_button].render()
@@ -629,7 +598,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                         self.top_nav.is_selected and not self.top_nav.show_power_button
                     ):
                     self.top_nav.is_selected = False
-                    self.top_nav.render()
+                    self.top_nav.render_buttons()
 
                     self.buttons[self.selected_button].is_selected = True
                     self.buttons[self.selected_button].render()
@@ -641,12 +610,12 @@ class LargeButtonScreen(BaseTopNavScreen):
                         # Left from the far edge takes us up to the BACK arrow
                         if self.top_nav.show_back_button:
                             self.top_nav.is_selected = True
-                            self.top_nav.render()
+                            self.top_nav.render_buttons()
 
                             self.buttons[self.selected_button].is_selected = False
                             self.buttons[self.selected_button].render()
 
-                elif user_input == HardwareButtonsConstants.KEY_PRESS:
+                elif user_input in HardwareButtonsConstants.KEYS__ANYCLICK:
                     if self.top_nav.is_selected:
                         return self.top_nav.selected_button
                     return self.selected_button
@@ -668,6 +637,10 @@ class QRDisplayScreen(BaseScreen):
         # Loop whether the QR is a single frame or animated; each loop might adjust
         # brightness setting.
         while True:
+            ret = self._run_callback()
+            if ret is not None:
+                return ret
+
             # convert the cur_brightness integer (31-255) into hex triplets
             hex_color = (hex(cur_brightness).split('x')[1]) * 3
             image = self.qr_encoder.next_part_image(240,240, border=2, background_color=hex_color)
@@ -703,6 +676,8 @@ class LargeIconStatusScreen(ButtonListScreen):
     status_headline: str = "Success!"  # The colored text under the large icon
     text: str = ""                          # The body text of the screen
     button_data: list = None
+    allow_text_overflow: bool = False
+
 
     def __post_init__(self):
         self.is_bottom_list: bool = True
@@ -726,6 +701,7 @@ class LargeIconStatusScreen(ButtonListScreen):
                 width=self.canvas_width,
                 screen_y=next_y,
                 font_color=self.status_color,
+                allow_text_overflow=self.allow_text_overflow,
             )
             self.components.append(self.warning_headline_textarea)
             next_y = next_y + self.warning_headline_textarea.height
@@ -735,7 +711,9 @@ class LargeIconStatusScreen(ButtonListScreen):
             text=self.text,
             width=self.canvas_width,
             screen_y=next_y,
+            allow_text_overflow=self.allow_text_overflow,
         ))
+
 
 
 class WarningEdgesThread(BaseThread):
@@ -762,38 +740,43 @@ class WarningEdgesThread(BaseThread):
                 # radius=5
             )
 
-        while self.keep_running:
-            with screen.renderer.lock:
-                # Ramp the edges from a darker version out to full color
-                inhale_scalar = inhale_factor * int(255/inhale_max)
-                for index, n in enumerate(range(4, -1, -1)):
-                    # Reverse range steadily increases rgb in brightness until reaching full.
-                    # 34 == 0x22; just eyeballed a good step size
+        try:
+            while self.keep_running:
+                with screen.renderer.lock:
+                    # Ramp the edges from a darker version out to full color
+                    inhale_scalar = inhale_factor * int(255/inhale_max)
+                    for index, n in enumerate(range(4, -1, -1)):
+                        # Reverse range steadily increases rgb in brightness until reaching full.
+                        # 34 == 0x22; just eyeballed a good step size
 
-                    r = max(0, rgb[0] - 34*n - inhale_scalar)
-                    g = max(0, rgb[1] - 34*n - inhale_scalar)
-                    b = max(0, rgb[2] - 34*n - inhale_scalar)
+                        r = max(0, rgb[0] - 34*n - inhale_scalar)
+                        g = max(0, rgb[1] - 34*n - inhale_scalar)
+                        b = max(0, rgb[2] - 34*n - inhale_scalar)
 
-                    # `index` shrinks the border at each step
-                    render_border((r, g, b), GUIConstants.EDGE_PADDING - 2 - index)
+                        # `index` shrinks the border at each step
+                        render_border((r, g, b), GUIConstants.EDGE_PADDING - 2 - index)
 
-                # Write the screen updates
-                screen.renderer.show_image()
-            
-            if inhale_factor == inhale_max:
-                inhale_step = -1
-            elif inhale_factor == 0 and inhale_step == -1:
-                cur_inhale_hold += 1
-                if cur_inhale_hold > inhale_hold:
-                    inhale_step = 1
-                    cur_inhale_hold = 0
-                else:
-                    # It's about to be decremented below zero
-                    inhale_factor = 1
-            inhale_factor += inhale_step
+                    # Write the screen updates
+                    screen.renderer.show_image()
+                
+                if inhale_factor == inhale_max:
+                    inhale_step = -1
+                elif inhale_factor == 0 and inhale_step == -1:
+                    cur_inhale_hold += 1
+                    if cur_inhale_hold > inhale_hold:
+                        inhale_step = 1
+                        cur_inhale_hold = 0
+                    else:
+                        # It's about to be decremented below zero
+                        inhale_factor = 1
+                inhale_factor += inhale_step
 
-            # Target ~10fps
-            time.sleep(0.05)
+                # Target ~10fps
+                time.sleep(0.05)
+
+        except KeyboardInterrupt as e:
+            self.stop()
+            raise e
 
 
 
@@ -818,7 +801,9 @@ class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
     def __post_init__(self):
         if not self.button_data:
             self.button_data = ["I Understand"]
+
         super().__post_init__()
+
 
 
 @dataclass
@@ -827,3 +812,38 @@ class DireWarningScreen(WarningScreen):
     status_color: str = GUIConstants.DIRE_WARNING_COLOR
 
 
+@dataclass
+class ResetScreen(BaseTopNavScreen):
+    def __post_init__(self):
+        self.title = "Restarting"
+        self.show_back_button = False
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text="SeedSigner is restarting.\n\nAll in-memory data will be wiped.",
+            screen_y=self.top_nav.height,
+            height=self.canvas_height - self.top_nav.height,
+        ))
+    
+    def _run(self):
+        while True:
+            pass
+
+
+
+@dataclass
+class PowerOffScreen(BaseTopNavScreen):
+    def __post_init__(self):
+        self.title = "Powering Off"
+        self.show_back_button = False
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text="Please wait about 30 seconds before disconnecting power.",
+            screen_y=self.top_nav.height,
+            height=self.canvas_height - self.top_nav.height,
+        ))
+
+    def _run(self):
+        while True:
+            pass
