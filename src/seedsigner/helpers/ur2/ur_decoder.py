@@ -143,10 +143,6 @@ class URDecoder:
 
     def expected_part_count(self):
         return self.fountain_decoder.expected_part_count()
-    
-    @property
-    def total_segments(self):
-        return self.expected_part_count()
 
     def received_part_indexes(self):
         return self.fountain_decoder.received_part_indexes
