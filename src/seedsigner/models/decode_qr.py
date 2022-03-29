@@ -9,9 +9,10 @@ from embit import psbt, bip39
 from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
 from urtypes.crypto import PSBT as UR_PSBT
+from urtypes.crypto import Account, HDKey, Output, Keypath, PathComponent, SCRIPT_EXPRESSION_TAG_MAP
+from urtypes.bytes import Bytes
 
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
-from seedsigner.helpers.bcur import (cbor_decode, bc32decode)
 from seedsigner.models.psbt_parser import PSBTParser
 
 from . import QRType, Seed
@@ -64,14 +65,11 @@ class DecodeQR:
         if self.qr_type == None:
             self.qr_type = qr_type
 
-            if self.qr_type == QRType.PSBT__UR2:
-                self.decoder = URDecoder() # UR2 decoder
+            if self.qr_type in [QRType.PSBT__UR2, QRType.OUTPUT__UR, QRType.ACCOUNT__UR, QRType.BYTES__UR]:
+                self.decoder = URDecoder() # BCUR Decoder
 
             elif self.qr_type == QRType.PSBT__SPECTER:
                 self.decoder = SpecterPsbtQrDecoder() # Specter Desktop PSBT QR base64 decoder
-
-            elif self.qr_type == QRType.PSBT__LEGACY_UR:
-                self.decoder = LegacyUrPsbtQrDecoder() # UR Legacy decoder
 
             elif self.qr_type == QRType.PSBT__BASE64:
                 self.decoder = Base64PsbtQrDecoder() # Single Segments Base64
@@ -93,6 +91,9 @@ class DecodeQR:
 
             elif self.qr_type == QRType.WALLET__GENERIC:
                 self.decoder = GenericWalletQrDecoder()
+                
+            elif self.qr_type == QRType.WALLET__CONFIGFILE:
+                self.decoder = MultiSigConfigFileQRDecoder()
 
         elif self.qr_type != qr_type:
             raise Exception('QR Fragment Unexpected Type Change')
@@ -114,7 +115,7 @@ class DecodeQR:
             # it's already str data
             qr_str = data
 
-        if self.qr_type == QRType.PSBT__UR2:
+        if self.qr_type in [QRType.PSBT__UR2, QRType.OUTPUT__UR, QRType.ACCOUNT__UR, QRType.BYTES__UR]:
             self.decoder.receive_part(qr_str)
             if self.decoder.is_complete():
                 self.complete = True
@@ -192,17 +193,29 @@ class DecodeQR:
 
     def get_wallet_descriptor(self):
         if self.is_wallet_descriptor:
-            return self.decoder.get_wallet_descriptor()
+            if self.qr_type in [QRType.OUTPUT__UR, QRType.ACCOUNT__UR, QRType.BYTES__UR]:
+                cbor = self.decoder.result_message().cbor
+                if self.qr_type == QRType.OUTPUT__UR:
+                    return Output.from_cbor(cbor).descriptor()
+                elif self.qr_type == QRType.ACCOUNT__UR:
+                    return Account.from_cbor(cbor).output_descriptors[0].descriptor()
+                elif self.qr_type == QRType.BYTES__UR:
+                    raw = Bytes.from_cbor(cbor).data
+                    descriptor = DecodeQR.multisig_setup_file_to_descriptor(raw.decode("utf-8"))
+                    return descriptor
+            else:
+                # All the other wallet output descriptor decoder types use the same method signature
+                return self.decoder.get_wallet_descriptor()
 
 
     def get_percent_complete(self) -> int:
         if not self.decoder:
             return 0
 
-        if self.qr_type == QRType.PSBT__UR2:
+        if self.qr_type in [QRType.PSBT__UR2, QRType.OUTPUT__UR, QRType.ACCOUNT__UR, QRType.BYTES__UR]:
             return int(self.decoder.estimated_percent_complete() * 100)
 
-        elif self.qr_type in [QRType.PSBT__SPECTER, QRType.PSBT__LEGACY_UR]:
+        elif self.qr_type in [QRType.PSBT__SPECTER]:
             if self.decoder.total_segments == None:
                 return 0
             return int((self.decoder.collected_segments / self.decoder.total_segments) * 100)
@@ -233,11 +246,9 @@ class DecodeQR:
         return self.qr_type in [
             QRType.PSBT__UR2,
             QRType.PSBT__SPECTER,
-            QRType.PSBT__LEGACY_UR, 
             QRType.PSBT__BASE64,
             QRType.PSBT__BASE43,
         ]
-
 
     @property
     def is_seed(self):
@@ -262,8 +273,15 @@ class DecodeQR:
 
     @property
     def is_wallet_descriptor(self):
-        return self.qr_type in [QRType.WALLET__SPECTER, QRType.WALLET__UR, QRType.WALLET__BLUEWALLET, QRType.WALLET__GENERIC]
-    
+        check = self.qr_type in [QRType.WALLET__SPECTER, QRType.WALLET__UR, QRType.WALLET__CONFIGFILE, QRType.WALLET__GENERIC, QRType.OUTPUT__UR]
+        
+        if self.qr_type in [QRType.BYTES__UR]:
+            cbor = self.decoder.result_message().cbor
+            raw = Bytes.from_cbor(cbor).data
+            data = raw.decode("utf-8").lower()
+            check = 'policy:' in data and "format:" in data and "derivation:" in data
+        
+        return check
 
     @property
     def is_settings(self):
@@ -303,12 +321,18 @@ class DecodeQR:
             # PSBT
             if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
                 return QRType.PSBT__UR2
+                
+            elif re.search("^UR:CRYPTO-OUTPUT/", s, re.IGNORECASE):
+                return QRType.OUTPUT__UR
+                
+            elif re.search("^UR:CRYPTO-ACCOUNT/", s, re.IGNORECASE):
+                return QRType.ACCOUNT__UR
 
             elif re.search(r'^p(\d+)of(\d+) ([A-Za-z0-9+\/=]+$)', s, re.IGNORECASE): #must be base64 characters only in segment
                 return QRType.PSBT__SPECTER
 
             elif re.search("^UR:BYTES/", s, re.IGNORECASE):
-                return QRType.PSBT__LEGACY_UR
+                return QRType.BYTES__UR
 
             elif DecodeQR.is_base64_psbt(s):
                 return QRType.PSBT__BASE64
@@ -322,6 +346,9 @@ class DecodeQR:
             elif re.search(r'^\{\"label\".*\"descriptor\"\:.*', desc_str, re.IGNORECASE):
                 # if json starting with label and contains descriptor, assume specter wallet json
                 return QRType.WALLET__SPECTER
+            
+            elif "multisig setup file" in s.lower():
+                return QRType.WALLET__CONFIGFILE
             
             elif "sortedmulti" in s:
                 return QRType.WALLET__GENERIC
@@ -453,8 +480,101 @@ class DecodeQR:
             return True
         else:
             return False
+    
+    @staticmethod
+    def multisig_setup_file_to_descriptor(text) -> str:
+        # sample text file, parse the contents and create descriptor
+        """
+        Name: SeedSigner Dev Funds
+        Policy: 4 of 6
+        Derivation: m/48'/0'/0'/2'
+        Format: P2WSH
+        
+        E0811B6B: xpub6E8v7uy63pCeJvHe5W8ea8zTnCtKMFgMRb5bueWWcUFMw6sWmUwTqxM8cFiKQRWkA2Fxth9HJZufJwjWTTvU1UGZNpTrh9khrswYMgeHiCt
+        852B308F: xpub6ErhgAWfnEqW7xDBm1iLq5JjNyUS65YUFnjHLrRv9zmdDEtuE75bpWQ8o6bSBnpT6AkrrsA8eA5SmEFArZn11KEPaZJzx9mHTXPWZCsxLyh
+        7EDF9C59: xpub6DaFfKoe7WpofrbYeNo3Wv2AiLUMeyrPwotXfukFxUHbK4JxaLHTd5394QtH5wnjFzBgr2YnJpHhXv25Zsqv2APmMFvH1DsKHj5LCr3pmXs
+        B433E095: xpub6EF51itHko2YhGTjVeuYbBgJjVbTzzpYzn2a3JwZHpDrMePRVgXGBHMx2Yv1KwgLsUn9i7ExcAo8uqMx4pDjVRY9J7qnceFAwRRj16dd5AS
+        184D07EB: xpub6EEoTpcQu7N4R8D84pJjZ69j3minevnYLDDoo2HBzYBXTQ4rGVf4XGTyCYFwJuZdsF9MyFYJNzYEjg5LGMA1ubTGWuDnjHAZz6ficVRDTSy
+        3E451EFE: xpub6ExQPvQxGBMaPxr8Fv7Vq91ztJFFX3VWvtpvex6UPZ1AptTeuAiJGCtKkgwJkrwpMZMagh9ex6rL4sM8axfFcdQbERoFCRUKTJxrBkJh56g
+        """
+        
+        lines = text.split('\n')
+        
+        m = 0
+        n = 0
+        xpubs = []
+        x = 0
+        derivation = ''
+        descriptor = ''
+        
+        lines = text.split('\n')
+        
+        for l in lines:
+            if l.find('#') == 0:
+                # skip comments
+                continue
+        
+            l = l.strip()
+        
+            if ':' not in l:
+                # when label/value divider not found, skip line
+                continue
+                        
+            label, value = l.split(':', 1)
+            label = label.strip().lower()
+            value = value.strip()
+        
+            if label == 'policy':
+                try:
+                    match = re.search(r'(\d+)\D*(\d+)', value)
+                    m = int(match.group(1))
+                    n = int(match.group(2))
+                except:
+                    raise Exception(f"Policy line not supported")
+            elif label == 'derivation':
+                derivation = value
+            elif label == 'format':
+                if value.lower() in ['p2wsh', 'p2sh-p2wsh', 'p2wsh-p2sh']:
+                    script_type = value.lower()
+            elif len(label) == 8:
+                if len(xpubs) == 0:
+                    xpubs = [None] * n
+        
+                xpubs[x] = {'xfp': label, 'key': value}
+                x += 1
+        
+        if None in xpubs or len(xpubs) != n:
+            raise Exception(f"bad or missing xpub")
+        
+        if m <= 0 or m > 9 or n <= 0 or n > 9:
+            raise Exception(f"bad or missing policy")
+        
+        if len(derivation) == 0:
+            raise Exception(f"bad or missing derivation path")
+        
+        if script_type not in ['p2wsh', 'p2sh-p2wsh', 'p2wsh-p2sh']:
+            raise Exception(f"bad or missing script format")
+        
+        # create descriptor string
+        
+        if script_type == "p2wsh":
+            script_open = "wsh(sortedmulti(" + str(m)
+            script_close = "))"
+        elif script_type in ["p2sh-p2wsh", 'p2wsh-p2sh']:
+            script_open = "sh(wsh(sortedmulti(" + str(m)
+            script_close = ")))"
+        
+        descriptor = script_open
+        
+        for x in xpubs:
+            if derivation[0] == 'm':
+                derivation = derivation[1:]
+            derivation = derivation.replace("'", "h")
+            descriptor += ',[' + x['xfp'] + derivation + "]" + x['key'] + "/{0,1}/*"
+        
+        descriptor += script_close
 
-
+        return descriptor
 
 class BaseQrDecoder:
     def __init__(self):
@@ -550,51 +670,6 @@ class SpecterPsbtQrDecoder(BaseAnimatedQrDecoder):
 
     def parse_segment(self, segment) -> str:
         return segment.split(" ")[-1].strip()
-
-
-
-class LegacyUrPsbtQrDecoder(BaseAnimatedQrDecoder):
-    """
-        Decodes Legacy UR animated qr encoding
-    """
-    def get_base64_data(self) -> str:
-        bc32_cbor = "".join(self.segments)
-        raw = cbor_decode(bc32decode(bc32_cbor))
-        base64 = b2a_base64(raw)
-
-        if self.complete:
-            return base64
-
-        return None
-
-
-    def get_data(self):
-        if not self.complete:
-            return None
-
-        bc32_cbor = "".join(self.segments)
-        raw = cbor_decode(bc32decode(bc32_cbor))
-        return raw
-
-
-    def parse_current_segment_num(self, segment) -> int:
-        if re.search(r'^UR:BYTES/(\d+)OF(\d+)', segment, re.IGNORECASE) != None:
-            return int(re.search(r'^UR:BYTES/(\d+)OF(\d+)', segment, re.IGNORECASE).group(1))
-        else:
-            raise Exception('Unexpected Legacy UR Error')
-
-
-    def parse_total_segment_nums(self, segment) -> int:
-        if re.search(r'^UR:BYTES/(\d+)OF(\d+)', segment, re.IGNORECASE) != None:
-            return int(re.search(r'^UR:BYTES/(\d+)OF(\d+)', segment, re.IGNORECASE).group(2))
-        else:
-            return 1
-
-
-    def parse_segment(self, segment) -> str:
-        return segment.split("/")[-1].strip()
-
-
 
 class Base64PsbtQrDecoder(BaseSingleFrameQrDecoder):
     """
@@ -1005,6 +1080,7 @@ class GenericWalletQrDecoder(BaseSingleFrameQrDecoder):
             # Validate via embit
             Descriptor.from_string(segment)
             self.descriptor = segment
+            self.complete = True
             return DecodeQRStatus.COMPLETE
         except Exception as e:
             print(repr(e))
@@ -1013,4 +1089,11 @@ class GenericWalletQrDecoder(BaseSingleFrameQrDecoder):
 
     def get_wallet_descriptor(self):
         return self.descriptor
+        
+class MultiSigConfigFileQRDecoder(GenericWalletQrDecoder):
+    
+    def add(self, segment, qr_type=QRType.WALLET__CONFIGFILE):
+        descriptor = DecodeQR.multisig_setup_file_to_descriptor(segment)
+        return super().add(descriptor,qr_type=QRType.WALLET__CONFIGFILE)
+        
 
