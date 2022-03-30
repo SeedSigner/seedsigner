@@ -211,12 +211,65 @@ sudo nano /boot/cmdline.txt
 and append the following setting at the of the line. Make sure to add a space between the existing settings and this one:
 ```
 fbcon=map:2
-````
+```
 
 Save your changes with `CTRL-X` and `y`.
 
-The complete guide can be found on [Waveshare 1.3inch LCD HAT Wiki](https://www.waveshare.com/wiki/1.3inch_LCD_HAT), under the Guides for Pi tab.
+The complete guide can be found on [Waveshare 1.3"inch" LCD HAT Wiki](https://www.waveshare.com/wiki/1.3inch_LCD_HAT), under the Guides for Pi tab.
 
+
+
+### Install framebuffer drivers for Waveshares 2.8" DPI LCD
+
+First we have to configure the boot config:
+
+```
+sudo nano /boot/config.txt
+```
+
+And add the following lines to the end of the file:
+```
+gpio=0-9=a2
+gpio=12-17=a2
+gpio=20-25=a2
+dtoverlay=dpi24
+enable_dpi_lcd=1
+display_default_lcd=1
+extra_transpose_buffer=2
+dpi_group=2
+dpi_mode=87
+dpi_output_format=0x7F216
+hdmi_timings=480 0 26 16 10 640 0 25 10 15 0 0 0 60 0 32000000 1
+dtoverlay=waveshare-28dpi-3b-4b
+dtoverlay=waveshare-28dpi-3b
+dtoverlay=waveshare-28dpi-4b
+display_rotate=1
+```
+
+Then we have to download the drivers and install them. The `mv` command will show some `failed to preserve ownership` warnings, you can disregard these.
+```
+wget https://www.waveshare.net/w/upload/b/b5/28DPI-DTBO.zip
+unzip 28DPI-DTBO.zip
+sudo mv 28DPI-DTBO/* /boot/overlays/
+rm -r 28DPI-DTBO
+```
+
+After a reboot, the display should show the boot process and a login console:
+```
+sudo reboot now
+```
+
+If we verified the screen is working, we can remove the boot sequence and terminal login from the screen:
+```
+sudo nano /boot/cmdline.txt
+```
+
+and append the following setting at the of the line. Make sure to add a space between the existing settings and this one:
+```
+fbcon=map:2
+```
+
+The complete guide can be found on [Waveshare 1.3" DPI LCD Wiki](https://www.waveshare.com/wiki/2.8inch_DPI_LCD).
 
 
 ### Download the SeedSigner code:
