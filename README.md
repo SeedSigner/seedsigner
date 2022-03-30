@@ -58,9 +58,6 @@ If you have specific questions about the project, our [Telegram Group](https://t
 * Customized Linux live-boot OS to allow MicroSD card removal
 * Other optimizations based on user feedback!
 
-### Known Bug:
-* Dice-to-Seed module incorrectly processes "6" inputs, making resulting seeds containing that number inconsistent with Coldcard / Ian Coleman routines; this error has been corrected in the main branch for those building for source, and will be corrected in the next pre-assembled release
-
 ---------------
 
 # Shopping List
