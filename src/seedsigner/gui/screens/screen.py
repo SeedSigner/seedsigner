@@ -7,7 +7,7 @@ from seedsigner.gui.renderer import Renderer
 
 from seedsigner.models.threads import BaseThread
 from seedsigner.models.encode_qr import EncodeQR
-from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.settings import Settings, SettingsConstants
 
 from ..components import (GUIConstants, BaseComponent, Button, Icon, LargeIconButton, SeedSignerCustomIconConstants, TopNav,
     TextArea, load_image)
@@ -389,8 +389,6 @@ class ButtonListScreen(BaseTopNavScreen):
                 check_release=True,
                 release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
             )
-
-            print(user_input)
 
             with self.renderer.lock:
                 if not self.top_nav.is_selected and (
