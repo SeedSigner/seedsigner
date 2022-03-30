@@ -154,6 +154,7 @@ cd ~
 wget https://www.waveshare.com/w/upload/f/f9/Waveshare_fbcp.7z
 sudo apt-get install p7zip-full
 7z x Waveshare_fbcp.7z -o./waveshare_fbcp
+rm Waveshare_fbcp.7z
 cd waveshare_fbcp
 mkdir build
 cd build
@@ -162,10 +163,9 @@ make -j
 sudo cp ~/waveshare_fbcp/build/fbcp /usr/local/bin/fbcp
 ```
 
-The build files can be cleared out:
+The build files can be cleaned out:
 ```
 cd
-rm Waveshare_fbcp.7z
 rm -r waveshare_fbcp
 ```
 
@@ -250,6 +250,7 @@ Then we have to download the drivers and install them. The `mv` command will sho
 ```
 wget https://www.waveshare.net/w/upload/b/b5/28DPI-DTBO.zip
 unzip 28DPI-DTBO.zip
+rm 28DPI-DTBO.zip
 sudo mv 28DPI-DTBO/* /boot/overlays/
 rm -r 28DPI-DTBO
 ```
@@ -269,7 +270,8 @@ and append the following setting at the of the line. Make sure to add a space be
 fbcon=map:2
 ```
 
-The complete guide can be found on [Waveshare 1.3" DPI LCD Wiki](https://www.waveshare.com/wiki/2.8inch_DPI_LCD).
+The complete guide can be found on [Waveshare 2.8" DPI LCD Wiki](https://www.waveshare.com/wiki/2.8inch_DPI_LCD).
+
 
 
 ### Download the SeedSigner code:
