@@ -45,6 +45,17 @@ class SettingsConstants:
         (LANGUAGE__ENGLISH, "English"),
     ]
 
+    BTC_DENOMINATION__BTC = "btc"
+    BTC_DENOMINATION__SATS = "sats"
+    BTC_DENOMINATION__THRESHOLD = "thr"
+    BTC_DENOMINATION__BTCSATSHYBRID = "hyb"
+    ALL_BTC_DENOMINATIONS = [
+        (BTC_DENOMINATION__BTC, "Btc-only"),
+        (BTC_DENOMINATION__SATS, "Sats-only"),
+        (BTC_DENOMINATION__THRESHOLD, "Threshold at 0.01"),
+        (BTC_DENOMINATION__BTCSATSHYBRID, "Btc | Sats hybrid"),
+    ]
+
     CAMERA_ROTATION__0 = 0
     CAMERA_ROTATION__90 = 90
     CAMERA_ROTATION__180 = 180
@@ -130,6 +141,7 @@ class SettingsConstants:
     SETTING__WORDLIST_LANGUAGE = "wordlist_language"
     SETTING__PERSISTENT_SETTINGS = "persistent_settings"
     SETTING__COORDINATORS = "coordinators"
+    SETTING__BTC_DENOMINATION = "denomination"
 
     SETTING__NETWORK = "network"
     SETTING__QR_DENSITY = "qr_density"
@@ -334,7 +346,7 @@ class SettingsDefinition:
                       visibility=SettingsConstants.VISIBILITY__HIDDEN,
                       selection_options=SettingsConstants.ALL_WORDLIST_LANGUAGES,
                       default_value=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH),
-     
+
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__PERSISTENT_SETTINGS,
                       display_name="Persistent settings",
@@ -347,6 +359,14 @@ class SettingsDefinition:
                       type=SettingsConstants.TYPE__MULTISELECT,
                       selection_options=SettingsConstants.ALL_COORDINATORS,
                       default_value=SettingsConstants.ALL_COORDINATORS),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__BTC_DENOMINATION,
+                      display_name="Denomination display",
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      selection_options=SettingsConstants.ALL_BTC_DENOMINATIONS,
+                      default_value=SettingsConstants.BTC_DENOMINATION__THRESHOLD),
+     
 
         # Advanced options
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
