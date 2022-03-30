@@ -16,6 +16,7 @@ class Framebuffer(object):
         fp = open(self.path, "wb+")
         self.length = self.size[0] * self.size[1] * (self.bits_per_pixel >> 3)
         self.fb = mmap.mmap(fp.fileno(), length=self.length, access=mmap.ACCESS_WRITE)
+        print(self)
 
     def __str__(self):
         args = (self.path, self.size, self.stride, self.bits_per_pixel)
