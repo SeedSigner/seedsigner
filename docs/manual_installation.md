@@ -145,7 +145,17 @@ kill 297
 Where `297` is the process id listed in the output above (it'll be different each time).
 
 
-### Install framebuffer drivers for Waveshares 1.3" LCD HAT
+### Install framebuffer drivers
+
+Seedsigner currently supports two screens:
+
+ * [Waveshares 1.3" LCD HAT](#waveshares-13-lcd-hat) 
+ * [Waveshares 2.8" DPI LCD](#waveshares-28-dpi-lcd)
+
+You only need to install the drivers for the screen you have, you should not install both. 
+
+
+### Waveshares 1.3" LCD HAT
 
 Installation of the FBCP Driver:
 ```
@@ -217,9 +227,10 @@ Save your changes with `CTRL-X` and `y`.
 
 The complete guide can be found on [Waveshare 1.3"inch" LCD HAT Wiki](https://www.waveshare.com/wiki/1.3inch_LCD_HAT), under the Guides for Pi tab.
 
+You can now continue to [Download the SeedSigner code](#download-the-seedsigner-code)
 
 
-### Install framebuffer drivers for Waveshares 2.8" DPI LCD
+### Waveshares 2.8" DPI LCD
 
 First we have to configure the boot config:
 
@@ -271,7 +282,6 @@ fbcon=map:2
 ```
 
 The complete guide can be found on [Waveshare 2.8" DPI LCD Wiki](https://www.waveshare.com/wiki/2.8inch_DPI_LCD).
-
 
 
 ### Download the SeedSigner code:
