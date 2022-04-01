@@ -513,8 +513,6 @@ class SettingsDefinition:
 
 if __name__ == "__main__":
     import json
-    import os
-    print("Exporting SettingsDefinition to json")
 
     output_file = "settings_definition.json"
     with open(output_file, 'w') as json_file:

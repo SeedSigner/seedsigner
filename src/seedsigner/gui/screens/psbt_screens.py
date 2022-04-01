@@ -38,7 +38,6 @@ class PSBTOverviewScreen(ButtonListScreen):
         # icon_text_lines_y = self.components[-1].screen_y + self.components[-1].height
         icon_text_lines_y = self.top_nav.height + GUIConstants.COMPONENT_PADDING
 
-
         if not self.destination_addresses:
             # This is a self-transfer
             spend_amount = self.change_amount
@@ -52,7 +51,7 @@ class PSBTOverviewScreen(ButtonListScreen):
 
         # Prep the transaction flow chart
         self.chart_x = 0
-        self.chart_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        self.chart_y = self.components[-1].screen_y + self.components[-1].height + int(GUIConstants.COMPONENT_PADDING/2)
         chart_height = self.buttons[0].screen_y - self.chart_y - GUIConstants.COMPONENT_PADDING
 
         # We need to supersample the whole panel so that small/thin elements render
@@ -70,7 +69,8 @@ class PSBTOverviewScreen(ButtonListScreen):
         font_size = GUIConstants.BODY_FONT_MIN_SIZE * ssf
         font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, font_size)
 
-        tw, chart_text_height = font.getsize("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")  # All possible chars for max range
+        # Measure from anchor "top" to include font pixels below baseline (e.g. the "g" in "change")
+        (left, top, right, chart_text_height) = font.getbbox(text="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890", anchor="lt")
         vertical_center = int(image.height/2)
         # Supersampling renders thin elements poorly if they land on an even line before scaling down
         if vertical_center % 2 == 1:

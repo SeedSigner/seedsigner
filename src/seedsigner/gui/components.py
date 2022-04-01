@@ -1,5 +1,4 @@
 import math
-from operator import is_
 import os
 import pathlib
 
@@ -33,7 +32,7 @@ class GUIConstants:
     ICON_FONT_SIZE = 22
     ICON_INLINE_FONT_SIZE = 24
     ICON_LARGE_BUTTON_SIZE = 36
-    ICON_PRIMARY_SCREEN_SIZE = 44
+    ICON_PRIMARY_SCREEN_SIZE = 60
 
     TOP_NAV_TITLE_FONT_NAME = "OpenSans-SemiBold"
     TOP_NAV_TITLE_FONT_SIZE = 20
@@ -109,18 +108,19 @@ class FontAwesomeIconConstants:
 class SeedSignerCustomIconConstants:
     LARGE_CHEVRON_LEFT = "\ue900"
     SMALL_CHEVRON_RIGHT = "\ue901"
-    PAGE_DOWN = "\ue902"
     PAGE_UP = "\ue903"
-    CIRCLE_X = "\ue904"
-    CIRCLE_EXCLAMATION = "\ue905"
-    CIRCLE_CHECK = "\ue906"
-    FINGERPRINT = "\ue907"
-    PATH = "\ue908"
-    BITCOIN_LOGO = "\ue909"
-    BITCOIN_LOGO_2 = "\ue90a"
+    PAGE_DOWN = "\ue902"
+    PLUS = "\ue904"
+    CIRCLE_CHECK = "\ue907"
+    CIRCLE_EXCLAMATION = "\ue908"
+    CIRCLE_X = "\ue909"
+    FINGERPRINT = "\ue90a"
+    PATH = "\ue90b"
+    BITCOIN_LOGO_STRAIGHT = "\ue90c"
+    BITCOIN_LOGO_TILTED = "\ue90d"
 
     MIN_VALUE = LARGE_CHEVRON_LEFT
-    MAX_VALUE = BITCOIN_LOGO_2
+    MAX_VALUE = BITCOIN_LOGO_TILTED
 
 
 
@@ -419,7 +419,7 @@ class TextArea(BaseComponent):
 class Icon(BaseComponent):
     screen_x: int = 0
     screen_y: int = 0
-    icon_name: str = SeedSignerCustomIconConstants.BITCOIN_LOGO
+    icon_name: str = SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED
     icon_size: int = GUIConstants.ICON_FONT_SIZE
     icon_color: str = GUIConstants.BODY_FONT_COLOR
 
@@ -438,11 +438,11 @@ class Icon(BaseComponent):
 
     def render(self):
         self.image_draw.text(
-            (self.screen_x, self.screen_y),
+            (self.screen_x, self.screen_y + self.height),
             text=self.icon_name,
             font=self.icon_font,
             fill=self.icon_color,
-            anchor="lt",  # left, top anchor to avoid "ascender" gap space
+            anchor="ls",
         )
 
 
@@ -539,7 +539,8 @@ class IconTextLine(BaseComponent):
         if self.icon_name:
             icon_y = self.screen_y + int((self.height - self.icon.height)/2)
             self.icon.screen_y = icon_y
-            self.height = self.icon.height
+
+            self.height = max(self.icon.height, self.height)
         
         if self.is_text_centered:
             if self.icon_name:
@@ -762,8 +763,6 @@ class BtcAmount(BaseComponent):
         denomination = Settings.get_instance().get_value(SettingsConstants.SETTING__BTC_DENOMINATION)
         network = Settings.get_instance().get_value(SettingsConstants.SETTING__NETWORK)
 
-        print(self.total_sats)
-
         btc_unit = "tBtc"
         sats_unit = "tSats"
         if network == SettingsConstants.MAINNET:
@@ -789,7 +788,7 @@ class BtcAmount(BaseComponent):
         btc_icon = Icon(
             image_draw=draw,
             canvas=self.paste_image,
-            icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO,
+            icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED,
             icon_color=btc_color,
             icon_size=self.icon_size,
             screen_x=0,
@@ -877,7 +876,7 @@ class BtcAmount(BaseComponent):
             btc_icon = Icon(
                 image_draw=draw,
                 canvas=self.paste_image,
-                icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO,
+                icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED,
                 icon_color=btc_color,
                 icon_size=self.icon_size,
                 screen_x=0,
@@ -1047,7 +1046,6 @@ class Button(BaseComponent):
             self.icon_selected = Icon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.selected_icon_color)
 
             if self.is_icon_inline:
-                # TODO: Only apply screen_* at render
                 if self.is_text_centered:
                     # Shift the text's centering
                     if self.text:
@@ -1076,6 +1074,7 @@ class Button(BaseComponent):
             self.right_icon_x = self.width - self.right_icon.width - GUIConstants.COMPONENT_PADDING
 
             self.right_icon_y = math.ceil((self.height - self.right_icon.height)/2)
+
 
     def render(self):
         if self.is_selected:

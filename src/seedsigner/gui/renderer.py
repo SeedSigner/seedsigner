@@ -18,16 +18,12 @@ class Renderer(ConfigurableSingleton):
 
 
     @classmethod
-    def configure_instance(cls, config={}):
+    def configure_instance(cls):
         from seedsigner.models.settings import Settings
-        super().configure_instance(config)
 
         # Instantiate the one and only Renderer instance
         renderer = cls.__new__(cls)
         cls._instance = renderer
-
-        # TODO: Use Settings values to wire up diff hardware params
-        settings = Settings.get_instance()
 
         # Eventually we'll be able to plug in other display controllers
         renderer.disp = ST7789()

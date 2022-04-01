@@ -9,6 +9,7 @@ from seedsigner.models.qr_type import QRType
 from seedsigner.models.settings import SettingsConstants
 
 
+
 def run_encode_decode_test(entropy: bytes, mnemonic_length, qr_type):
     """ Helper method to re-run multiple variations of the same encode/decode test """
     print(entropy)
@@ -16,7 +17,7 @@ def run_encode_decode_test(entropy: bytes, mnemonic_length, qr_type):
     print(seed_phrase)
     assert len(seed_phrase) == mnemonic_length
 
-    e = EncodeQR(seed_phrase=seed_phrase, qr_type=qr_type, wordlist=bip39.WORDLIST)
+    e = EncodeQR(seed_phrase=seed_phrase, qr_type=qr_type)
     data = e.next_part()
     print(data)
 
@@ -28,7 +29,7 @@ def run_encode_decode_test(entropy: bytes, mnemonic_length, qr_type):
         border=3
     )
 
-    decoder = DecodeQR(wordlist_language_code=SettingsConstants.LANGUAGE__ENGLISH)
+    decoder = DecodeQR()
     status = decoder.add_image(image)
     assert status == DecodeQRStatus.COMPLETE
 

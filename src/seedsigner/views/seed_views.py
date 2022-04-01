@@ -256,7 +256,6 @@ class SeedReviewPassphraseView(View):
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
-        print(f"SeedReviewPassphraseView self.seed: {self.seed}")
 
 
     def run(self):
@@ -348,7 +347,7 @@ class SeedOptionsView(View):
         REVIEW_PSBT = "Review PSBT"
         VERIFY_ADDRESS = "Verify Addr"
         EXPORT_XPUB = "Export Xpub"
-        BACKUP = ("Backup Seed", None, None, None, FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT)
+        BACKUP = ("Backup Seed", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT)
         DISCARD = ("Discard Seed", None, None, "red")
 
         button_data = []
@@ -366,7 +365,7 @@ class SeedOptionsView(View):
         if self.controller.psbt:
             if PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 if self.controller.resume_main_flow and self.controller.resume_main_flow == Controller.FLOW__PSBT:
-                    # Re-route us directly back to the start of the PSBT flow
+                    # Re-route us directly back to the start of the PSBT flow 
                     self.controller.resume_main_flow = None
                     self.controller.psbt_seed = self.seed
                     return Destination(PSBTOverviewView, skip_current_view=True)
@@ -1122,9 +1121,6 @@ class AddressVerificationStartView(View):
         self.controller.unverified_address["sig_type"] = sig_type
         self.controller.unverified_address["derivation_path"] = derivation_path
 
-        import json
-        print(json.dumps(self.controller.unverified_address, indent=4))
-
         return destination
 
 
@@ -1332,8 +1328,6 @@ class SeedAddressVerificationView(View):
             # Successfully verified the addr; update the data
             self.controller.unverified_address["verified_index"] = self.verified_index.cur_count
             self.controller.unverified_address["verified_index_is_change"] = self.verified_index_is_change.cur_count == 1
-            import json
-            print(json.dumps(self.controller.unverified_address, indent=4))
             return Destination(AddressVerificationSuccessView, view_args=dict(seed_num=self.seed_num))
 
         else:
@@ -1379,14 +1373,12 @@ class SeedAddressVerificationView(View):
                     (receive_address, change_address) = self.derive_single_sig(i)
                     
                 if self.address == receive_address:
-                    print(f"Verified receive addr #{i}!")
                     self.verified_index.set_value(i)
                     self.verified_index_is_change.set_value(0)
                     self.keep_running = False
                     break
 
                 elif self.address == change_address:
-                    print(f"Verified change addr #{i}!")
                     self.verified_index.set_value(i)
                     self.verified_index_is_change.set_value(1)
                     self.keep_running = False
@@ -1490,8 +1482,6 @@ class MultisigWalletDescriptorView(View):
         
         policy = descriptor.brief_policy.split("multisig")[0].strip()
         
-        print(fingerprints)
-
         RETURN = "Return to PSBT"
         VERIFY = "Verify Addr"
         OK = "OK"

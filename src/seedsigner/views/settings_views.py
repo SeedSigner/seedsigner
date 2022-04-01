@@ -1,4 +1,4 @@
-from seedsigner.gui.components import FontAwesomeIconConstants
+from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 from seedsigner.models.decode_qr import DecodeQR
 
 from .view import View, Destination, BackStackView, MainMenuView
@@ -16,6 +16,9 @@ class SettingsMenuView(View):
 
 
     def run(self):
+        IO_TEST = "I/O test"
+        DONATE = "Donate"
+
         settings_entries = SettingsDefinition.get_settings_entries(
             visibiilty=self.visibility
         )
@@ -32,16 +35,17 @@ class SettingsMenuView(View):
             title = "Settings"
 
             # Set up the next nested level of menuing
-            button_data.append(("Advanced", None, None, None, FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT))
+            button_data.append(("Advanced", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
             next = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
 
-            button_data.append("I/O test")
+            button_data.append(IO_TEST)
+            button_data.append(DONATE)
 
         elif self.visibility == SettingsConstants.VISIBILITY__ADVANCED:
             title = "Advanced"
 
             # So far there are no real Developer options; disabling for now
-            # button_data.append(("Developer Options", None, None, None, FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT))
+            # button_data.append(("Developer Options", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
             # next = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__DEVELOPER})
             next = None
         
@@ -67,8 +71,11 @@ class SettingsMenuView(View):
         elif selected_menu_num == len(settings_entries):
             return next
 
-        elif selected_menu_num == len(settings_entries) + 1:
+        elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == IO_TEST:
             return Destination(IOTestView)
+
+        elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == DONATE:
+            return Destination(DonateView)
 
         else:
             # TODO: Free-entry types (are there any?) will need their own SettingsEntryUpdateFreeEntryView(?).
@@ -177,5 +184,13 @@ class IOTestView(View):
             framerate=24,
             auto_deactivate_buttons=True,
         ).display()
+
+        return Destination(SettingsMenuView)
+
+
+
+class DonateView(View):
+    def run(self):
+        settings_screens.DonateScreen().display()
 
         return Destination(SettingsMenuView)

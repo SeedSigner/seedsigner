@@ -49,7 +49,7 @@ class Controller(Singleton):
         rather than at the top in order avoid circular imports.
     """
 
-    VERSION = "0.5.0 Pre-Release 3"
+    VERSION = "0.5.0"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
@@ -184,15 +184,6 @@ class Controller(Singleton):
 
         opening_splash = OpeningSplashView()
         opening_splash.start()
-
-        # TODO: Remove for v0.5.0 production release
-        WarningScreen(
-            title="Warning",
-            status_headline="Pre-Release Code",
-            text="Do not use this with real funds or to create new secure keys!",
-            show_back_button=False,
-        ).display()
-
 
         """ Class references can be stored as variables in python!
 

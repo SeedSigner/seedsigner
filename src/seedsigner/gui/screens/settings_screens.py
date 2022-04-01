@@ -5,7 +5,7 @@ from typing import List
 from seedsigner.gui.components import Button, CheckboxButton, CheckedSelectionButton, FontAwesomeIconConstants, GUIConstants, IconButton, TextArea
 from seedsigner.gui.screens.scan_screens import ScanScreen
 
-from seedsigner.gui.screens.screen import ButtonListScreen
+from seedsigner.gui.screens.screen import BaseTopNavScreen, ButtonListScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.models.settings import SettingsConstants
 
@@ -190,3 +190,24 @@ class IOTestScreen(ScanScreen):
             cur_selected_button.is_selected = True
 
             time.sleep(0.1)
+
+
+
+@dataclass
+class DonateScreen(BaseTopNavScreen):
+    def __post_init__(self):
+        self.title = "Donate"
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text="SeedSigner is 100% free & open source, funded solely by the Bitcoin community.\n\nDonate onchain or LN at:",
+            screen_y=self.top_nav.height + 3*GUIConstants.COMPONENT_PADDING,
+        ))
+
+        self.components.append(TextArea(
+            text="seedsigner.com",
+            font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 8,
+            font_color=GUIConstants.ACCENT_COLOR,
+            supersampling_factor=1,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        ))
