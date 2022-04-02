@@ -227,7 +227,7 @@ Save your changes with `CTRL-X` and `y`.
 
 The complete guide can be found on [Waveshare 1.3"inch" LCD HAT Wiki](https://www.waveshare.com/wiki/1.3inch_LCD_HAT), under the Guides for Pi tab.
 
-You can now continue to [Download the SeedSigner code](#download-the-seedsigner-code)
+You can now continue to [Download the SeedSigner code](#download-the-seedsigner-code).
 
 
 ### Waveshares 2.8" DPI LCD
