@@ -11,8 +11,8 @@ class Renderer(ConfigurableSingleton):
     buttons = None
     canvas_width = 0
     canvas_height = 0
-    canvas: Image = None
-    draw: ImageDraw = None
+    canvas: Image.Image = None
+    draw: ImageDraw.ImageDraw = None
     disp = None
     lock = Lock()
 

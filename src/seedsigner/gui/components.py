@@ -257,7 +257,7 @@ class TextArea(BaseComponent):
     screen_x: int = 0
     screen_y: int = 0
     min_text_x: int = None
-    background_color: str = "black"
+    background_color: str = GUIConstants.BACKGROUND_COLOR
     font_name: str = GUIConstants.BODY_FONT_NAME
     font_size: int = GUIConstants.BODY_FONT_SIZE
     font_color: str = GUIConstants.BODY_FONT_COLOR
@@ -1168,6 +1168,7 @@ class IconButton(Button):
     icon_size: int = GUIConstants.ICON_INLINE_FONT_SIZE
     text: str = None
     is_icon_inline: bool = False
+    is_text_centered: bool = True
 
 
 

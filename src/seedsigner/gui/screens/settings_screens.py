@@ -1,12 +1,14 @@
 import time
 
 from dataclasses import dataclass
+from PIL.ImageOps import autocontrast
 from typing import List
-from seedsigner.gui.components import Button, CheckboxButton, CheckedSelectionButton, FontAwesomeIconConstants, GUIConstants, IconButton, TextArea
+from seedsigner.gui.components import Button, CheckboxButton, CheckedSelectionButton, FontAwesomeIconConstants, Fonts, GUIConstants, Icon, IconButton, IconTextLine, TextArea
 from seedsigner.gui.screens.scan_screens import ScanScreen
 
-from seedsigner.gui.screens.screen import BaseTopNavScreen, ButtonListScreen
+from seedsigner.gui.screens.screen import BaseScreen, BaseTopNavScreen, ButtonListScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
+from seedsigner.hardware.camera import Camera
 from seedsigner.models.settings import SettingsConstants
 
 
@@ -48,14 +50,18 @@ class SettingsEntryUpdateSelectionScreen(ButtonListScreen):
 
 
 @dataclass
-class IOTestScreen(ScanScreen):
+class IOTestScreen(BaseTopNavScreen):
     def __post_init__(self):
+        self.title = "I/O Test"
+        self.show_back_button = False
+        self.resolution = (96, 96)
+        self.framerate = 10
+        self.instructions_text = None
         super().__post_init__()
 
         # D-pad pictogram
-        input_button_width = GUIConstants.BUTTON_HEIGHT
-        input_button_height = input_button_width
-
+        input_button_width = GUIConstants.BUTTON_HEIGHT + 2
+        input_button_height = input_button_width + 2
         dpad_center_x = GUIConstants.EDGE_PADDING + input_button_width + GUIConstants.COMPONENT_PADDING
         dpad_center_y = int((self.canvas_height - input_button_height)/2)
 
@@ -73,7 +79,6 @@ class IOTestScreen(ScanScreen):
         self.joystick_up_button = IconButton(
             icon_name=FontAwesomeIconConstants.ANGLE_UP,
             icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
-            is_text_centered=True,
             width=input_button_width,
             height=input_button_height,
             screen_x=dpad_center_x,
@@ -116,22 +121,30 @@ class IOTestScreen(ScanScreen):
         )
         self.components.append(self.joystick_right_button)
 
-        key_button_width = int(1.75*GUIConstants.BUTTON_HEIGHT)
-        key_button_height = int(0.85*GUIConstants.BUTTON_HEIGHT)
+        # Hardware keys UI
+        font = Fonts.get_font(GUIConstants.BUTTON_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
+        (left, top, text_width, bottom) = font.getbbox(text="Clear", anchor="ls")
+        icon = Icon(
+            icon_name=FontAwesomeIconConstants.CAMERA, 
+            icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
+        )
+        key_button_width = text_width + 2*GUIConstants.COMPONENT_PADDING + GUIConstants.EDGE_PADDING
+        key_button_height = icon.height + int(1.5*GUIConstants.COMPONENT_PADDING)
         key2_y = int(self.canvas_height/2) - int(key_button_height/2)
 
         self.key2_button = Button(
-            text=" ",
+            text="Clear",   # Initialize with text to set vertical centering
             width=key_button_width,
             height=key_button_height,
             screen_x=self.canvas_width - key_button_width + GUIConstants.EDGE_PADDING,
             screen_y=key2_y,
             outline_color=GUIConstants.ACCENT_COLOR,
         )
+        self.key2_button.text = " "  # but default state is empty
         self.components.append(self.key2_button)
 
-        self.key1_button = Button(
-            text=" ",
+        self.key1_button = IconButton(
+            icon_name=FontAwesomeIconConstants.CAMERA,
             width=key_button_width,
             height=key_button_height,
             screen_x=self.canvas_width - key_button_width + GUIConstants.EDGE_PADDING,
@@ -153,10 +166,90 @@ class IOTestScreen(ScanScreen):
 
     def _run(self):
         cur_selected_button = self.key1_button
+        msg_height = GUIConstants.ICON_LARGE_BUTTON_SIZE + 2*GUIConstants.COMPONENT_PADDING
+        camera_message = TextArea(
+            text="Capturing image...",
+            font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
+            is_text_centered=True,
+            height=msg_height,
+            screen_y=int((self.canvas_height - msg_height)/ 2),
+        )
         while True:
             input = self.hw_inputs.wait_for(keys=HardwareButtonsConstants.ALL_KEYS, check_release=False)
 
-            if input == HardwareButtonsConstants.KEY_PRESS:
+            if input == HardwareButtonsConstants.KEY1:
+                cur_selected_button = self.key1_button
+
+                with self.renderer.lock:
+                    cur_selected_button.is_selected = True
+                    cur_selected_button.render()
+                    camera_message.render()
+                    # Render edges around message box
+                    self.image_draw.rectangle(
+                        (
+                            -1, int((self.canvas_height - msg_height)/ 2) - 1,
+                            self.canvas_width + 1, int((self.canvas_height + msg_height)/ 2) + 1
+                        ),
+                        outline=GUIConstants.ACCENT_COLOR,
+                        width=1,
+                    )
+                    self.renderer.show_image()
+
+                # Snap a pic, render it as the background, re-render all onscreen elements
+                camera = Camera.get_instance()
+                try:
+                    camera.start_single_frame_mode(resolution=(self.canvas_width, self.canvas_height))
+
+                    # Reset the button state
+                    with self.renderer.lock:
+                        cur_selected_button.is_selected = False
+                        cur_selected_button.render()
+                        self.renderer.show_image()
+
+                    time.sleep(0.25)
+                    background_frame = camera.capture_frame()
+                    display_version = autocontrast(
+                        background_frame,
+                        cutoff=2
+                    )
+                    with self.renderer.lock:
+                        self.canvas.paste(display_version, (0, self.top_nav.height))
+                        self.key2_button.text = "Clear"
+                        for component in self.components:
+                            component.render()
+                        self.renderer.show_image()
+                finally:
+                    camera.stop_single_frame_mode()
+
+                continue
+
+            elif input == HardwareButtonsConstants.KEY2:
+                cur_selected_button = self.key2_button
+
+                # Clear the background
+                with self.renderer.lock:
+                    cur_selected_button.is_selected = True
+                    self._render()
+                    self.renderer.show_image()
+
+                    # And then re-render Key2 in its initial state
+                    self.key2_button.text = " "
+                    cur_selected_button.is_selected = False
+                    cur_selected_button.render()
+                    self.renderer.show_image()
+                
+                continue
+
+            elif input == HardwareButtonsConstants.KEY3:
+                # Exit
+                cur_selected_button = self.key3_button
+                cur_selected_button.is_selected = True
+                with self.renderer.lock:
+                    cur_selected_button.render()
+                    self.renderer.show_image()
+                    return
+            
+            elif input == HardwareButtonsConstants.KEY_PRESS:
                 cur_selected_button = self.joystick_click_button
 
             elif input == HardwareButtonsConstants.KEY_UP:
@@ -171,23 +264,15 @@ class IOTestScreen(ScanScreen):
             elif input == HardwareButtonsConstants.KEY_RIGHT:
                 cur_selected_button = self.joystick_right_button
 
-            elif input == HardwareButtonsConstants.KEY1:
-                cur_selected_button = self.key1_button
-
-            elif input == HardwareButtonsConstants.KEY2:
-                cur_selected_button = self.key2_button
-
-            elif input == HardwareButtonsConstants.KEY3:
-                # Exit
-                self.camera.stop_video_stream_mode()
-                cur_selected_button = self.key3_button
+            with self.renderer.lock:
                 cur_selected_button.is_selected = True
-                with self.renderer.lock:
-                    cur_selected_button.render()
-                    self.renderer.show_image()
-                    return
+                cur_selected_button.render()
+                self.renderer.show_image()
 
-            cur_selected_button.is_selected = True
+            with self.renderer.lock:
+                cur_selected_button.is_selected = False
+                cur_selected_button.render()
+                self.renderer.show_image()
 
             time.sleep(0.1)
 

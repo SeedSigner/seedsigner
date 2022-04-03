@@ -178,12 +178,7 @@ class SettingsEntryUpdateSelectionView(View):
 ****************************************************************************"""
 class IOTestView(View):
     def run(self):
-        settings_screens.IOTestScreen(
-            instructions_text="Live camera feed",
-            resolution=(240,240),
-            framerate=24,
-            auto_deactivate_buttons=True,
-        ).display()
+        settings_screens.IOTestScreen().display()
 
         return Destination(SettingsMenuView)
 
