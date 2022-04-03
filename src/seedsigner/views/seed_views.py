@@ -1468,6 +1468,12 @@ class LoadMultisigWalletDescriptorView(View):
 
         if button_data[selected_menu_num] == SCAN:
             return Destination(ScanView)
+        
+        elif button_data[selected_menu_num] == CANCEL:
+            if self.controller.resume_main_flow == Controller.FLOW__PSBT:
+                return Destination(BackStackView)
+            else:
+                return Destination(MainMenuView)
 
 
 

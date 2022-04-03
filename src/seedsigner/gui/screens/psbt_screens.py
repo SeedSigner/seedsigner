@@ -69,8 +69,8 @@ class PSBTOverviewScreen(ButtonListScreen):
         font_size = GUIConstants.BODY_FONT_MIN_SIZE * ssf
         font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, font_size)
 
-        # Measure from anchor "top" to include font pixels below baseline (e.g. the "g" in "change")
-        (left, top, right, chart_text_height) = font.getbbox(text="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890", anchor="lt")
+        (left, top, right, bottom) = font.getbbox(text="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890[]", anchor="lt")
+        chart_text_height = bottom
         vertical_center = int(image.height/2)
         # Supersampling renders thin elements poorly if they land on an even line before scaling down
         if vertical_center % 2 == 1:
@@ -197,6 +197,7 @@ class PSBTOverviewScreen(ButtonListScreen):
                 text=input,
                 font=font,
                 fill=chart_font_color,
+                anchor="lt",
             )
 
             # Render the association line to the conjunction point
@@ -288,6 +289,7 @@ class PSBTOverviewScreen(ButtonListScreen):
                 text=destination,
                 font=font,
                 fill=chart_font_color,
+                anchor="lt"
             )
 
             # Render the association line from the conjunction point
