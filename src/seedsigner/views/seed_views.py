@@ -392,7 +392,8 @@ class SeedOptionsView(View):
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
+            # Force BACK to always return to the Main Menu
+            return Destination(MainMenuView)
 
         if button_data[selected_menu_num] == REVIEW_PSBT:
             self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
