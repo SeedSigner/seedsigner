@@ -856,7 +856,7 @@ class SeedWordsBackupTestView(View):
         else:
             self.seed = self.controller.get_seed(self.seed_num)
 
-        self.wordlist = self.seed.mnemonic_display_list
+        self.mnemonic_list = self.seed.mnemonic_display_list
         self.confirmed_list = confirmed_list
         if not self.confirmed_list:
             self.confirmed_list = []
@@ -866,14 +866,14 @@ class SeedWordsBackupTestView(View):
 
     def run(self):
         if self.cur_index is None:
-            self.cur_index = int(random.random() * len(self.wordlist))
+            self.cur_index = int(random.random() * len(self.mnemonic_list))
             while self.cur_index in self.confirmed_list:
-                self.cur_index = int(random.random() * len(self.wordlist))
+                self.cur_index = int(random.random() * len(self.mnemonic_list))
         
-        real_word = self.wordlist[self.cur_index]
-        fake_word1 = bip39.WORDLIST[int(random.random() * 2048)]
-        fake_word2 = bip39.WORDLIST[int(random.random() * 2048)]
-        fake_word3 = bip39.WORDLIST[int(random.random() * 2048)]
+        real_word = self.mnemonic_list[self.cur_index]
+        fake_word1 = bip39.WORDLIST[int(random.random() * 2047)]
+        fake_word2 = bip39.WORDLIST[int(random.random() * 2047)]
+        fake_word3 = bip39.WORDLIST[int(random.random() * 2047)]
 
         button_data = [real_word, fake_word1, fake_word2, fake_word3]
         random.shuffle(button_data)
@@ -888,7 +888,7 @@ class SeedWordsBackupTestView(View):
 
         if button_data[selected_menu_num] == real_word:
             self.confirmed_list.append(self.cur_index)
-            if len(self.confirmed_list) == len(self.wordlist):
+            if len(self.confirmed_list) == len(self.mnemonic_list):
                 # Successfully confirmed the full mnemonic!
                 return Destination(SeedWordsBackupTestSuccessView, view_args=dict(seed_num=self.seed_num))
             else:
