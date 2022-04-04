@@ -7,9 +7,8 @@ from PIL.Image import Image
 from typing import List
 
 from seedsigner.gui.renderer import Renderer
-from seedsigner.gui.screens.screen import WarningScreen
 from seedsigner.hardware.buttons import HardwareButtons
-from seedsigner.views.screensaver import ScreensaverView
+from seedsigner.views.screensaver import ScreensaverScreen
 from seedsigner.views.view import Destination, NotYetImplementedView, UnhandledExceptionView
 
 from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
@@ -81,7 +80,7 @@ class Controller(Singleton):
     resume_main_flow: str = None
 
     back_stack: BackStack = None
-    screensaver: ScreensaverView = None
+    screensaver: ScreensaverScreen = None
 
 
     @classmethod
@@ -132,7 +131,7 @@ class Controller(Singleton):
         # Configure the Renderer
         Renderer.configure_instance()
 
-        controller.screensaver = ScreensaverView(controller.buttons)
+        controller.screensaver = ScreensaverScreen(controller.buttons)
 
         controller.back_stack = BackStack()
 
@@ -180,9 +179,9 @@ class Controller(Singleton):
 
     def start(self) -> None:
         from .views import MainMenuView, BackStackView
-        from .views.screensaver import OpeningSplashView
+        from .views.screensaver import OpeningSplashScreen
 
-        opening_splash = OpeningSplashView()
+        opening_splash = OpeningSplashScreen()
         opening_splash.start()
 
         """ Class references can be stored as variables in python!
@@ -315,49 +314,3 @@ class Controller(Singleton):
             exception_msg,
         ]
         return Destination(UnhandledExceptionView, view_args={"error": error}, clear_history=True)
-
-"""
-
-
-
-    ###
-    ### Seed Tools Controller Naviation/Launcher
-    ###
-
-
-    ### Create a Seed w/ Dice Screen
-
-    def show_create_seed_with_dice_tool(self) -> int:
-        seed = Seed(wordlist=self.settings.wordlist)
-        ret_val = True
-
-        while True:
-            seed.mnemonic = self.seed_tools_view.display_generate_seed_from_dice()
-            if seed:
-                break
-            else:
-                return Path.SEED_TOOLS_SUB_MENU
-
-        # display seed phrase (24 words)
-        while True:
-            ret_val = self.seed_tools_view.display_seed_phrase(seed.mnemonic_list, show_qr_option=True)
-            if ret_val == True:
-                break
-            else:
-                # no-op; can't back out of the seed phrase view
-                pass
-
-        # Ask to save seed
-        if self.storage.slot_avaliable():
-            r = self.renderer.display_generic_selection_menu(["Yes", "No"], "Save Seed?")
-            if r == 1: #Yes
-                slot_num = self.menu_view.display_saved_seed_menu(self.storage,2,None)
-                if slot_num in (1,2,3):
-                    self.storage.add_seed(seed, slot_num)
-                    self.renderer.draw_modal(["Seed Valid", "Saved to Slot #" + str(slot_num)], "", "Right to Main Menu")
-                    input = self.buttons.wait_for([B.KEY_RIGHT])
-
-        return Path.MAIN_MENU
-
-
-"""

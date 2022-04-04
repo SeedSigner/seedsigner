@@ -169,7 +169,7 @@ def load_icon(icon_name: str, load_selected_variant: bool = False):
 
 
 
-def load_image(image_name: str):
+def load_image(image_name: str) -> Image.Image:
     image_url = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "img", image_name)
     image = Image.open(image_url).convert("RGB")
     return image
