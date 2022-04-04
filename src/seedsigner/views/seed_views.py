@@ -1,14 +1,19 @@
 import embit
+import random
 import time
 
-from typing import List
 from binascii import hexlify
+from embit import bip39
 from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
-from seedsigner.controller import Controller
-from seedsigner.models.decode_qr import DecodeQR
+from typing import List
 
+from seedsigner.controller import Controller
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
+    WarningScreen, DireWarningScreen, seed_screens)
+from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
+from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
@@ -16,9 +21,6 @@ from seedsigner.models.seed import InvalidSeedException, Seed
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    WarningScreen, DireWarningScreen, seed_screens)
-from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
 from seedsigner.views.psbt_views import PSBTChangeDetailsView
 from seedsigner.views.scan_views import ScanView
 
@@ -808,13 +810,152 @@ class SeedWordsView(View):
 
         if button_data[selected_menu_num] == NEXT:
             if self.seed_num is None and self.page_index == self.num_pages - 1:
-                return Destination(SeedFinalizeView)
+                return Destination(SeedWordsBackupTestPromptView, view_args=dict(seed_num=self.seed_num))
             else:
-                return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": self.page_index + 1})
+                return Destination(SeedWordsView, view_args=dict(seed_num=self.seed_num, page_index=self.page_index + 1))
 
         elif button_data[selected_menu_num] == DONE:
             # Must clear history to avoid BACK button returning to private info
-            return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
+            return Destination(SeedWordsBackupTestPromptView, view_args=dict(seed_num=self.seed_num))
+
+
+
+"""****************************************************************************
+    Seed Words Backup Test
+****************************************************************************"""
+class SeedWordsBackupTestPromptView(View):
+    def __init__(self, seed_num: int):
+        self.seed_num = seed_num
+    
+
+    def run(self):
+        VERIFY = "Verify"
+        SKIP = "Skip"
+        button_data = [VERIFY, SKIP]
+        selected_menu_num = seed_screens.SeedWordsBackupTestPromptScreen(
+            button_data=button_data,
+        ).display()
+
+        if button_data[selected_menu_num] == VERIFY:
+            return Destination(SeedWordsBackupTestView, view_args=dict(seed_num=self.seed_num))
+
+        elif button_data[selected_menu_num] == SKIP:
+            if self.seed_num is not None:
+                return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num))
+            else:
+                return Destination(SeedFinalizeView)
+
+
+
+class SeedWordsBackupTestView(View):
+    def __init__(self, seed_num: int, confirmed_list: List[bool] = None, cur_index: int = None):
+        super().__init__()
+        self.seed_num = seed_num
+        if self.seed_num is None:
+            self.seed = self.controller.storage.get_pending_seed()
+        else:
+            self.seed = self.controller.get_seed(self.seed_num)
+
+        self.wordlist = self.seed.mnemonic_display_list
+        self.confirmed_list = confirmed_list
+        if not self.confirmed_list:
+            self.confirmed_list = []
+        
+        self.cur_index = cur_index
+
+
+    def run(self):
+        if self.cur_index is None:
+            self.cur_index = int(random.random() * len(self.wordlist))
+            while self.cur_index in self.confirmed_list:
+                self.cur_index = int(random.random() * len(self.wordlist))
+        
+        real_word = self.wordlist[self.cur_index]
+        fake_word1 = bip39.WORDLIST[int(random.random() * 2048)]
+        fake_word2 = bip39.WORDLIST[int(random.random() * 2048)]
+        fake_word3 = bip39.WORDLIST[int(random.random() * 2048)]
+
+        button_data = [real_word, fake_word1, fake_word2, fake_word3]
+        random.shuffle(button_data)
+
+        selected_menu_num = ButtonListScreen(
+            title=f"Verify Word #{self.cur_index + 1}",
+            show_back_button=False,
+            button_data=button_data,
+            is_bottom_list=True,
+            is_button_text_centered=True,
+        ).display()
+
+        if button_data[selected_menu_num] == real_word:
+            self.confirmed_list.append(self.cur_index)
+            if len(self.confirmed_list) == len(self.wordlist):
+                # Successfully confirmed the full mnemonic!
+                return Destination(SeedWordsBackupTestSuccessView, view_args=dict(seed_num=self.seed_num))
+            else:
+                # Continue testing the remaining words
+                return Destination(SeedWordsBackupTestView, view_args=dict(seed_num=self.seed_num, confirmed_list=self.confirmed_list))
+        
+        else:
+            # Picked the WRONG WORD!
+            return Destination(
+                SeedWordsBackupTestMistakeView,
+                view_args=dict(
+                    seed_num=self.seed_num,
+                    cur_index=self.cur_index,
+                    wrong_word=button_data[selected_menu_num],
+                    confirmed_list=self.confirmed_list,
+                )
+            )
+
+
+
+class SeedWordsBackupTestMistakeView(View):
+    def __init__(self, seed_num: int, cur_index: int, wrong_word: str, confirmed_list: List[bool] = None):
+        super().__init__()
+        self.seed_num = seed_num
+        self.cur_index = cur_index
+        self.wrong_word = wrong_word
+        self.confirmed_list = confirmed_list
+
+    
+    def run(self):
+        REVIEW = "Review Seed Words"
+        RETRY = "Try Again"
+        button_data = [REVIEW, RETRY]
+
+        selected_menu_num = DireWarningScreen(
+            title="Verification Error",
+            show_back_button=False,
+            status_headline=f"Wrong Word!",
+            text=f"Word #{self.cur_index + 1} is not \"{self.wrong_word}\"!",
+            button_data=button_data,
+        ).display()
+
+        if button_data[selected_menu_num] == REVIEW:
+            return Destination(SeedWordsView, view_args=dict(seed_num=self.seed_num))
+        
+        elif button_data[selected_menu_num] == RETRY:
+            return Destination(SeedWordsBackupTestView, view_args=dict(seed_num=self.seed_num, confirmed_list=self.confirmed_list, cur_index=self.cur_index))
+    
+
+
+class SeedWordsBackupTestSuccessView(View):
+    def __init__(self, seed_num: int):
+        self.seed_num = seed_num
+    
+    def run(self):
+        LargeIconStatusScreen(
+            title="Backup Verified",
+            show_back_button=False,
+            status_headline="Success!",
+            text="All mnemonic backup words were successfully verified!",
+            button_data=["OK"]
+        ).display()
+
+        if self.seed_num is not None:
+            return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num), clear_history=True)
+        else:
+            return Destination(SeedFinalizeView)
 
 
 
