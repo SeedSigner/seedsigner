@@ -1,6 +1,12 @@
 import embit
 import time
 
+from bip85 import BIP85
+from mnemonic import Mnemonic
+from bip85 import app
+from embit import bip39, bip32
+
+
 from typing import List
 from binascii import hexlify
 from embit.descriptor import Descriptor
@@ -23,9 +29,6 @@ from seedsigner.views.psbt_views import PSBTChangeDetailsView
 from seedsigner.views.scan_views import ScanView
 
 from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
-
-
-
 
 class SeedsMenuView(View):
     def __init__(self):
@@ -349,6 +352,7 @@ class SeedOptionsView(View):
         VERIFY_ADDRESS = "Verify Addr"
         EXPORT_XPUB = "Export Xpub"
         BACKUP = ("Backup Seed", None, None, None, FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT)
+        GENBIP85 = ("Gen BIP85 Child seed", None, None, None, FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT)
         DISCARD = ("Discard Seed", None, None, "red")
 
         button_data = []
@@ -380,7 +384,8 @@ class SeedOptionsView(View):
         
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             button_data.append(EXPORT_XPUB)
-
+           
+        button_data.append(GENBIP85)
         button_data.append(BACKUP)
         button_data.append(DISCARD)
 
@@ -412,7 +417,121 @@ class SeedOptionsView(View):
 
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView, view_args={"seed_num": self.seed_num})
+        
+        elif button_data[selected_menu_num] == GENBIP85:
+            return Destination(SeedExportBIP85View, view_args={"seed_num": self.seed_num})
 
+class SeedExportBIP85View(View):
+    def __init__(self, seed_num):
+        super().__init__()
+        self.seed_num = seed_num
+        self.seed = self.controller.get_seed(self.seed_num)
+   
+
+    def run(self):
+        EXPORT_INDEX = "Export seed index"
+        button_data = [EXPORT_INDEX]
+
+        selected_menu_num = ButtonListScreen(
+            title="Export BIP85 Child",
+            button_data=button_data,
+            is_bottom_list=True,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == EXPORT_INDEX:
+            return Destination(ChooseBIP85Index, view_args={"seed_num": self.seed_num})
+
+class ChooseBIP85Index(View):
+    def __init__(self, seed_num):
+        super().__init__()
+        self.seed_num = seed_num
+        if self.seed_num is None:
+            self.seed = self.controller.storage.get_pending_seed()
+        else:
+            self.seed = self.controller.get_seed(self.seed_num)
+
+    def run(self):
+        seed_phrase=self.seed.mnemonic_list
+        #print("Seed phrase: " + str(seed_phrase))
+        print("Seed phrase: " + str(self.seed.mnemonic_str))
+       
+        #My Test code for bip85 Child
+        language = 'english'
+ 
+        bip39 = Mnemonic(language)
+        bip85 = BIP85()
+
+        # How many words for the BIP85 mnemomic
+        num_words = 12
+        index = 0
+
+        seed_words = self.seed.mnemonic_str
+        passphrase = ""
+        seed = embit.bip39.mnemonic_to_seed(seed_words, password=passphrase)
+        xprv = embit.bip32.HDKey.from_seed(seed)
+        print("Xprv" + str(xprv))
+        bip85_seed = app.bip39(xprv, language, num_words, index)
+        print(str(bip85_seed))
+        print(app.bip39(xprv, language, num_words, index))
+        
+        destination = Destination(
+            BIP85SeedWordsView,
+            view_args={"seed_num": self.seed_num, "page_index": 0},
+            skip_current_view=True,  # Prevent going BACK to WarningViews
+        )
+        return destination 
+
+        return Destination(BackStackView)
+
+
+class BIP85SeedWordsView(View):
+    def __init__(self, seed_num: int, page_index: int = 0):
+        super().__init__()
+        self.seed_num = seed_num
+        if self.seed_num is None:
+            self.seed = self.controller.storage.get_pending_seed()
+        else:
+            self.seed = self.controller.get_seed(self.seed_num)
+
+        self.page_index = page_index
+        self.bip85_seed =  self.seed.get_bip85_child()
+        self.num_pages=int(len(self.bip85_seed)/4)
+        print("Num_pages: " + str(self.num_pages))
+        print("BIP85 Seed: " + str(self.bip85_seed))
+
+    def run(self):
+        NEXT = "Next"
+        DONE = "Done"
+
+
+        button_data = []
+        if self.page_index < self.num_pages - 1 or self.seed_num is None:
+            button_data.append(NEXT)
+        else:
+            button_data.append(DONE)
+
+        selected_menu_num = seed_screens.BIP85SeedWordsScreen(
+            seed=self.seed,
+            page_index=self.page_index,
+            num_pages=self.num_pages,
+            button_data=button_data,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        if button_data[selected_menu_num] == NEXT:
+            if self.seed_num is None and self.page_index == self.num_pages - 1:
+                return Destination(SeedFinalizeView)
+            else:
+                return Destination(BIP85SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": self.page_index + 1})
+
+        elif button_data[selected_menu_num] == DONE:
+            # Must clear history to avoid BACK button returning to private info
+            return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
 
 
 class SeedBackupView(View):
