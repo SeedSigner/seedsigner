@@ -3,10 +3,13 @@ import os
 import pathlib
 
 from dataclasses import dataclass
+from decimal import Decimal
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from typing import List, Tuple
 
 from seedsigner.models import Singleton
+from seedsigner.models.settings import Settings
+from seedsigner.models.settings_definition import SettingsConstants
 
 
 # TODO: Remove all pixel hard coding
@@ -21,13 +24,15 @@ class GUIConstants:
     SUCCESS_COLOR = "#00dd00"
     BITCOIN_ORANGE = "#ff9416"
     ACCENT_COLOR = "orange"
+    TESTNET_COLOR = "#00f100"
+    REGTEST_COLOR = "#00caf1"
 
     ICON_FONT_NAME__FONT_AWESOME = "Font_Awesome_6_Free-Solid-900"
     ICON_FONT_NAME__SEEDSIGNER = "seedsigner-glyphs"
     ICON_FONT_SIZE = 22
     ICON_INLINE_FONT_SIZE = 24
     ICON_LARGE_BUTTON_SIZE = 36
-    ICON_PRIMARY_SCREEN_SIZE = 44
+    ICON_PRIMARY_SCREEN_SIZE = 50
 
     TOP_NAV_TITLE_FONT_NAME = "OpenSans-SemiBold"
     TOP_NAV_TITLE_FONT_SIZE = 20
@@ -103,18 +108,19 @@ class FontAwesomeIconConstants:
 class SeedSignerCustomIconConstants:
     LARGE_CHEVRON_LEFT = "\ue900"
     SMALL_CHEVRON_RIGHT = "\ue901"
-    PAGE_DOWN = "\ue902"
     PAGE_UP = "\ue903"
-    CIRCLE_X = "\ue904"
-    CIRCLE_EXCLAMATION = "\ue905"
-    CIRCLE_CHECK = "\ue906"
-    FINGERPRINT = "\ue907"
-    PATH = "\ue908"
-    BITCOIN_LOGO = "\ue909"
-    BITCOIN_LOGO_2 = "\ue90a"
+    PAGE_DOWN = "\ue902"
+    PLUS = "\ue904"
+    CIRCLE_CHECK = "\ue907"
+    CIRCLE_EXCLAMATION = "\ue908"
+    CIRCLE_X = "\ue909"
+    FINGERPRINT = "\ue90a"
+    PATH = "\ue90b"
+    BITCOIN_LOGO_STRAIGHT = "\ue90c"
+    BITCOIN_LOGO_TILTED = "\ue90d"
 
     MIN_VALUE = LARGE_CHEVRON_LEFT
-    MAX_VALUE = BITCOIN_LOGO_2
+    MAX_VALUE = BITCOIN_LOGO_TILTED
 
 
 
@@ -163,7 +169,7 @@ def load_icon(icon_name: str, load_selected_variant: bool = False):
 
 
 
-def load_image(image_name: str):
+def load_image(image_name: str) -> Image.Image:
     image_url = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "img", image_name)
     image = Image.open(image_url).convert("RGB")
     return image
@@ -203,8 +209,8 @@ class TextDoesNotFitException(Exception):
 
 @dataclass
 class BaseComponent:
-    image_draw: ImageDraw = None
-    canvas: Image = None
+    image_draw: ImageDraw.ImageDraw = None
+    canvas: Image.Image = None
 
     def __post_init__(self):
         from seedsigner.gui import Renderer
@@ -251,7 +257,7 @@ class TextArea(BaseComponent):
     screen_x: int = 0
     screen_y: int = 0
     min_text_x: int = None
-    background_color: str = "black"
+    background_color: str = GUIConstants.BACKGROUND_COLOR
     font_name: str = GUIConstants.BODY_FONT_NAME
     font_size: int = GUIConstants.BODY_FONT_SIZE
     font_color: str = GUIConstants.BODY_FONT_COLOR
@@ -413,7 +419,7 @@ class TextArea(BaseComponent):
 class Icon(BaseComponent):
     screen_x: int = 0
     screen_y: int = 0
-    icon_name: str = SeedSignerCustomIconConstants.BITCOIN_LOGO
+    icon_name: str = SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED
     icon_size: int = GUIConstants.ICON_FONT_SIZE
     icon_color: str = GUIConstants.BODY_FONT_COLOR
 
@@ -432,11 +438,11 @@ class Icon(BaseComponent):
 
     def render(self):
         self.image_draw.text(
-            (self.screen_x, self.screen_y),
+            (self.screen_x, self.screen_y + self.height),
             text=self.icon_name,
             font=self.icon_font,
             fill=self.icon_color,
-            anchor="lt",  # left, top anchor to avoid "ascender" gap space
+            anchor="ls",
         )
 
 
@@ -533,6 +539,8 @@ class IconTextLine(BaseComponent):
         if self.icon_name:
             icon_y = self.screen_y + int((self.height - self.icon.height)/2)
             self.icon.screen_y = icon_y
+
+            self.height = max(self.icon.height, self.height)
         
         if self.is_text_centered:
             if self.icon_name:
@@ -545,6 +553,8 @@ class IconTextLine(BaseComponent):
             #     if self.label_text:
             #         self.label_textarea.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - max_textarea_width + (max_textarea_width - self.label_textarea.width))/2)
             #     self.value_textarea.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - max_textarea_width + (max_textarea_width - self.value_textarea.width))/2)
+
+        self.width = self.canvas_width
 
 
     def render(self):
@@ -730,6 +740,236 @@ class FormattedAddress(BaseComponent):
 
 
 @dataclass
+class BtcAmount(BaseComponent):
+    """
+        Display btc value based on the SETTING__BTC_DENOMINATION Setting:
+        * btc: "B" icon + 8-decimal amount + "btc" (can truncate zero decimals to .0 or .09)
+        * sats: "B" icon + comma-separated amount + "sats"
+        * threshold: btc display at or above 0.01 btc; otherwise sats
+        * btcsatshybrd: "B" icon + 2-decimal amount + "|" + up to 6-digit, comma-separated sats + "sats"
+    """
+    total_sats: int = None
+    icon_size: int = 34
+    font_size: int = 24
+    screen_x: int = 0
+    screen_y: int = None
+
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.sub_components: List[BaseComponent] = []
+        self.paste_image: Image.Image = None
+        self.paste_coords = None
+        denomination = Settings.get_instance().get_value(SettingsConstants.SETTING__BTC_DENOMINATION)
+        network = Settings.get_instance().get_value(SettingsConstants.SETTING__NETWORK)
+
+        btc_unit = "tBtc"
+        sats_unit = "tSats"
+        if network == SettingsConstants.MAINNET:
+            btc_unit = "btc"
+            sats_unit = "sats"
+            btc_color = GUIConstants.ACCENT_COLOR
+
+        elif network == SettingsConstants.TESTNET:
+            btc_color = GUIConstants.TESTNET_COLOR
+        
+        elif network == SettingsConstants.REGTEST:
+            btc_color = GUIConstants.REGTEST_COLOR
+        
+        digit_font = Fonts.get_font(font_name=GUIConstants.BODY_FONT_NAME, size=self.font_size)
+        smaller_digit_font = Fonts.get_font(font_name=GUIConstants.BODY_FONT_NAME, size=self.font_size - 2)
+        unit_font_size = GUIConstants.BUTTON_FONT_SIZE + 2
+
+        # Render to a temp surface
+        self.paste_image = Image.new(mode="RGB", size=(self.canvas_width, self.icon_size), color=GUIConstants.BACKGROUND_COLOR)
+        draw = ImageDraw.Draw(self.paste_image)
+
+        # Render the circular Bitcoin icon
+        btc_icon = Icon(
+            image_draw=draw,
+            canvas=self.paste_image,
+            icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED,
+            icon_color=btc_color,
+            icon_size=self.icon_size,
+            screen_x=0,
+            screen_y=0,
+        )
+        btc_icon.render()
+        cur_x = btc_icon.width + int(GUIConstants.COMPONENT_PADDING/4)
+
+        if denomination == SettingsConstants.BTC_DENOMINATION__BTC or \
+            (denomination == SettingsConstants.BTC_DENOMINATION__THRESHOLD and self.total_sats >= 1e6) or \
+                (denomination == SettingsConstants.BTC_DENOMINATION__BTCSATSHYBRID and self.total_sats >= 1e6 and str(self.total_sats)[-6:] == "0" * 6) or \
+                    self.total_sats > 1e10:
+            decimal_btc = Decimal(self.total_sats / 1e8).quantize(Decimal("0.12345678"))
+            if str(self.total_sats)[-8:] == "0" * 8:
+                # Only whole btc units being displayed; truncate to a single decimal place
+                decimal_btc = decimal_btc.quantize(Decimal("0.1"))
+
+            elif str(self.total_sats)[-6:] == "0" * 6:
+                # Bottom six digits are all zeroes; trucate to two decimal places
+                decimal_btc = decimal_btc.quantize(Decimal("0.12"))
+            
+            btc_text = f"{decimal_btc:,}"
+
+            if len(btc_text) >= 12:
+                # This is a large btc value that won't fit; omit sats
+                btc_text = btc_text.split(".")[0] + "." + btc_text.split(".")[-1][:2] + "..."
+
+            # Draw the btc side
+            font = digit_font
+            # if self.total_sats > 1e9:
+            #     font = smaller_digit_font
+
+            (left, top, text_width, bottom) = font.getbbox(btc_text, anchor="ls")
+            text_height = -1 * top
+            text_y = self.paste_image.height - int((self.paste_image.height - text_height)/2)
+
+            draw.text(
+                xy=(
+                    cur_x,
+                    text_y
+                ),
+                font=font,
+                text=btc_text,
+                fill=GUIConstants.BODY_FONT_COLOR,
+                anchor="ls",
+            )
+            cur_x += text_width
+
+            unit_text = btc_unit
+        
+        elif denomination == SettingsConstants.BTC_DENOMINATION__SATS or \
+            (denomination == SettingsConstants.BTC_DENOMINATION__THRESHOLD and self.total_sats < 1e6) or \
+                (denomination == SettingsConstants.BTC_DENOMINATION__BTCSATSHYBRID and self.total_sats < 1e6):
+            # Draw the sats side
+            sats_text = f"{self.total_sats:,}"
+
+            font = digit_font
+            if self.total_sats > 1e9:
+                font = smaller_digit_font
+            (left, top, text_width, bottom) = font.getbbox(sats_text, anchor="ls")
+            text_height = -1 * top
+            text_y = self.paste_image.height - int((self.paste_image.height - text_height)/2)
+            draw.text(
+                xy=(
+                    cur_x,
+                    text_y
+                ),
+                font=font,
+                text=sats_text,
+                fill=GUIConstants.BODY_FONT_COLOR,
+                anchor="ls",
+            )
+            cur_x += text_width
+
+            unit_text = sats_unit
+        
+        elif denomination == SettingsConstants.BTC_DENOMINATION__BTCSATSHYBRID:
+            decimal_btc = Decimal(self.total_sats / 1e8).quantize(Decimal("0.12345678"))
+            decimal_btc = Decimal(str(decimal_btc)[:-6])
+            btc_text = f"{decimal_btc:,}"
+            sats_text = f"{self.total_sats:,}"[-7:]
+            while sats_text[0] == "0":
+                sats_text = sats_text[1:]
+
+            btc_icon = Icon(
+                image_draw=draw,
+                canvas=self.paste_image,
+                icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED,
+                icon_color=btc_color,
+                icon_size=self.icon_size,
+                screen_x=0,
+                screen_y=0,
+            )
+            btc_icon.render()
+            cur_x = btc_icon.width + int(GUIConstants.COMPONENT_PADDING/4)
+
+            (left, top, text_width, bottom) = smaller_digit_font.getbbox(btc_text, anchor="ls")
+            text_height = -1 * top
+            text_y = self.paste_image.height - int((self.paste_image.height - text_height)/2)
+            
+            draw.text(
+                xy=(
+                    cur_x,
+                    text_y
+                ),
+                font=smaller_digit_font,
+                text=btc_text,
+                fill=GUIConstants.BODY_FONT_COLOR,
+                anchor="ls",
+            )
+            cur_x += text_width - int(GUIConstants.COMPONENT_PADDING/2)
+
+            # Draw the pipe separator
+            pipe_font = Fonts.get_font(font_name=GUIConstants.BODY_FONT_NAME, size=self.icon_size - 4)
+            (left, top, text_width, bottom) = pipe_font.getbbox("|", anchor="ls")
+            draw.text(
+                xy=(
+                    cur_x,
+                    text_y
+                ),
+                font=pipe_font,
+                text="|",
+                fill=btc_color,
+                anchor="ls",
+            )
+            cur_x += text_width - int(GUIConstants.COMPONENT_PADDING/2)
+
+            # Draw the sats side
+            (left, top, text_width, bottom) = smaller_digit_font.getbbox(sats_text, anchor="ls")
+            draw.text(
+                xy=(
+                    cur_x,
+                    text_y
+                ),
+                font=smaller_digit_font,
+                text=sats_text,
+                fill=GUIConstants.BODY_FONT_COLOR,
+                anchor="ls",
+            )
+            cur_x += text_width
+
+            unit_text = sats_unit
+
+        # Draw the unit
+        unit_font = Fonts.get_font(font_name=GUIConstants.BODY_FONT_NAME, size=unit_font_size)
+        (left, top, unit_text_width, bottom) = unit_font.getbbox(unit_text, anchor="ls")
+        unit_font_height = -1 * top
+
+        unit_textarea = TextArea(
+            image_draw=draw,
+            canvas=self.paste_image,
+            text=f" {unit_text}",
+            font_name=GUIConstants.BODY_FONT_NAME,
+            font_size=unit_font_size,
+            font_color=GUIConstants.BODY_FONT_COLOR,
+            supersampling_factor=2,
+            is_text_centered=False,
+            edge_padding=0,
+            screen_x=cur_x,
+            screen_y=text_y - unit_font_height,
+        )
+        unit_textarea.render()
+
+        final_x = cur_x + GUIConstants.COMPONENT_PADDING + unit_textarea.width
+
+        self.paste_image = self.paste_image.crop((0, 0, final_x, self.paste_image.height))
+        self.paste_coords = (
+            int((self.canvas_width - final_x)/2),
+            self.screen_y
+        )
+
+        self.width = self.canvas_width
+        self.height = self.paste_image.height
+
+
+    def render(self):
+        self.canvas.paste(self.paste_image, self.paste_coords)
+
+
+
+@dataclass
 class Button(BaseComponent):
     # TODO: Rename the seedsigner.helpers.Buttons class (to Inputs?) to reduce confusion
     # with this GUI component.
@@ -806,7 +1046,6 @@ class Button(BaseComponent):
             self.icon_selected = Icon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.selected_icon_color)
 
             if self.is_icon_inline:
-                # TODO: Only apply screen_* at render
                 if self.is_text_centered:
                     # Shift the text's centering
                     if self.text:
@@ -835,6 +1074,7 @@ class Button(BaseComponent):
             self.right_icon_x = self.width - self.right_icon.width - GUIConstants.COMPONENT_PADDING
 
             self.right_icon_y = math.ceil((self.height - self.right_icon.height)/2)
+
 
     def render(self):
         if self.is_selected:
@@ -928,6 +1168,7 @@ class IconButton(Button):
     icon_size: int = GUIConstants.ICON_INLINE_FONT_SIZE
     text: str = None
     is_icon_inline: bool = False
+    is_text_centered: bool = True
 
 
 

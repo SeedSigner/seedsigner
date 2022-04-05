@@ -109,7 +109,7 @@ class PSBTOverviewView(View):
         num_change_outputs = 0
         num_self_transfer_outputs = 0
         for change_output in change_data:
-            print(f"""{change_output["derivation_path"][0]}""")
+            # print(f"""{change_output["derivation_path"][0]}""")
             if change_output["derivation_path"][0].split("/")[-2] == "1":
                 num_change_outputs += 1
             else:
@@ -277,8 +277,6 @@ class PSBTChangeDetailsView(View):
         # Single-sig verification is easy. We expect to find a single fingerprint
         # and derivation path.
         seed_fingerprint = self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-        print(f"seed fingerprint: {seed_fingerprint}")
-        print(change_data)
 
         if seed_fingerprint not in change_data.get("fingerprint"):
             # TODO: Something is wrong with this psbt(?). Reroute to warning?

@@ -21,7 +21,8 @@ class ScanScreen(BaseScreen):
     instructions_text: str = "Scan a QR code"
     resolution: Tuple[int,int] = (480, 480)
     framerate: int = 12
-    auto_deactivate_buttons: bool = False  # Used by the I/O test screen
+    render_rect: Tuple[int,int,int,int] = None
+
 
     def __post_init__(self):
         from seedsigner.hardware.camera import Camera
@@ -36,25 +37,35 @@ class ScanScreen(BaseScreen):
             decoder=self.decoder,
             renderer=self.renderer,
             instructions_text=self.instructions_text,
-            components=self.components,
-            auto_deactivate_buttons=self.auto_deactivate_buttons,
+            render_rect=self.render_rect,
         ))
 
 
     class LivePreviewThread(BaseThread):
-        def __init__(self, camera: Camera, decoder: DecodeQR, renderer: renderer, instructions_text: str, components: List[BaseComponent], auto_deactivate_buttons: bool):
+        def __init__(self, camera: Camera, decoder: DecodeQR, renderer: renderer.Renderer, instructions_text: str, render_rect: Tuple[int,int,int,int]):
             self.camera = camera
             self.decoder = decoder
             self.renderer = renderer
             self.instructions_text = instructions_text
-            self.components = components
-            self.auto_deactivate_buttons = auto_deactivate_buttons
+            if render_rect:
+                self.render_rect = render_rect            
+            else:
+                self.render_rect = (0, 0, self.renderer.canvas_width, self.renderer.canvas_height)
+            self.render_width = self.render_rect[2] - self.render_rect[0]
+            self.render_height = self.render_rect[3] - self.render_rect[1]
+
+            print(f"render_width: {self.render_width}")
+            print(f"render_height: {self.render_height}")
+
             super().__init__()
 
 
         def run(self):
+            from timeit import default_timer as timer
+
             instructions_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
             while self.keep_running:
+                start = timer()
                 frame = self.camera.read_video_stream(as_image=True)
                 if frame is not None:
                     scan_text = self.instructions_text
@@ -62,40 +73,35 @@ class ScanScreen(BaseScreen):
                         scan_text = str(self.decoder.get_percent_complete()) + "% Complete"
 
                     with self.renderer.lock:
-                        if frame.width > self.renderer.canvas_width or frame.height > self.renderer.canvas_height:
+                        if frame.width > self.render_width or frame.height > self.render_height:
                             frame = frame.resize(
-                                (self.renderer.canvas_width, self.renderer.canvas_height)
+                                (self.render_width, self.render_height)
                             )
                         self.renderer.canvas.paste(
                             frame,
-                            (0, 0)
+                            (self.render_rect[0], self.render_rect[1])
                         )
 
-                        self.renderer.draw.text(
-                            xy=(
-                                int(self.renderer.canvas_width/2),
-                                self.renderer.canvas_height - GUIConstants.EDGE_PADDING
-                            ),
-                            text=scan_text,
-                            fill=GUIConstants.BODY_FONT_COLOR,
-                            font=instructions_font,
-                            stroke_width=4,
-                            stroke_fill=GUIConstants.BACKGROUND_COLOR,
-                            anchor="ms"
-                        )
-
-                        # Need to re-render all onscreen UI components since we just overwrote
-                        # the screen.
-                        for component in self.components:
-                            component.render()
-                            if self.auto_deactivate_buttons and type(component) in [Button, IconButton]:
-                                if component.is_selected:
-                                    # deactivate for the next round
-                                    component.is_selected = False
+                        if scan_text:
+                            self.renderer.draw.text(
+                                xy=(
+                                    int(self.renderer.canvas_width/2),
+                                    self.renderer.canvas_height - GUIConstants.EDGE_PADDING
+                                ),
+                                text=scan_text,
+                                fill=GUIConstants.BODY_FONT_COLOR,
+                                font=instructions_font,
+                                stroke_width=4,
+                                stroke_fill=GUIConstants.BACKGROUND_COLOR,
+                                anchor="ms"
+                            )
 
                         self.renderer.show_image()
 
-                time.sleep(0.1) # turn this up or down to tune performance while decoding psbt
+                        end = timer()
+                        # print(f"{1.0/(end - start)} fps") # Time in seconds, e.g. 5.38091952400282
+
+                time.sleep(0.05) # turn this up or down to tune performance while decoding psbt
                 if self.camera._video_stream is None:
                     break
 

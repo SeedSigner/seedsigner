@@ -7,7 +7,7 @@ from seedsigner.gui.renderer import Renderer
 
 from seedsigner.models.threads import BaseThread
 from seedsigner.models.encode_qr import EncodeQR
-from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.settings import Settings, SettingsConstants
 
 from ..components import (GUIConstants, BaseComponent, Button, Icon, LargeIconButton, SeedSignerCustomIconConstants, TopNav,
     TextArea, load_image)
@@ -56,8 +56,6 @@ class BaseScreen(BaseComponent):
 
             return self._run()
         except Exception as e:
-            print(e)
-            print("------")
             repr(e)
             raise e
         finally:
@@ -214,7 +212,42 @@ class BaseTopNavScreen(BaseScreen):
 
 
     def _run(self):
-        raise Exception("Must implement in a child class")
+        while True:
+            if not self.top_nav.show_back_button and not self.top_nav.show_power_button:
+                # There's no navigation away from this screen; nothing to do here
+                time.sleep(0.1)
+                continue
+
+            user_input = self.hw_inputs.wait_for(
+                HardwareButtonsConstants.ALL_KEYS,
+                check_release=True,
+                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
+            )
+
+            with self.renderer.lock:
+                if not self.top_nav.is_selected and user_input in [
+                        HardwareButtonsConstants.KEY_LEFT,
+                        HardwareButtonsConstants.KEY_UP
+                    ]:
+                    self.top_nav.is_selected = True
+                    self.top_nav.render_buttons()
+
+                elif self.top_nav.is_selected and user_input in [
+                        HardwareButtonsConstants.KEY_DOWN,
+                        HardwareButtonsConstants.KEY_RIGHT
+                    ]:
+                    self.top_nav.is_selected = False
+                    self.top_nav.render_buttons()
+
+                elif self.top_nav.is_selected and user_input in HardwareButtonsConstants.KEYS__ANYCLICK:
+                    return self.top_nav.selected_button
+                
+                else:
+                    # Nothing to do with this input
+                    continue
+
+                # Write the screen updates
+                self.renderer.show_image()
 
 
 
@@ -389,8 +422,6 @@ class ButtonListScreen(BaseTopNavScreen):
                 check_release=True,
                 release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
             )
-
-            print(user_input)
 
             with self.renderer.lock:
                 if not self.top_nav.is_selected and (
@@ -812,6 +843,7 @@ class DireWarningScreen(WarningScreen):
     status_color: str = GUIConstants.DIRE_WARNING_COLOR
 
 
+
 @dataclass
 class ResetScreen(BaseTopNavScreen):
     def __post_init__(self):
@@ -824,10 +856,6 @@ class ResetScreen(BaseTopNavScreen):
             screen_y=self.top_nav.height,
             height=self.canvas_height - self.top_nav.height,
         ))
-    
-    def _run(self):
-        while True:
-            pass
 
 
 
@@ -843,7 +871,3 @@ class PowerOffScreen(BaseTopNavScreen):
             screen_y=self.top_nav.height,
             height=self.canvas_height - self.top_nav.height,
         ))
-
-    def _run(self):
-        while True:
-            pass
