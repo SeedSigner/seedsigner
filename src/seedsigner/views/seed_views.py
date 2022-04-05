@@ -454,28 +454,6 @@ class ChooseBIP85Index(View):
             self.seed = self.controller.get_seed(self.seed_num)
 
     def run(self):
-        seed_phrase=self.seed.mnemonic_list
-        #print("Seed phrase: " + str(seed_phrase))
-        print("Seed phrase: " + str(self.seed.mnemonic_str))
-       
-        #My Test code for bip85 Child
-        language = 'english'
- 
-        bip39 = Mnemonic(language)
-        bip85 = BIP85()
-
-        # How many words for the BIP85 mnemomic
-        num_words = 12
-        index = 0
-
-        seed_words = self.seed.mnemonic_str
-        passphrase = ""
-        seed = embit.bip39.mnemonic_to_seed(seed_words, password=passphrase)
-        xprv = embit.bip32.HDKey.from_seed(seed)
-        print("Xprv" + str(xprv))
-        bip85_seed = app.bip39(xprv, language, num_words, index)
-        print(str(bip85_seed))
-        print(app.bip39(xprv, language, num_words, index))
         
         destination = Destination(
             BIP85SeedWordsView,
@@ -497,10 +475,8 @@ class BIP85SeedWordsView(View):
             self.seed = self.controller.get_seed(self.seed_num)
 
         self.page_index = page_index
-        self.bip85_seed =  self.seed.get_bip85_child()
-        self.num_pages=int(len(self.bip85_seed)/4)
-        print("Num_pages: " + str(self.num_pages))
-        print("BIP85 Seed: " + str(self.bip85_seed))
+        #Default to 12 world BIP85 Seed, need to fix this
+        self.num_pages=int(12/4)
 
     def run(self):
         NEXT = "Next"
