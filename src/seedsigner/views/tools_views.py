@@ -4,7 +4,6 @@ import time
 
 from PIL import Image
 from PIL.ImageOps import autocontrast
-from seedsigner.gui.screens.screen import LargeButtonScreen
 
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants
@@ -13,9 +12,9 @@ from seedsigner.gui.screens.tools_screens import ToolsDiceEntropyEntryScreen, To
 from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
-from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedWordsView, SeedWordsWarningView
+from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedWordsWarningView
 
-from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
+from .view import View, Destination, BackStackView
 
 
 
@@ -207,9 +206,9 @@ class ToolsDiceEntropyEntryView(View):
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
-        print(ret)
+        print(f"Dice rolls: {ret}")
         dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret)
-        print(dice_seed_phrase)
+        print(f"""Mnemonic: "{dice_seed_phrase}" """)
 
         # Add the mnemonic as an in-memory Seed
         seed = Seed(dice_seed_phrase, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))

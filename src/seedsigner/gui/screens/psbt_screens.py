@@ -7,7 +7,7 @@ from seedsigner.gui.renderer import Renderer
 from seedsigner.models.threads import BaseThread
 
 from .screen import ButtonListScreen, WarningScreen
-from ..components import (Button, Icon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, SeedSignerCustomIconConstants, TextArea,
+from ..components import (BtcAmount, Button, Icon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, SeedSignerCustomIconConstants, TextArea,
     calc_bezier_curve, linear_interp)
 
 
@@ -38,30 +38,20 @@ class PSBTOverviewScreen(ButtonListScreen):
         # icon_text_lines_y = self.components[-1].screen_y + self.components[-1].height
         icon_text_lines_y = self.top_nav.height + GUIConstants.COMPONENT_PADDING
 
-
         if not self.destination_addresses:
             # This is a self-transfer
             spend_amount = self.change_amount
         else:
             spend_amount = self.spend_amount
 
-        if spend_amount <= 1e6:
-            amount_display = f"{spend_amount:,} sats"
-        else:
-            amount_display = f"{spend_amount/1e8:,} btc"
-        self.components.append(IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO,
-            icon_color=GUIConstants.ACCENT_COLOR,
-            icon_size=34,
-            is_text_centered=True,
-            value_text=f"{amount_display}",
-            font_size=24,
+        self.components.append(BtcAmount(
+            total_sats=spend_amount,
             screen_y=icon_text_lines_y,
         ))
 
         # Prep the transaction flow chart
         self.chart_x = 0
-        self.chart_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        self.chart_y = self.components[-1].screen_y + self.components[-1].height + int(GUIConstants.COMPONENT_PADDING/2)
         chart_height = self.buttons[0].screen_y - self.chart_y - GUIConstants.COMPONENT_PADDING
 
         # We need to supersample the whole panel so that small/thin elements render
@@ -79,7 +69,8 @@ class PSBTOverviewScreen(ButtonListScreen):
         font_size = GUIConstants.BODY_FONT_MIN_SIZE * ssf
         font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, font_size)
 
-        tw, chart_text_height = font.getsize("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")  # All possible chars for max range
+        (left, top, right, bottom) = font.getbbox(text="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890[]", anchor="lt")
+        chart_text_height = bottom
         vertical_center = int(image.height/2)
         # Supersampling renders thin elements poorly if they land on an even line before scaling down
         if vertical_center % 2 == 1:
@@ -206,6 +197,7 @@ class PSBTOverviewScreen(ButtonListScreen):
                 text=input,
                 font=font,
                 fill=chart_font_color,
+                anchor="lt",
             )
 
             # Render the association line to the conjunction point
@@ -297,6 +289,7 @@ class PSBTOverviewScreen(ButtonListScreen):
                 text=destination,
                 font=font,
                 fill=chart_font_color,
+                anchor="lt"
             )
 
             # Render the association line from the conjunction point
@@ -592,20 +585,10 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
         center_img = Image.new("RGB", (self.canvas_width, center_img_height), GUIConstants.BACKGROUND_COLOR)
         draw = ImageDraw.Draw(center_img)
 
-        if self.amount <= 1e7:
-            amount_display = f"{self.amount:,} sats"
-        else:
-            amount_display = f"{self.amount/1e8:,} btc"
-
-        icon_text_line = IconTextLine(
+        btc_amount = BtcAmount(
             image_draw=draw,
             canvas=center_img,
-            icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO,
-            icon_color=GUIConstants.ACCENT_COLOR,
-            icon_size=28,
-            is_text_centered=True,
-            value_text=f"{amount_display}",
-            font_size=22,
+            total_sats=self.amount,
             screen_y=int(GUIConstants.COMPONENT_PADDING/2),
         )
 
@@ -614,13 +597,13 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
             canvas=center_img,
             width=self.canvas_width - 2*GUIConstants.EDGE_PADDING,
             screen_x=GUIConstants.EDGE_PADDING,
-            screen_y=icon_text_line.height + GUIConstants.COMPONENT_PADDING,
+            screen_y=btc_amount.height + GUIConstants.COMPONENT_PADDING,
             font_size=24,
             address=self.address,
         )
 
         # Render each to the temp img we passed in
-        icon_text_line.render()
+        btc_amount.render()
         formatted_address.render()
 
         self.body_img = center_img.crop((
@@ -652,15 +635,11 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
         self.is_bottom_list = True
         super().__post_init__()
 
-        self.components.append(IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO,
-            icon_color=GUIConstants.ACCENT_COLOR,
-            icon_size=28,
-            value_text=f"{self.amount} sats" if self.amount < 1e6 else f"{self.amount/1e8:0.8f} btc",
-            font_size=22,
-            is_text_centered=True,
-            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING
+        self.components.append(BtcAmount(
+            total_sats=self.amount,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
         ))
+
         self.components.append(FormattedAddress(
             screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
             address=self.address,

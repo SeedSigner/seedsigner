@@ -45,6 +45,17 @@ class SettingsConstants:
         (LANGUAGE__ENGLISH, "English"),
     ]
 
+    BTC_DENOMINATION__BTC = "btc"
+    BTC_DENOMINATION__SATS = "sats"
+    BTC_DENOMINATION__THRESHOLD = "thr"
+    BTC_DENOMINATION__BTCSATSHYBRID = "hyb"
+    ALL_BTC_DENOMINATIONS = [
+        (BTC_DENOMINATION__BTC, "Btc-only"),
+        (BTC_DENOMINATION__SATS, "Sats-only"),
+        (BTC_DENOMINATION__THRESHOLD, "Threshold at 0.01"),
+        (BTC_DENOMINATION__BTCSATSHYBRID, "Btc | Sats hybrid"),
+    ]
+
     CAMERA_ROTATION__0 = 0
     CAMERA_ROTATION__90 = 90
     CAMERA_ROTATION__180 = 180
@@ -130,6 +141,7 @@ class SettingsConstants:
     SETTING__WORDLIST_LANGUAGE = "wordlist_language"
     SETTING__PERSISTENT_SETTINGS = "persistent_settings"
     SETTING__COORDINATORS = "coordinators"
+    SETTING__BTC_DENOMINATION = "denomination"
 
     SETTING__NETWORK = "network"
     SETTING__QR_DENSITY = "qr_density"
@@ -142,6 +154,7 @@ class SettingsConstants:
     SETTING__COMPACT_SEEDQR = "compact_seedqr"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
+    SETTING__PARTNER_LOGOS = "partner_logos"
 
     SETTING__DEBUG = "debug"
 
@@ -334,7 +347,7 @@ class SettingsDefinition:
                       visibility=SettingsConstants.VISIBILITY__HIDDEN,
                       selection_options=SettingsConstants.ALL_WORDLIST_LANGUAGES,
                       default_value=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH),
-     
+
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__PERSISTENT_SETTINGS,
                       display_name="Persistent settings",
@@ -348,6 +361,14 @@ class SettingsDefinition:
                       selection_options=SettingsConstants.ALL_COORDINATORS,
                       default_value=SettingsConstants.ALL_COORDINATORS),
 
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__BTC_DENOMINATION,
+                      display_name="Denomination display",
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      selection_options=SettingsConstants.ALL_BTC_DENOMINATIONS,
+                      default_value=SettingsConstants.BTC_DENOMINATION__THRESHOLD),
+     
+
         # Advanced options
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__NETWORK,
@@ -355,7 +376,7 @@ class SettingsDefinition:
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SettingsConstants.ALL_NETWORKS,
-                      default_value=SettingsConstants.REGTEST),         # DEBUGGING!
+                      default_value=SettingsConstants.MAINNET),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__QR_DENSITY,
@@ -427,6 +448,12 @@ class SettingsDefinition:
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__ENABLED),
 
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__PARTNER_LOGOS,
+                      display_name="Show partner logos",
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__ENABLED),
+
         # Developer options
         # TODO: No real Developer options needed yet. Disable for now.
         # SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
@@ -493,8 +520,6 @@ class SettingsDefinition:
 
 if __name__ == "__main__":
     import json
-    import os
-    print("Exporting SettingsDefinition to json")
 
     output_file = "settings_definition.json"
     with open(output_file, 'w') as json_file:

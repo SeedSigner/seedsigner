@@ -58,7 +58,6 @@ class PSBTParser():
 
     def _set_root(self):
         self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(self.network)]["xprv"])
-        print(f"root: {self.root}")
 
 
     def parse(self):
@@ -85,7 +84,6 @@ class PSBTParser():
 
     def _parse_inputs(self):
         self.input_amount = 0
-        print(f"psbt.inputs: {self.psbt.inputs}")
         self.num_inputs = len(self.psbt.inputs)
         for inp in self.psbt.inputs:
             if inp.witness_utxo:
@@ -343,5 +341,5 @@ class PSBTParser():
         i = change_data["output_index"]
         output = self.psbt.outputs[i]
         is_owner = descriptor.owns(output)
-        print(f"{self.psbt.tx.vout[i].script_pubkey.address()} | {output.value} | {is_owner}")
+        # print(f"{self.psbt.tx.vout[i].script_pubkey.address()} | {output.value} | {is_owner}")
         return is_owner
