@@ -22,7 +22,6 @@ from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
 
 
-
 @dataclass
 class SeedMnemonicEntryScreen(BaseTopNavScreen):
     initial_letters: list = None
@@ -1568,15 +1567,15 @@ class BIP85SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
     is_bottom_list: bool = True
     status_color: str = GUIConstants.DIRE_WARNING_COLOR
 
-
     def __post_init__(self):
         self.title = f"BIP85 Words: {self.page_index+1}/{self.num_pages}"
         super().__post_init__()
 
+        #index = 0
+        #num_words = 12
         # Can only render 4 words per screen
         words_per_page = 4
-        mnemonic = self.seed.bip85_seed_display_list 
-
+        mnemonic = self.seed.get_bip85_child(self.seed.bip85_index, self.seed.bip85_num_words).split() 
         # Slice the mnemonic to our current 4-word section
         self.mnemonic = mnemonic[self.page_index*words_per_page:(self.page_index + 1)*words_per_page]
         self.body_x = 0

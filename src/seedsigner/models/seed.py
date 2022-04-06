@@ -6,9 +6,7 @@ from embit import bip39, bip32
 from embit.networks import NETWORKS
 from typing import List
 from bip85 import BIP85
-#from mnemonic import Mnemonic
 from bip85 import app
-
 
 from seedsigner.models.settings import SettingsConstants
 
@@ -26,14 +24,15 @@ class Seed:
         if not mnemonic:
             raise Exception("Must initialize a Seed with a mnemonic List[str]")
         self._mnemonic: List[str] = unicodedata.normalize("NFKD", " ".join(mnemonic).strip()).split()
-        self._bip85_seed: List[str] = self.get_bip85_child().split()
-        
 
         self._passphrase: str = ""
         self.set_passphrase(passphrase, regenerate_seed=False)
 
         self.seed_bytes: bytes = None
         self._generate_seed()
+        self._bip85_seed: List[str] = ""
+        self.bip85_index: int = 0
+        self.bip85_num_words: int = 12
 
 
     @staticmethod
@@ -123,22 +122,16 @@ class Seed:
         xpub = xprv.to_public()
         return xpub
     
-    def get_bip85_child(self, wallet_path: str = '/', network: str = SettingsConstants.MAINNET):
+    def get_bip85_child(self, bip85_index: int, bip85_num_words: int, wallet_path: str = '/', network: str = SettingsConstants.MAINNET):
         bip85_seed: str = ""
-        language = "english"
-        #mybip39 = Mnemonic(language)
         bip85 = BIP85()
-        num_words = 12
-        index = 0 
-        seed_words = self.mnemonic_str
-        passphrase = ""
-        print("Seed words: " + str(seed_words))
-        seed = embit.bip39.mnemonic_to_seed(seed_words, password=passphrase)
+       
+        passphrase = self._passphrase
+        language = 'english' 
+
+        seed = bip39.mnemonic_to_seed(self.mnemonic_str, password=self._passphrase, wordlist=self.wordlist)
         xprv = embit.bip32.HDKey.from_seed(seed)
-        print("Xprv" + str(xprv))
-        bip85_seed = app.bip39(xprv, language, num_words, index)
-        print(str(bip85_seed))
-        #return bip85_seed
+        bip85_seed = app.bip39(xprv, language, bip85_num_words, bip85_index)
         return bip85_seed
 
     ### override operators    

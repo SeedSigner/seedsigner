@@ -1,11 +1,4 @@
-import embit
 import time
-
-from bip85 import BIP85
-from mnemonic import Mnemonic
-from bip85 import app
-from embit import bip39, bip32
-
 
 from typing import List
 from binascii import hexlify
@@ -426,7 +419,6 @@ class SeedExportBIP85View(View):
         super().__init__()
         self.seed_num = seed_num
         self.seed = self.controller.get_seed(self.seed_num)
-   
 
     def run(self):
         EXPORT_INDEX = "Export seed index"
@@ -473,7 +465,8 @@ class BIP85SeedWordsView(View):
             self.seed = self.controller.storage.get_pending_seed()
         else:
             self.seed = self.controller.get_seed(self.seed_num)
-
+        
+        #self.seed.bip85_seed = self.seed.get_bip85_child(0, 12)
         self.page_index = page_index
         #Default to 12 world BIP85 Seed, need to fix this
         self.num_pages=int(12/4)
