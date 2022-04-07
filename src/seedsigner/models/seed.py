@@ -1,22 +1,22 @@
 import unicodedata
+import embit
 
 from binascii import hexlify
 from embit import bip39, bip32
 from embit.networks import NETWORKS
 from typing import List
+from bip85 import BIP85
+from bip85 import app
 
 from seedsigner.models.settings import SettingsConstants
-
-
 
 class InvalidSeedException(Exception):
     pass
 
-
-
 class Seed:
     def __init__(self,
                  mnemonic: List[str] = None,
+                 bip85_seed: List[str] = None,
                  passphrase: str = "",
                  wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> None:
         self.wordlist_language_code = wordlist_language_code
@@ -30,6 +30,9 @@ class Seed:
 
         self.seed_bytes: bytes = None
         self._generate_seed()
+        self._bip85_seed: List[str] = ""
+        self.bip85_index: int = 0
+        self.bip85_num_words: int = 12
 
 
     @staticmethod
@@ -53,7 +56,6 @@ class Seed:
     def mnemonic_str(self) -> str:
         return " ".join(self._mnemonic)
     
-
     @property
     def mnemonic_list(self) -> List[str]:
         return self._mnemonic
@@ -67,6 +69,14 @@ class Seed:
     @property
     def mnemonic_display_list(self) -> List[str]:
         return unicodedata.normalize("NFC", " ".join(self._mnemonic)).split()
+
+    @property
+    def bip85_seed_display_list(self) -> List[str]:
+        return unicodedata.normalize("NFC", " ".join(self._bip85_seed)).split()
+    
+    #@property
+    #def bip85_seed(self):
+    #    return self._bip85_seed
 
 
     @property
@@ -112,6 +122,18 @@ class Seed:
         xpub = xprv.to_public()
         return xpub
     
+    def get_bip85_child(self, bip85_index: int, bip85_num_words: int, wallet_path: str = '/', network: str = SettingsConstants.MAINNET):
+        bip85_seed: str = ""
+        bip85 = BIP85()
+       
+        passphrase = self._passphrase
+        language = 'english' 
+
+        seed = bip39.mnemonic_to_seed(self.mnemonic_str, password=self._passphrase, wordlist=self.wordlist)
+        xprv = embit.bip32.HDKey.from_seed(seed)
+        bip85_seed = app.bip39(xprv, language, bip85_num_words, bip85_index)
+        return bip85_seed
+
     ### override operators    
     def __eq__(self, other):
         if isinstance(other, Seed):

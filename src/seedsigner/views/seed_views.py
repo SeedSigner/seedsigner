@@ -350,6 +350,7 @@ class SeedOptionsView(View):
         VERIFY_ADDRESS = "Verify Addr"
         EXPORT_XPUB = "Export Xpub"
         BACKUP = ("Backup Seed", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT)
+        GENBIP85 = ("Gen BIP85 Child seed")
         DISCARD = ("Discard Seed", None, None, "red")
 
         button_data = []
@@ -367,7 +368,7 @@ class SeedOptionsView(View):
         if self.controller.psbt:
             if PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 if self.controller.resume_main_flow and self.controller.resume_main_flow == Controller.FLOW__PSBT:
-                    # Re-route us directly back to the start of the PSBT flow 
+                    # Re-route us directly back to the start of the PSBT flow
                     self.controller.resume_main_flow = None
                     self.controller.psbt_seed = self.seed
                     return Destination(PSBTOverviewView, skip_current_view=True)
@@ -382,6 +383,7 @@ class SeedOptionsView(View):
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             button_data.append(EXPORT_XPUB)
 
+        button_data.append(GENBIP85)
         button_data.append(BACKUP)
         button_data.append(DISCARD)
 
@@ -414,6 +416,122 @@ class SeedOptionsView(View):
 
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView, view_args={"seed_num": self.seed_num})
+
+        elif button_data[selected_menu_num] == GENBIP85:
+            return Destination(SeedExportBIP85View, view_args={"seed_num": self.seed_num})
+
+
+"""****************************************************************************
+    Export BIP85 Child Flow
+****************************************************************************"""
+# This will ask user word number and display warning if neccessary before displaying the words
+class SeedExportBIP85View(View):
+    def __init__(self, seed_num: int):
+        super().__init__()
+        self.seed_num = seed_num
+        self.num_words = 0
+
+    def run(self):
+
+        WORDS_12 = "12 Words"
+        WORDS_24 = "24 Words"
+        button_data=[WORDS_12, WORDS_24]
+
+        selected_menu_num = ButtonListScreen(
+            title="Generate BIP85 Seed",
+            button_data=button_data
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        if button_data[selected_menu_num] == WORDS_12:
+            self.num_words = 12
+            #return Destination(
+            #    BIP85SeedWordsView,
+            #    view_args={"seed_num": self.seed_num, "page_index": 0, "num_words": 12},
+            #    skip_current_view=True,  # Prevent going BACK to WarningViews
+            #)
+
+        elif button_data[selected_menu_num] == WORDS_24:
+            self.num_words = 24
+            #return Destination(
+            #    BIP85SeedWordsView,
+            #    view_args={"seed_num": self.seed_num, "page_index": 0, "num_words": 24},
+            #    skip_current_view=True,  # Prevent going BACK to WarningViews
+            #)
+
+        destination = Destination(
+            BIP85SeedWordsView,
+            view_args={"seed_num": self.seed_num, "page_index": 0, "num_words": self.num_words},
+            skip_current_view=True,  # Prevent going BACK to WarningViews
+        )
+        if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__DISABLED:
+            # Forward straight to showing the words
+            return destination
+
+        selected_menu_num = DireWarningScreen(
+            text="""You must keep your seed words private & away from all online devices.""",
+        ).display()
+
+        if selected_menu_num == 0:
+            # User clicked "I Understand"
+            return destination
+
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+
+
+class BIP85SeedWordsView(View):
+    def __init__(self, seed_num: int, num_words: int, page_index: int = 0):
+        super().__init__()
+        self.seed_num = seed_num
+        self.num_words = num_words
+        self.page_index = page_index
+        if self.seed_num is None:
+            self.seed = self.controller.storage.get_pending_seed()
+        else:
+            self.seed = self.controller.get_seed(self.seed_num)
+
+        #Default to 12 world BIP85 Seed, need to fix this
+        self.num_pages=int(self.num_words/4)
+
+    def run(self):
+        args = {"seed_num": self.seed_num, "page_index": self.page_index, "num_words": self.num_words}
+
+        NEXT = "Next"
+        DONE = "Done"
+
+
+        button_data = []
+        if self.page_index < self.num_pages - 1 or self.seed_num is None:
+            button_data.append(NEXT)
+        else:
+            button_data.append(DONE)
+        self.seed.bip85_num_words = self.num_words
+
+        selected_menu_num = seed_screens.BIP85SeedWordsScreen(
+            seed=self.seed,
+            page_index=self.page_index,
+            num_pages=self.num_pages,
+            button_data=button_data,
+
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        if button_data[selected_menu_num] == NEXT:
+            if self.seed_num is None and self.page_index == self.num_pages - 1:
+                return Destination(SeedFinalizeView)
+            else:
+                return Destination(BIP85SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": self.page_index + 1, "num_words": self.num_words})
+
+
+        elif button_data[selected_menu_num] == DONE:
+            # Must clear history to avoid BACK button returning to private info
+            return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
 
 
 
@@ -827,7 +945,7 @@ class SeedWordsView(View):
 class SeedWordsBackupTestPromptView(View):
     def __init__(self, seed_num: int):
         self.seed_num = seed_num
-    
+
 
     def run(self):
         VERIFY = "Verify"
@@ -861,7 +979,7 @@ class SeedWordsBackupTestView(View):
         self.confirmed_list = confirmed_list
         if not self.confirmed_list:
             self.confirmed_list = []
-        
+
         self.cur_index = cur_index
 
 
@@ -870,7 +988,7 @@ class SeedWordsBackupTestView(View):
             self.cur_index = int(random.random() * len(self.mnemonic_list))
             while self.cur_index in self.confirmed_list:
                 self.cur_index = int(random.random() * len(self.mnemonic_list))
-        
+
         real_word = self.mnemonic_list[self.cur_index]
         fake_word1 = bip39.WORDLIST[int(random.random() * 2047)]
         fake_word2 = bip39.WORDLIST[int(random.random() * 2047)]
@@ -895,7 +1013,7 @@ class SeedWordsBackupTestView(View):
             else:
                 # Continue testing the remaining words
                 return Destination(SeedWordsBackupTestView, view_args=dict(seed_num=self.seed_num, confirmed_list=self.confirmed_list))
-        
+
         else:
             # Picked the WRONG WORD!
             return Destination(
@@ -918,7 +1036,7 @@ class SeedWordsBackupTestMistakeView(View):
         self.wrong_word = wrong_word
         self.confirmed_list = confirmed_list
 
-    
+
     def run(self):
         REVIEW = "Review Seed Words"
         RETRY = "Try Again"
@@ -934,16 +1052,16 @@ class SeedWordsBackupTestMistakeView(View):
 
         if button_data[selected_menu_num] == REVIEW:
             return Destination(SeedWordsView, view_args=dict(seed_num=self.seed_num))
-        
+
         elif button_data[selected_menu_num] == RETRY:
             return Destination(SeedWordsBackupTestView, view_args=dict(seed_num=self.seed_num, confirmed_list=self.confirmed_list, cur_index=self.cur_index))
-    
+
 
 
 class SeedWordsBackupTestSuccessView(View):
     def __init__(self, seed_num: int):
         self.seed_num = seed_num
-    
+
     def run(self):
         LargeIconStatusScreen(
             title="Backup Verified",
@@ -1612,7 +1730,7 @@ class LoadMultisigWalletDescriptorView(View):
 
         if button_data[selected_menu_num] == SCAN:
             return Destination(ScanView)
-        
+
         elif button_data[selected_menu_num] == CANCEL:
             if self.controller.resume_main_flow == Controller.FLOW__PSBT:
                 return Destination(BackStackView)
@@ -1631,7 +1749,7 @@ class MultisigWalletDescriptorView(View):
             fingerprints.append(fingerprint)
         
         policy = descriptor.brief_policy.split("multisig")[0].strip()
-        
+
         RETURN = "Return to PSBT"
         VERIFY = "Verify Addr"
         OK = "OK"

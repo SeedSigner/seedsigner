@@ -22,7 +22,6 @@ from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
 
 
-
 @dataclass
 class SeedMnemonicEntryScreen(BaseTopNavScreen):
     initial_letters: list = None
@@ -1575,3 +1574,92 @@ class MultisigWalletDescriptorScreen(ButtonListScreen):
             auto_line_break=True,
             allow_text_overflow=True,
         ))
+
+@dataclass
+class BIP85SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
+    #num_words: int
+    seed: Seed = None
+    page_index: int = 0
+    num_pages: int = 3
+#    bip85_index: int = 0
+#    bip85_num_words: int = 12
+    is_bottom_list: bool = True
+    status_color: str = GUIConstants.DIRE_WARNING_COLOR
+
+
+    def __post_init__(self):
+        self.title = f"BIP85 Words: {self.page_index+1}/{self.num_pages}"
+        super().__post_init__()
+
+        #index = 0
+        #num_words = 12
+        # Can only render 4 words per screen
+        words_per_page = 4
+        mnemonic = self.seed.get_bip85_child(self.seed.bip85_index, self.seed.bip85_num_words).split()
+        # Slice the mnemonic to our current 4-word section
+        self.mnemonic = mnemonic[self.page_index*words_per_page:(self.page_index + 1)*words_per_page]
+        self.body_x = 0
+        self.body_y = self.top_nav.height - int(GUIConstants.COMPONENT_PADDING / 2)
+        self.body_height = self.buttons[0].screen_y - self.body_y
+
+        # Have to supersample the whole body since it's all at the small font size
+        supersampling_factor = 1
+        font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, (GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2) * supersampling_factor)
+
+        # Calc horizontal center based on longest word
+        max_word_width = 0
+        for word in self.mnemonic:
+            (left, top, right, bottom) = font.getbbox(word, anchor="ls")
+            if right > max_word_width:
+                max_word_width = right
+
+        # Measure the max digit height for the numbering boxes, from baseline
+        number_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE * supersampling_factor)
+        (left, top, right, bottom) = number_font.getbbox("24", anchor="ls")
+        number_height = -1 * top
+        number_width = right
+        number_box_width = number_width + int(GUIConstants.COMPONENT_PADDING/2 * supersampling_factor)
+        number_box_height = number_box_width
+
+        number_box_x = int((self.canvas_width * supersampling_factor - number_box_width - GUIConstants.COMPONENT_PADDING*supersampling_factor - max_word_width))/2
+        number_box_y = GUIConstants.COMPONENT_PADDING * supersampling_factor
+
+        # Set up our temp supersampled rendering surface
+        self.body_img = Image.new(
+            "RGB",
+            (self.canvas_width * supersampling_factor, self.body_height * supersampling_factor),
+            GUIConstants.BACKGROUND_COLOR
+        )
+        draw = ImageDraw.Draw(self.body_img)
+
+        for index, word in enumerate(self.mnemonic):
+            draw.rounded_rectangle(
+                (number_box_x, number_box_y, number_box_x + number_box_width, number_box_y + number_box_height),
+                fill="#202020",
+                radius=5 * supersampling_factor
+            )
+            baseline_y = number_box_y + number_box_height - int((number_box_height - number_height)/2)
+            draw.text(
+                (number_box_x + int(number_box_width/2), baseline_y),
+                font=number_font,
+                text=str(self.page_index * words_per_page + index + 1),
+                fill="#0084ff",
+                anchor="ms"  # Middle (centered), baSeline
+            )
+
+            # Now draw the word
+            draw.text(
+                (number_box_x + number_box_width + (GUIConstants.COMPONENT_PADDING * supersampling_factor), baseline_y),
+                font=font,
+                text=word,
+                fill=GUIConstants.BODY_FONT_COLOR,
+                anchor="ls",  # Left, baSeline
+            )
+
+            number_box_y += number_box_height + (int(1.5*GUIConstants.COMPONENT_PADDING) * supersampling_factor)
+
+        # Resize to target and sharpen final image
+        self.body_img = self.body_img.resize((self.canvas_width, self.body_height), Image.LANCZOS)
+        self.body_img = self.body_img.filter(ImageFilter.SHARPEN)
+        self.paste_images.append((self.body_img, (self.body_x, self.body_y)))
+
