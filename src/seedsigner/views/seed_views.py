@@ -382,8 +382,9 @@ class SeedOptionsView(View):
         
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             button_data.append(EXPORT_XPUB)
+        if self.settings.get_value(SettingsConstants.SETTING__GEN_BIP85) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(GEN_BIP85)
 
-        button_data.append(GENBIP85)
         button_data.append(BACKUP)
         button_data.append(DISCARD)
 
