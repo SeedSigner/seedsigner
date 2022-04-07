@@ -430,6 +430,8 @@ class SeedExportBIP85View(View):
         super().__init__()
         self.seed_num = seed_num
         self.num_words = 0
+        self.bip85_index = ""
+
 
     def run(self):
 
@@ -445,27 +447,28 @@ class SeedExportBIP85View(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
+        ret = seed_screens.SeedExportBIP85GetIndexScreen(
+        ).display()
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # ret should be the bip85_index let's convert to int
+        self.bip85_index = int(ret)
+
         if button_data[selected_menu_num] == WORDS_12:
             self.num_words = 12
-            #return Destination(
-            #    BIP85SeedWordsView,
-            #    view_args={"seed_num": self.seed_num, "page_index": 0, "num_words": 12},
-            #    skip_current_view=True,  # Prevent going BACK to WarningViews
-            #)
 
         elif button_data[selected_menu_num] == WORDS_24:
             self.num_words = 24
-            #return Destination(
-            #    BIP85SeedWordsView,
-            #    view_args={"seed_num": self.seed_num, "page_index": 0, "num_words": 24},
-            #    skip_current_view=True,  # Prevent going BACK to WarningViews
-            #)
 
         destination = Destination(
             BIP85SeedWordsView,
-            view_args={"seed_num": self.seed_num, "page_index": 0, "num_words": self.num_words},
+            view_args={"seed_num": self.seed_num, "page_index": 0, "num_words": self.num_words,
+                       "bip85_index": self.bip85_index},
             skip_current_view=True,  # Prevent going BACK to WarningViews
         )
+
         if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__DISABLED:
             # Forward straight to showing the words
             return destination
@@ -484,21 +487,21 @@ class SeedExportBIP85View(View):
 
 
 class BIP85SeedWordsView(View):
-    def __init__(self, seed_num: int, num_words: int, page_index: int = 0):
+    def __init__(self, seed_num: int, num_words: int, bip85_index: int, page_index: int = 0):
         super().__init__()
         self.seed_num = seed_num
         self.num_words = num_words
         self.page_index = page_index
+        self.bip85_index = bip85_index
         if self.seed_num is None:
             self.seed = self.controller.storage.get_pending_seed()
         else:
             self.seed = self.controller.get_seed(self.seed_num)
 
-        #Default to 12 world BIP85 Seed, need to fix this
         self.num_pages=int(self.num_words/4)
 
     def run(self):
-        args = {"seed_num": self.seed_num, "page_index": self.page_index, "num_words": self.num_words}
+        args = {"seed_num": self.seed_num, "page_index": self.page_index, "num_words": self.num_words, "bip85_index": self.bip85_index}
 
         NEXT = "Next"
         DONE = "Done"
@@ -509,7 +512,10 @@ class BIP85SeedWordsView(View):
             button_data.append(NEXT)
         else:
             button_data.append(DONE)
+
+        # Store the current word number and the index number selected
         self.seed.bip85_num_words = self.num_words
+        self.seed.bip85_index = self.bip85_index
 
         selected_menu_num = seed_screens.BIP85SeedWordsScreen(
             seed=self.seed,
@@ -526,8 +532,7 @@ class BIP85SeedWordsView(View):
             if self.seed_num is None and self.page_index == self.num_pages - 1:
                 return Destination(SeedFinalizeView)
             else:
-                return Destination(BIP85SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": self.page_index + 1, "num_words": self.num_words})
-
+                return Destination(BIP85SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": self.page_index + 1, "num_words": self.num_words, "bip85_index": self.bip85_index})
 
         elif button_data[selected_menu_num] == DONE:
             # Must clear history to avoid BACK button returning to private info
