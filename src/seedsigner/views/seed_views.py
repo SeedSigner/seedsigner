@@ -1,3 +1,4 @@
+from enum import Enum, auto
 import embit
 import random
 import time
