@@ -221,6 +221,29 @@ class MenuView(View):
         lines = [return_txt, "Enter 12 Word Seed", "Enter 24 Word Seed", "Scan a Seed QR Code"]
         return self.draw_12_24_word_menu(lines, return_txt)
 
+    def display_calculate_last_word_menu(self, return_txt = "... [ Return to ... ]") -> int:
+        lines = [return_txt, "Correct 12th word", "Correct 24th word", "Add 12th word", "Add 24th word"]
+        self.draw_menu(lines)
+
+         # Wait for Button Input (specifically menu selection/press)
+        while True:
+            input = self.buttons.wait_for([B.KEY_UP, B.KEY_DOWN, B.KEY_PRESS], check_release=True, release_keys=[B.KEY_PRESS])
+            if input == B.KEY_UP:
+                self.menu_up()
+            elif input == B.KEY_DOWN:
+                self.menu_down()
+            elif input == B.KEY_PRESS:
+                if self.selected_menu_num == 1:
+                    return -1
+                elif self.selected_menu_num == 2:
+                    return 12
+                elif self.selected_menu_num == 3:
+                    return 24
+                elif self.selected_menu_num == 4:
+                    return 11
+                elif self.selected_menu_num == 5:
+                    return 23
+
     ### Select a Seed Slot to Save a Seed Menu
 
     def display_saved_seed_menu(self, storage, type = 1, return_sel_txt = "... [ Return to Seed Tools ]") -> int:

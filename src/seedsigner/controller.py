@@ -207,13 +207,10 @@ class Controller(Singleton):
 
         while True:
             # display menu to select 12 or 24 word seed for last word
-            ret_val = self.menu_view.display_12_24_word_menu("... [ Return to Seed Tools ]")
-            if ret_val == Path.SEED_WORD_12:
-                seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(11)
-            elif ret_val == Path.SEED_WORD_24:
-                seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(23)
-            else:
+            ret_val = self.menu_view.display_calculate_last_word_menu("... [ Return to Seed Tools ]")
+            if ret_val == -1:
                 return Path.SEED_TOOLS_SUB_MENU
+            seed.mnemonic = self.seed_tools_view.display_manual_seed_entry(ret_val)
 
             if len(seed.mnemonic_list) > 0:
                 seed.mnemonic = self.seed_tools_view.display_last_word(seed.mnemonic_display_list)
