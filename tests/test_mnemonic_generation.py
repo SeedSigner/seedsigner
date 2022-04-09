@@ -17,7 +17,7 @@ def test_dice_rolls():
 
 
 
-def test_calculate_checksum():
+def test_calculate_last_word():
     """ Given an 11-word or 23-word mnemonic, the calculated checksum should yield a
         valid complete mnemonic.
     """
@@ -29,6 +29,22 @@ def test_calculate_checksum():
     partial_mnemonic = "bubble father debate ankle injury fence mesh evolve section wet coyote violin pyramid flower rent arrow round clutch myth safe base skin mobile"
     mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist=bip39.WORDLIST)
     assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+
+
+
+def test_correct_last_word():
+    """ Given 12/24 random words, correct the 12/24th by calculating the checusum. """
+    mnemonic = "coin later lady verb island effort error drill spoon salon core cactus".split(" ")
+    actual = mnemonic_generation.calculate_checksum(mnemonic, wordlist=bip39.WORDLIST)
+    assert actual[0:11] == mnemonic[0:11]
+    assert actual[11] == "canoe"
+    assert bip39.mnemonic_is_valid(" ".join(actual))
+
+    mnemonic = "box song build possible shrug debate push switch method welcome party mimic quality bronze town blossom govern mandate expire joke mad model patch chunk".split(" ")
+    actual = mnemonic_generation.calculate_checksum(mnemonic, wordlist=bip39.WORDLIST)
+    assert actual[0:23] == mnemonic[0:23]
+    assert actual[23] == "device"
+    assert bip39.mnemonic_is_valid(" ".join(actual))
 
 
 
@@ -69,4 +85,3 @@ def test_known_dice_rolls():
     actual = " ".join(mnemonic)
     assert bip39.mnemonic_is_valid(actual)
     assert actual == expected
-

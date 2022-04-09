@@ -4,14 +4,15 @@ import unicodedata
 import hashlib
 
 
+# Given 11/23 word partial mnemonic, returns a valid full mnemonic
+# Given 12/24 random words, corrects the checksum bits in the last word to return a valid mnemonic
 def calculate_checksum(partial_mnemonic: list, wordlist):
-    # Provide 11- or 23-word mnemonic, returns complete mnemonic w/checksum
-    if len(partial_mnemonic) not in [11, 23]:
-        raise Exception("Pass in a 11- or 23-word mnemonic")
-
     # Work on a copy of the input list
     mnemonic_copy = partial_mnemonic.copy()
-    mnemonic_copy.append("abandon")
+    if len(mnemonic_copy) in [11, 23]:
+        mnemonic_copy.append("abandon")
+    elif len(mnemonic_copy) not in [12, 24]:
+        raise Exception("Pass in a 11-, 12-, 23-, or 24-word mnemonic")
 
     # Ignores the final checksum word and recalcs
     mnemonic_bytes = bip39.mnemonic_to_bytes(unicodedata.normalize("NFKD", " ".join(mnemonic_copy)), ignore_checksum=True, wordlist=wordlist)
