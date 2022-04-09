@@ -111,12 +111,19 @@ class LoadSeedView(View):
 
 
 
+class FinalWordMode(Enum):
+    CHECK = auto()
+    CORRECT = auto()
+    CALCULATE = auto()
+
+
+
 class SeedMnemonicEntryView(View):
-    def __init__(self, cur_word_index: int = 0, is_calc_final_word: bool=False):
+    def __init__(self, cur_word_index: int = 0, final_word_mode: FinalWordMode=FinalWordMode.CHECK):
         super().__init__()
         self.cur_word_index = cur_word_index
         self.cur_word = self.controller.storage.get_pending_mnemonic_word(cur_word_index)
-        self.is_calc_final_word = is_calc_final_word
+        self.final_word_mode = final_word_mode
 
 
     def run(self):
@@ -132,7 +139,7 @@ class SeedMnemonicEntryView(View):
                     SeedMnemonicEntryView,
                     view_args={
                         "cur_word_index": self.cur_word_index - 1,
-                        "is_calc_final_word": self.is_calc_final_word
+                        "final_word_mode": self.final_word_mode
                     }
                 )
             else:
@@ -142,11 +149,8 @@ class SeedMnemonicEntryView(View):
         # ret will be our new mnemonic word
         self.controller.storage.update_pending_mnemonic(ret, self.cur_word_index)
 
-        if self.is_calc_final_word and self.cur_word_index == self.controller.storage.pending_mnemonic_length - 2:
+        if self.final_word_mode == FinalWordMode.CALCULATE and self.cur_word_index == self.controller.storage.pending_mnemonic_length - 2:
             # Time to calculate the last word
-            # TODO: Option to add missing entropy for the last word:
-            #   * 3 bits for a 24-word seed
-            #   * 7 bits for a 12-word seed
             from seedsigner.helpers import mnemonic_generation
             from seedsigner.views.tools_views import ToolsCalcFinalWordShowFinalWordView
             full_mnemonic = mnemonic_generation.calculate_checksum(
@@ -161,17 +165,28 @@ class SeedMnemonicEntryView(View):
                 SeedMnemonicEntryView,
                 view_args={
                     "cur_word_index": self.cur_word_index + 1,
-                    "is_calc_final_word": self.is_calc_final_word
+                    "final_word_mode": self.final_word_mode
                 }
             )
-        else:
-            # Attempt to finalize the mnemonic
-            try:
-                self.controller.storage.convert_pending_mnemonic_to_pending_seed()
-            except InvalidSeedException:
-                return Destination(SeedMnemonicInvalidView)
 
-            return Destination(SeedFinalizeView)
+        if self.final_word_mode == FinalWordMode.CORRECT:
+            # Time to correct the last word
+            from seedsigner.helpers import mnemonic_generation
+            from seedsigner.views.tools_views import ToolsCalcFinalWordShowFinalWordView
+            full_mnemonic = mnemonic_generation.calculate_checksum(
+                self.controller.storage.pending_mnemonic,  # Must omit the last word's empty value
+                wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+            )
+            self.controller.storage.update_pending_mnemonic(full_mnemonic[-1], self.cur_word_index)
+            return Destination(ToolsCalcFinalWordShowFinalWordView)
+
+        # Attempt to finalize the mnemonic
+        try:
+            self.controller.storage.convert_pending_mnemonic_to_pending_seed()
+        except InvalidSeedException:
+            return Destination(SeedMnemonicInvalidView)
+
+        return Destination(SeedFinalizeView)
 
 
 

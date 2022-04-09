@@ -12,7 +12,7 @@ from seedsigner.gui.screens.tools_screens import ToolsDiceEntropyEntryScreen, To
 from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
-from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedWordsWarningView
+from seedsigner.views.seed_views import FinalWordMode, SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedWordsWarningView
 
 from .view import View, Destination, BackStackView
 
@@ -224,12 +224,14 @@ class ToolsDiceEntropyEntryView(View):
 ****************************************************************************"""
 class ToolsCalcFinalWordNumWordsView(View):
     def run(self):
+        ELEVEN = "11 words"
+        TWENTY_THREE = "23 words"
         TWELVE = "12 words"
         TWENTY_FOUR = "24 words"
         
-        button_data = [TWELVE, TWENTY_FOUR]
+        button_data = [TWELVE, TWENTY_FOUR, ELEVEN, TWENTY_THREE]
         selected_menu_num = ButtonListScreen(
-            title="Mnemonic Length",
+            title="Input Length",
             is_bottom_list=True,
             is_button_text_centered=True,
             button_data=button_data,
@@ -240,11 +242,19 @@ class ToolsCalcFinalWordNumWordsView(View):
 
         elif button_data[selected_menu_num] == TWELVE:
             self.controller.storage.init_pending_mnemonic(12)
-            return Destination(SeedMnemonicEntryView, view_args={"is_calc_final_word": True})
+            return Destination(SeedMnemonicEntryView, view_args={"final_word_mode": FinalWordMode.CORRECT})
 
         elif button_data[selected_menu_num] == TWENTY_FOUR:
             self.controller.storage.init_pending_mnemonic(24)
-            return Destination(SeedMnemonicEntryView, view_args={"is_calc_final_word": True})
+            return Destination(SeedMnemonicEntryView, view_args={"final_word_mode": FinalWordMode.CORRECT})
+
+        elif button_data[selected_menu_num] == ELEVEN:
+            self.controller.storage.init_pending_mnemonic(12)
+            return Destination(SeedMnemonicEntryView, view_args={"final_word_mode": FinalWordMode.CALCULATE})
+
+        elif button_data[selected_menu_num] == TWENTY_THREE:
+            self.controller.storage.init_pending_mnemonic(24)
+            return Destination(SeedMnemonicEntryView, view_args={"final_word_mode": FinalWordMode.CALCULATE})
 
 
 
