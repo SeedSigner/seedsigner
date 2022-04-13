@@ -147,7 +147,7 @@ class PSBTUnsupportedScriptTypeWarningView(View):
     def run(self):
         selected_menu_num = WarningScreen(
             status_headline="Unsupported Script Type!",
-            text="This PSBT inputs have an unsupported script type. Verify your change addresses.",
+            text="PSBT has unsupported input script type, please verify your change addresses.",
             button_data=["Continue"],
         ).display()
         
