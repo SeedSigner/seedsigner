@@ -134,13 +134,31 @@ class PSBTOverviewView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        if psbt_parser.change_amount == 0:
+        if psbt_parser.policy == None:
+            return Destination(PSBTUnsupportedScriptTypeWarningView)
+        
+        elif psbt_parser.change_amount == 0:
             return Destination(PSBTNoChangeWarningView)
 
         else:
             return Destination(PSBTMathView)
 
-
+class PSBTUnsupportedScriptTypeWarningView(View):
+    def run(self):
+        selected_menu_num = WarningScreen(
+            status_headline="Unsupported Script Type!",
+            text="This PSBT inputs have an unsupported script type. Verify your change addresses.",
+            button_data=["Continue"],
+        ).display()
+        
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        # Only one exit point
+        return Destination(
+            PSBTMathView,
+            skip_current_view=True,  # Prevent going BACK to WarningViews
+        )
 
 class PSBTNoChangeWarningView(View):
     def run(self):
