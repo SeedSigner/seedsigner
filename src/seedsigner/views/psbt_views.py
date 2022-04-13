@@ -335,13 +335,19 @@ class PSBTChangeDetailsView(View):
                 )
                 
                 # take script type and call script method to generate address from seed / derivation
-                scriptcall = getattr(script, script_type)
+                xpub_key = xpub.derive(change_path).key
                 network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-                calc_address = scriptcall(
-                    xpub.derive(change_path).key
-                ).address(
-                    network=NETWORKS[SettingsConstants.map_network_to_embit(network)]
-                )
+                scriptcall = getattr(script, script_type)
+                if script_type == "p2sh":
+                    # single sig only so p2sh is always p2sh-p2wpkh
+                    calc_address = script.p2sh(script.p2wpkh(xpub_key)).address(
+                        network=NETWORKS[SettingsConstants.map_network_to_embit(network)]
+                    )
+                else:
+                    # single sig so this handles p2wpkh and p2wpkh (and p2tr in the future)
+                    calc_address = scriptcall(xpub_key).address(
+                        network=NETWORKS[SettingsConstants.map_network_to_embit(network)]
+                    )
 
                 if change_data["address"] == calc_address:
                     is_change_addr_verified = True
