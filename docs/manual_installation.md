@@ -304,7 +304,7 @@ _Note: If you don't have any ssh keys on your local machine, you'll need to crea
 
 
 ## Disable wifi/Bluetooth when using other Raspi boards
-If you plan to use your installation on a Raspberry Pi that is not a Zero version 1.3, but rather on a Raspberry Pi that has WiFi and Bluetooth capabilities, it is a good idea to disable the following WiFi & Bluetooth, as well as other relevant services (assuming you are not creating this installation for testing/development purposes). Enter the followiing commands to disable WiFi, Bluetooth, & other relevant services:
+If you plan to use your installation on a Raspberry Pi that is not a Zero version 1.3, but rather on a Raspberry Pi that has WiFi and Bluetooth capabilities, it is a good idea to disable the following WiFi & Bluetooth, as well as other relevant services (assuming you are not creating this installation for testing/development purposes). Enter the following commands to disable WiFi, Bluetooth, & other relevant services:
 ```
 sudo systemctl disable bluetooth.service
 sudo systemctl disable wpa_supplicant.service
