@@ -134,6 +134,8 @@ class PSBTOverviewView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
+        # expecting p2sh (legacy multisig) and p2pkh to have no policy set
+        # skip change warning and psbt math view
         if psbt_parser.policy == None:
             return Destination(PSBTUnsupportedScriptTypeWarningView)
         
@@ -155,8 +157,9 @@ class PSBTUnsupportedScriptTypeWarningView(View):
             return Destination(BackStackView)
         
         # Only one exit point
+        # skip PSBTMathView
         return Destination(
-            PSBTMathView,
+            PSBTAddressDetailsView, view_args={"address_num": 0},
             skip_current_view=True,  # Prevent going BACK to WarningViews
         )
 
