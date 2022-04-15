@@ -24,15 +24,20 @@ resulting mnemonic.
 ## Dice and randomness
 
 We'd all like to think that whatever dice we're playing D&D with are
-completely fair. In reality most dice have bias. Before using any of the
+completely fair. In reality many dice have bias. Before using any of the
 templates provided here, you _should_ analyze your own dice to your own
 satisfaction for fairness.
 
 See [chisq.py](./chisq.py)[^1] for a program that takes a file of die rolls (1 or
-more whitespace separate rolls per line) and calculates whether the
-probability that the die is fair is greater than a user specified threshold
-(default 0.99). When using this method, at least `n-faces * 10` rolls should
-be used.
+more whitespace separate rolls per line) and calculates whether it's likely
+that a fair die would produce those rolls.  When using this method, at least
+`n-faces * 10` rolls should be used. The more you roll, the better the chance
+of correctly detecting bias. ~95% of biased dice should be detected at
+`n-faces * 10`. The default threshold is set to pass 80% of fair dice, so
+don't be surprised if a die fails. Add more rolls, and if it doesn't start
+passing by `n-faces * 100` it's probably actually biased.
+
+As always, DYOR!
 
 ## Printable Templates
 
