@@ -477,7 +477,7 @@ class DecodeQR:
     def is_bitcoin_address(s):
         if re.search(r'^bitcoin\:.*', s, re.IGNORECASE):
             return True
-        elif re.search(r'^((bc1|tb1|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', s):
+        elif re.search(r'^((bc1|tb1|bcr|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', s):
             # TODO: Handle regtest bcrt?
             return True
         else:
