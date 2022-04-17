@@ -1,19 +1,14 @@
 import embit
-import random
 import time
 
+from typing import List
 from binascii import hexlify
-from embit import bip39
 from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
-from typing import List
-
 from seedsigner.controller import Controller
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    WarningScreen, DireWarningScreen, seed_screens)
-from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
 from seedsigner.models.decode_qr import DecodeQR
+
+from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
@@ -21,6 +16,9 @@ from seedsigner.models.seed import InvalidSeedException, Seed
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
+    WarningScreen, DireWarningScreen, seed_screens)
+from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
 from seedsigner.views.psbt_views import PSBTChangeDetailsView
 from seedsigner.views.scan_views import ScanView
 
@@ -258,6 +256,7 @@ class SeedReviewPassphraseView(View):
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
+        print(f"SeedReviewPassphraseView self.seed: {self.seed}")
 
 
     def run(self):
@@ -349,7 +348,7 @@ class SeedOptionsView(View):
         REVIEW_PSBT = "Review PSBT"
         VERIFY_ADDRESS = "Verify Addr"
         EXPORT_XPUB = "Export Xpub"
-        BACKUP = ("Backup Seed", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT)
+        BACKUP = ("Backup Seed", None, None, None, FontAwesomeIconConstants.CIRCLE_CHEVRON_RIGHT)
         DISCARD = ("Discard Seed", None, None, "red")
 
         button_data = []
@@ -367,7 +366,7 @@ class SeedOptionsView(View):
         if self.controller.psbt:
             if PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 if self.controller.resume_main_flow and self.controller.resume_main_flow == Controller.FLOW__PSBT:
-                    # Re-route us directly back to the start of the PSBT flow 
+                    # Re-route us directly back to the start of the PSBT flow
                     self.controller.resume_main_flow = None
                     self.controller.psbt_seed = self.seed
                     return Destination(PSBTOverviewView, skip_current_view=True)
@@ -392,8 +391,7 @@ class SeedOptionsView(View):
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
-            # Force BACK to always return to the Main Menu
-            return Destination(MainMenuView)
+            return Destination(BackStackView)
 
         if button_data[selected_menu_num] == REVIEW_PSBT:
             self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
@@ -811,152 +809,13 @@ class SeedWordsView(View):
 
         if button_data[selected_menu_num] == NEXT:
             if self.seed_num is None and self.page_index == self.num_pages - 1:
-                return Destination(SeedWordsBackupTestPromptView, view_args=dict(seed_num=self.seed_num))
+                return Destination(SeedFinalizeView)
             else:
-                return Destination(SeedWordsView, view_args=dict(seed_num=self.seed_num, page_index=self.page_index + 1))
+                return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": self.page_index + 1})
 
         elif button_data[selected_menu_num] == DONE:
             # Must clear history to avoid BACK button returning to private info
-            return Destination(SeedWordsBackupTestPromptView, view_args=dict(seed_num=self.seed_num))
-
-
-
-"""****************************************************************************
-    Seed Words Backup Test
-****************************************************************************"""
-class SeedWordsBackupTestPromptView(View):
-    def __init__(self, seed_num: int):
-        self.seed_num = seed_num
-    
-
-    def run(self):
-        VERIFY = "Verify"
-        SKIP = "Skip"
-        button_data = [VERIFY, SKIP]
-        selected_menu_num = seed_screens.SeedWordsBackupTestPromptScreen(
-            button_data=button_data,
-        ).display()
-
-        if button_data[selected_menu_num] == VERIFY:
-            return Destination(SeedWordsBackupTestView, view_args=dict(seed_num=self.seed_num))
-
-        elif button_data[selected_menu_num] == SKIP:
-            if self.seed_num is not None:
-                return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num))
-            else:
-                return Destination(SeedFinalizeView)
-
-
-
-class SeedWordsBackupTestView(View):
-    def __init__(self, seed_num: int, confirmed_list: List[bool] = None, cur_index: int = None):
-        super().__init__()
-        self.seed_num = seed_num
-        if self.seed_num is None:
-            self.seed = self.controller.storage.get_pending_seed()
-        else:
-            self.seed = self.controller.get_seed(self.seed_num)
-
-        self.mnemonic_list = self.seed.mnemonic_display_list
-        self.confirmed_list = confirmed_list
-        if not self.confirmed_list:
-            self.confirmed_list = []
-        
-        self.cur_index = cur_index
-
-
-    def run(self):
-        if self.cur_index is None:
-            self.cur_index = int(random.random() * len(self.mnemonic_list))
-            while self.cur_index in self.confirmed_list:
-                self.cur_index = int(random.random() * len(self.mnemonic_list))
-        
-        real_word = self.mnemonic_list[self.cur_index]
-        fake_word1 = bip39.WORDLIST[int(random.random() * 2047)]
-        fake_word2 = bip39.WORDLIST[int(random.random() * 2047)]
-        fake_word3 = bip39.WORDLIST[int(random.random() * 2047)]
-
-        button_data = [real_word, fake_word1, fake_word2, fake_word3]
-        random.shuffle(button_data)
-
-        selected_menu_num = ButtonListScreen(
-            title=f"Verify Word #{self.cur_index + 1}",
-            show_back_button=False,
-            button_data=button_data,
-            is_bottom_list=True,
-            is_button_text_centered=True,
-        ).display()
-
-        if button_data[selected_menu_num] == real_word:
-            self.confirmed_list.append(self.cur_index)
-            if len(self.confirmed_list) == len(self.mnemonic_list):
-                # Successfully confirmed the full mnemonic!
-                return Destination(SeedWordsBackupTestSuccessView, view_args=dict(seed_num=self.seed_num))
-            else:
-                # Continue testing the remaining words
-                return Destination(SeedWordsBackupTestView, view_args=dict(seed_num=self.seed_num, confirmed_list=self.confirmed_list))
-        
-        else:
-            # Picked the WRONG WORD!
-            return Destination(
-                SeedWordsBackupTestMistakeView,
-                view_args=dict(
-                    seed_num=self.seed_num,
-                    cur_index=self.cur_index,
-                    wrong_word=button_data[selected_menu_num],
-                    confirmed_list=self.confirmed_list,
-                )
-            )
-
-
-
-class SeedWordsBackupTestMistakeView(View):
-    def __init__(self, seed_num: int, cur_index: int, wrong_word: str, confirmed_list: List[bool] = None):
-        super().__init__()
-        self.seed_num = seed_num
-        self.cur_index = cur_index
-        self.wrong_word = wrong_word
-        self.confirmed_list = confirmed_list
-
-    
-    def run(self):
-        REVIEW = "Review Seed Words"
-        RETRY = "Try Again"
-        button_data = [REVIEW, RETRY]
-
-        selected_menu_num = DireWarningScreen(
-            title="Verification Error",
-            show_back_button=False,
-            status_headline=f"Wrong Word!",
-            text=f"Word #{self.cur_index + 1} is not \"{self.wrong_word}\"!",
-            button_data=button_data,
-        ).display()
-
-        if button_data[selected_menu_num] == REVIEW:
-            return Destination(SeedWordsView, view_args=dict(seed_num=self.seed_num))
-        
-        elif button_data[selected_menu_num] == RETRY:
-            return Destination(SeedWordsBackupTestView, view_args=dict(seed_num=self.seed_num, confirmed_list=self.confirmed_list, cur_index=self.cur_index))
-    
-
-
-class SeedWordsBackupTestSuccessView(View):
-    def __init__(self, seed_num: int):
-        self.seed_num = seed_num
-    
-    def run(self):
-        LargeIconStatusScreen(
-            title="Backup Verified",
-            show_back_button=False,
-            status_headline="Success!",
-            text="All mnemonic backup words were successfully verified!",
-            button_data=["OK"]
-        ).display()
-
-        if self.seed_num is not None:
-            return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num), clear_history=True)
-        else:
-            return Destination(SeedFinalizeView)
+            return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
 
 
 
@@ -1263,6 +1122,9 @@ class AddressVerificationStartView(View):
         self.controller.unverified_address["sig_type"] = sig_type
         self.controller.unverified_address["derivation_path"] = derivation_path
 
+        import json
+        print(json.dumps(self.controller.unverified_address, indent=4))
+
         return destination
 
 
@@ -1416,6 +1278,7 @@ class SeedAddressVerificationView(View):
             threadsafe_counter=self.threadsafe_counter,
             verified_index=self.verified_index,
             verified_index_is_change=self.verified_index_is_change,
+            derivation_path=self.derivation_path,
         )
 
 
@@ -1470,6 +1333,8 @@ class SeedAddressVerificationView(View):
             # Successfully verified the addr; update the data
             self.controller.unverified_address["verified_index"] = self.verified_index.cur_count
             self.controller.unverified_address["verified_index_is_change"] = self.verified_index_is_change.cur_count == 1
+            import json
+            print(json.dumps(self.controller.unverified_address, indent=4))
             return Destination(AddressVerificationSuccessView, view_args=dict(seed_num=self.seed_num))
 
         else:
@@ -1482,7 +1347,7 @@ class SeedAddressVerificationView(View):
 
 
     class BruteForceAddressVerificationThread(BaseThread):
-        def __init__(self, address: str, seed: Seed, descriptor: Descriptor, script_type: str, network: str, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter, verified_index_is_change: ThreadsafeCounter):
+        def __init__(self, address: str, seed: Seed, descriptor: Descriptor, script_type: str, network: str, derivation_path: str, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter, verified_index_is_change: ThreadsafeCounter):
             """
                 Either seed or descriptor will be None
             """
@@ -1492,6 +1357,7 @@ class SeedAddressVerificationView(View):
             self.descriptor = descriptor
             self.script_type = script_type
             self.network = network
+            self.derivation_path = derivation_path
             self.threadsafe_counter = threadsafe_counter
             self.verified_index = verified_index
             self.verified_index_is_change = verified_index_is_change
@@ -1515,12 +1381,14 @@ class SeedAddressVerificationView(View):
                     (receive_address, change_address) = self.derive_single_sig(i)
                     
                 if self.address == receive_address:
+                    print(f"Verified receive addr #{i}!")
                     self.verified_index.set_value(i)
                     self.verified_index_is_change.set_value(0)
                     self.keep_running = False
                     break
 
                 elif self.address == change_address:
+                    print(f"Verified change addr #{i}!")
                     self.verified_index.set_value(i)
                     self.verified_index_is_change.set_value(1)
                     self.keep_running = False
@@ -1610,12 +1478,6 @@ class LoadMultisigWalletDescriptorView(View):
 
         if button_data[selected_menu_num] == SCAN:
             return Destination(ScanView)
-        
-        elif button_data[selected_menu_num] == CANCEL:
-            if self.controller.resume_main_flow == Controller.FLOW__PSBT:
-                return Destination(BackStackView)
-            else:
-                return Destination(MainMenuView)
 
 
 
@@ -1630,6 +1492,8 @@ class MultisigWalletDescriptorView(View):
         
         policy = descriptor.brief_policy.split("multisig")[0].strip()
         
+        print(fingerprints)
+
         RETURN = "Return to PSBT"
         VERIFY = "Verify Addr"
         OK = "OK"
