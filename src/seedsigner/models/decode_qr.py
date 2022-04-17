@@ -60,6 +60,8 @@ class DecodeQR:
 
         qr_type = DecodeQR.detect_segment_type(data, wordlist_language_code=self.wordlist_language_code)
 
+        print(qr_type)
+
         if self.qr_type == None:
             self.qr_type = qr_type
 
@@ -95,10 +97,6 @@ class DecodeQR:
 
         elif self.qr_type != qr_type:
             raise Exception('QR Fragment Unexpected Type Change')
-        
-        if not self.decoder:
-            # Did not find any recognizable format
-            return DecodeQRStatus.INVALID
 
         # Process the binary formats first
         if self.qr_type == QRType.SEED__COMPACTSEEDQR:
@@ -477,7 +475,7 @@ class DecodeQR:
     def is_bitcoin_address(s):
         if re.search(r'^bitcoin\:.*', s, re.IGNORECASE):
             return True
-        elif re.search(r'^((bc1|tb1|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', s):
+        elif re.search(r'^((bc1|tb1|bcr|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', s):
             # TODO: Handle regtest bcrt?
             return True
         else:
