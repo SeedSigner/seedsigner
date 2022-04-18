@@ -134,13 +134,34 @@ class PSBTOverviewView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        if psbt_parser.change_amount == 0:
+        # expecting p2sh (legacy multisig) and p2pkh to have no policy set
+        # skip change warning and psbt math view
+        if psbt_parser.policy == None:
+            return Destination(PSBTUnsupportedScriptTypeWarningView)
+        
+        elif psbt_parser.change_amount == 0:
             return Destination(PSBTNoChangeWarningView)
 
         else:
             return Destination(PSBTMathView)
 
-
+class PSBTUnsupportedScriptTypeWarningView(View):
+    def run(self):
+        selected_menu_num = WarningScreen(
+            status_headline="Unsupported Script Type!",
+            text="PSBT has unsupported input script type, please verify your change addresses.",
+            button_data=["Continue"],
+        ).display()
+        
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        # Only one exit point
+        # skip PSBTMathView
+        return Destination(
+            PSBTAddressDetailsView, view_args={"address_num": 0},
+            skip_current_view=True,  # Prevent going BACK to WarningViews
+        )
 
 class PSBTNoChangeWarningView(View):
     def run(self):
