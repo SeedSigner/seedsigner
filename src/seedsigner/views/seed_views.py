@@ -1413,6 +1413,7 @@ class SeedAddressVerificationView(View):
             descriptor=self.controller.multisig_wallet_descriptor,
             script_type=self.script_type,
             network=embit_network,
+            derivation_path=self.derivation_path,
             threadsafe_counter=self.threadsafe_counter,
             verified_index=self.verified_index,
             verified_index_is_change=self.verified_index_is_change,
@@ -1482,7 +1483,7 @@ class SeedAddressVerificationView(View):
 
 
     class BruteForceAddressVerificationThread(BaseThread):
-        def __init__(self, address: str, seed: Seed, descriptor: Descriptor, script_type: str, network: str, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter, verified_index_is_change: ThreadsafeCounter):
+        def __init__(self, address: str, seed: Seed, descriptor: Descriptor, script_type: str, network: str, derivation_path: str, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter, verified_index_is_change: ThreadsafeCounter):
             """
                 Either seed or descriptor will be None
             """
@@ -1492,6 +1493,7 @@ class SeedAddressVerificationView(View):
             self.descriptor = descriptor
             self.script_type = script_type
             self.network = network
+            self.derivation_path = derivation_path
             self.threadsafe_counter = threadsafe_counter
             self.verified_index = verified_index
             self.verified_index_is_change = verified_index_is_change
