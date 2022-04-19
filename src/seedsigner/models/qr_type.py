@@ -1,26 +1,32 @@
-from enum import IntEnum
+class QRType:
+    """
+        Used with DecodeQR and EncodeQR to communicate qr encoding type
+    """
+    PSBT__BASE64 = "psbt__base64"
+    PSBT__SPECTER = "psbt__specter"
+    PSBT__BASE43 = "psbt__base43"
+    PSBT__UR2 = "psbt__ur2"
 
-###
-### QRType Class IntEum
-### Purpose: used with DecodeQR and EncodeQR to communicate qr encoding type
-###
+    SEED__SEEDQR = "seed__seedqr"
+    SEED__COMPACTSEEDQR = "seed__compactseedqr"
+    SEED__UR2 = "seed__ur2"
+    SEED__MNEMONIC = "seed__mnemonic"
+    SEED__FOUR_LETTER_MNEMONIC = "seed__four_letter_mnemonic"
 
-class QRType(IntEnum):
-    PSBTBASE64 = 1
-    PSBTSPECTER = 2
-    PSBTURLEGACY = 3
-    PSBTBASE43 = 4
-    PSBTUR2 = 5
-    SEEDQR = 6
-    COMPACTSEEDQR = 10
-    SEEDUR2 = 7
-    SEEDMNEMONIC = 8
-    SEED4LETTERMNEMONIC = 9
-    XPUBQR = 20
-    SPECTERXPUBQR = 21
-    URXPUBQR = 22
-    BITCOINADDRESSQR = 30
-    SPECTERWALLETQR = 40
-    URWALLETQR = 41
-    BLUEWALLETQR = 42
-    INVALID = 100
+    SETTINGS = "settings"
+
+    XPUB = "xpub"
+    XPUB__SPECTER = "xpub__specter"
+    XPUB__UR = "xpub__ur"
+
+    BITCOIN_ADDRESS = "bitcoin_address"
+
+    WALLET__SPECTER = "wallet__specter"
+    WALLET__UR = "wallet__ur"
+    WALLET__CONFIGFILE = "wallet__configfile"
+    WALLET__GENERIC = "wallet__generic"
+    OUTPUT__UR = "output__ur"
+    ACCOUNT__UR = "account__ur"
+    BYTES__UR = "bytes__ur"
+
+    INVALID = "invalid"
