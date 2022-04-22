@@ -8,7 +8,7 @@ from PIL.ImageOps import autocontrast
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
-from seedsigner.gui.screens.tools_screens import ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsCalcFinalWordDoneScreen
+from seedsigner.gui.screens.tools_screens import ToolsCalcFinalWordFinalizePromptScreen, ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsCalcFinalWordDoneScreen
 from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
@@ -260,20 +260,24 @@ class ToolsCalcFinalWordNumWordsView(View):
 
 
 
-class ToolsCalcFinalWordSelectFinalWordPromptView(View):
+class ToolsCalcFinalWordFinalizePromptView(View):
     def run(self):
         mnemonic = self.controller.storage.pending_mnemonic
         mnemonic_length = len(mnemonic)
-        COIN_FLIPS = "Finalize w/coin flips"
-        SELECT_WORD = f"Finalize w/{mnemonic_length}th word"
-        ZEROS = "Finalize w/zeros"
+        if mnemonic_length == 12:
+            num_entropy_bits = 7
+        else:
+            num_entropy_bits = 3
+
+        COIN_FLIPS = "Coin flip entropy"
+        SELECT_WORD = f"Word selection entropy"
+        ZEROS = "Finalize with zeros"
 
         button_data = [COIN_FLIPS, SELECT_WORD, ZEROS]
-        selected_menu_num = ButtonListScreen(
-            title=f"{mnemonic_length}th Word",
+        selected_menu_num = ToolsCalcFinalWordFinalizePromptScreen(
+            mnemonic_length=mnemonic_length,
+            num_entropy_bits=num_entropy_bits,
             button_data=button_data,
-            is_bottom_list=True,
-            is_button_text_centered=True,
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -283,18 +287,16 @@ class ToolsCalcFinalWordSelectFinalWordPromptView(View):
             return Destination(ToolsCalcFinalWordCoinFlipsView)
 
         elif button_data[selected_menu_num] == SELECT_WORD:
+            # Clear the final word slot, just in case we're returning via BACK button
+            self.controller.storage.update_pending_mnemonic(None, mnemonic_length - 1)
             return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True, cur_word_index=mnemonic_length - 1))
 
         elif button_data[selected_menu_num] == ZEROS:
             # User skipped the option to select a final word to provide last bits of
             # entropy. We'll insert all zeros and piggy-back on the coin flip attr
-            if mnemonic_length == 12:
-                total_flips = 7
-            else:
-                total_flips = 3
             wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
             self.controller.storage.update_pending_mnemonic(Seed.get_wordlist(wordlist_language_code)[0], mnemonic_length - 1)
-            return Destination(ToolsCalcFinalWordShowFinalWordView, view_args=dict(coin_flips="0" * total_flips))
+            return Destination(ToolsCalcFinalWordShowFinalWordView, view_args=dict(coin_flips="0" * num_entropy_bits))
 
 
 

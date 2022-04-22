@@ -262,6 +262,24 @@ class ToolsDiceEntropyEntryScreen(BaseTopNavScreen):
 
 
 @dataclass
+class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
+    mnemonic_length: int = None
+    num_entropy_bits: int = None
+
+    def __post_init__(self):
+        self.title = "Build Final Word"
+        self.is_bottom_list = True
+        self.is_button_text_centered = True
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text=f"The {self.mnemonic_length}th word is built from {self.num_entropy_bits} more entropy bits plus auto-calculated checksum.",
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+        ))
+
+
+
+@dataclass
 class ToolsCoinFlipEntryScreen(BaseTopNavScreen):
     """
     This is a lame mega copy-paste from the dice rolls Screen. It probably isn't worth
@@ -285,7 +303,7 @@ class ToolsCoinFlipEntryScreen(BaseTopNavScreen):
         button_height = int(1.5*GUIConstants.BUTTON_FONT_SIZE + 2*GUIConstants.EDGE_PADDING)
         self.keyboard_digits = Keyboard(
             draw=self.renderer.draw,
-            charset="01",
+            charset="10",
             font_size=button_height - GUIConstants.COMPONENT_PADDING,
             rows=rows,
             cols=4,
@@ -298,7 +316,7 @@ class ToolsCoinFlipEntryScreen(BaseTopNavScreen):
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )
-        self.keyboard_digits.set_selected_key(selected_letter="0")
+        self.keyboard_digits.set_selected_key(selected_letter="1")
 
         self.text_entry_display = TextEntryDisplay(
             canvas=self.renderer.canvas,
@@ -311,6 +329,15 @@ class ToolsCoinFlipEntryScreen(BaseTopNavScreen):
             cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
             is_centered=False,
         )
+
+        self.components.append(TextArea(
+            text="Heads = 1",
+            screen_y = keyboard_start_y + self.keyboard_digits.height + 4*GUIConstants.COMPONENT_PADDING,
+        ))
+        self.components.append(TextArea(
+            text="Tails = 0",
+            screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+        ))
 
 
     def _render(self):
@@ -371,6 +398,7 @@ class ToolsCoinFlipEntryScreen(BaseTopNavScreen):
                 cursor_position += 1
 
                 if cursor_position == self.total_flips:
+                    # Return results as a binary string
                     return self.coin_flips
 
                 # Render a new TextArea over the TopNav title bar
@@ -426,7 +454,7 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
             discard_selected_bits = "_" * (len(self.checksum_bits))
 
         self.components.append(TextArea(
-            text=f"""Your Selection: \"{selection_text}\"""",
+            text=f"""Your input: \"{selection_text}\"""",
             screen_y=self.top_nav.height,
         ))
 

@@ -127,13 +127,14 @@ class SeedMnemonicEntryView(View):
 
         if ret == RET_CODE__BACK_BUTTON:
             if self.cur_word_index > 0:
-                return Destination(
-                    SeedMnemonicEntryView,
-                    view_args={
-                        "cur_word_index": self.cur_word_index - 1,
-                        "is_calc_final_word": self.is_calc_final_word
-                    }
-                )
+                return Destination(BackStackView)
+                # return Destination(
+                #     SeedMnemonicEntryView,
+                #     view_args={
+                #         "cur_word_index": self.cur_word_index - 1,
+                #         "is_calc_final_word": self.is_calc_final_word
+                #     }
+                # )
             else:
                 self.controller.storage.discard_pending_mnemonic()
                 return Destination(MainMenuView)
@@ -142,10 +143,10 @@ class SeedMnemonicEntryView(View):
         self.controller.storage.update_pending_mnemonic(ret, self.cur_word_index)
 
         if self.is_calc_final_word and self.cur_word_index == self.controller.storage.pending_mnemonic_length - 2:
-            # Time to calculate the last word. User must either select a final word to
-            # contribute entropy to the checksum word OR we assume 0 ("abandon").
-            from seedsigner.views.tools_views import ToolsCalcFinalWordSelectFinalWordPromptView
-            return Destination(ToolsCalcFinalWordSelectFinalWordPromptView)
+            # Time to calculate the last word. User must decide how they want to specify
+            # the last bits of entropy for the final word.
+            from seedsigner.views.tools_views import ToolsCalcFinalWordFinalizePromptView
+            return Destination(ToolsCalcFinalWordFinalizePromptView)
 
         if self.is_calc_final_word and self.cur_word_index == self.controller.storage.pending_mnemonic_length - 1:
             # Time to calculate the last word. User must either select a final word to
