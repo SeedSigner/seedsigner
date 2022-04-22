@@ -8,23 +8,17 @@ from typing import List
 from seedsigner.models.seed import Seed
 
 
-def calculate_checksum(partial_mnemonic: list, wordlist_language_code: str) -> List[str]:
-    """ Provide 11- or 23-word mnemonic, returns complete mnemonic w/checksum as a list """
-    if len(partial_mnemonic) not in [11, 23]:
-        raise Exception("Pass in a 11- or 23-word mnemonic")
-
+def calculate_checksum(mnemonic: list, wordlist_language_code: str) -> List[str]:
+    """ Provide 12- or 24-word mnemonic, returns complete mnemonic w/checksum as a list """
+    if len(mnemonic) not in [12, 24]:
+        raise Exception("Pass in a 12- or 24-word mnemonic")
+    
     # Work on a copy of the input list
-    mnemonic_copy = partial_mnemonic.copy()
-
-    # 12-word seeds contribute 7 bits of entropy to the final word; 24-word seeds
-    # contribute 3 bits. But we don't have any partial entropy bits to use to help us
-    # create the final word. So just default to filling those missing values with zeroes
-    # ("abandon" is word 0000, so effectively inserts zeroes).
-    mnemonic_copy.append("abandon")
+    mnemonic_copy = mnemonic.copy()
 
     # Convert the resulting mnemonic to bytes, but we `ignore_checksum` validation
-    # because we have to assume it's incorrect since we just hard-coded it above; we'll
-    # fix that next.
+    # because we assume it's incorrect since we either let the user select their own
+    # final word OR we injected the 0000 word from the wordlist.
     mnemonic_bytes = bip39.mnemonic_to_bytes(unicodedata.normalize("NFKD", " ".join(mnemonic_copy)), ignore_checksum=True, wordlist=Seed.get_wordlist(wordlist_language_code))
 
     # This function will convert the bytes back into a mnemonic, but it will also

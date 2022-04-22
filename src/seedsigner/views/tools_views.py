@@ -8,7 +8,7 @@ from PIL.ImageOps import autocontrast
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
-from seedsigner.gui.screens.tools_screens import ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsCalcFinalWordShowFinalWordScreen
+from seedsigner.gui.screens.tools_screens import ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsCalcFinalWordDoneScreen
 from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
@@ -240,15 +240,154 @@ class ToolsCalcFinalWordNumWordsView(View):
 
         elif button_data[selected_menu_num] == TWELVE:
             self.controller.storage.init_pending_mnemonic(12)
-            return Destination(SeedMnemonicEntryView, view_args={"is_calc_final_word": True})
+
+            # DEBUGGING
+            for i in range(0, 10):
+                self.controller.storage.update_pending_mnemonic("abandon", i)
+
+            # return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
+            return Destination(SeedMnemonicEntryView, view_args=dict(cur_word_index=10, is_calc_final_word=True))
 
         elif button_data[selected_menu_num] == TWENTY_FOUR:
             self.controller.storage.init_pending_mnemonic(24)
-            return Destination(SeedMnemonicEntryView, view_args={"is_calc_final_word": True})
+
+            # DEBUGGING
+            for i in range(0, 22):
+                self.controller.storage.update_pending_mnemonic("abandon", i)
+
+            # return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
+            return Destination(SeedMnemonicEntryView, view_args=dict(cur_word_index=22, is_calc_final_word=True))
+
+
+
+class ToolsCalcFinalWordSelectFinalWordPromptView(View):
+    def run(self):
+        mnemonic = self.controller.storage.pending_mnemonic
+        mnemonic_length = len(mnemonic)
+        COIN_FLIPS = "Finalize w/coin flips"
+        SELECT_WORD = f"Finalize w/{mnemonic_length}th word"
+        ZEROS = "Finalize w/zeros"
+
+        button_data = [COIN_FLIPS, SELECT_WORD, ZEROS]
+        selected_menu_num = ButtonListScreen(
+            title=f"{mnemonic_length}th Word",
+            button_data=button_data,
+            is_bottom_list=True,
+            is_button_text_centered=True,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == COIN_FLIPS:
+            return Destination(ToolsCalcFinalWordCoinFlipsView)
+
+        elif button_data[selected_menu_num] == SELECT_WORD:
+            return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True, cur_word_index=mnemonic_length - 1))
+
+        elif button_data[selected_menu_num] == ZEROS:
+            # User skipped the option to select a final word to provide last bits of
+            # entropy. We'll insert all zeros and piggy-back on the coin flip attr
+            if mnemonic_length == 12:
+                total_flips = 7
+            else:
+                total_flips = 3
+            wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+            self.controller.storage.update_pending_mnemonic(Seed.get_wordlist(wordlist_language_code)[0], mnemonic_length - 1)
+            return Destination(ToolsCalcFinalWordShowFinalWordView, view_args=dict(coin_flips="0" * total_flips))
+
+
+
+class ToolsCalcFinalWordCoinFlipsView(View):
+    def run(self):
+        mnemonic = self.controller.storage.pending_mnemonic
+        mnemonic_length = len(mnemonic)
+
+        if mnemonic_length == 12:
+            total_flips = 7
+        else:
+            total_flips = 3
+        
+        ret_val = ToolsCoinFlipEntryScreen(
+            total_flips=total_flips,
+        ).display()
+
+        if ret_val == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        else:
+            print(ret_val)
+            binary_string = ret_val + "0" * (11 - total_flips)
+            wordlist_index = int(binary_string, 2)
+            wordlist = Seed.get_wordlist(self.controller.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+            word = wordlist[wordlist_index]
+            self.controller.storage.update_pending_mnemonic(word, mnemonic_length - 1)
+
+            return Destination(ToolsCalcFinalWordShowFinalWordView, view_args=dict(coin_flips=ret_val))
 
 
 
 class ToolsCalcFinalWordShowFinalWordView(View):
+    def __init__(self, coin_flips=None):
+        super().__init__()
+        self.coin_flips = coin_flips
+
+
+    def run(self):
+        # Construct the actual final word. The user's selected_final_word
+        # contributes:
+        #   * 3 bits to a 24-word seed (plus 8-bit checksum)
+        #   * 7 bits to a 12-word seed (plus 4-bit checksum)
+        from seedsigner.helpers import mnemonic_generation
+
+        mnemonic = self.controller.storage.pending_mnemonic
+        mnemonic_length = len(mnemonic)
+        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+        wordlist = Seed.get_wordlist(wordlist_language_code)
+
+        final_mnemonic = mnemonic_generation.calculate_checksum(
+            mnemonic=self.controller.storage.pending_mnemonic,
+            wordlist_language_code=wordlist_language_code,
+        )
+        self.controller.storage.update_pending_mnemonic(final_mnemonic[-1], mnemonic_length - 1)
+
+        # Prep the user's selected word (if there was one) and the actual final word for
+        # the display.
+        if self.coin_flips:
+            selected_final_word = None
+            selected_final_bits = self.coin_flips
+        else:
+            # Convert the user's final word selection into its binary index equivalent
+            selected_final_word = mnemonic[-1]
+            selected_final_bits = format(wordlist.index(selected_final_word), '011b')
+
+        # And grab the actual final word's checksum bits
+        actual_final_word = self.controller.storage.pending_mnemonic[-1]
+        if mnemonic_length == 12:
+            checksum_bits = format(wordlist.index(actual_final_word), '011b')[-4:]
+        else:
+            checksum_bits = format(wordlist.index(actual_final_word), '011b')[-8:]
+
+        NEXT = "Next"
+        button_data = [NEXT]
+        selected_menu_num = ToolsCalcFinalWordScreen(
+            title="Final Word Calc",
+            button_data=button_data,
+            selected_final_word=selected_final_word,
+            selected_final_bits=selected_final_bits,
+            checksum_bits=checksum_bits,
+            actual_final_word=actual_final_word,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == NEXT:
+            return Destination(ToolsCalcFinalWordDoneView)
+
+
+
+class ToolsCalcFinalWordDoneView(View):
     def run(self):
         mnemonic = self.controller.storage.pending_mnemonic
         mnemonic_word_length = len(mnemonic)
@@ -258,7 +397,7 @@ class ToolsCalcFinalWordShowFinalWordView(View):
         DISCARD = ("Discard", None, None, "red")
         button_data = [LOAD, DISCARD]
 
-        selected_menu_num = ToolsCalcFinalWordShowFinalWordScreen(
+        selected_menu_num = ToolsCalcFinalWordDoneScreen(
             final_word=final_word,
             mnemonic_word_length=mnemonic_word_length,
             fingerprint=self.controller.storage.get_pending_mnemonic_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),

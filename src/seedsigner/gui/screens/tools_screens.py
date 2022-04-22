@@ -262,7 +262,269 @@ class ToolsDiceEntropyEntryScreen(BaseTopNavScreen):
 
 
 @dataclass
-class ToolsCalcFinalWordShowFinalWordScreen(ButtonListScreen):
+class ToolsCoinFlipEntryScreen(BaseTopNavScreen):
+    """
+    This is a lame mega copy-paste from the dice rolls Screen. It probably isn't worth
+    the effort to generalize these screens. But the copy-paste is far from ideal.
+    """
+    total_flips: int = None
+
+    def __post_init__(self):
+        self.title = f"Coin Flip 1/{self.total_flips}"
+        super().__post_init__()
+
+        self.coin_flips = ""
+
+        # Set up the keyboard params
+        keyboard_width = self.canvas_width - 2*GUIConstants.EDGE_PADDING
+        text_entry_display_y = self.top_nav.height
+        text_entry_display_height = 30
+
+        keyboard_start_y = text_entry_display_y + text_entry_display_height + GUIConstants.COMPONENT_PADDING
+        rows = 1
+        button_height = int(1.5*GUIConstants.BUTTON_FONT_SIZE + 2*GUIConstants.EDGE_PADDING)
+        self.keyboard_digits = Keyboard(
+            draw=self.renderer.draw,
+            charset="01",
+            font_size=button_height - GUIConstants.COMPONENT_PADDING,
+            rows=rows,
+            cols=4,
+            rect=(
+                GUIConstants.EDGE_PADDING,
+                keyboard_start_y,
+                GUIConstants.EDGE_PADDING + keyboard_width,
+                keyboard_start_y + rows * button_height + (rows - 1) * 2
+            ),
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+            render_now=False
+        )
+        self.keyboard_digits.set_selected_key(selected_letter="0")
+
+        self.text_entry_display = TextEntryDisplay(
+            canvas=self.renderer.canvas,
+            rect=(
+                GUIConstants.EDGE_PADDING,
+                text_entry_display_y,
+                self.canvas_width - GUIConstants.EDGE_PADDING,
+                text_entry_display_y + text_entry_display_height
+            ),
+            cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
+            is_centered=False,
+        )
+
+
+    def _render(self):
+        super()._render()
+
+        self.keyboard_digits.render_keys()
+        self.text_entry_display.render()
+
+        self.renderer.show_image()
+    
+
+    def _run(self):
+        cursor_position = len(self.coin_flips)
+
+        # Start the interactive update loop
+        while True:
+            input = self.hw_inputs.wait_for(
+                HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + [HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3],
+                check_release=True,
+                release_keys=[HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3]
+            )
+    
+            # Check possible exit condition    
+            if self.top_nav.is_selected and input == HardwareButtonsConstants.KEY_PRESS:
+                return RET_CODE__BACK_BUTTON
+    
+            # Process normal input
+            if input in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN] and self.top_nav.is_selected:
+                # We're navigating off the previous button
+                self.top_nav.is_selected = False
+                self.top_nav.render_buttons()
+    
+                # Override the actual input w/an ENTER signal for the Keyboard
+                if input == HardwareButtonsConstants.KEY_DOWN:
+                    input = Keyboard.ENTER_TOP
+                else:
+                    input = Keyboard.ENTER_BOTTOM
+            elif input in [HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT] and self.top_nav.is_selected:
+                # ignore
+                continue
+    
+            ret_val = self.keyboard_digits.update_from_input(input)
+    
+            # Now process the result from the keyboard
+            if ret_val in Keyboard.EXIT_DIRECTIONS:
+                self.top_nav.is_selected = True
+                self.top_nav.render_buttons()
+    
+            elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
+                if ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                    if len(self.coin_flips) > 0:
+                        self.coin_flips = self.coin_flips[:-1]
+                        cursor_position -= 1
+    
+            elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
+                # User has locked in the current letter
+                self.coin_flips += ret_val
+                cursor_position += 1
+
+                if cursor_position == self.total_flips:
+                    return self.coin_flips
+
+                # Render a new TextArea over the TopNav title bar
+                TextArea(
+                    text=f"Coin Flip {cursor_position + 1}/{self.total_flips}",
+                    font_name=GUIConstants.TOP_NAV_TITLE_FONT_NAME,
+                    font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
+                    height=self.top_nav.height,
+                ).render()
+                self.top_nav.render_buttons()
+    
+            elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
+                # Live joystick movement; haven't locked this new letter in yet.
+                # Leave current spot blank for now. Only update the active keyboard keys
+                # when a selection has been locked in (KEY_PRESS) or removed ("del").
+                pass
+    
+            # Render the text entry display and cursor block
+            self.text_entry_display.render(self.coin_flips)
+    
+            self.renderer.show_image()
+
+
+
+@dataclass
+class ToolsCalcFinalWordScreen(ButtonListScreen):
+    selected_final_word: str = None
+    selected_final_bits: str = None
+    checksum_bits: str = None
+    actual_final_word: str = None
+
+    def __post_init__(self):
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        # First what's the total bit display width and where do the checksum bits start?
+        bit_font_size = GUIConstants.BUTTON_FONT_SIZE + 2
+        font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, bit_font_size)
+        (left, top, bit_display_width, bit_font_height) = font.getbbox("0" * 11, anchor="lt")
+        (left, top, checksum_x, bottom) = font.getbbox("0" * (11 - len(self.checksum_bits)), anchor="lt")
+        bit_display_x = int((self.canvas_width - bit_display_width)/2)
+        checksum_x += bit_display_x
+
+        # Display the user's selected final word
+        if self.selected_final_word:
+            selection_text = self.selected_final_word
+            keeper_selected_bits = self.selected_final_bits[:11 - len(self.checksum_bits)]
+            discard_selected_bits = self.selected_final_bits[-1*len(self.checksum_bits):]
+        else:
+            # User entered coin flips or all zeros
+            selection_text = self.selected_final_bits
+            keeper_selected_bits = self.selected_final_bits
+            discard_selected_bits = "_" * (len(self.checksum_bits))
+
+        self.components.append(TextArea(
+            text=f"""Your Selection: \"{selection_text}\"""",
+            screen_y=self.top_nav.height,
+        ))
+
+        # ...and its associated 11 bits
+        screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        self.components.append(TextArea(
+            text=keeper_selected_bits,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_size=bit_font_size,
+            edge_padding=0,
+            screen_x=bit_display_x,
+            screen_y=screen_y,
+            height=bit_font_height,
+            is_text_centered=False,
+        ))
+        self.components.append(TextArea(
+            text=discard_selected_bits,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_color=GUIConstants.LABEL_FONT_COLOR,
+            font_size=bit_font_size,
+            edge_padding=0,
+            screen_x=checksum_x,
+            screen_y=screen_y,
+            height=bit_font_height,
+            is_text_centered=False,
+        ))
+
+        # Show the checksum
+        self.components.append(TextArea(
+            text="Checksum",
+            edge_padding=0,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+        ))
+
+        # ...and its actual bits
+        checksum_spacer = "_" * (11 - len(self.checksum_bits))
+
+        screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        self.components.append(TextArea(
+            text=checksum_spacer,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_color=GUIConstants.LABEL_FONT_COLOR,
+            font_size=bit_font_size,
+            edge_padding=0,
+            screen_x=bit_display_x,
+            screen_y=screen_y,
+            height=bit_font_height,
+            is_text_centered=False,
+        ))
+        self.components.append(TextArea(
+            text=self.checksum_bits,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_size=bit_font_size,
+            font_color=GUIConstants.ACCENT_COLOR,
+            edge_padding=0,
+            screen_x=checksum_x,
+            screen_y=screen_y,
+            is_text_centered=False,
+        ))
+
+        # And now the actual final word
+        self.components.append(TextArea(
+            text=f"""Final Word: \"{self.actual_final_word}\"""",
+            screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+        ))
+
+        # And the bits that came from the user's selected final word...
+        # * 7 bits for a 12-word seed
+        # * 3 bits for a 24-word seed
+        num_checksum_bits = len(self.checksum_bits)
+        user_component = self.selected_final_bits[:11 - num_checksum_bits]
+        screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        self.components.append(TextArea(
+            text=user_component,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_size=bit_font_size,
+            edge_padding=0,
+            screen_x=bit_display_x,
+            screen_y=screen_y,
+            is_text_centered=False,
+        ))
+
+        # ...and now overlay the checksum's bits
+        self.components.append(TextArea(
+            text=self.checksum_bits,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_color=GUIConstants.ACCENT_COLOR,
+            font_size=bit_font_size,
+            edge_padding=0,
+            screen_x=checksum_x,
+            screen_y=screen_y,
+            is_text_centered=False,
+        ))
+
+
+
+@dataclass
+class ToolsCalcFinalWordDoneScreen(ButtonListScreen):
     final_word: str = None
     mnemonic_word_length: int = 12
     fingerprint: str = None
