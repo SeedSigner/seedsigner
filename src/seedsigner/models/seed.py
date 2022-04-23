@@ -5,9 +5,8 @@ from binascii import hexlify
 from embit import bip39, bip32
 from embit.networks import NETWORKS
 from typing import List
-from bip85 import BIP85
-from bip85 import app
 
+from seedsigner.helpers.bip85 import hmac_sha512
 from seedsigner.models.settings import SettingsConstants
 
 class InvalidSeedException(Exception):
@@ -121,20 +120,26 @@ class Seed:
         xprv = root.derive(wallet_path)
         xpub = xprv.to_public()
         return xpub
-    
-    def get_bip85_child(self, bip85_index: int, bip85_num_words: int, wallet_path: str = '/', network: str = SettingsConstants.MAINNET):
-        bip85_seed: str = ""
-        bip85 = BIP85()
-       
-        passphrase = self._passphrase
-        language = 'english' 
 
+    # Derives a BIP85 mnemonic (seed word) from the master seed words using embit functions
+    def get_bip85_child_mnemonic(self, bip85_index: int, bip85_num_words: int, wallet_path: str = '/',
+                                 network: str = SettingsConstants.MAINNET):
+        passphrase = self._passphrase
+        # language = 'english'
+        # lang_code = 0
+        # Need to add language later for path, defaults to English (0)
+        path = "m/83696968'/39'/0'/{bip85_num_words}'/{bip85_index}'".format(bip85_num_words=bip85_num_words,
+                                                                             bip85_index=bip85_index)
         seed = bip39.mnemonic_to_seed(self.mnemonic_str, password=self._passphrase, wordlist=self.wordlist)
         xprv = embit.bip32.HDKey.from_seed(seed)
-        bip85_seed = app.bip39(xprv, language, bip85_num_words, bip85_index)
-        return bip85_seed
 
-    ### override operators    
+        # Derive k
+        xprv = xprv.derive(path)
+        entropy = hmac_sha512(xprv.secret)
+        width = round(bip85_num_words / 12 * 16)
+        return bip39.mnemonic_from_bytes(entropy[:width])
+
+    ### override operators
     def __eq__(self, other):
         if isinstance(other, Seed):
             return self.seed_bytes == other.seed_bytes

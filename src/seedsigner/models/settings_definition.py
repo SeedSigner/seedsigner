@@ -397,7 +397,7 @@ class SettingsDefinition:
                       attr_name=SettingsConstants.SETTING__GEN_BIP85,
                       display_name="Generate BIP85",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      default_value=SettingsConstants.OPTION__ENABLED),
+                      default_value=SettingsConstants.OPTION__DISABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__SIG_TYPES,

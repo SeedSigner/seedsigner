@@ -1744,7 +1744,7 @@ class BIP85SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
         #num_words = 12
         # Can only render 4 words per screen
         words_per_page = 4
-        mnemonic = self.seed.get_bip85_child(self.seed.bip85_index, self.seed.bip85_num_words).split()
+        mnemonic = self.seed.get_bip85_child_mnemonic(self.seed.bip85_index, self.seed.bip85_num_words).split()
         # Slice the mnemonic to our current 4-word section
         self.mnemonic = mnemonic[self.page_index*words_per_page:(self.page_index + 1)*words_per_page]
         self.body_x = 0
