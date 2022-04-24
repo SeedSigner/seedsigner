@@ -303,7 +303,7 @@ class ToolsCalcFinalWordCoinFlipsView(View):
             total_flips = 3
         
         ret_val = ToolsCoinFlipEntryScreen(
-            total_flips=total_flips,
+            return_after_n_chars=total_flips,
         ).display()
 
         if ret_val == RET_CODE__BACK_BUTTON:

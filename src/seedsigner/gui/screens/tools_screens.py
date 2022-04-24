@@ -169,59 +169,22 @@ class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
 
 
 @dataclass
-class ToolsCoinFlipEntryScreen(BaseTopNavScreen):
-    """
-    This is a lame mega copy-paste from the dice rolls Screen. It probably isn't worth
-    the effort to generalize these screens. But the copy-paste is far from ideal.
-    """
-    total_flips: int = None
-
+class ToolsCoinFlipEntryScreen(KeyboardScreen):
     def __post_init__(self):
+        # Override values set by the parent class
         self.title = f"Coin Flip 1/{self.total_flips}"
+
+        # Specify the keys in the keyboard
+        self.rows = 1
+        self.cols = 4
+        self.keys_charset = "10"
+
+        # Now initialize the parent class
         super().__post_init__()
-
-        self.coin_flips = ""
-
-        # Set up the keyboard params
-        keyboard_width = self.canvas_width - 2*GUIConstants.EDGE_PADDING
-        text_entry_display_y = self.top_nav.height
-        text_entry_display_height = 30
-
-        keyboard_start_y = text_entry_display_y + text_entry_display_height + GUIConstants.COMPONENT_PADDING
-        rows = 1
-        button_height = int(1.5*GUIConstants.BUTTON_FONT_SIZE + 2*GUIConstants.EDGE_PADDING)
-        self.keyboard_digits = Keyboard(
-            draw=self.renderer.draw,
-            charset="10",
-            font_size=button_height - GUIConstants.COMPONENT_PADDING,
-            rows=rows,
-            cols=4,
-            rect=(
-                GUIConstants.EDGE_PADDING,
-                keyboard_start_y,
-                GUIConstants.EDGE_PADDING + keyboard_width,
-                keyboard_start_y + rows * button_height + (rows - 1) * 2
-            ),
-            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
-            render_now=False
-        )
-        self.keyboard_digits.set_selected_key(selected_letter="1")
-
-        self.text_entry_display = TextEntryDisplay(
-            canvas=self.renderer.canvas,
-            rect=(
-                GUIConstants.EDGE_PADDING,
-                text_entry_display_y,
-                self.canvas_width - GUIConstants.EDGE_PADDING,
-                text_entry_display_y + text_entry_display_height
-            ),
-            cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
-            is_centered=False,
-        )
-
+    
         self.components.append(TextArea(
             text="Heads = 1",
-            screen_y = keyboard_start_y + self.keyboard_digits.height + 4*GUIConstants.COMPONENT_PADDING,
+            screen_y = self.keyboard_digits.rect[3] + 4*GUIConstants.COMPONENT_PADDING,
         ))
         self.components.append(TextArea(
             text="Tails = 0",
@@ -229,86 +192,9 @@ class ToolsCoinFlipEntryScreen(BaseTopNavScreen):
         ))
 
 
-    def _render(self):
-        super()._render()
-
-        self.keyboard_digits.render_keys()
-        self.text_entry_display.render()
-
-        self.renderer.show_image()
-    
-
-    def _run(self):
-        cursor_position = len(self.coin_flips)
-
-        # Start the interactive update loop
-        while True:
-            input = self.hw_inputs.wait_for(
-                HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + [HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3],
-                check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3]
-            )
-    
-            # Check possible exit condition    
-            if self.top_nav.is_selected and input == HardwareButtonsConstants.KEY_PRESS:
-                return RET_CODE__BACK_BUTTON
-    
-            # Process normal input
-            if input in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN] and self.top_nav.is_selected:
-                # We're navigating off the previous button
-                self.top_nav.is_selected = False
-                self.top_nav.render_buttons()
-    
-                # Override the actual input w/an ENTER signal for the Keyboard
-                if input == HardwareButtonsConstants.KEY_DOWN:
-                    input = Keyboard.ENTER_TOP
-                else:
-                    input = Keyboard.ENTER_BOTTOM
-            elif input in [HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT] and self.top_nav.is_selected:
-                # ignore
-                continue
-    
-            ret_val = self.keyboard_digits.update_from_input(input)
-    
-            # Now process the result from the keyboard
-            if ret_val in Keyboard.EXIT_DIRECTIONS:
-                self.top_nav.is_selected = True
-                self.top_nav.render_buttons()
-    
-            elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
-                if ret_val == Keyboard.KEY_BACKSPACE["code"]:
-                    if len(self.coin_flips) > 0:
-                        self.coin_flips = self.coin_flips[:-1]
-                        cursor_position -= 1
-    
-            elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
-                # User has locked in the current letter
-                self.coin_flips += ret_val
-                cursor_position += 1
-
-                if cursor_position == self.total_flips:
-                    # Return results as a binary string
-                    return self.coin_flips
-
-                # Render a new TextArea over the TopNav title bar
-                TextArea(
-                    text=f"Coin Flip {cursor_position + 1}/{self.total_flips}",
-                    font_name=GUIConstants.TOP_NAV_TITLE_FONT_NAME,
-                    font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
-                    height=self.top_nav.height,
-                ).render()
-                self.top_nav.render_buttons()
-    
-            elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
-                # Live joystick movement; haven't locked this new letter in yet.
-                # Leave current spot blank for now. Only update the active keyboard keys
-                # when a selection has been locked in (KEY_PRESS) or removed ("del").
-                pass
-    
-            # Render the text entry display and cursor block
-            self.text_entry_display.render(self.coin_flips)
-    
-            self.renderer.show_image()
+    def update_title(self) -> bool:
+        self.title = f"Coin Flip {self.cursor_position + 1}/{self.return_after_n_chars}"
+        return True
 
 
 
