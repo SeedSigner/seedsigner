@@ -241,19 +241,11 @@ class ToolsCalcFinalWordNumWordsView(View):
         elif button_data[selected_menu_num] == TWELVE:
             self.controller.storage.init_pending_mnemonic(12)
 
-            # DEBUGGING
-            for i in range(0, 10):
-                self.controller.storage.update_pending_mnemonic("abandon", i)
-
             # return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
             return Destination(SeedMnemonicEntryView, view_args=dict(cur_word_index=10, is_calc_final_word=True))
 
         elif button_data[selected_menu_num] == TWENTY_FOUR:
             self.controller.storage.init_pending_mnemonic(24)
-
-            # DEBUGGING
-            for i in range(0, 22):
-                self.controller.storage.update_pending_mnemonic("abandon", i)
 
             # return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
             return Destination(SeedMnemonicEntryView, view_args=dict(cur_word_index=22, is_calc_final_word=True))
