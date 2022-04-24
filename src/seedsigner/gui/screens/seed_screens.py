@@ -13,7 +13,7 @@ from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
-from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, WarningEdgesMixin
+from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, KeyboardScreen, WarningEdgesMixin
 from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddress, IconButton,
     IconTextLine, SeedSignerCustomIconConstants, TextArea, GUIConstants,
     calc_text_centering)
@@ -553,148 +553,18 @@ class SeedWordsBackupTestPromptScreen(ButtonListScreen):
 
 
 @dataclass
-class SeedExportXpubCustomDerivationScreen(BaseTopNavScreen):
-    title: str = "Derivation Path"
-    derivation_path: str = "m/"
-
+class SeedExportXpubCustomDerivationScreen(KeyboardScreen):
     def __post_init__(self):
+        self.title = "Derivation Path"
+        self.user_input = "m/"
+
+        # Specify the keys in the keyboard
+        self.rows = 3
+        self.cols = 6
+        self.keys_charset = "/'0123456789"
+        self.show_save_button = True
+
         super().__post_init__()
-
-        # Set up the keyboard params
-        right_panel_buttons_width = 60
-        hw_button_x = self.canvas_width - right_panel_buttons_width + GUIConstants.COMPONENT_PADDING
-        hw_button_y = int(self.canvas_height - GUIConstants.BUTTON_HEIGHT) / 2 + 60
-        
-        keyboard_width = self.canvas_width - (GUIConstants.EDGE_PADDING + GUIConstants.COMPONENT_PADDING + right_panel_buttons_width - GUIConstants.COMPONENT_PADDING)
-        text_entry_display_y = self.top_nav.height
-        text_entry_display_height = 30
-
-        keyboard_start_y = text_entry_display_y + text_entry_display_height + GUIConstants.COMPONENT_PADDING
-        rows = 3
-        self.keyboard_digits = Keyboard(
-            draw=self.renderer.draw,
-            charset="/'0123456789",
-            rows=rows,
-            cols=6,
-            rect=(
-                GUIConstants.EDGE_PADDING,
-                keyboard_start_y,
-                GUIConstants.EDGE_PADDING + keyboard_width,
-                keyboard_start_y + rows * GUIConstants.BUTTON_HEIGHT + (rows - 1) * 2
-            ),
-            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
-            render_now=False
-        )
-        self.keyboard_digits.set_selected_key(selected_letter="0")
-
-        self.text_entry_display = TextEntryDisplay(
-            canvas=self.renderer.canvas,
-            rect=(
-                GUIConstants.EDGE_PADDING,
-                text_entry_display_y,
-                self.canvas_width - GUIConstants.EDGE_PADDING,
-                text_entry_display_y + text_entry_display_height
-            ),
-            cursor_mode=TextEntryDisplay.CURSOR_MODE__BAR,
-            is_centered=False,
-            cur_text=''.join(self.derivation_path)
-        )
-
-        # Render the right button panel (only has a Key3 "Save" button)
-        self.exit_button = IconButton(
-            icon_name=FontAwesomeIconConstants.SOLID_CIRCLE_CHECK,
-            icon_color=GUIConstants.SUCCESS_COLOR,
-            width=right_panel_buttons_width,
-            screen_x=hw_button_x,
-            screen_y=hw_button_y,
-        )
-
-
-    def _render(self):
-        super()._render()
-
-        self.keyboard_digits.render_keys()
-
-        self.exit_button.render()
-        self.text_entry_display.render(self.derivation_path)
-        self.renderer.show_image()
-    
-
-    def _run(self):
-        cursor_position = len(self.derivation_path)
-
-        # Start the interactive update loop
-        while True:
-            input = self.hw_inputs.wait_for(
-                HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + [HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3],
-                check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3]
-            )
-    
-            # Check our two possible exit conditions
-            if input == HardwareButtonsConstants.KEY3:
-                # Save!
-                self.exit_button.is_selected = True
-                self.exit_button.render()
-                self.renderer.show_image()
-                if len(self.derivation_path) > 0:
-                    return self.derivation_path.strip()
-    
-            elif self.top_nav.is_selected and input == HardwareButtonsConstants.KEY_PRESS:
-                # Prev button clicked; return empty string to signal cancel.
-                return self.top_nav.selected_button
-    
-            # Process normal input
-            if input in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN] and self.top_nav.is_selected:
-                # We're navigating off the previous button
-                self.top_nav.is_selected = False
-                self.top_nav.render_buttons()
-    
-                # Override the actual input w/an ENTER signal for the Keyboard
-                if input == HardwareButtonsConstants.KEY_DOWN:
-                    input = Keyboard.ENTER_TOP
-                else:
-                    input = Keyboard.ENTER_BOTTOM
-            elif input in [HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT] and self.top_nav.is_selected:
-                # ignore
-                continue
-    
-            ret_val = self.keyboard_digits.update_from_input(input)
-    
-            # Now process the result from the keyboard
-            if ret_val in Keyboard.EXIT_DIRECTIONS:
-                self.top_nav.is_selected = True
-                self.top_nav.render_buttons()
-    
-            elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
-                if ret_val == Keyboard.KEY_BACKSPACE["code"]:
-                    if len(self.derivation_path) <= 2:
-                        pass
-                    elif cursor_position == len(self.derivation_path):
-                        self.derivation_path = self.derivation_path[:-1]
-                        cursor_position -= 1
-                    else:
-                        self.derivation_path = self.derivation_path[:cursor_position - 1] + self.derivation_path[cursor_position:]
-                        cursor_position -= 1
-    
-            elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
-                # User has locked in the current letter
-                if cursor_position == len(self.derivation_path):
-                    self.derivation_path += ret_val
-                else:
-                    self.derivation_path = self.derivation_path[:cursor_position] + ret_val + self.derivation_path[cursor_position:]
-                cursor_position += 1
-    
-            elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
-                # Live joystick movement; haven't locked this new letter in yet.
-                # Leave current spot blank for now. Only update the active keyboard keys
-                # when a selection has been locked in (KEY_PRESS) or removed ("del").
-                pass
-    
-            # Render the text entry display and cursor block
-            self.text_entry_display.render(self.derivation_path)
-    
-            self.renderer.show_image()
 
 
 
