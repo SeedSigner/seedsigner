@@ -528,7 +528,7 @@ class SeedExportXpubCustomDerivationView(View):
 
     def run(self):
         ret = seed_screens.SeedExportXpubCustomDerivationScreen(
-            derivation_path=self.custom_derivation_path
+            initial_value=self.custom_derivation_path,
         ).display()
 
         if ret == RET_CODE__BACK_BUTTON:
