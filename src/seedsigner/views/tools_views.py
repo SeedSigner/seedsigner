@@ -242,13 +242,13 @@ class ToolsCalcFinalWordNumWordsView(View):
             self.controller.storage.init_pending_mnemonic(12)
 
             # return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
-            return Destination(SeedMnemonicEntryView, view_args=dict(cur_word_index=10, is_calc_final_word=True))
+            return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
 
         elif button_data[selected_menu_num] == TWENTY_FOUR:
             self.controller.storage.init_pending_mnemonic(24)
 
             # return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
-            return Destination(SeedMnemonicEntryView, view_args=dict(cur_word_index=22, is_calc_final_word=True))
+            return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
 
 
 

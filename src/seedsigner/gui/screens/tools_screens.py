@@ -172,11 +172,12 @@ class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
 class ToolsCoinFlipEntryScreen(KeyboardScreen):
     def __post_init__(self):
         # Override values set by the parent class
-        self.title = f"Coin Flip 1/{self.total_flips}"
+        self.title = f"Coin Flip 1/{self.return_after_n_chars}"
 
         # Specify the keys in the keyboard
         self.rows = 1
         self.cols = 4
+        self.key_height = GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2 + 2*GUIConstants.EDGE_PADDING
         self.keys_charset = "10"
 
         # Now initialize the parent class
@@ -184,7 +185,7 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
     
         self.components.append(TextArea(
             text="Heads = 1",
-            screen_y = self.keyboard_digits.rect[3] + 4*GUIConstants.COMPONENT_PADDING,
+            screen_y = self.keyboard.rect[3] + 4*GUIConstants.COMPONENT_PADDING,
         ))
         self.components.append(TextArea(
             text="Tails = 0",
