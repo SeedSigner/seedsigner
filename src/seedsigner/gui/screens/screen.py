@@ -886,6 +886,7 @@ class KeyboardScreen(BaseTopNavScreen):
         * cols
         * keyboard_font_name
         * keyboard_font_size: Specify `None` to auto-size to Key height.
+        * key_height: Specify `None` to maximize key height to available space.
         * keys_charset: Specify the chars displayed on the keys of the keyboard.
         * keys_to_values: Optional mapping from key_charset to input value (e.g. dice icon to digit).
         * return_after_n_chars: exits and returns the user's input after n characters.
@@ -896,6 +897,7 @@ class KeyboardScreen(BaseTopNavScreen):
     cols: int = None
     keyboard_font_name: str = GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME
     keyboard_font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2
+    key_height: int = None
     keys_charset: str = None
     keys_to_values: dict = None
     return_after_n_chars: int = None
@@ -934,13 +936,14 @@ class KeyboardScreen(BaseTopNavScreen):
         text_entry_display_height = 30
 
         keyboard_start_y = text_entry_display_y + text_entry_display_height + GUIConstants.COMPONENT_PADDING
-        button_height = int((self.canvas_height - GUIConstants.EDGE_PADDING - text_entry_display_y - text_entry_display_height - GUIConstants.COMPONENT_PADDING - (self.rows - 1) * 2) / self.rows)
+        if self.key_height is None:
+            self.key_height = int((self.canvas_height - GUIConstants.EDGE_PADDING - text_entry_display_y - text_entry_display_height - GUIConstants.COMPONENT_PADDING - (self.rows - 1) * 2) / self.rows)
 
         if self.keyboard_font_size:
             font_size = self.keyboard_font_size
         else:
             # Scale with button height
-            font_size = button_height - GUIConstants.COMPONENT_PADDING
+            font_size = self.key_height - GUIConstants.COMPONENT_PADDING
 
         self.keyboard = Keyboard(
             draw=self.renderer.draw,
@@ -953,7 +956,7 @@ class KeyboardScreen(BaseTopNavScreen):
                 GUIConstants.EDGE_PADDING,
                 keyboard_start_y,
                 GUIConstants.EDGE_PADDING + self.keyboard_width,
-                keyboard_start_y + self.rows * button_height + (self.rows - 1) * 2
+                keyboard_start_y + self.rows * self.key_height + (self.rows - 1) * 2
             ),
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
