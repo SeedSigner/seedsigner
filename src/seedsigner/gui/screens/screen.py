@@ -935,12 +935,14 @@ class KeyboardScreen(BaseTopNavScreen):
 
         keyboard_start_y = text_entry_display_y + text_entry_display_height + GUIConstants.COMPONENT_PADDING
         button_height = int((self.canvas_height - GUIConstants.EDGE_PADDING - text_entry_display_y - text_entry_display_height - GUIConstants.COMPONENT_PADDING - (self.rows - 1) * 2) / self.rows)
+
         if self.keyboard_font_size:
             font_size = self.keyboard_font_size
         else:
             # Scale with button height
             font_size = button_height - GUIConstants.COMPONENT_PADDING
-        self.keyboard_digits = Keyboard(
+
+        self.keyboard = Keyboard(
             draw=self.renderer.draw,
             charset=self.keys_charset,
             font_name=self.keyboard_font_name,
@@ -956,7 +958,7 @@ class KeyboardScreen(BaseTopNavScreen):
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )
-        self.keyboard_digits.set_selected_key(selected_letter=self.keys_charset[0])
+        self.keyboard.set_selected_key(selected_letter=self.keys_charset[0])
 
         self.text_entry_display = TextEntryDisplay(
             canvas=self.renderer.canvas,
@@ -975,7 +977,7 @@ class KeyboardScreen(BaseTopNavScreen):
     def _render(self):
         super()._render()
 
-        self.keyboard_digits.render_keys()
+        self.keyboard.render_keys()
         self.text_entry_display.render()
 
         self.renderer.show_image()
@@ -1022,7 +1024,7 @@ class KeyboardScreen(BaseTopNavScreen):
                 # ignore
                 continue
     
-            ret_val = self.keyboard_digits.update_from_input(input)
+            ret_val = self.keyboard.update_from_input(input)
     
             # Now process the result from the keyboard
             if ret_val in Keyboard.EXIT_DIRECTIONS:
