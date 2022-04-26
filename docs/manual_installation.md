@@ -145,6 +145,145 @@ kill 297
 Where `297` is the process id listed in the output above (it'll be different each time).
 
 
+### Install framebuffer drivers
+
+Seedsigner currently supports two screens:
+
+ * [Waveshares 1.3" LCD HAT](#waveshares-13-lcd-hat)
+ * [Waveshares 2.8" DPI LCD](#waveshares-28-dpi-lcd)
+
+You only need to install the drivers for the screen you have, you should not install both.
+
+
+### Waveshares 1.3" LCD HAT
+
+Installation of the FBCP Driver:
+```
+sudo apt-get install cmake -y
+cd ~
+wget https://www.waveshare.com/w/upload/f/f9/Waveshare_fbcp.7z
+sudo apt-get install p7zip-full
+7z x Waveshare_fbcp.7z -o./waveshare_fbcp
+rm Waveshare_fbcp.7z
+cd waveshare_fbcp
+mkdir build
+cd build
+cmake -DSPI_BUS_CLOCK_DIVISOR=20 -DWAVESHARE_1INCH3_LCD_HAT=ON -DBACKLIGHT_CONTROL=ON -DSTATISTICS=0 ..
+make -j
+sudo cp ~/waveshare_fbcp/build/fbcp /usr/local/bin/fbcp
+```
+
+The build files can be cleaned out:
+```
+cd
+rm -r waveshare_fbcp
+```
+
+This driver needs to run at startup, so we create a service:
+```
+sudo nano /etc/systemd/system/fbcp.service
+```
+
+Add the following contents to the text file that was created:
+```
+[Unit]
+Description=Waveshare FBCP Driver
+
+[Service]
+User=pi
+ExecStart=/usr/local/bin/fbcp
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+Then `CTRL-X` and `y` to exit and save changes.
+
+Finally, we have to configure it in the boot config:
+```
+sudo nano /boot/config.txt
+```
+
+And add the following lines to the end of the file:
+```
+hdmi_force_hotplug=1
+hdmi_cvt=240 240 60 1 0 0 0
+hdmi_group=2
+hdmi_mode=87
+display_rotate=0
+```
+
+Finally, removing the boot sequence and terminal login from the screen:
+```
+sudo nano /boot/cmdline.txt
+```
+
+and append the following setting at the of the line. Make sure to add a space between the existing settings and this one:
+```
+fbcon=map:2
+```
+
+Save your changes with `CTRL-X` and `y`.
+
+The complete guide can be found on [Waveshare 1.3"inch" LCD HAT Wiki](https://www.waveshare.com/wiki/1.3inch_LCD_HAT), under the Guides for Pi tab.
+
+You can now continue to [Download the SeedSigner code](#download-the-seedsigner-code).
+
+
+### Waveshares 2.8" DPI LCD
+
+First we have to configure the boot config:
+
+```
+sudo nano /boot/config.txt
+```
+
+And add the following lines to the end of the file:
+```
+gpio=0-9=a2
+gpio=12-17=a2
+gpio=20-25=a2
+dtoverlay=dpi24
+enable_dpi_lcd=1
+display_default_lcd=1
+extra_transpose_buffer=2
+dpi_group=2
+dpi_mode=87
+dpi_output_format=0x7F216
+hdmi_timings=480 0 26 16 10 640 0 25 10 15 0 0 0 60 0 32000000 1
+dtoverlay=waveshare-28dpi-3b-4b
+dtoverlay=waveshare-28dpi-3b
+dtoverlay=waveshare-28dpi-4b
+display_rotate=1
+```
+
+Then we have to download the drivers and install them. The `mv` command will show some `failed to preserve ownership` warnings, you can disregard these.
+```
+wget https://www.waveshare.net/w/upload/b/b5/28DPI-DTBO.zip
+unzip 28DPI-DTBO.zip
+rm 28DPI-DTBO.zip
+sudo mv 28DPI-DTBO/* /boot/overlays/
+rm -r 28DPI-DTBO
+```
+
+After a reboot, the display should show the boot process and a login console:
+```
+sudo reboot now
+```
+
+If we verified the screen is working, we can remove the boot sequence and terminal login from the screen:
+```
+sudo nano /boot/cmdline.txt
+```
+
+and append the following setting at the of the line. Make sure to add a space between the existing settings and this one:
+```
+fbcon=map:2
+```
+
+The complete guide can be found on [Waveshare 2.8" DPI LCD Wiki](https://www.waveshare.com/wiki/2.8inch_DPI_LCD).
+
+
 ### Download the SeedSigner code:
 ```
 git clone https://github.com/SeedSigner/seedsigner
@@ -213,7 +352,7 @@ Now reboot the Raspberry Pi:
 sudo reboot
 ```
 
-After the Raspberry Pi reboots, you should see the SeedSigner splash screen and the SeedSigner menu subsequently appear on the LCD screen (note that it can take up to 60 seconds for the menu to appear).
+After the Raspberry Pi reboots, you should see the SeedSigner splash screen and the SeedSigner menu subsequently appear on the LCD screen (note that it can take up to 60 seconds for the menu to appear, the first boot can take several minutes).
 
 ### Further OS modifications
 Disable and remove the system's virtual memory / swap file with the commands:

@@ -97,7 +97,7 @@ class ScreensaverScreen(LogoScreen):
         self.buttons = buttons
 
         # Paste the logo in a bigger image that is 2x the size of the logo
-        self.image = Image.new("RGB", (2 * self.logo.size[0], 2 * self.logo.size[1]), (0,0,0))
+        self.image = Image.new("RGBA", (2 * self.logo.size[0], 2 * self.logo.size[1]), (0,0,0))
         self.image.paste(self.logo, (int(self.logo.size[0] / 2), int(self.logo.size[1] / 2)))
 
         self.min_coords = (0, 0)
@@ -149,7 +149,7 @@ class ScreensaverScreen(LogoScreen):
                     crop = self.image.crop((
                         self.cur_x, self.cur_y,
                         self.cur_x + self.renderer.canvas_width, self.cur_y + self.renderer.canvas_height))
-                    self.renderer.disp.ShowImage(crop, 0, 0)
+                    self.renderer.disp.show(crop)
 
                     self.cur_x += self.increment_x
                     self.cur_y += self.increment_y

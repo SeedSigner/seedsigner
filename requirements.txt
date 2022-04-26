@@ -8,3 +8,4 @@ RPi.GPIO==0.7.0
 six==1.16.0
 spidev==3.5
 urtypes @ git+https://github.com/jreesun/urtypes.git@e0d0db277ec2339650343eaf7b220fffb9233241
+cython==0.29.28
