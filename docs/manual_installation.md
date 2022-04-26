@@ -190,7 +190,7 @@ Add the following contents to the text file that was created:
 Description=Waveshare FBCP Driver
 
 [Service]
-User=pi
+User=root
 ExecStart=/usr/local/bin/fbcp
 Restart=always
 
