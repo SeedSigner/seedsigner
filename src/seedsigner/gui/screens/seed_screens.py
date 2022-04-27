@@ -1577,7 +1577,7 @@ class MultisigWalletDescriptorScreen(ButtonListScreen):
 
 @dataclass
 class SeedExportBIP85GetIndexScreen(BaseTopNavScreen):
-    title: str = "BIP85 Seed Index"
+    title: str = "BIP-85 Index"
     bip85_index: str = ""
 
     def __post_init__(self):
@@ -1693,10 +1693,10 @@ class SeedExportBIP85GetIndexScreen(BaseTopNavScreen):
 
             elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
                 if ret_val == Keyboard.KEY_BACKSPACE["code"]:
-                    if len(self.bip85_index) <= 2:
+                    if cursor_position == 0:
                         pass
                     elif cursor_position == len(self.bip85_index):
-                        self.derivation_path = self.bip85_index[:-1]
+                        self.bip85_index = self.bip85_index[:-1]
                         cursor_position -= 1
                     else:
                         self.bip85_index = self.bip85_index[:cursor_position - 1] + self.bip85_index[
@@ -1737,7 +1737,7 @@ class BIP85SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
 
 
     def __post_init__(self):
-        self.title = f"BIP85 Words: {self.page_index+1}/{self.num_pages}"
+        self.title = f"BIP-85 Words: {self.page_index+1}/{self.num_pages}"
         super().__post_init__()
 
         #index = 0

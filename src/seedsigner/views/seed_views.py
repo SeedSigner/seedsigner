@@ -350,7 +350,7 @@ class SeedOptionsView(View):
         VERIFY_ADDRESS = "Verify Addr"
         EXPORT_XPUB = "Export Xpub"
         BACKUP = ("Backup Seed", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT)
-        GENBIP85 = ("Gen BIP85 Child seed")
+        BIP85_CHILD_SEED = "BIP-85 Child Seed"
         DISCARD = ("Discard Seed", None, None, "red")
 
         button_data = []
@@ -382,8 +382,8 @@ class SeedOptionsView(View):
         
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             button_data.append(EXPORT_XPUB)
-        if self.settings.get_value(SettingsConstants.SETTING__GEN_BIP85) == SettingsConstants.OPTION__ENABLED:
-            button_data.append(GENBIP85)
+        if self.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(BIP85_CHILD_SEED)
 
         button_data.append(BACKUP)
         button_data.append(DISCARD)
@@ -418,36 +418,92 @@ class SeedOptionsView(View):
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView, view_args={"seed_num": self.seed_num})
 
-        elif button_data[selected_menu_num] == GENBIP85:
-            return Destination(SeedExportBIP85View, view_args={"seed_num": self.seed_num})
+        elif button_data[selected_menu_num] == BIP85_CHILD_SEED:
+            return Destination(BIP85ApplicationModeView, view_args={"seed_num": self.seed_num})
+
 
 
 """****************************************************************************
-    Export BIP85 Child Flow
-****************************************************************************"""
-# This will ask user word number and display warning if neccessary before displaying the words
-class SeedExportBIP85View(View):
+    BIP85 - Derive child mnemonic (seed) flow
+****************************************************************************
+* Ask the user the application type as defined in the BIP0085 spec.
+* Currently only Word mode of 12, 24 words.
+* Possible future additions are
+*  WIF (HDSEED)
+*  XPRV (BIP32)"""
+class BIP85ApplicationModeView(View):
     def __init__(self, seed_num: int):
         super().__init__()
         self.seed_num = seed_num
         self.num_words = 0
-        self.bip85_index = ""
-
+        self.bip85_index = 0
+        self.bip85_app_no = None
 
     def run(self):
 
         WORDS_12 = "12 Words"
         WORDS_24 = "24 Words"
-        button_data=[WORDS_12, WORDS_24]
+        # Need to setup width as 32
+        WIF = "WIF"
+        #Need to setup width as 64
+        XPRV = "XPRV"
+
+        # Future enhancement to display WIF (HD-SEED) and XPRV (Bip32)
+        #button_data=[WORDS_12, WORDS_24, WIF, XPRV]
+        button_data = [WORDS_12, WORDS_24]
 
         selected_menu_num = ButtonListScreen(
-            title="Generate BIP85 Seed",
+            title="BIP-85 Num Words",
             button_data=button_data
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
+        if button_data[selected_menu_num] == WORDS_12:
+            self.bip85_app_no = "words"
+            self.num_words = 12
+        elif button_data[selected_menu_num] == WORDS_24:
+            self.bip85_app_no = "words"
+            self.num_words = 24
+        elif button_data[selected_menu_num] == WIF:
+            print("WIF")
+            self.bip85_app_no = "wif"
+            return(Destination(NotYetImplementedView))
+        elif button_data[selected_menu_num] == XPRV:
+            self.bip85_app_no = "xprv"
+            return(Destination(NotYetImplementedView))
+
+        destination = Destination(
+            BIP85ChildSeedIndexView,
+            view_args={"seed_num": self.seed_num, "num_words": self.num_words, "bip85_app_no" : self.bip85_app_no,
+                       "bip85_index": self.bip85_index})
+            #skip_current_view=True,  # Prevent going BACK to WarningViews
+
+        return(destination)
+
+##
+
+
+# View to retrieve the derived seed index
+class BIP85ChildSeedIndexView(View):
+    def __init__(self, seed_num: int, num_words: int, bip85_app_no: str, bip85_index: int):
+        super().__init__()
+        self.bip85_app_no = bip85_app_no
+        self.seed_num = seed_num
+        self.num_words = num_words
+        self.bip85_index = bip85_index
+        #if self.seed_num is None:
+        #    self.seed = self.controller.storage.get_pending_seed()
+        #else:
+        #    self.seed = self.controller.get_seed(self.seed_num)
+
+        #self.num_pages=int(self.num_words/4)
+
+    def run(self):
+        args = {"seed_num": self.seed_num, "num_words": self.num_words, "bip85_app_no" : self.bip85_app_no, "bip85_index": self.bip85_index}
+
+        # Change this later to use the generic Screen input keyboard
         ret = seed_screens.SeedExportBIP85GetIndexScreen(
         ).display()
 
@@ -457,17 +513,31 @@ class SeedExportBIP85View(View):
         # ret should be the bip85_index let's convert to int
         self.bip85_index = int(ret)
 
-        if button_data[selected_menu_num] == WORDS_12:
-            self.num_words = 12
+        return Destination(
+            BIP85ChildSeedWarningView,
+            view_args={"seed_num": self.seed_num, "num_words": self.num_words,
+                       "bip85_index": self.bip85_index}
+                    )
 
-        elif button_data[selected_menu_num] == WORDS_24:
-            self.num_words = 24
+class BIP85ChildSeedWarningView(View):
+   def __init__(self, seed_num: int, num_words: int, bip85_index: int):
+        super().__init__()
+        self.seed_num = seed_num
+        self.num_words = num_words
+        self.bip85_index = bip85_index
+        # if self.seed_num is None:
+        #    self.seed = self.controller.storage.get_pending_seed()
+        # else:
+        #    self.seed = self.controller.get_seed(self.seed_num)
 
-        destination = Destination(
-            BIP85SeedWordsView,
-            view_args={"seed_num": self.seed_num, "page_index": 0, "num_words": self.num_words,
-                       "bip85_index": self.bip85_index},
-            skip_current_view=True,  # Prevent going BACK to WarningViews
+        # self.num_pages=int(self.num_words/4)
+
+   def run(self):
+        args = {"seed_num": self.seed_num, "num_words": self.num_words, "bip85_index": self.bip85_index}
+
+        ##
+        destination = Destination(BIP85SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": 0, "num_words": self.num_words,
+                                   "bip85_index": self.bip85_index}, skip_current_view=True,  # Prevent going BACK to WarningViews
         )
 
         if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__DISABLED:
@@ -484,7 +554,6 @@ class SeedExportBIP85View(View):
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-
 
 
 class BIP85SeedWordsView(View):

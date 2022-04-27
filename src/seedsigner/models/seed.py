@@ -122,19 +122,19 @@ class Seed:
         return xpub
 
     # Derives a BIP85 mnemonic (seed word) from the master seed words using embit functions
-    def get_bip85_child_mnemonic(self, bip85_index: int, bip85_num_words: int, wallet_path: str = '/',
-                                 network: str = SettingsConstants.MAINNET):
+    def get_bip85_child_mnemonic(self, bip85_index: int, bip85_num_words: int):
         passphrase = self._passphrase
         # language = 'english'
         # lang_code = 0
         # Need to add language later for path, defaults to English (0)
         path = "m/83696968'/39'/0'/{bip85_num_words}'/{bip85_index}'".format(bip85_num_words=bip85_num_words,
                                                                              bip85_index=bip85_index)
-        seed = bip39.mnemonic_to_seed(self.mnemonic_str, password=self._passphrase, wordlist=self.wordlist)
-        xprv = embit.bip32.HDKey.from_seed(seed)
+        #seed = bip39.mnemonic_to_seed(self.mnemonic_str, password=self._passphrase, wordlist=self.wordlist)
+        # xprv = embit.bip32.HDKey.from_seed(seed)
+        root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
 
         # Derive k
-        xprv = xprv.derive(path)
+        xprv = root.derive(path)
         entropy = hmac_sha512(xprv.secret)
         width = round(bip85_num_words / 12 * 16)
         return bip39.mnemonic_from_bytes(entropy[:width])
