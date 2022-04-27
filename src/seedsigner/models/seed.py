@@ -122,7 +122,7 @@ class Seed:
         return xpub
 
     # Derives a BIP85 mnemonic (seed word) from the master seed words using embit functions
-    def get_bip85_child_mnemonic(self, bip85_index: int, bip85_num_words: int):
+    def get_bip85_child_mnemonic(self, bip85_index: int, bip85_num_words: int, network: str = SettingsConstants.MAINNET):
         passphrase = self._passphrase
         # language = 'english'
         # lang_code = 0
