@@ -290,6 +290,11 @@ git clone https://github.com/SeedSigner/seedsigner
 cd seedsigner
 ```
 
+Pre-compile a cython module, this can take a few minutes:
+```
+cythonize -i src/seedsigner/hardware/RGBtoBGR.pyx
+```
+
 If you want to run a specific branch within the main SeedSigner repo, switch to it with:
 ```
 git checkout yourtargetbranch

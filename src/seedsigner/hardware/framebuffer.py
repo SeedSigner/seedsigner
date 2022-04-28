@@ -1,6 +1,5 @@
 from PIL import Image
 import mmap
-import pyximport; pyximport.install()
 from seedsigner.hardware.RGBtoBGR import rgbtobgr
 
 class Framebuffer(object):
