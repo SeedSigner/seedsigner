@@ -149,13 +149,13 @@ Where `297` is the process id listed in the output above (it'll be different eac
 
 Seedsigner currently supports two screens:
 
- * [Waveshares 1.3" LCD HAT](#waveshares-13-lcd-hat)
- * [Waveshares 2.8" DPI LCD](#waveshares-28-dpi-lcd)
+ * [Waveshare 1.3" LCD HAT](#waveshare-13-lcd-hat)
+ * [Waveshare 2.8" DPI LCD](#waveshare-28-dpi-lcd)
 
 You only need to install the drivers for the screen you have, you should not install both.
 
 
-### Waveshares 1.3" LCD HAT
+### Waveshare 1.3" LCD HAT
 
 Installation of the FBCP Driver:
 ```
@@ -230,7 +230,7 @@ The complete guide can be found on [Waveshare 1.3"inch" LCD HAT Wiki](https://ww
 You can now continue to [Download the SeedSigner code](#download-the-seedsigner-code).
 
 
-### Waveshares 2.8" DPI LCD
+### Waveshare 2.8" DPI LCD
 
 First we have to configure the boot config:
 
