@@ -26,7 +26,7 @@ class Renderer(ConfigurableSingleton):
         cls._instance = renderer
 
         # Eventually we'll be able to plug in other display controllers
-        renderer.disp = Framebuffer(0)
+        renderer.disp = Framebuffer()
         renderer.canvas_width = renderer.disp.width
         renderer.canvas_height = renderer.disp.height
 

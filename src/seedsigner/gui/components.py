@@ -432,16 +432,17 @@ class Icon(BaseComponent):
             self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__FONT_AWESOME, self.icon_size, file_extension="otf")
         
         # Set width/height based on exact pixels that are rendered
-        (self.left, self.top, right, bottom) = self.icon_font.getbbox(self.icon_name, anchor="ls")
-        self.width = -self.left + right
-        self.height = -self.top + bottom
+        (left, top, right, bottom) = self.icon_font.getbbox(self.icon_name, anchor="ls")
+        self.width = right - left
+        self.height = bottom - top
+        self.offset = (-left, -top)
 
     def render(self):
         img = Image.new("RGBA", (self.width, self.height), (255, 255, 255, 0))
         draw = ImageDraw.Draw(img)
 
         draw.text(
-            (-self.left, -self.top),
+            xy=self.offset,
             text=self.icon_name,
             font=self.icon_font,
             fill=self.icon_color,
