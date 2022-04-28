@@ -357,7 +357,7 @@ Now reboot the Raspberry Pi:
 sudo reboot
 ```
 
-After the Raspberry Pi reboots, you should see the SeedSigner splash screen and the SeedSigner menu subsequently appear on the LCD screen (note that it can take up to 60 seconds for the menu to appear, the first boot can take several minutes).
+After the Raspberry Pi reboots, you should see the SeedSigner splash screen and the SeedSigner menu subsequently appear on the LCD screen (note that it can take up to 60 seconds for the menu to appear).
 
 ### Further OS modifications
 Disable and remove the system's virtual memory / swap file with the commands:
