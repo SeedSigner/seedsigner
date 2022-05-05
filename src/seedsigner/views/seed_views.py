@@ -722,7 +722,7 @@ class SeedExportXpubCustomDerivationView(View):
 
     def run(self):
         ret = seed_screens.SeedExportXpubCustomDerivationScreen(
-            derivation_path=self.custom_derivation_path
+            initial_value=self.custom_derivation_path,
         ).display()
 
         if ret == RET_CODE__BACK_BUTTON:
@@ -986,6 +986,12 @@ class SeedWordsView(View):
         NEXT = "Next"
         DONE = "Done"
 
+        # Slice the mnemonic to our current 4-word section
+        words_per_page = 4  # TODO: eventually make this configurable for bigger screens?
+
+        mnemonic = self.seed.mnemonic_display_list
+        words = mnemonic[self.page_index*words_per_page:(self.page_index + 1)*words_per_page]
+
         button_data = []
         if self.page_index < self.num_pages - 1 or self.seed_num is None:
             button_data.append(NEXT)
@@ -993,7 +999,8 @@ class SeedWordsView(View):
             button_data.append(DONE)
 
         selected_menu_num = seed_screens.SeedWordsScreen(
-            seed=self.seed,
+            title=f"Seed Words: {self.page_index+1}/{self.num_pages}",
+            words=words,
             page_index=self.page_index,
             num_pages=self.num_pages,
             button_data=button_data,
