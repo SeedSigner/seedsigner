@@ -455,6 +455,10 @@ class BIP85ApplicationModeView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
+        if button_data[selected_menu_num] == WORDS_12:
+            self.num_words = 12
+        elif button_data[selected_menu_num] == WORDS_24:
+            self.num_words = 24
 
         destination = Destination(
             BIP85ChildSeedIndexView,
@@ -573,9 +577,9 @@ class BIP85SeedWordsView(View):
             return Destination(BackStackView)
 
         if button_data[selected_menu_num] == NEXT:
-            if self.seed_num is None and self.page_index == self.num_pages - 1:
-                return Destination(SeedFinalizeView)
-            else:
+#            if self.seed_num is None and self.page_index == self.num_pages - 1:
+#                return Destination(SeedFinalizeView)
+#            else:
                 return Destination(BIP85SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": self.page_index + 1, "num_words": self.num_words, "bip85_index": self.bip85_index})
 
         elif button_data[selected_menu_num] == DONE:
