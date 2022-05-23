@@ -111,6 +111,13 @@ The reponse to this command should include the text:
 ```
 Good signature from "seedsigner <btc.hardware.solutions@gmail.com>" [unknown]
 ```
+You will also receive a warning message like the one below, but it only means that SeedSigner's (the person) PGP public key is not registered with an identity verification service; it has been self-published. The critical part is the text above. The warning can be safely ignored as long as you consider the author a reliable source.
+```
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 4673 9B74 B56A D88F 14B0  882E C7EF 7090 0726 0119
+```
+
 The previous command validates that aforementioned small text file was signed using the private key that matches the published public key associated with the project (an early timestamped record of this public/private key's creation can be found in this [tweet](https://twitter.com/SeedSigner/status/1389617642286329856?s=20)).
 
 The last step is to make sure the .zip file that you've downloaded, and that contains the released software, is a perfect match to the software that was published by the holder of the private key in the last step. The command for this step is:
