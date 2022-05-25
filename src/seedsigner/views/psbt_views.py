@@ -73,9 +73,9 @@ class PSBTSelectSeedView(View):
         elif button_data[selected_menu_num] in [TYPE_12WORD, TYPE_24WORD]:
             from seedsigner.views.seed_views import SeedMnemonicEntryView
             if button_data[selected_menu_num] == TYPE_12WORD:
-                self.controller.storage.init_pending_mnemonic(12)
+                self.controller.storage.init_pending_mnemonic(num_words=12)
             else:
-                self.controller.storage.init_pending_mnemonic(24)
+                self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
 

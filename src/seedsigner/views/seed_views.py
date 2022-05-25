@@ -73,13 +73,13 @@ class SeedsMenuView(View):
 class LoadSeedView(View):
     def run(self):
         SEED_QR = (" Scan a SeedQR", FontAwesomeIconConstants.QRCODE)
-        TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
         TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+        TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
         CREATE = (" Create a seed", FontAwesomeIconConstants.PLUS)
         button_data=[
             SEED_QR,
-            TYPE_24WORD,
             TYPE_12WORD,
+            TYPE_24WORD,
             CREATE,
         ]
 
@@ -96,12 +96,12 @@ class LoadSeedView(View):
             from .scan_views import ScanView
             return Destination(ScanView)
         
-        elif button_data[selected_menu_num] == TYPE_24WORD:
-            self.controller.storage.init_pending_mnemonic(num_words=24)
-            return Destination(SeedMnemonicEntryView)
-
         elif button_data[selected_menu_num] == TYPE_12WORD:
             self.controller.storage.init_pending_mnemonic(num_words=12)
+            return Destination(SeedMnemonicEntryView)
+
+        elif button_data[selected_menu_num] == TYPE_24WORD:
+            self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
         elif button_data[selected_menu_num] == CREATE:
@@ -1314,7 +1314,8 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
         seeds = self.controller.storage.seeds
 
         SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
-        ENTER_WORDS = "Enter 12/24 words"
+        TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+        TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
         button_data = []
 
         text = "Load the seed to verify"
@@ -1330,7 +1331,8 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
             text = "Select seed to verify"
 
         button_data.append(SCAN_SEED)
-        button_data.append(ENTER_WORDS)
+        button_data.append(TYPE_12WORD)
+        button_data.append(TYPE_24WORD)
 
         selected_menu_num = seed_screens.SeedSingleSigAddressVerificationSelectSeedScreen(
             title="Verify Address",
@@ -1357,7 +1359,12 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
             from seedsigner.views.scan_views import ScanView
             return Destination(ScanView)
 
-        elif button_data[selected_menu_num] == ENTER_WORDS:
+        elif button_data[selected_menu_num] in [TYPE_12WORD, TYPE_24WORD]:
+            from seedsigner.views.seed_views import SeedMnemonicEntryView
+            if button_data[selected_menu_num] == TYPE_12WORD:
+                self.controller.storage.init_pending_mnemonic(num_words=12)
+            else:
+                self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
 
