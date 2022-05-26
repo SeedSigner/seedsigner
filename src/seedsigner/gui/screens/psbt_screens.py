@@ -120,6 +120,7 @@ class PSBTOverviewScreen(ButtonListScreen):
         # Now let's maximize the actual destination col by adjusting our addr truncation
         def calculate_destination_col_width(truncate_at: int = 0):
             def truncate_destination_addr(addr):
+                # TODO: Properly handle the ellipsis truncation in different languages
                 if len(addr) <= truncate_at + len("..."):
                     # No point in truncating
                     return addr
