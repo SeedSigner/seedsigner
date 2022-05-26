@@ -120,6 +120,9 @@ class PSBTOverviewScreen(ButtonListScreen):
         # Now let's maximize the actual destination col by adjusting our addr truncation
         def calculate_destination_col_width(truncate_at: int = 0):
             def truncate_destination_addr(addr):
+                if len(addr) <= truncate_at + len("..."):
+                    # No point in truncating
+                    return addr
                 return f"{addr[:truncate_at]}..."
             
             destination_column = []
@@ -154,7 +157,7 @@ class PSBTOverviewScreen(ButtonListScreen):
             (destination_text_width, destination_column) = calculate_destination_col_width()
         else:
             # Steadliy widen out the destination column until we run out of space
-            for i in range(6, 13):
+            for i in range(6, 14):
                 (new_width, new_col_text) = calculate_destination_col_width(truncate_at=i)
                 if new_width > max_destination_col_width:
                     break
