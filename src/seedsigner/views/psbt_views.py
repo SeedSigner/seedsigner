@@ -475,11 +475,12 @@ class PSBTFinalizeView(View):
             loading_screen = LoadingScreenThread(text="Signing PSBT...")
             loading_screen.start()
 
-            sig_cnt = PSBTParser.sig_count(psbt)
-            psbt.sign_with(psbt_parser.root)
-            trimmed_psbt = PSBTParser.trim(psbt)
-
-            loading_screen.stop()
+            try:
+                sig_cnt = PSBTParser.sig_count(psbt)
+                psbt.sign_with(psbt_parser.root)
+                trimmed_psbt = PSBTParser.trim(psbt)
+            finally:
+                loading_screen.stop()
 
             if sig_cnt == PSBTParser.sig_count(trimmed_psbt):
                 # Signing failed / didn't do anything

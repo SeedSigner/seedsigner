@@ -648,46 +648,50 @@ class SeedExportXpubDetailsView(View):
         self.loading_screen = LoadingScreenThread(text="Generating xpub...")
         self.loading_screen.start()
 
-        if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
-            derivation_path = self.custom_derivation
-        else:
-            derivation_path = PSBTParser.calc_derivation(
-                network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
-                wallet_type=self.sig_type,
-                script_type=self.script_type
-            )
+        try:
+            if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
+                derivation_path = self.custom_derivation
+            else:
+                derivation_path = PSBTParser.calc_derivation(
+                    network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
+                    wallet_type=self.sig_type,
+                    script_type=self.script_type
+                )
 
-        if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__ENABLED:
-            embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.settings.get_value(SettingsConstants.SETTING__NETWORK))]
-            version = embit.bip32.detect_version(
-                derivation_path,
-                default="xpub",
-                network=embit_network
-            )
+            if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__ENABLED:
+                embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.settings.get_value(SettingsConstants.SETTING__NETWORK))]
+                version = embit.bip32.detect_version(
+                    derivation_path,
+                    default="xpub",
+                    network=embit_network
+                )
 
-            root = embit.bip32.HDKey.from_seed(
-                self.seed.seed_bytes,
-                version=embit_network["xprv"]
-            )
+                root = embit.bip32.HDKey.from_seed(
+                    self.seed.seed_bytes,
+                    version=embit_network["xprv"]
+                )
 
-            fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
-            xprv = root.derive(derivation_path)
-            xpub = xprv.to_public()
-            xpub_base58 = xpub.to_string(version=version)
+                fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
+                xprv = root.derive(derivation_path)
+                xpub = xprv.to_public()
+                xpub_base58 = xpub.to_string(version=version)
 
-            screen = seed_screens.SeedExportXpubDetailsScreen(
-                fingerprint=fingerprint,
-                has_passphrase=self.seed.passphrase is not None,
-                derivation_path=derivation_path,
-                xpub=xpub_base58,
-            )
+                screen = seed_screens.SeedExportXpubDetailsScreen(
+                    fingerprint=fingerprint,
+                    has_passphrase=self.seed.passphrase is not None,
+                    derivation_path=derivation_path,
+                    xpub=xpub_base58,
+                )
 
+                self.loading_screen.stop()
+                selected_menu_num = screen.display()
+
+            else:
+                selected_menu_num = 0
+
+        finally:
             self.loading_screen.stop()
 
-            selected_menu_num = screen.display()
-        else:
-            self.loading_screen.stop()
-            selected_menu_num = 0
 
         if selected_menu_num == 0:
             return Destination(
