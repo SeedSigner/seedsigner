@@ -200,7 +200,7 @@ class ToolsDiceEntropyEntryView(View):
 
     def run(self):
         ret = ToolsDiceEntropyEntryScreen(
-            total_rolls=self.total_rolls,
+            return_after_n_chars=self.total_rolls,
         ).display()
 
         if ret == RET_CODE__BACK_BUTTON:
