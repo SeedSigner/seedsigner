@@ -1,11 +1,14 @@
 from dataclasses import dataclass
+from typing import Any
 from PIL.Image import Image
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.hardware.camera import Camera
-from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConstants, IconTextLine, SeedSignerCustomIconConstants, TextArea
+from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, FormattedAddress, GUIConstants, IconTextLine, SeedSignerCustomIconConstants, TextArea
 
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, QRDisplayScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
+from seedsigner.helpers.qr import QR
+from seedsigner.models.settings_definition import SettingsConstants
 
 
 
@@ -289,3 +292,47 @@ class ToolsCalcFinalWordShowFinalWordScreen(ButtonListScreen):
             is_text_centered=True,
             screen_y=self.components[-1].screen_y + self.components[-1].height + 3*GUIConstants.COMPONENT_PADDING,
         ))
+
+
+
+@dataclass
+class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
+    fingerprint: str = None
+    wallet_descriptor: Any = None
+    script_type: str = None
+    custom_derivation_path: str = None
+
+    def __post_init__(self):
+        self.title = "Address Explorer"
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        if self.fingerprint:
+            self.components.append(IconTextLine(
+                icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
+                icon_color="blue",
+                label_text="Fingerprint",
+                value_text=self.fingerprint,
+                screen_x=GUIConstants.EDGE_PADDING,
+                screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+            ))
+
+            if self.script_type:
+                self.components.append(IconTextLine(
+                    icon_name=SeedSignerCustomIconConstants.PATH,
+                    label_text="Derivation",
+                    value_text="Native Segwit" if self.script_type == SettingsConstants.NATIVE_SEGWIT else "Nested Segwit",
+                    screen_x=GUIConstants.EDGE_PADDING,
+                    screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+                ))
+            else:
+                self.components.append(IconTextLine(
+                    icon_name=SeedSignerCustomIconConstants.PATH,
+                    label_text="Derivation",
+                    value_text=self.custom_derivation_path,
+                    screen_x=GUIConstants.EDGE_PADDING,
+                    screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+                ))
+        else:
+            raise Exception("Implement wallet descriptor support!")
+        

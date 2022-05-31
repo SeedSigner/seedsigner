@@ -436,7 +436,6 @@ class SeedFinalizeScreen(ButtonListScreen):
 @dataclass
 class SeedOptionsScreen(ButtonListScreen):
     # Customize defaults
-    is_bottom_list: bool = True
     fingerprint: str = None
     has_passphrase: bool = False
 
@@ -445,6 +444,8 @@ class SeedOptionsScreen(ButtonListScreen):
         self.top_nav_icon_color = "blue"
         self.title = self.fingerprint
         self.is_button_text_centered = False
+        self.is_bottom_list = True
+
         super().__post_init__()
 
 

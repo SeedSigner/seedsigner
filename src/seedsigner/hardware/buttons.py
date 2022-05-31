@@ -1,3 +1,4 @@
+from typing import List
 import RPi.GPIO as GPIO
 import time
 
@@ -145,10 +146,13 @@ class HardwareButtons(Singleton):
         HardwareButtonsConstants.release_lock = True
         return True
 
-    def check_for_low(self, key) -> bool:
-        if self.GPIO.input(key) == self.GPIO.LOW:
-            self.update_last_input_time()
-            return True
+    def check_for_low(self, key: int = None, keys: List[int] = None) -> bool:
+        if key:
+            keys = [key]
+        for key in keys:
+            if self.GPIO.input(key) == self.GPIO.LOW:
+                self.update_last_input_time()
+                return True
         else:
             return False
 
