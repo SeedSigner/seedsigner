@@ -1509,6 +1509,8 @@ class SeedAddressVerificationView(View):
             # Halt the thread if the user gave up (will already be stopped if it verified the
             # target addr).
             self.addr_verification_thread.stop()
+            while self.addr_verification_thread.is_alive():
+                time.sleep(0.01)
 
         return Destination(MainMenuView)
 

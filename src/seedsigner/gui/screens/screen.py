@@ -722,6 +722,8 @@ class QRDisplayScreen(BaseScreen):
             else:
                 # Any other input exits the screen
                 self.threads[-1].stop()
+                while self.threads[-1].is_alive():
+                    time.sleep(0.01)
                 break
 
         Settings.get_instance().set_value(SettingsConstants.SETTING__QR_BRIGHTNESS, self.qr_brightness.cur_count)

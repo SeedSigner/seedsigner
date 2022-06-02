@@ -1499,6 +1499,8 @@ class SeedAddressVerificationScreen(ButtonListScreen):
         if self.verified_index.cur_count is not None:
             print("Screen callback returning success!")
             self.threads[-1].stop()
+            while self.threads[-1].is_alive():
+                time.sleep(0.01)
             return 1
 
 
