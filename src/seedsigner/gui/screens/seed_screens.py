@@ -1498,6 +1498,7 @@ class SeedAddressVerificationScreen(ButtonListScreen):
         print(f"verified_index: {self.verified_index.cur_count}")
         if self.verified_index.cur_count is not None:
             print("Screen callback returning success!")
+            self.threads[-1].stop()
             return 1
 
 
@@ -1511,10 +1512,12 @@ class SeedAddressVerificationScreen(ButtonListScreen):
         
 
         def run(self):
-            font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE)
             while self.keep_running:
                 if self.verified_index.cur_count is not None:
-                    # Have to trigger a hw_input event to break the Screen out of the wait_for loop
+                    # This thread will detect the success state while its parent Screen
+                    # holds in its `wait_for`. Have to trigger a hw_input event to break
+                    # the Screen._run out of the `wait_for` state. The Screen will then
+                    # call its `_run_callback` and detect the success state and exit.
                     HardwareButtons.get_instance().trigger_override(force_release=True)
                     return
 

@@ -1427,7 +1427,7 @@ class SeedAddressVerificationView(View):
             return Destination(NotYetImplementedView)
 
         # TODO: This should be in `Seed` or `PSBT` utility class
-        embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.network)]
+        embit_network = SettingsConstants.map_network_to_embit(self.network)
 
         # The ThreadsafeCounter will be shared by the brute-force thread to keep track of
         # its current addr index number and the Screen to display its progress and
