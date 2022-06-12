@@ -77,19 +77,20 @@ def get_single_sig_address(xpub: HDKey, script_type: str = SettingsConstants.NAT
 
 
 
-def get_multisig_address(self, descriptor: Descriptor, script_type: str = SettingsConstants.NATIVE_SEGWIT, index: int = 0, is_change: bool = False, embit_network: str = "main"):
+def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool = False, embit_network: str = "main"):
     if is_change:
         branch_index = 1
     else:
         branch_index = 0
 
-    if script_type in [SettingsConstants.NATIVE_SEGWIT, SettingsConstants.NESTED_SEGWIT]:
+    if descriptor.is_segwit:
+        # Could be native segwit or nested segwit (descriptor.is_wrapped)
         return descriptor.derive(index, branch_index=branch_index).script_pubkey().address(network=NETWORKS[embit_network])
 
-    elif self.script_type == SettingsConstants.LEGACY_P2PKH:
+    elif descriptor.is_legacy:
         # TODO: Not yet implemented!
         raise Exception("Legacy P2PKH verification not yet implemented!")
 
-    elif self.script_type == SettingsConstants.TAPROOT:
+    elif descriptor.is_taproot:
         # TODO: Not yet implemented!
         raise Exception("Taproot verification not yet implemented!")

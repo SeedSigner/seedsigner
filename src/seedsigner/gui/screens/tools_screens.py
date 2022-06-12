@@ -298,7 +298,7 @@ class ToolsCalcFinalWordShowFinalWordScreen(ButtonListScreen):
 @dataclass
 class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
     fingerprint: str = None
-    wallet_descriptor: Any = None
+    wallet_descriptor_display_name: Any = None
     script_type: str = None
     custom_derivation_path: str = None
 
@@ -333,6 +333,12 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
                     screen_x=GUIConstants.EDGE_PADDING,
                     screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
                 ))
+
         else:
-            raise Exception("Implement wallet descriptor support!")
-        
+            self.components.append(IconTextLine(
+                label_text="Wallet descriptor",
+                value_text=self.wallet_descriptor_display_name,
+                is_text_centered=False,
+                screen_x=GUIConstants.EDGE_PADDING,
+                screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+            ))

@@ -2,6 +2,7 @@ import hashlib
 import os
 import time
 
+from embit.descriptor import Descriptor
 from PIL import Image
 from PIL.ImageOps import autocontrast
 from seedsigner.controller import Controller
@@ -392,9 +393,7 @@ class ToolsAddressExplorerAddressTypeView(View):
             data["xpub"] = self.seed.get_xpub(derivation_path, network=network)
         
         else:
-            # TODO:
-            data["wallet_descriptor"] = None
-            raise Exception("Not yet implemented")
+            data["wallet_descriptor"] = self.controller.multisig_wallet_descriptor
 
         self.controller.address_explorer_data = data
 
@@ -407,11 +406,17 @@ class ToolsAddressExplorerAddressTypeView(View):
         CHANGE = "Change Addresses"
         button_data = [RECEIVE, CHANGE]
 
+        wallet_descriptor_display_name = None
+        if "wallet_descriptor" in data:
+            wallet_descriptor_display_name = data["wallet_descriptor"].brief_policy.replace(" (sorted)", "")
+
+        script_type = data["script_type"] if "script_type" in data else None
+
         selected_menu_num = ToolsAddressExplorerAddressTypeScreen(
             button_data=button_data,
-            fingerprint=self.seed.get_fingerprint() if self.seed else None,
-            wallet_descriptor=data["wallet_descriptor"] if "wallet_descriptor" in data else None,
-            script_type=data["script_type"] if "script_type" in data else None,
+            fingerprint=self.seed.get_fingerprint() if self.seed_num else None,
+            wallet_descriptor_display_name=wallet_descriptor_display_name,
+            script_type=script_type,
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -428,12 +433,10 @@ class ToolsAddressExplorerAddressListView(View):
         self.is_change = is_change
         self.start_index = start_index
         self.selected_button_index = selected_button_index
-        self.loading_screen = LoadingScreenThread(text="Calculating addrs...")
 
 
     def run(self):
-        self.loading_screen.start()
-
+        self.loading_screen = None
         try:
             addresses = []
             button_data = []
@@ -449,6 +452,9 @@ class ToolsAddressExplorerAddressListView(View):
                 addresses = data[addr_storage_key][self.start_index:self.start_index + addrs_per_screen]
 
             else:
+                self.loading_screen = LoadingScreenThread(text="Calculating addrs...")
+                self.loading_screen.start()
+
                 if addr_storage_key not in data:
                     data[addr_storage_key] = []
 
@@ -463,6 +469,17 @@ class ToolsAddressExplorerAddressListView(View):
                     else:
                         # Custom derivation path
                         raise Exception("Not yet implemented")
+                
+                elif "wallet_descriptor" in data:
+                    descriptor: Descriptor = data["wallet_descriptor"]
+                    if descriptor.is_basic_multisig:
+                        for i in range(self.start_index, self.start_index + addrs_per_screen):
+                            address = embit_utils.get_multisig_address(descriptor=descriptor, index=i, is_change=self.is_change, embit_network=data["embit_network"])
+                            addresses.append(address)
+                            data[addr_storage_key].append(address)
+
+                    else:
+                        raise Exception("Single sig descriptors not yet supported")
 
             for i, address in enumerate(addresses):
                 cur_index = i + self.start_index
@@ -487,7 +504,8 @@ class ToolsAddressExplorerAddressListView(View):
             )
         finally:
             # Everything is set. Stop the loading screen
-            self.loading_screen.stop()
+            if self.loading_screen:
+                self.loading_screen.stop()
 
         selected_menu_num = screen.display()
 

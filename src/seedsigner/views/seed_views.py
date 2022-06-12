@@ -1544,12 +1544,12 @@ class SeedAddressVerificationView(View):
                 i = self.threadsafe_counter.cur_count
 
                 if self.descriptor:
-                    receive_address = embit_utils.get_multisig_address(self.descriptor, self.script_type, index=i, is_change=False, embit_network=self.embit_network)
-                    change_address = embit_utils.get_multisig_address(self.descriptor, self.script_type, index=i, is_change=True, embit_network=self.embit_network)
+                    receive_address = embit_utils.get_multisig_address(descriptor=self.descriptor, index=i, is_change=False, embit_network=self.embit_network)
+                    change_address = embit_utils.get_multisig_address(descriptor=self.descriptor, index=i, is_change=True, embit_network=self.embit_network)
 
                 else:
-                    receive_address = embit_utils.get_single_sig_address(self.xpub, self.script_type, index=i, is_change=False, embit_network=self.embit_network)
-                    change_address = embit_utils.get_single_sig_address(self.xpub, self.script_type, index=i, is_change=True, embit_network=self.embit_network)
+                    receive_address = embit_utils.get_single_sig_address(xpub=self.xpub, script_type=self.script_type, index=i, is_change=False, embit_network=self.embit_network)
+                    change_address = embit_utils.get_single_sig_address(xpub=self.xpub, script_type=self.script_type, index=i, is_change=True, embit_network=self.embit_network)
                     
                 if self.address == receive_address:
                     self.verified_index.set_value(i)
@@ -1660,12 +1660,11 @@ class MultisigWalletDescriptorView(View):
 
         elif button_data[selected_menu_num] == VERIFY:
             self.controller.resume_main_flow = None
-            # TODO: Route properly when multisig brute-force addr verification is done
             return Destination(SeedAddressVerificationView)
 
         elif button_data[selected_menu_num] == EXPLORER:
+            from seedsigner.views.tools_views import ToolsAddressExplorerAddressTypeView
             self.controller.resume_main_flow = None
-            # TODO: Finish implementation
-            return Destination(NotYetImplementedView)
+            return Destination(ToolsAddressExplorerAddressTypeView)
 
         return Destination(MainMenuView)
