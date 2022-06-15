@@ -451,7 +451,7 @@ class SeedOptionsScreen(ButtonListScreen):
 
 @dataclass
 class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
-    seed: Seed = None
+    words: List[str] = None
     page_index: int = 0
     num_pages: int = 3
     is_bottom_list: bool = True
@@ -459,15 +459,9 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
 
 
     def __post_init__(self):
-        self.title = f"Seed Words: {self.page_index+1}/{self.num_pages}"
         super().__post_init__()
 
-        # Can only render 4 words per screen
-        words_per_page = 4
-        mnemonic = self.seed.mnemonic_display_list
-
-        # Slice the mnemonic to our current 4-word section
-        self.mnemonic = mnemonic[self.page_index*words_per_page:(self.page_index + 1)*words_per_page]
+        words_per_page = len(self.words)
 
         self.body_x = 0
         self.body_y = self.top_nav.height - int(GUIConstants.COMPONENT_PADDING / 2)
@@ -479,7 +473,7 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
 
         # Calc horizontal center based on longest word
         max_word_width = 0
-        for word in self.mnemonic:
+        for word in self.words:
             (left, top, right, bottom) = font.getbbox(word, anchor="ls")
             if right > max_word_width:
                 max_word_width = right
@@ -503,7 +497,7 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
         )
         draw = ImageDraw.Draw(self.body_img)
 
-        for index, word in enumerate(self.mnemonic):
+        for index, word in enumerate(self.words):
             draw.rounded_rectangle(
                 (number_box_x, number_box_y, number_box_x + number_box_width, number_box_y + number_box_height),
                 fill="#202020",
