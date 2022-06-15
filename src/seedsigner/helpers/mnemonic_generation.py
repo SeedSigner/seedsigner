@@ -9,7 +9,15 @@ from seedsigner.models.seed import Seed
 
 
 def calculate_checksum(mnemonic: list, wordlist_language_code: str) -> List[str]:
-    """ Provide 12- or 24-word mnemonic, returns complete mnemonic w/checksum as a list """
+    """
+        Provide 12- or 24-word mnemonic, returns complete mnemonic w/checksum as a list.
+
+        If 11- or 23-words are provided, append word `0000` to end of list as temp final
+        word.
+    """
+    if len(mnemonic) in [11, 23]:
+        mnemonic.append(Seed.get_wordlist(wordlist_language_code)[0])
+
     if len(mnemonic) not in [12, 24]:
         raise Exception("Pass in a 12- or 24-word mnemonic")
     
