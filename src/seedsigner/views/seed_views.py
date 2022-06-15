@@ -676,10 +676,6 @@ class SeedExportXpubDetailsView(View):
 
 
     def run(self):
-        # The calc_derivation takes a few moments. Run the loading screen while we wait.
-        self.loading_screen = LoadingScreenThread(text="Generating xpub...")
-        self.loading_screen.start()
-
         if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
             derivation_path = self.custom_derivation
         else:
@@ -689,7 +685,16 @@ class SeedExportXpubDetailsView(View):
                 script_type=self.script_type
             )
 
-            if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__ENABLED:
+        if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__DISABLED:
+            # We're just skipping right past this screen
+            selected_menu_num = 0
+
+        else:
+            # The derivation calc takes a few moments. Run the loading screen while we wait.
+            self.loading_screen = LoadingScreenThread(text="Generating xpub...")
+            self.loading_screen.start()
+
+            try:
                 embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.settings.get_value(SettingsConstants.SETTING__NETWORK))]
                 version = embit.bip32.detect_version(
                     derivation_path,
@@ -707,33 +712,26 @@ class SeedExportXpubDetailsView(View):
                 xpub = xprv.to_public()
                 xpub_base58 = xpub.to_string(version=version)
 
-                screen = seed_screens.SeedExportXpubDetailsScreen(
-                    fingerprint=fingerprint,
-                    has_passphrase=self.seed.passphrase is not None,
-                    derivation_path=derivation_path,
-                    xpub=xpub_base58,
-                )
-
+            finally:
                 self.loading_screen.stop()
-                selected_menu_num = screen.display()
 
-            else:
-                selected_menu_num = 0
-
-        finally:
-            self.loading_screen.stop()
+            selected_menu_num = seed_screens.SeedExportXpubDetailsScreen(
+                fingerprint=fingerprint,
+                has_passphrase=self.seed.passphrase is not None,
+                derivation_path=derivation_path,
+                xpub=xpub_base58,
+            ).display()
 
 
         if selected_menu_num == 0:
             return Destination(
                 SeedExportXpubQRDisplayView,
-                {
-                    "seed_num": self.seed_num,
-                    "sig_type": self.sig_type,
-                    "script_type": self.script_type,
-                    "coordinator": self.coordinator,
-                    "derivation_path": derivation_path,
-                }
+                dict(seed_num=self.seed_num,
+                     sig_type=self.sig_type,
+                     script_type=self.script_type,
+                     coordinator=self.coordinator,
+                     derivation_path=derivation_path,
+                )
             )
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
