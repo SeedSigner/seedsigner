@@ -289,7 +289,9 @@ class TextArea(BaseComponent):
         #   fits in its bounding rect (plus accounting for edge padding) using its given
         #   font.
         # Measure from left baseline ("ls")
-        # getbbox() seems to ignore "\n" so won't affect height calcs
+        # TODO: getbbox() seems to ignore "\n" so isn't properly factored into height
+        # calcs and yields incorrect full_text_width. For now must specify self.height to
+        # render properly. Centering will be wrong.
         (left, top, full_text_width, bottom) = self.font.getbbox(self.text, anchor="ls")
         self.text_font_height = -1 * top
         self.bbox_height = self.text_font_height + bottom

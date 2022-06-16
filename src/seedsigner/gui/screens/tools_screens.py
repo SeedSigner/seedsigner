@@ -151,7 +151,195 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
 
 
 @dataclass
-class ToolsCalcFinalWordShowFinalWordScreen(ButtonListScreen):
+class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
+    mnemonic_length: int = None
+    num_entropy_bits: int = None
+
+    def __post_init__(self):
+        self.title = "Build Final Word"
+        self.is_bottom_list = True
+        self.is_button_text_centered = True
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text=f"The {self.mnemonic_length}th word is built from {self.num_entropy_bits} more entropy bits plus auto-calculated checksum.",
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+        ))
+
+
+
+@dataclass
+class ToolsCoinFlipEntryScreen(KeyboardScreen):
+    def __post_init__(self):
+        # Override values set by the parent class
+        self.title = f"Coin Flip 1/{self.return_after_n_chars}"
+
+        # Specify the keys in the keyboard
+        self.rows = 1
+        self.cols = 4
+        self.key_height = GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2 + 2*GUIConstants.EDGE_PADDING
+        self.keys_charset = "10"
+
+        # Now initialize the parent class
+        super().__post_init__()
+    
+        self.components.append(TextArea(
+            text="Heads = 1",
+            screen_y = self.keyboard.rect[3] + 4*GUIConstants.COMPONENT_PADDING,
+        ))
+        self.components.append(TextArea(
+            text="Tails = 0",
+            screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+        ))
+
+
+    def update_title(self) -> bool:
+        self.title = f"Coin Flip {self.cursor_position + 1}/{self.return_after_n_chars}"
+        return True
+
+
+
+@dataclass
+class ToolsCalcFinalWordScreen(ButtonListScreen):
+    selected_final_word: str = None
+    selected_final_bits: str = None
+    checksum_bits: str = None
+    actual_final_word: str = None
+
+    def __post_init__(self):
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        # First what's the total bit display width and where do the checksum bits start?
+        bit_font_size = GUIConstants.BUTTON_FONT_SIZE + 2
+        font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, bit_font_size)
+        (left, top, bit_display_width, bit_font_height) = font.getbbox("0" * 11, anchor="lt")
+        (left, top, checksum_x, bottom) = font.getbbox("0" * (11 - len(self.checksum_bits)), anchor="lt")
+        bit_display_x = int((self.canvas_width - bit_display_width)/2)
+        checksum_x += bit_display_x
+
+        # Display the user's additional entropy input
+        if self.selected_final_word:
+            selection_text = self.selected_final_word
+            keeper_selected_bits = self.selected_final_bits[:11 - len(self.checksum_bits)]
+
+            # The word's least significant bits will be rendered differently to convey
+            # the fact that they're being discarded.
+            discard_selected_bits = self.selected_final_bits[-1*len(self.checksum_bits):]
+        else:
+            # User entered coin flips or all zeros
+            selection_text = self.selected_final_bits
+            keeper_selected_bits = self.selected_final_bits
+
+            # We'll append spacer chars to preserve the vertical alignment (most
+            # significant n bits always rendered in same column)
+            discard_selected_bits = "_" * (len(self.checksum_bits))
+
+        self.components.append(TextArea(
+            text=f"""Your input: \"{selection_text}\"""",
+            screen_y=self.top_nav.height,
+        ))
+
+        # ...and that entropy's associated 11 bits
+        screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        self.components.append(TextArea(
+            text=keeper_selected_bits,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_size=bit_font_size,
+            edge_padding=0,
+            screen_x=bit_display_x,
+            screen_y=screen_y,
+            height=bit_font_height,
+            is_text_centered=False,
+        ))
+
+        # Render the least significant bits that will be replaced by the checksum in a
+        # de-emphasized font color.
+        self.components.append(TextArea(
+            text=discard_selected_bits,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_color=GUIConstants.LABEL_FONT_COLOR,
+            font_size=bit_font_size,
+            edge_padding=0,
+            screen_x=checksum_x,
+            screen_y=screen_y,
+            height=bit_font_height,
+            is_text_centered=False,
+        ))
+
+        # Show the checksum..
+        self.components.append(TextArea(
+            text="Checksum",
+            edge_padding=0,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+        ))
+
+        # ...and its actual bits. Prepend spacers to keep vertical alignment
+        checksum_spacer = "_" * (11 - len(self.checksum_bits))
+
+        screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+
+        # This time we de-emphasize the prepended spacers that are irrelevant
+        self.components.append(TextArea(
+            text=checksum_spacer,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_color=GUIConstants.LABEL_FONT_COLOR,
+            font_size=bit_font_size,
+            edge_padding=0,
+            screen_x=bit_display_x,
+            screen_y=screen_y,
+            height=bit_font_height,
+            is_text_centered=False,
+        ))
+
+        # And especially highlight (orange!) the actual checksum bits
+        self.components.append(TextArea(
+            text=self.checksum_bits,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_size=bit_font_size,
+            font_color=GUIConstants.ACCENT_COLOR,
+            edge_padding=0,
+            screen_x=checksum_x,
+            screen_y=screen_y,
+            is_text_centered=False,
+        ))
+
+        # And now the *actual* final word after merging the bit data
+        self.components.append(TextArea(
+            text=f"""Final Word: \"{self.actual_final_word}\"""",
+            screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+        ))
+
+        # Once again show the bits that came from the user's entropy...
+        num_checksum_bits = len(self.checksum_bits)
+        user_component = self.selected_final_bits[:11 - num_checksum_bits]
+        screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        self.components.append(TextArea(
+            text=user_component,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_size=bit_font_size,
+            edge_padding=0,
+            screen_x=bit_display_x,
+            screen_y=screen_y,
+            is_text_centered=False,
+        ))
+
+        # ...and append the checksum's bits, still highlighted in orange
+        self.components.append(TextArea(
+            text=self.checksum_bits,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_color=GUIConstants.ACCENT_COLOR,
+            font_size=bit_font_size,
+            edge_padding=0,
+            screen_x=checksum_x,
+            screen_y=screen_y,
+            is_text_centered=False,
+        ))
+
+
+
+@dataclass
+class ToolsCalcFinalWordDoneScreen(ButtonListScreen):
     final_word: str = None
     mnemonic_word_length: int = 12
     fingerprint: str = None
