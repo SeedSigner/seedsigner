@@ -92,7 +92,7 @@ You can verify the data integrity and authenticity of the software with as littl
 
 This process also assumes you are running the commands from a system where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are already installed and working.
 
-First you will add/update the *public key* of the SeedSigner project into your keychain. The command below will fetch our public key from a popular online keyserver called *Keybase.io* , and once the Key is imported successfully, we will visually compare it to that website.
+First you will add/update the *public key* of the SeedSigner project into your keychain. The command below will fetch our public key from a popular online keyserver called *Keybase.io* , and once the Key is imported successfully, we will visually compare its properties to that website.
 ```
 gpg --fetch-keys https://keybase.io/SeedSigner/pgp_keys.asc
 ```
@@ -104,15 +104,18 @@ You should now compare the numeric ID  which your computer just provided you, to
 
 These numeric ID's are known as the Key's *fingerprint*, so please make sure that the fingerprints **do** match. (The white spaces doesnt matter, its there to help readability.) 
 
-![SS - Keybase PubKey Verification via visual fingerprint matching2-50pct](https://user-images.githubusercontent.com/91296549/174262606-a529e408-1fb5-4a90-b8c5-1f210b919019.jpg)
+![SS - Keybase PubKey Verification via visual fingerprint matching3-50pct](https://user-images.githubusercontent.com/91296549/174390488-28f3e5af-dfe7-47d7-b69c-54971a00db17.jpg)
 
-So what does it *actually* mean if the 2 fingerprints match?  Well, the Keybase.io website has the unique ability to *cryptographically* confirm that the Public Key is *actually from the same people* who manage Seedsigner's online presence! 
+But what does it *actually* mean if the 2 fingerprints do match?  Well, the Keybase.io website has a unique ability to *cryptographically* confirm that the public key they specified is *actually from the same people* who manage all of Seedsigner's online presence! 
 
-The Keybase.io website has cryptographically confirmed the Fingerprint to Seedsigner's Twitter account, *and* its primary GitHub account *and* also their seedsigner.com website!
-This means that although you have likely never met the humans behind the seedsigner project in real life, the Keybase.io confirmation is about as good as you meeting them all, in person, at their office, as they published Tweets, made live updates to the seedsigner.com website or even published code changes onto their Github repository!
-The red arrows indicate the linking of their *Twitter account*, their *Gist/git Account* and even their *Website hosting account*, allowing each one to independently confirm that the public key fingerprint you just imported, matches the online cryptographic fingerprint of the *entire* seedsigner online presence!   
+Keybase does this by making the Seedsigner project's [human] leaders do specific things online, to prove that they are who they say they are. (Much like Satoshi could prove that they are __really__ Satoshi, by moving a single bitcoin from the known Satoshi wallet.) 
+Keybase's magic is achieved by asking the Seedsigner Project's leaders to announce their ownership of a *specific* public key in all of their online channels, and then have them prove it (cryptographically, of course:)). This proof is done across their known online channels, like the project website (seedsigner.com), *and* their Twitter account (@seedsigner), *and* their GitHub account (github.com/seedsigner), amongst other tasks. Keybase will then confirm, cryptographically, that they did in fact manage to do the task, and hence they are who they say they are. Keybase is then the public proof that this key is them, and its the only key for them. 
 
-***Draft changes to be continued from here down
+
+Next we will check that the software we just downloaded for installing onto our Seedsigner device was signed by the private key, of that (now proven) public key. :) 
+If the public/Private key pair does calculate a valid match, then we have genuine seedsigner software, unaltered. :)
+
+***Draft changes to be continued from here down***
 
 Now you can verify the authenticity of the small text file containing the release's SHA256 hash with the command:
 ```
@@ -141,7 +144,7 @@ shasum -a 256 -c seedsigner_0_*_*.img.zip.sha256
 ```
 The reponse to this command should include the text:
 ```
-seedsigner_0_4_6.img.zip: OK
+seedsigner_0_5_x.img.zip: OK
 ```
 
 There are other steps you can take to verify the software, including examining the hash value in the .sha256 text file, but this one has been documented here because it seems the simplest for most people to follow. Please recognize that this process can only validate the software to the extent that the entity that first published the key is an honest actor, and assumes the private key has remained uncompromised and is not being used by a malicious actor.
