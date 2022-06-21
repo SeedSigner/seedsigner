@@ -106,7 +106,9 @@ These numeric ID's are known as the Key's *fingerprint*, so please make sure tha
 
 ![SS - Keybase PubKey Verification via visual fingerprint matching3-50pct](https://user-images.githubusercontent.com/91296549/174390488-28f3e5af-dfe7-47d7-b69c-54971a00db17.jpg)
 
-But what does it *actually* mean if the 2 fingerprints do match?  Well, the Keybase.io website has a unique ability to *cryptographically* confirm that the public key they specified is *actually from the same people* who manage all of Seedsigner's online presence! 
+TLDR; - If the fingerprints match, then the key that you just imported is from SeedSinger.com
+
+But what does it *actually* mean if the 2 fingerprints do match?  Well, the Keybase.io website has a unique ability to *cryptographically* confirm that the public  key they specified is *actually from the same people* who manage all of Seedsigner's online presence! 
 
 Keybase does this by making the Seedsigner project's [human] leaders do specific things online, to prove that they are who they say they are. (Much like Satoshi could prove that they are __really__ Satoshi, by moving a single bitcoin from the known Satoshi wallet.) 
 Keybase's magic is achieved by asking the Seedsigner Project's leaders to announce their ownership of a *specific* public key in all of their online channels, and then have them prove it (cryptographically, of course:)). This proof is done across their known online channels, like the project website (seedsigner.com), *and* their Twitter account (@seedsigner), *and* their GitHub account (github.com/seedsigner), amongst other tasks. Keybase will then confirm, cryptographically, that they did in fact manage to do the task, and hence they are who they say they are. Keybase is then the public proof that this key is them, and its the only key for them. 
