@@ -80,26 +80,44 @@ The quickest and easiest way to install the software is to download the most rec
 
 After downloading the .zip file, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go. If your goal is a more trustless installation, you can follow the [manual installation instructions](docs/manual_installation.md).
 
-## Verifying Your Software
-You can verify the data integrity and authenticity of the latest release with as little as three commands. This process assumes that you know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal) and have navigated to the folder where you have these four relevant files present: (This will most likely be your Downloads folder.)
+## Verifying Your Software (optional, but recommended!)
+You can verify the data integrity and authenticity of the software with as little as three commands. This process assumes that you know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal) and have navigated to the folder where you have these three relevant files present: (This will most likely be your Downloads folder.)
 
-* seedsigner_pubkey.gpg (from the main folder of this repo)
-* seedsigner_0_4_6.img.zip (from the software release)
-* seedsigner_0_4_6.img.zip.sha256 (from the software release)
-* seedsigner_0_4_6.img.zip.sha256.sig (from the software release)
 
-**Note:** The specific version number of the files in your folder might not match the above exactly, but their overall format and amount should be the same.
+* seedsigner_0_5_x.img.zip (from the software release)
+* seedsigner_0_5_x.img.zip.sha256 (from the software release)
+* seedsigner_0_5_x.img.zip.sha256.sig (from the software release)
 
-This process also assumes you are running the commands from a system where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are installed and working.
+**Note:** The specific names of the 3 files might not match the above examples exactly, but their naming format will be the same.
 
-First make sure that the public key is present in your keychain:
+This process also assumes you are running the commands from a system where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are already installed and working.
+
+First you will add/update the *public key* of the SeedSigner project into your keychain. The command below will fetch our public key from a popular online keyserver called *Keybase.io* , and once the Key is imported successfully, we will visually compare its properties to that website.
 ```
-gpg --import seedsigner_pubkey.gpg 
+gpg --fetch-keys https://keybase.io/SeedSigner/pgp_keys.asc
 ```
-This command will import the public key, or return:
-```
-key <...> not changed
-```
+Once the command completes successfully, it will display a numeric ID, as circled red in the example below. We will use it in the next step.
+![SS - Keybase PubKey import with Fingerprint shown (New import or update of the key)](https://user-images.githubusercontent.com/91296549/174248861-7961c038-1fbf-47a1-a110-146cb218b1c8.jpg)
+
+You should now compare the numeric ID  which your computer just provided you, to what is displayed on this website 
+[Keybase.io/seedsigner](https://www.keybase.io/SeedSigner)
+
+These numeric ID's are known as the Key's *fingerprint*, so please make sure that the fingerprints **do** match. (The white spaces doesnt matter, its there to help readability.) 
+
+![SS - Keybase PubKey Verification via visual fingerprint matching3-50pct](https://user-images.githubusercontent.com/91296549/174390488-28f3e5af-dfe7-47d7-b69c-54971a00db17.jpg)
+
+TLDR; - If the fingerprints match, then the key that you just imported is from SeedSinger.com
+
+But what does it *actually* mean if the 2 fingerprints do match?  Well, the Keybase.io website has a unique ability to *cryptographically* confirm that the public  key they specified is *actually from the same people* who manage all of Seedsigner's online presence! 
+
+Keybase does this by making the Seedsigner project's [human] leaders do specific things online, to prove that they are who they say they are. (Much like Satoshi could prove that they are __really__ Satoshi, by moving a single bitcoin from the known Satoshi wallet.) 
+Keybase's magic is achieved by asking the Seedsigner Project's leaders to announce their ownership of a *specific* public key in all of their online channels, and then have them prove it (cryptographically, of course:)). This proof is done across their known online channels, like the project website (seedsigner.com), *and* their Twitter account (@seedsigner), *and* their GitHub account (github.com/seedsigner), amongst other tasks. Keybase will then confirm, cryptographically, that they did in fact manage to do the task, and hence they are who they say they are. Keybase is then the public proof that this key is them, and its the only key for them. 
+
+
+Next we will check that the software we just downloaded for installing onto our Seedsigner device was signed by the private key, of that (now proven) public key. :) 
+If the public/Private key pair does calculate a valid match, then we have genuine seedsigner software, unaltered. :)
+
+***Draft changes to be continued from here down***
 
 Now you can verify the authenticity of the small text file containing the release's SHA256 hash with the command:
 ```
@@ -128,7 +146,7 @@ shasum -a 256 -c seedsigner_0_*_*.img.zip.sha256
 ```
 The reponse to this command should include the text:
 ```
-seedsigner_0_4_6.img.zip: OK
+seedsigner_0_5_x.img.zip: OK
 ```
 
 There are other steps you can take to verify the software, including examining the hash value in the .sha256 text file, but this one has been documented here because it seems the simplest for most people to follow. Please recognize that this process can only validate the software to the extent that the entity that first published the key is an honest actor, and assumes the private key has remained uncompromised and is not being used by a malicious actor.
