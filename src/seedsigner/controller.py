@@ -197,9 +197,9 @@ class Controller(Singleton):
                     def run(self, some_arg, other_arg):
                         print(other_arg)
 
-                class OtherView():
+                class OtherView(View):
                     def run(self):
-                        return (MyView, {"some_arg": 1, "other_arg": "hello"})
+                        return (MyView, dict(some_arg=1, other_arg="hello"))
 
             When `OtherView` is instantiated and run, we capture its return values:
 
