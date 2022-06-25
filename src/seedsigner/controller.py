@@ -48,7 +48,7 @@ class Controller(Singleton):
         rather than at the top in order avoid circular imports.
     """
 
-    VERSION = "0.5.0"
+    VERSION = "0.5.1"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
@@ -200,9 +200,9 @@ class Controller(Singleton):
                     def run(self, some_arg, other_arg):
                         print(other_arg)
 
-                class OtherView():
+                class OtherView(View):
                     def run(self):
-                        return (MyView, {"some_arg": 1, "other_arg": "hello"})
+                        return (MyView, dict(some_arg=1, other_arg="hello"))
 
             When `OtherView` is instantiated and run, we capture its return values:
 

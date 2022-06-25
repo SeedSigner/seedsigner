@@ -43,6 +43,26 @@ def test_calculate_checksum():
 
 
 
+def test_calculate_checksum_with_default_final_word():
+    """ 11-word and 23-word mnemonics use word `0000` as a temp final word to complete
+        the mnemonic.
+    """
+    partial_mnemonic = "crawl focus rescue cable view pledge rather dinner cousin unfair day"
+    mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+
+    partial_mnemonic += " abandon"
+    mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    assert mnemonic1 == mnemonic2
+
+    partial_mnemonic = "bubble father debate ankle injury fence mesh evolve section wet coyote violin pyramid flower rent arrow round clutch myth safe base skin mobile"
+    mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+
+    partial_mnemonic += " abandon"
+    mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    assert mnemonic1 == mnemonic2
+
+
+
 def test_verify_against_coldcard_sample():
     """ https://coldcard.com/docs/verifying-dice-roll-math """
     dice_rolls = "123456"

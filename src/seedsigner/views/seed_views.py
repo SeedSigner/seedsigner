@@ -128,13 +128,14 @@ class SeedMnemonicEntryView(View):
 
         if ret == RET_CODE__BACK_BUTTON:
             if self.cur_word_index > 0:
-                return Destination(
-                    SeedMnemonicEntryView,
-                    view_args={
-                        "cur_word_index": self.cur_word_index - 1,
-                        "is_calc_final_word": self.is_calc_final_word
-                    }
-                )
+                return Destination(BackStackView)
+                # return Destination(
+                #     SeedMnemonicEntryView,
+                #     view_args={
+                #         "cur_word_index": self.cur_word_index - 1,
+                #         "is_calc_final_word": self.is_calc_final_word
+                #     }
+                # )
             else:
                 self.controller.storage.discard_pending_mnemonic()
                 return Destination(MainMenuView)
@@ -143,17 +144,15 @@ class SeedMnemonicEntryView(View):
         self.controller.storage.update_pending_mnemonic(ret, self.cur_word_index)
 
         if self.is_calc_final_word and self.cur_word_index == self.controller.storage.pending_mnemonic_length - 2:
-            # Time to calculate the last word
-            # TODO: Option to add missing entropy for the last word:
-            #   * 3 bits for a 24-word seed
-            #   * 7 bits for a 12-word seed
-            from seedsigner.helpers import mnemonic_generation
+            # Time to calculate the last word. User must decide how they want to specify
+            # the last bits of entropy for the final word.
+            from seedsigner.views.tools_views import ToolsCalcFinalWordFinalizePromptView
+            return Destination(ToolsCalcFinalWordFinalizePromptView)
+
+        if self.is_calc_final_word and self.cur_word_index == self.controller.storage.pending_mnemonic_length - 1:
+            # Time to calculate the last word. User must either select a final word to
+            # contribute entropy to the checksum word OR we assume 0 ("abandon").
             from seedsigner.views.tools_views import ToolsCalcFinalWordShowFinalWordView
-            full_mnemonic = mnemonic_generation.calculate_checksum(
-                self.controller.storage.pending_mnemonic[:-1],  # Must omit the last word's empty value
-                wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-            )
-            self.controller.storage.update_pending_mnemonic(full_mnemonic[-1], self.cur_word_index+1)
             return Destination(ToolsCalcFinalWordShowFinalWordView)
 
         if self.cur_word_index < self.controller.storage.pending_mnemonic_length - 1:
