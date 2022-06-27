@@ -8,7 +8,7 @@ from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, Formatted
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, KeyboardScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.helpers.qr import QR
-from seedsigner.models.settings_definition import SettingsConstants
+from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
 
 
@@ -394,11 +394,11 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
             ))
 
-            if self.script_type:
+            if self.script_type != SettingsConstants.CUSTOM_DERIVATION:
                 self.components.append(IconTextLine(
                     icon_name=SeedSignerCustomIconConstants.PATH,
                     label_text="Derivation",
-                    value_text="Native Segwit" if self.script_type == SettingsConstants.NATIVE_SEGWIT else "Nested Segwit",
+                    value_text=SettingsDefinition.get_settings_entry(attr_name=SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(value=self.script_type),
                     screen_x=GUIConstants.EDGE_PADDING,
                     screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
                 ))

@@ -72,8 +72,7 @@ def get_single_sig_address(xpub: HDKey, script_type: str = SettingsConstants.NAT
         return embit.script.p2pkh(pubkey).address(network=NETWORKS[embit_network])
 
     elif script_type == SettingsConstants.TAPROOT:
-        # TODO: Not yet implemented!
-        raise Exception("Taproot verification not yet implemented!")
+        return embit.script.p2tr(pubkey).address(network=NETWORKS[embit_network])
 
 
 

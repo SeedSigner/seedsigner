@@ -11,7 +11,7 @@ from seedsigner.gui.screens.screen import LoadingScreenThread, QRDisplayScreen
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerCustomIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
-from seedsigner.gui.screens.tools_screens import ToolsCalcFinalWordDoneScreen, ToolsCalcFinalWordFinalizePromptScreen, ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsCalcFinalWordShowFinalWordScreen, ToolsAddressExplorerAddressTypeScreen
+from seedsigner.gui.screens.tools_screens import ToolsCalcFinalWordDoneScreen, ToolsCalcFinalWordFinalizePromptScreen, ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen
 from seedsigner.helpers import embit_utils, mnemonic_generation
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
@@ -532,7 +532,6 @@ class ToolsAddressExplorerAddressTypeView(View):
 
 
     def run(self):
-        # embit_utils.get_single_sig_address(xpub=xpub, script_type=self.script_type, index=0, is_change=True, embit_network=embit_network)
         data = self.controller.address_explorer_data
 
         RECEIVE = "Receive Addresses"
@@ -547,9 +546,10 @@ class ToolsAddressExplorerAddressTypeView(View):
 
         selected_menu_num = ToolsAddressExplorerAddressTypeScreen(
             button_data=button_data,
-            fingerprint=self.seed.get_fingerprint() if self.seed_num else None,
+            fingerprint=self.seed.get_fingerprint() if self.seed_num is not None else None,
             wallet_descriptor_display_name=wallet_descriptor_display_name,
             script_type=script_type,
+            custom_derivation_path=self.custom_derivation,
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -593,15 +593,15 @@ class ToolsAddressExplorerAddressListView(View):
 
                 if "xpub" in data:
                     # Single sig explore from seed
-                    if "script_type" in data:
+                    if "script_type" in data and data["script_type"] != SettingsConstants.CUSTOM_DERIVATION:
                         # Standard derivation path
                         for i in range(self.start_index, self.start_index + addrs_per_screen):
                             address = embit_utils.get_single_sig_address(xpub=data["xpub"], script_type=data["script_type"], index=i, is_change=self.is_change, embit_network=data["embit_network"])
                             addresses.append(address)
                             data[addr_storage_key].append(address)
                     else:
-                        # Custom derivation path
-                        raise Exception("Not yet implemented")
+                        # TODO: Custom derivation path
+                        raise Exception("Custom Derivation address explorer not yet implemented")
                 
                 elif "wallet_descriptor" in data:
                     descriptor: Descriptor = data["wallet_descriptor"]

@@ -567,7 +567,7 @@ class SeedExportXpubCustomDerivationView(View):
 
         if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
             from .tools_views import ToolsAddressExplorerAddressTypeView
-            return Destination(ToolsAddressExplorerAddressTypeView, view_args=dict(seed_num=self.seed_num, script_type=self.script_type, custom_derivation=self.custom_derivation_path))
+            return Destination(ToolsAddressExplorerAddressTypeView, view_args=dict(seed_num=self.seed_num, script_type=self.script_type, custom_derivation=custom_derivation))
 
         return Destination(
             SeedExportXpubCoordinatorView,
