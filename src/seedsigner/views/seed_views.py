@@ -643,53 +643,42 @@ class SeedExportXpubDetailsView(View):
 
 
     def run(self):
-        # The calc_derivation takes a few moments. Run the loading screen while we wait.
-        self.loading_screen = LoadingScreenThread(text="Generating xpub...")
-        self.loading_screen.start()
+        if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
+            derivation_path = self.custom_derivation
+        else:
+            derivation_path = PSBTParser.calc_derivation(
+                network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
+                wallet_type=self.sig_type,
+                script_type=self.script_type
+            )
 
-        try:
-            if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
-                derivation_path = self.custom_derivation
-            else:
-                derivation_path = PSBTParser.calc_derivation(
-                    network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
-                    wallet_type=self.sig_type,
-                    script_type=self.script_type
-                )
+        if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__ENABLED:
+            embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.settings.get_value(SettingsConstants.SETTING__NETWORK))]
+            version = embit.bip32.detect_version(
+                derivation_path,
+                default="xpub",
+                network=embit_network
+            )
 
-            if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__ENABLED:
-                embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.settings.get_value(SettingsConstants.SETTING__NETWORK))]
-                version = embit.bip32.detect_version(
-                    derivation_path,
-                    default="xpub",
-                    network=embit_network
-                )
+            root = embit.bip32.HDKey.from_seed(
+                self.seed.seed_bytes,
+                version=embit_network["xprv"]
+            )
 
-                root = embit.bip32.HDKey.from_seed(
-                    self.seed.seed_bytes,
-                    version=embit_network["xprv"]
-                )
+            fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
+            xprv = root.derive(derivation_path)
+            xpub = xprv.to_public()
+            xpub_base58 = xpub.to_string(version=version)
 
-                fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
-                xprv = root.derive(derivation_path)
-                xpub = xprv.to_public()
-                xpub_base58 = xpub.to_string(version=version)
+            selected_menu_num = seed_screens.SeedExportXpubDetailsScreen(
+                fingerprint=fingerprint,
+                has_passphrase=self.seed.passphrase is not None,
+                derivation_path=derivation_path,
+                xpub=xpub_base58,
+            ).display()
 
-                screen = seed_screens.SeedExportXpubDetailsScreen(
-                    fingerprint=fingerprint,
-                    has_passphrase=self.seed.passphrase is not None,
-                    derivation_path=derivation_path,
-                    xpub=xpub_base58,
-                )
-
-                self.loading_screen.stop()
-                selected_menu_num = screen.display()
-
-            else:
-                selected_menu_num = 0
-
-        finally:
-            self.loading_screen.stop()
+        else:
+            selected_menu_num = 0
 
 
         if selected_menu_num == 0:
@@ -697,8 +686,6 @@ class SeedExportXpubDetailsView(View):
                 SeedExportXpubQRDisplayView,
                 {
                     "seed_num": self.seed_num,
-                    "sig_type": self.sig_type,
-                    "script_type": self.script_type,
                     "coordinator": self.coordinator,
                     "derivation_path": derivation_path,
                 }
@@ -710,7 +697,7 @@ class SeedExportXpubDetailsView(View):
 
 
 class SeedExportXpubQRDisplayView(View):
-    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, derivation_path: str):
+    def __init__(self, seed_num: int, coordinator: str, derivation_path: str):
         super().__init__()
         self.seed = self.controller.get_seed(seed_num)
 
