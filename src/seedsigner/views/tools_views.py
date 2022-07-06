@@ -1,5 +1,6 @@
 import hashlib
 import os
+from subprocess import call
 import time
 
 from PIL import Image
@@ -23,7 +24,8 @@ class ToolsMenuView(View):
         IMAGE = (" New seed", FontAwesomeIconConstants.CAMERA)
         DICE = ("New seed", FontAwesomeIconConstants.DICE)
         KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
-        button_data = [IMAGE, DICE, KEYBOARD]
+        MICROSD = ("MicroSD", FontAwesomeIconConstants.SDCARD)
+        button_data = [IMAGE, DICE, KEYBOARD, MICROSD]
         screen = ButtonListScreen(
             title="Tools",
             is_button_text_centered=False,
@@ -43,6 +45,8 @@ class ToolsMenuView(View):
         elif button_data[selected_menu_num] == KEYBOARD:
             return Destination(ToolsCalcFinalWordNumWordsView)
 
+        elif button_data[selected_menu_num] == MICROSD:
+            return Destination(ToolsMicroSDStatusView)
 
 
 """****************************************************************************
@@ -409,3 +413,35 @@ class ToolsCalcFinalWordDoneView(View):
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView)
 
+
+"""****************************************************************************
+    Export MicroSD
+****************************************************************************"""
+class ToolsMicroSDStatusView(View):
+    def run(self):
+        from subprocess import call
+
+        file_exists = exists("/mnt/microsd")
+
+        if file_exists:
+            MICROSD = "Umount MicroSD"
+        else:
+            MICROSD = "Slot empty"
+
+        button_data = [MICROSD]
+        selected_menu_num = ButtonListScreen(
+            title="MicroSD status",
+            is_bottom_list=True,
+            is_button_text_centered=True,
+            button_data=button_data,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == MICROSD:
+            if file_exists:
+                call("/etc/mdev/./mdev.sh remove", shell=True)
+                return Destination(BackStackView)
+            else:
+                return Destination(BackStackView)
