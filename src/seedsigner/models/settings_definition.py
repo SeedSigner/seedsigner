@@ -520,7 +520,14 @@ class SettingsDefinition:
 
 if __name__ == "__main__":
     import json
+    import os
 
-    output_file = "settings_definition.json"
+    hostname = os.uname()[1]
+
+    if hostname == "seedsigner":
+        output_file = "settings_definition.json"
+    elif hostname == "seedsigner-os":
+        output_file = "/mnt/microsd/settings_definition.json"
+
     with open(output_file, 'w') as json_file:
         json.dump(SettingsDefinition.to_dict(), json_file, indent=4)

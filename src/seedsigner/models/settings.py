@@ -11,7 +11,13 @@ from .singleton import Singleton
 
 
 class Settings(Singleton):
-    SETTINGS_FILENAME = "settings.json"
+    hostname = os.uname()[1]
+    SETTINGS_FILENAME = ""
+
+    if hostname == "seedsigner":
+        SETTINGS_FILENAME = "settings.json"
+    elif hostname == "seedsigner-os":
+        SETTINGS_FILENAME = "/mnt/microsd/settings.json"
 
     @classmethod
     def get_instance(cls):
