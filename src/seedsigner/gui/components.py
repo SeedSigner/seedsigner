@@ -102,7 +102,7 @@ class FontAwesomeIconConstants:
     UNLOCK = "\uf09c"
     QRCODE = "\uf029"
     X = "\u0058"
-
+    SDCARD = "\uf7c2"
 
 
 class SeedSignerCustomIconConstants:
