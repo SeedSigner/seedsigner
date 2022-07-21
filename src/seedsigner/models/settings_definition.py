@@ -523,11 +523,11 @@ if __name__ == "__main__":
     import os
 
     hostname = os.uname()[1]
-
-    if hostname == "seedsigner":
-        output_file = "settings_definition.json"
-    elif hostname == "seedsigner-os":
+  
+    if hostname == "seedsigner-os":
         output_file = "/mnt/microsd/settings_definition.json"
-
+    else:
+        output_file = "settings_definition.json"
+    
     with open(output_file, 'w') as json_file:
         json.dump(SettingsDefinition.to_dict(), json_file, indent=4)
