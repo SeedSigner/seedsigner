@@ -1,6 +1,6 @@
 import hashlib
 import os
-from subprocess import call
+
 import time
 
 from PIL import Image
@@ -420,6 +420,7 @@ class ToolsCalcFinalWordDoneView(View):
 class ToolsMicroSDStatusView(View):
     def run(self):
         from subprocess import call
+        from os.path import exists
 
         file_exists = exists("/mnt/microsd")
 
