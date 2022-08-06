@@ -700,12 +700,10 @@ class SeedExportXpubDetailsView(View):
                     default="xpub",
                     network=embit_network
                 )
-
                 root = embit.bip32.HDKey.from_seed(
                     self.seed.seed_bytes,
                     version=embit_network["xprv"]
                 )
-
                 fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
                 xprv = root.derive(derivation_path)
                 xpub = xprv.to_public()
@@ -720,7 +718,6 @@ class SeedExportXpubDetailsView(View):
                 derivation_path=derivation_path,
                 xpub=xpub_base58,
             ).display()
-
 
         if selected_menu_num == 0:
             return Destination(
@@ -739,7 +736,7 @@ class SeedExportXpubDetailsView(View):
 
 
 class SeedExportXpubQRDisplayView(View):
-    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, derivation_path: str):
+    def __init__(self, seed_num: int, coordinator: str, derivation_path: str):
         super().__init__()
         self.seed = self.controller.get_seed(seed_num)
 

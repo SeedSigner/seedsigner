@@ -76,11 +76,19 @@ Notes:
 ---------------
 
 # Software Installation
+
+## Special Note on Minimizing Trust
+As is the nature of pre-packaged software downloads, downloading and using the prepared SeedSigner release images means implicitly placing trust in the individual preparing those images; in our project the release images are prepared and signed by the eponymous creator of the project, SeedSigner "the person". That individual is additionally the only person in possession of the PGP keys that are used to sign the release images.
+
+However, one of the many advantages of the open source software model is that the need for this kind of trust can be negated by our users' ability to (1) review the project's source code and (2) assemble the operating image necessary to use the software themselves. From our project's inception, instructions to build a SeedSigner operating image (using precisely the same process that is used to create the prepared release images) have been made availabile. We have put a lot of thought and work into making these instructions easy to understand and follow, even for less technical users. These instructions can be found [here](docs/manual_installation.md).
+
+## Downloading the Software
+
 The quickest and easiest way to install the software is to download the most recent "seedsigner_X_X_X.zip" file in the [software releases](https://github.com/SeedSigner/seedsigner/releases) section of this repository.
 
-After downloading the .zip file, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go. If your goal is a more trustless installation, you can follow the [manual installation instructions](docs/manual_installation.md).
+After downloading the .zip file, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go.
 
-## Verifying Your Software
+## Verifying the Software
 You can verify the data integrity and authenticity of the latest release with as little as three commands. This process assumes that you know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal) and have navigated to the folder where you have these four relevant files present: (This will most likely be your Downloads folder.)
 
 * seedsigner_pubkey.gpg (from the main folder of this repo)
