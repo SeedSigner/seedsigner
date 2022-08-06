@@ -3,18 +3,30 @@ import time
 
 from seedsigner.models.singleton import Singleton
 
-
 class HardwareButtons(Singleton):
-    KEY_UP_PIN = 6
-    KEY_DOWN_PIN = 19
-    KEY_LEFT_PIN = 5
-    KEY_RIGHT_PIN = 26
-    KEY_PRESS_PIN = 13
+    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
+        print("Detected 40pin GPIO (Rasbperry Pi 2 and above)")
+        KEY_UP_PIN = 6
+        KEY_DOWN_PIN = 19
+        KEY_LEFT_PIN = 5
+        KEY_RIGHT_PIN = 26
+        KEY_PRESS_PIN = 13
 
-    KEY1_PIN = 21
-    KEY2_PIN = 20
-    KEY3_PIN = 16
+        KEY1_PIN = 21
+        KEY2_PIN = 20
+        KEY3_PIN = 16
 
+    else:
+        print("Assuming 26 Pin GPIO (Raspberry P1 1)")
+        KEY_UP_PIN = 3
+        KEY_DOWN_PIN = 17
+        KEY_LEFT_PIN = 2
+        KEY_RIGHT_PIN = 22
+        KEY_PRESS_PIN = 4
+
+        KEY1_PIN = 23
+        KEY2_PIN = 18
+        KEY3_PIN = 14
 
     @classmethod
     def get_instance(cls):
@@ -165,14 +177,25 @@ class HardwareButtons(Singleton):
 # TODO: Implement `release_lock` functionality as a global somewhere. Mixes up design
 #   patterns to have a static constants class plus a settable global value.
 class HardwareButtonsConstants:
-    KEY_UP = 6
-    KEY_DOWN = 19
-    KEY_LEFT = 5
-    KEY_RIGHT = 26
-    KEY_PRESS = 13
-    KEY1 = 21
-    KEY2 = 20
-    KEY3 = 16
+    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
+        KEY_UP = 6
+        KEY_DOWN = 19
+        KEY_LEFT = 5
+        KEY_RIGHT = 26
+        KEY_PRESS = 13
+        KEY1 = 21
+        KEY2 = 20
+        KEY3 = 16
+    else:
+        KEY_UP = 3
+        KEY_DOWN = 17
+        KEY_LEFT = 2
+        KEY_RIGHT = 22
+        KEY_PRESS = 4
+        KEY1 = 23
+        KEY2 = 18
+        KEY3 = 14
+
     OVERRIDE = 1000
 
     ALL_KEYS = [
