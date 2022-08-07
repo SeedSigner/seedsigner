@@ -723,8 +723,6 @@ class SeedExportXpubDetailsView(View):
             return Destination(
                 SeedExportXpubQRDisplayView,
                 dict(seed_num=self.seed_num,
-                     sig_type=self.sig_type,
-                     script_type=self.script_type,
                      coordinator=self.coordinator,
                      derivation_path=derivation_path,
                 )
