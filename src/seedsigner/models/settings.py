@@ -1,23 +1,16 @@
-import json
-import os
+import json, os, subprocess
 
 from typing import Any, List
 
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
-
 from .singleton import Singleton
-
-
+from .threads import BaseThread
 
 
 class Settings(Singleton):
-    hostname = os.uname()[1]
-    SETTINGS_FILENAME = ""
-
-    if hostname == "seedsigner-os":
-        SETTINGS_FILENAME = "/mnt/microsd/settings.json"
-    else:
-        SETTINGS_FILENAME = "settings.json"
+    HOSTNAME = os.uname()[1]
+    JSON_FILENAME = "/mnt/microsd/settings.json" if HOSTNAME == "seedsigner-os" else "settings.json"
+    microsd_in_use = False
         
     @classmethod
     def get_instance(cls):
@@ -30,9 +23,10 @@ class Settings(Singleton):
             settings._data = SettingsDefinition.get_defaults()
 
             # Read persistent settings file, if it exists
-            if os.path.exists(Settings.SETTINGS_FILENAME):
-                with open(Settings.SETTINGS_FILENAME) as settings_file:
-                    settings.update(json.load(settings_file), disable_missing_entries=False)
+            settings.load()
+            
+            settings.microsd_detect_thread = MircoSDSettingsDetectThread()
+            settings.microsd_detect_thread.start()
 
         return cls._instance
 
@@ -40,12 +34,44 @@ class Settings(Singleton):
     def __str__(self):
         return json.dumps(self._data, indent=4)
     
+    def load(self):
+        Settings.microsd_in_use = True
+        # seedsigner-os check if microsd is inserted and mount if not already mounted
+        if Settings.HOSTNAME == "seedsigner-os":
+            if os.path.exists("/dev/mmcblk0p1"):
+                rc = subprocess.call("mount | grep /mnt/microsd", shell=True)
+                if rc != 0:
+                    subprocess.call("mkdir -p /mnt/microsd && mount /dev/mmcblk0p1 /mnt/microsd", shell=True)
+                    
+        # read settings file if it exists
+        if os.path.exists(Settings.JSON_FILENAME):
+            with open(Settings.JSON_FILENAME) as settings_file:
+                self.update(json.load(settings_file), disable_missing_entries=False)
+                
+        # seedsigner-os umount microsd after writing out settings file
+        if Settings.HOSTNAME == "seedsigner-os":
+            if os.path.isdir("/mnt/microsd"):
+                subprocess.call("umount /mnt/microsd; rm -rf /mnt/microsd", shell=True)
+        Settings.microsd_in_use = False
+
 
     def save(self):
         if self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] == SettingsConstants.OPTION__ENABLED:
-            with open(Settings.SETTINGS_FILENAME, 'w') as settings_file:
+            Settings.microsd_in_use = True
+            # seedsinger-os mounting microsd prior to writing out settings file
+            if Settings.HOSTNAME == "seedsigner-os":
+                if subprocess.call("mount | grep /mnt/microsd", shell=True) != 0:
+                    subprocess.call("mkdir -p /mnt/microsd && mount /dev/mmcblk0p1 /mnt/microsd", shell=True)
+                    
+            # write out settings files
+            with open(Settings.JSON_FILENAME, 'w') as settings_file:
                 json.dump(self._data, settings_file, indent=4)
-
+                
+            # seedsigner-os umount microsd after writing out settings file
+            if Settings.HOSTNAME == "seedsigner-os":
+                if os.path.isdir("/mnt/microsd"):
+                    subprocess.call("umount /mnt/microsd; rm -rf /mnt/microsd", shell=True)
+            Settings.microsd_in_use = False
 
     def update(self, new_settings: dict, disable_missing_entries: bool = True):
         """
@@ -106,8 +132,9 @@ class Settings(Singleton):
         
         # Special handling for toggling persistence
         if attr_name == SettingsConstants.SETTING__PERSISTENT_SETTINGS and value == SettingsConstants.OPTION__DISABLED:
-            os.remove(self.SETTINGS_FILENAME)
-            print(f"Removed {self.SETTINGS_FILENAME}")
+            if os.path.exists(Settings.JSON_FILENAME):
+                os.remove(self.JSON_FILENAME)
+                print(f"Removed {self.JSON_FILENAME}")
 
         self._data[attr_name] = value
         self.save()
@@ -171,5 +198,40 @@ class Settings(Singleton):
     @property
     def debug(self) -> bool:
         return self._data[SettingsConstants.SETTING__DEBUG] == SettingsConstants.OPTION__ENABLED
-
+        
+class MircoSDSettingsDetectThread(BaseThread):
+    def run(self):
+        import time
+        
+        load_cnt = 0    # prevents failed loads from trying over and over
+        removed_cnt = 0
+        
+        time.sleep(6.0) # delay loop start
+        
+        if Settings.HOSTNAME == "seedsigner-os":
+            while self.keep_running:
+                if Settings.microsd_in_use == False:
+                    
+                    # check if newly mounted and load settings file
+                    if subprocess.call("mount | grep /mnt/microsd", shell=True) == 0:
+                        if os.path.isdir("/mnt/microsd") and load_cnt < 1:
+                            
+                            # load settings
+                            Settings.get_instance().load()
+                            load_cnt += 1
+                    else:
+                        umount = 0
+                        
+                    # check if newly removed and disabled persistent settings
+                    if not os.path.exists("/dev/mmcblk0p1"):
+                        removed_cnt += 1
+                        if removed_cnt == 1: # on first detection of SD removed, set persistent settings to disabled
+                            Settings.get_instance().set_value(
+                                SettingsConstants.SETTING__PERSISTENT_SETTINGS,
+                                SettingsConstants.OPTION__DISABLED
+                            )
+                    else:
+                        removed_cnt = 0
+                    
+                time.sleep(1.0)
 
