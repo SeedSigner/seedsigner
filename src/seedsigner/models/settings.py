@@ -132,9 +132,17 @@ class Settings(Singleton):
         
         # Special handling for toggling persistence
         if attr_name == SettingsConstants.SETTING__PERSISTENT_SETTINGS and value == SettingsConstants.OPTION__DISABLED:
+            # seedsinger-os mounting microsd prior to removing settings file
+            if Settings.HOSTNAME == "seedsigner-os":
+                if subprocess.call("mount | grep /mnt/microsd", shell=True) != 0:
+                    subprocess.call("mkdir -p /mnt/microsd && mount /dev/mmcblk0p1 /mnt/microsd", shell=True)
             if os.path.exists(Settings.JSON_FILENAME):
                 os.remove(self.JSON_FILENAME)
                 print(f"Removed {self.JSON_FILENAME}")
+            # seedsigner-os umount microsd after writing out settings file
+            if Settings.HOSTNAME == "seedsigner-os":
+                if os.path.isdir("/mnt/microsd"):
+                    subprocess.call("umount /mnt/microsd; rm -rf /mnt/microsd", shell=True)
 
         self._data[attr_name] = value
         self.save()
@@ -216,6 +224,11 @@ class MircoSDSettingsDetectThread(BaseThread):
                     if subprocess.call("mount | grep /mnt/microsd", shell=True) == 0:
                         if os.path.isdir("/mnt/microsd") and load_cnt < 1:
                             
+                            # restore persistent settings back to defaults
+                            entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
+                            entry.selection_options = SettingsConstants.OPTIONS__ENABLED_DISABLED
+                            entry.help_text = "Store Settings on SD card."
+                            
                             # load settings
                             Settings.get_instance().load()
                             load_cnt += 1
@@ -230,6 +243,9 @@ class MircoSDSettingsDetectThread(BaseThread):
                                 SettingsConstants.SETTING__PERSISTENT_SETTINGS,
                                 SettingsConstants.OPTION__DISABLED
                             )
+                            entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
+                            entry.selection_options = SettingsConstants.OPTIONS__ONLY_DISABLED
+                            entry.help_text = "MicroSD card is removed"
                     else:
                         removed_cnt = 0
                     
