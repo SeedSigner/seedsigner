@@ -33,6 +33,17 @@ class Settings(Singleton):
     def __str__(self):
         return json.dumps(self._data, indent=4)
     
+    def is_microsd_mounted(self):
+        """
+            Returns False for non seedsigner-os hostnames
+        """
+        if Settings.HOSTNAME == "seedsigner-os":
+            if os.path.isdir('/mnt/microsd'):
+                return(True)
+            else:
+                return(False)
+        return(False)
+    
     def load(self):
         # read settings file if it exists
         if os.path.exists(Settings.JSON_FILENAME):

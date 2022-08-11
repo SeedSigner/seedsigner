@@ -140,6 +140,7 @@ class MainMenuView(View):
             button_data=[entry[0] for entry in menu_items],
             show_back_button=False,
             show_power_button=True,
+            show_microsd_icon=True,
         )
         selected_menu_num = screen.display()
 

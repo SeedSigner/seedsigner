@@ -516,6 +516,7 @@ class LargeButtonScreen(BaseTopNavScreen):
     button_font_size: int = 20
     button_selected_color: str = GUIConstants.ACCENT_COLOR
     selected_button: int = 0
+    show_microsd_icon: bool = False
 
     def __post_init__(self):
         super().__post_init__()
@@ -570,6 +571,13 @@ class LargeButtonScreen(BaseTopNavScreen):
                 button_start_y += button_height + GUIConstants.COMPONENT_PADDING
 
         self.buttons[self.selected_button].is_selected = True
+        
+        if self.show_microsd_icon:
+            self.threads.append(
+                LargeButtonScreen.MicroSDIconThread(
+                    renderer=self.renderer
+                )
+            )
 
 
     def _run(self):
@@ -651,11 +659,59 @@ class LargeButtonScreen(BaseTopNavScreen):
                     if self.top_nav.is_selected:
                         return self.top_nav.selected_button
                     return self.selected_button
+                    
+                if self.show_microsd_icon:
+                    self.display_microsd_icon()
 
                 # Write the screen updates
                 self.renderer.show_image()
 
+    def display_microsd_icon(self):
+        color = GUIConstants.BITCOIN_ORANGE
+        if Settings.get_instance().is_microsd_mounted:
+            color = GUIConstants.BUTTON_FONT_COLOR
+        
+        microsd_icon = Icon(
+            icon_name=FontAwesomeIconConstants.SDCARD,
+            icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
+            icon_color=self.color,
+        )
+        microsd_icon.screen_y = GUIConstants.EDGE_PADDING
+        microsd_icon.screen_x = GUIConstants.EDGE_PADDING
+        microsd_icon.render()
 
+    class MicroSDIconThread(BaseThread):
+        def __init__(self, renderer: Renderer):
+            super().__init__()
+            self.renderer = renderer
+        
+        def run(self):
+            import time
+            last_is_microsd_mounted = Settings.get_instance().is_microsd_mounted:
+            
+            while self.keep_running:
+                with self.renderer.lock:
+                    self.color = GUIConstants.BUTTON_FONT_COLOR
+                    
+                    if last_is_microsd_mounted != Settings.get_instance().is_microsd_mounted:
+                    
+                        if Settings.get_instance().is_microsd_mounted:
+                            self.color = GUIConstants.BUTTON_FONT_COLOR
+                        else:
+                            self.color = GUIConstants.BITCOIN_ORANGE
+                        
+                        microsd_icon = Icon(
+                            icon_name=FontAwesomeIconConstants.SDCARD,
+                            icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
+                            icon_color=self.color,
+                        )
+                        microsd_icon.screen_y = GUIConstants.EDGE_PADDING
+                        microsd_icon.screen_x = GUIConstants.EDGE_PADDING
+                        microsd_icon.render()
+                        
+                        self.renderer.show_image()
+                        
+                    time.sleep(0.5)
 
 @dataclass
 class QRDisplayScreen(BaseScreen):
