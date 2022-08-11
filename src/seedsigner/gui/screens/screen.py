@@ -573,8 +573,9 @@ class LargeButtonScreen(BaseTopNavScreen):
         self.buttons[self.selected_button].is_selected = True
         
         if self.show_microsd_icon:
-            if self.show_microsd_icon:
-                self.display_microsd_icon()
+            microsd_icon = self.draw_microsd_icon()
+            if microsd_icon:
+                self.components.append(microsd_icon)
             self.threads.append(
                 LargeButtonScreen.MicroSDIconThread(
                     renderer=self.renderer,
