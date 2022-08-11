@@ -573,9 +573,12 @@ class LargeButtonScreen(BaseTopNavScreen):
         self.buttons[self.selected_button].is_selected = True
         
         if self.show_microsd_icon:
+            if self.show_microsd_icon:
+                self.display_microsd_icon()
             self.threads.append(
                 LargeButtonScreen.MicroSDIconThread(
-                    renderer=self.renderer
+                    renderer=self.renderer,
+                    parent_class=self
                 )
             )
 
@@ -661,56 +664,43 @@ class LargeButtonScreen(BaseTopNavScreen):
                     return self.selected_button
                     
                 if self.show_microsd_icon:
-                    self.display_microsd_icon()
+                    microsd_icon = self.draw_microsd_icon()
+                    if microsd_icon:
+                        self.components.append(microsd_icon)
 
                 # Write the screen updates
                 self.renderer.show_image()
 
-    def display_microsd_icon(self):
-        color = GUIConstants.BITCOIN_ORANGE
-        if Settings.get_instance().is_microsd_mounted:
-            color = GUIConstants.BUTTON_FONT_COLOR
-        
-        microsd_icon = Icon(
-            icon_name=FontAwesomeIconConstants.SDCARD,
-            icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
-            icon_color=self.color,
-        )
-        microsd_icon.screen_y = GUIConstants.EDGE_PADDING
-        microsd_icon.screen_x = GUIConstants.EDGE_PADDING
-        microsd_icon.render()
+    def draw_microsd_icon(self):
+        if Settings.HOSTNAME == "seedsigner-os" and Settings.get_instance().is_microsd_mounted:
+            microsd_icon = Icon(
+                icon_name=FontAwesomeIconConstants.SDCARD,
+                icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
+                icon_color=GUIConstants.BUTTON_FONT_COLOR,
+            )
+            microsd_icon.screen_y = GUIConstants.EDGE_PADDING
+            microsd_icon.screen_x = GUIConstants.EDGE_PADDING
+            return(microsd_icon)
 
     class MicroSDIconThread(BaseThread):
-        def __init__(self, renderer: Renderer):
+        def __init__(self, parent_class, renderer: Renderer):
             super().__init__()
             self.renderer = renderer
+            self.parent = parent_class
         
         def run(self):
             import time
-            last_is_microsd_mounted = Settings.get_instance().is_microsd_mounted:
+            last_is_microsd_mounted = Settings.get_instance().is_microsd_mounted
             
             while self.keep_running:
-                with self.renderer.lock:
-                    self.color = GUIConstants.BUTTON_FONT_COLOR
-                    
-                    if last_is_microsd_mounted != Settings.get_instance().is_microsd_mounted:
-                    
-                        if Settings.get_instance().is_microsd_mounted:
-                            self.color = GUIConstants.BUTTON_FONT_COLOR
-                        else:
-                            self.color = GUIConstants.BITCOIN_ORANGE
-                        
-                        microsd_icon = Icon(
-                            icon_name=FontAwesomeIconConstants.SDCARD,
-                            icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
-                            icon_color=self.color,
-                        )
-                        microsd_icon.screen_y = GUIConstants.EDGE_PADDING
-                        microsd_icon.screen_x = GUIConstants.EDGE_PADDING
-                        microsd_icon.render()
-                        
+                if last_is_microsd_mounted != Settings.get_instance().is_microsd_mounted:
+                    with self.renderer.lock:
+                        microsd_icon = self.parent.draw_microsd_icon()
+                        if microsd_icon:
+                            microsd_icon.render()
+
                         self.renderer.show_image()
-                        
+                        last_is_microsd_mounted = Settings.get_instance().is_microsd_mounted
                     time.sleep(0.5)
 
 @dataclass

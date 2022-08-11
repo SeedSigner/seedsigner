@@ -35,14 +35,14 @@ class Settings(Singleton):
     
     def is_microsd_mounted(self):
         """
-            Returns False for non seedsigner-os hostnames
+            Returns True for non seedsigner-os hostnames
         """
         if Settings.HOSTNAME == "seedsigner-os":
             if os.path.isdir('/mnt/microsd'):
                 return(True)
             else:
                 return(False)
-        return(False)
+        return(True)
     
     def load(self):
         # read settings file if it exists
