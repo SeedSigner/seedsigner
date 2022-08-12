@@ -25,7 +25,7 @@ class ToolsMenuView(View):
         DICE = ("New seed", FontAwesomeIconConstants.DICE)
         KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
         MICROSD = ("MicroSD", FontAwesomeIconConstants.SDCARD)
-        button_data = [IMAGE, DICE, KEYBOARD, MICROSD]
+        button_data = [IMAGE, DICE, KEYBOARD]
         screen = ButtonListScreen(
             title="Tools",
             is_button_text_centered=False,
