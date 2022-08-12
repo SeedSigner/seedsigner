@@ -716,7 +716,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                                 self.renderer.show_image()
             
                 last_is_microsd_mounted = Settings.get_instance().is_microsd_mounted()
-                time.sleep(0.5)
+                time.sleep(0.25)
 
 @dataclass
 class QRDisplayScreen(BaseScreen):
