@@ -676,7 +676,7 @@ class LargeButtonScreen(BaseTopNavScreen):
     def _draw_microsd_icon(self) -> Icon:
         microsd_icon = Icon(
             icon_name=FontAwesomeIconConstants.SDCARD,
-            icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
+            icon_size=GUIConstants.ICON_MICROSD_SIZE,
             icon_color=GUIConstants.BUTTON_FONT_COLOR,
         )
         microsd_icon.screen_y = GUIConstants.EDGE_PADDING
