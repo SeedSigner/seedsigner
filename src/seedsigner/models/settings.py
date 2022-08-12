@@ -9,7 +9,8 @@ from .threads import BaseThread
 
 class Settings(Singleton):
     HOSTNAME = os.uname()[1]
-    JSON_FILENAME = "/mnt/microsd/settings.json" if HOSTNAME == "seedsigner-os" else "settings.json"
+    SEEDSIGNER_OS = "seedsigner-os"
+    JSON_FILENAME = "/mnt/microsd/settings.json" if HOSTNAME == SEEDSIGNER_OS else "settings.json"
     microsd_in_use = False
         
     @classmethod
@@ -37,7 +38,7 @@ class Settings(Singleton):
         """
             Returns True for non seedsigner-os hostnames
         """
-        if Settings.HOSTNAME == "seedsigner-os":
+        if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
             if os.path.isdir('/mnt/microsd'):
                 return(True)
             else:
@@ -188,7 +189,7 @@ class SettingsMircoSDDetectThread(BaseThread):
         import os, os.path
         import time
         
-        if Settings.HOSTNAME == "seedsigner-os":
+        if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
         
             if os.path.exists("/tmp/mdev_socket"):
                 os.remove("/tmp/mdev_socket")

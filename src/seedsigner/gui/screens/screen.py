@@ -517,6 +517,7 @@ class LargeButtonScreen(BaseTopNavScreen):
     button_selected_color: str = GUIConstants.ACCENT_COLOR
     selected_button: int = 0
     show_microsd_icon: bool = False
+    microsd_icon: Icon = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -573,16 +574,15 @@ class LargeButtonScreen(BaseTopNavScreen):
         self.buttons[self.selected_button].is_selected = True
         
         if self.show_microsd_icon:
-            microsd_icon = self.draw_microsd_icon()
-            if microsd_icon:
-                self.components.append(microsd_icon)
-            self.threads.append(
-                LargeButtonScreen.MicroSDIconThread(
-                    renderer=self.renderer,
-                    parent_class=self
+            if self._seedsigner_os_microsd_mounted():
+                self.microsd_icon = self._draw_microsd_icon()
+                self.components.append(self.microsd_icon)
+                self.threads.append(
+                    LargeButtonScreen.MicroSDIconThread(
+                        renderer=self.renderer,
+                        parent_class=self
+                    )
                 )
-            )
-
 
     def _run(self):
         def swap_selected_button(new_selected_button: int):
@@ -663,25 +663,26 @@ class LargeButtonScreen(BaseTopNavScreen):
                     if self.top_nav.is_selected:
                         return self.top_nav.selected_button
                     return self.selected_button
-                    
-                if self.show_microsd_icon:
-                    microsd_icon = self.draw_microsd_icon()
-                    if microsd_icon:
-                        self.components.append(microsd_icon)
 
                 # Write the screen updates
                 self.renderer.show_image()
 
-    def draw_microsd_icon(self):
-        if Settings.HOSTNAME == "seedsigner-os" and Settings.get_instance().is_microsd_mounted:
-            microsd_icon = Icon(
-                icon_name=FontAwesomeIconConstants.SDCARD,
-                icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
-                icon_color=GUIConstants.BUTTON_FONT_COLOR,
-            )
-            microsd_icon.screen_y = GUIConstants.EDGE_PADDING
-            microsd_icon.screen_x = GUIConstants.EDGE_PADDING
-            return(microsd_icon)
+    def _seedsigner_os_microsd_mounted(self) -> bool:
+        if Settings.HOSTNAME == Settings.SEEDSIGNER_OS and Settings.get_instance().is_microsd_mounted():
+            return(True)
+        else:
+            return(False)
+
+    def _draw_microsd_icon(self) -> Icon:
+        microsd_icon = Icon(
+            icon_name=FontAwesomeIconConstants.SDCARD,
+            icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
+            icon_color=GUIConstants.BUTTON_FONT_COLOR,
+        )
+        microsd_icon.screen_y = GUIConstants.EDGE_PADDING
+        microsd_icon.screen_x = GUIConstants.EDGE_PADDING
+            
+        return(microsd_icon)
 
     class MicroSDIconThread(BaseThread):
         def __init__(self, parent_class, renderer: Renderer):
@@ -691,18 +692,33 @@ class LargeButtonScreen(BaseTopNavScreen):
         
         def run(self):
             import time
-            last_is_microsd_mounted = Settings.get_instance().is_microsd_mounted
+            last_is_microsd_mounted = Settings.get_instance().is_microsd_mounted()
             
-            while self.keep_running:
-                if last_is_microsd_mounted != Settings.get_instance().is_microsd_mounted:
-                    with self.renderer.lock:
-                        microsd_icon = self.parent.draw_microsd_icon()
-                        if microsd_icon:
-                            microsd_icon.render()
+            time.sleep(1) # delay start of checking
 
-                        self.renderer.show_image()
-                        last_is_microsd_mounted = Settings.get_instance().is_microsd_mounted
-                    time.sleep(0.5)
+            while self.keep_running:
+                if last_is_microsd_mounted != Settings.get_instance().is_microsd_mounted():
+                    # when mount status changes evaluate if icon should be displayed
+                    if Settings.get_instance().is_microsd_mounted():
+                        # not mounted
+                        if self.parent.microsd_icon in self.parent.components:
+                            #search for the microsd icon in components and remove it
+                            index = self.parent.components.index(self.parent.microsd_icon)
+                            self.parent.components.pop(index) # remove microsd icon from home screen
+                            with self.renderer.lock:
+                                self.parent._render()
+                                self.renderer.show_image()
+                    else:
+                        # mounted
+                        print("mounted path")
+                        self.parent.microsd_icon = self.parent._draw_microsd_icon()
+                        self.parent.components.append(self.parent.microsd_icon)
+                        with self.renderer.lock:
+                            self.parent._render()
+                            self.renderer.show_image()
+            
+                last_is_microsd_mounted = Settings.get_instance().is_microsd_mounted()
+                time.sleep(0.5)
 
 @dataclass
 class QRDisplayScreen(BaseScreen):
