@@ -11,7 +11,6 @@ class Settings(Singleton):
     HOSTNAME = os.uname()[1]
     SEEDSIGNER_OS = "seedsigner-os"
     JSON_FILENAME = "/mnt/microsd/settings.json" if HOSTNAME == SEEDSIGNER_OS else "settings.json"
-    microsd_in_use = False
         
     @classmethod
     def get_instance(cls):
@@ -54,8 +53,9 @@ class Settings(Singleton):
     def save(self):
         if self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] == SettingsConstants.OPTION__ENABLED:
             # write out settings files
-            with open(Settings.JSON_FILENAME, 'w') as settings_file:
-                json.dump(self._data, settings_file, indent=4)
+            if self.is_microsd_mounted():
+                with open(Settings.JSON_FILENAME, 'w') as settings_file:
+                    json.dump(self._data, settings_file, indent=4)
 
     def update(self, new_settings: dict, disable_missing_entries: bool = True):
         """
