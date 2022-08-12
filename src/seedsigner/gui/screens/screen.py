@@ -577,6 +577,7 @@ class LargeButtonScreen(BaseTopNavScreen):
             if self._seedsigner_os_microsd_mounted():
                 self.microsd_icon = self._draw_microsd_icon()
                 self.components.append(self.microsd_icon)
+            if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
                 self.threads.append(
                     LargeButtonScreen.MicroSDIconThread(
                         renderer=self.renderer,
@@ -693,13 +694,18 @@ class LargeButtonScreen(BaseTopNavScreen):
         def run(self):
             import time
             last_is_microsd_mounted = Settings.get_instance().is_microsd_mounted()
-            
-            time.sleep(1) # delay start of checking
 
             while self.keep_running:
                 if last_is_microsd_mounted != Settings.get_instance().is_microsd_mounted():
                     # when mount status changes evaluate if icon should be displayed
                     if Settings.get_instance().is_microsd_mounted():
+                        # mounted
+                        self.parent.microsd_icon = self.parent._draw_microsd_icon()
+                        self.parent.components.append(self.parent.microsd_icon)
+                        with self.renderer.lock:
+                            self.parent._render()
+                            self.renderer.show_image()
+                    else:
                         # not mounted
                         if self.parent.microsd_icon in self.parent.components:
                             #search for the microsd icon in components and remove it
@@ -708,14 +714,6 @@ class LargeButtonScreen(BaseTopNavScreen):
                             with self.renderer.lock:
                                 self.parent._render()
                                 self.renderer.show_image()
-                    else:
-                        # mounted
-                        print("mounted path")
-                        self.parent.microsd_icon = self.parent._draw_microsd_icon()
-                        self.parent.components.append(self.parent.microsd_icon)
-                        with self.renderer.lock:
-                            self.parent._render()
-                            self.renderer.show_image()
             
                 last_is_microsd_mounted = Settings.get_instance().is_microsd_mounted()
                 time.sleep(0.5)
