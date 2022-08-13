@@ -13,11 +13,11 @@ class ST7789(object):
         self.height = 240
 
         #Initialize DC RST pin
-        self._dc = 25
-        self._rst = 27
-        self._bl = 24
+        self._dc = 22
+        self._rst = 13
+        self._bl = 18
 
-        GPIO.setmode(GPIO.BCM)
+        GPIO.setmode(GPIO.BOARD)
         GPIO.setwarnings(False)
         GPIO.setup(self._dc,GPIO.OUT)
         GPIO.setup(self._rst,GPIO.OUT)
