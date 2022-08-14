@@ -482,7 +482,7 @@ b'\n\xcb\xba\x00\x8d\x9b\xa0\x05\xf5\x99k@\xa3G\\\xd9'
 
 ---
 
-## Test Vector 7: Additional Compact SeedQR problem characters
+## Test Vectors 7-9: Additional Compact SeedQR problem characters
 Explicitly check Compact SeedQRs whose byte stream contains `\n`, `\r`, or `\r\n`:
 
 `\n`:
