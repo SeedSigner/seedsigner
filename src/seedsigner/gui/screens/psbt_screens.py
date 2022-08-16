@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from lzma import is_check_supported
 from PIL import Image, ImageDraw, ImageFilter
 from typing import List
+import time
 
 from seedsigner.gui.renderer import Renderer
 from seedsigner.models.threads import BaseThread
@@ -439,7 +440,7 @@ class PSBTOverviewScreen(ButtonListScreen):
                     self.renderer.show_image()
 
                 # No need to CPU limit when running in its own thread?
-                # time.sleep(0.02)
+                time.sleep(0.02)
 
 
 
