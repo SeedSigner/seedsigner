@@ -1,5 +1,6 @@
 import logging
 import traceback
+import os
 
 from embit.descriptor import Descriptor
 from embit.psbt import PSBT
@@ -8,6 +9,7 @@ from typing import List
 
 from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.buttons import HardwareButtons
+from seedsigner.hardware.microsd import MicroSD
 from seedsigner.views.screensaver import ScreensaverScreen
 from seedsigner.views.view import Destination, NotYetImplementedView, UnhandledExceptionView
 
@@ -49,6 +51,9 @@ class Controller(Singleton):
     """
 
     VERSION = "0.5.1"
+    
+    HOSTNAME = os.uname()[1]
+    SEEDSIGNER_OS = "seedsigner-os"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
@@ -123,6 +128,10 @@ class Controller(Singleton):
         # TODO: Rename "storage" to something more indicative of its temp, in-memory state
         controller.storage = SeedStorage()
         controller.settings = Settings.get_instance()
+        
+        controller.microsd = MicroSD.get_instance()
+        controller.microsd.settings_handler = controller.settings.microsd_handler
+        controller.microsd.start_detection()
 
         # Store one working psbt in memory
         controller.psbt = None
@@ -178,11 +187,15 @@ class Controller(Singleton):
 
 
     def start(self) -> None:
-        from .views import MainMenuView, BackStackView
+        from .views import MainMenuView, BackStackView, MicroSDToastView
         from .views.screensaver import OpeningSplashScreen
 
         opening_splash = OpeningSplashScreen()
         opening_splash.start()
+        
+        # create MicroSDToastView and assign as ui event handler in MicroSD class
+        microsd_toast = MicroSDToastView()
+        self.microsd.ui_handler = microsd_toast.event_handler
 
         """ Class references can be stored as variables in python!
 

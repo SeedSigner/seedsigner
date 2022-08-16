@@ -4,20 +4,15 @@ import os
 from typing import Any, List
 
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
-
 from .singleton import Singleton
 
 
 
 
 class Settings(Singleton):
-    hostname = os.uname()[1]
-    SETTINGS_FILENAME = ""
-
-    if hostname == "seedsigner-os":
-        SETTINGS_FILENAME = "/mnt/microsd/settings.json"
-    else:
-        SETTINGS_FILENAME = "settings.json"
+    HOSTNAME = os.uname()[1]
+    SEEDSIGNER_OS = "seedsigner-os"
+    SETTINGS_FILENAME = "/mnt/microsd/settings.json" if HOSTNAME == SEEDSIGNER_OS else "settings.json"
         
     @classmethod
     def get_instance(cls):
@@ -106,9 +101,12 @@ class Settings(Singleton):
         
         # Special handling for toggling persistence
         if attr_name == SettingsConstants.SETTING__PERSISTENT_SETTINGS and value == SettingsConstants.OPTION__DISABLED:
-            os.remove(self.SETTINGS_FILENAME)
-            print(f"Removed {self.SETTINGS_FILENAME}")
-
+            try:
+                os.remove(self.SETTINGS_FILENAME)
+                print(f"Removed {self.SETTINGS_FILENAME}")
+            except:
+                print(f"{self.SETTINGS_FILENAME} not found to be removed")
+                
         self._data[attr_name] = value
         self.save()
     
@@ -173,3 +171,27 @@ class Settings(Singleton):
         return self._data[SettingsConstants.SETTING__DEBUG] == SettingsConstants.OPTION__ENABLED
 
 
+    def microsd_handler(self, action, mount_dir):
+        from seedsigner.controller import Controller
+        if Controller.HOSTNAME == Controller.SEEDSIGNER_OS:
+        
+            if action == "add":
+                # restore persistent settings back to defaults
+                entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
+                entry.selection_options = SettingsConstants.OPTIONS__ENABLED_DISABLED
+                entry.help_text = "Store Settings on SD card."
+                
+                # if Settings file exists (meaning persistent settings was previously enabled), write out current settings to disk
+                if os.path.exists(Settings.SETTINGS_FILENAME):
+                    # enable persistent settings first, then save
+                    self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] = SettingsConstants.OPTION__ENABLED
+                    Settings.get_instance().save()
+                    
+            elif action == "remove":
+                # set persistent settings to disabled value directly
+                self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] = SettingsConstants.OPTION__DISABLED
+                
+                # set persistent settings to only have disabled as an option, adding additional help text that microSD is removed
+                entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
+                entry.selection_options = SettingsConstants.OPTIONS__ONLY_DISABLED
+                entry.help_text = "MicroSD card is removed"

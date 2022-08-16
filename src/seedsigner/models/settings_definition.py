@@ -13,6 +13,9 @@ class SettingsConstants:
         (OPTION__ENABLED, "Enabled"),
         (OPTION__DISABLED, "Disabled"),
     ]
+    OPTIONS__ONLY_DISABLED = [
+        (OPTION__DISABLED, "Disabled"),
+    ]
     OPTIONS__PROMPT_REQUIRED_DISABLED = [
         (OPTION__PROMPT, "Prompt"),
         (OPTION__REQUIRED, "Required"),
