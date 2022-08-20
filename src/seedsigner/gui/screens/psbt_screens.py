@@ -696,19 +696,3 @@ class PSBTFinalizeScreen(ButtonListScreen):
             text="Click to authorize this transaction",
             screen_y=icon.screen_y + icon.height + GUIConstants.COMPONENT_PADDING
         ))
-
-
-
-@dataclass
-class PSBTSelectCoordinatorScreen(ButtonListScreen):
-    def __post_init__(self):
-        # Customize defaults
-        self.title = "Signed PSBT"
-        self.is_bottom_list = True
-        super().__post_init__()
-
-        self.components.append(TextArea(
-            text="Export as a QR code for:",
-            is_text_centered=True,
-            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
-        ))

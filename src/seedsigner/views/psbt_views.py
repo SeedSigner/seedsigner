@@ -484,44 +484,18 @@ class PSBTFinalizeView(View):
             
             else:
                 self.controller.psbt = trimmed_psbt
-
-                if len(self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)) == 1:
-                    return Destination(PSBTSignedQRDisplayView, view_args={"coordinator": self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[0]})
-                else:
-                    return Destination(PSBTSelectCoordinatorView)
+                return Destination(PSBTSignedQRDisplayView)
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-
-
-
-class PSBTSelectCoordinatorView(View):
-    def run(self):
-        button_data = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)
-        selected_menu_num = psbt_screens.PSBTSelectCoordinatorScreen(
-            button_data=button_data
-        ).display()
-
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-
-        return Destination(PSBTSignedQRDisplayView, view_args={"coordinator": button_data[selected_menu_num]})
 
 
 
 class PSBTSignedQRDisplayView(View):
-    def __init__(self, coordinator: str):
-        super().__init__()
-        self.coordinator = coordinator
-    
     def run(self):
-        qr_psbt_type = QRType.PSBT__UR2
-        if self.coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
-            qr_psbt_type = QRType.PSBT__SPECTER
-
         qr_encoder = EncodeQR(
             psbt=self.controller.psbt,
-            qr_type=qr_psbt_type,
+            qr_type=QRType.PSBT__UR2,
             qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
             wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE),
         )
