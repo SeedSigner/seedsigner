@@ -495,7 +495,7 @@ class PSBTSignedQRDisplayView(View):
     def run(self):
         qr_encoder = EncodeQR(
             psbt=self.controller.psbt,
-            qr_type=QRType.PSBT__UR2,
+            qr_type=QRType.PSBT__UR2,  # All coordinators (as of 2022-08) use this format
             qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
             wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE),
         )
