@@ -51,9 +51,6 @@ class Controller(Singleton):
     """
 
     VERSION = "0.5.1"
-    
-    HOSTNAME = os.uname()[1]
-    SEEDSIGNER_OS = "seedsigner-os"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
@@ -130,7 +127,6 @@ class Controller(Singleton):
         controller.settings = Settings.get_instance()
         
         controller.microsd = MicroSD.get_instance()
-        controller.microsd.settings_handler = controller.settings.microsd_handler
         controller.microsd.start_detection()
 
         # Store one working psbt in memory
@@ -192,10 +188,6 @@ class Controller(Singleton):
 
         opening_splash = OpeningSplashScreen()
         opening_splash.start()
-        
-        # create MicroSDToastView and assign as ui event handler in MicroSD class
-        microsd_toast = MicroSDToastView()
-        self.microsd.ui_handler = microsd_toast.event_handler
 
         """ Class references can be stored as variables in python!
 

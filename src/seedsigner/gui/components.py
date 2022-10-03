@@ -607,7 +607,7 @@ class ToastOverlay(BaseComponent):
             
     def render(self):
         self.image_draw.rounded_rectangle(
-            ( 10, 180, 230, 230),
+            ( GUIConstants.EDGE_PADDING + 2, self.canvas_height - 60, self.canvas_width - GUIConstants.EDGE_PADDING - 2, self.canvas_width - GUIConstants.EDGE_PADDING - 2),
             fill=GUIConstants.BACKGROUND_COLOR,
             radius=8,
             outline=self.color,

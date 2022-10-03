@@ -2,10 +2,14 @@ import time
 
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
+from seedsigner.models.settings import Settings
+from seedsigner.views.view import MicroSDToastView
 
 class MicroSD(Singleton, BaseThread):
 	
-	ui_handler = None
+	ACTION__INSERTED = "add"
+	ACTION__REMOVED = "remove"
+
 	settings_handler = None
 	
 	@classmethod
@@ -27,10 +31,8 @@ class MicroSD(Singleton, BaseThread):
 	def run(self):
 		import socket, os, time
 		
-		from seedsigner.controller import Controller
-		
 		# explicitly only microsd add/remove detection in seedsigner-os
-		if Controller.HOSTNAME == Controller.SEEDSIGNER_OS:
+		if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
 			
 			if os.path.exists("/tmp/mdev_socket"):
 				os.remove("/tmp/mdev_socket")
@@ -45,14 +47,12 @@ class MicroSD(Singleton, BaseThread):
 				action = ""
 				mount_dir = ""
 				if data:
-					msg = data.decode("utf-8").strip().split(" ")
+					msg = data.decode("utf-8").strip().split("|")
 					action = msg[0]
-					mount_dir = msg[1]
-					print(f"socket message: {action} {mount_dir}")
+					print(f"socket message: {action}")
 				conn.close()
-					
-				if self.settings_handler:
-					self.settings_handler(action, mount_dir)
-					
-				if self.ui_handler:
-					self.ui_handler(action, mount_dir)
+				
+				Settings.microsd_handler(action=action)
+				
+				toast_view = MicroSDToastView(action=action)
+				toast_view.run()

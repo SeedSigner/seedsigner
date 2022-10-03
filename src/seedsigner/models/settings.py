@@ -171,11 +171,12 @@ class Settings(Singleton):
         return self._data[SettingsConstants.SETTING__DEBUG] == SettingsConstants.OPTION__ENABLED
 
 
-    def microsd_handler(self, action, mount_dir):
-        from seedsigner.controller import Controller
-        if Controller.HOSTNAME == Controller.SEEDSIGNER_OS:
+    def microsd_handler(action):
+        from seedsigner.hardware.microsd import MicroSD
         
-            if action == "add":
+        if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
+        
+            if action == MicroSD.ACTION__INSERTED:
                 # restore persistent settings back to defaults
                 entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
                 entry.selection_options = SettingsConstants.OPTIONS__ENABLED_DISABLED
@@ -184,12 +185,12 @@ class Settings(Singleton):
                 # if Settings file exists (meaning persistent settings was previously enabled), write out current settings to disk
                 if os.path.exists(Settings.SETTINGS_FILENAME):
                     # enable persistent settings first, then save
-                    self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] = SettingsConstants.OPTION__ENABLED
+                    Settings.get_instance()._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] = SettingsConstants.OPTION__ENABLED
                     Settings.get_instance().save()
                     
-            elif action == "remove":
+            elif action == MicroSD.ACTION__REMOVED:
                 # set persistent settings to disabled value directly
-                self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] = SettingsConstants.OPTION__DISABLED
+                Settings.get_instance()._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] = SettingsConstants.OPTION__DISABLED
                 
                 # set persistent settings to only have disabled as an option, adding additional help text that microSD is removed
                 entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
