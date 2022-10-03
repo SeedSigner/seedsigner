@@ -48,7 +48,7 @@ class MicroSD(Singleton, BaseThread):
 				action = ""
 				mount_dir = ""
 				if data:
-					msg = data.decode("utf-8").strip().split("|")
+					msg = data.decode("utf-8").strip().replace(" ","|").split("|")
 					action = msg[0]
 					print(f"socket message: {action}")
 				conn.close()
