@@ -3,7 +3,8 @@ import time
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
 from seedsigner.models.settings import Settings
-from seedsigner.views.view import MicroSDToastView
+#from seedsigner.views.view import MicroSDToastView
+from seedsigner.gui.screens.screen import MicroSDToastScreen
 
 class MicroSD(Singleton, BaseThread):
 	
@@ -54,5 +55,5 @@ class MicroSD(Singleton, BaseThread):
 				
 				Settings.microsd_handler(action=action)
 				
-				toast_view = MicroSDToastView(action=action)
-				toast_view.run()
+				toastscreen = MicroSDToastScreen(action=action)
+				toastscreen.display()

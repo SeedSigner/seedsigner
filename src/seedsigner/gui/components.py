@@ -606,6 +606,16 @@ class ToastOverlay(BaseComponent):
         )
             
     def render(self):
+        import time
+        from seedsigner.controller import Controller
+        
+        self.controller: Controller = Controller.get_instance()
+        self.current_screen = self.renderer.canvas.copy()
+        
+        # Special case when screensaver is running
+        if self.controller.screensaver._is_running:
+            self.controller.buttons.override_ind = True
+
         self.image_draw.rounded_rectangle(
             ( GUIConstants.EDGE_PADDING + 2, self.canvas_height - 60, self.canvas_width - GUIConstants.EDGE_PADDING - 2, self.canvas_width - GUIConstants.EDGE_PADDING - 2),
             fill=GUIConstants.BACKGROUND_COLOR,
@@ -616,6 +626,15 @@ class ToastOverlay(BaseComponent):
         
         self.icon.render()
         self.label.render()
+        
+        self.renderer.show_image()
+        
+        t_end = time.time() + 3
+        while time.time() < t_end:
+            if self.controller.buttons.has_any_input():
+                break
+            
+        self.renderer.show_image(self.current_screen)
 
 @dataclass
 class FormattedAddress(BaseComponent):

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List
 
-from seedsigner.gui.components import FontAwesomeIconConstants, ToastOverlay, GUIConstants
+from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, DireWarningScreen, LargeButtonScreen, PowerOffScreen, ResetScreen, WarningScreen
 from seedsigner.models.threads import BaseThread
@@ -243,47 +243,3 @@ class UnhandledExceptionView(View):
         ).display()
         
         return Destination(MainMenuView, clear_history=True)
-
-class MicroSDToastView(View):
-    def __init__(self, action):
-        self.action = action
-        super().__init__()
-    
-    def run(self):
-        import time
-        from seedsigner.hardware.microsd import MicroSD
-        
-        self.current_screen = self.renderer.canvas.copy()
-        
-        # Special case when screensaver is running
-        if self.controller.screensaver._is_running:
-            self.buttons.override_ind = True
-        
-        # MicroSDToastView blocks any attempts to use the Renderer in another thread so it
-        # never gives up the lock until it returns.
-        with self.renderer.lock:
-            if self.action == MicroSD.ACTION__REMOVED:
-
-                toast = ToastOverlay(
-                    icon_name=FontAwesomeIconConstants.SDCARD,
-                    color=GUIConstants.NOTIFICATION_COLOR,
-                    label_text="MicroSD removed"
-                )
-            
-            elif self.action == MicroSD.ACTION__INSERTED:
-                
-                toast = ToastOverlay(
-                    icon_name=FontAwesomeIconConstants.SDCARD,
-                    color=GUIConstants.NOTIFICATION_COLOR,
-                    label_text="MicroSD inserted"
-                )
-
-            toast.render()
-            self.renderer.show_image()
-            
-            t_end = time.time() + 3
-            while time.time() < t_end:
-                if self.buttons.has_any_input():
-                    break
-                
-            self.renderer.show_image(self.current_screen)
