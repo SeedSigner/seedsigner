@@ -30,30 +30,26 @@ class MicroSD(Singleton, BaseThread):
 		self.start()
 	
 	def run(self):
-		import socket, os, time
+		import os
+		
+		FIFO_PATH = "/tmp/mdev_fifo"
+		FIFO_MODE = 0o600
+		action = ""
 		
 		# explicitly only microsd add/remove detection in seedsigner-os
 		if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
 			
-			if os.path.exists("/tmp/mdev_socket"):
-				os.remove("/tmp/mdev_socket")
+			if os.path.exists(FIFO_PATH):
+				os.remove(FIFO_PATH)
 			
-			server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-			server.bind("/tmp/mdev_socket")
+			os.mkfifo(FIFO_PATH, FIFO_MODE)
+			
 			while self.keep_running:
-				
-				server.listen(1)
-				conn, addr = server.accept()
-				data = conn.recv(1000) # 1000 bytes limit
-				action = ""
-				mount_dir = ""
-				if data:
-					msg = data.decode("utf-8").strip().replace(" ","|").split("|")
-					action = msg[0]
-					print(f"socket message: {action}")
-				conn.close()
-				
-				Settings.microsd_handler(action=action)
-				
-				toastscreen = MicroSDToastScreen(action=action)
-				toastscreen.display()
+				with open(FIFO_PATH) as fifo:
+					action = fifo.read()
+					print(f"fifo message: {action}")
+			
+					Settings.microsd_handler(action=action)
+							
+					toastscreen = MicroSDToastScreen(action=action)
+					toastscreen.display()
