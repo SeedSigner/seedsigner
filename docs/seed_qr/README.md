@@ -480,3 +480,72 @@ b'\n\xcb\xba\x00\x8d\x9b\xa0\x05\xf5\x99k@\xa3G\\\xd9'
     </tr>
 </table>
 
+---
+
+## Test Vectors 7-9: Additional Compact SeedQR problem characters
+Explicitly check Compact SeedQRs whose byte stream contains `\n`, `\r`, or `\r\n`:
+
+`\n`:
+```bash
+# 12-word seed:
+dignity utility vacant shiver thought canoe feel multiply item youth actor coyote
+
+# Standard SeedQR digit stream:
+049619221923158517990268067811630950204300210397
+
+# CompactSeedQR bitstream:
+00111110000111100000101111000001111000110001111000001110010000110001010100110100100010110111011011011111111011000000101010011000
+
+# CompactSeedQR bytestream:
+b'>\x1e\x0b\xc1\xe3\x1e\x0eC\x154\x8bv\xdf\xec\n\x98'
+```
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector7_compact_12word.png"><br/>CompactSeedQR</td>
+    </tr>
+</table>
+
+
+`\r`:
+```bash
+# 12-word seed:
+corn voice scrap arrow original diamond trial property benefit choose junk lock
+
+# Standard SeedQR digit stream:
+038719631547010112530489185713790169032209701051
+
+# CompactSeedQR bitstream:
+00110000011111101010111100000101100001100101100111001010011110100111101000001101011000110001010100100101000010011110010101000001
+
+# CompactSeedQR bytestream:
+b'0~\xaf\x05\x86Y\xcazz\rc\x15%\t\xe5A'
+```
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector8_compact_12word.png"><br/>CompactSeedQR</td>
+    </tr>
+</table>
+
+
+`\r\n`:
+```bash
+# 12-word seed:
+vocal tray giggle tool duck letter category pattern train magnet excite swamp
+
+# Standard SeedQR digit stream:
+196218530783182905421028028912901848107106301753
+
+# CompactSeedQR bitstream:
+11110101010111001111010110000111111100100101010000111101000000010000100100001101000010101110011100010000101111010011101101101101
+
+# CompactSeedQR bytestream:
+b'\xf5\\\xf5\x87\xf2T=\x01\t\r\n\xe7\x10\xbd;m'
+```
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector9_compact_12word.png"><br/>CompactSeedQR</td>
+    </tr>
+</table>
