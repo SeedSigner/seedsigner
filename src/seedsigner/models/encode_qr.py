@@ -39,6 +39,7 @@ class EncodeQR:
     qr_density: str = SettingsConstants.DENSITY__MEDIUM
     wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
     bitcoin_address: str = None
+    signed_message: str = None
 
     def __post_init__(self):
         self.qr = QR()
@@ -98,8 +99,12 @@ class EncodeQR:
             self.encoder = CompactSeedQrEncoder(seed_phrase=self.seed_phrase,
                                                 wordlist_language_code=self.wordlist_language_code)
         
+        # Misc formats
         elif self.qr_type == QRType.BITCOIN_ADDRESS:
             self.encoder = BitcoinAddressEncoder(address=self.bitcoin_address)
+
+        elif self.qr_type == QRType.SIGN_MESSAGE:
+            self.encoder = SignedMessageEncoder(signed_message=self.signed_message)
 
         else:
             raise Exception('QR Type not supported')
@@ -152,6 +157,17 @@ class BaseQrEncoder:
 
     def _create_parts(self):
         raise Exception("Not implemented in child class")
+
+
+
+class BaseStaticQrEncoder(BaseQrEncoder):
+    def seq_len(self):
+        return 1
+
+
+    @property
+    def is_complete(self):
+        return True
 
 
 
@@ -264,7 +280,7 @@ class SpecterPsbtQrEncoder(BasePsbtQrEncoder):
 
 
 
-class SeedQrEncoder(BaseQrEncoder):
+class SeedQrEncoder(BaseStaticQrEncoder):
     def __init__(self, seed_phrase: List[str], wordlist_language_code: str):
         super().__init__()
         self.seed_phrase = seed_phrase
@@ -274,10 +290,6 @@ class SeedQrEncoder(BaseQrEncoder):
             raise Exception('Wordlist Required')
 
 
-    def seq_len(self):
-        return 1
-
-
     def next_part(self):
         data = ""
         # Output as Numeric data format
@@ -285,11 +297,6 @@ class SeedQrEncoder(BaseQrEncoder):
             index = self.wordlist.index(word)
             data += str("%04d" % index)
         return data
-
-
-    @property
-    def is_complete(self):
-        return True
 
 
 
@@ -323,23 +330,29 @@ class CompactSeedQrEncoder(SeedQrEncoder):
 
 
 
-class BitcoinAddressEncoder(BaseQrEncoder):
+class BitcoinAddressEncoder(BaseStaticQrEncoder):
     def __init__(self, address: str):
         super().__init__()
         self.address = address
-
-
-    def seq_len(self):
-        return 1
 
 
     def next_part(self):
         return self.address
 
 
-    @property
-    def is_complete(self):
-        return True
+
+class SignedMessageEncoder(BaseStaticQrEncoder):
+    """
+    Assumes that a signed message will fit in a single-frame QR
+    """
+    def __init__(self, signed_message: str):
+        super().__init__()
+        self.signed_message = signed_message
+
+
+    def next_part(self):
+        return self.signed_message
+
 
 
 class XpubQrEncoder(BaseQrEncoder):

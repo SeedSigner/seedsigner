@@ -1,9 +1,14 @@
 import embit
-from embit import bip32
+
+from binascii import b2a_base64
+from hashlib import sha256
+
+from embit import bip32, compact, ec
 from embit.bip32 import HDKey
 from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
-from embit.networks import NETWORKS
+from embit.util import secp256k1
+
 
 from seedsigner.models.settings_definition import SettingsConstants
 
@@ -93,3 +98,26 @@ def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool
     elif descriptor.is_taproot:
         # TODO: Not yet implemented!
         raise Exception("Taproot verification not yet implemented!")
+
+
+
+def sign_message(seed_bytes: bytes, derivation, msg: bytes, compressed: bool = True, embit_network: str="main") -> bytes:
+    """
+        from: https://github.com/cryptoadvance/specter-diy/blob/b58a819ef09b2bca880a82c7e122618944355118/src/apps/signmessage/signmessage.py
+    """
+    """Sign message with private key"""
+    msghash = sha256(
+        sha256(
+            b"\x18Bitcoin Signed Message:\n" + compact.to_bytes(len(msg)) + msg
+        ).digest()
+    ).digest()
+
+    root = bip32.HDKey.from_seed(seed_bytes, version=NETWORKS[embit_network]["xprv"])
+    prv = root.derive(derivation).key
+    sig = secp256k1.ecdsa_sign_recoverable(msghash, prv._secret)
+    flag = sig[64]
+    sig = ec.Signature(sig[:64])
+    c = 4 if compressed else 0
+    flag = bytes([27 + flag + c])
+    ser = flag + secp256k1.ecdsa_signature_serialize_compact(sig._sig)
+    return b2a_base64(ser).strip().decode()

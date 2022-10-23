@@ -135,6 +135,18 @@ class ScanView(View):
                     }
                 )
             
+            elif self.decoder.is_sign_message:
+                from seedsigner.views.seed_views import SeedSignMessageStartView
+                qr_data = self.decoder.get_qr_data()
+
+                return Destination(
+                    SeedSignMessageStartView,
+                    view_args=dict(
+                        derivation_path=qr_data["derivation_path"],
+                        message=qr_data["message"],
+                    )
+                )
+            
             else:
                 return Destination(NotYetImplementedView)
 

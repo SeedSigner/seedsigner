@@ -177,6 +177,8 @@ class PSBTUnsupportedScriptTypeWarningView(View):
             skip_current_view=True,  # Prevent going BACK to WarningViews
         )
 
+
+
 class PSBTNoChangeWarningView(View):
     def run(self):
         selected_menu_num = WarningScreen(
