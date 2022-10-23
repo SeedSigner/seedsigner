@@ -70,7 +70,8 @@ class SeedsMenuView(View):
 
 class SeedSelectSeedView(View):
     """
-    Prompts the user to select amongst the already-loaded seeds OR to load a seed.
+    Reusable seed selection UI. Prompts the user to select amongst the already-loaded
+    seeds OR to load a seed.
 
     * `flow`: indicates which user flow is in progress during seed selection (e.g.
                 verify single sig addr or sign message).
@@ -1957,6 +1958,11 @@ class MultisigWalletDescriptorView(View):
     Sign Message Views
 ****************************************************************************"""
 class SeedSignMessageStartView(View):
+    """
+    Routes users straight through to the "Sign" screen if a signing `seed_num` has
+    already been selected. Otherwise routes to `SeedSelectSeedView` to select or
+    load a seed first.
+    """
     def __init__(self, derivation_path: str, message: str):
         super().__init__()
         self.derivation_path = derivation_path
@@ -2006,11 +2012,14 @@ class SeedSignMessageConfirmView(View):
             return Destination(BackStackView)
 
         # User clicked "Sign"
-        return Destination(SeedSignMessageSignedMessageView)
+        return Destination(SeedSignMessageSignedMessageQRView)
 
 
 
-class SeedSignMessageSignedMessageView(View):
+class SeedSignMessageSignedMessageQRView(View):
+    """
+    Displays the signed message as a QR code.
+    """
     def __init__(self):
         super().__init__()
         data = self.controller.sign_message_data
