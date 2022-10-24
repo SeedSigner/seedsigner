@@ -6,6 +6,7 @@ from embit.networks import NETWORKS
 from typing import List
 
 from seedsigner.models.settings import SettingsConstants
+from seedsigner.helpers import embit_utils
 
 
 
@@ -106,12 +107,11 @@ class Seed:
         root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
         return hexlify(root.child(0).fingerprint).decode('utf-8')
         
+
     def get_xpub(self, wallet_path: str = '/', network: str = SettingsConstants.MAINNET):
-        root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
-        xprv = root.derive(wallet_path)
-        xpub = xprv.to_public()
-        return xpub
-    
+        return embit_utils.get_xpub(seed_bytes=self.seed_bytes, derivation_path=wallet_path, embit_network=SettingsConstants.map_network_to_embit(network))
+
+
     ### override operators    
     def __eq__(self, other):
         if isinstance(other, Seed):

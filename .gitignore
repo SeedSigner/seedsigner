@@ -5,3 +5,4 @@ src/seedsigner.egg-info/
 .vscode
 src/seedsigner/models/settings_definition.json
 .idea
+*.mo
