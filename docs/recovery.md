@@ -27,7 +27,7 @@ Custom derivation paths are also optional when generating an xpub from SeedSigne
 
 Changing the network settings from main to test in SeedSigner will change the public key encoding and derivation path following [slip-0132](https://github.com/satoshilabs/slips/blob/master/slip-0132.md) standards.
 
-Because passphrase usage has not been standardized in BIP-0039 nor across wallets and signing devices, SeedSigner does not place a limit seed passphrase length. 
+Because passphrase usage has not been standardized in BIP-0039 nor across wallets and signing devices, SeedSigner does not place a limit on seed passphrase length. 
 
 Related Standards:
 - [bip-0032](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
