@@ -6,7 +6,7 @@ SeedSigner does not impose a passphrase length limit, to accomodate recovery of 
 
 When creating a seed with a passphrase on SeedSigner, consider whether or not you intend to recover your seed on a wallet or signing device other than SeedSigner, and act accordingly. 
 
-Below are a list of passphrase length limits imposed by various hardware/software wallets and signing devices:
+Below are a list of passphrase length limits imposed by various wallets and signing devices:
 
 | Wallet       | Max Passphrase Length |
 |--------------|------------------------|
