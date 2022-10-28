@@ -1,6 +1,6 @@
 ## Passphrase Considerations
 
-As of writing this document, passphrase length has not been standardized across software/hardware wallets.
+As of writing this document, passphrase length has not been standardized across wallets and signing devices.
 
 SeedSigner does not impose a passphrase length limit, to accomodate recovery of seeds created on alternate platforms with large or unbounded passphrase lengths.
 
