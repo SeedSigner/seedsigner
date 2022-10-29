@@ -631,7 +631,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         keys_lower = "abcdefghijklmnopqrstuvwxyz"
         keys_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         keys_number = "0123456789"
-        keys_symbol = "!\"#$%&'()*+,=./;:<>?@[]|-_`~"
+        keys_symbol = "!\"#$%&'()*+,=./;:<>?@[]|-_`~^{}\\"
 
         # Set up the keyboard params
         self.right_panel_buttons_width = 56
@@ -714,7 +714,6 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 self.canvas_height - GUIConstants.EDGE_PADDING
             ),
             additional_keys=[
-                Keyboard.KEY_SPACE_4,
                 Keyboard.KEY_CURSOR_LEFT,
                 Keyboard.KEY_CURSOR_RIGHT,
                 Keyboard.KEY_BACKSPACE
