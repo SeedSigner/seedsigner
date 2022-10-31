@@ -134,7 +134,6 @@ class Keyboard:
                 if self.is_additional_key:
                     rect_color = "#000"
                     font_color = "#999"
-                    # rect_color = self.keyboard.background_color
                 else:
                     rect_color = self.keyboard.background_color
                     font_color = "#e8e8e8"

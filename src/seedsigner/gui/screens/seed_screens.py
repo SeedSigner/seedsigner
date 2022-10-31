@@ -632,7 +632,12 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         keys_lower = "abcdefghijklmnopqrstuvwxyz"
         keys_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         keys_number = "0123456789"
+
+        # Present the most common/puncutation-related symbols & the most human-friendly
+        #   symbols first (limited to 18 chars).
         keys_symbol_1 = """!@#$%&();:,.-+='"?"""
+
+        # Isolate the more math-oriented or just uncommon symbols
         keys_symbol_2 = """^*[]{}_\\|<>/`~"""
 
 
