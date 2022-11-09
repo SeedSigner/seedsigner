@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from lzma import is_check_supported
 from PIL import Image, ImageDraw, ImageFilter
 from typing import List
+import time
 
 from seedsigner.gui.renderer import Renderer
 from seedsigner.models.threads import BaseThread
@@ -118,8 +119,12 @@ class PSBTOverviewScreen(ButtonListScreen):
         #     max_destination_col_width += curve_width
         
         # Now let's maximize the actual destination col by adjusting our addr truncation
-        def calculate_destination_col_width(truncate_at: int):
+        def calculate_destination_col_width(truncate_at: int = 0):
             def truncate_destination_addr(addr):
+                # TODO: Properly handle the ellipsis truncation in different languages
+                if len(addr) <= truncate_at + len("..."):
+                    # No point in truncating
+                    return addr
                 return f"{addr[:truncate_at]}..."
             
             destination_column = []
@@ -129,7 +134,7 @@ class PSBTOverviewScreen(ButtonListScreen):
                     destination_column.append(truncate_destination_addr(addr))
 
                 for i in range(0, self.num_self_transfer_outputs):
-                    destination_column.append(f"self-transfer")
+                    destination_column.append(truncate_destination_addr("self-transfer"))
             else:
                 # destination_column.append(f"{len(self.destination_addresses)} recipients")
                 destination_column.append(f"recipient 1")
@@ -151,10 +156,10 @@ class PSBTOverviewScreen(ButtonListScreen):
         
         if len(self.destination_addresses) + self.num_self_transfer_outputs > 3:
             # We're not going to display any destination addrs so truncation doesn't matter
-            (destination_text_width, destination_column) = calculate_destination_col_width(truncate_at=0)
+            (destination_text_width, destination_column) = calculate_destination_col_width()
         else:
             # Steadliy widen out the destination column until we run out of space
-            for i in range(6, 13):
+            for i in range(6, 14):
                 (new_width, new_col_text) = calculate_destination_col_width(truncate_at=i)
                 if new_width > max_destination_col_width:
                     break
@@ -435,7 +440,7 @@ class PSBTOverviewScreen(ButtonListScreen):
                     self.renderer.show_image()
 
                 # No need to CPU limit when running in its own thread?
-                # time.sleep(0.02)
+                time.sleep(0.02)
 
 
 
@@ -691,20 +696,4 @@ class PSBTFinalizeScreen(ButtonListScreen):
         self.components.append(TextArea(
             text="Click to authorize this transaction",
             screen_y=icon.screen_y + icon.height + GUIConstants.COMPONENT_PADDING
-        ))
-
-
-
-@dataclass
-class PSBTSelectCoordinatorScreen(ButtonListScreen):
-    def __post_init__(self):
-        # Customize defaults
-        self.title = "Signed PSBT"
-        self.is_bottom_list = True
-        super().__post_init__()
-
-        self.components.append(TextArea(
-            text="Export as a QR code for:",
-            is_text_centered=True,
-            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
         ))

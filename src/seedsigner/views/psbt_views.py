@@ -32,7 +32,8 @@ class PSBTSelectSeedView(View):
         seeds = self.controller.storage.seeds
 
         SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
-        ENTER_WORDS = "Enter 12/24 words"
+        TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+        TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
         button_data = []
         for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
@@ -45,7 +46,8 @@ class PSBTSelectSeedView(View):
                 pass
             button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
         button_data.append(SCAN_SEED)
-        button_data.append(ENTER_WORDS)
+        button_data.append(TYPE_12WORD)
+        button_data.append(TYPE_24WORD)
 
         selected_menu_num = ButtonListScreen(
             title="Select Signer",
@@ -68,8 +70,12 @@ class PSBTSelectSeedView(View):
             from seedsigner.views.scan_views import ScanView
             return Destination(ScanView)
 
-        elif button_data[selected_menu_num] == ENTER_WORDS:
+        elif button_data[selected_menu_num] in [TYPE_12WORD, TYPE_24WORD]:
             from seedsigner.views.seed_views import SeedMnemonicEntryView
+            if button_data[selected_menu_num] == TYPE_12WORD:
+                self.controller.storage.init_pending_mnemonic(num_words=12)
+            else:
+                self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
 
@@ -78,18 +84,22 @@ class PSBTOverviewView(View):
     def __init__(self):
         super().__init__()
 
-        # The PSBTParser takes a while to read the PSBT. Run the loading screen while we
-        # wait.
-        self.loading_screen = LoadingScreenThread(text="Parsing PSBT...")
-        self.loading_screen.start()
+        self.loading_screen = None
 
         if not self.controller.psbt_parser or self.controller.psbt_parser.seed != self.controller.psbt_seed:
-            # Must run the PSBTParser or re-parse
-            self.controller.psbt_parser = PSBTParser(
-                self.controller.psbt,
-                seed=self.controller.psbt_seed,
-                network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-            )
+            # The PSBTParser takes a while to read the PSBT. Run the loading screen while
+            # we wait.
+            self.loading_screen = LoadingScreenThread(text="Parsing PSBT...")
+            self.loading_screen.start()
+            try:
+                self.controller.psbt_parser = PSBTParser(
+                    self.controller.psbt,
+                    seed=self.controller.psbt_seed,
+                    network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+                )
+            except Exception as e:
+                self.loading_screen.stop()
+                raise e
 
 
     def run(self):
@@ -126,7 +136,8 @@ class PSBTOverviewView(View):
         )
 
         # Everything is set. Stop the loading screen
-        self.loading_screen.stop()
+        if self.loading_screen:
+            self.loading_screen.stop()
 
         # Run the overview screen
         selected_menu_num = screen.display()
@@ -144,6 +155,8 @@ class PSBTOverviewView(View):
 
         else:
             return Destination(PSBTMathView)
+
+
 
 class PSBTUnsupportedScriptTypeWarningView(View):
     def run(self):
@@ -459,14 +472,9 @@ class PSBTFinalizeView(View):
 
         if selected_menu_num == 0:
             # Sign PSBT
-            loading_screen = LoadingScreenThread(text="Signing PSBT...")
-            loading_screen.start()
-
             sig_cnt = PSBTParser.sig_count(psbt)
             psbt.sign_with(psbt_parser.root)
             trimmed_psbt = PSBTParser.trim(psbt)
-
-            loading_screen.stop()
 
             if sig_cnt == PSBTParser.sig_count(trimmed_psbt):
                 # Signing failed / didn't do anything
@@ -476,44 +484,18 @@ class PSBTFinalizeView(View):
             
             else:
                 self.controller.psbt = trimmed_psbt
-
-                if len(self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)) == 1:
-                    return Destination(PSBTSignedQRDisplayView, view_args={"coordinator": self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[0]})
-                else:
-                    return Destination(PSBTSelectCoordinatorView)
+                return Destination(PSBTSignedQRDisplayView)
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-
-
-
-class PSBTSelectCoordinatorView(View):
-    def run(self):
-        button_data = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)
-        selected_menu_num = psbt_screens.PSBTSelectCoordinatorScreen(
-            button_data=button_data
-        ).display()
-
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-
-        return Destination(PSBTSignedQRDisplayView, view_args={"coordinator": button_data[selected_menu_num]})
 
 
 
 class PSBTSignedQRDisplayView(View):
-    def __init__(self, coordinator: str):
-        super().__init__()
-        self.coordinator = coordinator
-    
     def run(self):
-        qr_psbt_type = QRType.PSBT__UR2
-        if self.coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
-            qr_psbt_type = QRType.PSBT__SPECTER
-
         qr_encoder = EncodeQR(
             psbt=self.controller.psbt,
-            qr_type=qr_psbt_type,
+            qr_type=QRType.PSBT__UR2,  # All coordinators (as of 2022-08) use this format
             qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
             wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE),
         )

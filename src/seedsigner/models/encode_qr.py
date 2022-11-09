@@ -37,6 +37,7 @@ class EncodeQR:
     qr_type: str = None
     qr_density: str = SettingsConstants.DENSITY__MEDIUM
     wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
+    bitcoin_address: str = None
 
     def __post_init__(self):
         self.qr = QR()
@@ -95,6 +96,9 @@ class EncodeQR:
         elif self.qr_type == QRType.SEED__COMPACTSEEDQR:
             self.encoder = CompactSeedQrEncoder(seed_phrase=self.seed_phrase,
                                                 wordlist_language_code=self.wordlist_language_code)
+        
+        elif self.qr_type == QRType.BITCOIN_ADDRESS:
+            self.encoder = BitcoinAddressEncoder(address=self.bitcoin_address)
 
         else:
             raise Exception('QR Type not supported')
@@ -316,6 +320,25 @@ class CompactSeedQrEncoder(SeedQrEncoder):
         # Must return data as `bytes` for `qrcode` to properly recognize it as byte data
         return bytes(as_bytes)
 
+
+
+class BitcoinAddressEncoder(BaseQrEncoder):
+    def __init__(self, address: str):
+        super().__init__()
+        self.address = address
+
+
+    def seq_len(self):
+        return 1
+
+
+    def next_part(self):
+        return self.address
+
+
+    @property
+    def is_complete(self):
+        return True
 
 
 class XpubQrEncoder(BaseQrEncoder):

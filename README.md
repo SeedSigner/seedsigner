@@ -7,7 +7,7 @@
 * [Project Summary](#project-summary)
 * [Shopping List](#shopping-list)
 * [Software Installation](#software-installation)
-  * [Verifying Your Software](#verifying-your-software)
+  * [Verifying the Software](#verifying-the-software)
 * [Enclosure Designs](#enclosure-designs)
 * [SeedQR Printable Templates](#seedqr-printable-templates)
 * [Manual Installation Instructions](#manual-installation-instructions)
@@ -64,7 +64,7 @@ If you have specific questions about the project, our [Telegram Group](https://t
 
 To build a SeedSigner, you will need:
 
-* Raspberry Pi Zero (preferably version 1.3 with no WiFi/Bluetooth capability, but any Raspberry Pi 2/3/4 or Zero model will work)
+* Raspberry Pi Zero (preferably version 1.3 with no WiFi/Bluetooth capability, but any Raspberry Pi 2/3/4 or Zero model will work, Raspberry Pi 1 devices will require a hardware modification to the Waveshare LCD Hat, as per the [instructions here](./docs/legacy_hardware.md))
 * Waveshare 1.3" 240x240 pxl LCD (correct pixel count is important, more info at https://www.waveshare.com/wiki/1.3inch_LCD_HAT)
 * Pi Zero-compatible camera (tested to work with the Aokin / AuviPal 5MP 1080p with OV5647 Sensor)
 
@@ -76,11 +76,19 @@ Notes:
 ---------------
 
 # Software Installation
+
+## Special Note on Minimizing Trust
+As is the nature of pre-packaged software downloads, downloading and using the prepared SeedSigner release images means implicitly placing trust in the individual preparing those images; in our project the release images are prepared and signed by the eponymous creator of the project, SeedSigner "the person". That individual is additionally the only person in possession of the PGP keys that are used to sign the release images.
+
+However, one of the many advantages of the open source software model is that the need for this kind of trust can be negated by our users' ability to (1) review the project's source code and (2) assemble the operating image necessary to use the software themselves. From our project's inception, instructions to build a SeedSigner operating image (using precisely the same process that is used to create the prepared release images) have been made availabile. We have put a lot of thought and work into making these instructions easy to understand and follow, even for less technical users. These instructions can be found [here](docs/manual_installation.md).
+
+## Downloading the Software
+
 The quickest and easiest way to install the software is to download the most recent "seedsigner_X_X_X.zip" file in the [software releases](https://github.com/SeedSigner/seedsigner/releases) section of this repository.
 
-After downloading the .zip file, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go. If your goal is a more trustless installation, you can follow the [manual installation instructions](docs/manual_installation.md).
+After downloading the .zip file, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go.
 
-## Verifying Your Software
+## Verifying the Software
 You can verify the data integrity and authenticity of the latest release with as little as three commands. This process assumes that you know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal) and have navigated to the folder where you have these four relevant files present: (This will most likely be your Downloads folder.)
 
 * seedsigner_pubkey.gpg (from the main folder of this repo)
@@ -141,6 +149,14 @@ The Orange Pill enclosure design offers a more finished look that includes butto
 * 4 x M2.5 pan head screws, 12mm length
 
 The upper and lower portions of the enclosure can be printed using a standard FDM 3D printer, no supports necessary. The buttons and joystick nub should ideally be produced with a SLA/resin printer. An overview of the entire assembly process can be found [here](https://youtu.be/aIIc2DiZYcI). To access the design files and printable models, click [here](https://github.com/SeedSigner/seedsigner/tree/main/enclosures/orange_pill).
+
+### Community Designs
+
+* [Lil Pill](https://cults3d.com/en/3d-model/gadget/lil-pill-seedsigner-case) by @_CyberNomad
+* [OrangeSurf Case](https://github.com/orangesurf/orangesurf-seedsigner-case) by @OrangeSurfBTC
+* [PS4 Seedsigner](https://www.thingiverse.com/thing:5363525) by @Silexperience
+* [OpenPill Faceplate](https://www.printables.com/en/model/179924-seedsigner-open-pill-cover-plates-digital-cross-jo) by @Revetuzo 
+* [Waveshare CoverPlate](https://cults3d.com/en/3d-model/various/seedsigner-coverplate-for-waveshare-1-3-inch-lcd-hat-with-240x240-pixel-display) by @Adathome1
 
 ---------------
 

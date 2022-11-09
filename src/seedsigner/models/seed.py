@@ -6,6 +6,7 @@ from embit.networks import NETWORKS
 from typing import List
 
 from seedsigner.models.settings import SettingsConstants
+from seedsigner.helpers import embit_utils
 
 import hashlib
 import hmac
@@ -108,11 +109,9 @@ class Seed:
         root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
         return hexlify(root.child(0).fingerprint).decode('utf-8')
 
+
     def get_xpub(self, wallet_path: str = '/', network: str = SettingsConstants.MAINNET):
-        root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
-        xprv = root.derive(wallet_path)
-        xpub = xprv.to_public()
-        return xpub
+        return embit_utils.get_xpub(seed_bytes=self.seed_bytes, derivation_path=wallet_path, embit_network=SettingsConstants.map_network_to_embit(network))
 
 
     # Derives a BIP85 mnemonic (seed word) from the master seed words using embit functions
@@ -141,8 +140,9 @@ class Seed:
 
         # Return the derived BIP85 child mnemonic using the truncated derived entropy
         return bip39.mnemonic_from_bytes(entropy[:width])
+        
 
-    ### override operators
+    ### override operators    
     def __eq__(self, other):
         if isinstance(other, Seed):
             return self.seed_bytes == other.seed_bytes

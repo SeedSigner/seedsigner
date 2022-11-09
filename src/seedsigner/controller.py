@@ -48,7 +48,7 @@ class Controller(Singleton):
         rather than at the top in order avoid circular imports.
     """
 
-    VERSION = "0.5.0"
+    VERSION = "0.5.1"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
@@ -69,6 +69,8 @@ class Controller(Singleton):
 
     image_entropy_preview_frames: List[Image] = None
     image_entropy_final_image: Image = None
+
+    address_explorer_data: dict = None
     # TODO: end refactor section
 
     # Destination placeholder for when we need to jump out to a side flow but intend to
@@ -77,6 +79,7 @@ class Controller(Singleton):
     FLOW__PSBT = "psbt"
     FLOW__VERIFY_MULTISIG_ADDR = "multisig_addr"
     FLOW__VERIFY_SINGLESIG_ADDR = "singlesig_addr"
+    FLOW__ADDRESS_EXPLORER = "address_explorer"
     resume_main_flow: str = None
 
     back_stack: BackStack = None
@@ -197,9 +200,9 @@ class Controller(Singleton):
                     def run(self, some_arg, other_arg):
                         print(other_arg)
 
-                class OtherView():
+                class OtherView(View):
                     def run(self):
-                        return (MyView, {"some_arg": 1, "other_arg": "hello"})
+                        return (MyView, dict(some_arg=1, other_arg="hello"))
 
             When `OtherView` is instantiated and run, we capture its return values:
 
@@ -224,6 +227,7 @@ class Controller(Singleton):
                     self.resume_main_flow = None
                     self.multisig_wallet_descriptor = None
                     self.unverified_address = None
+                    self.address_explorer_data = None
 
                 
                 print(f"back_stack: {self.back_stack}")

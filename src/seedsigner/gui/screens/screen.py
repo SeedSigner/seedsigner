@@ -6,7 +6,7 @@ from typing import Any, List, Tuple
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
 
-from seedsigner.models.threads import BaseThread
+from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.settings import Settings, SettingsConstants
 
@@ -661,41 +661,73 @@ class LargeButtonScreen(BaseTopNavScreen):
 class QRDisplayScreen(BaseScreen):
     qr_encoder: EncodeQR = None
 
+    class QRDisplayThread(BaseThread):
+        def __init__(self, qr_encoder: EncodeQR, qr_brightness: ThreadsafeCounter, renderer: Renderer):
+            super().__init__()
+            self.qr_encoder = qr_encoder
+            self.qr_brightness = qr_brightness
+            self.renderer = renderer
+
+
+        def run(self):
+            # Loop whether the QR is a single frame or animated; each loop might adjust
+            # brightness setting.
+            while self.keep_running:
+                # convert the self.qr_brightness integer (31-255) into hex triplets
+                hex_color = (hex(self.qr_brightness.cur_count).split('x')[1]) * 3
+                image = self.qr_encoder.next_part_image(240,240, border=2, background_color=hex_color)
+                with self.renderer.lock:
+                    self.renderer.show_image(image)
+
+                # Target n held frames per second before rendering next QR image
+                time.sleep(5/30.0)
+
+
+    def __post_init__(self):
+        from seedsigner.models.settings import Settings
+        super().__post_init__()
+
+        # Shared coordination var so the display thread can detect success
+        settings = Settings.get_instance()
+        self.qr_brightness = ThreadsafeCounter(initial_value=settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS))
+
+        self.threads.append(QRDisplayScreen.QRDisplayThread(
+            qr_encoder=self.qr_encoder,
+            qr_brightness=self.qr_brightness,
+            renderer=self.renderer,
+        ))
+
+
     def _run(self):
         from seedsigner.models.settings import Settings
-        settings = Settings.get_instance()
-        cur_brightness = settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS)
 
-        # Loop whether the QR is a single frame or animated; each loop might adjust
-        # brightness setting.
         while True:
-            ret = self._run_callback()
-            if ret is not None:
-                return ret
-
-            # convert the cur_brightness integer (31-255) into hex triplets
-            hex_color = (hex(cur_brightness).split('x')[1]) * 3
-            image = self.qr_encoder.next_part_image(240,240, border=2, background_color=hex_color)
-            self.renderer.show_image(image)
-
-            # Target n held frames per second before rendering next QR image
-            time.sleep(5/30.0)
-
-            if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_DOWN):
+            user_input = self.hw_inputs.wait_for(
+                [
+                    HardwareButtonsConstants.KEY_UP,
+                    HardwareButtonsConstants.KEY_DOWN,
+                    HardwareButtonsConstants.KEY_LEFT,
+                    HardwareButtonsConstants.KEY_RIGHT,
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
+                check_release=True,
+                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
+            )
+            if user_input == HardwareButtonsConstants.KEY_DOWN:
                 # Reduce QR code background brightness
-                cur_brightness = max(31, cur_brightness - 31)
+                self.qr_brightness.set_value(max(31, self.qr_brightness.cur_count - 31))
 
-            elif self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_UP):
+            elif user_input == HardwareButtonsConstants.KEY_UP:
                 # Incrase QR code background brightness
-                cur_brightness = min(cur_brightness + 31, 255)
+                self.qr_brightness.set_value(min(self.qr_brightness.cur_count + 31, 255))
 
-            elif self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT):
+            else:
+                # Any other input exits the screen
+                self.threads[-1].stop()
+                while self.threads[-1].is_alive():
+                    time.sleep(0.01)
                 break
 
-
-        settings.set_value(SettingsConstants.SETTING__QR_BRIGHTNESS, cur_brightness)
-
-        # TODO: handle left as BACK
+        Settings.get_instance().set_value(SettingsConstants.SETTING__QR_BRIGHTNESS, self.qr_brightness.cur_count)
 
 
 

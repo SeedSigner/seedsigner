@@ -15,13 +15,13 @@ class ScanView(View):
     def run(self):
         from seedsigner.gui.screens.scan_screens import ScanScreen
 
-        # Run the live preview and QR code capture process
-        # TODO: Does this belong in its own BaseThread?
         wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
         self.decoder = DecodeQR(wordlist_language_code=wordlist_language_code)
-        screen = ScanScreen(decoder=self.decoder)
-        screen.display()
 
+        # Start the live preview and background QR reading
+        ScanScreen(decoder=self.decoder).display()
+
+        # Handle the results
         if self.decoder.is_complete:
             if self.decoder.is_seed:
                 seed_mnemonic = self.decoder.get_seed_phrase()

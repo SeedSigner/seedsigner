@@ -10,6 +10,7 @@ from typing import List
 
 from seedsigner.controller import Controller
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
+from seedsigner.helpers import embit_utils
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
 from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
@@ -18,7 +19,7 @@ from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import InvalidSeedException, Seed
-from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.views.psbt_views import PSBTChangeDetailsView
@@ -73,13 +74,13 @@ class SeedsMenuView(View):
 class LoadSeedView(View):
     def run(self):
         SEED_QR = (" Scan a SeedQR", FontAwesomeIconConstants.QRCODE)
-        TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
         TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+        TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
         CREATE = (" Create a seed", FontAwesomeIconConstants.PLUS)
         button_data=[
             SEED_QR,
-            TYPE_24WORD,
             TYPE_12WORD,
+            TYPE_24WORD,
             CREATE,
         ]
 
@@ -96,12 +97,12 @@ class LoadSeedView(View):
             from .scan_views import ScanView
             return Destination(ScanView)
         
-        elif button_data[selected_menu_num] == TYPE_24WORD:
-            self.controller.storage.init_pending_mnemonic(num_words=24)
-            return Destination(SeedMnemonicEntryView)
-
         elif button_data[selected_menu_num] == TYPE_12WORD:
             self.controller.storage.init_pending_mnemonic(num_words=12)
+            return Destination(SeedMnemonicEntryView)
+
+        elif button_data[selected_menu_num] == TYPE_24WORD:
+            self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
         elif button_data[selected_menu_num] == CREATE:
@@ -127,13 +128,14 @@ class SeedMnemonicEntryView(View):
 
         if ret == RET_CODE__BACK_BUTTON:
             if self.cur_word_index > 0:
-                return Destination(
-                    SeedMnemonicEntryView,
-                    view_args={
-                        "cur_word_index": self.cur_word_index - 1,
-                        "is_calc_final_word": self.is_calc_final_word
-                    }
-                )
+                return Destination(BackStackView)
+                # return Destination(
+                #     SeedMnemonicEntryView,
+                #     view_args={
+                #         "cur_word_index": self.cur_word_index - 1,
+                #         "is_calc_final_word": self.is_calc_final_word
+                #     }
+                # )
             else:
                 self.controller.storage.discard_pending_mnemonic()
                 return Destination(MainMenuView)
@@ -142,17 +144,15 @@ class SeedMnemonicEntryView(View):
         self.controller.storage.update_pending_mnemonic(ret, self.cur_word_index)
 
         if self.is_calc_final_word and self.cur_word_index == self.controller.storage.pending_mnemonic_length - 2:
-            # Time to calculate the last word
-            # TODO: Option to add missing entropy for the last word:
-            #   * 3 bits for a 24-word seed
-            #   * 7 bits for a 12-word seed
-            from seedsigner.helpers import mnemonic_generation
+            # Time to calculate the last word. User must decide how they want to specify
+            # the last bits of entropy for the final word.
+            from seedsigner.views.tools_views import ToolsCalcFinalWordFinalizePromptView
+            return Destination(ToolsCalcFinalWordFinalizePromptView)
+
+        if self.is_calc_final_word and self.cur_word_index == self.controller.storage.pending_mnemonic_length - 1:
+            # Time to calculate the last word. User must either select a final word to
+            # contribute entropy to the checksum word OR we assume 0 ("abandon").
             from seedsigner.views.tools_views import ToolsCalcFinalWordShowFinalWordView
-            full_mnemonic = mnemonic_generation.calculate_checksum(
-                self.controller.storage.pending_mnemonic[:-1],  # Must omit the last word's empty value
-                wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-            )
-            self.controller.storage.update_pending_mnemonic(full_mnemonic[-1], self.cur_word_index+1)
             return Destination(ToolsCalcFinalWordShowFinalWordView)
 
         if self.cur_word_index < self.controller.storage.pending_mnemonic_length - 1:
@@ -349,11 +349,18 @@ class SeedOptionsView(View):
         REVIEW_PSBT = "Review PSBT"
         VERIFY_ADDRESS = "Verify Addr"
         EXPORT_XPUB = "Export Xpub"
+        EXPLORER = "Address Explorer"
         BACKUP = ("Backup Seed", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT)
         BIP85_CHILD_SEED = "BIP-85 Child Seed"
         DISCARD = ("Discard Seed", None, None, "red")
 
         button_data = []
+
+        if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
+            # Jump straight back into the address explorer script type selection flow
+            # But do ont cancel the `resume_main_flow` as we'll still need that after
+            # derivation path is specified.
+            return Destination(SeedExportXpubScriptTypeView, view_args=dict(seed_num=self.seed_num, sig_type=SettingsConstants.SINGLE_SIG), skip_current_view=True)
 
         if self.controller.unverified_address:
             if self.controller.resume_main_flow == Controller.FLOW__VERIFY_SINGLESIG_ADDR:
@@ -364,7 +371,7 @@ class SeedOptionsView(View):
             addr = self.controller.unverified_address["address"][:7]
             VERIFY_ADDRESS += f" {addr}"
             button_data.append(VERIFY_ADDRESS)
-        
+
         if self.controller.psbt:
             if PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 if self.controller.resume_main_flow and self.controller.resume_main_flow == Controller.FLOW__PSBT:
@@ -383,6 +390,7 @@ class SeedOptionsView(View):
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             button_data.append(EXPORT_XPUB)
 
+        button_data.append(EXPLORER)
         button_data.append(BACKUP)
 
         if self.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS) == SettingsConstants.OPTION__ENABLED:
@@ -393,7 +401,7 @@ class SeedOptionsView(View):
         selected_menu_num = seed_screens.SeedOptionsScreen(
             button_data=button_data,
             fingerprint=self.seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
-            has_passphrase=self.seed.passphrase is not None
+            has_passphrase=self.seed.passphrase is not None,
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -409,19 +417,23 @@ class SeedOptionsView(View):
             return Destination(ScanView)
 
         elif button_data[selected_menu_num] == VERIFY_ADDRESS:
-            return Destination(SeedAddressVerificationView, view_args={"seed_num": self.seed_num})
+            return Destination(SeedAddressVerificationView, view_args=dict(seed_num=self.seed_num))
 
         elif button_data[selected_menu_num] == EXPORT_XPUB:
-            return Destination(SeedExportXpubSigTypeView, view_args={"seed_num": self.seed_num})
+            return Destination(SeedExportXpubSigTypeView, view_args=dict(seed_num=self.seed_num))
+
+        elif button_data[selected_menu_num] == EXPLORER:
+            self.controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
+            return Destination(SeedExportXpubScriptTypeView, view_args=dict(seed_num=self.seed_num, sig_type=SettingsConstants.SINGLE_SIG))
 
         elif button_data[selected_menu_num] == BACKUP:
-            return Destination(SeedBackupView, view_args={"seed_num": self.seed_num})
+            return Destination(SeedBackupView, view_args=dict(seed_num=self.seed_num))
 
         elif button_data[selected_menu_num] == BIP85_CHILD_SEED:
             return Destination(SeedBIP85ApplicationModeView, view_args={"seed_num": self.seed_num})
 
         elif button_data[selected_menu_num] == DISCARD:
-            return Destination(SeedDiscardView, view_args={"seed_num": self.seed_num})
+            return Destination(SeedDiscardView, view_args=dict(seed_num=self.seed_num))
 
 
 
@@ -496,23 +508,37 @@ class SeedExportXpubScriptTypeView(View):
 
 
     def run(self):
+        from .tools_views import ToolsAddressExplorerAddressTypeView
         args = {"seed_num": self.seed_num, "sig_type": self.sig_type}
         if len(self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)) == 1:
             # Nothing to select; skip this screen
             args["script_type"] = self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)[0]
-            return Destination(SeedExportXpubCoordinatorView, view_args=args, skip_current_view=True)
+
+            if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
+                del args["sig_type"]
+                return Destination(ToolsAddressExplorerAddressTypeView, view_args=args, skip_current_view=True)
+            else:
+                return Destination(SeedExportXpubCoordinatorView, view_args=args, skip_current_view=True)
 
         button_data = []
         for script_type in self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES):
             button_data.append(script_type)
+        
+        title = "Export Xpub"
+        if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
+            title = "Address Explorer"
+
         selected_menu_num = ButtonListScreen(
-            title="Export Xpub",
+            title=title,
             is_button_text_centered=False,
             button_data=button_data,
+            is_bottom_list=True,
         ).display()
 
-        if selected_menu_num < len(button_data):
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
 
+        else:
             script_types_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES)
             selected_display_name = button_data[selected_menu_num]
             args["script_type"] = script_types_settings_entry.get_selection_option_value_by_display_name(selected_display_name)
@@ -520,10 +546,11 @@ class SeedExportXpubScriptTypeView(View):
             if args["script_type"] == SettingsConstants.CUSTOM_DERIVATION:
                 return Destination(SeedExportXpubCustomDerivationView, view_args=args)
 
-            return Destination(SeedExportXpubCoordinatorView, view_args=args)
-
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
+            if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
+                del args["sig_type"]
+                return Destination(ToolsAddressExplorerAddressTypeView, view_args=args)
+            else:
+                return Destination(SeedExportXpubCoordinatorView, view_args=args)
 
 
 
@@ -543,8 +570,12 @@ class SeedExportXpubCustomDerivationView(View):
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
-        # ret should be the custom derivation path; store it in Settings
+        # ret will be the custom derivation path
         custom_derivation = ret
+
+        if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
+            from .tools_views import ToolsAddressExplorerAddressTypeView
+            return Destination(ToolsAddressExplorerAddressTypeView, view_args=dict(seed_num=self.seed_num, script_type=self.script_type, custom_derivation=custom_derivation))
 
         return Destination(
             SeedExportXpubCoordinatorView,
@@ -652,61 +683,57 @@ class SeedExportXpubDetailsView(View):
 
 
     def run(self):
-        # The calc_derivation takes a few moments. Run the loading screen while we wait.
-        self.loading_screen = LoadingScreenThread(text="Generating xpub...")
-        self.loading_screen.start()
-
         if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
             derivation_path = self.custom_derivation
         else:
-            derivation_path = PSBTParser.calc_derivation(
+            derivation_path = embit_utils.get_standard_derivation_path(
                 network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
                 wallet_type=self.sig_type,
                 script_type=self.script_type
             )
 
-        if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__ENABLED:
-            embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.settings.get_value(SettingsConstants.SETTING__NETWORK))]
-            version = embit.bip32.detect_version(
-                derivation_path,
-                default="xpub",
-                network=embit_network
-            )
+        if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__DISABLED:
+            # We're just skipping right past this screen
+            selected_menu_num = 0
 
-            root = embit.bip32.HDKey.from_seed(
-                self.seed.seed_bytes,
-                version=embit_network["xprv"]
-            )
+        else:
+            # The derivation calc takes a few moments. Run the loading screen while we wait.
+            self.loading_screen = LoadingScreenThread(text="Generating xpub...")
+            self.loading_screen.start()
 
-            fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
-            xprv = root.derive(derivation_path)
-            xpub = xprv.to_public()
-            xpub_base58 = xpub.to_string(version=version)
+            try:
+                embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.settings.get_value(SettingsConstants.SETTING__NETWORK))]
+                version = embit.bip32.detect_version(
+                    derivation_path,
+                    default="xpub",
+                    network=embit_network
+                )
+                root = embit.bip32.HDKey.from_seed(
+                    self.seed.seed_bytes,
+                    version=embit_network["xprv"]
+                )
+                fingerprint = hexlify(root.child(0).fingerprint).decode('utf-8')
+                xprv = root.derive(derivation_path)
+                xpub = xprv.to_public()
+                xpub_base58 = xpub.to_string(version=version)
 
-            screen = seed_screens.SeedExportXpubDetailsScreen(
+            finally:
+                self.loading_screen.stop()
+
+            selected_menu_num = seed_screens.SeedExportXpubDetailsScreen(
                 fingerprint=fingerprint,
                 has_passphrase=self.seed.passphrase is not None,
                 derivation_path=derivation_path,
                 xpub=xpub_base58,
-            )
-
-            self.loading_screen.stop()
-
-            selected_menu_num = screen.display()
-        else:
-            self.loading_screen.stop()
-            selected_menu_num = 0
+            ).display()
 
         if selected_menu_num == 0:
             return Destination(
                 SeedExportXpubQRDisplayView,
-                {
-                    "seed_num": self.seed_num,
-                    "sig_type": self.sig_type,
-                    "script_type": self.script_type,
-                    "coordinator": self.coordinator,
-                    "derivation_path": derivation_path,
-                }
+                dict(seed_num=self.seed_num,
+                     coordinator=self.coordinator,
+                     derivation_path=derivation_path,
+                )
             )
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -715,7 +742,7 @@ class SeedExportXpubDetailsView(View):
 
 
 class SeedExportXpubQRDisplayView(View):
-    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, derivation_path: str):
+    def __init__(self, seed_num: int, coordinator: str, derivation_path: str):
         super().__init__()
         self.seed = self.controller.get_seed(seed_num)
 
@@ -1382,13 +1409,14 @@ class AddressVerificationStartView(View):
                 destination = Destination(SeedSingleSigAddressVerificationSelectSeedView)
 
         elif self.controller.unverified_address["script_type"] == SettingsConstants.TAPROOT:
-            destination = Destination(NotYetImplementedView)
+            # TODO: add Taproot support
+            return Destination(NotYetImplementedView)
 
         elif self.controller.unverified_address["script_type"] == SettingsConstants.LEGACY_P2PKH:
             # TODO: detect single sig vs multisig or have to prompt?
-            destination = Destination(NotYetImplementedView)
+            return Destination(NotYetImplementedView)
 
-        derivation_path = PSBTParser.calc_derivation(
+        derivation_path = embit_utils.get_standard_derivation_path(
             network=self.controller.unverified_address["network"],
             wallet_type=sig_type,
             script_type=self.controller.unverified_address["script_type"]
@@ -1432,7 +1460,7 @@ class AddressVerificationSigTypeView(View):
                 destination = Destination(LoadMultisigWalletDescriptorView)
 
         self.controller.unverified_address["sig_type"] = sig_type
-        derivation_path = PSBTParser.calc_derivation(
+        derivation_path = embit_utils.get_standard_derivation_path(
             network=self.controller.unverified_address["network"],
             wallet_type=sig_type,
             script_type=self.controller.unverified_address["script_type"]
@@ -1448,7 +1476,8 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
         seeds = self.controller.storage.seeds
 
         SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
-        ENTER_WORDS = "Enter 12/24 words"
+        TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+        TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
         button_data = []
 
         text = "Load the seed to verify"
@@ -1464,7 +1493,8 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
             text = "Select seed to verify"
 
         button_data.append(SCAN_SEED)
-        button_data.append(ENTER_WORDS)
+        button_data.append(TYPE_12WORD)
+        button_data.append(TYPE_24WORD)
 
         selected_menu_num = seed_screens.SeedSingleSigAddressVerificationSelectSeedScreen(
             title="Verify Address",
@@ -1491,7 +1521,12 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
             from seedsigner.views.scan_views import ScanView
             return Destination(ScanView)
 
-        elif button_data[selected_menu_num] == ENTER_WORDS:
+        elif button_data[selected_menu_num] in [TYPE_12WORD, TYPE_24WORD]:
+            from seedsigner.views.seed_views import SeedMnemonicEntryView
+            if button_data[selected_menu_num] == TYPE_12WORD:
+                self.controller.storage.init_pending_mnemonic(num_words=12)
+            else:
+                self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
 
@@ -1529,7 +1564,7 @@ class SeedAddressVerificationView(View):
             return Destination(NotYetImplementedView)
 
         # TODO: This should be in `Seed` or `PSBT` utility class
-        embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.network)]
+        embit_network = SettingsConstants.map_network_to_embit(self.network)
 
         # The ThreadsafeCounter will be shared by the brute-force thread to keep track of
         # its current addr index number and the Screen to display its progress and
@@ -1546,7 +1581,7 @@ class SeedAddressVerificationView(View):
             seed=self.seed,
             descriptor=self.controller.multisig_wallet_descriptor,
             script_type=self.script_type,
-            network=embit_network,
+            embit_network=embit_network,
             derivation_path=self.derivation_path,
             threadsafe_counter=self.threadsafe_counter,
             verified_index=self.verified_index,
@@ -1611,13 +1646,15 @@ class SeedAddressVerificationView(View):
             # Halt the thread if the user gave up (will already be stopped if it verified the
             # target addr).
             self.addr_verification_thread.stop()
+            while self.addr_verification_thread.is_alive():
+                time.sleep(0.01)
 
         return Destination(MainMenuView)
 
 
 
     class BruteForceAddressVerificationThread(BaseThread):
-        def __init__(self, address: str, seed: Seed, descriptor: Descriptor, script_type: str, network: str, derivation_path: str, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter, verified_index_is_change: ThreadsafeCounter):
+        def __init__(self, address: str, seed: Seed, descriptor: Descriptor, script_type: str, embit_network: str, derivation_path: str, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter, verified_index_is_change: ThreadsafeCounter):
             """
                 Either seed or descriptor will be None
             """
@@ -1626,17 +1663,15 @@ class SeedAddressVerificationView(View):
             self.seed = seed
             self.descriptor = descriptor
             self.script_type = script_type
-            self.network = network
+            self.embit_network = embit_network
             self.derivation_path = derivation_path
             self.threadsafe_counter = threadsafe_counter
             self.verified_index = verified_index
             self.verified_index_is_change = verified_index_is_change
 
             if self.seed:
-                root = embit.bip32.HDKey.from_seed(self.seed.seed_bytes, version=network["xprv"])
-                xprv = root.derive(self.derivation_path)
-                self.xpub = xprv.to_public()
-
+                self.xpub = self.seed.get_xpub(wallet_path=self.derivation_path, network=Settings.get_instance().get_value(SettingsConstants.SETTING__NETWORK))
+ 
 
         def run(self):
             while self.keep_running:
@@ -1646,9 +1681,12 @@ class SeedAddressVerificationView(View):
                 i = self.threadsafe_counter.cur_count
 
                 if self.descriptor:
-                    (receive_address, change_address) = self.derive_multisig(i)
+                    receive_address = embit_utils.get_multisig_address(descriptor=self.descriptor, index=i, is_change=False, embit_network=self.embit_network)
+                    change_address = embit_utils.get_multisig_address(descriptor=self.descriptor, index=i, is_change=True, embit_network=self.embit_network)
+
                 else:
-                    (receive_address, change_address) = self.derive_single_sig(i)
+                    receive_address = embit_utils.get_single_sig_address(xpub=self.xpub, script_type=self.script_type, index=i, is_change=False, embit_network=self.embit_network)
+                    change_address = embit_utils.get_single_sig_address(xpub=self.xpub, script_type=self.script_type, index=i, is_change=True, embit_network=self.embit_network)
                     
                 if self.address == receive_address:
                     self.verified_index.set_value(i)
@@ -1664,46 +1702,7 @@ class SeedAddressVerificationView(View):
 
                 # Increment our index counter
                 self.threadsafe_counter.increment()
-
-
-        def derive_single_sig(self, index):
-            r_pubkey = self.xpub.derive([0,index]).key
-            c_pubkey = self.xpub.derive([1,index]).key
-            
-            receive_address = ""
-            change_address = ""
-            
-            if self.script_type == SettingsConstants.NATIVE_SEGWIT:
-                receive_address = embit.script.p2wpkh(r_pubkey).address(network=self.network)
-                change_address = embit.script.p2wpkh(c_pubkey).address(network=self.network)
-            elif self.script_type == SettingsConstants.NESTED_SEGWIT:
-                receive_address = embit.script.p2sh(embit.script.p2wpkh(r_pubkey)).address(network=self.network)
-                change_address = embit.script.p2sh(embit.script.p2wpkh(c_pubkey)).address(network=self.network)
-            elif self.script_type == SettingsConstants.LEGACY_P2PKH:
-                receive_address = embit.script.p2pkh(r_pubkey).address(network=self.network)
-                change_address = embit.script.p2pkh(c_pubkey).address(network=self.network)
-            elif self.script_type == SettingsConstants.TAPROOT:
-                # TODO: Not yet implemented!
-                raise Exception("Taproot verification not yet implemented!")
-            
-            return (receive_address, change_address)
         
-
-        def derive_multisig(self, index):
-            if self.script_type in [SettingsConstants.NATIVE_SEGWIT, SettingsConstants.NESTED_SEGWIT]:
-                receive_address = self.descriptor.derive(index, branch_index=0).script_pubkey().address(network=self.network)
-                change_address = self.descriptor.derive(index, branch_index=1).script_pubkey().address(network=self.network)
-
-            elif self.script_type == SettingsConstants.LEGACY_P2PKH:
-                # TODO: Not yet implemented!
-                raise Exception("Taproot verification not yet implemented!")
-
-            elif self.script_type == SettingsConstants.TAPROOT:
-                # TODO: Not yet implemented!
-                raise Exception("Taproot verification not yet implemented!")
-            
-            return (receive_address, change_address)
-
 
 
 class AddressVerificationSuccessView(View):
@@ -1768,6 +1767,7 @@ class MultisigWalletDescriptorView(View):
 
         RETURN = "Return to PSBT"
         VERIFY = "Verify Addr"
+        EXPLORER = "Address Explorer"
         OK = "OK"
 
         button_data = [OK]
@@ -1777,6 +1777,8 @@ class MultisigWalletDescriptorView(View):
             elif self.controller.resume_main_flow == Controller.FLOW__VERIFY_MULTISIG_ADDR and self.controller.unverified_address:
                 VERIFY += f""" {self.controller.unverified_address["address"][:7]}"""
                 button_data = [VERIFY]
+            elif self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
+                button_data = [EXPLORER]
 
         selected_menu_num = seed_screens.MultisigWalletDescriptorScreen(
             policy=policy,
@@ -1795,7 +1797,11 @@ class MultisigWalletDescriptorView(View):
 
         elif button_data[selected_menu_num] == VERIFY:
             self.controller.resume_main_flow = None
-            # TODO: Route properly when multisig brute-force addr verification is done
             return Destination(SeedAddressVerificationView)
+
+        elif button_data[selected_menu_num] == EXPLORER:
+            from seedsigner.views.tools_views import ToolsAddressExplorerAddressTypeView
+            self.controller.resume_main_flow = None
+            return Destination(ToolsAddressExplorerAddressTypeView)
 
         return Destination(MainMenuView)
