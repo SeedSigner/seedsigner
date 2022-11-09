@@ -1018,6 +1018,7 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
                 font_size=font_size,
                 is_text_centered=True,
                 screen_y=screen_y,
+                allow_text_overflow=True
             ))
             screen_y += char_height + 2
 
