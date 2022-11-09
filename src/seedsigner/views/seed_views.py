@@ -382,10 +382,12 @@ class SeedOptionsView(View):
         
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             button_data.append(EXPORT_XPUB)
+
+        button_data.append(BACKUP)
+
         if self.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(BIP85_CHILD_SEED)
 
-        button_data.append(BACKUP)
         button_data.append(DISCARD)
 
         selected_menu_num = seed_screens.SeedOptionsScreen(
@@ -415,176 +417,11 @@ class SeedOptionsView(View):
         elif button_data[selected_menu_num] == BACKUP:
             return Destination(SeedBackupView, view_args={"seed_num": self.seed_num})
 
+        elif button_data[selected_menu_num] == BIP85_CHILD_SEED:
+            return Destination(SeedBIP85ApplicationModeView, view_args={"seed_num": self.seed_num})
+
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView, view_args={"seed_num": self.seed_num})
-
-        elif button_data[selected_menu_num] == BIP85_CHILD_SEED:
-            return Destination(BIP85ApplicationModeView, view_args={"seed_num": self.seed_num})
-
-
-
-"""****************************************************************************
-    BIP85 - Derive child mnemonic (seed) flow
-****************************************************************************
-* Ask the user the application type as defined in the BIP0085 spec.
-* Currently only Word mode of 12, 24 words.
-* Possible future additions are
-*  WIF (HDSEED)
-*  XPRV (BIP32)"""
-class BIP85ApplicationModeView(View):
-    def __init__(self, seed_num: int):
-        super().__init__()
-        self.seed_num = seed_num
-        self.num_words = 0
-        self.bip85_index = 0
-        self.bip85_app_no = None
-
-    def run(self):
-
-        # Future enhancement to display WIF (HD-SEED) and XPRV (Bip32)?
-        WORDS_12 = "12 Words"
-        WORDS_24 = "24 Words"
-
-        button_data = [WORDS_12, WORDS_24]
-
-        selected_menu_num = ButtonListScreen(
-            title="BIP-85 Num Words",
-            button_data=button_data
-        ).display()
-
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-
-        if button_data[selected_menu_num] == WORDS_12:
-            self.num_words = 12
-        elif button_data[selected_menu_num] == WORDS_24:
-            self.num_words = 24
-
-        destination = Destination(
-            BIP85ChildSeedIndexView,
-            view_args={"seed_num": self.seed_num, "num_words": self.num_words,
-                       "bip85_index": self.bip85_index})
-
-        return(destination)
-
-
-# View to retrieve the derived seed index
-class BIP85ChildSeedIndexView(View):
-    def __init__(self, seed_num: int, num_words: int, bip85_index: int):
-        super().__init__()
-        self.seed_num = seed_num
-        self.num_words = num_words
-        self.bip85_index = bip85_index
-
-    def run(self):
-        args = {"seed_num": self.seed_num, "num_words": self.num_words, "bip85_index": self.bip85_index}
-
-        # Change this later to use the generic Screen input keyboard
-        ret = seed_screens.BIP85SeedIndexScreen(
-        ).display()
-
-        if ret == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-
-        # ret should be the bip85_index let's convert to int
-        self.bip85_index = int(ret)
-
-        return Destination(
-            BIP85ChildSeedWarningView,
-            view_args={"seed_num": self.seed_num, "num_words": self.num_words,
-                       "bip85_index": self.bip85_index}
-                    )
-
-class BIP85ChildSeedWarningView(View):
-   def __init__(self, seed_num: int, num_words: int, bip85_index: int):
-        super().__init__()
-        self.seed_num = seed_num
-        self.num_words = num_words
-        self.bip85_index = bip85_index
-
-   def run(self):
-        args = {"seed_num": self.seed_num, "num_words": self.num_words, "bip85_index": self.bip85_index}
-
-
-        destination = Destination(BIP85SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": 0, "num_words": self.num_words,
-                                   "bip85_index": self.bip85_index}, skip_current_view=True,  # Prevent going BACK to WarningViews
-        )
-
-        if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__DISABLED:
-            # Forward straight to showing the words
-            return destination
-
-        selected_menu_num = DireWarningScreen(
-            text="""You must keep your seed words private & away from all online devices.""",
-        ).display()
-
-        if selected_menu_num == 0:
-            # User clicked "I Understand"
-            return destination
-
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-
-
-class BIP85SeedWordsView(View):
-    def __init__(self, seed_num: int, num_words: int, bip85_index: int, page_index: int = 0):
-        super().__init__()
-        self.seed_num = seed_num
-        self.num_words = num_words
-        self.page_index = page_index
-        self.bip85_index = bip85_index
-        if self.seed_num is None:
-            self.seed = self.controller.storage.get_pending_seed()
-        else:
-            self.seed = self.controller.get_seed(self.seed_num)
-
-        self.num_pages=int(self.num_words/4)
-
-    def run(self):
-        args = {"seed_num": self.seed_num, "page_index": self.page_index, "num_words": self.num_words, "bip85_index": self.bip85_index}
-
-        NEXT = "Next"
-        DONE = "Done"
-
-        words_per_page = 4  # TODO: eventually make this configurable for bigger screens?
-
-        mnemonic = self.seed.get_bip85_child_mnemonic(self.bip85_index, self.num_words).split()
-        words = mnemonic[self.page_index * words_per_page:(self.page_index + 1) * words_per_page]
-
-        button_data = []
-        if self.page_index < self.num_pages - 1 or self.seed_num is None:
-            button_data.append(NEXT)
-        else:
-            button_data.append(DONE)
-
-
-        button_data = []
-        if self.page_index < self.num_pages - 1 or self.seed_num is None:
-            button_data.append(NEXT)
-        else:
-            button_data.append(DONE)
-
-        selected_menu_num = seed_screens.SeedWordsScreen(
-            title=f"BIP-85: Words: {self.page_index + 1}/{self.num_pages}",
-            words=words,
-            page_index=self.page_index,
-            num_pages=self.num_pages,
-            button_data=button_data,
-
-        ).display()
-
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-
-        if button_data[selected_menu_num] == NEXT:
-#            if self.seed_num is None and self.page_index == self.num_pages - 1:
-#                return Destination(SeedFinalizeView)
-#            else:
-                return Destination(BIP85SeedWordsView, view_args={"seed_num": self.seed_num, "page_index": self.page_index + 1, "num_words": self.num_words, "bip85_index": self.bip85_index})
-
-        elif button_data[selected_menu_num] == DONE:
-            # Must clear history to avoid BACK button returning to private info
-            return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
 
 
 
@@ -920,15 +757,20 @@ class SeedExportXpubQRDisplayView(View):
     View Seed Words flow
 ****************************************************************************"""
 class SeedWordsWarningView(View):
-    def __init__(self, seed_num: int):
+    def __init__(self, seed_num: int, bip85_data: dict = None):
         super().__init__()
         self.seed_num = seed_num
+        self.bip85_data = bip85_data
 
 
     def run(self):
         destination = Destination(
             SeedWordsView,
-            view_args={"seed_num": self.seed_num, "page_index": 0},
+            view_args=dict(
+                seed_num=self.seed_num,
+                page_index=0,
+                bip85_data=self.bip85_data
+            ),
             skip_current_view=True,  # Prevent going BACK to WarningViews
         )
         if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__DISABLED:
@@ -949,13 +791,14 @@ class SeedWordsWarningView(View):
 
 
 class SeedWordsView(View):
-    def __init__(self, seed_num: int, page_index: int = 0):
+    def __init__(self, seed_num: int, bip85_data: dict = None, page_index: int = 0):
         super().__init__()
         self.seed_num = seed_num
         if self.seed_num is None:
             self.seed = self.controller.storage.get_pending_seed()
         else:
             self.seed = self.controller.get_seed(self.seed_num)
+        self.bip85_data = bip85_data
         self.page_index = page_index
         self.num_pages=int(len(self.seed.mnemonic_list)/4)
 
@@ -967,7 +810,12 @@ class SeedWordsView(View):
         # Slice the mnemonic to our current 4-word section
         words_per_page = 4  # TODO: eventually make this configurable for bigger screens?
 
-        mnemonic = self.seed.mnemonic_display_list
+        if self.bip85_data is not None:
+            mnemonic = self.seed.get_bip85_child_mnemonic(self.bip85_data["child_index"], self.bip85_data["num_words"]).split()
+            title = f"""Child #{self.bip85_data["child_index"]}"""
+        else:
+            mnemonic = self.seed.mnemonic_display_list
+            title = "Seed Words"
         words = mnemonic[self.page_index*words_per_page:(self.page_index + 1)*words_per_page]
 
         button_data = []
@@ -976,8 +824,9 @@ class SeedWordsView(View):
         else:
             button_data.append(DONE)
 
+
         selected_menu_num = seed_screens.SeedWordsScreen(
-            title=f"Seed Words: {self.page_index+1}/{self.num_pages}",
+            title=f"{title}: {self.page_index+1}/{self.num_pages}",
             words=words,
             page_index=self.page_index,
             num_pages=self.num_pages,
@@ -989,13 +838,92 @@ class SeedWordsView(View):
 
         if button_data[selected_menu_num] == NEXT:
             if self.seed_num is None and self.page_index == self.num_pages - 1:
-                return Destination(SeedWordsBackupTestPromptView, view_args=dict(seed_num=self.seed_num))
+                return Destination(
+                    SeedWordsBackupTestPromptView,
+                    view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
+                )
             else:
-                return Destination(SeedWordsView, view_args=dict(seed_num=self.seed_num, page_index=self.page_index + 1))
+                return Destination(
+                    SeedWordsView,
+                    view_args=dict(seed_num=self.seed_num, page_index=self.page_index + 1, bip85_data=self.bip85_data)
+                )
 
         elif button_data[selected_menu_num] == DONE:
             # Must clear history to avoid BACK button returning to private info
-            return Destination(SeedWordsBackupTestPromptView, view_args=dict(seed_num=self.seed_num))
+            return Destination(
+                SeedWordsBackupTestPromptView,
+                view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
+            )
+
+
+
+"""****************************************************************************
+    BIP85 - Derive child mnemonic (seed) flow
+****************************************************************************"""
+class SeedBIP85ApplicationModeView(View):
+    """
+        * Ask the user the application type as defined in the BIP0085 spec.
+        * Currently only Word mode of 12, 24 words (Application number: 39')
+        * Possible future additions are
+        *  WIF (HDSEED)
+        *  XPRV (BIP32)
+    """
+    def __init__(self, seed_num: int):
+        super().__init__()
+        self.seed_num = seed_num
+        self.num_words = 0
+        self.bip85_app_num = 39     # TODO: Support other Application numbers
+
+
+    def run(self):
+        # TODO: Future enhancement to display WIF (HD-SEED) and XPRV (Bip32)?
+        WORDS_12 = "12 Words"
+        WORDS_24 = "24 Words"
+
+        button_data = [WORDS_12, WORDS_24]
+
+        selected_menu_num = ButtonListScreen(
+            title="BIP-85 Num Words",
+            button_data=button_data
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        if button_data[selected_menu_num] == WORDS_12:
+            self.num_words = 12
+        elif button_data[selected_menu_num] == WORDS_24:
+            self.num_words = 24
+
+        return Destination(
+            SeedBIP85SelectChildIndexView,
+            view_args=dict(seed_num=self.seed_num, num_words=self.num_words)
+        )
+
+
+
+# View to retrieve the derived seed index
+class SeedBIP85SelectChildIndexView(View):
+    def __init__(self, seed_num: int, num_words: int):
+        super().__init__()
+        self.seed_num = seed_num
+        self.num_words = num_words
+
+
+    def run(self):
+        # Change this later to use the generic Screen input keyboard
+        ret = seed_screens.SeedBIP85SelectChildIndexScreen().display()
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        return Destination(
+            SeedWordsWarningView,
+            view_args=dict(
+                seed_num=self.seed_num,
+                bip85_data=dict(child_index=int(ret), num_words=self.num_words),
+            )
+        )
 
 
 
@@ -1003,8 +931,9 @@ class SeedWordsView(View):
     Seed Words Backup Test
 ****************************************************************************"""
 class SeedWordsBackupTestPromptView(View):
-    def __init__(self, seed_num: int):
+    def __init__(self, seed_num: int, bip85_data: dict = None):
         self.seed_num = seed_num
+        self.bip85_data = bip85_data
 
 
     def run(self):
@@ -1016,7 +945,10 @@ class SeedWordsBackupTestPromptView(View):
         ).display()
 
         if button_data[selected_menu_num] == VERIFY:
-            return Destination(SeedWordsBackupTestView, view_args=dict(seed_num=self.seed_num))
+            return Destination(
+                SeedWordsBackupTestView,
+                view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
+            )
 
         elif button_data[selected_menu_num] == SKIP:
             if self.seed_num is not None:
@@ -1027,15 +959,20 @@ class SeedWordsBackupTestPromptView(View):
 
 
 class SeedWordsBackupTestView(View):
-    def __init__(self, seed_num: int, confirmed_list: List[bool] = None, cur_index: int = None):
+    def __init__(self, seed_num: int, bip85_data: dict = None, confirmed_list: List[bool] = None, cur_index: int = None):
         super().__init__()
         self.seed_num = seed_num
         if self.seed_num is None:
             self.seed = self.controller.storage.get_pending_seed()
         else:
             self.seed = self.controller.get_seed(self.seed_num)
+        self.bip85_data = bip85_data
 
-        self.mnemonic_list = self.seed.mnemonic_display_list
+        if self.bip85_data is not None:
+            self.mnemonic_list = self.seed.get_bip85_child_mnemonic(self.bip85_data["child_index"], self.bip85_data["num_words"]).split()
+        else:
+            self.mnemonic_list = self.seed.mnemonic_display_list
+
         self.confirmed_list = confirmed_list
         if not self.confirmed_list:
             self.confirmed_list = []
@@ -1069,10 +1006,16 @@ class SeedWordsBackupTestView(View):
             self.confirmed_list.append(self.cur_index)
             if len(self.confirmed_list) == len(self.mnemonic_list):
                 # Successfully confirmed the full mnemonic!
-                return Destination(SeedWordsBackupTestSuccessView, view_args=dict(seed_num=self.seed_num))
+                return Destination(
+                    SeedWordsBackupTestSuccessView,
+                    view_args=dict(seed_num=self.seed_num),
+                )
             else:
                 # Continue testing the remaining words
-                return Destination(SeedWordsBackupTestView, view_args=dict(seed_num=self.seed_num, confirmed_list=self.confirmed_list))
+                return Destination(
+                    SeedWordsBackupTestView,
+                    view_args=dict(seed_num=self.seed_num, confirmed_list=self.confirmed_list, bip85_data=self.bip85_data),
+                )
 
         else:
             # Picked the WRONG WORD!
@@ -1080,6 +1023,7 @@ class SeedWordsBackupTestView(View):
                 SeedWordsBackupTestMistakeView,
                 view_args=dict(
                     seed_num=self.seed_num,
+                    bip85_data=self.bip85_data,
                     cur_index=self.cur_index,
                     wrong_word=button_data[selected_menu_num],
                     confirmed_list=self.confirmed_list,
@@ -1089,9 +1033,10 @@ class SeedWordsBackupTestView(View):
 
 
 class SeedWordsBackupTestMistakeView(View):
-    def __init__(self, seed_num: int, cur_index: int, wrong_word: str, confirmed_list: List[bool] = None):
+    def __init__(self, seed_num: int, bip85_data: dict = None, cur_index: int = None, wrong_word: str = None, confirmed_list: List[bool] = None):
         super().__init__()
         self.seed_num = seed_num
+        self.bip85_data = bip85_data
         self.cur_index = cur_index
         self.wrong_word = wrong_word
         self.confirmed_list = confirmed_list
@@ -1111,10 +1056,21 @@ class SeedWordsBackupTestMistakeView(View):
         ).display()
 
         if button_data[selected_menu_num] == REVIEW:
-            return Destination(SeedWordsView, view_args=dict(seed_num=self.seed_num))
+            return Destination(
+                SeedWordsView,
+                view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
+            )
 
         elif button_data[selected_menu_num] == RETRY:
-            return Destination(SeedWordsBackupTestView, view_args=dict(seed_num=self.seed_num, confirmed_list=self.confirmed_list, cur_index=self.cur_index))
+            return Destination(
+                SeedWordsBackupTestView,
+                view_args=dict(
+                    seed_num=self.seed_num,
+                    confirmed_list=self.confirmed_list,
+                    cur_index=self.cur_index,
+                    bip85_data=self.bip85_data,
+                )
+            )
 
 
 
