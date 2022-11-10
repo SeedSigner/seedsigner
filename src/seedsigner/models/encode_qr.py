@@ -498,6 +498,8 @@ class UrXpubQrEncoder(XpubQrEncoder):
                         ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[401]],self.ur_hdkey))
                     elif origin.components[3].index == 1:  # Nested Multisig
                         ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[400], SCRIPT_EXPRESSION_TAG_MAP[401]],self.ur_hdkey))
+            elif origin.components[0].index == 86: # P2TR
+                ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[409]],self.ur_hdkey))
         
         # If empty, add all script types
         if len(ur_outputs) == 0:
