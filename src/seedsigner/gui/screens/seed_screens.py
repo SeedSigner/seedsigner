@@ -622,7 +622,8 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
     KEYBOARD__LOWERCASE_BUTTON_TEXT = "abc"
     KEYBOARD__UPPERCASE_BUTTON_TEXT = "ABC"
     KEYBOARD__DIGITS_BUTTON_TEXT = "123"
-    KEYBOARD__SYMBOLS_BUTTON_TEXT = "!@#"
+    KEYBOARD__SYMBOLS_1_BUTTON_TEXT = "!@#"
+    KEYBOARD__SYMBOLS_2_BUTTON_TEXT = "*[]"
 
 
     def __post_init__(self):
@@ -631,7 +632,14 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         keys_lower = "abcdefghijklmnopqrstuvwxyz"
         keys_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         keys_number = "0123456789"
-        keys_symbol = "!\"#$%&'()*+,=./;:<>?@[]|-_`~"
+
+        # Present the most common/puncutation-related symbols & the most human-friendly
+        #   symbols first (limited to 18 chars).
+        keys_symbol_1 = """!@#$%&();:,.-+='"?"""
+
+        # Isolate the more math-oriented or just uncommon symbols
+        keys_symbol_2 = """^*[]{}_\\|<>/`~"""
+
 
         # Set up the keyboard params
         self.right_panel_buttons_width = 56
@@ -702,11 +710,11 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             render_now=False
         )
 
-        self.keyboard_symbols = Keyboard(
+        self.keyboard_symbols_1 = Keyboard(
             draw=self.renderer.draw,
-            charset=keys_symbol,
+            charset=keys_symbol_1,
             rows=4,
-            cols=max_cols,
+            cols=6,
             rect=(
                 GUIConstants.COMPONENT_PADDING,
                 keyboard_start_y,
@@ -714,7 +722,28 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 self.canvas_height - GUIConstants.EDGE_PADDING
             ),
             additional_keys=[
-                Keyboard.KEY_SPACE_4,
+                Keyboard.KEY_SPACE_2,
+                Keyboard.KEY_CURSOR_LEFT,
+                Keyboard.KEY_CURSOR_RIGHT,
+                Keyboard.KEY_BACKSPACE
+            ],
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+            render_now=False
+        )
+
+        self.keyboard_symbols_2 = Keyboard(
+            draw=self.renderer.draw,
+            charset=keys_symbol_2,
+            rows=4,
+            cols=6,
+            rect=(
+                GUIConstants.COMPONENT_PADDING,
+                keyboard_start_y,
+                self.canvas_width - GUIConstants.COMPONENT_PADDING - self.right_panel_buttons_width,
+                self.canvas_height - GUIConstants.EDGE_PADDING
+            ),
+            additional_keys=[
+                Keyboard.KEY_SPACE_2,
                 Keyboard.KEY_CURSOR_LEFT,
                 Keyboard.KEY_CURSOR_RIGHT,
                 Keyboard.KEY_BACKSPACE
@@ -824,8 +853,10 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 # Return to the same button2 keyboard, if applicable
                 if cur_keyboard == self.keyboard_digits:
                     cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
-                elif cur_keyboard == self.keyboard_symbols:
-                    cur_button2_text = self.KEYBOARD__SYMBOLS_BUTTON_TEXT
+                elif cur_keyboard == self.keyboard_symbols_1:
+                    cur_button2_text = self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT
+                elif cur_keyboard == self.keyboard_symbols_2:
+                    cur_button2_text = self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT
 
                 if cur_button1_text == self.KEYBOARD__LOWERCASE_BUTTON_TEXT:
                     self.keyboard_abc.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
@@ -862,10 +893,15 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                     self.keyboard_digits.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
                     cur_keyboard = self.keyboard_digits
                     cur_keyboard.render_keys()
-                    cur_button2_text = self.KEYBOARD__SYMBOLS_BUTTON_TEXT
-                else:
-                    self.keyboard_symbols.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard = self.keyboard_symbols
+                    cur_button2_text = self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT
+                elif cur_button2_text == self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT:
+                    self.keyboard_symbols_1.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard = self.keyboard_symbols_1
+                    cur_keyboard.render_keys()
+                    cur_button2_text = self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT
+                elif cur_button2_text == self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT:
+                    self.keyboard_symbols_2.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard = self.keyboard_symbols_2
                     cur_keyboard.render_keys()
                     cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
                 cur_keyboard.render_keys()
