@@ -313,9 +313,10 @@ class PSBTParser():
         for input in psbt.inputs:
             for pub, derivation_path in input.bip32_derivations.items():
                 fingerprints.add(hexlify(derivation_path.fingerprint).decode())
+
             for pub, (leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
                 # TODO: Support spends from leaves; depends on support in embit
-                if num_leaf_hashes > 0:
+                if len(leaf_hashes) > 0:
                     raise Exception("Signing keyspends from within a taptree not yet implemented")
                 fingerprints.add(hexlify(derivation_path.fingerprint).decode())
         return list(fingerprints)
@@ -332,6 +333,7 @@ class PSBTParser():
             for pub, derivation_path in input.bip32_derivations.items():
                 if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():
                     return True
+
             for pub, (leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
                 if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():
                     return True
