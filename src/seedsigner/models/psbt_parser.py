@@ -145,7 +145,7 @@ class PSBTParser():
                     # should have one or zero derivations for single-key addresses
                     if len(out.taproot_bip32_derivations.values()) > 0:
                         # TODO: Support keys in taptree leaves
-                        num_leaf_hashes, leaf_hashes, derivation = list(out.taproot_bip32_derivations.values())[0]
+                        leaf_hashes, derivation = list(out.taproot_bip32_derivations.values())[0]
                         der = derivation.derivation
                         my_pubkey = self.root.derive(der)
                     sc = script.p2tr(my_pubkey)
@@ -169,7 +169,7 @@ class PSBTParser():
 
                 # extract info from taproot outputs
                 if len(self.psbt.outputs[i].taproot_bip32_derivations) > 0:
-                    for d, (num_leaf_hashes, leaf_hashes, derivation) in self.psbt.outputs[i].taproot_bip32_derivations.items():
+                    for d, (leaf_hashes, derivation) in self.psbt.outputs[i].taproot_bip32_derivations.items():
                         fingerprints.append(hexlify(derivation.fingerprint).decode())
                         derivation_paths.append(bip32.path_to_str(derivation.derivation))
 
@@ -313,7 +313,7 @@ class PSBTParser():
         for input in psbt.inputs:
             for pub, derivation_path in input.bip32_derivations.items():
                 fingerprints.add(hexlify(derivation_path.fingerprint).decode())
-            for pub, (num_leaf_hashes, leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
+            for pub, (leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
                 # TODO: Support spends from leaves; depends on support in embit
                 if num_leaf_hashes > 0:
                     raise Exception("Signing keyspends from within a taptree not yet implemented")
@@ -332,7 +332,7 @@ class PSBTParser():
             for pub, derivation_path in input.bip32_derivations.items():
                 if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():
                     return True
-            for pub, (num_leaf_hashes, leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
+            for pub, (leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
                 if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():
                     return True
         return False
