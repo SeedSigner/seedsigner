@@ -139,18 +139,40 @@ class PSBTParser():
                     if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
                         is_change = True
 
+                elif "p2tr" in self.policy["type"]:
+                    print("TAPROOT output!")
+                    my_pubkey = None
+                    # should have one or zero derivations for single-key addresses
+                    if len(out.taproot_bip32_derivations.values()) > 0:
+                        # TODO: Support keys in taptree leaves
+                        leaf_hashes, derivation = list(out.taproot_bip32_derivations.values())[0]
+                        der = derivation.derivation
+                        my_pubkey = self.root.derive(der)
+                    sc = script.p2tr(my_pubkey)
+
+                    if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
+                        is_change = True
+
                 if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
                     is_change = True
+
             if is_change:
                 addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
-                fingerprints = None
-                derivation_paths = None
+                fingerprints = []
+                derivation_paths = []
+
+                # extract info from non-taproot outputs
                 if len(self.psbt.outputs[i].bip32_derivations) > 0:
-                    fingerprints = []
-                    derivation_paths = []
                     for d, derivation_path in self.psbt.outputs[i].bip32_derivations.items():
                         fingerprints.append(hexlify(derivation_path.fingerprint).decode())
                         derivation_paths.append(bip32.path_to_str(derivation_path.derivation))
+
+                # extract info from taproot outputs
+                if len(self.psbt.outputs[i].taproot_bip32_derivations) > 0:
+                    for d, (leaf_hashes, derivation) in self.psbt.outputs[i].taproot_bip32_derivations.items():
+                        fingerprints.append(hexlify(derivation.fingerprint).decode())
+                        derivation_paths.append(bip32.path_to_str(derivation.derivation))
+
                 self.change_data.append({
                     "output_index": i,
                     "address": addr,
@@ -159,6 +181,7 @@ class PSBTParser():
                     "derivation_path": derivation_paths,
                 })
                 self.change_amount += self.psbt.tx.vout[i].value
+
             else:
                 addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
                 self.destination_addresses.append(addr)
@@ -172,10 +195,13 @@ class PSBTParser():
     @staticmethod
     def trim(tx):
         trimmed_psbt = psbt.PSBT(tx.tx)
-        sigsEnd = 0
         for i, inp in enumerate(tx.inputs):
-            sigsEnd += len(list(inp.partial_sigs.keys()))
-            trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
+            if inp.final_scriptwitness:
+                # Taproot sign; leave the input as-is
+                # TODO: See BIP-371 about fields that can be trimmed
+                trimmed_psbt.inputs[i] = inp
+            else:
+                trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
 
         return trimmed_psbt
 
@@ -184,7 +210,11 @@ class PSBTParser():
     def sig_count(tx):
         cnt = 0
         for i, inp in enumerate(tx.inputs):
-            cnt += len(list(inp.partial_sigs.keys()))
+            if inp.final_scriptwitness is not None:
+                # Taproot sign
+                cnt += 1
+            else:
+                cnt += len(list(inp.partial_sigs.keys()))
 
         return cnt
 
@@ -283,6 +313,12 @@ class PSBTParser():
         for input in psbt.inputs:
             for pub, derivation_path in input.bip32_derivations.items():
                 fingerprints.add(hexlify(derivation_path.fingerprint).decode())
+
+            for pub, (leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
+                # TODO: Support spends from leaves; depends on support in embit
+                if len(leaf_hashes) > 0:
+                    raise Exception("Signing keyspends from within a taptree not yet implemented")
+                fingerprints.add(hexlify(derivation_path.fingerprint).decode())
         return list(fingerprints)
 
 
@@ -295,6 +331,10 @@ class PSBTParser():
         seed_fingerprint = seed.get_fingerprint(network)
         for input in psbt.inputs:
             for pub, derivation_path in input.bip32_derivations.items():
+                if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():
+                    return True
+
+            for pub, (leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
                 if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():
                     return True
         return False

@@ -1,4 +1,4 @@
-embit==0.5.0
+embit==0.6.1
 numpy==1.21.1
 picamera==1.13
 Pillow==8.2.0
