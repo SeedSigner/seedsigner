@@ -37,6 +37,7 @@ class EncodeQR:
     qr_type: str = None
     qr_density: str = SettingsConstants.DENSITY__MEDIUM
     wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
+    bitcoin_address: str = None
 
     def __post_init__(self):
         self.qr = QR()
@@ -95,6 +96,9 @@ class EncodeQR:
         elif self.qr_type == QRType.SEED__COMPACTSEEDQR:
             self.encoder = CompactSeedQrEncoder(seed_phrase=self.seed_phrase,
                                                 wordlist_language_code=self.wordlist_language_code)
+        
+        elif self.qr_type == QRType.BITCOIN_ADDRESS:
+            self.encoder = BitcoinAddressEncoder(address=self.bitcoin_address)
 
         else:
             raise Exception('QR Type not supported')
@@ -318,6 +322,25 @@ class CompactSeedQrEncoder(SeedQrEncoder):
 
 
 
+class BitcoinAddressEncoder(BaseQrEncoder):
+    def __init__(self, address: str):
+        super().__init__()
+        self.address = address
+
+
+    def seq_len(self):
+        return 1
+
+
+    def next_part(self):
+        return self.address
+
+
+    @property
+    def is_complete(self):
+        return True
+
+
 class XpubQrEncoder(BaseQrEncoder):
     def __init__(self, seed_phrase, passphrase, derivation, network, wordlist_language_code):
         self.seed_phrase = seed_phrase
@@ -475,6 +498,8 @@ class UrXpubQrEncoder(XpubQrEncoder):
                         ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[401]],self.ur_hdkey))
                     elif origin.components[3].index == 1:  # Nested Multisig
                         ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[400], SCRIPT_EXPRESSION_TAG_MAP[401]],self.ur_hdkey))
+            elif origin.components[0].index == 86: # P2TR
+                ur_outputs.append(Output([SCRIPT_EXPRESSION_TAG_MAP[409]],self.ur_hdkey))
         
         # If empty, add all script types
         if len(ur_outputs) == 0:

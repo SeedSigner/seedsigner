@@ -7,7 +7,7 @@
 * [Project Summary](#project-summary)
 * [Shopping List](#shopping-list)
 * [Software Installation](#software-installation)
-  * [Verifying Your Software](#verifying-your-software)
+  * [Verifying the Software](#verifying-the-software)
 * [Enclosure Designs](#enclosure-designs)
 * [SeedQR Printable Templates](#seedqr-printable-templates)
 * [Manual Installation Instructions](#manual-installation-instructions)
@@ -64,7 +64,7 @@ If you have specific questions about the project, our [Telegram Group](https://t
 
 To build a SeedSigner, you will need:
 
-* Raspberry Pi Zero (preferably version 1.3 with no WiFi/Bluetooth capability, but any Raspberry Pi 2/3/4 or Zero model will work)
+* Raspberry Pi Zero (preferably version 1.3 with no WiFi/Bluetooth capability, but any Raspberry Pi 2/3/4 or Zero model will work, Raspberry Pi 1 devices will require a hardware modification to the Waveshare LCD Hat, as per the [instructions here](./docs/legacy_hardware.md))
 * Waveshare 1.3" 240x240 pxl LCD (correct pixel count is important, more info at https://www.waveshare.com/wiki/1.3inch_LCD_HAT)
 * Pi Zero-compatible camera (tested to work with the Aokin / AuviPal 5MP 1080p with OV5647 Sensor)
 

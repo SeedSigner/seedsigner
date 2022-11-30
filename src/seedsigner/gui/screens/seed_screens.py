@@ -436,7 +436,6 @@ class SeedFinalizeScreen(ButtonListScreen):
 @dataclass
 class SeedOptionsScreen(ButtonListScreen):
     # Customize defaults
-    is_bottom_list: bool = True
     fingerprint: str = None
     has_passphrase: bool = False
 
@@ -445,6 +444,8 @@ class SeedOptionsScreen(ButtonListScreen):
         self.top_nav_icon_color = "blue"
         self.title = self.fingerprint
         self.is_button_text_centered = False
+        self.is_bottom_list = True
+
         super().__post_init__()
 
 
@@ -621,7 +622,8 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
     KEYBOARD__LOWERCASE_BUTTON_TEXT = "abc"
     KEYBOARD__UPPERCASE_BUTTON_TEXT = "ABC"
     KEYBOARD__DIGITS_BUTTON_TEXT = "123"
-    KEYBOARD__SYMBOLS_BUTTON_TEXT = "!@#"
+    KEYBOARD__SYMBOLS_1_BUTTON_TEXT = "!@#"
+    KEYBOARD__SYMBOLS_2_BUTTON_TEXT = "*[]"
 
 
     def __post_init__(self):
@@ -630,7 +632,14 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         keys_lower = "abcdefghijklmnopqrstuvwxyz"
         keys_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         keys_number = "0123456789"
-        keys_symbol = "!\"#$%&'()*+,=./;:<>?@[]|-_`~"
+
+        # Present the most common/puncutation-related symbols & the most human-friendly
+        #   symbols first (limited to 18 chars).
+        keys_symbol_1 = """!@#$%&();:,.-+='"?"""
+
+        # Isolate the more math-oriented or just uncommon symbols
+        keys_symbol_2 = """^*[]{}_\\|<>/`~"""
+
 
         # Set up the keyboard params
         self.right_panel_buttons_width = 56
@@ -701,11 +710,11 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             render_now=False
         )
 
-        self.keyboard_symbols = Keyboard(
+        self.keyboard_symbols_1 = Keyboard(
             draw=self.renderer.draw,
-            charset=keys_symbol,
+            charset=keys_symbol_1,
             rows=4,
-            cols=max_cols,
+            cols=6,
             rect=(
                 GUIConstants.COMPONENT_PADDING,
                 keyboard_start_y,
@@ -713,7 +722,28 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 self.canvas_height - GUIConstants.EDGE_PADDING
             ),
             additional_keys=[
-                Keyboard.KEY_SPACE_4,
+                Keyboard.KEY_SPACE_2,
+                Keyboard.KEY_CURSOR_LEFT,
+                Keyboard.KEY_CURSOR_RIGHT,
+                Keyboard.KEY_BACKSPACE
+            ],
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+            render_now=False
+        )
+
+        self.keyboard_symbols_2 = Keyboard(
+            draw=self.renderer.draw,
+            charset=keys_symbol_2,
+            rows=4,
+            cols=6,
+            rect=(
+                GUIConstants.COMPONENT_PADDING,
+                keyboard_start_y,
+                self.canvas_width - GUIConstants.COMPONENT_PADDING - self.right_panel_buttons_width,
+                self.canvas_height - GUIConstants.EDGE_PADDING
+            ),
+            additional_keys=[
+                Keyboard.KEY_SPACE_2,
                 Keyboard.KEY_CURSOR_LEFT,
                 Keyboard.KEY_CURSOR_RIGHT,
                 Keyboard.KEY_BACKSPACE
@@ -823,8 +853,10 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 # Return to the same button2 keyboard, if applicable
                 if cur_keyboard == self.keyboard_digits:
                     cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
-                elif cur_keyboard == self.keyboard_symbols:
-                    cur_button2_text = self.KEYBOARD__SYMBOLS_BUTTON_TEXT
+                elif cur_keyboard == self.keyboard_symbols_1:
+                    cur_button2_text = self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT
+                elif cur_keyboard == self.keyboard_symbols_2:
+                    cur_button2_text = self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT
 
                 if cur_button1_text == self.KEYBOARD__LOWERCASE_BUTTON_TEXT:
                     self.keyboard_abc.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
@@ -861,10 +893,15 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                     self.keyboard_digits.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
                     cur_keyboard = self.keyboard_digits
                     cur_keyboard.render_keys()
-                    cur_button2_text = self.KEYBOARD__SYMBOLS_BUTTON_TEXT
-                else:
-                    self.keyboard_symbols.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard = self.keyboard_symbols
+                    cur_button2_text = self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT
+                elif cur_button2_text == self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT:
+                    self.keyboard_symbols_1.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard = self.keyboard_symbols_1
+                    cur_keyboard.render_keys()
+                    cur_button2_text = self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT
+                elif cur_button2_text == self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT:
+                    self.keyboard_symbols_2.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                    cur_keyboard = self.keyboard_symbols_2
                     cur_keyboard.render_keys()
                     cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
                 cur_keyboard.render_keys()
@@ -1017,6 +1054,7 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
                 font_size=font_size,
                 is_text_centered=True,
                 screen_y=screen_y,
+                allow_text_overflow=True
             ))
             screen_y += char_height + 2
 
@@ -1361,6 +1399,9 @@ class SeedAddressVerificationScreen(ButtonListScreen):
         print(f"verified_index: {self.verified_index.cur_count}")
         if self.verified_index.cur_count is not None:
             print("Screen callback returning success!")
+            self.threads[-1].stop()
+            while self.threads[-1].is_alive():
+                time.sleep(0.01)
             return 1
 
 
@@ -1374,10 +1415,12 @@ class SeedAddressVerificationScreen(ButtonListScreen):
         
 
         def run(self):
-            font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE)
             while self.keep_running:
                 if self.verified_index.cur_count is not None:
-                    # Have to trigger a hw_input event to break the Screen out of the wait_for loop
+                    # This thread will detect the success state while its parent Screen
+                    # holds in its `wait_for`. Have to trigger a hw_input event to break
+                    # the Screen._run out of the `wait_for` state. The Screen will then
+                    # call its `_run_callback` and detect the success state and exit.
                     HardwareButtons.get_instance().trigger_override(force_release=True)
                     return
 
