@@ -1,5 +1,6 @@
 import hashlib
 import os
+
 import time
 
 from embit.descriptor import Descriptor
@@ -51,8 +52,6 @@ class ToolsMenuView(View):
 
         elif button_data[selected_menu_num] == EXPLORER:
             return Destination(ToolsAddressExplorerSelectSourceView)
-
-
 
 
 """****************************************************************************
@@ -418,7 +417,6 @@ class ToolsCalcFinalWordDoneView(View):
         
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView)
-
 
 
 """****************************************************************************

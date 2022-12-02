@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List
 
-from seedsigner.gui.components import FontAwesomeIconConstants
+from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, DireWarningScreen, LargeButtonScreen, PowerOffScreen, ResetScreen, WarningScreen
 from seedsigner.models.threads import BaseThread
@@ -188,10 +188,9 @@ class RestartView(View):
             # exiting.
             time.sleep(0.25)
 
-            # Kill the SeedSigner process; systemd will automatically restart it.
-            # `.*` is a wildcard to detect either `python`` or `python3` and with or
-            # without the `-u` flag.
-            call("kill $(ps aux | grep '[p]ython.*main.py' | awk '{print $2}')", shell=True)
+            # Kill the SeedSigner process; Running the process again.
+            # `.*` is a wildcard to detect either `python`` or `python3`.
+            call("kill $(pidof python*) & python /opt/src/main.py", shell=True)
 
 
 
@@ -208,7 +207,7 @@ class PowerOffView(View):
             from subprocess import call
             while self.keep_running:
                 time.sleep(5)
-                call("sudo shutdown --poweroff now", shell=True)
+                call("poweroff", shell=True)
 
 
 

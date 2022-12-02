@@ -58,6 +58,8 @@ class GUIConstants:
     BUTTON_BACKGROUND_COLOR = "#2c2c2c"
     BUTTON_HEIGHT = 32
     BUTTON_SELECTED_FONT_COLOR = "black"
+    
+    NOTIFICATION_COLOR = "#00f100"
 
 
 
@@ -102,7 +104,7 @@ class FontAwesomeIconConstants:
     UNLOCK = "\uf09c"
     QRCODE = "\uf029"
     X = "\u0058"
-
+    SDCARD = "\uf7c2"
 
 
 class SeedSignerCustomIconConstants:
@@ -568,6 +570,71 @@ class IconTextLine(BaseComponent):
             self.icon.render()
 
 
+@dataclass
+class ToastOverlay(BaseComponent):
+    icon_name: str = None
+    color: str = None
+    label_text: str = None
+
+    def __post_init__(self):
+        super().__post_init__()
+            
+        self.icon = Icon(
+            image_draw=self.image_draw,
+            canvas=self.canvas,
+            screen_x=20,
+            screen_y=190,
+            icon_name=self.icon_name,
+            icon_size=30,
+            icon_color=self.color
+        )
+        
+        self.label = TextArea(
+            image_draw=self.image_draw,
+            canvas=self.canvas,
+            text=self.label_text,
+            font_size=19,
+            font_color=self.color,
+            edge_padding=0,
+            is_text_centered=False,
+            auto_line_break=False,
+            width=160,
+            height=20,
+            screen_x=55,
+            screen_y=195,
+            allow_text_overflow=False
+        )
+            
+    def render(self):
+        import time
+        from seedsigner.controller import Controller
+        
+        self.controller: Controller = Controller.get_instance()
+        self.current_screen = self.renderer.canvas.copy()
+        
+        # Special case when screensaver is running
+        if self.controller.screensaver._is_running:
+            self.controller.buttons.override_ind = True
+
+        self.image_draw.rounded_rectangle(
+            ( GUIConstants.EDGE_PADDING + 2, self.canvas_height - 60, self.canvas_width - GUIConstants.EDGE_PADDING - 2, self.canvas_width - GUIConstants.EDGE_PADDING - 2),
+            fill=GUIConstants.BACKGROUND_COLOR,
+            radius=8,
+            outline=self.color,
+            width=2,
+        )
+        
+        self.icon.render()
+        self.label.render()
+        
+        self.renderer.show_image()
+        
+        t_end = time.time() + 3
+        while time.time() < t_end:
+            if self.controller.buttons.has_any_input():
+                break
+            
+        self.renderer.show_image(self.current_screen)
 
 @dataclass
 class FormattedAddress(BaseComponent):

@@ -42,12 +42,12 @@ class QR:
         else:
             border_str = "3"
 
-        cmd = f"""qrencode -m {border_str} -s 3 -l L --foreground=000000 --background={background_color} -t PNG -o "/dev/shm/qrcode.png" "{str(data)}" """
+        cmd = f"""qrencode -m {border_str} -s 3 -l L --foreground=000000 --background={background_color} -t PNG -o "/tmp/qrcode.png" "{str(data)}" """
         rv = subprocess.call(cmd, shell=True)
 
         # if qrencode fails, fall back to only encoder
         if rv != 0:
             return self.qrimage(data,width,height,border)
-        img = Image.open("/dev/shm/qrcode.png").resize((width,height), Image.NEAREST).convert("RGBA")
+        img = Image.open("/tmp/qrcode.png").resize((width,height), Image.NEAREST).convert("RGBA")
 
         return img
