@@ -40,6 +40,7 @@ class Settings(Singleton):
         if self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] == SettingsConstants.OPTION__ENABLED:
             with open(Settings.SETTINGS_FILENAME, 'w') as settings_file:
                 json.dump(self._data, settings_file, indent=4)
+            os.sync()
 
 
     def update(self, new_settings: dict, disable_missing_entries: bool = True):
