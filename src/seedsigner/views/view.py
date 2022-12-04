@@ -212,7 +212,8 @@ class PowerOffView(View):
                 time.sleep(5)
                 if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
                     # disable microsd detection before shutdown to prevent display of toast notification during shutdown
-                    self.controller.microsd.stop()
+                    from seedsigner.controller import Controller
+                    Controller.get_instance().microsd.stop()
                     call("poweroff", shell=True)
                 else:
                     call("sudo shutdown --poweroff now", shell=True)
