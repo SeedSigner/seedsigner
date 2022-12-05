@@ -1034,14 +1034,17 @@ class KeyboardScreen(BaseTopNavScreen):
             
             elif self.show_save_button and input == HardwareButtonsConstants.KEY3:
                 # Save!
+                if len(self.user_input) == 0:
+                    # Don't try to submit zero input
+                    continue
+
                 # First show the save button reacting to the click
                 self.save_button.is_selected = True
                 self.save_button.render()
                 self.renderer.show_image()
 
                 # Then return the input to the View
-                if len(self.user_input) > 0:
-                    return self.user_input.strip()
+                return self.user_input.strip()
     
             # Process normal input
             if input in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN] and self.top_nav.is_selected:
