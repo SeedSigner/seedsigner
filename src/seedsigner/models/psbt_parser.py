@@ -197,9 +197,10 @@ class PSBTParser():
         trimmed_psbt = psbt.PSBT(tx.tx)
         for i, inp in enumerate(tx.inputs):
             if inp.final_scriptwitness:
-                # Taproot sign; leave the input as-is
-                # TODO: See BIP-371 about fields that can be trimmed
-                trimmed_psbt.inputs[i] = inp
+                # Taproot sign; trim to only final_scriptwitness
+                # From BIP-371 and BIP-174, once final script witness is populated
+                # it contains all necessary signatures
+                trimmed_psbt.inputs[i].final_scriptwitness = inp.final_scriptwitness
             else:
                 trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
 
