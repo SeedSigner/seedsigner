@@ -84,54 +84,94 @@ However, one of the many advantages of the open source software model is that th
 
 ## Downloading the Software
 
-The quickest and easiest way to install the software is to download the most recent "seedsigner_X_X_X.zip" file in the [software releases](https://github.com/SeedSigner/seedsigner/releases) section of this repository.
+To download the most recent software version, click here [here](https://github.com/SeedSigner/seedsigner/releases), and then expand the *Assets* sub-heading. 
+Download these files to your computer.
+1. seedsigner_0_5_x.img.zip 
+2. seedsigner_0_5_x.img.zip.sha256 
+3. seedsigner_0_5_x.img.zip.sha256.sig 
 
-After downloading the .zip file, verify it, extract the seedsigner .img file, and write it to a MicroSD card (at least 4GB in size or larger). Then install the MicroSD in the assembled hardware and off you go.
+After the files have finished downloading, follow the steps below to write the software onto a MicroSD card. Then insert the MicroSD into your assembled hardware and turn on the power. Wait about 45 secs for our logo to appear.
 
-## Verifying the Software
-You can verify the data integrity and authenticity of the latest release with as little as three commands. This process assumes that you know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal) and have navigated to the folder where you have these four relevant files present: (This will most likely be your Downloads folder.)
+**Note:** The version numbers of the latest files will be higher than this example, but the naming format will be the same.  
 
-* seedsigner_pubkey.gpg (from the main folder of this repo)
-* seedsigner_0_4_6.img.zip (from the software release)
-* seedsigner_0_4_6.img.zip.sha256 (from the software release)
-* seedsigner_0_4_6.img.zip.sha256.sig (from the software release)
 
-**Note:** The specific version number of the files in your folder might not match the above exactly, but their overall format and amount should be the same.
+## Verifying that the downloaded files are authentic (optional but recommended!)
+You can quickly verify that the downloaded software is both genuine and unaltered, by following these instructions.
 
-This process also assumes you are running the commands from a system where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are installed and working.
+This step assumes you are running the commands from a computer where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are already installed, and that you know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal) 
+Begin in the same folder where you have saved the download files.   
+(Which will most likely be your Downloads folder.)
 
-First make sure that the public key is present in your keychain:
+
+###Import the public key of the SeedSigner Project into your computer
+The *fetch-keys*  command below will import the SeedSigner projects public key from a popular online keyserver called *Keybase.io*, into your computers *keychain*. 
+The Keybase.io website service allows you to verify that the key belongs to the organization it claims to represent. It is checked cryptographically and saved in 3 separate online locations (Twitter, Seedsigner.com and github.com) 
+
+If you need more information, open the website <a href="https://www.Keybase.io/SeedSigner" target="_blank">KeyBase.io/SeedSigner</a> (it opens in a separate tab or window) 
+
+else simply run this command (inside the same folder as the downloaded files):
 ```
-gpg --import seedsigner_pubkey.gpg 
+gpg --fetch-keys https://keybase.io/SeedSigner/pgp_keys.asc
 ```
-This command will import the public key, or return:
-```
-key <...> not changed
-```
+When  the command completes successfully, it will display a numeric ID, as circled in red in the example below. We will use that numeric ID in the next step.
 
-Now you can verify the authenticity of the small text file containing the release's SHA256 hash with the command:
+![SS - Keybase PubKey import with Fingerprint shown (New import or update of the key)](https://user-images.githubusercontent.com/91296549/174248861-7961c038-1fbf-47a1-a110-146cb218b1c8.jpg)  
+
+###Verifying that your signature file is signed by the right person(s) 
+ 
+The next steps will allow you how to confirm that your downloaded .zip file is the genuine and unaltered SeedSigner software.
+
+The *verify* command below, identifies *who exactly* made the signature file. 
+The output of this verify command is the all-important *signers* fingerprint, and it is this fingerprint that you will visually (and match!) to the fingerprint ID shown at Keybase.io/SeedSigner.  If the ID matches, then you know it was seedsigner who signed it.  
+
+(More specifically, the verify command determines *which* key pair already on your computer, signed the sha256.sig file.  It does this comparing the file  cryptographically to its unsigned equivalent (the .sha256 file).)  
+
 ```
 gpg --verify seedsigner_0_*_*.img.zip.sha256.sig
 ```
-**Note:** The `*`s in the command above allow the terminal to auto-populate the command with the version number you have in the folder you are in. It should be copied and pasted as is.
+**Note:** The `*`s in the command will auto-match to the version number in your current folder. It should be copied and pasted as-is.
 
-The reponse to this command should include the text:
-```
-Good signature from "seedsigner <btc.hardware.solutions@gmail.com>" [unknown]
-```
-The previous command validates that aforementioned small text file was signed using the private key that matches the published public key associated with the project (an early timestamped record of this public/private key's creation can be found in this [tweet](https://twitter.com/SeedSigner/status/1389617642286329856?s=20)).
+The response you receive **must** include the phrase **"Good signature"**, like this: 
 
-The last step is to make sure the .zip file that you've downloaded, and that contains the released software, is a perfect match to the software that was published by the holder of the private key in the last step. The command for this step is:
+>Good signature from "seedsigner <btc.hardware.solutions @ gmail.com>" [unknown]  
+
+The email address is JUST informational. Completely ignore it.  *Only* the matching fingerprints count.   
+<br>
+If the response displays "BAD signature", then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
+
+If you receive the warning message below, it can be safely ignored *because* you are going to be matching the fingerprint ID manually, to Keybase.io/seedsigner.
+
+> gpg: WARNING: This key is not certified with a trusted signature!  
+> gpg:          There is no indication that the signature belongs to the owner.
+
+
+If you received the phase **"good Signature"**, then the last output line will display a fingerprint ID. That is the all-important *signers* fingerprint ID. you must now visually compare that ID to the fingerprint ID shown at Keybase.io/SeedSigner.  If the fingerprint ID matches, then you have successfully verified that seedsigner signed the software you have just downloaded.
+<br>
+If it does not match perfectly, then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
+<br>
+<br>
+
+The final verification step is to make sure that the other downloaded files (eg the files inside the zip file) were not altered or added to in any way. Even a single character being changed or removed, would show up here.   
+
+**On Linux or OSX**
 ```
 shasum -a 256 -c seedsigner_0_*_*.img.zip.sha256
 ```
-The reponse to this command should include the text:
+
+**On Windows (Powershell)**
 ```
-seedsigner_0_4_6.img.zip: OK
+CertUtil -hashfile  seedsigner_0_*_*.img.zip SHA256 | findstr /v "hash"
 ```
 
-There are other steps you can take to verify the software, including examining the hash value in the .sha256 text file, but this one has been documented here because it seems the simplest for most people to follow. Please recognize that this process can only validate the software to the extent that the entity that first published the key is an honest actor, and assumes the private key has remained uncompromised and is not being used by a malicious actor.
+The response must include the text **seedsigner_[VersionNumber].img.zip OK**, like this:   
+```
+seedsigner_0_5_x.img.zip: OK
+```
+**If you have received the OK message above then your verification has suceeded! - well done, the download files are now all confirmed as authentic and unaltered**!   
 
+If the result did not display "OK", then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
+
+Please recognize that this process can only validate the software to the extent that the entity that first published the key is an honest actor, and their private key is not compromised or somehow being used by a malicious actor. 
 ---------------
 
 # Enclosure Designs
