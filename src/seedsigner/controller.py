@@ -103,6 +103,7 @@ class Controller(Singleton):
     # TODO: Refactor these flow-related attrs that survive across multiple Screens.
     # TODO: Should all in-memory flow-related attrs get wiped on MainMenuView?
     psbt: 'embit.psbt.PSBT' = None
+    psbt_file: dict = None
     psbt_seed: 'Seed' = None
     psbt_parser: 'PSBTParser' = None
 
@@ -173,6 +174,7 @@ class Controller(Singleton):
 
         # Store one working psbt in memory
         controller.psbt = None
+        controller.psbt_file = None
         controller.psbt_parser = None
 
         # Configure the Renderer

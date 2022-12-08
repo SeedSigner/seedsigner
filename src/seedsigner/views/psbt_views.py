@@ -1,3 +1,4 @@
+import os
 from embit.psbt import PSBT
 from embit import script
 from embit.networks import NETWORKS
@@ -5,6 +6,7 @@ from seedsigner.controller import Controller
 
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.models.encode_qr import EncodeQR
+from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.settings import SettingsConstants
@@ -13,6 +15,51 @@ from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScre
 from seedsigner.views.view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
 
+class PSBTFileSelectionView(View):
+    def run(self):
+        if len(self.controller.microsd.psbt_files) == 0:
+            return Destination(MainMenuView)
+
+        button_data = []
+        
+        for psbt_file in self.controller.microsd.psbt_files:
+            if len(psbt_file["filename"]) > 18:
+                button_data.append(psbt_file["filename"][:13] + "..." + psbt_file["filename"][-7:])
+            else:
+                button_data.append(psbt_file["filename"])
+            
+        selected_menu_num = ButtonListScreen(
+            title="Select PSBT File",
+            is_button_text_centered=False,
+            button_data=button_data
+        ).display()
+        
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+            
+        # Read PSBT file select if it exists
+        from embit import psbt
+        from binascii import a2b_base64
+
+        psbt_file = self.controller.microsd.psbt_files[selected_menu_num]
+        tx = psbt.PSBT
+        
+        if os.path.exists(psbt_file["filepath"]):
+            with open(psbt_file["filepath"], 'rb') as f:
+                data = f.read()
+        
+            if psbt_file["type"] == "binary":
+                tx = psbt.PSBT.parse(data)
+            elif psbt_file["type"] == "base64":
+                raw = a2b_base64(data)
+                tx = psbt.PSBT.parse(raw)
+            self.controller.psbt = tx
+            self.controller.psbt_parser = None
+            self.controller.psbt_file = psbt_file
+            return Destination(PSBTSelectSeedView)
+        else:
+            # TODO display warning messages that psbt file was not found
+            return Destination(MainMenuView)
 
 class PSBTSelectSeedView(View):
     SCAN_SEED = ("Scan a seed", SeedSignerIconConstants.QRCODE)
@@ -482,7 +529,10 @@ class PSBTFinalizeView(View):
             # Sign PSBT
             sig_cnt = PSBTParser.sig_count(psbt)
             psbt.sign_with(psbt_parser.root)
-            trimmed_psbt = PSBTParser.trim(psbt)
+            
+            trimmed_psbt = psbt
+            if self.controller.psbt_file != None: # skip psbt trim is using files
+                trimmed_psbt = PSBTParser.trim(psbt)
 
             if sig_cnt == PSBTParser.sig_count(trimmed_psbt):
                 # Signing failed / didn't do anything
@@ -492,7 +542,10 @@ class PSBTFinalizeView(View):
             
             else:
                 self.controller.psbt = trimmed_psbt
-                return Destination(PSBTSignedQRDisplayView)
+                if self.controller.psbt_file == None:
+                    return Destination(PSBTSignedQRDisplayView)
+                else:
+                    return Destination(PSBTSignedFileDisplayView)
 
 
 
@@ -510,7 +563,41 @@ class PSBTSignedQRDisplayView(View):
         #   clears all ephemeral data (except in-memory seeds).
         return Destination(MainMenuView, clear_history=True)
 
+class PSBTSignedFileDisplayView(View):
+    def run(self):
+        
+        # extract psbt (embit) bytes to write to file
+        raw = self.controller.psbt.serialize()
+        filename, extension = os.path.splitext(self.controller.psbt_file["filename"])
+        signed_filename = filename + " signed" + extension
+        signed_filepath = MicroSD.MOUNT_LOCATION + signed_filename
+        increment = 0
+        
+        # if file already exists, add increment to file name (to avoid writing over existing psbt)
+        while os.path.exists(signed_filepath):
+            increment += 1
+            signed_filename = filename + " signed" + str(increment) + extension
+            signed_filepath = MicroSD.MOUNT_LOCATION + signed_filename
+        
+        # write out psbt file sync and force flush to disk as best as possible
+        with open(signed_filepath, "wb") as f:
+            f.write(raw)
+            f.flush()
+            os.fsync(f.fileno())
 
+        LargeIconStatusScreen(
+            title="PSBT Saved",
+            show_back_button=False,
+            status_headline="Success!",
+            text=signed_filename,
+            button_data=["OK"],
+            allow_text_overflow=True
+        ).display()
+        
+        # refresh list of files to include the new signed psbt
+        self.controller.microsd.find_psbt_files()
+        
+        return Destination(MainMenuView)
 
 class PSBTSigningErrorView(View):
     def run(self):

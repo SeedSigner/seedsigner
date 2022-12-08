@@ -17,6 +17,7 @@ from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedWordsWarningView, SeedExportXpubScriptTypeView
+from seedsigner.views.psbt_views import PSBTFileSelectionView
 
 from .view import View, Destination, BackStackView
 
@@ -27,10 +28,14 @@ class ToolsMenuView(View):
     DICE = ("New seed", FontAwesomeIconConstants.DICE)
     KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     EXPLORER = "Address Explorer"
+    OPEN_PSBT = "Open PSBT on MicroSD"
     ADDRESS = "Verify address"
 
     def run(self):
         button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.EXPLORER, self.ADDRESS]
+
+        if len(self.controller.microsd.psbt_files) > 0:
+            button_data.append(self.OPEN_PSBT)
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -53,6 +58,9 @@ class ToolsMenuView(View):
 
         elif button_data[selected_menu_num] == self.EXPLORER:
             return Destination(ToolsAddressExplorerSelectSourceView)
+            
+        elif button_data[selected_menu_num] == OPEN_PSBT:
+            return Destination(PSBTFileSelectionView)
 
         elif button_data[selected_menu_num] == self.ADDRESS:
             from seedsigner.views.scan_views import ScanAddressView
