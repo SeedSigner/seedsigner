@@ -353,6 +353,7 @@ class SeedOptionsView(View):
         BACKUP = ("Backup Seed", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT)
         BIP85_CHILD_SEED = "BIP-85 Child Seed"
         DISCARD = ("Discard Seed", None, None, "red")
+        DISCARD_PSBT = ("Discard PSBT", None, None, "red")
 
         button_data = []
 
@@ -397,6 +398,9 @@ class SeedOptionsView(View):
             button_data.append(BIP85_CHILD_SEED)
 
         button_data.append(DISCARD)
+        
+        if self.controller.psbt:
+            button_data.append(DISCARD_PSBT)
 
         selected_menu_num = seed_screens.SeedOptionsScreen(
             button_data=button_data,
@@ -414,6 +418,7 @@ class SeedOptionsView(View):
 
         if button_data[selected_menu_num] == SCAN_PSBT:
             from seedsigner.views.scan_views import ScanView
+            self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
             return Destination(ScanView)
 
         elif button_data[selected_menu_num] == VERIFY_ADDRESS:
@@ -435,6 +440,11 @@ class SeedOptionsView(View):
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView, view_args=dict(seed_num=self.seed_num))
 
+        elif button_data[selected_menu_num] == DISCARD_PSBT:
+            self.controller.psbt = None
+            self.controller.psbt_parser = None
+            self.controller.psbt_seed = None
+            return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num))
 
 
 class SeedBackupView(View):

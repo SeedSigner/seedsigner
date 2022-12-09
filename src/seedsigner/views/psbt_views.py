@@ -48,6 +48,11 @@ class PSBTSelectSeedView(View):
         button_data.append(SCAN_SEED)
         button_data.append(TYPE_12WORD)
         button_data.append(TYPE_24WORD)
+        
+        if self.controller.psbt_seed:
+            if PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=self.controller.psbt_seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
+                # skip the seed prompt if a seed was previous selected and has matching input fingerprint
+                return Destination(PSBTOverviewView)
 
         selected_menu_num = ButtonListScreen(
             title="Select Signer",
@@ -143,6 +148,7 @@ class PSBTOverviewView(View):
         selected_menu_num = screen.display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
+            self.controller.psbt_seed = None
             return Destination(BackStackView)
 
         # expecting p2sh (legacy multisig) and p2pkh to have no policy set
