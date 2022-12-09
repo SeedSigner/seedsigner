@@ -43,17 +43,17 @@ class PSBTFileSelectionView(View):
             
         # Read PSBT file select if it exists
         psbt_file = self.controller.microsd.psbt_files[selected_menu_num]
-        tx = PSBT.PSBT
+        tx = PSBT
         
         if os.path.exists(psbt_file["filepath"]):
             with open(psbt_file["filepath"], 'rb') as f:
                 data = f.read()
         
             if psbt_file["type"] == "binary":
-                tx = psbt.PSBT.parse(data)
+                tx = PSBT.parse(data)
             elif psbt_file["type"] == "base64":
                 raw = a2b_base64(data)
-                tx = psbt.PSBT.parse(raw)
+                tx = PSBT.parse(raw)
             self.controller.psbt = tx
             self.controller.psbt_parser = None
             self.controller.psbt_file = psbt_file
@@ -575,6 +575,24 @@ class PSBTSignedFileDisplayView(View):
         signed_filename = filename + " signed" + extension
         signed_filepath = MicroSD.MOUNT_LOCATION + signed_filename
         increment = 0
+        
+        # verify microsd directory exists and is writable, display message warning on failure
+        selected_menu_num = 0
+        while (not os.path.exists(MicroSD.MOUNT_LOCATION) or not os.access(MicroSD.MOUNT_LOCATION, os.W_OK)):
+            selected_menu_num = WarningScreen(
+                status_headline="MicroSD Card Missing!",
+                text="MicroSD Card is required to write out signed PSBT file.",
+                button_data=["Continue", "Exit"],
+            ).display()
+            
+            # if users chooses to exit, consider the PSBT workflow complete
+            if selected_menu_num == 1:
+                # We're done with this PSBT. Remove all related data
+                self.controller.psbt = None
+                self.controller.psbt_parser = None
+                self.controller.psbt_seed = None
+                self.controller.psbt_file = None
+                return Destination(MainMenuView)
         
         # if signed filename already exists on disk, add incremented number to the end of the file name
         while os.path.exists(signed_filepath):

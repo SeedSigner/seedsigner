@@ -159,6 +159,7 @@ class SettingsConstants:
     SETTING__COMPACT_SEEDQR = "compact_seedqr"
     SETTING__BIP85_CHILD_SEEDS = "bip85_child_seeds"
     SETTING__MESSAGE_SIGNING = "message_signing"
+    SETTING__MICROSD_PSBT = "microsd_psbt"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
     SETTING__QR_BRIGHTNESS_TIPS = "qr_brightness_tips"
@@ -461,6 +462,12 @@ class SettingsDefinition:
                       display_name="Message signing",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__DISABLED),
+                      
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                              attr_name=SettingsConstants.SETTING__MICROSD_PSBT,
+                              display_name="MicroSD PSBT",
+                              visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                              default_value=SettingsConstants.OPTION__DISABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__PRIVACY_WARNINGS,

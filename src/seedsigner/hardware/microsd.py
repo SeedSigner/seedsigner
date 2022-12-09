@@ -3,7 +3,7 @@ import base64, os, glob
 
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
-from seedsigner.models.settings import Settings
+from seedsigner.models.settings import Settings, SettingsConstants
 #from seedsigner.views.view import MicroSDToastView
 from seedsigner.gui.screens.screen import MicroSDToastScreen
 
@@ -73,27 +73,29 @@ class MicroSD(Singleton, BaseThread):
 		self.psbt_files = []
 		# only populate psbt files from the microsd in seedsigner-os
 		if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
-			for filepath in sorted(glob.glob(MicroSD.MOUNT_LOCATION + '*')):
-				if os.path.isfile(filepath):
-					with open(filepath, 'rb') as psbt_file:
-						file_header = psbt_file.read(MicroSD.MAGIC_MAX_LENGTH)
+			# only populate psbt files if setting is enabled
+			if Settings.get_instance().get_value(SettingsConstants.SETTING__MICROSD_PSBT) == SettingsConstants.OPTION__ENABLED:
+				for filepath in sorted(glob.glob(MicroSD.MOUNT_LOCATION + '*')):
+					if os.path.isfile(filepath):
+						with open(filepath, 'rb') as psbt_file:
+							file_header = psbt_file.read(MicroSD.MAGIC_MAX_LENGTH)
+				
+					# binary psbt file check
+					if file_header.startswith(MicroSD.MAGIC):
+						self.psbt_files.append({
+							"name": os.path.splitext(os.path.basename(filepath))[0],
+							"filename": os.path.basename(filepath),
+							"filepath": filepath,
+							"type": "binary"
+						})
+					# base64 psbt file check
+					elif file_header.startswith(MicroSD.MAGIC_BASE64):
+						self.psbt_files.append({
+							"name": os.path.splitext(os.path.basename(filepath))[0],
+							"filename": os.path.basename(filepath),
+							"filepath": filepath,
+							"type": "base64"
+						})
 			
-				# binary psbt file check
-				if file_header.startswith(MicroSD.MAGIC):
-					self.psbt_files.append({
-						"name": os.path.splitext(os.path.basename(filepath))[0],
-						"filename": os.path.basename(filepath),
-						"filepath": filepath,
-						"type": "binary"
-					})
-				# base64 psbt file check
-				elif file_header.startswith(MicroSD.MAGIC_BASE64):
-					self.psbt_files.append({
-						"name": os.path.splitext(os.path.basename(filepath))[0],
-						"filename": os.path.basename(filepath),
-						"filepath": filepath,
-						"type": "base64"
-					})
-			
-			# sort the list by name of file without extension	
-			self.psbt_files = sorted(self.psbt_files, key=lambda d: d['name']) 
+				# sort the list by name of file without extension	
+				self.psbt_files = sorted(self.psbt_files, key=lambda d: d['name']) 

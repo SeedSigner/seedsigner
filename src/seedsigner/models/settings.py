@@ -159,8 +159,14 @@ class Settings(Singleton):
                 print(f"Removed {self.SETTINGS_FILENAME}")
             except:
                 print(f"{self.SETTINGS_FILENAME} not found to be removed")
-                
+        
         self._data[attr_name] = value
+        
+        # Special handling for MicroSD PSBT setting
+        if attr_name == SettingsConstants.SETTING__MICROSD_PSBT:
+            from seedsigner.hardware.microsd import MicroSD
+            MicroSD.get_instance().find_psbt_files()
+
         self.save()
     
 
