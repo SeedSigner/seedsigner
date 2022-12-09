@@ -1,5 +1,5 @@
 import time
-import base64, binascii, os, glob
+import base64, os, glob
 
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
@@ -94,10 +94,6 @@ class MicroSD(Singleton, BaseThread):
 						"filepath": filepath,
 						"type": "base64"
 					})
-					
+			
+			# sort the list by name of file without extension	
 			self.psbt_files = sorted(self.psbt_files, key=lambda d: d['name']) 
-
-			if len(self.psbt_files) > 0:
-				print("PSBT Files Found:")
-			for psbt in self.psbt_files:
-				print('{filename}:{type}'.format(**psbt))

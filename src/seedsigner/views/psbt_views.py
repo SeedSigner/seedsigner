@@ -1,4 +1,5 @@
 import os
+from binascii import a2b_base64
 from embit.psbt import PSBT
 from embit import script
 from embit.networks import NETWORKS
@@ -17,14 +18,17 @@ from seedsigner.views.view import BackStackView, MainMenuView, NotYetImplemented
 
 class PSBTFileSelectionView(View):
     def run(self):
+        
+        # edge case when file selection menu is selected, but no psbt files are available, re-route to home menu
         if len(self.controller.microsd.psbt_files) == 0:
             return Destination(MainMenuView)
 
+        # add button to button list for each psbt file
         button_data = []
         
         for psbt_file in self.controller.microsd.psbt_files:
-            if len(psbt_file["filename"]) > 18:
-                button_data.append(psbt_file["filename"][:13] + "..." + psbt_file["filename"][-7:])
+            if len(psbt_file["filename"]) > 21:
+                button_data.append(psbt_file["filename"][:12] + "..." + psbt_file["filename"][-7:])
             else:
                 button_data.append(psbt_file["filename"])
             
@@ -38,11 +42,8 @@ class PSBTFileSelectionView(View):
             return Destination(BackStackView)
             
         # Read PSBT file select if it exists
-        from embit import psbt
-        from binascii import a2b_base64
-
         psbt_file = self.controller.microsd.psbt_files[selected_menu_num]
-        tx = psbt.PSBT
+        tx = PSBT.PSBT
         
         if os.path.exists(psbt_file["filepath"]):
             with open(psbt_file["filepath"], 'rb') as f:
@@ -531,7 +532,7 @@ class PSBTFinalizeView(View):
             psbt.sign_with(psbt_parser.root)
             
             trimmed_psbt = psbt
-            if self.controller.psbt_file == None: # skip trim when using files on microsd
+            if self.controller.psbt_file == None: # skip trim when using psbt files from microsd
                 trimmed_psbt = PSBTParser.trim(psbt)
 
             if sig_cnt == PSBTParser.sig_count(trimmed_psbt):
@@ -542,6 +543,7 @@ class PSBTFinalizeView(View):
             
             else:
                 self.controller.psbt = trimmed_psbt
+                # when psbt file is used from microsd, write signed psbt to microsd
                 if self.controller.psbt_file == None:
                     return Destination(PSBTSignedQRDisplayView)
                 else:
@@ -566,14 +568,15 @@ class PSBTSignedQRDisplayView(View):
 class PSBTSignedFileDisplayView(View):
     def run(self):
         
-        # extract psbt (embit) bytes to write to file
+        # extract psbt from memory to write to file. The file name of a signed PSBT is appended with "signed" to the original file name.
+        # So "Test 123.psbt" unsigned PSBT will be written to the microsd card as "Test 123 signed.psbt".
         raw = self.controller.psbt.serialize()
         filename, extension = os.path.splitext(self.controller.psbt_file["filename"])
         signed_filename = filename + " signed" + extension
         signed_filepath = MicroSD.MOUNT_LOCATION + signed_filename
         increment = 0
         
-        # if file already exists, add increment to file name (to avoid writing over existing psbt)
+        # if signed filename already exists on disk, add incremented number to the end of the file name
         while os.path.exists(signed_filepath):
             increment += 1
             signed_filename = filename + " signed" + str(increment) + extension
