@@ -597,6 +597,12 @@ class PSBTSignedFileDisplayView(View):
         # refresh list of files to include the new signed psbt
         self.controller.microsd.find_psbt_files()
         
+        # We're done with this PSBT. Remove all related data
+        self.controller.psbt = None
+        self.controller.psbt_parser = None
+        self.controller.psbt_seed = None
+        self.controller.psbt_file = None
+        
         return Destination(MainMenuView)
 
 class PSBTSigningErrorView(View):
