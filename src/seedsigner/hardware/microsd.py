@@ -74,7 +74,7 @@ class MicroSD(Singleton, BaseThread):
 		# only populate psbt files from the microsd in seedsigner-os
 		if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
 			for filepath in sorted(glob.glob(MicroSD.MOUNT_LOCATION + '*')):
-				if os.path.exists(filepath):
+				if os.path.isfile(filepath):
 					with open(filepath, 'rb') as psbt_file:
 						file_header = psbt_file.read(MicroSD.MAGIC_MAX_LENGTH)
 			

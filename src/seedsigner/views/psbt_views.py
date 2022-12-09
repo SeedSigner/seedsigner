@@ -531,7 +531,7 @@ class PSBTFinalizeView(View):
             psbt.sign_with(psbt_parser.root)
             
             trimmed_psbt = psbt
-            if self.controller.psbt_file != None: # skip psbt trim is using files
+            if self.controller.psbt_file == None: # skip trim when using files on microsd
                 trimmed_psbt = PSBTParser.trim(psbt)
 
             if sig_cnt == PSBTParser.sig_count(trimmed_psbt):
