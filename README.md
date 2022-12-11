@@ -113,7 +113,7 @@ To begin, run fetch-keys command shown below (from inside the *same folder* that
 ```
 gpg --fetch-keys https://keybase.io/SeedSigner/pgp_keys.asc
 ```
-When  the command completes successfully, it will display a numeric ID, as circled in red in the example below. We will use that numeric ID in the subsequent steps. Please ignore the email address shown, because it is not part of the verification. 
+When the command completes successfully, it will display a numeric ID, as circled in red in the example below. We will use that numeric ID in the subsequent steps. Please ignore the email address shown, because it is not part of the verification. 
 
 ![SS - Keybase PubKey import with Fingerprint shown (New import or update of the key)](https://user-images.githubusercontent.com/91296549/174248861-7961c038-1fbf-47a1-a110-146cb218b1c8.jpg)  
 
@@ -127,38 +127,33 @@ The output will display the all-important *signers* fingerprint, and it is this 
 ```
 gpg --verify seedsigner_0_*_*.img.zip.sha256.sig
 ```
-**Note:** The `*`'s in the command above are used to auto-fill the version numbers from your current folder, so it should be copied and pasted as-is.
+**Note:** The `*`'s in the command above are used to auto-fill the version from your current folder, so it should be copied and pasted as-is.
 
-The response you receive **must** include the phrase **"Good signature"**, like this: 
+The output should appear like this:
+<BR>
+![SS - Verify Command - GPG on Linux - Masked](https://user-images.githubusercontent.com/91296549/206896045-2f787aa1-0c29-41ec-8ce2-a4c6adbcf32f.jpg)
 
->Good signature from "seedsigner <btc.hardware.solutions @ gmail.com>" [unknown]  
 
-The email address is JUST informational. Ignore it completely.  *Only* the matching fingerprints count.   
-<br>
-If the response displays "BAD signature", then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
+--- The response you receive **must** include the phrase **"Good signature"**, like this: 
 
-If you receive the warning message below, it can be safely ignored *because* you are going to be visually matching the fingerprint ID outputted to Keybase.io/seedsigner.
-
+This warning message can be safely ignored *because* you are still going to be visually comparing the fingerprint ID outputted against Keybase.io/seedsigner.
 > gpg: WARNING: This key is not certified with a trusted signature!  
 > gpg:          There is no indication that the signature belongs to the owner.
 
-![SS - Verify Command - GPG on Linux - Masked](https://user-images.githubusercontent.com/91296549/206893065-b2cd7482-e342-43fc-aab6-5bb793aa59aa.jpg)
-
-
-
-If you received the phase **"good Signature"**, then the last output line will display a fingerprint ID. That is the all-important *signers* fingerprint ID. 
+**If** you received the phase **"good Signature"**, then the last output line will display a fingerprint ID. That is the all-important *signers* fingerprint ID. 
 You **must** now visually compare that ID to the fingerprint ID shown at Keybase.io/SeedSigner, yourself.  
+The email address is JUST informational. Ignore it completely. *Only* the matching fingerprints count.   
 <br>
 Open the Keybase.io/SeedSigner.  <a href="https://www.Keybase.io/SeedSigner" target="_blank">KeyBase.io/SeedSigner</a>  
 and now visually compare the fingerprint ID shown there to the Fingerprint ID outputted from the *verify* command.  
+<BR>
+![SS - Keybase Website PubKey visual matching1 -50pct](https://user-images.githubusercontent.com/91296549/206895724-f1c9973d-4ff9-4d3b-b488-555d9050ab2d.jpg)
 
-![SS - Keybase Website PubKey Visual Matching1](https://user-images.githubusercontent.com/91296549/206893081-35829a20-43b7-433d-a2b7-404cc171fa45.jpg)
+If these fingerprint ID's match exactly, then you have successfully confirmed that it was seedsigner who signed! (Matching the last 16 characters is sufficient.)
 
-
-If these 16 character fingerprint ID's match exactly, then you have successfully confirmed that it was seedsigner who signed!
-(The Fingerprint ID's are blurred out deliberately, to ensure you check them on *your* computer.)
-If it does not match perfectly, then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
-<br>
+Note: We have blurred out the Fingerprint ID's deliberately, to ensure *you* match them up on *your* own computer.
+<BR>
+If they do not match exactly or your verify output displays "BAD signature", then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
 <br>
 
 ### The 3rd and final verification step is to make sure that all the other downloaded files (eg the files inside the zip file) were not altered or added to, in any way. 
