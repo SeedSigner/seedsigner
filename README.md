@@ -142,6 +142,8 @@ If you receive the warning message below, it can be safely ignored *because* you
 > gpg: WARNING: This key is not certified with a trusted signature!  
 > gpg:          There is no indication that the signature belongs to the owner.
 
+![SS - Verify Command - GPG on Linux - Masked](https://user-images.githubusercontent.com/91296549/206893065-b2cd7482-e342-43fc-aab6-5bb793aa59aa.jpg)
+
 
 
 If you received the phase **"good Signature"**, then the last output line will display a fingerprint ID. That is the all-important *signers* fingerprint ID. 
@@ -149,8 +151,12 @@ You **must** now visually compare that ID to the fingerprint ID shown at Keybase
 <br>
 Open the Keybase.io/SeedSigner.  <a href="https://www.Keybase.io/SeedSigner" target="_blank">KeyBase.io/SeedSigner</a>  
 and now visually compare the fingerprint ID shown there to the Fingerprint ID outputted from the *verify* command.  
-If they match exactly, then you have successfully confirmed that it was seedsigner who signed.
 
+![SS - Keybase Website PubKey Visual Matching1](https://user-images.githubusercontent.com/91296549/206893081-35829a20-43b7-433d-a2b7-404cc171fa45.jpg)
+
+
+If these 16 character fingerprint ID's match exactly, then you have successfully confirmed that it was seedsigner who signed!
+(The Fingerprint ID's are blurred out deliberately, to ensure you check them on *your* computer.)
 If it does not match perfectly, then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
 <br>
 <br>
@@ -168,18 +174,21 @@ shasum -a 256 -c seedsigner_0_*_*.img.zip.sha256
 CertUtil -hashfile  seedsigner_0_*_*.img.zip SHA256 | findstr /v "hash"
 ```
 
-The response must include the text **seedsigner_[VersionNumber].img.zip OK**, like this:   
+The response must include the text **seedsigner_[VersionNumber].img.zip: OK**, like this example:   
 ```
 seedsigner_0_5_x.img.zip: OK
+shasum: WARNING: 4 Lines are improperly formatted
 ```
-**If you have received the "OK" message above then your verification has suceeded! :) :) !! All the download files are now all confirmed as both authentic and unaltered**!   
+**If you have received the "OK" message above, then your verification has suceeded! :) :) !! All the download files are now all confirmed as both authentic and unaltered**!   
+The warning message about 4 lines being improperly formatted can be safely ignored.
 
-If the result did not display "OK", then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
+If the result shows "FAILED", then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
+
 
 Please recognize that this process can only validate the software to the extent that the entity that first published the key is an honest actor, and their private key is not compromised or somehow being used by a malicious actor.
 
 ##Writing to your MicroSD card
-### Insert more here
+### Insert more instructions here
 to be done by MarcG
 
 ---------------
