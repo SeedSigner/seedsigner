@@ -1539,6 +1539,7 @@ class SeedSignMessageScreen(ButtonListScreen):
         message_display = TextArea(
             text=self.message,
             is_text_centered=False,
+            allow_text_overflow=True,
         )
         start_y = derivation_path_display.screen_y + derivation_path_display.height
         end_y = self.buttons[0].screen_y
