@@ -478,9 +478,11 @@ class SeedOptionsView(View):
             button_data.append(self.EXPORT_XPUB)
 
         button_data.append(self.EXPLORER)
-        button_data.append(self.SIGN_MESSAGE)
         button_data.append(self.BACKUP)
 
+        if self.settings.get_value(SettingsConstants.SETTING__MESSAGE_SIGNING) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.SIGN_MESSAGE)
+        
         if self.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.BIP85_CHILD_SEED)
 

@@ -300,3 +300,22 @@ class UnhandledExceptionView(View):
         )
         
         return Destination(MainMenuView, clear_history=True)
+
+
+
+class OptionDisabledView(View):
+    def __init__(self, error_msg: str):
+        self.error_msg = error_msg
+
+
+    def run(self):
+        WarningScreen(
+            title="Option Disabled",
+            status_headline=None,
+            text=self.error_msg,
+            button_data=["OK"],
+            show_back_button=False,
+            allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
+        ).display()
+        
+        return Destination(MainMenuView, clear_history=True)
