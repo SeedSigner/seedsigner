@@ -174,7 +174,7 @@ More specifically, the verify command determines *which* key pair of those alrea
 </p>
 </details>
 
- <br>
+<br>
 
 ### 3. Verifying that the software files were not tampered with
 
