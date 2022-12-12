@@ -105,26 +105,34 @@ These next steps assume you are running the commands from a computer where both 
 ### 1. Import the public key of the SeedSigner project into your computer
 
 The *fetch-keys*  command below will import the SeedSigner projects public key from a popular online keyserver called *Keybase.io*, into your computers *keychain*. 
-  
-The Keybase.io website allows you to independently verify that the public key provided is authentic and that it belongs to the organization it claims to represent. Keybase has checked the pubkey cryptographically when was saved in the 3 separate online locations. These are: on Twitter.com/seedsigner, on the website www.seedsigner.com , and on the software repository at Github github.com/seedsigner. You can verify those 3 Keys yourself, by clicking the 3 blue badges on keybase.io/seedsigner. 
-
-If you need more information, please open the website <a href="https://www.Keybase.io/SeedSigner" target="_blank">KeyBase.io/SeedSigner</a> (it opens in a separate tab or window) 
 
 To begin, you will run the *fetch-keys* command as shown below (run it from inside the *same folder* that you saved the downloaded files into). 
 
 ```
 gpg --fetch-keys https://keybase.io/SeedSigner/pgp_keys.asc
 ```
-When the command completes successfully, it will show that this key was imported (or updated) successfully. A numeric ID, as circled in red in the example below is known as the keys fingerprint. Please ignore the email address shown, because it is not part of any verification. 
+When the command completes successfully, it will show that this key was either imported or updated from Keybase.io. A numeric ID, as circled in red in the example below is known as the keys fingerprint. Please ignore the email address shown, because it is not part of any verification. 
 
 ![SS - Keybase PubKey import with Fingerprint shown (New import or update of the key)](https://user-images.githubusercontent.com/91296549/174248861-7961c038-1fbf-47a1-a110-146cb218b1c8.jpg)  
 
+<details><summary>Learn more about how keybase.io helps you check that someone is who they say they are</summary>
+<p>
+  The Keybase.io website allows you to independently verify that the public key provided is authentic and that it belongs to the organization it claims to represent. 
+  Keybase has checked the pubkey cryptographically when it was saved in the 3 separate online locations. These are: on www.twitter.com/seedsigner, on the website www.seedsigner.com , and in the software repository at Github www.github.com/seedsigner.
+  You can verify those 3 separate Key locations yourself, by clicking the 3 blue badges on www.keybase.io/seedsigner. (The Twittter blue badge one is the most human-readble.) 
+
+  If you need more information, please open the website <a href="https://www.Keybase.io/SeedSigner" target="_blank">KeyBase.io/SeedSigner</a> (it opens in a separate tab or window) 
+</p>
+</details>
+
+
+<BR>
+<BR>
+ 
 ### 2. Verifying that the signature file is signed by the correct person(s) 
  
 The 2nd command, is the *verify* command, which identifies *who* specifically created the signature file (.sig) you downloaded already.
 The output will display the all-important *signers* fingerprint, and it is this fingerprint ID which you must compare to keybase.io/seedsigner, yourself.  
-
-(More specifically, the verify command determines *which* key pair of those already installed on your computer, actually signed the sha256.sig file.  It does this by  cryptographically comparing the sha25.sig file to its unsigned equivalent (the .sha256 file), with the public keys already imported into your computer.     
 
 ```
 gpg --verify seedsigner_0_*_*.img.zip.sha256.sig
@@ -157,8 +165,18 @@ Note: We have blurred out the Fingerprint ID's deliberately, to ensure *you* mat
 <BR>
 If they do not match exactly, or your verify output displays "BAD signature", then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
 <br>
-<br>
-### 3. Verifying that the software files were not tampered with 
+
+<details><summary>Learn more about signature file verification</summary>
+<p>
+
+More specifically, the verify command determines *which* key pair of those already installed on your computer, actually signed the sha256.sig file.  It does this by  cryptographically comparing the sha25.sig file to its unsigned equivalent (the .sha256 file), looping through the public keys already imported into your computer. whichever installed/imported key is able to perform the comparision successfully, then that is the pubkey of the keypair that was used!        
+
+</p>
+</details>
+
+ <br>
+
+### 3. Verifying that the software files were not tampered with
 
 The 3rd and final verification step is to make sure that all the other downloaded files (eg the files inside the zip file), were not altered or added to in any way.
 The *shasum* command, verifies (via file hashes) that not even a single character, has been changed, added or removed since publication or during your download. 
@@ -178,9 +196,10 @@ Allow about 30 seconds for the command to run, and then the response must includ
 seedsigner_0_5_x.img.zip: OK
 shasum: WARNING: 4 Lines are improperly formatted
 ```
-**If you have received the "OK" message above, then your verification has suceeded! :) :) !! All the download files are now all confirmed as both authentic and unaltered**!   
-The warning message about 4 lines being improperly formatted can be safely ignored.
+**If you have received the "OK" message above, then your verification has suceeded! 😄😄 !! 👍 All the download files have now been confirmed as both authentic and unaltered**!   
 
+The warning message about 4 lines being improperly formatted can be safely ignored. 
+<BR>
 If the result shows "FAILED", then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
 
 
@@ -189,8 +208,8 @@ Please recognize that this process can only validate the software to the extent 
 
 
 ## Writing the software to your MicroSD card
-  Insert more instructions here
-  to be done by MarcG
+  Insert more instructions here. 
+  (to be done by MarcG)
 
 ---------------
 
