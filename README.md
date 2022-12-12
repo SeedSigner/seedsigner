@@ -90,25 +90,26 @@ Download these files to your computer:
 2. seedsigner_0_5_x.img.zip.sha256 
 3. seedsigner_0_5_x.img.zip.sha256.sig 
 
-Once the files have all finished downloading, follow the steps below to verify, and to write the software onto a MicroSD card. Then insert the MicroSD into your assembled hardware and turn on the USB power. Allow about 45 seconds for our logo to appear, and then you can being using your Seedsigner! 
+Once the files have all finished downloading, follow the steps below to verify, and to write the software onto a MicroSD card. Then insert the MicroSD into your assembled hardware and turn on the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your Seedsigner! 
 
 **Note:** The version numbers of the latest files will be higher than this example, but the naming format will be the same.  
 
 
-## Verifying that the downloaded files are authentic (An optional but recommended step!)
+## Verifying that the downloaded files are authentic (optional but highly recommended!)
+
 You can quickly verify that the downloaded software is both authentic and unaltered, by following these instructions.
 
-This step assumes you are running the commands from a computer where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are already installed, and that you know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal). 
+These next steps assume you are running the commands from a computer where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are already installed, and that you also know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal). 
 
 
-### Import the public key of the SeedSigner Project into your computer
+  ### 1. Import the public key of the SeedSigner Project into your computer
 
-The *fetch-keys*  command below will import the SeedSigner projects public key from a popular online keyserver called *Keybase.io*, into your computers *keychain*. 
-The Keybase.io website service allows you to independently verify that the key is authentic and that it belongs to the organization it claims to represent. Keybase has checked it cryptographically and it has been saved and matched in 3 separate online locations already. These are: Twitter.com/seedsigner, on the Seedsigner.com website and lastly our software repository on Github github.com/seedsigner. 
+  The *fetch-keys*  command below will import the SeedSigner projects public key from a popular online keyserver called *Keybase.io*, into your computers *keychain*. 
+  The Keybase.io website allows you to independently verify that the public key provided is authentic and that it belongs to the organization it claims to represent. Keybase has checked it cryptographically and it has also been saved and matched in 3 separate online locations already. These are: Twitter.com/seedsigner, on the Seedsigner.com website and lastly our software repository on Github github.com/seedsigner. You can verify those yourself from keybase.io 
 
 If you need more information, please open the website <a href="https://www.Keybase.io/SeedSigner" target="_blank">KeyBase.io/SeedSigner</a> (it opens in a separate tab or window) 
 
-To begin, run fetch-keys command shown below (from inside the *same folder* that you saved the  downloaded files into). 
+To begin, you will run the *fetch-keys* command as shown below (from inside the *same folder* that you saved the  downloaded files into). 
 
 ```
 gpg --fetch-keys https://keybase.io/SeedSigner/pgp_keys.asc
@@ -117,7 +118,7 @@ When the command completes successfully, it will display a numeric ID, as circle
 
 ![SS - Keybase PubKey import with Fingerprint shown (New import or update of the key)](https://user-images.githubusercontent.com/91296549/174248861-7961c038-1fbf-47a1-a110-146cb218b1c8.jpg)  
 
-### Verifying that the signature file is signed by the correct person(s) 
+### 2. Verifying that the signature file is signed by the correct person(s) 
  
 The next command, which is the *verify* command, identifies *who exactly* created the signature file (.sig) you downloaded earlier.
 The output will display the all-important *signers* fingerprint, and it is this fingerprint ID which you must compare to keybase.io/seedsigner, yourself.  
@@ -155,9 +156,10 @@ Note: We have blurred out the Fingerprint ID's deliberately, to ensure *you* mat
 <BR>
 If they do not match exactly or your verify output displays "BAD signature", then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
 <br>
+<br>
+### 3. The 3rd and final verification step is to make sure that all the other downloaded files (eg the files inside the zip file) were not altered or added to, in any way.
 
-### The 3rd and final verification step is to make sure that all the other downloaded files (eg the files inside the zip file) were not altered or added to, in any way. 
-Even a single character being changed or removed, would be identified by the  *shasum* command, which verifies (via file hashes) that not even a single character, has been changed, added or removed since original publication or during the download. 
+Even a single character being changed or removed, would be identified by the *shasum* command, which verifies (via file hashes) that not even a single character, has been changed, added or removed since original publication or during the download. 
 
  **On Linux or OSX** run this command
 ```
@@ -181,10 +183,12 @@ If the result shows "FAILED", then you must stop here immediately. Do not contin
 
 
 Please recognize that this process can only validate the software to the extent that the entity that first published the key is an honest actor, and their private key is not compromised or somehow being used by a malicious actor.
+<BR>
 
-##Writing to your MicroSD card
-### Insert more instructions here
-to be done by MarcG
+
+## Writing to your MicroSD card
+  Insert more instructions here
+  to be done by MarcG
 
 ---------------
 
