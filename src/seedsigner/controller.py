@@ -133,8 +133,7 @@ class Controller(Singleton):
         controller.microsd.start_detection()
 
         # Store one working psbt in memory
-        controller.psbt = None
-        controller.psbt_parser = None
+        controller.clear_psbt_data()
 
         # Configure the Renderer
         Renderer.configure_instance()
@@ -183,6 +182,12 @@ class Controller(Singleton):
 
     def clear_back_stack(self):
         self.back_stack = BackStack()
+
+
+    def clear_psbt_data(self):
+        self.psbt = None
+        self.psbt_parser = None
+        self.psbt_seed = None
 
 
     def start(self) -> None:

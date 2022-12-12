@@ -346,7 +346,6 @@ class SeedOptionsView(View):
         from seedsigner.views.psbt_views import PSBTOverviewView
 
         SCAN_PSBT = ("Scan PSBT", FontAwesomeIconConstants.QRCODE)
-        REVIEW_PSBT = "Review PSBT"
         VERIFY_ADDRESS = "Verify Addr"
         EXPORT_XPUB = "Export Xpub"
         EXPLORER = "Address Explorer"
@@ -372,20 +371,7 @@ class SeedOptionsView(View):
             VERIFY_ADDRESS += f" {addr}"
             button_data.append(VERIFY_ADDRESS)
 
-        if self.controller.psbt:
-            if PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
-                if self.controller.resume_main_flow and self.controller.resume_main_flow == Controller.FLOW__PSBT:
-                    # Re-route us directly back to the start of the PSBT flow
-                    self.controller.resume_main_flow = None
-                    self.controller.psbt_seed = self.seed
-                    return Destination(PSBTOverviewView, skip_current_view=True)
-            else:
-                # This seed does not seem to be a signer for this PSBT
-                # TODO: How sure are we? Should disable this entirely if we're 100% sure?
-                REVIEW_PSBT += " (?)"
-            button_data.append(REVIEW_PSBT)
-        else:
-            button_data.append(SCAN_PSBT)
+        button_data.append(SCAN_PSBT)
         
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             button_data.append(EXPORT_XPUB)
@@ -408,12 +394,9 @@ class SeedOptionsView(View):
             # Force BACK to always return to the Main Menu
             return Destination(MainMenuView)
 
-        if button_data[selected_menu_num] == REVIEW_PSBT:
-            self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
-            return Destination(PSBTOverviewView)
-
         if button_data[selected_menu_num] == SCAN_PSBT:
             from seedsigner.views.scan_views import ScanView
+            self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
             return Destination(ScanView)
 
         elif button_data[selected_menu_num] == VERIFY_ADDRESS:
