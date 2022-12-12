@@ -102,64 +102,66 @@ You can quickly verify that the downloaded software is both authentic and unalte
 These next steps assume you are running the commands from a computer where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are already installed, and that you also know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal). 
 
 
-  ### 1. Import the public key of the SeedSigner Project into your computer
+### 1. Import the public key of the SeedSigner project into your computer
 
-  The *fetch-keys*  command below will import the SeedSigner projects public key from a popular online keyserver called *Keybase.io*, into your computers *keychain*. 
-  The Keybase.io website allows you to independently verify that the public key provided is authentic and that it belongs to the organization it claims to represent. Keybase has checked it cryptographically and it has also been saved and matched in 3 separate online locations already. These are: Twitter.com/seedsigner, on the Seedsigner.com website and lastly our software repository on Github github.com/seedsigner. You can verify those yourself from keybase.io 
+The *fetch-keys*  command below will import the SeedSigner projects public key from a popular online keyserver called *Keybase.io*, into your computers *keychain*. 
+  
+The Keybase.io website allows you to independently verify that the public key provided is authentic and that it belongs to the organization it claims to represent. Keybase has checked the pubkey cryptographically when was saved in the 3 separate online locations. These are: on Twitter.com/seedsigner, on the website www.seedsigner.com , and on the software repository at Github github.com/seedsigner. You can verify those 3 Keys yourself, by clicking the 3 blue badges on keybase.io/seedsigner. 
 
 If you need more information, please open the website <a href="https://www.Keybase.io/SeedSigner" target="_blank">KeyBase.io/SeedSigner</a> (it opens in a separate tab or window) 
 
-To begin, you will run the *fetch-keys* command as shown below (from inside the *same folder* that you saved the  downloaded files into). 
+To begin, you will run the *fetch-keys* command as shown below (run it from inside the *same folder* that you saved the downloaded files into). 
 
 ```
 gpg --fetch-keys https://keybase.io/SeedSigner/pgp_keys.asc
 ```
-When the command completes successfully, it will display a numeric ID, as circled in red in the example below. We will use that numeric ID in the subsequent steps. Please ignore the email address shown, because it is not part of the verification. 
+When the command completes successfully, it will show that this key was imported (or updated) successfully. A numeric ID, as circled in red in the example below is known as the keys fingerprint. Please ignore the email address shown, because it is not part of any verification. 
 
 ![SS - Keybase PubKey import with Fingerprint shown (New import or update of the key)](https://user-images.githubusercontent.com/91296549/174248861-7961c038-1fbf-47a1-a110-146cb218b1c8.jpg)  
 
 ### 2. Verifying that the signature file is signed by the correct person(s) 
  
-The next command, which is the *verify* command, identifies *who exactly* created the signature file (.sig) you downloaded earlier.
+The 2nd command, is the *verify* command, which identifies *who* specifically created the signature file (.sig) you downloaded already.
 The output will display the all-important *signers* fingerprint, and it is this fingerprint ID which you must compare to keybase.io/seedsigner, yourself.  
 
-(More specifically, the verify command determines *which* key pair already installed on your computer, actually signed the sha256.sig file.  It does this by comparing cryptographically the sha25.sig file to its unsigned equivalent (the .sha256 file).), using the public key already imported into your computer.    
+(More specifically, the verify command determines *which* key pair of those already installed on your computer, actually signed the sha256.sig file.  It does this by  cryptographically comparing the sha25.sig file to its unsigned equivalent (the .sha256 file), with the public keys already imported into your computer.     
 
 ```
 gpg --verify seedsigner_0_*_*.img.zip.sha256.sig
 ```
 **Note:** The `*`'s in the command above are used to auto-fill the version from your current folder, so it should be copied and pasted as-is.
 
-The output should appear like this:
+The response you receive should appear like this:
 <BR>
 ![SS - Verify Command - GPG on Linux - Masked](https://user-images.githubusercontent.com/91296549/206896045-2f787aa1-0c29-41ec-8ce2-a4c6adbcf32f.jpg)
 
-
---- The response you receive **must** include the phrase **"Good signature"**, like this: 
 
 This warning message can be safely ignored *because* you are still going to be visually comparing the fingerprint ID outputted against Keybase.io/seedsigner.
 > gpg: WARNING: This key is not certified with a trusted signature!  
 > gpg:          There is no indication that the signature belongs to the owner.
 
-**If** you received the phase **"good Signature"**, then the last output line will display a fingerprint ID. That is the all-important *signers* fingerprint ID. 
-You **must** now visually compare that ID to the fingerprint ID shown at Keybase.io/SeedSigner, yourself.  
-The email address is JUST informational. Ignore it completely. *Only* the matching fingerprints count.   
+**If** you received the phase **"good Signature"**, then the last output line will display a 16 character fingerprint ID. 
+That is the all-important *signers* fingerprint ID. 
+You **must** now visually compare that ID to the one shown at Keybase.io/SeedSigner, **yourself**.  
+Any email address is JUST informational. Ignore it completely. *Only* the matching fingerprints count.   
 <br>
-Open the Keybase.io/SeedSigner.  <a href="https://www.Keybase.io/SeedSigner" target="_blank">KeyBase.io/SeedSigner</a>  
-and now visually compare the fingerprint ID shown there to the Fingerprint ID outputted from the *verify* command.  
+Open the website Keybase.io/SeedSigner.  <a href="https://www.Keybase.io/SeedSigner" target="_blank">KeyBase.io/SeedSigner</a>  
+and visually compare the fingerprint ID shown there to the Fingerprint ID outputted by your *verify* command.  
 <BR>
-![SS - Keybase Website PubKey visual matching1 -50pct](https://user-images.githubusercontent.com/91296549/206895724-f1c9973d-4ff9-4d3b-b488-555d9050ab2d.jpg)
+![SS - Keybase Website PubKey visual matching1-80pct](https://user-images.githubusercontent.com/91296549/206969865-221c00aa-c1e9-435f-acc8-1ed09f1d891b.jpg)
 
-If these fingerprint ID's match exactly, then you have successfully confirmed that it was seedsigner who signed! (Matching the last 16 characters is sufficient.)
+
+If these two fingerprint ID's match exactly, then you have successfully confirmed that it was seedsigner who signed! (Matching the last 16 characters is sufficient.)
 
 Note: We have blurred out the Fingerprint ID's deliberately, to ensure *you* match them up on *your* own computer.
 <BR>
-If they do not match exactly or your verify output displays "BAD signature", then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
+If they do not match exactly, or your verify output displays "BAD signature", then you must stop here immediately. Do not continue. Contact us for assistance at the Telegram address above.
 <br>
 <br>
-### 3. The 3rd and final verification step is to make sure that all the other downloaded files (eg the files inside the zip file) were not altered or added to, in any way.
+### 3. Verifying that the software files were not tampered with 
 
-Even a single character being changed or removed, would be identified by the *shasum* command, which verifies (via file hashes) that not even a single character, has been changed, added or removed since original publication or during the download. 
+The 3rd and final verification step is to make sure that all the other downloaded files (eg the files inside the zip file), were not altered or added to in any way.
+The *shasum* command, verifies (via file hashes) that not even a single character, has been changed, added or removed since publication or during your download. 
 
  **On Linux or OSX** run this command
 ```
@@ -171,7 +173,7 @@ shasum -a 256 -c seedsigner_0_*_*.img.zip.sha256
 CertUtil -hashfile  seedsigner_0_*_*.img.zip SHA256 | findstr /v "hash"
 ```
 
-The response must include the text **seedsigner_[VersionNumber].img.zip: OK**, like this example:   
+Allow about 30 seconds for the command to run, and then the response must include the text **seedsigner_[VersionNumber].img.zip: OK**, like this example:   
 ```
 seedsigner_0_5_x.img.zip: OK
 shasum: WARNING: 4 Lines are improperly formatted
@@ -186,7 +188,7 @@ Please recognize that this process can only validate the software to the extent 
 <BR>
 
 
-## Writing to your MicroSD card
+## Writing the software to your MicroSD card
   Insert more instructions here
   to be done by MarcG
 
