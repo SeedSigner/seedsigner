@@ -157,9 +157,9 @@ If they do not match exactly or your verify output displays "BAD signature", the
 <br>
 
 ### The 3rd and final verification step is to make sure that all the other downloaded files (eg the files inside the zip file) were not altered or added to, in any way. 
-Even a single character being changed or removed, would show up here.   
+Even a single character being changed or removed, would be identified by the  *shasum* command, which verifies (via file hashes) that not even a single character, has been changed, added or removed since original publication or during the download. 
 
-**On Linux or OSX** run this command
+ **On Linux or OSX** run this command
 ```
 shasum -a 256 -c seedsigner_0_*_*.img.zip.sha256
 ```
