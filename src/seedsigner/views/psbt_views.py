@@ -452,6 +452,8 @@ class PSBTAddressVerificationFailedView(View):
             show_back_button=False,
         ).display()
 
+        # We're done with this PSBT. Route back to MainMenuView which always
+        #   clears all ephemeral data (except in-memory seeds).
         return Destination(MainMenuView, clear_history=True)
 
 
@@ -502,6 +504,8 @@ class PSBTSignedQRDisplayView(View):
         )
         QRDisplayScreen(qr_encoder=qr_encoder).display()
 
+        # We're done with this PSBT. Route back to MainMenuView which always
+        #   clears all ephemeral data (except in-memory seeds).
         return Destination(MainMenuView, clear_history=True)
 
 

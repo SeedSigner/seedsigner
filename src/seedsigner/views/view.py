@@ -121,12 +121,6 @@ class Destination:
 #
 #########################################################################################
 class MainMenuView(View):
-    def __init__(self):
-        super().__init__()
-        # always clear psbt state when on Main Menu
-        self.controller.clear_psbt_data()
-
-
     def run(self):
         from .seed_views import SeedsMenuView
         from .settings_views import SettingsMenuView

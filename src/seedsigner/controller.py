@@ -133,7 +133,8 @@ class Controller(Singleton):
         controller.microsd.start_detection()
 
         # Store one working psbt in memory
-        controller.clear_psbt_data()
+        controller.psbt = None
+        controller.psbt_parser = None
 
         # Configure the Renderer
         Renderer.configure_instance()
@@ -184,12 +185,6 @@ class Controller(Singleton):
         self.back_stack = BackStack()
 
 
-    def clear_psbt_data(self):
-        self.psbt = None
-        self.psbt_parser = None
-        self.psbt_seed = None
-
-
     def start(self) -> None:
         from .views import MainMenuView, BackStackView
         from .views.screensaver import OpeningSplashScreen
@@ -230,15 +225,14 @@ class Controller(Singleton):
                     next_destination = Destination(MainMenuView)
 
                 if next_destination.View_cls == MainMenuView:
-                    # Home always wipes the back_stack
-                    self.clear_back_stack()
-                    
-                    # Clear other temp vars
+                    # Home always wipes the back_stack/state of temp vars
                     self.resume_main_flow = None
                     self.multisig_wallet_descriptor = None
                     self.unverified_address = None
                     self.address_explorer_data = None
-
+                    self.psbt = None
+                    self.psbt_parser = None
+                    self.psbt_seed = None
                 
                 print(f"back_stack: {self.back_stack}")
 
