@@ -225,6 +225,9 @@ class Controller(Singleton):
                     next_destination = Destination(MainMenuView)
 
                 if next_destination.View_cls == MainMenuView:
+                    # Home always wipes the back_stack
+                     self.clear_back_stack()
+                    
                     # Home always wipes the back_stack/state of temp vars
                     self.resume_main_flow = None
                     self.multisig_wallet_descriptor = None
