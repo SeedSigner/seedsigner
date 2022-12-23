@@ -41,9 +41,6 @@ class PSBTSelectSeedView(View):
                 # Doesn't look like this seed can sign the current PSBT
                 button_str += " (?)"
             
-            if seed.passphrase is not None:
-                # TODO: Include lock icon on right side of button
-                pass
             button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
         button_data.append(SCAN_SEED)
         button_data.append(TYPE_12WORD)
