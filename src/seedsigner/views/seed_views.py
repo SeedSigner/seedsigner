@@ -1983,7 +1983,7 @@ class SeedSignMessageStartView(View):
     
 
     def run(self):
-        if self.seed_num:
+        if self.seed_num is not None:
             # We already know which seed we're signing with
             return Destination(SeedSignMessageConfirmView, skip_current_view=True)
         else:
