@@ -548,6 +548,22 @@ class SeedWordsBackupTestPromptScreen(ButtonListScreen):
 
 
 @dataclass
+class SeedPassphraseTestPromptScreen(ButtonListScreen):
+    def __post_init__(self):
+        self.title = "Verify Passphrase?"
+        self.show_back_button = False
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text="Optionally verify that your passphrase backup is correct.",
+            screen_y=self.top_nav.height,
+            is_text_centered=True,
+        ))
+
+
+
+@dataclass
 class SeedExportXpubCustomDerivationScreen(KeyboardScreen):
     def __post_init__(self):
         self.title = "Derivation Path"
