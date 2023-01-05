@@ -838,7 +838,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 self.renderer.show_image()
 
                 if len(self.passphrase) > 0:
-                    return self.passphrase.strip()
+                    return self.passphrase
 
             elif input == HardwareButtonsConstants.KEY_PRESS and self.top_nav.is_selected:
                 # Back button clicked
