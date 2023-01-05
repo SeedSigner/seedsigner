@@ -245,9 +245,12 @@ class SeedAddPassphraseView(View):
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
-        # The new passphrase will be the return value
+        # The new passphrase will be the return value; it might be empty.
         self.seed.set_passphrase(ret)
-        return Destination(SeedReviewPassphraseView)
+        if len(self.seed.passphrase) > 0:
+            return Destination(SeedReviewPassphraseView)
+        else:
+            return Destination(SeedFinalizeView)
 
 
 
