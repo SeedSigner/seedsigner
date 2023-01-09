@@ -111,15 +111,19 @@ To begin, you will run the *fetch-keys* command as shown below (run it from insi
 ```
 gpg --fetch-keys https://keybase.io/SeedSigner/pgp_keys.asc
 ```
-When the command completes successfully, it will show that this key was either imported or updated from Keybase.io. A numeric ID, as circled in red in the example below is known as the keys fingerprint. Please ignore the email address shown, because it is not part of any verification. 
+When the command completes successfully, it will show that this key was either imported or updated from Keybase.io.  
+A numeric ID, as circled in red in the example below is known as the key's fingerprint. Please ignore the email address shown, because it is not part of any verification. 
 
 ![SS - Keybase PubKey import with Fingerprint shown (New import or update of the key)](https://user-images.githubusercontent.com/91296549/174248861-7961c038-1fbf-47a1-a110-146cb218b1c8.jpg)  
 
 <details><summary>Learn more about how keybase.io helps you check that someone is who they say they are</summary>
 <p>
-  The Keybase.io website allows you to independently verify that the public key provided is authentic and that it belongs to the organization it claims to represent. 
-  Keybase has checked the pubkey cryptographically when it was saved in the 3 separate online locations. These are: on www.twitter.com/seedsigner, on the website www.seedsigner.com , and in the software repository at Github www.github.com/seedsigner.
-  You can verify those 3 separate Key locations yourself, by clicking the 3 blue badges on www.keybase.io/seedsigner. (The Twittter blue badge one is the most human-readble.) 
+ The Keybase.io website allows you to independently verify that the public key provided is authentic and that it belongs to the organization it claims to represent.  
+ Keybase has already checked the three pubkey files cryptographically when they were saved,  however, if you would like to, you can further verify the three Key publications, either:  
+ 
+ - via Keybase: By clicking on any of the three blue badges at www.keybase.io/seedsigner. (The blue badge for the publication on Twitter is in the most human-readable form), or, 
+ - without using keybase at all: By using these 3 links directly: [Twitter](https://twitter.com/seedsigner/status/1530555252373704707) , [Github](https://gist.github.com/SeedSigner/5936fa1219b07e28a3672385b605b5d2) and [Seedsigner.com](https://seedsigner.com/keybase.txt). This method can be used if you would like to make an even deeper, independent inspection without relying on Keybase at all, or if the Keybase.io site is no longer valid or it is removed entirely. 
+
 
   If you need more information, please open the website <a href="https://www.Keybase.io/SeedSigner" target="_blank">KeyBase.io/SeedSigner</a> (it opens in a separate tab or window) 
 </p>
