@@ -483,10 +483,10 @@ class SettingsDefinition:
 
 
     @classmethod
-    def get_settings_entries(cls, visibiilty: str = SettingsConstants.VISIBILITY__GENERAL) -> List[SettingsEntry]:
+    def get_settings_entries(cls, visibility: str = SettingsConstants.VISIBILITY__GENERAL) -> List[SettingsEntry]:
         entries = []
         for entry in cls.settings_entries:
-            if entry.visibility == visibiilty:
+            if entry.visibility == visibility:
                 entries.append(entry)
         return entries
     
