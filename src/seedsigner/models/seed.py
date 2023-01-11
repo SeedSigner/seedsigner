@@ -8,9 +8,6 @@ from typing import List
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.helpers import embit_utils
 
-import hashlib
-import hmac
-
 
 class InvalidSeedException(Exception):
     pass
