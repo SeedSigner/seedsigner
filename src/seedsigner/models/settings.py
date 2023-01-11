@@ -40,6 +40,10 @@ class Settings(Singleton):
         if self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] == SettingsConstants.OPTION__ENABLED:
             with open(Settings.SETTINGS_FILENAME, 'w') as settings_file:
                 json.dump(self._data, settings_file, indent=4)
+                # SeedSignerOS makes removing the microsd possible, flush and then fsync forces persistent settings to disk
+                # without this, recent settings changes could be missing after the microsd card was removed
+                settings_file.flush()
+                os.fsync(settings_file.fileno())
 
 
     def update(self, new_settings: dict, disable_missing_entries: bool = True):
