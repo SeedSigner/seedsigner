@@ -438,7 +438,7 @@ class SettingsDefinition:
                       attr_name=SettingsConstants.SETTING__COMPACT_SEEDQR,
                       display_name="CompactSeedQR",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      default_value=SettingsConstants.OPTION__DISABLED),
+                      default_value=SettingsConstants.OPTION__ENABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__BIP85_CHILD_SEEDS,
