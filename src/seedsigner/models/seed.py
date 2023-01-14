@@ -34,7 +34,7 @@ class Seed:
 
     @staticmethod
     def get_wordlist(wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> List[str]:
-        # TODO: Support other bip-39 wordlist languages!
+        # TODO: Support other BIP-39 wordlist languages!
         if wordlist_language_code == SettingsConstants.WORDLIST_LANGUAGE__ENGLISH:
             return bip39.WORDLIST
         else:
@@ -98,7 +98,7 @@ class Seed:
 
 
     def set_wordlist_language_code(self, language_code: str):
-        # TODO: Support other bip-39 wordlist languages!
+        # TODO: Support other BIP-39 wordlist languages!
         raise Exception("Not yet implemented!")
 
 
@@ -115,7 +115,7 @@ class Seed:
         """Derives the seed's nth BIP-85 child mnemonic"""
         root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
 
-        # TODO: Support other bip-39 wordlist languages!
+        # TODO: Support other BIP-39 wordlist languages!
         return bip85.derive_mnemonic(root, bip85_num_words, bip85_index)
         
 
