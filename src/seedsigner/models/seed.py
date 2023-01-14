@@ -111,14 +111,11 @@ class Seed:
         return embit_utils.get_xpub(seed_bytes=self.seed_bytes, derivation_path=wallet_path, embit_network=SettingsConstants.map_network_to_embit(network))
 
 
-    # Derives a BIP85 mnemonic (seed word) from the master seed words using embit functions
     def get_bip85_child_mnemonic(self, bip85_index: int, bip85_num_words: int, network: str = SettingsConstants.MAINNET):
-
-        # Calculate the master bip32 root key from the parents bip39 seed_bytes (the mnemonic entropy)
+        """Derives the seed's nth BIP-85 child mnemonic"""
         root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
 
         # TODO: Support other bip-39 wordlist languages!
-
         return bip85.derive_mnemonic(root, bip85_num_words, bip85_index)
         
 
