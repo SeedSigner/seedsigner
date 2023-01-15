@@ -9,7 +9,7 @@ from seedsigner.models.settings_definition import SettingsConstants
 
 
 @pytest.fixture(scope="module")
-def setup():
+def reset_controller():
     Settings._instance = None
     MicroSD._instance = None
     Controller._instance = None
@@ -17,13 +17,13 @@ def setup():
     yield Controller
 
     
-def test_singleton_init_fails(setup):
+def test_singleton_init_fails(reset_controller):
     """ The Controller should not allow any code to instantiate it via Controller() """
     with pytest.raises(Exception):
         c = Controller()
 
 
-def test_singleton_get_instance_preserves_state(setup):
+def test_singleton_get_instance_preserves_state(reset_controller):
     """ Changes to the Controller singleton should be preserved across calls to get_instance() """
 
     # Initialize the instance and verify that it read the config settings
@@ -38,7 +38,7 @@ def test_singleton_get_instance_preserves_state(setup):
     assert controller.unverified_address == "123abc"
 
 
-def test_missing_settings_get_defaults(setup):
+def test_missing_settings_get_defaults(reset_controller):
     """ Should gracefully handle any missing fields from `settings.ini` """
     # TODO: This is not complete; currently only handles missing compact_seedqr_enabled.
 
