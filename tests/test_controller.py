@@ -2,16 +2,12 @@ import configparser
 import pytest
 from mock import MagicMock
 from seedsigner.controller import Controller
-from seedsigner.models.settings import Settings
-from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.settings_definition import SettingsConstants
 
 
 
 @pytest.fixture(scope="module")
 def reset_controller():
-    Settings._instance = None
-    MicroSD._instance = None
     Controller._instance = None
     Controller.configure_instance(disable_hardware=True)
     yield Controller
