@@ -177,14 +177,12 @@ Standard SeedQR templates:
 * [Baseball card template: 24-word SeedQR (29x29)](docs/seed_qr/printable_templates/trading_card_29x29_w24words.pdf)
 
 CompactSeedQR templates:
-* [12-word CompactSeedQR template dots (21x21)](docs/seed_qr/printable_templates/compact_seedqr/dots_21x21.pdf)
-* [24-word CompactSeedQR template dots (25x25)](docs/seed_qr/printable_templates/compact_seedqr/dots_25x25.pdf)
-* [12-word CompactSeedQR template grid (21x21)](docs/seed_qr/printable_templates/compact_seedqr/grid_21x21.pdf)
-* [24-word CompactSeedQR template grid (25x25)](docs/seed_qr/printable_templates/compact_seedqr/grid_25x25.pdf)
-* [Baseball card template: 12-word Compact SeedQR (29x29)](docs/seed_qr/printable_templates/trading_card_21x21_w12words.pdf)
-* [Baseball card template: 24-word Compact SeedQR (29x29)](docs/seed_qr/printable_templates/trading_card_25x25_w24words.pdf)
-
-_note: CompactSeedQR is an advanced feature that can be enabled in Settings_
+* [12-word CompactSeedQR template dots (21x21)](docs/seed_qr/printable_templates/dots_21x21.pdf)
+* [24-word CompactSeedQR template dots (25x25)](docs/seed_qr/printable_templates/dots_25x25.pdf)
+* [12-word CompactSeedQR template grid (21x21)](docs/seed_qr/printable_templates/grid_21x21.pdf)
+* [24-word CompactSeedQR template grid (25x25)](docs/seed_qr/printable_templates/grid_25x25.pdf)
+* [Baseball card template: 12-word Compact SeedQR (21x21)](docs/seed_qr/printable_templates/trading_card_21x21_w12words.pdf)
+* [Baseball card template: 24-word Compact SeedQR (25x25)](docs/seed_qr/printable_templates/trading_card_25x25_w24words.pdf)
 
 ---------------
 
