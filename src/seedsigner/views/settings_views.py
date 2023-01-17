@@ -20,7 +20,7 @@ class SettingsMenuView(View):
         DONATE = "Donate"
 
         settings_entries = SettingsDefinition.get_settings_entries(
-            visibiilty=self.visibility
+            visibility=self.visibility
         )
         button_data=[e.display_name for e in settings_entries]
 
