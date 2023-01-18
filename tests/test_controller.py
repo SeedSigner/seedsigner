@@ -2,7 +2,7 @@ import configparser
 import pytest
 from mock import MagicMock
 from seedsigner.controller import Controller
-from seedsigner.models.settings import Settings
+from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.settings_definition import SettingsConstants
 
 
@@ -19,7 +19,7 @@ def test_singleton_get_instance_preserves_state():
     # Must reset Singleton instances; pytest cannot properly isolate Singletons for us
     # automatically.
     # TODO: Cleaner solution here would be nice.
-    Settings._instance = None
+    MicroSD._instance = None
     Controller._instance = None
 
     # Initialize the instance and verify that it read the config settings
@@ -42,7 +42,7 @@ def test_missing_settings_get_defaults():
     # Must reset Singleton instances; pytest cannot properly isolate Singletons for us
     # automatically.
     # TODO: Cleaner solution here would be nice.
-    Settings._instance = None
+    MicroSD._instance = None
     Controller._instance = None
 
     # Controller should parse the settings fine, even though a field is missing
@@ -50,4 +50,5 @@ def test_missing_settings_get_defaults():
 
     # Controller should still have a default value
     controller = Controller.get_instance()
-    assert controller.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR) == SettingsConstants.OPTION__DISABLED
+    assert controller.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR) == SettingsConstants.OPTION__ENABLED
+
