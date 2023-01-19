@@ -9,14 +9,17 @@ from seedsigner.models.settings_definition import SettingsConstants
 
 @pytest.fixture()
 def reset_controller():
-    print("\nEntering reset_controller fixture; setting up...")
+    """fixture to setup, then yield to run test, then tear down"""
+
+    # setup
     Controller.configure_instance(disable_hardware=True)
-    print("...done setting up; yielding to run a test...")
+
+    # yield to run a single test
     yield
-    print("\n...back from the test; tearing down...")
+
+    # tear down
     MicroSD._instance = None
     Controller._instance = None
-    print("...done tearing down; leaving reset_controller fixture.")
 
     
 def test_singleton_init_fails(reset_controller):
