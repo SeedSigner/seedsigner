@@ -616,7 +616,7 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
 
 @dataclass
 class SeedAddPassphraseScreen(BaseTopNavScreen):
-    title: str = "Add Passphrase"
+    title: str = "BIP-39 Passphrase"
     passphrase: str = ""
 
     KEYBOARD__LOWERCASE_BUTTON_TEXT = "abc"
