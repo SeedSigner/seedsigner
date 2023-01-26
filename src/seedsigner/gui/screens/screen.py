@@ -914,7 +914,7 @@ class PowerOffNotRequiredScreen(BaseTopNavScreen):
         super().__post_init__()
 
         self.components.append(TextArea(
-            text="In SeedSigner-OS, it is safe to disconnect power at any time.",
+            text="It is safe to disconnect power at any time.",
             screen_y=self.top_nav.height,
             height=self.canvas_height - self.top_nav.height,
         ))
