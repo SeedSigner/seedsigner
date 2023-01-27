@@ -23,7 +23,7 @@ Derivation paths for standard script types for mainnet:
 		- Script Type: P2WSH in P2SH
 		- Public Key Encoding: 0x0295b43f - Ypub
 
-Custom derivation paths are also optional when generating an xpub from SeedSigner. The Public Key Encodings is detected based on the derivation path configured. Embit bitcoin library does the detection and is documented [here](https://github.com/diybitcoinhardware/embit/blob/master/docs/api/bip32.md#detect_version). For a video explination of these standards see a presentation by Stepan of Embit/Specter on this topic: https://youtube.com/watch?v=JCaC5DG2HTM
+Custom derivation paths are also optional when generating an xpub from SeedSigner. The Public Key Encodings are detected based on the derivation path configured. The `embit` bitcoin library does this detection and is documented [here](https://github.com/diybitcoinhardware/embit/blob/master/docs/api/bip32.md#detect_version). For a video explanation of these standards see a presentation by Stepan of `embit` on this topic: https://youtube.com/watch?v=JCaC5DG2HTM
 
 Changing the network settings from main to test in SeedSigner will change the public key encoding and derivation path following [slip-0132](https://github.com/satoshilabs/slips/blob/master/slip-0132.md) standards.
 
