@@ -907,6 +907,21 @@ class PowerOffScreen(BaseTopNavScreen):
 
 
 @dataclass
+class PowerOffNotRequiredScreen(BaseTopNavScreen):
+    def __post_init__(self):
+        self.title = "Just Unplug It"
+        self.show_back_button = True
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text="It is safe to disconnect power at any time.",
+            screen_y=self.top_nav.height,
+            height=self.canvas_height - self.top_nav.height,
+        ))
+
+
+
+@dataclass
 class KeyboardScreen(BaseTopNavScreen):
     """
         Generalized Screen for a single Keyboard layout writing user input to a
