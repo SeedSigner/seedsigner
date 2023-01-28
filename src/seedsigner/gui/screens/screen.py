@@ -265,6 +265,9 @@ class ButtonListScreen(BaseTopNavScreen):
     Button_cls = Button
     checked_buttons: List[int] = None
 
+    # Enables returning w/buttons rendered at the same place
+    scroll_y_initial_offset: int = None
+
 
     def __post_init__(self):
         super().__post_init__()
@@ -315,6 +318,7 @@ class ButtonListScreen(BaseTopNavScreen):
                 right_icon_name=right_icon_name,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=button_list_y + i * (button_height + GUIConstants.LIST_ITEM_PADDING),
+                scroll_y=self.scroll_y_initial_offset if self.scroll_y_initial_offset is not None else 0,
                 width=self.canvas_width - (2 * GUIConstants.EDGE_PADDING),
                 height=button_height,
                 is_text_centered=self.is_button_text_centered,
@@ -330,7 +334,7 @@ class ButtonListScreen(BaseTopNavScreen):
         
         if self.has_scroll_arrows:
             self.arrow_half_width = 10
-            self.cur_scroll_y = 0
+            self.cur_scroll_y = self.scroll_y_initial_offset if self.scroll_y_initial_offset is not None else 0
             self.up_arrow_img = Image.new("RGBA", size=(2 * self.arrow_half_width, 8), color="black")
             self.up_arrow_img_y = self.top_nav.height - 12
             arrow_draw = ImageDraw.Draw(self.up_arrow_img)
@@ -346,10 +350,6 @@ class ButtonListScreen(BaseTopNavScreen):
 
         cur_selected_button = self.buttons[self.selected_button]
         cur_selected_button.is_selected = True
-        if self.has_scroll_arrows:
-            frame_scroll = self.buttons[0].screen_y - cur_selected_button.screen_y
-            for button in self.buttons:
-                button.scroll_y -= frame_scroll
 
 
     def _render(self):
