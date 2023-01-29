@@ -128,7 +128,7 @@ Once you have used one of these methods, you will know if  the Public Key stored
 
 
 <BR>
-<BR>
+
  
 ### 2. Checking that the *signature file* is genuinely from the SeedSigner Project:
  
@@ -140,12 +140,12 @@ gpg --verify seedsigner_0_*_*.img.zip.sha256.sig
 ```
 **Note:** *Verify* must be run from inside the *same folder* that you downloaded the files into. The `*`'s in the command will auto-fill the version from your current folder, so it should be copied and pasted as-is.
 
-When the command completes successfully, it should display the phase **"Good Signature"**, and the last output line will display a long fingerprint ID:
+When the command completes successfully, it should look like this:
 <BR>
-![SS - Verify Command - GPG on Linux - Masked]()
-
-Find the *rightmost* 16 characters, on the *last* output line. (Circled in red in the example above) These are ones you need to work with.   
-Ignore any email addresses. *Only*  matching fingerprints count here.   
+![SS - Verify Command - GPG on Linux - Masked_v2-80pct](https://user-images.githubusercontent.com/91296549/215329191-86290248-44fd-48e3-8475-13e7148cf14e.jpg)
+It must show "**good** signature". Ignore any email addresses. *Only*  matching fingerprints count here. 
+<BR> 
+On the *last* output line, look at the *rightmost* 16 characters (circled in red in the picture above). That is *who* made the signature file (.sig).   
 <details><summary> About warning messages:</summary>
 <p>  Since you are going to now match the outputted fingerprint ID against Keybase.io/seedsigner, you can ignore this warning message:
 
@@ -161,7 +161,8 @@ Ignore any email addresses. *Only*  matching fingerprints count here.
 
 Now open the website [Keybase.io/seedsigner](www.keybase.io/seedsigner) and compare the 16 character fingerprint ID (circled red in the screenshot below),   to the *rightmost* 16 characters from your *verify* command. **Make sure that they match exactly**.  
 <BR>
-![SS - Keybase Website PubKey visual matching1-80pct](https://user-images.githubusercontent.com/91296549/206969865-221c00aa-c1e9-435f-acc8-1ed09f1d891b.jpg)
+![SS - Keybase Website PubKey visual matching1_Cropped-80pct](https://user-images.githubusercontent.com/91296549/215326193-97c84e35-5570-4e52-bf3f-e86d367c8908.jpg)
+
 
 
 If the two fingerprint ID's match exactly, then you have successfully confirmed that your .sig file is authentic!
