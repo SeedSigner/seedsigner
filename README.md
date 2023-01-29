@@ -90,64 +90,46 @@ Download these files to your computer:
 2. seedsigner_0_5_x.img.zip.sha256 
 3. seedsigner_0_5_x.img.zip.sha256.sig 
 
-Once the files have all finished downloading, follow the steps below to verify, and to write the software onto a MicroSD card. Then insert the MicroSD into your assembled hardware and turn on the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your Seedsigner! 
-
 **Note:** The version numbers of the latest files will be higher than this example, but the naming format will be the same.  
+Once the files have all finished downloading, follow the steps below to verify them, and then to write the software onto a MicroSD card. Insert the MicroSD into your assembled hardware and turn on the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your Seedsigner! 
+
+
 
 
 ## Verifying that the downloaded files are authentic (optional but highly recommended!)
 
-You can quickly verify that the downloaded software is both authentic and unaltered, by following these instructions.
+You can quickly verify that the software you just downloaded is both authentic and unaltered, by following these instructions.
+We assume you are running the commands from a computer where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are already installed, and that you also know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal). 
 
-These next steps assume you are running the commands from a computer where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are already installed, and that you also know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal). 
 
+### Step 1. Verify that the signature (.sig) file is genuine:
 
-### 1. Import the public key of the SeedSigner project into your computer:
-
-Run the *fetch-keys* command to import the SeedSigner projects public key from the popular online keyserver called *Keybase.io*, into your computers *keychain*.  
+Run GPG's *fetch-keys* command to import the SeedSigner projects public key from the popular online keyserver called *Keybase.io*, into your computers *keychain*. 
 
 
 ```
 gpg --fetch-keys https://keybase.io/SeedSigner/pgp_keys.asc
 ```
-When the command completes successfully, it should display  that a key was either imported or updated.  Ignore any email address shown.
+The result should confirm that 1 key was *either* imported or updated. *Ignore* any key ID's or email addresses shown.
 
 ![SS - Keybase PubKey import with Fingerprint shown (New import or update of the key)](https://user-images.githubusercontent.com/91296549/174248861-7961c038-1fbf-47a1-a110-146cb218b1c8.jpg)  
 
-<details><summary>Learn more about how keybase.io helps you check that someone is who they say they are</summary>
-<p>
-Keybase.io allows you to independently verify that the public key saved on Keybase.io, is both authentic and that it belongs to the organization it claims to represent.  
- Keybase has already checked the three pubkey files cryptographically when they were saved.  However, if you  like, you can further verify the Key publications, either :  
- 
- - *via Keybase*: By clicking on any of the three blue badges at [Keybase.io/seedsigner](www.keybase.io/seedsigner) to see what was published there. (The blue badge for the publication on Twitter is in the most human-readable form and it is also bi-directional), or, 
- - *without keybase*: By using these 3 links directly: [Twitter](https://twitter.com/seedsigner/status/1530555252373704707) , [Github](https://gist.github.com/SeedSigner/5936fa1219b07e28a3672385b605b5d2) and [Seedsigner.com](https://seedsigner.com/keybase.txt). This method can be used if you would like to make an even deeper, independent inspection without relying on Keybase at all, or if the Keybase.io site is no longer valid or it is removed entirely. 
-
-Once you have used one of these methods, you will know if  the Public Key stored on Keybase, is genuinely from the SeedSinger Project or not.
-</p>
-</details>
-
-
-<BR>
-
- 
-### 2. Checking that the *signature file* is genuinely from the SeedSigner Project:
- 
-Running this *verify* command, will determine *who* created the signature file (.sig) you downloaded already.
-The output will display the all-important *signers* fingerprint, and it is this fingerprint ID which you will want to match to keybase, by yourself.  
-
+Next, you will run the *verify* command on the signature (.sig) file. (*Verify* must be run from inside the same folder that you downloaded the files into earlier. The `*`'s in this command will auto-fill the version from your current folder, so it should be copied and pasted as-is.)   
 ```
 gpg --verify seedsigner_0_*_*.img.zip.sha256.sig
 ```
-**Note:** *Verify* must be run from inside the *same folder* that you downloaded the files into. The `*`'s in the command will auto-fill the version from your current folder, so it should be copied and pasted as-is.
 
-When the command completes successfully, it should look like this:
+When the verify command completes successfully, it should display output like this:
 <BR>
 ![SS - Verify Command - GPG on Linux - Masked_v3-80pct](https://user-images.githubusercontent.com/91296549/215339119-5326e814-1d60-47bb-980c-1498a2f30baf.jpg)
-It must display "**Good** signature". Ignore any email addresses. *Only*  matching fingerprints count here.  Stop here immediately if it displays "*Bad signature*"!
+The result must display "**Good signature**".  Ignore any email addresses - *only*  matching Key fingerprints count here. Stop immediately if it displays "*Bad signature*"!
 <BR> 
-On the *last* output line, look at the *rightmost* 16 characters (circled in red in the picture above). That is *who* made the signature file (.sig).   
+
+On the *last* output line, look at your *rightmost* 16 characters (the 4 blocks of 4).  
+**Crucially, we must now check WHO that Primary key fingerprint /ID belongs to.** We will start by looking at Keybase.io to see if it is the *Seedsigner project* 's public key or not.
+
 <details><summary> About the warning message:</summary>
-<p>  Since you are going to now match the outputted fingerprint ID against the source proofs at Keybase.io/seedsigner, you can ignore this warning message:
+<p>  Since you are about to match the outputted fingerprint/ID against the proofs at Keybase.io/seedsigner, and thereby confirm who the pubkey really belongs to-, you can safely ignore this warning message:
 
 ```
 > WARNING: This key is not certified with a trusted signature!  
@@ -157,30 +139,49 @@ On the *last* output line, look at the *rightmost* 16 characters (circled in red
 </details>
 <br>
 
-Now open the website [Keybase.io/seedsigner](www.keybase.io/seedsigner) and compare the 16 character fingerprint ID (circled red in the screenshot below),   to the *rightmost* 16 characters from your *verify* command. **Make sure that they match exactly**.  
+<details><summary> More about how the verify command works:</summary>
+<p>  
+The verify command will attempt to decrypt the signature file (sha256.sig) by trying each public key already imported into your computer. If the public key we just imported (via fetch-keys), manages to: (a) successfully decrypt the .sig file , and (b), that result matches exactly to the clear-text equivalent (.sha256) of the .sig file, then its "a good signature"!   
+
+Crucially, we must still manually check who *exactly* owns the Key ID which gave us that "Good signature". Thats what the warning message means- Who does the matching key really belong to? We will start by looking at keybase.io to see if it is "The Seedsigner project"'s public Key or not. 
+Note that it is the file hashes of .sig and .sha256 that *verify* compares, not their raw contents.
+
+</p>
+</details>
+<br>
+
+Now to determine ***who*** the Public key ID belongs to: Goto [Keybase.io/seedsigner](www.keybase.io/seedsigner)  
 <BR>
 ![SS - Keybase Website PubKey visual matching1_Cropped-80pct](https://user-images.githubusercontent.com/91296549/215326193-97c84e35-5570-4e52-bf3f-e86d367c8908.jpg)
 
 
 
-If the two fingerprint ID's match exactly, then you have successfully confirmed that your .sig file is authentic!
+**You must now *manually* compare: The 16 character fingerprint ID (as circled in red above) to, those *rightmost* 16 characters from your *verify* command.** 
+
+**If they match exactly, then you have successfully confirmed that your .sig file is authentically from the Seedsigner Project!**
 <BR>
-If they do ***not match exactly***, or your verify command displayed "Bad signature", then you must stop here immediately. Do not continue. Contact us for assistance in the Telegram group address above.
-<br>
 
-<details><summary>Learn more about signature file verification</summary>
+<details><summary>Learn more about how keybase.io helps you check that someone (online) is who they say they are:</summary>
 <p>
+Keybase.io allows you to independently verify that the public key saved on Keybase.io, is both authentic and that it belongs to the organization it claims to represent.  
+ Keybase has already checked the three pubkey file locations  cryptographically when they were saved there. You can further verify the key publications if you would like:  
+ 
+ - *via Keybase*: By clicking on any of the three blue badges to see that the "proof" was published at that location. (The blue badge marked as tweet, is in the most human-readable form and it is also a bi-directional link on Twitter)    
+or, 
+ - *without keybase (out-of-band)*: By using these 3 links directly: [Twitter](https://twitter.com/seedsigner/status/1530555252373704707), [Github](https://gist.github.com/SeedSigner/5936fa1219b07e28a3672385b605b5d2) and [Seedsigner.com](https://seedsigner.com/keybase.txt). This method can be used if you would like to make an even deeper, independent inspection without relying on Keybase at all, or if the Keybase.io site is no longer valid or it is removed entirely. 
 
-More specifically, the verify command determines *which* key pair of those already installed on your computer, actually signed the sha256.sig file.  It does this by  cryptographically comparing the sha256.sig file to its unsigned equivalent (the .sha256 file), while looping through the public keys already imported into your computer. Whomever's pre-imported Pubkey is able to perform the comparison successfully, is the Pubkey of the keypair used in the signing process. That 'winning' Public key must match the Public Key we have previously found, and verified as  genuine on keybase.io.
-
+Once you have used one of these methods, you will know if the Public Key stored on Keybase, is genuinely from the SeedSinger Project or not.
 </p>
 </details>
+<br>
+
+If the two ID's do *not* match, then you must stop here immediately. Do not continue. Contact us for assistance in the Telegram group address above.
 
 <br>
 
-### 3. Verifying that the *software files* are genuine
+### 2. Verifying that the *software images/binaries* are genuine
 
-Running the *shasum* command, is the final verification step and will confirm (via file hashing) that the software code (ie the binary files inside the zip file), were not altered, or added to, since publication or during your download. (Not by even one single character!)
+Now that you have confirmed that you do have the real Seedsigner Project's Public Key (ie the 16 characters match) - you can return to your terminal window. Running the the *shasum* command, is the final verification step and will confirm (via file hashing) that the software code/image files (ie the binary files inside the zip file), were also not altered since publication, or even during your download process.
 
  **On Linux or OSX:** Run this command
 ```
@@ -191,20 +192,23 @@ shasum -a 256 -c seedsigner_0_*_*.img.zip.sha256
 ```
 CertUtil -hashfile  seedsigner_0_*_*.img.zip SHA256 | findstr /v "hash"
 ```
+<BR>
 
-Wait about 30 seconds for the command to complete   
+Wait about 30 seconds for the command to complete, and it should display:
 ```
 seedsigner_0_5_x.img.zip: OK
 shasum: WARNING: 4 Lines are improperly formatted
 ```
-**If you receive the "OK" message** for the **seedsigner_[VersionNumber].img.zip file**, as shown above, then your verification is fully complete!  
-**All of your downloaded files have now been confirmed as both authentic and unaltered!** 😄😄 !!     
+**If you receive the "OK" message** for your **seedsigner_[x.x.x.VersionNumber].img.zip file**, as shown above, then your verification is fully complete!  
+**All of your downloaded files have now been confirmed as both authentic and unaltered!** You can proceed to create/write your MicroSD card😄😄 !!     
 
 The warning message describing '4 lines being improperly formatted' can be safely ignored. 
 If your file result shows "FAILED", then you must stop here immediately. Do not continue. Contact us for assistance at  the Telegram group address above.
 
+<BR>
 
 Please recognize that this process can only validate the software to the extent that the entity that first published the key is an honest actor, and their private key is not compromised or somehow being used by a malicious actor.
+<BR>
 <BR>
 
 
