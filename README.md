@@ -142,19 +142,17 @@ gpg --verify seedsigner_0_*_*.img.zip.sha256.sig
 
 When the command completes successfully, it should look like this:
 <BR>
-![SS - Verify Command - GPG on Linux - Masked_v2-80pct](https://user-images.githubusercontent.com/91296549/215329191-86290248-44fd-48e3-8475-13e7148cf14e.jpg)
-It must show "**good** signature". Ignore any email addresses. *Only*  matching fingerprints count here. 
+![SS - Verify Command - GPG on Linux - Masked_v3-80pct](https://user-images.githubusercontent.com/91296549/215339119-5326e814-1d60-47bb-980c-1498a2f30baf.jpg)
+It must display "**Good** signature". Ignore any email addresses. *Only*  matching fingerprints count here.  Stop here immediately if it displays "*Bad signature*"!
 <BR> 
 On the *last* output line, look at the *rightmost* 16 characters (circled in red in the picture above). That is *who* made the signature file (.sig).   
-<details><summary> About warning messages:</summary>
-<p>  Since you are going to now match the outputted fingerprint ID against Keybase.io/seedsigner, you can ignore this warning message:
+<details><summary> About the warning message:</summary>
+<p>  Since you are going to now match the outputted fingerprint ID against the source proofs at Keybase.io/seedsigner, you can ignore this warning message:
 
 ```
 > WARNING: This key is not certified with a trusted signature!  
 > There is no indication that the signature belongs to the owner.
  ```
-
-
 </p>
 </details>
 <br>
@@ -167,7 +165,7 @@ Now open the website [Keybase.io/seedsigner](www.keybase.io/seedsigner) and comp
 
 If the two fingerprint ID's match exactly, then you have successfully confirmed that your .sig file is authentic!
 <BR>
-If they do ***not match exactly***, or your verify command displays "BAD signature", then you must stop here immediately. Do not continue. Contact us for assistance in the Telegram group address above.
+If they do ***not match exactly***, or your verify command displayed "Bad signature", then you must stop here immediately. Do not continue. Contact us for assistance in the Telegram group address above.
 <br>
 
 <details><summary>Learn more about signature file verification</summary>
