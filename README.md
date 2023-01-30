@@ -91,7 +91,7 @@ Download these files to your computer:
 3. seedsigner_0_5_x.img.zip.sha256.sig 
 
 **Note:** The version numbers of the latest files will be higher than this example, but the naming format will be the same.  
-Once the files have all finished downloading, follow the steps below to verify them, and then to write the software onto a MicroSD card. Insert the MicroSD into your assembled hardware and turn on the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your Seedsigner! 
+Once the files have all finished downloading, follow the steps below to verify the download before continuing on to write the software onto a MicroSD card. Next, insert the MicroSD into your assembled hardware and connect the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your Seedsigner! 
 
 
 
@@ -179,20 +179,21 @@ If the two ID's do *not* match, then you must stop here immediately. Do not cont
 
 <br>
 
-### 2. Verifying that the *software images/binaries* are genuine
+### Step 2. Verifying that the *software images/binaries* are genuine
 
 Now that you have confirmed that you do have the real Seedsigner Project's Public Key (ie the 16 characters match) - you can return to your terminal window. Running the the *shasum* command, is the final verification step and will confirm (via file hashing) that the software code/image files (ie the binary files inside the zip file), were also not altered since publication, or even during your download process.
 
  **On Linux or OSX:** Run this command
 ```
-shasum -a 256 -c seedsigner_0_*_*.img.zip.sha256
+shasum -a 256 --ignore-missing -check seedsigner_0_*_*.img.zip.sha256
 ```
 
 **On Windows (inside Powershell):** Run this command
 ```
 CertUtil -hashfile  seedsigner_0_*_*.img.zip SHA256 | findstr /v "hash"
 ```
-<BR>
+On Windows, you must manually compare the above resulting hash value to the corresponding hash value shown inside the .SHA256 cleartext file.
+ <BR>
 
 Wait about 30 seconds for the command to complete, and it should display:
 ```
