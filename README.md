@@ -185,7 +185,7 @@ Now that you have confirmed that you do have the real Seedsigner Project's Publi
 
  **On Linux or OSX:** Run this command
 ```
-shasum -a 256 --ignore-missing -check seedsigner_0_*_*.img.zip.sha256
+shasum -a 256 --ignore-missing --check seedsigner_0_*_*.img.zip.sha256
 ```
 
 **On Windows (inside Powershell):** Run this command
