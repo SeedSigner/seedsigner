@@ -53,10 +53,10 @@ class SettingsConstants:
     BTC_DENOMINATION__THRESHOLD = "thr"
     BTC_DENOMINATION__BTCSATSHYBRID = "hyb"
     ALL_BTC_DENOMINATIONS = [
-        (BTC_DENOMINATION__BTC, "Btc-only"),
-        (BTC_DENOMINATION__SATS, "Sats-only"),
+        (BTC_DENOMINATION__BTC, "BTC"),
+        (BTC_DENOMINATION__SATS, "sats"),
         (BTC_DENOMINATION__THRESHOLD, "Threshold at 0.01"),
-        (BTC_DENOMINATION__BTCSATSHYBRID, "Btc | Sats hybrid"),
+        (BTC_DENOMINATION__BTCSATSHYBRID, "BTC | sats hybrid"),
     ]
 
     CAMERA_ROTATION__0 = 0

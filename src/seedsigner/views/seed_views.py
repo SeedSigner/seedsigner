@@ -211,7 +211,7 @@ class SeedFinalizeView(View):
 
     def run(self):
         FINALIZE = "Done"
-        PASSPHRASE = ("Add Passphrase", FontAwesomeIconConstants.LOCK)
+        PASSPHRASE = "BIP-39 Passphrase"
         button_data = []
 
         button_data.append(FINALIZE)
