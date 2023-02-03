@@ -213,9 +213,30 @@ Please recognize that this process can only validate the software to the extent 
 <BR>
 
 
-## Writing the software to your MicroSD card
-  Insert more instructions here. 
-  (to be done by MarcG)
+## Writing the software onto your MicroSD card
+
+To write the SeedSigner software onto your MicroSD card, there are a few options available:   
+| Application              | Description                                                                                                                                                  | Platform and official Source                                                         |
+|--------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| Balena Etcher            | The application is called Etcher, and the company that wrote it is called Balena.  Hence *Etcher by Balena* or *Balena Etcher*                                                  | [Available for Windows, Mac and Linux](https://www.balena.io/etcher#download-etcher) |
+| Raspberry Pi Imager      | Produced by the Raspberry Pi organization.                                                                                                                   | [Available for Windows, Mac and Linux](https://www.raspberrypi.com/software/)        |
+| DD Command Line Utility  | Built-in to Linux and MacOS, the DD (Data Duplicator) is a tool for advanced users.  If not used carefully it can accidentally format the incorrect disk!   | Built-in to Linux and MacOS                                                        |
+
+Be sure to download the software from the genuine publisher.  
+Either of the Etcher or Pi Imager software is recommended.  Some seedsigner users have reported a better experience with one or the other. So, if the one application doesn’t work well for your particular machine, then please try the other one. 
+<BR>
+### **General Considerations:** 
+Make sure to set any write-protection physical slider on the MicroSD Card Adapter to UN-locked.  
+You *dont* need to unzip the .zip file beforehand. You also don’t need to pre-format the MicroSD beforehand.  
+Please use Etchers or Pi Imagers *verify* feature to make sure the card was written successfully! This can save a lot of effort troublsshooting issues where your seedsigner device doesn’t boot up or nothing displays on the SeedSigner screen at power on.   
+Writing the MicroSd card is also known as flashing.  
+It will overwrite everything on the MicroSD card.  
+If the one application fails for you, then please try again using the other application.
+#### **Specific considerations for Windows users:**
+Windows can sometimes flag the writing of a MicroSD as risky behaviour and hence it may prevent this activity. If this happens, your writing/flashing will fail, hang or wont even begin, in which case you should to try to run the Etcher/Pi-Imager app "As administrator", (right-click and choose that option). It can also be blocked by windows security in some cases, so If you have the (non-default) *Controlled Folder Access* option set to active, try turning that *off* temporarily. 
+
+
+Advanced users may want to try the Linux/MacOS *DD* command instead of Etcher or Pi Imager, however, a reminder is given that DD can overwrite the wrong disk if you are not careful !
 
 ---------------
 
