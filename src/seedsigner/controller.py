@@ -50,7 +50,7 @@ class Controller(Singleton):
         rather than at the top in order avoid circular imports.
     """
 
-    VERSION = "0.5.2"
+    VERSION = "0.6.0"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
