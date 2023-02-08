@@ -3,7 +3,7 @@ from typing import List
 
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, DireWarningScreen, LargeButtonScreen, PowerOffScreen, ResetScreen, WarningScreen
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, DireWarningScreen, LargeButtonScreen, PowerOffScreen, PowerOffNotRequiredScreen, ResetScreen, WarningScreen
 from seedsigner.models.threads import BaseThread
 from seedsigner.models import Settings
 
@@ -199,9 +199,13 @@ class RestartView(View):
 
 class PowerOffView(View):
     def run(self):
-        thread = PowerOffView.PowerOffThread()
-        thread.start()
-        PowerOffScreen().display()
+        if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
+            PowerOffNotRequiredScreen().display()
+            return Destination(BackStackView)
+        else:
+            thread = PowerOffView.PowerOffThread()
+            thread.start()
+            PowerOffScreen().display()
 
 
     class PowerOffThread(BaseThread):
@@ -210,13 +214,7 @@ class PowerOffView(View):
             from subprocess import call
             while self.keep_running:
                 time.sleep(5)
-                if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
-                    # disable microsd detection before shutdown to prevent display of toast notification during shutdown
-                    from seedsigner.controller import Controller
-                    Controller.get_instance().microsd.stop()
-                    call("poweroff", shell=True)
-                else:
-                    call("sudo shutdown --poweroff now", shell=True)
+                call("sudo shutdown --poweroff now", shell=True)
 
 
 

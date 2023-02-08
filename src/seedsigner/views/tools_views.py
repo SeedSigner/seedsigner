@@ -559,11 +559,12 @@ class ToolsAddressExplorerAddressTypeView(View):
 
 
 class ToolsAddressExplorerAddressListView(View):
-    def __init__(self, is_change: bool = False, start_index: int = 0, selected_button_index: int = 0):
+    def __init__(self, is_change: bool = False, start_index: int = 0, selected_button_index: int = 0, initial_scroll: int = 0):
         super().__init__()
         self.is_change = is_change
         self.start_index = start_index
         self.selected_button_index = selected_button_index
+        self.initial_scroll = initial_scroll
 
 
     def run(self):
@@ -632,6 +633,7 @@ class ToolsAddressExplorerAddressListView(View):
                 is_button_text_centered=False,
                 is_bottom_list=True,
                 selected_button=self.selected_button_index,
+                scroll_y_initial_offset=self.initial_scroll,
             )
         finally:
             # Everything is set. Stop the loading screen
@@ -647,20 +649,23 @@ class ToolsAddressExplorerAddressListView(View):
             # User clicked NEXT
             return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.is_change, start_index=self.start_index + addrs_per_screen))
         
+        # Preserve the list's current scroll so we can return to the same spot
+        initial_scroll = screen.buttons[0].scroll_y
+
         index = selected_menu_num + self.start_index
-        return Destination(ToolsAddressExplorerAddressView, view_args=dict(index=index, address=addresses[selected_menu_num], is_change=self.is_change, start_index=self.start_index), skip_current_view=True)
+        return Destination(ToolsAddressExplorerAddressView, view_args=dict(index=index, address=addresses[selected_menu_num], is_change=self.is_change, start_index=self.start_index, parent_initial_scroll=initial_scroll), skip_current_view=True)
 
 
 
 class ToolsAddressExplorerAddressView(View):
-    def __init__(self, index: int, address: str, is_change: bool, start_index: int):
+    def __init__(self, index: int, address: str, is_change: bool, start_index: int, parent_initial_scroll: int = 0):
         super().__init__()
         self.index = index
         self.address = address
         self.is_change = is_change
         self.start_index = start_index
+        self.parent_initial_scroll = parent_initial_scroll
 
-        data = self.controller.address_explorer_data
     
     def run(self):
         qr_encoder = EncodeQR(qr_type=QRType.BITCOIN_ADDRESS, bitcoin_address=self.address)
@@ -669,4 +674,4 @@ class ToolsAddressExplorerAddressView(View):
         ).display()
     
         # Exiting/Cancelling the QR display screen always returns to the list
-        return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.is_change, start_index=self.start_index, selected_button_index=self.index - self.start_index), skip_current_view=True)
+        return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.is_change, start_index=self.start_index, selected_button_index=self.index - self.start_index, initial_scroll=self.parent_initial_scroll), skip_current_view=True)
