@@ -739,6 +739,9 @@ class SeedExportXpubQRDisplayView(View):
         elif coordinator == SettingsConstants.COORDINATOR__BLUE_WALLET:
             qr_type = QRType.XPUB
 
+        elif coordinator == SettingsConstants.COORDINATOR__KEEPER:
+            qr_type = QRType.XPUB
+
         elif coordinator == SettingsConstants.COORDINATOR__NUNCHUK:
             qr_type = QRType.XPUB__UR
 
