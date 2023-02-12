@@ -522,6 +522,9 @@ class SeedExportXpubScriptTypeView(View):
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
+            # If previous view is SeedOptionsView then that should be where resume_main_flow started (otherwise it would have been skipped).
+            if len(self.controller.back_stack) >= 2 and self.controller.back_stack[-2].View_cls == SeedOptionsView:
+                self.controller.resume_main_flow = None
             return Destination(BackStackView)
 
         else:
