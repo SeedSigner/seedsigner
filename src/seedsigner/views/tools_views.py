@@ -433,10 +433,6 @@ class ToolsAddressExplorerSelectSourceView(View):
         seeds = self.controller.storage.seeds
         for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            
-            if seed.passphrase is not None:
-                # TODO: Include lock icon on right side of button
-                pass
             button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
 
         button_data.append(SCAN_SEED)
