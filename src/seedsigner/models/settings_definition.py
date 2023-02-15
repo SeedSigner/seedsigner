@@ -365,7 +365,12 @@ class SettingsDefinition:
                       display_name="Coordinator software",
                       type=SettingsConstants.TYPE__MULTISELECT,
                       selection_options=SettingsConstants.ALL_COORDINATORS,
-                      default_value=SettingsConstants.ALL_COORDINATORS),
+                      default_value=[
+                          SettingsConstants.COORDINATOR__BLUE_WALLET,
+                          SettingsConstants.COORDINATOR__NUNCHUK,
+                          SettingsConstants.COORDINATOR__SPARROW,
+                          SettingsConstants.COORDINATOR__SPECTER_DESKTOP,
+                      ]),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__BTC_DENOMINATION,
