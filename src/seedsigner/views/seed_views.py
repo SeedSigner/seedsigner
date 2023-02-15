@@ -1398,14 +1398,14 @@ class AddressVerificationStartView(View):
                 sig_type = SettingsConstants.MULTISIG
                 if self.controller.multisig_wallet_descriptor:
                     # Can jump straight to the brute-force verification View
-                    destination = Destination(SeedAddressVerificationView)
+                    destination = Destination(SeedAddressVerificationView, skip_current_view=True)
                 else:
                     self.controller.resume_main_flow = Controller.FLOW__VERIFY_MULTISIG_ADDR
-                    destination = Destination(LoadMultisigWalletDescriptorView)
+                    destination = Destination(LoadMultisigWalletDescriptorView, skip_current_view=True)
 
             else:
                 sig_type = SettingsConstants.SINGLE_SIG
-                destination = Destination(SeedSingleSigAddressVerificationSelectSeedView)
+                destination = Destination(SeedSingleSigAddressVerificationSelectSeedView, skip_current_view=True)
 
         elif self.controller.unverified_address["script_type"] == SettingsConstants.TAPROOT:
             # TODO: add Taproot support
