@@ -46,7 +46,7 @@ class ScanView(View):
                 psbt = self.decoder.get_psbt()
                 self.controller.psbt = psbt
                 self.controller.psbt_parser = None
-                return Destination(PSBTSelectSeedView)
+                return Destination(PSBTSelectSeedView, skip_current_view=True)
 
             elif self.decoder.is_settings:
                 from seedsigner.models.settings import Settings
@@ -83,7 +83,7 @@ class ScanView(View):
                     return Destination(NotYetImplementedView)
 
                 self.controller.multisig_wallet_descriptor = descriptor
-                return Destination(MultisigWalletDescriptorView)
+                return Destination(MultisigWalletDescriptorView, skip_current_view=True)
             
             elif self.decoder.is_address:
                 from seedsigner.views.seed_views import AddressVerificationStartView
@@ -92,6 +92,7 @@ class ScanView(View):
 
                 return Destination(
                     AddressVerificationStartView,
+                    skip_current_view=True,
                     view_args={
                         "address": address,
                         "script_type": script_type,
@@ -101,6 +102,9 @@ class ScanView(View):
             
             else:
                 return Destination(NotYetImplementedView)
+
+        elif self.decoder.is_invalid:
+            raise Exception("QRCode not recognized or not yet supported.")
 
         return Destination(MainMenuView)
 
