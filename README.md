@@ -228,15 +228,16 @@ Either of the Etcher or Pi Imager software is recommended.  Some seedsigner user
 ### **General Considerations:** 
 Make sure to set any write-protection physical slider on the MicroSD Card Adapter to UN-locked.  
 You *dont* need to unzip the .zip file beforehand. You also don’t need to pre-format the MicroSD beforehand.  
-Please use Etchers or Pi Imagers *verify* feature to make sure the card was written successfully! This can save a lot of effort troublsshooting issues where your seedsigner device doesn’t boot up or nothing displays on the SeedSigner screen at power on.   
+Current Etcher and Pi Imager software will perform a verify action (by default) to make sure the card was written successfully! Watching for that verify step to complete successfully can save you a lot of headaches if you later need to troubleshoot issues where your seedsigner device doesn’t boot up at power on.   
 Writing the MicroSd card is also known as flashing.  
 It will overwrite everything on the MicroSD card.  
-If the one application fails for you, then please try again using the other application.
+If the one application fails for you, then please try again using our other recommended application.  
+Advanced users may want to try the Linux/MacOS *DD* command instead of using Etcher or Pi Imager, however, a reminder is given that DD can overwrite the wrong disk if you are not careful !
 #### **Specific considerations for Windows users:**
 Windows can sometimes flag the writing of a MicroSD as risky behaviour and hence it may prevent this activity. If this happens, your writing/flashing will fail, hang or wont even begin, in which case you should to try to run the Etcher/Pi-Imager app "As administrator", (right-click and choose that option). It can also be blocked by windows security in some cases, so If you have the (non-default) *Controlled Folder Access* option set to active, try turning that *off* temporarily. 
 
 
-Advanced users may want to try the Linux/MacOS *DD* command instead of Etcher or Pi Imager, however, a reminder is given that DD can overwrite the wrong disk if you are not careful !
+
 
 ---------------
 
