@@ -18,7 +18,7 @@ from ..components import BaseComponent, Button, GUIConstants, Fonts, IconButton,
 @dataclass
 class ScanScreen(BaseScreen):
     decoder: DecodeQR = None
-    instructions_text: str = "Scan a QR code"
+    instructions_text: str = "< back  |  Scan a QR code"
     resolution: Tuple[int,int] = (480, 480)
     framerate: int = 12
     render_rect: Tuple[int,int,int,int] = None
