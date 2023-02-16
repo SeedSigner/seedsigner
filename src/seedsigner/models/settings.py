@@ -156,8 +156,11 @@ class Settings(Singleton):
             raise Exception(f"Unsupported SettingsEntry.type: {settings_entry.type}")
 
         display_names = []
-        for value in self._data[attr_name]:
-            display_names.append(settings_entry.get_selection_option_display_name_by_value(value))
+        # Iterate through the selection_options list in order to preserve intended sort
+        # order when adding which options are selected.
+        for value, display_name in settings_entry.selection_options:
+            if value in self._data[attr_name]:
+                display_names.append(display_name)
         return display_names
 
 
