@@ -84,16 +84,24 @@ However, one of the many advantages of the open source software model is that th
 
 ## Downloading the Software
 
-To download the most recent software version, click [here](https://github.com/SeedSigner/seedsigner/releases), and then expand the *Assets* sub-heading. 
-Download these files to your computer:
-1. seedsigner_0_5_x.img.zip 
-2. seedsigner_0_5_x.img.zip.sha256 
-3. seedsigner_0_5_x.img.zip.sha256.sig 
+   
+Download the current Version (0.6.0) software image that is compatible with your  Raspberry Pi Hardware:
+| Raspberry Pi Hardware             | Source                                                                                                                         |
+|-----------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
+| Pi Zero v1.3 or Pi Zero (W or WH) | [SeedSigner for R-Pi Zero V1.3](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/SeedSigner_OS.0.6.0.pi0.img)  |
+| Pi Zero **2** W                   | [SeedSigner for R-Pi Zero 2 W](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/SeedSigner_OS.0.6.0.pi02w.img) |
+| Pi 2 (not a Pi *Zero* 2)          | [SeedSigner for R-Pi 2](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/SeedSigner_OS.0.6.0.pi2.img)          |
+| Pi 3                              | [SeedSigner for R-Pi 3](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/SeedSigner_OS.0.6.0.pi02w.img)        |
+| Pi 4                              | [SeedSigner for R-Pi 4](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/SeedSigner_OS.0.6.0.pi04.img)         |
+
+**and also download** these 2 signature verification files  
+[Plaintext Manifest File](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_0_6_0.img.sha256)  
+[Signed Mainifest File](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_0_6_0.img.sha256.sig)
 
 **Note:** The version numbers of the latest files will be higher than this example, but the naming format will be the same.  
 Once the files have all finished downloading, follow the steps below to verify the download before continuing on to write the software onto a MicroSD card. Next, insert the MicroSD into your assembled hardware and connect the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your Seedsigner! 
 
-
+Previous software versions are available [here](https://github.com/SeedSigner/seedsigner/releases). Choose a specific version and the expand the *Assets* sub-heading to download the .img file binary and also the 2 associated signature files . 
 
 
 ## Verifying that the downloaded files are authentic (optional but highly recommended!)
