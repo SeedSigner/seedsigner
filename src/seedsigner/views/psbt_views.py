@@ -70,8 +70,8 @@ class PSBTSelectSeedView(View):
         self.controller.resume_main_flow = Controller.FLOW__PSBT
 
         if self.button_data[selected_menu_num] == self.SCAN_SEED:
-            from seedsigner.views.scan_views import ScanView
-            return Destination(ScanView)
+            from seedsigner.views.scan_views import ScanSeedQRView
+            return Destination(ScanSeedQRView)
 
         elif self.button_data[selected_menu_num] in [self.TYPE_12WORD, self.TYPE_24WORD]:
             from seedsigner.views.seed_views import SeedMnemonicEntryView

@@ -94,8 +94,8 @@ class LoadSeedView(View):
             return Destination(BackStackView)
         
         if button_data[selected_menu_num] == self.SEED_QR:
-            from .scan_views import ScanView
-            return Destination(ScanView)
+            from .scan_views import ScanSeedQRView
+            return Destination(ScanSeedQRView)
         
         elif button_data[selected_menu_num] == self.TYPE_12WORD:
             self.controller.storage.init_pending_mnemonic(num_words=12)
