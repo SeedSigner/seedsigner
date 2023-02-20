@@ -135,7 +135,13 @@ class ScanView(View):
                 return Destination(NotYetImplementedView)
 
         elif self.decoder.is_invalid:
-            raise Exception("QRCode not recognized or format not yet supported.")
+            return Destination(ErrorView, view_args=dict(
+                title="Error",
+                status_headline="Unknown QR Type",
+                text="QRCode is invalid or is a data format not yet supported.",
+                button_text="Back",
+                next_destination=Destination(BackStackView, skip_current_view=True),
+            ))
 
         return Destination(MainMenuView)
 
@@ -168,6 +174,16 @@ class ScanWalletDescriptorView(ScanView):
     @property
     def is_valid_qr_type(self):
         return self.decoder.is_wallet_descriptor
+
+
+
+class ScanAddressView(ScanView):
+    instructions_text = "Scan address QR"
+    invalid_qr_type_message = "Expected an address QR"
+
+    @property
+    def is_valid_qr_type(self):
+        return self.decoder.is_address
 
 
 
