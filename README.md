@@ -92,6 +92,8 @@ Download the current Version (0.6.0) software image that is compatible with your
 | [SeedSigner software for the Pi Zero W or Pi Zero WH](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img) 	|  	| [SeedSigner software for the Raspberry Pi 3 Model B](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img) 	|
 | [SeedSigner software for the Pi Zero **V1.3**](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img) 	|  	| [SeedSigner software for the Raspberry Pi 2 Model B ](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi2.img) <br> This is not the file for a Pi **ZERO** 2. <br>That hardware is a different chipset and motherboard.  	|  
 
+Note: If you have physically removed the WiFi component from your board, you will still use the image file of the original(un-modified) hardware. (Our files are compiled/based on the *processor* architecture.)  
+
 **also download** these 2 signature verification files to the same folder  
 [The Plaintext manifest file](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256)  
 [The Signature of the manifest file](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256.sig)
