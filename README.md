@@ -19,9 +19,9 @@
 
 The goal of SeedSigner is to lower the cost and complexity of Bitcoin multi-signature wallet use. To accomplish this goal, SeedSigner offers anyone the opportunity to build a verifiably air-gapped, stateless Bitcoin signing device using inexpensive, publicly available hardware components (usually < $50). SeedSigner helps users save with Bitcoin by assisting with trustless private key generation and multi-signature wallet setup, and helps users transact with Bitcoin via a secure, air-gapped QR-exchange signing model.
 
-Additional information about the project can be found at [seedsigner.com](https://seedsigner.com).
+Additional information about the project can be found at [SeedSigner.com](https://seedsigner.com).
 
-You can follow [@SeedSigner](https://twitter.com/SeedSigner) on Twitter for the latest project news and developments.
+You can follow [@SeedSigner](https://twitter.com/seedsigner) on Twitter for the latest project news and developments.
 
 If you have specific questions about the project, our [Telegram Group](https://t.me/joinchat/GHNuc_nhNQjLPWsS) is a great place to ask them.
 
@@ -90,17 +90,17 @@ Download the current Version (0.6.0) software image that is compatible with your
 |---	|---	|---	|
 | [SeedSigner software for the Pi Zero **2** W (The "Pi Zero **TWO** W")](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img) 	|  	| [SeedSigner software for the Raspberry Pi 4 Model B](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi4.img) 	|
 | [SeedSigner software for the Pi Zero W or Pi Zero WH](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img) 	|  	| [SeedSigner software for the Raspberry Pi 3 Model B](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img) 	|
-| [SeedSigner software for the Pi Zero **V1.3**](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img) 	|  	| [SeedSigner software for the Raspberry Pi 2 Model B ](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/SeedSigner_OS.0.6.0.pi2.img) <br> This is not the file for a Pi **ZERO** 2. <br>That hardware is a different chipset and motherboard.  	|  
+| [SeedSigner software for the Pi Zero **V1.3**](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img) 	|  	| [SeedSigner software for the Raspberry Pi 2 Model B ](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi2.img) <br> This is not the file for a Pi **ZERO** 2. <br>That hardware is a different chipset and motherboard.  	|  
 
 **also download** these 2 signature verification files to the same folder  
-[The Plaintext Manifest File](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256)  
-[The Signed Manifest File](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256.sig)
+[The Plaintext manifest file](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256)  
+[The Signature of the manifest file](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256.sig)
 
 Users familiar with older versions of the SeedSigner software might be surprised with how fast their software downloads now are, because since version 0.6.0 the software image files are now 100x smaller! Each image file is now under 42 Megabytes so your downloads and verifications will be very quick now (and might even seem *too* quick)!  
 
-Once the files have all finished downloading, follow the steps below to verify the download before continuing on to write the software onto a MicroSD card. Next, insert the MicroSD into your assembled hardware and connect the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your Seedsigner! 
+Once the files have all finished downloading, follow the steps below to verify the download before continuing on to write the software onto a MicroSD card. Next, insert the MicroSD into your assembled hardware and connect the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your SeedSigner! 
 
-[Our previous software versions are available here](https://github.com/SeedSigner/seedsigner/releases). Choose a specific version and then expand the *Assets* sub-heading to display the .img file binary and also the 2 associated signature files. **Note:** The prior version files will have lower numbers than the scripts and examples provided in this document, but the naming format will be the same, so you can edit them as required for signature verification etc.   
+[Our previous software versions are available here](https://github.com/seedsigner/seedsigner/releases). Choose a specific version and then expand the *Assets* sub-heading to display the .img file binary and also the 2 associated signature files. **Note:** The prior version files will have lower numbers than the scripts and examples provided in this document, but the naming format will be the same, so you can edit them as required for signature verification etc.   
 
 
 ## Verifying that the downloaded files are authentic (optional but highly recommended!)
@@ -115,7 +115,7 @@ Run GPG's *fetch-keys* command to import the SeedSigner projects public key from
 
 
 ```
-gpg --fetch-keys https://keybase.io/SeedSigner/pgp_keys.asc
+gpg --fetch-keys https://keybase.io/seedsigner/pgp_keys.asc
 ```
 The result should confirm that 1 key was *either* imported or updated. *Ignore* any key ID's or email addresses shown.
 
@@ -133,10 +133,10 @@ The result must display "**Good signature**".  Ignore any email addresses - *onl
 <BR> 
 
 On the *last* output line, look at your *rightmost* 16 characters (the 4 blocks of 4).  
-**Crucially, we must now check WHO that Primary key fingerprint /ID belongs to.** We will start by looking at Keybase.io to see if it is the *Seedsigner project* 's public key or not.
+**Crucially, we must now check WHO that Primary key fingerprint /ID belongs to.** We will start by looking at Keybase.io to see if it is the *SeedSigner project* 's public key or not.
 
 <details><summary> About the warning message:</summary>
-<p>  Since you are about to match the outputted fingerprint/ID against the proofs at Keybase.io/seedsigner, and thereby confirm who the pubkey really belongs to-, you can safely ignore this warning message:
+<p>  Since you are about to match the outputted fingerprint/ID against the proofs at Keybase.io/SeedSigner, and thereby confirm who the pubkey really belongs to-, you can safely ignore this warning message:
 
 ```
 > WARNING: This key is not certified with a trusted signature!  
@@ -150,14 +150,14 @@ On the *last* output line, look at your *rightmost* 16 characters (the 4 blocks 
 <p>  
 The verify command will attempt to decrypt the signature file (sha256.sig) by trying each public key already imported into your computer. If the public key we just imported (via fetch-keys), manages to: (a) successfully decrypt the .sig file , and (b), that result matches exactly to the clear-text equivalent (.sha256) of the .sig file, then its "a good signature"!   
 
-Crucially, we must still manually check who *exactly* owns the Key ID which gave us that "Good signature". Thats what the warning message means- Who does the matching key really belong to? We will start by looking at keybase.io to see if it is "The Seedsigner project"'s public Key or not. 
+Crucially, we must still manually check who *exactly* owns the Key ID which gave us that "Good signature". Thats what the warning message means- Who does the matching key really belong to? We will start by looking at keybase.io to see if it is "The SeedSigner project"'s public Key or not. 
 Note that it is the file hashes of .sig and .sha256 that *verify* compares, not their raw contents.
 
 </p>
 </details>
 <br>
 
-Now to determine ***who*** the Public key ID belongs to: Goto [Keybase.io/seedsigner](https://keybase.io/seedsigner)  
+Now to determine ***who*** the Public key ID belongs to: Goto [Keybase.io/SeedSigner](https://keybase.io/seedsigner)  
 <BR>
 ![SS - Keybase Website PubKey visual matching1_Cropped-80pct](https://user-images.githubusercontent.com/91296549/215326193-97c84e35-5570-4e52-bf3f-e86d367c8908.jpg)
 
@@ -165,7 +165,7 @@ Now to determine ***who*** the Public key ID belongs to: Goto [Keybase.io/seedsi
 
 **You must now *manually* compare: The 16 character fingerprint ID (as circled in red above) to, those *rightmost* 16 characters from your *verify* command.** 
 
-**If they match exactly, then you have successfully confirmed that your .sig file is authentically from the Seedsigner Project!**
+**If they match exactly, then you have successfully confirmed that your .sig file is authentically from the SeedSigner Project!**
 <BR>
 
 <details><summary>Learn more about how keybase.io helps you check that someone (online) is who they say they are:</summary>
@@ -175,7 +175,7 @@ Keybase.io allows you to independently verify that the public key saved on Keyba
  
  - *via Keybase*: By clicking on any of the three blue badges to see that the "proof" was published at that location. (The blue badge marked as tweet, is in the most human-readable form and it is also a bi-directional link on Twitter)    
 or, 
- - *without keybase (out-of-band)*: By using these 3 links directly: [Twitter](https://twitter.com/seedsigner/status/1530555252373704707), [Github](https://gist.github.com/SeedSigner/5936fa1219b07e28a3672385b605b5d2) and [Seedsigner.com](https://seedsigner.com/keybase.txt). This method can be used if you would like to make an even deeper, independent inspection without relying on Keybase at all, or if the Keybase.io site is no longer valid or it is removed entirely. 
+ - *without keybase (out-of-band)*: By using these 3 links directly: [Twitter](https://twitter.com/seedsigner/status/1530555252373704707), [Github](https://gist.github.com/seedsigner/5936fa1219b07e28a3672385b605b5d2) and [SeedSigner.com](https://seedsigner.com/keybase.txt). This method can be used if you would like to make an even deeper, independent inspection without relying on Keybase at all, or if the Keybase.io site is no longer valid or it is removed entirely. 
 
 Once you have used one of these methods, you will know if the Public Key stored on Keybase, is genuinely from the SeedSinger Project or not.
 </p>
@@ -188,7 +188,7 @@ If the two ID's do *not* match, then you must stop here immediately. Do not cont
 
 ### Step 2. Verifying that the *software images/binaries* are genuine
 
-Now that you have confirmed that you do have the real Seedsigner Project's Public Key (ie the 16 characters match) - you can return to your terminal window. Running  the *shasum* command, is the final verification step and will confirm (via file hashing) that the software code/image files, were also not altered since publication, or even during your download process.  
+Now that you have confirmed that you do have the real SeedSigner Project's Public Key (ie the 16 characters match) - you can return to your terminal window. Running  the *shasum* command, is the final verification step and will confirm (via file hashing) that the software code/image files, were also not altered since publication, or even during your download process.  
 (Prior to version 0.6.0  , your verify command will check the .zip file which contains the binary files.)
 
  **On Linux or OSX:** Run this command
@@ -229,13 +229,13 @@ To write the SeedSigner software onto your MicroSD card, there are a few options
 | DD Command Line Utility  | Built-in to Linux and MacOS, the DD (Data Duplicator) is a tool for advanced users.  If not used carefully it can accidentally format the incorrect disk!   | Built-in to Linux and MacOS                                                        |
 
 Be sure to download the software from the genuine publisher.  
-Either of the Etcher or Pi Imager software is recommended.  Some seedsigner users have reported a better experience with one or the other. So, if the one application doesn’t work well for your particular machine, then please try the other one. 
+Either of the Etcher or Pi Imager software is recommended.  Some SeedSigner users have reported a better experience with one or the other. So, if the one application doesn’t work well for your particular machine, then please try the other one. 
 <BR>
 ### **General Considerations:** 
 The writing and verify steps are very quick from version 0.6.0 upwards, so please pay close attention to your screen. 
 Make sure to set any write-protection physical slider on the MicroSD Card Adapter to UN-locked.  
 You also don’t need to pre-format the MicroSD beforehand.  You *dont* need to unzip any .zip file beforehand.
-Current Etcher and Pi Imager software will perform a verify action (by default) to make sure the card was written successfully! Watching for that verify step to complete successfully can save you a lot of headaches if you later need to troubleshoot issues where your seedsigner device doesn’t boot up at power on.   
+Current Etcher and Pi Imager software will perform a verify action (by default) to make sure the card was written successfully! Watching for that verify step to complete successfully can save you a lot of headaches if you later need to troubleshoot issues where your SeedSigner device doesn’t boot up at power on.   
 Writing the MicroSd card is also known as flashing.  
 It will overwrite everything on the MicroSD card.  
 If the one application fails for you, then please try again using our other recommended application.  
@@ -252,7 +252,7 @@ Use the Pi imager software as your first choice on Windows. Windows can sometime
 
 ### Open Pill
 
-The Open Pill enclosure design is all about quick, simple and inexpensive depoloyment of a SeedSigner device. The design does not require any additional hardware and can be printed using a standard FDM 3D printer in about 2 hours, no supports necessary. A video demonstrating the assembly process can be found [here](https://youtu.be/gXPFJygZobEa). To access the design file and printable model, click [here](https://github.com/SeedSigner/seedsigner/tree/main/enclosures/open_pill).
+The Open Pill enclosure design is all about quick, simple and inexpensive depoloyment of a SeedSigner device. The design does not require any additional hardware and can be printed using a standard FDM 3D printer in about 2 hours, no supports necessary. A video demonstrating the assembly process can be found [here](https://youtu.be/gXPFJygZobEa). To access the design file and printable model, click [here](https://github.com/seedsigner/seedsigner/tree/main/enclosures/open_pill).
 
 ### Orange Pill
 
@@ -262,13 +262,13 @@ The Orange Pill enclosure design offers a more finished look that includes butto
 * 4 x M2.5 pan head screws, 6mm length
 * 4 x M2.5 pan head screws, 12mm length
 
-The upper and lower portions of the enclosure can be printed using a standard FDM 3D printer, no supports necessary. The buttons and joystick nub should ideally be produced with a SLA/resin printer. An overview of the entire assembly process can be found [here](https://youtu.be/aIIc2DiZYcI). To access the design files and printable models, click [here](https://github.com/SeedSigner/seedsigner/tree/main/enclosures/orange_pill).
+The upper and lower portions of the enclosure can be printed using a standard FDM 3D printer, no supports necessary. The buttons and joystick nub should ideally be produced with a SLA/resin printer. An overview of the entire assembly process can be found [here](https://youtu.be/aIIc2DiZYcI). To access the design files and printable models, click [here](https://github.com/seedsigner/seedsigner/tree/main/enclosures/orange_pill).
 
 ### Community Designs
 
 * [Lil Pill](https://cults3d.com/en/3d-model/gadget/lil-pill-seedsigner-case) by @_CyberNomad
 * [OrangeSurf Case](https://github.com/orangesurf/orangesurf-seedsigner-case) by @OrangeSurfBTC
-* [PS4 Seedsigner](https://www.thingiverse.com/thing:5363525) by @Silexperience
+* [PS4 SeedSigner](https://www.thingiverse.com/thing:5363525) by @Silexperience
 * [OpenPill Faceplate](https://www.printables.com/en/model/179924-seedsigner-open-pill-cover-plates-digital-cross-jo) by @Revetuzo 
 * [Waveshare CoverPlate](https://cults3d.com/en/3d-model/various/seedsigner-coverplate-for-waveshare-1-3-inch-lcd-hat-with-240x240-pixel-display) by @Adathome1
 
