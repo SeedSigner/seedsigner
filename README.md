@@ -96,11 +96,11 @@ Download the current Version (0.6.0) software image that is compatible with your
 [The Plaintext Manifest File](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256)  
 [The Signed Manifest File](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256.sig)
 
-Users of our software prior to version 0.6.0 might be surprised how fast their downloads are, but since the our migration to SeedSignerOS the software files are in fact, 100x smaller and hence your downloads and verifications will be very quick now! (approx 40 Megabyte images)  
+Users familiar with older versions of the SeedSigner software might be surprised with how fast their software downloads now are, because since version 0.6.0 the software image files are now 100x smaller! Each image file is now under 42 Megabytes so your downloads and verifications will be very quick now (and might even seem *too* quick)!  
 
 Once the files have all finished downloading, follow the steps below to verify the download before continuing on to write the software onto a MicroSD card. Next, insert the MicroSD into your assembled hardware and connect the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your Seedsigner! 
 
-[Previous software versions are available here](https://github.com/SeedSigner/seedsigner/releases). Choose a specific version and then expand the *Assets* sub-heading to display the .img file binary and also the 2 associated signature files. **Note:** The prior version files will have lower numbers than the scripts and examples provided in this document, but the naming format will be the same, so you can edit them as required for signature verification etc.   
+[Our previous software versions are available here](https://github.com/SeedSigner/seedsigner/releases). Choose a specific version and then expand the *Assets* sub-heading to display the .img file binary and also the 2 associated signature files. **Note:** The prior version files will have lower numbers than the scripts and examples provided in this document, but the naming format will be the same, so you can edit them as required for signature verification etc.   
 
 
 ## Verifying that the downloaded files are authentic (optional but highly recommended!)
@@ -119,16 +119,16 @@ gpg --fetch-keys https://keybase.io/SeedSigner/pgp_keys.asc
 ```
 The result should confirm that 1 key was *either* imported or updated. *Ignore* any key ID's or email addresses shown.
 
-![SS - Keybase PubKey import with Fingerprint shown (New import or update of the key)](https://user-images.githubusercontent.com/91296549/174248861-7961c038-1fbf-47a1-a110-146cb218b1c8.jpg)  
+![SS - Fetchkeys-Keybase PubKey import with Fingerprint shown (New import or update of the key)v3-100pct](https://user-images.githubusercontent.com/91296549/221334414-adc3616c-462e-490e-8492-3dfee367d13a.jpg)  
 
 Next, you will run the *verify* command on the signature (.sig) file. (*Verify* must be run from inside the same folder that you downloaded the files into earlier. The `*`'s in this command will auto-fill the version from your current folder, so it should be copied and pasted as-is.)   
 ```
-gpg --verify seedsigner_0_*_*.img.zip.sha256.sig
+gpg --verify seedsigner.0.6.*.sha256.sig
 ```
 
 When the verify command completes successfully, it should display output like this:
 <BR>
-![SS - Verify Command - GPG on Linux - Masked_v3-80pct](https://user-images.githubusercontent.com/91296549/215339119-5326e814-1d60-47bb-980c-1498a2f30baf.jpg)
+![SS - Verify Command - GPG on Linux - Masked_v4-100pct](https://user-images.githubusercontent.com/91296549/221334135-8ad1f1af-26d2-429a-91ce-ad41703ed38c.jpg)  
 The result must display "**Good signature**".  Ignore any email addresses - *only*  matching Key fingerprints count here. Stop immediately if it displays "*Bad signature*"!
 <BR> 
 
@@ -157,7 +157,7 @@ Note that it is the file hashes of .sig and .sha256 that *verify* compares, not 
 </details>
 <br>
 
-Now to determine ***who*** the Public key ID belongs to: Goto [Keybase.io/seedsigner](www.keybase.io/seedsigner)  
+Now to determine ***who*** the Public key ID belongs to: Goto [Keybase.io/seedsigner](https://keybase.io/seedsigner)  
 <BR>
 ![SS - Keybase Website PubKey visual matching1_Cropped-80pct](https://user-images.githubusercontent.com/91296549/215326193-97c84e35-5570-4e52-bf3f-e86d367c8908.jpg)
 
@@ -188,29 +188,28 @@ If the two ID's do *not* match, then you must stop here immediately. Do not cont
 
 ### Step 2. Verifying that the *software images/binaries* are genuine
 
-Now that you have confirmed that you do have the real Seedsigner Project's Public Key (ie the 16 characters match) - you can return to your terminal window. Running the the *shasum* command, is the final verification step and will confirm (via file hashing) that the software code/image files (ie the binary files inside the zip file), were also not altered since publication, or even during your download process.
+Now that you have confirmed that you do have the real Seedsigner Project's Public Key (ie the 16 characters match) - you can return to your terminal window. Running  the *shasum* command, is the final verification step and will confirm (via file hashing) that the software code/image files, were also not altered since publication, or even during your download process.  
+(Prior to version 0.6.0  , your verify command will check the .zip file which contains the binary files.)
 
  **On Linux or OSX:** Run this command
 ```
-shasum -a 256 --ignore-missing --check seedsigner_0_*_*.img.zip.sha256
+shasum -a 256 --ignore-missing --check seedsigner.0.6.*.sha256  
 ```
 
 **On Windows (inside Powershell):** Run this command
 ```
-CertUtil -hashfile  seedsigner_0_*_*.img.zip SHA256 | findstr /v "hash"
+CertUtil -hashfile  seedsigner.0.6.0.sha256 SHA256 | findstr /v "hash"
 ```
-On Windows, you must manually compare the above resulting hash value to the corresponding hash value shown inside the .SHA256 cleartext file.
+On Windows, you must then manually compare the resulting file hash value to the corresponding hash value shown inside the .SHA256 cleartext file.
  <BR>
 
-Wait about 30 seconds for the command to complete, and it should display:
+Wait up to 30 seconds for the command to complete, and it should display:
 ```
-seedsigner_0_5_x.img.zip: OK
-shasum: WARNING: 4 Lines are improperly formatted
+seedsigner_os.0.6.x[Your_Pi_Model_For_Example:pi02w].img: OK
 ```
-**If you receive the "OK" message** for your **seedsigner_[x.x.x.VersionNumber].img.zip file**, as shown above, then your verification is fully complete!  
+**If you receive the "OK" message** for your **seedsigner_os.0.6.x.[Your_Pi_Model_For_Example:pi02w].img file**, as shown above, then your verification is fully complete!  
 **All of your downloaded files have now been confirmed as both authentic and unaltered!** You can proceed to create/write your MicroSD card😄😄 !!     
 
-The warning message describing '4 lines being improperly formatted' can be safely ignored. 
 If your file result shows "FAILED", then you must stop here immediately. Do not continue. Contact us for assistance at  the Telegram group address above.
 
 <BR>
@@ -233,15 +232,16 @@ Be sure to download the software from the genuine publisher.
 Either of the Etcher or Pi Imager software is recommended.  Some seedsigner users have reported a better experience with one or the other. So, if the one application doesn’t work well for your particular machine, then please try the other one. 
 <BR>
 ### **General Considerations:** 
+The writing and verify steps are very quick from version 0.6.0 upwards, so please pay close attention to your screen. 
 Make sure to set any write-protection physical slider on the MicroSD Card Adapter to UN-locked.  
-You *dont* need to unzip the .zip file beforehand. You also don’t need to pre-format the MicroSD beforehand.  
+You also don’t need to pre-format the MicroSD beforehand.  You *dont* need to unzip any .zip file beforehand.
 Current Etcher and Pi Imager software will perform a verify action (by default) to make sure the card was written successfully! Watching for that verify step to complete successfully can save you a lot of headaches if you later need to troubleshoot issues where your seedsigner device doesn’t boot up at power on.   
 Writing the MicroSd card is also known as flashing.  
 It will overwrite everything on the MicroSD card.  
 If the one application fails for you, then please try again using our other recommended application.  
 Advanced users may want to try the Linux/MacOS *DD* command instead of using Etcher or Pi Imager, however, a reminder is given that DD can overwrite the wrong disk if you are not careful !
 #### **Specific considerations for Windows users:**
-Windows can sometimes flag the writing of a MicroSD as risky behaviour and hence it may prevent this activity. If this happens, your writing/flashing will fail, hang or wont even begin, in which case you should to try to run the Etcher/Pi-Imager app "As administrator", (right-click and choose that option). It can also be blocked by windows security in some cases, so If you have the (non-default) *Controlled Folder Access* option set to active, try turning that *off* temporarily. 
+Use the Pi imager software as your first choice on Windows. Windows can sometimes flag the writing of a MicroSD as risky behaviour and hence it may prevent this activity. If this happens, your writing/flashing will fail, hang or wont even begin, in which case you should to try to run the Etcher/Pi-Imager app "As administrator", (right-click and choose that option). It can also be blocked by windows security in some cases, so If you have the (non-default) *Controlled Folder Access* option set to active, try turning that *off* temporarily. 
 
 
 
