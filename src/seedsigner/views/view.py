@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Type, Union
 
-from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants
-from seedsigner.gui.screens import RET_CODE__POWER_BUTTON
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, DireWarningScreen, LargeButtonScreen, PowerOffScreen, PowerOffNotRequiredScreen, ResetScreen, WarningScreen
+from seedsigner.gui.components import FontAwesomeIconConstants
+from seedsigner.gui.screens import RET_CODE__POWER_BUTTON, RET_CODE__BACK_BUTTON
+from seedsigner.gui.screens.screen import BaseScreen, DireWarningScreen, LargeButtonScreen, PowerOffScreen, PowerOffNotRequiredScreen, ResetScreen, WarningScreen
 from seedsigner.models.threads import BaseThread
 from seedsigner.models import Settings
 
@@ -42,6 +42,10 @@ class BackStackView:
     "Cancel" - End task and return to entry point (destructive)
 """
 class View:
+    # Explicitly specifying the Screen class allows us to mock out its behavior in the test suite
+    Screen_cls: Type[BaseScreen] = None
+
+
     def __init__(self) -> None:
         # Import here to avoid circular imports
         from seedsigner.controller import Controller
@@ -57,11 +61,21 @@ class View:
         self.canvas_height = self.renderer.canvas_height
 
         self.buttons = self.controller.buttons
+    
+
+    def run_screen(self, **kwargs) -> Union[int,str]:
+        """
+            Instantiates the View class' Screen_cls and runs its interactive display.
+            Returns the user's input upon completion.
+        """
+        if not self.Screen_cls:
+            raise Exception("Screen_cls not defined")
+        return self.Screen_cls(**kwargs).display()
 
 
     def run(self, **kwargs):
         if hasattr(self, "screen"):
-            self.screen.display()
+            self.run_screen()
         else:
             raise Exception("Must implement in the child class")
 
@@ -73,10 +87,10 @@ class Destination:
         Basic struct to pass back to the Controller to tell it which View the user should
         be presented with next.
     """
-    View_cls: View                  # The target View to route to
-    view_args: dict = None          # The input args required to instantiate the target View
-    skip_current_view: bool = False  # The current View is just forwarding; omit current View from history
-    clear_history: bool = False     # Optionally clears the back_stack to prevent "back"
+    View_cls: Type[View]                # The target View to route to
+    view_args: dict = None              # The input args required to instantiate the target View
+    skip_current_view: bool = False     # The current View is just forwarding; omit current View from history
+    clear_history: bool = False         # Optionally clears the back_stack to prevent "back"
 
 
     def __repr__(self):

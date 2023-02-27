@@ -1,25 +1,13 @@
-import configparser
 import pytest
-from mock import MagicMock
+
+# Must import this before the Controller
+from utils import reset_controller
+
 from seedsigner.hardware.microsd import MicroSD
 from seedsigner.controller import Controller
 from seedsigner.models.settings_definition import SettingsConstants
 
 
-
-@pytest.fixture()
-def reset_controller():
-    """fixture to setup, then yield to run test, then tear down"""
-
-    # setup
-    Controller.configure_instance(disable_hardware=True)
-
-    # yield to run a single test
-    yield
-
-    # tear down
-    MicroSD._instance = None
-    Controller._instance = None
 
     
 def test_singleton_init_fails(reset_controller):

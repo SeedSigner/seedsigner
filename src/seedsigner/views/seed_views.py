@@ -6,14 +6,14 @@ from binascii import hexlify
 from embit import bip39
 from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
-from typing import List
+from typing import List, Type
 
 from seedsigner.controller import Controller
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 from seedsigner.helpers import embit_utils
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
-from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
+from seedsigner.gui.screens.screen import BaseScreen, LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
@@ -71,6 +71,9 @@ class SeedsMenuView(View):
     Loading seeds, passphrases, etc
 ****************************************************************************"""
 class LoadSeedView(View):
+    Screen_cls: Type[BaseScreen] = ButtonListScreen
+
+
     def run(self):
         SEED_QR = (" Scan a SeedQR", FontAwesomeIconConstants.QRCODE)
         TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
@@ -83,11 +86,11 @@ class LoadSeedView(View):
             CREATE,
         ]
 
-        selected_menu_num = ButtonListScreen(
+        selected_menu_num = self.run_screen(
             title="Load A Seed",
             is_button_text_centered=False,
             button_data=button_data
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -202,6 +205,9 @@ class SeedMnemonicInvalidView(View):
 
 
 class SeedFinalizeView(View):
+    Screen_cls: Type[BaseScreen] = seed_screens.SeedFinalizeScreen
+
+
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
@@ -218,10 +224,12 @@ class SeedFinalizeView(View):
         if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) != SettingsConstants.OPTION__DISABLED:
             button_data.append(PASSPHRASE)
 
-        selected_menu_num = seed_screens.SeedFinalizeScreen(
+        selected_menu_num = self.run_screen(
             fingerprint=self.fingerprint,
             button_data=button_data,
-        ).display()
+        )
+
+        print(f"selected_menu_num: {selected_menu_num}")
 
         if button_data[selected_menu_num] == FINALIZE:
             seed_num = self.controller.storage.finalize_pending_seed()
@@ -233,13 +241,16 @@ class SeedFinalizeView(View):
 
 
 class SeedAddPassphraseView(View):
+    Screen_cls: Type[BaseScreen] = seed_screens.SeedAddPassphraseScreen
+
+
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
 
 
     def run(self):
-        ret = seed_screens.SeedAddPassphraseScreen(passphrase=self.seed.passphrase).display()
+        ret = self.run_screen(passphrase=self.seed.passphrase)
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -257,6 +268,9 @@ class SeedReviewPassphraseView(View):
     """
         Display the completed passphrase back to the user.
     """
+    Screen_cls: Type[BaseScreen] = seed_screens.SeedReviewPassphraseScreen
+
+
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
@@ -277,13 +291,13 @@ class SeedReviewPassphraseView(View):
         
         # Because we have ane explicit "Edit" button, we disable "BACK" to keep the
         # routing options sane.
-        selected_menu_num = seed_screens.SeedReviewPassphraseScreen(
+        selected_menu_num = self.run_screen(
             fingerprint_without=fingerprint_without,
             fingerprint_with=fingerprint_with,
             passphrase=self.seed.passphrase,
             button_data=button_data,
             show_back_button=False,
-        ).display()
+        )
 
         if button_data[selected_menu_num] == EDIT:
             return Destination(SeedAddPassphraseView)
@@ -338,6 +352,9 @@ class SeedDiscardView(View):
     Views for actions on individual seeds:
 ****************************************************************************"""
 class SeedOptionsView(View):
+    Screen_cls: Type[BaseScreen] = seed_screens.SeedOptionsScreen
+
+
     def __init__(self, seed_num: int):
         super().__init__()
         self.seed_num = seed_num
@@ -394,11 +411,11 @@ class SeedOptionsView(View):
 
         button_data.append(DISCARD)
 
-        selected_menu_num = seed_screens.SeedOptionsScreen(
+        selected_menu_num = self.run_screen(
             button_data=button_data,
             fingerprint=self.seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
             has_passphrase=self.seed.passphrase is not None,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             # Force BACK to always return to the Main Menu
