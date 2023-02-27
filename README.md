@@ -21,7 +21,7 @@ The goal of SeedSigner is to lower the cost and complexity of Bitcoin multi-sign
 
 Additional information about the project can be found at [SeedSigner.com](https://seedsigner.com).
 
-You can follow [@SeedSigner](https://twitter.com/seedsigner) on Twitter for the latest project news and developments.
+You can follow [@SeedSigner](https://twitter.com/SeedSigner) on Twitter for the latest project news and developments.
 
 If you have specific questions about the project, our [Telegram Group](https://t.me/joinchat/GHNuc_nhNQjLPWsS) is a great place to ask them.
 
@@ -88,21 +88,21 @@ However, one of the many advantages of the open source software model is that th
 Download the current Version (0.6.0) software image that is compatible with your  Raspberry Pi Hardware:
 | The small-sized Raspberry Pi Hardware models (the ZERO's) 	|  	| The large-sized Raspberry Pi Hardware models (Full size)   	|
 |---	|---	|---	|
-| [SeedSigner software for the Pi Zero **2** W (The "Pi Zero **TWO** W")](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img) 	|  	| [SeedSigner software for the Raspberry Pi 4 Model B](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi4.img) 	|
-| [SeedSigner software for the Pi Zero W or Pi Zero WH](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img) 	|  	| [SeedSigner software for the Raspberry Pi 3 Model B](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img) 	|
-| [SeedSigner software for the Pi Zero **V1.3**](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img) 	|  	| [SeedSigner software for the Raspberry Pi 2 Model B ](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi2.img) <br> This is not the file for a Pi **ZERO** 2. <br>That hardware is a different chipset and motherboard.  	|  
+| [SeedSigner software for the Pi Zero **2** W (The "Pi Zero **TWO** W")](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img) 	|  	| [SeedSigner software for the Raspberry Pi 4 Model B](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi4.img) 	|
+| [SeedSigner software for the Pi Zero W or Pi Zero WH](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img) 	|  	| [SeedSigner software for the Raspberry Pi 3 Model B](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img) 	|
+| [SeedSigner software for the Pi Zero **V1.3**](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img) 	|  	| [SeedSigner software for the Raspberry Pi 2 Model B ](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi2.img) <br> This is not the file for a Pi **ZERO** 2. <br>That hardware is a different chipset and motherboard.  	|  
 
 Note: If you have physically removed the WiFi component from your board, you will still use the image file of the original(un-modified) hardware. (Our files are compiled/based on the *processor* architecture.)  
 
 **also download** these 2 signature verification files to the same folder  
-[The Plaintext manifest file](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256)  
-[The Signature of the manifest file](https://github.com/seedsigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256.sig)
+[The Plaintext manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256)  
+[The Signature of the manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256.sig)
 
 Users familiar with older versions of the SeedSigner software might be surprised with how fast their software downloads now are, because since version 0.6.0 the software image files are now 100x smaller! Each image file is now under 42 Megabytes so your downloads and verifications will be very quick now (and might even seem *too* quick)!  
 
 Once the files have all finished downloading, follow the steps below to verify the download before continuing on to write the software onto a MicroSD card. Next, insert the MicroSD into your assembled hardware and connect the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your SeedSigner! 
 
-[Our previous software versions are available here](https://github.com/seedsigner/seedsigner/releases). Choose a specific version and then expand the *Assets* sub-heading to display the .img file binary and also the 2 associated signature files. **Note:** The prior version files will have lower numbers than the scripts and examples provided in this document, but the naming format will be the same, so you can edit them as required for signature verification etc.   
+[Our previous software versions are available here](https://github.com/SeedSigner/seedsigner/releases). Choose a specific version and then expand the *Assets* sub-heading to display the .img file binary and also the 2 associated signature files. **Note:** The prior version files will have lower numbers than the scripts and examples provided in this document, but the naming format will be the same, so you can edit them as required for signature verification etc.   
 
 
 ## Verifying that the downloaded files are authentic (optional but highly recommended!)
@@ -177,7 +177,7 @@ Keybase.io allows you to independently verify that the public key saved on Keyba
  
  - *via Keybase*: By clicking on any of the three blue badges to see that the "proof" was published at that location. (The blue badge marked as tweet, is in the most human-readable form and it is also a bi-directional link on Twitter)    
 or, 
- - *without keybase (out-of-band)*: By using these 3 links directly: [Twitter](https://twitter.com/seedsigner/status/1530555252373704707), [Github](https://gist.github.com/seedsigner/5936fa1219b07e28a3672385b605b5d2) and [SeedSigner.com](https://seedsigner.com/keybase.txt). This method can be used if you would like to make an even deeper, independent inspection without relying on Keybase at all, or if the Keybase.io site is no longer valid or it is removed entirely. 
+ - *without keybase (out-of-band)*: By using these 3 links directly: [Twitter](https://twitter.com/SeedSigner/status/1530555252373704707), [Github](https://gist.github.com/SeedSigner/5936fa1219b07e28a3672385b605b5d2) and [SeedSigner.com](https://seedsigner.com/keybase.txt). This method can be used if you would like to make an even deeper, independent inspection without relying on Keybase at all, or if the Keybase.io site is no longer valid or it is removed entirely. 
 
 Once you have used one of these methods, you will know if the Public Key stored on Keybase, is genuinely from the SeedSinger Project or not.
 </p>
@@ -254,7 +254,7 @@ Use the Pi imager software as your first choice on Windows. Windows can sometime
 
 ### Open Pill
 
-The Open Pill enclosure design is all about quick, simple and inexpensive depoloyment of a SeedSigner device. The design does not require any additional hardware and can be printed using a standard FDM 3D printer in about 2 hours, no supports necessary. A video demonstrating the assembly process can be found [here](https://youtu.be/gXPFJygZobEa). To access the design file and printable model, click [here](https://github.com/seedsigner/seedsigner/tree/main/enclosures/open_pill).
+The Open Pill enclosure design is all about quick, simple and inexpensive depoloyment of a SeedSigner device. The design does not require any additional hardware and can be printed using a standard FDM 3D printer in about 2 hours, no supports necessary. A video demonstrating the assembly process can be found [here](https://youtu.be/gXPFJygZobEa). To access the design file and printable model, click [here](https://github.com/SeedSigner/seedsigner/tree/main/enclosures/open_pill).
 
 ### Orange Pill
 
@@ -264,7 +264,7 @@ The Orange Pill enclosure design offers a more finished look that includes butto
 * 4 x M2.5 pan head screws, 6mm length
 * 4 x M2.5 pan head screws, 12mm length
 
-The upper and lower portions of the enclosure can be printed using a standard FDM 3D printer, no supports necessary. The buttons and joystick nub should ideally be produced with a SLA/resin printer. An overview of the entire assembly process can be found [here](https://youtu.be/aIIc2DiZYcI). To access the design files and printable models, click [here](https://github.com/seedsigner/seedsigner/tree/main/enclosures/orange_pill).
+The upper and lower portions of the enclosure can be printed using a standard FDM 3D printer, no supports necessary. The buttons and joystick nub should ideally be produced with a SLA/resin printer. An overview of the entire assembly process can be found [here](https://youtu.be/aIIc2DiZYcI). To access the design files and printable models, click [here](https://github.com/SeedSigner/seedsigner/tree/main/enclosures/orange_pill).
 
 ### Community Designs
 
