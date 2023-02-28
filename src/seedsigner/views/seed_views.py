@@ -71,9 +71,6 @@ class SeedsMenuView(View):
     Loading seeds, passphrases, etc
 ****************************************************************************"""
 class LoadSeedView(View):
-    Screen_cls: Type[BaseScreen] = ButtonListScreen
-
-
     def run(self):
         SEED_QR = (" Scan a SeedQR", FontAwesomeIconConstants.QRCODE)
         TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
@@ -87,6 +84,7 @@ class LoadSeedView(View):
         ]
 
         selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title="Load A Seed",
             is_button_text_centered=False,
             button_data=button_data
