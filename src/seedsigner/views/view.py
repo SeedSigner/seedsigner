@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Type, Union
+from typing import Callable, List, Type, Union
 
 from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON, RET_CODE__BACK_BUTTON
@@ -107,12 +107,20 @@ class Destination:
         return out
 
 
-    def run(self):
+    def run(self, run_before: Callable = None):
         if not self.view_args:
             # Can't unpack (**) None so we replace with an empty dict
             self.view_args = {}
-        # Instantiate the `View_cls` and run() it with the `view_args` dict
-        return self.View_cls(**self.view_args).run()
+
+        # Instantiate the `View_cls` with the `view_args` dict
+        view = self.View_cls(**self.view_args)
+
+        # Enable test suite modifications to the View before running it
+        if run_before:
+            run_before(view)
+
+        # and run() it
+        return view.run()
 
 
     def __eq__(self, obj):
@@ -135,12 +143,13 @@ class Destination:
 #
 #########################################################################################
 class MainMenuView(View):
+    Screen_cls: Type[BaseScreen] = LargeButtonScreen
+    
     def run(self):
         from .seed_views import SeedsMenuView
         from .settings_views import SettingsMenuView
         from .scan_views import ScanView
         from .tools_views import ToolsMenuView
-        from seedsigner.gui.screens import LargeButtonScreen
         menu_items = [
             (("Scan", FontAwesomeIconConstants.QRCODE), ScanView),
             (("Seeds", FontAwesomeIconConstants.KEY), SeedsMenuView),
@@ -148,14 +157,13 @@ class MainMenuView(View):
             (("Settings", FontAwesomeIconConstants.GEAR), SettingsMenuView),
         ]
 
-        screen = LargeButtonScreen(
+        selected_menu_num = self.run_screen(
             title="Home",
             title_font_size=26,
             button_data=[entry[0] for entry in menu_items],
             show_back_button=False,
             show_power_button=True,
         )
-        selected_menu_num = screen.display()
 
         if selected_menu_num == RET_CODE__POWER_BUTTON:
             return Destination(PowerOptionsView)

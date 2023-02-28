@@ -1,19 +1,22 @@
-import sys
-from typing import Any, List, Tuple, Type, Union
-from mock import patch, MagicMock
-
-# sys.modules['seedsigner.gui.screens.seed_screens'] = MagicMock()
+from typing import List, Type, Union
+from mock import patch
 
 # Must import this before the Controller
 from utils import reset_controller
 
 from seedsigner.controller import Controller
 from seedsigner.models.seed import Seed
-from seedsigner.views.view import Destination
+from seedsigner.views.view import Destination, MainMenuView, View
+from seedsigner.views import seed_views, scan_views
 
 
 
-def flow_sequence(initial_destination: Destination, return_values: List[Union[int, str]]) -> Destination:
+RUN_BEFORE = "run_before"
+RETURN_VALUE = "return_value"
+
+
+
+def run_flow_sequence(initial_destination: Destination, return_values: List[Union[int, str, dict]]) -> Destination:
     """
         Runs the given sequence from the initial_destination, mocking out the associated
         Screen and the scenario's return_value, receiving the resulting new Destination,
@@ -25,10 +28,20 @@ def flow_sequence(initial_destination: Destination, return_values: List[Union[in
     for return_value in return_values:
         if next_destination.View_cls.Screen_cls is None:
             raise Exception(f"Screen_cls not specified in {next_destination.View_cls}")
+
+        # Optionally modify the View_cls instance before run_screen is called
+        run_before = None
+        if type(return_value) == dict:
+            if RUN_BEFORE in return_value:
+                run_before = return_value[RUN_BEFORE]
+
+        # Patch the run_screen so we don't actually instantiated and execute the Screen_cls
         qualname = ".".join([next_destination.View_cls.__module__, next_destination.View_cls.__name__])
         with patch(qualname + ".run_screen") as mock_run_screen:
             mock_run_screen.return_value = return_value
-            next_destination = next_destination.run()
+
+            # Now we can run the View and grab its resulting next Destination
+            next_destination = next_destination.run(run_before=run_before)
 
     return next_destination
 
@@ -36,9 +49,27 @@ def flow_sequence(initial_destination: Destination, return_values: List[Union[in
 
 class TestFlows:
 
-
     def setup_method(self):
         reset_controller()
+
+
+    def test_home_scan_seedoptions_flow(self):
+        """
+            Selecting "Scan" from the MainMenuView and scanning a SeedQR should enter the
+            Finalize Seed flow and end at the SeedOptionsView.
+        """
+        def load_seed_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("0000" * 11 + "0003")
+
+        sequence = [
+            0,      # MainMenuView: ret SCAN
+            {RUN_BEFORE: load_seed_into_decoder, RETURN_VALUE: None},    # ScanView: read SeedQR
+            0,      # SeedFinalizeView: ret DONE
+        ]
+        destination = run_flow_sequence(Destination(MainMenuView), return_values=sequence)
+
+        # Should land on SeedOptionsView
+        assert destination.View_cls == seed_views.SeedOptionsView
 
 
     def test_addressexplorer_seedfinalizescreen_flow(self):
@@ -46,8 +77,6 @@ class TestFlows:
             Finalizing a seed during the Address Explorer flow should return to the next
             Address Explorer step upon completion.
         """
-        from seedsigner.views import seed_views
-
         controller = Controller.get_instance()
         seed = Seed(mnemonic=["abandon "* 11 + "about"])
         controller.storage.set_pending_seed(seed)
@@ -56,7 +85,7 @@ class TestFlows:
         sequence = [
             0,      # SeedFinalizeView: ret DONE
         ]
-        destination = flow_sequence(Destination(seed_views.SeedFinalizeView), return_values=sequence)
+        destination = run_flow_sequence(Destination(seed_views.SeedFinalizeView), return_values=sequence)
         assert destination.View_cls == seed_views.SeedOptionsView
 
         # Reset
@@ -71,7 +100,7 @@ class TestFlows:
             0,      # SeedFinalizeView: ret DONE
             None,   # SeedOptionsView should auto-route away
         ]
-        destination = flow_sequence(Destination(seed_views.SeedFinalizeView), return_values=sequence)
+        destination = run_flow_sequence(Destination(seed_views.SeedFinalizeView), return_values=sequence)
 
         # Flow should resume at Script Type selection
         assert destination.View_cls == seed_views.SeedExportXpubScriptTypeView
@@ -87,7 +116,7 @@ class TestFlows:
             1,                  # SeedReviewPassphraseView: ret DONE
             None,               # SeedOptionsView should auto-route away
         ]
-        destination = flow_sequence(Destination(seed_views.SeedFinalizeView), return_values=sequence)
+        destination = run_flow_sequence(Destination(seed_views.SeedFinalizeView), return_values=sequence)
 
         # Flow should resume at Script Type selection
         assert destination.View_cls == seed_views.SeedExportXpubScriptTypeView
