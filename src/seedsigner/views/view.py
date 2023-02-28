@@ -68,10 +68,7 @@ class View:
 
 
     def run(self, **kwargs):
-        if hasattr(self, "screen"):
-            self.run_screen()
-        else:
-            raise Exception("Must implement in the child class")
+        raise Exception("Must implement in the child class")
 
 
 
