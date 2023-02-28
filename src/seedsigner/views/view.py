@@ -42,10 +42,6 @@ class BackStackView:
     "Cancel" - End task and return to entry point (destructive)
 """
 class View:
-    # Explicitly specifying the Screen class allows us to mock out its behavior in the test suite
-    Screen_cls: Type[BaseScreen] = None
-
-
     def __init__(self) -> None:
         # Import here to avoid circular imports
         from seedsigner.controller import Controller
@@ -63,14 +59,12 @@ class View:
         self.buttons = self.controller.buttons
     
 
-    def run_screen(self, **kwargs) -> Union[int,str]:
+    def run_screen(self, Screen_cls: Type[BaseScreen], **kwargs) -> Union[int,str]:
         """
             Instantiates the View class' Screen_cls and runs its interactive display.
             Returns the user's input upon completion.
         """
-        if not self.Screen_cls:
-            raise Exception("Screen_cls not defined")
-        return self.Screen_cls(**kwargs).display()
+        return Screen_cls(**kwargs).display()
 
 
     def run(self, **kwargs):
@@ -143,8 +137,6 @@ class Destination:
 #
 #########################################################################################
 class MainMenuView(View):
-    Screen_cls: Type[BaseScreen] = LargeButtonScreen
-    
     def run(self):
         from .seed_views import SeedsMenuView
         from .settings_views import SettingsMenuView
@@ -158,6 +150,7 @@ class MainMenuView(View):
         ]
 
         selected_menu_num = self.run_screen(
+            LargeButtonScreen,
             title="Home",
             title_font_size=26,
             button_data=[entry[0] for entry in menu_items],

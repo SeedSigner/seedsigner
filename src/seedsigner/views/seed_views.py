@@ -205,9 +205,6 @@ class SeedMnemonicInvalidView(View):
 
 
 class SeedFinalizeView(View):
-    Screen_cls: Type[BaseScreen] = seed_screens.SeedFinalizeScreen
-
-
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
@@ -225,11 +222,10 @@ class SeedFinalizeView(View):
             button_data.append(PASSPHRASE)
 
         selected_menu_num = self.run_screen(
+            seed_screens.SeedFinalizeScreen,
             fingerprint=self.fingerprint,
             button_data=button_data,
         )
-
-        print(f"selected_menu_num: {selected_menu_num}")
 
         if button_data[selected_menu_num] == FINALIZE:
             seed_num = self.controller.storage.finalize_pending_seed()
@@ -241,16 +237,13 @@ class SeedFinalizeView(View):
 
 
 class SeedAddPassphraseView(View):
-    Screen_cls: Type[BaseScreen] = seed_screens.SeedAddPassphraseScreen
-
-
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
 
 
     def run(self):
-        ret = self.run_screen(passphrase=self.seed.passphrase)
+        ret = self.run_screen(seed_screens.SeedAddPassphraseScreen, passphrase=self.seed.passphrase)
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -268,9 +261,6 @@ class SeedReviewPassphraseView(View):
     """
         Display the completed passphrase back to the user.
     """
-    Screen_cls: Type[BaseScreen] = seed_screens.SeedReviewPassphraseScreen
-
-
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
@@ -292,6 +282,7 @@ class SeedReviewPassphraseView(View):
         # Because we have ane explicit "Edit" button, we disable "BACK" to keep the
         # routing options sane.
         selected_menu_num = self.run_screen(
+            seed_screens.SeedReviewPassphraseScreen,
             fingerprint_without=fingerprint_without,
             fingerprint_with=fingerprint_with,
             passphrase=self.seed.passphrase,
@@ -352,9 +343,6 @@ class SeedDiscardView(View):
     Views for actions on individual seeds:
 ****************************************************************************"""
 class SeedOptionsView(View):
-    Screen_cls: Type[BaseScreen] = seed_screens.SeedOptionsScreen
-
-
     def __init__(self, seed_num: int):
         super().__init__()
         self.seed_num = seed_num
@@ -412,6 +400,7 @@ class SeedOptionsView(View):
         button_data.append(DISCARD)
 
         selected_menu_num = self.run_screen(
+            seed_screens.SeedOptionsScreen,
             button_data=button_data,
             fingerprint=self.seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
             has_passphrase=self.seed.passphrase is not None,

@@ -26,16 +26,13 @@ def run_flow_sequence(initial_destination: Destination, return_values: List[Unio
     """
     next_destination = initial_destination
     for return_value in return_values:
-        if next_destination.View_cls.Screen_cls is None:
-            raise Exception(f"Screen_cls not specified in {next_destination.View_cls}")
-
         # Optionally modify the View_cls instance before run_screen is called
         run_before = None
         if type(return_value) == dict:
             if RUN_BEFORE in return_value:
                 run_before = return_value[RUN_BEFORE]
 
-        # Patch the run_screen so we don't actually instantiated and execute the Screen_cls
+        # Patch the run_screen so we don't actually instantiate and execute the Screen_cls
         qualname = ".".join([next_destination.View_cls.__module__, next_destination.View_cls.__name__])
         with patch(qualname + ".run_screen") as mock_run_screen:
             mock_run_screen.return_value = return_value

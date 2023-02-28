@@ -14,8 +14,6 @@ from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Dest
 
 
 class ScanView(View):
-    Screen_cls: Type[BaseScreen] = scan_screens.ScanScreen
-
     def __init__(self):
         super().__init__()
         self.wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
@@ -24,7 +22,7 @@ class ScanView(View):
 
     def run(self):
         # Start the live preview and background QR reading
-        self.run_screen(decoder=self.decoder)
+        self.run_screen(scan_screens.ScanScreen, decoder=self.decoder)
 
         # Handle the results
         if self.decoder.is_complete:
