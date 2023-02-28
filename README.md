@@ -40,22 +40,23 @@ If you have specific questions about the project, our [Telegram Group](https://t
 * Support for Bitcoin Mainnet & Testnet
 * Support for custom user-defined derivation paths
 * On-demand receive address verification
+* Single-sig and multi-sig change address verification
 * User-configurable QR code display density
+* Taproot (P2TR) single-sig signing
 * Responsive, event-driven user interface
+* Customized Linux live-boot OS to allow MicroSD card removal
 
 ### Considerations:
 * Built for compatibility with Specter Desktop, Sparrow, and BlueWallet Vaults
 * Device takes up to 60 seconds to boot before menu appears (be patient!)
 * Always test your setup before transferring larger amounts of bitcoin (try Testnet first!)
-* Taproot not quite yet supported
 * Slightly rotating the screen clockwise or counter-clockwise should resolve lighting/glare issues
 * If you think SeedSigner adds value to the Bitcoin ecosystem, please help us spread the word! (tweets, pics, videos, etc.)
 
 ### Planned Upcoming Improvements / Functionality:
-* Single-sig and multi-sig change address verification
-* Re-imagined, graphically-focused user interface
+* Single-sig change address verification via output descriptor
 * Multi-language support
-* Customized Linux live-boot OS to allow MicroSD card removal
+* PSBT signing via microSD card
 * Other optimizations based on user feedback!
 
 ---------------
