@@ -85,14 +85,18 @@ However, one of the many advantages of the open source software model is that th
 ## Downloading the Software
 
    
-Download the current Version (0.6.0) software image that is compatible with your  Raspberry Pi Hardware:
-| The small-sized Raspberry Pi Hardware models (the ZERO's) 	|  	| The large-sized Raspberry Pi Hardware models (Full size)   	|
-|---	|---	|---	|
-| [SeedSigner software for the Pi Zero **V1.3**](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img "Download the ...pi0.img file") 	|  	| [SeedSigner software for the Raspberry Pi 4 Model B](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi4.img "Download the ...pi4.img file") 	|
-| [SeedSigner software for the Pi Zero W or Pi Zero WH](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img "Download the ...pi0.img file") 	|  	| [SeedSigner software for the Raspberry Pi 3 Model B](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img "Download the ...pi02w.img file") 	|
-| [SeedSigner software for the Pi Zero **2** W (The "Pi Zero **TWO** W")](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img "Download the ...pi02w.img file") 	|  	| [SeedSigner software for the Raspberry Pi 2 Model B ](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi2.img "Download the ...pi2.img file") <br> This is not the file for a Pi **ZERO** 2. <br>That hardware is a different chipset and motherboard.  	|  
+Download the current Version (0.6.0) software image that is compatible with your  Raspberry Pi Hardware. The Pi Zero 1.3 is the most common and recommended board.
+| Board                 | Download Image Link/Name          |
+| --------------------- | --------------------------------- |
+|**[Raspberry Pi Zero 1.3](https://www.raspberrypi.com/products/raspberry-pi-zero/)**      |[`seedsigner_os.0.6.0.pi0.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img)      |
+|[Raspberry Pi Zero W](https://www.raspberrypi.com/products/raspberry-pi-zero-w/)    |[`seedsigner_os.0.6.0.pi0.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img)      |
+|[Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)  |[`seedsigner_os.0.6.0.pi02w.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img)    |
+|[Raspberry Pi 2 Model B](https://www.raspberrypi.com/products/raspberry-pi-2-model-b/) |[`seedsigner_os.0.6.0.pi2.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi2.img)      |
+|[Raspberry Pi 3 Model B](https://www.raspberrypi.com/products/raspberry-pi-3-model-b/) |[`seedsigner_os.0.6.0.pi02w.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img)    |
+|[Raspberry Pi 4 Model B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) |[`seedsigner_os.0.6.0.pi4.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi4.img)      |
+|[Raspberry Pi 400](https://www.raspberrypi.com/products/raspberry-pi-400-unit/) |[`seedsigner_os.0.6.0.pi4.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi4.img)      |
 
-Note: If you have physically removed the WiFi component from your board, you will still use the image file of the original(un-modified) hardware. (Our files are compiled/based on the *processor* architecture.)  
+Note: If you have physically removed the WiFi component from your board, you will still use the image file of the original(un-modified) hardware. (Our files are compiled/based on the *processor* architecture). Although it is better to spend a few minutes upfront to determine which specific Pi hardware/model you have, if you are still unsure which hardware you have, you can try using the pi0.img file. Making an incorrect choice here will not ruin your board, because this is software, not firmware. 
 
 **also download** these 2 signature verification files to the same folder  
 [The Plaintext manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256)  
