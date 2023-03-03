@@ -51,21 +51,25 @@ def test_calculate_checksum_invalid_mnemonics():
         # Mnemonic is too short: 10 words instead of 11
         partial_mnemonic = "abandon " * 9 + "about"
         mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    assert "12- or 24-word" in str(e)
 
     with pytest.raises(Exception) as e:
         # Valid mnemonic but unsupported length
         mnemonic = "devote myth base logic dust horse nut collect buddy element eyebrow visit empty dress jungle"
         mnemonic_generation.calculate_checksum(mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    assert "12- or 24-word" in str(e)
 
     with pytest.raises(Exception) as e:
         # Mnemonic is too short: 22 words instead of 23
         partial_mnemonic = "abandon " * 21 + "about"
         mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    assert "12- or 24-word" in str(e)
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(ValueError) as e:
         # Invalid BIP-39 word
-        partial_mnemonic = "foobar " * 9 + "about"
+        partial_mnemonic = "foobar " * 11 + "about"
         mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    assert "not in the dictionary" in str(e)
 
 
 

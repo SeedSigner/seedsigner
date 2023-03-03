@@ -33,7 +33,7 @@ coverage run -m pytest
 
 Show the resulting test coverage details:
 ```
-coverage report --show-missing
+coverage report
 ```
 
 Generate the html overview:
