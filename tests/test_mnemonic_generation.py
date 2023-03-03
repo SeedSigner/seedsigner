@@ -1,3 +1,4 @@
+import pytest
 import random
 
 from embit import bip39
@@ -42,6 +43,35 @@ def test_calculate_checksum():
     assert bip39.mnemonic_is_valid(" ".join(mnemonic))
 
 
+def test_calculate_checksum_invalid_mnemonics():
+    """
+        Should raise an Exception on a mnemonic that is invalid due to length or using invalid words.
+    """
+    with pytest.raises(Exception) as e:
+        # Mnemonic is too short: 10 words instead of 11
+        partial_mnemonic = "abandon " * 9 + "about"
+        mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    assert "12- or 24-word" in str(e)
+
+    with pytest.raises(Exception) as e:
+        # Valid mnemonic but unsupported length
+        mnemonic = "devote myth base logic dust horse nut collect buddy element eyebrow visit empty dress jungle"
+        mnemonic_generation.calculate_checksum(mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    assert "12- or 24-word" in str(e)
+
+    with pytest.raises(Exception) as e:
+        # Mnemonic is too short: 22 words instead of 23
+        partial_mnemonic = "abandon " * 21 + "about"
+        mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    assert "12- or 24-word" in str(e)
+
+    with pytest.raises(ValueError) as e:
+        # Invalid BIP-39 word
+        partial_mnemonic = "foobar " * 11 + "about"
+        mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    assert "not in the dictionary" in str(e)
+
+
 
 def test_calculate_checksum_with_default_final_word():
     """ 11-word and 23-word mnemonics use word `0000` as a temp final word to complete
@@ -60,6 +90,22 @@ def test_calculate_checksum_with_default_final_word():
     partial_mnemonic += " abandon"
     mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
     assert mnemonic1 == mnemonic2
+
+
+def test_generate_mnemonic_from_bytes():
+    """
+        Should generate a valid BIP-39 mnemonic from entropy bytes
+    """
+    # From iancoleman.io
+    entropy = "3350f6ac9eeb07d2c6209932808aa7f6"
+    expected_mnemonic = "crew marble private differ race truly blush basket crater affair prepare unique".split()
+    mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(bytes.fromhex(entropy))
+    assert mnemonic == expected_mnemonic
+
+    entropy = "5bf41629fce815c3570955e8f45422abd7e2234141bd4d7ec63b741043b98cad"
+    expected_mnemonic = "fossil pass media what life ticket found click trophy pencil anger fish lawsuit balance agree dash estate wage mom trial aerobic system crawl review".split()
+    mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(bytes.fromhex(entropy))
+    assert mnemonic == expected_mnemonic
 
 
 

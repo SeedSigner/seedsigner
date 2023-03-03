@@ -24,3 +24,19 @@ Run a specific test:
 ```
 pytest tests/test_this_file.py::test_this_specific_test
 ```
+
+### Test Coverage
+Run tests and generate test coverage
+```
+coverage run -m pytest
+```
+
+Show the resulting test coverage details:
+```
+coverage report
+```
+
+Generate the html overview:
+```
+coverage html
+```
