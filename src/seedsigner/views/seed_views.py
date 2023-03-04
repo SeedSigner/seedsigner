@@ -6,14 +6,14 @@ from binascii import hexlify
 from embit import bip39
 from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
-from typing import List, Type
+from typing import List
 
 from seedsigner.controller import Controller
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
 from seedsigner.helpers import embit_utils
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
-from seedsigner.gui.screens.screen import BaseScreen, LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
+from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
@@ -120,22 +120,16 @@ class SeedMnemonicEntryView(View):
 
 
     def run(self):
-        ret = seed_screens.SeedMnemonicEntryScreen(
+        ret = self.run_screen(
+            seed_screens.SeedMnemonicEntryScreen,
             title=f"Seed Word #{self.cur_word_index + 1}",  # Human-readable 1-indexing!
             initial_letters=list(self.cur_word) if self.cur_word else ["a"],
             wordlist=Seed.get_wordlist(wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)),
-        ).display()
+        )
 
         if ret == RET_CODE__BACK_BUTTON:
             if self.cur_word_index > 0:
                 return Destination(BackStackView)
-                # return Destination(
-                #     SeedMnemonicEntryView,
-                #     view_args={
-                #         "cur_word_index": self.cur_word_index - 1,
-                #         "is_calc_final_word": self.is_calc_final_word
-                #     }
-                # )
             else:
                 self.controller.storage.discard_pending_mnemonic()
                 return Destination(MainMenuView)
@@ -185,13 +179,14 @@ class SeedMnemonicInvalidView(View):
         DISCARD = ("Discard", None, None, "red")
         button_data = [EDIT, DISCARD]
 
-        selected_menu_num = WarningScreen(
+        selected_menu_num = self.run_screen(
+            WarningScreen,
             title="Invalid Mnemonic!",
             status_headline=None,
             text=f"Checksum failure; not a valid seed phrase.",
             show_back_button=False,
             button_data=button_data,
-        ).display()
+        )
 
         if button_data[selected_menu_num] == EDIT:
             return Destination(SeedMnemonicEntryView, view_args={"cur_word_index": 0})

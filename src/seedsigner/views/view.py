@@ -57,17 +57,19 @@ class View:
         self.canvas_height = self.renderer.canvas_height
 
         self.buttons = self.controller.buttons
+        self.screen = None
     
 
     def run_screen(self, Screen_cls: Type[BaseScreen], **kwargs) -> Union[int,str]:
         """
-            Instantiates the View class' Screen_cls and runs its interactive display.
+            Instantiates the provided Screen_cls and runs its interactive display.
             Returns the user's input upon completion.
         """
-        return Screen_cls(**kwargs).display()
+        self.screen = Screen_cls(**kwargs)
+        return self.screen.display()
 
 
-    def run(self, **kwargs):
+    def run(self, **kwargs) -> 'Destination':
         raise Exception("Must implement in the child class")
 
 

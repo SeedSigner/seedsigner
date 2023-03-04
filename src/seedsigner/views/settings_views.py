@@ -1,7 +1,6 @@
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
-from seedsigner.models.decode_qr import DecodeQR
+from seedsigner.gui.components import SeedSignerCustomIconConstants
 
-from .view import View, Destination, BackStackView, MainMenuView
+from .view import View, Destination, MainMenuView
 
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, settings_screens)
 from seedsigner.models.settings import SettingsConstants, SettingsDefinition
@@ -56,17 +55,17 @@ class SettingsMenuView(View):
             title = "Dev Options"
             next = None
 
-        screen = ButtonListScreen(
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title=title,
             is_button_text_centered=False,
             button_data=button_data,
             selected_button=selected_button,
             scroll_y_initial_offset=self.initial_scroll,
         )
-        selected_menu_num = screen.display()
 
         # Preserve our scroll position in this Screen so we can return
-        initial_scroll = screen.buttons[0].scroll_y
+        initial_scroll = self.screen.buttons[0].scroll_y
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             if self.visibility == SettingsConstants.VISIBILITY__GENERAL:
@@ -100,6 +99,9 @@ class SettingsEntryUpdateSelectionView(View):
         self.settings_entry = SettingsDefinition.get_settings_entry(attr_name)
         self.selected_button = None
         self.parent_initial_scroll = parent_initial_scroll
+        
+        # hook for test suite to override recursion in run()
+        self.is_test = False
 
 
     def run(self):
@@ -123,14 +125,18 @@ class SettingsEntryUpdateSelectionView(View):
         if not self.selected_button:
             self.selected_button = 0
 
-        ret_value = settings_screens.SettingsEntryUpdateSelectionScreen(
+        screen_args = dict(
             display_name=self.settings_entry.display_name,
             help_text=self.settings_entry.help_text,
             button_data=button_data,
             selected_button=self.selected_button,
             checked_buttons=checked_buttons,
-            settings_entry_type=self.settings_entry.type,
-        ).display()
+            settings_entry_type=self.settings_entry.type,            
+        )
+        ret_value = self.run_screen(
+            settings_screens.SettingsEntryUpdateSelectionScreen,
+            **screen_args
+        )
 
         destination = None
         settings_menu_view_destination = Destination(
@@ -178,7 +184,13 @@ class SettingsEntryUpdateSelectionView(View):
 
         # All selects stay in place; re-initialize where in the list we left off
         self.selected_button = ret_value
-        return self.run()
+
+        if self.is_test:
+            # Test suite can't handle the recursive call. Fake it by returning us here
+            # via a Destination back to this View.
+            return Destination(self.__class__, view_args=dict(attr_name=self.settings_entry.attr_name, parent_initial_scroll=self.parent_initial_scroll))
+        else:
+            return self.run()
 
 
 
@@ -187,7 +199,7 @@ class SettingsEntryUpdateSelectionView(View):
 ****************************************************************************"""
 class IOTestView(View):
     def run(self):
-        settings_screens.IOTestScreen().display()
+        self.run_screen(settings_screens.IOTestScreen)
 
         return Destination(SettingsMenuView)
 
@@ -195,6 +207,6 @@ class IOTestView(View):
 
 class DonateView(View):
     def run(self):
-        settings_screens.DonateScreen().display()
+        self.run_screen(settings_screens.DonateScreen)
 
         return Destination(SettingsMenuView)

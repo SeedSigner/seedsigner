@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any, List, Tuple, Union
 
 
 
@@ -217,7 +217,7 @@ class SettingsEntry:
     visibility: str = SettingsConstants.VISIBILITY__GENERAL
     type: str = SettingsConstants.TYPE__ENABLED_DISABLED
     help_text: str = None
-    selection_options: List[str] = None
+    selection_options: List[Tuple[Union[str,int],str]] = None
     default_value: Any = None
 
     def __post_init__(self):

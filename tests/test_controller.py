@@ -1,25 +1,21 @@
 import pytest
 
 # Must import this before the Controller
-from utils import reset_controller
+from base import BaseTest
 
 from seedsigner.controller import Controller
 from seedsigner.models.settings_definition import SettingsConstants
 
 
 
-class TestController:
-
-    def setup_method(self):
-        reset_controller()
-    
+class TestController(BaseTest):
 
     def test_reset_controller(self):
         """ The reset_controller util should completely reset the Controller singleton """
         controller = Controller.get_instance()
         controller.address_explorer_data = "foo"
 
-        reset_controller()
+        self.reset_controller()
         controller = Controller.get_instance()
         assert controller.address_explorer_data is None
 
