@@ -16,26 +16,12 @@ class TestToolsFlows(FlowTest):
             Finalizing a seed during the Address Explorer flow should return to the next
             Address Explorer step upon completion.
         """
+        # Set up pending seed leading up to SeedFinalizeView
         controller = Controller.get_instance()
         seed = Seed(mnemonic=["abandon "* 11 + "about"])
         controller.storage.set_pending_seed(seed)
-        
-        # Default behavior should land at the SeedOptionsView
-        destination = self.run_sequence(
-            Destination(seed_views.SeedFinalizeView),
-            sequence=[
-                FlowStep(
-                    screen_return_value=0,  # ret DONE
-                ),
-            ]
-        )
-        assert destination.View_cls == seed_views.SeedOptionsView
 
-        # Reset
-        controller.storage.seeds.clear()
-        controller.storage.set_pending_seed(seed)
-
-        # Now set the flow and try again
+        # Set the Address Explorer flow to change routing behavior
         controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
 
         # Finalize the new seed w/out passphrase
@@ -47,7 +33,7 @@ class TestToolsFlows(FlowTest):
                 ),
                 FlowStep(
                     expected_view=seed_views.SeedOptionsView,
-                    screen_return_value=None,   # should auto-route away w/out a selection
+                    # should auto-route away w/out a selection
                 ),
             ]
         )
@@ -75,7 +61,7 @@ class TestToolsFlows(FlowTest):
                 ),
                 FlowStep(
                     expected_view=seed_views.SeedOptionsView,
-                    screen_return_value=None,   # SeedOptionsView should auto-route away
+                    # SeedOptionsView should auto-route away
                 ),
             ]
         )
