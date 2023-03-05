@@ -520,12 +520,13 @@ class SeedExportXpubScriptTypeView(View):
         if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
             title = "Address Explorer"
 
-        selected_menu_num = ButtonListScreen(
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title=title,
             is_button_text_centered=False,
             button_data=button_data,
             is_bottom_list=True,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             # If previous view is SeedOptionsView then that should be where resume_main_flow started (otherwise it would have been skipped).

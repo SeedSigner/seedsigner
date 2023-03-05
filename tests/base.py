@@ -19,25 +19,29 @@ from seedsigner.views.view import Destination, View
 
 class BaseTest:
 
+    @classmethod
+    def setup_class(cls):
+        # Ensure there are no on-disk artifacts after running tests.
+        Settings.SETTINGS_FILENAME = "settings-test.json"
+
+        # Mock out the loading screen so it can't spawn.
+        patch('seedsigner.gui.screens.screen.LoadingScreenThread').start()
+
+
+    @classmethod
+    def teardown_class(cls):
+        """ If settings were written to disk, delete """
+        import os
+        try:
+            os.remove(Settings.SETTINGS_FILENAME)
+        except:
+            print(f"{Settings.SETTINGS_FILENAME} not found to be removed")
+
+
     def reset_controller(self):
         """ Wipe and re-initialize the Controller singleton for each test run """
         Controller._instance = None
         Controller.configure_instance()
-
-
-    def setup_class(self):
-        Settings.SETTINGS_FILENAME = "settings-test.json"
-    
-
-    def teardown_class(self):
-        """ If settings were written to disk, delete """
-        import os
-        try:
-            print(f"attempting to remove {Settings.SETTINGS_FILENAME}")
-            os.remove(Settings.SETTINGS_FILENAME)
-            print(f"Removed {Settings.SETTINGS_FILENAME}")
-        except:
-            print(f"{Settings.SETTINGS_FILENAME} not found to be removed")
 
 
     def setup_method(self):

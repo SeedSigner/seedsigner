@@ -7,8 +7,6 @@ from embit.descriptor import Descriptor
 from PIL import Image
 from PIL.ImageOps import autocontrast
 from seedsigner.controller import Controller
-from seedsigner.gui.screens.screen import LoadingScreenThread, QRDisplayScreen
-
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerCustomIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
@@ -31,12 +29,13 @@ class ToolsMenuView(View):
         KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
         EXPLORER = "Address Explorer"
         button_data = [IMAGE, DICE, KEYBOARD, EXPLORER]
-        screen = ButtonListScreen(
+        
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title="Tools",
             is_button_text_centered=False,
             button_data=button_data
         )
-        selected_menu_num = screen.display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -440,12 +439,13 @@ class ToolsAddressExplorerSelectSourceView(View):
         button_data.append(TYPE_12WORD)
         button_data.append(TYPE_24WORD)
 
-        selected_menu_num = ButtonListScreen(
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title="Address Explorer",
             button_data=button_data,
             is_button_text_centered=False,
             is_bottom_list=True,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -538,13 +538,14 @@ class ToolsAddressExplorerAddressTypeView(View):
 
         script_type = data["script_type"] if "script_type" in data else None
 
-        selected_menu_num = ToolsAddressExplorerAddressTypeScreen(
+        selected_menu_num = self.run_screen(
+            ToolsAddressExplorerAddressTypeScreen,
             button_data=button_data,
             fingerprint=self.seed.get_fingerprint() if self.seed_num is not None else None,
             wallet_descriptor_display_name=wallet_descriptor_display_name,
             script_type=script_type,
             custom_derivation_path=self.custom_derivation,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -565,21 +566,23 @@ class ToolsAddressExplorerAddressListView(View):
 
     def run(self):
         self.loading_screen = None
-        try:
-            addresses = []
-            button_data = []
-            data = self.controller.address_explorer_data
-            addrs_per_screen = 10
 
-            addr_storage_key = "receive_addrs"
-            if self.is_change:
-                addr_storage_key = "change_addrs"
+        addresses = []
+        button_data = []
+        data = self.controller.address_explorer_data
+        addrs_per_screen = 10
 
-            if addr_storage_key in data and len(data[addr_storage_key]) >= self.start_index + addrs_per_screen:
-                # We already calculated this range addresses; just retrieve them
-                addresses = data[addr_storage_key][self.start_index:self.start_index + addrs_per_screen]
+        addr_storage_key = "receive_addrs"
+        if self.is_change:
+            addr_storage_key = "change_addrs"
 
-            else:
+        if addr_storage_key in data and len(data[addr_storage_key]) >= self.start_index + addrs_per_screen:
+            # We already calculated this range addresses; just retrieve them
+            addresses = data[addr_storage_key][self.start_index:self.start_index + addrs_per_screen]
+
+        else:
+            try:
+                from seedsigner.gui.screens.screen import LoadingScreenThread
                 self.loading_screen = LoadingScreenThread(text="Calculating addrs...")
                 self.loading_screen.start()
 
@@ -608,9 +611,15 @@ class ToolsAddressExplorerAddressListView(View):
 
                     else:
                         raise Exception("Single sig descriptors not yet supported")
+            finally:
+                # Everything is set. Stop the loading screen
+                self.loading_screen.stop()
 
             for i, address in enumerate(addresses):
                 cur_index = i + self.start_index
+
+                # Adjust the trailing addr display length based on available room
+                # (the index number will push it out on each order of magnitude)
                 if cur_index < 10:
                     end_digits = -6
                 elif cur_index < 100:
@@ -621,22 +630,17 @@ class ToolsAddressExplorerAddressListView(View):
 
             button_data.append(("Next {}".format(addrs_per_screen), None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
 
-            screen = ButtonListScreen(
-                title="{} Addrs".format("Receive" if not self.is_change else "Change"),
-                button_data=button_data,
-                button_font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
-                button_font_size=GUIConstants.BUTTON_FONT_SIZE + 4,
-                is_button_text_centered=False,
-                is_bottom_list=True,
-                selected_button=self.selected_button_index,
-                scroll_y_initial_offset=self.initial_scroll,
-            )
-        finally:
-            # Everything is set. Stop the loading screen
-            if self.loading_screen:
-                self.loading_screen.stop()
-
-        selected_menu_num = screen.display()
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="{} Addrs".format("Receive" if not self.is_change else "Change"),
+            button_data=button_data,
+            button_font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            button_font_size=GUIConstants.BUTTON_FONT_SIZE + 4,
+            is_button_text_centered=False,
+            is_bottom_list=True,
+            selected_button=self.selected_button_index,
+            scroll_y_initial_offset=self.initial_scroll,
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -646,7 +650,7 @@ class ToolsAddressExplorerAddressListView(View):
             return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.is_change, start_index=self.start_index + addrs_per_screen))
         
         # Preserve the list's current scroll so we can return to the same spot
-        initial_scroll = screen.buttons[0].scroll_y
+        initial_scroll = self.screen.buttons[0].scroll_y
 
         index = selected_menu_num + self.start_index
         return Destination(ToolsAddressExplorerAddressView, view_args=dict(index=index, address=addresses[selected_menu_num], is_change=self.is_change, start_index=self.start_index, parent_initial_scroll=initial_scroll), skip_current_view=True)
@@ -664,10 +668,12 @@ class ToolsAddressExplorerAddressView(View):
 
     
     def run(self):
+        from seedsigner.gui.screens.screen import QRDisplayScreen
         qr_encoder = EncodeQR(qr_type=QRType.BITCOIN_ADDRESS, bitcoin_address=self.address)
-        QRDisplayScreen(
+        self.run_screen(
+            QRDisplayScreen,
             qr_encoder=qr_encoder,
-        ).display()
+        )
     
         # Exiting/Cancelling the QR display screen always returns to the list
         return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.is_change, start_index=self.start_index, selected_button_index=self.index - self.start_index, initial_scroll=self.parent_initial_scroll), skip_current_view=True)
