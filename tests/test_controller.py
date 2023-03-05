@@ -15,7 +15,7 @@ class TestController(BaseTest):
         controller = Controller.get_instance()
         controller.address_explorer_data = "foo"
 
-        self.reset_controller()
+        BaseTest.reset_controller()
         controller = Controller.get_instance()
         assert controller.address_explorer_data is None
 

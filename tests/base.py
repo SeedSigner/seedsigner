@@ -30,6 +30,17 @@ class BaseTest:
 
     @classmethod
     def teardown_class(cls):
+        pass
+
+
+    @classmethod
+    def reset_settings(cls):
+        """ Wipe and re-initialize the Settings singleton """
+        Settings._instance = None
+
+
+    @classmethod
+    def remove_settings(cls):
         """ If settings were written to disk, delete """
         import os
         try:
@@ -38,21 +49,29 @@ class BaseTest:
             print(f"{Settings.SETTINGS_FILENAME} not found to be removed")
 
 
-    def reset_controller(self):
-        """ Wipe and re-initialize the Controller singleton for each test run """
+    @classmethod
+    def reset_controller(cls):
+        """ Wipe and re-initialize the Controller singleton """
         Controller._instance = None
         Controller.configure_instance()
 
 
     def setup_method(self):
-        self.reset_controller()
+        """ Guarantee a clean/default Controller and Settings state for each test case """
+        BaseTest.reset_controller()
+        BaseTest.reset_settings()
         self.controller = Controller.get_instance()
         self.settings = Settings.get_instance()
+    
+
+    def teardown_method(self):
+        BaseTest.remove_settings()
 
 
 
 @dataclass
 class FlowStep:
+    """ Trivial helper class to express FlowTest sequences below """
     expected_view: Type[View] = None
     run_before: Callable = None
     screen_return_value: Union[int, str] = None
@@ -60,11 +79,17 @@ class FlowStep:
 
 
 class FlowTest(BaseTest):
+    """ Base class for any tests that do flow-based testing """
+
     def run_sequence(self, initial_destination: Destination, sequence: List[FlowStep]) -> Destination:
         """
-            Runs the given sequence from the initial_destination, mocking out the associated
-            Screen and the scenario's return_value, receiving the resulting new Destination,
-            and repeating until the sequence is complete.
+            Runs the given sequence of FlowSteps starting from the initial_destination:
+            * verifies that we landed on the expected_view (if provided).
+            * mocks out the `View.run_screen()` to prevent the associated Screen class from instantiating.
+            * patches in the FlowStep's screen_return_value (as if it came from user interaction).
+            * optional `run_before` method modifies the View when necessary to be compatible w/test suite limitations.
+            * Runs the View and receives the resulting next Destination.
+            * then repeats the process on the next Destination until the sequence is complete.
 
             Returns the final Destination.
         """

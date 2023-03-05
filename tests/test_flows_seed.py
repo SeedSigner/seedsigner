@@ -1,6 +1,6 @@
 
 # Must import this before the Controller
-from base import FlowTest, FlowStep
+from base import BaseTest, FlowTest, FlowStep
 
 from seedsigner.views.view import Destination, MainMenuView
 from seedsigner.views import seed_views, scan_views
@@ -83,7 +83,7 @@ class TestSeedFlows(FlowTest):
         # Test data from iancoleman.io; 12- and 24-word mnemonic
         test_with_mnemonic("tone flat shed cool census soul paddle boy flight fantasy stem social".split())
 
-        self.reset_controller()
+        BaseTest.reset_controller()
 
         test_with_mnemonic("cotton artefact spy mind wing there echo steak child oak awful host despair online bicycle divorce middle firm diamond rare execute chimney almost hollow".split())
 
