@@ -71,41 +71,41 @@ class SeedsMenuView(View):
     Loading seeds, passphrases, etc
 ****************************************************************************"""
 class LoadSeedView(View):
-    def run(self):
-        SEED_QR = (" Scan a SeedQR", FontAwesomeIconConstants.QRCODE)
-        TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
-        TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-        CREATE = (" Create a seed", FontAwesomeIconConstants.PLUS)
-        button_data=[
-            SEED_QR,
-            TYPE_12WORD,
-            TYPE_24WORD,
-            CREATE,
-        ]
+    SEED_QR = (" Scan a SeedQR", FontAwesomeIconConstants.QRCODE)
+    TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    CREATE = (" Create a seed", FontAwesomeIconConstants.PLUS)
+    button_data=[
+        SEED_QR,
+        TYPE_12WORD,
+        TYPE_24WORD,
+        CREATE,
+    ]
 
+    def run(self):
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title="Load A Seed",
             is_button_text_centered=False,
-            button_data=button_data
+            button_data=self.button_data
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
-        if button_data[selected_menu_num] == SEED_QR:
+        if self.button_data[selected_menu_num] == self.SEED_QR:
             from .scan_views import ScanView
             return Destination(ScanView)
         
-        elif button_data[selected_menu_num] == TYPE_12WORD:
+        elif self.button_data[selected_menu_num] == self.TYPE_12WORD:
             self.controller.storage.init_pending_mnemonic(num_words=12)
             return Destination(SeedMnemonicEntryView)
 
-        elif button_data[selected_menu_num] == TYPE_24WORD:
+        elif self.button_data[selected_menu_num] == self.TYPE_24WORD:
             self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
-        elif button_data[selected_menu_num] == CREATE:
+        elif self.button_data[selected_menu_num] == self.CREATE:
             from .tools_views import ToolsMenuView
             return Destination(ToolsMenuView)
 
@@ -169,62 +169,60 @@ class SeedMnemonicEntryView(View):
 
 
 class SeedMnemonicInvalidView(View):
+    EDIT = "Review & Edit"
+    DISCARD = ("Discard", None, None, "red")
+    button_data = [EDIT, DISCARD]
+
     def __init__(self):
         super().__init__()
         self.mnemonic: List[str] = self.controller.storage.pending_mnemonic
 
 
     def run(self):
-        EDIT = "Review & Edit"
-        DISCARD = ("Discard", None, None, "red")
-        button_data = [EDIT, DISCARD]
-
         selected_menu_num = self.run_screen(
             WarningScreen,
             title="Invalid Mnemonic!",
             status_headline=None,
             text=f"Checksum failure; not a valid seed phrase.",
             show_back_button=False,
-            button_data=button_data,
+            button_data=self.button_data,
         )
 
-        if button_data[selected_menu_num] == EDIT:
+        if self.button_data[selected_menu_num] == self.EDIT:
             return Destination(SeedMnemonicEntryView, view_args={"cur_word_index": 0})
 
-        elif button_data[selected_menu_num] == DISCARD:
+        elif self.button_data[selected_menu_num] == self.DISCARD:
             self.controller.storage.discard_pending_mnemonic()
             return Destination(MainMenuView)
 
 
 
 class SeedFinalizeView(View):
+    FINALIZE = "Done"
+    PASSPHRASE = "BIP-39 Passphrase"
+    button_data = [FINALIZE]
+
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
         self.fingerprint = self.seed.get_fingerprint(network=self.settings.get_value(SettingsConstants.SETTING__NETWORK))
 
+        if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) != SettingsConstants.OPTION__DISABLED:
+            self.button_data.append(self.PASSPHRASE)
+
 
     def run(self):
-        FINALIZE = "Done"
-        PASSPHRASE = "BIP-39 Passphrase"
-        button_data = []
-
-        button_data.append(FINALIZE)
-
-        if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) != SettingsConstants.OPTION__DISABLED:
-            button_data.append(PASSPHRASE)
-
         selected_menu_num = self.run_screen(
             seed_screens.SeedFinalizeScreen,
             fingerprint=self.fingerprint,
-            button_data=button_data,
+            button_data=self.button_data,
         )
 
-        if button_data[selected_menu_num] == FINALIZE:
+        if self.button_data[selected_menu_num] == self.FINALIZE:
             seed_num = self.controller.storage.finalize_pending_seed()
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
 
-        elif button_data[selected_menu_num] == PASSPHRASE:
+        elif self.button_data[selected_menu_num] == self.PASSPHRASE:
             return Destination(SeedAddPassphraseView)
 
 
@@ -254,16 +252,16 @@ class SeedReviewPassphraseView(View):
     """
         Display the completed passphrase back to the user.
     """
+    EDIT = "Edit passphrase"
+    DONE = "Done"
+    button_data = [EDIT, DONE]
+
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
 
 
     def run(self):
-        EDIT = "Edit passphrase"
-        DONE = "Done"
-        button_data = [EDIT, DONE]
-
         # Get the before/after fingerprints
         network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
         passphrase = self.seed.passphrase
@@ -279,14 +277,14 @@ class SeedReviewPassphraseView(View):
             fingerprint_without=fingerprint_without,
             fingerprint_with=fingerprint_with,
             passphrase=self.seed.passphrase,
-            button_data=button_data,
+            button_data=self.button_data,
             show_back_button=False,
         )
 
-        if button_data[selected_menu_num] == EDIT:
+        if self.button_data[selected_menu_num] == self.EDIT:
             return Destination(SeedAddPassphraseView)
         
-        elif button_data[selected_menu_num] == DONE:
+        elif self.button_data[selected_menu_num] == self.DONE:
             seed_num = self.controller.storage.finalize_pending_seed()
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
             
@@ -498,6 +496,10 @@ class SeedExportXpubScriptTypeView(View):
         self.seed_num = seed_num
         self.sig_type = sig_type
 
+        self.button_data = []
+        for script_type in self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES):
+            self.button_data.append(script_type)
+
 
     def run(self):
         from .tools_views import ToolsAddressExplorerAddressTypeView
@@ -511,10 +513,6 @@ class SeedExportXpubScriptTypeView(View):
                 return Destination(ToolsAddressExplorerAddressTypeView, view_args=args, skip_current_view=True)
             else:
                 return Destination(SeedExportXpubCoordinatorView, view_args=args, skip_current_view=True)
-
-        button_data = []
-        for script_type in self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES):
-            button_data.append(script_type)
         
         title = "Export Xpub"
         if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
@@ -524,7 +522,7 @@ class SeedExportXpubScriptTypeView(View):
             ButtonListScreen,
             title=title,
             is_button_text_centered=False,
-            button_data=button_data,
+            button_data=self.button_data,
             is_bottom_list=True,
         )
 
@@ -536,7 +534,7 @@ class SeedExportXpubScriptTypeView(View):
 
         else:
             script_types_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES)
-            selected_display_name = button_data[selected_menu_num]
+            selected_display_name = self.button_data[selected_menu_num]
             args["script_type"] = script_types_settings_entry.get_selection_option_value_by_display_name(selected_display_name)
 
             if args["script_type"] == SettingsConstants.CUSTOM_DERIVATION:

@@ -23,33 +23,38 @@ from .view import View, Destination, BackStackView
 
 
 class ToolsMenuView(View):
+    IMAGE = (" New seed", FontAwesomeIconConstants.CAMERA)
+    DICE = ("New seed", FontAwesomeIconConstants.DICE)
+    KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
+    EXPLORER = "Address Explorer"
+
+    def __init__(self):
+        super().__init__()
+        self.button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.EXPLORER]
+
+
     def run(self):
-        IMAGE = (" New seed", FontAwesomeIconConstants.CAMERA)
-        DICE = ("New seed", FontAwesomeIconConstants.DICE)
-        KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
-        EXPLORER = "Address Explorer"
-        button_data = [IMAGE, DICE, KEYBOARD, EXPLORER]
         
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title="Tools",
             is_button_text_centered=False,
-            button_data=button_data
+            button_data=self.button_data
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        elif button_data[selected_menu_num] == IMAGE:
+        elif self.button_data[selected_menu_num] == self.IMAGE:
             return Destination(ToolsImageEntropyLivePreviewView)
 
-        elif button_data[selected_menu_num] == DICE:
+        elif self.button_data[selected_menu_num] == self.DICE:
             return Destination(ToolsDiceEntropyMnemonicLengthView)
 
-        elif button_data[selected_menu_num] == KEYBOARD:
+        elif self.button_data[selected_menu_num] == self.KEYBOARD:
             return Destination(ToolsCalcFinalWordNumWordsView)
 
-        elif button_data[selected_menu_num] == EXPLORER:
+        elif self.button_data[selected_menu_num] == self.EXPLORER:
             return Destination(ToolsAddressExplorerSelectSourceView)
 
 
@@ -422,27 +427,27 @@ class ToolsCalcFinalWordDoneView(View):
     Address Explorer Views
 ****************************************************************************"""
 class ToolsAddressExplorerSelectSourceView(View):
-    def run(self):
-        SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
-        SCAN_DESCRIPTOR = ("Scan wallet descriptor", FontAwesomeIconConstants.QRCODE)
-        TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
-        TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-        button_data = []
+    SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
+    SCAN_DESCRIPTOR = ("Scan wallet descriptor", FontAwesomeIconConstants.QRCODE)
+    TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    button_data = [SCAN_SEED, SCAN_DESCRIPTOR, TYPE_12WORD, TYPE_24WORD]
 
-        seeds = self.controller.storage.seeds
-        for seed in seeds:
+    def __init__(self):
+        super().__init__()
+        self.seeds = self.controller.storage.seeds
+        seed_buttons =[]
+        for seed in self.seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+            seed_buttons.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+        self.button_data = seed_buttons + self.button_data
 
-        button_data.append(SCAN_SEED)
-        button_data.append(SCAN_DESCRIPTOR)
-        button_data.append(TYPE_12WORD)
-        button_data.append(TYPE_24WORD)
 
+    def run(self):
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title="Address Explorer",
-            button_data=button_data,
+            button_data=self.button_data,
             is_button_text_centered=False,
             is_bottom_list=True,
         )
@@ -455,7 +460,7 @@ class ToolsAddressExplorerSelectSourceView(View):
         # knows to re-route us once the side flow is complete.        
         self.controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
 
-        if len(seeds) > 0 and selected_menu_num < len(seeds):
+        if len(self.seeds) > 0 and selected_menu_num < len(self.seeds):
             # User selected one of the n seeds
             return Destination(
                 SeedExportXpubScriptTypeView,
@@ -465,13 +470,13 @@ class ToolsAddressExplorerSelectSourceView(View):
                 )
             )
 
-        elif button_data[selected_menu_num] in [SCAN_SEED, SCAN_DESCRIPTOR]:
+        elif self.button_data[selected_menu_num] in [self.SCAN_SEED, self.SCAN_DESCRIPTOR]:
             from seedsigner.views.scan_views import ScanView
             return Destination(ScanView)
 
-        elif button_data[selected_menu_num] in [TYPE_12WORD, TYPE_24WORD]:
+        elif self.button_data[selected_menu_num] in [self.TYPE_12WORD, self.TYPE_24WORD]:
             from seedsigner.views.seed_views import SeedMnemonicEntryView
-            if button_data[selected_menu_num] == TYPE_12WORD:
+            if self.button_data[selected_menu_num] == self.TYPE_12WORD:
                 self.controller.storage.init_pending_mnemonic(num_words=12)
             else:
                 self.controller.storage.init_pending_mnemonic(num_words=24)
@@ -480,6 +485,11 @@ class ToolsAddressExplorerSelectSourceView(View):
 
 
 class ToolsAddressExplorerAddressTypeView(View):
+    RECEIVE = "Receive Addresses"
+    CHANGE = "Change Addresses"
+    button_data = [RECEIVE, CHANGE]
+
+
     def __init__(self, seed_num: int = None, script_type: str = None, custom_derivation: str = None):
         """
             If the explorer source is a seed, `seed_num` and `script_type` must be
@@ -528,10 +538,6 @@ class ToolsAddressExplorerAddressTypeView(View):
     def run(self):
         data = self.controller.address_explorer_data
 
-        RECEIVE = "Receive Addresses"
-        CHANGE = "Change Addresses"
-        button_data = [RECEIVE, CHANGE]
-
         wallet_descriptor_display_name = None
         if "wallet_descriptor" in data:
             wallet_descriptor_display_name = data["wallet_descriptor"].brief_policy.replace(" (sorted)", "")
@@ -540,7 +546,7 @@ class ToolsAddressExplorerAddressTypeView(View):
 
         selected_menu_num = self.run_screen(
             ToolsAddressExplorerAddressTypeScreen,
-            button_data=button_data,
+            button_data=self.button_data,
             fingerprint=self.seed.get_fingerprint() if self.seed_num is not None else None,
             wallet_descriptor_display_name=wallet_descriptor_display_name,
             script_type=script_type,
@@ -550,8 +556,8 @@ class ToolsAddressExplorerAddressTypeView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
-        elif button_data[selected_menu_num] in [RECEIVE, CHANGE]:
-            return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=button_data[selected_menu_num] == CHANGE))
+        elif self.button_data[selected_menu_num] in [self.RECEIVE, self.CHANGE]:
+            return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.button_data[selected_menu_num] == self.CHANGE))
 
 
 

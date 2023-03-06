@@ -21,16 +21,16 @@ class TestSeedFlows(FlowTest):
             Destination(MainMenuView),
             sequence=[
                 FlowStep(
-                    screen_return_value=0,  # ret SCAN
+                    button_data_selection=MainMenuView.SCAN
                 ),
                 FlowStep(
                     expected_view=scan_views.ScanView,
                     run_before=load_seed_into_decoder,  # simulate read SeedQR
-                    screen_return_value=None,
+                    # ret value is ignored
                 ),
                 FlowStep(
                     expected_view=seed_views.SeedFinalizeView,
-                    screen_return_value=0,  # ret DONE
+                    button_data_selection=seed_views.SeedFinalizeView.FINALIZE
                 ),
             ]
         )
@@ -45,7 +45,7 @@ class TestSeedFlows(FlowTest):
         def test_with_mnemonic(mnemonic):
             sequence = [
                 FlowStep(
-                    screen_return_value=1,  # ret SEEDS
+                    button_data_selection=MainMenuView.SEEDS
                 ),
                 FlowStep(
                     expected_view=seed_views.SeedsMenuView,
@@ -53,7 +53,7 @@ class TestSeedFlows(FlowTest):
                 ),
                 FlowStep(
                     expected_view=seed_views.LoadSeedView,
-                    screen_return_value=1 if len(mnemonic) == 12 else 2,  # ret TYPE_12WORD or TYPE_24WORD
+                    button_data_selection=seed_views.LoadSeedView.TYPE_12WORD if len(mnemonic) == 12 else seed_views.LoadSeedView.TYPE_24WORD,
                 ),
             ]
 
@@ -70,7 +70,7 @@ class TestSeedFlows(FlowTest):
             sequence.append(
                 FlowStep(
                     expected_view=seed_views.SeedFinalizeView,
-                    screen_return_value=0,  # ret DONE
+                    button_data_selection=seed_views.SeedFinalizeView.FINALIZE
                 )
             )
             
@@ -94,7 +94,7 @@ class TestSeedFlows(FlowTest):
         mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
         sequence = [
             FlowStep(
-                screen_return_value=1 if len(mnemonic) == 12 else 2,  # ret TYPE_12WORD or TYPE_24WORD
+                button_data_selection=seed_views.LoadSeedView.TYPE_12WORD if len(mnemonic) == 12 else seed_views.LoadSeedView.TYPE_24WORD,
             ),
         ]
         for word in mnemonic[:-1]:
@@ -112,7 +112,7 @@ class TestSeedFlows(FlowTest):
             ),
             FlowStep(
                 expected_view=seed_views.SeedMnemonicInvalidView,
-                screen_return_value=0           # ret EDIT
+                button_data_selection=seed_views.SeedMnemonicInvalidView.EDIT
             ),
         ]
 
@@ -132,7 +132,7 @@ class TestSeedFlows(FlowTest):
             ),
             FlowStep(
                 expected_view=seed_views.SeedMnemonicInvalidView,
-                screen_return_value=1           # ret DISCARD; this time we give up
+                button_data_selection=seed_views.SeedMnemonicInvalidView.DISCARD
             ),
         ]
 

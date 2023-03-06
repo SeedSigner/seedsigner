@@ -56,7 +56,6 @@ class View:
         self.canvas_width = self.renderer.canvas_width
         self.canvas_height = self.renderer.canvas_height
 
-        self.buttons = self.controller.buttons
         self.screen = None
     
 
@@ -100,20 +99,22 @@ class Destination:
         return out
 
 
-    def run(self, run_before: Callable = None):
+    def _instantiate_view(self):
         if not self.view_args:
             # Can't unpack (**) None so we replace with an empty dict
             self.view_args = {}
 
         # Instantiate the `View_cls` with the `view_args` dict
-        view = self.View_cls(**self.view_args)
+        self.view = self.View_cls(**self.view_args)
+    
 
-        # Enable test suite modifications to the View before running it
-        if run_before:
-            run_before(view)
+    def _run_view(self):
+        return self.view.run()
 
-        # and run() it
-        return view.run()
+
+    def run(self):
+        self._instantiate_view()
+        return self._run_view()
 
 
     def __eq__(self, obj):
@@ -136,23 +137,22 @@ class Destination:
 #
 #########################################################################################
 class MainMenuView(View):
-    def run(self):
-        from .seed_views import SeedsMenuView
-        from .settings_views import SettingsMenuView
-        from .scan_views import ScanView
-        from .tools_views import ToolsMenuView
-        menu_items = [
-            (("Scan", FontAwesomeIconConstants.QRCODE), ScanView),
-            (("Seeds", FontAwesomeIconConstants.KEY), SeedsMenuView),
-            (("Tools", FontAwesomeIconConstants.SCREWDRIVER_WRENCH), ToolsMenuView),
-            (("Settings", FontAwesomeIconConstants.GEAR), SettingsMenuView),
-        ]
+    SCAN = ("Scan", FontAwesomeIconConstants.QRCODE)
+    SEEDS = ("Seeds", FontAwesomeIconConstants.KEY)
+    TOOLS = ("Tools", FontAwesomeIconConstants.SCREWDRIVER_WRENCH)
+    SETTINGS = ("Settings", FontAwesomeIconConstants.GEAR)
 
+    def __init__(self):
+        super().__init__()
+        self.button_data = [self.SCAN, self.SEEDS, self.TOOLS, self.SETTINGS]
+
+
+    def run(self):
         selected_menu_num = self.run_screen(
             LargeButtonScreen,
             title="Home",
             title_font_size=26,
-            button_data=[entry[0] for entry in menu_items],
+            button_data=self.button_data,
             show_back_button=False,
             show_power_button=True,
         )
@@ -160,7 +160,21 @@ class MainMenuView(View):
         if selected_menu_num == RET_CODE__POWER_BUTTON:
             return Destination(PowerOptionsView)
 
-        return Destination(menu_items[selected_menu_num][1])
+        if self.button_data[selected_menu_num] == self.SCAN:
+            from .scan_views import ScanView
+            return Destination(ScanView)
+        
+        elif self.button_data[selected_menu_num] == self.SEEDS:
+            from .seed_views import SeedsMenuView
+            return Destination(SeedsMenuView)
+
+        elif self.button_data[selected_menu_num] == self.TOOLS:
+            from .tools_views import ToolsMenuView
+            return Destination(ToolsMenuView)
+
+        elif self.button_data[selected_menu_num] == self.SETTINGS:
+            from .settings_views import SettingsMenuView
+            return Destination(SettingsMenuView)
 
 
 

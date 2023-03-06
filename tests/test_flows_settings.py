@@ -17,30 +17,31 @@ class TestSettingsFlows(FlowTest):
     def test_persistent_settings(self):
         """ Basic flow from MainMenuView to enable/disable persistent settings """
         # Which option are we testing?
-        settings_entries = SettingsDefinition.get_settings_entries()
-        nth_entry = [s.attr_name for s in settings_entries].index(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
-
         settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
 
         def mock_settingsmenuview_screen(view: Type[View]):
             # SettingsMenuView reaches into its `self.screen` so we need to mock it out
             view.screen = MagicMock()
-        
+
         destination = self.run_sequence(
             Destination(MainMenuView),
             sequence=[
                 FlowStep(
-                    screen_return_value=3,          # ret SETTINGS
+                    button_data_selection=MainMenuView.SETTINGS
                 ),
                 FlowStep(
                     expected_view=settings_views.SettingsMenuView,
                     run_before=mock_settingsmenuview_screen,
-                    screen_return_value=nth_entry,  # ret persistent settings
+                    button_data_selection=settings_entry.display_name
                 ),
                 FlowStep(
                     expected_view=settings_views.SettingsEntryUpdateSelectionView,
-                    screen_return_value=[s[0] for s in settings_entry.selection_options].index(SettingsConstants.OPTION__ENABLED),
+                    button_data_selection=settings_entry.get_selection_option_display_name_by_value(SettingsConstants.OPTION__ENABLED),
                 ),
+                FlowStep(
+                    expected_view=settings_views.SettingsEntryUpdateSelectionView,
+                    screen_return_value=RET_CODE__BACK_BUTTON
+                )
             ]
         )
         assert destination.View_cls == settings_views.SettingsMenuView
@@ -50,41 +51,32 @@ class TestSettingsFlows(FlowTest):
         """ Multiselect Settings options should stay in-place; requires BACK to exit. """
         # Which option are we testing?
         settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__COORDINATORS)
-        nth_entry = SettingsDefinition.get_settings_entries().index(settings_entry)
 
         def mock_settingsmenuview_screen(view: Type[View]):
             # SettingsMenuView reaches into its `self.screen` so we need to mock it out
             view.screen = MagicMock()
 
-        def disable_recursion(view: Type[View]):
-            # The recursion in SettingsEntryUpdateSelectionView for multiselect settings
-            # won't work with our FlowTest sequence structure.
-            view.is_test = True
-
         destination = self.run_sequence(
             Destination(MainMenuView),
             sequence=[
                 FlowStep(
-                    screen_return_value=3,          # ret SETTINGS
+                    button_data_selection=MainMenuView.SETTINGS
                 ),
                 FlowStep(
                     expected_view=settings_views.SettingsMenuView,
                     run_before=mock_settingsmenuview_screen,
-                    screen_return_value=nth_entry,  # ret Coordinator software
+                    button_data_selection=settings_entry.display_name
                 ),
                 FlowStep(
                     expected_view=settings_views.SettingsEntryUpdateSelectionView,
-                    run_before=disable_recursion,
                     screen_return_value=0,          # select/deselect first option
                 ),
                 FlowStep(
                     expected_view=settings_views.SettingsEntryUpdateSelectionView,
-                    run_before=disable_recursion,
                     screen_return_value=1,          # select/deselect second option
                 ),
                 FlowStep(
                     expected_view=settings_views.SettingsEntryUpdateSelectionView,
-                    run_before=disable_recursion,
                     screen_return_value=1,          # select/deselect second option
                 ),
                 FlowStep(
@@ -98,9 +90,6 @@ class TestSettingsFlows(FlowTest):
 
     def test_io_test(self):
         """ Basic flow from MainMenuView to I/O Test View """
-        # I/O Test will be the nth_entry after we include the submenu to "Advanced"
-        nth_entry = len(SettingsDefinition.get_settings_entries()) + 1
-
         def mock_settingsmenuview_screen(view: Type[View]):
             # SettingsMenuView reaches into its `self.screen` so we need to mock it out
             view.screen = MagicMock()
@@ -109,16 +98,16 @@ class TestSettingsFlows(FlowTest):
             Destination(MainMenuView),
             sequence=[
                 FlowStep(
-                    screen_return_value=3,          # ret SETTINGS
+                    button_data_selection=MainMenuView.SETTINGS,
                 ),
                 FlowStep(
                     expected_view=settings_views.SettingsMenuView,
                     run_before=mock_settingsmenuview_screen,
-                    screen_return_value=nth_entry,  # ret I/O Test
+                    button_data_selection=settings_views.SettingsMenuView.IO_TEST
                 ),
                 FlowStep(
                     expected_view=settings_views.IOTestView,
-                    screen_return_value=None,       # ret value is ignored
+                    # ret value is ignored
                 ),
             ]
         )
@@ -140,16 +129,16 @@ class TestSettingsFlows(FlowTest):
             Destination(MainMenuView),
             sequence=[
                 FlowStep(
-                    screen_return_value=3,          # ret SETTINGS
+                    button_data_selection=MainMenuView.SETTINGS,
                 ),
                 FlowStep(
                     expected_view=settings_views.SettingsMenuView,
                     run_before=mock_settingsmenuview_screen,
-                    screen_return_value=nth_entry,  # ret Donate
+                    button_data_selection=settings_views.SettingsMenuView.DONATE
                 ),
                 FlowStep(
                     expected_view=settings_views.DonateView,
-                    screen_return_value=None,       # ret value is ignored
+                    # ret value is ignored
                 ),
             ]
         )

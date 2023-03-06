@@ -2,11 +2,12 @@
 # Must import this before the Controller
 from typing import Type
 
-from mock import MagicMock
+from mock import MagicMock, Mock
 from base import FlowTest, FlowStep
 
 from seedsigner.controller import Controller
 from seedsigner.models.seed import Seed
+from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.views.view import Destination, MainMenuView, View
 from seedsigner.views import scan_views, seed_views, tools_views
 
@@ -31,11 +32,11 @@ class TestToolsFlows(FlowTest):
             Destination(MainMenuView),
             sequence=[
                 FlowStep(
-                    screen_return_value=2  # ret TOOLS
+                    button_data_selection=MainMenuView.TOOLS
                 ),
                 FlowStep(
                     expected_view=tools_views.ToolsMenuView,
-                    screen_return_value=3  # ret EXPLORER
+                    button_data_selection=tools_views.ToolsMenuView.EXPLORER
                 ),
                 FlowStep(
                     expected_view=tools_views.ToolsAddressExplorerSelectSourceView,
@@ -43,11 +44,11 @@ class TestToolsFlows(FlowTest):
                 ),
                 FlowStep(
                     expected_view=seed_views.SeedExportXpubScriptTypeView,
-                    screen_return_value=0  # ret NATIVE_SEGWIT (1st script type option)
+                    button_data_selection=SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(SettingsConstants.NATIVE_SEGWIT)
                 ),
                 FlowStep(
                     expected_view=tools_views.ToolsAddressExplorerAddressTypeView,
-                    screen_return_value=0  # ret RECEIVE addrs
+                    button_data_selection=tools_views.ToolsAddressExplorerAddressTypeView.RECEIVE
                 ),
                 FlowStep(
                     expected_view=tools_views.ToolsAddressExplorerAddressListView,
@@ -83,24 +84,23 @@ class TestToolsFlows(FlowTest):
             Destination(MainMenuView),
             sequence=[
                 FlowStep(
-                    screen_return_value=2  # ret TOOLS
+                    button_data_selection=MainMenuView.TOOLS
                 ),
                 FlowStep(
                     expected_view=tools_views.ToolsMenuView,
-                    screen_return_value=3  # ret EXPLORER
+                    button_data_selection=tools_views.ToolsMenuView.EXPLORER
                 ),
                 FlowStep(
                     expected_view=tools_views.ToolsAddressExplorerSelectSourceView,
-                    screen_return_value=0  # ret SCAN SeedQR
+                    button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_SEED
                 ),
                 FlowStep(
                     expected_view=scan_views.ScanView,
                     run_before=load_seed_into_decoder,  # simulate read SeedQR
-                    screen_return_value=None,
                 ),
                 FlowStep(
                     expected_view=seed_views.SeedFinalizeView,
-                    screen_return_value=0,  # ret DONE
+                    button_data_selection=seed_views.SeedFinalizeView.FINALIZE
                 ),
                 FlowStep(
                     expected_view=seed_views.SeedOptionsView,
@@ -121,7 +121,7 @@ class TestToolsFlows(FlowTest):
             Destination(seed_views.SeedFinalizeView),
             sequence=[
                 FlowStep(
-                    screen_return_value=1,  # ret PASSPHRASE
+                    button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE
                 ),
                 FlowStep(
                     expected_view=seed_views.SeedAddPassphraseView,
@@ -129,7 +129,7 @@ class TestToolsFlows(FlowTest):
                 ),
                 FlowStep(
                     expected_view=seed_views.SeedReviewPassphraseView,
-                    screen_return_value=1,  # ret DONE
+                    button_data_selection=seed_views.SeedReviewPassphraseView.DONE
                 ),
                 FlowStep(
                     expected_view=seed_views.SeedOptionsView,
