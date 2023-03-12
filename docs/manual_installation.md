@@ -61,9 +61,11 @@ You will be prompted to enter the current password ("raspberry") and then to ent
 ### Install python3.10
 ```bash
 # install compiler dependencies
+# openssl, libssl-dev: ssl support when pip fetches packages
+# libsqlite3-dev: required by `coverage`
 sudo apt update && sudo apt install -y build-essential zlib1g-dev \
     libncurses5-dev libgdbm-dev libnss3-dev openssl libssl-dev \
-    libreadline-dev libffi-dev wget
+    libreadline-dev libffi-dev wget libsqlite3-dev
 
 # Grab the python3.10 source
 wget https://www.python.org/ftp/python/3.10.10/Python-3.10.10.tgz
