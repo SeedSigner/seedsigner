@@ -58,12 +58,40 @@ passwd
 You will be prompted to enter the current password ("raspberry") and then to enter a new password twice. In our prepared release image, the password used is `AirG@pped!`.
 
 
+### Install python3.10
+```bash
+# install compiler dependencies
+sudo apt update && sudo apt install -y build-essential zlib1g-dev \
+    libncurses5-dev libgdbm-dev libnss3-dev openssl libssl-dev \
+    libreadline-dev libffi-dev wget
+
+# Grab the python3.10 source
+wget https://www.python.org/ftp/python/3.10.10/Python-3.10.10.tgz
+tar -xzvf Python-3.10.10.tgz
+cd Python-3.10.10
+
+# configure takes ~6 minutes to check what is available
+./configure --enable-optimizations
+
+# compiling takes ~80 minutes(!!) on the Pi Zero 1.3
+sudo make altinstall
+
+# cleanup
+cd ..
+rm -rf Python-3.10.10*
+
+# Make python3.10 the default version
+sudo update-alternatives --install /usr/bin/python python /usr/local/bin/python3.10 1
+sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.10 1
+```
+
+
 ### Install dependencies
 Copy this entire box and run it as one command (will take 15-20min to complete):
 ```
-sudo apt-get update && sudo apt-get install -y wiringpi python3-pip \
-   python3-numpy python-pil libopenjp2-7 git python3-opencv \
-   python3-picamera libatlas-base-dev qrencode
+sudo apt update && sudo apt install -y wiringpi python3-pip \
+   python3-numpy python-pil libjpeg-dev zlib1g-dev libopenjp2-7 \
+   git python3-opencv python3-picamera libatlas-base-dev qrencode
 ```
 
 ### Install `zbar`
@@ -103,7 +131,7 @@ sudo rm -rf bcm2835-1.60
 
 ### Set up `virtualenv`
 ```
-pip3 install virtualenvwrapper
+python -m pip install virtualenvwrapper
 ```
 
 Edit your bash profile with the command `nano ~/.profile` and add the following to the end:
@@ -117,7 +145,7 @@ Then `CTRL-X` and `y` to exit and save changes.
 Now create the python virtualenv for SeedSigner with these two commands:
 ```
 source ~/.profile
-mkvirtualenv --python=python3 seedsigner-env
+mkvirtualenv seedsigner-env
 ```
 
 For convenience you can configure your `.profile` to auto-activate the SeedSigner virtualenv when you ssh in. Once again `nano ~/.profile` and add at the end:
@@ -166,16 +194,16 @@ where `pr_123` is any name you want to give to the new branch in your local repo
 
 
 ### Install Python `pip` dependencies:
-```
-pip3 install -r requirements.txt
+```bash
+pip install -r requirements.txt
 ```
 
 #### `pyzbar`
-Note: The `requirements.txt` installs a fork of the python `pyzbar` repo (for now pointing to the fork in Keith's `kdmukai` github account [https://github.com/kdmukai/pyzbar](https://github.com/kdmukai/pyzbar)).
+Note: The `requirements.txt` installs a fork of the python `pyzbar` repo.
 
 The fork is required because the main `pyzbar` repo has been abandoned. This [github issue](https://github.com/NaturalHistoryMuseum/pyzbar/issues/124#issuecomment-971967091) discusses the changes needed in order to support reading binary data from `zbar`, which is required for our `CompactSeedQR` format which writes byte data instead of strings. The changes specifically reference the following PRs which have already been merged into Keith's fork:
 * [PR 76](https://github.com/NaturalHistoryMuseum/pyzbar/pull/76/files): enables scanning to continue even when a null byte (`x\00`) is found.
-* [PR 82](https://github.com/NaturalHistoryMuseum/pyzbar/pull/82): enable `zbar`'s new binary mode. Note that this PR has a trivial bug that was fixed in Keith's fork.
+* [PR 82](https://github.com/NaturalHistoryMuseum/pyzbar/pull/82): enable `zbar`'s new binary mode. Note that this PR has a trivial bug that was fixed in our fork.
 
 ### Configure `systemd` to run SeedSigner at boot:
 ```
