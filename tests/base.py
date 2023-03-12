@@ -119,13 +119,17 @@ class FlowTest(BaseTest):
                 with patch(qualname + ".run_screen") as mock_run_screen:
                     next_destination._instantiate_view()
 
-                    if flow_step.run_before:
-                        flow_step.run_before(next_destination.view)
-                    
+                    # A few Views need to reference their Screen; need to mock it out
+                    # since we're not actually instantiating it.
+                    next_destination.view.screen = MagicMock()
+
                     if flow_step.button_data_selection:
                         mock_run_screen.return_value = next_destination.view.button_data.index(flow_step.button_data_selection)
                     else:
                         mock_run_screen.return_value = flow_step.screen_return_value
+
+                    if flow_step.run_before:
+                        flow_step.run_before(next_destination.view)
 
                     # Now we can run the View and grab its resulting next Destination
                     next_destination = next_destination._run_view()

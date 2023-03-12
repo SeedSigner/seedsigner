@@ -19,10 +19,6 @@ class TestSettingsFlows(FlowTest):
         # Which option are we testing?
         settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
 
-        def mock_settingsmenuview_screen(view: Type[View]):
-            # SettingsMenuView reaches into its `self.screen` so we need to mock it out
-            view.screen = MagicMock()
-
         destination = self.run_sequence(
             Destination(MainMenuView),
             sequence=[
@@ -31,7 +27,6 @@ class TestSettingsFlows(FlowTest):
                 ),
                 FlowStep(
                     expected_view=settings_views.SettingsMenuView,
-                    run_before=mock_settingsmenuview_screen,
                     button_data_selection=settings_entry.display_name
                 ),
                 FlowStep(
@@ -52,10 +47,6 @@ class TestSettingsFlows(FlowTest):
         # Which option are we testing?
         settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__COORDINATORS)
 
-        def mock_settingsmenuview_screen(view: Type[View]):
-            # SettingsMenuView reaches into its `self.screen` so we need to mock it out
-            view.screen = MagicMock()
-
         destination = self.run_sequence(
             Destination(MainMenuView),
             sequence=[
@@ -64,7 +55,6 @@ class TestSettingsFlows(FlowTest):
                 ),
                 FlowStep(
                     expected_view=settings_views.SettingsMenuView,
-                    run_before=mock_settingsmenuview_screen,
                     button_data_selection=settings_entry.display_name
                 ),
                 FlowStep(
@@ -90,10 +80,6 @@ class TestSettingsFlows(FlowTest):
 
     def test_io_test(self):
         """ Basic flow from MainMenuView to I/O Test View """
-        def mock_settingsmenuview_screen(view: Type[View]):
-            # SettingsMenuView reaches into its `self.screen` so we need to mock it out
-            view.screen = MagicMock()
-        
         destination = self.run_sequence(
             Destination(MainMenuView),
             sequence=[
@@ -102,7 +88,6 @@ class TestSettingsFlows(FlowTest):
                 ),
                 FlowStep(
                     expected_view=settings_views.SettingsMenuView,
-                    run_before=mock_settingsmenuview_screen,
                     button_data_selection=settings_views.SettingsMenuView.IO_TEST
                 ),
                 FlowStep(
@@ -116,15 +101,7 @@ class TestSettingsFlows(FlowTest):
 
 
     def test_donate(self):
-        """ Basic flow from MainMenuView to Donate View """
-        # DonateView will be the nth_entry after we include the submenu to "Advanced"
-        # and the I/O Test
-        nth_entry = len(SettingsDefinition.get_settings_entries()) + 2
-
-        def mock_settingsmenuview_screen(view: Type[View]):
-            # SettingsMenuView reaches into its `self.screen` so we need to mock it out
-            view.screen = MagicMock()
-        
+        """ Basic flow from MainMenuView to Donate View """        
         destination = self.run_sequence(
             Destination(MainMenuView),
             sequence=[
@@ -133,7 +110,6 @@ class TestSettingsFlows(FlowTest):
                 ),
                 FlowStep(
                     expected_view=settings_views.SettingsMenuView,
-                    run_before=mock_settingsmenuview_screen,
                     button_data_selection=settings_views.SettingsMenuView.DONATE
                 ),
                 FlowStep(

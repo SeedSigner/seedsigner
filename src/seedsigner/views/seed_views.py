@@ -270,7 +270,7 @@ class SeedReviewPassphraseView(View):
         fingerprint_without = self.seed.get_fingerprint(network=network)
         self.seed.set_passphrase(passphrase)
         
-        # Because we have ane explicit "Edit" button, we disable "BACK" to keep the
+        # Because we have an explicit "Edit" button, we disable "BACK" to keep the
         # routing options sane.
         selected_menu_num = self.run_screen(
             seed_screens.SeedReviewPassphraseScreen,
