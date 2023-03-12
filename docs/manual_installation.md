@@ -196,6 +196,7 @@ where `pr_123` is any name you want to give to the new branch in your local repo
 ### Install Python `pip` dependencies:
 ```bash
 pip install -r requirements.txt
+pip install -r requirements-raspi.txt
 ```
 
 #### `pyzbar`
