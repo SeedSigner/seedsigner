@@ -201,19 +201,19 @@ Now that you have confirmed that you do have the real SeedSigner Project's Publi
 ```
 shasum -a 256 --ignore-missing --check seedsigner.0.6.*.sha256  
 ```
-
-**On Windows (inside Powershell):** Run this command
+Wait up to 30 seconds for the command to complete, and it should display:
 ```
-CertUtil -hashfile  seedsigner.0.6.0.sha256 SHA256 | findstr /v "hash"
+seedsigner_os.0.6.x[].img: OK
+```
+**If you receive the "OK" message** for your **seedsigner_os.0.6.x.[Your_Pi_Model_For_Example:pi02w].img file**, as shown above, then your verification is fully complete! 
+ 
+ **On Windows (inside Powershell):** Run this command
+```
+CertUtil -hashfile  seedsigner_os.0.6.0.[Your_Pi_Model_For_Example:pi02w].img SHA256 | findstr /v "hash"
 ```
 On Windows, you must then manually compare the resulting file hash value to the corresponding hash value shown inside the .SHA256 cleartext file.
  <BR>
-
-Wait up to 30 seconds for the command to complete, and it should display:
-```
-seedsigner_os.0.6.x[Your_Pi_Model_For_Example:pi02w].img: OK
-```
-**If you receive the "OK" message** for your **seedsigner_os.0.6.x.[Your_Pi_Model_For_Example:pi02w].img file**, as shown above, then your verification is fully complete!  
+ 
 **All of your downloaded files have now been confirmed as both authentic and unaltered!** You can proceed to create/write your MicroSD card😄😄 !!     
 
 If your file result shows "FAILED", then you must stop here immediately. Do not continue. Contact us for assistance at  the Telegram group address above.
