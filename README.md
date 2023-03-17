@@ -200,7 +200,7 @@ shasum -a 256 --ignore-missing --check seedsigner.0.6.*.sha256
 
 **On Windows (inside Powershell):** Run this command
 ```
-CertUtil -hashfile  seedsigner.0.6.0.sha256 SHA256 | findstr /v "hash"
+CertUtil -hashfile  seedsigner_os.0.6.0.Insert_Your_Pi_Models_binary_here_For_Example_pi02w.img SHA256 
 ```
 On Windows, you must then manually compare the resulting file hash value to the corresponding hash value shown inside the .SHA256 cleartext file.
  <BR>
