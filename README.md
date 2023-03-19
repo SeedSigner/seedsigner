@@ -206,7 +206,6 @@ shasum -a 256 --ignore-missing --check seedsigner.0.6.*.sha256
 ```
 CertUtil -hashfile  seedsigner_os.0.6.0.Insert_Your_Pi_Models_binary_here_For_Example_pi02w.img SHA256 
 ```
-
  <BR>
 
 Wait up to 30 seconds for the command to complete, and it should display:
