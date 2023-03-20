@@ -215,7 +215,7 @@ Get-Content seedsigner.0.6.0.sha256 | ForEach-Object {
     if ((Test-Path $filename) -eq $True) {
 
         # check if the computed hash matches the expected hash
-        write-host $filename (':WARNING:This computed hash/checksum did NOT match!', 'is OK.')[((Get-FileHash $filename).hash -eq $hash)]
+        write-host $filename ('FAILED: Computed checksum did NOT match!', 'is OK.')[((Get-FileHash $filename).hash -eq $hash)]
     }     
 }
 ```
