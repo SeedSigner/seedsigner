@@ -204,11 +204,24 @@ shasum -a 256 --ignore-missing --check seedsigner.0.6.*.sha256
 
 **On Windows (inside Powershell):** Run this command
 ```
-CertUtil -hashfile  seedsigner_os.0.6.0.Insert_Your_Pi_Models_binary_here_For_Example_pi02w.img SHA256 
+# Read the content of the seedsigner.0.6.0.sha256 (manifest) file and loop through each line  
+# to check if the computed hash matches the expected hash.
+Get-Content seedsigner.0.6.0.sha256 | ForEach-Object {
+
+    # Split the line by two spaces to extract the filename and the expected hash
+    $hash, $filename = $_ -Split '  ' 
+
+    # Check if the binary file exists, 
+    if ((Test-Path $filename) -eq $True) {
+
+        # check if the computed hash matches the expected hash
+        write-host $filename (':WARNING:This computed hash/checksum did NOT match!', 'is OK.')[((Get-FileHash $filename).hash -eq $hash)]
+    }     
+}
 ```
  <BR>
 
-Wait up to 30 seconds for the command to complete, and it should display:
+When the OSX/Linux/Windows command completes it should display:
 ```
 seedsigner_os.0.6.x.[Your_Pi_Model_For_Example:pi02w].img: OK
 ```
