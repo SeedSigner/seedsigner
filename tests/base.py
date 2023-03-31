@@ -145,7 +145,7 @@ class FlowTest(BaseTest):
             flow_step = sequence.pop(0)
             if flow_step.button_data_selection:
                 return view.button_data.index(flow_step.button_data_selection)
-            elif type(flow_step.screen_return_value) == StopControllerCommand:
+            elif type(flow_step.screen_return_value) in [StopControllerCommand, Exception]:
                 raise flow_step.screen_return_value
             return flow_step.screen_return_value
 

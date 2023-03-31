@@ -178,23 +178,23 @@ class MainMenuView(View):
 class PowerOptionsView(View):
     RESET = ("Restart", FontAwesomeIconConstants.ROTATE_RIGHT)
     POWER_OFF = ("Power Off", FontAwesomeIconConstants.POWER_OFF)
+    button_data = [RESET, POWER_OFF]
 
     def run(self):
-        button_data = [PowerOptionsView.RESET, PowerOptionsView.POWER_OFF]
         selected_menu_num = self.run_screen(
             LargeButtonScreen,
             title="Reset / Power",
             show_back_button=True,
-            button_data=button_data
+            button_data=self.button_data
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
-        elif button_data[selected_menu_num] == PowerOptionsView.RESET:
+        elif self.button_data[selected_menu_num] == PowerOptionsView.RESET:
             return Destination(RestartView)
         
-        elif button_data[selected_menu_num] == PowerOptionsView.POWER_OFF:
+        elif self.button_data[selected_menu_num] == PowerOptionsView.POWER_OFF:
             return Destination(PowerOffView)
 
 
@@ -203,7 +203,7 @@ class RestartView(View):
     def run(self):
         thread = RestartView.DoResetThread()
         thread.start()
-        ResetScreen().display()
+        self.run_screen(ResetScreen)
 
 
     class DoResetThread(BaseThread):
@@ -227,12 +227,12 @@ class RestartView(View):
 class PowerOffView(View):
     def run(self):
         if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
-            PowerOffNotRequiredScreen().display()
+            self.run_screen(PowerOffNotRequiredScreen)
             return Destination(BackStackView)
         else:
             thread = PowerOffView.PowerOffThread()
             thread.start()
-            PowerOffScreen().display()
+            self.run_screen(PowerOffScreen)
 
 
     class PowerOffThread(BaseThread):
@@ -250,12 +250,13 @@ class NotYetImplementedView(View):
         Temporary View to use during dev.
     """
     def run(self):
-        WarningScreen(
+        self.run_screen(
+            WarningScreen,
             title="Work In Progress",
             status_headline="Not Yet Implemented",
             text="This is still on our to-do list!",
             button_data=["Back to Main Menu"],
-        ).display()
+        )
 
         return Destination(MainMenuView)
 
@@ -267,13 +268,14 @@ class UnhandledExceptionView(View):
 
 
     def run(self):
-        DireWarningScreen(
+        self.run_screen(
+            DireWarningScreen,
             title="System Error",
             status_headline=self.error[0],
             text=self.error[1] + "\n" + self.error[2],
             button_data=["OK"],
             show_back_button=False,
             allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
-        ).display()
+        )
         
         return Destination(MainMenuView, clear_history=True)

@@ -56,7 +56,7 @@ class TestSettingsFlows(FlowTest):
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SETTINGS),
             FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_views.SettingsMenuView.IO_TEST),
-            FlowStep(settings_views.IOTestView, screen_return_value=None),
+            FlowStep(settings_views.IOTestView),
             FlowStep(settings_views.SettingsMenuView, screen_return_value=StopControllerCommand()),
         ])
 
@@ -66,6 +66,6 @@ class TestSettingsFlows(FlowTest):
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SETTINGS),
             FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_views.SettingsMenuView.DONATE),
-            FlowStep(settings_views.DonateView, screen_return_value=None),
+            FlowStep(settings_views.DonateView),
             FlowStep(settings_views.SettingsMenuView, screen_return_value=StopControllerCommand()),
         ])

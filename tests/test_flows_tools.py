@@ -31,7 +31,7 @@ class TestToolsFlows(FlowTest):
             FlowStep(tools_views.ToolsAddressExplorerAddressTypeView, button_data_selection=tools_views.ToolsAddressExplorerAddressTypeView.RECEIVE),
             FlowStep(tools_views.ToolsAddressExplorerAddressListView, screen_return_value=10),  # ret NEXT page of addrs
             FlowStep(tools_views.ToolsAddressExplorerAddressListView, screen_return_value=4),  # ret a specific addr from the list
-            FlowStep(tools_views.ToolsAddressExplorerAddressView, screen_return_value=None),  # QRDisplayScreen runs until dismissed; no ret value
+            FlowStep(tools_views.ToolsAddressExplorerAddressView),  # QRDisplayScreen runs until dismissed; no ret value
             FlowStep(tools_views.ToolsAddressExplorerAddressListView, screen_return_value=StopControllerCommand()),
         ])
 
