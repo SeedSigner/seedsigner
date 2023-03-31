@@ -579,7 +579,7 @@ class ToolsAddressExplorerAddressListView(View):
             addr_storage_key = "change_addrs"
 
         if addr_storage_key in data and len(data[addr_storage_key]) >= self.start_index + addrs_per_screen:
-            # We already calculated this range addresses; just retrieve them
+            # We already calculated this range of addresses; just retrieve them
             addresses = data[addr_storage_key][self.start_index:self.start_index + addrs_per_screen]
 
         else:
@@ -617,20 +617,20 @@ class ToolsAddressExplorerAddressListView(View):
                 # Everything is set. Stop the loading screen
                 self.loading_screen.stop()
 
-            for i, address in enumerate(addresses):
-                cur_index = i + self.start_index
+        for i, address in enumerate(addresses):
+            cur_index = i + self.start_index
 
-                # Adjust the trailing addr display length based on available room
-                # (the index number will push it out on each order of magnitude)
-                if cur_index < 10:
-                    end_digits = -6
-                elif cur_index < 100:
-                    end_digits = -5
-                else:
-                    end_digits = -4
-                button_data.append(f"{cur_index}:{address[:8]}...{address[end_digits:]}")
+            # Adjust the trailing addr display length based on available room
+            # (the index number will push it out on each order of magnitude)
+            if cur_index < 10:
+                end_digits = -6
+            elif cur_index < 100:
+                end_digits = -5
+            else:
+                end_digits = -4
+            button_data.append(f"{cur_index}:{address[:8]}...{address[end_digits:]}")
 
-            button_data.append(("Next {}".format(addrs_per_screen), None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
+        button_data.append(("Next {}".format(addrs_per_screen), None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
