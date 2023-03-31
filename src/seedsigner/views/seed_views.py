@@ -334,30 +334,42 @@ class SeedDiscardView(View):
     Views for actions on individual seeds:
 ****************************************************************************"""
 class SeedOptionsView(View):
+    SCAN_PSBT = ("Scan PSBT", FontAwesomeIconConstants.QRCODE)
+    VERIFY_ADDRESS = "Verify Addr"
+    EXPORT_XPUB = "Export Xpub"
+    EXPLORER = "Address Explorer"
+    BACKUP = ("Backup Seed", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT)
+    BIP85_CHILD_SEED = "BIP-85 Child Seed"
+    DISCARD = ("Discard Seed", None, None, "red")
+
+
     def __init__(self, seed_num: int):
         super().__init__()
         self.seed_num = seed_num
         self.seed = self.controller.get_seed(self.seed_num)
+        self.button_data = []
+
+        if self.controller.unverified_address:
+            addr = self.controller.unverified_address["address"][:7]
+            self.VERIFY_ADDRESS += f" {addr}"
+            self.button_data.append(self.VERIFY_ADDRESS)
+
+        self.button_data.append(self.SCAN_PSBT)
+        
+        if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
+            self.button_data.append(self.EXPORT_XPUB)
+
+        self.button_data.append(self.EXPLORER)
+        self.button_data.append(self.BACKUP)
+
+        if self.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS) == SettingsConstants.OPTION__ENABLED:
+            self.button_data.append(self.BIP85_CHILD_SEED)
+
+        self.button_data.append(self.DISCARD)
 
 
     def run(self):
         from seedsigner.views.psbt_views import PSBTOverviewView
-
-        SCAN_PSBT = ("Scan PSBT", FontAwesomeIconConstants.QRCODE)
-        VERIFY_ADDRESS = "Verify Addr"
-        EXPORT_XPUB = "Export Xpub"
-        EXPLORER = "Address Explorer"
-        BACKUP = ("Backup Seed", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT)
-        BIP85_CHILD_SEED = "BIP-85 Child Seed"
-        DISCARD = ("Discard Seed", None, None, "red")
-
-        button_data = []
-
-        if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
-            # Jump straight back into the address explorer script type selection flow
-            # But do ont cancel the `resume_main_flow` as we'll still need that after
-            # derivation path is specified.
-            return Destination(SeedExportXpubScriptTypeView, view_args=dict(seed_num=self.seed_num, sig_type=SettingsConstants.SINGLE_SIG), skip_current_view=True)
 
         if self.controller.unverified_address:
             if self.controller.resume_main_flow == Controller.FLOW__VERIFY_SINGLESIG_ADDR:
@@ -365,34 +377,23 @@ class SeedOptionsView(View):
                 self.controller.resume_main_flow = None
                 return Destination(SeedAddressVerificationView, view_args=dict(seed_num=self.seed_num), skip_current_view=True)
 
-            addr = self.controller.unverified_address["address"][:7]
-            VERIFY_ADDRESS += f" {addr}"
-            button_data.append(VERIFY_ADDRESS)
-            
+        if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
+            # Jump straight back into the address explorer script type selection flow
+            # But don't cancel the `resume_main_flow` as we'll still need that after
+            # derivation path is specified.
+            return Destination(SeedExportXpubScriptTypeView, view_args=dict(seed_num=self.seed_num, sig_type=SettingsConstants.SINGLE_SIG), skip_current_view=True)
+
         if self.controller.psbt:
-         if PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
-             if self.controller.resume_main_flow and self.controller.resume_main_flow == Controller.FLOW__PSBT:
-                 # Re-route us directly back to the start of the PSBT flow
-                 self.controller.resume_main_flow = None
-                 self.controller.psbt_seed = self.seed
-                 return Destination(PSBTOverviewView, skip_current_view=True)
-
-        button_data.append(SCAN_PSBT)
-        
-        if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
-            button_data.append(EXPORT_XPUB)
-
-        button_data.append(EXPLORER)
-        button_data.append(BACKUP)
-
-        if self.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS) == SettingsConstants.OPTION__ENABLED:
-            button_data.append(BIP85_CHILD_SEED)
-
-        button_data.append(DISCARD)
+            if PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
+                if self.controller.resume_main_flow and self.controller.resume_main_flow == Controller.FLOW__PSBT:
+                    # Re-route us directly back to the start of the PSBT flow
+                    self.controller.resume_main_flow = None
+                    self.controller.psbt_seed = self.seed
+                    return Destination(PSBTOverviewView, skip_current_view=True)
 
         selected_menu_num = self.run_screen(
             seed_screens.SeedOptionsScreen,
-            button_data=button_data,
+            button_data=self.button_data,
             fingerprint=self.seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
             has_passphrase=self.seed.passphrase is not None,
         )
@@ -401,33 +402,37 @@ class SeedOptionsView(View):
             # Force BACK to always return to the Main Menu
             return Destination(MainMenuView)
 
-        if button_data[selected_menu_num] == SCAN_PSBT:
+        if self.button_data[selected_menu_num] == self.SCAN_PSBT:
             from seedsigner.views.scan_views import ScanView
             self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
             return Destination(ScanView)
 
-        elif button_data[selected_menu_num] == VERIFY_ADDRESS:
+        elif self.button_data[selected_menu_num] == self.VERIFY_ADDRESS:
             return Destination(SeedAddressVerificationView, view_args=dict(seed_num=self.seed_num))
 
-        elif button_data[selected_menu_num] == EXPORT_XPUB:
+        elif self.button_data[selected_menu_num] == self.EXPORT_XPUB:
             return Destination(SeedExportXpubSigTypeView, view_args=dict(seed_num=self.seed_num))
 
-        elif button_data[selected_menu_num] == EXPLORER:
+        elif self.button_data[selected_menu_num] == self.EXPLORER:
             self.controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
             return Destination(SeedExportXpubScriptTypeView, view_args=dict(seed_num=self.seed_num, sig_type=SettingsConstants.SINGLE_SIG))
 
-        elif button_data[selected_menu_num] == BACKUP:
+        elif self.button_data[selected_menu_num] == self.BACKUP:
             return Destination(SeedBackupView, view_args=dict(seed_num=self.seed_num))
 
-        elif button_data[selected_menu_num] == BIP85_CHILD_SEED:
+        elif self.button_data[selected_menu_num] == self.BIP85_CHILD_SEED:
             return Destination(SeedBIP85ApplicationModeView, view_args={"seed_num": self.seed_num})
 
-        elif button_data[selected_menu_num] == DISCARD:
+        elif self.button_data[selected_menu_num] == self.DISCARD:
             return Destination(SeedDiscardView, view_args=dict(seed_num=self.seed_num))
 
 
 
 class SeedBackupView(View):
+    VIEW_WORDS = "View Seed Words"
+    EXPORT_SEEDQR = "Export as SeedQR"
+    button_data = [VIEW_WORDS, EXPORT_SEEDQR]
+
     def __init__(self, seed_num):
         super().__init__()
         self.seed_num = seed_num
@@ -435,23 +440,20 @@ class SeedBackupView(View):
     
 
     def run(self):
-        VIEW_WORDS = "View Seed Words"
-        EXPORT_SEEDQR = "Export as SeedQR"
-        button_data = [VIEW_WORDS, EXPORT_SEEDQR]
-
-        selected_menu_num = ButtonListScreen(
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title="Backup Seed",
-            button_data=button_data,
+            button_data=self.button_data,
             is_bottom_list=True,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        elif button_data[selected_menu_num] == VIEW_WORDS:
+        elif self.button_data[selected_menu_num] == self.VIEW_WORDS:
             return Destination(SeedWordsWarningView, view_args={"seed_num": self.seed_num})
 
-        elif button_data[selected_menu_num] == EXPORT_SEEDQR:
+        elif self.button_data[selected_menu_num] == self.EXPORT_SEEDQR:
             return Destination(SeedTranscribeSeedQRFormatView, view_args={"seed_num": self.seed_num})
 
 

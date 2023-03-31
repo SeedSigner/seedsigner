@@ -141,10 +141,7 @@ class MainMenuView(View):
     SEEDS = ("Seeds", FontAwesomeIconConstants.KEY)
     TOOLS = ("Tools", FontAwesomeIconConstants.SCREWDRIVER_WRENCH)
     SETTINGS = ("Settings", FontAwesomeIconConstants.GEAR)
-
-    def __init__(self):
-        super().__init__()
-        self.button_data = [self.SCAN, self.SEEDS, self.TOOLS, self.SETTINGS]
+    button_data = [SCAN, SEEDS, TOOLS, SETTINGS]
 
 
     def run(self):
@@ -179,23 +176,25 @@ class MainMenuView(View):
 
 
 class PowerOptionsView(View):
+    RESET = ("Restart", FontAwesomeIconConstants.ROTATE_RIGHT)
+    POWER_OFF = ("Power Off", FontAwesomeIconConstants.POWER_OFF)
+
     def run(self):
-        RESET = ("Restart", FontAwesomeIconConstants.ROTATE_RIGHT)
-        POWER_OFF = ("Power Off", FontAwesomeIconConstants.POWER_OFF)
-        button_data = [RESET, POWER_OFF]
-        selected_menu_num = LargeButtonScreen(
+        button_data = [PowerOptionsView.RESET, PowerOptionsView.POWER_OFF]
+        selected_menu_num = self.run_screen(
+            LargeButtonScreen,
             title="Reset / Power",
             show_back_button=True,
             button_data=button_data
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
-        elif button_data[selected_menu_num] == RESET:
+        elif button_data[selected_menu_num] == PowerOptionsView.RESET:
             return Destination(RestartView)
         
-        elif button_data[selected_menu_num] == POWER_OFF:
+        elif button_data[selected_menu_num] == PowerOptionsView.POWER_OFF:
             return Destination(PowerOffView)
 
 

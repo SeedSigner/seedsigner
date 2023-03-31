@@ -7,13 +7,14 @@ from typing import Callable, List, Tuple, Type, Union
 # These must precede any SeedSigner imports.
 sys.modules['seedsigner.gui.renderer'] = MagicMock()
 sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
+sys.modules['seedsigner.views.screensaver'] = MagicMock()
 sys.modules['seedsigner.hardware.buttons'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
 sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 
-from seedsigner.controller import Controller
+from seedsigner.controller import Controller, StopControllerCommand
 from seedsigner.models import Settings
-from seedsigner.views.view import Destination, View
+from seedsigner.views.view import Destination, MainMenuView, View
 
 
 
@@ -45,7 +46,8 @@ class BaseTest:
         """ If settings were written to disk, delete """
         import os
         try:
-            os.remove(Settings.SETTINGS_FILENAME)
+            if os.path.exists(Settings.SETTINGS_FILENAME):
+                os.remove(Settings.SETTINGS_FILENAME)
         except:
             print(f"{Settings.SETTINGS_FILENAME} not found to be removed")
 
@@ -75,68 +77,96 @@ class FlowStep:
     """ 
         Trivial helper class to express FlowTest sequences below.
 
-        * expected_view:         verify that the next step in the sequence ended up at the right View.
+        * expected_view:         verify that the current step in the sequence instantiates the right View.
         * run_before:            function that takes a View instance as an arg and modifies it before running the View.
         * screen_return_value:   mocked Screen interaction result: raw return value as if from the Screen.
         * button_data_selection: mocked Screen interaction result: the View.button_data value of the desired option.
     """
-    expected_view: Type[View] = None
+    expected_view: type[View] = None
     run_before: Callable = None
     screen_return_value: Union[int,str] = None
     button_data_selection: Union[str,Tuple] = None
+    is_redirect: bool = False
 
     def __post_init__(self):
         if self.screen_return_value is not None and self.button_data_selection is not None:
-            raise Exception("Should only specify screen_return_value or button_data_selection")
+            raise Exception("Can't specify both `screen_return_value` and `button_data_selection`")
+
+
+
+class FlowDidNotExpectView(AssertionError):
+    """ Raised when the FlowTest sequence does not match the View that was run. """
+    pass
 
 
 
 class FlowTest(BaseTest):
     """ Base class for any tests that do flow-based testing """
 
-    def run_sequence(self, initial_destination: Destination, sequence: List[FlowStep]) -> Destination:
+    def run_sequence(self, sequence: list[FlowStep], initial_destination_view_args: dict = None) -> None:
         """
-            Runs the given sequence of FlowSteps starting from the initial_destination:
-            * verifies that we landed on the expected_view (if provided).
-            * mocks out the `View.run_screen()` to prevent the associated Screen class from instantiating.
-            * patches in the FlowStep's screen_return_value (as if it came from user interaction).
-            * OR retrieves the index number of the specified button_data_selection and provides that as the Screen return value.
-            * optional `run_before` method modifies the View when necessary to be compatible w/test suite limitations.
-            * Runs the View and receives the resulting next Destination.
-            * then repeats the process on the next Destination until the sequence is complete.
-
-            Returns the final Destination.
+        Run a pre-set sequence of Views w/manually-specified return values in order to test
+        the Controller's flow control logic and the routing from View to View.
         """
-        next_destination = initial_destination
-        for flow_step in sequence:
-            try:
-                # Validate that the next Destination's View is what we expected
-                if flow_step.expected_view:
-                    assert next_destination.View_cls == flow_step.expected_view
+        def verify_next_View_cls_and_run_view(destination: Destination, *args, **kwargs):
+            if len(sequence) == 0:
+                # We've reached the end of the sequence, so raise StopControllerCommand
+                # to stop the Controller and exit the test.
+                raise StopControllerCommand()
 
-                # Patch the `View.run_screen()` so we don't actually instantiate the Screen
-                qualname = ".".join([next_destination.View_cls.__module__, next_destination.View_cls.__name__])
-                with patch(qualname + ".run_screen") as mock_run_screen:
-                    next_destination._instantiate_view()
+            # Verify that the View class specified in the test sequence matches the
+            # View class that is being run.
+            if destination.View_cls != sequence[0].expected_view:
+                raise FlowDidNotExpectView(f"Expected {sequence[0].expected_view}, got {destination.View_cls}")
 
-                    # A few Views need to reference their Screen; need to mock it out
-                    # since we're not actually instantiating it.
-                    next_destination.view.screen = MagicMock()
+            # Run the optional pre-run function to modify the View.
+            if sequence[0].run_before:
+                sequence[0].run_before(destination.view)
 
-                    if flow_step.button_data_selection:
-                        mock_run_screen.return_value = next_destination.view.button_data.index(flow_step.button_data_selection)
-                    else:
-                        mock_run_screen.return_value = flow_step.screen_return_value
+            if sequence[0].is_redirect:
+                # The current View is going to auto-redirect without calling run_screen(),
+                # so we need to remove the current step from the sequence before the
+                # View.run() call below.
+                sequence.pop(0)
 
-                    if flow_step.run_before:
-                        flow_step.run_before(next_destination.view)
+            # Some Views reach into their Screen's variables directly (e.g. 
+            # Screen.buttons to preserve the scroll position), so we need to mock out the
+            # Screen instance that is created by the View.
+            destination.view.screen = MagicMock()
 
-                    # Now we can run the View and grab its resulting next Destination
-                    next_destination = next_destination._run_view()
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                print(f"{next_destination} | {flow_step}")
-                raise e
-        
-        return next_destination
+            # Run the View (we're mocking out View._run_view() so the Destination
+            # won't actually run the View unless we explicitly do so here).
+            return destination.view.run()
+
+
+        def next_return_value(view: View, *args, **kwargs):
+            # Return the return value specified in the test sequence and
+            # remove the completed test step from the sequence.
+            flow_step = sequence.pop(0)
+            if flow_step.button_data_selection:
+                return view.button_data.index(flow_step.button_data_selection)
+            elif type(flow_step.screen_return_value) == StopControllerCommand:
+                raise flow_step.screen_return_value
+            return flow_step.screen_return_value
+
+
+        with patch("seedsigner.views.view.Destination._run_view", autospec=True) as mock_run_view:
+            # Mock out the View._run_view() method so we can verify the View class
+            # that is specified in the test sequence and then run the View.
+            mock_run_view.side_effect = verify_next_View_cls_and_run_view
+
+            with patch("seedsigner.views.view.View.run_screen", autospec=True) as mock_run_screen:
+                # Mock out the View.run_screen() method so we can provide the
+                # return value that is specified in the test sequence.
+                mock_run_screen.side_effect = next_return_value
+
+                # Start the Controller with the first View_cls specified in the test sequence
+                if sequence[0].expected_view != MainMenuView:
+                    initial_destination = Destination(sequence[0].expected_view, view_args=initial_destination_view_args)
+                else:
+                    initial_destination = None
+
+                # Start the Controller and run the sequence
+                Controller.get_instance().start(initial_destination=initial_destination)
+
+

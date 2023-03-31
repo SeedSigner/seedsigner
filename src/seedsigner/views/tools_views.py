@@ -27,14 +27,9 @@ class ToolsMenuView(View):
     DICE = ("New seed", FontAwesomeIconConstants.DICE)
     KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     EXPLORER = "Address Explorer"
-
-    def __init__(self):
-        super().__init__()
-        self.button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.EXPLORER]
-
+    button_data = [IMAGE, DICE, KEYBOARD, EXPLORER]
 
     def run(self):
-        
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title="Tools",
@@ -236,28 +231,29 @@ class ToolsDiceEntropyEntryView(View):
     Calc final word Views
 ****************************************************************************"""
 class ToolsCalcFinalWordNumWordsView(View):
-    def run(self):
-        TWELVE = "12 words"
-        TWENTY_FOUR = "24 words"
-        
-        button_data = [TWELVE, TWENTY_FOUR]
-        selected_menu_num = ButtonListScreen(
+    TWELVE = "12 words"
+    TWENTY_FOUR = "24 words"
+    button_data = [TWELVE, TWENTY_FOUR]
+
+    def run(self):        
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title="Mnemonic Length",
             is_bottom_list=True,
             is_button_text_centered=True,
-            button_data=button_data,
-        ).display()
+            button_data=self.button_data,
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        elif button_data[selected_menu_num] == TWELVE:
+        elif self.button_data[selected_menu_num] == self.TWELVE:
             self.controller.storage.init_pending_mnemonic(12)
 
             # return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
             return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
 
-        elif button_data[selected_menu_num] == TWENTY_FOUR:
+        elif self.button_data[selected_menu_num] == self.TWENTY_FOUR:
             self.controller.storage.init_pending_mnemonic(24)
 
             # return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))

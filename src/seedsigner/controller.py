@@ -32,6 +32,15 @@ class BackStack(List[Destination]):
             
 
 
+class StopControllerCommand(Exception):
+    """
+        This is a special exception that is raised by the test suite to stop the
+        Controller's main loop. It is not meant to be raised by any other code.
+    """
+    pass
+
+
+
 class Controller(Singleton):
     """
         The Controller is a globally available singleton that maintains SeedSigner state.
@@ -185,7 +194,13 @@ class Controller(Singleton):
         self.back_stack = BackStack()
 
 
-    def start(self) -> None:
+    def start(self, initial_destination: Destination = None) -> None:
+        """
+            The main loop of the application.
+
+            * initial_destination: The first View to run. If None, the MainMenuView is
+            used. Only used by the test suite.
+        """
         from .views import MainMenuView, BackStackView
         from .views.screensaver import OpeningSplashScreen
 
@@ -218,7 +233,10 @@ class Controller(Singleton):
                 View_cls(**init_args).run()
         """
         try:
-            next_destination = Destination(MainMenuView)
+            if initial_destination:
+                next_destination = initial_destination
+            else:
+                next_destination = Destination(MainMenuView)
             while True:
                 # Destination(None) is a special case; render the Home screen
                 if next_destination.View_cls is None:
@@ -240,10 +258,27 @@ class Controller(Singleton):
                 print(f"back_stack: {self.back_stack}")
 
                 try:
+                    # Instantiate the View class and run it
                     print(f"Executing {next_destination}")
                     next_destination = next_destination.run()
+
+                except StopControllerCommand:
+                    # This is a special exception that is only raised by the test suite
+                    # to stop the Controller loop and exit the test.
+                    print("StopControllerCommand received; ending Controller loop.")
+                    return
+
+                except AssertionError as e:
+                    # Only raised by the test suite via FlowDidNotExpectView
+                    print(f"Test suite caught {e.__class__.__name__}: {e}")
+
+                    # Re-raise so that the test suite can catch it
+                    raise e
+
                 except Exception as e:
                     # Display user-friendly error screen w/debugging info
+                    import traceback
+                    traceback.print_exc()
                     next_destination = self.handle_exception(e)
 
                 if not next_destination:

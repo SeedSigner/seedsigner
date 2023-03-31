@@ -1,13 +1,14 @@
-from mock import MagicMock
-from typing import Type
+import os
 
 # Must import this before any seedsigner imports
 from base import FlowTest, FlowStep
 
+from seedsigner.controller import StopControllerCommand
 from seedsigner.models import SettingsDefinition
+from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
-from seedsigner.views.view import Destination, MainMenuView, View
+from seedsigner.views.view import MainMenuView
 from seedsigner.views import settings_views
 
 
@@ -19,27 +20,19 @@ class TestSettingsFlows(FlowTest):
         # Which option are we testing?
         settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
 
-        destination = self.run_sequence(
-            Destination(MainMenuView),
-            sequence=[
-                FlowStep(
-                    button_data_selection=MainMenuView.SETTINGS
-                ),
-                FlowStep(
-                    expected_view=settings_views.SettingsMenuView,
-                    button_data_selection=settings_entry.display_name
-                ),
-                FlowStep(
-                    expected_view=settings_views.SettingsEntryUpdateSelectionView,
-                    button_data_selection=settings_entry.get_selection_option_display_name_by_value(SettingsConstants.OPTION__ENABLED),
-                ),
-                FlowStep(
-                    expected_view=settings_views.SettingsEntryUpdateSelectionView,
-                    screen_return_value=RET_CODE__BACK_BUTTON
-                )
-            ]
-        )
-        assert destination.View_cls == settings_views.SettingsMenuView
+        # No settings file should exist before we enable persistent settings
+        assert os.path.exists(Settings.SETTINGS_FILENAME) == False
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SETTINGS),
+            FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_entry.display_name),
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, button_data_selection=settings_entry.get_selection_option_display_name_by_value(SettingsConstants.OPTION__ENABLED)),
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(settings_views.SettingsMenuView, screen_return_value=StopControllerCommand()),
+        ])
+
+        # Settings file should now exist
+        assert os.path.exists(Settings.SETTINGS_FILENAME) == True
 
 
     def test_multiselect(self):
@@ -47,76 +40,32 @@ class TestSettingsFlows(FlowTest):
         # Which option are we testing?
         settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__COORDINATORS)
 
-        destination = self.run_sequence(
-            Destination(MainMenuView),
-            sequence=[
-                FlowStep(
-                    button_data_selection=MainMenuView.SETTINGS
-                ),
-                FlowStep(
-                    expected_view=settings_views.SettingsMenuView,
-                    button_data_selection=settings_entry.display_name
-                ),
-                FlowStep(
-                    expected_view=settings_views.SettingsEntryUpdateSelectionView,
-                    screen_return_value=0,          # select/deselect first option
-                ),
-                FlowStep(
-                    expected_view=settings_views.SettingsEntryUpdateSelectionView,
-                    screen_return_value=1,          # select/deselect second option
-                ),
-                FlowStep(
-                    expected_view=settings_views.SettingsEntryUpdateSelectionView,
-                    screen_return_value=1,          # select/deselect second option
-                ),
-                FlowStep(
-                    expected_view=settings_views.SettingsEntryUpdateSelectionView,
-                    screen_return_value=RET_CODE__BACK_BUTTON,  # BACK to exit
-                ),
-            ]
-        )
-        assert destination.View_cls == settings_views.SettingsMenuView
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SETTINGS),
+            FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_entry.display_name),
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=0),  # select/deselect first option
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=1),  # select/deselect second option
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=1),  # select/deselect second option
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=RET_CODE__BACK_BUTTON),  # BACK to exit
+            FlowStep(settings_views.SettingsMenuView, screen_return_value=StopControllerCommand()),
+        ])
 
 
     def test_io_test(self):
         """ Basic flow from MainMenuView to I/O Test View """
-        destination = self.run_sequence(
-            Destination(MainMenuView),
-            sequence=[
-                FlowStep(
-                    button_data_selection=MainMenuView.SETTINGS,
-                ),
-                FlowStep(
-                    expected_view=settings_views.SettingsMenuView,
-                    button_data_selection=settings_views.SettingsMenuView.IO_TEST
-                ),
-                FlowStep(
-                    expected_view=settings_views.IOTestView,
-                    # ret value is ignored
-                ),
-            ]
-        )
-        # Exiting IOTestView should return us to the main SettingsMenuView
-        assert destination.View_cls == settings_views.SettingsMenuView
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SETTINGS),
+            FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_views.SettingsMenuView.IO_TEST),
+            FlowStep(settings_views.IOTestView, screen_return_value=None),
+            FlowStep(settings_views.SettingsMenuView, screen_return_value=StopControllerCommand()),
+        ])
 
 
     def test_donate(self):
         """ Basic flow from MainMenuView to Donate View """        
-        destination = self.run_sequence(
-            Destination(MainMenuView),
-            sequence=[
-                FlowStep(
-                    button_data_selection=MainMenuView.SETTINGS,
-                ),
-                FlowStep(
-                    expected_view=settings_views.SettingsMenuView,
-                    button_data_selection=settings_views.SettingsMenuView.DONATE
-                ),
-                FlowStep(
-                    expected_view=settings_views.DonateView,
-                    # ret value is ignored
-                ),
-            ]
-        )
-        # Exiting IOTestView should return us to the main SettingsMenuView
-        assert destination.View_cls == settings_views.SettingsMenuView
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SETTINGS),
+            FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_views.SettingsMenuView.DONATE),
+            FlowStep(settings_views.DonateView, screen_return_value=None),
+            FlowStep(settings_views.SettingsMenuView, screen_return_value=StopControllerCommand()),
+        ])
