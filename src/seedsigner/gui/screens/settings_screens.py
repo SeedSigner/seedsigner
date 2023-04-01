@@ -296,3 +296,26 @@ class DonateScreen(BaseTopNavScreen):
             supersampling_factor=1,
             screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
         ))
+
+
+
+@dataclass
+class FirmwareScreen(BaseTopNavScreen):
+    def __post_init__(self):
+        self.title = "Firmware"
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text='''Version 0.6.0
+            Feb 20,2023 
+            Hash:669ae35 \n\nThe "Two More Weeks™" Release''',
+            screen_y=self.top_nav.height + 3*GUIConstants.COMPONENT_PADDING,
+        ))
+
+        self.components.append(TextArea(
+            text="Don't Trust, Verify",
+            font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 6,
+            font_color=GUIConstants.ACCENT_COLOR,
+            supersampling_factor=1,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        ))

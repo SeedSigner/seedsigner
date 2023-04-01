@@ -21,6 +21,7 @@ class SettingsMenuView(View):
     def run(self):
         IO_TEST = "I/O test"
         DONATE = "Donate"
+        FIRMWARE = "Firmware"
 
         settings_entries = SettingsDefinition.get_settings_entries(
             visibility=self.visibility
@@ -43,6 +44,7 @@ class SettingsMenuView(View):
 
             button_data.append(IO_TEST)
             button_data.append(DONATE)
+            button_data.append(FIRMWARE)
 
         elif self.visibility == SettingsConstants.VISIBILITY__ADVANCED:
             title = "Advanced"
@@ -84,6 +86,9 @@ class SettingsMenuView(View):
 
         elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == DONATE:
             return Destination(DonateView)
+        
+        elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == FIRMWARE:
+            return Destination(FirmwareView)
 
         else:
             return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=settings_entries[selected_menu_num].attr_name, parent_initial_scroll=initial_scroll))
@@ -196,5 +201,13 @@ class IOTestView(View):
 class DonateView(View):
     def run(self):
         settings_screens.DonateScreen().display()
+
+        return Destination(SettingsMenuView)
+
+
+
+class FirmwareView(View):
+    def run(self):
+        settings_screens.FirmwareScreen().display()
 
         return Destination(SettingsMenuView)
