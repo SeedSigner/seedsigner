@@ -308,7 +308,7 @@ class FirmwareScreen(BaseTopNavScreen):
         self.components.append(TextArea(
             text='''Version 0.6.0
             Feb 20,2023 
-            Hash: 669ae35 \n\nThe "Two More Weeks™" Release''',
+            \nThe "Two More Weeks™" Release''',
             screen_y=self.top_nav.height + 3*GUIConstants.COMPONENT_PADDING,
         ))
 
