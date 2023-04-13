@@ -1,13 +1,10 @@
-
-# Must import this before the Controller
-from typing import Type
-
+# Must import test base before the Controller
 from base import FlowTest, FlowStep
 
 from seedsigner.controller import Controller, StopControllerCommand
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
-from seedsigner.views.view import Destination, MainMenuView
+from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, tools_views
 
 

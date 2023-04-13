@@ -1,7 +1,6 @@
-import pytest
 from mock import patch
 
-# Must import this before any seedsigner imports
+# Must import test base before the Controller
 from base import FlowTest, FlowStep
 
 from seedsigner.controller import StopControllerCommand
@@ -51,13 +50,13 @@ class TestViewFlows(FlowTest):
         """
         Run an incomplete View that returns None and ensure that we get the NotYetImplementedView
         """
-        class IncompleteTestView(View):
+        class IncompleteView(View):
             def run(self):
                 self.run_screen(None)
                 return None
 
         self.run_sequence([
-            FlowStep(IncompleteTestView),
+            FlowStep(IncompleteView),
             FlowStep(NotYetImplementedView),
             FlowStep(MainMenuView, screen_return_value=StopControllerCommand()),
         ])

@@ -1,14 +1,13 @@
 import pytest
-from mock import patch
 
-# Must import this before any seedsigner imports
+# Must import test base before the Controller
 from base import FlowTest, FlowStep, FlowDidNotExpectView
-from seedsigner.controller import Controller, StopControllerCommand
 
+from seedsigner.controller import Controller, StopControllerCommand
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
 from seedsigner.models.seed import Seed
 from seedsigner.views.seed_views import SeedBackupView, SeedMnemonicEntryView, SeedOptionsView
-from seedsigner.views.view import MainMenuView, PowerOptionsView
+from seedsigner.views.view import MainMenuView, PowerOptionsView, UnhandledExceptionView
 from seedsigner.views.tools_views import ToolsMenuView, ToolsCalcFinalWordNumWordsView
 
 
@@ -17,7 +16,8 @@ class TestFlowTest(FlowTest):
 
     def test_simple_flow(self):
         """
-        Basic test to ensure the FlowTest can flow through a sequence of Views.
+        Basic test to ensure the FlowTest can flow through a sequence of Views and
+        terminate via the StopControllerCommand.
         """
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
@@ -37,6 +37,22 @@ class TestFlowTest(FlowTest):
                 FlowStep(MainMenuView, button_data_selection=RET_CODE__POWER_BUTTON),
                 FlowStep(ToolsMenuView),  # <-- Wrong target View! Should raise an AssertionError.
             ])
+    
+
+    def test_run_before_executes(self):
+        """
+        Ensure that the FlowTest can execute a function before running a View.
+        """
+        def break_button_data(view):
+            # Intentionally break the FlowTest's integration with the View's expected button_data
+            view.button_data = []
+
+        self.run_sequence([
+            # Offering a button_data_selection that doesn't exist in the View's button_data
+            # will cause the FlowTest to raise an Exception.
+            FlowStep(MainMenuView, run_before=break_button_data, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(UnhandledExceptionView),
+        ])
 
 
     def test_back_button_flow(self):
@@ -75,5 +91,16 @@ class TestFlowTest(FlowTest):
                 FlowStep(SeedBackupView, screen_return_value=StopControllerCommand()),
             ]
         )
+    
 
+    def test_raise_exception_via_screen_return_value(self):
+        """
+        Ensure that the FlowTest can raise an exception via the screen_return_value.
+        """
+        # A generic Exception should be caught by the Controller and routed to the
+        # UnhandledExceptionView.
+        self.run_sequence([
+            FlowStep(MainMenuView, screen_return_value=Exception("Test exception")),
+            FlowStep(UnhandledExceptionView),
+        ])
 

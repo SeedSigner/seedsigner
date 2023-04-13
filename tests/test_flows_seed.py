@@ -1,9 +1,8 @@
-
-# Must import this before the Controller
+# Must import test base before the Controller
 from base import BaseTest, FlowTest, FlowStep
-from seedsigner.controller import StopControllerCommand
 
-from seedsigner.views.view import Destination, MainMenuView
+from seedsigner.controller import StopControllerCommand
+from seedsigner.views.view import MainMenuView
 from seedsigner.views import seed_views, scan_views
 
 

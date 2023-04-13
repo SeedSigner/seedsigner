@@ -1,7 +1,7 @@
 import sys
 from dataclasses import dataclass
 from mock import MagicMock, patch
-from typing import Callable, List, Tuple, Type, Union
+from typing import Callable
 
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
@@ -83,9 +83,9 @@ class FlowStep:
         * button_data_selection: mocked Screen interaction result: the View.button_data value of the desired option.
     """
     expected_view: type[View] = None
-    run_before: Callable = None
-    screen_return_value: Union[int,str] = None
-    button_data_selection: Union[str,Tuple] = None
+    run_before: Callable[[View], None] = None
+    screen_return_value: int | str = None
+    button_data_selection: str | tuple = None
     is_redirect: bool = False
 
     def __post_init__(self):

@@ -1,6 +1,6 @@
 import os
 
-# Must import this before any seedsigner imports
+# Must import test base before the Controller
 from base import FlowTest, FlowStep
 
 from seedsigner.controller import StopControllerCommand

@@ -1,10 +1,9 @@
 import json
 import re
-from typing import Type
 
 from embit.descriptor import Descriptor
 
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.gui.screens import scan_screens
 from seedsigner.models import DecodeQR, Seed
 from seedsigner.models.settings import SettingsConstants
