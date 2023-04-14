@@ -32,11 +32,15 @@ class BackStack(List[Destination]):
             
 
 
-class StopControllerCommand(Exception):
+class StopFlowBasedTest(Exception):
     """
         This is a special exception that is raised by the test suite to stop the
         Controller's main loop. It is not meant to be raised by any other code.
     """
+    pass
+
+
+class FlowBasedTestUnexpectedViewError(Exception):
     pass
 
 
@@ -262,17 +266,15 @@ class Controller(Singleton):
                     print(f"Executing {next_destination}")
                     next_destination = next_destination.run()
 
-                except StopControllerCommand:
+                except StopFlowBasedTest:
                     # This is a special exception that is only raised by the test suite
                     # to stop the Controller loop and exit the test.
-                    print("StopControllerCommand received; ending Controller loop.")
                     return
 
-                except AssertionError as e:
-                    # Only raised by the test suite via FlowDidNotExpectView
-                    print(f"Test suite caught {e.__class__.__name__}: {e}")
-
-                    # Re-raise so that the test suite can catch it
+                except FlowBasedTestUnexpectedViewError as e:
+                    # This is a special exception that is only raised by the test suite
+                    # when a flow-based test fails to follow the expected sequence.
+                    # Re-raise so the test suite can handle it.
                     raise e
 
                 except Exception as e:

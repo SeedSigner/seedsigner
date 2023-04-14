@@ -1,7 +1,7 @@
 # Must import test base before the Controller
 from base import FlowTest, FlowStep
 
-from seedsigner.controller import Controller, StopControllerCommand
+from seedsigner.controller import Controller
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.views.view import MainMenuView
@@ -28,8 +28,8 @@ class TestToolsFlows(FlowTest):
             FlowStep(tools_views.ToolsAddressExplorerAddressTypeView, button_data_selection=tools_views.ToolsAddressExplorerAddressTypeView.RECEIVE),
             FlowStep(tools_views.ToolsAddressExplorerAddressListView, screen_return_value=10),  # ret NEXT page of addrs
             FlowStep(tools_views.ToolsAddressExplorerAddressListView, screen_return_value=4),  # ret a specific addr from the list
-            FlowStep(tools_views.ToolsAddressExplorerAddressView),  # QRDisplayScreen runs until dismissed; no ret value
-            FlowStep(tools_views.ToolsAddressExplorerAddressListView, screen_return_value=StopControllerCommand()),
+            FlowStep(tools_views.ToolsAddressExplorerAddressView),  # runs until dismissed; no ret value
+            FlowStep(tools_views.ToolsAddressExplorerAddressListView),
         ])
 
 
@@ -48,10 +48,10 @@ class TestToolsFlows(FlowTest):
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
             FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.EXPLORER),
             FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_SEED),
-            FlowStep(scan_views.ScanView, run_before=load_seed_into_decoder),  # simulate read SeedQR
+            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),  # simulate read SeedQR
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
             FlowStep(seed_views.SeedOptionsView, is_redirect=True),
-            FlowStep(seed_views.SeedExportXpubScriptTypeView, screen_return_value=StopControllerCommand()),
+            FlowStep(seed_views.SeedExportXpubScriptTypeView),
         ])
 
         assert controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER
@@ -67,6 +67,6 @@ class TestToolsFlows(FlowTest):
                 FlowStep(seed_views.SeedAddPassphraseView, screen_return_value="mypassphrase"),
                 FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
                 FlowStep(seed_views.SeedOptionsView, is_redirect=True),
-                FlowStep(seed_views.SeedExportXpubScriptTypeView, screen_return_value=StopControllerCommand()),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView),
             ]
         )

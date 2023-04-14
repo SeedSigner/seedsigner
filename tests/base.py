@@ -12,7 +12,7 @@ sys.modules['seedsigner.hardware.buttons'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
 sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 
-from seedsigner.controller import Controller, StopControllerCommand
+from seedsigner.controller import Controller, FlowBasedTestUnexpectedViewError, StopFlowBasedTest
 from seedsigner.models import Settings
 from seedsigner.views.view import Destination, MainMenuView, View
 
@@ -78,12 +78,12 @@ class FlowStep:
         Trivial helper class to express FlowTest sequences below.
 
         * expected_view:         verify that the current step in the sequence instantiates the right View.
-        * run_before:            function that takes a View instance as an arg and modifies it before running the View.
+        * before_run:            function that takes a View instance as an arg and modifies it before running the View.
         * screen_return_value:   mocked Screen interaction result: raw return value as if from the Screen.
         * button_data_selection: mocked Screen interaction result: the View.button_data value of the desired option.
     """
     expected_view: type[View] = None
-    run_before: Callable[[View], None] = None
+    before_run: Callable[[View], None] = None
     screen_return_value: int | str = None
     button_data_selection: str | tuple = None
     is_redirect: bool = False
@@ -91,12 +91,6 @@ class FlowStep:
     def __post_init__(self):
         if self.screen_return_value is not None and self.button_data_selection is not None:
             raise Exception("Can't specify both `screen_return_value` and `button_data_selection`")
-
-
-
-class FlowDidNotExpectView(AssertionError):
-    """ Raised when the FlowTest sequence does not match the View that was run. """
-    pass
 
 
 
@@ -109,19 +103,20 @@ class FlowTest(BaseTest):
         the Controller's flow control logic and the routing from View to View.
         """
         def verify_next_View_cls_and_run_view(destination: Destination, *args, **kwargs):
-            if len(sequence) == 0:
-                # We've reached the end of the sequence, so raise StopControllerCommand
-                # to stop the Controller and exit the test.
-                raise StopControllerCommand()
-
             # Verify that the View class specified in the test sequence matches the
             # View class that is being run.
             if destination.View_cls != sequence[0].expected_view:
-                raise FlowDidNotExpectView(f"Expected {sequence[0].expected_view}, got {destination.View_cls}")
+                raise FlowBasedTestUnexpectedViewError(f"Expected {sequence[0].expected_view}, got {destination.View_cls}")
+            print(f"Confirmed {sequence[0].expected_view} is the next View")
+
+            if len(sequence) == 1:
+                # The last entry in the sequence just needs to confirm that we got the
+                # right View class; we can now stop the Controller and exit the test. 
+                raise StopFlowBasedTest()
 
             # Run the optional pre-run function to modify the View.
-            if sequence[0].run_before:
-                sequence[0].run_before(destination.view)
+            if sequence[0].before_run:
+                sequence[0].before_run(destination.view)
 
             if sequence[0].is_redirect:
                 # The current View is going to auto-redirect without calling run_screen(),
@@ -145,8 +140,10 @@ class FlowTest(BaseTest):
             flow_step = sequence.pop(0)
             if flow_step.button_data_selection:
                 return view.button_data.index(flow_step.button_data_selection)
-            elif type(flow_step.screen_return_value) in [StopControllerCommand, Exception]:
+
+            elif type(flow_step.screen_return_value) in [StopFlowBasedTest, Exception]:
                 raise flow_step.screen_return_value
+
             return flow_step.screen_return_value
 
 

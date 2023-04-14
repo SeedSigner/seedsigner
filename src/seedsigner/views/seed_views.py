@@ -462,6 +462,10 @@ class SeedBackupView(View):
     Export Xpub flow
 ****************************************************************************"""
 class SeedExportXpubSigTypeView(View):
+    SINGLE_SIG = "Single Sig"
+    MULTISIG = "Multisig"
+    button_data=[SINGLE_SIG, MULTISIG]
+
     def __init__(self, seed_num: int):
         super().__init__()
         self.seed_num = seed_num
@@ -472,22 +476,19 @@ class SeedExportXpubSigTypeView(View):
             # Nothing to select; skip this screen
             return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": self.settings.get_value(SettingsConstants.SETTING__SIG_TYPES)[0]}, skip_current_view=True)
 
-        SINGLE_SIG = "Single Sig"
-        MULTISIG = "Multisig"
-        button_data=[SINGLE_SIG, MULTISIG]
-
-        selected_menu_num = ButtonListScreen(
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title="Export Xpub",
-            button_data=button_data
-        ).display()
+            button_data=self.button_data
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        if button_data[selected_menu_num] == SINGLE_SIG:
+        if self.button_data[selected_menu_num] == self.SINGLE_SIG:
             return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": SettingsConstants.SINGLE_SIG})
 
-        elif button_data[selected_menu_num] == MULTISIG:
+        elif self.button_data[selected_menu_num] == self.MULTISIG:
             return Destination(SeedExportXpubScriptTypeView, view_args={"seed_num": self.seed_num, "sig_type": SettingsConstants.MULTISIG})
 
 

@@ -1,7 +1,7 @@
 # Must import test base before the Controller
 from base import BaseTest, FlowTest, FlowStep
 
-from seedsigner.controller import StopControllerCommand
+from seedsigner.models.seed import Seed
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import seed_views, scan_views
 
@@ -19,9 +19,9 @@ class TestSeedFlows(FlowTest):
 
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
-            FlowStep(scan_views.ScanView, run_before=load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
+            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
-            FlowStep(seed_views.SeedOptionsView, screen_return_value=StopControllerCommand()),
+            FlowStep(seed_views.SeedOptionsView),
         ])
 
 
@@ -46,7 +46,7 @@ class TestSeedFlows(FlowTest):
             # With the mnemonic completely entered, we land on the SeedFinalizeView
             sequence += [
                 FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
-                FlowStep(seed_views.SeedOptionsView, screen_return_value=StopControllerCommand()),
+                FlowStep(seed_views.SeedOptionsView),
             ]
 
             self.run_sequence(sequence)
@@ -83,7 +83,47 @@ class TestSeedFlows(FlowTest):
         sequence += [
             FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value="zebra"),  # provide yet another invalid checksum word
             FlowStep(seed_views.SeedMnemonicInvalidView, button_data_selection=seed_views.SeedMnemonicInvalidView.DISCARD),
-            FlowStep(MainMenuView, screen_return_value=StopControllerCommand()),
+            FlowStep(MainMenuView),
         ]
 
         self.run_sequence(sequence)
+
+
+    def test_export_xpub_flow(self):
+        """
+            Selecting "Export XPUB" from the SeedOptionsView should enter the Export XPUB flow and end at the SeedOptionsView.
+        """
+        # Load a finalized Seed into the Controller
+        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        self.controller.storage.finalize_pending_seed()
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed_num=0),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.SINGLE_SIG),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView),
+            ]
+        )
+
+
+    def test_export_xpub_skip_sig_type_flow(self):
+        """
+
+        """
+        # Load a finalized Seed into the Controller
+        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        self.controller.storage.finalize_pending_seed()
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed_num=0),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.SINGLE_SIG),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView),
+            ]
+        )
+
+        # TODO: Test is incomplete...
