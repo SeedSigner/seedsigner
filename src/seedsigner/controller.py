@@ -34,13 +34,18 @@ class BackStack(List[Destination]):
 
 class StopFlowBasedTest(Exception):
     """
-        This is a special exception that is raised by the test suite to stop the
-        Controller's main loop. It is not meant to be raised by any other code.
+        This is a special exception that is only raised by the test suite to stop the
+        Controller's main loop. It should not be raised by any other code.
     """
     pass
 
 
 class FlowBasedTestUnexpectedViewError(Exception):
+    """
+        This is a special exception that is only raised by the test suite to indicate
+        that the Controller's current View does not match the expected TestFlow sequence.
+        It should not be raised by any other code.
+    """
     pass
 
 
