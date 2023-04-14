@@ -104,6 +104,7 @@ class TestSeedFlows(FlowTest):
                 FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
                 FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.SINGLE_SIG),
                 FlowStep(seed_views.SeedExportXpubScriptTypeView),
+                # TODO: Test is incomplete...
             ]
         )
 
@@ -123,7 +124,6 @@ class TestSeedFlows(FlowTest):
                 FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
                 FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.SINGLE_SIG),
                 FlowStep(seed_views.SeedExportXpubScriptTypeView),
+                # TODO: Test is incomplete...
             ]
         )
-
-        # TODO: Test is incomplete...
