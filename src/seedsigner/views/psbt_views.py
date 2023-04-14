@@ -474,6 +474,9 @@ class PSBTAddressVerificationFailedView(View):
 class PSBTFinalizeView(View):
     """
     """
+    APPROVE_PSBT = "Approve PSBT"
+    button_data = [APPROVE_PSBT]
+    
     def run(self):
         psbt_parser: PSBTParser = self.controller.psbt_parser
         psbt: PSBT = self.controller.psbt
@@ -481,13 +484,13 @@ class PSBTFinalizeView(View):
         if not psbt_parser:
             # Should not be able to get here
             return Destination(MainMenuView)
-
+            
         selected_menu_num = self.run_screen(
             PSBTFinalizeScreen,
-            button_data=["Approve PSBT"]
+            button_data=self.button_data
         )
 
-        if selected_menu_num == 0:
+        if self.button_data[selected_menu_num] == self.APPROVE_PSBT:
             # Sign PSBT
             sig_cnt = PSBTParser.sig_count(psbt)
             psbt.sign_with(psbt_parser.root)

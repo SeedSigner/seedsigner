@@ -50,7 +50,7 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
 			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
 			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
-			FlowStep(psbt_views.PSBTFinalizeView, screen_return_value=StopControllerCommand()),
+			FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
 			FlowStep(psbt_views.PSBTSignedQRDisplayView),
 			FlowStep(MainMenuView, screen_return_value=StopControllerCommand())
 		])
