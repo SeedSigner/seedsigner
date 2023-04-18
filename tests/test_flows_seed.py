@@ -127,3 +127,25 @@ class TestSeedFlows(FlowTest):
                 # TODO: Test is incomplete...
             ]
         )
+
+
+    def test_discard_seed_flow(self):
+        """
+            Selecting "Discard Seed" from the SeedOptionsView should enter the Discard Seed flow and 
+            remove the in-memory seed from the Controller.
+        """
+        # Load a finalized Seed into the Controller
+        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        self.controller.storage.finalize_pending_seed()
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed_num=0),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.DISCARD),
+                FlowStep(seed_views.SeedDiscardView, button_data_selection=seed_views.SeedDiscardView.DISCARD),
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+                FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
+                FlowStep(seed_views.LoadSeedView),
+            ]
+        )

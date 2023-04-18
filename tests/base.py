@@ -138,8 +138,15 @@ class FlowTest(BaseTest):
             # Return the return value specified in the test sequence and
             # remove the completed test step from the sequence.
             flow_step = sequence.pop(0)
+
             if flow_step.button_data_selection:
-                return view.button_data.index(flow_step.button_data_selection)
+                # We're mocking out the View.run_screen() method, so we'll get all of the
+                # input args that are normally passed into the Screen.run() method,
+                # including the button_data kwarg.
+                if "button_data" in kwargs:
+                    return kwargs.get("button_data").index(flow_step.button_data_selection)
+                else:
+                    raise Exception(f"Can't specify `FlowStep.button_data_selection` if `button_data` isn't a kwarg in {view.__class__.__name__}'s run_screen()")
 
             elif type(flow_step.screen_return_value) in [StopFlowBasedTest, Exception]:
                 raise flow_step.screen_return_value

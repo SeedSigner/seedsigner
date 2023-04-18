@@ -31,6 +31,8 @@ from .view import NotYetImplementedView, View, Destination, BackStackView, MainM
 
 
 class SeedsMenuView(View):
+    LOAD = "Load a seed"
+
     def __init__(self):
         super().__init__()
         self.seeds = []
@@ -50,11 +52,12 @@ class SeedsMenuView(View):
             button_data.append((seed["fingerprint"], SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
         button_data.append("Load a seed")
 
-        selected_menu_num = ButtonListScreen(
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title="In-Memory Seeds",
             is_button_text_centered=False,
             button_data=button_data
-        ).display()
+        )
 
         if len(self.seeds) > 0 and selected_menu_num < len(self.seeds):
             return Destination(SeedOptionsView, view_args={"seed_num": selected_menu_num})
@@ -291,6 +294,9 @@ class SeedReviewPassphraseView(View):
             
             
 class SeedDiscardView(View):
+    KEEP = "Keep Seed"
+    DISCARD = ("Discard", None, None, "red")
+
     def __init__(self, seed_num: int = None):
         super().__init__()
         self.seed_num = seed_num
@@ -301,27 +307,26 @@ class SeedDiscardView(View):
 
 
     def run(self):
-        KEEP = "Keep Seed"
-        DISCARD = ("Discard", None, None, "red")
-        button_data = [KEEP, DISCARD]
+        button_data = [self.KEEP, self.DISCARD]
 
         fingerprint = self.seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-        selected_menu_num = WarningScreen(
+        selected_menu_num = self.run_screen(
+            WarningScreen,
             title="Discard Seed?",
             status_headline=None,
             text=f"Wipe seed {fingerprint} from the device?",
             show_back_button=False,
             button_data=button_data,
-        ).display()
+        )
 
-        if button_data[selected_menu_num] == KEEP:
+        if button_data[selected_menu_num] == self.KEEP:
             # Use skip_current_view=True to prevent BACK from landing on this warning screen
             if self.seed_num is not None:
                 return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, skip_current_view=True)
             else:
                 return Destination(SeedFinalizeView, skip_current_view=True)
 
-        elif button_data[selected_menu_num] == DISCARD:
+        elif button_data[selected_menu_num] == self.DISCARD:
             if self.seed_num is not None:
                 self.controller.discard_seed(self.seed_num)
             else:
