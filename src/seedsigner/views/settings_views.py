@@ -19,14 +19,16 @@ class SettingsMenuView(View):
         # Used to preserve the rendering position in the list
         self.initial_scroll = initial_scroll
 
-        self.settings_entries = SettingsDefinition.get_settings_entries(
+
+    def run(self):
+        settings_entries = SettingsDefinition.get_settings_entries(
             visibility=self.visibility
         )
-        self.button_data=[e.display_name for e in self.settings_entries]
+        button_data=[e.display_name for e in settings_entries]
 
         self.selected_button = 0
         if self.selected_attr:
-            for i, entry in enumerate(self.settings_entries):
+            for i, entry in enumerate(settings_entries):
                 if entry.attr_name == self.selected_attr:
                     self.selected_button = i
                     break
@@ -35,11 +37,11 @@ class SettingsMenuView(View):
             self.title = "Settings"
 
             # Set up the next nested level of menuing
-            self.button_data.append(("Advanced", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
+            button_data.append(("Advanced", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
             self.next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
 
-            self.button_data.append(self.IO_TEST)
-            self.button_data.append(self.DONATE)
+            button_data.append(self.IO_TEST)
+            button_data.append(self.DONATE)
 
         elif self.visibility == SettingsConstants.VISIBILITY__ADVANCED:
             self.title = "Advanced"
@@ -53,13 +55,11 @@ class SettingsMenuView(View):
             self.title = "Dev Options"
             self.next_destination = None
 
-
-    def run(self):
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title=self.title,
             is_button_text_centered=False,
-            button_data=self.button_data,
+            button_data=button_data,
             selected_button=self.selected_button,
             scroll_y_initial_offset=self.initial_scroll,
         )
@@ -75,17 +75,17 @@ class SettingsMenuView(View):
             else:
                 return Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
         
-        elif selected_menu_num == len(self.settings_entries):
+        elif selected_menu_num == len(settings_entries):
             return self.next_destination
 
-        elif len(self.button_data) > selected_menu_num and self.button_data[selected_menu_num] == self.IO_TEST:
+        elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == self.IO_TEST:
             return Destination(IOTestView)
 
-        elif len(self.button_data) > selected_menu_num and self.button_data[selected_menu_num] == self.DONATE:
+        elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == self.DONATE:
             return Destination(DonateView)
 
         else:
-            return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=self.settings_entries[selected_menu_num].attr_name, parent_initial_scroll=initial_scroll))
+            return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=settings_entries[selected_menu_num].attr_name, parent_initial_scroll=initial_scroll))
 
 
 

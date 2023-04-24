@@ -15,6 +15,9 @@ from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Dest
 class ScanView(View):
     def __init__(self):
         super().__init__()
+
+        # Set up the QR decoder here so we can inject data into it in the test suite's
+        # `before_run`.
         self.wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
         self.decoder = DecodeQR(wordlist_language_code=self.wordlist_language_code)
 
