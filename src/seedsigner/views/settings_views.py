@@ -102,9 +102,9 @@ class SettingsEntryUpdateSelectionView(View):
 
 
     def run(self):
+        initial_value = self.settings.get_value(self.settings_entry.attr_name)
         button_data = []
         checked_buttons = []
-        initial_value = self.settings.get_value(self.settings_entry.attr_name)
         for i, value in enumerate(self.settings_entry.selection_options):
             if type(value) == tuple:
                 value, display_name = value
