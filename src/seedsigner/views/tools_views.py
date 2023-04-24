@@ -433,10 +433,11 @@ class ToolsAddressExplorerSelectSourceView(View):
 
     def run(self):
         seeds = self.controller.storage.seeds
-        button_data = [self.SCAN_SEED, self.SCAN_DESCRIPTOR, self.TYPE_12WORD, self.TYPE_24WORD]
+        button_data = []
         for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            button_data.insert(0, (button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+            button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+        button_data = button_data + [self.SCAN_SEED, self.SCAN_DESCRIPTOR, self.TYPE_12WORD, self.TYPE_24WORD]
         
         selected_menu_num = self.run_screen(
             ButtonListScreen,
