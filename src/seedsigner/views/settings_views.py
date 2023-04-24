@@ -26,11 +26,11 @@ class SettingsMenuView(View):
         )
         button_data=[e.display_name for e in settings_entries]
 
-        self.selected_button = 0
+        selected_button = 0
         if self.selected_attr:
             for i, entry in enumerate(settings_entries):
                 if entry.attr_name == self.selected_attr:
-                    self.selected_button = i
+                    selected_button = i
                     break
 
         if self.visibility == SettingsConstants.VISIBILITY__GENERAL:
@@ -60,7 +60,7 @@ class SettingsMenuView(View):
             title=self.title,
             is_button_text_centered=False,
             button_data=button_data,
-            selected_button=self.selected_button,
+            selected_button=selected_button,
             scroll_y_initial_offset=self.initial_scroll,
         )
 
