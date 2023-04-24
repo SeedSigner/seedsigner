@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, List, Type, Union
+from typing import Type
 
 from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON, RET_CODE__BACK_BUTTON
@@ -59,7 +59,7 @@ class View:
         self.screen = None
     
 
-    def run_screen(self, Screen_cls: Type[BaseScreen], **kwargs) -> Union[int,str]:
+    def run_screen(self, Screen_cls: Type[BaseScreen], **kwargs) -> int | str:
         """
             Instantiates the provided Screen_cls and runs its interactive display.
             Returns the user's input upon completion.
@@ -262,7 +262,7 @@ class NotYetImplementedView(View):
 
 
 class UnhandledExceptionView(View):
-    def __init__(self, error: List[str]):
+    def __init__(self, error: list[str]):
         self.error = error
 
 
