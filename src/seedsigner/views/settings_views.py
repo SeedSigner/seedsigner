@@ -34,30 +34,30 @@ class SettingsMenuView(View):
                     break
 
         if self.visibility == SettingsConstants.VISIBILITY__GENERAL:
-            self.title = "Settings"
+            title = "Settings"
 
             # Set up the next nested level of menuing
             button_data.append(("Advanced", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
-            self.next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
+            next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
 
             button_data.append(self.IO_TEST)
             button_data.append(self.DONATE)
 
         elif self.visibility == SettingsConstants.VISIBILITY__ADVANCED:
-            self.title = "Advanced"
+            title = "Advanced"
 
             # So far there are no real Developer options; disabling for now
-            # self.button_data.append(("Developer Options", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
-            # self.next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__DEVELOPER})
-            self.next_destination = None
+            # button_data.append(("Developer Options", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
+            # next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__DEVELOPER})
+            next_destination = None
         
         elif self.visibility == SettingsConstants.VISIBILITY__DEVELOPER:
-            self.title = "Dev Options"
-            self.next_destination = None
+            title = "Dev Options"
+            next_destination = None
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=self.title,
+            title=title,
             is_button_text_centered=False,
             button_data=button_data,
             selected_button=selected_button,
@@ -76,7 +76,7 @@ class SettingsMenuView(View):
                 return Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
         
         elif selected_menu_num == len(settings_entries):
-            return self.next_destination
+            return next_destination
 
         elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == self.IO_TEST:
             return Destination(IOTestView)
@@ -100,19 +100,21 @@ class SettingsEntryUpdateSelectionView(View):
         self.selected_button = selected_button
         self.parent_initial_scroll = parent_initial_scroll
 
-        self.button_data = []
-        self.checked_buttons = []
-        self.initial_value = self.settings.get_value(self.settings_entry.attr_name)
+
+    def run(self):
+        button_data = []
+        checked_buttons = []
+        initial_value = self.settings.get_value(self.settings_entry.attr_name)
         for i, value in enumerate(self.settings_entry.selection_options):
             if type(value) == tuple:
                 value, display_name = value
             else:
                 display_name = value
 
-            self.button_data.append(display_name)
+            button_data.append(display_name)
 
-            if (type(self.initial_value) == list and value in self.initial_value) or value == self.initial_value:
-                self.checked_buttons.append(i)
+            if (type(initial_value) == list and value in initial_value) or value == initial_value:
+                checked_buttons.append(i)
 
                 if self.selected_button is None:
                     # Highlight the selection (for multiselect highlight the first
@@ -121,16 +123,14 @@ class SettingsEntryUpdateSelectionView(View):
         
         if self.selected_button is None:
             self.selected_button = 0
-
-
-    def run(self):
+            
         ret_value = self.run_screen(
             settings_screens.SettingsEntryUpdateSelectionScreen,
             display_name=self.settings_entry.display_name,
             help_text=self.settings_entry.help_text,
-            button_data=self.button_data,
+            button_data=button_data,
             selected_button=self.selected_button,
-            checked_buttons=self.checked_buttons,
+            checked_buttons=checked_buttons,
             settings_entry_type=self.settings_entry.type,
         )
 
@@ -154,8 +154,8 @@ class SettingsEntryUpdateSelectionView(View):
             destination = settings_menu_view_destination
 
         elif self.settings_entry.type == SettingsConstants.TYPE__MULTISELECT:
-            updated_value = list(self.initial_value)
-            if ret_value not in self.checked_buttons:
+            updated_value = list(initial_value)
+            if ret_value not in checked_buttons:
                 # This is a new selection to add
                 updated_value.append(value)
             else:
@@ -164,7 +164,7 @@ class SettingsEntryUpdateSelectionView(View):
 
         else:
             # All other types are single selects (e.g. Enabled/Disabled, SELECT_1)
-            if value == self.initial_value:
+            if value == initial_value:
                 # No change, return to menu
                 return settings_menu_view_destination
             else:
