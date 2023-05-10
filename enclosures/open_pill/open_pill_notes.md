@@ -20,7 +20,7 @@ https://www.youtube.com/watch?v=gXPFJygZobE
 
 
 ### Comfortable Controls Optional Upgrade:
-The bare joystick on an open pill or open pill mini design can be uncomfortable for some thumbs. Twitter user @Vulcan21com developed a DIY solution to add comfort to the exposed joystick using a M2.5 knurled nut standardized under DIN 466, widely available at many hardware stores. The joystick itself has no threading, but it is possible to screw the M2.5 nut onto the joystick with a bit of precision and patience. While screwing it on for the first time it will cut a light thread into the plastic. Be gentle as to not transfer too much torque into the joystick. The result will looks like this:
+The bare joystick on an open pill or open pill mini design can be uncomfortable for some thumbs. Twitter user @Vulcan21com developed a DIY solution to add comfort to the exposed joystick using a M2.5 knurled nut standardized under DIN 466, widely available at many hardware stores. The joystick itself has no threading, but it is possible to screw the M2.5 nut onto the joystick with a bit of precision and patience. While screwing it on for the first time it will cut a light thread into the plastic. Be gentle as to not transfer too much torque into the joystick. The result will look like this:
 
 <img src="/docs/img/Open_Pill_w_Comfort_Joystick.png">
 
