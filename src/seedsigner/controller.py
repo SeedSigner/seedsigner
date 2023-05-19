@@ -11,13 +11,16 @@ from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.buttons import HardwareButtons
 from seedsigner.hardware.microsd import MicroSD
 from seedsigner.views.screensaver import ScreensaverScreen
-from seedsigner.views.view import Destination, NotYetImplementedView, UnhandledExceptionView
+from seedsigner.views.view import (
+    Destination,
+    NotYetImplementedView,
+    UnhandledExceptionView,
+)
 
 from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
 
 
 logger = logging.getLogger(__name__)
-
 
 
 class BackStack(List[Destination]):
@@ -29,25 +32,24 @@ class BackStack(List[Destination]):
             out += f"    {index:2d}: {destination}\n"
         out += "]"
         return out
-            
 
 
 class Controller(Singleton):
     """
-        The Controller is a globally available singleton that maintains SeedSigner state.
+    The Controller is a globally available singleton that maintains SeedSigner state.
 
-        It only makes sense to ever have a single Controller instance so it is
-        implemented here as a singleton. One departure from the typical singleton pattern
-        is the addition of a `configure_instance()` call to pass run-time settings into
-        the Controller.
+    It only makes sense to ever have a single Controller instance so it is
+    implemented here as a singleton. One departure from the typical singleton pattern
+    is the addition of a `configure_instance()` call to pass run-time settings into
+    the Controller.
 
-        Any code that needs to interact with the one and only Controller can just run:
-        ```
-        from seedsigner.controller import Controller
-        controller = Controller.get_instance()
-        ```
-        Note: In many/most cases you'll need to do the Controller import within a method
-        rather than at the top in order avoid circular imports.
+    Any code that needs to interact with the one and only Controller can just run:
+    ```
+    from seedsigner.controller import Controller
+    controller = Controller.get_instance()
+    ```
+    Note: In many/most cases you'll need to do the Controller import within a method
+    rather than at the top in order avoid circular imports.
     """
 
     VERSION = "0.6.0"
@@ -87,7 +89,6 @@ class Controller(Singleton):
     back_stack: BackStack = None
     screensaver: ScreensaverScreen = None
 
-
     @classmethod
     def get_instance(cls):
         # This is the only way to access the one and only instance
@@ -97,18 +98,17 @@ class Controller(Singleton):
             # Instantiate the one and only Controller instance
             return cls.configure_instance()
 
-
     @classmethod
     def configure_instance(cls, disable_hardware=False):
         """
-            - `disable_hardware` is only meant to be used by the test suite so that it
-            can keep re-initializing a Controller in however many tests it needs to. But
-            this is only possible if the hardware isn't already being reserved. Without
-            this you get:
+        - `disable_hardware` is only meant to be used by the test suite so that it
+        can keep re-initializing a Controller in however many tests it needs to. But
+        this is only possible if the hardware isn't already being reserved. Without
+        this you get:
 
-            RuntimeError: Conflicting edge detection already enabled for this GPIO channel
+        RuntimeError: Conflicting edge detection already enabled for this GPIO channel
 
-            each time you try to re-initialize a Controller.
+        each time you try to re-initialize a Controller.
         """
         # Must be called before the first get_instance() call
         if cls._instance:
@@ -128,7 +128,7 @@ class Controller(Singleton):
         # TODO: Rename "storage" to something more indicative of its temp, in-memory state
         controller.storage = SeedStorage()
         controller.settings = Settings.get_instance()
-        
+
         controller.microsd = MicroSD.get_instance()
         controller.microsd.start_detection()
 
@@ -145,32 +145,34 @@ class Controller(Singleton):
 
         # Other behavior constants
         controller.screensaver_activation_ms = 120 * 1000
-    
-        return cls._instance
 
+        return cls._instance
 
     @property
     def camera(self):
         from .hardware.camera import Camera
-        return Camera.get_instance()
 
+        return Camera.get_instance()
 
     def get_seed(self, seed_num: int) -> Seed:
         if seed_num < len(self.storage.seeds):
             return self.storage.seeds[seed_num]
         else:
-            raise Exception(f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory.")
-
+            raise Exception(
+                f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory."
+            )
 
     def discard_seed(self, seed_num: int):
         if seed_num < len(self.storage.seeds):
             del self.storage.seeds[seed_num]
         else:
-            raise Exception(f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory.")
-
+            raise Exception(
+                f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory."
+            )
 
     def pop_prev_from_back_stack(self):
         from .views import Destination
+
         if len(self.back_stack) > 0:
             # Pop the top View (which is the current View_cls)
             self.back_stack.pop()
@@ -179,11 +181,9 @@ class Controller(Singleton):
                 # One more pop back gives us the actual "back" View_cls
                 return self.back_stack.pop()
         return Destination(None)
-    
 
     def clear_back_stack(self):
         self.back_stack = BackStack()
-
 
     def start(self) -> None:
         from .views import MainMenuView, BackStackView
@@ -227,7 +227,7 @@ class Controller(Singleton):
                 if next_destination.View_cls == MainMenuView:
                     # Home always wipes the back_stack
                     self.clear_back_stack()
-                    
+
                     # Home always wipes the back_stack/state of temp vars
                     self.resume_main_flow = None
                     self.multisig_wallet_descriptor = None
@@ -236,7 +236,7 @@ class Controller(Singleton):
                     self.psbt = None
                     self.psbt_parser = None
                     self.psbt_seed = None
-                
+
                 print(f"back_stack: {self.back_stack}")
 
                 try:
@@ -276,7 +276,7 @@ class Controller(Singleton):
                     self.back_stack.append(next_destination)
                 else:
                     print(f"NOT appending {next_destination}")
-                
+
                 print("-" * 30)
 
         finally:
@@ -287,20 +287,18 @@ class Controller(Singleton):
             print("Clearing screen, exiting")
             Renderer.get_instance().display_blank_screen()
 
-
     def start_screensaver(self):
         self.screensaver.start()
 
-
     def handle_exception(self, e) -> Destination:
         """
-            Displays a user-friendly error screen and includes debugging info to help
-            devs diagnose what went wrong.
+        Displays a user-friendly error screen and includes debugging info to help
+        devs diagnose what went wrong.
 
-            Shows:
-                * Exception type
-                * python file, line num, method name
-                * Exception message
+        Shows:
+            * Exception type
+            * python file, line num, method name
+            * Exception message
         """
         logger.exception(e)
 
@@ -316,12 +314,16 @@ class Controller(Singleton):
         for i in range(len(traceback.format_exc().splitlines()) - 1, 0, -1):
             traceback_line = traceback.format_exc().splitlines()[i]
             if ", line " in traceback_line:
-                line_info = traceback_line.split("/")[-1].replace("\"", "").replace("line ", "")
+                line_info = (
+                    traceback_line.split("/")[-1].replace('"', "").replace("line ", "")
+                )
                 break
-        
+
         error = [
             exception_type,
             line_info,
             exception_msg,
         ]
-        return Destination(UnhandledExceptionView, view_args={"error": error}, clear_history=True)
+        return Destination(
+            UnhandledExceptionView, view_args={"error": error}, clear_history=True
+        )

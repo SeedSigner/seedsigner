@@ -8,11 +8,14 @@
 from .fountain_encoder import FountainEncoder
 from .bytewords import *
 
+
 class UREncoder:
     # Start encoding a (possibly) multi-part UR.
-    def __init__(self, ur, max_fragment_len, first_seq_num = 0, min_fragment_len = 10):
+    def __init__(self, ur, max_fragment_len, first_seq_num=0, min_fragment_len=10):
         self.ur = ur
-        self.fountain_encoder = FountainEncoder(ur.cbor, max_fragment_len, first_seq_num, min_fragment_len)
+        self.fountain_encoder = FountainEncoder(
+            ur.cbor, max_fragment_len, first_seq_num, min_fragment_len
+        )
 
     # Encode a single-part UR.
     @staticmethod
@@ -43,16 +46,16 @@ class UREncoder:
 
     @staticmethod
     def encode_part(type, part):
-        seq = '{}-{}'.format(part.seq_num, part.seq_len)
+        seq = "{}-{}".format(part.seq_num, part.seq_len)
         body = Bytewords.encode(Bytewords_Style_minimal, part.cbor())
         result = UREncoder.encode_ur([type, seq, body])
         return result
 
     @staticmethod
     def encode_uri(scheme, path_components):
-        path = '/'.join(path_components)
-        return ':'.join([scheme, path])
+        path = "/".join(path_components)
+        return ":".join([scheme, path])
 
     @staticmethod
     def encode_ur(path_components):
-        return UREncoder.encode_uri('ur', path_components)
+        return UREncoder.encode_uri("ur", path_components)

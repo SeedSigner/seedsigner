@@ -14,7 +14,11 @@ from seedsigner.models.settings_definition import SettingsConstants
 # TODO: PR these directly into `embit`? Or replace with new/existing methods already in `embit`?
 
 
-def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, script_type: str = SettingsConstants.NATIVE_SEGWIT) -> str:
+def get_standard_derivation_path(
+    network: str = SettingsConstants.MAINNET,
+    wallet_type: str = SettingsConstants.SINGLE_SIG,
+    script_type: str = SettingsConstants.NATIVE_SEGWIT,
+) -> str:
     if network == SettingsConstants.MAINNET:
         network_path = "0'"
     elif network == SettingsConstants.TESTNET:
@@ -44,8 +48,9 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
         else:
             raise Exception("Unexpected script type")
     else:
-        raise Exception("Unexpected wallet type")    # checks that all inputs are from the same wallet
-
+        raise Exception(
+            "Unexpected wallet type"
+        )  # checks that all inputs are from the same wallet
 
 
 def get_xpub(seed_bytes, derivation_path: str, embit_network: str = "main") -> HDKey:
@@ -55,18 +60,25 @@ def get_xpub(seed_bytes, derivation_path: str, embit_network: str = "main") -> H
     return xpub
 
 
-
-def get_single_sig_address(xpub: HDKey, script_type: str = SettingsConstants.NATIVE_SEGWIT, index: int = 0, is_change: bool = False, embit_network: str = "main") -> str:
+def get_single_sig_address(
+    xpub: HDKey,
+    script_type: str = SettingsConstants.NATIVE_SEGWIT,
+    index: int = 0,
+    is_change: bool = False,
+    embit_network: str = "main",
+) -> str:
     if is_change:
-        pubkey = xpub.derive([1,index]).key
+        pubkey = xpub.derive([1, index]).key
     else:
-        pubkey = xpub.derive([0,index]).key
+        pubkey = xpub.derive([0, index]).key
 
     if script_type == SettingsConstants.NATIVE_SEGWIT:
         return embit.script.p2wpkh(pubkey).address(network=NETWORKS[embit_network])
 
     elif script_type == SettingsConstants.NESTED_SEGWIT:
-        return embit.script.p2sh(embit.script.p2wpkh(pubkey)).address(network=NETWORKS[embit_network])
+        return embit.script.p2sh(embit.script.p2wpkh(pubkey)).address(
+            network=NETWORKS[embit_network]
+        )
 
     elif script_type == SettingsConstants.LEGACY_P2PKH:
         return embit.script.p2pkh(pubkey).address(network=NETWORKS[embit_network])
@@ -75,8 +87,12 @@ def get_single_sig_address(xpub: HDKey, script_type: str = SettingsConstants.NAT
         return embit.script.p2tr(pubkey).address(network=NETWORKS[embit_network])
 
 
-
-def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool = False, embit_network: str = "main"):
+def get_multisig_address(
+    descriptor: Descriptor,
+    index: int = 0,
+    is_change: bool = False,
+    embit_network: str = "main",
+):
     if is_change:
         branch_index = 1
     else:
@@ -84,7 +100,11 @@ def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool
 
     if descriptor.is_segwit:
         # Could be native segwit or nested segwit (descriptor.is_wrapped)
-        return descriptor.derive(index, branch_index=branch_index).script_pubkey().address(network=NETWORKS[embit_network])
+        return (
+            descriptor.derive(index, branch_index=branch_index)
+            .script_pubkey()
+            .address(network=NETWORKS[embit_network])
+        )
 
     elif descriptor.is_legacy:
         # TODO: Not yet implemented!

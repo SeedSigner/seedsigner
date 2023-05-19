@@ -4,8 +4,9 @@ import time
 
 from seedsigner.models.singleton import Singleton
 
+
 class HardwareButtons(Singleton):
-    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
+    if GPIO.RPI_INFO["P1_REVISION"] == 3:  # This indicates that we have revision 3 GPIO
         print("Detected 40pin GPIO (Rasbperry Pi 2 and above)")
         KEY_UP_PIN = 31
         KEY_DOWN_PIN = 35
@@ -35,35 +36,68 @@ class HardwareButtons(Singleton):
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
 
-            #init GPIO
+            # init GPIO
             GPIO.setmode(GPIO.BOARD)
-            GPIO.setup(HardwareButtons.KEY_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)    # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_DOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_LEFT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_RIGHT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_PRESS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY3_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY_DOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY_LEFT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY_RIGHT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY_PRESS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY3_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
 
             cls._instance.GPIO = GPIO
             cls._instance.override_ind = False
 
-            cls._instance.add_events([HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT, HardwareButtonsConstants.KEY1, HardwareButtonsConstants.KEY2, HardwareButtonsConstants.KEY3])
+            cls._instance.add_events(
+                [
+                    HardwareButtonsConstants.KEY_UP,
+                    HardwareButtonsConstants.KEY_DOWN,
+                    HardwareButtonsConstants.KEY_PRESS,
+                    HardwareButtonsConstants.KEY_LEFT,
+                    HardwareButtonsConstants.KEY_RIGHT,
+                    HardwareButtonsConstants.KEY1,
+                    HardwareButtonsConstants.KEY2,
+                    HardwareButtonsConstants.KEY3,
+                ]
+            )
 
             # Track state over time so we can apply input delays/ignores as needed
-            cls._instance.cur_input = None           # Track which direction or button was last pressed
-            cls._instance.cur_input_started = None   # Track when that input began
-            cls._instance.last_input_time = int(time.time() * 1000)  # How long has it been since the last input?
-            cls._instance.first_repeat_threshold = 225  # Long-press time required before returning continuous input
+            cls._instance.cur_input = (
+                None  # Track which direction or button was last pressed
+            )
+            cls._instance.cur_input_started = None  # Track when that input began
+            cls._instance.last_input_time = int(
+                time.time() * 1000
+            )  # How long has it been since the last input?
+            cls._instance.first_repeat_threshold = (
+                225  # Long-press time required before returning continuous input
+            )
             cls._instance.next_repeat_threshold = 250  # Amount of time where we no longer consider input a continuous hold
 
         return cls._instance
 
-
     def wait_for(self, keys=[], check_release=True, release_keys=[]) -> int:
         # TODO: Refactor to keep control in the Controller and not here
         from seedsigner.controller import Controller
+
         controller = Controller.get_instance()
 
         if not release_keys:
@@ -72,7 +106,10 @@ class HardwareButtons(Singleton):
 
         while True:
             cur_time = int(time.time() * 1000)
-            if cur_time - self.last_input_time > controller.screensaver_activation_ms and not controller.screensaver.is_running:
+            if (
+                cur_time - self.last_input_time > controller.screensaver_activation_ms
+                and not controller.screensaver.is_running
+            ):
                 # Start the screensaver. Will block execution until input detected.
                 controller.start_screensaver()
 
@@ -87,7 +124,15 @@ class HardwareButtons(Singleton):
                 continue
 
             for key in keys:
-                if not check_release or ((check_release and key in release_keys and HardwareButtonsConstants.release_lock) or check_release and key not in release_keys):
+                if not check_release or (
+                    (
+                        check_release
+                        and key in release_keys
+                        and HardwareButtonsConstants.release_lock
+                    )
+                    or check_release
+                    and key not in release_keys
+                ):
                     # when check release is False or the release lock is released (True)
                     if self.GPIO.input(key) == GPIO.LOW or self.override_ind:
                         HardwareButtonsConstants.release_lock = False
@@ -97,20 +142,28 @@ class HardwareButtons(Singleton):
 
                         if self.cur_input != key:
                             self.cur_input = key
-                            self.cur_input_started = int(time.time() * 1000)  # in milliseconds
+                            self.cur_input_started = int(
+                                time.time() * 1000
+                            )  # in milliseconds
                             self.last_input_time = self.cur_input_started
                             return key
 
                         else:
                             # Still pressing the same input
-                            if cur_time - self.last_input_time > self.next_repeat_threshold:
+                            if (
+                                cur_time - self.last_input_time
+                                > self.next_repeat_threshold
+                            ):
                                 # Too much time has elapsed to consider this the same
                                 #   continuous input. Treat as a new separate press.
                                 self.cur_input_started = cur_time
                                 self.last_input_time = cur_time
                                 return key
 
-                            elif cur_time - self.cur_input_started > self.first_repeat_threshold:
+                            elif (
+                                cur_time - self.cur_input_started
+                                > self.first_repeat_threshold
+                            ):
                                 # We're good to relay this immediately as continuous
                                 #   input.
                                 self.last_input_time = cur_time
@@ -129,23 +182,21 @@ class HardwareButtons(Singleton):
                                 #   we let the repeats fly.
                                 pass
 
-            time.sleep(0.01) # wait 10 ms to give CPU chance to do other things
-
+            time.sleep(0.01)  # wait 10 ms to give CPU chance to do other things
 
     def update_last_input_time(self):
         self.last_input_time = int(time.time() * 1000)
 
-
     def add_events(self, keys=[]):
         for key in keys:
-            GPIO.add_event_detect(key, self.GPIO.RISING, callback=HardwareButtons.rising_callback)
-
+            GPIO.add_event_detect(
+                key, self.GPIO.RISING, callback=HardwareButtons.rising_callback
+            )
 
     def rising_callback(channel):
         HardwareButtonsConstants.release_lock = True
 
-
-    def trigger_override(self, force_release = False) -> bool:
+    def trigger_override(self, force_release=False) -> bool:
         if force_release:
             HardwareButtonsConstants.release_lock = True
 
@@ -174,11 +225,12 @@ class HardwareButtons(Singleton):
                 return True
         return False
 
+
 # class used as short hand for static button/channel lookup values
 # TODO: Implement `release_lock` functionality as a global somewhere. Mixes up design
 #   patterns to have a static constants class plus a settable global value.
 class HardwareButtonsConstants:
-    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
+    if GPIO.RPI_INFO["P1_REVISION"] == 3:  # This indicates that we have revision 3 GPIO
         KEY_UP = 31
         KEY_DOWN = 35
         KEY_LEFT = 29
@@ -215,4 +267,4 @@ class HardwareButtonsConstants:
     KEYS__LEFT_RIGHT_UP_DOWN = [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN]
     KEYS__ANYCLICK = [KEY_PRESS, KEY1, KEY2, KEY3]
 
-    release_lock = True # released when True, locked when False
+    release_lock = True  # released when True, locked when False

@@ -5,15 +5,15 @@
 # Licensed under the "BSD-2-Clause Plus Patent License"
 #
 
-class RandomSampler:
 
+class RandomSampler:
     def __init__(self, probs):
         for p in probs:
-            assert(p > 0)
+            assert p > 0
 
         # Normalize given probabilities
         total = sum(probs)
-        assert(total > 0)
+        assert total > 0
 
         n = len(probs)
 

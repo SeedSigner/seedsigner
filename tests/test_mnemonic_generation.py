@@ -6,9 +6,8 @@ from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.settings_definition import SettingsConstants
 
 
-
 def test_dice_rolls():
-    """ Given random dice rolls, the resulting mnemonic should be valid. """
+    """Given random dice rolls, the resulting mnemonic should be valid."""
     dice_rolls = ""
     for i in range(0, 99):
         # Do not need truly rigorous random for this test
@@ -28,73 +27,105 @@ def test_dice_rolls():
     assert bip39.mnemonic_is_valid(" ".join(mnemonic))
 
 
-
 def test_calculate_checksum():
-    """ Given an 11-word or 23-word mnemonic, the calculated checksum should yield a
-        valid complete mnemonic.
+    """Given an 11-word or 23-word mnemonic, the calculated checksum should yield a
+    valid complete mnemonic.
     """
     # Test mnemonics from https://iancoleman.io/bip39/
-    partial_mnemonic = "crawl focus rescue cable view pledge rather dinner cousin unfair day"
-    mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    partial_mnemonic = (
+        "crawl focus rescue cable view pledge rather dinner cousin unfair day"
+    )
+    mnemonic = mnemonic_generation.calculate_checksum(
+        partial_mnemonic.split(" "),
+        wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+    )
     assert bip39.mnemonic_is_valid(" ".join(mnemonic))
 
     partial_mnemonic = "bubble father debate ankle injury fence mesh evolve section wet coyote violin pyramid flower rent arrow round clutch myth safe base skin mobile"
-    mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    mnemonic = mnemonic_generation.calculate_checksum(
+        partial_mnemonic.split(" "),
+        wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+    )
     assert bip39.mnemonic_is_valid(" ".join(mnemonic))
 
 
 def test_calculate_checksum_invalid_mnemonics():
     """
-        Should raise an Exception on a mnemonic that is invalid due to length or using invalid words.
+    Should raise an Exception on a mnemonic that is invalid due to length or using invalid words.
     """
     with pytest.raises(Exception) as e:
         # Mnemonic is too short: 10 words instead of 11
         partial_mnemonic = "abandon " * 9 + "about"
-        mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+        mnemonic_generation.calculate_checksum(
+            partial_mnemonic.split(" "),
+            wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+        )
     assert "12- or 24-word" in str(e)
 
     with pytest.raises(Exception) as e:
         # Valid mnemonic but unsupported length
         mnemonic = "devote myth base logic dust horse nut collect buddy element eyebrow visit empty dress jungle"
-        mnemonic_generation.calculate_checksum(mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+        mnemonic_generation.calculate_checksum(
+            mnemonic.split(" "),
+            wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+        )
     assert "12- or 24-word" in str(e)
 
     with pytest.raises(Exception) as e:
         # Mnemonic is too short: 22 words instead of 23
         partial_mnemonic = "abandon " * 21 + "about"
-        mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+        mnemonic_generation.calculate_checksum(
+            partial_mnemonic.split(" "),
+            wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+        )
     assert "12- or 24-word" in str(e)
 
     with pytest.raises(ValueError) as e:
         # Invalid BIP-39 word
         partial_mnemonic = "foobar " * 11 + "about"
-        mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+        mnemonic_generation.calculate_checksum(
+            partial_mnemonic.split(" "),
+            wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+        )
     assert "not in the dictionary" in str(e)
 
 
-
 def test_calculate_checksum_with_default_final_word():
-    """ 11-word and 23-word mnemonics use word `0000` as a temp final word to complete
-        the mnemonic.
+    """11-word and 23-word mnemonics use word `0000` as a temp final word to complete
+    the mnemonic.
     """
-    partial_mnemonic = "crawl focus rescue cable view pledge rather dinner cousin unfair day"
-    mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    partial_mnemonic = (
+        "crawl focus rescue cable view pledge rather dinner cousin unfair day"
+    )
+    mnemonic1 = mnemonic_generation.calculate_checksum(
+        partial_mnemonic.split(" "),
+        wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+    )
 
     partial_mnemonic += " abandon"
-    mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    mnemonic2 = mnemonic_generation.calculate_checksum(
+        partial_mnemonic.split(" "),
+        wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+    )
     assert mnemonic1 == mnemonic2
 
     partial_mnemonic = "bubble father debate ankle injury fence mesh evolve section wet coyote violin pyramid flower rent arrow round clutch myth safe base skin mobile"
-    mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    mnemonic1 = mnemonic_generation.calculate_checksum(
+        partial_mnemonic.split(" "),
+        wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+    )
 
     partial_mnemonic += " abandon"
-    mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    mnemonic2 = mnemonic_generation.calculate_checksum(
+        partial_mnemonic.split(" "),
+        wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+    )
     assert mnemonic1 == mnemonic2
 
 
 def test_generate_mnemonic_from_bytes():
     """
-        Should generate a valid BIP-39 mnemonic from entropy bytes
+    Should generate a valid BIP-39 mnemonic from entropy bytes
     """
     # From iancoleman.io
     entropy = "3350f6ac9eeb07d2c6209932808aa7f6"
@@ -108,9 +139,8 @@ def test_generate_mnemonic_from_bytes():
     assert mnemonic == expected_mnemonic
 
 
-
 def test_verify_against_coldcard_sample():
-    """ https://coldcard.com/docs/verifying-dice-roll-math """
+    """https://coldcard.com/docs/verifying-dice-roll-math"""
     dice_rolls = "123456"
     expected = "mirror reject rookie talk pudding throw happy era myth already payment own sentence push head sting video explain letter bomb casual hotel rather garment"
 
@@ -120,9 +150,8 @@ def test_verify_against_coldcard_sample():
     assert actual == expected
 
 
-
 def test_known_dice_rolls():
-    """ Given 99 known dice rolls, the resulting mnemonic should be valid and match the expected. """
+    """Given 99 known dice rolls, the resulting mnemonic should be valid and match the expected."""
     dice_rolls = "522222222222222222222222222222222222222222222555555555555555555555555555555555555555555555555555555"
     expected = "resource timber firm banner horror pupil frozen main pear direct pioneer broken grid core insane begin sister pony end debate task silk empty curious"
 
@@ -148,9 +177,8 @@ def test_known_dice_rolls():
     assert actual == expected
 
 
-
 def test_50_dice_rolls():
-    """ 50 dice roll input should yield the same 12-word mnemonic as iancoleman.io/bip39 """
+    """50 dice roll input should yield the same 12-word mnemonic as iancoleman.io/bip39"""
     # Check "Show entropy details", paste in dice_rolls sequence, click "Hex", select "Mnemonic Length" as "12 Words"
     dice_rolls = "12345612345612345612345612345612345612345612345612"
     expected = "unveil nice picture region tragic fault cream strike tourist control recipe tourist"
@@ -167,7 +195,9 @@ def test_50_dice_rolls():
     assert actual == expected
 
     dice_rolls = "66666666666666666666666666666666666666666666666666"
-    expected = "senior morning song proud recycle toy search apple trigger lend vibrant arrest"
+    expected = (
+        "senior morning song proud recycle toy search apple trigger lend vibrant arrest"
+    )
     mnemonic = mnemonic_generation.generate_mnemonic_from_dice(dice_rolls)
     actual = " ".join(mnemonic)
     assert bip39.mnemonic_is_valid(actual)

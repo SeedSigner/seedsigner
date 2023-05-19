@@ -6,13 +6,16 @@
 #
 
 import sys
+
 try:
     import uhashlib as hashlib
 except:
     try:
         import hashlib
     except:
-        sys.exit("ERROR: No hashlib or uhashlib implementation found (required for sha256)")
+        sys.exit(
+            "ERROR: No hashlib or uhashlib implementation found (required for sha256)"
+        )
 
 from .utils import string_to_bytes, int_to_bytes
 from .constants import MAX_UINT64
@@ -37,14 +40,22 @@ from .constants import MAX_UINT64
 # a 64-bit seed, we suggest to seed a splitmix64 generator and use its
 # output to fill s.
 
-def rotl(x, k):
-	return ((x << k) | (x >> (64 - k))) & MAX_UINT64
 
-JUMP = [ 0x180ec6d33cfd0aba, 0xd5a61266f0c9392c, 0xa9582618e03fc9aa, 0x39abdc4529b1661c ]
-LONG_JUMP = [ 0x76e15d3efefdcbbf, 0xc5004e441c522fb3, 0x77710069854ee241, 0x39109bb02acbe635 ]
+def rotl(x, k):
+    return ((x << k) | (x >> (64 - k))) & MAX_UINT64
+
+
+JUMP = [0x180EC6D33CFD0ABA, 0xD5A61266F0C9392C, 0xA9582618E03FC9AA, 0x39ABDC4529B1661C]
+LONG_JUMP = [
+    0x76E15D3EFEFDCBBF,
+    0xC5004E441C522FB3,
+    0x77710069854EE241,
+    0x39109BB02ACBE635,
+]
+
 
 class Xoshiro256:
-    def __init__(self, arr = None):
+    def __init__(self, arr=None):
         self.s = [0] * 4
         if arr != None:
             self.s[0] = arr[0]
@@ -52,14 +63,13 @@ class Xoshiro256:
             self.s[2] = arr[2]
             self.s[3] = arr[3]
 
-
     def _set_s(self, arr):
         for i in range(4):
             o = i * 8
             v = 0
             for n in range(8):
                 v <<= 8
-                v |= (arr[o + n])
+                v |= arr[o + n]
             self.s[i] = v
 
     def _hash_then_set_s(self, buf):

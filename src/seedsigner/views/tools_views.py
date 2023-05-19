@@ -10,18 +10,36 @@ from seedsigner.controller import Controller
 from seedsigner.gui.screens.screen import LoadingScreenThread, QRDisplayScreen
 
 from seedsigner.hardware.camera import Camera
-from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerCustomIconConstants
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
-from seedsigner.gui.screens.tools_screens import ToolsCalcFinalWordDoneScreen, ToolsCalcFinalWordFinalizePromptScreen, ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen
+from seedsigner.gui.components import (
+    FontAwesomeIconConstants,
+    GUIConstants,
+    SeedSignerCustomIconConstants,
+)
+from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
+from seedsigner.gui.screens.tools_screens import (
+    ToolsCalcFinalWordDoneScreen,
+    ToolsCalcFinalWordFinalizePromptScreen,
+    ToolsCalcFinalWordScreen,
+    ToolsCoinFlipEntryScreen,
+    ToolsDiceEntropyEntryScreen,
+    ToolsImageEntropyFinalImageScreen,
+    ToolsImageEntropyLivePreviewScreen,
+    ToolsAddressExplorerAddressTypeScreen,
+)
 from seedsigner.helpers import embit_utils, mnemonic_generation
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
-from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedWordsWarningView, SeedExportXpubScriptTypeView
+from seedsigner.views.seed_views import (
+    SeedDiscardView,
+    SeedFinalizeView,
+    SeedMnemonicEntryView,
+    SeedWordsWarningView,
+    SeedExportXpubScriptTypeView,
+)
 
 from .view import View, Destination, BackStackView
-
 
 
 class ToolsMenuView(View):
@@ -32,9 +50,7 @@ class ToolsMenuView(View):
         EXPLORER = "Address Explorer"
         button_data = [IMAGE, DICE, KEYBOARD, EXPLORER]
         screen = ButtonListScreen(
-            title="Tools",
-            is_button_text_centered=False,
-            button_data=button_data
+            title="Tools", is_button_text_centered=False, button_data=button_data
         )
         selected_menu_num = screen.display()
 
@@ -57,6 +73,8 @@ class ToolsMenuView(View):
 """****************************************************************************
     Image entropy Views
 ****************************************************************************"""
+
+
 class ToolsImageEntropyLivePreviewView(View):
     def run(self):
         self.controller.image_entropy_preview_frames = None
@@ -64,10 +82,9 @@ class ToolsImageEntropyLivePreviewView(View):
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
         self.controller.image_entropy_preview_frames = ret
         return Destination(ToolsImageEntropyFinalImageView)
-
 
 
 class ToolsImageEntropyFinalImageView(View):
@@ -83,26 +100,20 @@ class ToolsImageEntropyFinalImageView(View):
         # Prep a copy of the image for display. The actual image data is 720x480
         # Present just a center crop and resize it to fit the screen and to keep some of
         #   the data hidden.
-        display_version = autocontrast(
-            self.controller.image_entropy_final_image,
-            cutoff=2
-        ).crop(
-            (120, 0, 600, 480)
-        ).resize(
-            (self.canvas_width, self.canvas_height), Image.BICUBIC
+        display_version = (
+            autocontrast(self.controller.image_entropy_final_image, cutoff=2)
+            .crop((120, 0, 600, 480))
+            .resize((self.canvas_width, self.canvas_height), Image.BICUBIC)
         )
-        
-        ret = ToolsImageEntropyFinalImageScreen(
-            final_image=display_version
-        ).display()
+
+        ret = ToolsImageEntropyFinalImageScreen(final_image=display_version).display()
 
         if ret == RET_CODE__BACK_BUTTON:
             # Go back to live preview and reshoot
             self.controller.image_entropy_final_image = None
             return Destination(BackStackView)
-        
-        return Destination(ToolsImageEntropyMnemonicLengthView)
 
+        return Destination(ToolsImageEntropyMnemonicLengthView)
 
 
 class ToolsImageEntropyMnemonicLengthView(View):
@@ -118,7 +129,7 @@ class ToolsImageEntropyMnemonicLengthView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
         if button_data[selected_menu_num] == TWELVE_WORDS:
             mnemonic_length = 12
         else:
@@ -131,15 +142,15 @@ class ToolsImageEntropyMnemonicLengthView(View):
         try:
             stream = os.popen("cat /proc/cpuinfo | grep Serial")
             output = stream.read()
-            serial_num = output.split(":")[-1].strip().encode('utf-8')
+            serial_num = output.split(":")[-1].strip().encode("utf-8")
             serial_hash = hashlib.sha256(serial_num)
             hash_bytes = serial_hash.digest()
         except Exception as e:
             print(repr(e))
-            hash_bytes = b'0'
+            hash_bytes = b"0"
 
         # Build in modest entropy via millis since power on
-        millis_hash = hashlib.sha256(hash_bytes + str(time.time()).encode('utf-8'))
+        millis_hash = hashlib.sha256(hash_bytes + str(time.time()).encode("utf-8"))
         hash_bytes = millis_hash.digest()
 
         # Build in better entropy by chaining the preview frames
@@ -166,22 +177,30 @@ class ToolsImageEntropyMnemonicLengthView(View):
         self.controller.image_entropy_final_image = None
 
         # Add the mnemonic as an in-memory Seed
-        seed = Seed(mnemonic, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+        seed = Seed(
+            mnemonic,
+            wordlist_language_code=self.settings.get_value(
+                SettingsConstants.SETTING__WORDLIST_LANGUAGE
+            ),
+        )
         self.controller.storage.set_pending_seed(seed)
-        
-        # Cannot return BACK to this View
-        return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
 
+        # Cannot return BACK to this View
+        return Destination(
+            SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True
+        )
 
 
 """****************************************************************************
     Dice rolls Views
 ****************************************************************************"""
+
+
 class ToolsDiceEntropyMnemonicLengthView(View):
     def run(self):
         TWELVE = "12 words (50 rolls)"
         TWENTY_FOUR = "24 words (99 rolls)"
-        
+
         button_data = [TWELVE, TWENTY_FOUR]
         selected_menu_num = ButtonListScreen(
             title="Mnemonic Length",
@@ -194,18 +213,20 @@ class ToolsDiceEntropyMnemonicLengthView(View):
             return Destination(BackStackView)
 
         elif button_data[selected_menu_num] == TWELVE:
-            return Destination(ToolsDiceEntropyEntryView, view_args=dict(total_rolls=50))
+            return Destination(
+                ToolsDiceEntropyEntryView, view_args=dict(total_rolls=50)
+            )
 
         elif button_data[selected_menu_num] == TWENTY_FOUR:
-            return Destination(ToolsDiceEntropyEntryView, view_args=dict(total_rolls=99))
-
+            return Destination(
+                ToolsDiceEntropyEntryView, view_args=dict(total_rolls=99)
+            )
 
 
 class ToolsDiceEntropyEntryView(View):
     def __init__(self, total_rolls: int):
         super().__init__()
         self.total_rolls = total_rolls
-    
 
     def run(self):
         ret = ToolsDiceEntropyEntryScreen(
@@ -214,28 +235,36 @@ class ToolsDiceEntropyEntryView(View):
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
         print(f"Dice rolls: {ret}")
         dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret)
         print(f"""Mnemonic: "{dice_seed_phrase}" """)
 
         # Add the mnemonic as an in-memory Seed
-        seed = Seed(dice_seed_phrase, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+        seed = Seed(
+            dice_seed_phrase,
+            wordlist_language_code=self.settings.get_value(
+                SettingsConstants.SETTING__WORDLIST_LANGUAGE
+            ),
+        )
         self.controller.storage.set_pending_seed(seed)
 
         # Cannot return BACK to this View
-        return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
-
+        return Destination(
+            SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True
+        )
 
 
 """****************************************************************************
     Calc final word Views
 ****************************************************************************"""
+
+
 class ToolsCalcFinalWordNumWordsView(View):
     def run(self):
         TWELVE = "12 words"
         TWENTY_FOUR = "24 words"
-        
+
         button_data = [TWELVE, TWENTY_FOUR]
         selected_menu_num = ButtonListScreen(
             title="Mnemonic Length",
@@ -251,14 +280,17 @@ class ToolsCalcFinalWordNumWordsView(View):
             self.controller.storage.init_pending_mnemonic(12)
 
             # return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
-            return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
+            return Destination(
+                SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True)
+            )
 
         elif button_data[selected_menu_num] == TWENTY_FOUR:
             self.controller.storage.init_pending_mnemonic(24)
 
             # return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
-            return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True))
-
+            return Destination(
+                SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True)
+            )
 
 
 class ToolsCalcFinalWordFinalizePromptView(View):
@@ -290,15 +322,26 @@ class ToolsCalcFinalWordFinalizePromptView(View):
         elif button_data[selected_menu_num] == SELECT_WORD:
             # Clear the final word slot, just in case we're returning via BACK button
             self.controller.storage.update_pending_mnemonic(None, mnemonic_length - 1)
-            return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True, cur_word_index=mnemonic_length - 1))
+            return Destination(
+                SeedMnemonicEntryView,
+                view_args=dict(
+                    is_calc_final_word=True, cur_word_index=mnemonic_length - 1
+                ),
+            )
 
         elif button_data[selected_menu_num] == ZEROS:
             # User skipped the option to select a final word to provide last bits of
             # entropy. We'll insert all zeros and piggy-back on the coin flip attr
-            wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-            self.controller.storage.update_pending_mnemonic(Seed.get_wordlist(wordlist_language_code)[0], mnemonic_length - 1)
-            return Destination(ToolsCalcFinalWordShowFinalWordView, view_args=dict(coin_flips="0" * num_entropy_bits))
-
+            wordlist_language_code = self.settings.get_value(
+                SettingsConstants.SETTING__WORDLIST_LANGUAGE
+            )
+            self.controller.storage.update_pending_mnemonic(
+                Seed.get_wordlist(wordlist_language_code)[0], mnemonic_length - 1
+            )
+            return Destination(
+                ToolsCalcFinalWordShowFinalWordView,
+                view_args=dict(coin_flips="0" * num_entropy_bits),
+            )
 
 
 class ToolsCalcFinalWordCoinFlipsView(View):
@@ -310,31 +353,35 @@ class ToolsCalcFinalWordCoinFlipsView(View):
             total_flips = 7
         else:
             total_flips = 3
-        
+
         ret_val = ToolsCoinFlipEntryScreen(
             return_after_n_chars=total_flips,
         ).display()
 
         if ret_val == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
         else:
             print(ret_val)
             binary_string = ret_val + "0" * (11 - total_flips)
             wordlist_index = int(binary_string, 2)
-            wordlist = Seed.get_wordlist(self.controller.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+            wordlist = Seed.get_wordlist(
+                self.controller.settings.get_value(
+                    SettingsConstants.SETTING__WORDLIST_LANGUAGE
+                )
+            )
             word = wordlist[wordlist_index]
             self.controller.storage.update_pending_mnemonic(word, mnemonic_length - 1)
 
-            return Destination(ToolsCalcFinalWordShowFinalWordView, view_args=dict(coin_flips=ret_val))
-
+            return Destination(
+                ToolsCalcFinalWordShowFinalWordView, view_args=dict(coin_flips=ret_val)
+            )
 
 
 class ToolsCalcFinalWordShowFinalWordView(View):
     def __init__(self, coin_flips=None):
         super().__init__()
         self.coin_flips = coin_flips
-
 
     def run(self):
         # Construct the actual final word. The user's selected_final_word
@@ -345,14 +392,18 @@ class ToolsCalcFinalWordShowFinalWordView(View):
 
         mnemonic = self.controller.storage.pending_mnemonic
         mnemonic_length = len(mnemonic)
-        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+        wordlist_language_code = self.settings.get_value(
+            SettingsConstants.SETTING__WORDLIST_LANGUAGE
+        )
         wordlist = Seed.get_wordlist(wordlist_language_code)
 
         final_mnemonic = mnemonic_generation.calculate_checksum(
             mnemonic=self.controller.storage.pending_mnemonic,
             wordlist_language_code=wordlist_language_code,
         )
-        self.controller.storage.update_pending_mnemonic(final_mnemonic[-1], mnemonic_length - 1)
+        self.controller.storage.update_pending_mnemonic(
+            final_mnemonic[-1], mnemonic_length - 1
+        )
 
         # Prep the user's selected word (if there was one) and the actual final word for
         # the display.
@@ -362,14 +413,14 @@ class ToolsCalcFinalWordShowFinalWordView(View):
         else:
             # Convert the user's final word selection into its binary index equivalent
             selected_final_word = mnemonic[-1]
-            selected_final_bits = format(wordlist.index(selected_final_word), '011b')
+            selected_final_bits = format(wordlist.index(selected_final_word), "011b")
 
         # And grab the actual final word's checksum bits
         actual_final_word = self.controller.storage.pending_mnemonic[-1]
         if mnemonic_length == 12:
-            checksum_bits = format(wordlist.index(actual_final_word), '011b')[-4:]
+            checksum_bits = format(wordlist.index(actual_final_word), "011b")[-4:]
         else:
-            checksum_bits = format(wordlist.index(actual_final_word), '011b')[-8:]
+            checksum_bits = format(wordlist.index(actual_final_word), "011b")[-8:]
 
         NEXT = "Next"
         button_data = [NEXT]
@@ -389,7 +440,6 @@ class ToolsCalcFinalWordShowFinalWordView(View):
             return Destination(ToolsCalcFinalWordDoneView)
 
 
-
 class ToolsCalcFinalWordDoneView(View):
     def run(self):
         mnemonic = self.controller.storage.pending_mnemonic
@@ -403,18 +453,20 @@ class ToolsCalcFinalWordDoneView(View):
         selected_menu_num = ToolsCalcFinalWordDoneScreen(
             final_word=final_word,
             mnemonic_word_length=mnemonic_word_length,
-            fingerprint=self.controller.storage.get_pending_mnemonic_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
+            fingerprint=self.controller.storage.get_pending_mnemonic_fingerprint(
+                self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+            ),
             button_data=button_data,
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
         self.controller.storage.convert_pending_mnemonic_to_pending_seed()
 
         if button_data[selected_menu_num] == LOAD:
             return Destination(SeedFinalizeView)
-        
+
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView)
 
@@ -422,6 +474,8 @@ class ToolsCalcFinalWordDoneView(View):
 """****************************************************************************
     Address Explorer Views
 ****************************************************************************"""
+
+
 class ToolsAddressExplorerSelectSourceView(View):
     def run(self):
         SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
@@ -432,8 +486,12 @@ class ToolsAddressExplorerSelectSourceView(View):
 
         seeds = self.controller.storage.seeds
         for seed in seeds:
-            button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+            button_str = seed.get_fingerprint(
+                self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+            )
+            button_data.append(
+                (button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue")
+            )
 
         button_data.append(SCAN_SEED)
         button_data.append(SCAN_DESCRIPTOR)
@@ -452,7 +510,7 @@ class ToolsAddressExplorerSelectSourceView(View):
 
         # Most of the options require us to go through a side flow(s) before we can
         # continue to the address explorer. Set the Controller-level flow so that it
-        # knows to re-route us once the side flow is complete.        
+        # knows to re-route us once the side flow is complete.
         self.controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
 
         if len(seeds) > 0 and selected_menu_num < len(seeds):
@@ -462,15 +520,17 @@ class ToolsAddressExplorerSelectSourceView(View):
                 view_args=dict(
                     seed_num=selected_menu_num,
                     sig_type=SettingsConstants.SINGLE_SIG,
-                )
+                ),
             )
 
         elif button_data[selected_menu_num] in [SCAN_SEED, SCAN_DESCRIPTOR]:
             from seedsigner.views.scan_views import ScanView
+
             return Destination(ScanView)
 
         elif button_data[selected_menu_num] in [TYPE_12WORD, TYPE_24WORD]:
             from seedsigner.views.seed_views import SeedMnemonicEntryView
+
             if button_data[selected_menu_num] == TYPE_12WORD:
                 self.controller.storage.init_pending_mnemonic(num_words=12)
             else:
@@ -478,21 +538,25 @@ class ToolsAddressExplorerSelectSourceView(View):
             return Destination(SeedMnemonicEntryView)
 
 
-
 class ToolsAddressExplorerAddressTypeView(View):
-    def __init__(self, seed_num: int = None, script_type: str = None, custom_derivation: str = None):
+    def __init__(
+        self,
+        seed_num: int = None,
+        script_type: str = None,
+        custom_derivation: str = None,
+    ):
         """
-            If the explorer source is a seed, `seed_num` and `script_type` must be
-            specified. `custom_derivation` can be specified as needed.
+        If the explorer source is a seed, `seed_num` and `script_type` must be
+        specified. `custom_derivation` can be specified as needed.
 
-            If the source is a multisig or single sig wallet descriptor, `seed_num`,
-            `script_type`, and `custom_derivation` should be `None`.
+        If the source is a multisig or single sig wallet descriptor, `seed_num`,
+        `script_type`, and `custom_derivation` should be `None`.
         """
         super().__init__()
         self.seed_num = seed_num
         self.script_type = script_type
         self.custom_derivation = custom_derivation
-    
+
         network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
 
         # Store everything in the Controller's `address_explorer_data` so we don't have
@@ -518,12 +582,11 @@ class ToolsAddressExplorerAddressTypeView(View):
 
             data["derivation_path"] = derivation_path
             data["xpub"] = self.seed.get_xpub(derivation_path, network=network)
-        
+
         else:
             data["wallet_descriptor"] = self.controller.multisig_wallet_descriptor
 
         self.controller.address_explorer_data = data
-
 
     def run(self):
         data = self.controller.address_explorer_data
@@ -534,13 +597,17 @@ class ToolsAddressExplorerAddressTypeView(View):
 
         wallet_descriptor_display_name = None
         if "wallet_descriptor" in data:
-            wallet_descriptor_display_name = data["wallet_descriptor"].brief_policy.replace(" (sorted)", "")
+            wallet_descriptor_display_name = data[
+                "wallet_descriptor"
+            ].brief_policy.replace(" (sorted)", "")
 
         script_type = data["script_type"] if "script_type" in data else None
 
         selected_menu_num = ToolsAddressExplorerAddressTypeScreen(
             button_data=button_data,
-            fingerprint=self.seed.get_fingerprint() if self.seed_num is not None else None,
+            fingerprint=self.seed.get_fingerprint()
+            if self.seed_num is not None
+            else None,
             wallet_descriptor_display_name=wallet_descriptor_display_name,
             script_type=script_type,
             custom_derivation_path=self.custom_derivation,
@@ -548,20 +615,27 @@ class ToolsAddressExplorerAddressTypeView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
-        elif button_data[selected_menu_num] in [RECEIVE, CHANGE]:
-            return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=button_data[selected_menu_num] == CHANGE))
 
+        elif button_data[selected_menu_num] in [RECEIVE, CHANGE]:
+            return Destination(
+                ToolsAddressExplorerAddressListView,
+                view_args=dict(is_change=button_data[selected_menu_num] == CHANGE),
+            )
 
 
 class ToolsAddressExplorerAddressListView(View):
-    def __init__(self, is_change: bool = False, start_index: int = 0, selected_button_index: int = 0, initial_scroll: int = 0):
+    def __init__(
+        self,
+        is_change: bool = False,
+        start_index: int = 0,
+        selected_button_index: int = 0,
+        initial_scroll: int = 0,
+    ):
         super().__init__()
         self.is_change = is_change
         self.start_index = start_index
         self.selected_button_index = selected_button_index
         self.initial_scroll = initial_scroll
-
 
     def run(self):
         self.loading_screen = None
@@ -575,9 +649,14 @@ class ToolsAddressExplorerAddressListView(View):
             if self.is_change:
                 addr_storage_key = "change_addrs"
 
-            if addr_storage_key in data and len(data[addr_storage_key]) >= self.start_index + addrs_per_screen:
+            if (
+                addr_storage_key in data
+                and len(data[addr_storage_key]) >= self.start_index + addrs_per_screen
+            ):
                 # We already calculated this range addresses; just retrieve them
-                addresses = data[addr_storage_key][self.start_index:self.start_index + addrs_per_screen]
+                addresses = data[addr_storage_key][
+                    self.start_index : self.start_index + addrs_per_screen
+                ]
 
             else:
                 self.loading_screen = LoadingScreenThread(text="Calculating addrs...")
@@ -588,21 +667,41 @@ class ToolsAddressExplorerAddressListView(View):
 
                 if "xpub" in data:
                     # Single sig explore from seed
-                    if "script_type" in data and data["script_type"] != SettingsConstants.CUSTOM_DERIVATION:
+                    if (
+                        "script_type" in data
+                        and data["script_type"] != SettingsConstants.CUSTOM_DERIVATION
+                    ):
                         # Standard derivation path
-                        for i in range(self.start_index, self.start_index + addrs_per_screen):
-                            address = embit_utils.get_single_sig_address(xpub=data["xpub"], script_type=data["script_type"], index=i, is_change=self.is_change, embit_network=data["embit_network"])
+                        for i in range(
+                            self.start_index, self.start_index + addrs_per_screen
+                        ):
+                            address = embit_utils.get_single_sig_address(
+                                xpub=data["xpub"],
+                                script_type=data["script_type"],
+                                index=i,
+                                is_change=self.is_change,
+                                embit_network=data["embit_network"],
+                            )
                             addresses.append(address)
                             data[addr_storage_key].append(address)
                     else:
                         # TODO: Custom derivation path
-                        raise Exception("Custom Derivation address explorer not yet implemented")
-                
+                        raise Exception(
+                            "Custom Derivation address explorer not yet implemented"
+                        )
+
                 elif "wallet_descriptor" in data:
                     descriptor: Descriptor = data["wallet_descriptor"]
                     if descriptor.is_basic_multisig:
-                        for i in range(self.start_index, self.start_index + addrs_per_screen):
-                            address = embit_utils.get_multisig_address(descriptor=descriptor, index=i, is_change=self.is_change, embit_network=data["embit_network"])
+                        for i in range(
+                            self.start_index, self.start_index + addrs_per_screen
+                        ):
+                            address = embit_utils.get_multisig_address(
+                                descriptor=descriptor,
+                                index=i,
+                                is_change=self.is_change,
+                                embit_network=data["embit_network"],
+                            )
                             addresses.append(address)
                             data[addr_storage_key].append(address)
 
@@ -617,9 +716,19 @@ class ToolsAddressExplorerAddressListView(View):
                     end_digits = -5
                 else:
                     end_digits = -4
-                button_data.append(f"{cur_index}:{address[:8]}...{address[end_digits:]}")
+                button_data.append(
+                    f"{cur_index}:{address[:8]}...{address[end_digits:]}"
+                )
 
-            button_data.append(("Next {}".format(addrs_per_screen), None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
+            button_data.append(
+                (
+                    "Next {}".format(addrs_per_screen),
+                    None,
+                    None,
+                    None,
+                    SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT,
+                )
+            )
 
             screen = ButtonListScreen(
                 title="{} Addrs".format("Receive" if not self.is_change else "Change"),
@@ -640,21 +749,43 @@ class ToolsAddressExplorerAddressListView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
         if selected_menu_num == len(addresses):
             # User clicked NEXT
-            return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.is_change, start_index=self.start_index + addrs_per_screen))
-        
+            return Destination(
+                ToolsAddressExplorerAddressListView,
+                view_args=dict(
+                    is_change=self.is_change,
+                    start_index=self.start_index + addrs_per_screen,
+                ),
+            )
+
         # Preserve the list's current scroll so we can return to the same spot
         initial_scroll = screen.buttons[0].scroll_y
 
         index = selected_menu_num + self.start_index
-        return Destination(ToolsAddressExplorerAddressView, view_args=dict(index=index, address=addresses[selected_menu_num], is_change=self.is_change, start_index=self.start_index, parent_initial_scroll=initial_scroll), skip_current_view=True)
-
+        return Destination(
+            ToolsAddressExplorerAddressView,
+            view_args=dict(
+                index=index,
+                address=addresses[selected_menu_num],
+                is_change=self.is_change,
+                start_index=self.start_index,
+                parent_initial_scroll=initial_scroll,
+            ),
+            skip_current_view=True,
+        )
 
 
 class ToolsAddressExplorerAddressView(View):
-    def __init__(self, index: int, address: str, is_change: bool, start_index: int, parent_initial_scroll: int = 0):
+    def __init__(
+        self,
+        index: int,
+        address: str,
+        is_change: bool,
+        start_index: int,
+        parent_initial_scroll: int = 0,
+    ):
         super().__init__()
         self.index = index
         self.address = address
@@ -662,12 +793,22 @@ class ToolsAddressExplorerAddressView(View):
         self.start_index = start_index
         self.parent_initial_scroll = parent_initial_scroll
 
-    
     def run(self):
-        qr_encoder = EncodeQR(qr_type=QRType.BITCOIN_ADDRESS, bitcoin_address=self.address)
+        qr_encoder = EncodeQR(
+            qr_type=QRType.BITCOIN_ADDRESS, bitcoin_address=self.address
+        )
         QRDisplayScreen(
             qr_encoder=qr_encoder,
         ).display()
-    
+
         # Exiting/Cancelling the QR display screen always returns to the list
-        return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.is_change, start_index=self.start_index, selected_button_index=self.index - self.start_index, initial_scroll=self.parent_initial_scroll), skip_current_view=True)
+        return Destination(
+            ToolsAddressExplorerAddressListView,
+            view_args=dict(
+                is_change=self.is_change,
+                start_index=self.start_index,
+                selected_button_index=self.index - self.start_index,
+                initial_scroll=self.parent_initial_scroll,
+            ),
+            skip_current_view=True,
+        )
