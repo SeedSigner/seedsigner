@@ -1,21 +1,19 @@
 import hashlib
 import os
-
 import time
 
-from embit.descriptor import Descriptor
 from PIL import Image
 from PIL.ImageOps import autocontrast
-from seedsigner.controller import Controller
-from seedsigner.gui.screens.screen import LoadingScreenThread, QRDisplayScreen
+from embit.descriptor import Descriptor
 
-from seedsigner.hardware.camera import Camera
+from seedsigner.controller import Controller
 from seedsigner.gui.components import (
     FontAwesomeIconConstants,
     GUIConstants,
     SeedSignerCustomIconConstants,
 )
 from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
+from seedsigner.gui.screens.screen import LoadingScreenThread, QRDisplayScreen
 from seedsigner.gui.screens.tools_screens import (
     ToolsCalcFinalWordDoneScreen,
     ToolsCalcFinalWordFinalizePromptScreen,
@@ -26,6 +24,7 @@ from seedsigner.gui.screens.tools_screens import (
     ToolsImageEntropyLivePreviewScreen,
     ToolsAddressExplorerAddressTypeScreen,
 )
+from seedsigner.hardware.camera import Camera
 from seedsigner.helpers import embit_utils, mnemonic_generation
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
@@ -38,7 +37,6 @@ from seedsigner.views.seed_views import (
     SeedWordsWarningView,
     SeedExportXpubScriptTypeView,
 )
-
 from .view import View, Destination, BackStackView
 
 
@@ -47,8 +45,9 @@ class ToolsMenuView(View):
         IMAGE = (" New seed", FontAwesomeIconConstants.CAMERA)
         DICE = ("New seed", FontAwesomeIconConstants.DICE)
         KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
+        RANDOM = (" Random seed", FontAwesomeIconConstants.LOCK)
         EXPLORER = "Address Explorer"
-        button_data = [IMAGE, DICE, KEYBOARD, EXPLORER]
+        button_data = [IMAGE, DICE, KEYBOARD, RANDOM, EXPLORER]
         screen = ButtonListScreen(
             title="Tools", is_button_text_centered=False, button_data=button_data
         )
@@ -65,6 +64,9 @@ class ToolsMenuView(View):
 
         elif button_data[selected_menu_num] == KEYBOARD:
             return Destination(ToolsCalcFinalWordNumWordsView)
+
+        elif button_data[selected_menu_num] == RANDOM:
+            return Destination(ToolsRandomSeedView)
 
         elif button_data[selected_menu_num] == EXPLORER:
             return Destination(ToolsAddressExplorerSelectSourceView)
@@ -469,6 +471,64 @@ class ToolsCalcFinalWordDoneView(View):
 
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView)
+
+
+"""****************************************************************************
+    Random Seed Views
+****************************************************************************"""
+
+
+class ToolsRandomSeedView(View):
+    def run(self):
+        TWELVE = "12 words"
+        TWENTY_FOUR = "24 words"
+
+        button_data = [TWELVE, TWENTY_FOUR]
+        selected_menu_num = ButtonListScreen(
+            title="Mnemonic Length",
+            is_bottom_list=True,
+            is_button_text_centered=True,
+            button_data=button_data,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == TWELVE:
+            return Destination(
+                ToolsRandomSeedCalcMnemonicView, view_args=dict(word_count=12)
+            )
+
+        elif button_data[selected_menu_num] == TWENTY_FOUR:
+            return Destination(
+                ToolsRandomSeedCalcMnemonicView, view_args=dict(word_count=24)
+            )
+
+
+class ToolsRandomSeedCalcMnemonicView(View):
+    def __init__(self, word_count: int):
+        super().__init__()
+        if word_count not in [12, 24]:
+            raise ValueError("word_count must be 12 or 24")
+        self.word_count = word_count
+
+    def run(self):
+        random_bytes = os.urandom(16 if self.word_count == 12 else 32)
+        # Generate the mnemonic
+        mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(random_bytes)
+        # Add the mnemonic as an in-memory Seed
+        seed = Seed(
+            mnemonic,
+            wordlist_language_code=self.settings.get_value(
+                SettingsConstants.SETTING__WORDLIST_LANGUAGE
+            ),
+        )
+        self.controller.storage.set_pending_seed(seed)
+
+        # Cannot return BACK to this View
+        return Destination(
+            SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True
+        )
 
 
 """****************************************************************************

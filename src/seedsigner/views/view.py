@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Type
 
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON
@@ -83,7 +83,7 @@ class Destination:
     be presented with next.
     """
 
-    View_cls: View  # The target View to route to
+    View_cls: Type[View]  # The target View to route to
     view_args: dict = None  # The input args required to instantiate the target View
     skip_current_view: bool = (
         False  # The current View is just forwarding; omit current View from history
