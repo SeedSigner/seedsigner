@@ -22,10 +22,11 @@ from seedsigner.gui.screens.tools_screens import (
     ToolsDiceEntropyEntryScreen,
     ToolsImageEntropyFinalImageScreen,
     ToolsImageEntropyLivePreviewScreen,
-    ToolsAddressExplorerAddressTypeScreen,
+    ToolsAddressDetailsScreen,
 )
 from seedsigner.hardware.camera import Camera
-from seedsigner.helpers import embit_utils, mnemonic_generation
+from seedsigner.helpers import mnemonic_generation
+from seedsigner.helpers.dev_tools import SEED_SIGNER_DEV_MODE_ENABLED
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
@@ -38,7 +39,6 @@ from seedsigner.views.seed_views import (
     SeedExportXpubScriptTypeView,
 )
 from .view import View, Destination, BackStackView
-from seedsigner.helpers.dev_tools import SEED_SIGNER_DEV_MODE_ENABLED
 
 
 class ToolsMenuView(View):
@@ -736,7 +736,7 @@ class ToolsAddressExplorerAddressListView(View):
 
         index = selected_menu_num + self.start_index
         return Destination(
-            ToolsAddressExplorerAddressView,
+            ToolsAddressExplorerAddressDetailsView,
             view_args=dict(
                 index=index,
                 address=addresses[selected_menu_num],
@@ -747,7 +747,58 @@ class ToolsAddressExplorerAddressListView(View):
         )
 
 
-class ToolsAddressExplorerAddressView(View):
+class ToolsAddressExplorerAddressDetailsView(View):
+    def __init__(
+        self,
+        index: int,
+        address: str,
+        start_index: int,
+        parent_initial_scroll: int = 0,
+    ):
+        super().__init__()
+        self.index = index
+        self.address = address
+        self.start_index = start_index
+        self.parent_initial_scroll = parent_initial_scroll
+
+    def run(self):
+        ADDRESS_QRCODE = "Address QRCode"
+        LOGIN_QRCODE = "Login QRCode"
+        button_data = [ADDRESS_QRCODE, LOGIN_QRCODE]
+        selected_menu_num = ToolsAddressDetailsScreen(
+            address=self.address,
+            derivation_index_id=self.index,
+            button_data=button_data,
+        ).display()
+
+        print("selected_menu_num: ", selected_menu_num)
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            # Exiting/Cancelling the QR display screen always returns to the list
+            return Destination(
+                ToolsAddressExplorerAddressListView,
+                view_args=dict(
+                    start_index=self.start_index,
+                    selected_button_index=self.index - self.start_index,
+                    initial_scroll=self.parent_initial_scroll,
+                ),
+                skip_current_view=True,
+            )
+
+        elif selected_menu_num == 0:
+            return Destination(
+                ToolsAddressExplorerAddressQRCodeView,
+                view_args=dict(
+                    index=self.index,
+                    address=self.address,
+                    start_index=self.start_index,
+                    parent_initial_scroll=self.parent_initial_scroll,
+                ),
+            )
+        # TODO: stellar, login qr code
+
+
+class ToolsAddressExplorerAddressQRCodeView(View):
     def __init__(
         self,
         index: int,
@@ -769,13 +820,4 @@ class ToolsAddressExplorerAddressView(View):
             qr_encoder=qr_encoder,
         ).display()
 
-        # Exiting/Cancelling the QR display screen always returns to the list
-        return Destination(
-            ToolsAddressExplorerAddressListView,
-            view_args=dict(
-                start_index=self.start_index,
-                selected_button_index=self.index - self.start_index,
-                initial_scroll=self.parent_initial_scroll,
-            ),
-            skip_current_view=True,
-        )
+        return Destination(BackStackView)
