@@ -17,8 +17,14 @@ from seedsigner.views.view import (
     UnhandledExceptionView,
 )
 
-from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
-
+from .models import (
+    Seed,
+    SeedStorage,
+    Settings,
+    Singleton,
+    PSBTParser,
+    SettingsConstants,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +197,34 @@ class Controller(Singleton):
 
         opening_splash = OpeningSplashScreen()
         opening_splash.start()
+
+        # add a default seed in dev mode
+        from .helpers.dev_tools import SEED_SIGNER_DEV_MODE_ENABLED
+
+        if SEED_SIGNER_DEV_MODE_ENABLED:
+            # Generate the mnemonic
+            mnemonic = [
+                "type",
+                "agree",
+                "captain",
+                "cake",
+                "screen",
+                "wait",
+                "maximum",
+                "attack",
+                "boost",
+                "humble",
+                "penalty",
+                "transfer",
+            ]
+            # Add the mnemonic as an in-memory Seed
+            seed = Seed(
+                mnemonic,
+                wordlist_language_code=self.settings.get_value(
+                    SettingsConstants.SETTING__WORDLIST_LANGUAGE
+                ),
+            )
+            self.storage.seeds.append(seed)
 
         """ Class references can be stored as variables in python!
 
