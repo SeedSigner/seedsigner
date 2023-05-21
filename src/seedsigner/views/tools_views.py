@@ -38,6 +38,7 @@ from seedsigner.views.seed_views import (
     SeedExportXpubScriptTypeView,
 )
 from .view import View, Destination, BackStackView
+from seedsigner.helpers.dev_tools import SEED_SIGNER_DEV_MODE_ENABLED
 
 
 class ToolsMenuView(View):
@@ -47,7 +48,10 @@ class ToolsMenuView(View):
         KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
         RANDOM = (" Random seed", FontAwesomeIconConstants.LOCK)
         EXPLORER = "Address Explorer"
-        button_data = [IMAGE, DICE, KEYBOARD, RANDOM, EXPLORER]
+        if SEED_SIGNER_DEV_MODE_ENABLED:
+            button_data = [IMAGE, DICE, KEYBOARD, RANDOM, EXPLORER]
+        else:
+            button_data = [IMAGE, DICE, KEYBOARD, EXPLORER]
         screen = ButtonListScreen(
             title="Tools", is_button_text_centered=False, button_data=button_data
         )
@@ -546,9 +550,7 @@ class ToolsAddressExplorerSelectSourceView(View):
 
         seeds = self.controller.storage.seeds
         for seed in seeds:
-            button_str = seed.get_fingerprint(
-                self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-            )
+            button_str = seed.get_fingerprint()
             button_data.append(
                 (button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue")
             )

@@ -5,6 +5,8 @@ from embit import bip39, bip32, bip85
 from embit.networks import NETWORKS
 from typing import List
 
+from stellar_sdk import Keypair
+
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.helpers import embit_utils
 
@@ -99,12 +101,11 @@ class Seed:
         # TODO: Support other BIP-39 wordlist languages!
         raise Exception("Not yet implemented!")
 
-    def get_fingerprint(self, network: str = SettingsConstants.MAINNET) -> str:
-        root = bip32.HDKey.from_seed(
-            self.seed_bytes,
-            version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"],
+    def get_fingerprint(self) -> str:
+        kp = Keypair.from_mnemonic_phrase(
+            self.mnemonic_str, passphrase=self.passphrase, index=0
         )
-        return hexlify(root.child(0).fingerprint).decode("utf-8")
+        return kp.raw_secret_key().hex()[-8:]
 
     def get_xpub(
         self, wallet_path: str = "/", network: str = SettingsConstants.MAINNET

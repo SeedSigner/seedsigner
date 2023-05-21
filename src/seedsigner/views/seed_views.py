@@ -44,13 +44,7 @@ class SeedsMenuView(View):
         super().__init__()
         self.seeds = []
         for seed in self.controller.storage.seeds:
-            self.seeds.append(
-                {
-                    "fingerprint": seed.get_fingerprint(
-                        self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-                    )
-                }
-            )
+            self.seeds.append({"fingerprint": seed.get_fingerprint()})
 
     def run(self):
         if not self.seeds:
@@ -235,9 +229,7 @@ class SeedFinalizeView(View):
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
-        self.fingerprint = self.seed.get_fingerprint(
-            network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-        )
+        self.fingerprint = self.seed.get_fingerprint()
 
     def run(self):
         FINALIZE = "Done"
@@ -305,9 +297,9 @@ class SeedReviewPassphraseView(View):
         # Get the before/after fingerprints
         network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
         passphrase = self.seed.passphrase
-        fingerprint_with = self.seed.get_fingerprint(network=network)
+        fingerprint_with = self.seed.get_fingerprint()
         self.seed.set_passphrase("")
-        fingerprint_without = self.seed.get_fingerprint(network=network)
+        fingerprint_without = self.seed.get_fingerprint()
         self.seed.set_passphrase(passphrase)
 
         # Because we have ane explicit "Edit" button, we disable "BACK" to keep the
@@ -344,9 +336,7 @@ class SeedDiscardView(View):
         DISCARD = ("Discard", None, None, "red")
         button_data = [KEEP, DISCARD]
 
-        fingerprint = self.seed.get_fingerprint(
-            self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-        )
+        fingerprint = self.seed.get_fingerprint()
         selected_menu_num = WarningScreen(
             title="Discard Seed?",
             status_headline=None,
@@ -388,10 +378,7 @@ class SeedOptionsView(View):
     def run(self):
         from seedsigner.views.psbt_views import PSBTOverviewView
 
-        SCAN_PSBT = ("Scan PSBT", FontAwesomeIconConstants.QRCODE)
-        VERIFY_ADDRESS = "Verify Addr"
-        EXPORT_XPUB = "Export Xpub"
-        # TODO: stellar, export stellar address
+        SCAN_TX = ("Scan Transaction", FontAwesomeIconConstants.QRCODE)
         EXPLORER = "Address Explorer"
         BACKUP = (
             "Backup Seed",
@@ -400,79 +387,34 @@ class SeedOptionsView(View):
             None,
             SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT,
         )
-        BIP85_CHILD_SEED = "BIP-85 Child Seed"
         DISCARD = ("Discard Seed", None, None, "red")
 
         button_data = []
 
-        # if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
-        #     # Jump straight back into the address explorer script type selection flow
-        #     # But do ont cancel the `resume_main_flow` as we'll still need that after
-        #     # derivation path is specified.
-        #     return Destination(
-        #         SeedExportXpubScriptTypeView,
-        #         view_args=dict(
-        #             seed_num=self.seed_num, sig_type=SettingsConstants.SINGLE_SIG
-        #         ),
-        #         skip_current_view=True,
-        #     )
+        # if self.controller.psbt:
+        #     if PSBTParser.has_matching_input_fingerprint(
+        #         self.controller.psbt,
+        #         self.seed,
+        #         network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
+        #     ):
+        #         if (
+        #             self.controller.resume_main_flow
+        #             and self.controller.resume_main_flow == Controller.FLOW__PSBT
+        #         ):
+        #             # Re-route us directly back to the start of the PSBT flow
+        #             self.controller.resume_main_flow = None
+        #             self.controller.psbt_seed = self.seed
+        #             return Destination(PSBTOverviewView, skip_current_view=True)
 
-        if self.controller.unverified_address:
-            if (
-                self.controller.resume_main_flow
-                == Controller.FLOW__VERIFY_SINGLESIG_ADDR
-            ):
-                # Jump straight back into the single sig addr verification flow
-                self.controller.resume_main_flow = None
-                return Destination(
-                    SeedAddressVerificationView,
-                    view_args=dict(seed_num=self.seed_num),
-                    skip_current_view=True,
-                )
-
-            addr = self.controller.unverified_address["address"][:7]
-            VERIFY_ADDRESS += f" {addr}"
-            button_data.append(VERIFY_ADDRESS)
-
-        if self.controller.psbt:
-            if PSBTParser.has_matching_input_fingerprint(
-                self.controller.psbt,
-                self.seed,
-                network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
-            ):
-                if (
-                    self.controller.resume_main_flow
-                    and self.controller.resume_main_flow == Controller.FLOW__PSBT
-                ):
-                    # Re-route us directly back to the start of the PSBT flow
-                    self.controller.resume_main_flow = None
-                    self.controller.psbt_seed = self.seed
-                    return Destination(PSBTOverviewView, skip_current_view=True)
-
-        button_data.append(SCAN_PSBT)
-
-        if (
-            self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT)
-            == SettingsConstants.OPTION__ENABLED
-        ):
-            button_data.append(EXPORT_XPUB)
-
+        button_data.append(SCAN_TX)
         button_data.append(EXPLORER)
         button_data.append(BACKUP)
-
-        if (
-            self.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS)
-            == SettingsConstants.OPTION__ENABLED
-        ):
-            button_data.append(BIP85_CHILD_SEED)
 
         button_data.append(DISCARD)
 
         selected_menu_num = seed_screens.SeedOptionsScreen(
             button_data=button_data,
-            fingerprint=self.seed.get_fingerprint(
-                self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-            ),
+            fingerprint=self.seed.get_fingerprint(),
             has_passphrase=self.seed.passphrase is not None,
         ).display()
 
@@ -480,21 +422,11 @@ class SeedOptionsView(View):
             # Force BACK to always return to the Main Menu
             return Destination(MainMenuView)
 
-        if button_data[selected_menu_num] == SCAN_PSBT:
+        if button_data[selected_menu_num] == SCAN_TX:
             from seedsigner.views.scan_views import ScanView
 
             self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
             return Destination(ScanView)
-
-        elif button_data[selected_menu_num] == VERIFY_ADDRESS:
-            return Destination(
-                SeedAddressVerificationView, view_args=dict(seed_num=self.seed_num)
-            )
-
-        elif button_data[selected_menu_num] == EXPORT_XPUB:
-            return Destination(
-                SeedExportXpubSigTypeView, view_args=dict(seed_num=self.seed_num)
-            )
 
         # export stellar address
         elif button_data[selected_menu_num] == EXPLORER:
@@ -505,11 +437,6 @@ class SeedOptionsView(View):
 
         elif button_data[selected_menu_num] == BACKUP:
             return Destination(SeedBackupView, view_args=dict(seed_num=self.seed_num))
-
-        elif button_data[selected_menu_num] == BIP85_CHILD_SEED:
-            return Destination(
-                SeedBIP85ApplicationModeView, view_args={"seed_num": self.seed_num}
-            )
 
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView, view_args=dict(seed_num=self.seed_num))
@@ -1727,9 +1654,7 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
         text = "Load the seed to verify"
 
         for seed in seeds:
-            button_str = seed.get_fingerprint(
-                self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-            )
+            button_str = seed.get_fingerprint()
             button_data.append(
                 (button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue")
             )

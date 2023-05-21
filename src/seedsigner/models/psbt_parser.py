@@ -349,7 +349,7 @@ class PSBTParser:
         Extracts the fingerprint from each psbt input utxo. Returns True if any match
         the current seed.
         """
-        seed_fingerprint = seed.get_fingerprint(network)
+        seed_fingerprint = seed.get_fingerprint()
         for input in psbt.inputs:
             for pub, derivation_path in input.bip32_derivations.items():
                 if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():

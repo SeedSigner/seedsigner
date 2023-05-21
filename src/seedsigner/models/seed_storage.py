@@ -67,7 +67,7 @@ class SeedStorage:
     ) -> str:
         try:
             seed = Seed(self._pending_mnemonic)
-            return seed.get_fingerprint(network)
+            return seed.get_fingerprint()
         except InvalidSeedException:
             return None
 

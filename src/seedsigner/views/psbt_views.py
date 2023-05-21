@@ -44,9 +44,7 @@ class PSBTSelectSeedView(View):
         TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
         button_data = []
         for seed in seeds:
-            button_str = seed.get_fingerprint(
-                self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-            )
+            button_str = seed.get_fingerprint()
             if not PSBTParser.has_matching_input_fingerprint(
                 psbt=self.controller.psbt,
                 seed=seed,
@@ -342,9 +340,7 @@ class PSBTChangeDetailsView(View):
 
         # Single-sig verification is easy. We expect to find a single fingerprint
         # and derivation path.
-        seed_fingerprint = self.controller.psbt_seed.get_fingerprint(
-            self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-        )
+        seed_fingerprint = self.controller.psbt_seed.get_fingerprint()
 
         if seed_fingerprint not in change_data.get("fingerprint"):
             # TODO: Something is wrong with this psbt(?). Reroute to warning?
