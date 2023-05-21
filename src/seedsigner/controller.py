@@ -180,11 +180,11 @@ class Controller(Singleton):
         from .views import Destination
 
         if len(self.back_stack) > 0:
-            # Pop the top View (which is the current View_cls)
+            # Pop the top View (which is the current view_cls)
             self.back_stack.pop()
 
             if len(self.back_stack) > 0:
-                # One more pop back gives us the actual "back" View_cls
+                # One more pop back gives us the actual "back" view_cls
                 return self.back_stack.pop()
         return Destination(None)
 
@@ -228,10 +228,10 @@ class Controller(Singleton):
 
         """ Class references can be stored as variables in python!
 
-            This loop receives a View class to execute and stores it in the `View_cls`
+            This loop receives a View class to execute and stores it in the `view_cls`
             var along with any input arguments in the `init_args` dict.
 
-            The `View_cls` is instantiated with `init_args` passed in and then run(). It
+            The `view_cls` is instantiated with `init_args` passed in and then run(). It
             returns either a new View class to execute next or None.
 
             Example:
@@ -245,20 +245,20 @@ class Controller(Singleton):
 
             When `OtherView` is instantiated and run, we capture its return values:
 
-                (View_cls, init_args) = OtherView().run()
+                (view_cls, init_args) = OtherView().run()
 
             And then we can instantiate and run that View class:
 
-                View_cls(**init_args).run()
+                view_cls(**init_args).run()
         """
         try:
             next_destination = Destination(MainMenuView)
             while True:
                 # Destination(None) is a special case; render the Home screen
-                if next_destination.View_cls is None:
+                if next_destination.view_cls is None:
                     next_destination = Destination(MainMenuView)
 
-                if next_destination.View_cls == MainMenuView:
+                if next_destination.view_cls == MainMenuView:
                     # Home always wipes the back_stack
                     self.clear_back_stack()
 
@@ -293,7 +293,7 @@ class Controller(Singleton):
                 # Hang on to this reference...
                 clear_history = next_destination.clear_history
 
-                if next_destination.View_cls == BackStackView:
+                if next_destination.view_cls == BackStackView:
                     # "Back" arrow was clicked; load the previous view
                     next_destination = self.pop_prev_from_back_stack()
 

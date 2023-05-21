@@ -603,7 +603,7 @@ class SeedExportXpubScriptTypeView(View):
         #     # If previous view is SeedOptionsView then that should be where resume_main_flow started (otherwise it would have been skipped).
         #     if (
         #         len(self.controller.back_stack) >= 2
-        #         and self.controller.back_stack[-2].View_cls == SeedOptionsView
+        #         and self.controller.back_stack[-2].view_cls == SeedOptionsView
         #     ):
         #         self.controller.resume_main_flow = None
         #     return Destination(BackStackView)

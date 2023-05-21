@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import List, Type
+from typing import List, Type, Union
 
-from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants
+from seedsigner.gui.components import FontAwesomeIconConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON
 from seedsigner.gui.screens.screen import (
     RET_CODE__BACK_BUTTON,
@@ -12,8 +12,8 @@ from seedsigner.gui.screens.screen import (
     ResetScreen,
     WarningScreen,
 )
-from seedsigner.models.threads import BaseThread
 from seedsigner.models import Settings
+from seedsigner.models.threads import BaseThread
 
 
 class BackStackView:
@@ -53,7 +53,7 @@ class BackStackView:
 
 
 class View:
-    def __init__(self) -> None:
+    def __init__(self, **kwargs) -> None:
         # Import here to avoid circular imports
         from seedsigner.controller import Controller
         from seedsigner.gui import Renderer
@@ -83,7 +83,7 @@ class Destination:
     be presented with next.
     """
 
-    View_cls: Type[View]  # The target View to route to
+    view_cls: Type[Union[View, BackStackView]]  # The target View to route to
     view_args: dict = None  # The input args required to instantiate the target View
     skip_current_view: bool = (
         False  # The current View is just forwarding; omit current View from history
@@ -91,10 +91,10 @@ class Destination:
     clear_history: bool = False  # Optionally clears the back_stack to prevent "back"
 
     def __repr__(self):
-        if self.View_cls is None:
+        if self.view_cls is None:
             out = "None"
         else:
-            out = self.View_cls.__name__
+            out = self.view_cls.__name__
         if self.view_args:
             out += f"({self.view_args})"
         else:
@@ -107,8 +107,9 @@ class Destination:
         if not self.view_args:
             # Can't unpack (**) None so we replace with an empty dict
             self.view_args = {}
-        # Instantiate the `View_cls` and run() it with the `view_args` dict
-        return self.View_cls(**self.view_args).run()
+        # Instantiate the `view_cls` and run() it with the `view_args` dict
+        assert issubclass(self.view_cls, View)
+        return self.view_cls(**self.view_args).run()
 
     def __eq__(self, obj):
         """
@@ -116,7 +117,7 @@ class Destination:
         """
         return (
             isinstance(obj, Destination)
-            and obj.View_cls == self.View_cls
+            and obj.view_cls == self.view_cls
             and obj.view_args == self.view_args
         )
 
@@ -137,7 +138,7 @@ class MainMenuView(View):
         from .tools_views import ToolsMenuView
         from seedsigner.gui.screens import LargeButtonScreen
 
-        menu_items = [
+        menu_items: list[tuple[tuple[str, str], Type[View]]] = [
             (("Scan", FontAwesomeIconConstants.QRCODE), ScanView),
             (("Seeds", FontAwesomeIconConstants.KEY), SeedsMenuView),
             (("Tools", FontAwesomeIconConstants.SCREWDRIVER_WRENCH), ToolsMenuView),
@@ -151,7 +152,7 @@ class MainMenuView(View):
             show_back_button=False,
             show_power_button=True,
         )
-        selected_menu_num = screen.display()
+        selected_menu_num: int = screen.display()
 
         if selected_menu_num == RET_CODE__POWER_BUTTON:
             return Destination(PowerOptionsView)
@@ -242,6 +243,7 @@ class NotYetImplementedView(View):
 
 class UnhandledExceptionView(View):
     def __init__(self, error: List[str]):
+        super().__init__()
         self.error = error
 
     def run(self):
