@@ -534,6 +534,7 @@ class ToolsAddressDetailsScreen(ButtonListScreen):
             TextArea(
                 text=address_with_break,
                 font_size=GUIConstants.BODY_FONT_MAX_SIZE + 1,
+                font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
                 screen_y=self.top_nav.height,
                 is_text_centered=True,
             )
