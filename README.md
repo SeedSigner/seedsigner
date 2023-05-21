@@ -1,4 +1,6 @@
-# Build an offline, airgapped Bitcoin signing device for less than $50!
+# Build an offline, airgapped Stellar signing device for less than $50!
+
+## The project is currently in development and is not yet ready for use with real funds. Please check back soon!
 
 ![Image of SeedSigners in Open Pill Enclosures](docs/img/Open_Pill_Star.JPG)![Image of SeedSigner in an Orange Pill enclosure](docs/img/Orange_Pill.JPG)
 
