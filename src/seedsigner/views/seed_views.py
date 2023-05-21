@@ -405,17 +405,17 @@ class SeedOptionsView(View):
 
         button_data = []
 
-        if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
-            # Jump straight back into the address explorer script type selection flow
-            # But do ont cancel the `resume_main_flow` as we'll still need that after
-            # derivation path is specified.
-            return Destination(
-                SeedExportXpubScriptTypeView,
-                view_args=dict(
-                    seed_num=self.seed_num, sig_type=SettingsConstants.SINGLE_SIG
-                ),
-                skip_current_view=True,
-            )
+        # if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
+        #     # Jump straight back into the address explorer script type selection flow
+        #     # But do ont cancel the `resume_main_flow` as we'll still need that after
+        #     # derivation path is specified.
+        #     return Destination(
+        #         SeedExportXpubScriptTypeView,
+        #         view_args=dict(
+        #             seed_num=self.seed_num, sig_type=SettingsConstants.SINGLE_SIG
+        #         ),
+        #         skip_current_view=True,
+        #     )
 
         if self.controller.unverified_address:
             if (
