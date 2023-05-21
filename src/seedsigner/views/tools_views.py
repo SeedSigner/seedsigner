@@ -4,7 +4,7 @@ import time
 
 from PIL import Image
 from PIL.ImageOps import autocontrast
-from embit.descriptor import Descriptor
+from stellar_sdk import Keypair
 
 from seedsigner.controller import Controller
 from seedsigner.gui.components import (
@@ -606,6 +606,7 @@ class ToolsAddressExplorerAddressTypeView(View):
         custom_derivation: str = None,
     ):
         """
+        TODO: fix description
         If the explorer source is a seed, `seed_num` and `script_type` must be
         specified. `custom_derivation` can be specified as needed.
 
@@ -614,85 +615,30 @@ class ToolsAddressExplorerAddressTypeView(View):
         """
         super().__init__()
         self.seed_num = seed_num
-        self.script_type = script_type
-        self.custom_derivation = custom_derivation
-
-        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
 
         # Store everything in the Controller's `address_explorer_data` so we don't have
         # to keep passing vals around from View to View and recalculating.
+        seed = self.controller.storage.seeds[seed_num]
         data = dict(
-            seed_num=seed_num,
-            network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
-            embit_network=SettingsConstants.map_network_to_embit(network),
-            script_type=script_type,
+            seed=seed,
         )
-        if self.seed_num is not None:
-            self.seed = self.controller.storage.seeds[seed_num]
-            data["seed_num"] = self.seed
-
-            if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
-                derivation_path = self.custom_derivation
-            else:
-                derivation_path = embit_utils.get_standard_derivation_path(
-                    network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
-                    wallet_type=SettingsConstants.SINGLE_SIG,
-                    script_type=self.script_type,
-                )
-
-            data["derivation_path"] = derivation_path
-            data["xpub"] = self.seed.get_xpub(derivation_path, network=network)
-
-        else:
-            data["wallet_descriptor"] = self.controller.multisig_wallet_descriptor
-
         self.controller.address_explorer_data = data
 
     def run(self):
-        data = self.controller.address_explorer_data
-
-        RECEIVE = "Receive Addresses"
-        CHANGE = "Change Addresses"
-        button_data = [RECEIVE, CHANGE]
-
-        wallet_descriptor_display_name = None
-        if "wallet_descriptor" in data:
-            wallet_descriptor_display_name = data[
-                "wallet_descriptor"
-            ].brief_policy.replace(" (sorted)", "")
-
-        script_type = data["script_type"] if "script_type" in data else None
-
-        selected_menu_num = ToolsAddressExplorerAddressTypeScreen(
-            button_data=button_data,
-            fingerprint=self.seed.get_fingerprint()
-            if self.seed_num is not None
-            else None,
-            wallet_descriptor_display_name=wallet_descriptor_display_name,
-            script_type=script_type,
-            custom_derivation_path=self.custom_derivation,
-        ).display()
-
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-
-        elif button_data[selected_menu_num] in [RECEIVE, CHANGE]:
-            return Destination(
-                ToolsAddressExplorerAddressListView,
-                view_args=dict(is_change=button_data[selected_menu_num] == CHANGE),
-            )
+        return Destination(
+            ToolsAddressExplorerAddressListView,
+            skip_current_view=True,
+        )
 
 
 class ToolsAddressExplorerAddressListView(View):
     def __init__(
         self,
-        is_change: bool = False,
         start_index: int = 0,
         selected_button_index: int = 0,
         initial_scroll: int = 0,
     ):
         super().__init__()
-        self.is_change = is_change
         self.start_index = start_index
         self.selected_button_index = selected_button_index
         self.initial_scroll = initial_scroll
@@ -704,10 +650,7 @@ class ToolsAddressExplorerAddressListView(View):
             button_data = []
             data = self.controller.address_explorer_data
             addrs_per_screen = 10
-
-            addr_storage_key = "receive_addrs"
-            if self.is_change:
-                addr_storage_key = "change_addrs"
+            addr_storage_key = "addrs"
 
             if (
                 addr_storage_key in data
@@ -724,49 +667,16 @@ class ToolsAddressExplorerAddressListView(View):
 
                 if addr_storage_key not in data:
                     data[addr_storage_key] = []
+                # TODO: data["seed"] is not defined?
+                mnemonic_str = data["seed"].mnemonic_str
+                passphrase = data["seed"].passphrase
 
-                if "xpub" in data:
-                    # Single sig explore from seed
-                    if (
-                        "script_type" in data
-                        and data["script_type"] != SettingsConstants.CUSTOM_DERIVATION
-                    ):
-                        # Standard derivation path
-                        for i in range(
-                            self.start_index, self.start_index + addrs_per_screen
-                        ):
-                            address = embit_utils.get_single_sig_address(
-                                xpub=data["xpub"],
-                                script_type=data["script_type"],
-                                index=i,
-                                is_change=self.is_change,
-                                embit_network=data["embit_network"],
-                            )
-                            addresses.append(address)
-                            data[addr_storage_key].append(address)
-                    else:
-                        # TODO: Custom derivation path
-                        raise Exception(
-                            "Custom Derivation address explorer not yet implemented"
-                        )
-
-                elif "wallet_descriptor" in data:
-                    descriptor: Descriptor = data["wallet_descriptor"]
-                    if descriptor.is_basic_multisig:
-                        for i in range(
-                            self.start_index, self.start_index + addrs_per_screen
-                        ):
-                            address = embit_utils.get_multisig_address(
-                                descriptor=descriptor,
-                                index=i,
-                                is_change=self.is_change,
-                                embit_network=data["embit_network"],
-                            )
-                            addresses.append(address)
-                            data[addr_storage_key].append(address)
-
-                    else:
-                        raise Exception("Single sig descriptors not yet supported")
+                for i in range(self.start_index, self.start_index + addrs_per_screen):
+                    address = Keypair.from_mnemonic_phrase(
+                        mnemonic_str, passphrase=passphrase, index=i
+                    ).public_key
+                    addresses.append(address)
+                    data[addr_storage_key].append(address)
 
             for i, address in enumerate(addresses):
                 cur_index = i + self.start_index
@@ -791,7 +701,7 @@ class ToolsAddressExplorerAddressListView(View):
             )
 
             screen = ButtonListScreen(
-                title="{} Addrs".format("Receive" if not self.is_change else "Change"),
+                title="Accounts",
                 button_data=button_data,
                 button_font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
                 button_font_size=GUIConstants.BUTTON_FONT_SIZE + 4,
@@ -815,7 +725,6 @@ class ToolsAddressExplorerAddressListView(View):
             return Destination(
                 ToolsAddressExplorerAddressListView,
                 view_args=dict(
-                    is_change=self.is_change,
                     start_index=self.start_index + addrs_per_screen,
                 ),
             )
@@ -829,7 +738,6 @@ class ToolsAddressExplorerAddressListView(View):
             view_args=dict(
                 index=index,
                 address=addresses[selected_menu_num],
-                is_change=self.is_change,
                 start_index=self.start_index,
                 parent_initial_scroll=initial_scroll,
             ),
@@ -842,14 +750,12 @@ class ToolsAddressExplorerAddressView(View):
         self,
         index: int,
         address: str,
-        is_change: bool,
         start_index: int,
         parent_initial_scroll: int = 0,
     ):
         super().__init__()
         self.index = index
         self.address = address
-        self.is_change = is_change
         self.start_index = start_index
         self.parent_initial_scroll = parent_initial_scroll
 
@@ -865,7 +771,6 @@ class ToolsAddressExplorerAddressView(View):
         return Destination(
             ToolsAddressExplorerAddressListView,
             view_args=dict(
-                is_change=self.is_change,
                 start_index=self.start_index,
                 selected_button_index=self.index - self.start_index,
                 initial_scroll=self.parent_initial_scroll,

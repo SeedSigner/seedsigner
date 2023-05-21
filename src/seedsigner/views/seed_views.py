@@ -1,19 +1,18 @@
-import embit
 import random
 import time
-
 from binascii import hexlify
+from typing import List
+
+import embit
 from embit import bip39
 from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
-from typing import List
 
 from seedsigner.controller import Controller
 from seedsigner.gui.components import (
     FontAwesomeIconConstants,
     SeedSignerCustomIconConstants,
 )
-from seedsigner.helpers import embit_utils
 from seedsigner.gui.screens import (
     RET_CODE__BACK_BUTTON,
     ButtonListScreen,
@@ -26,6 +25,7 @@ from seedsigner.gui.screens.screen import (
     LoadingScreenThread,
     QRDisplayScreen,
 )
+from seedsigner.helpers import embit_utils
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
@@ -36,7 +36,6 @@ from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.views.psbt_views import PSBTChangeDetailsView
 from seedsigner.views.scan_views import ScanView
-
 from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
 
 
@@ -392,6 +391,7 @@ class SeedOptionsView(View):
         SCAN_PSBT = ("Scan PSBT", FontAwesomeIconConstants.QRCODE)
         VERIFY_ADDRESS = "Verify Addr"
         EXPORT_XPUB = "Export Xpub"
+        # TODO: stellar, export stellar address
         EXPLORER = "Address Explorer"
         BACKUP = (
             "Backup Seed",
@@ -496,13 +496,11 @@ class SeedOptionsView(View):
                 SeedExportXpubSigTypeView, view_args=dict(seed_num=self.seed_num)
             )
 
+        # export stellar address
         elif button_data[selected_menu_num] == EXPLORER:
             self.controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
             return Destination(
-                SeedExportXpubScriptTypeView,
-                view_args=dict(
-                    seed_num=self.seed_num, sig_type=SettingsConstants.SINGLE_SIG
-                ),
+                AddressExporterView, view_args=dict(seed_num=self.seed_num)
             )
 
         elif button_data[selected_menu_num] == BACKUP:
@@ -515,6 +513,24 @@ class SeedOptionsView(View):
 
         elif button_data[selected_menu_num] == DISCARD:
             return Destination(SeedDiscardView, view_args=dict(seed_num=self.seed_num))
+
+
+class AddressExporterView(View):
+    def __init__(self, seed_num: int):
+        super().__init__()
+        seed = self.controller.storage.seeds[seed_num]
+        data = dict(
+            seed=seed,
+        )
+        self.controller.address_explorer_data = data
+
+    def run(self):
+        from seedsigner.views.tools_views import ToolsAddressExplorerAddressListView
+
+        return Destination(
+            ToolsAddressExplorerAddressListView,
+            skip_current_view=True,
+        )
 
 
 class SeedBackupView(View):
@@ -638,45 +654,37 @@ class SeedExportXpubScriptTypeView(View):
         ):
             button_data.append(script_type)
 
-        title = "Export Xpub"
         if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
-            title = "Address Explorer"
-
-        selected_menu_num = ButtonListScreen(
-            title=title,
-            is_button_text_centered=False,
-            button_data=button_data,
-            is_bottom_list=True,
-        ).display()
-
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            # If previous view is SeedOptionsView then that should be where resume_main_flow started (otherwise it would have been skipped).
-            if (
-                len(self.controller.back_stack) >= 2
-                and self.controller.back_stack[-2].View_cls == SeedOptionsView
-            ):
-                self.controller.resume_main_flow = None
-            return Destination(BackStackView)
-
-        else:
-            script_types_settings_entry = SettingsDefinition.get_settings_entry(
-                SettingsConstants.SETTING__SCRIPT_TYPES
+            del args["sig_type"]
+            return Destination(
+                ToolsAddressExplorerAddressTypeView,
+                view_args=args,
+                skip_current_view=True,
             )
-            selected_display_name = button_data[selected_menu_num]
-            args[
-                "script_type"
-            ] = script_types_settings_entry.get_selection_option_value_by_display_name(
-                selected_display_name
-            )
-
-            if args["script_type"] == SettingsConstants.CUSTOM_DERIVATION:
-                return Destination(SeedExportXpubCustomDerivationView, view_args=args)
-
-            if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
-                del args["sig_type"]
-                return Destination(ToolsAddressExplorerAddressTypeView, view_args=args)
-            else:
-                return Destination(SeedExportXpubCoordinatorView, view_args=args)
+        # title = "Export Xpub"
+        # if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
+        #     title = "Address Explorer"
+        # # TODO: stellar, remove type
+        # selected_menu_num = ButtonListScreen(
+        #     title=title,
+        #     is_button_text_centered=False,
+        #     button_data=button_data,
+        #     is_bottom_list=True,
+        # ).display()
+        #
+        # if selected_menu_num == RET_CODE__BACK_BUTTON:
+        #     # If previous view is SeedOptionsView then that should be where resume_main_flow started (otherwise it would have been skipped).
+        #     if (
+        #         len(self.controller.back_stack) >= 2
+        #         and self.controller.back_stack[-2].View_cls == SeedOptionsView
+        #     ):
+        #         self.controller.resume_main_flow = None
+        #     return Destination(BackStackView)
+        #
+        # else:
+        #     if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
+        #         del args["sig_type"]
+        #         return Destination(ToolsAddressExplorerAddressTypeView, view_args=args)
 
 
 class SeedExportXpubCustomDerivationView(View):
@@ -1024,7 +1032,7 @@ class SeedWordsView(View):
             button_data.append(DONE)
 
         selected_menu_num = seed_screens.SeedWordsScreen(
-            title=f"{title}: {self.page_index+1}/{num_pages}",
+            title=f"{title}: {self.page_index + 1}/{num_pages}",
             words=words,
             page_index=self.page_index,
             num_pages=num_pages,
