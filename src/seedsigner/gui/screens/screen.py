@@ -131,7 +131,7 @@ class LoadingScreenThread(BaseThread):
     def run(self):
         renderer: Renderer = Renderer.get_instance()
 
-        center_image = load_image("btc_logo_60x60.png")
+        center_image = load_image("stellar_2014_logo_60x60.png")
         orbit_gap = 2 * GUIConstants.COMPONENT_PADDING
         bounding_box = (
             int((renderer.canvas_width - center_image.width) / 2 - orbit_gap),
@@ -141,8 +141,8 @@ class LoadingScreenThread(BaseThread):
         )
         position = 0
         arc_sweep = 45
-        arc_color = "#ff9416"
-        arc_trailing_color = "#80490b"
+        arc_color = "#f2f8fa"
+        arc_trailing_color = "#dcf2f9"
 
         # Need to flush the screen
         with renderer.lock:
@@ -1101,7 +1101,9 @@ class KeyboardScreen(BaseTopNavScreen):
                 - right_panel_buttons_width
                 + GUIConstants.COMPONENT_PADDING
             )
-            hw_button_y = int(self.canvas_height - GUIConstants.BUTTON_HEIGHT) / 2 + 60
+            hw_button_y = (
+                int((self.canvas_height - GUIConstants.BUTTON_HEIGHT) / 2) + 60
+            )
 
             self.keyboard_width = self.canvas_width - (
                 GUIConstants.EDGE_PADDING
