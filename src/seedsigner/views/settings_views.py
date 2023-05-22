@@ -30,7 +30,7 @@ class SettingsMenuView(View):
 
     def run(self):
         IO_TEST = "I/O test"
-        DONATE = "Donate"
+        ABOUT = "About"
 
         settings_entries = SettingsDefinition.get_settings_entries(
             visibility=self.visibility
@@ -63,7 +63,7 @@ class SettingsMenuView(View):
             )
 
             button_data.append(IO_TEST)
-            button_data.append(DONATE)
+            button_data.append(ABOUT)
 
         elif self.visibility == SettingsConstants.VISIBILITY__ADVANCED:
             title = "Advanced"
@@ -111,9 +111,9 @@ class SettingsMenuView(View):
 
         elif (
             len(button_data) > selected_menu_num
-            and button_data[selected_menu_num] == DONATE
+            and button_data[selected_menu_num] == ABOUT
         ):
-            return Destination(DonateView)
+            return Destination(AboutView)
 
         else:
             return Destination(
@@ -229,8 +229,8 @@ class IOTestView(View):
         return Destination(SettingsMenuView)
 
 
-class DonateView(View):
+class AboutView(View):
     def run(self):
-        settings_screens.DonateScreen().display()
+        settings_screens.AboutScreen().display()
 
         return Destination(SettingsMenuView)

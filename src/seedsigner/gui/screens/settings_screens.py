@@ -1,8 +1,9 @@
 import time
-
 from dataclasses import dataclass
-from PIL.ImageOps import autocontrast
 from typing import List
+
+from PIL.ImageOps import autocontrast
+
 from seedsigner.gui.components import (
     Button,
     CheckboxButton,
@@ -12,12 +13,9 @@ from seedsigner.gui.components import (
     GUIConstants,
     Icon,
     IconButton,
-    IconTextLine,
     TextArea,
 )
-from seedsigner.gui.screens.scan_screens import ScanScreen
-
-from seedsigner.gui.screens.screen import BaseScreen, BaseTopNavScreen, ButtonListScreen
+from seedsigner.gui.screens.screen import BaseTopNavScreen, ButtonListScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.hardware.camera import Camera
 from seedsigner.models.settings import SettingsConstants
@@ -314,26 +312,16 @@ class IOTestScreen(BaseTopNavScreen):
 
 
 @dataclass
-class DonateScreen(BaseTopNavScreen):
+class AboutScreen(BaseTopNavScreen):
     def __post_init__(self):
-        self.title = "Donate"
+        self.title = "About"
         super().__post_init__()
 
         self.components.append(
             TextArea(
-                text="SeedSigner is 100% free & open source, funded solely by the Bitcoin community.\n\nDonate onchain or LN at:",
+                text="LumenSigner is 100% free and open source, "
+                "anyone can build it themselves, "
+                "you can get the source code from github.com/LumenSigner",
                 screen_y=self.top_nav.height + 3 * GUIConstants.COMPONENT_PADDING,
-            )
-        )
-
-        self.components.append(
-            TextArea(
-                text="seedsigner.com",
-                font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 8,
-                font_color=GUIConstants.ACCENT_COLOR,
-                supersampling_factor=1,
-                screen_y=self.components[-1].screen_y
-                + self.components[-1].height
-                + GUIConstants.COMPONENT_PADDING,
             )
         )
