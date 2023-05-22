@@ -21,6 +21,8 @@ class QRType:
     XPUB__UR = "xpub__ur"
 
     BITCOIN_ADDRESS = "bitcoin_address"
+    STELLAR_ADDRESS = "stellar_address"
+    STELLAR_ADDRESS_CONNECT = "stellar_address_connect"
 
     WALLET__SPECTER = "wallet__specter"
     WALLET__UR = "wallet__ur"

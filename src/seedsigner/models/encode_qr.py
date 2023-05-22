@@ -111,6 +111,10 @@ class EncodeQR:
 
         elif self.qr_type == QRType.BITCOIN_ADDRESS:
             self.encoder = BitcoinAddressEncoder(address=self.bitcoin_address)
+        elif self.qr_type == QRType.STELLAR_ADDRESS:
+            self.encoder = BitcoinAddressEncoder(address=self.bitcoin_address)
+        elif self.qr_type == QRType.STELLAR_ADDRESS_CONNECT:
+            self.encoder = BitcoinAddressEncoder(address=self.bitcoin_address)
 
         else:
             raise Exception("QR Type not supported")

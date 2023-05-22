@@ -39,6 +39,7 @@ from seedsigner.views.seed_views import (
     SeedExportXpubScriptTypeView,
 )
 from .view import View, Destination, BackStackView
+from ..proto.lumensigner import AddressInformation
 
 
 class ToolsMenuView(View):
@@ -763,8 +764,8 @@ class ToolsAddressExplorerAddressDetailsView(View):
 
     def run(self):
         ADDRESS_QRCODE = "Address QRCode"
-        LOGIN_QRCODE = "Login QRCode"
-        button_data = [ADDRESS_QRCODE, LOGIN_QRCODE]
+        CONNECT_QRCODE = "Connect QRCode"
+        button_data = [ADDRESS_QRCODE, CONNECT_QRCODE]
         selected_menu_num = ToolsAddressDetailsScreen(
             address=self.address,
             derivation_index_id=self.index,
@@ -785,7 +786,7 @@ class ToolsAddressExplorerAddressDetailsView(View):
                 skip_current_view=True,
             )
 
-        elif selected_menu_num == 0:
+        elif selected_menu_num in (0, 1):
             return Destination(
                 ToolsAddressExplorerAddressQRCodeView,
                 view_args=dict(
@@ -793,9 +794,9 @@ class ToolsAddressExplorerAddressDetailsView(View):
                     address=self.address,
                     start_index=self.start_index,
                     parent_initial_scroll=self.parent_initial_scroll,
+                    is_connect=selected_menu_num == 1,
                 ),
             )
-        # TODO: stellar, login qr code
 
 
 class ToolsAddressExplorerAddressQRCodeView(View):
@@ -805,17 +806,31 @@ class ToolsAddressExplorerAddressQRCodeView(View):
         address: str,
         start_index: int,
         parent_initial_scroll: int = 0,
+        is_connect: bool = False,
     ):
         super().__init__()
         self.index = index
         self.address = address
         self.start_index = start_index
         self.parent_initial_scroll = parent_initial_scroll
+        self.is_connect = is_connect
 
     def run(self):
-        qr_encoder = EncodeQR(
-            qr_type=QRType.BITCOIN_ADDRESS, bitcoin_address=self.address
-        )
+        if self.is_connect:
+            address = (
+                AddressInformation(
+                    derivation_path=f"m/44'/148'/{self.index}'",
+                    address=self.address,
+                )
+                .SerializeToString()
+                .decode("utf-8")
+            )
+            qr_type = QRType.STELLAR_ADDRESS_CONNECT
+
+        else:
+            address = self.address
+            qr_type = QRType.STELLAR_ADDRESS
+        qr_encoder = EncodeQR(qr_type=qr_type, bitcoin_address=address)
         QRDisplayScreen(
             qr_encoder=qr_encoder,
         ).display()
