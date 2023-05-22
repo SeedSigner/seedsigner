@@ -942,6 +942,16 @@ class SeedBIP85SelectChildIndexView(View):
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
+        if not 0 <= int(ret) < 2**31:
+            return Destination(
+                SeedBIP85InvalidChildIndexView,
+                view_args=dict(
+                    seed_num=self.seed_num, 
+                    num_words=self.num_words
+                ),
+                skip_current_view=True
+            )
+
         return Destination(
             SeedWordsWarningView,
             view_args=dict(
@@ -949,6 +959,32 @@ class SeedBIP85SelectChildIndexView(View):
                 bip85_data=dict(child_index=int(ret), num_words=self.num_words),
             )
         )
+
+
+class SeedBIP85InvalidChildIndexView(View):
+    def __init__(self, seed_num: int, num_words: int):
+        super().__init__()
+        self.seed_num = seed_num
+        self.num_words = num_words
+
+
+    def run(self):
+        DireWarningScreen(
+            title="BIP-85 Index Error",
+            show_back_button=False,
+            status_headline=f"Invalid Child Index",
+            text=f"BIP-85 Child Index must be between 0 and {2**31-1}.",
+            button_data=["Try Again"]
+        ).display()
+
+        return Destination(
+                SeedBIP85SelectChildIndexView,
+                view_args=dict(
+                    seed_num=self.seed_num, 
+                    num_words=self.num_words
+                ),
+                skip_current_view=True
+            )
 
 
 
