@@ -11,7 +11,7 @@ from seedsigner.gui.screens.screen import BaseScreen
 class LogoScreen(BaseScreen):
     def __init__(self):
         super().__init__()
-        self.logo = load_image("logo_black_240.png")
+        self.logo = load_image("logo_black_240x240.png")
 
 
 class OpeningSplashScreen(LogoScreen):
