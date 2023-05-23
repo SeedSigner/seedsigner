@@ -36,10 +36,9 @@ from seedsigner.views.seed_views import (
     SeedFinalizeView,
     SeedMnemonicEntryView,
     SeedWordsWarningView,
-    SeedExportXpubScriptTypeView,
+    AddressExporterView,
 )
 from .view import View, Destination, BackStackView
-from ..proto.lumensigner import AddressInformation
 
 
 class ToolsMenuView(View):
@@ -544,7 +543,6 @@ class ToolsRandomSeedCalcMnemonicView(View):
 class ToolsAddressExplorerSelectSourceView(View):
     def run(self):
         SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
-        SCAN_DESCRIPTOR = ("Scan wallet descriptor", FontAwesomeIconConstants.QRCODE)
         TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
         TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
         button_data = []
@@ -557,7 +555,6 @@ class ToolsAddressExplorerSelectSourceView(View):
             )
 
         button_data.append(SCAN_SEED)
-        button_data.append(SCAN_DESCRIPTOR)
         button_data.append(TYPE_12WORD)
         button_data.append(TYPE_24WORD)
 
@@ -579,14 +576,10 @@ class ToolsAddressExplorerSelectSourceView(View):
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
             return Destination(
-                SeedExportXpubScriptTypeView,
-                view_args=dict(
-                    seed_num=selected_menu_num,
-                    sig_type=SettingsConstants.SINGLE_SIG,
-                ),
+                AddressExporterView, view_args=dict(seed_num=selected_menu_num)
             )
 
-        elif button_data[selected_menu_num] in [SCAN_SEED, SCAN_DESCRIPTOR]:
+        elif button_data[selected_menu_num] in [SCAN_SEED]:
             from seedsigner.views.scan_views import ScanView
 
             return Destination(ScanView)
