@@ -1,19 +1,11 @@
 import math
-
-from embit import bip32
-from embit.networks import NETWORKS
 from binascii import b2a_base64, hexlify
 from dataclasses import dataclass
 from typing import List
+
 from embit import bip32
 from embit.networks import NETWORKS
 from embit.psbt import PSBT
-from seedsigner.helpers.ur2.ur_encoder import UREncoder
-from seedsigner.helpers.ur2.ur import UR
-from seedsigner.helpers.qr import QR
-from seedsigner.models import Seed, QRType
-
-from urtypes.crypto import PSBT as UR_PSBT
 from urtypes.crypto import (
     Account,
     HDKey,
@@ -22,7 +14,12 @@ from urtypes.crypto import (
     PathComponent,
     SCRIPT_EXPRESSION_TAG_MAP,
 )
+from urtypes.crypto import PSBT as UR_PSBT
 
+from seedsigner.helpers.qr import QR
+from seedsigner.helpers.ur2.ur import UR
+from seedsigner.helpers.ur2.ur_encoder import UREncoder
+from seedsigner.models import Seed, QRType
 from seedsigner.models.settings import SettingsConstants
 
 
@@ -45,6 +42,7 @@ class EncodeQR:
     qr_density: str = SettingsConstants.DENSITY__MEDIUM
     wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
     bitcoin_address: str = None
+    stellar_address: str = None
 
     def __post_init__(self):
         self.qr = QR()
@@ -112,9 +110,11 @@ class EncodeQR:
         elif self.qr_type == QRType.BITCOIN_ADDRESS:
             self.encoder = BitcoinAddressEncoder(address=self.bitcoin_address)
         elif self.qr_type == QRType.STELLAR_ADDRESS:
-            self.encoder = BitcoinAddressEncoder(address=self.bitcoin_address)
-        elif self.qr_type == QRType.STELLAR_ADDRESS_CONNECT:
-            self.encoder = BitcoinAddressEncoder(address=self.bitcoin_address)
+            self.encoder = StellarAddressEncoder(
+                address=self.stellar_address, derivation_path=self.derivation
+            )
+        elif self.qr_type == QRType.STELLAR_ADDRESS_NO_PREFIX:
+            self.encoder = StellarAddressNoPrefixEncoder(address=self.stellar_address)
 
         else:
             raise Exception("QR Type not supported")
@@ -323,6 +323,39 @@ class CompactSeedQrEncoder(SeedQrEncoder):
 
 
 class BitcoinAddressEncoder(BaseQrEncoder):
+    def __init__(self, address: str):
+        super().__init__()
+        self.address = address
+
+    def seq_len(self):
+        return 1
+
+    def next_part(self):
+        return self.address
+
+    @property
+    def is_complete(self):
+        return True
+
+
+class StellarAddressEncoder(BaseQrEncoder):
+    def __init__(self, address: str, derivation_path: str):
+        super().__init__()
+        self.address = address
+        self.derivation_path = derivation_path
+
+    def seq_len(self):
+        return 1
+
+    def next_part(self):
+        return f"{QRType.STELLAR_ADDRESS};{self.derivation_path};{self.address}"
+
+    @property
+    def is_complete(self):
+        return True
+
+
+class StellarAddressNoPrefixEncoder(BaseQrEncoder):
     def __init__(self, address: str):
         super().__init__()
         self.address = address

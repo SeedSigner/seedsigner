@@ -9,6 +9,7 @@ from .random_sampler import RandomSampler
 from .utils import int_to_bytes
 from .xoshiro256 import Xoshiro256
 
+
 # Fisher-Yates shuffle
 def shuffled(items, rng):
     remaining = items

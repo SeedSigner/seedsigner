@@ -817,20 +817,16 @@ class ToolsAddressExplorerAddressQRCodeView(View):
 
     def run(self):
         if self.is_connect:
-            address = (
-                AddressInformation(
-                    derivation_path=f"m/44'/148'/{self.index}'",
-                    address=self.address,
-                )
-                .SerializeToString()
-                .decode("utf-8")
+            qr_encoder = EncodeQR(
+                qr_type=QRType.STELLAR_ADDRESS,
+                stellar_address=self.address,
+                derivation=f"m/44'/148'/{self.index}'",
             )
-            qr_type = QRType.STELLAR_ADDRESS_CONNECT
-
         else:
-            address = self.address
-            qr_type = QRType.STELLAR_ADDRESS
-        qr_encoder = EncodeQR(qr_type=qr_type, bitcoin_address=address)
+            qr_encoder = EncodeQR(
+                qr_type=QRType.STELLAR_ADDRESS_NO_PREFIX, stellar_address=self.address
+            )
+
         QRDisplayScreen(
             qr_encoder=qr_encoder,
         ).display()

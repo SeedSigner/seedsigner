@@ -7,7 +7,6 @@ from seedsigner.models.settings import SettingsConstants
 
 
 def test_derive_child_mnemonic():
-
     expected = (
         "unusual topic foot figure pulp target glimpse core electric spot neglect fame"
     )

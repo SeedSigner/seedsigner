@@ -22,7 +22,7 @@ class QRType:
 
     BITCOIN_ADDRESS = "bitcoin_address"
     STELLAR_ADDRESS = "stellar_address"
-    STELLAR_ADDRESS_CONNECT = "stellar_address_connect"
+    STELLAR_ADDRESS_NO_PREFIX = "stellar_address_no_prefix"
 
     WALLET__SPECTER = "wallet__specter"
     WALLET__UR = "wallet__ur"

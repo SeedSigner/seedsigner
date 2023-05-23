@@ -1329,7 +1329,6 @@ class MicroSDToastScreen(BaseScreen):
         from seedsigner.hardware.microsd import MicroSD
 
         if self.action == MicroSD.ACTION__REMOVED:
-
             self.toast = ToastOverlay(
                 icon_name=FontAwesomeIconConstants.SDCARD,
                 color=GUIConstants.NOTIFICATION_COLOR,
@@ -1337,7 +1336,6 @@ class MicroSDToastScreen(BaseScreen):
             )
 
         elif self.action == MicroSD.ACTION__INSERTED:
-
             self.toast = ToastOverlay(
                 icon_name=FontAwesomeIconConstants.SDCARD,
                 color=GUIConstants.NOTIFICATION_COLOR,

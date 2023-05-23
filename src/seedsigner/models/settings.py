@@ -194,7 +194,6 @@ class Settings(Singleton):
         from seedsigner.hardware.microsd import MicroSD
 
         if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
-
             if action == MicroSD.ACTION__INSERTED:
                 # restore persistent settings back to defaults
                 entry = SettingsDefinition.get_settings_entry(

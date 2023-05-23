@@ -9,7 +9,6 @@ from seedsigner.gui.screens.screen import MicroSDToastScreen
 
 
 class MicroSD(Singleton, BaseThread):
-
     ACTION__INSERTED = "add"
     ACTION__REMOVED = "remove"
 
@@ -40,7 +39,6 @@ class MicroSD(Singleton, BaseThread):
 
         # explicitly only microsd add/remove detection in seedsigner-os
         if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
-
             if os.path.exists(FIFO_PATH):
                 os.remove(FIFO_PATH)
 
