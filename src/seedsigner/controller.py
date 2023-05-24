@@ -7,6 +7,8 @@ from embit.psbt import PSBT
 from PIL.Image import Image
 from typing import List
 
+from stellar_sdk import Keypair
+
 from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.buttons import HardwareButtons
 from seedsigner.hardware.microsd import MicroSD
@@ -91,6 +93,8 @@ class Controller(Singleton):
     FLOW__VERIFY_SINGLESIG_ADDR = "singlesig_addr"
     FLOW__ADDRESS_EXPLORER = "address_explorer"
     resume_main_flow: str = None
+
+    FLOW__SIGN_HASH = "sign_hash"
 
     back_stack: BackStack = None
     screensaver: ScreensaverScreen = None
@@ -270,6 +274,8 @@ class Controller(Singleton):
                     self.psbt = None
                     self.psbt_parser = None
                     self.psbt_seed = None
+                    self.sign_seed = None
+                    self.sign_hash_data: tuple[str, str] = None
 
                 print(f"back_stack: {self.back_stack}")
 

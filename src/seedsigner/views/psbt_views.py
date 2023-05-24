@@ -1,19 +1,14 @@
 import logging
-from typing import List
 
-from embit.psbt import PSBT
 from embit import script
 from embit.networks import NETWORKS
-from seedsigner.controller import Controller
+from embit.psbt import PSBT
 
+from seedsigner.controller import Controller
 from seedsigner.gui.components import (
     FontAwesomeIconConstants,
     SeedSignerCustomIconConstants,
 )
-from seedsigner.models.encode_qr import EncodeQR
-from seedsigner.models.psbt_parser import PSBTParser
-from seedsigner.models.qr_type import QRType
-from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.screens import psbt_screens
 from seedsigner.gui.screens.screen import (
     RET_CODE__BACK_BUTTON,
@@ -23,7 +18,10 @@ from seedsigner.gui.screens.screen import (
     QRDisplayScreen,
     WarningScreen,
 )
-
+from seedsigner.models.encode_qr import EncodeQR
+from seedsigner.models.psbt_parser import PSBTParser
+from seedsigner.models.qr_type import QRType
+from seedsigner.models.settings import SettingsConstants
 from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
 logger = logging.getLogger(__name__)

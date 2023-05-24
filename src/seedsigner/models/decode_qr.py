@@ -2,29 +2,23 @@ import base64
 import json
 import logging
 import re
-
 from binascii import a2b_base64, b2a_base64
 from enum import IntEnum
+from typing import Optional
+
 from embit import psbt, bip39
 from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
-from urtypes.crypto import PSBT as UR_PSBT
+from urtypes.bytes import Bytes
 from urtypes.crypto import (
     Account,
-    HDKey,
     Output,
-    Keypath,
-    PathComponent,
-    SCRIPT_EXPRESSION_TAG_MAP,
 )
-from urtypes.bytes import Bytes
+from urtypes.crypto import PSBT as UR_PSBT
 
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
-from seedsigner.models.psbt_parser import PSBTParser
-
 from . import QRType, Seed
 from .settings import SettingsConstants
-
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +114,9 @@ class DecodeQR:
 
             elif self.qr_type == QRType.WALLET__CONFIGFILE:
                 self.decoder = MultiSigConfigFileQRDecoder()
+
+            elif self.qr_type == QRType.SIGN_HASH:
+                self.decoder = SignHashQrDecodeDecoder()
 
         elif self.qr_type != qr_type:
             raise Exception("QR Fragment Unexpected Type Change")
@@ -217,6 +214,10 @@ class DecodeQR:
         if self.is_address:
             return self.decoder.get_address_type()
 
+    def get_sign_hash_data(self):
+        if self.is_sign_hash:
+            return self.decoder.derivation_path, self.decoder.hash
+
     def get_wallet_descriptor(self):
         if self.is_wallet_descriptor:
             if self.qr_type in [
@@ -296,6 +297,10 @@ class DecodeQR:
         ]
 
     @property
+    def is_sign_hash(self):
+        return self.qr_type == QRType.SIGN_HASH
+
+    @property
     def is_json(self):
         return self.qr_type in [QRType.SETTINGS, QRType.JSON]
 
@@ -353,9 +358,11 @@ class DecodeQR:
                 # are strings.
                 # TODO: Convert the test suite rather than handle here?
                 s = s.decode("utf-8")
-
+            print("detect_segment_type s: ", s)
+            if re.search("sign_hash;m/44'\\/148'\\/\\d+';[\\da-fA-F]{64}", s):
+                return QRType.SIGN_HASH
             # PSBT
-            if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
+            elif re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
                 return QRType.PSBT__UR2
 
             elif re.search("^UR:CRYPTO-OUTPUT/", s, re.IGNORECASE):
@@ -673,6 +680,20 @@ class BaseAnimatedQrDecoder(BaseQrDecoder):
         return (
             DecodeQRStatus.PART_EXISTING
         )  # segment not added because it's already been added
+
+
+class SignHashQrDecodeDecoder(BaseSingleFrameQrDecoder):
+    def __init__(self):
+        super().__init__()
+        self.derivation_path: Optional[str] = None
+        self.hash: Optional[str] = None
+
+    def add(self, segment: str, qr_type=QRType.SIGN_HASH):
+        print("Segment: ", segment)
+        _, self.derivation_path, self.hash = segment.split(";")
+        self.complete = True
+        self.collected_segments = 1
+        return DecodeQRStatus.COMPLETE
 
 
 class SpecterPsbtQrDecoder(BaseAnimatedQrDecoder):

@@ -3,6 +3,11 @@ class QRType:
     Used with DecodeQR and EncodeQR to communicate qr encoding type
     """
 
+    STELLAR_ADDRESS = "address"
+    STELLAR_ADDRESS_NO_PREFIX = "address_no_prefix"
+    STELLAR_SIGNATURE = "signature"
+    SIGN_HASH = "sign_hash"
+
     PSBT__BASE64 = "psbt__base64"
     PSBT__SPECTER = "psbt__specter"
     PSBT__BASE43 = "psbt__base43"
@@ -21,8 +26,6 @@ class QRType:
     XPUB__UR = "xpub__ur"
 
     BITCOIN_ADDRESS = "bitcoin_address"
-    STELLAR_ADDRESS = "stellar_address"
-    STELLAR_ADDRESS_NO_PREFIX = "stellar_address_no_prefix"
 
     WALLET__SPECTER = "wallet__specter"
     WALLET__UR = "wallet__ur"

@@ -1,3 +1,4 @@
+import base64
 import math
 from binascii import b2a_base64, hexlify
 from dataclasses import dataclass
@@ -43,6 +44,7 @@ class EncodeQR:
     wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
     bitcoin_address: str = None
     stellar_address: str = None
+    signature: bytes = None
 
     def __post_init__(self):
         self.qr = QR()
@@ -115,7 +117,8 @@ class EncodeQR:
             )
         elif self.qr_type == QRType.STELLAR_ADDRESS_NO_PREFIX:
             self.encoder = StellarAddressNoPrefixEncoder(address=self.stellar_address)
-
+        elif self.qr_type == QRType.STELLAR_SIGNATURE:
+            self.encoder = StellarSignatureEncoder(signature=self.signature)
         else:
             raise Exception("QR Type not supported")
 
@@ -365,6 +368,23 @@ class StellarAddressNoPrefixEncoder(BaseQrEncoder):
 
     def next_part(self):
         return self.address
+
+    @property
+    def is_complete(self):
+        return True
+
+
+class StellarSignatureEncoder(BaseQrEncoder):
+    def __init__(self, signature: bytes):
+        super().__init__()
+        self.signature = signature
+
+    def seq_len(self):
+        return 1
+
+    def next_part(self):
+        sig = base64.b64encode(self.signature).decode("utf-8")
+        return f"{QRType.STELLAR_SIGNATURE};{sig}"
 
     @property
     def is_complete(self):

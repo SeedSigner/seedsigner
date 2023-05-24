@@ -50,6 +50,12 @@ class ScanView(View):
                     else:
                         return Destination(SeedFinalizeView)
 
+            elif self.decoder.is_sign_hash:
+                from seedsigner.views.sign_hash_views import SignHashSelectSeedView
+
+                self.controller.sign_hash_data = self.decoder.get_sign_hash_data()
+                return Destination(SignHashSelectSeedView, skip_current_view=True)
+
             elif self.decoder.is_psbt:
                 from seedsigner.views.psbt_views import PSBTSelectSeedView
 
@@ -58,83 +64,83 @@ class ScanView(View):
                 self.controller.psbt_parser = None
                 return Destination(PSBTSelectSeedView, skip_current_view=True)
 
-            elif self.decoder.is_settings:
-                from seedsigner.models.settings import Settings
-
-                settings = self.decoder.get_settings_data()
-                Settings.get_instance().update(new_settings=settings)
-
-                print(json.dumps(Settings.get_instance()._data, indent=4))
-
-                return Destination(
-                    SettingsUpdatedView,
-                    {"config_name": self.decoder.get_settings_config_name()},
-                )
-
-            elif self.decoder.is_wallet_descriptor:
-                from seedsigner.views.seed_views import MultisigWalletDescriptorView
-
-                descriptor_str = self.decoder.get_wallet_descriptor()
-
-                try:
-                    # We need to replace `/0/*` wildcards with `/{0,1}/*` in order to use
-                    # the Descriptor to verify change, too.
-                    orig_descriptor_str = descriptor_str
-                    if (
-                        len(
-                            re.findall(
-                                r"\[([0-9,a-f,A-F]+?)(\/[0-9,\/,h\']+?)\].*?(\/0\/\*)",
-                                descriptor_str,
-                            )
-                        )
-                        > 0
-                    ):
-                        p = re.compile(
-                            r"(\[[0-9,a-f,A-F]+?\/[0-9,\/,h\']+?\].*?)(\/0\/\*)"
-                        )
-                        descriptor_str = p.sub(r"\1/{0,1}/*", descriptor_str)
-                    elif (
-                        len(
-                            re.findall(
-                                r"(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])",
-                                descriptor_str,
-                            )
-                        )
-                        > 0
-                    ):
-                        p = re.compile(
-                            r"(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])"
-                        )
-                        descriptor_str = p.sub(r"\1/{0,1}/*\2", descriptor_str)
-                except Exception as e:
-                    print(repr(e))
-                    descriptor_str = orig_descriptor_str
-
-                descriptor = Descriptor.from_string(descriptor_str)
-
-                if not descriptor.is_basic_multisig:
-                    # TODO: Handle single-sig descriptors?
-                    print(f"Received single sig descriptor: {descriptor}")
-                    return Destination(NotYetImplementedView)
-
-                self.controller.multisig_wallet_descriptor = descriptor
-                return Destination(MultisigWalletDescriptorView, skip_current_view=True)
-
-            elif self.decoder.is_address:
-                from seedsigner.views.seed_views import AddressVerificationStartView
-
-                address = self.decoder.get_address()
-                (script_type, network) = self.decoder.get_address_type()
-
-                return Destination(
-                    AddressVerificationStartView,
-                    skip_current_view=True,
-                    view_args={
-                        "address": address,
-                        "script_type": script_type,
-                        "network": network,
-                    },
-                )
+            # elif self.decoder.is_settings:
+            #     from seedsigner.models.settings import Settings
+            #
+            #     settings = self.decoder.get_settings_data()
+            #     Settings.get_instance().update(new_settings=settings)
+            #
+            #     print(json.dumps(Settings.get_instance()._data, indent=4))
+            #
+            #     return Destination(
+            #         SettingsUpdatedView,
+            #         {"config_name": self.decoder.get_settings_config_name()},
+            #     )
+            #
+            # elif self.decoder.is_wallet_descriptor:
+            #     from seedsigner.views.seed_views import MultisigWalletDescriptorView
+            #
+            #     descriptor_str = self.decoder.get_wallet_descriptor()
+            #
+            #     try:
+            #         # We need to replace `/0/*` wildcards with `/{0,1}/*` in order to use
+            #         # the Descriptor to verify change, too.
+            #         orig_descriptor_str = descriptor_str
+            #         if (
+            #             len(
+            #                 re.findall(
+            #                     r"\[([0-9,a-f,A-F]+?)(\/[0-9,\/,h\']+?)\].*?(\/0\/\*)",
+            #                     descriptor_str,
+            #                 )
+            #             )
+            #             > 0
+            #         ):
+            #             p = re.compile(
+            #                 r"(\[[0-9,a-f,A-F]+?\/[0-9,\/,h\']+?\].*?)(\/0\/\*)"
+            #             )
+            #             descriptor_str = p.sub(r"\1/{0,1}/*", descriptor_str)
+            #         elif (
+            #             len(
+            #                 re.findall(
+            #                     r"(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])",
+            #                     descriptor_str,
+            #                 )
+            #             )
+            #             > 0
+            #         ):
+            #             p = re.compile(
+            #                 r"(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])"
+            #             )
+            #             descriptor_str = p.sub(r"\1/{0,1}/*\2", descriptor_str)
+            #     except Exception as e:
+            #         print(repr(e))
+            #         descriptor_str = orig_descriptor_str
+            #
+            #     descriptor = Descriptor.from_string(descriptor_str)
+            #
+            #     if not descriptor.is_basic_multisig:
+            #         # TODO: Handle single-sig descriptors?
+            #         print(f"Received single sig descriptor: {descriptor}")
+            #         return Destination(NotYetImplementedView)
+            #
+            #     self.controller.multisig_wallet_descriptor = descriptor
+            #     return Destination(MultisigWalletDescriptorView, skip_current_view=True)
+            #
+            # elif self.decoder.is_address:
+            #     from seedsigner.views.seed_views import AddressVerificationStartView
+            #
+            #     address = self.decoder.get_address()
+            #     (script_type, network) = self.decoder.get_address_type()
+            #
+            #     return Destination(
+            #         AddressVerificationStartView,
+            #         skip_current_view=True,
+            #         view_args={
+            #             "address": address,
+            #             "script_type": script_type,
+            #             "network": network,
+            #         },
+            #     )
 
             else:
                 return Destination(NotYetImplementedView)
