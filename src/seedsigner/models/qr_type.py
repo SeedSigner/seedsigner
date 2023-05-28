@@ -7,6 +7,7 @@ class QRType:
     STELLAR_ADDRESS_NO_PREFIX = "address_no_prefix"
     STELLAR_SIGNATURE = "signature"
     SIGN_HASH = "sign_hash"
+    SIGN_TX = "sign_transaction"
 
     PSBT__BASE64 = "psbt__base64"
     PSBT__SPECTER = "psbt__specter"

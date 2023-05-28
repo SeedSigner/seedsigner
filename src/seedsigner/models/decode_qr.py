@@ -116,8 +116,9 @@ class DecodeQR:
                 self.decoder = MultiSigConfigFileQRDecoder()
 
             elif self.qr_type == QRType.SIGN_HASH:
-                self.decoder = SignHashQrDecodeDecoder()
-
+                self.decoder = SignHashQrDecoder()
+            elif self.qr_type == QRType.SIGN_TX:
+                self.decoder = SignTransactionQrDecode()
         elif self.qr_type != qr_type:
             raise Exception("QR Fragment Unexpected Type Change")
 
@@ -218,6 +219,10 @@ class DecodeQR:
         if self.is_sign_hash:
             return self.decoder.derivation_path, self.decoder.hash
 
+    def get_transaction_data(self):
+        if self.is_transaction:
+            return self.decoder.get_data()
+
     def get_wallet_descriptor(self):
         if self.is_wallet_descriptor:
             if self.qr_type in [
@@ -301,6 +306,10 @@ class DecodeQR:
         return self.qr_type == QRType.SIGN_HASH
 
     @property
+    def is_transaction(self):
+        return self.qr_type == QRType.SIGN_TX
+
+    @property
     def is_json(self):
         return self.qr_type in [QRType.SETTINGS, QRType.JSON]
 
@@ -375,6 +384,9 @@ class DecodeQR:
                 r"^p(\d+)of(\d+) ([A-Za-z0-9+\/=]+$)", s, re.IGNORECASE
             ):  # must be base64 characters only in segment
                 return QRType.PSBT__SPECTER
+            # TODO: add regex
+            elif "sign-transaction" in s:
+                return QRType.SIGN_TX
 
             elif re.search("^UR:BYTES/", s, re.IGNORECASE):
                 return QRType.BYTES__UR
@@ -682,7 +694,7 @@ class BaseAnimatedQrDecoder(BaseQrDecoder):
         )  # segment not added because it's already been added
 
 
-class SignHashQrDecodeDecoder(BaseSingleFrameQrDecoder):
+class SignHashQrDecoder(BaseSingleFrameQrDecoder):
     def __init__(self):
         super().__init__()
         self.derivation_path: Optional[str] = None
@@ -694,6 +706,42 @@ class SignHashQrDecodeDecoder(BaseSingleFrameQrDecoder):
         self.complete = True
         self.collected_segments = 1
         return DecodeQRStatus.COMPLETE
+
+
+class SignTransactionQrDecode(BaseAnimatedQrDecoder):
+    def is_complete(self) -> bool:
+        return self.complete
+
+    def get_data(self):
+        network_passphrase, transaction = "".join(self.segments).split(",")
+        return network_passphrase, transaction
+
+    def current_segment_num(self, segment) -> int:
+        r = re.search(r"^p(\d+)of(\d+),", segment, re.IGNORECASE)
+        if r:
+            num = int(r.group(1))
+            print("Current segment num: ", num)
+            return num
+        else:
+            return 1
+
+    def total_segment_nums(self, segment) -> int:
+        r = re.search(r"^p(\d+)of(\d+),", segment, re.IGNORECASE)
+        if r:
+            num = int(r.group(2))
+            print("Total segment num: ", num)
+            return num
+        else:
+            return 1
+
+    def parse_segment(self, segment) -> str:
+        try:
+            s = re.search(r"^p(\d+)of(\d+),(.+$)", segment, re.IGNORECASE).group(3)
+            if not s.startswith("sign-transaction,"):
+                raise Exception("Invalid sign transaction segment")
+            return s[len("sign-transactions,") - 1 :]
+        except:
+            return
 
 
 class SpecterPsbtQrDecoder(BaseAnimatedQrDecoder):

@@ -56,6 +56,10 @@ class ScanView(View):
                 self.controller.sign_hash_data = self.decoder.get_sign_hash_data()
                 return Destination(SignHashSelectSeedView, skip_current_view=True)
 
+            elif self.decoder.is_transaction:
+                print("Transaction: ", self.decoder.get_transaction_data())
+                return Destination(NotYetImplementedView)
+
             elif self.decoder.is_psbt:
                 from seedsigner.views.psbt_views import PSBTSelectSeedView
 
