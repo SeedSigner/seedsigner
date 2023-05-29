@@ -7,5 +7,4 @@ qrcode==7.3.1
 RPi.GPIO==0.7.0
 six==1.16.0
 spidev==3.5
-urtypes @ git+https://github.com/selfcustody/urtypes.git@7fb280eab3b3563dfc57d2733b0bf5cbc0a96a6a
 stellar-sdk==8.2.0
