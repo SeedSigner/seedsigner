@@ -2,7 +2,7 @@ import time
 
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageColor
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Optional
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
 
@@ -992,7 +992,9 @@ class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
     title: str = "Caution"
     status_icon_name: str = SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION
     status_color: str = "yellow"
-    status_headline: str = "Privacy Leak!"  # The colored text under the alert icon
+    status_headline: Optional[
+        str
+    ] = "Privacy Leak!"  # The colored text under the alert icon
 
     def __post_init__(self):
         if not self.button_data:
