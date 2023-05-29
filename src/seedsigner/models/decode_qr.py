@@ -33,7 +33,7 @@ class DecodeQR:
     """
 
     def __init__(
-            self, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
+        self, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
     ):
         self.wordlist_language_code = wordlist_language_code
         self.complete = False
@@ -100,7 +100,7 @@ class DecodeQR:
 
     def get_sign_hash_data(self):
         if self.is_sign_hash:
-            return self.decoder.derivation_path, self.decoder.hash
+            return self.decoder.address_index, self.decoder.hash
 
     def get_sign_transaction_data(self):
         if self.is_transaction:
@@ -151,7 +151,7 @@ class DecodeQR:
 
     @staticmethod
     def extract_qr_data(
-            image: Optional[Image], is_binary: bool = False
+        image: Optional[Image], is_binary: bool = False
     ) -> Optional[str]:
         if image is None:
             return None
@@ -274,12 +274,13 @@ class BaseAnimatedQrDecoder(BaseQrDecoder):
 class SignHashQrDecoder(BaseSingleFrameQrDecoder):
     def __init__(self):
         super().__init__()
-        self.derivation_path: Optional[str] = None
+        self.address_index: Optional[int] = None
         self.hash: Optional[str] = None
 
     def add(self, segment: str, qr_type=QRType.SIGN_HASH):
         print("Segment: ", segment)
-        _, self.derivation_path, self.hash = segment.split(QRTYPE_SPLITTER)
+        _, derivation_path, self.hash = segment.split(QRTYPE_SPLITTER)
+        self.address_index = parse_address_index_from_derivation_path(derivation_path)
         self.complete = True
         self.collected_segments = 1
         return DecodeQRStatus.COMPLETE
@@ -291,12 +292,12 @@ class SignTransactionQrDecode(BaseAnimatedQrDecoder):
 
     def get_data(self):
         raw_data = "".join(self.segments)
-        data = re.split(r'(?<!\\)' + QRTYPE_SPLITTER, raw_data)
+        data = re.split(r"(?<!\\)" + QRTYPE_SPLITTER, raw_data)
         if len(data) != 3:
             raise ValueError("Invalid data")
         derivation_path, network_passphrase, transaction_base64 = data
 
-        network_passphrase.replace('\\' + QRTYPE_SPLITTER, QRTYPE_SPLITTER)
+        network_passphrase.replace("\\" + QRTYPE_SPLITTER, QRTYPE_SPLITTER)
         try:
             transaction = parse_transaction_envelope_from_xdr(
                 transaction_base64, network_passphrase=network_passphrase
@@ -304,7 +305,9 @@ class SignTransactionQrDecode(BaseAnimatedQrDecoder):
         except Exception as e:
             raise ValueError(f"Invalid transaction envelope: {e}")
 
-        return derivation_path, network_passphrase, transaction
+        address_index = parse_address_index_from_derivation_path(derivation_path)
+
+        return address_index, network_passphrase, transaction
 
     def current_segment_num(self, segment) -> int:
         r = re.search(r"^p(\d+)of(\d+),", segment, re.IGNORECASE)
@@ -328,7 +331,7 @@ class SignTransactionQrDecode(BaseAnimatedQrDecoder):
         s = re.search(r"^p(\d+)of(\d+),(.+$)", segment, re.IGNORECASE).group(3)
         if not s.startswith("sign-transaction,"):
             raise Exception("Invalid sign transaction segment")
-        return s[len("sign-transactions,") - 1:]
+        return s[len("sign-transactions,") - 1 :]
 
 
 class SeedQrDecoder(BaseSingleFrameQrDecoder):
@@ -354,11 +357,11 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
                 # Parse 12 or 24-word QR code
                 num_words = int(len(segment) / 4)
                 for i in range(0, num_words):
-                    index = int(segment[i * 4: (i * 4) + 4])
+                    index = int(segment[i * 4 : (i * 4) + 4])
                     word = self.wordlist[index]
                     self.seed_phrase.append(word)
                 if len(self.seed_phrase) > 0:
-                    if self.is_12_or_24_word_phrase() == False:
+                    if not self.is_12_or_24_word_phrase():
                         return DecodeQRStatus.INVALID
                     self.complete = True
                     self.collected_segments = 1
@@ -439,3 +442,13 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
         if len(self.seed_phrase) in (12, 24):
             return True
         return False
+
+
+def parse_address_index_from_derivation_path(derivation_path: str) -> int:
+    regex = "m/44'\\/148'\\/(\\d+)'"
+    matches = re.search(regex, derivation_path)
+    if matches:
+        return int(matches.group(1))
+    raise ValueError(
+        f"Could not parse address index from derivation path: {derivation_path}"
+    )

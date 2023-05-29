@@ -276,8 +276,8 @@ class Controller(Singleton):
                     self.psbt_parser = None
                     self.psbt_seed = None
                     self.sign_seed = None
-                    self.sign_hash_data: tuple[str, str] = None
-                    self.tx_data: TransactionEnvelope = None
+                    self.sign_hash_data: tuple[int, str] = None
+                    self.tx_data: tuple[int, str, TransactionEnvelope] = None
 
                 print(f"back_stack: {self.back_stack}")
 

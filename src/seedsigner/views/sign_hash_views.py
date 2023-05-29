@@ -1,6 +1,5 @@
 import binascii
 import logging
-import re
 from dataclasses import dataclass
 
 from stellar_sdk import Keypair
@@ -48,9 +47,7 @@ class SignHashSelectSeedView(View):
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
             self.controller.sign_seed = self.controller.get_seed(selected_menu_num)
-            address_index = parse_address_index_from_derivation_path(
-                self.controller.sign_hash_data[0]
-            )
+            address_index = self.controller.sign_hash_data[0]
             sign_kp = Keypair.from_mnemonic_phrase(
                 mnemonic_phrase=self.controller.sign_seed.mnemonic_str,
                 passphrase=self.controller.sign_seed.passphrase,
@@ -114,7 +111,7 @@ class ToolsSignHashShowAddressScreen(ButtonListScreen):
         # break every 14 characters
         address_with_break = " ".join(
             [
-                self.address[i: i + break_point]
+                self.address[i : i + break_point]
                 for i in range(0, len(self.address), break_point)
             ]
         )
@@ -171,7 +168,7 @@ class ToolsSignHashShowHashScreen(ButtonListScreen):
         # break every 16 characters
         hash_with_break = " ".join(
             [
-                self.hash[i: i + break_point]
+                self.hash[i : i + break_point]
                 for i in range(0, len(self.hash), break_point)
             ]
         )
@@ -217,13 +214,3 @@ class SignHashShowHashView(View):
 
         elif button_data[selected_menu_num] == ABORT:
             return Destination(MainMenuView)
-
-
-def parse_address_index_from_derivation_path(derivation_path: str) -> int:
-    regex = "m/44'\\/148'\\/(\\d+)'"
-    matches = re.search(regex, derivation_path)
-    if matches:
-        return int(matches.group(1))
-    raise ValueError(
-        f"Could not parse address index from derivation path: {derivation_path}"
-    )
