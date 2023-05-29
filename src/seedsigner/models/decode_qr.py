@@ -7,6 +7,7 @@ from PIL.Image import Image
 from embit import bip39
 from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
+from stellar_sdk.helpers import parse_transaction_envelope_from_xdr
 
 from . import QRType, Seed, QRTYPE_SPLITTER
 from .settings import SettingsConstants
@@ -32,7 +33,7 @@ class DecodeQR:
     """
 
     def __init__(
-        self, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
+            self, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
     ):
         self.wordlist_language_code = wordlist_language_code
         self.complete = False
@@ -150,7 +151,7 @@ class DecodeQR:
 
     @staticmethod
     def extract_qr_data(
-        image: Optional[Image], is_binary: bool = False
+            image: Optional[Image], is_binary: bool = False
     ) -> Optional[str]:
         if image is None:
             return None
@@ -289,8 +290,21 @@ class SignTransactionQrDecode(BaseAnimatedQrDecoder):
         return self.complete
 
     def get_data(self):
-        network_passphrase, transaction = "".join(self.segments).split(",")
-        return network_passphrase, transaction
+        raw_data = "".join(self.segments)
+        data = re.split(r'(?<!\\)' + QRTYPE_SPLITTER, raw_data)
+        if len(data) != 3:
+            raise ValueError("Invalid data")
+        derivation_path, network_passphrase, transaction_base64 = data
+
+        network_passphrase.replace('\\' + QRTYPE_SPLITTER, QRTYPE_SPLITTER)
+        try:
+            transaction = parse_transaction_envelope_from_xdr(
+                transaction_base64, network_passphrase=network_passphrase
+            )
+        except Exception as e:
+            raise ValueError(f"Invalid transaction envelope: {e}")
+
+        return derivation_path, network_passphrase, transaction
 
     def current_segment_num(self, segment) -> int:
         r = re.search(r"^p(\d+)of(\d+),", segment, re.IGNORECASE)
@@ -314,7 +328,7 @@ class SignTransactionQrDecode(BaseAnimatedQrDecoder):
         s = re.search(r"^p(\d+)of(\d+),(.+$)", segment, re.IGNORECASE).group(3)
         if not s.startswith("sign-transaction,"):
             raise Exception("Invalid sign transaction segment")
-        return s[len("sign-transactions,") - 1 :]
+        return s[len("sign-transactions,") - 1:]
 
 
 class SeedQrDecoder(BaseSingleFrameQrDecoder):
@@ -340,7 +354,7 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
                 # Parse 12 or 24-word QR code
                 num_words = int(len(segment) / 4)
                 for i in range(0, num_words):
-                    index = int(segment[i * 4 : (i * 4) + 4])
+                    index = int(segment[i * 4: (i * 4) + 4])
                     word = self.wordlist[index]
                     self.seed_phrase.append(word)
                 if len(self.seed_phrase) > 0:
