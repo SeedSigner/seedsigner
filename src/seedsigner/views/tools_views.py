@@ -594,39 +594,6 @@ class ToolsAddressExplorerSelectSourceView(View):
             return Destination(SeedMnemonicEntryView)
 
 
-class ToolsAddressExplorerAddressTypeView(View):
-    def __init__(
-        self,
-        seed_num: int = None,
-        script_type: str = None,
-        custom_derivation: str = None,
-    ):
-        """
-        TODO: fix description
-        If the explorer source is a seed, `seed_num` and `script_type` must be
-        specified. `custom_derivation` can be specified as needed.
-
-        If the source is a multisig or single sig wallet descriptor, `seed_num`,
-        `script_type`, and `custom_derivation` should be `None`.
-        """
-        super().__init__()
-        self.seed_num = seed_num
-
-        # Store everything in the Controller's `address_explorer_data` so we don't have
-        # to keep passing vals around from View to View and recalculating.
-        seed = self.controller.storage.seeds[seed_num]
-        data = dict(
-            seed=seed,
-        )
-        self.controller.address_explorer_data = data
-
-    def run(self):
-        return Destination(
-            ToolsAddressExplorerAddressListView,
-            skip_current_view=True,
-        )
-
-
 class ToolsAddressExplorerAddressListView(View):
     def __init__(
         self,
