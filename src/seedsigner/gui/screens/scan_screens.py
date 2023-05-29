@@ -1,23 +1,17 @@
 import time
-
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import Tuple
 
 from seedsigner.gui import renderer
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.hardware.camera import Camera
 from seedsigner.models import DecodeQR, DecodeQRStatus
 from seedsigner.models.threads import BaseThread
-
-from .screen import BaseScreen, BaseTopNavScreen, ButtonListScreen
+from .screen import BaseScreen, ButtonListScreen
 from ..components import (
-    BaseComponent,
-    Button,
     GUIConstants,
     Fonts,
-    IconButton,
     TextArea,
-    calc_text_centering,
 )
 
 
@@ -94,7 +88,7 @@ class ScanScreen(BaseScreen):
                     if (
                         self.decoder
                         and self.decoder.get_percent_complete() > 0
-                        and self.decoder.is_psbt
+                        and self.decoder.is_transaction
                     ):
                         scan_text = (
                             str(self.decoder.get_percent_complete()) + "% Complete"

@@ -93,7 +93,7 @@ class URDecoder:
             raise InvalidSequenceComponent()
 
     def validate_part(self, type):
-        if self.expected_type == None:
+        if self.expected_type is None:
             if not is_ur_type(type):
                 return False
             self.expected_type = type

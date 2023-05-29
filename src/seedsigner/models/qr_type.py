@@ -1,3 +1,6 @@
+QRTYPE_SPLITTER = ","
+
+
 class QRType:
     """
     Used with DecodeQR and EncodeQR to communicate qr encoding type
@@ -6,8 +9,8 @@ class QRType:
     STELLAR_ADDRESS = "address"
     STELLAR_ADDRESS_NO_PREFIX = "address_no_prefix"
     STELLAR_SIGNATURE = "signature"
-    SIGN_HASH = "sign_hash"
-    SIGN_TX = "sign_transaction"
+    SIGN_HASH = "sign-hash"
+    SIGN_TX = "sign-transaction"
 
     PSBT__BASE64 = "psbt__base64"
     PSBT__SPECTER = "psbt__specter"

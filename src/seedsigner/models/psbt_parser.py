@@ -88,7 +88,7 @@ class PSBTParser:
                 inp_policy = PSBTParser._get_policy(
                     inp, inp.witness_utxo.script_pubkey, self.psbt.xpubs
                 )
-                if self.policy == None:
+                if self.policy is None:
                     self.policy = inp_policy
                 else:
                     if self.policy != inp_policy:

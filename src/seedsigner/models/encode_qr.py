@@ -52,7 +52,7 @@ class EncodeQR:
         if not self.qr_type:
             raise Exception("qr_type is required")
 
-        if self.qr_density == None:
+        if self.qr_density is None:
             self.qr_density = SettingsConstants.DENSITY__MEDIUM
 
         self.encoder: BaseQrEncoder = None
@@ -277,7 +277,7 @@ class SeedQrEncoder(BaseQrEncoder):
         self.seed_phrase = seed_phrase
         self.wordlist = Seed.get_wordlist(wordlist_language_code)
 
-        if self.wordlist == None:
+        if self.wordlist is None:
             raise Exception("Wordlist Required")
 
     def seq_len(self):
@@ -404,7 +404,7 @@ class XpubQrEncoder(BaseQrEncoder):
         self.part_num_sent = 0
         self.sent_complete = False
 
-        if self.wordlist == None:
+        if self.wordlist is None:
             raise Exception("Wordlist Required")
 
         version = bip32.detect_version(

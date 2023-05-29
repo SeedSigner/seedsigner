@@ -23,7 +23,7 @@ def decode_word(word, word_len):
     # Since the first and last letters of each Byteword are unique,
     # we can use them as indexes into a two-dimensional lookup table.
     # This table is generated lazily.
-    if WORD_ARRAY == None:
+    if WORD_ARRAY is None:
         WORD_ARRAY = [-1] * (dim * dim)  # create empty array
 
         for i in range(256):

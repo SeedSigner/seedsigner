@@ -18,7 +18,7 @@ TABLE = None
 def crc32(buf):
     # Lazily instantiate CRC table
     global TABLE
-    if TABLE == None:
+    if TABLE is None:
         TABLE = [None] * (256 * 4)
 
         for i in range(256):

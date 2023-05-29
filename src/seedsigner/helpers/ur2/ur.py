@@ -21,6 +21,6 @@ class UR:
         self.cbor = cbor
 
     def __eq__(self, obj):
-        if obj == None:
+        if obj is None:
             return False
         return self.type == obj.type and self.cbor == obj.cbor

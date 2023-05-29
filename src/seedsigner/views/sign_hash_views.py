@@ -114,7 +114,7 @@ class ToolsSignHashShowAddressScreen(ButtonListScreen):
         # break every 14 characters
         address_with_break = " ".join(
             [
-                self.address[i : i + break_point]
+                self.address[i: i + break_point]
                 for i in range(0, len(self.address), break_point)
             ]
         )
@@ -171,7 +171,7 @@ class ToolsSignHashShowHashScreen(ButtonListScreen):
         # break every 16 characters
         hash_with_break = " ".join(
             [
-                self.hash[i : i + break_point]
+                self.hash[i: i + break_point]
                 for i in range(0, len(self.hash), break_point)
             ]
         )

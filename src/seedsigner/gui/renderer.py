@@ -35,7 +35,7 @@ class Renderer(ConfigurableSingleton):
 
     def show_image(self, image=None, alpha_overlay=None):
         if alpha_overlay:
-            if image == None:
+            if image is None:
                 image = self.canvas
             image = Image.alpha_composite(image, alpha_overlay)
 

@@ -77,7 +77,7 @@ class FountainDecoder:
     def estimated_percent_complete(self):
         if self.is_complete():
             return 1
-        if self.expected_part_indexes == None:
+        if self.expected_part_indexes is None:
             return 0
         estimated_input_parts = self.expected_part_count() * 1.75
         return min(0.99, self.processed_parts_count / estimated_input_parts)
@@ -219,7 +219,7 @@ class FountainDecoder:
 
     def validate_part(self, p):
         # If this is the first part we've seen
-        if self.expected_part_indexes == None:
+        if self.expected_part_indexes is None:
             # Record the things that all the other parts we see will have to match to be valid.
             self.expected_part_indexes = set()
             for i in range(p.seq_len):
@@ -250,7 +250,7 @@ class FountainDecoder:
         return "[{}]".format(", ".join(s))
 
     def result_description(self):
-        if self.result == None:
+        if self.result is None:
             return "None"
 
         if self.is_success():

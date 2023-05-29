@@ -32,8 +32,8 @@ class TxDetailsScreen(BaseTopNavScreen):
                     self.top_nav.render_buttons()
 
                 elif (
-                        self.top_nav.is_selected
-                        and user_input in HardwareButtonsConstants.KEYS__ANYCLICK
+                    self.top_nav.is_selected
+                    and user_input in HardwareButtonsConstants.KEYS__ANYCLICK
                 ):
                     return self.top_nav.selected_button
 

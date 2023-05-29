@@ -50,18 +50,26 @@ class TransactionSelectSeedView(View):
             #     passphrase=self.controller.sign_seed.passphrase,
             #     index=address_index,
             # )
-            screens = [PaymentOperationScreen(operation_index=0),
-                       PaymentOperationScreen(operation_index=1),
-                       PaymentOperationScreen(operation_index=2)]
+            screens = [
+                PaymentOperationScreen(operation_index=0),
+                PaymentOperationScreen(operation_index=1),
+                PaymentOperationScreen(operation_index=2),
+            ]
             current_screen = 0
             while True:
                 ret = screens[current_screen].display()
                 if ret == RET_CODE__BACK_BUTTON:
                     return Destination(MainMenuView)
-                elif ret in (HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY3):
+                elif ret in (
+                    HardwareButtonsConstants.KEY_DOWN,
+                    HardwareButtonsConstants.KEY3,
+                ):
                     if current_screen < len(screens) - 1:
                         current_screen += 1
-                elif ret in (HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY1):
+                elif ret in (
+                    HardwareButtonsConstants.KEY_UP,
+                    HardwareButtonsConstants.KEY1,
+                ):
                     if current_screen > 0:
                         current_screen -= 1
             return Destination(MainMenuView)

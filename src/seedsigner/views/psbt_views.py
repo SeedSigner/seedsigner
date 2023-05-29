@@ -170,7 +170,7 @@ class PSBTOverviewView(View):
 
         # expecting p2sh (legacy multisig) and p2pkh to have no policy set
         # skip change warning and psbt math view
-        if psbt_parser.policy == None:
+        if psbt_parser.policy is None:
             return Destination(PSBTUnsupportedScriptTypeWarningView)
 
         elif psbt_parser.change_amount == 0:
