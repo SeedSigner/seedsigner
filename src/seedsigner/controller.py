@@ -7,7 +7,7 @@ from embit.psbt import PSBT
 from PIL.Image import Image
 from typing import List
 
-from stellar_sdk import Keypair
+from stellar_sdk import Keypair, TransactionEnvelope
 
 from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.buttons import HardwareButtons
@@ -95,6 +95,7 @@ class Controller(Singleton):
     resume_main_flow: str = None
 
     FLOW__SIGN_HASH = "sign_hash"
+    FLOW__SIGN_TX = "sign_tx"
 
     back_stack: BackStack = None
     screensaver: ScreensaverScreen = None
@@ -276,6 +277,7 @@ class Controller(Singleton):
                     self.psbt_seed = None
                     self.sign_seed = None
                     self.sign_hash_data: tuple[str, str] = None
+                    self.tx_data: TransactionEnvelope = None
 
                 print(f"back_stack: {self.back_stack}")
 

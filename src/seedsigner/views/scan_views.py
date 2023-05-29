@@ -6,6 +6,7 @@ from embit.descriptor import Descriptor
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models import DecodeQR, Seed
 from seedsigner.models.settings import SettingsConstants
+from .sign_tx_views import TransactionSelectSeedView
 
 from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
@@ -58,7 +59,7 @@ class ScanView(View):
 
             elif self.decoder.is_transaction:
                 print("Transaction: ", self.decoder.get_transaction_data())
-                return Destination(NotYetImplementedView)
+                return Destination(TransactionSelectSeedView, skip_current_view=True)
 
             elif self.decoder.is_psbt:
                 from seedsigner.views.psbt_views import PSBTSelectSeedView
