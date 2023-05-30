@@ -1,8 +1,8 @@
 # import the necessary packages
-from picamera.array import PiRGBArray
-from picamera import PiCamera
 from threading import Thread
-import time
+
+from picamera import PiCamera
+from picamera.array import PiRGBArray
 
 
 # Modified from: https://github.com/jrosebr1/imutils

@@ -1,27 +1,24 @@
 from dataclasses import dataclass
 from typing import Any
+
 from PIL.Image import Image
-from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
-from seedsigner.hardware.camera import Camera
+
 from seedsigner.gui.components import (
     FontAwesomeIconConstants,
     Fonts,
-    FormattedAddress,
     GUIConstants,
     IconTextLine,
     SeedSignerCustomIconConstants,
     TextArea,
 )
-
 from seedsigner.gui.screens.screen import (
     RET_CODE__BACK_BUTTON,
     BaseScreen,
-    BaseTopNavScreen,
     ButtonListScreen,
     KeyboardScreen,
 )
 from seedsigner.hardware.buttons import HardwareButtonsConstants
-from seedsigner.helpers.qr import QR
+from seedsigner.hardware.camera import Camera
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
 

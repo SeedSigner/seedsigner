@@ -1,1 +1,1 @@
-from .renderer import Renderer
+from seedsigner.gui.renderer import Renderer

@@ -8,18 +8,18 @@ from stellar_sdk import TransactionEnvelope, FeeBumpTransactionEnvelope
 from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.buttons import HardwareButtons
 from seedsigner.hardware.microsd import MicroSD
-from seedsigner.views.screensaver import ScreensaverScreen
-from seedsigner.views.view import (
-    Destination,
-    NotYetImplementedView,
-    UnhandledExceptionView,
-)
-from .models import (
+from seedsigner.models import (
     Seed,
     SeedStorage,
     Settings,
     Singleton,
     SettingsConstants,
+)
+from seedsigner.views.screensaver import ScreensaverScreen
+from seedsigner.views.view import (
+    Destination,
+    NotYetImplementedView,
+    UnhandledExceptionView,
 )
 
 logger = logging.getLogger(__name__)

@@ -1,41 +1,29 @@
 import math
-import time
-
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List
 
 from PIL import Image, ImageDraw, ImageFilter
-from seedsigner.gui.renderer import Renderer
-from seedsigner.helpers.qr import QR
-from seedsigner.models.qr_type import QRType
-from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
-from seedsigner.models.seed import Seed
-from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
-
-from .screen import (
-    RET_CODE__BACK_BUTTON,
-    BaseScreen,
-    BaseTopNavScreen,
-    ButtonListScreen,
-    KeyboardScreen,
-    WarningEdgesMixin,
-)
-from ..components import (
+from seedsigner.gui.components import (
     Button,
     FontAwesomeIconConstants,
     Fonts,
-    FormattedAddress,
     IconButton,
     IconTextLine,
     SeedSignerCustomIconConstants,
     TextArea,
     GUIConstants,
-    calc_text_centering,
 )
-
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
-from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
+from seedsigner.gui.screens.screen import (
+    RET_CODE__BACK_BUTTON,
+    BaseScreen,
+    BaseTopNavScreen,
+    ButtonListScreen,
+    WarningEdgesMixin,
+)
+from seedsigner.hardware.buttons import HardwareButtonsConstants
+from seedsigner.helpers.qr import QR
 
 
 @dataclass
@@ -639,75 +627,6 @@ class SeedWordsBackupTestPromptScreen(ButtonListScreen):
                 is_text_centered=True,
             )
         )
-
-
-@dataclass
-class SeedExportXpubCustomDerivationScreen(KeyboardScreen):
-    def __post_init__(self):
-        self.title = "Derivation Path"
-        self.user_input = "m/"
-
-        # Specify the keys in the keyboard
-        self.rows = 3
-        self.cols = 6
-        self.keys_charset = "/'0123456789"
-        self.show_save_button = True
-
-        super().__post_init__()
-
-
-@dataclass
-class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
-    # Customize defaults
-    title: str = "Xpub Details"
-    is_bottom_list: bool = True
-    fingerprint: str = None
-    has_passphrase: bool = False
-    derivation_path: str = "m/84'/0'/0'"
-    xpub: str = "zpub6r..."
-    button_data = ["Export Xpub"]
-
-    def __post_init__(self):
-        # Programmatically set up other args
-        self.button_data = ["Export Xpub"]
-
-        # Initialize the base class
-        super().__post_init__()
-
-        # Set up the fingerprint and passphrase displays
-        self.fingerprint_line = IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
-            icon_color="blue",
-            label_text="Fingerprint",
-            value_text=self.fingerprint,
-            screen_x=GUIConstants.COMPONENT_PADDING,
-            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
-        )
-        self.components.append(self.fingerprint_line)
-
-        self.derivation_line = IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.PATH,
-            label_text="Derivation",
-            value_text=self.derivation_path,
-            screen_x=GUIConstants.COMPONENT_PADDING,
-            screen_y=self.components[-1].screen_y
-            + self.components[-1].height
-            + int(1.5 * GUIConstants.COMPONENT_PADDING),
-        )
-        self.components.append(self.derivation_line)
-
-        self.xpub_line = IconTextLine(
-            icon_name=FontAwesomeIconConstants.X,
-            label_text="Xpub",
-            value_text=f"{self.xpub[:18]}...",
-            font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
-            font_size=GUIConstants.BODY_FONT_SIZE + 2,
-            screen_x=GUIConstants.COMPONENT_PADDING,
-            screen_y=self.components[-1].screen_y
-            + self.components[-1].height
-            + int(1.5 * GUIConstants.COMPONENT_PADDING),
-        )
-        self.components.append(self.xpub_line)
 
 
 @dataclass
@@ -1625,109 +1544,3 @@ class SeedTranscribeSeedQRConfirmQRPromptScreen(ButtonListScreen):
                 height=self.buttons[0].screen_y - self.top_nav.height,
             )
         )
-
-
-@dataclass
-class SeedAddressVerificationScreen(ButtonListScreen):
-    """
-    "Skip 10" feature increments the `ThreadsafeCounter` via its `increment(step=10)`
-    method. Because it is threadsafe, the next brute force round by the
-    `BruteForceAddressVerificationThread` can just check the ThreadsafeCounter's
-    value and resume its work from the updated index.
-    """
-
-    address: str = None
-    derivation_path: str = None
-    script_type: str = None
-    sig_type: str = None
-    network: str = None
-    is_mainnet: bool = None
-    threadsafe_counter: ThreadsafeCounter = None
-    verified_index: ThreadsafeCounter = None
-
-    def __post_init__(self):
-        # Customize defaults
-        self.title = "Verify Address"
-        self.is_bottom_list = True
-        self.show_back_button = False
-        self.button_data = ["Skip 10", "Cancel"]
-
-        super().__post_init__()
-
-        address_display = FormattedAddress(
-            address=self.address, max_lines=1, screen_y=self.top_nav.height
-        )
-        self.components.append(address_display)
-
-        text = f"{self.sig_type} - {self.script_type}"
-        if not self.is_mainnet:
-            text += f" ({self.network})"
-        self.components.append(
-            TextArea(
-                text=text,
-                font_size=GUIConstants.LABEL_FONT_SIZE,
-                font_color=GUIConstants.LABEL_FONT_COLOR,
-                is_text_centered=True,
-                screen_y=self.components[-1].screen_y
-                + self.components[-1].height
-                + GUIConstants.COMPONENT_PADDING,
-            )
-        )
-
-        self.threads.append(
-            SeedAddressVerificationScreen.ProgressThread(
-                renderer=self.renderer,
-                screen_y=self.components[-1].screen_y
-                + self.components[-1].height
-                + GUIConstants.COMPONENT_PADDING,
-                threadsafe_counter=self.threadsafe_counter,
-                verified_index=self.verified_index,
-            )
-        )
-
-    def _run_callback(self):
-        # Exit the screen on success via a non-None value
-        print(f"verified_index: {self.verified_index.cur_count}")
-        if self.verified_index.cur_count is not None:
-            print("Screen callback returning success!")
-            self.threads[-1].stop()
-            while self.threads[-1].is_alive():
-                time.sleep(0.01)
-            return 1
-
-    class ProgressThread(BaseThread):
-        def __init__(
-            self,
-            renderer: Renderer,
-            screen_y: int,
-            threadsafe_counter: ThreadsafeCounter,
-            verified_index: ThreadsafeCounter,
-        ):
-            self.renderer = renderer
-            self.screen_y = screen_y
-            self.threadsafe_counter = threadsafe_counter
-            self.verified_index = verified_index
-            super().__init__()
-
-        def run(self):
-            while self.keep_running:
-                if self.verified_index.cur_count is not None:
-                    # This thread will detect the success state while its parent Screen
-                    # holds in its `wait_for`. Have to trigger a hw_input event to break
-                    # the Screen._run out of the `wait_for` state. The Screen will then
-                    # call its `_run_callback` and detect the success state and exit.
-                    HardwareButtons.get_instance().trigger_override(force_release=True)
-                    return
-
-                textarea = TextArea(
-                    text=f"Checking address {self.threadsafe_counter.cur_count}",
-                    font_name=GUIConstants.BODY_FONT_NAME,
-                    font_size=GUIConstants.BODY_FONT_SIZE,
-                    screen_y=self.screen_y,
-                )
-
-                with self.renderer.lock:
-                    textarea.render()
-                    self.renderer.show_image()
-
-                time.sleep(0.1)

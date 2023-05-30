@@ -1,11 +1,12 @@
+import subprocess
+
 import qrcode
+from PIL import Image
 from qrcode.image.styledpil import StyledPilImage
 from qrcode.image.styles.moduledrawers import (
     CircleModuleDrawer,
     GappedSquareModuleDrawer,
 )
-from PIL import Image
-import subprocess
 
 
 class QR:

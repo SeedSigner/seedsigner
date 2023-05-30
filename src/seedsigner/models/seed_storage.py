@@ -1,4 +1,5 @@
 from typing import List
+
 from seedsigner.models import Seed
 from seedsigner.models.seed import InvalidSeedException
 from seedsigner.models.settings_definition import SettingsConstants

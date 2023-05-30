@@ -1,6 +1,7 @@
-from typing import List
-import RPi.GPIO as GPIO
 import time
+from typing import List
+
+import RPi.GPIO as GPIO
 
 from seedsigner.models.singleton import Singleton
 

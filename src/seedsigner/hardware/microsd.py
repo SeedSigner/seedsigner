@@ -1,11 +1,8 @@
-import time
-
-from seedsigner.models.singleton import Singleton
-from seedsigner.models.threads import BaseThread
-from seedsigner.models.settings import Settings
-
 # from seedsigner.views.view import MicroSDToastView
 from seedsigner.gui.screens.screen import MicroSDToastScreen
+from seedsigner.models.settings import Settings
+from seedsigner.models.singleton import Singleton
+from seedsigner.models.threads import BaseThread
 
 
 class MicroSD(Singleton, BaseThread):

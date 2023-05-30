@@ -1,7 +1,8 @@
-import spidev
-import RPi.GPIO as GPIO
-import time
 import array
+import time
+
+import RPi.GPIO as GPIO
+import spidev
 
 
 class ST7789(object):

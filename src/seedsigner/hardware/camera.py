@@ -1,10 +1,10 @@
 import io
-import numpy
 
-from picamera import PiCamera
 from PIL import Image
-from seedsigner.models import Singleton
+from picamera import PiCamera
+
 from seedsigner.hardware.pivideostream import PiVideoStream
+from seedsigner.models import Singleton
 from seedsigner.models.settings import SettingsConstants
 
 
