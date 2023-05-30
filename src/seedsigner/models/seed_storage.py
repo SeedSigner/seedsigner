@@ -2,7 +2,6 @@ from typing import List
 
 from seedsigner.models import Seed
 from seedsigner.models.seed import InvalidSeedException
-from seedsigner.models.settings_definition import SettingsConstants
 
 
 class SeedStorage:
@@ -63,9 +62,7 @@ class SeedStorage:
             return self._pending_mnemonic[index]
         return None
 
-    def get_pending_mnemonic_fingerprint(
-        self, network: str = SettingsConstants.MAINNET
-    ) -> str:
+    def get_pending_mnemonic_fingerprint(self) -> str:
         try:
             seed = Seed(self._pending_mnemonic)
             return seed.get_fingerprint()

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any, List, Union, Tuple, Sequence
 
 
 class SettingsConstants:
@@ -30,34 +30,9 @@ class SettingsConstants:
         (OPTION__REQUIRED, "Required"),
     ]
 
-    # User-facing selection options
-    COORDINATOR__BLUE_WALLET = "bw"
-    COORDINATOR__NUNCHUK = "nun"
-    COORDINATOR__SPARROW = "spa"
-    COORDINATOR__SPECTER_DESKTOP = "spd"
-    COORDINATOR__KEEPER = "kpr"
-    ALL_COORDINATORS = [
-        (COORDINATOR__BLUE_WALLET, "BlueWallet"),
-        (COORDINATOR__NUNCHUK, "Nunchuk"),
-        (COORDINATOR__SPARROW, "Sparrow"),
-        (COORDINATOR__SPECTER_DESKTOP, "Specter Desktop"),
-        (COORDINATOR__KEEPER, "Keeper"),
-    ]
-
     LANGUAGE__ENGLISH = "en"
     ALL_LANGUAGES = [
         (LANGUAGE__ENGLISH, "English"),
-    ]
-
-    BTC_DENOMINATION__BTC = "btc"
-    BTC_DENOMINATION__SATS = "sats"
-    BTC_DENOMINATION__THRESHOLD = "thr"
-    BTC_DENOMINATION__BTCSATSHYBRID = "hyb"
-    ALL_BTC_DENOMINATIONS = [
-        (BTC_DENOMINATION__BTC, "BTC"),
-        (BTC_DENOMINATION__SATS, "sats"),
-        (BTC_DENOMINATION__THRESHOLD, "Threshold at 0.01"),
-        (BTC_DENOMINATION__BTCSATSHYBRID, "BTC | sats hybrid"),
     ]
 
     CAMERA_ROTATION__0 = 0
@@ -79,40 +54,6 @@ class SettingsConstants:
         (DENSITY__LOW, "Low"),
         (DENSITY__MEDIUM, "Medium"),
         (DENSITY__HIGH, "High"),
-    ]
-
-    # Seed-related constants
-    MAINNET = "M"
-    TESTNET = "T"
-    REGTEST = "R"
-    ALL_NETWORKS = [(MAINNET, "Mainnet"), (TESTNET, "Testnet"), (REGTEST, "Regtest")]
-
-    @classmethod
-    def map_network_to_embit(cls, network) -> str:
-        if network == SettingsConstants.MAINNET:
-            return "main"
-        elif network == SettingsConstants.TESTNET:
-            return "test"
-        if network == SettingsConstants.REGTEST:
-            return "regtest"
-
-    SINGLE_SIG = "ss"
-    MULTISIG = "ms"
-    ALL_SIG_TYPES = [
-        (SINGLE_SIG, "Single Sig"),
-        (MULTISIG, "Multisig"),
-    ]
-
-    LEGACY_P2PKH = "leg"  # Intentionally excluded from ALL_SCRIPT_TYPES
-    NATIVE_SEGWIT = "nat"
-    NESTED_SEGWIT = "nes"
-    TAPROOT = "tr"
-    CUSTOM_DERIVATION = "cus"
-    ALL_SCRIPT_TYPES = [
-        (NATIVE_SEGWIT, "Native Segwit"),
-        (NESTED_SEGWIT, "Nested Segwit (legacy)"),
-        (TAPROOT, "Taproot"),
-        (CUSTOM_DERIVATION, "Custom Derivation"),
     ]
 
     WORDLIST_LANGUAGE__ENGLISH = "en"
@@ -138,23 +79,12 @@ class SettingsConstants:
     SETTING__LANGUAGE = "language"
     SETTING__WORDLIST_LANGUAGE = "wordlist_language"
     SETTING__PERSISTENT_SETTINGS = "persistent_settings"
-    SETTING__COORDINATORS = "coordinators"
-    SETTING__BTC_DENOMINATION = "denomination"
-
-    SETTING__NETWORK = "network"
     SETTING__QR_DENSITY = "qr_density"
-    SETTING__XPUB_EXPORT = "xpub_export"
-    SETTING__SIG_TYPES = "sig_types"
-    SETTING__SCRIPT_TYPES = "script_types"
-    SETTING__XPUB_DETAILS = "xpub_details"
     SETTING__PASSPHRASE = "passphrase"
     SETTING__CAMERA_ROTATION = "camera_rotation"
     SETTING__COMPACT_SEEDQR = "compact_seedqr"
-    SETTING__BIP85_CHILD_SEEDS = "bip85_child_seeds"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
-    SETTING__PARTNER_LOGOS = "partner_logos"
-
     SETTING__DEBUG = "debug"
 
     # Hidden settings
@@ -212,7 +142,7 @@ class SettingsEntry:
     visibility: str = SettingsConstants.VISIBILITY__GENERAL
     type: str = SettingsConstants.TYPE__ENABLED_DISABLED
     help_text: str = None
-    selection_options: List[str] = None
+    selection_options: Sequence[Union[str, Tuple[Union[str, int], str]]] = None
     default_value: Any = None
 
     def __post_init__(self):
@@ -223,7 +153,7 @@ class SettingsEntry:
             self.selection_options = SettingsConstants.OPTIONS__ENABLED_DISABLED_PROMPT
 
         elif self.type == SettingsConstants.TYPE__ENABLED_DISABLED_PROMPT_REQUIRED:
-            self.selection_options = [SettingsConstants.ALL_OPTIONS]
+            self.selection_options = SettingsConstants.ALL_OPTIONS
 
         # Account for List[tuple] and tuple formats as default_value
         if type(self.default_value) == list and type(self.default_value[0]) == tuple:
@@ -363,7 +293,6 @@ class SettingsDefinition:
             attr_name=SettingsConstants.SETTING__PASSPHRASE,
             display_name="BIP-39 passphrase",
             type=SettingsConstants.TYPE__SELECT_1,
-            visibility=SettingsConstants.VISIBILITY__ADVANCED,
             selection_options=SettingsConstants.OPTIONS__ENABLED_DISABLED_REQUIRED,
             default_value=SettingsConstants.OPTION__ENABLED,
         ),

@@ -459,9 +459,7 @@ class ToolsCalcFinalWordDoneView(View):
         selected_menu_num = ToolsCalcFinalWordDoneScreen(
             final_word=final_word,
             mnemonic_word_length=mnemonic_word_length,
-            fingerprint=self.controller.storage.get_pending_mnemonic_fingerprint(
-                self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-            ),
+            fingerprint=self.controller.storage.get_pending_mnemonic_fingerprint(),
             button_data=button_data,
         ).display()
 

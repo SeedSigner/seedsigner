@@ -9,8 +9,9 @@ from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
 from stellar_sdk.helpers import parse_transaction_envelope_from_xdr
 
-from . import QRType, Seed, QRTYPE_SPLITTER
-from .settings import SettingsConstants
+from seedsigner.models.qr_type import QRType, QRTYPE_SPLITTER
+from seedsigner.models.seed import Seed
+from seedsigner.models.settings import SettingsConstants
 
 logger = logging.getLogger(__name__)
 
@@ -380,56 +381,6 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
             except Exception as e:
                 logger.exception(repr(e))
                 return DecodeQRStatus.INVALID
-
-        elif qr_type == QRType.SEED__MNEMONIC:
-            try:
-                seed_phrase_list = self.seed_phrase = segment.strip().split(" ")
-
-                # embit mnemonic code to validate
-                seed = Seed(
-                    seed_phrase_list,
-                    passphrase="",
-                    wordlist_language_code=self.wordlist_language_code,
-                )
-                if not seed:
-                    # seed is not valid, return invalid
-                    return DecodeQRStatus.INVALID
-                self.seed_phrase = seed_phrase_list
-                if self.is_12_or_24_word_phrase() == False:
-                    return DecodeQRStatus.INVALID
-                self.complete = True
-                self.collected_segments = 1
-                return DecodeQRStatus.COMPLETE
-            except Exception as e:
-                return DecodeQRStatus.INVALID
-
-        elif qr_type == QRType.SEED__FOUR_LETTER_MNEMONIC:
-            try:
-                seed_phrase_list = segment.strip().split(" ")
-                words = []
-                for s in seed_phrase_list:
-                    # TODO: Pre-calculate this once on startup
-                    _4LETTER_WORDLIST = [word[:4].strip() for word in self.wordlist]
-                    words.append(self.wordlist[_4LETTER_WORDLIST.index(s)])
-
-                # embit mnemonic code to validate
-                seed = Seed(
-                    words,
-                    passphrase="",
-                    wordlist_language_code=self.wordlist_language_code,
-                )
-                if not seed:
-                    # seed is not valid, return invalid
-                    return DecodeQRStatus.INVALID
-                self.seed_phrase = words
-                if self.is_12_or_24_word_phrase() == False:
-                    return DecodeQRStatus.INVALID
-                self.complete = True
-                self.collected_segments = 1
-                return DecodeQRStatus.COMPLETE
-            except Exception as e:
-                return DecodeQRStatus.INVALID
-
         else:
             return DecodeQRStatus.INVALID
 
