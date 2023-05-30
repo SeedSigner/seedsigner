@@ -1,6 +1,6 @@
 import logging
 import traceback
-from typing import List, Union
+from typing import List, Union, Optional
 
 from PIL.Image import Image
 from stellar_sdk import TransactionEnvelope, FeeBumpTransactionEnvelope
@@ -68,15 +68,12 @@ class Controller(Singleton):
     image_entropy_preview_frames: List[Image] = None
     image_entropy_final_image: Image = None
 
-    address_explorer_data: dict = None
+    address_explorer_data: Optional[dict] = None
     # TODO: end refactor section
 
     # Destination placeholder for when we need to jump out to a side flow but intend to
     # return navigation to the main flow (e.g. PSBT flow, load multisig descriptor,
     # then resume PSBT flow).
-    FLOW__PSBT = "psbt"
-    FLOW__VERIFY_MULTISIG_ADDR = "multisig_addr"
-    FLOW__VERIFY_SINGLESIG_ADDR = "singlesig_addr"
     FLOW__ADDRESS_EXPLORER = "address_explorer"
     resume_main_flow: str = None
 
@@ -85,6 +82,10 @@ class Controller(Singleton):
 
     back_stack: BackStack = None
     screensaver: ScreensaverScreen = None
+
+    def __init__(self):
+        super().__init__()
+        self.sign_seed = None
 
     @classmethod
     def get_instance(cls):
@@ -128,10 +129,6 @@ class Controller(Singleton):
 
         controller.microsd = MicroSD.get_instance()
         controller.microsd.start_detection()
-
-        # Store one working psbt in memory
-        controller.psbt = None
-        controller.psbt_parser = None
 
         # Configure the Renderer
         Renderer.configure_instance()
@@ -254,17 +251,14 @@ class Controller(Singleton):
                     self.clear_back_stack()
 
                     # Home always wipes the back_stack/state of temp vars
-                    self.resume_main_flow = None
-                    self.multisig_wallet_descriptor = None
-                    self.unverified_address = None
+                    self.resume_main_flow: Optional[str] = None
                     self.address_explorer_data = None
-                    self.psbt = None
-                    self.psbt_parser = None
-                    self.psbt_seed = None
                     self.sign_seed = None
-                    self.sign_hash_data: tuple[int, str] = None
-                    self.tx_data: tuple[
-                        int, Union[TransactionEnvelope, FeeBumpTransactionEnvelope]
+                    self.sign_hash_data: Optional[tuple[int, str]] = None
+                    self.tx_data: Optional[
+                        tuple[
+                            int, Union[TransactionEnvelope, FeeBumpTransactionEnvelope]
+                        ]
                     ] = None
 
                 print(f"back_stack: {self.back_stack}")

@@ -1,14 +1,10 @@
 import unicodedata
-
-from binascii import hexlify
-from embit import bip39, bip32, bip85
-from embit.networks import NETWORKS
 from typing import List
 
+from embit import bip39
 from stellar_sdk import Keypair
 
 from seedsigner.models.settings import SettingsConstants
-from seedsigner.helpers import embit_utils
 
 
 class InvalidSeedException(Exception):
@@ -106,30 +102,6 @@ class Seed:
             self.mnemonic_str, passphrase=self.passphrase, index=0
         )
         return kp.raw_secret_key().hex()[-8:]
-
-    def get_xpub(
-        self, wallet_path: str = "/", network: str = SettingsConstants.MAINNET
-    ):
-        return embit_utils.get_xpub(
-            seed_bytes=self.seed_bytes,
-            derivation_path=wallet_path,
-            embit_network=SettingsConstants.map_network_to_embit(network),
-        )
-
-    def get_bip85_child_mnemonic(
-        self,
-        bip85_index: int,
-        bip85_num_words: int,
-        network: str = SettingsConstants.MAINNET,
-    ):
-        """Derives the seed's nth BIP-85 child mnemonic"""
-        root = bip32.HDKey.from_seed(
-            self.seed_bytes,
-            version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"],
-        )
-
-        # TODO: Support other BIP-39 wordlist languages!
-        return bip85.derive_mnemonic(root, bip85_num_words, bip85_index)
 
     ### override operators
     def __eq__(self, other):

@@ -282,7 +282,6 @@ class SeedReviewPassphraseView(View):
         button_data = [EDIT, DONE]
 
         # Get the before/after fingerprints
-        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
         passphrase = self.seed.passphrase
         fingerprint_with = self.seed.get_fingerprint()
         self.seed.set_passphrase("")
@@ -394,7 +393,7 @@ class SeedOptionsView(View):
         if button_data[selected_menu_num] == SCAN_TX:
             from seedsigner.views.scan_views import ScanView
 
-            self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
+            self.controller.sign_seed = self.controller.get_seed(self.seed_num)
             return Destination(ScanView)
 
         # export stellar address

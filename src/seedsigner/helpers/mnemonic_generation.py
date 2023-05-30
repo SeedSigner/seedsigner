@@ -1,9 +1,8 @@
 import hashlib
 import unicodedata
+from typing import List
 
 from embit import bip39
-from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
-from typing import List
 
 from seedsigner.models.seed import Seed
 

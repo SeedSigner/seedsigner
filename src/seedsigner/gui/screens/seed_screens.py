@@ -1628,38 +1628,6 @@ class SeedTranscribeSeedQRConfirmQRPromptScreen(ButtonListScreen):
 
 
 @dataclass
-class AddressVerificationSigTypeScreen(ButtonListScreen):
-    text: str = ""
-
-    def __post_init__(self):
-        self.is_bottom_list = True
-        super().__post_init__()
-
-        self.components.append(
-            TextArea(
-                text=self.text,
-                screen_y=self.top_nav.height,
-            )
-        )
-
-
-@dataclass
-class SeedSingleSigAddressVerificationSelectSeedScreen(ButtonListScreen):
-    text: str = ""
-
-    def __post_init__(self):
-        self.is_bottom_list = True
-        super().__post_init__()
-
-        self.components.append(
-            TextArea(
-                text=self.text,
-                screen_y=self.top_nav.height,
-            )
-        )
-
-
-@dataclass
 class SeedAddressVerificationScreen(ButtonListScreen):
     """
     "Skip 10" feature increments the `ThreadsafeCounter` via its `increment(step=10)`
@@ -1763,70 +1731,3 @@ class SeedAddressVerificationScreen(ButtonListScreen):
                     self.renderer.show_image()
 
                 time.sleep(0.1)
-
-
-@dataclass
-class LoadMultisigWalletDescriptorScreen(ButtonListScreen):
-    def __post_init__(self):
-        self.title = "Multisig Verification"
-        self.is_bottom_list = True
-        super().__post_init__()
-
-        self.components.append(
-            TextArea(
-                text="Load your multisig wallet descriptor to verify your receive/self-transfer or change address.",
-                screen_y=self.top_nav.height,
-                height=self.buttons[0].screen_y - self.top_nav.height,
-            )
-        )
-
-
-@dataclass
-class MultisigWalletDescriptorScreen(ButtonListScreen):
-    policy: str = None
-    fingerprints: List[str] = None
-
-    def __post_init__(self):
-        self.title = "Descriptor Loaded"
-        self.is_bottom_list = True
-        super().__post_init__()
-
-        self.components.append(
-            IconTextLine(
-                label_text="Policy",
-                value_text=self.policy,
-                font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
-                screen_y=self.top_nav.height,
-                is_text_centered=True,
-            )
-        )
-
-        self.components.append(
-            IconTextLine(
-                label_text="Signing Keys",
-                value_text=" ".join(self.fingerprints),
-                font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 4,
-                font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
-                screen_y=self.components[-1].screen_y
-                + self.components[-1].height
-                + 2 * GUIConstants.COMPONENT_PADDING,
-                is_text_centered=True,
-                auto_line_break=True,
-                allow_text_overflow=True,
-            )
-        )
-
-
-@dataclass
-class SeedBIP85SelectChildIndexScreen(KeyboardScreen):
-    def __post_init__(self):
-        self.title = "BIP-85 Index"
-        self.user_input = ""
-
-        # Specify the keys in the keyboard
-        self.rows = 3
-        self.cols = 5
-        self.keys_charset = "0123456789"
-        self.show_save_button = True
-
-        super().__post_init__()
