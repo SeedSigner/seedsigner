@@ -52,7 +52,8 @@ class ScanView(View):
                 return Destination(SignHashSelectSeedView, skip_current_view=True)
 
             elif self.decoder.is_transaction:
-                print("Transaction: ", self.decoder.get_sign_transaction_data())
+                self.controller.tx_data = self.decoder.get_sign_transaction_data()
+                print("Transaction: ", self.controller.tx_data)
                 return Destination(TransactionSelectSeedView, skip_current_view=True)
             else:
                 return Destination(NotYetImplementedView)

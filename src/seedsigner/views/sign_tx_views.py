@@ -1,3 +1,7 @@
+from typing import Union
+
+from stellar_sdk import Keypair, TransactionEnvelope, FeeBumpTransactionEnvelope
+
 from seedsigner.controller import Controller
 from seedsigner.gui.components import (
     FontAwesomeIconConstants,
@@ -6,10 +10,15 @@ from seedsigner.gui.components import (
 from seedsigner.gui.screens.screen import (
     RET_CODE__BACK_BUTTON,
     ButtonListScreen,
+    QRDisplayScreen,
 )
+from .tools_views import ToolsSignShowAddressScreen
 from .view import BackStackView, View, Destination, MainMenuView
-from ..gui.screens.transaction_screens import PaymentOperationScreen
+from ..gui.screens.transaction_screens import (
+    build_transaction_screens,
+)
 from ..hardware.buttons import HardwareButtonsConstants
+from ..models import EncodeQR, QRType
 
 
 class TransactionSelectSeedView(View):
@@ -42,19 +51,14 @@ class TransactionSelectSeedView(View):
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
             self.controller.sign_seed = self.controller.get_seed(selected_menu_num)
-            # address_index = parse_address_index_from_derivation_path(
-            #     self.controller.sign_hash_data[0]
-            # )
-            # sign_kp = Keypair.from_mnemonic_phrase(
-            #     mnemonic_phrase=self.controller.sign_seed.mnemonic_str,
-            #     passphrase=self.controller.sign_seed.passphrase,
-            #     index=address_index,
-            # )
-            screens = [
-                PaymentOperationScreen(operation_index=0),
-                PaymentOperationScreen(operation_index=1),
-                PaymentOperationScreen(operation_index=2),
-            ]
+            address_index, te = self.controller.tx_data
+
+            kp = Keypair.from_mnemonic_phrase(
+                mnemonic_phrase=self.controller.sign_seed.mnemonic_str,
+                passphrase=self.controller.sign_seed.passphrase,
+                index=address_index,
+            )
+            screens = build_transaction_screens(te)
             current_screen = 0
             while True:
                 ret = screens[current_screen].display()
@@ -66,14 +70,21 @@ class TransactionSelectSeedView(View):
                 ):
                     if current_screen < len(screens) - 1:
                         current_screen += 1
+                    else:
+                        return Destination(
+                            TransactionFinalizeView,
+                            view_args={
+                                "sign_kp": kp,
+                                "te": te,
+                            },
+                            clear_history=True,
+                        )
                 elif ret in (
                     HardwareButtonsConstants.KEY_UP,
                     HardwareButtonsConstants.KEY1,
                 ):
                     if current_screen > 0:
                         current_screen -= 1
-            return Destination(MainMenuView)
-            # return Destination(SignHashDireWarningView, view_args={"sign_kp": sign_kp})
 
         self.controller.resume_main_flow = Controller.FLOW__SIGN_TX
 
@@ -95,5 +106,33 @@ class TransactionSelectSeedView(View):
 class TransactionFinalizeView(View):
     """ """
 
+    def __init__(
+        self,
+        te: Union[TransactionEnvelope, FeeBumpTransactionEnvelope],
+        sign_kp: Keypair = None,
+    ):
+        super().__init__()
+        self.sign_kp = sign_kp
+        self.te = te
+
     def run(self):
-        pass
+        SIGN = "Sign"
+        ABORT = "Abort"
+        button_data = [SIGN, ABORT]
+        selected_menu_num = ToolsSignShowAddressScreen(
+            address=self.sign_kp.public_key,
+            button_data=button_data,
+            show_back_button=False,
+        ).display()
+        print("selected_menu_num: ", selected_menu_num)
+
+        if button_data[selected_menu_num] == SIGN:
+            signature = self.sign_kp.sign(self.te.hash())
+            qr_encoder = EncodeQR(qr_type=QRType.STELLAR_SIGNATURE, signature=signature)
+            QRDisplayScreen(
+                qr_encoder=qr_encoder,
+            ).display()
+            return Destination(MainMenuView)
+
+        elif button_data[selected_menu_num] == ABORT:
+            return Destination(MainMenuView)

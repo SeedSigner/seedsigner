@@ -307,7 +307,7 @@ class SignTransactionQrDecode(BaseAnimatedQrDecoder):
 
         address_index = parse_address_index_from_derivation_path(derivation_path)
 
-        return address_index, network_passphrase, transaction
+        return address_index, transaction
 
     def current_segment_num(self, segment) -> int:
         r = re.search(r"^p(\d+)of(\d+),", segment, re.IGNORECASE)

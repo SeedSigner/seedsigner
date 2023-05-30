@@ -1,13 +1,9 @@
 import logging
 import traceback
-import os
+from typing import List, Union
 
-from embit.descriptor import Descriptor
-from embit.psbt import PSBT
 from PIL.Image import Image
-from typing import List
-
-from stellar_sdk import Keypair, TransactionEnvelope
+from stellar_sdk import TransactionEnvelope, FeeBumpTransactionEnvelope
 
 from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.buttons import HardwareButtons
@@ -18,13 +14,11 @@ from seedsigner.views.view import (
     NotYetImplementedView,
     UnhandledExceptionView,
 )
-
 from .models import (
     Seed,
     SeedStorage,
     Settings,
     Singleton,
-    PSBTParser,
     SettingsConstants,
 )
 
@@ -71,14 +65,6 @@ class Controller(Singleton):
 
     # TODO: Refactor these flow-related attrs that survive across multiple Screens.
     # TODO: Should all in-memory flow-related attrs get wiped on MainMenuView?
-    psbt: PSBT = None
-    psbt_seed: Seed = None
-    psbt_parser: PSBTParser = None
-
-    unverified_address = None
-
-    multisig_wallet_descriptor: Descriptor = None
-
     image_entropy_preview_frames: List[Image] = None
     image_entropy_final_image: Image = None
 
@@ -277,7 +263,9 @@ class Controller(Singleton):
                     self.psbt_seed = None
                     self.sign_seed = None
                     self.sign_hash_data: tuple[int, str] = None
-                    self.tx_data: tuple[int, str, TransactionEnvelope] = None
+                    self.tx_data: tuple[
+                        int, Union[TransactionEnvelope, FeeBumpTransactionEnvelope]
+                    ] = None
 
                 print(f"back_stack: {self.back_stack}")
 
