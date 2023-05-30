@@ -2,7 +2,7 @@ from seedsigner.models import DecodeQR, Seed
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.sign_tx_views import TransactionSelectSeedView
 
-from .view import MainMenuView, NotYetImplementedView, View, Destination
+from seedsigner.views.view import MainMenuView, NotYetImplementedView, View, Destination
 
 
 class ScanView(View):

@@ -14,10 +14,11 @@ from stellar_sdk.operation import *
 from stellar_sdk.utils import from_xdr_amount
 
 from seedsigner.hardware.buttons import HardwareButtonsConstants
-from . import BaseTopNavScreen
+from . import BaseTopNavScreen, ButtonListScreen
 from ..components import (
     IconTextLine,
     GUIConstants,
+    TextArea,
 )
 
 NETWORK_PASSPHRASE_PUBLIC = "Public Global Stellar Network ; September 2015"
@@ -307,3 +308,33 @@ def append_op_source_to_items(
 ):
     if op_source and op_source != tx_source:
         items.append(Item(label="Tx source", content=op_source.universal_account_id))
+
+
+@dataclass
+class SignTxShowAddressScreen(ButtonListScreen):
+    address: str = None
+
+    def __post_init__(self):
+        self.title = "Sign with"
+        self.is_bottom_list = True
+
+        super().__post_init__()
+
+        break_point = 14
+        # break every 14 characters
+        address_with_break = " ".join(
+            [
+                self.address[i : i + break_point]
+                for i in range(0, len(self.address), break_point)
+            ]
+        )
+
+        self.components.append(
+            TextArea(
+                text=address_with_break,
+                font_size=GUIConstants.BODY_FONT_MAX_SIZE + 1,
+                font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+                screen_y=self.top_nav.height,
+                is_text_centered=True,
+            )
+        )

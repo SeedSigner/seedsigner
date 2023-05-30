@@ -23,7 +23,7 @@ from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import InvalidSeedException, Seed
 from seedsigner.models.settings import SettingsConstants
-from .view import View, Destination, BackStackView, MainMenuView
+from seedsigner.views.view import View, Destination, BackStackView, MainMenuView
 
 
 class SeedsMenuView(View):

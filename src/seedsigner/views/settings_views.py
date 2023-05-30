@@ -1,17 +1,13 @@
 from seedsigner.gui.components import (
-    FontAwesomeIconConstants,
     SeedSignerCustomIconConstants,
 )
-from seedsigner.models.decode_qr import DecodeQR
-
-from .view import View, Destination, BackStackView, MainMenuView
-
 from seedsigner.gui.screens import (
     RET_CODE__BACK_BUTTON,
     ButtonListScreen,
     settings_screens,
 )
 from seedsigner.models.settings import SettingsConstants, SettingsDefinition
+from seedsigner.views.view import View, Destination, MainMenuView
 
 
 class SettingsMenuView(View):

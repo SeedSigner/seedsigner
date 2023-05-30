@@ -1,6 +1,5 @@
 import binascii
 import logging
-from dataclasses import dataclass
 
 from stellar_sdk import Keypair
 
@@ -8,8 +7,6 @@ from seedsigner.controller import Controller
 from seedsigner.gui.components import (
     FontAwesomeIconConstants,
     SeedSignerCustomIconConstants,
-    TextArea,
-    GUIConstants,
 )
 from seedsigner.gui.screens.screen import (
     RET_CODE__BACK_BUTTON,
@@ -17,8 +14,11 @@ from seedsigner.gui.screens.screen import (
     DireWarningScreen,
     QRDisplayScreen,
 )
-from .tools_views import ToolsSignShowAddressScreen, ToolsSignShowHashScreen
 from .view import BackStackView, View, Destination, MainMenuView
+from ..gui.screens.sign_hash_screens import (
+    SignHashShowAddressScreen,
+    SignHashShowHashScreen,
+)
 from ..models import EncodeQR, QRType
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ class SignHashShowAddressView(View):
         CONTINUE = "Continue"
         ABORT = "Abort"
         button_data = [CONTINUE, ABORT]
-        selected_menu_num = ToolsSignShowAddressScreen(
+        selected_menu_num = SignHashShowAddressScreen(
             address=self.sign_kp.public_key,
             button_data=button_data,
         ).display()
@@ -134,7 +134,7 @@ class SignHashShowHashView(View):
         SIGN = "Sign"
         ABORT = "Abort"
         button_data = [SIGN, ABORT]
-        selected_menu_num = ToolsSignShowHashScreen(
+        selected_menu_num = SignHashShowHashScreen(
             hash=self.controller.sign_hash_data[1],
             button_data=button_data,
         ).display()

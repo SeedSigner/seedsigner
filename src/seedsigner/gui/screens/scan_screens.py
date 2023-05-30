@@ -7,11 +7,10 @@ from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.hardware.camera import Camera
 from seedsigner.models import DecodeQR, DecodeQRStatus
 from seedsigner.models.threads import BaseThread
-from .screen import BaseScreen, ButtonListScreen
+from .screen import BaseScreen
 from ..components import (
     GUIConstants,
     Fonts,
-    TextArea,
 )
 
 
@@ -153,36 +152,3 @@ class ScanScreen(BaseScreen):
                 ) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
                     self.camera.stop_video_stream_mode()
                     break
-
-
-@dataclass
-class SettingsUpdatedScreen(ButtonListScreen):
-    config_name: str = None
-    title: str = "Settings QR"
-    is_bottom_list: bool = True
-
-    def __post_init__(self):
-        # Customize defaults
-        self.button_data = ["Home"]
-
-        super().__post_init__()
-
-        start_y = self.top_nav.height + 20
-        if self.config_name:
-            self.config_name_textarea = TextArea(
-                text=f'"{self.config_name}"',
-                is_text_centered=True,
-                auto_line_break=True,
-                screen_y=start_y,
-            )
-            self.components.append(self.config_name_textarea)
-            start_y = self.config_name_textarea.screen_y + 50
-
-        self.components.append(
-            TextArea(
-                text="Settings imported successfully!",
-                is_text_centered=True,
-                auto_line_break=True,
-                screen_y=start_y,
-            )
-        )

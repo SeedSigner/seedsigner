@@ -12,13 +12,13 @@ from seedsigner.gui.screens.screen import (
     ButtonListScreen,
     QRDisplayScreen,
 )
-from .tools_views import ToolsSignShowAddressScreen
-from .view import BackStackView, View, Destination, MainMenuView
-from ..gui.screens.transaction_screens import (
+from seedsigner.gui.screens.sign_tx_screens import (
     build_transaction_screens,
+    SignTxShowAddressScreen,
 )
-from ..hardware.buttons import HardwareButtonsConstants
-from ..models import EncodeQR, QRType
+from seedsigner.hardware.buttons import HardwareButtonsConstants
+from seedsigner.models import EncodeQR, QRType
+from seedsigner.views.view import BackStackView, View, Destination, MainMenuView
 
 
 class TransactionSelectSeedView(View):
@@ -119,7 +119,7 @@ class TransactionFinalizeView(View):
         SIGN = "Sign"
         ABORT = "Abort"
         button_data = [SIGN, ABORT]
-        selected_menu_num = ToolsSignShowAddressScreen(
+        selected_menu_num = SignTxShowAddressScreen(
             address=self.sign_kp.public_key,
             button_data=button_data,
             show_back_button=False,
