@@ -1,4 +1,4 @@
-QRTYPE_SPLITTER = ","
+QRTYPE_SPLITTER = ";"
 
 
 class QRType:

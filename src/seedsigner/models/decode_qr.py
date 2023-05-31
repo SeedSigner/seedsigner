@@ -191,11 +191,11 @@ class DecodeQR:
                 # TODO: Convert the test suite rather than handle here?
                 s = s.decode("utf-8")
             print("detect_segment_type s: ", s)
-            if re.search(f"^{QRType.SIGN_HASH},m/44'/148'/\\d+',[\\da-fA-F]{{64}}$", s):
+            if re.search(f"^{QRType.SIGN_HASH};m/44'/148'/\\d+';[\\da-fA-F]{{64}}$", s):
                 return QRType.SIGN_HASH
-            elif re.search(f"^p\\d+of\\d+,{QRType.SIGN_TX},.+$", s):
+            elif re.search(f"^p\\d+of\\d+;{QRType.SIGN_TX};.+$", s):
                 return QRType.SIGN_TX
-            elif re.search(f"^{QRType.REQUEST_ADDRESS},m/44'/148'/\\d+'$", s):
+            elif re.search(f"^{QRType.REQUEST_ADDRESS};m/44'/148'/\\d+'$", s):
                 return QRType.REQUEST_ADDRESS
             if re.search(r"\d{48,96}", s):
                 return QRType.SEED__SEEDQR
@@ -304,13 +304,11 @@ class SignTransactionQrDecode(BaseAnimatedQrDecoder):
         return self.complete
 
     def get_data(self):
-        raw_data = "".join(self.segments)
-        data = re.split(r"(?<!\\)" + QRTYPE_SPLITTER, raw_data)
+        data = "".join(self.segments).split(QRTYPE_SPLITTER, 2)
         if len(data) != 3:
             raise ValueError("Invalid data")
-        derivation_path, network_passphrase, transaction_base64 = data
+        derivation_path, transaction_base64, network_passphrase = data
 
-        network_passphrase.replace("\\" + QRTYPE_SPLITTER, QRTYPE_SPLITTER)
         try:
             transaction = parse_transaction_envelope_from_xdr(
                 transaction_base64, network_passphrase=network_passphrase
@@ -323,7 +321,7 @@ class SignTransactionQrDecode(BaseAnimatedQrDecoder):
         return address_index, transaction
 
     def current_segment_num(self, segment) -> int:
-        r = re.search(r"^p(\d+)of(\d+),", segment, re.IGNORECASE)
+        r = re.search(r"^p(\d+)of(\d+);", segment, re.IGNORECASE)
         if r:
             num = int(r.group(1))
             print("Current segment num: ", num)
@@ -332,7 +330,7 @@ class SignTransactionQrDecode(BaseAnimatedQrDecoder):
             return 1
 
     def total_segment_nums(self, segment) -> int:
-        r = re.search(r"^p(\d+)of(\d+),", segment, re.IGNORECASE)
+        r = re.search(r"^p(\d+)of(\d+);", segment, re.IGNORECASE)
         if r:
             num = int(r.group(2))
             print("Total segment num: ", num)
@@ -341,8 +339,8 @@ class SignTransactionQrDecode(BaseAnimatedQrDecoder):
             return 1
 
     def parse_segment(self, segment) -> str:
-        s = re.search(r"^p(\d+)of(\d+),(.+$)", segment, re.IGNORECASE).group(3)
-        if not s.startswith("sign-transaction,"):
+        s = re.search(r"^p(\d+)of(\d+);(.+$)", segment, re.IGNORECASE).group(3)
+        if not s.startswith("sign-transaction;"):
             raise Exception("Invalid sign transaction segment")
         return s[len("sign-transactions,") - 1 :]
 
