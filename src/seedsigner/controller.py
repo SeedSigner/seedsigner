@@ -79,6 +79,7 @@ class Controller(Singleton):
 
     FLOW__SIGN_HASH = "sign_hash"
     FLOW__SIGN_TX = "sign_tx"
+    FLOW__REQUEST_ADDRESS = "request_address"
 
     back_stack: BackStack = None
     screensaver: ScreensaverScreen = None
@@ -260,6 +261,7 @@ class Controller(Singleton):
                             int, Union[TransactionEnvelope, FeeBumpTransactionEnvelope]
                         ]
                     ] = None
+                    self.request_address_data: Optional[int] = None
 
                 print(f"back_stack: {self.back_stack}")
 

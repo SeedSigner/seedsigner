@@ -11,6 +11,7 @@ class QRType:
     STELLAR_SIGNATURE = "signature"
     SIGN_HASH = "sign-hash"
     SIGN_TX = "sign-transaction"
+    REQUEST_ADDRESS = "request-address"
 
     SEED__SEEDQR = "seed__seedqr"
     SEED__COMPACTSEEDQR = "seed__compactseedqr"

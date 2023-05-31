@@ -1,5 +1,6 @@
 from seedsigner.models import DecodeQR, Seed
 from seedsigner.models.settings import SettingsConstants
+from seedsigner.views.request_address import RequestAddressSelectSeedView
 from seedsigner.views.sign_tx_views import TransactionSelectSeedView
 
 from seedsigner.views.view import MainMenuView, NotYetImplementedView, View, Destination
@@ -55,6 +56,14 @@ class ScanView(View):
                 self.controller.tx_data = self.decoder.get_sign_transaction_data()
                 print("Transaction: ", self.controller.tx_data)
                 return Destination(TransactionSelectSeedView, skip_current_view=True)
+
+            elif self.decoder.is_request_address:
+                self.controller.request_address_data = (
+                    self.decoder.get_request_address_data()
+                )
+                print("Request Address: ", self.controller.request_address_data)
+                return Destination(RequestAddressSelectSeedView, skip_current_view=True)
+
             else:
                 return Destination(NotYetImplementedView)
 

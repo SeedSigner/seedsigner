@@ -66,6 +66,8 @@ class DecodeQR:
                 self.decoder = SignHashQrDecoder()
             elif self.qr_type == QRType.SIGN_TX:
                 self.decoder = SignTransactionQrDecode()
+            elif self.qr_type == QRType.REQUEST_ADDRESS:
+                self.decoder = RequestAddressQrDecoder()
         elif self.qr_type != qr_type:
             raise Exception("QR Fragment Unexpected Type Change")
 
@@ -106,6 +108,10 @@ class DecodeQR:
     def get_sign_transaction_data(self):
         if self.is_transaction:
             return self.decoder.get_data()
+
+    def get_request_address_data(self):
+        if self.is_request_address:
+            return self.decoder.address_index
 
     def get_percent_complete(self) -> int:
         if not self.decoder:
@@ -150,6 +156,10 @@ class DecodeQR:
     def is_transaction(self):
         return self.qr_type == QRType.SIGN_TX
 
+    @property
+    def is_request_address(self):
+        return self.qr_type == QRType.REQUEST_ADDRESS
+
     @staticmethod
     def extract_qr_data(
         image: Optional[Image], is_binary: bool = False
@@ -185,6 +195,8 @@ class DecodeQR:
                 return QRType.SIGN_HASH
             elif re.search(f"^p\\d+of\\d+,{QRType.SIGN_TX},.+$", s):
                 return QRType.SIGN_TX
+            elif re.search(f"^{QRType.REQUEST_ADDRESS},m/44'/148'/\\d+'$", s):
+                return QRType.REQUEST_ADDRESS
             if re.search(r"\d{48,96}", s):
                 return QRType.SEED__SEEDQR
 
@@ -393,6 +405,20 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
         if len(self.seed_phrase) in (12, 24):
             return True
         return False
+
+
+class RequestAddressQrDecoder(BaseSingleFrameQrDecoder):
+    def __init__(self):
+        super().__init__()
+        self.address_index: Optional[int] = None
+
+    def add(self, segment: str, qr_type=QRType.REQUEST_ADDRESS):
+        print("Segment: ", segment)
+        _, derivation_path = segment.split(QRTYPE_SPLITTER)
+        self.address_index = parse_address_index_from_derivation_path(derivation_path)
+        self.complete = True
+        self.collected_segments = 1
+        return DecodeQRStatus.COMPLETE
 
 
 def parse_address_index_from_derivation_path(derivation_path: str) -> int:
