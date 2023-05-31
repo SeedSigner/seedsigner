@@ -284,7 +284,7 @@ class SettingsDefinition:
             attr_name=SettingsConstants.SETTING__QR_DENSITY,
             display_name="QR code density",
             type=SettingsConstants.TYPE__SELECT_1,
-            visibility=SettingsConstants.VISIBILITY__ADVANCED,
+            visibility=SettingsConstants.VISIBILITY__HIDDEN,
             selection_options=SettingsConstants.ALL_DENSITIES,
             default_value=SettingsConstants.DENSITY__MEDIUM,
         ),
