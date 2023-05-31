@@ -2,12 +2,13 @@ import base64
 import math
 from dataclasses import dataclass
 from typing import Sequence, Union, List
-
+from decimal import Decimal
 from stellar_sdk import (
     MuxedAccount,
     Transaction,
     TransactionEnvelope,
     FeeBumpTransactionEnvelope,
+    Asset,
 )
 from stellar_sdk.memo import *
 from stellar_sdk.operation import *
@@ -132,7 +133,8 @@ def build_tx_info_screens(
 
     # Memo
     if isinstance(tx.memo, NoneMemo):
-        pass
+        memo_title = "None Memo"
+        memo_content = "[Empty]"
     elif isinstance(tx.memo, TextMemo):
         try:
             if tx.memo.memo_text.decode("utf-8").isascii():
@@ -228,36 +230,6 @@ def build_tx_info_screens(
     return screens
 
 
-def build_transaction_screens(
-    te: Union[TransactionEnvelope, FeeBumpTransactionEnvelope]
-) -> List[GenericTxDetailsScreen]:
-    if isinstance(te, FeeBumpTransactionEnvelope):
-        raise NotImplementedError(
-            "FeeBumpTransactionEnvelope support not implemented yet"
-        )
-
-    tx = te.transaction
-
-    if tx.operations is None or len(tx.operations) == 0:
-        raise ValueError("Transaction must have at least one operation")
-
-    screens = []
-    screens.extend(build_tx_info_screens(tx, te.network_passphrase))
-
-    for i, op in enumerate(tx.operations):
-        if isinstance(op, CreateAccount):
-            screens.append(
-                CreateAccountOperationScreen(op_index=i, op=op, tx_source=tx.source)
-            )
-        elif isinstance(op, Payment):
-            screens.append(
-                PaymentOperationScreen(op_index=i, op=op, tx_source=tx.source)
-            )
-        else:
-            raise NotImplementedError(f"Operation type {type(op)} not implemented yet")
-    return screens
-
-
 @dataclass
 class CreateAccountOperationScreen(GenericTxDetailsScreen):
     op_index: int = None
@@ -265,7 +237,7 @@ class CreateAccountOperationScreen(GenericTxDetailsScreen):
     tx_source: MuxedAccount = None
 
     def __post_init__(self):
-        send_str = f"{self.op.amount} XLM"
+        send_str = f"{self.op.starting_balance} XLM"
 
         items = [
             Item(label="Send", content=send_str, auto_trim_content=False),
@@ -286,14 +258,188 @@ class PaymentOperationScreen(GenericTxDetailsScreen):
     tx_source: MuxedAccount = None
 
     def __post_init__(self):
-        asset_str = "XLM"
-        if not self.op.asset.is_native():
-            asset_str = f"{self.op.asset.code}({self.op.asset.issuer[-4:]})"
+        asset_str = format_asset(self.op.asset)
 
         send_str = f"{self.op.amount} {asset_str}"
         items = [
             Item(label="Send", content=send_str, auto_trim_content=False),
             Item(label="To", content=self.op.destination.universal_account_id),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class PathPaymentStrictReceiveOperationScreen(GenericTxDetailsScreen):
+    op_index: int = None
+    op: PathPaymentStrictReceive = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        send_asset_str = format_asset(self.op.send_asset)
+        send_str = f"{self.op.send_max} {send_asset_str}"
+
+        items = [
+            Item(label="Path Pay At Most", content=send_str, auto_trim_content=False),
+            Item(label="To", content=self.op.destination.universal_account_id),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class PathPaymentStrictSendOperationScreen(GenericTxDetailsScreen):
+    op_index: int = None
+    op: PathPaymentStrictSend = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        send_asset_str = format_asset(self.op.send_asset)
+        send_str = f"{self.op.send_amount} {send_asset_str}"
+
+        items = [
+            Item(label="Path Pay", content=send_str, auto_trim_content=False),
+            Item(label="To", content=self.op.destination.universal_account_id),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class ManageSellOfferOperationScreenPage1(GenericTxDetailsScreen):
+    op_index: int = None
+    op: ManageSellOffer = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        if self.op.offer_id == 0:
+            op_type = "Create Offer"
+        else:
+            if Decimal(self.op.amount) == 0:
+                op_type = f"Delete Offer #{self.op.offer_id}"
+            else:
+                op_type = f"Update Offer #{self.op.offer_id}"
+
+        sell_asset_str = format_asset(self.op.selling)
+        sell_str = f"{self.op.amount} {sell_asset_str}"
+        buy_asset_str = format_asset(self.op.buying)
+
+        items = [
+            Item(label="Operation Type", content=op_type),
+            Item(label="Selling", content=sell_str, auto_trim_content=False),
+            Item(label="Buying", content=buy_asset_str, auto_trim_content=False),
+        ]
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class ManageSellOfferOperationScreenPage2(GenericTxDetailsScreen):
+    op_index: int = None
+    op: ManageSellOffer = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        price = Decimal(self.op.price.n) / Decimal(self.op.price.d)
+        price_str = (
+            f"{price} {format_asset(self.op.buying)}/{format_asset(self.op.selling)}"
+        )
+
+        items = [
+            Item(label="Price", content=price_str, auto_trim_content=False),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class ManageBuyOfferOperationScreenPage1(GenericTxDetailsScreen):
+    op_index: int = None
+    op: ManageBuyOffer = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        if self.op.offer_id == 0:
+            op_type = "Create Offer"
+        else:
+            if Decimal(self.op.amount) == 0:
+                op_type = f"Delete Offer #{self.op.offer_id}"
+            else:
+                op_type = f"Update Offer #{self.op.offer_id}"
+
+        buy_asset_str = format_asset(self.op.buying)
+        buy_str = f"{self.op.amount} {buy_asset_str}"
+        sell_asset_str = format_asset(self.op.selling)
+
+        items = [
+            Item(label="Operation Type", content=op_type),
+            Item(label="Buying", content=buy_str, auto_trim_content=False),
+            Item(label="Selling", content=sell_asset_str, auto_trim_content=False),
+        ]
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class ManageBuyOfferOperationScreenPage2(GenericTxDetailsScreen):
+    op_index: int = None
+    op: ManageBuyOffer = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        price = Decimal(self.op.price.n) / Decimal(self.op.price.d)
+        price_str = (
+            f"{price} {format_asset(self.op.selling)}/{format_asset(self.op.buying)}"
+        )
+
+        items = [
+            Item(label="Price", content=price_str, auto_trim_content=False),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class ChangeTrustOperationScreen(GenericTxDetailsScreen):
+    op_index: int = None
+    op: ChangeTrust = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        if Decimal(self.op.limit) == 0:
+            op_type = "Delete Trustline"
+            line = f"{format_asset(self.op.asset)}"
+        else:
+            op_type = "Add Trustline"
+            line = f"{self.op.limit} {format_asset(self.op.asset)}"
+
+        items = [
+            Item(label="Operation Type", content=op_type),
+            Item(label="Trustline", content=line, auto_trim_content=False),
         ]
 
         append_op_source_to_items(items, self.op.source, self.tx_source)
@@ -338,3 +484,81 @@ class SignTxShowAddressScreen(ButtonListScreen):
                 is_text_centered=True,
             )
         )
+
+
+def format_asset(asset: Asset, include_issuer: bool = True) -> str:
+    if asset.is_native():
+        return "XLM"
+    else:
+        if include_issuer:
+            return f"{asset.code} ({asset.issuer})"
+        else:
+            return asset.code
+
+
+def build_transaction_screens(
+    te: Union[TransactionEnvelope, FeeBumpTransactionEnvelope]
+) -> List[GenericTxDetailsScreen]:
+    if isinstance(te, FeeBumpTransactionEnvelope):
+        raise NotImplementedError(
+            "FeeBumpTransactionEnvelope support not implemented yet"
+        )
+
+    tx = te.transaction
+
+    if tx.operations is None or len(tx.operations) == 0:
+        raise ValueError("Transaction must have at least one operation")
+
+    screens = []
+    screens.extend(build_tx_info_screens(tx, te.network_passphrase))
+
+    for i, op in enumerate(tx.operations):
+        if isinstance(op, CreateAccount):
+            screens.append(
+                CreateAccountOperationScreen(op_index=i, op=op, tx_source=tx.source)
+            )
+        elif isinstance(op, Payment):
+            screens.append(
+                PaymentOperationScreen(op_index=i, op=op, tx_source=tx.source)
+            )
+        elif isinstance(op, PathPaymentStrictReceive):
+            screens.append(
+                PathPaymentStrictReceiveOperationScreen(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        elif isinstance(op, ManageSellOffer):
+            screens.append(
+                ManageSellOfferOperationScreenPage1(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+            screens.append(
+                ManageSellOfferOperationScreenPage2(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        elif isinstance(op, ChangeTrust):
+            screens.append(
+                ChangeTrustOperationScreen(op_index=i, op=op, tx_source=tx.source)
+            )
+        elif isinstance(op, ManageBuyOffer):
+            screens.append(
+                ManageBuyOfferOperationScreenPage1(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+            screens.append(
+                ManageBuyOfferOperationScreenPage2(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        elif isinstance(op, PathPaymentStrictSend):
+            screens.append(
+                PathPaymentStrictSendOperationScreen(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        else:
+            raise NotImplementedError(f"Operation type {type(op)} not implemented yet")
+    return screens
