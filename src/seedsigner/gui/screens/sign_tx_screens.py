@@ -1,6 +1,7 @@
 import base64
 import math
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Sequence, Union, List
 from decimal import Decimal
 from stellar_sdk import (
@@ -139,7 +140,7 @@ def build_tx_info_screens(
         try:
             if tx.memo.memo_text.decode("utf-8").isascii():
                 memo_title = "Text Memo"
-                memo_content = tx.memo.memo_text
+                memo_content = tx.memo.memo_text.decode("utf-8")
             else:
                 memo_title = "Text Memo (base64)"
                 memo_content = base64.b64encode(tx.memo.memo_text).decode("utf-8")
@@ -163,60 +164,72 @@ def build_tx_info_screens(
     # Sequence
     items.append(Item(label="Sequence", content=str(tx.sequence)))
 
-    # Time Bounds
-    if tx.preconditions.time_bounds is not None:
-        if tx.preconditions.time_bounds.min_time:
-            pass
-        if tx.preconditions.time_bounds.max_time:
-            pass
+    if tx.preconditions is not None:
+        # Time Bounds
+        if tx.preconditions.time_bounds is not None:
+            if tx.preconditions.time_bounds.min_time:
+                items.append(
+                    Item(
+                        label="Valid After (UTC)",
+                        content=timestamp_to_utc(tx.preconditions.time_bounds.min_time),
+                    )
+                )
+            if tx.preconditions.time_bounds.max_time:
+                items.append(
+                    Item(
+                        label="Valid Before (UTC)",
+                        content=timestamp_to_utc(tx.preconditions.time_bounds.max_time),
+                    )
+                )
 
-    # Ledger Bounds
-    if tx.preconditions.ledger_bounds is not None:
-        if tx.preconditions.ledger_bounds.min_ledger:
+        # Ledger Bounds
+        if tx.preconditions.ledger_bounds is not None:
+            if tx.preconditions.ledger_bounds.min_ledger:
+                items.append(
+                    Item(
+                        label="Ledger Bounds Min",
+                        content=str(tx.preconditions.ledger_bounds.min_ledger),
+                    )
+                )
+            if tx.preconditions.ledger_bounds.max_ledger:
+                items.append(
+                    Item(
+                        label="Ledger Bounds Max",
+                        content=str(tx.preconditions.ledger_bounds.max_ledger),
+                    )
+                )
+
+        # Min Seq Num
+        if tx.preconditions.min_sequence_number:
             items.append(
                 Item(
-                    label="Ledger Bounds Min",
-                    content=str(tx.preconditions.ledger_bounds.min_ledger),
+                    label="Min Sequence Number",
+                    content=str(tx.preconditions.min_sequence_number),
                 )
             )
-        if tx.preconditions.ledger_bounds.max_ledger:
+
+        # Min Seq Age
+        if tx.preconditions.min_sequence_age:
             items.append(
                 Item(
-                    label="Ledger Bounds Max",
-                    content=str(tx.preconditions.ledger_bounds.max_ledger),
+                    label="Min Sequence Age",
+                    content=str(tx.preconditions.min_sequence_age),
                 )
             )
 
-    # Min Seq Num
-    if tx.preconditions.min_sequence_number:
-        items.append(
-            Item(
-                label="Min Sequence Number",
-                content=str(tx.preconditions.min_sequence_number),
+        # Min Seq Ledger Gap
+        if tx.preconditions.min_sequence_ledger_gap:
+            items.append(
+                Item(
+                    label="Min Sequence Ledger Gap",
+                    content=str(tx.preconditions.min_sequence_ledger_gap),
+                )
             )
-        )
-
-    # Min Seq Age
-    if tx.preconditions.min_sequence_age:
-        items.append(
-            Item(
-                label="Min Sequence Age", content=str(tx.preconditions.min_sequence_age)
-            )
-        )
-
-    # Min Seq Ledger Gap
-    if tx.preconditions.min_sequence_ledger_gap:
-        items.append(
-            Item(
-                label="Min Sequence Ledger Gap",
-                content=str(tx.preconditions.min_sequence_ledger_gap),
-            )
-        )
 
     # Tx Source
     items.append(Item(label="Tx Source", content=tx.source.universal_account_id))
 
-    item_size = 3
+    item_size = 4
     item_count = len(items)
     screen_count = math.ceil(item_count / item_size)
     screens = []
@@ -355,9 +368,7 @@ class ManageSellOfferOperationScreenPage2(GenericTxDetailsScreen):
 
     def __post_init__(self):
         price = Decimal(self.op.price.n) / Decimal(self.op.price.d)
-        price_str = (
-            f"{price} {format_asset(self.op.buying)}/{format_asset(self.op.selling)}"
-        )
+        price_str = f"{price} {format_asset(self.op.buying, include_issuer=False)}/{format_asset(self.op.selling, include_issuer=False)}"
 
         items = [
             Item(label="Price", content=price_str, auto_trim_content=False),
@@ -408,9 +419,7 @@ class ManageBuyOfferOperationScreenPage2(GenericTxDetailsScreen):
 
     def __post_init__(self):
         price = Decimal(self.op.price.n) / Decimal(self.op.price.d)
-        price_str = (
-            f"{price} {format_asset(self.op.selling)}/{format_asset(self.op.buying)}"
-        )
+        price_str = f"{price} {format_asset(self.op.selling, include_issuer=False)}/{format_asset(self.op.buying, include_issuer=False)}"
 
         items = [
             Item(label="Price", content=price_str, auto_trim_content=False),
@@ -430,6 +439,7 @@ class ChangeTrustOperationScreen(GenericTxDetailsScreen):
     tx_source: MuxedAccount = None
 
     def __post_init__(self):
+        # TODO: LiquidityPoolAsset
         if Decimal(self.op.limit) == 0:
             op_type = "Delete Trustline"
             line = f"{format_asset(self.op.asset)}"
@@ -491,9 +501,13 @@ def format_asset(asset: Asset, include_issuer: bool = True) -> str:
         return "XLM"
     else:
         if include_issuer:
-            return f"{asset.code} ({asset.issuer})"
+            return f"{asset.code}({asset.issuer[-4:]})"
         else:
             return asset.code
+
+
+def timestamp_to_utc(timestamp: int) -> str:
+    return datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def build_transaction_screens(
