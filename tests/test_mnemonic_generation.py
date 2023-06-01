@@ -2,8 +2,8 @@ import pytest
 import random
 
 from embit import bip39
-from seedsigner.helpers import mnemonic_generation
-from seedsigner.models.settings_definition import SettingsConstants
+from lumensigner.helpers import mnemonic_generation
+from lumensigner.models.settings_definition import SettingsConstants
 
 
 def test_dice_rolls():

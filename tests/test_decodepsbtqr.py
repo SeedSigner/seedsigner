@@ -1,9 +1,9 @@
 import pytest
 from mock import MagicMock
-from seedsigner.models import Seed, DecodeQR, DecodeQRStatus, QRType, PSBTParser
+from lumensigner.models import Seed, DecodeQR, DecodeQRStatus, QRType, PSBTParser
 from embit import psbt, bip39
 
-from seedsigner.models.settings_definition import SettingsConstants
+from lumensigner.models.settings_definition import SettingsConstants
 
 
 # this is an of this bug: https://github.com/Foundation-Devices/foundation-ur-py/issues/3

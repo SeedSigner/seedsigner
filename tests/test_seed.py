@@ -1,9 +1,9 @@
 import pytest
 from mock import MagicMock
-from seedsigner.models import Seed
+from lumensigner.models import Seed
 from embit import bip39
 
-from seedsigner.models.settings import SettingsConstants
+from lumensigner.models.settings import SettingsConstants
 
 
 def test_seed():

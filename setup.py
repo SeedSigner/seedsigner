@@ -4,16 +4,16 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="seedsigner",
+    name="lumensigner",
     version="0.1.0.dev0",
-    author="SeedSigner",
-    author_email="author@example.com",
-    description="Build an offline, airgapped Bitcoin signing device for less than $50!",
+    author="overcat",
+    author_email="4catcode@gmail.com",
+    description="Build an offline, airgapped Stellar signing device for less than $50!",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/SeedSigner/seedsigner",
+    url="https://github.com/LumenSigner/lumensigner",
     project_urls={
-        "Bug Tracker": "https://github.com/SeedSigner/seedsigner/issues",
+        "Bug Tracker": "https://github.com/LumenSigner/lumensigner/issues",
     },
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -22,5 +22,5 @@ setuptools.setup(
     ],
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
-    python_requires=">=3.6",
+    python_requires=">=3.7",
 )

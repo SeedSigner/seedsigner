@@ -1,9 +1,9 @@
 import configparser
 import pytest
 from mock import MagicMock
-from seedsigner.hardware.microsd import MicroSD
-from seedsigner.controller import Controller
-from seedsigner.models.settings_definition import SettingsConstants
+from lumensigner.hardware.microsd import MicroSD
+from lumensigner.controller import Controller
+from lumensigner.models.settings_definition import SettingsConstants
 
 
 @pytest.fixture()

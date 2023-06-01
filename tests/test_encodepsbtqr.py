@@ -1,10 +1,10 @@
 import pytest
 from mock import MagicMock
-from seedsigner.models import EncodeQR, QRType
+from lumensigner.models import EncodeQR, QRType
 from embit import psbt
 from binascii import a2b_base64
 
-from seedsigner.models.settings import SettingsConstants
+from lumensigner.models.settings import SettingsConstants
 
 
 def test_ur_qr_encode():

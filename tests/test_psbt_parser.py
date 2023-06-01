@@ -1,6 +1,6 @@
 import pytest
 from mock import MagicMock
-from seedsigner.models import PSBTParser
+from lumensigner.models import PSBTParser
 from embit import psbt
 
 

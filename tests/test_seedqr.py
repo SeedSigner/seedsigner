@@ -1,12 +1,12 @@
 import os
 import pyzbar
 from embit import bip39
-from seedsigner.helpers.qr import QR
-from seedsigner.helpers.ur2.bytewords import decode
-from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
-from seedsigner.models.encode_qr import EncodeQR
-from seedsigner.models.qr_type import QRType
-from seedsigner.models.settings import SettingsConstants
+from lumensigner.helpers.qr import QR
+from lumensigner.helpers.ur2.bytewords import decode
+from lumensigner.models.decode_qr import DecodeQR, DecodeQRStatus
+from lumensigner.models.encode_qr import EncodeQR
+from lumensigner.models.qr_type import QRType
+from lumensigner.models.settings import SettingsConstants
 
 
 def run_encode_decode_test(entropy: bytes, mnemonic_length, qr_type):
