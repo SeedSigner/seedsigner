@@ -1219,11 +1219,12 @@ def build_transaction_screens(
                     op_index=i, op=op, tx_source=tx.source
                 )
             )
-            screens.append(
-                RevokeSponsorshipOperationScreenPage2(
-                    op_index=i, op=op, tx_source=tx.source
-                )
-            )  # source only
+            if op.source and op.source != tx.source:
+                screens.append(
+                    RevokeSponsorshipOperationScreenPage2(
+                        op_index=i, op=op, tx_source=tx.source
+                    )
+                )  # source only
         elif isinstance(op, Clawback):
             screens.append(
                 ClawbackOperationScreen(op_index=i, op=op, tx_source=tx.source)
