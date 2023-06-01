@@ -6,7 +6,7 @@ https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2
 
 Best practice is to verify the downloaded .zip file containing the Raspberry Pi Lite OS matches the published SHA256 hash of the file; for additional reference that hash is: c5dad159a2775c687e9281b1a0e586f7471690ae28f2f2282c90e7d59f64273c. After verifying the file's data integrity, you can decompress the .zip file to obtain the operating system image that it contains. You can then use Balena's Etcher tool (https://www.balena.io/etcher/) to write the Raspberry Pi Lite software image to a memory card (4 GB or larger). It's important to note that an image authoring tool must be used (the operating system image cannot be simply copied into a file storage partition on the memory card).
 
-The manual SeedSigner installation and configuration process requires an internet connection on the device to download the necessary libraries and code. But because the Pi Zero 1.3 does not have onboard wifi, you have two options:
+The manual LumenSigner installation and configuration process requires an internet connection on the device to download the necessary libraries and code. But because the Pi Zero 1.3 does not have onboard wifi, you have two options:
 
 1. Run these steps on a separate Raspberry Pi 2/3/4 or Zero W which can connect to the internet and then transfer the SD card to the Pi Zero 1.3 when complete.
 2. OR configure the Pi Zero 1.3 directly by relaying through your computer's internet connection over USB. See instructions [here](usb_relay.md).
@@ -69,7 +69,7 @@ sudo apt-get update && sudo apt-get install -y wiringpi python3-pip \
 ### Install `zbar`
 `zbar` is "an open source software suite for reading bar codes" (more info here: [https://github.com/mchehab/zbar](https://github.com/mchehab/zbar)).
 
-SeedSigner requires `zbar` at 0.23.x or higher.
+LumenSigner requires `zbar` at 0.23.x or higher.
 
 Download the binary:
 ```
@@ -114,18 +114,18 @@ source /home/pi/.local/bin/virtualenvwrapper.sh
 ```
 Then `CTRL-X` and `y` to exit and save changes.
 
-Now create the python virtualenv for SeedSigner with these two commands:
+Now create the python virtualenv for LumenSigner with these two commands:
 ```
 source ~/.profile
-mkvirtualenv --python=python3 seedsigner-env
+mkvirtualenv --python=python3 lumensigner-env
 ```
 
-For convenience you can configure your `.profile` to auto-activate the SeedSigner virtualenv when you ssh in. Once again `nano ~/.profile` and add at the end:
+For convenience you can configure your `.profile` to auto-activate the LumenSigner virtualenv when you ssh in. Once again `nano ~/.profile` and add at the end:
 ```
-workon seedsigner-env
+workon lumensigner-env
 ```
 
-Optional: If you're going to be testing new code on the SeedSigner, you'll find yourself often needing to kill the SeedSigner code that automatically runs at startup (we'll be configuring this further down). As an extra convenience you can list the process id so that you can then kill it from the terminal:
+Optional: If you're going to be testing new code on the LumenSigner, you'll find yourself often needing to kill the LumenSigner code that automatically runs at startup (we'll be configuring this further down). As an extra convenience you can list the process id so that you can then kill it from the terminal:
 ```
 ps aux | grep main.py
 ```
@@ -134,24 +134,24 @@ Save your changes with `CTRL-X` and `y`.
 
 Now when you `ssh` in you'll see something like:
 ```
-pi         297 65.4  9.7  74096 36736 ?        Rsl  09:26  10:29 /home/pi/.envs/seedsigner-env/bin/python main.py
+pi         297 65.4  9.7  74096 36736 ?        Rsl  09:26  10:29 /home/pi/.envs/lumensigner-env/bin/python main.py
 pi         857  0.0  0.4   7332  1876 pts/0    S+   09:42   0:00 grep --color=auto main.py
 ```
 
-The top line is our SeedSigner code running. To stop it, run:
+The top line is our LumenSigner code running. To stop it, run:
 ```
 kill 297
 ```
 Where `297` is the process id listed in the output above (it'll be different each time).
 
 
-### Download the SeedSigner code:
+### Download the LumenSigner code:
 ```
-git clone https://github.com/SeedSigner/seedsigner
-cd seedsigner
+git clone https://github.com/LumenSigner/lumensigner
+cd lumensigner
 ```
 
-If you want to run a specific branch within the main SeedSigner repo, switch to it with:
+If you want to run a specific branch within the main LumenSigner repo, switch to it with:
 ```
 git checkout yourtargetbranch
 ```
@@ -177,9 +177,9 @@ The fork is required because the main `pyzbar` repo has been abandoned. This [gi
 * [PR 76](https://github.com/NaturalHistoryMuseum/pyzbar/pull/76/files): enables scanning to continue even when a null byte (`x\00`) is found.
 * [PR 82](https://github.com/NaturalHistoryMuseum/pyzbar/pull/82): enable `zbar`'s new binary mode. Note that this PR has a trivial bug that was fixed in Keith's fork.
 
-### Configure `systemd` to run SeedSigner at boot:
+### Configure `systemd` to run LumenSigner at boot:
 ```
-sudo nano /etc/systemd/system/seedsigner.service
+sudo nano /etc/systemd/system/lumensigner.service
 ```
 
 Add the following contents to the text file that was created:
@@ -189,8 +189,8 @@ Description=Seedsigner
 
 [Service]
 User=pi
-WorkingDirectory=/home/pi/seedsigner/src/
-ExecStart=/home/pi/.envs/seedsigner-env/bin/python3 main.py > /dev/null 2>&1
+WorkingDirectory=/home/pi/lumensigner/src/
+ExecStart=/home/pi/.envs/lumensigner-env/bin/python3 main.py > /dev/null 2>&1
 Restart=always
 
 [Install]
@@ -199,13 +199,13 @@ WantedBy=multi-user.target
 
 _Note: For local dev you'll want to edit the `Restart=always` line to `Restart=no`. This way when your dev code crashes it won't keep trying to restart itself. Note that the UI "Reset" will no longer work when auto-restarts are disabled._
 
-_Note: Debugging output is completely wiped via routing the output to `/dev/null 2>&1`. When working in local dev, you're better off disabling the `systemd` SeedSigner service and just directly running the app so you can see all the debugging output live._
+_Note: Debugging output is completely wiped via routing the output to `/dev/null 2>&1`. When working in local dev, you're better off disabling the `systemd` LumenSigner service and just directly running the app so you can see all the debugging output live._
 
 Use `CTRL-X` and `y` to exit and save changes.
 
-Configure the service to start running (this will restart the seedsigner code automatically at startup and if it crashes):
+Configure the service to start running (this will restart the lumensigner code automatically at startup and if it crashes):
 ```
-sudo systemctl enable seedsigner.service
+sudo systemctl enable lumensigner.service
 ```
 
 Now reboot the Raspberry Pi:
@@ -213,7 +213,7 @@ Now reboot the Raspberry Pi:
 sudo reboot
 ```
 
-After the Raspberry Pi reboots, you should see the SeedSigner splash screen and the SeedSigner menu subsequently appear on the LCD screen (note that it can take up to 60 seconds for the menu to appear).
+After the Raspberry Pi reboots, you should see the LumenSigner splash screen and the LumenSigner menu subsequently appear on the LCD screen (note that it can take up to 60 seconds for the menu to appear).
 
 ### Further OS modifications
 Disable and remove the system's virtual memory / swap file with the commands:
@@ -224,25 +224,25 @@ sudo rm /var/swap
 ```
 
 ## Local testing and development
-For those who will use the SeedSigner installation for testing/development, it can be helpful to change the system's host name so it doesn't potentially conflict with other Raspberry Pis that may already be present on your network. (For those who don't plan to use the installation for testing or development, you can skip this portion of the process.) To change the host name first edit the "hostname" with the command:
+For those who will use the LumenSigner installation for testing/development, it can be helpful to change the system's host name so it doesn't potentially conflict with other Raspberry Pis that may already be present on your network. (For those who don't plan to use the installation for testing or development, you can skip this portion of the process.) To change the host name first edit the "hostname" with the command:
 ```
 sudo nano /etc/hostname
 ```
-and change "raspberrypi" to "seedsigner" (or another name). Use `CTRL-X` and `y` to exit and save changes. You'll also need to edit the "hosts" file with the command:
+and change "raspberrypi" to "lumensigner" (or another name). Use `CTRL-X` and `y` to exit and save changes. You'll also need to edit the "hosts" file with the command:
 ```
 sudo nano /etc/hosts
 ```
-and change "raspberrypi" to "seedsigner" (or the other name you previously chose). Use `CTRL-X` and `y` to exit and save changes.
+and change "raspberrypi" to "lumensigner" (or the other name you previously chose). Use `CTRL-X` and `y` to exit and save changes.
 
 ### Set a static IP
-Your local machine that `ssh`s into the SeedSigner can sometimes get confused if you're connecting to different SeedSigners that are all identified as `pi@seedsigner.local`. In this case it helps to set a static ip and just `ssh` directly to that instead.
+Your local machine that `ssh`s into the LumenSigner can sometimes get confused if you're connecting to different LumenSigners that are all identified as `pi@lumensigner.local`. In this case it helps to set a static ip and just `ssh` directly to that instead.
 
 First find your current `nameserver`:
 ```
 sudo cat /etc/resolv.conf
 ```
 
-This is the address of your local machine that is connected to your SeedSigner via usb (or it'll be the wifi router's address if you're using a Raspi with wifi and are keeping it enabled for `ssh` access).
+This is the address of your local machine that is connected to your LumenSigner via usb (or it'll be the wifi router's address if you're using a Raspi with wifi and are keeping it enabled for `ssh` access).
 
 Set a static ip: `sudo nano /etc/dhcpcd.conf` and add to the end:
 ```
@@ -253,23 +253,23 @@ static domain_name_servers=192.168.1.254
 ```
 
 * `interface` will be `usb0` for usb connections; `wlan0` for wifi.
-* `static ip_address` is the ip address you want the SeedSigner to use. It should match the `nameserver` ip you found above for all but the last part of the ip (note: the `/24` should always be included as-is).
+* `static ip_address` is the ip address you want the LumenSigner to use. It should match the `nameserver` ip you found above for all but the last part of the ip (note: the `/24` should always be included as-is).
 * `static routers` should be your `nameserver` ip.
 * `static domain_name_servers` should also be the `nameserver` ip.
 
 `CTRL-X` and `y` to save changes.
 
-After your next reboot, access this SeedSigner using its new static ip:
+After your next reboot, access this LumenSigner using its new static ip:
 ```
 ssh pi@192.168.1.200
 ```
 
 ### More convenient `ssh` access:
-Power SeedSigner devs will find themselves connecting to a lot of different SeedSigners. This can cause headaches with `ssh`'s built-in protections; a different device that uses the same `ssh` credentials is normally a potential spoofing attack. But we're doing this to ourselves on purpose and so we can carve out exceptions.
+Power LumenSigner devs will find themselves connecting to a lot of different LumenSigners. This can cause headaches with `ssh`'s built-in protections; a different device that uses the same `ssh` credentials is normally a potential spoofing attack. But we're doing this to ourselves on purpose and so we can carve out exceptions.
 
 On your local machine, run `nano ~/.ssh/config` and add to the end:
 ```
-host seedsigner.local
+host lumensigner.local
  StrictHostKeyChecking no
  UserKnownHostsFile /dev/null
  User pi
@@ -282,19 +282,19 @@ host 192.168.1.200
  LogLevel QUIET
 ```
 
-The first entry prevents warnings for the default `pi@seedsigner.local` connections.
+The first entry prevents warnings for the default `pi@lumensigner.local` connections.
 
-The second entry does the same for a specific static ip; you'll want this if you configure all your SeedSigners to use the same static ip.
+The second entry does the same for a specific static ip; you'll want this if you configure all your LumenSigners to use the same static ip.
 
 `CTRL-X` and `y` to save changes.
 
 
 #### Bypass `ssh` password
-You can also configure the SeedSigner so that you don't have to enter the `pi` password when you `ssh` in.
+You can also configure the LumenSigner so that you don't have to enter the `pi` password when you `ssh` in.
 
 run `ssh-copy-id` with the same values that you connect via `ssh`:
 ```
-ssh-copy-id pi@seedsigner.local
+ssh-copy-id pi@lumensigner.local
 
 # or if you're connecting over static ip, something like:
 ssh-copy-id pi@192.168.1.200
@@ -318,7 +318,7 @@ sudo ifconfig wlan0 down
 ```
 Please note that if you are using WiFi to connect/interact with your Raspberry Pi, the last command will sever that connection.
 
-You can now safely power the Raspberry Pi off from the SeedSigner main menu.
+You can now safely power the Raspberry Pi off from the LumenSigner main menu.
 
 If you do not plan to use your installation for testing/development, it is also a good idea to disable WiFi and Bluetooth by editing the config.txt file found in the installation's "boot" partition. You can add the following text to the end of that file with any simple text editor (Windows: Notepad, Mac: TextEdit, Linux: nano):
 ```
@@ -326,9 +326,9 @@ dtoverlay=disable-bt
 dtoverlay=pi3-disable-wifi
 ```
 
-If you used option #2 above and don't plan to continue to access your SeedSigner via SSH over USB, it is a good idea to reverse the steps you took to enable it -- those instructions can be found near the end of [this guide](usb_relay.md).
+If you used option #2 above and don't plan to continue to access your LumenSigner via SSH over USB, it is a good idea to reverse the steps you took to enable it -- those instructions can be found near the end of [this guide](usb_relay.md).
 
-Please remember that it can take up to a minute for the GUI to appear when powering your SeedSigner on.
+Please remember that it can take up to a minute for the GUI to appear when powering your LumenSigner on.
 
 
 ### Optional: Run the tests
