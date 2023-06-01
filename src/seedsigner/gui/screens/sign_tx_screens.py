@@ -433,6 +433,50 @@ class ManageBuyOfferOperationScreenPage2(GenericTxDetailsScreen):
 
 
 @dataclass
+class CreatePassiveSellOfferOperationScreenPage1(GenericTxDetailsScreen):
+    op_index: int = None
+    op: CreatePassiveSellOffer = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        op_type = "Create Passive Offer"
+        sell_asset_str = format_asset(self.op.selling)
+        sell_str = f"{self.op.amount} {sell_asset_str}"
+        buy_asset_str = format_asset(self.op.buying)
+
+        items = [
+            Item(label="Operation Type", content=op_type),
+            Item(label="Selling", content=sell_str, auto_trim_content=False),
+            Item(label="Buying", content=buy_asset_str, auto_trim_content=False),
+        ]
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class CreatePassiveSellOfferOperationScreenPage2(GenericTxDetailsScreen):
+    op_index: int = None
+    op: CreatePassiveSellOffer = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        price = Decimal(self.op.price.n) / Decimal(self.op.price.d)
+        price_str = f"{price} {format_asset(self.op.buying, include_issuer=False)}/{format_asset(self.op.selling, include_issuer=False)}"
+
+        items = [
+            Item(label="Price", content=price_str, auto_trim_content=False),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
 class ChangeTrustOperationScreen(GenericTxDetailsScreen):
     op_index: int = None
     op: ChangeTrust = None
@@ -457,6 +501,154 @@ class ChangeTrustOperationScreen(GenericTxDetailsScreen):
         self.title = f"Operation {self.op_index + 1}"
         self.items = items
         super().__post_init__()
+
+
+@dataclass
+class AccountMergeOperationScreen(GenericTxDetailsScreen):
+    op_index: int = None
+    op: AccountMerge = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Operation Type", content="Merge Account"),
+            Item(
+                label="Send All XLM To",
+                content=self.op.destination.universal_account_id,
+            ),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class AllowTrustOperationScreenPage1(GenericTxDetailsScreen):
+    op_index: int = None
+    op: AllowTrust = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Operation Type", content="Allow Trust"),
+            Item(label="Asset Code", content=self.op.asset_code),
+            Item(label="Trustor", content=self.op.trustor),
+        ]
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class AllowTrustOperationScreenPage2(GenericTxDetailsScreen):
+    op_index: int = None
+    op: AllowTrust = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Authorize", content=str(self.op.authorize.name)),
+        ]
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+# TODO
+class ManageDataOperationScreen(GenericTxDetailsScreen):
+    op_index: int = None
+    op: ManageData = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        title = "Set Data"
+        if self.op.data_value is None:
+            title = "Remove Data"
+        key = self.op.data_name
+        items = [
+            Item(label="Operation Type", content=title),
+            Item(label="Data Name", content=key),
+        ]
+
+
+class InflationOperationScreen(GenericTxDetailsScreen):
+    op_index: int = None
+    op: Inflation = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Operation Type", content="Inflation"),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+def build_set_options_screens(
+    op_index: int, op: SetOptions, tx_source: MuxedAccount
+) -> List[GenericTxDetailsScreen]:
+    items = [Item(label="Operation Type", content="Set Options")]
+    if op.inflation_dest:
+        items.append(Item(label="Inflation Destination", content=op.inflation_dest))
+    if op.clear_flags:
+        clear_flags: List[str] = [
+            f.name for f in AuthorizationFlag if f in op.clear_flags
+        ]
+
+        items.append(Item(label="Clear Flags", content="| ".join(clear_flags)))
+    if op.set_flags:
+        set_flags: List[str] = [f.name for f in AuthorizationFlag if f in op.set_flags]
+
+        items.append(Item(label="Set Flags", content="| ".join(set_flags)))
+    if op.master_weight is not None:
+        items.append(Item(label="Master Weight", content=str(op.master_weight)))
+    if op.low_threshold is not None:
+        items.append(Item(label="Low Threshold", content=str(op.low_threshold)))
+    if op.med_threshold is not None:
+        items.append(Item(label="Medium Threshold", content=str(op.med_threshold)))
+    if op.high_threshold is not None:
+        items.append(Item(label="High Threshold", content=str(op.high_threshold)))
+    if op.home_domain is not None:
+        items.append(Item(label="Home Domain", content=op.home_domain))
+    if op.signer:
+        if op.signer.weight == 0:
+            items.append(
+                Item(
+                    label="Remove Signer",
+                    content=op.signer.signer_key.encoded_signer_key,
+                )
+            )
+        else:
+            items.append(
+                Item(
+                    label="Add Signer", content=op.signer.signer_key.encoded_signer_key
+                )
+            )
+            items.append(Item(label="Signer Weight", content=str(op.signer.weight)))
+
+    # Tx Source
+    items.append(Item(label="Tx Source", content=tx_source.universal_account_id))
+    item_size = 3
+    item_count = len(items)
+    screen_count = math.ceil(item_count / item_size)
+    screens = []
+    for i in range(screen_count):
+        screen_items = items[i * item_size : (i + 1) * item_size]
+        screens.append(
+            GenericTxDetailsScreen(
+                title=f"Operation {op_index + 1}", items=screen_items
+            )
+        )
+    return screens
 
 
 def append_op_source_to_items(
@@ -552,9 +744,37 @@ def build_transaction_screens(
                     op_index=i, op=op, tx_source=tx.source
                 )
             )
+        elif isinstance(op, CreatePassiveSellOffer):
+            screens.append(
+                CreatePassiveSellOfferOperationScreenPage1(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+            screens.append(
+                CreatePassiveSellOfferOperationScreenPage2(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        elif isinstance(op, SetOptions):
+            screens.extend(build_set_options_screens(i, op, tx_source=tx.source))
         elif isinstance(op, ChangeTrust):
             screens.append(
                 ChangeTrustOperationScreen(op_index=i, op=op, tx_source=tx.source)
+            )
+        elif isinstance(op, AllowTrust):
+            screens.append(
+                AllowTrustOperationScreenPage1(op_index=i, op=op, tx_source=tx.source)
+            )
+            screens.append(
+                AllowTrustOperationScreenPage2(op_index=i, op=op, tx_source=tx.source)
+            )
+        elif isinstance(op, AccountMerge):
+            screens.append(
+                AccountMergeOperationScreen(op_index=i, op=op, tx_source=tx.source)
+            )
+        elif isinstance(op, Inflation):
+            screens.append(
+                InflationOperationScreen(op_index=i, op=op, tx_source=tx.source)
             )
         elif isinstance(op, ManageBuyOffer):
             screens.append(
