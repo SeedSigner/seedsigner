@@ -86,8 +86,6 @@ class TransactionSelectSeedView(View):
                     if current_screen > 0:
                         current_screen -= 1
 
-        self.controller.resume_main_flow = Controller.FLOW__SIGN_TX
-
         if button_data[selected_menu_num] == SCAN_SEED:
             from seedsigner.views.scan_views import ScanView
 

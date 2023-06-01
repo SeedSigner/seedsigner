@@ -566,11 +566,6 @@ class ToolsAddressExplorerSelectSourceView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        # Most of the options require us to go through a side flow(s) before we can
-        # continue to the address explorer. Set the Controller-level flow so that it
-        # knows to re-route us once the side flow is complete.
-        self.controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
-
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
             return Destination(

@@ -58,9 +58,6 @@ class RequestAddressSelectSeedView(View):
                 view_args={"public_key": public_key, "address_index": address_index},
             )
 
-        # The remaining flows are a sub-flow; resume sign hash flow once the seed is loaded.
-        self.controller.resume_main_flow = Controller.FLOW__REQUEST_ADDRESS
-
         if button_data[selected_menu_num] == SCAN_SEED:
             from seedsigner.views.scan_views import ScanView
 

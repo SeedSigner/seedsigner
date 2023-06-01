@@ -71,16 +71,6 @@ class Controller(Singleton):
     address_explorer_data: Optional[dict] = None
     # TODO: end refactor section
 
-    # Destination placeholder for when we need to jump out to a side flow but intend to
-    # return navigation to the main flow (e.g. PSBT flow, load multisig descriptor,
-    # then resume PSBT flow).
-    FLOW__ADDRESS_EXPLORER = "address_explorer"
-    resume_main_flow: str = None
-
-    FLOW__SIGN_HASH = "sign_hash"
-    FLOW__SIGN_TX = "sign_tx"
-    FLOW__REQUEST_ADDRESS = "request_address"
-
     back_stack: BackStack = None
     screensaver: ScreensaverScreen = None
 
@@ -252,7 +242,6 @@ class Controller(Singleton):
                     self.clear_back_stack()
 
                     # Home always wipes the back_stack/state of temp vars
-                    self.resume_main_flow: Optional[str] = None
                     self.address_explorer_data = None
                     self.sign_seed = None
                     self.sign_hash_data: Optional[tuple[int, str]] = None
@@ -261,7 +250,7 @@ class Controller(Singleton):
                             int, Union[TransactionEnvelope, FeeBumpTransactionEnvelope]
                         ]
                     ] = None
-                    self.request_address_data: Optional[int] = None
+                    self.tx_data: Optional[int] = None
 
                 print(f"back_stack: {self.back_stack}")
 

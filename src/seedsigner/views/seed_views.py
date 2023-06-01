@@ -398,7 +398,6 @@ class SeedOptionsView(View):
 
         # export stellar address
         elif button_data[selected_menu_num] == EXPLORER:
-            self.controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
             return Destination(
                 AddressExporterView, view_args=dict(seed_num=self.seed_num)
             )

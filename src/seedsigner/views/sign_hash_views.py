@@ -57,9 +57,6 @@ class SignHashSelectSeedView(View):
 
             return Destination(SignHashDireWarningView, view_args={"sign_kp": sign_kp})
 
-        # The remaining flows are a sub-flow; resume sign hash flow once the seed is loaded.
-        self.controller.resume_main_flow = Controller.FLOW__SIGN_HASH
-
         if button_data[selected_menu_num] == SCAN_SEED:
             from seedsigner.views.scan_views import ScanView
 
