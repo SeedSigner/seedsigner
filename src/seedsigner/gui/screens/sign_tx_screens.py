@@ -10,9 +10,11 @@ from stellar_sdk import (
     TransactionEnvelope,
     FeeBumpTransactionEnvelope,
     Asset,
+    LiquidityPoolAsset,
 )
 from stellar_sdk.memo import *
 from stellar_sdk.operation import *
+from stellar_sdk.operation.revoke_sponsorship import RevokeSponsorshipType
 from stellar_sdk.utils import from_xdr_amount
 
 from seedsigner.hardware.buttons import HardwareButtonsConstants
@@ -483,13 +485,19 @@ class ChangeTrustOperationScreen(GenericTxDetailsScreen):
     tx_source: MuxedAccount = None
 
     def __post_init__(self):
-        # TODO: LiquidityPoolAsset
         if Decimal(self.op.limit) == 0:
             op_type = "Delete Trustline"
-            line = f"{format_asset(self.op.asset)}"
+            if isinstance(self.op.asset, LiquidityPoolAsset):
+                line = f"{self.op.asset.liquidity_pool_id}"
+            else:
+                line = f"{format_asset(self.op.asset)}"
         else:
             op_type = "Add Trustline"
-            line = f"{self.op.limit} {format_asset(self.op.asset)}"
+            if isinstance(self.op.asset, LiquidityPoolAsset):
+                # TODO: check if this is correct
+                line = f"{self.op.limit} {self.op.asset.liquidity_pool_id}"
+            else:
+                line = f"{self.op.limit} {format_asset(self.op.asset)}"
 
         items = [
             Item(label="Operation Type", content=op_type),
@@ -559,23 +567,41 @@ class AllowTrustOperationScreenPage2(GenericTxDetailsScreen):
         super().__post_init__()
 
 
-# TODO
+@dataclass
 class ManageDataOperationScreen(GenericTxDetailsScreen):
     op_index: int = None
     op: ManageData = None
     tx_source: MuxedAccount = None
 
     def __post_init__(self):
-        title = "Set Data"
-        if self.op.data_value is None:
-            title = "Remove Data"
+        op_type = "Set Data" if self.op.data_value is not None else "Remove Data"
         key = self.op.data_name
         items = [
-            Item(label="Operation Type", content=title),
+            Item(label="Operation Type", content=op_type),
             Item(label="Data Name", content=key),
         ]
 
+        if self.op.data_value is not None:
+            try:
+                if self.op.data_value.decode("utf-8").isascii():
+                    title = "Data Value"
+                    value = self.op.data_value.decode("utf-8")
+                else:
+                    title = "Data Value (base64)"
+                    value = base64.b64encode(self.op.data_value).decode("utf-8")
+            except UnicodeDecodeError:
+                title = "Data Value (base64)"
+                value = base64.b64encode(self.op.data_value).decode("utf-8")
+            items.append(Item(label=title, content=value, auto_trim_content=True))
 
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
 class InflationOperationScreen(GenericTxDetailsScreen):
     op_index: int = None
     op: Inflation = None
@@ -588,6 +614,363 @@ class InflationOperationScreen(GenericTxDetailsScreen):
 
         append_op_source_to_items(items, self.op.source, self.tx_source)
 
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class BumpSequenceOperationScreen(GenericTxDetailsScreen):
+    op_index: int = None
+    op: BumpSequence = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Operation Type", content="Bump Sequence"),
+            Item(label="Bump To", content=str(self.op.bump_to)),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class CreateClaimableBalanceOperationScreenPage1(GenericTxDetailsScreen):
+    op_index: int = None
+    op: CreateClaimableBalance = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Operation Type", content="Create Claimable Balance"),
+            Item(
+                label="WARNING",
+                content="Currently does not support displaying claimant details",
+            ),
+        ]
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class CreateClaimableBalanceOperationScreenPage2(GenericTxDetailsScreen):
+    op_index: int = None
+    op: CreateClaimableBalance = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        balance = f"{self.op.amount} {format_asset(self.op.asset)}"
+        items = [
+            Item(label="Balance", content=balance),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class BeginSponsoringFutureReservesOperationScreen(GenericTxDetailsScreen):
+    op_index: int = None
+    op: BeginSponsoringFutureReserves = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Operation Type", content="Begin Sponsoring Future Reserves"),
+            Item(label="Sponsored ID", content=self.op.sponsored_id),
+        ]
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class EndSponsoringFutureReservesOperationScreen(GenericTxDetailsScreen):
+    op_index: int = None
+    op: EndSponsoringFutureReserves = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Operation Type", content="End Sponsoring Future Reserves"),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class ClaimClaimableBalanceOperationScreen(GenericTxDetailsScreen):
+    op_index: int = None
+    op: ClaimClaimableBalance = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        Item(label="Operation Type", content="Claim Claimable Balance"),
+        Item(label="Balance ID", content=self.op.balance_id),
+        items = [
+            Item(label="Operation Type", content="Claim Claimable Balance"),
+            Item(label="Balance ID", content=self.op.balance_id),
+        ]
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class RevokeSponsorshipOperationScreenPage1(GenericTxDetailsScreen):
+    op_index: int = None
+    op: RevokeSponsorship = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        if self.op.revoke_sponsorship_type == RevokeSponsorshipType.ACCOUNT:
+            items = [
+                Item(label="Operation Type", content="Revoke Account Sponsorship"),
+                Item(label="Account ID", content=self.op.account_id),
+            ]
+        elif self.op.revoke_sponsorship_type == RevokeSponsorshipType.TRUSTLINE:
+            if isinstance(self.op.trustline.asset, LiquidityPoolAsset):
+                asset = self.op.trustline.asset.liquidity_pool_id
+            else:
+                asset = format_asset(self.op.trustline.asset)
+            items = [
+                Item(label="Operation Type", content="Revoke Trustline Sponsorship"),
+                Item(label="Account ID", content=self.op.trustline.account_id),
+                Item(label="Asset", content=asset),
+            ]
+        elif self.op.revoke_sponsorship_type == RevokeSponsorshipType.OFFER:
+            items = [
+                Item(label="Operation Type", content="Revoke Offer Sponsorship"),
+                Item(label="Seller ID", content=str(self.op.offer.seller_id)),
+                Item(label="Offer ID", content=str(self.op.offer.offer_id)),
+            ]
+        elif self.op.revoke_sponsorship_type == RevokeSponsorshipType.DATA:
+            items = [
+                Item(label="Operation Type", content="Revoke Data Sponsorship"),
+                Item(label="Seller ID", content=str(self.op.offer.seller_id)),
+                Item(label="Offer ID", content=str(self.op.offer.offer_id)),
+            ]
+        elif self.op.revoke_sponsorship_type == RevokeSponsorshipType.CLAIMABLE_BALANCE:
+            items = [
+                Item(
+                    label="Operation Type",
+                    content="Revoke Claimable Balance Sponsorship",
+                ),
+                Item(label="Balance ID", content=self.op.claimable_balance_id),
+            ]
+        elif self.op.revoke_sponsorship_type == RevokeSponsorshipType.SIGNER:
+            items = [
+                Item(label="Operation Type", content="Revoke Signer Sponsorship"),
+                Item(label="Account ID", content=self.op.signer.account_id),
+                Item(
+                    label="Signer", content=self.op.signer.signer_key.encoded_signer_key
+                ),
+            ]
+        elif self.op.revoke_sponsorship_type == RevokeSponsorshipType.LIQUIDITY_POOL:
+            items = [
+                Item(
+                    label="Operation Type", content="Revoke Liquidity Pool Sponsorship"
+                ),
+                Item(label="Liquidity Pool ID", content=self.op.liquidity_pool_id),
+            ]
+        else:
+            raise ValueError(
+                f"Unknown revoke sponsorship type: {self.op.revoke_sponsorship_type}"
+            )
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class RevokeSponsorshipOperationScreenPage2(GenericTxDetailsScreen):
+    # Source only
+    op_index: int = None
+    op: RevokeSponsorship = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = []
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class ClawbackOperationScreen(GenericTxDetailsScreen):
+    op_index: int = None
+    op: Clawback = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(
+                label="Clawback",
+                content=f"{self.op.amount} {format_asset(self.op.asset)}",
+            ),
+            Item(label="From", content=self.op.from_.account_id),
+        ]
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class ClawbackClaimableBalanceOperationScreen(GenericTxDetailsScreen):
+    op_index: int = None
+    op: ClawbackClaimableBalance = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Operation Type", content="Clawback Claimable Balance"),
+            Item(label="Balance ID", content=self.op.balance_id),
+        ]
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class SetTrustLineFlagsOperationScreenPage1(GenericTxDetailsScreen):
+    op_index: int = None
+    op: SetTrustLineFlags = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Operation Type", content="Set Trustline Flags"),
+            Item(label="Trustor", content=self.op.trustor),
+            Item(label="Asset", content=format_asset(asset=self.op.asset)),
+        ]
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class SetTrustLineFlagsOperationScreenPage2(GenericTxDetailsScreen):
+    op_index: int = None
+    op: SetTrustLineFlags = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        clear_flags: List[str] = [
+            f.name for f in TrustLineFlags if f in self.op.clear_flags
+        ]
+        clear_flags_str = "| ".join(clear_flags) if clear_flags else "[Not Set]"
+
+        set_flags: List[str] = [
+            f.name for f in TrustLineFlags if f in self.op.set_flags
+        ]
+        set_flags_str = "| ".join(set_flags) if set_flags else "[Not Set]"
+
+        items = [
+            Item(label="Clear Flags", content=clear_flags_str),
+            Item(label="Set Flags", content=set_flags_str),
+        ]
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class LiquidityPoolDepositOperationScreenPage1(GenericTxDetailsScreen):
+    op_index: int = None
+    op: LiquidityPoolDeposit = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Operation Type", content="Liquidity Pool Deposit"),
+            Item(label="Liquidity Pool ID", content=self.op.liquidity_pool_id),
+            Item(label="Max Amount A", content=self.op.max_amount_a),
+        ]
+
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class LiquidityPoolDepositOperationScreenPage2(GenericTxDetailsScreen):
+    op_index: int = None
+    op: LiquidityPoolDeposit = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Max Amount B", content=self.op.max_amount_b),
+            Item(
+                label="Min Price",
+                content=f"{self.op.min_price.n / self.op.min_price.d:.7f}",
+            ),
+            Item(
+                label="Max Price",
+                content=f"{self.op.max_price.n / self.op.max_price.d:.7f}",
+            ),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class LiquidityPoolWithdrawOperationScreenPage1(GenericTxDetailsScreen):
+    op_index: int = None
+    op: LiquidityPoolWithdraw = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Operation Type", content="Liquidity Pool Withdraw"),
+            Item(label="Liquidity Pool ID", content=self.op.liquidity_pool_id),
+            Item(label="Amount", content=self.op.amount),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
+        self.title = f"Operation {self.op_index + 1}"
+        self.items = items
+        super().__post_init__()
+
+
+@dataclass
+class LiquidityPoolWithdrawOperationScreenPage2(GenericTxDetailsScreen):
+    op_index: int = None
+    op: LiquidityPoolWithdraw = None
+    tx_source: MuxedAccount = None
+
+    def __post_init__(self):
+        items = [
+            Item(label="Min Amount A", content=self.op.min_amount_a),
+            Item(label="Min Amount B", content=self.op.min_amount_b),
+        ]
+
+        append_op_source_to_items(items, self.op.source, self.tx_source)
         self.title = f"Operation {self.op_index + 1}"
         self.items = items
         super().__post_init__()
@@ -776,6 +1159,14 @@ def build_transaction_screens(
             screens.append(
                 InflationOperationScreen(op_index=i, op=op, tx_source=tx.source)
             )
+        elif isinstance(op, ManageData):
+            screens.append(
+                ManageDataOperationScreen(op_index=i, op=op, tx_source=tx.source)
+            )
+        elif isinstance(op, BumpSequence):
+            screens.append(
+                BumpSequenceOperationScreen(op_index=i, op=op, tx_source=tx.source)
+            )
         elif isinstance(op, ManageBuyOffer):
             screens.append(
                 ManageBuyOfferOperationScreenPage1(
@@ -790,6 +1181,89 @@ def build_transaction_screens(
         elif isinstance(op, PathPaymentStrictSend):
             screens.append(
                 PathPaymentStrictSendOperationScreen(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        elif isinstance(op, CreateClaimableBalance):
+            screens.append(
+                CreateClaimableBalanceOperationScreenPage1(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+            screens.append(
+                CreateClaimableBalanceOperationScreenPage2(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        elif isinstance(op, ClaimClaimableBalance):
+            screens.append(
+                ClaimClaimableBalanceOperationScreen(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        elif isinstance(op, BeginSponsoringFutureReserves):
+            screens.append(
+                BeginSponsoringFutureReservesOperationScreen(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        elif isinstance(op, EndSponsoringFutureReserves):
+            screens.append(
+                EndSponsoringFutureReservesOperationScreen(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        elif isinstance(op, RevokeSponsorship):
+            screens.append(
+                RevokeSponsorshipOperationScreenPage1(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+            screens.append(
+                RevokeSponsorshipOperationScreenPage2(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )  # source only
+        elif isinstance(op, Clawback):
+            screens.append(
+                ClawbackOperationScreen(op_index=i, op=op, tx_source=tx.source)
+            )
+        elif isinstance(op, ClawbackClaimableBalance):
+            screens.append(
+                ClawbackClaimableBalanceOperationScreen(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        elif isinstance(op, SetTrustLineFlags):
+            screens.append(
+                SetTrustLineFlagsOperationScreenPage1(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+            screens.append(
+                SetTrustLineFlagsOperationScreenPage2(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        elif isinstance(op, LiquidityPoolDeposit):
+            screens.append(
+                LiquidityPoolDepositOperationScreenPage1(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+            screens.append(
+                LiquidityPoolDepositOperationScreenPage2(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+        elif isinstance(op, LiquidityPoolWithdraw):
+            screens.append(
+                LiquidityPoolWithdrawOperationScreenPage1(
+                    op_index=i, op=op, tx_source=tx.source
+                )
+            )
+            screens.append(
+                LiquidityPoolWithdrawOperationScreenPage2(
                     op_index=i, op=op, tx_source=tx.source
                 )
             )
