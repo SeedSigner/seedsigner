@@ -1,8 +1,8 @@
 # Build an offline, airgapped Stellar signing device for less than $50!
 
-## The project is currently in development and is not yet ready for use with real funds. Please check back soon!
+**The project is currently in development and is not yet ready for use with real funds. Please check back soon!**
 
-![Image of SeedSigners in Open Pill Enclosures](docs/img/Open_Pill_Star.JPG)![Image of SeedSigner in an Orange Pill enclosure](docs/img/Orange_Pill.JPG)
+![Image of LumenSigners in Open Pill Enclosures](docs/img/Open_Pill_Star.JPG)
 
 ---------------
 
@@ -19,52 +19,30 @@
 
 # Project Summary
 
-The goal of SeedSigner is to lower the cost and complexity of Bitcoin multi-signature wallet use. To accomplish this goal, SeedSigner offers anyone the opportunity to build a verifiably air-gapped, stateless Bitcoin signing device using inexpensive, publicly available hardware components (usually < $50). SeedSigner helps users save with Bitcoin by assisting with trustless private key generation and multi-signature wallet setup, and helps users transact with Bitcoin via a secure, air-gapped QR-exchange signing model.
+The goal of LumenSigner is to enhance the security of users' Stellar accounts. To accomplish this goal, LumenSigner offers anyone the opportunity to build a verifiable air-gapped, stateless Stellar signing device using inexpensive, publicly available hardware components (usually < $50).
 
-Additional information about the project can be found at [SeedSigner.com](https://seedsigner.com).
+LumenSigner is built on top of SeedSigner, and we are grateful for the contributions made by SeedSigner contributors.
 
-You can follow [@SeedSigner](https://twitter.com/SeedSigner) on Twitter for the latest project news and developments.
-
-If you have specific questions about the project, our [Telegram Group](https://t.me/joinchat/GHNuc_nhNQjLPWsS) is a great place to ask them.
+If you have specific questions about the project, our [Discord server](https://discord.gg/ZYjnz2fVYN) is a great place to ask them.
 
 ### Feature Highlights:
-* Calculate word 12/24 of a BIP39 seed phrase
-* Create a 24-word BIP39 seed phrase with 99 dice rolls
-* Create a 24-word BIP39 seed phrase by taking a digital photo 
+* Calculate word 12/24 of a BIP-39 seed phrase
+* Create a 24-word BIP-39 seed phrase with 99 dice rolls
+* Create a 24-word BIP-39 seed phrase by taking a digital photo
 * Temporarily store up to 3 seed phrases while device is powered
 * Guided interface to manually create a SeedQR for instant input [(demo video here)](https://youtu.be/c1-PqTNx1vc)
-* BIP39 passphrase / word 25 support
-* Native Segwit Multisig XPUB generation w/ QR display
+* BIP-39 passphrase / word 25 support
 * Scan and parse transaction data from animated QR codes
-* Sign transactions & transfer XPUB data using animated QR codes [(demo video here)](https://youtu.be/LPqvdQ2gSzs)
+* Review transaction information and sign it.
 * Live preview during photo-to-seed and QR scanning UX
 * Optimized seed word entry interface
-* Support for Bitcoin Mainnet & Testnet
-* Support for custom user-defined derivation paths
-* On-demand receive address verification
-* User-configurable QR code display density
 * Responsive, event-driven user interface
-
-### Considerations:
-* Built for compatibility with Specter Desktop, Sparrow, and BlueWallet Vaults
-* Device takes up to 60 seconds to boot before menu appears (be patient!)
-* Always test your setup before transferring larger amounts of bitcoin (try Testnet first!)
-* Taproot not quite yet supported
-* Slightly rotating the screen clockwise or counter-clockwise should resolve lighting/glare issues
-* If you think SeedSigner adds value to the Bitcoin ecosystem, please help us spread the word! (tweets, pics, videos, etc.)
-
-### Planned Upcoming Improvements / Functionality:
-* Single-sig and multi-sig change address verification
-* Re-imagined, graphically-focused user interface
-* Multi-language support
-* Customized Linux live-boot OS to allow MicroSD card removal
-* Other optimizations based on user feedback!
 
 ---------------
 
 # Shopping List
 
-To build a SeedSigner, you will need:
+To build a LumenSigner, you will need:
 
 * Raspberry Pi Zero (preferably version 1.3 with no WiFi/Bluetooth capability, but any Raspberry Pi 2/3/4 or Zero model will work, Raspberry Pi 1 devices will require a hardware modification to the Waveshare LCD Hat, as per the [instructions here](./docs/legacy_hardware.md))
 * Waveshare 1.3" 240x240 pxl LCD (correct pixel count is important, more info at https://www.waveshare.com/wiki/1.3inch_LCD_HAT)
@@ -75,14 +53,16 @@ Notes:
 * Other cameras with the above sensor module should work, but may not fit in the Orange Pill enclosure
 * Choose the Waveshare screen carefully; make sure to purchase the model that has a resolution of 240x240 pixels
 
+LumenSigner owes its existence to the hard work of SeedSigner contributors, you can support them by purchasing hardware [here](https://btc-hardware-solutions.square.site/).
+
 ---------------
 
 # Software Installation
 
 ## A Special Note On Minimizing Trust
-As is the nature of pre-packaged software downloads, downloading and using the prepared SeedSigner release images means implicitly placing trust in the individual preparing those images; in our project the release images are prepared and signed by the eponymous creator of the project, SeedSigner "the person". That individual is additionally the only person in possession of the PGP keys that are used to sign the release images.
+As is the nature of pre-packaged software downloads, downloading and using the prepared LumenSigner release images means implicitly placing trust in the individual preparing those images; in our project the release images are prepared and signed by the eponymous creator of the project, [@overcat](https://github.com/overcat) "the person". That individual is additionally the only person in possession of the PGP keys that are used to sign the release images.
 
-However, one of the many advantages of the open source software model is that the need for this kind of trust can be negated by our users' ability to (1) review the project's source code and (2) assemble the operating image necessary to use the software themselves. From our project's inception, instructions to build a SeedSigner operating image (using precisely the same process that is used to create the prepared release images) have been made availabile. We have put a lot of thought and work into making these instructions easy to understand and follow, even for less technical users. These instructions can be found [here](docs/manual_installation.md).
+However, one of the many advantages of the open source software model is that the need for this kind of trust can be negated by our users' ability to (1) review the project's source code and (2) assemble the operating image necessary to use the software themselves. From our project's inception, instructions to build a LumenSigner operating image (using precisely the same process that is used to create the prepared release images) have been made availabile. We have put a lot of thought and work into making these instructions easy to understand and follow, even for less technical users. These instructions can be found [here](docs/manual_installation.md).
 
 ## Downloading the Software
 
@@ -90,25 +70,23 @@ However, one of the many advantages of the open source software model is that th
 Download the current Version (0.6.0) software image that is compatible with your  Raspberry Pi Hardware. The Pi Zero 1.3 is the most common and recommended board.
 | Board                 | Download Image Link/Name          |
 | --------------------- | --------------------------------- |
-|**[Raspberry Pi Zero 1.3](https://www.raspberrypi.com/products/raspberry-pi-zero/)**      |[`seedsigner_os.0.6.0.pi0.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img)      |
-|[Raspberry Pi Zero W](https://www.raspberrypi.com/products/raspberry-pi-zero-w/)    |[`seedsigner_os.0.6.0.pi0.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi0.img)      |
-|[Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)  |[`seedsigner_os.0.6.0.pi02w.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img)    |
-|[Raspberry Pi 2 Model B](https://www.raspberrypi.com/products/raspberry-pi-2-model-b/) |[`seedsigner_os.0.6.0.pi2.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi2.img)      |
-|[Raspberry Pi 3 Model B](https://www.raspberrypi.com/products/raspberry-pi-3-model-b/) |[`seedsigner_os.0.6.0.pi02w.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi02w.img)    |
-|[Raspberry Pi 4 Model B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) |[`seedsigner_os.0.6.0.pi4.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi4.img)      |
-|[Raspberry Pi 400](https://www.raspberrypi.com/products/raspberry-pi-400-unit/) |[`seedsigner_os.0.6.0.pi4.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner_os.0.6.0.pi4.img)      |
+|**[Raspberry Pi Zero 1.3](https://www.raspberrypi.com/products/raspberry-pi-zero/)**      |[`lumensigner.0.1.0.pi0.img`](https://github.com/LumenSigner/lumensigner/releases/)      |
+|[Raspberry Pi Zero W](https://www.raspberrypi.com/products/raspberry-pi-zero-w/)    |[`lumensigner.0.1.0.pi0.img`](https://github.com/LumenSigner/lumensigner/releases/)      |
+|[Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)  |[`lumensigner.0.1.0.pi02w.img`](https://github.com/LumenSigner/lumensigner/releases/)    |
+|[Raspberry Pi 2 Model B](https://www.raspberrypi.com/products/raspberry-pi-2-model-b/) |[`lumensigner.0.1.0.pi2.img`](https://github.com/LumenSigner/lumensigner/releases/)      |
+|[Raspberry Pi 3 Model B](https://www.raspberrypi.com/products/raspberry-pi-3-model-b/) |[`lumensigner.0.1.0.pi02w.img`](https://github.com/LumenSigner/lumensigner/releases/download/)    |
+|[Raspberry Pi 4 Model B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) |[`lumensigner.0.1.0.pi4.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.6.0/)      |
+|[Raspberry Pi 400](https://www.raspberrypi.com/products/raspberry-pi-400-unit/) |[`lumensigner.0.1.0.pi4.img`](https://github.com/LumenSigner/lumensigner/releases/download/)      |
 
 Note: If you have physically removed the WiFi component from your board, you will still use the image file of the original(un-modified) hardware. (Our files are compiled/based on the *processor* architecture). Although it is better to spend a few minutes upfront to determine which specific Pi hardware/model you have, if you are still unsure which hardware you have, you can try using the pi0.img file. Making an incorrect choice here will not ruin your board, because this is software, not firmware. 
 
 **also download** these 2 signature verification files to the same folder  
-[The Plaintext manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256)  
-[The Signature of the manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.6.0/seedsigner.0.6.0.sha256.sig)
+[The Plaintext manifest file](https://github.com/LumenSigner/lumensigner/TODO)  
+[The Signature of the manifest file](https://github.com/LumenSigner/lumensigner/TODO)
 
-Users familiar with older versions of the SeedSigner software might be surprised with how fast their software downloads now are, because since version 0.6.0 the software image files are now 100x smaller! Each image file is now under 42 Megabytes so your downloads and verifications will be very quick now (and might even seem *too* quick)!  
+Once the files have all finished downloading, follow the steps below to verify the download before continuing on to write the software onto a MicroSD card. Next, insert the MicroSD into your assembled hardware and connect the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your LumenSigner! 
 
-Once the files have all finished downloading, follow the steps below to verify the download before continuing on to write the software onto a MicroSD card. Next, insert the MicroSD into your assembled hardware and connect the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your SeedSigner! 
-
-[Our previous software versions are available here](https://github.com/SeedSigner/seedsigner/releases). Choose a specific version and then expand the *Assets* sub-heading to display the .img file binary and also the 2 associated signature files. **Note:** The prior version files will have lower numbers than the scripts and examples provided in this document, but the naming format will be the same, so you can edit them as required for signature verification etc.   
+[Our previous software versions are available here](https://github.com/LumenSigner/lumensigner/releases). Choose a specific version and then expand the *Assets* sub-heading to display the .img file binary and also the 2 associated signature files. **Note:** The prior version files will have lower numbers than the scripts and examples provided in this document, but the naming format will be the same, so you can edit them as required for signature verification etc.   
 
 
 ## Verifying that the downloaded files are authentic (optional but highly recommended!)
@@ -119,32 +97,32 @@ We assume you are running the commands from a computer where both [GPG](https://
 
 ### Step 1. Verify that the signature (.sig) file is genuine:
 
-Run GPG's *fetch-keys* command to import the SeedSigner projects public key from the popular online keyserver called *Keybase.io*, into your computers *keychain*. 
+Run GPG's *fetch-keys* command to import the LumenSigner projects public key from the popular online keyserver called *Keybase.io*, into your computer's *keychain*. 
 
 
 ```
-gpg --fetch-keys https://keybase.io/seedsigner/pgp_keys.asc
+gpg --fetch-keys https://keybase.io/overcat/pgp_keys.asc?fingerprint=a78bca78b9c468db2b6f8a1493323c9ec6769086
 ```
 The result should confirm that 1 key was *either* imported or updated. *Ignore* any key ID's or email addresses shown.
 
-![SS - Fetchkeys-Keybase PubKey import with Fingerprint shown (New import or update of the key)v3-100pct](https://user-images.githubusercontent.com/91296549/221334414-adc3616c-462e-490e-8492-3dfee367d13a.jpg)  
+![SS - Fetchkeys-Keybase PubKey import with Fingerprint shown (New import or update of the key)v3-100pct](./docs/img/fetch_gpg_key.png)  
 
 Next, you will run the *verify* command on the signature (.sig) file. (*Verify* must be run from inside the same folder that you downloaded the files into earlier. The `*`'s in this command will auto-fill the version from your current folder, so it should be copied and pasted as-is.)   
 ```
-gpg --verify seedsigner.0.6.*.sha256.sig
+gpg --verify lumensign.0.1.0.alpha0.sha256.sig
 ```
 
 When the verify command completes successfully, it should display output like this:
 <BR>
-![SS - Verify Command - GPG on Linux - Masked_v4-100pct](https://user-images.githubusercontent.com/91296549/221334135-8ad1f1af-26d2-429a-91ce-ad41703ed38c.jpg)  
+![SS - Verify Command - GPG on Linux - Masked_v4-100pct](./docs/img/verify_signature.png)  
 The result must display "**Good signature**".  Ignore any email addresses - *only*  matching Key fingerprints count here. Stop immediately if it displays "*Bad signature*"!
 <BR> 
 
 On the *last* output line, look at your *rightmost* 16 characters (the 4 blocks of 4).  
-**Crucially, we must now check WHO that Primary key fingerprint /ID belongs to.** We will start by looking at Keybase.io to see if it is the *SeedSigner project* 's public key or not.
+**Crucially, we must now check WHO that Primary key fingerprint /ID belongs to.** We will start by looking at Keybase.io to see if it is the *LumenSigner project* 's public key or not.
 
 <details><summary> About the warning message:</summary>
-<p>  Since you are about to match the outputted fingerprint/ID against the proofs at Keybase.io/SeedSigner, and thereby confirm who the pubkey really belongs to-, you can safely ignore this warning message:
+<p>  Since you are about to match the outputted fingerprint/ID against the proofs at keybase.io/overcat, and thereby confirm who the pubkey really belongs to-, you can safely ignore this warning message:
 
 ```
 > WARNING: This key is not certified with a trusted signature!  
@@ -158,22 +136,22 @@ On the *last* output line, look at your *rightmost* 16 characters (the 4 blocks 
 <p>  
 The verify command will attempt to decrypt the signature file (sha256.sig) by trying each public key already imported into your computer. If the public key we just imported (via fetch-keys), manages to: (a) successfully decrypt the .sig file , and (b), that result matches exactly to the clear-text equivalent (.sha256) of the .sig file, then its "a good signature"!   
 
-Crucially, we must still manually check who *exactly* owns the Key ID which gave us that "Good signature". Thats what the warning message means- Who does the matching key really belong to? We will start by looking at keybase.io to see if it is "The SeedSigner project"'s public Key or not. 
+Crucially, we must still manually check who *exactly* owns the Key ID which gave us that "Good signature". Thats what the warning message means- Who does the matching key really belong to? We will start by looking at keybase.io to see if it is "The LumenSigner project"'s public Key or not. 
 Note that it is the file hashes of .sig and .sha256 that *verify* compares, not their raw contents.
 
 </p>
 </details>
 <br>
 
-Now to determine ***who*** the Public key ID belongs to: Goto [Keybase.io/SeedSigner](https://keybase.io/seedsigner)  
+Now to determine ***who*** the Public key ID belongs to: Goto [keybase.io/overcat](https://keybase.io/overcat)  
 <BR>
-![SS - Keybase Website PubKey visual matching1_Cropped-80pct](https://user-images.githubusercontent.com/91296549/215326193-97c84e35-5570-4e52-bf3f-e86d367c8908.jpg)
+![SS - Keybase Website PubKey visual matching1_Cropped-80pct](./docs/img/keybase.png)
 
 
 
 **You must now *manually* compare: The 16 character fingerprint ID (as circled in red above) to, those *rightmost* 16 characters from your *verify* command.** 
 
-**If they match exactly, then you have successfully confirmed that your .sig file is authentically from the SeedSigner Project!**
+**If they match exactly, then you have successfully confirmed that your .sig file is authentically from the LumenSigner Project!**
 <BR>
 
 <details><summary>Learn more about how keybase.io helps you check that someone (online) is who they say they are:</summary>
@@ -181,11 +159,9 @@ Now to determine ***who*** the Public key ID belongs to: Goto [Keybase.io/SeedSi
 Keybase.io allows you to independently verify that the public key saved on Keybase.io, is both authentic and that it belongs to the organization it claims to represent.  
  Keybase has already checked the three pubkey file locations  cryptographically when they were saved there. You can further verify the key publications if you would like:  
  
- - *via Keybase*: By clicking on any of the three blue badges to see that the "proof" was published at that location. (The blue badge marked as tweet, is in the most human-readable form and it is also a bi-directional link on Twitter)    
-or, 
- - *without keybase (out-of-band)*: By using these 3 links directly: [Twitter](https://twitter.com/SeedSigner/status/1530555252373704707), [Github](https://gist.github.com/SeedSigner/5936fa1219b07e28a3672385b605b5d2) and [SeedSigner.com](https://seedsigner.com/keybase.txt). This method can be used if you would like to make an even deeper, independent inspection without relying on Keybase at all, or if the Keybase.io site is no longer valid or it is removed entirely. 
+ - *via Keybase*: By clicking on any of the three blue badges to see that the "proof" was published at that location. (The blue badge marked as tweet, is in the most human-readable form and it is also a bi-directional link on Twitter)     
 
-Once you have used one of these methods, you will know if the Public Key stored on Keybase, is genuinely from the SeedSinger Project or not.
+Once you have used the above method, you will know if the Public Key stored on Keybase, is genuinely from the LumenSinger Project or not.
 </p>
 </details>
 <br>
@@ -196,26 +172,25 @@ If the two ID's do *not* match, then you must stop here immediately. Do not cont
 
 ### Step 2. Verifying that the *software images/binaries* are genuine
 
-Now that you have confirmed that you do have the real SeedSigner Project's Public Key (ie the 16 characters match) - you can return to your terminal window. Running  the *shasum* command, is the final verification step and will confirm (via file hashing) that the software code/image files, were also not altered since publication, or even during your download process.  
-(Prior to version 0.6.0  , your verify command will check the .zip file which contains the binary files.)
+Now that you have confirmed that you do have the real LumenSigner Project's Public Key (ie the 16 characters match) - you can return to your terminal window. Running  the *shasum* command, is the final verification step and will confirm (via file hashing) that the software code/image files, were also not altered since publication, or even during your download process.  
 
  **On Linux or OSX:** Run this command
 ```
-shasum -a 256 --ignore-missing --check seedsigner.0.6.*.sha256  
+shasum -a 256 --ignore-missing --check lumensigner.0.1.*.sha256  
 ```
 
 **On Windows (inside Powershell):** Run this command
 ```
-CertUtil -hashfile  seedsigner_os.0.6.0.Insert_Your_Pi_Models_binary_here_For_Example_pi02w.img SHA256 
+CertUtil -hashfile  lumensigner.0.1.0.Insert_Your_Pi_Models_binary_here_For_Example_pi02w.img SHA256 
 ```
 On Windows, you must then manually compare the resulting file hash value to the corresponding hash value shown inside the .SHA256 cleartext file.
  <BR>
 
 Wait up to 30 seconds for the command to complete, and it should display:
 ```
-seedsigner_os.0.6.x.[Your_Pi_Model_For_Example:pi02w].img: OK
+lumensigner.0.1.x.[Your_Pi_Model_For_Example:pi02w].img: OK
 ```
-**If you receive the "OK" message** for your **seedsigner_os.0.6.x.[Your_Pi_Model_For_Example:pi02w].img file**, as shown above, then your verification is fully complete!  
+**If you receive the "OK" message** for your **lumensigner.0.1.x.[Your_Pi_Model_For_Example:pi02w].img file**, as shown above, then your verification is fully complete!  
 **All of your downloaded files have now been confirmed as both authentic and unaltered!** You can proceed to create/write your MicroSD card😄😄 !!     
 
 If your file result shows "FAILED", then you must stop here immediately. Do not continue. Contact us for assistance at  the Telegram group address above.
@@ -229,7 +204,7 @@ Please recognize that this process can only validate the software to the extent 
 
 ## Writing the software onto your MicroSD card
 
-To write the SeedSigner software onto your MicroSD card, there are a few options available:   
+To write the LumenSigner software onto your MicroSD card, there are a few options available:   
 | Application              | Description                                                                                                                                                  | Platform and official Source                                                         |
 |--------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
 | Balena Etcher            | The application is called Etcher, and the company that wrote it is called Balena.  Hence *Etcher by Balena* or *Balena Etcher*                                                  | [Available for Windows, Mac and Linux](https://www.balena.io/etcher#download-etcher) |
@@ -237,19 +212,19 @@ To write the SeedSigner software onto your MicroSD card, there are a few options
 | DD Command Line Utility  | Built-in to Linux and MacOS, the DD (Data Duplicator) is a tool for advanced users.  If not used carefully it can accidentally format the incorrect disk!   | Built-in to Linux and MacOS                                                        |
 
 Be sure to download the software from the genuine publisher.  
-Either of the Etcher or Pi Imager software is recommended.  Some SeedSigner users have reported a better experience with one or the other. So, if the one application doesn’t work well for your particular machine, then please try the other one. 
+Either of the Etcher or Pi Imager software is recommended.  Some users have reported a better experience with one or the other. So, if the one application doesn't work well for your particular machine, then please try the other one. 
 <BR>
 ### **General Considerations:** 
-The writing and verify steps are very quick from version 0.6.0 upwards, so please pay close attention to your screen. 
+The writing and verify steps are very quick from version 0.1.0 upwards, so please pay close attention to your screen. 
 Make sure to set any write-protection physical slider on the MicroSD Card Adapter to UN-locked.  
-You also don’t need to pre-format the MicroSD beforehand.  You *dont* need to unzip any .zip file beforehand.
-Current Etcher and Pi Imager software will perform a verify action (by default) to make sure the card was written successfully! Watching for that verify step to complete successfully, can save you a lot of headaches if you later need to troubleshoot issues where your SeedSigner device doesn’t boot up at power on.   
+You also don't need to pre-format the MicroSD beforehand.  You *dont* need to unzip any .zip file beforehand.
+Current Etcher and Pi Imager software will perform a verify action (by default) to make sure the card was written successfully! Watching for that verify step to complete successfully, can save you a lot of headaches if you later need to troubleshoot issues where your LumenSigner device doesn't boot up at power on.   
 Writing the MicroSd card is also known as flashing.  
 It will overwrite everything on the MicroSD card.  
 If the one application fails for you, then please try again using our other recommended application.  
 Advanced users may want to try the Linux/MacOS *DD* command instead of using Etcher or Pi Imager, however, a reminder is given that DD can overwrite the wrong disk if you are not careful !
 #### **Specific considerations for Windows users:**
-Use the Pi imager software as your first choice on Windows. Windows can sometimes flag the writing of a MicroSD as risky behaviour and hence it may prevent this activity. If this happens, your writing/flashing will fail, hang or wont even begin, in which case you should to try to run the Etcher/Pi-Imager app "As administrator", (right-click and choose that option). It can also be blocked by windows security in some cases, so If you have the (non-default) *Controlled Folder Access* option set to active, try turning that *off* temporarily. 
+Use the Pi imager software as your first choice on Windows. Windows can sometimes flag the writing of a MicroSD as risky behaviour and hence it may prevent this activity. If this happens, your writing/flashing will fail, hang or won't even begin, in which case you should to try to run the Etcher/Pi-Imager app "As administrator", (right-click and choose that option). It can also be blocked by windows security in some cases, so If you have the (non-default) *Controlled Folder Access* option set to active, try turning that *off* temporarily. 
 
 
 
@@ -260,7 +235,7 @@ Use the Pi imager software as your first choice on Windows. Windows can sometime
 
 ### Open Pill
 
-The Open Pill enclosure design is all about quick, simple and inexpensive depoloyment of a SeedSigner device. The design does not require any additional hardware and can be printed using a standard FDM 3D printer in about 2 hours, no supports necessary. A video demonstrating the assembly process can be found [here](https://youtu.be/gXPFJygZobEa). To access the design file and printable model, click [here](https://github.com/SeedSigner/seedsigner/tree/main/enclosures/open_pill).
+The Open Pill enclosure design is all about quick, simple and inexpensive deployment of a LumenSigner device. The design does not require any additional hardware and can be printed using a standard FDM 3D printer in about 2 hours, no supports necessary. A video demonstrating the assembly process can be found [here](https://youtu.be/gXPFJygZobEa). To access the design file and printable model, click [here](https://github.com/LumenSigner/lumensigner/tree/dev/enclosures/open_pill).
 
 ### Orange Pill
 
@@ -270,7 +245,7 @@ The Orange Pill enclosure design offers a more finished look that includes butto
 * 4 x M2.5 pan head screws, 6mm length
 * 4 x M2.5 pan head screws, 12mm length
 
-The upper and lower portions of the enclosure can be printed using a standard FDM 3D printer, no supports necessary. The buttons and joystick nub should ideally be produced with a SLA/resin printer. An overview of the entire assembly process can be found [here](https://youtu.be/aIIc2DiZYcI). To access the design files and printable models, click [here](https://github.com/SeedSigner/seedsigner/tree/main/enclosures/orange_pill).
+The upper and lower portions of the enclosure can be printed using a standard FDM 3D printer, no supports necessary. The buttons and joystick nub should ideally be produced with a SLA/resin printer. An overview of the entire assembly process can be found [here](https://youtu.be/aIIc2DiZYcI). To access the design files and printable models, click [here](https://github.com/LumenSigner/lumensigner/tree/dev/enclosures/orange_pill).
 
 ### Community Designs
 
@@ -283,7 +258,7 @@ The upper and lower portions of the enclosure can be printed using a standard FD
 ---------------
 
 # SeedQR Printable Templates
-You can use SeedSigner to export your seed to a hand-transcribed SeedQR format that enables you to instantly load your seed back into SeedSigner.
+You can use LumenSigner to export your seed to a hand-transcribed SeedQR format that enables you to instantly load your seed back into LumenSigner.
 
 [More information about SeedQRs](docs/seed_qr/README.md)
 
