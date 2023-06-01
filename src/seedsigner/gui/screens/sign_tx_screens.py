@@ -2,7 +2,7 @@ import base64
 import math
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Sequence, Union, List
+from typing import Sequence, Union, List, Tuple
 from decimal import Decimal
 from stellar_sdk import (
     MuxedAccount,
@@ -120,15 +120,7 @@ def build_tx_info_screens(
 ) -> List[GenericTxDetailsScreen]:
     items = []
     # Network
-    if network_passphrase == NETWORK_PASSPHRASE_TESTNET:
-        network_title = "Network"
-        network_content = "Testnet"
-    elif network_passphrase == NETWORK_PASSPHRASE_PUBLIC:
-        network_title = "Network"
-        network_content = "Public"
-    else:
-        network_title = "Network Passphrase"
-        network_content = network_passphrase
+    network_title, network_content = format_network(network_passphrase)
     items.append(Item(label=network_title, content=network_content))
 
     # Max Fee
@@ -229,7 +221,9 @@ def build_tx_info_screens(
             )
 
     # Tx Source
-    items.append(Item(label="Tx Source", content=tx.source.universal_account_id))
+    items.append(
+        Item(label="Transaction Source", content=tx.source.universal_account_id)
+    )
 
     item_size = 4
     item_count = len(items)
@@ -1018,8 +1012,8 @@ def build_set_options_screens(
             )
             items.append(Item(label="Signer Weight", content=str(op.signer.weight)))
 
-    # Tx Source
-    items.append(Item(label="Tx Source", content=tx_source.universal_account_id))
+    append_op_source_to_items(items, op.source, tx_source)
+
     item_size = 3
     item_count = len(items)
     screen_count = math.ceil(item_count / item_size)
@@ -1038,7 +1032,9 @@ def append_op_source_to_items(
     items: List[Item], op_source: MuxedAccount, tx_source: MuxedAccount
 ):
     if op_source and op_source != tx_source:
-        items.append(Item(label="Tx source", content=op_source.universal_account_id))
+        items.append(
+            Item(label="Operation Source", content=op_source.universal_account_id)
+        )
 
 
 @dataclass
@@ -1085,13 +1081,35 @@ def timestamp_to_utc(timestamp: int) -> str:
     return datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
 
+@dataclass
+class FeeBumpTransactionScreen(GenericTxDetailsScreen):
+    te: FeeBumpTransactionEnvelope = None
+
+    def __post_init__(self):
+        tx = self.te.transaction
+        network_title, network_content = format_network(self.te.network_passphrase)
+        max_fee = tx.base_fee * (
+            len(tx.inner_transaction_envelope.transaction.operations) + 1
+        )
+        items = [
+            Item(label=network_title, content=network_content),
+            Item(label="Max Fee", content=f"{from_xdr_amount(max_fee)} XLM"),
+            Item(label="Fee Source", content=tx.fee_source.universal_account_id),
+            Item(
+                label="Inner Transaction Hash",
+                content=tx.inner_transaction_envelope.hash_hex(),
+            ),
+        ]
+        self.items = items
+        self.title = "Fee Bump Tx"
+        super().__post_init__()
+
+
 def build_transaction_screens(
     te: Union[TransactionEnvelope, FeeBumpTransactionEnvelope]
 ) -> List[GenericTxDetailsScreen]:
     if isinstance(te, FeeBumpTransactionEnvelope):
-        raise NotImplementedError(
-            "FeeBumpTransactionEnvelope support not implemented yet"
-        )
+        return [FeeBumpTransactionScreen(te=te)]
 
     tx = te.transaction
 
@@ -1271,3 +1289,17 @@ def build_transaction_screens(
         else:
             raise NotImplementedError(f"Operation type {type(op)} not implemented yet")
     return screens
+
+
+def format_network(network_passphrase: str) -> Tuple[str, str]:
+    # Network
+    if network_passphrase == NETWORK_PASSPHRASE_TESTNET:
+        network_title = "Network"
+        network_content = "Testnet"
+    elif network_passphrase == NETWORK_PASSPHRASE_PUBLIC:
+        network_title = "Network"
+        network_content = "Public"
+    else:
+        network_title = "Network Passphrase"
+        network_content = network_passphrase
+    return network_title, network_content
