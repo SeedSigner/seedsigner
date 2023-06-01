@@ -637,13 +637,13 @@ class ToolsAddressExplorerAddressListView(View):
             for i, address in enumerate(addresses):
                 cur_index = i + self.start_index
                 if cur_index < 10:
-                    end_digits = -6
+                    end_digits = -7
                 elif cur_index < 100:
-                    end_digits = -5
+                    end_digits = -6
                 else:
-                    end_digits = -4
+                    end_digits = -5
                 button_data.append(
-                    f"{cur_index}:{address[:8]}...{address[end_digits:]}"
+                    f"{cur_index}:{address[:7]}...{address[end_digits:]}"
                 )
 
             button_data.append(
