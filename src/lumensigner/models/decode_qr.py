@@ -58,7 +58,12 @@ class DecodeQR:
 
         if self.qr_type is None:
             self.qr_type = qr_type
-            if self.qr_type in (QRType.SEED__SEEDQR, QRType.SEED__COMPACTSEEDQR):
+            if self.qr_type in (
+                QRType.SEED__SEEDQR,
+                QRType.SEED__COMPACTSEEDQR,
+                QRType.SEED__MNEMONIC,
+                QRType.SEED__FOUR_LETTER_MNEMONIC,
+            ):
                 self.decoder = SeedQrDecoder(
                     wordlist_language_code=self.wordlist_language_code
                 )
@@ -146,6 +151,8 @@ class DecodeQR:
         return self.qr_type in [
             QRType.SEED__SEEDQR,
             QRType.SEED__COMPACTSEEDQR,
+            QRType.SEED__MNEMONIC,
+            QRType.SEED__FOUR_LETTER_MNEMONIC,
         ]
 
     @property
@@ -200,6 +207,19 @@ class DecodeQR:
             if re.search(r"\d{48,96}", s):
                 return QRType.SEED__SEEDQR
 
+            # Seed
+            # create 4 letter wordlist
+            wordlist = Seed.get_wordlist(wordlist_language_code)
+            try:
+                _4LETTER_WORDLIST = [word[:4].strip() for word in wordlist]
+            except:
+                _4LETTER_WORDLIST = []
+            if all(x in wordlist for x in s.strip().split(" ")):
+                # checks if all words in list are in bip39 word list
+                return QRType.SEED__MNEMONIC
+            elif all(x in _4LETTER_WORDLIST for x in s.strip().split(" ")):
+                # checks if all 4 letter words are in list are in 4 letter bip39 word list
+                return QRType.SEED__FOUR_LETTER_MNEMONIC
         except UnicodeDecodeError:
             # Probably this isn't meant to be string data; check if it's valid byte data
             # below.
@@ -372,7 +392,7 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
                     word = self.wordlist[index]
                     self.seed_phrase.append(word)
                 if len(self.seed_phrase) > 0:
-                    if not self.is_12_or_24_word_phrase():
+                    if self.is_12_or_24_word_phrase() == False:
                         return DecodeQRStatus.INVALID
                     self.complete = True
                     self.collected_segments = 1
@@ -391,6 +411,56 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
             except Exception as e:
                 logger.exception(repr(e))
                 return DecodeQRStatus.INVALID
+
+        elif qr_type == QRType.SEED__MNEMONIC:
+            try:
+                seed_phrase_list = self.seed_phrase = segment.strip().split(" ")
+
+                # embit mnemonic code to validate
+                seed = Seed(
+                    seed_phrase_list,
+                    passphrase="",
+                    wordlist_language_code=self.wordlist_language_code,
+                )
+                if not seed:
+                    # seed is not valid, return invalid
+                    return DecodeQRStatus.INVALID
+                self.seed_phrase = seed_phrase_list
+                if self.is_12_or_24_word_phrase() == False:
+                    return DecodeQRStatus.INVALID
+                self.complete = True
+                self.collected_segments = 1
+                return DecodeQRStatus.COMPLETE
+            except Exception as e:
+                return DecodeQRStatus.INVALID
+
+        elif qr_type == QRType.SEED__FOUR_LETTER_MNEMONIC:
+            try:
+                seed_phrase_list = segment.strip().split(" ")
+                words = []
+                for s in seed_phrase_list:
+                    # TODO: Pre-calculate this once on startup
+                    _4LETTER_WORDLIST = [word[:4].strip() for word in self.wordlist]
+                    words.append(self.wordlist[_4LETTER_WORDLIST.index(s)])
+
+                # embit mnemonic code to validate
+                seed = Seed(
+                    words,
+                    passphrase="",
+                    wordlist_language_code=self.wordlist_language_code,
+                )
+                if not seed:
+                    # seed is not valid, return invalid
+                    return DecodeQRStatus.INVALID
+                self.seed_phrase = words
+                if self.is_12_or_24_word_phrase() == False:
+                    return DecodeQRStatus.INVALID
+                self.complete = True
+                self.collected_segments = 1
+                return DecodeQRStatus.COMPLETE
+            except Exception as e:
+                return DecodeQRStatus.INVALID
+
         else:
             return DecodeQRStatus.INVALID
 

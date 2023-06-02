@@ -15,6 +15,8 @@ class QRType:
 
     SEED__SEEDQR = "seed__seedqr"
     SEED__COMPACTSEEDQR = "seed__compactseedqr"
+    SEED__MNEMONIC = "seed__mnemonic"
+    SEED__FOUR_LETTER_MNEMONIC = "seed__four_letter_mnemonic"
 
     SETTINGS = "settings"
 
