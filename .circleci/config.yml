@@ -1,0 +1,75 @@
+version: 2.1
+
+jobs:
+  build:
+    machine:
+      image: ubuntu-2204:2023.04.2
+    resource_class: large
+    parameters:
+      device:
+        type: string
+    environment:
+      TARGET_DEVICE: << parameters.device >>
+    steps:
+      - run:
+          name: "checkout seedsigner-os"
+          command: "git clone --recursive https://github.com/LumenSigner/seedsigner-os.git"
+      - checkout:
+          path: "seedsigner-os/opt/rootfs-overlay/opt"
+      - run:
+          name: "echo last commit"
+          command: "cd seedsigner-os/opt/rootfs-overlay/opt && git log -1"
+      - run:
+          name: "delete unnecessary files"
+          command: |
+            cd seedsigner-os/opt/rootfs-overlay/opt
+            find . -mindepth 1 -maxdepth 1 ! -name src -exec rm -rf {} +
+            ls -la .
+            ls -la src
+      - run:
+          name: "install dependencies"
+          command: "sudo apt-get update && sudo apt-get install -y make binutils build-essential gcc g++ patch gzip bzip2 perl tar cpio unzip rsync file bc libssl-dev && sudo apt-get clean"
+      - run:
+          name: "echo free space"
+          command: "df -h"
+      - run:
+          name: "build image"
+          command: "cd seedsigner-os/opt && ./build.sh --${TARGET_DEVICE} --skip-repo"
+      - run:
+          name: "list files (before rename)"
+          command: "ls -la seedsigner-os/images"
+      - run:
+          name: "rename image"
+          command: "cd seedsigner-os/images && mv *.img lumensigner_os.${CIRCLE_SHA1:0:7}.${TARGET_DEVICE}.img"
+      - run:
+          name: "list files (after rename)"
+          command: "ls -la seedsigner-os/images"
+      - run:
+          name: "write sha256sum file"
+          command: |
+            cd seedsigner-os/images
+            sha256sum *.img > lumensigner_os.${CIRCLE_SHA1:0:7}.${TARGET_DEVICE}.sha256
+            cat lumensigner_os.${CIRCLE_SHA1:0:7}.${TARGET_DEVICE}.sha256
+      - run:
+          name: "Copy image and sha256sum to images"
+          command: |
+            mkdir -p images
+            cp seedsigner-os/images/*.img seedsigner-os/images/*.sha256 images/
+
+      - store_artifacts:
+          path: images/
+
+workflows:
+  build-workflow:
+    jobs:
+      - hold:
+          type: approval
+      - build:
+          requires:
+            - hold
+          matrix:
+            parameters:
+              # device: [ "pi0", "pi2", "pi02w", "pi4" ]
+              # due to the limited time of the free plan, we only build pi0 and pi02w
+              device: [ "pi0", "pi02w" ]
+
