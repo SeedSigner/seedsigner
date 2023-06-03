@@ -1,5 +1,6 @@
 import json
 import os
+import platform
 
 from typing import Any, List
 
@@ -10,7 +11,7 @@ from .singleton import Singleton
 
 
 class Settings(Singleton):
-    HOSTNAME = os.uname()[1]
+    HOSTNAME = platform.uname()[1]
     SEEDSIGNER_OS = "seedsigner-os"
     SETTINGS_FILENAME = "/mnt/microsd/settings.json" if HOSTNAME == SEEDSIGNER_OS else "settings.json"
         
