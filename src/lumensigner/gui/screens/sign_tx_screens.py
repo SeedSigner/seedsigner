@@ -115,12 +115,11 @@ class GenericTxDetailsScreen(TxDetailsBaseScreen):
             )
 
 
-def build_tx_info_screens(
-    tx: Transaction, network_passphrase: str
-) -> List[GenericTxDetailsScreen]:
+def build_tx_info_screens(te: TransactionEnvelope) -> List[GenericTxDetailsScreen]:
+    tx = te.transaction
     items = []
     # Network
-    network_title, network_content = format_network(network_passphrase)
+    network_title, network_content = format_network(te.network_passphrase)
     items.append(Item(label=network_title, content=network_content))
 
     # Max Fee
@@ -224,6 +223,8 @@ def build_tx_info_screens(
     items.append(
         Item(label="Transaction Source", content=tx.source.universal_account_id)
     )
+
+    items.append(Item(label="Transaction Hash", content=te.hash_hex()))
 
     item_size = 4
     item_count = len(items)
@@ -1117,7 +1118,7 @@ def build_transaction_screens(
         raise ValueError("Transaction must have at least one operation")
 
     screens = []
-    screens.extend(build_tx_info_screens(tx, te.network_passphrase))
+    screens.extend(build_tx_info_screens(te))
 
     for i, op in enumerate(tx.operations):
         if isinstance(op, CreateAccount):
