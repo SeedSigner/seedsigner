@@ -122,13 +122,13 @@ jobs:
       - name: write sha256sum
         run: |
           cd images
-          sha256sum *.img > lumensigner_os.${{ env.source_hash }}.img.sha256sum
+          sha256sum *.img > lumensigner_os.${{ env.source_hash }}.img.sha256
 
       - name: upload checksums
         uses: actions/upload-artifact@v3
         with:
           name: lumensigner_os_images
-          path: "images/*.sha256sum"
+          path: "images/*.sha256"
           if-no-files-found: error
 
   publish:
