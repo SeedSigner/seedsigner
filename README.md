@@ -166,7 +166,7 @@ Once you have used the above method, you will know if the Public Key stored on K
 </details>
 <br>
 
-If the two ID's do *not* match, then you must stop here immediately. Do not continue. Contact us for assistance in the Telegram group address above.
+If the two ID's do *not* match, then you must stop here immediately. Do not continue. Contact us for assistance in the Discord server above.
 
 <br>
 
@@ -193,7 +193,7 @@ lumensigner_os.0.1.0.dev0.[Your_Pi_Model_For_Example:pi02w].img: OK
 **If you receive the "OK" message** for your **lumensigner.0.1.x.[Your_Pi_Model_For_Example:pi02w].img file**, as shown above, then your verification is fully complete!  
 **All of your downloaded files have now been confirmed as both authentic and unaltered!** You can proceed to create/write your MicroSD card😄😄 !!     
 
-If your file result shows "FAILED", then you must stop here immediately. Do not continue. Contact us for assistance at  the Telegram group address above.
+If your file result shows "FAILED", then you must stop here immediately. Do not continue. Contact us for assistance at  the Discord server above.
 
 <BR>
 
