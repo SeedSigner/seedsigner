@@ -58,6 +58,8 @@ class RequestAddressSelectSeedView(View):
                 view_args={"public_key": public_key, "address_index": address_index},
             )
 
+        self.controller.resume_main_flow = Controller.FLOW__REQUEST_ADDRESS
+
         if button_data[selected_menu_num] == SCAN_SEED:
             from lumensigner.views.scan_views import ScanView
 

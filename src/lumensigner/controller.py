@@ -71,6 +71,13 @@ class Controller(Singleton):
     address_explorer_data: Optional[dict] = None
     # TODO: end refactor section
 
+    # Destination placeholder for when we need to jump out to a side flow but intend to
+    # return navigation to the main flow
+    FLOW__SIGN_TX = "sign_tx"
+    FLOW__SIGN_HASH = "sign_hash"
+    FLOW__REQUEST_ADDRESS = "request_address"
+    resume_main_flow: Optional[str] = None
+
     back_stack: BackStack = None
     screensaver: ScreensaverScreen = None
 

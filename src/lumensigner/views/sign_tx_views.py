@@ -58,33 +58,13 @@ class TransactionSelectSeedView(View):
                 passphrase=self.controller.sign_seed.passphrase,
                 index=address_index,
             )
-            screens = build_transaction_screens(te)
-            current_screen = 0
-            while True:
-                ret = screens[current_screen].display()
-                if ret == RET_CODE__BACK_BUTTON:
-                    return Destination(MainMenuView)
-                elif ret in (
-                    HardwareButtonsConstants.KEY_DOWN,
-                    HardwareButtonsConstants.KEY3,
-                ):
-                    if current_screen < len(screens) - 1:
-                        current_screen += 1
-                    else:
-                        return Destination(
-                            TransactionFinalizeView,
-                            view_args={
-                                "sign_kp": kp,
-                                "te": te,
-                            },
-                            clear_history=True,
-                        )
-                elif ret in (
-                    HardwareButtonsConstants.KEY_UP,
-                    HardwareButtonsConstants.KEY1,
-                ):
-                    if current_screen > 0:
-                        current_screen -= 1
+            return Destination(
+                TransactionDetailsView,
+                view_args={"te": te, "sign_kp": kp},
+                skip_current_view=True,
+            )
+
+        self.controller.resume_main_flow = Controller.FLOW__SIGN_TX
 
         if button_data[selected_menu_num] == SCAN_SEED:
             from lumensigner.views.scan_views import ScanView
@@ -99,6 +79,46 @@ class TransactionSelectSeedView(View):
             else:
                 self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
+
+
+class TransactionDetailsView(View):
+    def __init__(
+        self,
+        te: Union[TransactionEnvelope, FeeBumpTransactionEnvelope],
+        sign_kp: Keypair = None,
+    ):
+        super().__init__()
+        self.sign_kp = sign_kp
+        self.te = te
+
+    def run(self, **kwargs):
+        screens = build_transaction_screens(self.te)
+        current_screen = 0
+        while True:
+            ret = screens[current_screen].display()
+            if ret == RET_CODE__BACK_BUTTON:
+                return Destination(MainMenuView)
+            elif ret in (
+                HardwareButtonsConstants.KEY_DOWN,
+                HardwareButtonsConstants.KEY3,
+            ):
+                if current_screen < len(screens) - 1:
+                    current_screen += 1
+                else:
+                    return Destination(
+                        TransactionFinalizeView,
+                        view_args={
+                            "sign_kp": self.sign_kp,
+                            "te": self.te,
+                        },
+                        clear_history=True,
+                    )
+            elif ret in (
+                HardwareButtonsConstants.KEY_UP,
+                HardwareButtonsConstants.KEY1,
+            ):
+                if current_screen > 0:
+                    current_screen -= 1
 
 
 class TransactionFinalizeView(View):
