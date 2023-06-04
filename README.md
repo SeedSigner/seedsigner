@@ -1,6 +1,8 @@
 # Build an offline, airgapped Stellar signing device for less than $50!
 
-**The project is currently in development and is not yet ready for use with real funds. Please check back soon!**
+**The project is currently in development and is not yet ready for use with real funds.**
+
+**The first developer preview has been released.**
 
 ![Image of LumenSigners in Open Pill Enclosures](docs/img/Open_Pill_Star.JPG)
 
