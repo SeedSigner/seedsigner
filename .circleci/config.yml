@@ -14,6 +14,9 @@ jobs:
       - run:
           name: "checkout seedsigner-os"
           command: "git clone --recursive https://github.com/LumenSigner/seedsigner-os.git"
+      - run:
+          name: "set seedsigner-os latest commit hash to env"
+          command: cd seedsigner-os && echo "export SEEDSIGNER_OS_COMMIT_HASH=$(git rev-parse HEAD)" >> $BASH_ENV
       - checkout:
           path: "seedsigner-os/opt/rootfs-overlay/opt"
       - run:
@@ -33,8 +36,21 @@ jobs:
           name: "echo free space"
           command: "df -h"
       - run:
+          name: "echo hash and target to cache.rev"
+          command: |
+            echo "${SEEDSIGNER_OS_COMMIT_HASH} ${TARGET_DEVICE} test2" > cache.rev
+            cat cache.rev
+      - restore_cache:
+          keys:
+            - build-cache-{{ checksum "cache.rev" }}
+      - run:
           name: "build image"
-          command: "cd seedsigner-os/opt && ./build.sh --${TARGET_DEVICE} --skip-repo"
+          command: "cd seedsigner-os/opt && ./build.sh --${TARGET_DEVICE} --skip-repo --no-clean"
+      - save_cache:
+          name: save build cache
+          key: build-cache-{{ checksum "cache.rev" }}
+          paths:
+            - ~/.buildroot-ccache
       - run:
           name: "list files (before rename)"
           command: "ls -la seedsigner-os/images"
@@ -62,14 +78,9 @@ jobs:
 workflows:
   build-workflow:
     jobs:
-      - hold:
-          type: approval
       - build:
-          requires:
-            - hold
           matrix:
             parameters:
               # device: [ "pi0", "pi2", "pi02w", "pi4" ]
               # due to the limited time of the free plan, we only build pi0 and pi02w
-              device: [ "pi0", "pi02w" ]
-
+              device: [ "pi0" ]
