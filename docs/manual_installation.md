@@ -64,8 +64,8 @@ You will be prompted to enter the current password ("raspberry") and then to ent
 ### Install python3.10
 ```bash
 # install compiler dependencies; takes ~1 minute on a Pi Zero 1.3
-# openssl, libssl-dev: ssl support when pip fetches packages
-# libsqlite3-dev: required by `coverage`
+# * openssl, libssl-dev: ssl support when pip fetches packages
+# * libsqlite3-dev: required by `coverage`
 sudo apt update && sudo apt install -y build-essential zlib1g-dev \
     libncurses5-dev libgdbm-dev libnss3-dev openssl libssl-dev \
     libreadline-dev libffi-dev wget libsqlite3-dev
@@ -75,7 +75,7 @@ wget https://www.python.org/ftp/python/3.10.10/Python-3.10.10.tgz
 tar -xzvf Python-3.10.10.tgz
 cd Python-3.10.10
 
-# configure takes ~6 minutes on a Pi Zero 1.3 to check what is available
+# Takes ~6 minutes on a Pi Zero 1.3 to check what is available
 ./configure --enable-optimizations
 
 # compiling takes ~80 minutes(!!) on a Pi Zero 1.3
@@ -90,7 +90,7 @@ sudo update-alternatives --install /usr/bin/python python /usr/local/bin/python3
 sudo update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.10 1
 ```
 
-Manually re-install `python3-apt` to avoid error messages in later steps:
+Manually re-install `python3-apt` to avoid error messages in later steps (though, ironically, you will see the "ModuleNotFoundError: No module named 'apt_pkg'" error message during the `apt remove` step):
 ```bash
 sudo apt remove --purge python3-apt -y
 sudo apt autoremove -y
@@ -99,9 +99,9 @@ sudo apt install python3-apt -y
 
 
 ### Install dependencies
-Copy this entire box and run it as one command (will take 15-20min to complete):
+Copy this entire box and run it as one command (will take a while to complete):
 ```bash
-sudo apt update && time sudo apt install -y wiringpi python3-pip \
+sudo apt update && sudo apt install -y wiringpi python3-pip \
    python3-numpy python-pil libjpeg-dev zlib1g-dev libopenjp2-7 \
    git python3-opencv python3-picamera libatlas-base-dev qrencode
 ```
@@ -154,7 +154,7 @@ source /home/pi/.local/bin/virtualenvwrapper.sh
 ```
 Then `CTRL-X` and `y` to exit and save changes.
 
-Now create the python virtualenv for SeedSigner with these two commands:
+Now create the virtualenv for SeedSigner:
 ```bash
 source ~/.profile
 mkvirtualenv seedsigner-env
@@ -280,6 +280,8 @@ ls
 
 # You should see the main.py file. Run it:
 python main.py
+
+# To kill the process, use CTRL-C
 ```
 
 
