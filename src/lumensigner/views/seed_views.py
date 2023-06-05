@@ -2,7 +2,6 @@ import random
 from typing import List
 
 from embit import bip39
-from stellar_sdk import Keypair
 
 from lumensigner.controller import Controller
 from lumensigner.gui.components import (
@@ -382,16 +381,10 @@ class SeedOptionsView(View):
             from lumensigner.views.sign_hash_views import SignHashDireWarningView
 
             self.controller.resume_main_flow = None
-            self.controller.sign_seed = self.seed
             address_index = self.controller.sign_hash_data[0]
-            sign_kp = Keypair.from_mnemonic_phrase(
-                mnemonic_phrase=self.controller.sign_seed.mnemonic_str,
-                passphrase=self.controller.sign_seed.passphrase,
-                index=address_index,
-            )
             return Destination(
                 SignHashDireWarningView,
-                view_args={"sign_kp": sign_kp},
+                view_args=dict(seed=self.seed, address_index=address_index),
                 skip_current_view=True,
             )
 
@@ -399,19 +392,10 @@ class SeedOptionsView(View):
             from lumensigner.views.request_address import RequestAddressShareAddressView
 
             self.controller.resume_main_flow = None
-            self.controller.sign_seed = self.seed
             address_index = self.controller.request_address_data
-            sign_kp = Keypair.from_mnemonic_phrase(
-                mnemonic_phrase=self.controller.sign_seed.mnemonic_str,
-                passphrase=self.controller.sign_seed.passphrase,
-                index=address_index,
-            )
             return Destination(
                 RequestAddressShareAddressView,
-                view_args={
-                    "public_key": sign_kp.public_key,
-                    "address_index": address_index,
-                },
+                view_args=dict(seed=self.seed, address_index=address_index),
                 skip_current_view=True,
             )
 
@@ -419,24 +403,26 @@ class SeedOptionsView(View):
             from lumensigner.views.sign_tx_views import TransactionDetailsView
 
             self.controller.resume_main_flow = None
-            self.controller.sign_seed = self.seed
             address_index, te = self.controller.tx_data
-
-            sign_kp = Keypair.from_mnemonic_phrase(
-                mnemonic_phrase=self.controller.sign_seed.mnemonic_str,
-                passphrase=self.controller.sign_seed.passphrase,
-                index=address_index,
-            )
             return Destination(
                 TransactionDetailsView,
-                view_args={"te": te, "sign_kp": sign_kp},
+                view_args=dict(te=te, seed=self.seed, address_index=address_index),
+                skip_current_view=True,
+            )
+
+        if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
+            from lumensigner.views.tools_views import AddressExporterView
+
+            self.controller.resume_main_flow = None
+            return Destination(
+                AddressExporterView,
+                view_args=dict(seed_num=self.seed_num),
                 skip_current_view=True,
             )
 
         button_data.append(SCAN_TX)
         button_data.append(EXPLORER)
         button_data.append(BACKUP)
-
         button_data.append(DISCARD)
 
         selected_menu_num = seed_screens.SeedOptionsScreen(
@@ -457,6 +443,7 @@ class SeedOptionsView(View):
 
         # export stellar address
         elif button_data[selected_menu_num] == EXPLORER:
+            from lumensigner.views.tools_views import AddressExporterView
             return Destination(
                 AddressExporterView, view_args=dict(seed_num=self.seed_num)
             )

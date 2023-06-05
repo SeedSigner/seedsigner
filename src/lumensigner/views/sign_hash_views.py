@@ -19,7 +19,7 @@ from ..gui.screens.sign_hash_screens import (
     SignHashShowAddressScreen,
     SignHashShowHashScreen,
 )
-from ..models import EncodeQR, QRType
+from ..models import EncodeQR, QRType, Seed
 
 logger = logging.getLogger(__name__)
 
@@ -47,15 +47,12 @@ class SignHashSelectSeedView(View):
 
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
-            self.controller.sign_seed = self.controller.get_seed(selected_menu_num)
+            seed = self.controller.get_seed(selected_menu_num)
             address_index = self.controller.sign_hash_data[0]
-            sign_kp = Keypair.from_mnemonic_phrase(
-                mnemonic_phrase=self.controller.sign_seed.mnemonic_str,
-                passphrase=self.controller.sign_seed.passphrase,
-                index=address_index,
+            return Destination(
+                SignHashDireWarningView,
+                view_args=dict(seed=seed, address_index=address_index),
             )
-
-            return Destination(SignHashDireWarningView, view_args={"sign_kp": sign_kp})
 
         self.controller.resume_main_flow = Controller.FLOW__SIGN_HASH
 
@@ -75,9 +72,14 @@ class SignHashSelectSeedView(View):
 
 
 class SignHashDireWarningView(View):
-    def __init__(self, sign_kp: Keypair = None):
+    def __init__(self, seed: Seed, address_index: int):
         super().__init__()
-        self.sign_kp = sign_kp
+        self.address_index = address_index
+        self.sign_kp = Keypair.from_mnemonic_phrase(
+            mnemonic_phrase=seed.mnemonic_str,
+            passphrase=seed.passphrase,
+            index=self.address_index,
+        )
 
     def run(self, **kwargs):
         selected_menu_num = DireWarningScreen(

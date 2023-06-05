@@ -563,6 +563,8 @@ class ToolsAddressExplorerSelectSourceView(View):
             is_bottom_list=True,
         ).display()
 
+        self.controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
+
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 

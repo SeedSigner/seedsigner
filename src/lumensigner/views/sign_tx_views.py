@@ -17,7 +17,7 @@ from lumensigner.gui.screens.sign_tx_screens import (
     SignTxShowAddressScreen,
 )
 from lumensigner.hardware.buttons import HardwareButtonsConstants
-from lumensigner.models import EncodeQR, QRType
+from lumensigner.models import EncodeQR, QRType, Seed
 from lumensigner.views.view import BackStackView, View, Destination, MainMenuView
 
 
@@ -50,17 +50,11 @@ class TransactionSelectSeedView(View):
 
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
-            self.controller.sign_seed = self.controller.get_seed(selected_menu_num)
+            seed = self.controller.get_seed(selected_menu_num)
             address_index, te = self.controller.tx_data
-
-            kp = Keypair.from_mnemonic_phrase(
-                mnemonic_phrase=self.controller.sign_seed.mnemonic_str,
-                passphrase=self.controller.sign_seed.passphrase,
-                index=address_index,
-            )
             return Destination(
                 TransactionDetailsView,
-                view_args={"te": te, "sign_kp": kp},
+                view_args=dict(te=te, seed=seed, address_index=address_index),
                 skip_current_view=True,
             )
 
@@ -85,10 +79,16 @@ class TransactionDetailsView(View):
     def __init__(
         self,
         te: Union[TransactionEnvelope, FeeBumpTransactionEnvelope],
-        sign_kp: Keypair = None,
+        seed: Seed,
+        address_index: int,
     ):
         super().__init__()
-        self.sign_kp = sign_kp
+        self.address_index = address_index
+        self.sign_kp = Keypair.from_mnemonic_phrase(
+            mnemonic_phrase=seed.mnemonic_str,
+            passphrase=seed.passphrase,
+            index=self.address_index,
+        )
         self.te = te
 
     def run(self, **kwargs):
@@ -127,7 +127,7 @@ class TransactionFinalizeView(View):
     def __init__(
         self,
         te: Union[TransactionEnvelope, FeeBumpTransactionEnvelope],
-        sign_kp: Keypair = None,
+        sign_kp: Keypair,
     ):
         super().__init__()
         self.sign_kp = sign_kp

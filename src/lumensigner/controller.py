@@ -76,6 +76,7 @@ class Controller(Singleton):
     FLOW__SIGN_TX = "sign_tx"
     FLOW__SIGN_HASH = "sign_hash"
     FLOW__REQUEST_ADDRESS = "request_address"
+    FLOW__ADDRESS_EXPLORER = "address_explorer"
     resume_main_flow: Optional[str] = None
 
     back_stack: BackStack = None

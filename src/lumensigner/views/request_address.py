@@ -16,7 +16,7 @@ from lumensigner.gui.screens.screen import (
     QRDisplayScreen,
 )
 from .view import BackStackView, View, Destination, MainMenuView
-from ..models import EncodeQR, QRType
+from ..models import EncodeQR, QRType, Seed
 
 logger = logging.getLogger(__name__)
 
@@ -44,18 +44,11 @@ class RequestAddressSelectSeedView(View):
 
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
-            self.controller.sign_seed = self.controller.get_seed(selected_menu_num)
+            seed = self.controller.get_seed(selected_menu_num)
             address_index = self.controller.request_address_data
-            sign_kp = Keypair.from_mnemonic_phrase(
-                mnemonic_phrase=self.controller.sign_seed.mnemonic_str,
-                passphrase=self.controller.sign_seed.passphrase,
-                index=address_index,
-            )
-            public_key = sign_kp.public_key
-
             return Destination(
                 RequestAddressShareAddressView,
-                view_args={"public_key": public_key, "address_index": address_index},
+                view_args=dict(seed=seed, address_index=address_index),
             )
 
         self.controller.resume_main_flow = Controller.FLOW__REQUEST_ADDRESS
@@ -76,10 +69,15 @@ class RequestAddressSelectSeedView(View):
 
 
 class RequestAddressShareAddressView(View):
-    def __init__(self, public_key: str, address_index: int):
+    def __init__(self, seed: Seed, address_index: int):
         super().__init__()
-        self.public_key = public_key
         self.address_index = address_index
+        kp = Keypair.from_mnemonic_phrase(
+            mnemonic_phrase=seed.mnemonic_str,
+            passphrase=seed.passphrase,
+            index=self.address_index,
+        )
+        self.public_key = kp.public_key
 
     def run(self, **kwargs):
         SHARE_ADDRESS = "Share Address"
