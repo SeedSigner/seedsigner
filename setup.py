@@ -1,12 +1,11 @@
 import setuptools
-from setuptools import glob
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="lumensigner",
-    version="0.1.0.dev0",
+    version="0.1.0.dev1",
     author="overcat",
     author_email="4catcode@gmail.com",
     description="Build an offline, airgapped Stellar signing device for less than $50!",
