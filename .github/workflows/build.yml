@@ -153,4 +153,4 @@ jobs:
           title: "Development Build"
           files: |
             images/*.img
-            images/*.sha256sum
+            images/*.sha256
