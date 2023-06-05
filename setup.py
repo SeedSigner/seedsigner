@@ -28,5 +28,10 @@ setuptools.setup(
         'lumensigner': [
             'resources/**',
         ]
+    },
+    entry_points={
+        'console_scripts': [
+            'lumensigner = lumensigner.cli:start',
+        ]
     }
 )
