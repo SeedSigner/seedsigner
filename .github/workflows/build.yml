@@ -122,7 +122,7 @@ jobs:
       - name: write sha256sum
         run: |
           cd images
-          sha256sum *.img > lumensigner_os.${{ env.source_hash }}.img.sha256
+          sha256sum *.img > lumensigner_os.${{ env.source_hash }}.sha256
 
       - name: upload checksums
         uses: actions/upload-artifact@v3
