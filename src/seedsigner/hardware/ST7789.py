@@ -153,7 +153,7 @@ class ST7789(object):
         if imwidth != self.width or imheight != self.height:
             raise ValueError('Image must be same dimensions as display \
                 ({0}x{1}).' .format(self.width, self.height))
-        # 24-bit RGB-8:8:8 becomes 16-bit BGR-5:6:5 plus endianness toggle.
+        # convert 24-bit RGB-8:8:8 to GBRg-3:5:5:3; then per-pixel byteswap to 16-bit RGB-5:6:5
         arr = array.array("H", Image.convert("BGR;16").tobytes())
         arr.byteswap()
         pix = arr.tobytes()
