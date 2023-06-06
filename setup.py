@@ -24,13 +24,13 @@ setuptools.setup(
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.7",
     package_data={
-        'lumensigner': [
-            'resources/**',
+        "lumensigner": [
+            "resources/**",
         ]
     },
     entry_points={
-        'console_scripts': [
-            'lumensigner = lumensigner.cli:start',
+        "console_scripts": [
+            "lumensigner = lumensigner.cli:start",
         ]
-    }
+    },
 )

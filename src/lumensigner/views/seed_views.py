@@ -444,6 +444,7 @@ class SeedOptionsView(View):
         # export stellar address
         elif button_data[selected_menu_num] == EXPLORER:
             from lumensigner.views.tools_views import AddressExporterView
+
             return Destination(
                 AddressExporterView, view_args=dict(seed_num=self.seed_num)
             )

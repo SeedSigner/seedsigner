@@ -18,6 +18,4 @@ class QRType:
     SEED__MNEMONIC = "seed__mnemonic"
     SEED__FOUR_LETTER_MNEMONIC = "seed__four_letter_mnemonic"
 
-    SETTINGS = "settings"
-
     INVALID = "invalid"

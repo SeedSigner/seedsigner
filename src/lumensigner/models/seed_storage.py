@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from lumensigner.models import Seed
 from lumensigner.models.seed import InvalidSeedException
@@ -7,7 +7,7 @@ from lumensigner.models.seed import InvalidSeedException
 class SeedStorage:
     def __init__(self) -> None:
         self.seeds: List[Seed] = []
-        self.pending_seed: Seed = None
+        self.pending_seed: Optional[Seed] = None
         self._pending_mnemonic: List[str] = []
 
     def set_pending_seed(self, seed: Seed):
@@ -29,7 +29,8 @@ class SeedStorage:
     def clear_pending_seed(self):
         self.pending_seed = None
 
-    def validate_mnemonic(self, mnemonic: List[str]) -> bool:
+    @staticmethod
+    def validate_mnemonic(mnemonic: List[str]) -> bool:
         try:
             Seed(mnemonic=mnemonic)
         except InvalidSeedException as e:
@@ -57,12 +58,12 @@ class SeedStorage:
             raise Exception(f"index {index} is too high")
         self._pending_mnemonic[index] = word
 
-    def get_pending_mnemonic_word(self, index: int) -> str:
+    def get_pending_mnemonic_word(self, index: int) -> Optional[str]:
         if index < len(self._pending_mnemonic):
             return self._pending_mnemonic[index]
         return None
 
-    def get_pending_mnemonic_fingerprint(self) -> str:
+    def get_pending_mnemonic_fingerprint(self) -> Optional[str]:
         try:
             seed = Seed(self._pending_mnemonic)
             return seed.get_fingerprint()
