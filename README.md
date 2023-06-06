@@ -69,22 +69,22 @@ However, one of the many advantages of the open source software model is that th
 ## Downloading the Software
 
    
-Download the current Version (0.1.0.dev0) software image that is compatible with your  Raspberry Pi Hardware. The Pi Zero 1.3 is the most common and recommended board.
+Download the current Version (0.1.0.dev2) software image that is compatible with your  Raspberry Pi Hardware. The Pi Zero 1.3 is the most common and recommended board.
 | Board                 | Download Image Link/Name          |
 | --------------------- | --------------------------------- |
-|**[Raspberry Pi Zero 1.3](https://www.raspberrypi.com/products/raspberry-pi-zero/)**      |[`lumensigner_os.0.1.0.dev0.pi0.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev0/lumensigner_os.0.1.0.dev0.pi0.img)      |
-|[Raspberry Pi Zero W](https://www.raspberrypi.com/products/raspberry-pi-zero-w/)    |[`lumensigner_os.0.1.0.dev0.pi0.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev0/lumensigner_os.0.1.0.dev0.pi0.img)      |
-|[Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)  |[`lumensigner_os.0.1.0.dev0.pi02w.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev0/lumensigner_os.0.1.0.dev0.pi02w.img)    |
-|[Raspberry Pi 2 Model B](https://www.raspberrypi.com/products/raspberry-pi-2-model-b/) |[`lumensigner_os.0.1.0.dev0.pi2.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev0/lumensigner_os.0.1.0.dev0.pi2.img)      |
-|[Raspberry Pi 3 Model B](https://www.raspberrypi.com/products/raspberry-pi-3-model-b/) |[`lumensigner_os.0.1.0.dev0.pi02w.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev0/lumensigner_os.0.1.0.dev0.pi02w.img)    |
-|[Raspberry Pi 4 Model B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) |[`lumensigner_os.0.1.0.dev0.pi4.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev0/lumensigner_os.0.1.0.dev0.pi4.img)      |
-|[Raspberry Pi 400](https://www.raspberrypi.com/products/raspberry-pi-400-unit/) |[`lumensigner_os.0.1.0.dev0.pi4.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev0/lumensigner_os.0.1.0.dev0.pi4.img)      |
+|**[Raspberry Pi Zero 1.3](https://www.raspberrypi.com/products/raspberry-pi-zero/)**      |[`lumensigner_os.0.1.0.dev2.pi0.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev2/lumensigner_os.0.1.0.dev2.pi0.img)      |
+|[Raspberry Pi Zero W](https://www.raspberrypi.com/products/raspberry-pi-zero-w/)    |[`lumensigner_os.0.1.0.dev2.pi0.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev2/lumensigner_os.0.1.0.dev2.pi0.img)      |
+|[Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)  |[`lumensigner_os.0.1.0.dev2.pi02w.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev2/lumensigner_os.0.1.0.dev2.pi02w.img)    |
+|[Raspberry Pi 2 Model B](https://www.raspberrypi.com/products/raspberry-pi-2-model-b/) |[`lumensigner_os.0.1.0.dev2.pi2.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev2/lumensigner_os.0.1.0.dev2.pi2.img)      |
+|[Raspberry Pi 3 Model B](https://www.raspberrypi.com/products/raspberry-pi-3-model-b/) |[`lumensigner_os.0.1.0.dev2.pi02w.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev2/lumensigner_os.0.1.0.dev2.pi02w.img)    |
+|[Raspberry Pi 4 Model B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) |[`lumensigner_os.0.1.0.dev2.pi4.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev2/lumensigner_os.0.1.0.dev2.pi4.img)      |
+|[Raspberry Pi 400](https://www.raspberrypi.com/products/raspberry-pi-400-unit/) |[`lumensigner_os.0.1.0.dev2.pi4.img`](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev2/lumensigner_os.0.1.0.dev2.pi4.img)      |
 
 Note: If you have physically removed the WiFi component from your board, you will still use the image file of the original(un-modified) hardware. (Our files are compiled/based on the *processor* architecture). Although it is better to spend a few minutes upfront to determine which specific Pi hardware/model you have, if you are still unsure which hardware you have, you can try using the pi0.img file. Making an incorrect choice here will not ruin your board, because this is software, not firmware. 
 
 **also download** these 2 signature verification files to the same folder  
-[The Plaintext manifest file](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev0/lumensigner_os.0.1.0.dev0.sha256)  
-[The Signature of the manifest file](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev0/lumensigner_os.0.1.0.dev0.sha256.sig)
+[The Plaintext manifest file](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev2/lumensigner_os.0.1.0.dev2.sha256)  
+[The Signature of the manifest file](https://github.com/LumenSigner/lumensigner/releases/download/0.1.0.dev2/lumensigner_os.0.1.0.dev2.sha256.sig)
 
 Once the files have all finished downloading, follow the steps below to verify the download before continuing on to write the software onto a MicroSD card. Next, insert the MicroSD into your assembled hardware and connect the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your LumenSigner! 
 
@@ -111,7 +111,7 @@ The result should confirm that 1 key was *either* imported or updated. *Ignore* 
 
 Next, you will run the *verify* command on the signature (.sig) file. (*Verify* must be run from inside the same folder that you downloaded the files into earlier. The `*`'s in this command will auto-fill the version from your current folder, so it should be copied and pasted as-is.)   
 ```
-gpg --verify lumensigner_os.0.1.0.dev0.sha256.sig
+gpg --verify lumensigner_os.0.1.0.dev2.sha256.sig
 ```
 
 When the verify command completes successfully, it should display output like this:
@@ -183,14 +183,14 @@ shasum -a 256 --ignore-missing --check lumensigner.0.1.*.sha256
 
 **On Windows (inside Powershell):** Run this command
 ```
-CertUtil -hashfile gpg --verify lumensigner_os.0.1.0.dev0.Insert_Your_Pi_Models_binary_here_For_Example_pi02w.img SHA256 
+CertUtil -hashfile gpg --verify lumensigner_os.0.1.0.dev2.Insert_Your_Pi_Models_binary_here_For_Example_pi02w.img SHA256 
 ```
 On Windows, you must then manually compare the resulting file hash value to the corresponding hash value shown inside the .SHA256 cleartext file.
  <BR>
 
 Wait up to 30 seconds for the command to complete, and it should display:
 ```
-lumensigner_os.0.1.0.dev0.[Your_Pi_Model_For_Example:pi02w].img: OK
+lumensigner_os.0.1.0.dev2.[Your_Pi_Model_For_Example:pi02w].img: OK
 ```
 **If you receive the "OK" message** for your **lumensigner.0.1.x.[Your_Pi_Model_For_Example:pi02w].img file**, as shown above, then your verification is fully complete!  
 **All of your downloaded files have now been confirmed as both authentic and unaltered!** You can proceed to create/write your MicroSD card😄😄 !!     
