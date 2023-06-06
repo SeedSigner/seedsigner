@@ -43,6 +43,61 @@ def test_singleton_get_instance_preserves_state(reset_controller):
     assert controller.unverified_address == "123abc"
 
 
+def test_handle_exception(reset_controller):
+    """ Handle exceptions that get caught by the controller """
+
+    def process_exception_return_error(exception_type, error_msg=None):
+        try:
+            if error_msg:
+                raise exception_type(error_msg)
+            else:
+                raise exception_type()
+        except Exception as e:
+            destination = controller.handle_exception(e)
+            return destination.view_args["error"]
+
+    def is_valid_error_structure(error, exception_type, exception_msg):
+        """
+        Exceptions caught by the controller are forwarded to the
+        UnhandledExceptionView with view_args["error"] being a list
+        of three strings, ie: [exception_type, line_info, exception_msg]
+        """
+        if len(error) != 3:
+            return False
+
+        if error[0] not in str(exception_type):
+            return False
+
+        if type(error[1]) != str:
+            return False
+
+        if exception_msg:
+            if exception_msg not in error[2]:
+                return False
+        else:
+            if error[2] != "":
+                return False
+
+        return True
+
+    # Initialize the controller
+    controller = Controller.get_instance()
+
+    # Test exceptions with an exception_msg
+    error = process_exception_return_error(Exception, "foo")
+    assert is_valid_error_structure(error, Exception, "foo")
+
+    error = process_exception_return_error(KeyError, "key not found")
+    assert is_valid_error_structure(error, KeyError, "key not found")
+
+    # Test exceptions without an exception_msg
+    error = process_exception_return_error(Exception, "")
+    assert is_valid_error_structure(error, Exception, "")
+
+    error = process_exception_return_error(Exception, None)
+    assert is_valid_error_structure(error, Exception, None)
+
+
 def test_missing_settings_get_defaults(reset_controller):
     """ Should gracefully handle all missing fields from `settings.json` """
 
