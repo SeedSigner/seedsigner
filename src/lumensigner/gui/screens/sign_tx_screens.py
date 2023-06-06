@@ -1,4 +1,5 @@
 import base64
+import locale
 import math
 from dataclasses import dataclass
 from datetime import datetime
@@ -123,7 +124,9 @@ def build_tx_info_screens(te: TransactionEnvelope) -> List[GenericTxDetailsScree
     items.append(Item(label=network_title, content=network_content))
 
     # Max Fee
-    items.append(Item(label="Max Fee", content=f"{from_xdr_amount(tx.fee)} XLM"))
+    items.append(
+        Item(label="Max Fee", content=f"{format_number(from_xdr_amount(tx.fee))} XLM")
+    )
 
     # Memo
     if isinstance(tx.memo, NoneMemo):
@@ -247,7 +250,7 @@ class CreateAccountOperationScreen(GenericTxDetailsScreen):
     tx_source: MuxedAccount = None
 
     def __post_init__(self):
-        send_str = f"{self.op.starting_balance} XLM"
+        send_str = f"{format_number(self.op.starting_balance)} XLM"
 
         items = [
             Item(label="Send", content=send_str, auto_trim_content=False),
@@ -270,7 +273,7 @@ class PaymentOperationScreen(GenericTxDetailsScreen):
     def __post_init__(self):
         asset_str = format_asset(self.op.asset)
 
-        send_str = f"{self.op.amount} {asset_str}"
+        send_str = f"{format_number(self.op.amount)} {asset_str}"
         items = [
             Item(label="Send", content=send_str, auto_trim_content=False),
             Item(label="To", content=self.op.destination.universal_account_id),
@@ -291,7 +294,7 @@ class PathPaymentStrictReceiveOperationScreen(GenericTxDetailsScreen):
 
     def __post_init__(self):
         send_asset_str = format_asset(self.op.send_asset)
-        send_str = f"{self.op.send_max} {send_asset_str}"
+        send_str = f"{format_number(self.op.send_max)} {send_asset_str}"
 
         items = [
             Item(label="Path Pay At Most", content=send_str, auto_trim_content=False),
@@ -313,7 +316,7 @@ class PathPaymentStrictSendOperationScreen(GenericTxDetailsScreen):
 
     def __post_init__(self):
         send_asset_str = format_asset(self.op.send_asset)
-        send_str = f"{self.op.send_amount} {send_asset_str}"
+        send_str = f"{format_number(self.op.send_amount)} {send_asset_str}"
 
         items = [
             Item(label="Path Pay", content=send_str, auto_trim_content=False),
@@ -343,7 +346,7 @@ class ManageSellOfferOperationScreenPage1(GenericTxDetailsScreen):
                 op_type = f"Update Offer #{self.op.offer_id}"
 
         sell_asset_str = format_asset(self.op.selling)
-        sell_str = f"{self.op.amount} {sell_asset_str}"
+        sell_str = f"{format_number(self.op.amount)} {sell_asset_str}"
         buy_asset_str = format_asset(self.op.buying)
 
         items = [
@@ -364,8 +367,8 @@ class ManageSellOfferOperationScreenPage2(GenericTxDetailsScreen):
     tx_source: MuxedAccount = None
 
     def __post_init__(self):
-        price = Decimal(self.op.price.n) / Decimal(self.op.price.d)
-        price_str = f"{price} {format_asset(self.op.buying, include_issuer=False)}/{format_asset(self.op.selling, include_issuer=False)}"
+        price = str(Decimal(self.op.price.n) / Decimal(self.op.price.d))
+        price_str = f"{format_number(price)} {format_asset(self.op.buying, include_issuer=False)}/{format_asset(self.op.selling, include_issuer=False)}"
 
         items = [
             Item(label="Price", content=price_str, auto_trim_content=False),
@@ -394,7 +397,7 @@ class ManageBuyOfferOperationScreenPage1(GenericTxDetailsScreen):
                 op_type = f"Update Offer #{self.op.offer_id}"
 
         buy_asset_str = format_asset(self.op.buying)
-        buy_str = f"{self.op.amount} {buy_asset_str}"
+        buy_str = f"{format_number(self.op.amount)} {buy_asset_str}"
         sell_asset_str = format_asset(self.op.selling)
 
         items = [
@@ -415,8 +418,8 @@ class ManageBuyOfferOperationScreenPage2(GenericTxDetailsScreen):
     tx_source: MuxedAccount = None
 
     def __post_init__(self):
-        price = Decimal(self.op.price.n) / Decimal(self.op.price.d)
-        price_str = f"{price} {format_asset(self.op.selling, include_issuer=False)}/{format_asset(self.op.buying, include_issuer=False)}"
+        price = str(Decimal(self.op.price.n) / Decimal(self.op.price.d))
+        price_str = f"{format_number(price)} {format_asset(self.op.selling, include_issuer=False)}/{format_asset(self.op.buying, include_issuer=False)}"
 
         items = [
             Item(label="Price", content=price_str, auto_trim_content=False),
@@ -438,7 +441,7 @@ class CreatePassiveSellOfferOperationScreenPage1(GenericTxDetailsScreen):
     def __post_init__(self):
         op_type = "Create Passive Offer"
         sell_asset_str = format_asset(self.op.selling)
-        sell_str = f"{self.op.amount} {sell_asset_str}"
+        sell_str = f"{format_number(self.op.amount)} {sell_asset_str}"
         buy_asset_str = format_asset(self.op.buying)
 
         items = [
@@ -459,8 +462,8 @@ class CreatePassiveSellOfferOperationScreenPage2(GenericTxDetailsScreen):
     tx_source: MuxedAccount = None
 
     def __post_init__(self):
-        price = Decimal(self.op.price.n) / Decimal(self.op.price.d)
-        price_str = f"{price} {format_asset(self.op.buying, include_issuer=False)}/{format_asset(self.op.selling, include_issuer=False)}"
+        price = str(Decimal(self.op.price.n) / Decimal(self.op.price.d))
+        price_str = f"{format_number(price)} {format_asset(self.op.buying, include_issuer=False)}/{format_asset(self.op.selling, include_issuer=False)}"
 
         items = [
             Item(label="Price", content=price_str, auto_trim_content=False),
@@ -490,9 +493,11 @@ class ChangeTrustOperationScreen(GenericTxDetailsScreen):
             op_type = "Add Trustline"
             if isinstance(self.op.asset, LiquidityPoolAsset):
                 # TODO: check if this is correct
-                line = f"{self.op.limit} {self.op.asset.liquidity_pool_id}"
+                line = (
+                    f"{format_number(self.op.limit)} {self.op.asset.liquidity_pool_id}"
+                )
             else:
-                line = f"{self.op.limit} {format_asset(self.op.asset)}"
+                line = f"{format_number(self.op.limit)} {format_asset(self.op.asset)}"
 
         items = [
             Item(label="Operation Type", content=op_type),
@@ -660,7 +665,7 @@ class CreateClaimableBalanceOperationScreenPage2(GenericTxDetailsScreen):
     tx_source: MuxedAccount = None
 
     def __post_init__(self):
-        balance = f"{self.op.amount} {format_asset(self.op.asset)}"
+        balance = f"{format_number(self.op.amount)} {format_asset(self.op.asset)}"
         items = [
             Item(label="Balance", content=balance),
         ]
@@ -901,7 +906,7 @@ class LiquidityPoolDepositOperationScreenPage1(GenericTxDetailsScreen):
         items = [
             Item(label="Operation Type", content="Liquidity Pool Deposit"),
             Item(label="Liquidity Pool ID", content=self.op.liquidity_pool_id),
-            Item(label="Max Amount A", content=self.op.max_amount_a),
+            Item(label="Max Amount A", content=format_number(self.op.max_amount_a)),
         ]
 
         self.title = f"Operation {self.op_index + 1}"
@@ -916,15 +921,17 @@ class LiquidityPoolDepositOperationScreenPage2(GenericTxDetailsScreen):
     tx_source: MuxedAccount = None
 
     def __post_init__(self):
+        min_price = f"{self.op.min_price.n / self.op.min_price.d:.7f}"
+        max_price = f"{self.op.max_price.n / self.op.max_price.d:.7f}"
         items = [
-            Item(label="Max Amount B", content=self.op.max_amount_b),
+            Item(label="Max Amount B", content=format_number(self.op.max_amount_b)),
             Item(
                 label="Min Price",
-                content=f"{self.op.min_price.n / self.op.min_price.d:.7f}",
+                content=format_number(min_price),
             ),
             Item(
                 label="Max Price",
-                content=f"{self.op.max_price.n / self.op.max_price.d:.7f}",
+                content=format_number(max_price),
             ),
         ]
 
@@ -944,7 +951,7 @@ class LiquidityPoolWithdrawOperationScreenPage1(GenericTxDetailsScreen):
         items = [
             Item(label="Operation Type", content="Liquidity Pool Withdraw"),
             Item(label="Liquidity Pool ID", content=self.op.liquidity_pool_id),
-            Item(label="Amount", content=self.op.amount),
+            Item(label="Amount", content=format_number(self.op.amount)),
         ]
 
         append_op_source_to_items(items, self.op.source, self.tx_source)
@@ -961,8 +968,8 @@ class LiquidityPoolWithdrawOperationScreenPage2(GenericTxDetailsScreen):
 
     def __post_init__(self):
         items = [
-            Item(label="Min Amount A", content=self.op.min_amount_a),
-            Item(label="Min Amount B", content=self.op.min_amount_b),
+            Item(label="Min Amount A", content=format_number(self.op.min_amount_a)),
+            Item(label="Min Amount B", content=format_number(self.op.min_amount_b)),
         ]
 
         append_op_source_to_items(items, self.op.source, self.tx_source)
@@ -1094,7 +1101,10 @@ class FeeBumpTransactionScreen(GenericTxDetailsScreen):
         )
         items = [
             Item(label=network_title, content=network_content),
-            Item(label="Max Fee", content=f"{from_xdr_amount(max_fee)} XLM"),
+            Item(
+                label="Max Fee",
+                content=f"{format_number(from_xdr_amount(max_fee))} XLM",
+            ),
             Item(label="Fee Source", content=tx.fee_source.universal_account_id),
             Item(
                 label="Inner Transaction Hash",
@@ -1304,3 +1314,19 @@ def format_network(network_passphrase: str) -> Tuple[str, str]:
         network_title = "Network Passphrase"
         network_content = network_passphrase
     return network_title, network_content
+
+
+def format_number(num_str: str) -> str:
+    try:
+        num = float(num_str)
+    except ValueError:
+        return num_str
+
+    locale.setlocale(locale.LC_ALL, "")
+    int_part = locale.format_string("%d", int(num), grouping=True)
+    dec_part = ""
+    if "." in num_str:
+        dec_part = num_str.split(".", 1)[1]
+        dec_part = "." + dec_part
+
+    return int_part + dec_part
