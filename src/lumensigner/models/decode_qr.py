@@ -1,12 +1,13 @@
 import logging
 import re
 from enum import IntEnum
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Tuple
 
 from PIL.Image import Image
 from embit import bip39
 from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
+from stellar_sdk import TransactionEnvelope
 from stellar_sdk.helpers import parse_transaction_envelope_from_xdr
 
 from lumensigner.models.qr_type import QRType, QRTYPE_SPLITTER
@@ -102,21 +103,37 @@ class DecodeQR:
             self.complete = True
         return rt
 
-    def get_seed_phrase(self):
-        if self.is_seed:
-            return self.decoder.get_seed_phrase()
+    def get_seed_phrase(self) -> List[str]:
+        """
+        :return: List of seed phrase words
+        """
+        if not self.is_seed:
+            raise Exception("Not a seed type")
+        return self.decoder.get_seed_phrase()
 
-    def get_sign_hash_data(self):
-        if self.is_sign_hash:
-            return self.decoder.address_index, self.decoder.hash
+    def get_sign_hash_data(self) -> Tuple[int, str]:
+        """
+        :return: Tuple of (address_index, hash)
+        """
+        if not self.is_sign_hash:
+            raise Exception("Not a sign hash type")
+        return self.decoder.address_index, self.decoder.hash
 
-    def get_sign_transaction_data(self):
-        if self.is_transaction:
-            return self.decoder.get_data()
+    def get_sign_transaction_data(self) -> Tuple[int, TransactionEnvelope]:
+        """
+        :return: Tuple of (address_index, TransactionEnvelope)
+        """
+        if not self.is_sign_transaction:
+            raise Exception("Not a sign transaction type")
+        return self.decoder.get_data()
 
-    def get_request_address_data(self):
-        if self.is_request_address:
-            return self.decoder.address_index
+    def get_request_address_data(self) -> int:
+        """
+        :return: address_index
+        """
+        if not self.is_request_address:
+            raise Exception("Not a request address type")
+        return self.decoder.address_index
 
     def get_percent_complete(self) -> int:
         if not self.decoder:
@@ -160,7 +177,7 @@ class DecodeQR:
         return self.qr_type == QRType.SIGN_HASH
 
     @property
-    def is_transaction(self):
+    def is_sign_transaction(self):
         return self.qr_type == QRType.SIGN_TX
 
     @property
@@ -323,7 +340,7 @@ class SignTransactionQrDecode(BaseAnimatedQrDecoder):
     def is_complete(self) -> bool:
         return self.complete
 
-    def get_data(self):
+    def get_data(self) -> Tuple[int, TransactionEnvelope]:
         data = "".join(self.segments).split(QRTYPE_SPLITTER, 2)
         if len(data) != 3:
             raise ValueError("Invalid data")
@@ -392,7 +409,7 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
                     word = self.wordlist[index]
                     self.seed_phrase.append(word)
                 if len(self.seed_phrase) > 0:
-                    if self.is_12_or_24_word_phrase() == False:
+                    if self.is_12_or_24_word_phrase() is False:
                         return DecodeQRStatus.INVALID
                     self.complete = True
                     self.collected_segments = 1
@@ -426,7 +443,7 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
                     # seed is not valid, return invalid
                     return DecodeQRStatus.INVALID
                 self.seed_phrase = seed_phrase_list
-                if self.is_12_or_24_word_phrase() == False:
+                if self.is_12_or_24_word_phrase() is False:
                     return DecodeQRStatus.INVALID
                 self.complete = True
                 self.collected_segments = 1
@@ -453,7 +470,7 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
                     # seed is not valid, return invalid
                     return DecodeQRStatus.INVALID
                 self.seed_phrase = words
-                if self.is_12_or_24_word_phrase() == False:
+                if self.is_12_or_24_word_phrase() is False:
                     return DecodeQRStatus.INVALID
                 self.complete = True
                 self.collected_segments = 1

@@ -149,11 +149,11 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         )
 
     def calc_possible_alphabet(self, new_letter=False):
-        if (self.letters and len(self.letters) > 1 and new_letter == False) or (
+        if (self.letters and len(self.letters) > 1 and new_letter is False) or (
             len(self.letters) > 0 and new_letter == True
         ):
             search_letters = self.letters[:]
-            if new_letter == False:
+            if new_letter is False:
                 search_letters.pop()
             self.calc_possible_words()
             letter_num = len(search_letters)

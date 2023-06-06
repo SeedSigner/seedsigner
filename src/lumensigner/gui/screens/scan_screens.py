@@ -87,7 +87,7 @@ class ScanScreen(BaseScreen):
                     if (
                         self.decoder
                         and self.decoder.get_percent_complete() > 0
-                        and self.decoder.is_transaction
+                        and self.decoder.is_sign_transaction
                     ):
                         scan_text = (
                             str(self.decoder.get_percent_complete()) + "% Complete"
