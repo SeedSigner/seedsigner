@@ -46,56 +46,43 @@ def test_singleton_get_instance_preserves_state(reset_controller):
 def test_handle_exception(reset_controller):
     """ Handle exceptions that get caught by the controller """
 
-    def process_exception_return_error(exception_type, error_msg=None):
-        try:
-            if error_msg:
-                raise exception_type(error_msg)
-            else:
-                raise exception_type()
-        except Exception as e:
-            destination = controller.handle_exception(e)
-            return destination.view_args["error"]
-
-    def is_valid_error_structure(error, exception_type, exception_msg):
+    def process_exception_asserting_valid_error(exception_type, exception_msg=None):
         """
         Exceptions caught by the controller are forwarded to the
         UnhandledExceptionView with view_args["error"] being a list
         of three strings, ie: [exception_type, line_info, exception_msg]
         """
-        if len(error) != 3:
-            return False
+        try:
+            if exception_msg:
+                raise exception_type(exception_msg)
+            else:
+                raise exception_type()
+        except Exception as e:
+            error = controller.handle_exception(e).view_args["error"]
 
-        if error[0] not in str(exception_type):
-            return False
-
-        if type(error[1]) != str:
-            return False
-
+        # assert that error structure is valid
+        assert len(error) == 3
+        assert error[0] in str(exception_type)
+        assert type(error[1]) == str
         if exception_msg:
-            if exception_msg not in error[2]:
-                return False
+            assert exception_msg in error[2]
         else:
-            if error[2] != "":
-                return False
-
-        return True
+            assert error[2] == ""
 
     # Initialize the controller
     controller = Controller.get_instance()
 
-    # Test exceptions with an exception_msg
-    error = process_exception_return_error(Exception, "foo")
-    assert is_valid_error_structure(error, Exception, "foo")
-
-    error = process_exception_return_error(KeyError, "key not found")
-    assert is_valid_error_structure(error, KeyError, "key not found")
-
-    # Test exceptions without an exception_msg
-    error = process_exception_return_error(Exception, "")
-    assert is_valid_error_structure(error, Exception, "")
-
-    error = process_exception_return_error(Exception, None)
-    assert is_valid_error_structure(error, Exception, None)
+    exception_tests = [
+        # exceptions with an exception_msg
+        (Exception, "foo"),
+        (KeyError, "key not found"),
+        # exceptions without an exception_msg
+        (Exception, ""),
+        (Exception, None),
+    ]
+        
+    for exception_type, exception_msg in exception_tests:
+        process_exception_asserting_valid_error(exception_type, exception_msg)
 
 
 def test_missing_settings_get_defaults(reset_controller):
