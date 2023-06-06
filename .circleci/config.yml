@@ -33,7 +33,7 @@ jobs:
           name: "inject latest commit sha to lumensigner"
           command: |
                 cd seedsigner-os/opt/rootfs-overlay/opt/src/lumensigner
-                sed -i 's/__commit_sha__ = ""/__commit_sha__ = "${CIRCLE_SHA1}"/g' __init__.py
+                sed -i "s/__commit_sha__ = \"\"/__commit_sha__ = \"${CIRCLE_SHA1}\"/g" __init__.py
                 cat __init__.py
       - run:
           name: "install dependencies"
