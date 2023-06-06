@@ -364,7 +364,7 @@ class SeedOptionsView(View):
         self.seed = self.controller.get_seed(self.seed_num)
 
     def run(self):
-        SCAN_TX = ("Scan Transaction", FontAwesomeIconConstants.QRCODE)
+        SCAN = ("Scan", FontAwesomeIconConstants.QRCODE)
         EXPLORER = "Address Explorer"
         BACKUP = (
             "Backup Seed",
@@ -420,7 +420,7 @@ class SeedOptionsView(View):
                 skip_current_view=True,
             )
 
-        button_data.append(SCAN_TX)
+        button_data.append(SCAN)
         button_data.append(EXPLORER)
         button_data.append(BACKUP)
         button_data.append(DISCARD)
@@ -435,11 +435,10 @@ class SeedOptionsView(View):
             # Force BACK to always return to the Main Menu
             return Destination(MainMenuView)
 
-        if button_data[selected_menu_num] == SCAN_TX:
+        if button_data[selected_menu_num] == SCAN:
             from lumensigner.views.scan_views import ScanView
 
-            self.controller.sign_seed = self.controller.get_seed(self.seed_num)
-            return Destination(ScanView)
+            return Destination(ScanView, view_args=dict(seed=self.seed))
 
         # export stellar address
         elif button_data[selected_menu_num] == EXPLORER:

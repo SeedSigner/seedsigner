@@ -85,7 +85,6 @@ class Controller(Singleton):
 
     def __init__(self):
         super().__init__()
-        self.sign_seed = None
 
     @classmethod
     def get_instance(cls):
@@ -231,7 +230,6 @@ class Controller(Singleton):
 
                     # Home always wipes the back_stack/state of temp vars
                     self.address_explorer_data = None
-                    self.sign_seed = None
                     self.sign_hash_data: Optional[tuple[int, str]] = None
                     self.tx_data: Optional[
                         tuple[

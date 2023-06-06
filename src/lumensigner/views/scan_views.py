@@ -1,7 +1,5 @@
 from lumensigner.models import DecodeQR, Seed
 from lumensigner.models.settings import SettingsConstants
-from lumensigner.views.request_address import RequestAddressSelectSeedView
-from lumensigner.views.sign_tx_views import TransactionSelectSeedView
 
 from lumensigner.views.view import (
     MainMenuView,
@@ -12,6 +10,15 @@ from lumensigner.views.view import (
 
 
 class ScanView(View):
+    """
+    :param seed: If the seed is already known,
+        it can be passed in here to skip the select seed screen
+    """
+
+    def __init__(self, seed: Seed = None):
+        super().__init__()
+        self.seed = seed
+
     def run(self):
         from lumensigner.gui.screens.scan_screens import ScanScreen
 
@@ -52,21 +59,57 @@ class ScanView(View):
                         return Destination(SeedFinalizeView)
 
             elif self.decoder.is_sign_hash:
-                from lumensigner.views.sign_hash_views import SignHashSelectSeedView
+                from lumensigner.views.sign_hash_views import (
+                    SignHashSelectSeedView,
+                    SignHashDireWarningView,
+                )
+
+                if self.seed:
+                    address_index = self.controller.sign_hash_data[0]
+                    return Destination(
+                        SignHashDireWarningView,
+                        view_args=dict(seed=self.seed, address_index=address_index),
+                    )
 
                 self.controller.sign_hash_data = self.decoder.get_sign_hash_data()
                 return Destination(SignHashSelectSeedView, skip_current_view=True)
 
             elif self.decoder.is_sign_transaction:
+                from lumensigner.views.sign_tx_views import (
+                    TransactionSelectSeedView,
+                    TransactionDetailsView,
+                )
+
                 self.controller.tx_data = self.decoder.get_sign_transaction_data()
                 print("Transaction: ", self.controller.tx_data)
+                if self.seed:
+                    address_index, te = self.controller.tx_data
+                    return Destination(
+                        TransactionDetailsView,
+                        view_args=dict(
+                            te=te, seed=self.seed, address_index=address_index
+                        ),
+                        skip_current_view=True,
+                    )
+
                 return Destination(TransactionSelectSeedView, skip_current_view=True)
 
             elif self.decoder.is_request_address:
+                from lumensigner.views.request_address import (
+                    RequestAddressSelectSeedView,
+                    RequestAddressShareAddressView,
+                )
+
                 self.controller.request_address_data = (
                     self.decoder.get_request_address_data()
                 )
                 print("Request Address: ", self.controller.request_address_data)
+                if self.seed:
+                    address_index = self.controller.request_address_data
+                    return Destination(
+                        RequestAddressShareAddressView,
+                        view_args=dict(seed=self.seed, address_index=address_index),
+                    )
                 return Destination(RequestAddressSelectSeedView, skip_current_view=True)
 
             else:
