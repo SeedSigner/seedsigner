@@ -3,6 +3,7 @@ import time
 
 from PIL import Image
 
+from lumensigner import __version__
 from lumensigner.gui.components import Fonts, GUIConstants, load_image
 from lumensigner.gui.screens.screen import BaseScreen
 
@@ -35,7 +36,7 @@ class OpeningSplashScreen(LogoScreen):
         font = Fonts.get_font(
             GUIConstants.BODY_FONT_NAME, GUIConstants.TOP_NAV_TITLE_FONT_SIZE
         )
-        version = f"v{controller.VERSION}"
+        version = f"v{__version__}"
 
         # The logo png is 240x240, but the actual logo is 70px tall, vertically centered
         version_x = int(self.renderer.canvas_width / 2)

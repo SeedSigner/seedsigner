@@ -4,6 +4,7 @@ from typing import List
 
 from PIL.ImageOps import autocontrast
 
+from lumensigner import __version__, __commit_sha__
 from lumensigner.gui.components import (
     Button,
     CheckboxButton,
@@ -319,9 +320,24 @@ class AboutScreen(BaseTopNavScreen):
 
         self.components.append(
             TextArea(
+                text=f"v{__version__}",
+                screen_y=self.top_nav.height + 2 * GUIConstants.COMPONENT_PADDING,
+            )
+        )
+        self.components.append(
+            TextArea(
+                text=__commit_sha__[:8],
+                screen_y=self.components[-1].screen_y
+                + self.components[-1].height
+                + GUIConstants.COMPONENT_PADDING * 2,
+            )
+        )
+        self.components.append(
+            TextArea(
                 text="LumenSigner is 100% free and open source, "
-                "anyone can build it themselves, "
                 "you can get the source code from github.com/LumenSigner",
-                screen_y=self.top_nav.height + 3 * GUIConstants.COMPONENT_PADDING,
+                screen_y=self.components[-1].screen_y
+                + self.components[-1].height
+                + GUIConstants.COMPONENT_PADDING * 2,
             )
         )

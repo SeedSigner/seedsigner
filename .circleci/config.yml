@@ -30,6 +30,12 @@ jobs:
             ls -la .
             ls -la src
       - run:
+          name: "inject latest commit sha to lumensigner"
+          command: |
+                cd seedsigner-os/opt/rootfs-overlay/opt/src/lumensigner
+                sed -i 's/__commit_sha__ = ""/__commit_sha__ = "${CIRCLE_SHA1}"/g' __init__.py
+                cat __init__.py
+      - run:
           name: "install dependencies"
           command: "sudo apt-get update && sudo apt-get install -y make binutils build-essential gcc g++ patch gzip bzip2 perl tar cpio unzip rsync file bc libssl-dev && sudo apt-get clean"
       - run:
