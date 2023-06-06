@@ -1,5 +1,5 @@
 import unicodedata
-from typing import List
+from typing import List, Optional
 
 from embit import bip39
 from stellar_sdk import Keypair
@@ -29,7 +29,7 @@ class Seed:
         self._passphrase: str = ""
         self.set_passphrase(passphrase, regenerate_seed=False)
 
-        self.seed_bytes: bytes = None
+        self.seed_bytes: Optional[bytes] = None
         self._generate_seed()
 
     @staticmethod
@@ -44,7 +44,7 @@ class Seed:
                 f"Unrecognized wordlist_language_code {wordlist_language_code}"
             )
 
-    def _generate_seed(self) -> bool:
+    def _generate_seed(self) -> None:
         try:
             self.seed_bytes = bip39.mnemonic_to_seed(
                 self.mnemonic_str, password=self._passphrase, wordlist=self.wordlist
@@ -101,9 +101,9 @@ class Seed:
         kp = Keypair.from_mnemonic_phrase(
             self.mnemonic_str, passphrase=self.passphrase, index=0
         )
-        return kp.raw_secret_key().hex()[-8:]
+        return kp.raw_public_key().hex()[-8:]
 
-    ### override operators
+    # override operators
     def __eq__(self, other):
         if isinstance(other, Seed):
             return self.seed_bytes == other.seed_bytes
