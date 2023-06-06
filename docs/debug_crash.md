@@ -1,18 +1,18 @@
 ## Debugging a Crash for advanced (technical) users
 
-These instructions are intended to help users of SeedSigner provide crash exception and traceback logs to developers to aid in troubleshooting and resolving bugs.
+These instructions are intended to help users of LumenSigner provide crash exception and traceback logs to developers to aid in troubleshooting and resolving bugs.
 
-### Testnet vs Mainnet
+### Testnet vs Public
 
-Whenever possible recreate a crash in testnet. This will help avoid accidently revealing private information about yourself, your bitcoin transactions, or lose any funds.
+Whenever possible recreate a crash in testnet. This will help avoid accidently revealing private information about yourself, your Stellar transactions, or lose any funds.
 
-### Network connected SeedSigner
+### Network connected LumenSigner
 
-If you are using SeedSigner for development and testing, then I recommend network access via ssh to view crash logs. Follow [these](https://github.com/SeedSigner/seedsigner/blob/main/docs/usb_relay.md) instructions to setup a USB relay for internet access. You can also connect your SeedSigner to Wifi if you have a rasp pi zero w/ wifi.
+If you are using LumenSigner for development and testing, then I recommend network access via ssh to view crash logs. Follow [these](https://github.com/LumenSigner/lumensigner/blob/main/docs/usb_relay.md) instructions to setup a USB relay for internet access. You can also connect your LumenSigner to Wifi if you have a rasp pi zero w/ wifi.
 
 ### Airgapped debugging setup
 
-If you are using SeedSigner for mainnet transactions, then do not connect your device to a network or the internet. Instead connect your SeedSigner to a HDMI display (without internet) and a USB keyboard. This will require an HDMI adapter and micro USB to USB A adapter. Plug in the HDMI display and keyboard before powering on SeedSigner. The password for the SeedSigner pi user is `raspberry`.
+If you are using LumenSigner for mainnet transactions, then do not connect your device to a network or the internet. Instead connect your LumenSigner to a HDMI display (without internet) and a USB keyboard. This will require an HDMI adapter and micro USB to USB A adapter. Plug in the HDMI display and keyboard before powering on LumenSigner. The password for the LumenSigner pi user is `raspberry`.
 
 ### Debugging steps
 
@@ -20,18 +20,16 @@ At this point you should be signed into the pi user either on a HDMI display (vi
 
 Follow these steps to setup a debug session.
 
-`cd seedsigner/src`
+`cd lumensigner/src`
 
-`nano settings.ini`
+`export LUMEN_SIGNER_DEV_MODE=1`
 
-in nano editor change `debug = False` to `debug = True` (case sensitive). Save and exit settings.ini.
+stop the lumensigner systemd process by running
 
-stop the seedsigner systemd process by running
-
-`sudo systemctl stop seedsigner.service`
+`sudo systemctl stop lumensigner.service`
 
 now start the python app manually by running
 
 `python3 main.py`
 
-SeedSigner should now be up and running. Keep it connected to the display and keyboard. Recreate the steps to cause the crash. The traceback log and exception will be displayed on the HDMI display.
+LumenSigner should now be up and running. Keep it connected to the display and keyboard. Recreate the steps to cause the crash. The traceback log and exception will be displayed on the HDMI display.

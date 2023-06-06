@@ -1,5 +1,7 @@
 # SeedQR Format Specification
 
+The SeedQR format of LumenSigner is exactly the same as SeedSigner.
+
 [SeedSigner](https://github.com/SeedSigner/seedsigner/) is an open source, DIY, fully-airgapped Bitcoin hardware wallet that wipes all private data from memory each time it's turned off. That means users need to re-enter their Bitcoin private key each time they use it.
 
 To speed up this key entry process we have defined a way to encode a private key as a QR code that can be instantly scanned into a SeedSigner or potentially any other Bitcoin hardware wallet that has a camera.

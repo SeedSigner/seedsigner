@@ -3,7 +3,7 @@
 ### Quickly generate a new seed to test with
 Generate a new 12- or 24-word seed via [https://iancoleman.io/bip39/](https://iancoleman.io/bip39/).
 
-Access a `python3` environment that has the `embit` library installed (e.g. your own local machine, ssh into the SeedSigner, etc)
+Access a `python3` environment that has the `embit` library installed (e.g. your own local machine, ssh into the LumenSigner, etc)
 
 Start a python REPL session by just typing: `python3`
 
@@ -26,7 +26,7 @@ For the seed in the snippet, you should see:
 
 Take the output and paste it into a [QR code generator](https://www.the-qrcode-generator.com/).
 
-Start up SeedSigner's UI to import a seed from a QR code. Scan the new QR code and you're good to go!
+Start up LumenSigner's UI to import a seed from a QR code. Scan the new QR code and you're good to go!
 
 
 # Advanced developer notes
@@ -35,7 +35,7 @@ Start up SeedSigner's UI to import a seed from a QR code. Scan the new QR code a
 
 You can back up and restore any size SD card but the process is a little inefficient so the bigger the source SD card, the bigger the backup will be and the longer it'll take to create (and even longer to image back to a new SD card), even if most of the card is blank.
 
-You can restore a backup image to an SD card of the same or larger size. So it's strongly recommended to do repetitive development work on a smaller card that's easier to backup and restore. Once the image is stabilized, then write it to a bigger card, if necessary (that being said, there's really no reason to use a large SD card for SeedSigner. An 8GB SD card is more than big enough).
+You can restore a backup image to an SD card of the same or larger size. So it's strongly recommended to do repetitive development work on a smaller card that's easier to backup and restore. Once the image is stabilized, then write it to a bigger card, if necessary (that being said, there's really no reason to use a large SD card for LumenSigner. An 8GB SD card is more than big enough).
 
 Insert the SD card into a Mac/Linux machine and create a compressed img file.
 
@@ -54,7 +54,7 @@ It will most likely be `/dev/disk1` on most systems.
 Now we use `dd` to clone and `gzip` to compress it. Note that we reference the SD card by adding an `r` in front of the disk name. This speeds up the cloning considerably.
 
 ```
-sudo dd if=/dev/rdisk1 conv=sparse bs=4m | gzip -9 > seedsigner.img.gz
+sudo dd if=/dev/rdisk1 conv=sparse bs=4m | gzip -9 > lumensigner.img.gz
 ```
 
 The process should take about 15 minutes and will typically generate a roughly 1.1GB image.

@@ -185,7 +185,7 @@ sudo nano /etc/systemd/system/lumensigner.service
 Add the following contents to the text file that was created:
 ```
 [Unit]
-Description=Seedsigner
+Description=Lumensigner
 
 [Service]
 User=pi

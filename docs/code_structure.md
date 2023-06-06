@@ -1,6 +1,6 @@
 # Code Structure
 
-SeedSigner roughly follows a Model-View-Controller approach. Like in a typical web app (e.g. Flask) the `View`s can be called as needed like individual web urls. After completing display and interaction with the user, the `View` then decides where to route the user next, analogous to a web app returning a `response.redirect(url)`.
+LumenSigner roughly follows a Model-View-Controller approach. Like in a typical web app (e.g. Flask) the `View`s can be called as needed like individual web urls. After completing display and interaction with the user, the `View` then decides where to route the user next, analogous to a web app returning a `response.redirect(url)`.
 
 The `Controller` then ends up being quite stripped down. For example, there's no need for a web app's `urls.py` since there are no mappings from url to `View` to maintain since we're not actually using a url/http routing approach.
 

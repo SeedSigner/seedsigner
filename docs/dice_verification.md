@@ -15,7 +15,7 @@ Do not use 'dice' format because dice 6 will be replaced by 0.
 And then enter the 99 dices numbers in (3) :
 <img src="img/dice_type.png">
 
-When the 99 dice number has been entered in the seedsigner and ian coleman page, you will be able to verify that the 24 words are the same.
+When the 99 dice number has been entered in the LumenSigner and ian coleman page, you will be able to verify that the 24 words are the same.
 
 
 #### Here in real life:
@@ -29,7 +29,7 @@ Then we arrive at the 99th dice:
 Then same 24 words! :
 <img src="img/dice_pic3.png">
 
-Now we are sure that the dice derivation is correct and we can unplug everything and do a new dice roll only on the seedsigner.
+Now we are sure that the dice derivation is correct and we can unplug everything and do a new dice roll only on the LumenSigner.
 
 ### Verifying with Coldcard
 
@@ -37,4 +37,4 @@ There is nothing specific, the algorithm are completely the same. Coldcard has a
 https://coldcard.com/docs/verifying-dice-roll-math
 
 ### Epilogue
-You can use these methods to do dry run time to time to verify that no one has changed the micro sdcard. But do not use the generated 24 words as a valid wallet, they need to be generated alone, only on the seedsigner!
+You can use these methods to do dry run time to time to verify that no one has changed the micro sdcard. But do not use the generated 24 words as a valid wallet, they need to be generated alone, only on the LumenSigner!

@@ -38,7 +38,7 @@ jobs:
       - run:
           name: "echo hash and target to cache.rev"
           command: |
-            echo "${SEEDSIGNER_OS_COMMIT_HASH} ${TARGET_DEVICE} test2" > cache.rev
+            echo "${SEEDSIGNER_OS_COMMIT_HASH} ${TARGET_DEVICE}" > cache.rev
             cat cache.rev
       - restore_cache:
           keys:
