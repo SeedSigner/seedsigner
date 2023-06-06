@@ -5,7 +5,7 @@ You must install the test-runner dependencies:
 pip3 install -r tests/requirements.txt
 ```
 
-Then make the `seedsigner` python module visible/importable to the tests by installing it:
+Then make the `lumensigner` python module visible/importable to the tests by installing it:
 ```
 pip3 install -e .
 ```

@@ -47,39 +47,39 @@ def test_missing_settings_get_defaults(reset_controller):
 
     # Settings defaults
     assert (
-            controller.settings.get_value(SettingsConstants.SETTING__LANGUAGE)
-            == SettingsConstants.LANGUAGE__ENGLISH
+        controller.settings.get_value(SettingsConstants.SETTING__LANGUAGE)
+        == SettingsConstants.LANGUAGE__ENGLISH
     )
     assert (
-            controller.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-            == SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
+        controller.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+        == SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
     )
     assert (
-            controller.settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
-            == SettingsConstants.OPTION__DISABLED
+        controller.settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
+        == SettingsConstants.OPTION__DISABLED
     )
 
     assert (
-            controller.settings.get_value(SettingsConstants.SETTING__QR_DENSITY)
-            == SettingsConstants.DENSITY__MEDIUM
+        controller.settings.get_value(SettingsConstants.SETTING__QR_DENSITY)
+        == SettingsConstants.DENSITY__MEDIUM
     )
     assert (
-            controller.settings.get_value(SettingsConstants.SETTING__PASSPHRASE)
-            == SettingsConstants.OPTION__ENABLED
+        controller.settings.get_value(SettingsConstants.SETTING__PASSPHRASE)
+        == SettingsConstants.OPTION__ENABLED
     )
     assert (
-            controller.settings.get_value(SettingsConstants.SETTING__CAMERA_ROTATION)
-            == SettingsConstants.CAMERA_ROTATION__0
+        controller.settings.get_value(SettingsConstants.SETTING__CAMERA_ROTATION)
+        == SettingsConstants.CAMERA_ROTATION__0
     )
     assert (
-            controller.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR)
-            == SettingsConstants.OPTION__ENABLED
+        controller.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR)
+        == SettingsConstants.OPTION__ENABLED
     )
     assert (
-            controller.settings.get_value(SettingsConstants.SETTING__PRIVACY_WARNINGS)
-            == SettingsConstants.OPTION__ENABLED
+        controller.settings.get_value(SettingsConstants.SETTING__PRIVACY_WARNINGS)
+        == SettingsConstants.OPTION__ENABLED
     )
     # Hidden Settings defaults
     assert (
-            controller.settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS) == 189
+        controller.settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS) == 189
     )
