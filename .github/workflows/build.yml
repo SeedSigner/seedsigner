@@ -75,6 +75,7 @@ jobs:
         with:
           path: |
             ~/.buildroot-ccache/
+            seedsigner-os/buildroot_dl
           key: build-cache-${{ matrix.target }}-${{ env.builder_hash }}
 
       - name: list image (before rename)
