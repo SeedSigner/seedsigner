@@ -57,6 +57,7 @@ jobs:
           key: build-cache-{{ checksum "cache.rev" }}
           paths:
             - ~/.buildroot-ccache
+            - seedsigner-os/buildroot_dl
       - run:
           name: "list files (before rename)"
           command: "ls -la seedsigner-os/images"

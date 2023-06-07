@@ -47,12 +47,19 @@ jobs:
           ls -la .
           ls -la src
 
+      - name: "inject latest commit sha to lumensigner"
+        run: |
+          cd seedsigner-os/opt/rootfs-overlay/opt/src/lumensigner
+          sed -i "s/__commit_sha__ = \"\"/__commit_sha__ = \"${{ github.sha }}\"/g" __init__.py
+          cat __init__.py
+
       - name: restore build cache
         id: build-cache-restore
         uses: actions/cache/restore@v3
         with:
           path: |
             ~/.buildroot-ccache/
+            seedsigner-os/buildroot_dl
           key: build-cache-${{ matrix.target }}-${{ env.builder_hash }}
           # restore-keys: |
           # build-cache-${{ matrix.target }}-
