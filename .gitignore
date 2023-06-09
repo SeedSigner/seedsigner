@@ -7,3 +7,7 @@ src/seedsigner/models/settings_definition.json
 .idea
 *.mo
 .coverage
+emulator/
+gui/
+hardware/
+resources/
