@@ -232,4 +232,39 @@ def test_get_single_sig_address():
 
 
 def test_get_multisig_address():
-    pass
+    from embit.descriptor import Descriptor
+
+    # jdlcdl: these vectors created with electrum & sparrow as a 2 of 3 multisig based on bip39-bip32-standard-path wallets
+    #    keystore1 = 0x00*16 = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+    #    keystore2 = 0x11*16 = 'baby mass dust captain baby mass dust captain baby mass dust casino'
+    #    keystore3 = 0x22*16 = 'captain baby mass dust captain baby mass dust captain baby mass dutch'
+
+    vector_args_expected = { 
+        # multisig native segwit on testnet, first payment and change addresses
+        ("wsh(sortedmulti(2,[8d55ff0d/48h/1h/0h/2h]tpubDDxNVWk924RTUhdkVB2uLHw1hGMPNMGufpZefhkkswjbZppVZcuMdjYKQN4ewUog9vbL6RBLFPRWcgTGT7kYP79N6thyJ43ELUs4N2szXMg/{0,1}/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*,[0be174ee/48h/1h/0h/2h]tpubDEsePyLPkbxbrDiZSTTWdsviiNtiQjrvvzZnkLtG72QYLBygEsXePRsTdXi8DeMA7taCuuvoEBjUAfFrsNZeQJqfvG9fFoujYWbFPYUn7ux/{0,1}/*))#zw6cnrlk" , 0, False, "test"): "tb1q7tpecll8jhp77yqdeyt2t8q5swxmmqeh2v22cqpms5dxlp6p27dqlftet8",
+        ("wsh(sortedmulti(2,[8d55ff0d/48h/1h/0h/2h]tpubDDxNVWk924RTUhdkVB2uLHw1hGMPNMGufpZefhkkswjbZppVZcuMdjYKQN4ewUog9vbL6RBLFPRWcgTGT7kYP79N6thyJ43ELUs4N2szXMg/{0,1}/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*,[0be174ee/48h/1h/0h/2h]tpubDEsePyLPkbxbrDiZSTTWdsviiNtiQjrvvzZnkLtG72QYLBygEsXePRsTdXi8DeMA7taCuuvoEBjUAfFrsNZeQJqfvG9fFoujYWbFPYUn7ux/{0,1}/*))#zw6cnrlk" , 0, True, "test"): "tb1q7h94ywhfjrpxdfzwl4dcawrg80r4rywswjrh447x4n3e5t3m0jms9jh7pm",
+
+        # multisig nested segwit on testnet, first payment and change addresses
+        ("sh(wsh(sortedmulti(2,[73c5da0a/48h/1h/1h/0h/1h]tpubDFH9dgzveyD8yHQb8VrpG8FYAuwcLMHMje2CCcbBo1FpaGzYVtJeYYxcYgRqSTta5utUFts8nPPHs9C2bqoxrey5jia6Dwf9mpwrPq7YvcJ/{0,1}/*,[0be174ee/48h/1h/0h/1h]tpubDEsePyLPkbxbnj6XuKvWwdERHaKkikZxaGJ9sJqmM7okbZXgkNSFiGU6GX6qEes6kD8f9Z9FosYB9UEnBSgBEyEwwJhj4uUcFE1WE8VtKoh/{0,1}/*,[8d55ff0d/48h/1h/0h/1h]tpubDDxNVWk924RTT3vyGLHdSDoZ2JUVX7jUsPcwCQ9MrKHAtJrW5zECTF9rFHCvqu526E4PjHp61hBknts2c5aGexvX7hvCZ8TGPvQFdzxxy59/{0,1}/*)))#2ujlfp73", 0, False, "test"): "2MtgJH28mZWNWU7VRU4ba6ciFbRRGYWZDt3",
+        ("sh(wsh(sortedmulti(2,[73c5da0a/48h/1h/1h/0h/1h]tpubDFH9dgzveyD8yHQb8VrpG8FYAuwcLMHMje2CCcbBo1FpaGzYVtJeYYxcYgRqSTta5utUFts8nPPHs9C2bqoxrey5jia6Dwf9mpwrPq7YvcJ/{0,1}/*,[0be174ee/48h/1h/0h/1h]tpubDEsePyLPkbxbnj6XuKvWwdERHaKkikZxaGJ9sJqmM7okbZXgkNSFiGU6GX6qEes6kD8f9Z9FosYB9UEnBSgBEyEwwJhj4uUcFE1WE8VtKoh/{0,1}/*,[8d55ff0d/48h/1h/0h/1h]tpubDDxNVWk924RTT3vyGLHdSDoZ2JUVX7jUsPcwCQ9MrKHAtJrW5zECTF9rFHCvqu526E4PjHp61hBknts2c5aGexvX7hvCZ8TGPvQFdzxxy59/{0,1}/*)))#2ujlfp73", 0, True, "test"): "2NAjjwUQqwD9XRGLeQ6TitSUyMHUz3cLiWm",
+    }
+
+    func = embit_utils.get_multisig_address
+    for args, expected in vector_args_expected.items():
+        descriptor = Descriptor.from_string(args[0])
+
+        print("\nasserting...")
+
+        # test calling w/o optional params (defaults: index=0, is_change=False, embit_network="main")
+        if args[1:4] == (0, False, 'main'):
+            print(f'  {func.__name__}({descriptor}) == "{expected}"')
+            assert func(descriptor) == expected
+
+        # test calling w/ ordered params
+        print(f'  {func.__name__}({descriptor}, *{args[1:4]}) == "{expected}"')
+        assert func(descriptor, *args[1:4]) == expected
+
+        # test calling w/ named params
+        print(f'  {func.__name__}(descriptor={descriptor}, index={args[1]}, is_change={args[2]}, embit_network="{args[3]}") == "{expected}"')
+        assert func(descriptor=descriptor, index=args[1], is_change=args[2], embit_network=args[3]) == expected
+
