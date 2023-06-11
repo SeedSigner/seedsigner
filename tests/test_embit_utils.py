@@ -81,6 +81,7 @@ def test_get_standard_derivation_path():
             with pytest.raises(expected):
                 func(**a_dict)
 
+
 def test_get_xpub():
     """tests seedsigner.helpers.embit_utils.get_xpub()"""
 
@@ -98,7 +99,7 @@ def test_get_xpub():
         unhexlify("fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"),
         unhexlify("4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be"),
         unhexlify("3ddd5602285899a946114506157c7997e5444528f3003f6134712147db19b678"),
-        bip39.mnemonic_to_seed('abandon '*11+'about'),
+        bip39.mnemonic_to_seed("abandon "*11 + "about"),
     )
 
     vectors_args_expected = {
@@ -155,14 +156,80 @@ def test_get_xpub():
 
         # test calling w/o last param (default is "main")
         if args[2] == "main":
-            print(f'  {func.__name__}({args[0]}, "{args[1]}") returns "{expected}"')
+            print(f'  {func.__name__}({args[0]}, "{args[1]}") == "{expected}"')
             assert str(func(args[0], args[1])) == expected
 
         # test calling w/ ordered params
-        print(f'  {func.__name__}(*{args}) returns "{expected}"')
+        print(f'  {func.__name__}(*{args}) == "{expected}"')
         assert str(func(*args)) == expected
 
         # test calling w/ named params
-        print(f'  {func.__name__}(seed_bytes={args[0]}, derivation_path="{args[1]}", embit_network="{args[2]}") returns "{expected}"')
+        print(f'  {func.__name__}(seed_bytes={args[0]}, derivation_path="{args[1]}", embit_network="{args[2]}") == "{expected}"')
         assert str(func(seed_bytes=args[0], derivation_path=args[1], embit_network=args[2])) == expected
         
+
+def test_get_single_sig_address():
+    from embit import bip32
+
+    # test vectors originate from:
+    #   https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki
+    #   https://github.com/satoshilabs/slips/blob/master/slip-0132.md
+    #   https://iancoleman.io/bip39/
+    #   https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki
+
+    vectors_args_expected = {
+        # https://github.com/satoshilabs/slips/blob/master/slip-0132.md#bitcoin-test-vectors (first payment address of native segwit on mainnet)
+        (bip32.HDKey.from_string("zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"), "nat", 0, False, "main"):
+            "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+        # jdlcdl: derived via iancoleman test vector for first change address of native segwit on mainnet
+        (bip32.HDKey.from_string("zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"), "nat", 0, True, "main"):
+            "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el",
+        
+        # https://github.com/satoshilabs/slips/blob/master/slip-0132.md#bitcoin-test-vectors (first payment address of nested segwit on mainnet)
+        (bip32.HDKey.from_string("ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCxoJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP"), "nes", 0, False, "main"):
+            "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf",
+        # jdlcdl: derived via iancoleman test vector for first change address of nested segwit on mainnet
+        (bip32.HDKey.from_string("ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCxoJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP"), "nes", 0, True, "main"):
+            "34K56kSjgUCUSD8GTtuF7c9Zzwokbs6uZ7",
+
+        # https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki#test-vectors (first payment address of nested segwit on testnet)
+        (bip32.HDKey.from_string("upub5EFU65HtV5TeiSHmZZm7FUffBGy8UKeqp7vw43jYbvZPpoVsgU93oac7Wk3u6moKegAEWtGNF8DehrnHtv21XXEMYRUocHqguyjknFHYfgY"), "nes", 0, False, "test"):
+            "2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2",
+        # jdlcdl: derived test vector for first change address of nested segwit on testnet
+        (bip32.HDKey.from_string("upub5EFU65HtV5TeiSHmZZm7FUffBGy8UKeqp7vw43jYbvZPpoVsgU93oac7Wk3u6moKegAEWtGNF8DehrnHtv21XXEMYRUocHqguyjknFHYfgY"), "nes", 0, True, "test"):
+            "2MvdUi5o3f2tnEFh9yGvta6FzptTZtkPJC8",
+
+        # https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki#test-vectors (first payment address of taproot on mainnet)
+        (bip32.HDKey.from_string("xpub6BgBgsespWvERF3LHQu6CnqdvfEvtMcQjYrcRzx53QJjSxarj2afYWcLteoGVky7D3UKDP9QyrLprQ3VCECoY49yfdDEHGCtMMj92pReUsQ"), "tr", 0, False, "main"):
+            "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
+
+        # https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki#test-vectors (second payment address of taproot on mainnet)
+        (bip32.HDKey.from_string("xpub6BgBgsespWvERF3LHQu6CnqdvfEvtMcQjYrcRzx53QJjSxarj2afYWcLteoGVky7D3UKDP9QyrLprQ3VCECoY49yfdDEHGCtMMj92pReUsQ"), "tr", 1, False, "main"):
+            "bc1p4qhjn9zdvkux4e44uhx8tc55attvtyu358kutcqkudyccelu0was9fqzwh",
+
+        # https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki#test-vectors (first change address of taproot on mainnet)
+        (bip32.HDKey.from_string("xpub6BgBgsespWvERF3LHQu6CnqdvfEvtMcQjYrcRzx53QJjSxarj2afYWcLteoGVky7D3UKDP9QyrLprQ3VCECoY49yfdDEHGCtMMj92pReUsQ"), "tr", 0, True, "main"):
+            "bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7",
+
+    }
+
+    func = embit_utils.get_single_sig_address
+    for args, expected in vectors_args_expected.items():
+        print("\nasserting...")
+
+        # test calling w/o optional params (defaults: script_type="nat", index=0, is_change=False, embit_network="main")
+        if args[1:5] == ("nat", 0, False, "main"):
+            print(f'  {func.__name__}({args[0]}) == "{expected}"')
+            assert str(func(args[0], args[1])) == expected
+
+        # test calling w/ ordered params
+        print(f'  {func.__name__}(*{args}) == "{expected}"')
+        assert str(func(*args)) == expected
+
+        # test calling w/ named params
+        print(f'  {func.__name__}(xpub={args[0]}, script_type="{args[1]}", index={args[2]}, is_change={args[3]}, embit_network="{args[4]}") == "{expected}"')
+        assert str(func(xpub=args[0], script_type=args[1], index=args[2], is_change=args[3], embit_network=args[4])) == expected
+
+
+def test_get_multisig_address():
+    pass
