@@ -5,7 +5,9 @@ from seedsigner.helpers import embit_utils
 
 
 def test_get_standard_derivation_path():
-    """tests seedsigner.helpers.embit_utils.get_standard_derivation_path()"""
+    """
+    tests seedsigner.helpers.embit_utils.get_standard_derivation_path()
+    """
 
     vectors_args_expected = {
         # single sig
@@ -25,6 +27,7 @@ def test_get_standard_derivation_path():
         (SC.TESTNET, SC.SINGLE_SIG, SC.TAPROOT): "m/86'/1'/0'",
         (SC.REGTEST, SC.SINGLE_SIG, SC.TAPROOT): "m/86'/1'/0'",
 
+
         # multi sig
         (SC.MAINNET, SC.MULTISIG, SC.NATIVE_SEGWIT): "m/48'/0'/0'/2'",
         (SC.TESTNET, SC.MULTISIG, SC.NATIVE_SEGWIT): "m/48'/1'/0'/2'",
@@ -37,6 +40,11 @@ def test_get_standard_derivation_path():
         (SC.MAINNET, SC.MULTISIG, SC.TAPROOT): Exception,
         (SC.TESTNET, SC.MULTISIG, SC.TAPROOT): Exception,
         (SC.REGTEST, SC.MULTISIG, SC.TAPROOT): Exception,
+
+        # intentionally fall into exceptions
+        (SC.MAINNET, SC.SINGLE_SIG, 'invalid'): Exception,
+        (SC.MAINNET, SC.MULTISIG, 'invalid'): Exception,
+        (SC.MAINNET, 'invalid', SC.NATIVE_SEGWIT): Exception,
 
         # nonsense arguments
         ("A",): Exception,
@@ -51,13 +59,13 @@ def test_get_standard_derivation_path():
     print()
     for args, expected in vectors_args_expected.items():
 
-        # test successful returns
+        # test successful calls
         if type(expected) is str:
-            # call with positional args
+            # call with ordered params
             print(f"asserting {func.__name__}(*{args}) == {repr(expected)}")
             assert func(*args) == expected
 
-            # call with named args
+            # call with named params
             a_dict = {}
             if len(args) == 1: a_dict = {'network': args[0]}
             elif len(args) == 2: a_dict = {'network': args[0], 'wallet_type': args[1]}
@@ -67,12 +75,12 @@ def test_get_standard_derivation_path():
 
         # test exceptions
         else: 
-            # call with positional args
+            # call with ordered params
             with pytest.raises(expected):
                 print(f"asserting {func.__name__}(*{args}) raises Exception")
                 func(*args)
 
-            # call with named args
+            # call with named params
             a_dict = {}
             if len(args) == 1: a_dict = {'network': args[0]}
             elif len(args) == 2: a_dict = {'network': args[0], 'wallet_type': args[1]}
@@ -83,7 +91,9 @@ def test_get_standard_derivation_path():
 
 
 def test_get_xpub():
-    """tests seedsigner.helpers.embit_utils.get_xpub()"""
+    """
+    tests seedsigner.helpers.embit_utils.get_xpub()
+    """
 
     from binascii import unhexlify
     from embit import bip39, bip32
@@ -149,26 +159,31 @@ def test_get_xpub():
         (vector_seeds[4], "m/86'/0'/0'", "main"): "xpub6BgBgsespWvERF3LHQu6CnqdvfEvtMcQjYrcRzx53QJjSxarj2afYWcLteoGVky7D3UKDP9QyrLprQ3VCECoY49yfdDEHGCtMMj92pReUsQ",
 
     }
-
     func = embit_utils.get_xpub
+
+    print()
     for args, expected in vectors_args_expected.items():
         print("\nasserting...")
 
-        # test calling w/o last param (default is "main")
+        # call without optional params (default is "main")
         if args[2] == "main":
             print(f'  {func.__name__}({args[0]}, "{args[1]}") == "{expected}"')
             assert str(func(args[0], args[1])) == expected
 
-        # test calling w/ ordered params
+        # call with ordered params
         print(f'  {func.__name__}(*{args}) == "{expected}"')
         assert str(func(*args)) == expected
 
-        # test calling w/ named params
+        # call with named params
         print(f'  {func.__name__}(seed_bytes={args[0]}, derivation_path="{args[1]}", embit_network="{args[2]}") == "{expected}"')
         assert str(func(seed_bytes=args[0], derivation_path=args[1], embit_network=args[2])) == expected
         
 
 def test_get_single_sig_address():
+    """
+    tests seedsigner.helpers.embit_utils.get_single_sig_address()
+    """
+
     from embit import bip32
 
     # test vectors originate from:
@@ -195,7 +210,7 @@ def test_get_single_sig_address():
         # https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki#test-vectors (first payment address of nested segwit on testnet)
         (bip32.HDKey.from_string("upub5EFU65HtV5TeiSHmZZm7FUffBGy8UKeqp7vw43jYbvZPpoVsgU93oac7Wk3u6moKegAEWtGNF8DehrnHtv21XXEMYRUocHqguyjknFHYfgY"), "nes", 0, False, "test"):
             "2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2",
-        # jdlcdl: derived test vector for first change address of nested segwit on testnet
+        # jdlcdl: derived via iancoleman test vector for first change address of nested segwit on testnet
         (bip32.HDKey.from_string("upub5EFU65HtV5TeiSHmZZm7FUffBGy8UKeqp7vw43jYbvZPpoVsgU93oac7Wk3u6moKegAEWtGNF8DehrnHtv21XXEMYRUocHqguyjknFHYfgY"), "nes", 0, True, "test"):
             "2MvdUi5o3f2tnEFh9yGvta6FzptTZtkPJC8",
 
@@ -211,27 +226,39 @@ def test_get_single_sig_address():
         (bip32.HDKey.from_string("xpub6BgBgsespWvERF3LHQu6CnqdvfEvtMcQjYrcRzx53QJjSxarj2afYWcLteoGVky7D3UKDP9QyrLprQ3VCECoY49yfdDEHGCtMMj92pReUsQ"), "tr", 0, True, "main"):
             "bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7",
 
-    }
+        # jdlcdl: derived via electrum m/44'/1'/0 (first payment address p2pkh on testnet)
+        (bip32.HDKey.from_string("tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba"), "leg", 0, False, "test"):
+            "mkpZhYtJu2r87Js3pDiWJDmPte2NRZ8bJV",
 
+        # jdlcdl: derived via electrum m/44'/1'/0 (first change address p2pkh on testnet)
+        (bip32.HDKey.from_string("tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba"), "leg", 0, True, "test"):
+            "mi8nhzZgGZQthq6DQHbru9crMDerUdTKva",
+    }
     func = embit_utils.get_single_sig_address
+
+    print()
     for args, expected in vectors_args_expected.items():
         print("\nasserting...")
 
-        # test calling w/o optional params (defaults: script_type="nat", index=0, is_change=False, embit_network="main")
+        # call without optional params (defaults: script_type="nat", index=0, is_change=False, embit_network="main")
         if args[1:5] == ("nat", 0, False, "main"):
             print(f'  {func.__name__}({args[0]}) == "{expected}"')
             assert str(func(args[0], args[1])) == expected
 
-        # test calling w/ ordered params
+        # call with ordered params
         print(f'  {func.__name__}(*{args}) == "{expected}"')
         assert str(func(*args)) == expected
 
-        # test calling w/ named params
+        # call with named params
         print(f'  {func.__name__}(xpub={args[0]}, script_type="{args[1]}", index={args[2]}, is_change={args[3]}, embit_network="{args[4]}") == "{expected}"')
         assert str(func(xpub=args[0], script_type=args[1], index=args[2], is_change=args[3], embit_network=args[4])) == expected
 
 
 def test_get_multisig_address():
+    """
+    tests seedsigner.helpers.embit_utils.get_multisig_address()
+    """
+
     from embit.descriptor import Descriptor
 
     # jdlcdl: these vectors created with electrum & sparrow as a 2 of 3 multisig based on bip39-bip32-standard-path wallets
@@ -247,24 +274,46 @@ def test_get_multisig_address():
         # multisig nested segwit on testnet, first payment and change addresses
         ("sh(wsh(sortedmulti(2,[73c5da0a/48h/1h/1h/0h/1h]tpubDFH9dgzveyD8yHQb8VrpG8FYAuwcLMHMje2CCcbBo1FpaGzYVtJeYYxcYgRqSTta5utUFts8nPPHs9C2bqoxrey5jia6Dwf9mpwrPq7YvcJ/{0,1}/*,[0be174ee/48h/1h/0h/1h]tpubDEsePyLPkbxbnj6XuKvWwdERHaKkikZxaGJ9sJqmM7okbZXgkNSFiGU6GX6qEes6kD8f9Z9FosYB9UEnBSgBEyEwwJhj4uUcFE1WE8VtKoh/{0,1}/*,[8d55ff0d/48h/1h/0h/1h]tpubDDxNVWk924RTT3vyGLHdSDoZ2JUVX7jUsPcwCQ9MrKHAtJrW5zECTF9rFHCvqu526E4PjHp61hBknts2c5aGexvX7hvCZ8TGPvQFdzxxy59/{0,1}/*)))#2ujlfp73", 0, False, "test"): "2MtgJH28mZWNWU7VRU4ba6ciFbRRGYWZDt3",
         ("sh(wsh(sortedmulti(2,[73c5da0a/48h/1h/1h/0h/1h]tpubDFH9dgzveyD8yHQb8VrpG8FYAuwcLMHMje2CCcbBo1FpaGzYVtJeYYxcYgRqSTta5utUFts8nPPHs9C2bqoxrey5jia6Dwf9mpwrPq7YvcJ/{0,1}/*,[0be174ee/48h/1h/0h/1h]tpubDEsePyLPkbxbnj6XuKvWwdERHaKkikZxaGJ9sJqmM7okbZXgkNSFiGU6GX6qEes6kD8f9Z9FosYB9UEnBSgBEyEwwJhj4uUcFE1WE8VtKoh/{0,1}/*,[8d55ff0d/48h/1h/0h/1h]tpubDDxNVWk924RTT3vyGLHdSDoZ2JUVX7jUsPcwCQ9MrKHAtJrW5zECTF9rFHCvqu526E4PjHp61hBknts2c5aGexvX7hvCZ8TGPvQFdzxxy59/{0,1}/*)))#2ujlfp73", 0, True, "test"): "2NAjjwUQqwD9XRGLeQ6TitSUyMHUz3cLiWm",
-    }
 
+        # legacy multisig p2sh on testnet, not supported
+        ("sh(sortedmulti(2,[8d55ff0d/45h]tpubDANogJ2yfnizHwX7fSi5kUVzybyuPXDhgHB2TR9TUvkSLZFW73cRq4STKFDpx7qjJJiisyq82tbu4CeiYtmKEmT1xoCq9P8BPvXV31HUh6d/{0,1}/*,[0be174ee/45h]tpubDBkeVF2tDNT1Pz7L47iJeBB6RokU12LX6x4E6Ph8T89hmjQfB77q1AMyGwL8qpREVGq9sCJEbWwmnemwNTxnpxGn1di7BGy8jx9wEi5Vahu/{0,1}/*,[73c5da0a/45h]tpubDBKsGC1UqBDNvx9aivFmxZNgeZTUnmsCFGhWrqkLzucUCDePvbWWm3n8tAaAwMmxBG2ihdKCG9fzBdUnMxKx5PrkiqSZFi6Vkv6msUs9ddN/{0,1}/*))#p5t8sa8c", 0, False, "test"): Exception,
+
+        # multisig taproot on testnet, not supported
+        # TODO: find what a multisig-taproot descriptor would look like and add a test so we can fall into the last condition exception.
+    }
     func = embit_utils.get_multisig_address
+
+    print()
     for args, expected in vector_args_expected.items():
         descriptor = Descriptor.from_string(args[0])
 
         print("\nasserting...")
 
-        # test calling w/o optional params (defaults: index=0, is_change=False, embit_network="main")
-        if args[1:4] == (0, False, 'main'):
-            print(f'  {func.__name__}({descriptor}) == "{expected}"')
-            assert func(descriptor) == expected
+        # test successful calls
+        if type(expected) == str:
+            # call with optional params (defaults: index=0, is_change=False, embit_network="main")
+            if args[1:4] == (0, False, 'main'):
+                print(f'  {func.__name__}({descriptor}) == "{expected}"')
+                assert func(descriptor) == expected
 
-        # test calling w/ ordered params
-        print(f'  {func.__name__}({descriptor}, *{args[1:4]}) == "{expected}"')
-        assert func(descriptor, *args[1:4]) == expected
+            # call with ordered params
+            print(f'  {func.__name__}({descriptor}, *{args[1:4]}) == "{expected}"')
+            assert func(descriptor, *args[1:4]) == expected
 
-        # test calling w/ named params
-        print(f'  {func.__name__}(descriptor={descriptor}, index={args[1]}, is_change={args[2]}, embit_network="{args[3]}") == "{expected}"')
-        assert func(descriptor=descriptor, index=args[1], is_change=args[2], embit_network=args[3]) == expected
+            # call with named params
+            print(f'  {func.__name__}(descriptor={descriptor}, index={args[1]}, is_change={args[2]}, embit_network="{args[3]}") == "{expected}"')
+            assert func(descriptor=descriptor, index=args[1], is_change=args[2], embit_network=args[3]) == expected
+
+        # test exceptions
+        else:
+            # call with ordered params
+            with pytest.raises(expected):
+                print(f"asserting {func.__name__}(*{args}) raises Exception")
+                func(descriptor, *args[1:4])
+
+            # call with named params
+            with pytest.raises(expected):
+                print(f"asserting {func.__name__}(*{args}) raises Exception")
+                print(f'  {func.__name__}(descriptor={descriptor}, index={args[1]}, is_change={args[2]}, embit_network="{args[3]}") raises Exception"')
+                func(descriptor=descriptor, index=args[1], is_change=args[2], embit_network=args[3])
 
