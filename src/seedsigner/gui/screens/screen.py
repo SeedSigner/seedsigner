@@ -660,6 +660,21 @@ class LargeButtonScreen(BaseTopNavScreen):
 class QRDisplayScreen(BaseScreen):
     qr_encoder: EncodeQR = None
 
+    class AdjustBrightnessTipsScreen(BaseScreen):
+        def __post_init__(self):
+            super().__post_init__()
+
+            text_area = TextArea(
+                text="Use joystick Up/Down for adjusting brightness",
+                is_text_centered=True,
+                screen_y=self.canvas_height // 2,
+            )
+            self.components.append(text_area)
+
+        def _run(self):
+            # show the screen for 2 seconds
+            time.sleep(2)
+
     class QRDisplayThread(BaseThread):
         def __init__(self, qr_encoder: EncodeQR, qr_brightness: ThreadsafeCounter, renderer: Renderer):
             super().__init__()
@@ -669,6 +684,17 @@ class QRDisplayScreen(BaseScreen):
 
 
         def run(self):
+            from seedsigner.models.settings import Settings
+
+            # Display the brightness tip screen
+            show_brightness_tips = (
+                Settings.get_instance().get_value(
+                    SettingsConstants.SETTING__QR_BRIGHTNESS_TIPS
+                )
+                == SettingsConstants.OPTION__ENABLED
+            )
+            if show_brightness_tips:
+                QRDisplayScreen.AdjustBrightnessTipsScreen().display()
             # Loop whether the QR is a single frame or animated; each loop might adjust
             # brightness setting.
             while self.keep_running:

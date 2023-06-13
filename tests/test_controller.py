@@ -68,6 +68,7 @@ def test_missing_settings_get_defaults(reset_controller):
     assert controller.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS) == SettingsConstants.OPTION__DISABLED
     assert controller.settings.get_value(SettingsConstants.SETTING__PRIVACY_WARNINGS) == SettingsConstants.OPTION__ENABLED
     assert controller.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__ENABLED
+    assert controller.settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS_TIPS) == SettingsConstants.OPTION__ENABLED
     assert controller.settings.get_value(SettingsConstants.SETTING__PARTNER_LOGOS) == SettingsConstants.OPTION__ENABLED
 
     # Hidden Settings defaults

@@ -160,6 +160,7 @@ class SettingsConstants:
     SETTING__BIP85_CHILD_SEEDS = "bip85_child_seeds"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
+    SETTING__QR_BRIGHTNESS_TIPS = "qr_brightness_tips"
     SETTING__PARTNER_LOGOS = "partner_logos"
 
     SETTING__DEBUG = "debug"
@@ -462,6 +463,12 @@ class SettingsDefinition:
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__DIRE_WARNINGS,
                       display_name="Show dire warnings",
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__ENABLED),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__QR_BRIGHTNESS_TIPS,
+                      display_name="Show QR brightness tips",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__ENABLED),
 
