@@ -672,8 +672,8 @@ class QRDisplayScreen(BaseScreen):
             self.components.append(text_area)
 
         def _run(self):
-            # show the screen for 2 seconds
-            time.sleep(2)
+            # show the screen for 3 seconds
+            time.sleep(3)
 
     class QRDisplayThread(BaseThread):
         def __init__(self, qr_encoder: EncodeQR, qr_brightness: ThreadsafeCounter, renderer: Renderer):
@@ -686,7 +686,7 @@ class QRDisplayScreen(BaseScreen):
         def run(self):
             from seedsigner.models.settings import Settings
 
-            # Display the brightness tip screen
+            # Display the brightness tips screen
             show_brightness_tips = (
                 Settings.get_instance().get_value(
                     SettingsConstants.SETTING__QR_BRIGHTNESS_TIPS
@@ -695,6 +695,7 @@ class QRDisplayScreen(BaseScreen):
             )
             if show_brightness_tips:
                 QRDisplayScreen.AdjustBrightnessTipsScreen().display()
+
             # Loop whether the QR is a single frame or animated; each loop might adjust
             # brightness setting.
             while self.keep_running:
