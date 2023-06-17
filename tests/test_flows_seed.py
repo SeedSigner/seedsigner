@@ -1,6 +1,7 @@
 # Must import test base before the Controller
 from base import BaseTest, FlowTest, FlowStep
 
+from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.seed import Seed
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import seed_views, scan_views
@@ -91,40 +92,66 @@ class TestSeedFlows(FlowTest):
 
     def test_export_xpub_flow(self):
         """
-            Selecting "Export XPUB" from the SeedOptionsView should enter the Export XPUB flow and end at the SeedOptionsView.
+            Selecting "Export XPUB" from the SeedOptionsView should enter the Export XPUB flow and end at the MainMenuView
         """
         # Load a finalized Seed into the Controller
         mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
         self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
         self.controller.storage.finalize_pending_seed()
 
+        SIG_TYPE = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SIG_TYPES)[0] # 0: single-sig
+        SCRIPT_TYPE = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES)[0] # 0: native segwit
+        COORDINATOR = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[0] # 0: bluwallet
+        COORDINATOR = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[3] # 0: specter
+
+        # TEST PASSES BUT RAISES WARNING
+        # File "seedsigner-dev/src/seedsigner/gui/components.py", line 316, in __post_init__
+        #   if not self.auto_line_break or full_text_width < self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
+        # TypeError: '<' not supported between instances of 'int' and 'MagicMock'
+        # warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
         self.run_sequence(
             initial_destination_view_args=dict(seed_num=0),
             sequence=[
                 FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
-                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.SINGLE_SIG),
-                FlowStep(seed_views.SeedExportXpubScriptTypeView),
-                # TODO: Test is incomplete...
+                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=SIG_TYPE),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=SCRIPT_TYPE),
+                FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=COORDINATOR),
+                FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
+                FlowStep(MainMenuView),
             ]
         )
 
 
     def test_export_xpub_skip_sig_type_flow(self):
         """
-
+            Export XPUB flows w/o user choices when no other options for sig_types, script_types, and/or coordinators
         """
         # Load a finalized Seed into the Controller
         mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
         self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
         self.controller.storage.finalize_pending_seed()
 
+        # exclusively set only one choice for each of sig_types, script_types and coordinators
+        self.settings.update(dict(sig_types=['ms'], script_types=['nes'], coordinators=['spa']), False)
+
+        # TEST PASSES BUT RAISES WARNING
+        # File "seedsigner-dev/src/seedsigner/gui/components.py", line 316, in __post_init__
+        #   if not self.auto_line_break or full_text_width < self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
+        # TypeError: '<' not supported between instances of 'int' and 'MagicMock'
+        # warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
         self.run_sequence(
             initial_destination_view_args=dict(seed_num=0),
             sequence=[
                 FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
-                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.SINGLE_SIG),
-                FlowStep(seed_views.SeedExportXpubScriptTypeView),
-                # TODO: Test is incomplete...
+                FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubCoordinatorView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
+                FlowStep(MainMenuView),
             ]
         )
 

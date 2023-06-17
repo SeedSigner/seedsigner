@@ -617,11 +617,12 @@ class SeedExportXpubCoordinatorView(View):
             args["coordinator"] = self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[0]
             return Destination(SeedExportXpubWarningView, view_args=args, skip_current_view=True)
 
-        selected_menu_num = ButtonListScreen(
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title="Export Xpub",
             is_button_text_centered=False,
             button_data=self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS),
-        ).display()
+        )
 
         if selected_menu_num < len(self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)):
             args["coordinator"] = self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[selected_menu_num]
@@ -659,10 +660,11 @@ class SeedExportXpubWarningView(View):
             # Skip the WarningView entirely
             return destination
 
-        selected_menu_num = WarningScreen(
+        selected_menu_num = self.run_screen(
+            WarningScreen,
             status_headline="Privacy Leak!",
             text="""Xpub can be used to view all future transactions.""",
-        ).display()
+        )
 
         if selected_menu_num == 0:
             # User clicked "I Understand"
@@ -727,12 +729,13 @@ class SeedExportXpubDetailsView(View):
             finally:
                 self.loading_screen.stop()
 
-            selected_menu_num = seed_screens.SeedExportXpubDetailsScreen(
+            selected_menu_num = self.run_screen(
+                seed_screens.SeedExportXpubDetailsScreen,
                 fingerprint=fingerprint,
                 has_passphrase=self.seed.passphrase is not None,
                 derivation_path=derivation_path,
                 xpub=xpub_base58,
-            ).display()
+            )
 
         if selected_menu_num == 0:
             return Destination(
@@ -784,7 +787,10 @@ class SeedExportXpubQRDisplayView(View):
 
 
     def run(self):
-        QRDisplayScreen(qr_encoder=self.qr_encoder).display()
+        self.run_screen(
+            QRDisplayScreen,
+            qr_encoder=self.qr_encoder
+        )
 
         return Destination(MainMenuView)
 
