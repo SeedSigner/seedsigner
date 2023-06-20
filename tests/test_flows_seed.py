@@ -145,6 +145,44 @@ class TestSeedFlows(FlowTest):
                         test_standard_xpubs(sig_tuple, script_tuple, coord_tuple)
 
 
+    def test_export_xpub_custom_derivation_flow(self):
+        """
+            Export XPUB flow for custom derivation finishes at MainMenuView
+        """
+        # Load a finalized Seed into the Controller
+        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        self.controller.storage.finalize_pending_seed()
+
+        # enable custom derivation script_type setting (plus at least one more for a choice)
+        self.settings.set_value(SC.SETTING__SCRIPT_TYPES, [SC.NATIVE_SEGWIT, SC.NESTED_SEGWIT, SC.CUSTOM_DERIVATION])
+
+        # get display names to access button choices in the views (ugh: hardcoding, is there a better way?)
+        sig_type = self.settings.get_multiselect_value_display_names(SC.SETTING__SIG_TYPES)[0] # single sig
+        script_type = self.settings.get_multiselect_value_display_names(SC.SETTING__SCRIPT_TYPES)[2] # custom derivation
+        coordinator = self.settings.get_multiselect_value_display_names(SC.SETTING__COORDINATORS)[3] # specter
+
+        # TEST PASSES BUT RAISES WARNING
+        # File "seedsigner-dev/src/seedsigner/gui/components.py", line 316, in __post_init__
+        #   if not self.auto_line_break or full_text_width < self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
+        # TypeError: '<' not supported between instances of 'int' and 'MagicMock'
+        # warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+        self.run_sequence(
+            initial_destination_view_args=dict(seed_num=0),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=sig_type),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=script_type),
+                FlowStep(seed_views.SeedExportXpubCustomDerivationView, screen_return_value="m/0'/0'"),
+                FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=coordinator),
+                FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
+                FlowStep(MainMenuView),
+            ]
+        )
+
+
     def test_export_xpub_skip_non_option_flow(self):
         """
             Export XPUB flows w/o user choices when no other options for sig_types, script_types, and/or coordinators

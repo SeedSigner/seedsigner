@@ -570,9 +570,10 @@ class SeedExportXpubCustomDerivationView(View):
 
 
     def run(self):
-        ret = seed_screens.SeedExportXpubCustomDerivationScreen(
+        ret = self.run_screen(
+            seed_screens.SeedExportXpubCustomDerivationScreen,
             initial_value=self.custom_derivation_path,
-        ).display()
+        )
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
