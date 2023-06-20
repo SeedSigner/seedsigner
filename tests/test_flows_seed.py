@@ -95,11 +95,6 @@ class TestSeedFlows(FlowTest):
             Selecting "Export XPUB" from the SeedOptionsView should enter the Export XPUB flow and end at the MainMenuView
         """
 
-        # TEST PASSES BUT RAISES WARNING
-        # File "seedsigner-dev/src/seedsigner/gui/components.py", line 316, in __post_init__
-        #   if not self.auto_line_break or full_text_width < self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
-        # TypeError: '<' not supported between instances of 'int' and 'MagicMock'
-        # warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
         def test_standard_xpubs(sig_tuple, script_tuple, coord_tuple):
             self.run_sequence(
                 initial_destination_view_args=dict(seed_num=0),
@@ -162,11 +157,6 @@ class TestSeedFlows(FlowTest):
         script_type = self.settings.get_multiselect_value_display_names(SC.SETTING__SCRIPT_TYPES)[2] # custom derivation
         coordinator = self.settings.get_multiselect_value_display_names(SC.SETTING__COORDINATORS)[3] # specter
 
-        # TEST PASSES BUT RAISES WARNING
-        # File "seedsigner-dev/src/seedsigner/gui/components.py", line 316, in __post_init__
-        #   if not self.auto_line_break or full_text_width < self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
-        # TypeError: '<' not supported between instances of 'int' and 'MagicMock'
-        # warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
         self.run_sequence(
             initial_destination_view_args=dict(seed_num=0),
             sequence=[
@@ -199,11 +189,6 @@ class TestSeedFlows(FlowTest):
             SC.SETTING__COORDINATORS: SC.COORDINATOR__SPECTER_DESKTOP,
         }, disable_missing_entries=False)
 
-        # TEST PASSES BUT RAISES WARNING
-        # File "seedsigner-dev/src/seedsigner/gui/components.py", line 316, in __post_init__
-        #   if not self.auto_line_break or full_text_width < self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
-        # TypeError: '<' not supported between instances of 'int' and 'MagicMock'
-        # warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
         self.run_sequence(
             initial_destination_view_args=dict(seed_num=0),
             sequence=[

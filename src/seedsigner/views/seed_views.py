@@ -13,7 +13,7 @@ from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustom
 from seedsigner.helpers import embit_utils
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
-from seedsigner.gui.screens.screen import LargeIconStatusScreen, LoadingScreenThread, QRDisplayScreen
+from seedsigner.gui.screens.screen import LargeIconStatusScreen, QRDisplayScreen
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
@@ -707,6 +707,9 @@ class SeedExportXpubDetailsView(View):
             selected_menu_num = 0
 
         else:
+            # imported locally instead of at module level to avoid flow-test warnings: "comparing int to MagicMock"
+            from seedsigner.gui.screens.screen import LoadingScreenThread
+
             # The derivation calc takes a few moments. Run the loading screen while we wait.
             self.loading_screen = LoadingScreenThread(text="Generating xpub...")
             self.loading_screen.start()
