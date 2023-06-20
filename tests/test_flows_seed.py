@@ -1,7 +1,7 @@
 # Must import test base before the Controller
 from base import BaseTest, FlowTest, FlowStep
 
-from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.settings import SettingsConstants as SC
 from seedsigner.models.seed import Seed
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import seed_views, scan_views
@@ -90,41 +90,62 @@ class TestSeedFlows(FlowTest):
         self.run_sequence(sequence)
 
 
-    def test_export_xpub_flow(self):
+    def test_export_xpub_standard_flow(self):
         """
             Selecting "Export XPUB" from the SeedOptionsView should enter the Export XPUB flow and end at the MainMenuView
         """
-        # Load a finalized Seed into the Controller
-        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
-        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
-        self.controller.storage.finalize_pending_seed()
-
-        SIG_TYPE = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SIG_TYPES)[0] # 0: single-sig
-        SCRIPT_TYPE = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES)[0] # 0: native segwit
-        COORDINATOR = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[0] # 0: bluwallet
-        COORDINATOR = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[3] # 0: specter
 
         # TEST PASSES BUT RAISES WARNING
         # File "seedsigner-dev/src/seedsigner/gui/components.py", line 316, in __post_init__
         #   if not self.auto_line_break or full_text_width < self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
         # TypeError: '<' not supported between instances of 'int' and 'MagicMock'
         # warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
-        self.run_sequence(
-            initial_destination_view_args=dict(seed_num=0),
-            sequence=[
-                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
-                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=SIG_TYPE),
-                FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=SCRIPT_TYPE),
-                FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=COORDINATOR),
-                FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
-                FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
-                FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
-                FlowStep(MainMenuView),
-            ]
+        def test_standard_xpubs(sig_tuple, script_tuple, coord_tuple):
+            self.run_sequence(
+                initial_destination_view_args=dict(seed_num=0),
+                sequence=[
+                    FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                    FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=sig_tuple[1]),
+                    FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=script_tuple[1]),
+                    FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=coord_tuple[1]),
+                    FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
+                    FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
+                    FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
+                    FlowStep(MainMenuView),
+                ]
         )
+            
+        # Load a finalized Seed into the Controller
+        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        self.controller.storage.finalize_pending_seed()
+
+        # these are (constant_value, display_name) tuples
+        sig_types = SC.ALL_SIG_TYPES
+        script_types = SC.ALL_SCRIPT_TYPES
+        coordinators = SC.ALL_COORDINATORS
+
+        # enable non-defaults so they're available in views
+        self.settings.set_value(SC.SETTING__SIG_TYPES, [x for x,y in sig_types])
+        self.settings.set_value(SC.SETTING__SCRIPT_TYPES, [x for x,y in script_types])
+        self.settings.set_value(SC.SETTING__COORDINATORS, [x for x,y in coordinators])
+
+        # exhaustively test flows thru standard sig_types, script_types, and coordinators
+        for sig_tuple in sig_types:
+            for script_tuple in script_types:
+                for coord_tuple in coordinators:
+                    # skip custom derivation
+                    if script_tuple[0] == 'cus':
+                        continue 
+                    # skip multisig taproot
+                    elif sig_tuple[0] == "ms" and script_tuple[0] == 'tr':
+                        continue
+                    else:
+                        print('\n\ntest_standard_xpubs(%s, %s, %s)' % (sig_tuple, script_tuple, coord_tuple))
+                        test_standard_xpubs(sig_tuple, script_tuple, coord_tuple)
 
 
-    def test_export_xpub_skip_sig_type_flow(self):
+    def test_export_xpub_skip_non_option_flow(self):
         """
             Export XPUB flows w/o user choices when no other options for sig_types, script_types, and/or coordinators
         """
