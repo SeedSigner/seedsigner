@@ -135,10 +135,10 @@ class TestSeedFlows(FlowTest):
             for script_tuple in script_types:
                 for coord_tuple in coordinators:
                     # skip custom derivation
-                    if script_tuple[0] == 'cus':
+                    if script_tuple[0] == SC.CUSTOM_DERIVATION:
                         continue 
                     # skip multisig taproot
-                    elif sig_tuple[0] == "ms" and script_tuple[0] == 'tr':
+                    elif sig_tuple[0] == SC.MULTISIG and script_tuple[0] == SC.TAPROOT:
                         continue
                     else:
                         print('\n\ntest_standard_xpubs(%s, %s, %s)' % (sig_tuple, script_tuple, coord_tuple))
@@ -155,7 +155,11 @@ class TestSeedFlows(FlowTest):
         self.controller.storage.finalize_pending_seed()
 
         # exclusively set only one choice for each of sig_types, script_types and coordinators
-        self.settings.update(dict(sig_types=['ms'], script_types=['nes'], coordinators=['spa']), False)
+        self.settings.update({
+            SC.SETTING__SIG_TYPES: SC.MULTISIG,
+            SC.SETTING__SCRIPT_TYPES: SC.NESTED_SEGWIT,
+            SC.SETTING__COORDINATORS: SC.COORDINATOR__SPECTER_DESKTOP,
+        }, disable_missing_entries=False)
 
         # TEST PASSES BUT RAISES WARNING
         # File "seedsigner-dev/src/seedsigner/gui/components.py", line 316, in __post_init__
