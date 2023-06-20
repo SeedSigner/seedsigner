@@ -9,11 +9,11 @@ from embit import psbt, bip39
 from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
 from urtypes.crypto import PSBT as UR_PSBT
-from urtypes.crypto import Account, HDKey, Output, Keypath, PathComponent, SCRIPT_EXPRESSION_TAG_MAP
+from urtypes.crypto import Account, Output
 from urtypes.bytes import Bytes
 
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
-from seedsigner.models.psbt_parser import PSBTParser
+from seedsigner.models.settings_definition import SettingsDefinition
 
 from . import QRType, Seed
 from .settings import SettingsConstants
@@ -364,7 +364,7 @@ class DecodeQR:
                 return QRType.BITCOIN_ADDRESS
 
             # config data
-            if "type=settings" in s:
+            if s.startswith("settings::"):
                 return QRType.SETTINGS
 
             # Seed
@@ -835,90 +835,49 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
 
 
     def add(self, segment, qr_type=QRType.SETTINGS):
-        # print(f"SettingsQR:\n{segment}")
+        print(f"SettingsQR:\n{segment}")
         try:
-            self.settings = {}
+            if not segment.startswith("settings::"):
+                raise Exception("Invalid SettingsQR data")
 
-            # QR Settings format is space-separated key/value pairs, but should also
-            # parse \n-separated keys.
-            for entry in segment.split():
-                key = entry.split("=")[0].strip()
-                value = entry.split("=")[1].strip()
-                self.settings[key] = value
-
-            # Remove values only needed for import
-            self.settings.pop("type", None)
-            version = self.settings.pop("version", None)
-            if not version or int(version) != 1:
-                raise Exception(f"Settings QR version {version} not supported")
-
-            self.config_name = self.settings.pop("name", None)
-            if self.config_name:
-                self.config_name = self.config_name.replace("_", " ")
+            version = segment.split(" ")[0].split("::")[1]
+            if version != "v1":
+                raise Exception(f"Unsupported SettingsQR version: {version}")
             
-            # Have to translate the abbreviated settings into the human-readable values
-            # used in the normal Settings.
-            map_abbreviated_enable = {
-                "0": SettingsConstants.OPTION__DISABLED,
-                "1": SettingsConstants.OPTION__ENABLED,
-                "2": SettingsConstants.OPTION__PROMPT,
-            }
-            map_abbreviated_sig_types = {
-                "s": SettingsConstants.SINGLE_SIG,
-                "m": SettingsConstants.MULTISIG,
-            }
-            map_abbreviated_scripts = {
-                "na": SettingsConstants.NATIVE_SEGWIT,
-                "ne": SettingsConstants.NESTED_SEGWIT,
-                "tr": SettingsConstants.TAPROOT,
-                "cu": SettingsConstants.CUSTOM_DERIVATION,
-            }
-            map_abbreviated_coordinators = {
-                "bw": SettingsConstants.COORDINATOR__BLUE_WALLET,
-                "sw": SettingsConstants.COORDINATOR__SPARROW,
-                "sd": SettingsConstants.COORDINATOR__SPECTER_DESKTOP,
-            }
+            # Start parsing key/value settings at the nth split(" ") index
+            split_index = 1
 
-            def convert_abbreviated_value(category, key, abbreviation_map, is_list=False, new_key_name=None):
-                try:
-                    if key not in self.settings:
-                        print(f"'{key}' not found in settings")
-                        return
-                    value = self.settings[key]
+            # handle optional "name" attr
+            if " name=" in segment:
+                self.config_name = segment.split(" name=")[1].split(" ")[0]
+                split_index += 1
 
-                    if not is_list:
-                        new_value = abbreviation_map.get(value)
-                        if not new_value:
-                            logger.error(f"No abbreviation map value for \"{value}\" for setting {key}")
-                            return
-                    else:
-                        # `value` is a comma-separated list; yields list of map matches
-                        values = value.split(",")
-                        new_value = []
-                        for v in values:
-                            mapped_value = abbreviation_map.get(v)
-                            if not mapped_value:
-                                logger.error(f"No abbreviation map value for \"{v}\" for setting {key}")
-                                return
-                            new_value.append(mapped_value)
-                    del self.settings[key]
-                    if new_key_name:
-                        key = new_key_name
-                    if category not in self.settings:
-                        self.settings[category] = {}
-                    self.settings[category][key] = new_value
-                except Exception as e:
-                    logger.exception(e)
-                    return
+            self.settings = {}
+            for entry in segment.split(" ")[split_index:]:
+                abbreviated_name, value = entry.split("=")
+                if "," in value:
+                    value = value.split(",")
+                elif value.isdigit():
+                    value = int(value)
+                
+                # Replace abbreviated name with full attr_name
+                settings_entry = SettingsDefinition.get_settings_entry_by_abbreviated_name(abbreviated_name)
+                if not settings_entry:
+                    logger.warn(f"Ignoring unrecognized attribute: {abbreviated_name}")
+                    continue
 
-            convert_abbreviated_value("wallet", "coord", map_abbreviated_coordinators, is_list=True, new_key_name="coordinators")
-            convert_abbreviated_value("features", "xpub", map_abbreviated_enable, new_key_name="xpub_export")
-            convert_abbreviated_value("features", "sigs", map_abbreviated_sig_types, is_list=True, new_key_name="sig_types")
-            convert_abbreviated_value("features", "scripts", map_abbreviated_scripts, is_list=True, new_key_name="script_types")
-            convert_abbreviated_value("features", "xp_det", map_abbreviated_enable, new_key_name="show_xpub_details")
-            convert_abbreviated_value("features", "passphrase", map_abbreviated_enable)
-            convert_abbreviated_value("features", "priv_warn", map_abbreviated_enable, new_key_name="show_privacy_warnings")
-            convert_abbreviated_value("features", "dire_warn", map_abbreviated_enable, new_key_name="show_dire_warnings")
+                # Validate value(s) against SettingsDefinition's valid options
+                if type(value) is not list:
+                    values = [value]
+                else:
+                    values = value
+                for v in values:
+                    if v not in [opt[0] for opt in settings_entry.selection_options]:
+                        raise Exception(f"Invalid value for {settings_entry.attr_name}: {v} ({settings_entry.selection_options})")
+
+                self.settings[settings_entry.attr_name] = value
+
+            print(f"new settings: {self.settings}")
 
             self.complete = True
             self.collected_segments = 1

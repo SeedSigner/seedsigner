@@ -511,6 +511,13 @@ class SettingsDefinition:
 
 
     @classmethod
+    def get_settings_entry_by_abbreviated_name(cls, abbreviated_name: str) -> SettingsEntry:
+        for entry in cls.settings_entries:
+            if abbreviated_name in [entry.abbreviated_name, entry.attr_name]:
+                return entry
+
+
+    @classmethod
     def get_defaults(cls) -> dict:
         as_dict = {}
         for entry in SettingsDefinition.settings_entries:
