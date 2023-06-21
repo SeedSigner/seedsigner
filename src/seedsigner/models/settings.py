@@ -67,7 +67,6 @@ class Settings(Singleton):
         # Can't just merge the _data dict; have to replace keys they have in common
         #   (otherwise list values will be merged instead of replaced).
         for key, value in new_settings.items():
-            # print(f"Updating {key} to {value} ({type(value)})")
             self._data.pop(key, None)
             self._data[key] = value
 

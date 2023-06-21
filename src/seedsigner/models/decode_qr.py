@@ -888,8 +888,6 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
 
                 self.settings[settings_entry.attr_name] = value
 
-            print(f"new settings: {self.settings}")
-
             self.complete = True
             self.collected_segments = 1
             return DecodeQRStatus.COMPLETE
