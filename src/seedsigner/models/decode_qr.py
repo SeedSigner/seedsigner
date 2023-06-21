@@ -13,10 +13,9 @@ from urtypes.crypto import Account, Output
 from urtypes.bytes import Bytes
 
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
+from seedsigner.models import QRType, Seed
+from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
-
-from . import QRType, Seed
-from .settings import SettingsConstants
 
 
 logger = logging.getLogger(__name__)
@@ -578,6 +577,8 @@ class DecodeQR:
 
         return descriptor
 
+
+
 class BaseQrDecoder:
     def __init__(self):
         self.total_segments = None
@@ -672,6 +673,8 @@ class SpecterPsbtQrDecoder(BaseAnimatedQrDecoder):
 
     def parse_segment(self, segment) -> str:
         return segment.split(" ")[-1].strip()
+
+
 
 class Base64PsbtQrDecoder(BaseSingleFrameQrDecoder):
     """
@@ -826,8 +829,10 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
 
 
 
-# TODO: Refactor this to work with the new SettingsDefinition
 class SettingsQrDecoder(BaseSingleFrameQrDecoder):
+    """
+        Decodes settings data from the SettingsQR Generator.
+    """
     def __init__(self):
         super().__init__()
         self.settings = {}
@@ -835,25 +840,31 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
 
 
     def add(self, segment, qr_type=QRType.SETTINGS):
-        print(f"SettingsQR:\n{segment}")
+        """
+            * Ignores unrecognized settings options.
+            * Raises an Exception if a settings value is invalid.
+
+            See `Settings.update()` for info on settings validation, especially for
+            missing settings.
+        """
         try:
             if not segment.startswith("settings::"):
                 raise Exception("Invalid SettingsQR data")
 
-            version = segment.split(" ")[0].split("::")[1]
+            version = segment.split()[0].split("::")[1]
             if version != "v1":
                 raise Exception(f"Unsupported SettingsQR version: {version}")
             
-            # Start parsing key/value settings at the nth split(" ") index
+            # Start parsing key/value settings at the nth split() index
             split_index = 1
 
             # handle optional "name" attr
-            if " name=" in segment:
-                self.config_name = segment.split(" name=")[1].split(" ")[0]
+            if "name=" in segment.split()[1]:
+                self.config_name = segment.split("name=")[1].split()[0].replace("_", " ")
                 split_index += 1
 
             self.settings = {}
-            for entry in segment.split(" ")[split_index:]:
+            for entry in segment.split()[split_index:]:
                 abbreviated_name, value = entry.split("=")
                 if "," in value:
                     value = value.split(",")
@@ -1050,11 +1061,11 @@ class GenericWalletQrDecoder(BaseSingleFrameQrDecoder):
 
     def get_wallet_descriptor(self):
         return self.descriptor
-        
+
+
+
 class MultiSigConfigFileQRDecoder(GenericWalletQrDecoder):
     
     def add(self, segment, qr_type=QRType.WALLET__CONFIGFILE):
         descriptor = DecodeQR.multisig_setup_file_to_descriptor(segment)
         return super().add(descriptor,qr_type=QRType.WALLET__CONFIGFILE)
-        
-

@@ -49,6 +49,11 @@ class Settings(Singleton):
 
     def update(self, new_settings: dict, ):
         """
+            Replaces the current settings with the incoming dict.
+
+            If a setting is missing from `new_settings`:
+                * Hidden settings that have a value remain as-is.
+                * All other missing settings are set to their default value.
         """
         for entry in SettingsDefinition.settings_entries:
             if entry.attr_name not in new_settings:
@@ -62,7 +67,7 @@ class Settings(Singleton):
         # Can't just merge the _data dict; have to replace keys they have in common
         #   (otherwise list values will be merged instead of replaced).
         for key, value in new_settings.items():
-            print(f"Updating {key} to {value} ({type(value)})")
+            # print(f"Updating {key} to {value} ({type(value)})")
             self._data.pop(key, None)
             self._data[key] = value
 
