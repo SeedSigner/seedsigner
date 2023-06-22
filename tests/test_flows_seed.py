@@ -1,6 +1,7 @@
 # Must import test base before the Controller
-from base import BaseTest, FlowTest, FlowStep
+from base import BaseTest, FlowTest, FlowStep, FlowBasedTestUnexpectedViewError
 
+import pytest
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.seed import Seed
 from seedsigner.views.view import MainMenuView
@@ -138,6 +139,67 @@ class TestSeedFlows(FlowTest):
                     else:
                         print('\n\ntest_standard_xpubs(%s, %s, %s)' % (sig_tuple, script_tuple, coord_tuple))
                         test_standard_xpubs(sig_tuple, script_tuple, coord_tuple)
+
+
+    def test_export_xpub_disabled_not_available_flow(self):
+        """
+            If sig_type/script_type/coordinator disabled, then these options are not available
+        """
+        # Load a finalized Seed into the Controller
+        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        self.controller.storage.finalize_pending_seed()
+
+        # these are (constant_value, display_name) tuples
+        sig_types = SettingsConstants.ALL_SIG_TYPES
+        script_types = SettingsConstants.ALL_SCRIPT_TYPES
+        coordinators = SettingsConstants.ALL_COORDINATORS
+
+        # these are the disabled types that we will be testing
+        disabled_sig = SettingsConstants.MULTISIG
+        disabled_script = SettingsConstants.TAPROOT
+        disabled_coord = SettingsConstants.COORDINATOR__NUNCHUK
+
+        # enable all but our target disabled type
+        self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [x for x,y in sig_types if x!=disabled_sig])
+        self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [x for x,y in script_types if x!=disabled_script])
+        self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x,y in coordinators if x!=disabled_coord])
+
+        # test that multisig is not an option via exception raised when NOT redirected to next step w/o a choice
+        with pytest.raises(FlowBasedTestUnexpectedViewError) as e:
+            self.run_sequence(
+                initial_destination_view_args=dict(seed_num=0),
+                sequence=[
+                    FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                    FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=disabled_sig),
+                    FlowStep(seed_views.SeedExportXpubScriptTypeView),
+                ]
+            )
+
+        # test that taproot is not an option via exception raised when choice is taproot
+        with pytest.raises(FlowBasedTestUnexpectedViewError) as e:
+            self.run_sequence(
+                initial_destination_view_args=dict(seed_num=0),
+                sequence=[
+                    FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                    FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
+                    FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=disabled_script),
+                    FlowStep(seed_views.SeedExportXpubCoordinatorView),
+                ]
+            )
+
+        # test that nunchuk is not an option via exception raised when choice is nunchuk
+        with pytest.raises(FlowBasedTestUnexpectedViewError) as e:
+            self.run_sequence(
+                initial_destination_view_args=dict(seed_num=0),
+                sequence=[
+                    FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                    FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
+                    FlowStep(seed_views.SeedExportXpubScriptTypeView, screen_return_value=0),
+                    FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=disabled_coord),
+                    FlowStep(seed_views.SeedExportXpubWarningView),
+                ]
+            )
 
 
     def test_export_xpub_custom_derivation_flow(self):
