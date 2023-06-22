@@ -1,7 +1,7 @@
 # Must import test base before the Controller
 from base import BaseTest, FlowTest, FlowStep
 
-from seedsigner.models.settings import SettingsConstants as SC
+from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.seed import Seed
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import seed_views, scan_views
@@ -116,24 +116,24 @@ class TestSeedFlows(FlowTest):
         self.controller.storage.finalize_pending_seed()
 
         # these are (constant_value, display_name) tuples
-        sig_types = SC.ALL_SIG_TYPES
-        script_types = SC.ALL_SCRIPT_TYPES
-        coordinators = SC.ALL_COORDINATORS
+        sig_types = SettingsConstants.ALL_SIG_TYPES
+        script_types = SettingsConstants.ALL_SCRIPT_TYPES
+        coordinators = SettingsConstants.ALL_COORDINATORS
 
         # enable non-defaults so they're available in views
-        self.settings.set_value(SC.SETTING__SIG_TYPES, [x for x,y in sig_types])
-        self.settings.set_value(SC.SETTING__SCRIPT_TYPES, [x for x,y in script_types])
-        self.settings.set_value(SC.SETTING__COORDINATORS, [x for x,y in coordinators])
+        self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [x for x,y in sig_types])
+        self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [x for x,y in script_types])
+        self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x,y in coordinators])
 
         # exhaustively test flows thru standard sig_types, script_types, and coordinators
         for sig_tuple in sig_types:
             for script_tuple in script_types:
                 for coord_tuple in coordinators:
                     # skip custom derivation
-                    if script_tuple[0] == SC.CUSTOM_DERIVATION:
+                    if script_tuple[0] == SettingsConstants.CUSTOM_DERIVATION:
                         continue 
                     # skip multisig taproot
-                    elif sig_tuple[0] == SC.MULTISIG and script_tuple[0] == SC.TAPROOT:
+                    elif sig_tuple[0] == SettingsConstants.MULTISIG and script_tuple[0] == SettingsConstants.TAPROOT:
                         continue
                     else:
                         print('\n\ntest_standard_xpubs(%s, %s, %s)' % (sig_tuple, script_tuple, coord_tuple))
@@ -150,12 +150,16 @@ class TestSeedFlows(FlowTest):
         self.controller.storage.finalize_pending_seed()
 
         # enable custom derivation script_type setting (plus at least one more for a choice)
-        self.settings.set_value(SC.SETTING__SCRIPT_TYPES, [SC.NATIVE_SEGWIT, SC.NESTED_SEGWIT, SC.CUSTOM_DERIVATION])
+        self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [
+            SettingsConstants.NATIVE_SEGWIT, 
+            SettingsConstants.NESTED_SEGWIT,
+            SettingsConstants.CUSTOM_DERIVATION
+        ])
 
         # get display names to access button choices in the views (ugh: hardcoding, is there a better way?)
-        sig_type = self.settings.get_multiselect_value_display_names(SC.SETTING__SIG_TYPES)[0] # single sig
-        script_type = self.settings.get_multiselect_value_display_names(SC.SETTING__SCRIPT_TYPES)[2] # custom derivation
-        coordinator = self.settings.get_multiselect_value_display_names(SC.SETTING__COORDINATORS)[3] # specter
+        sig_type = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SIG_TYPES)[0] # single sig
+        script_type = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES)[2] # custom derivation
+        coordinator = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[3] # specter
 
         self.run_sequence(
             initial_destination_view_args=dict(seed_num=0),
@@ -184,9 +188,9 @@ class TestSeedFlows(FlowTest):
 
         # exclusively set only one choice for each of sig_types, script_types and coordinators
         self.settings.update({
-            SC.SETTING__SIG_TYPES: SC.MULTISIG,
-            SC.SETTING__SCRIPT_TYPES: SC.NESTED_SEGWIT,
-            SC.SETTING__COORDINATORS: SC.COORDINATOR__SPECTER_DESKTOP,
+            SettingsConstants.SETTING__SIG_TYPES: SettingsConstants.MULTISIG,
+            SettingsConstants.SETTING__SCRIPT_TYPES: SettingsConstants.NESTED_SEGWIT,
+            SettingsConstants.SETTING__COORDINATORS: SettingsConstants.COORDINATOR__SPECTER_DESKTOP,
         }, disable_missing_entries=False)
 
         self.run_sequence(
