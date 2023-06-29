@@ -1,6 +1,6 @@
 from base import FlowTest, FlowStep
 
-from seedsigner.controller import Controller, StopControllerCommand
+from seedsigner.controller import Controller, StopFlowBasedTest
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
 
@@ -39,9 +39,9 @@ class TestPSBTFlows(FlowTest):
 	
 		self.run_sequence([
 			FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
-			FlowStep(scan_views.ScanView, run_before=load_psbt_into_decoder),  # simulate read PSBT; ret val is ignored
+			FlowStep(scan_views.ScanView, before_run=load_psbt_into_decoder),  # simulate read PSBT; ret val is ignored
 			FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.SCAN_SEED),
-			FlowStep(scan_views.ScanView, run_before=load_seed_into_decoder),
+			FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
 			FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
 			FlowStep(seed_views.SeedOptionsView, is_redirect=True),
 			FlowStep(psbt_views.PSBTOverviewView),
@@ -52,5 +52,5 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
 			FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
 			FlowStep(psbt_views.PSBTSignedQRDisplayView),
-			FlowStep(MainMenuView, screen_return_value=StopControllerCommand())
+			FlowStep(MainMenuView)
 		])
