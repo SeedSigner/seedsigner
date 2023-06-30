@@ -204,11 +204,13 @@ shasum -a 256 --ignore-missing --check seedsigner.0.6.*.sha256
 
 **On Windows (inside Powershell):** Run this command
 ```
-# Read the content of the seedsigner.0.6.0.sha256 (manifest) file and loop through each line  
-# to check if the computed hash matches the expected hash.
+<# 
+Read the contents of the manifest file (seedsigner.0.6.0.sha256) and
+loop through each line to check 
+if the computed hash matches the expected hash.#>
 Get-Content seedsigner.0.6.0.sha256 | ForEach-Object {
 
-    # Split the line by two spaces to extract the filename and the expected hash
+    # Split each line to extract the binary filename and its expected hash.
     $hash, $filename = $_ -Split '  ' 
 
     # Check if the binary file exists, 
@@ -217,7 +219,7 @@ Get-Content seedsigner.0.6.0.sha256 | ForEach-Object {
         # check if the computed hash matches the expected hash
         write-host $filename ('FAILED: Computed checksum did NOT match!', 'is OK.')[((Get-FileHash $filename).hash -eq $hash)]
     }     
-}
+} <#Press Enter to begin the hash verification.#>
 ```
  <BR>
 
