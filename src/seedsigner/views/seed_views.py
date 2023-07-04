@@ -707,10 +707,8 @@ class SeedExportXpubDetailsView(View):
             selected_menu_num = 0
 
         else:
-            # imported locally instead of at module level to avoid flow-test warnings: "comparing int to MagicMock"
-            from seedsigner.gui.screens.screen import LoadingScreenThread
-
             # The derivation calc takes a few moments. Run the loading screen while we wait.
+            from seedsigner.gui.screens.screen import LoadingScreenThread
             self.loading_screen = LoadingScreenThread(text="Generating xpub...")
             self.loading_screen.start()
 

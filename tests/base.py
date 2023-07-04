@@ -26,7 +26,7 @@ class BaseTest:
         # Ensure there are no on-disk artifacts after running tests.
         Settings.SETTINGS_FILENAME = "settings-test.json"
 
-        # Mock out the loading screen so it can't spawn.
+        # Mock out the loading screen so it can't spawn. View classes must import locally!
         patch('seedsigner.gui.screens.screen.LoadingScreenThread').start()
 
 

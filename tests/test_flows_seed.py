@@ -96,7 +96,7 @@ class TestSeedFlows(FlowTest):
             Selecting "Export XPUB" from the SeedOptionsView should enter the Export XPUB flow and end at the MainMenuView
         """
 
-        def test_standard_xpubs(sig_tuple, script_tuple, coord_tuple):
+        def flowtest_standard_xpub(sig_tuple, script_tuple, coord_tuple):
             self.run_sequence(
                 initial_destination_view_args=dict(seed_num=0),
                 sequence=[
@@ -116,10 +116,10 @@ class TestSeedFlows(FlowTest):
         self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
         self.controller.storage.finalize_pending_seed()
 
-        # these are (constant_value, display_name) tuples
-        sig_types = SettingsConstants.ALL_SIG_TYPES
-        script_types = SettingsConstants.ALL_SCRIPT_TYPES
-        coordinators = SettingsConstants.ALL_COORDINATORS
+        # these are lists of (constant_value, display_name) tuples
+        sig_types: list[tuple[str, str]] = SettingsConstants.ALL_SIG_TYPES
+        script_types: list[tuple[str, str]] = SettingsConstants.ALL_SCRIPT_TYPES
+        coordinators: list[tuple[str, str]] = SettingsConstants.ALL_COORDINATORS
 
         # enable non-defaults so they're available in views
         self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [x for x,y in sig_types])
@@ -138,7 +138,7 @@ class TestSeedFlows(FlowTest):
                         continue
                     else:
                         print('\n\ntest_standard_xpubs(%s, %s, %s)' % (sig_tuple, script_tuple, coord_tuple))
-                        test_standard_xpubs(sig_tuple, script_tuple, coord_tuple)
+                        flowtest_standard_xpub(sig_tuple, script_tuple, coord_tuple)
 
 
     def test_export_xpub_disabled_not_available_flow(self):
@@ -150,10 +150,10 @@ class TestSeedFlows(FlowTest):
         self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
         self.controller.storage.finalize_pending_seed()
 
-        # these are (constant_value, display_name) tuples
-        sig_types = SettingsConstants.ALL_SIG_TYPES
-        script_types = SettingsConstants.ALL_SCRIPT_TYPES
-        coordinators = SettingsConstants.ALL_COORDINATORS
+        # these are lists of (constant_value, display_name) tuples
+        sig_types: list[tuple[str, str]] = SettingsConstants.ALL_SIG_TYPES
+        script_types: list[tuple[str, str]] = SettingsConstants.ALL_SCRIPT_TYPES
+        coordinators: list[tuple[str, str]] = SettingsConstants.ALL_COORDINATORS
 
         # these are the disabled types that we will be testing
         disabled_sig = SettingsConstants.MULTISIG
