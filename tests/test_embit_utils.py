@@ -233,6 +233,10 @@ def test_get_single_sig_address():
         # jdlcdl: derived via electrum m/44'/1'/0 (first change address p2pkh on testnet)
         (HDKey.from_string("tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba"), "leg", 0, True, "test"):
             "mi8nhzZgGZQthq6DQHbru9crMDerUdTKva",
+
+        # jdlcdl: nonsense script_type falls off end of function returning None.  TODO: Would it be preferred to "else: raise ValueError"?
+        (HDKey.from_string("tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba"), "NONSENSE", 0, True, "test"):
+            "None",
     }
     func = embit_utils.get_single_sig_address
 
@@ -280,6 +284,11 @@ def test_get_multisig_address():
 
         # multisig taproot on testnet, not supported
         # TODO: find what a multisig-taproot descriptor would look like and add a test so we can fall into the last condition exception.
+
+        # some policy that is not supported:
+        # TODO: find anything non supported so we can drop off the function: Would it be preferred to "else: raise ValueError()"?
+        #("sh(multi(2,[8d55ff0d/45h]tpubDANogJ2yfnizHwX7fSi5kUVzybyuPXDhgHB2TR9TUvkSLZFW73cRq4STKFDpx7qjJJiisyq82tbu4CeiYtmKEmT1xoCq9P8BPvXV31HUh6d/{0,1}/*,[0be174ee/45h]tpubDBkeVF2tDNT1Pz7L47iJeBB6RokU12LX6x4E6Ph8T89hmjQfB77q1AMyGwL8qpREVGq9sCJEbWwmnemwNTxnpxGn1di7BGy8jx9wEi5Vahu/{0,1}/*,[73c5da0a/45h]tpubDBKsGC1UqBDNvx9aivFmxZNgeZTUnmsCFGhWrqkLzucUCDePvbWWm3n8tAaAwMmxBG2ihdKCG9fzBdUnMxKx5PrkiqSZFi6Vkv6msUs9ddN/{0,1}/*))#", 0, False, "test"): None,
+
     }
     func = embit_utils.get_multisig_address
 
