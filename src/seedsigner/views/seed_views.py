@@ -814,9 +814,10 @@ class SeedWordsWarningView(View):
             # Forward straight to showing the words
             return destination
 
-        selected_menu_num = DireWarningScreen(
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
             text="""You must keep your seed words private & away from all online devices.""",
-        ).display()
+        )
 
         if selected_menu_num == 0:
             # User clicked "I Understand"

@@ -40,10 +40,9 @@ class StopFlowBasedTest(Exception):
     pass
 
 
-class FlowBasedTestUnexpectedViewError(Exception):
+class FlowBasedTestException(Exception):
     """
-        This is a special exception that is only raised by the test suite to indicate
-        that the Controller's current View does not match the expected TestFlow sequence.
+        This is a special exception that is only raised by the test suite.
         It should not be raised by any other code.
     """
     pass
@@ -276,9 +275,8 @@ class Controller(Singleton):
                     # to stop the Controller loop and exit the test.
                     return
 
-                except FlowBasedTestUnexpectedViewError as e:
-                    # This is a special exception that is only raised by the test suite
-                    # when a flow-based test fails to follow the expected sequence.
+                except FlowBasedTestException as e:
+                    # This is a special exception that is only raised by the test suite.
                     # Re-raise so the test suite can handle it.
                     raise e
 
