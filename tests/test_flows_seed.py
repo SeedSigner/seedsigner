@@ -1,5 +1,6 @@
 # Must import test base before the Controller
-from base import BaseTest, FlowTest, FlowStep, FlowBasedTestUnexpectedViewError
+from base import BaseTest, FlowTest, FlowStep
+from base import FlowTestUnexpectedViewException, FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDataSelectionException
 
 import pytest
 from seedsigner.models.settings import SettingsConstants
@@ -165,31 +166,29 @@ class TestSeedFlows(FlowTest):
         self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [x for x,y in script_types if x!=disabled_script])
         self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x,y in coordinators if x!=disabled_coord])
 
-        # test that multisig is not an option via exception raised when NOT redirected to next step w/o a choice
-        with pytest.raises(FlowBasedTestUnexpectedViewError) as e:
+        # test that multisig is not an option via exception raised when redirected to next step instead of having a choice
+        with pytest.raises(FlowTestRunScreenNotExecutedException) as e:
             self.run_sequence(
                 initial_destination_view_args=dict(seed_num=0),
                 sequence=[
                     FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
                     FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=disabled_sig),
-                    FlowStep(seed_views.SeedExportXpubScriptTypeView),
                 ]
             )
 
         # test that taproot is not an option via exception raised when choice is taproot
-        with pytest.raises(FlowBasedTestUnexpectedViewError) as e:
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
             self.run_sequence(
                 initial_destination_view_args=dict(seed_num=0),
                 sequence=[
                     FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
                     FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
                     FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=disabled_script),
-                    FlowStep(seed_views.SeedExportXpubCoordinatorView),
                 ]
             )
 
         # test that nunchuk is not an option via exception raised when choice is nunchuk
-        with pytest.raises(FlowBasedTestUnexpectedViewError) as e:
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
             self.run_sequence(
                 initial_destination_view_args=dict(seed_num=0),
                 sequence=[
@@ -197,7 +196,6 @@ class TestSeedFlows(FlowTest):
                     FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
                     FlowStep(seed_views.SeedExportXpubScriptTypeView, screen_return_value=0),
                     FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=disabled_coord),
-                    FlowStep(seed_views.SeedExportXpubWarningView),
                 ]
             )
 
