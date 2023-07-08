@@ -50,7 +50,7 @@ class BaseTest:
             if os.path.exists(Settings.SETTINGS_FILENAME):
                 os.remove(Settings.SETTINGS_FILENAME)
         except:
-            print(f"{Settings.SETTINGS_FILENAME} not found to be removed")
+            print(f"{Settings.SETTINGS_FILENAME} could not be removed")
 
 
     @classmethod

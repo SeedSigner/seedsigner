@@ -3,7 +3,6 @@ import os
 # Must import test base before the Controller
 from base import FlowTest, FlowStep
 
-from seedsigner.controller import StopFlowBasedTest
 from seedsigner.models import SettingsDefinition
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
@@ -28,7 +27,7 @@ class TestSettingsFlows(FlowTest):
             FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_entry.display_name),
             FlowStep(settings_views.SettingsEntryUpdateSelectionView, button_data_selection=settings_entry.get_selection_option_display_name_by_value(SettingsConstants.OPTION__ENABLED)),
             FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=RET_CODE__BACK_BUTTON),
-            FlowStep(settings_views.SettingsMenuView, screen_return_value=StopFlowBasedTest()),
+            FlowStep(settings_views.SettingsMenuView),
         ])
 
         # Settings file should now exist

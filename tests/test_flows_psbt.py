@@ -1,6 +1,6 @@
 from base import FlowTest, FlowStep
 
-from seedsigner.controller import Controller, StopFlowBasedTest
+from seedsigner.controller import Controller
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
 

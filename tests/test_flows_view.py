@@ -3,7 +3,6 @@ from mock import patch
 # Must import test base before the Controller
 from base import FlowTest, FlowStep
 
-from seedsigner.controller import StopFlowBasedTest
 from seedsigner.gui.screens.screen import RET_CODE__POWER_BUTTON
 from seedsigner.models.settings import Settings
 from seedsigner.views.tools_views import ToolsCalcFinalWordNumWordsView, ToolsMenuView
@@ -21,7 +20,7 @@ class TestViewFlows(FlowTest):
             self.run_sequence([
                 FlowStep(MainMenuView, screen_return_value=RET_CODE__POWER_BUTTON),
                 FlowStep(PowerOptionsView, button_data_selection=PowerOptionsView.RESET),
-                FlowStep(RestartView, screen_return_value=StopFlowBasedTest()),
+                FlowStep(RestartView),
             ])
         
 
@@ -33,7 +32,7 @@ class TestViewFlows(FlowTest):
             self.run_sequence([
                 FlowStep(MainMenuView, screen_return_value=RET_CODE__POWER_BUTTON),
                 FlowStep(PowerOptionsView, button_data_selection=PowerOptionsView.POWER_OFF),
-                FlowStep(PowerOffView, screen_return_value=StopFlowBasedTest()),
+                FlowStep(PowerOffView),
             ])
         
         # And again, but this time as if we were in the SeedSigner OS
@@ -42,7 +41,7 @@ class TestViewFlows(FlowTest):
             FlowStep(MainMenuView, screen_return_value=RET_CODE__POWER_BUTTON),
             FlowStep(PowerOptionsView, button_data_selection=PowerOptionsView.POWER_OFF),
             FlowStep(PowerOffView),  # returns BackStackView
-            FlowStep(PowerOptionsView, screen_return_value=StopFlowBasedTest()),
+            FlowStep(PowerOptionsView),
         ])
     
 
@@ -58,7 +57,7 @@ class TestViewFlows(FlowTest):
         self.run_sequence([
             FlowStep(IncompleteView),
             FlowStep(NotYetImplementedView),
-            FlowStep(MainMenuView, screen_return_value=StopFlowBasedTest()),
+            FlowStep(MainMenuView),
         ])
     
 
@@ -71,5 +70,5 @@ class TestViewFlows(FlowTest):
             FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.KEYBOARD),
             FlowStep(ToolsCalcFinalWordNumWordsView, screen_return_value=Exception("Test exception")),  # <-- force an exception
             FlowStep(UnhandledExceptionView),
-            FlowStep(MainMenuView, screen_return_value=StopFlowBasedTest()),
+            FlowStep(MainMenuView),
         ])
