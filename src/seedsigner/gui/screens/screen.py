@@ -8,9 +8,11 @@ from seedsigner.gui.renderer import Renderer
 
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.models.encode_qr import EncodeQR
-from seedsigner.models.settings import Settings, SettingsConstants
+from seedsigner.models.settings import SettingsConstants
 
-from ..components import (FontAwesomeIconConstants, GUIConstants, BaseComponent, Button, Icon, IconButton, LargeIconButton, SeedSignerCustomIconConstants, TopNav, TextArea, load_image, ToastOverlay)
+from ..components import (FontAwesomeIconConstants, GUIConstants, BaseComponent, Button, Icon, IconButton,
+                          LargeIconButton, SeedSignerCustomIconConstants, TopNav, TextArea, load_image, ToastOverlay,
+                          Fonts)
 
 from seedsigner.hardware.buttons import HardwareButtonsConstants, HardwareButtons
 
@@ -660,42 +662,98 @@ class LargeButtonScreen(BaseTopNavScreen):
 class QRDisplayScreen(BaseScreen):
     qr_encoder: EncodeQR = None
 
-    class AdjustBrightnessTipsScreen(BaseScreen):
-        def __post_init__(self):
-            super().__post_init__()
-
-            text_area = TextArea(
-                text="Use joystick Up/Down for adjusting brightness",
-                is_text_centered=True,
-                screen_y=self.canvas_height // 2,
-            )
-            self.components.append(text_area)
-
-        def _run(self):
-            # show the screen for 3 seconds
-            time.sleep(3)
-
     class QRDisplayThread(BaseThread):
-        def __init__(self, qr_encoder: EncodeQR, qr_brightness: ThreadsafeCounter, renderer: Renderer):
+        def __init__(self, qr_encoder: EncodeQR, qr_brightness: ThreadsafeCounter, renderer: Renderer,
+                     tips_start_time: ThreadsafeCounter):
             super().__init__()
             self.qr_encoder = qr_encoder
             self.qr_brightness = qr_brightness
             self.renderer = renderer
+            self.tips_start_time = tips_start_time
 
+        def add_brightness_tips(self, image: Image.Image) -> None:
+            rectangle_height, rectangle_width = 60, 240
+            rectangle = Image.new('RGBA', (rectangle_width, rectangle_height), (0, 0, 0, 0))
+            img_draw = ImageDraw.Draw(rectangle)
+            img_draw.rounded_rectangle((0, 0, rectangle_width - 1, rectangle_height - 1), outline=(0, 0, 0, 0),
+                                       width=1, radius=10, fill=(0, 0, 0, 224))
+
+            font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 16)
+            content_fill = (255, 255, 255)
+            # blank space(10) + font height(14) + blank space(12) + font height(14) + blank space(10) = 58
+            img_draw.text((50, 10), "Brighter", fill=content_fill, font=font)
+            img_draw.text((50, 36), "Darker", fill=content_fill, font=font)
+
+            # draw arrows
+            arrow_init_x, arrow_init_y = 20, 10
+            arrow_height, arrow_width = 14, 8
+            # up arrow
+            img_draw.line(
+                (
+                    arrow_init_x,
+                    arrow_height + arrow_init_y,
+                    arrow_init_x + arrow_width,
+                    arrow_init_y,
+                ),
+                fill=content_fill,
+            )
+            img_draw.line(
+                (
+                    arrow_init_x + arrow_width,
+                    arrow_init_y,
+                    arrow_init_x + arrow_width * 2,
+                    arrow_init_y + arrow_height,
+                ),
+                fill=content_fill,
+            )
+            # down arrow
+            img_draw.line(
+                (
+                    arrow_init_x,
+                    60 - (arrow_height + arrow_init_y),
+                    arrow_init_x + arrow_width,
+                    (60 - arrow_init_y),
+                ),
+                fill=content_fill,
+            )
+            img_draw.line(
+                (
+                    arrow_init_x + arrow_width,
+                    60 - arrow_init_y,
+                    arrow_init_x + arrow_width * 2,
+                    60 - (arrow_init_y + arrow_height),
+                ),
+                fill=content_fill,
+            )
+            image.paste(rectangle, (0, 240 - rectangle_height), rectangle)
 
         def run(self):
+            from seedsigner.models.settings import Settings
+            settings = Settings.get_instance()
+            show_brightness_tips = (
+                    settings.get_value(
+                        SettingsConstants.SETTING__QR_BRIGHTNESS_TIPS
+                    )
+                    == SettingsConstants.OPTION__ENABLED
+            )
+
             # Loop whether the QR is a single frame or animated; each loop might adjust
             # brightness setting.
             while self.keep_running:
                 # convert the self.qr_brightness integer (31-255) into hex triplets
                 hex_color = (hex(self.qr_brightness.cur_count).split('x')[1]) * 3
-                image = self.qr_encoder.next_part_image(240,240, border=2, background_color=hex_color)
+                image = self.qr_encoder.next_part_image(240, 240, border=2, background_color=hex_color)
+
+                # Display the brightness tips toast
+                duration = 10 ** 9 * 1  # 1 seconds
+                if show_brightness_tips and time.time_ns() - self.tips_start_time.cur_count < duration:
+                    self.add_brightness_tips(image)
+
                 with self.renderer.lock:
                     self.renderer.show_image(image)
 
                 # Target n held frames per second before rendering next QR image
-                time.sleep(5/30.0)
-
+                time.sleep(5 / 30.0)
 
     def __post_init__(self):
         from seedsigner.models.settings import Settings
@@ -703,22 +761,15 @@ class QRDisplayScreen(BaseScreen):
 
         # Shared coordination var so the display thread can detect success
         settings = Settings.get_instance()
-        self.qr_brightness = ThreadsafeCounter(initial_value=settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS))
-
-        # Display the brightness tips screen
-        show_brightness_tips = (
-                settings.get_value(
-                    SettingsConstants.SETTING__QR_BRIGHTNESS_TIPS
-                )
-                == SettingsConstants.OPTION__ENABLED
-        )
-        if show_brightness_tips:
-            QRDisplayScreen.AdjustBrightnessTipsScreen().display()
+        self.qr_brightness = ThreadsafeCounter(
+            initial_value=settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS))
+        self.tips_start_time = ThreadsafeCounter(initial_value=time.time_ns())
 
         self.threads.append(QRDisplayScreen.QRDisplayThread(
             qr_encoder=self.qr_encoder,
             qr_brightness=self.qr_brightness,
             renderer=self.renderer,
+            tips_start_time=self.tips_start_time
         ))
 
 
@@ -739,10 +790,12 @@ class QRDisplayScreen(BaseScreen):
             if user_input == HardwareButtonsConstants.KEY_DOWN:
                 # Reduce QR code background brightness
                 self.qr_brightness.set_value(max(31, self.qr_brightness.cur_count - 31))
+                self.tips_start_time.set_value(time.time_ns())
 
             elif user_input == HardwareButtonsConstants.KEY_UP:
                 # Incrase QR code background brightness
                 self.qr_brightness.set_value(min(self.qr_brightness.cur_count + 31, 255))
+                self.tips_start_time.set_value(time.time_ns())
 
             else:
                 # Any other input exits the screen
