@@ -26,7 +26,7 @@ class BaseTest:
         # Ensure there are no on-disk artifacts after running tests.
         Settings.SETTINGS_FILENAME = "settings-test.json"
 
-        # Mock out the loading screen so it can't spawn.
+        # Mock out the loading screen so it can't spawn. View classes must import locally!
         patch('seedsigner.gui.screens.screen.LoadingScreenThread').start()
 
 
@@ -50,7 +50,7 @@ class BaseTest:
             if os.path.exists(Settings.SETTINGS_FILENAME):
                 os.remove(Settings.SETTINGS_FILENAME)
         except:
-            print(f"{Settings.SETTINGS_FILENAME} not found to be removed")
+            print(f"{Settings.SETTINGS_FILENAME} could not be removed")
 
 
     @classmethod

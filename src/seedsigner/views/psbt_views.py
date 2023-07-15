@@ -12,7 +12,7 @@ from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen, PSBTMathScreen, PSBTAddressDetailsScreen, PSBTChangeDetailsScreen, PSBTFinalizeScreen
-from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, DireWarningScreen, QRDisplayScreen, WarningScreen)
+from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, DireWarningScreen, QRDisplayScreen)
 
 from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
@@ -131,12 +131,6 @@ class PSBTOverviewView(View):
             else:
                 num_self_transfer_outputs += 1
 
-        spend_amount = psbt_parser.spend_amount
-        change_amount = psbt_parser.change_amount
-        fee_amount = psbt_parser.fee_amount
-        num_inputs = psbt_parser.num_inputs
-        destination_addresses = psbt_parser.destination_addresses
-
         # Everything is set. Stop the loading screen
         if self.loading_screen:
             self.loading_screen.stop()
@@ -144,13 +138,13 @@ class PSBTOverviewView(View):
         # Run the overview screen
         selected_menu_num = self.run_screen(
             PSBTOverviewScreen,
-            spend_amount=spend_amount,
-            change_amount=change_amount,
-            fee_amount=fee_amount,
-            num_inputs=num_inputs,
+            spend_amount=psbt_parser.spend_amount,
+            change_amount=psbt_parser.change_amount,
+            fee_amount=psbt_parser.fee_amount,
+            num_inputs=psbt_parser.num_inputs,
             num_self_transfer_outputs=num_self_transfer_outputs,
             num_change_outputs=num_change_outputs,
-            destination_addresses=destination_addresses
+            destination_addresses=psbt_parser.destination_addresses
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
