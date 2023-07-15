@@ -671,71 +671,83 @@ class QRDisplayScreen(BaseScreen):
             self.renderer = renderer
             self.tips_start_time = tips_start_time
 
+
         def add_brightness_tips(self, image: Image.Image) -> None:
-            rectangle_height, rectangle_width = 60, 240
+            # TODO: Refactor ToastOverlay to support two lines of icon + text and use
+            # that instead of this more manual approach.
+
+            # Instantiate a temp Image and ImageDraw object to draw on
+            rectangle_width = image.width
+            rectangle_height = GUIConstants.COMPONENT_PADDING * 2 + GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING
             rectangle = Image.new('RGBA', (rectangle_width, rectangle_height), (0, 0, 0, 0))
             img_draw = ImageDraw.Draw(rectangle)
-            img_draw.rounded_rectangle((0, 0, rectangle_width - 1, rectangle_height - 1), outline=(0, 0, 0, 0),
-                                       width=1, radius=10, fill=(0, 0, 0, 224))
 
-            font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 16)
-            content_fill = (255, 255, 255)
-            # blank space(10) + font height(14) + blank space(12) + font height(14) + blank space(10) = 58
-            img_draw.text((50, 10), "Brighter", fill=content_fill, font=font)
-            img_draw.text((50, 36), "Darker", fill=content_fill, font=font)
+            overlay_opacity = 224
 
-            # draw arrows
-            arrow_init_x, arrow_init_y = 20, 10
-            arrow_height, arrow_width = 14, 8
-            # up arrow
-            img_draw.line(
-                (
-                    arrow_init_x,
-                    arrow_height + arrow_init_y,
-                    arrow_init_x + arrow_width,
-                    arrow_init_y,
-                ),
-                fill=content_fill,
+            # Create a semi-transparent background for the overlay, rounded edges, w/a 1-pixel gap from the edges
+            img_draw.rounded_rectangle((1, 0, rectangle_width - 2, rectangle_height - 1), radius=8, fill=(0, 0, 0, overlay_opacity))
+
+            chevron_up_icon = Icon(
+                image_draw=img_draw,
+                canvas=rectangle,
+                screen_x=GUIConstants.EDGE_PADDING*2 + 1,
+                screen_y=GUIConstants.COMPONENT_PADDING + 4,  # +4 fudge factor to account for where the chevron is drawn relative to baseline
+                icon_name=FontAwesomeIconConstants.CHEVRON_UP,
+                icon_size=GUIConstants.BODY_FONT_SIZE,
             )
-            img_draw.line(
-                (
-                    arrow_init_x + arrow_width,
-                    arrow_init_y,
-                    arrow_init_x + arrow_width * 2,
-                    arrow_init_y + arrow_height,
-                ),
-                fill=content_fill,
+            chevron_up_icon.render()
+
+            chevron_down_icon = Icon(
+                image_draw=img_draw,
+                canvas=rectangle,
+                screen_x=chevron_up_icon.screen_x,
+                screen_y=chevron_up_icon.screen_y + chevron_up_icon.icon_size + GUIConstants.BODY_LINE_SPACING,
+                icon_name=FontAwesomeIconConstants.CHEVRON_DOWN,
+                icon_size=chevron_up_icon.icon_size,
             )
-            # down arrow
-            img_draw.line(
-                (
-                    arrow_init_x,
-                    60 - (arrow_height + arrow_init_y),
-                    arrow_init_x + arrow_width,
-                    (60 - arrow_init_y),
-                ),
-                fill=content_fill,
-            )
-            img_draw.line(
-                (
-                    arrow_init_x + arrow_width,
-                    60 - arrow_init_y,
-                    arrow_init_x + arrow_width * 2,
-                    60 - (arrow_init_y + arrow_height),
-                ),
-                fill=content_fill,
-            )
-            image.paste(rectangle, (0, 240 - rectangle_height), rectangle)
+            chevron_down_icon.render()
+
+            TextArea(
+                image_draw=img_draw,
+                canvas=rectangle,
+                text="Brighter",
+                font_size=GUIConstants.BODY_FONT_SIZE,
+                font_name=GUIConstants.BUTTON_FONT_NAME,
+                background_color=(0, 0, 0, overlay_opacity),
+                edge_padding=0,
+                is_text_centered=False,
+                auto_line_break=False,
+                width=int(rectangle_width/2),
+                screen_x=chevron_up_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
+                screen_y=chevron_up_icon.screen_y - 2,  # -2 to account for Icon's positioning
+                allow_text_overflow=False
+            ).render()
+
+            TextArea(
+                image_draw=img_draw,
+                canvas=rectangle,
+                text="Darker",
+                font_size=GUIConstants.BODY_FONT_SIZE,
+                font_name=GUIConstants.BUTTON_FONT_NAME,
+                background_color=(0, 0, 0, overlay_opacity),
+                edge_padding=0,
+                is_text_centered=False,
+                auto_line_break=False,
+                width=int(rectangle_width/2),
+                screen_x=chevron_down_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
+                screen_y=chevron_down_icon.screen_y - 2,  # -2 to account for Icon's positioning
+                allow_text_overflow=False
+            ).render()
+
+            # Write our temp Image onto the main image
+            image.paste(rectangle, (0, image.height - rectangle_height - 1), rectangle)
+
 
         def run(self):
             from seedsigner.models.settings import Settings
             settings = Settings.get_instance()
-            show_brightness_tips = (
-                    settings.get_value(
-                        SettingsConstants.SETTING__QR_BRIGHTNESS_TIPS
-                    )
-                    == SettingsConstants.OPTION__ENABLED
-            )
+            cur_brightness_setting = settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS_TIPS)
+            show_brightness_tips = cur_brightness_setting == SettingsConstants.OPTION__ENABLED
 
             # Loop whether the QR is a single frame or animated; each loop might adjust
             # brightness setting.
@@ -745,7 +757,7 @@ class QRDisplayScreen(BaseScreen):
                 image = self.qr_encoder.next_part_image(240, 240, border=2, background_color=hex_color)
 
                 # Display the brightness tips toast
-                duration = 10 ** 9 * 1  # 1 seconds
+                duration = 10 ** 9 * 1.2  # 1.2 seconds
                 if show_brightness_tips and time.time_ns() - self.tips_start_time.cur_count < duration:
                     self.add_brightness_tips(image)
 
@@ -754,6 +766,7 @@ class QRDisplayScreen(BaseScreen):
 
                 # Target n held frames per second before rendering next QR image
                 time.sleep(5 / 30.0)
+
 
     def __post_init__(self):
         from seedsigner.models.settings import Settings
