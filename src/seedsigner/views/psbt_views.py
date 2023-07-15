@@ -28,6 +28,19 @@ class PSBTSelectSeedView(View):
         if not self.controller.psbt:
             # Shouldn't be able to get here
             raise Exception("No PSBT currently loaded")
+
+        # PSBT may optionally contain PSBT_GLOBAL_XPUBS which informs network
+        if self.controller.psbt.xpubs:
+            embit_network = SettingsConstants.map_network_to_embit(
+                self.controller.settings.get_value(SettingsConstants.SETTING__NETWORK)
+            )
+            psbt_versions = [k.version for k in self.controller.psbt.xpubs]
+            our_version = NETWORKS[embit_network]['xpub']
+
+            # even if multiple xpubs, should all be for the same network
+            if set(psbt_versions) != set([our_version]):
+                raise Exception("This PSBT is for another network")
+            del embit_network, psbt_versions, our_version
         
         seeds = self.controller.storage.seeds
 
