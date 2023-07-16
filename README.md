@@ -55,6 +55,8 @@ If you have specific questions about the project, our [Telegram Group](https://t
 
 ### Planned Upcoming Improvements / Functionality:
 * Multi-language support
+* Significantly faster boot time
+* Reproducible builds
 * Port to MicroPython to broaden the range of compatible hardware to include low-cost microcontrollers
 * Other optimizations based on user feedback!
 
