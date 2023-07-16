@@ -1,7 +1,7 @@
 import spidev
 import RPi.GPIO as GPIO
 import time
-import numpy as np
+import array
 
 
 
@@ -153,11 +153,10 @@ class ST7789(object):
         if imwidth != self.width or imheight != self.height:
             raise ValueError('Image must be same dimensions as display \
                 ({0}x{1}).' .format(self.width, self.height))
-        img = np.asarray(Image)
-        pix = np.zeros((self.width,self.height,2), dtype = np.uint8)
-        pix[...,[0]] = np.add(np.bitwise_and(img[...,[0]],0xF8),np.right_shift(img[...,[1]],5))
-        pix[...,[1]] = np.add(np.bitwise_and(np.left_shift(img[...,[1]],3),0xE0),np.right_shift(img[...,[2]],3))
-        pix = pix.flatten().tolist()
+        # convert 24-bit RGB-8:8:8 to gBRG-3:5:5:3; then per-pixel byteswap to 16-bit RGB-5:6:5
+        arr = array.array("H", Image.convert("BGR;16").tobytes())
+        arr.byteswap()
+        pix = arr.tobytes()
         self.SetWindows ( 0, 0, self.width, self.height)
         GPIO.output(self._dc,GPIO.HIGH)
         for i in range(0,len(pix),4096):

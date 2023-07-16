@@ -204,14 +204,14 @@ shasum -a 256 --ignore-missing --check seedsigner.0.6.*.sha256
 
 **On Windows (inside Powershell):** Run this command
 ```
-CertUtil -hashfile  seedsigner.0.6.0.sha256 SHA256 | findstr /v "hash"
+CertUtil -hashfile  seedsigner_os.0.6.0.Insert_Your_Pi_Models_binary_here_For_Example_pi02w.img SHA256 
 ```
 On Windows, you must then manually compare the resulting file hash value to the corresponding hash value shown inside the .SHA256 cleartext file.
  <BR>
 
 Wait up to 30 seconds for the command to complete, and it should display:
 ```
-seedsigner_os.0.6.x[Your_Pi_Model_For_Example:pi02w].img: OK
+seedsigner_os.0.6.x.[Your_Pi_Model_For_Example:pi02w].img: OK
 ```
 **If you receive the "OK" message** for your **seedsigner_os.0.6.x.[Your_Pi_Model_For_Example:pi02w].img file**, as shown above, then your verification is fully complete!  
 **All of your downloaded files have now been confirmed as both authentic and unaltered!** You can proceed to create/write your MicroSD card😄😄 !!     
@@ -241,7 +241,7 @@ Either of the Etcher or Pi Imager software is recommended.  Some SeedSigner user
 The writing and verify steps are very quick from version 0.6.0 upwards, so please pay close attention to your screen. 
 Make sure to set any write-protection physical slider on the MicroSD Card Adapter to UN-locked.  
 You also don’t need to pre-format the MicroSD beforehand.  You *dont* need to unzip any .zip file beforehand.
-Current Etcher and Pi Imager software will perform a verify action (by default) to make sure the card was written successfully! Watching for that verify step to complete successfully can save you a lot of headaches if you later need to troubleshoot issues where your SeedSigner device doesn’t boot up at power on.   
+Current Etcher and Pi Imager software will perform a verify action (by default) to make sure the card was written successfully! Watching for that verify step to complete successfully, can save you a lot of headaches if you later need to troubleshoot issues where your SeedSigner device doesn’t boot up at power on.   
 Writing the MicroSd card is also known as flashing.  
 It will overwrite everything on the MicroSD card.  
 If the one application fails for you, then please try again using our other recommended application.  

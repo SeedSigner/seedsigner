@@ -309,7 +309,12 @@ class Controller(Singleton):
         # So we extract the Exception type and trim off any "foo.bar." namespacing:
         last_line = traceback.format_exc().splitlines()[-1]
         exception_type = last_line.split(":")[0].split(".")[-1]
-        exception_msg = last_line.split(":")[1]
+
+        # Extract the error message, if there is one
+        if ":" in last_line:
+            exception_msg = last_line.split(":")[1]
+        else:
+            exception_msg = ""
 
         # Scan for the last debugging line that includes a line number reference
         line_info = None
