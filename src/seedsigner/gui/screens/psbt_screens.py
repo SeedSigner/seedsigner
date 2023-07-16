@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from lzma import is_check_supported
 from PIL import Image, ImageDraw, ImageFilter
 from typing import List
 import time

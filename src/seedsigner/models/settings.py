@@ -1,5 +1,6 @@
 import json
 import os
+import platform
 
 from typing import Any, List
 
@@ -10,7 +11,7 @@ from .singleton import Singleton
 
 
 class Settings(Singleton):
-    HOSTNAME = os.uname()[1]
+    HOSTNAME = platform.uname()[1]
     SEEDSIGNER_OS = "seedsigner-os"
     SETTINGS_FILENAME = "/mnt/microsd/settings.json" if HOSTNAME == SEEDSIGNER_OS else "settings.json"
         
@@ -156,8 +157,11 @@ class Settings(Singleton):
             raise Exception(f"Unsupported SettingsEntry.type: {settings_entry.type}")
 
         display_names = []
-        for value in self._data[attr_name]:
-            display_names.append(settings_entry.get_selection_option_display_name_by_value(value))
+        # Iterate through the selection_options list in order to preserve intended sort
+        # order when adding which options are selected.
+        for value, display_name in settings_entry.selection_options:
+            if value in self._data[attr_name]:
+                display_names.append(display_name)
         return display_names
 
 

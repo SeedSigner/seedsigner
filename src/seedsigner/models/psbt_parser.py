@@ -148,7 +148,7 @@ class PSBTParser():
                         leaf_hashes, derivation = list(out.taproot_bip32_derivations.values())[0]
                         der = derivation.derivation
                         my_pubkey = self.root.derive(der)
-                    sc = script.p2tr(my_pubkey)
+                        sc = script.p2tr(my_pubkey)
 
                     if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
                         is_change = True

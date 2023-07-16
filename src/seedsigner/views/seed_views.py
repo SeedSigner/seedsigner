@@ -36,8 +36,7 @@ class SeedsMenuView(View):
         self.seeds = []
         for seed in self.controller.storage.seeds:
             self.seeds.append({
-                "fingerprint": seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
-                "has_passphrase": seed.passphrase is not None
+                "fingerprint": seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
             })
 
 
@@ -373,6 +372,14 @@ class SeedOptionsView(View):
             addr = self.controller.unverified_address["address"][:7]
             VERIFY_ADDRESS += f" {addr}"
             button_data.append(VERIFY_ADDRESS)
+            
+        if self.controller.psbt:
+         if PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
+             if self.controller.resume_main_flow and self.controller.resume_main_flow == Controller.FLOW__PSBT:
+                 # Re-route us directly back to the start of the PSBT flow
+                 self.controller.resume_main_flow = None
+                 self.controller.psbt_seed = self.seed
+                 return Destination(PSBTOverviewView, skip_current_view=True)
 
         button_data.append(SCAN_PSBT)
         
@@ -522,6 +529,9 @@ class SeedExportXpubScriptTypeView(View):
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
+            # If previous view is SeedOptionsView then that should be where resume_main_flow started (otherwise it would have been skipped).
+            if len(self.controller.back_stack) >= 2 and self.controller.back_stack[-2].View_cls == SeedOptionsView:
+                self.controller.resume_main_flow = None
             return Destination(BackStackView)
 
         else:
@@ -739,6 +749,9 @@ class SeedExportXpubQRDisplayView(View):
         elif coordinator == SettingsConstants.COORDINATOR__BLUE_WALLET:
             qr_type = QRType.XPUB
 
+        elif coordinator == SettingsConstants.COORDINATOR__KEEPER:
+            qr_type = QRType.XPUB
+
         elif coordinator == SettingsConstants.COORDINATOR__NUNCHUK:
             qr_type = QRType.XPUB__UR
 
@@ -929,6 +942,16 @@ class SeedBIP85SelectChildIndexView(View):
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
+        if not 0 <= int(ret) < 2**31:
+            return Destination(
+                SeedBIP85InvalidChildIndexView,
+                view_args=dict(
+                    seed_num=self.seed_num, 
+                    num_words=self.num_words
+                ),
+                skip_current_view=True
+            )
+
         return Destination(
             SeedWordsWarningView,
             view_args=dict(
@@ -936,6 +959,32 @@ class SeedBIP85SelectChildIndexView(View):
                 bip85_data=dict(child_index=int(ret), num_words=self.num_words),
             )
         )
+
+
+class SeedBIP85InvalidChildIndexView(View):
+    def __init__(self, seed_num: int, num_words: int):
+        super().__init__()
+        self.seed_num = seed_num
+        self.num_words = num_words
+
+
+    def run(self):
+        DireWarningScreen(
+            title="BIP-85 Index Error",
+            show_back_button=False,
+            status_headline=f"Invalid Child Index",
+            text=f"BIP-85 Child Index must be between 0 and {2**31-1}.",
+            button_data=["Try Again"]
+        ).display()
+
+        return Destination(
+                SeedBIP85SelectChildIndexView,
+                view_args=dict(
+                    seed_num=self.seed_num, 
+                    num_words=self.num_words
+                ),
+                skip_current_view=True
+            )
 
 
 
@@ -1384,14 +1433,14 @@ class AddressVerificationStartView(View):
                 sig_type = SettingsConstants.MULTISIG
                 if self.controller.multisig_wallet_descriptor:
                     # Can jump straight to the brute-force verification View
-                    destination = Destination(SeedAddressVerificationView)
+                    destination = Destination(SeedAddressVerificationView, skip_current_view=True)
                 else:
                     self.controller.resume_main_flow = Controller.FLOW__VERIFY_MULTISIG_ADDR
-                    destination = Destination(LoadMultisigWalletDescriptorView)
+                    destination = Destination(LoadMultisigWalletDescriptorView, skip_current_view=True)
 
             else:
                 sig_type = SettingsConstants.SINGLE_SIG
-                destination = Destination(SeedSingleSigAddressVerificationSelectSeedView)
+                destination = Destination(SeedSingleSigAddressVerificationSelectSeedView, skip_current_view=True)
 
         elif self.controller.unverified_address["script_type"] == SettingsConstants.TAPROOT:
             # TODO: add Taproot support
@@ -1469,12 +1518,7 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
 
         for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            
-            if seed.passphrase is not None:
-                # TODO: Include lock icon on right side of button
-                pass
             button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
-
             text = "Select seed to verify"
 
         button_data.append(SCAN_SEED)

@@ -36,11 +36,13 @@ class SettingsConstants:
     COORDINATOR__NUNCHUK = "nun"
     COORDINATOR__SPARROW = "spa"
     COORDINATOR__SPECTER_DESKTOP = "spd"
+    COORDINATOR__KEEPER = "kpr"
     ALL_COORDINATORS = [
         (COORDINATOR__BLUE_WALLET, "BlueWallet"),
         (COORDINATOR__NUNCHUK, "Nunchuk"),
         (COORDINATOR__SPARROW, "Sparrow"),
         (COORDINATOR__SPECTER_DESKTOP, "Specter Desktop"),
+        (COORDINATOR__KEEPER, "Keeper"),
     ]
 
     LANGUAGE__ENGLISH = "en"
@@ -363,7 +365,12 @@ class SettingsDefinition:
                       display_name="Coordinator software",
                       type=SettingsConstants.TYPE__MULTISELECT,
                       selection_options=SettingsConstants.ALL_COORDINATORS,
-                      default_value=SettingsConstants.ALL_COORDINATORS),
+                      default_value=[
+                          SettingsConstants.COORDINATOR__BLUE_WALLET,
+                          SettingsConstants.COORDINATOR__NUNCHUK,
+                          SettingsConstants.COORDINATOR__SPARROW,
+                          SettingsConstants.COORDINATOR__SPECTER_DESKTOP,
+                      ]),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__BTC_DENOMINATION,
