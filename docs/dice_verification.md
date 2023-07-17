@@ -36,5 +36,57 @@ Now we are sure that the dice derivation is correct and we can unplug everything
 There is nothing specific, the algorithm are completely the same. Coldcard has a verification script in python and all explanations here:
 https://coldcard.com/docs/verifying-dice-roll-math
 
+### SeedSigner verification script
+_(for more advanced/python-savvy users)_
+
+Install the `embit` dependency:
+```
+pip3 install embit
+```
+
+Then run the utility script with `-h` to view the usage instructions:
+```
+cd src/seedsigner/helpers
+python3 mnemonic_generation.py -h
+```
+
+```
+    Verify SeedSigner's dice rolls and coin flip entropy-to-mnemonic conversion via this tool.
+
+    Compare its results against iancoleman.io/bip39 and bitcoiner.guide/seed
+
+    Usage:
+        # 50 dice rolls / 12-word mnemonic
+        python3 mnemonic_generation.py dice 5624433434...
+        
+        # 99 dice rolls / 24-word mnemonic
+        python3 mnemonic_generation.py dice 6151463561...
+
+        # 50 dice rolls, entered as 0-5 / 12-word mnemonic
+        python3 mnemonic_generation.py --zero-indexed-dice dice 5135535514...
+
+        # 128 coin flips / 12-word mnemonic
+        python3 mnemonic_generation.py coins 1111100111...
+
+        # 256 coin flips / 24-word mnemonic
+        python mnemonic_generation.py coins 0010111010...
+
+        # GENERATE 50 random dice rolls / 12-word mnemonic
+        python3 mnemonic_generation.py dice rand12
+
+        # GENERATE 99 random dice rolls / 24-word mnemonic
+        python3 mnemonic_generation.py dice rand24
+
+        # GENERATE 99 random dice rolls, entered as 0-5 / 24-word mnemonic
+        python3 mnemonic_generation.py --zero-indexed-dice dice rand24
+
+        # GENERATE 128 random coin flips / 12-word mnemonic
+        python3 mnemonic_generation.py coins rand12
+
+        # GENERATE 256 random coin flips / 24-word mnemonic
+        python3 mnemonic_generation.py coins rand24
+```
+
+
 ### Epilogue
 You can use these methods to do dry run time to time to verify that no one has changed the micro sdcard. But do not use the generated 24 words as a valid wallet, they need to be generated alone, only on the seedsigner!
