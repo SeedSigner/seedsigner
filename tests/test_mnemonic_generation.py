@@ -73,25 +73,25 @@ def test_calculate_checksum_invalid_mnemonics():
     with pytest.raises(Exception) as e:
         # Mnemonic is too short: 10 words instead of 11
         partial_mnemonic = "abandon " * 9 + "about"
-        mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "))
+        mnemonic_generation.calculate_checksum(partial_mnemonic)
     assert "12- or 24-word" in str(e)
 
     with pytest.raises(Exception) as e:
         # Valid mnemonic but unsupported length
         mnemonic = "devote myth base logic dust horse nut collect buddy element eyebrow visit empty dress jungle"
-        mnemonic_generation.calculate_checksum(mnemonic.split(" "))
+        mnemonic_generation.calculate_checksum(mnemonic)
     assert "12- or 24-word" in str(e)
 
     with pytest.raises(Exception) as e:
         # Mnemonic is too short: 22 words instead of 23
         partial_mnemonic = "abandon " * 21 + "about"
-        mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "))
+        mnemonic_generation.calculate_checksum(partial_mnemonic)
     assert "12- or 24-word" in str(e)
 
     with pytest.raises(ValueError) as e:
         # Invalid BIP-39 word
         partial_mnemonic = "foobar " * 11 + "about"
-        mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "))
+        mnemonic_generation.calculate_checksum(partial_mnemonic)
     assert "not in the dictionary" in str(e)
 
 
@@ -101,17 +101,17 @@ def test_calculate_checksum_with_default_final_word():
         the mnemonic.
     """
     partial_mnemonic = "crawl focus rescue cable view pledge rather dinner cousin unfair day"
-    mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "))
+    mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic)
 
     partial_mnemonic += " abandon"
-    mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "))
+    mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic)
     assert mnemonic1 == mnemonic2
 
     partial_mnemonic = "bubble father debate ankle injury fence mesh evolve section wet coyote violin pyramid flower rent arrow round clutch myth safe base skin mobile"
-    mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "))
+    mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic)
 
     partial_mnemonic += " abandon"
-    mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "))
+    mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic)
     assert mnemonic1 == mnemonic2
 
 
