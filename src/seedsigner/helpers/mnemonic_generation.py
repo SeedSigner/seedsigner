@@ -63,13 +63,7 @@ def calculate_checksum(mnemonic: list | str, wordlist_language_code: str = WORDL
         mnemonic = re.findall(r'[^,\s]+', mnemonic)
 
     if len(mnemonic) in [11, 23]:
-        if wordlist_language_code == WORDLIST_LANGUAGE__ENGLISH:
-            temp_final_word = "abandon"
-        else:
-            # Nested import to avoid dependency on Seed model when running this script standalone
-            from seedsigner.models import Seed
-            temp_final_word = Seed.get_wordlist(wordlist_language_code)[0]
-
+        temp_final_word = _get_wordlist(wordlist_language_code)[0]
         mnemonic.append(temp_final_word)
 
     if len(mnemonic) not in [12, 24]:
