@@ -205,8 +205,9 @@ We double-checked in two different web tools implementing different methods for 
 
 So congratulations if the fingerprints, zpubs and addresses all match up in your example so you can be much more confident that nothing is wrong with your generated seed.
 
-### SeedSigner verification script
+### Command Line Tool
 _(for more advanced/python-savvy users)_
+Run the exact same SeedSigner mnemonic generation code from the command line to quickly test and externally verify the results.
 
 Install the `embit` dependency:
 ```
