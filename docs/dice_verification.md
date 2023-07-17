@@ -79,9 +79,15 @@ Fingerprint is not shown in the Ian Coleman tool (so cannot be verified here)
 Scroll down to the 'Derivation Path' section, click on the 'BIP84' tab (1) and find the zpub in (2):
 <kbd><img src="img/dicedoc/coleman_zpub.png"></kbd>
 1. Addresses:<br>
-Scroll down to the 'Derived Addresses' section and compare the addresses to the ones generated in Sparrow (Addresses tab of the wallet):
+Scroll down to the 'Derived Addresses' section and compare the receive addresses to the ones generated in Sparrow (Addresses tab of the wallet):
 <kbd><img src="img/dicedoc/coleman_addresses.png"></kbd>
-Check that the addresses match.
+Check that the receive addresses match.<br>
+To verify the change addresses change 'External / Internal' to 1 (1):
+<kbd><img src="img/dicedoc/coleman_change_addresses_1.png"></kbd><br>
+Compare the change addresses to the ones generated in Sparrow (Addresses tab of the wallet):
+<kbd><img src="img/dicedoc/coleman_change_addresses_2.png"></kbd>
+Check that the change addresses match.
+
 <br><br>
 
 ### Verifying with Seed Tools website
@@ -107,9 +113,14 @@ Scroll down to the 'Derived Addresses' section (1), click on it, make sure that 
 <kbd><img src="img/dicedoc/seedtool_zpub.png"></kbd>
 Zpub is the same as shown in Seedsigner, Sparrow and Ian Colemand tool.
 1. Addresses:<br>
-Scroll down a little bit where the addresses are shown and compare to the ones generated in Sparrow:<br>
+Scroll down a little bit where the receive addresses are shown and compare to the ones generated in Sparrow:<br>
 <kbd><img src="img/dicedoc/seedtool_addresses.png"></kbd>
-Check that the addresses match.
+Check that the receive addresses match.<br>
+To verify the change addresses change the 'Receive/Change' dropdown box to '1 (Change)' (1):
+<kbd><img src="img/dicedoc/seedtool_change_addresses_1.png"></kbd><br>
+Compare the change addresses to the ones generated in Sparrow (Addresses tab of the wallet):
+<kbd><img src="img/dicedoc/seedtool_change_addresses_2.png"></kbd>
+Check that the change addresses match.
 <br><br>
 
 ### Verifying with Coldcard
