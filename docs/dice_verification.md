@@ -77,7 +77,9 @@ The 24 seed words are the same in Seedsigner and the Ian Coleman tool.
 Fingerprint is not shown in the Ian Coleman tool (so cannot be verified here)
 1. Zpub:<br>
 Scroll down to the 'Derivation Path' section, click on the 'BIP84' tab (1) and find the zpub in (2):
-<kbd><img src="img/dicedoc/coleman_zpub.png"></kbd>
+<kbd><img src="img/dicedoc/coleman_zpub.png"></kbd><br>
+Compare to zpub in Sparrow:<br>
+<kbd><img src="img/dicedoc/sparrow_zpub.png"></kbd>
 1. Addresses:<br>
 Scroll down to the 'Derived Addresses' section and compare the receive addresses to the ones generated in Sparrow (Addresses tab of the wallet):
 <kbd><img src="img/dicedoc/coleman_addresses.png"></kbd>
@@ -110,7 +112,9 @@ Seed words shown are the same as in Seedsigner and the Ian Coleman web tool seen
 <kbd><img src="img/dicedoc/seedtool_fingerprint.png"></kbd>
 1. Zpub:<br>
 Scroll down to the 'Derived Addresses' section (1), click on it, make sure that 84 is selected for 'Purpose' (2) and check the zpub at (3):<br>
-<kbd><img src="img/dicedoc/seedtool_zpub.png"></kbd>
+<kbd><img src="img/dicedoc/seedtool_zpub.png"></kbd><br>
+Compare to zpub in Sparrow:<br>
+<kbd><img src="img/dicedoc/sparrow_zpub.png"></kbd>
 Zpub is the same as shown in Seedsigner, Sparrow and Ian Colemand tool.
 1. Addresses:<br>
 Scroll down a little bit where the receive addresses are shown and compare to the ones generated in Sparrow:<br>
