@@ -29,7 +29,7 @@ Enter the dice numbers one after another on the next screen:<br>
 Go on until the end (99 dice roll numbers):<br>
 <img src="img/dicedoc/sesi_dice_2.png" width="600">
 
-After that the 24 seed words are shown (in 6 screens a 4 words):<br>
+After that the 24 seed words are shown (in 6 screens of 4 words each):<br>
 <img src="img/dicedoc/sesi_seed_1.png" width="600">
 <br>**.....**<br>
 <img src="img/dicedoc/sesi_seed_2.png" width="600">
@@ -48,7 +48,7 @@ On Seedsigner go to the seed just created and click 'Export Xpub':<br>
 <img src="img/dicedoc/sesi_export_xpub_1.png" width="600">
 
 Follow these menu entries in Seedsigner:<br>
-> Export Xpub --> Single Sig --> Native Segwit --> Sparrow:<br>
+> Export Xpub --> Single Sig --> Native Segwit --> Sparrow<br>
 <img src="img/dicedoc/sesi_export_xpub_2.png" width="600">
 
 Click 'Export Xpub' and Seedsigner will show an animated QR code to be scanned in Sparrow Wallet (where we are still in the wallet creation).<br>
@@ -64,7 +64,7 @@ We will later use this to verify: (1) fingerprint, (2) zpub (click this button t
 Go to https://iancoleman.io/bip39 and check 'Show entropy details' (1):<br>
 <kbd><img src="img/dicedoc/coleman_entropy.png"></kbd>
 
-And then make sure to check (1) 'Hex' and (2) 24 words as 'Mnemonic Length'.
+And then make sure to check (1) 'Hex' and (2) '24 Words' as 'Mnemonic Length'.
 (Do not use 'dice' format because dice 6 will be replaced by 0.)
 Then enter the 99 dices numbers in (3). The corresponding seed words are shown in (4):<br>
 <kbd><img src="img/dicedoc/coleman_verify.png"></kbd>
@@ -92,7 +92,7 @@ Check that the change addresses match.
 
 <br><br>
 
-### Verifying with Seed Tools website
+### Verifying with Seed Tool website
 
 Go to https://bitcoiner.guide/seed/ and click on 'Seed Generation Input' (1):<br>
 <kbd><img src="img/dicedoc/seedtool_1.png"></kbd>
@@ -111,7 +111,7 @@ Seed words shown are the same as in Seedsigner and the Ian Coleman web tool seen
 1. Fingerprint can be seen here (1): <br>
 <kbd><img src="img/dicedoc/seedtool_fingerprint.png"></kbd>
 1. Zpub:<br>
-Scroll down to the 'Derived Addresses' section (1), click on it, make sure that 84 is selected for 'Purpose' (2) and check the zpub at (3):<br>
+Scroll down to the 'Derived Addresses' section (1), click on it, make sure that '84' is selected for 'Purpose' (2) and check the zpub at (3):<br>
 <kbd><img src="img/dicedoc/seedtool_zpub.png"></kbd><br>
 Compare to zpub in Sparrow:<br>
 <kbd><img src="img/dicedoc/sparrow_zpub.png"></kbd>
