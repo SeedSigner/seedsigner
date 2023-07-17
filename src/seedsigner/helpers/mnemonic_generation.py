@@ -138,14 +138,7 @@ def get_partial_final_word(coin_flips: str, wordlist_language_code: str = WORDLI
     binary_string = coin_flips + "0" * (11 - len(coin_flips))
     wordlist_index = int(binary_string, 2)
 
-    if wordlist_language_code == WORDLIST_LANGUAGE__ENGLISH:
-        wordlist = WORDLIST__ENGLISH
-    else:
-        from seedsigner.models import Seed, SettingsConstants
-        wordlist = Seed.get_wordlist(wordlist_language_code)
-
-    return wordlist[wordlist_index]
-
+    return _get_wordlist(wordlist_language_code)[wordlist_index]
 
 
 
