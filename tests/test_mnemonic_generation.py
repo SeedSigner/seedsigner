@@ -7,6 +7,16 @@ from seedsigner.models.settings_definition import SettingsConstants
 
 
 
+def test__get_wordlist():
+    """ Currently, BIP39 engish wordlist is supported, exclusively """
+    assert mnemonic_generation._get_wordlist("en") == bip39.WORDLIST
+
+    with pytest.raises(Exception) as e:
+        mnemonic_generation._get_wordlist("de")
+    assert "Unrecognized wordlist_language_code" in str(e)
+
+
+
 def test_dice_rolls():
     """ Given random dice rolls, the resulting mnemonic should be valid. """
     dice_rolls = ""
@@ -65,7 +75,6 @@ def test_calculate_checksum_input_type():
 
 
 
-
 def test_calculate_checksum_invalid_mnemonics():
     """
         Should raise an Exception on a mnemonic that is invalid due to length or using invalid words.
@@ -113,6 +122,7 @@ def test_calculate_checksum_with_default_final_word():
     partial_mnemonic += " abandon"
     mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic)
     assert mnemonic1 == mnemonic2
+
 
 
 def test_generate_mnemonic_from_bytes():
@@ -195,3 +205,49 @@ def test_50_dice_rolls():
     actual = " ".join(mnemonic)
     assert bip39.mnemonic_is_valid(actual)
     assert actual == expected
+
+
+
+# TODO: SINCE NOT YET IMPLEMENTED, CONSIDER IF WE WANT TO SUPPORT THIS NON-REVERSIBLE ALGO, rather than 8bits = 1byte
+def test_mnemnonic_from_coin_flips():
+    """ test 128 coin flips to 12-word mnemonic, and 256 coin flips to 24-word mnemnonic """
+    coin_flips = "00110011010100001111011010101100100111101110101100000111110100101100011000100000100110010011001010000000100010101010011111110110"
+    expected = "license state october hockey seed piano buzz hub curious boss regular zero"
+    assert mnemonic_generation.generate_mnemonic_from_coin_flips(coin_flips) == expected.split()
+
+    coin_flips = "101101111110100000101100010100111111100111010000001010111000011010101110000100101010101111010001111010001010100001000101010101111010111111000100010001101000001010000011011110101001101011111101100011000111011011101000001000001000011101110011000110010101101"
+    expected = "town trap family monkey tongue vocal fluid unable tattoo hour approve legal unusual energy away copy grow coconut spawn violin mean author appear calm"
+    assert mnemonic_generation.generate_mnemonic_from_coin_flips(coin_flips) == expected.split()
+
+
+
+def test_get_partial_final_word():
+    """ test that we get a final word given some coin_flips """
+    assert mnemonic_generation.get_partial_final_word("10101010110") == "print"
+    assert mnemonic_generation.get_partial_final_word("1010101011") == "print"
+    assert mnemonic_generation.get_partial_final_word("101010101") == "pride"
+    assert mnemonic_generation.get_partial_final_word("10101010") == "present"
+    assert mnemonic_generation.get_partial_final_word("1010101") == "present"
+    assert mnemonic_generation.get_partial_final_word("101010") == "pool"
+    assert mnemonic_generation.get_partial_final_word("10101") == "pool"
+    assert mnemonic_generation.get_partial_final_word("1010") == "parade"
+    assert mnemonic_generation.get_partial_final_word("101") == "parade"
+    assert mnemonic_generation.get_partial_final_word("10") == "length"
+    assert mnemonic_generation.get_partial_final_word("1") == "length"
+
+    # TODO: IS THIS OK OR SHOULD THE FIRST TWO ASSERTS FAIL???
+    # test unexpected input fails
+    assert mnemonic_generation.get_partial_final_word("") == "abandon"
+    assert mnemonic_generation.get_partial_final_word("0000000000000000000000000000") == "abandon"
+    with pytest.raises(Exception) as e:
+        mnemonic_generation.get_partial_final_word("1000000000000000000000000000")
+
+
+
+# TODO: SHOULD THIS TEST AND THE IMPLEMENTATION BE REMOVED (doesnt even support 12words)???
+def test_generate_mnemonic_from_image():
+    """ test image entropy, which is no longer the same algo """
+    from PIL import Image
+    expected = "note annual knife knee mechanic patient kid element cool able odor chaos humor fold fly harbor zone muscle govern cruel betray romance season maid"
+    assert mnemonic_generation.generate_mnemonic_from_image(Image.new("RGB", (1024, 768)))
+
