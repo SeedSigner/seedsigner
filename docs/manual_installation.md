@@ -9,10 +9,10 @@ Best practice is to verify the downloaded .zip file containing the Raspberry Pi 
 The manual SeedSigner installation and configuration process requires an internet connection on the Pi to download the necessary libraries and code.  
 If your Pi does not have onboard wifi, you have two options:
 
-1. Run these steps on a separate Raspberry Pi 2/3/4 or Zero W which does have onboard Wi-Fi to connect to the internet, and then move the SD card over to the non-wifi Pi when complete.
+1. Run these steps on a separate Raspberry Pi 2/3/4 or Zero W which does have onboard Wi-Fi to connect to the internet, and then move the SD card over to the non Wi-Fi enabled Pi when complete.
 2. OR configure the non-wifi Pi directly by relaying through your computer's internet connection over USB. See instructions [here](usb_relay.md).
 
-If your Pi does have onboard Wi-Fi, then using the Rasberry Pi Imager software will allow you to easily configure your Pi's Wi-Fi connection, as well as simultaneously write the image file. That will make your initial ssh into the Pi much easier.   
+If your Pi does have onboard Wi-Fi, then using the Rasberry Pi Imager software will allow you to easily configure your Pi's Wi-Fi connection, as well as simultaneously write the image file. That will make your initial SSH into the Pi much easier.   
 Use the Pi's onboard Wi-Fi only if you are setting up a local development environment, never for real funds or binary image creation. 
   
 For the following steps you'll need to either connect a keyboard & monitor to the network-connected Raspberry Pi you are working with, or SSH into the Pi if you're familiar with that process.
