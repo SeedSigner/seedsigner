@@ -21,7 +21,7 @@ The corresponding 24 seed words are:<br>
 (Scroll down near the end to see result values for a 50 dice rolls / 12 seed words example)
 <br><br><br>
 
-## Creating seed via Dice rolls in Seedsigner (here v0.6.0)
+## Creating seed via Dice rolls in SeedSigner (here v0.6.0)
 
 First we create a new seed based on dice rolls in SeedSigner:<br><br>
 Power up and boot SeedSigner, go to the 'Tools' menu and select 'New Seed' (with the dice symbols):<br>
