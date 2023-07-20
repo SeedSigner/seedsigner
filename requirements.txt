@@ -1,10 +1,7 @@
 embit==0.7.0
 numpy==1.21.1
-picamera==1.13
 Pillow==8.2.0
 -e git+https://github.com/seedsigner/pyzbar.git@c3c237821c6a20b17953efe59b90df0b514a1c03#egg=pyzbar
 qrcode==7.3.1
-RPi.GPIO==0.7.0
 six==1.16.0
-spidev==3.5
 urtypes @ git+https://github.com/selfcustody/urtypes.git@7fb280eab3b3563dfc57d2733b0bf5cbc0a96a6a

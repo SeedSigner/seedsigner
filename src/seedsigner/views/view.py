@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import List
+from typing import Type
 
-from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants
-from seedsigner.gui.screens import RET_CODE__POWER_BUTTON
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, DireWarningScreen, LargeButtonScreen, PowerOffScreen, PowerOffNotRequiredScreen, ResetScreen, WarningScreen
+from seedsigner.gui.components import FontAwesomeIconConstants
+from seedsigner.gui.screens import RET_CODE__POWER_BUTTON, RET_CODE__BACK_BUTTON
+from seedsigner.gui.screens.screen import BaseScreen, DireWarningScreen, LargeButtonScreen, PowerOffScreen, PowerOffNotRequiredScreen, ResetScreen, WarningScreen
 from seedsigner.models.threads import BaseThread
 from seedsigner.models import Settings
 
@@ -56,14 +56,20 @@ class View:
         self.canvas_width = self.renderer.canvas_width
         self.canvas_height = self.renderer.canvas_height
 
-        self.buttons = self.controller.buttons
+        self.screen = None
+    
+
+    def run_screen(self, Screen_cls: Type[BaseScreen], **kwargs) -> int | str:
+        """
+            Instantiates the provided Screen_cls and runs its interactive display.
+            Returns the user's input upon completion.
+        """
+        self.screen = Screen_cls(**kwargs)
+        return self.screen.display()
 
 
-    def run(self, **kwargs):
-        if hasattr(self, "screen"):
-            self.screen.display()
-        else:
-            raise Exception("Must implement in the child class")
+    def run(self, **kwargs) -> 'Destination':
+        raise Exception("Must implement in the child class")
 
 
 
@@ -73,10 +79,10 @@ class Destination:
         Basic struct to pass back to the Controller to tell it which View the user should
         be presented with next.
     """
-    View_cls: View                  # The target View to route to
-    view_args: dict = None          # The input args required to instantiate the target View
-    skip_current_view: bool = False  # The current View is just forwarding; omit current View from history
-    clear_history: bool = False     # Optionally clears the back_stack to prevent "back"
+    View_cls: Type[View]                # The target View to route to
+    view_args: dict = None              # The input args required to instantiate the target View
+    skip_current_view: bool = False     # The current View is just forwarding; omit current View from history
+    clear_history: bool = False         # Optionally clears the back_stack to prevent "back"
 
 
     def __repr__(self):
@@ -93,12 +99,22 @@ class Destination:
         return out
 
 
-    def run(self):
+    def _instantiate_view(self):
         if not self.view_args:
             # Can't unpack (**) None so we replace with an empty dict
             self.view_args = {}
-        # Instantiate the `View_cls` and run() it with the `view_args` dict
-        return self.View_cls(**self.view_args).run()
+
+        # Instantiate the `View_cls` with the `view_args` dict
+        self.view = self.View_cls(**self.view_args)
+    
+
+    def _run_view(self):
+        return self.view.run()
+
+
+    def run(self):
+        self._instantiate_view()
+        return self._run_view()
 
 
     def __eq__(self, obj):
@@ -121,53 +137,63 @@ class Destination:
 #
 #########################################################################################
 class MainMenuView(View):
-    def run(self):
-        from .seed_views import SeedsMenuView
-        from .settings_views import SettingsMenuView
-        from .scan_views import ScanView
-        from .tools_views import ToolsMenuView
-        from seedsigner.gui.screens import LargeButtonScreen
-        menu_items = [
-            (("Scan", FontAwesomeIconConstants.QRCODE), ScanView),
-            (("Seeds", FontAwesomeIconConstants.KEY), SeedsMenuView),
-            (("Tools", FontAwesomeIconConstants.SCREWDRIVER_WRENCH), ToolsMenuView),
-            (("Settings", FontAwesomeIconConstants.GEAR), SettingsMenuView),
-        ]
+    SCAN = ("Scan", FontAwesomeIconConstants.QRCODE)
+    SEEDS = ("Seeds", FontAwesomeIconConstants.KEY)
+    TOOLS = ("Tools", FontAwesomeIconConstants.SCREWDRIVER_WRENCH)
+    SETTINGS = ("Settings", FontAwesomeIconConstants.GEAR)
 
-        screen = LargeButtonScreen(
+    def run(self):
+        button_data = [self.SCAN, self.SEEDS, self.TOOLS, self.SETTINGS]
+        selected_menu_num = self.run_screen(
+            LargeButtonScreen,
             title="Home",
             title_font_size=26,
-            button_data=[entry[0] for entry in menu_items],
+            button_data=button_data,
             show_back_button=False,
             show_power_button=True,
         )
-        selected_menu_num = screen.display()
 
         if selected_menu_num == RET_CODE__POWER_BUTTON:
             return Destination(PowerOptionsView)
 
-        return Destination(menu_items[selected_menu_num][1])
+        if button_data[selected_menu_num] == self.SCAN:
+            from .scan_views import ScanView
+            return Destination(ScanView)
+        
+        elif button_data[selected_menu_num] == self.SEEDS:
+            from .seed_views import SeedsMenuView
+            return Destination(SeedsMenuView)
+
+        elif button_data[selected_menu_num] == self.TOOLS:
+            from .tools_views import ToolsMenuView
+            return Destination(ToolsMenuView)
+
+        elif button_data[selected_menu_num] == self.SETTINGS:
+            from .settings_views import SettingsMenuView
+            return Destination(SettingsMenuView)
 
 
 
 class PowerOptionsView(View):
+    RESET = ("Restart", FontAwesomeIconConstants.ROTATE_RIGHT)
+    POWER_OFF = ("Power Off", FontAwesomeIconConstants.POWER_OFF)
+
     def run(self):
-        RESET = ("Restart", FontAwesomeIconConstants.ROTATE_RIGHT)
-        POWER_OFF = ("Power Off", FontAwesomeIconConstants.POWER_OFF)
-        button_data = [RESET, POWER_OFF]
-        selected_menu_num = LargeButtonScreen(
+        button_data = [self.RESET, self.POWER_OFF]
+        selected_menu_num = self.run_screen(
+            LargeButtonScreen,
             title="Reset / Power",
             show_back_button=True,
             button_data=button_data
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
-        elif button_data[selected_menu_num] == RESET:
+        elif button_data[selected_menu_num] == self.RESET:
             return Destination(RestartView)
         
-        elif button_data[selected_menu_num] == POWER_OFF:
+        elif button_data[selected_menu_num] == self.POWER_OFF:
             return Destination(PowerOffView)
 
 
@@ -176,7 +202,7 @@ class RestartView(View):
     def run(self):
         thread = RestartView.DoResetThread()
         thread.start()
-        ResetScreen().display()
+        self.run_screen(ResetScreen)
 
 
     class DoResetThread(BaseThread):
@@ -200,12 +226,12 @@ class RestartView(View):
 class PowerOffView(View):
     def run(self):
         if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
-            PowerOffNotRequiredScreen().display()
+            self.run_screen(PowerOffNotRequiredScreen)
             return Destination(BackStackView)
         else:
             thread = PowerOffView.PowerOffThread()
             thread.start()
-            PowerOffScreen().display()
+            self.run_screen(PowerOffScreen)
 
 
     class PowerOffThread(BaseThread):
@@ -223,30 +249,32 @@ class NotYetImplementedView(View):
         Temporary View to use during dev.
     """
     def run(self):
-        WarningScreen(
+        self.run_screen(
+            WarningScreen,
             title="Work In Progress",
             status_headline="Not Yet Implemented",
             text="This is still on our to-do list!",
             button_data=["Back to Main Menu"],
-        ).display()
+        )
 
         return Destination(MainMenuView)
 
 
 
 class UnhandledExceptionView(View):
-    def __init__(self, error: List[str]):
+    def __init__(self, error: list[str]):
         self.error = error
 
 
     def run(self):
-        DireWarningScreen(
+        self.run_screen(
+            DireWarningScreen,
             title="System Error",
             status_headline=self.error[0],
             text=self.error[1] + "\n" + self.error[2],
             button_data=["OK"],
             show_back_button=False,
             allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
-        ).display()
+        )
         
         return Destination(MainMenuView, clear_history=True)

@@ -177,6 +177,7 @@ cd seedsigner
 ```bash
 # Takes 1hr 45min on a Pi Zero 1.3
 pip install -r requirements.txt
+pip install -r requirements-raspi.txt
 ```
 
 #### `pyzbar`
