@@ -218,7 +218,7 @@ class SettingsEntry:
     visibility: str = SettingsConstants.VISIBILITY__GENERAL
     type: str = SettingsConstants.TYPE__ENABLED_DISABLED
     help_text: str = None
-    selection_options: List[str] = None
+    selection_options: list[tuple[str | int], str] = None
     default_value: Any = None
 
     def __post_init__(self):
@@ -440,7 +440,7 @@ class SettingsDefinition:
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SettingsConstants.ALL_CAMERA_ROTATIONS,
-                      default_value=SettingsConstants.CAMERA_ROTATION__0),
+                      default_value=SettingsConstants.CAMERA_ROTATION__180),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__COMPACT_SEEDQR,

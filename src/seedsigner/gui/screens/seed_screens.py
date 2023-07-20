@@ -379,7 +379,8 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
 
                 self.keyboard.render_keys()
 
-            elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
+            elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN \
+                    or input in (Keyboard.ENTER_TOP, Keyboard.ENTER_BOTTOM):
                 if ret_val in self.possible_alphabet:
                     # Live joystick movement; haven't locked this new letter in yet.
                     # Replace the last letter w/the currently selected one. But don't
