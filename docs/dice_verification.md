@@ -1,6 +1,6 @@
 # Verifying dice seed generation 
 
-The intention of this documentation is to detail how to verify the seed generation algorithm used in Seedsigner against other tools to proof that they all generate the same results using different programming languages and libraries.<br><br>
+The intention of this documentation is to detail how to verify the seed generation algorithm used in SeedSigner against other tools to proof that they all generate the same results using different programming languages and libraries.<br><br>
 As it is an important step to verify all software releases being used to ensure that the installation files downloaded have not been compromised, the same is true especially for the seed generation procedure which unknowingly might not work as expected due to bugs or even on purpose.<br><br>
 This guide targets to help how this can be achieved.<br><br>
 As usual: Don't Trust, Verify!
@@ -23,8 +23,8 @@ The corresponding 24 seed words are:<br>
 
 ## Creating seed via Dice rolls in Seedsigner (here v0.6.0)
 
-First we create a new seed based on dice rolls in Seedsigner:<br><br>
-Power up and boot Seedsigner, go to the 'Tools' menu and select 'New Seed' (with the dice symbols):<br>
+First we create a new seed based on dice rolls in SeedSigner:<br><br>
+Power up and boot SeedSigner, go to the 'Tools' menu and select 'New Seed' (with the dice symbols):<br>
 <img src="img/dicedoc/sesi_tools_dice_seed.png" width="600">
 
 Select '24 words (99 rolls)' and on the next screen enter the dice numbers one after another:<br>
@@ -47,29 +47,29 @@ Having now created a dice-based seed in the SeedSigner, we will go on to compare
 * Seed Tool website
 
 We will create a wallet to have the complete zpub and receive/change addresses to check against the two web pages.<br>
-Seedsigner currently supports BlueWallet, Nunchuk, Sparrow and Specter Desktop. Here we will use Sparrow wallet as an example.<br>
+SeedSigner currently supports BlueWallet, Nunchuk, Sparrow and Specter Desktop. Here we will use Sparrow wallet as an example.<br>
 
-Keep the Seedsigner open and the newly created seed still loaded as we will need it in the next step.
+Keep the SeedSigner open and the newly created seed still loaded as we will need it in the next step.
 <br><br><br>
 
 ## Create new wallet from seed in Sparrow Wallet to see xpub/zpub and addresses
 
 Go to https://www.sparrowwallet.com/download/ and download the release version which fits to your system.<br><br>
 Open Sparrow Wallet, go to 'File' menu and select 'New Wallet'. Enter a name (e.g. test), and click 'Create Wallet'.<br><br>
-Click 'Airgapped Hardware Wallet' (1) and click on the 'Scan' button in the Seedsigner entry (2) which will open the camera scan screen:<br>
+Click 'Airgapped Hardware Wallet' (1) and click on the 'Scan' button in the SeedSigner entry (2) which will open the camera scan screen:<br>
 <kbd><img src="img/dicedoc/sparrow_wallet_1.png"></kbd>
 
-On Seedsigner go to the seed just created and click 'Export Xpub':<br>
+On SeedSigner go to the seed just created and click 'Export Xpub':<br>
 <img src="img/dicedoc/sesi_export_xpub_1.png" width="600">
 
-Follow these menu entries in Seedsigner:<br>
+Follow these menu entries in SeedSigner:<br>
 > Export Xpub --> Single Sig --> Native Segwit --> Sparrow<br>
 
 <img src="img/dicedoc/sesi_export_xpub_2.png" width="600">
 
-Click 'Export Xpub' and Seedsigner will show an animated QR code to be scanned in Sparrow Wallet (where we are still in the wallet creation).<br>
-Scan the QR code Seedsigner is showing in Sparrow Wallet.<br><br>
-The wallet has now been created in Sparrow. Click 'Apply' button to finalize. The wallets settings screen now look like this:<br>
+Click 'Export Xpub' and SeedSigner will show an animated QR code to be scanned in Sparrow Wallet (where we are still in the wallet creation).<br>
+Scan the QR code SeedSigner is showing in Sparrow Wallet.<br><br>
+The wallet has now been created in Sparrow. Click 'Apply' button to finalize. The wallets settings screen now looks like this:<br>
 <kbd><img src="img/dicedoc/sparrow_wallet_2.png"></kbd>
 
 We will later use this to verify: (1) fingerprint, (2) zpub (click this button to switch between xpub and zpub!) and (3) addresses on the 'Addresses' tab.
@@ -86,7 +86,7 @@ Make sure to check (1) 'Hex' and (2) '24 Words' as 'Mnemonic Length'.<br>
 Then enter the 99 dices numbers in (3). The corresponding seed words are shown in (4):<br>
 <kbd><img src="img/dicedoc/coleman_verify.png"></kbd>
 <br><br>
-The 24 seed words are the same in Seedsigner and the Ian Coleman tool.
+The 24 seed words are the same in SeedSigner and the Ian Coleman tool.
 <br><br>
 
 ### Verification of (1) fingerprint, (2) zpub and (3) generated addresses
@@ -100,21 +100,21 @@ Compare to zpub in Sparrow:<br>
 <kbd><img src="img/dicedoc/sparrow_zpub.png"></kbd>
 <br>
 
-Zpub is the same as shown in Seedsigner and Sparrow wallet.
+Zpub is the same as shown in SeedSigner and Sparrow wallet.
 <br><br>
 **Addresses:**<br>
-Scroll down to the 'Derived Addresses' section and compare the receive addresses to the ones generated in Sparrow (Addresses tab of the wallet):
+Scroll down to the 'Derived Addresses' section and compare the receive addresses to the ones generated in Sparrow ('Addresses' tab of the wallet):
 <kbd><img src="img/dicedoc/coleman_addresses.png"></kbd>
 <br>
 
-Check that the receive addresses match.<br><br>
+Check that the receive addresses all match.<br><br>
 To verify the change addresses change 'External / Internal' to 1 (1):
 <kbd><img src="img/dicedoc/coleman_change_addresses_1.png"></kbd><br><br>
-Compare the change addresses to the ones generated in Sparrow (Addresses tab of the wallet):
+Compare the change addresses to the ones generated in Sparrow ('Addresses' tab of the wallet):
 <kbd><img src="img/dicedoc/coleman_change_addresses_2.png"></kbd>
 <br>
 
-Check that the change addresses match.
+Check that the change addresses all match.
 <br><br><br>
 
 ## Verifying with Seed Tool website
@@ -128,7 +128,7 @@ Then click on the 'Show the Entropy Section' tab (1):<br>
 Enter the 99 dice numbers in (1), in (2) change back to 'Hex', check that (3) is still '24 Words' and the calculated seed words are shown in (4):
 <kbd><img src="img/dicedoc/seedtool_3.png"></kbd>
 
-Seed words shown are the same as in Seedsigner and the Ian Coleman web tool seen before.
+Seed words shown are the same as in SeedSigner and the Ian Coleman web tool seen before.
 <br><br>
 
 ### Verification of (1) fingerprint, (2) zpub and (3) generated addresses
@@ -143,27 +143,27 @@ Compare to zpub in Sparrow:<br>
 <kbd><img src="img/dicedoc/sparrow_zpub.png"></kbd>
 <br>
 
-Zpub is the same as shown in Seedsigner, Sparrow and Ian Colemand tool.
+Zpub is the same as shown in SeedSigner, Sparrow and Ian Colemand tool.
 <br><br>
 **Addresses:**<br>
-Scroll down a little bit where the receive addresses are shown and compare to the ones generated in Sparrow:<br>
+Scroll down a little bit where the receive addresses are shown and compare to the ones generated in Sparrow ('Addresses' tab of the wallet):<br>
 <kbd><img src="img/dicedoc/seedtool_addresses.png"></kbd>
 <br>
 
-Check that the receive addresses match.<br><br>
+Check that the receive addresses all match.<br><br>
 To verify the change addresses change the 'Receive/Change' dropdown box to '1 (Change)' (1):
 <kbd><img src="img/dicedoc/seedtool_change_addresses_1.png"></kbd><br><br>
-Compare the change addresses to the ones generated in Sparrow (Addresses tab of the wallet):
+Compare the change addresses to the ones generated in Sparrow ('Addresses' tab of the wallet):
 <kbd><img src="img/dicedoc/seedtool_change_addresses_2.png"></kbd>
 <br>
 
-Check that the change addresses match.
+Check that the change addresses all match.
 <br><br><br>
 
 ## 50 Dice Rolls / 12 Seed Words Example
 
-Seedsigner supports the creation of mnenomic seeds both with 12 or 24 seed words corresponding to 50 or 99 dice rolls. Below are some example result values for using 50 dice rolls only.<br><br>
-All the steps shown can be executed the same way, just select the '12 words (50 rolls)' option in seedsigner and change the 'Mnenomic Length' dropdown boxes in both web tools to '12 Words'.<br><br>
+SeedSigner supports the creation of mnenomic seeds both with 12 or 24 seed words corresponding to 50 or 99 dice rolls. Below are some example result values for using 50 dice rolls only.<br><br>
+All the steps shown can be executed the same way, just select the '12 words (50 rolls)' option in SeedSigner and change the 'Mnenomic Length' dropdown boxes in both web tools to '12 Words'.<br><br>
 
 50 dice roll results as an example for a 12 words seed:<br>
 > 65515223131652132161133154444123616466443112153441
@@ -199,8 +199,8 @@ Change:<br>
 
 What did we achieve now?<br>
 
-We created a dice-based seed in Seedsigner and set up a wallet using this seed in Sparrow wallet (as this is what a seed is for).<br><br>
-We double-checked in two different web tools implementing different methods for seed creation that what Seedsigner generates perfectly matches up with what the other tools calculate based on the same dice entropy used.<br>
+We created a dice-based seed in SeedSigner and set up a wallet using this seed in Sparrow wallet (as this is what a seed is used for).<br><br>
+We double-checked in two different web tools implementing different methods for seed creation that what SeedSigner generates perfectly matches up with what the other tools calculate based on the same dice entropy used.<br>
 
 So congratulations if the Fingerprints, Zpubs and Addresses all match up in your example so you can be much more confident that nothing is wrong with your generated seed.
 
