@@ -1262,7 +1262,7 @@ class SeedTranscribeSeedQRWarningView(View):
 
         selected_menu_num = DireWarningScreen(
             status_headline="SeedQR is your private key!",
-            text="""Never photograph it or scan it into an online device.""",
+            text="""Never photograph or scan it into a device that connects to the internet.""",
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
