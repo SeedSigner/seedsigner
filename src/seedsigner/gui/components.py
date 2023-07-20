@@ -73,6 +73,8 @@ class FontAwesomeIconConstants:
     CARET_LEFT = "\uf0d9"
     CARET_RIGHT = "\uf0da"
     CARET_UP = "\uf0d8"
+    CHEVRON_UP = "\uf077"
+    CHEVRON_DOWN = "\uf078"
     SOLID_CIRCLE_CHECK = "\uf058"
     CIRCLE = "\uf111"
     CIRCLE_CHEVRON_RIGHT = "\uf138"
@@ -405,7 +407,7 @@ class TextArea(BaseComponent):
         #   with bicubic resampling.
         # TODO: Store resulting super-sampled image as a member var in __post_init__ and 
         # just re-paste it here.
-        img = Image.new("RGB", (self.supersampled_width, self.supersampled_height), self.background_color)
+        img = Image.new("RGBA", (self.supersampled_width, self.supersampled_height), self.background_color)
         draw = ImageDraw.Draw(img)
         cur_y = self.text_y
 
@@ -578,7 +580,7 @@ class ToastOverlay(BaseComponent):
 
     def __post_init__(self):
         super().__post_init__()
-            
+
         self.icon = Icon(
             image_draw=self.image_draw,
             canvas=self.canvas,

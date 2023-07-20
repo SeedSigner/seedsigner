@@ -7,7 +7,6 @@ from seedsigner.controller import Controller
 from seedsigner.models.settings_definition import SettingsConstants
 
 
-
 class TestController(BaseTest):
 
     def test_reset_controller(self):
