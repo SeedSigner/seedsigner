@@ -824,7 +824,7 @@ class SeedWordsWarningView(View):
 
         selected_menu_num = self.run_screen(
             DireWarningScreen,
-            text="""You must keep your seed words private & away from all online devices.""",
+            text="""Never input your seed phrase into a device that connects to the internet.""",
         )
 
         if selected_menu_num == 0:
