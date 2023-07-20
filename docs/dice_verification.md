@@ -1,6 +1,6 @@
 # Verifying dice seed generation 
 
-The intention of this documentation is to detail how to verify the seed generation algorithm used in SeedSigner against other tools to proof that they all generate the same results using different programming languages and libraries.<br><br>
+The intention of this documentation is to detail how to verify the seed generation algorithm used in SeedSigner against other tools to prove that they all generate the same results using different programming languages and libraries.<br><br>
 As it is an important step to verify all software releases being used to ensure that the installation files downloaded have not been compromised, the same is true especially for the seed generation procedure which unknowingly might not work as expected due to bugs or even on purpose.<br><br>
 This guide targets to help how this can be achieved.<br><br>
 As usual: Don't Trust, Verify!
