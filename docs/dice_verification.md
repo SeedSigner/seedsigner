@@ -27,7 +27,7 @@ First we create a new seed based on dice rolls in Seedsigner:<br><br>
 Power up and boot Seedsigner, go to the 'Tools' menu and select 'New Seed' (with the dice symbols):<br>
 <img src="img/dicedoc/sesi_tools_dice_seed.png" width="600">
 
-Select '24 words (99 rolls)' and on the next screen enter the dice numbers one after another on the next screen:<br>
+Select '24 words (99 rolls)' and on the next screen enter the dice numbers one after another:<br>
 <img src="img/dicedoc/sesi_dice_1.png" width="600">
 
 Go on until the end (99 dice roll numbers):<br>
@@ -163,7 +163,7 @@ Check that the change addresses match.
 ## 50 Dice Rolls / 12 Seed Words Example
 
 Seedsigner supports the creation of mnenomic seeds both with 12 or 24 seed words corresponding to 50 or 99 dice rolls. Below are some example result values for using 50 dice rolls only.<br><br>
-All the steps shown can be executed the same way, just select the 50 dice rolls option in seedsigner and change the 'Mnenomic Length' dropdown boxes in both web tools to '12 Words'.<br><br>
+All the steps shown can be executed the same way, just select the '12 words (50 rolls)' option in seedsigner and change the 'Mnenomic Length' dropdown boxes in both web tools to '12 Words'.<br><br>
 
 50 dice roll results as an example for a 12 words seed:<br>
 > 65515223131652132161133154444123616466443112153441
