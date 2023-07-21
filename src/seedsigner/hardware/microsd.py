@@ -1,4 +1,5 @@
 import time
+import os
 
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
@@ -8,11 +9,12 @@ from seedsigner.gui.screens.screen import MicroSDToastScreen
 
 class MicroSD(Singleton, BaseThread):
     
+    MOUNT_POINT = "/mnt/microsd"
+    FIFO_PATH = "/tmp/mdev_fifo"
+    FIFO_MODE = 0o600
     ACTION__INSERTED = "add"
     ACTION__REMOVED = "remove"
 
-    settings_handler = None
-    
     @classmethod
     def get_instance(cls):
         # This is the only way to access the one and only instance
@@ -28,24 +30,34 @@ class MicroSD(Singleton, BaseThread):
     
     def start_detection(self):
         self.start()
-    
+
+    def is_inserted(self):
+        # could only be False in seedsigner-os, else True
+        if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
+            return os.path.exists(self.MOUNT_POINT)
+        else:
+            return True
+
+
     def run(self):
-        import os
-        
-        FIFO_PATH = "/tmp/mdev_fifo"
-        FIFO_MODE = 0o600
         action = ""
         
         # explicitly only microsd add/remove detection in seedsigner-os
         if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
+
+            # at start-up, get current status and inform Settings
+            if self.is_inserted():
+                Settings.microsd_handler(self.ACTION__INSERTED)
+            else:
+                Settings.microsd_handler(self.ACTION__REMOVED)
+
+            if os.path.exists(self.FIFO_PATH):
+                os.remove(self.FIFO_PATH)
             
-            if os.path.exists(FIFO_PATH):
-                os.remove(FIFO_PATH)
-            
-            os.mkfifo(FIFO_PATH, FIFO_MODE)
-            
+            os.mkfifo(self.FIFO_PATH, self.FIFO_MODE)
+
             while self.keep_running:
-                with open(FIFO_PATH) as fifo:
+                with open(self.FIFO_PATH) as fifo:
                     action = fifo.read()
                     print(f"fifo message: {action}")
             

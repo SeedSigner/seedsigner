@@ -381,5 +381,21 @@ class OptionDisabledView(View):
             show_back_button=False,
             allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
         ).display()
-        
+
+
+
+class RemoveMicroSDWarningView(View):
+    """
+        Warning to remove the microsd
+    """
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title="Warning!",
+            status_headline="MicroSD is Inserted.",
+            text="It is strongly advised\nto remove it before\nloading any seeds.",
+            show_back_button=False,
+            button_data=["Continue"],
+        )
+
         return Destination(MainMenuView, clear_history=True)
