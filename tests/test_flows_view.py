@@ -6,7 +6,7 @@ from base import FlowTest, FlowStep
 from seedsigner.gui.screens.screen import RET_CODE__POWER_BUTTON
 from seedsigner.models.settings import Settings
 from seedsigner.views.tools_views import ToolsCalcFinalWordNumWordsView, ToolsMenuView
-from seedsigner.views.view import MainMenuView, NotYetImplementedView, PowerOptionsView, PowerOffView, RestartView, UnhandledExceptionView, View
+from seedsigner.views.view import MainMenuView, NotYetImplementedView, PowerOptionsView, PowerOffView, RestartView, UnhandledExceptionView, View, RemoveMicroSDWarningView
 
 
 
@@ -38,6 +38,7 @@ class TestViewFlows(FlowTest):
         # And again, but this time as if we were in the SeedSigner OS
         Settings.HOSTNAME = Settings.SEEDSIGNER_OS
         self.run_sequence([
+            FlowStep(RemoveMicroSDWarningView, screen_return_value=0),
             FlowStep(MainMenuView, screen_return_value=RET_CODE__POWER_BUTTON),
             FlowStep(PowerOptionsView, button_data_selection=PowerOptionsView.POWER_OFF),
             FlowStep(PowerOffView),  # returns BackStackView
@@ -65,6 +66,7 @@ class TestViewFlows(FlowTest):
         """
         Basic flow from any arbitrary View to the UnhandledExceptionView
         """
+        Settings.HOSTNAME = "NOT seedsigner-os"
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
             FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.KEYBOARD),

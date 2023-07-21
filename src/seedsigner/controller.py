@@ -11,7 +11,7 @@ from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.buttons import HardwareButtons
 from seedsigner.hardware.microsd import MicroSD
 from seedsigner.views.screensaver import ScreensaverScreen
-from seedsigner.views.view import Destination, NotYetImplementedView, UnhandledExceptionView
+from seedsigner.views.view import Destination, NotYetImplementedView, UnhandledExceptionView, RemoveMicroSDWarningView
 
 from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
 
@@ -244,7 +244,12 @@ class Controller(Singleton):
             if initial_destination:
                 next_destination = initial_destination
             else:
-                next_destination = Destination(MainMenuView)
+                # remind the user to remove the microsd card
+                if self.settings.HOSTNAME == Settings.SEEDSIGNER_OS and self.microsd.is_inserted():
+                    next_destination = Destination(RemoveMicroSDWarningView)
+                else:
+                    next_destination = Destination(MainMenuView)
+
             while True:
                 # Destination(None) is a special case; render the Home screen
                 if next_destination.View_cls is None:

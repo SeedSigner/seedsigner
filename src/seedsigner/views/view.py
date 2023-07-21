@@ -278,3 +278,21 @@ class UnhandledExceptionView(View):
         )
         
         return Destination(MainMenuView, clear_history=True)
+
+
+
+class RemoveMicroSDWarningView(View):
+    """
+        Warning to remove the microsd
+    """
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title="Warning!",
+            status_headline="MicroSD is Inserted.",
+            text="It is strongly advised\nto remove it before\nloading any seeds.",
+            show_back_button=False,
+            button_data=["Continue"],
+        )
+
+        return Destination(MainMenuView, clear_history=True)
