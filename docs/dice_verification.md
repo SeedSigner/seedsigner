@@ -125,7 +125,7 @@ Go to https://bitcoiner.guide/seed/ and click on 'Seed Generation Input' (1):<br
 Then click on the 'Show the Entropy Section' tab (1):<br>
 <kbd><img src="img/dicedoc/seedtool_2.png"></kbd>
 
-Enter the 99 dice numbers in (1), in (2) change back to 'Hex', check that (3) is still '24 Words' and the calculated seed words are shown in (4):
+Enter the 99 dice numbers in (1), in (2) change back to 'Hex', check that (3) is still '24 Words' and the calculated seed words are shown in (4):<br>
 <kbd><img src="img/dicedoc/seedtool_3.png"></kbd>
 
 Seed words shown are the same as in SeedSigner and the Ian Coleman web tool seen before.
