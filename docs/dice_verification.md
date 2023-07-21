@@ -54,7 +54,7 @@ Keep the SeedSigner open and the newly created seed still loaded as we will need
 
 ## Create new wallet from seed in Sparrow Wallet to see xpub/zpub and addresses
 
-Go to https://www.sparrowwallet.com/download/ and download the release version which fits to your system.<br><br>
+Go to https://www.sparrowwallet.com/download/ and download the release version supported by your operating system.<br><br>
 Open Sparrow Wallet, go to 'File' menu and select 'New Wallet'. Enter a name (e.g. test), and click 'Create Wallet'.<br><br>
 Click 'Airgapped Hardware Wallet' (1) and click on the 'Scan' button in the SeedSigner entry (2) which will open the camera scan screen:<br>
 <kbd><img src="img/dicedoc/sparrow_wallet_1.png"></kbd>
@@ -69,7 +69,7 @@ Follow these menu entries in SeedSigner:<br>
 
 Click 'Export Xpub' and SeedSigner will show an animated QR code to be scanned in Sparrow Wallet (where we are still in the wallet creation).<br>
 Scan the QR code SeedSigner is showing in Sparrow Wallet.<br><br>
-The wallet has now been created in Sparrow. Click 'Apply' button to finalize. The wallets settings screen now looks like this:<br>
+The wallet has now been created in Sparrow. Click 'Apply' button to finalize. The wallet's settings screen now looks like this:<br>
 <kbd><img src="img/dicedoc/sparrow_wallet_2.png"></kbd>
 
 We will later use this to verify: (1) fingerprint, (2) zpub (click this button to switch between xpub and zpub!) and (3) addresses on the 'Addresses' tab.
@@ -108,7 +108,7 @@ Scroll down to the 'Derived Addresses' section and compare the receive addresses
 <br>
 
 Check that the receive addresses all match.<br><br>
-To verify the change addresses change 'External / Internal' to 1 (1):
+To verify the change addresses, change 'External / Internal' to 1 (1):
 <kbd><img src="img/dicedoc/coleman_change_addresses_1.png"></kbd><br><br>
 Compare the change addresses to the ones generated in Sparrow ('Addresses' tab of the wallet):
 <kbd><img src="img/dicedoc/coleman_change_addresses_2.png"></kbd>
@@ -151,7 +151,7 @@ Scroll down a little bit where the receive addresses are shown and compare to th
 <br>
 
 Check that the receive addresses all match.<br><br>
-To verify the change addresses change the 'Receive/Change' dropdown box to '1 (Change)' (1):
+To verify the change addresses, change the 'Receive/Change' dropdown box to '1 (Change)' (1):
 <kbd><img src="img/dicedoc/seedtool_change_addresses_1.png"></kbd><br><br>
 Compare the change addresses to the ones generated in Sparrow ('Addresses' tab of the wallet):
 <kbd><img src="img/dicedoc/seedtool_change_addresses_2.png"></kbd>
