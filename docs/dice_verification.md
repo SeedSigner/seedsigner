@@ -202,5 +202,5 @@ What did we achieve now?<br>
 We created a dice-based seed in SeedSigner and set up a wallet using this seed in Sparrow wallet (as this is what a seed is used for).<br><br>
 We double-checked in two different web tools implementing different methods for seed creation that what SeedSigner generates perfectly matches up with what the other tools calculate based on the same dice entropy used.<br>
 
-So congratulations if the Fingerprints, Zpubs and Addresses all match up in your example so you can be much more confident that nothing is wrong with your generated seed.
+So congratulations if the fingerprints, zpubs and addresses all match up in your example so you can be much more confident that nothing is wrong with your generated seed.
 
