@@ -15,6 +15,12 @@ from seedsigner.views.view import Destination, NotYetImplementedView, UnhandledE
 
 from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
 
+# unused imports for faster initial navigation
+from seedsigner.gui.screens import seed_screens as unused
+from seedsigner.gui.screens import scan_screens as unused
+from seedsigner.gui.screens import tools_screens as unused
+del unused
+
 
 logger = logging.getLogger(__name__)
 
