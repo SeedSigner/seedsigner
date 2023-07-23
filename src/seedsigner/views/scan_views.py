@@ -3,7 +3,8 @@ import re
 from embit.descriptor import Descriptor
 
 from seedsigner.gui.screens import scan_screens
-from seedsigner.models import DecodeQR, Seed
+from seedsigner.models.decode_qr import DecodeQR
+from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.settings_views import SettingsIngestSettingsQRView
 from seedsigner.views.view import MainMenuView, NotYetImplementedView, View, Destination

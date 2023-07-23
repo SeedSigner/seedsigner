@@ -1,3 +1,5 @@
+print("seed_views.py")
+
 import embit
 import random
 import time

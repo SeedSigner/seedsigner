@@ -1,3 +1,5 @@
+print("decode_qr.py")
+
 import base64
 import json
 import logging
@@ -13,7 +15,8 @@ from urtypes.crypto import Account, Output
 from urtypes.bytes import Bytes
 
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
-from seedsigner.models import QRType, Seed
+from seedsigner.models.qr_type import QRType
+from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
 
