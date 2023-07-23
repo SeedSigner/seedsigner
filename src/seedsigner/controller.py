@@ -2,14 +2,14 @@ print("controller.py")
 
 from time import time
 
+from seedsigner.models.threads import BaseThread
+
 start = time()
 print("Starting Controller import...")
 
 import logging
 import traceback
 
-# from embit.descriptor import Descriptor
-# from embit.psbt import PSBT
 from PIL.Image import Image
 
 from seedsigner.views.view import Destination
@@ -50,6 +50,43 @@ class FlowBasedTestException(Exception):
         It should not be raised by any other code.
     """
     pass
+
+
+class BackgroundImportThread(BaseThread):
+    def run(self):
+        start = time()
+        from importlib import import_module
+
+        # import seedsigner.hardware.buttons # slowly imports GPIO along the way
+
+        def time_import(module_name):
+            last = time()
+            import_module(module_name)
+            print(time() - last, module_name)
+
+        time_import('embit')
+        time_import('seedsigner.helpers.embit_utils')
+
+        # Do costly initializations
+        time_import('seedsigner.models.seed_storage')
+        from seedsigner.models.seed_storage import SeedStorage
+        Controller.get_instance().storage = SeedStorage()
+
+        # Get MainMenuView ready to respond quickly
+        time_import('seedsigner.views.scan_views')
+
+        time_import('seedsigner.views.seed_views')
+
+        time_import('seedsigner.views.tools_views')
+
+        time_import('seedsigner.views.settings_views')
+
+        # Lowest priority costly initializations
+        # time_import('picamera')
+        # time_import('picamera.array')
+        # time_import('seedsigner.hardware.pivideostream')
+
+        print("Total BackgroundImportThread import time:", time() - start)
 
 
 
@@ -165,7 +202,6 @@ class Controller(Singleton):
         background_import_thread = BackgroundImportThread()
         background_import_thread.start()
         print("Time elapsed through BackgroundImportThread.start():", time() - start)
-
 
         return cls._instance
 
