@@ -15,11 +15,13 @@ from seedsigner.views.view import Destination, NotYetImplementedView, UnhandledE
 
 from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
 
-# unused imports for faster initial navigation
-from seedsigner.gui.screens import seed_screens as unused
-from seedsigner.gui.screens import scan_screens as unused
-from seedsigner.gui.screens import tools_screens as unused
-del unused
+# unused heaviest-imports preloaded for faster initial navigation
+from importlib import import_module
+import_module('seedsigner.hardware.camera')
+import_module('seedsigner.gui.screens.seed_screens')
+import_module('seedsigner.gui.screens.scan_screens')
+import_module('seedsigner.gui.screens.tools_screens')
+del import_module
 
 
 logger = logging.getLogger(__name__)
