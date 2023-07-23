@@ -1,7 +1,8 @@
 import time
 
 from dataclasses import dataclass
-from typing import List, Tuple
+from PIL import Image
+from typing import Tuple
 
 from seedsigner.gui import renderer
 from seedsigner.hardware.buttons import HardwareButtonsConstants
@@ -9,8 +10,8 @@ from seedsigner.hardware.camera import Camera
 from seedsigner.models import DecodeQR, DecodeQRStatus
 from seedsigner.models.threads import BaseThread
 
-from .screen import BaseScreen, BaseTopNavScreen, ButtonListScreen
-from ..components import BaseComponent, Button, GUIConstants, Fonts, IconButton, TextArea, calc_text_centering
+from .screen import BaseScreen, ButtonListScreen
+from ..components import GUIConstants, Fonts, TextArea
 
 
 
@@ -20,7 +21,7 @@ class ScanScreen(BaseScreen):
     decoder: DecodeQR = None
     instructions_text: str = "< back  |  Scan a QR code"
     resolution: Tuple[int,int] = (480, 480)
-    framerate: int = 12
+    framerate: int = 4
     render_rect: Tuple[int,int,int,int] = None
 
 
@@ -75,7 +76,8 @@ class ScanScreen(BaseScreen):
                     with self.renderer.lock:
                         if frame.width > self.render_width or frame.height > self.render_height:
                             frame = frame.resize(
-                                (self.render_width, self.render_height)
+                                (self.render_width, self.render_height),
+                                resample=Image.NEAREST
                             )
                         self.renderer.canvas.paste(
                             frame,
@@ -99,9 +101,8 @@ class ScanScreen(BaseScreen):
                         self.renderer.show_image()
 
                         end = timer()
-                        # print(f"{1.0/(end - start)} fps") # Time in seconds, e.g. 5.38091952400282
+                        print(f"{1.0/(end - start):0.2f} fps") # Time in seconds, e.g. 5.38091952400282
 
-                time.sleep(0.05) # turn this up or down to tune performance while decoding psbt
                 if self.camera._video_stream is None:
                     break
 
@@ -112,9 +113,12 @@ class ScanScreen(BaseScreen):
             Screen. Once interaction starts, the display updates have to be managed in
             _run(). The live preview is an extra-complex case.
         """
+        from timeit import default_timer as timer
         while True:
+            start = timer()
             frame = self.camera.read_video_stream()
             if frame is not None:
+                print("Decoder checking next frame")
                 status = self.decoder.add_image(frame)
 
                 if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
@@ -125,6 +129,10 @@ class ScanScreen(BaseScreen):
                 if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
                     self.camera.stop_video_stream_mode()
                     break
+
+            elapsed = (timer() - start)
+            if elapsed < 1.0/float(self.framerate):
+                time.sleep(1.0/float(self.framerate) - elapsed)
 
 
 
