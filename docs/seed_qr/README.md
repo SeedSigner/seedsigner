@@ -298,16 +298,13 @@ It's just the above process in reverse:
 12. nuclear   1210
 ```
 
-It would be much more difficult to manually recreate your seed from a CompactSeedQR. Tools like [zxing.org](https://zxing.org/w/decode.jspx) can help you get the binary data out as a hexidecimal string:
+It would be much more difficult to manually recreate your seed from a CompactSeedQR. Tools like [zxing.org](https://zxing.org/w/decode.jspx) or [ZBar](https://zbar.sourceforge.net/) can help you get the binary data out as a hexidecimal string:
 
 <img src="img/zxing_screenshot.png">
 
-All 12-word CompactSeedQRs will start with `41 0` (that specifies the binary data format and says the length of the data is 16 bytes) and end with `0 ec` (unused byte and a half).
+Note that for some QR decoders, zxing in particular, may return more data than the compact seed itself: the data type, the data length, and padding.  For example, the zxing result from 12-word CompactSeedQRs in low error correction mode will start with `41 0` (that specifies the binary data format and says the length of the data is 16 bytes) and end with `0 ec` (unused byte and a half). Similarly, 24-word CompactSeedQRs will start with `42 0` (binary, data length is 32 bytes) and end with `0` (unused half a byte).
 
-All 24-word CompactSeedQRs will start with `42 0` (binary, data length is 32 bytes) and end with `0` (unused half a byte).
-
-The remaining hexidecimal data is just an alternate representation of the 128-bit entropy for your 12-word mnemonic (or 256 bits for a 24-word mnemonic). Various programming tools exist to convert from hex back into mnemonic form.
-
+The ZBar library just returns the encoded data, without metadata or padding.
 
 ## Obfuscation
 Conversely, having limited support for reading binary QR codes and the complications described above are seen by some as an added security feature. Should someone steal your CompactSeedQR or take a photo of it, they'll have to be fairly savvy to know how to decode it.
