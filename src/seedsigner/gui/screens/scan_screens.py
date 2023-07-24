@@ -42,7 +42,7 @@ class ScanScreen(BaseScreen):
     decoder: DecodeQR = None
     instructions_text: str = "< back  |  Scan a QR code"
     resolution: tuple[int,int] = (480, 480)
-    framerate: int = 5  # TODO: alternate optimization for Pi Zero 2W
+    framerate: int = 4  # TODO: alternate optimization for Pi Zero 2W
     render_rect: tuple[int,int,int,int] = None
 
 
