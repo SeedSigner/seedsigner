@@ -126,8 +126,8 @@ class ScanScreen(BaseScreen):
                                 text=scan_text,
                                 fill=GUIConstants.BODY_FONT_COLOR,
                                 font=instructions_font,
-                                stroke_width=4,
-                                stroke_fill=GUIConstants.BACKGROUND_COLOR,
+                                # stroke_width=4,
+                                # stroke_fill=GUIConstants.BACKGROUND_COLOR,
                                 anchor="ms"
                             )
 
