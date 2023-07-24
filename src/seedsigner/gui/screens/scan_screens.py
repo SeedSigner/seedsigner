@@ -1,8 +1,7 @@
 import time
 
 from dataclasses import dataclass
-from PIL import Image
-from typing import Tuple
+from PIL import Image, ImageDraw
 
 from seedsigner.gui import renderer
 from seedsigner.hardware.buttons import HardwareButtonsConstants
@@ -18,11 +17,33 @@ from ..components import GUIConstants, Fonts, TextArea
 
 @dataclass
 class ScanScreen(BaseScreen):
+    """
+    Live preview has to balance three competing threads:
+    * Camera capturing frames and making them available to read.
+    * Decoder analyzing frames for QR codes.
+    * Live preview display writing frames to the screen.
+
+    All of this would ideally be rewritten as in C/C++/Rust with python bindings for
+    vastly improved performance.
+
+    Until then, we have to balance the resources the Pi Zero has to work with. Thus, we
+    set a modest fps target for the camera: 4fps. At this pace, the decoder and the live
+    display can more or less keep up with the flow of frames without much wasted effort
+    in any of the threads.
+
+    The resolution (480x480) has not been tweaked in order to guarantee that our
+    decoding abilities remain as-is. It's possible that more optimizations could be made
+    here (e.g. higher res w/no performance impact? Lower res w/same decoding but faster
+    performance? etc).
+
+    Note: This is quite a lot of important tasks for a Screen to be managing; much of
+    this should probably be refactored into the Controller.
+    """
     decoder: DecodeQR = None
     instructions_text: str = "< back  |  Scan a QR code"
-    resolution: Tuple[int,int] = (480, 480)
-    framerate: int = 4
-    render_rect: Tuple[int,int,int,int] = None
+    resolution: tuple[int,int] = (480, 480)
+    framerate: int = 4  # TODO: alternate optimization for Pi Zero 2W
+    render_rect: tuple[int,int,int,int] = None
 
 
     def __post_init__(self):
@@ -43,7 +64,7 @@ class ScanScreen(BaseScreen):
 
 
     class LivePreviewThread(BaseThread):
-        def __init__(self, camera: Camera, decoder: DecodeQR, renderer: renderer.Renderer, instructions_text: str, render_rect: Tuple[int,int,int,int]):
+        def __init__(self, camera: Camera, decoder: DecodeQR, renderer: renderer.Renderer, instructions_text: str, render_rect: tuple[int,int,int,int]):
             self.camera = camera
             self.decoder = decoder
             self.renderer = renderer
@@ -55,9 +76,6 @@ class ScanScreen(BaseScreen):
             self.render_width = self.render_rect[2] - self.render_rect[0]
             self.render_height = self.render_rect[3] - self.render_rect[1]
 
-            print(f"render_width: {self.render_width}")
-            print(f"render_height: {self.render_height}")
-
             super().__init__()
 
 
@@ -66,14 +84,25 @@ class ScanScreen(BaseScreen):
 
             instructions_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
 
-            framerate = 0
+            start_time = time.time()
+            num_frames = 0
+            show_framerate = True  # enable for debugging / testing
             while self.keep_running:
                 start = timer()
                 frame = self.camera.read_video_stream(as_image=True)
                 if frame is not None:
-                    scan_text = self.instructions_text
+                    num_frames += 1
+                    cur_time = time.time()
+                    cur_fps = num_frames / (cur_time - start_time)
                     if self.decoder and self.decoder.get_percent_complete() > 0 and self.decoder.is_psbt:
                         scan_text = str(self.decoder.get_percent_complete()) + "% Complete"
+                        if show_framerate:
+                            scan_text += f" {cur_fps:0.2f} fps"
+                    else:
+                        if show_framerate:
+                            scan_text = f"{cur_fps:0.2f} fps"
+                        else:
+                            scan_text = self.instructions_text
 
                     with self.renderer.lock:
                         if frame.width > self.render_width or frame.height > self.render_height:
@@ -81,19 +110,20 @@ class ScanScreen(BaseScreen):
                                 (self.render_width, self.render_height),
                                 resample=Image.NEAREST
                             )
-                        self.renderer.canvas.paste(
-                            frame,
-                            (self.render_rect[0], self.render_rect[1])
-                        )
+                        # self.renderer.canvas.paste(
+                        #     frame,
+                        #     (self.render_rect[0], self.render_rect[1])
+                        # )
 
-                        if scan_text or True:
-                            self.renderer.draw.text(
+                        draw = ImageDraw.Draw(frame)
+
+                        if scan_text:
+                            draw.text(
                                 xy=(
                                     int(self.renderer.canvas_width/2),
                                     self.renderer.canvas_height - GUIConstants.EDGE_PADDING
                                 ),
-                                # text=scan_text,
-                                text=f"{framerate:0.2f} fps",
+                                text=scan_text,
                                 fill=GUIConstants.BODY_FONT_COLOR,
                                 font=instructions_font,
                                 stroke_width=4,
@@ -101,11 +131,11 @@ class ScanScreen(BaseScreen):
                                 anchor="ms"
                             )
 
-                        self.renderer.show_image()
+                        self.renderer.disp.ShowImage(frame, 0, 0)
 
                         end = timer()
                         framerate = 1.0/(end - start)
-                        # print(f"{framerate:0.2f} fps") # Time in seconds, e.g. 5.38091952400282
+                        # print(f"{framerate:0.2f} fps")
 
                 if self.camera._video_stream is None:
                     break
@@ -122,7 +152,7 @@ class ScanScreen(BaseScreen):
             start = timer()
             frame = self.camera.read_video_stream()
             if frame is not None:
-                print("Decoder checking next frame")
+                # print("Decoder checking next frame")
                 status = self.decoder.add_image(frame)
 
                 if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
@@ -134,6 +164,8 @@ class ScanScreen(BaseScreen):
                     self.camera.stop_video_stream_mode()
                     break
 
+            # Have the decoder thread sleep until (roughly) the next frame is ready in
+            # order to avoid wasting CPU cycles re-checking the same frame.
             elapsed = (timer() - start)
             if elapsed < 1.0/float(self.framerate):
                 time.sleep(1.0/float(self.framerate) - elapsed)

@@ -1,5 +1,4 @@
 import io
-import numpy
 
 from picamera import PiCamera
 from PIL import Image
