@@ -42,7 +42,7 @@ class ScanScreen(BaseScreen):
     decoder: DecodeQR = None
     instructions_text: str = "< back  |  Scan a QR code"
     resolution: tuple[int,int] = (480, 480)
-    framerate: int = 4  # TODO: alternate optimization for Pi Zero 2W
+    framerate: int = 5  # TODO: alternate optimization for Pi Zero 2W
     render_rect: tuple[int,int,int,int] = None
 
 
@@ -75,6 +75,7 @@ class ScanScreen(BaseScreen):
                 self.render_rect = (0, 0, self.renderer.canvas_width, self.renderer.canvas_height)
             self.render_width = self.render_rect[2] - self.render_rect[0]
             self.render_height = self.render_rect[3] - self.render_rect[1]
+            self.decoder_fps = "0.0"
 
             super().__init__()
 
@@ -97,10 +98,10 @@ class ScanScreen(BaseScreen):
                     if self.decoder and self.decoder.get_percent_complete() > 0 and self.decoder.is_psbt:
                         scan_text = str(self.decoder.get_percent_complete()) + "% Complete"
                         if show_framerate:
-                            scan_text += f" {cur_fps:0.2f} fps"
+                            scan_text += f" {cur_fps:0.2f} | {self.decoder_fps}"
                     else:
                         if show_framerate:
-                            scan_text = f"{cur_fps:0.2f} fps"
+                            scan_text = f"{cur_fps:0.2f} | {self.decoder_fps}"
                         else:
                             scan_text = self.instructions_text
 
@@ -148,12 +149,18 @@ class ScanScreen(BaseScreen):
             _run(). The live preview is an extra-complex case.
         """
         from timeit import default_timer as timer
+        num_frames = 0
+        start_time = time.time()
         while True:
             start = timer()
             frame = self.camera.read_video_stream()
             if frame is not None:
                 # print("Decoder checking next frame")
                 status = self.decoder.add_image(frame)
+
+                num_frames += 1
+                decoder_fps = f"{num_frames / (time.time() - start_time):0.2f}"
+                self.threads[0].decoder_fps = decoder_fps
 
                 if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
                     self.camera.stop_video_stream_mode()
