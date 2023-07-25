@@ -27,9 +27,11 @@ class ScanScreen(BaseScreen):
     vastly improved performance.
 
     Until then, we have to balance the resources the Pi Zero has to work with. Thus, we
-    set a modest fps target for the camera: 4fps. At this pace, the decoder and the live
+    set a modest fps target for the camera: 5fps. At this pace, the decoder and the live
     display can more or less keep up with the flow of frames without much wasted effort
     in any of the threads.
+
+    Note: performance tuning was targeted for the Pi Zero.
 
     The resolution (480x480) has not been tweaked in order to guarantee that our
     decoding abilities remain as-is. It's possible that more optimizations could be made
@@ -42,7 +44,7 @@ class ScanScreen(BaseScreen):
     decoder: DecodeQR = None
     instructions_text: str = "< back  |  Scan a QR code"
     resolution: tuple[int,int] = (480, 480)
-    framerate: int = 4  # TODO: alternate optimization for Pi Zero 2W
+    framerate: int = 5  # TODO: alternate optimization for Pi Zero 2W
     render_rect: tuple[int,int,int,int] = None
 
 
@@ -87,9 +89,8 @@ class ScanScreen(BaseScreen):
 
             start_time = time.time()
             num_frames = 0
-            show_framerate = True  # enable for debugging / testing
+            show_framerate = False  # enable for debugging / testing
             while self.keep_running:
-                start = timer()
                 frame = self.camera.read_video_stream(as_image=True)
                 if frame is not None:
                     num_frames += 1
@@ -111,32 +112,32 @@ class ScanScreen(BaseScreen):
                                 (self.render_width, self.render_height),
                                 resample=Image.NEAREST
                             )
-                        # self.renderer.canvas.paste(
-                        #     frame,
-                        #     (self.render_rect[0], self.render_rect[1])
-                        # )
 
                         draw = ImageDraw.Draw(frame)
 
                         if scan_text:
-                            draw.text(
-                                xy=(
-                                    int(self.renderer.canvas_width/2),
-                                    self.renderer.canvas_height - GUIConstants.EDGE_PADDING
-                                ),
-                                text=scan_text,
-                                fill=GUIConstants.BODY_FONT_COLOR,
-                                font=instructions_font,
-                                # stroke_width=4,
-                                # stroke_fill=GUIConstants.BACKGROUND_COLOR,
-                                anchor="ms"
-                            )
+                            # Temp solution: render a slight 1px shadow behind the text
+                            draw.text(xy=(
+                                        int(self.renderer.canvas_width/2 + 1),
+                                        self.renderer.canvas_height - GUIConstants.EDGE_PADDING + 1
+                                     ),
+                                     text=scan_text,
+                                     fill="black",
+                                     font=instructions_font,
+                                     anchor="ms")
+
+                            # Render the onscreen instructions
+                            draw.text(xy=(
+                                        int(self.renderer.canvas_width/2),
+                                        self.renderer.canvas_height - GUIConstants.EDGE_PADDING
+                                     ),
+                                     text=scan_text,
+                                     fill=GUIConstants.BODY_FONT_COLOR,
+                                     font=instructions_font,
+                                     anchor="ms")
 
                         self.renderer.disp.ShowImage(frame, 0, 0)
-
-                        end = timer()
-                        framerate = 1.0/(end - start)
-                        # print(f"{framerate:0.2f} fps")
+                        print(f" {cur_fps:0.2f} | {self.decoder_fps}")
 
                 if self.camera._video_stream is None:
                     break
@@ -170,12 +171,6 @@ class ScanScreen(BaseScreen):
                 if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
                     self.camera.stop_video_stream_mode()
                     break
-
-            # Have the decoder thread sleep until (roughly) the next frame is ready in
-            # order to avoid wasting CPU cycles re-checking the same frame.
-            elapsed = (timer() - start)
-            if elapsed < 1.0/float(self.framerate):
-                time.sleep(1.0/float(self.framerate) - elapsed)
 
 
 
