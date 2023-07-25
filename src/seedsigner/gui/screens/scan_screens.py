@@ -44,7 +44,7 @@ class ScanScreen(BaseScreen):
     decoder: DecodeQR = None
     instructions_text: str = "< back  |  Scan a QR code"
     resolution: tuple[int,int] = (480, 480)
-    framerate: int = 5  # TODO: alternate optimization for Pi Zero 2W
+    framerate: int = 5  # TODO: alternate optimization for Pi Zero 2W?
     render_rect: tuple[int,int,int,int] = None
 
 
@@ -110,18 +110,20 @@ class ScanScreen(BaseScreen):
                         if frame.width > self.render_width or frame.height > self.render_height:
                             frame = frame.resize(
                                 (self.render_width, self.render_height),
-                                resample=Image.NEAREST
+                                resample=Image.NEAREST  # Use nearest neighbor for max speed
                             )
 
                         draw = ImageDraw.Draw(frame)
 
                         if scan_text:
+                            # Note: shadowed text (adding a 'stroke' outline) can
+                            # significantly slow down the rendering.
                             # Temp solution: render a slight 1px shadow behind the text
                             # TODO: Replace the instructions_text with a disappearing
                             # toast/popup (see: QR Brightness UI)?
                             draw.text(xy=(
-                                        int(self.renderer.canvas_width/2 + 1),
-                                        self.renderer.canvas_height - GUIConstants.EDGE_PADDING + 1
+                                        int(self.renderer.canvas_width/2 + 2),
+                                        self.renderer.canvas_height - GUIConstants.EDGE_PADDING + 2
                                      ),
                                      text=scan_text,
                                      fill="black",
@@ -138,7 +140,7 @@ class ScanScreen(BaseScreen):
                                      font=instructions_font,
                                      anchor="ms")
 
-                        self.renderer.disp.ShowImage(frame, 0, 0)
+                        self.renderer.show_image(frame, show_direct=True)
                         # print(f" {cur_fps:0.2f} | {self.decoder_fps}")
 
                 if self.camera._video_stream is None:
@@ -156,7 +158,6 @@ class ScanScreen(BaseScreen):
         while True:
             frame = self.camera.read_video_stream()
             if frame is not None:
-                # print("Decoder checking next frame")
                 status = self.decoder.add_image(frame)
 
                 num_frames += 1
@@ -167,7 +168,6 @@ class ScanScreen(BaseScreen):
                     self.camera.stop_video_stream_mode()
                     break
                 
-                # TODO: KEY_UP gives control to NavBar; use its back arrow to cancel
                 if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
                     self.camera.stop_video_stream_mode()
                     break
