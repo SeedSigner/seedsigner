@@ -117,6 +117,8 @@ class ScanScreen(BaseScreen):
 
                         if scan_text:
                             # Temp solution: render a slight 1px shadow behind the text
+                            # TODO: Replace the instructions_text with a disappearing
+                            # toast/popup (see: QR Brightness UI)?
                             draw.text(xy=(
                                         int(self.renderer.canvas_width/2 + 1),
                                         self.renderer.canvas_height - GUIConstants.EDGE_PADDING + 1
@@ -137,7 +139,7 @@ class ScanScreen(BaseScreen):
                                      anchor="ms")
 
                         self.renderer.disp.ShowImage(frame, 0, 0)
-                        print(f" {cur_fps:0.2f} | {self.decoder_fps}")
+                        # print(f" {cur_fps:0.2f} | {self.decoder_fps}")
 
                 if self.camera._video_stream is None:
                     break
@@ -149,11 +151,9 @@ class ScanScreen(BaseScreen):
             Screen. Once interaction starts, the display updates have to be managed in
             _run(). The live preview is an extra-complex case.
         """
-        from timeit import default_timer as timer
         num_frames = 0
         start_time = time.time()
         while True:
-            start = timer()
             frame = self.camera.read_video_stream()
             if frame is not None:
                 # print("Decoder checking next frame")
