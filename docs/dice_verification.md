@@ -1,13 +1,14 @@
 # Verifying dice seed generation 
 
-The intention of this documentation is to detail how to verify the seed generation algorithm used in SeedSigner against other tools to prove that they all generate the same results using different programming languages and libraries.<br><br>
+The intention of this documentation is to describe how to verify the seed generation code used in SeedSigner against other independent tools, to prove that they all generate the same results, despite them using different programming languages and code libraries.<br><br>
 As it is an important step to verify all software releases being used to ensure that the installation files downloaded have not been compromised, the same is true especially for the seed generation procedure which unknowingly might not work as expected due to bugs or even on purpose.<br><br>
-This guide targets to help how this can be achieved.<br><br>
-As usual: Don't Trust, Verify!
+This guide describes how this can be achieved.<br><br>
+As usual: Don't Trust, Verify!<br>
 <br><br>
 **Note:**<br>
-**Do NOT use this with any seed you want to use later productively. This is just for checking that the algorithms get to the same results!!**
-**Or you can download the tools to an airgapped Computer (e.g. using tails-OS) to check there. Do not use any online computer/tool to do this with real seed phrases!!**
+**Do NOT use this with any seed you want to use later with real funds. This exercise is only for checking that the independent codebases get to the same end result!**<br>
+**However, if you do want to check your real seedphrases you should download the Iancoleman and/or Bitcoiner.Guide tools onto an airgapped, ephemeral computer (e.g. using tails-OS) and perform these tests on there. Destroy/abandon the TailsOS afterwards.**<br>
+**Never input seed phrases that you intend to use to store real funds onto an internet-connected computer!!!**
 <br><br><br>
 
 ## 99 Dice Rolls / 24 Seed Words Example
@@ -24,7 +25,7 @@ The corresponding 24 seed words are:<br>
 ## Creating seed via Dice rolls in SeedSigner (here v0.6.0)
 
 First we create a new seed based on dice rolls in SeedSigner:<br><br>
-Power up and boot SeedSigner, go to the 'Tools' menu and select 'New Seed' (with the dice symbols):<br>
+Power on your SeedSigner, go to the 'Tools' menu and select 'New Seed' (with the dice symbols):<br>
 <img src="img/dicedoc/sesi_tools_dice_seed.png" width="600">
 
 Select '24 words (99 rolls)' and on the next screen enter the dice numbers one after another:<br>
