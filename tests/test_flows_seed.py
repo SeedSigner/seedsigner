@@ -3,23 +3,59 @@ from base import BaseTest, FlowTest, FlowStep
 from base import FlowTestUnexpectedViewException, FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDataSelectionException
 
 import pytest
-from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.settings import SettingsConstants, Settings
 from seedsigner.models.seed import Seed
-from seedsigner.views.view import MainMenuView
-from seedsigner.views import seed_views, scan_views
+from seedsigner.views.view import MainMenuView, RemoveMicroSDWarningView
+from seedsigner.views import seed_views, scan_views, tools_views
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 
 
+def load_seed_into_decoder(view: scan_views.ScanView):
+    view.decoder.add_data("0000" * 11 + "0003")
 
 class TestSeedFlows(FlowTest):
+
+    def test_flow_thru_microsd_warning(self):
+        """
+            Selecting "Scan", "Seeds" or "Tools from the MainMenuView in ss-os with microsd inserted
+            will flow to RemoveMicroSDWarningView -- conditionally, then on to the intended next view
+        """
+        Settings.HOSTNAME = Settings.SEEDSIGNER_OS
+        # will be warned to remove microsd card
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(RemoveMicroSDWarningView, screen_return_value=0),
+            FlowStep(tools_views.ToolsMenuView, screen_return_value=RET_CODE__BACK_BUTTON),  # backed-out
+            FlowStep(MainMenuView),
+        ])
+        # but won't be warned again, because microsd.warn_to_remove was set False just above
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, screen_return_value=RET_CODE__BACK_BUTTON), # backed-out
+            FlowStep(MainMenuView),
+        ])
+        # unless the microsd was re-inserted, which resets microsd.warn_to_remove = True.
+        self.controller.microsd.warn_to_remove = True
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(RemoveMicroSDWarningView, screen_return_value=0),
+            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),  # this time, loaded a seed
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView),
+        ])
+        # won't get warned again if a seed is loaded (like was done above); it's already too late
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView),
+        ])
+
 
     def test_scan_seedqr_flow(self):
         """
             Selecting "Scan" from the MainMenuView and scanning a SeedQR should enter the
             Finalize Seed flow and end at the SeedOptionsView.
         """
-        def load_seed_into_decoder(view: scan_views.ScanView):
-            view.decoder.add_data("0000" * 11 + "0003")
-
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
             FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
@@ -34,6 +70,7 @@ class TestSeedFlows(FlowTest):
             the SeedOptionsView.
         """
         def test_with_mnemonic(mnemonic):
+            Settings.HOSTNAME = "not seedsigner-os"
             sequence = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
