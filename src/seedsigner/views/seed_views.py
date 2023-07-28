@@ -135,7 +135,7 @@ class SeedSelectSeedView(View):
                 return Destination(SeedAddressVerificationView, view_args=view_args)
 
             elif self.flow == Controller.FLOW__SIGN_MESSAGE:
-                return Destination(SeedSignMessageConfirmView, view_args=view_args)
+                return Destination(SeedSignMessageConfirmMessageView, view_args=view_args)
 
         self.controller.resume_main_flow = self.flow
 
@@ -454,8 +454,8 @@ class SeedOptionsView(View):
             # derivation path is specified.
             return Destination(SeedExportXpubScriptTypeView, view_args=dict(seed_num=self.seed_num, sig_type=SettingsConstants.SINGLE_SIG), skip_current_view=True)
 
-        if self.controller.resume_main_flow == Controller.FLOW__SIGN_MESSAGE:
-            return Destination(SeedSignMessageConfirmView, view_args=dict(seed_num=self.seed_num), skip_current_view=True)
+        elif self.controller.resume_main_flow == Controller.FLOW__SIGN_MESSAGE:
+            return Destination(SeedSignMessageConfirmMessageView, view_args=dict(seed_num=self.seed_num), skip_current_view=True)
 
         if self.controller.psbt:
             if PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
@@ -1985,36 +1985,40 @@ class SeedSignMessageStartView(View):
     def run(self):
         if self.seed_num is not None:
             # We already know which seed we're signing with
-            return Destination(SeedSignMessageConfirmView, skip_current_view=True)
+            return Destination(SeedSignMessageConfirmMessageView, skip_current_view=True)
         else:
             return Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__SIGN_MESSAGE), skip_current_view=True)
 
 
 
-class SeedSignMessageConfirmView(View):
-    def __init__(self, seed_num: int = None):
+class SeedSignMessageConfirmMessageView(View):
+    def __init__(self, seed_num: int, page_num: int = 0):
         super().__init__()
-        data = self.controller.sign_message_data
-        self.derivation_path = data["derivation_path"]
-        self.message = data["message"]
+        self.seed_num = seed_num
+        self.page_num = page_num
 
         if seed_num is not None:
-            self.seed_num = seed_num
+            data = self.controller.sign_message_data
             data["seed_num"] = seed_num
+        
+        if data.get("paged_message") and page_num >= len(data["paged_message"]):
+            # We've reached the end of the message
+            # TODO: show derivation path and address details
+            return Destination(SeedSignMessageSignedMessageQRView, skip_current_view=True)
 
 
     def run(self):
-        from seedsigner.gui.screens.seed_screens import SeedSignMessageScreen
-        selected_menu_num = SeedSignMessageScreen(
-            derivation_path=self.derivation_path,
-            message=self.message,
+        from seedsigner.gui.screens.seed_screens import SeedSignMessageConfirmMessageScreen
+        selected_menu_num = SeedSignMessageConfirmMessageScreen(
+            sign_message_data=self.controller.sign_message_data,
+            page_num=self.page_num,
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        # User clicked "Sign"
-        return Destination(SeedSignMessageSignedMessageQRView)
+        # User clicked "Next"
+        return Destination(SeedSignMessageConfirmMessageView, view_args=dict(seed_num=self.seed_num, page_num=self.page_num + 1))
 
 
 

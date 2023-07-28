@@ -1421,7 +1421,7 @@ def calc_bezier_curve(p1: Tuple[int,int], p2: Tuple[int,int], p3: Tuple[int,int]
 
 
 
-def calc_multipage_text(text: str, width: int, height: int, font: ImageFont.FreeTypeFont) -> list[list[str]]:
+def calc_multipage_text(text: str, width: int, height: int, font_name: str, font_size: int) -> list[str]:
     """
         Returns a list of "pages" consisting of n lines of text each where:
         * each line of text is no longer than `width` pixels (when possible)
@@ -1432,6 +1432,8 @@ def calc_multipage_text(text: str, width: int, height: int, font: ImageFont.Free
 
     # Re-flowed lines (new line breaks added as needed to fit within `width`)
     reflowed_lines = []
+
+    font = Fonts.get_font(font_name=font_name, size=font_size)
 
     next_line = ""
     for line in lines:
@@ -1469,12 +1471,13 @@ def calc_multipage_text(text: str, width: int, height: int, font: ImageFont.Free
                     # Try again with the now-shorter line
                     line = line[:last_space]
 
-    line_height = font.getsize("A")[1]
+    # _, line_height = font.getsize("A")
+    bbox_height = bottom - top
     line_spacer = GUIConstants.BODY_LINE_SPACING
-    lines_per_page = math.floor((height - line_spacer) / (line_height + line_spacer))
+    lines_per_page = math.floor(height / (bbox_height + line_spacer))
 
     pages = []
     for i in range(0, len(reflowed_lines), lines_per_page):
-        pages.append(reflowed_lines[i:(i+lines_per_page)])
+        pages.append("\n".join(reflowed_lines[i:(i+lines_per_page)]))
 
     return pages
