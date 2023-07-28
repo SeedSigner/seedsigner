@@ -14,6 +14,7 @@ class MicroSD(Singleton, BaseThread):
     FIFO_MODE = 0o600
     ACTION__INSERTED = "add"
     ACTION__REMOVED = "remove"
+    warn_to_remove = True
 
     @classmethod
     def get_instance(cls):
@@ -62,6 +63,9 @@ class MicroSD(Singleton, BaseThread):
                     print(f"fifo message: {action}")
             
                     Settings.microsd_handler(action=action)
+
+                    if action == self.ACTION__INSERTED:
+                        self.warn_to_remove = True
                             
                     toastscreen = MicroSDToastScreen(action=action)
                     toastscreen.display()
