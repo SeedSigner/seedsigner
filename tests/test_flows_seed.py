@@ -46,10 +46,13 @@ class TestSeedFlows(FlowTest):
             FlowStep(seed_views.SeedOptionsView),
         ])
         # won't get warned again if a seed is loaded (like was done above); it's already too late
+        self.controller.microsd.warn_to_remove = True
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
             FlowStep(seed_views.SeedsMenuView),
         ])
+        # no warning shown so this flag not cleared, cleanup else following tests will warn
+        self.controller.microsd.warn_to_remove = False
 
 
     def test_scan_seedqr_flow(self):
