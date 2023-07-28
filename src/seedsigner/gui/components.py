@@ -587,6 +587,7 @@ class IconTextLine(BaseComponent):
             self.icon.render()
 
 
+
 @dataclass
 class ToastOverlay(BaseComponent):
     icon_name: str = None
@@ -1418,3 +1419,62 @@ def calc_bezier_curve(p1: Tuple[int,int], p2: Tuple[int,int], p3: Tuple[int,int]
     
     return points
 
+
+
+def calc_multipage_text(text: str, width: int, height: int, font: ImageFont.FreeTypeFont) -> list[list[str]]:
+    """
+        Returns a list of "pages" consisting of n lines of text each where:
+        * each line of text is no longer than `width` pixels (when possible)
+        * the n lines of text render within the specified page `height`
+    """
+    # Source text's individual lines
+    lines = text.strip().split("\n")
+
+    # Re-flowed lines (new line breaks added as needed to fit within `width`)
+    reflowed_lines = []
+
+    next_line = ""
+    for line in lines:
+        while True:
+            if not line.strip():
+                # Skip blank lines
+                break
+            # Measure from left baseline ("ls")
+            # Note: getbbox() seems to ignore "\n" but doesn't affect us here.
+            (left, top, line_width, bottom) = font.getbbox(line, anchor="ls")
+            if line_width <= width:
+                # The line fits!
+                reflowed_lines.append(line)
+                if next_line:
+                    line = next_line
+                    next_line = ""
+                else:
+                    break
+            else:
+                # The line doesn't fit.  Find the last space and break there.
+                last_space = line.rfind(" ")
+                if last_space == -1:
+                    # No spaces found. This is one huge word. Too bad, it'll just have
+                    # to overflow the screen.
+                    reflowed_lines.append(line)
+                    if next_line:
+                        line = next_line
+                        next_line = ""
+                    else:
+                        break
+                else:
+                    # Move the last word down into `next_line`
+                    next_line = line[(last_space+1):] + " " + next_line if next_line else line[(last_space+1):]
+
+                    # Try again with the now-shorter line
+                    line = line[:last_space]
+
+    line_height = font.getsize("A")[1]
+    line_spacer = GUIConstants.BODY_LINE_SPACING
+    lines_per_page = math.floor((height - line_spacer) / (line_height + line_spacer))
+
+    pages = []
+    for i in range(0, len(reflowed_lines), lines_per_page):
+        pages.append(reflowed_lines[i:(i+lines_per_page)])
+
+    return pages
