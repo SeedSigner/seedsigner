@@ -313,7 +313,6 @@ class TextArea(BaseComponent):
         )
 
         # Calculate the actual font height from the "baseline" anchor ("_s")
-        height_calc_start = time()
         font = Fonts.get_font(self.font_name, self.font_size)
 
         # Note: from the baseline anchor, `top` is a negative number while `bottom`
@@ -324,8 +323,6 @@ class TextArea(BaseComponent):
 
         # Initialize the text rendering relative to the baseline
         self.text_y = self.text_height_above_baseline
-
-        print(f"{time() - height_calc_start}s to calc self.text_font_height")
 
         # Other components, like IconTextLine will need to know how wide the actual
         # rendered text will be, separate from the TextArea's defined overall `width`.
@@ -1485,15 +1482,31 @@ def reflow_text_for_width(text: str,
 
 
 
-def break_lines_into_pages(lines: list[str],
+def reflow_text_into_pages(text: str,
+                           width: int,
                            height: int,
                            font_name=GUIConstants.BODY_FONT_NAME,
                            font_size=GUIConstants.BODY_FONT_SIZE,
-                           line_spacer: int = GUIConstants.BODY_LINE_SPACING) -> list[str]:
+                           line_spacer: int = GUIConstants.BODY_LINE_SPACING,
+                           allow_text_overflow: bool=False) -> list[str]:
     """
-    After splitting a long text into width-limited individual text lines, now calculate
-    how many lines will fit on a "page" and group accordingly.
+    Invokes `reflow_text_for_width` above to convert long text into width-limited
+    individual text lines and then calculates how many lines will fit on a "page" and
+    groups the output accordingly.
+
+    Returns a list of strings where each string is a page's worth of line-breaked text.
     """
+    reflowed_lines_dicts = reflow_text_for_width(text=text,
+                                           width=width,
+                                           font_name=font_name,
+                                           font_size=font_size,
+                                           allow_text_overflow=allow_text_overflow)
+
+    lines = []
+    for line_dict in reflowed_lines_dicts:
+        lines.append(line_dict["text"])
+        print(f"""{line_dict["text_width"]:3}: {line_dict["text"]}""")
+
     font = Fonts.get_font(font_name=font_name, size=font_size)
     # Measure the font's height above baseline via the "baseline" anchor ("_s")
     (left, top, right, bottom) = font.getbbox("Agjpqy", anchor="ls")
@@ -1503,7 +1516,7 @@ def break_lines_into_pages(lines: list[str],
     # I'm sure there's a smarter way to do this...
     lines_per_page = 0
     for i in range(1, height):
-        if height > font_height_above_baseline * i + line_spacer * (i-1) + bottom:
+        if height > font_height_above_baseline * i + line_spacer * (i-1) + font_height_below_baseline:
             lines_per_page = i
         else:
             break

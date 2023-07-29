@@ -76,6 +76,12 @@ class SeedSelectSeedView(View):
     * `flow`: indicates which user flow is in progress during seed selection (e.g.
                 verify single sig addr or sign message).
     """
+    SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
+    TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    button_data = []
+
+
     def __init__(self, flow: str = Controller.FLOW__VERIFY_SINGLESIG_ADDR):
         super().__init__()
         self.flow = flow
@@ -83,11 +89,6 @@ class SeedSelectSeedView(View):
 
     def run(self):
         seeds = self.controller.storage.seeds
-
-        SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
-        TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
-        TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-        button_data = []
 
         if self.flow == Controller.FLOW__VERIFY_SINGLESIG_ADDR:
             title = "Verify Address"
@@ -106,24 +107,26 @@ class SeedSelectSeedView(View):
         else:
             raise Exception(f"Unsupported `flow` specified: {self.flow}")
 
+        self.button_data = []
         for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
             
             if seed.passphrase is not None:
                 # TODO: Include lock icon on right side of button
                 pass
-            button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+            self.button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+        
+        self.button_data.append(self.SCAN_SEED)
+        self.button_data.append(self.TYPE_12WORD)
+        self.button_data.append(self.TYPE_24WORD)
 
-        button_data.append(SCAN_SEED)
-        button_data.append(TYPE_12WORD)
-        button_data.append(TYPE_24WORD)
-
-        selected_menu_num = seed_screens.SeedSelectSeedScreen(
+        selected_menu_num = self.run_screen(
+            seed_screens.SeedSelectSeedScreen,
             title=title,
             text=text,
             is_button_text_centered=False,
-            button_data=button_data
-        ).display()
+            button_data=self.button_data
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -140,13 +143,13 @@ class SeedSelectSeedView(View):
 
         self.controller.resume_main_flow = self.flow
 
-        if button_data[selected_menu_num] == SCAN_SEED:
+        if self.button_data[selected_menu_num] == self.SCAN_SEED:
             from seedsigner.views.scan_views import ScanView
             return Destination(ScanView)
 
-        elif button_data[selected_menu_num] in [TYPE_12WORD, TYPE_24WORD]:
+        elif self.button_data[selected_menu_num] in [self.TYPE_12WORD, self.TYPE_24WORD]:
             from seedsigner.views.seed_views import SeedMnemonicEntryView
-            if button_data[selected_menu_num] == TYPE_12WORD:
+            if self.button_data[selected_menu_num] == self.TYPE_12WORD:
                 self.controller.storage.init_pending_mnemonic(num_words=12)
             else:
                 self.controller.storage.init_pending_mnemonic(num_words=24)
@@ -1995,7 +1998,7 @@ class SeedSignMessageStartView(View):
 class SeedSignMessageConfirmMessageView(View):
     def __init__(self, page_num: int = 0):
         super().__init__()
-        self.page_num = page_num
+        self.page_num = page_num  # Note: zero-indexed numbering!
 
         self.data = self.controller.sign_message_data
         self.seed_num = self.data.get("seed_num")
@@ -2012,7 +2015,7 @@ class SeedSignMessageConfirmMessageView(View):
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
-            if self.page_num == 1:
+            if self.page_num == 0:
                 # We're exiting this flow entirely
                 self.controller.resume_main_flow = None
                 self.controller.sign_message_data = None
@@ -2021,7 +2024,7 @@ class SeedSignMessageConfirmMessageView(View):
         # User clicked "Next"
         if self.page_num == len(self.controller.sign_message_data["paged_message"]) - 1:
             # We've reached the end of the paged message
-            return Destination(SeedSignMessageConfirmAddressView, skip_current_view=True)
+            return Destination(SeedSignMessageConfirmAddressView)
         else:
             return Destination(SeedSignMessageConfirmMessageView, view_args=dict(page_num=self.page_num + 1))
 

@@ -11,7 +11,7 @@ from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
 from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, KeyboardScreen, WarningEdgesMixin
 from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddress, IconButton,
-    IconTextLine, SeedSignerIconConstants, TextArea, GUIConstants, reflow_text_for_width, break_lines_into_pages)
+    IconTextLine, SeedSignerIconConstants, TextArea, GUIConstants, reflow_text_into_pages)
 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
@@ -1512,22 +1512,10 @@ class SeedSignMessageConfirmMessageScreen(ButtonListScreen):
 
         self.sign_message_data = Controller.get_instance().sign_message_data
         if "paged_message" not in self.sign_message_data:
-            reflowed_lines_dicts = reflow_text_for_width(
+            paged = reflow_text_into_pages(
                 text=self.sign_message_data["message"],
                 width=renderer.canvas_width - 2*GUIConstants.EDGE_PADDING,
-                font_name=GUIConstants.BODY_FONT_NAME,
-                font_size=GUIConstants.BODY_FONT_SIZE,
-                allow_text_overflow=True,
-            )
-
-            lines = []
-            for line_dict in reflowed_lines_dicts:
-                lines.append(line_dict["text"])
-                print(f"""{line_dict["text_width"]:3}: {line_dict["text"]}""")
-            
-            paged = break_lines_into_pages(
-                lines=lines,
-                height=message_height
+                height=message_height,
             )
             self.sign_message_data["paged_message"] = paged
 

@@ -113,6 +113,13 @@ def get_embit_network_name(settings_name):
 
 
 def parse_derivation_path(derivation_path: str) -> dict:
+    """
+    Parses a derivation path into its related SettingsConstants equivalents.
+
+    Primarily only supports single sig derivation paths.
+
+    May return None for fields it cannot parse.
+    """
     # Support either m/44'/... or m/44h/... style
     derivation_path = derivation_path.replace("'", "h")
 
@@ -136,14 +143,18 @@ def parse_derivation_path(derivation_path: str) -> dict:
 
     details = dict()
     details["script_type"] = lookups["script_types"].get(sections[1])
+    if not details["script_type"]:
+        details["script_type"] = SettingsConstants.CUSTOM_DERIVATION
     details["network"] = lookups["networks"].get(sections[2])
     details["is_change"] = sections[-2] == "1"
     details["index"] = int(sections[-1])
 
-    if details["script_type"] and details["network"] and sections[3] == "0h":
-        details["clean_match"] = True
-    else:
-        details["clean_match"] = False
+    details["clean_match"] = True
+    for k, v in details.items():
+        if v is None:
+            # At least one field couldn't be parsed
+            details["clean_match"] = False
+            break
 
     return details
 
