@@ -101,7 +101,55 @@ def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool
 
 
 
-def sign_message(seed_bytes: bytes, derivation, msg: bytes, compressed: bool = True, embit_network: str="main") -> bytes:
+def get_embit_network_name(settings_name):
+    """ Convert SeedSigner SettingsConstants for `network` to embit's NETWORK key """
+    lookup = {
+        SettingsConstants.MAINNET: "main",
+        SettingsConstants.TESTNET: "test",
+        SettingsConstants.REGTEST: "regtest",
+    }
+    return lookup.get(settings_name)
+
+
+
+def parse_derivation_path(derivation_path: str) -> dict:
+    # Support either m/44'/... or m/44h/... style
+    derivation_path = derivation_path.replace("'", "h")
+
+    sections = derivation_path.split("/")
+
+    if sections[1] == "48h":
+        # So far this helper is only meant for single sig message signing
+        raise Exception("Not implemented")
+
+    lookups = {
+        "script_types": {
+            "84h": SettingsConstants.NATIVE_SEGWIT,
+            "49h": SettingsConstants.NESTED_SEGWIT,
+            "86h": SettingsConstants.TAPROOT,
+        },
+        "networks": {
+            "0h": SettingsConstants.MAINNET,
+            "1h": [SettingsConstants.TESTNET, SettingsConstants.REGTEST],
+        }
+    }
+
+    details = dict()
+    details["script_type"] = lookups["script_types"].get(sections[1])
+    details["network"] = lookups["networks"].get(sections[2])
+    details["is_change"] = sections[-2] == "1"
+    details["index"] = int(sections[-1])
+
+    if details["script_type"] and details["network"] and sections[3] == "0h":
+        details["clean_match"] = True
+    else:
+        details["clean_match"] = False
+
+    return details
+
+
+
+def sign_message(seed_bytes: bytes, derivation: str, msg: bytes, compressed: bool = True, embit_network: str = "main") -> bytes:
     """
         from: https://github.com/cryptoadvance/specter-diy/blob/b58a819ef09b2bca880a82c7e122618944355118/src/apps/signmessage/signmessage.py
     """

@@ -339,7 +339,7 @@ class TextArea(BaseComponent):
             total_text_height = self.text_height_above_baseline * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
 
             if re.findall(f"[gjpqy]", self.text_lines[-1]["text"]):
-                # Last line has chars that dip below baseline
+                # Last line has at least one char that dips below baseline
                 total_text_height += self.text_height_below_baseline
 
         if self.height is None:
@@ -377,7 +377,7 @@ class TextArea(BaseComponent):
 
         resample_padding = 10 if self.supersampling_factor > 1.0 else 0
         img = Image.new(
-            "RGBA",
+            "RGB",
             (
                 self.width * self.supersampling_factor,
                 (self.height + 2*resample_padding) * self.supersampling_factor
@@ -386,8 +386,8 @@ class TextArea(BaseComponent):
         )
         draw = ImageDraw.Draw(img)
 
-        draw.line((0, resample_padding * self.supersampling_factor, self.width * self.supersampling_factor, resample_padding * self.supersampling_factor), fill="blue", width=1)
-        draw.line((0, (resample_padding + self.height) * self.supersampling_factor, self.width * self.supersampling_factor, (resample_padding + self.height) * self.supersampling_factor), fill="red", width=1)
+        # draw.line((0, resample_padding * self.supersampling_factor, self.width * self.supersampling_factor, resample_padding * self.supersampling_factor), fill="blue", width=1)
+        # draw.line((0, (resample_padding + self.height) * self.supersampling_factor, self.width * self.supersampling_factor, (resample_padding + self.height) * self.supersampling_factor), fill="red", width=1)
         cur_y = (self.text_y + resample_padding) * self.supersampling_factor
 
         supersampled_font = Fonts.get_font(self.font_name, int(self.supersampling_factor * self.font_size))

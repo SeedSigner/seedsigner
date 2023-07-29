@@ -1501,16 +1501,17 @@ class MultisigWalletDescriptorScreen(ButtonListScreen):
 
 @dataclass
 class SeedSignMessageConfirmMessageScreen(ButtonListScreen):
-    sign_message_data: dict = None
     page_num: int = None
 
     def __post_init__(self):
+        from seedsigner.controller import Controller
         renderer = Renderer.get_instance()
         start_y = GUIConstants.TOP_NAV_HEIGHT + GUIConstants.COMPONENT_PADDING
-        end_y = renderer.canvas_height - GUIConstants.BUTTON_HEIGHT - 2*GUIConstants.COMPONENT_PADDING
+        end_y = renderer.canvas_height - GUIConstants.EDGE_PADDING - GUIConstants.BUTTON_HEIGHT - GUIConstants.COMPONENT_PADDING
         message_height = end_y - start_y
 
-        if "paged_messages" not in self.sign_message_data:
+        self.sign_message_data = Controller.get_instance().sign_message_data
+        if "paged_message" not in self.sign_message_data:
             reflowed_lines_dicts = reflow_text_for_width(
                 text=self.sign_message_data["message"],
                 width=renderer.canvas_width - 2*GUIConstants.EDGE_PADDING,
@@ -1528,23 +1529,22 @@ class SeedSignMessageConfirmMessageScreen(ButtonListScreen):
                 lines=lines,
                 height=message_height
             )
-            print(paged)
-            self.sign_message_data["paged_messages"] = paged
+            self.sign_message_data["paged_message"] = paged
 
-        if self.page_num >= len(self.sign_message_data["paged_messages"]):
-            raise Exception("Bug in paged_messages calculation")
+        if self.page_num >= len(self.sign_message_data["paged_message"]):
+            raise Exception("Bug in paged_message calculation")
 
-        if len(self.sign_message_data["paged_messages"]) == 1:
+        if len(self.sign_message_data["paged_message"]) == 1:
             self.title = "Review Message"
         else:
-            self.title = f"""Message (pt {self.page_num + 1}/{len(self.sign_message_data["paged_messages"])})"""
+            self.title = f"""Message (pt {self.page_num + 1}/{len(self.sign_message_data["paged_message"])})"""
         self.is_bottom_list = True
         self.is_button_text_centered = True
         self.button_data = ["Next"]
         super().__post_init__()
 
         message_display = TextArea(
-            text=self.sign_message_data["paged_messages"][self.page_num],
+            text=self.sign_message_data["paged_message"][self.page_num],
             is_text_centered=False,
             allow_text_overflow=True,
             screen_y=start_y,
@@ -1555,14 +1555,14 @@ class SeedSignMessageConfirmMessageScreen(ButtonListScreen):
 
 @dataclass
 class SeedSignMessageConfirmAddressScreen(ButtonListScreen):
-    derivation_path: int = None
-    message: int = None
+    derivation_path: str = None
+    address: str = None
 
     def __post_init__(self):
         self.title = "Confirm Address"
         self.is_bottom_list = True
         self.is_button_text_centered = True
-        self.button_data = ["Sign"]
+        self.button_data = ["Sign Message"]
         super().__post_init__()
 
         derivation_path_display = IconTextLine(
@@ -1570,21 +1570,13 @@ class SeedSignMessageConfirmAddressScreen(ButtonListScreen):
             label_text="derivation path",
             value_text=self.derivation_path,
             is_text_centered=True,
-            screen_y=self.top_nav.height,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
         )
         self.components.append(derivation_path_display)
 
-        message_display = TextArea(
-            text=self.message,
-            is_text_centered=False,
-            allow_text_overflow=True,
+        address_display = FormattedAddress(
+            address=self.address,
+            max_lines=3,
+            screen_y=derivation_path_display.screen_y + derivation_path_display.height + 2*GUIConstants.COMPONENT_PADDING,
         )
-        start_y = derivation_path_display.screen_y + derivation_path_display.height
-        end_y = self.buttons[0].screen_y
-
-        message_display.screen_y = start_y + int((end_y - start_y - message_display.height)/2)
-        if message_display.screen_y < start_y:
-            # full message text doesn't fit; let it run long.
-            # TODO: Add scrollable UI so whole message will be viewable.
-            message_display.screen_y = start_y + GUIConstants.COMPONENT_PADDING
-        self.components.append(message_display)
+        self.components.append(address_display)

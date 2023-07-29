@@ -135,7 +135,8 @@ class SeedSelectSeedView(View):
                 return Destination(SeedAddressVerificationView, view_args=view_args)
 
             elif self.flow == Controller.FLOW__SIGN_MESSAGE:
-                return Destination(SeedSignMessageConfirmMessageView, view_args=view_args)
+                self.controller.sign_message_data["seed_num"] = selected_menu_num
+                return Destination(SeedSignMessageConfirmMessageView)
 
         self.controller.resume_main_flow = self.flow
 
@@ -455,7 +456,8 @@ class SeedOptionsView(View):
             return Destination(SeedExportXpubScriptTypeView, view_args=dict(seed_num=self.seed_num, sig_type=SettingsConstants.SINGLE_SIG), skip_current_view=True)
 
         elif self.controller.resume_main_flow == Controller.FLOW__SIGN_MESSAGE:
-            return Destination(SeedSignMessageConfirmMessageView, view_args=dict(seed_num=self.seed_num), skip_current_view=True)
+            self.controller.sign_message_data["seed_num"] = self.seed_num
+            return Destination(SeedSignMessageConfirmMessageView, skip_current_view=True)
 
         if self.controller.psbt:
             if PSBTParser.has_matching_input_fingerprint(self.controller.psbt, self.seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
@@ -1968,9 +1970,8 @@ class SeedSignMessageStartView(View):
     def __init__(self, derivation_path: str, message: str):
         super().__init__()
         self.derivation_path = derivation_path
-        self.message = message  
-        self.seed_num = None
-    
+        self.message = message
+
         data = self.controller.sign_message_data
         if not data:
             data = {}
@@ -1978,8 +1979,8 @@ class SeedSignMessageStartView(View):
         data["derivation_path"] = derivation_path
         data["message"] = message
 
-        if data and "seed_num" in data:
-            self.seed_num = data["seed_num"]
+        # May be None
+        self.seed_num = data.get("seed_num")
     
 
     def run(self):
@@ -1992,27 +1993,23 @@ class SeedSignMessageStartView(View):
 
 
 class SeedSignMessageConfirmMessageView(View):
-    def __init__(self, seed_num: int, page_num: int = 0):
+    def __init__(self, page_num: int = 0):
         super().__init__()
-        self.seed_num = seed_num
         self.page_num = page_num
 
-        if seed_num is not None:
-            data = self.controller.sign_message_data
-            data["seed_num"] = seed_num
-        
-        if data.get("paged_message") and page_num >= len(data["paged_message"]):
-            # We've reached the end of the message
-            # TODO: show derivation path and address details
-            return Destination(SeedSignMessageSignedMessageQRView, skip_current_view=True)
+        self.data = self.controller.sign_message_data
+        self.seed_num = self.data.get("seed_num")
+        if self.seed_num is None:
+            raise Exception("Routing error: seed_num hasn't been set")
 
 
     def run(self):
         from seedsigner.gui.screens.seed_screens import SeedSignMessageConfirmMessageScreen
-        selected_menu_num = SeedSignMessageConfirmMessageScreen(
-            sign_message_data=self.controller.sign_message_data,
+
+        selected_menu_num = self.run_screen(
+            SeedSignMessageConfirmMessageScreen,
             page_num=self.page_num,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             if self.page_num == 1:
@@ -2022,7 +2019,55 @@ class SeedSignMessageConfirmMessageView(View):
             return Destination(BackStackView)
 
         # User clicked "Next"
-        return Destination(SeedSignMessageConfirmMessageView, view_args=dict(seed_num=self.seed_num, page_num=self.page_num + 1))
+        if self.page_num == len(self.controller.sign_message_data["paged_message"]) - 1:
+            # We've reached the end of the paged message
+            return Destination(SeedSignMessageConfirmAddressView, skip_current_view=True)
+        else:
+            return Destination(SeedSignMessageConfirmMessageView, view_args=dict(page_num=self.page_num + 1))
+
+
+
+class SeedSignMessageConfirmAddressView(View):
+    def __init__(self):
+        super().__init__()
+        data = self.controller.sign_message_data
+        self.seed_num = data.get("seed_num")
+        self.derivation_path = data.get("derivation_path")
+
+        if self.seed_num is None or not self.derivation_path:
+            raise Exception("Routing error: sign_message_data hasn't been set")
+
+        # calculate the actual receive address
+        seed = self.controller.storage.seeds[self.seed_num]
+        addr_format = embit_utils.parse_derivation_path(self.derivation_path)
+        if not addr_format["clean_match"]:
+            raise Exception("Signing messages for custom derivation paths not supported")
+
+        if addr_format["network"] != SettingsConstants.MAINNET:
+            # We're in either Testnet or Regtest or...?
+            if self.settings.get_value(SettingsConstants.SETTING__NETWORK) in [SettingsConstants.TESTNET, SettingsConstants.REGTEST]:
+                addr_format["network"] = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+            else:
+                raise Exception(f"Current network setting ({self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK)}) doesn't match {self.derivation_path}")
+
+        xpub = seed.get_xpub(wallet_path=self.derivation_path, network=addr_format["network"])
+        embit_network = embit_utils.get_embit_network_name(addr_format["network"])
+        self.address = embit_utils.get_single_sig_address(xpub=xpub, script_type=addr_format["script_type"], index=addr_format["index"], is_change=addr_format["is_change"], embit_network=embit_network)
+
+
+    def run(self):
+        from seedsigner.gui.screens.seed_screens import SeedSignMessageConfirmAddressScreen
+        selected_menu_num = self.run_screen(
+            SeedSignMessageConfirmAddressScreen,
+            derivation_path=self.derivation_path,
+            address=self.address,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # User clicked "Sign Message"
+        return Destination(SeedSignMessageSignedMessageQRView)
 
 
 
@@ -2044,9 +2089,11 @@ class SeedSignMessageSignedMessageQRView(View):
 
     def run(self):
         qr_encoder = EncodeQR(qr_type=QRType.SIGN_MESSAGE, signed_message=self.signed_message)
-        QRDisplayScreen(
+        
+        self.run_screen(
+            QRDisplayScreen,
             qr_encoder=qr_encoder,
-        ).display()
+        )
     
         # cleanup
         self.controller.resume_main_flow = None
