@@ -1,6 +1,8 @@
 import math
 import os
 import pathlib
+import re
+from time import time
 
 from dataclasses import dataclass
 from decimal import Decimal
@@ -275,7 +277,7 @@ class TextArea(BaseComponent):
     height: int = None      # None = special case: autosize to min height
     screen_x: int = 0
     screen_y: int = 0
-    min_text_x: int = None
+    min_text_x: int = 0  # Text can not start at x any less than this
     background_color: str = GUIConstants.BACKGROUND_COLOR
     font_name: str = GUIConstants.BODY_FONT_NAME
     font_size: int = GUIConstants.BODY_FONT_SIZE
@@ -292,129 +294,77 @@ class TextArea(BaseComponent):
 
         if not self.width:
             self.width = self.canvas_width
+        
+        if self.screen_x + self.width > self.canvas_width:
+            self.width = self.canvas_width - self.screen_x
 
-        if self.font_size < 18 and (not self.supersampling_factor or self.supersampling_factor == 1):
-            self.supersampling_factor = 2
-
-        self.font = Fonts.get_font(self.font_name, int(self.supersampling_factor * self.font_size))
-        self.supersampled_width = self.supersampling_factor * self.width
-        if self.height is None:
-            self.supersampled_height = None
-        else:
-            self.supersampled_height = self.supersampling_factor * self.height
         self.line_spacing = GUIConstants.BODY_LINE_SPACING
 
         # We have to figure out if and where to make line breaks in the text so that it
         #   fits in its bounding rect (plus accounting for edge padding) using its given
         #   font.
-        # Measure from left baseline ("ls")
-        # TODO: getbbox() seems to ignore "\n" so isn't properly factored into height
-        # calcs and yields incorrect full_text_width. For now must specify self.height to
-        # render properly. Centering will be wrong.
-        (left, top, full_text_width, bottom) = self.font.getbbox(self.text, anchor="ls")
-        self.text_font_height = -1 * top
-        self.bbox_height = self.text_font_height + bottom
+        # Do initial calcs without worrying about supersampling.
+        self.text_lines = reflow_text_for_width(
+            text=self.text,
+            width=self.width - 2*self.edge_padding,
+            font_name=self.font_name,
+            font_size=self.font_size,
+            allow_text_overflow=self.allow_text_overflow,
+        )
 
-        # Stores each line of text and its rendering starting x-coord
-        self.text_lines = []
-        self.text_width = 0
-        def _add_text_line(text, width):
-            if self.is_text_centered:
-                text_x = int((self.supersampled_width - width) / 2)
-            else:
-                text_x = self.supersampling_factor * self.edge_padding
-            if self.min_text_x is not None and text_x < self.min_text_x:
-                text_x = self.min_text_x
-            self.text_lines.append({"text": text, "text_x": text_x})
+        # Calculate the actual font height from the "baseline" anchor ("_s")
+        height_calc_start = time()
+        font = Fonts.get_font(self.font_name, self.font_size)
 
-            if width > self.text_width:
-                self.text_width = width
+        # Note: from the baseline anchor, `top` is a negative number while `bottom`
+        # conveys the pixels used below the baseline (e.g. in "py").
+        (left, top, right, bottom) = font.getbbox(self.text + "A", anchor="ls")  # For consistency, ensure we have a full-height character above baseline
+        self.text_height_above_baseline = -1 * top
+        self.text_height_below_baseline = bottom
 
-        if not self.auto_line_break or full_text_width < self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
-            # The whole text fits on one line
-            _add_text_line(self.text, full_text_width)
+        # Initialize the text rendering relative to the baseline
+        self.text_y = self.text_height_above_baseline
 
-            if self.height is None:
-                self.text_y = self.text_font_height
-                self.supersampled_height = self.bbox_height
-                self.height = int(self.bbox_height / self.supersampling_factor)
-            else:
-                # Vertical starting point calc is easy in this case
-                self.text_y = self.text_font_height + int((self.supersampled_height - self.text_font_height)/2)
-            
-            self.text_width = full_text_width
+        print(f"{time() - height_calc_start}s to calc self.text_font_height")
+
+        # Other components, like IconTextLine will need to know how wide the actual
+        # rendered text will be, separate from the TextArea's defined overall `width`.
+        self.text_width = max(line["text_width"] for line in self.text_lines)
+
+        # Calculate the actual height
+        if len(self.text_lines) == 1:
+            total_text_height = self.text_height_above_baseline + self.text_height_below_baseline
+        else:
+            # Multiply for the number of lines plus the spacer
+            total_text_height = self.text_height_above_baseline * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
+
+            if re.findall(f"[gjpqy]", self.text_lines[-1]["text"]):
+                # Last line has chars that dip below baseline
+                total_text_height += self.text_height_below_baseline
+
+        if self.height is None:
+            # Autoscale height to text lines
+            self.height = total_text_height
 
         else:
-            # Have to calc how to break text into multiple lines
-            def _binary_len_search(min_index, max_index):
-                # Try the middle of the range
-                index = math.ceil((max_index + min_index) / 2)
-                if index == 0:
-                    # Handle edge case where there's only one word in the last line
-                    index = 1
-
-                tw, th = self.font.getsize(" ".join(words[0:index]))
-
-                if tw > self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
-                    # Candidate line is still too long. Restrict search range down.
-                    if min_index + 1 == index:
-                        if index == 1:
-                            # It's just one long, unbreakable word. There's no good
-                            # solution here. Just accept it as is and let it render off
-                            # the edges.
-                            return (index, tw)
-                        else:
-                            # There's still room to back down the min_index in the next
-                            # round.
-                            index -= 1
-                    return _binary_len_search(min_index=min_index, max_index=index)
-                elif index == max_index:
-                    # We have converged
-                    return (index, tw)
+            if total_text_height > self.height:
+                if not self.allow_text_overflow:
+                    raise TextDoesNotFitException(f"Text cannot fit in target rect with this font/size\n\ttotal_text_height: {total_text_height} | self.height: {self.height}")
                 else:
-                    # Candidate line is possibly shorter than necessary.
-                    return _binary_len_search(min_index=index, max_index=max_index)
-
-            if len(self.text.split()) == 1 and not self.allow_text_overflow:
-                # No whitespace chars to split on!
-                raise TextDoesNotFitException("Text cannot fit in target rect with this font/size")
-
-            for line in self.text.split("\n"):
-                words = line.split()
-                if not words:
-                    # It's a blank line
-                    _add_text_line("", 0)
-                else:
-                    while words:
-                        (index, tw) = _binary_len_search(0, len(words))
-                        _add_text_line(" ".join(words[0:index]), tw)
-                        words = words[index:]
-
-            # TODO: Don't render blank lines as full height
-            total_text_height = self.bbox_height * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
-            if self.height is None:
-                # Autoscale height to text lines
-                self.supersampled_height = total_text_height
-                self.height = int(self.supersampled_height / self.supersampling_factor)
-                self.text_y = self.text_font_height
+                    # Just let it render off the edge, but preserve the top portion
+                    pass
 
             else:
-                self.supersampled_height = self.height * self.supersampling_factor
-                if total_text_height > self.height * self.supersampling_factor + 2*GUIConstants.COMPONENT_PADDING * self.supersampling_factor:
-                    if not self.allow_text_overflow:
-                        raise TextDoesNotFitException("Text cannot fit in target rect with this font/size")
-                    else:
-                        # Just let it render off the edge, but preserve the top portion
-                        self.text_y = self.text_font_height
-
+                # Vertically center the text's starting point
+                if len(self.text_lines) == 1:
+                    # For consistency when used in TopNav and elsewhere, ignore the
+                    # text's pixels below the baseline.
+                    # In other words: "Home" and "Something" will get the same text_y,
+                    # even though the "g" dips below baseline.
+                    self.text_y += int(self.height - (total_text_height - self.text_height_below_baseline))/2
                 else:
-                    # Vertically center the multiline text's starting point
-                    self.text_y = self.text_font_height + int((self.supersampled_height - total_text_height)/2)
-
-        # Make sure the width/height that get referenced outside this obj are
-        #   specified and restored to their normal scaling factor.
-        self.width = int(self.text_width / self.supersampling_factor)
-        self.text_font_height = int(self.text_font_height / self.supersampling_factor)
+                    # Vertically center for the full height.
+                    self.text_y += int(self.height - (total_text_height))/2
 
 
     def render(self):
@@ -422,17 +372,51 @@ class TextArea(BaseComponent):
         #   with bicubic resampling.
         # TODO: Store resulting super-sampled image as a member var in __post_init__ and 
         # just re-paste it here.
-        img = Image.new("RGBA", (self.supersampled_width, self.supersampled_height), self.background_color)
+        if self.font_size < 20 and (not self.supersampling_factor or self.supersampling_factor == 1):
+            self.supersampling_factor = 2
+
+        resample_padding = 10 if self.supersampling_factor > 1.0 else 0
+        img = Image.new(
+            "RGBA",
+            (
+                self.width * self.supersampling_factor,
+                (self.height + 2*resample_padding) * self.supersampling_factor
+            ),
+            self.background_color
+        )
         draw = ImageDraw.Draw(img)
-        cur_y = self.text_y
+
+        draw.line((0, resample_padding * self.supersampling_factor, self.width * self.supersampling_factor, resample_padding * self.supersampling_factor), fill="blue", width=1)
+        draw.line((0, (resample_padding + self.height) * self.supersampling_factor, self.width * self.supersampling_factor, (resample_padding + self.height) * self.supersampling_factor), fill="red", width=1)
+        cur_y = (self.text_y + resample_padding) * self.supersampling_factor
+
+        supersampled_font = Fonts.get_font(self.font_name, int(self.supersampling_factor * self.font_size))
+
+        if self.is_text_centered:
+            anchor = "ms"
+        else:
+            anchor = "ls"
+
+        # Position where we'll render each line of text
+        text_x = self.edge_padding
 
         for line in self.text_lines:
-            draw.text((line["text_x"], cur_y), line["text"], fill=self.font_color, font=self.font, anchor="ls")
-            cur_y += self.bbox_height + self.line_spacing
+            if self.is_text_centered:
+                # We'll render with a centered anchor so we just need the midpoint
+                text_x = int(self.width/2)
+                if text_x - int(line["text_width"]/2) < self.min_text_x:
+                    # The left edge of the centered text will protrude too far; nudge it right
+                    text_x = self.min_text_x + int(line["text_width"]/2)
 
-        resized = img.resize((int(self.supersampled_width / self.supersampling_factor), self.height), Image.LANCZOS)
-        resized = resized.filter(ImageFilter.SHARPEN)
-        self.canvas.paste(resized, (self.screen_x, self.screen_y))
+            draw.text((text_x * self.supersampling_factor, cur_y), line["text"], fill=self.font_color, font=supersampled_font, anchor=anchor)
+            cur_y += (self.text_height_above_baseline + self.line_spacing) * self.supersampling_factor
+
+        # Crop off the top_padding and resize the result down to onscreen size
+        if self.supersampling_factor > 1.0:
+            resized = img.resize((self.width, self.height + 2*resample_padding), Image.LANCZOS)
+            sharpened = resized.filter(ImageFilter.SHARPEN)
+            img = sharpened.crop((0, resample_padding, self.width, self.height + 2*resample_padding))
+        self.canvas.paste(img, (self.screen_x, self.screen_y))
 
 
 
@@ -529,8 +513,8 @@ class IconTextLine(BaseComponent):
         
         value_textarea_screen_y = self.screen_y
         if self.label_text:
-            label_padding_y = GUIConstants.COMPONENT_PADDING
-            value_textarea_screen_y += self.label_textarea.text_font_height + label_padding_y
+            label_padding_y = int(GUIConstants.COMPONENT_PADDING / 2)
+            value_textarea_screen_y += self.label_textarea.height + label_padding_y
 
         self.value_textarea = TextArea(
             image_draw=self.image_draw,
@@ -550,11 +534,11 @@ class IconTextLine(BaseComponent):
         if self.label_text:
             if not self.height:
                 self.height = self.label_textarea.height + label_padding_y + self.value_textarea.height
-            max_textarea_width = max(self.label_textarea.width, self.value_textarea.width)
+            max_textarea_width = max(self.label_textarea.text_width, self.value_textarea.text_width)
         else:
             if not self.height:
                 self.height = self.value_textarea.height
-            max_textarea_width = self.value_textarea.width
+            max_textarea_width = self.value_textarea.text_width
         
         # Now we can update the icon's y position
         if self.icon_name:
@@ -563,17 +547,12 @@ class IconTextLine(BaseComponent):
 
             self.height = max(self.icon.height, self.height)
         
-        if self.is_text_centered:
-            if self.icon_name:
-                total_width = max_textarea_width + self.icon.width + self.icon_horizontal_spacer
-                self.icon.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - total_width) / 2)
-                if self.label_text:
-                    self.label_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
-                self.value_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
-            # else:
-            #     if self.label_text:
-            #         self.label_textarea.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - max_textarea_width + (max_textarea_width - self.label_textarea.width))/2)
-            #     self.value_textarea.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - max_textarea_width + (max_textarea_width - self.value_textarea.width))/2)
+        if self.is_text_centered and self.icon_name:
+            total_width = max_textarea_width + self.icon.width + self.icon_horizontal_spacer
+            self.icon.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - total_width) / 2)
+            if self.label_text:
+                self.label_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
+            self.value_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
 
         self.width = self.canvas_width
 
@@ -1317,10 +1296,10 @@ class TopNav(BaseComponent):
                 height=GUIConstants.TOP_NAV_BUTTON_SIZE,
             )
 
-        min_x = 0
+        min_text_x = 0
         if self.show_back_button:
             # Don't let the title intrude on the BACK button
-            min_x = self.left_button.screen_x + self.left_button.width + GUIConstants.COMPONENT_PADDING
+            min_text_x = self.left_button.screen_x + self.left_button.width + GUIConstants.COMPONENT_PADDING
 
         if self.icon_name:
             self.title = IconTextLine(
@@ -1339,7 +1318,8 @@ class TopNav(BaseComponent):
             self.title = TextArea(
                 screen_x=0,
                 screen_y=0,
-                min_text_x=min_x,
+                min_text_x=min_text_x,
+                width=self.width,
                 height=self.height,
                 text=self.text,
                 is_text_centered=True,
@@ -1421,63 +1401,115 @@ def calc_bezier_curve(p1: Tuple[int,int], p2: Tuple[int,int], p3: Tuple[int,int]
 
 
 
-def calc_multipage_text(text: str, width: int, height: int, font_name: str, font_size: int) -> list[str]:
+def reflow_text_for_width(text: str,
+                          width: int,
+                          font_name=GUIConstants.BODY_FONT_NAME,
+                          font_size=GUIConstants.BODY_FONT_SIZE,
+                          allow_text_overflow: bool=False) -> list[dict]:
     """
-        Returns a list of "pages" consisting of n lines of text each where:
-        * each line of text is no longer than `width` pixels (when possible)
-        * the n lines of text render within the specified page `height`
+    Reflows text to fit within `width` by breaking long lines up.
+
+    Returns a List with each reflowed line of text as its own entry.
+
+    Note: It is up to the calling code to handle any height considerations for the 
+    resulting lines of text.
     """
-    # Source text's individual lines
-    lines = text.strip().split("\n")
-
-    # Re-flowed lines (new line breaks added as needed to fit within `width`)
-    reflowed_lines = []
-
+    # We have to figure out if and where to make line breaks in the text so that it
+    #   fits in its bounding rect (plus accounting for edge padding) using its given
+    #   font.
+    start = time()
     font = Fonts.get_font(font_name=font_name, size=font_size)
+    # Measure from left baseline ("ls")
+    (left, top, full_text_width, bottom) = font.getbbox(text, anchor="ls")
 
-    next_line = ""
-    for line in lines:
-        while True:
-            if not line.strip():
-                # Skip blank lines
-                break
-            # Measure from left baseline ("ls")
-            # Note: getbbox() seems to ignore "\n" but doesn't affect us here.
-            (left, top, line_width, bottom) = font.getbbox(line, anchor="ls")
-            if line_width <= width:
-                # The line fits!
-                reflowed_lines.append(line)
-                if next_line:
-                    line = next_line
-                    next_line = ""
-                else:
-                    break
-            else:
-                # The line doesn't fit.  Find the last space and break there.
-                last_space = line.rfind(" ")
-                if last_space == -1:
-                    # No spaces found. This is one huge word. Too bad, it'll just have
-                    # to overflow the screen.
-                    reflowed_lines.append(line)
-                    if next_line:
-                        line = next_line
-                        next_line = ""
+    # Stores each line of text and its rendering starting x-coord
+    text_lines = []
+    def _add_text_line(text, text_width):
+        text_lines.append({"text": text, "text_width": text_width})
+
+    if full_text_width < width:
+        # The whole text fits on one line
+        _add_text_line(text, full_text_width)        
+
+    else:
+        # Have to calc how to break text into multiple lines
+        def _binary_len_search(min_index, max_index):
+            # Try the middle of the range
+            index = math.ceil((max_index + min_index) / 2)
+            if index == 0:
+                # Handle edge case where there's only one word in the last line
+                index = 1
+
+            # Measure rendered width from "left" anchor (anchor="l_")
+            (left, top, right, bottom) = font.getbbox(" ".join(words[0:index]), anchor="ls")
+            line_width = right - left
+
+            if line_width >= width:
+                # Candidate line is still too long. Restrict search range down.
+                if min_index + 1 == index:
+                    if index == 1:
+                        # It's just one long, unbreakable word. There's no good
+                        # solution here. Just accept it as is and let it render off
+                        # the edges.
+                        return (index, line_width)
                     else:
-                        break
-                else:
-                    # Move the last word down into `next_line`
-                    next_line = line[(last_space+1):] + " " + next_line if next_line else line[(last_space+1):]
+                        # There's still room to back down the min_index in the next
+                        # round.
+                        index -= 1
+                return _binary_len_search(min_index=min_index, max_index=index)
+            elif index == max_index:
+                # We have converged
+                return (index, line_width)
+            else:
+                # Candidate line is possibly shorter than necessary.
+                return _binary_len_search(min_index=index, max_index=max_index)
 
-                    # Try again with the now-shorter line
-                    line = line[:last_space]
+        if len(text.split()) == 1 and not allow_text_overflow:
+            # No whitespace chars to split on!
+            raise TextDoesNotFitException("Text cannot fit in target rect with this font+size")
 
-    # _, line_height = font.getsize("A")
-    bbox_height = bottom - top
-    line_spacer = GUIConstants.BODY_LINE_SPACING
-    lines_per_page = math.floor(height / (bbox_height + line_spacer))
+        # Now we're ready to go line-by-line into our line break binary search!
+        for line in text.split("\n"):
+            words = line.split()
+            if not words:
+                # It's a blank line
+                _add_text_line("", 0)
+            else:
+                while words:
+                    (index, tw) = _binary_len_search(0, len(words))
+                    _add_text_line(" ".join(words[0:index]), tw)
+                    words = words[index:]
+
+    print(f"{time() - start:0.2f}s")
+    return text_lines
+
+
+
+def break_lines_into_pages(lines: list[str],
+                           height: int,
+                           font_name=GUIConstants.BODY_FONT_NAME,
+                           font_size=GUIConstants.BODY_FONT_SIZE,
+                           line_spacer: int = GUIConstants.BODY_LINE_SPACING) -> list[str]:
+    """
+    After splitting a long text into width-limited individual text lines, now calculate
+    how many lines will fit on a "page" and group accordingly.
+    """
+    font = Fonts.get_font(font_name=font_name, size=font_size)
+    # Measure the font's height above baseline via the "baseline" anchor ("_s")
+    (left, top, right, bottom) = font.getbbox("Agjpqy", anchor="ls")
+    font_height_above_baseline = -1 * top
+    font_height_below_baseline = bottom
+
+    # I'm sure there's a smarter way to do this...
+    lines_per_page = 0
+    for i in range(1, height):
+        if height > font_height_above_baseline * i + line_spacer * (i-1) + bottom:
+            lines_per_page = i
+        else:
+            break
 
     pages = []
-    for i in range(0, len(reflowed_lines), lines_per_page):
-        pages.append("\n".join(reflowed_lines[i:(i+lines_per_page)]))
-
+    for i in range(0, len(lines), lines_per_page):
+        pages.append("\n".join(lines[i:i+lines_per_page]))
+    
     return pages

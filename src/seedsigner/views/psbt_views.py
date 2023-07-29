@@ -26,11 +26,14 @@ class PSBTSelectSeedView(View):
         if not self.controller.psbt:
             # Shouldn't be able to get here
             raise Exception("No PSBT currently loaded")
-        
-        seeds = self.controller.storage.seeds
-        button_data = []
 
-        for seed in seeds:
+        if self.controller.psbt_seed:
+             if PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=self.controller.psbt_seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
+                 # skip the seed prompt if a seed was previous selected and has matching input fingerprint
+                 return Destination(PSBTOverviewView)
+
+        button_data = []
+        for seed in self.controller.storage.seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
             if not PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 # Doesn't look like this seed can sign the current PSBT
@@ -42,11 +45,6 @@ class PSBTSelectSeedView(View):
         button_data.append(self.TYPE_12WORD)
         button_data.append(self.TYPE_24WORD)
 
-        if self.controller.psbt_seed:
-             if PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=self.controller.psbt_seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
-                 # skip the seed prompt if a seed was previous selected and has matching input fingerprint
-                 return Destination(PSBTOverviewView)
-
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title="Select Signer",
@@ -56,6 +54,8 @@ class PSBTSelectSeedView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
+
+        seeds = self.controller.storage.seeds
 
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
@@ -241,16 +241,15 @@ class PSBTAddressDetailsView(View):
     def __init__(self, address_num):
         super().__init__()
         self.address_num = address_num
-
+    
 
     def run(self):
         psbt_parser: PSBTParser = self.controller.psbt_parser
 
         if not psbt_parser:
             # Should not be able to get here
-            return Destination(MainMenuView)
+            raise Exception("Routing error")
 
-        title = "Will Send"
         if psbt_parser.num_destinations > 1:
             title += f" (#{self.address_num + 1})"
 

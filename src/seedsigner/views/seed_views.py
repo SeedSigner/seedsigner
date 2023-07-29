@@ -2015,6 +2015,10 @@ class SeedSignMessageConfirmMessageView(View):
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
+            if self.page_num == 1:
+                # We're exiting this flow entirely
+                self.controller.resume_main_flow = None
+                self.controller.sign_message_data = None
             return Destination(BackStackView)
 
         # User clicked "Next"

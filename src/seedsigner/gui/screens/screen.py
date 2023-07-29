@@ -847,7 +847,7 @@ class LargeIconStatusScreen(ButtonListScreen):
         self.status_icon.screen_x = int((self.canvas_width - self.status_icon.width) / 2)
         self.components.append(self.status_icon)
 
-        next_y = self.status_icon.screen_y + self.status_icon.height + 4
+        next_y = self.status_icon.screen_y + self.status_icon.height + int(GUIConstants.COMPONENT_PADDING/2)
         if self.status_headline:
             self.warning_headline_textarea = TextArea(
                 text=self.status_headline,
@@ -863,6 +863,7 @@ class LargeIconStatusScreen(ButtonListScreen):
             height=self.buttons[0].screen_y - next_y,
             text=self.text,
             width=self.canvas_width,
+            edge_padding=GUIConstants.EDGE_PADDING,  # Don't render all the way up to the far left/right edges
             screen_y=next_y,
             allow_text_overflow=self.allow_text_overflow,
         ))
