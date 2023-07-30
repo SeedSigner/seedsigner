@@ -1,7 +1,13 @@
 # Running Tests
 
-You must install the test-runner dependencies:
-```
+The tests are designed to be run on non-Raspi hardware.
+
+On your testing machine you'll have to install:
+```bash
+# general dependencies
+pip3 install -r requirements.txt
+
+# test suite dependencies
 pip3 install -r tests/requirements.txt
 ```
 

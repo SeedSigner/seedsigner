@@ -4,6 +4,7 @@ import re
 from embit.descriptor import Descriptor
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
+from seedsigner.gui.screens import scan_screens
 from seedsigner.models import DecodeQR, Seed
 from seedsigner.models.settings import SettingsConstants
 
@@ -12,19 +13,24 @@ from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Dest
 
 
 class ScanView(View):
+    def __init__(self):
+        super().__init__()
+
+        # Set up the QR decoder here so we can inject data into it in the test suite's
+        # `before_run`.
+        self.wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+        self.decoder = DecodeQR(wordlist_language_code=self.wordlist_language_code)
+
+
     def run(self):
-        from seedsigner.gui.screens.scan_screens import ScanScreen
-
-        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-        self.decoder = DecodeQR(wordlist_language_code=wordlist_language_code)
-
         # Start the live preview and background QR reading
-        ScanScreen(decoder=self.decoder).display()
+        self.run_screen(scan_screens.ScanScreen, decoder=self.decoder)
 
         # Handle the results
         if self.decoder.is_complete:
             if self.decoder.is_seed:
                 seed_mnemonic = self.decoder.get_seed_phrase()
+
                 if not seed_mnemonic:
                     # seed is not valid, Exit if not valid with message
                     raise Exception("Not yet implemented!")
@@ -33,7 +39,7 @@ class ScanView(View):
                     #   pending (might set a passphrase, SeedXOR, etc) until finalized.
                     from .seed_views import SeedFinalizeView
                     self.controller.storage.set_pending_seed(
-                        Seed(mnemonic=seed_mnemonic, wordlist_language_code=wordlist_language_code)
+                        Seed(mnemonic=seed_mnemonic, wordlist_language_code=self.wordlist_language_code)
                     )
                     if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
                         from seedsigner.views.seed_views import SeedAddPassphraseView
