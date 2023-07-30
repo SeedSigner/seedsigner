@@ -1,3 +1,4 @@
+import pytest
 from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
@@ -55,17 +56,16 @@ class TestSettingsQRDecoder:
 
         settings_qr_str = "settings::v2 name=Foo"
         decoder = DecodeQR()
-        status = decoder.add_data(settings_qr_str)
-        assert(decoder.is_settings)
-        assert(status == DecodeQRStatus.INVALID)
-
+        with pytest.raises(Exception) as e:
+            status = decoder.add_data(settings_qr_str)
+        assert("Unsupported SettingsQR version" in str(e.value))
+    
         # Should also fail if version omitted
         settings_qr_str = "settings name=Foo"
         decoder = DecodeQR()
         status = decoder.add_data(settings_qr_str)
-        assert(decoder.is_settings is False)
         assert(status == DecodeQRStatus.INVALID)
-    
+
 
     def test_settingsqr_ignores_unrecognized_setting(self):
         """ SettingsQR decoder should ignore unrecognized settings """
@@ -81,12 +81,12 @@ class TestSettingsQRDecoder:
     
 
     def test_settingsqr_fails_unrecognized_option(self):
-        """ SettingsQR decoder should fail if an unrecognized option is provided """
-        settings_qr_str = "settings::v2 name=Foo xpub_export=Yep"
+        """ SettingsQR decoder should fail if a settings has an unrecognized option """
+        settings_qr_str = "settings::v1 name=Foo xpub_export=Yep"
         decoder = DecodeQR()
-        status = decoder.add_data(settings_qr_str)
-        assert(decoder.is_settings)
-        assert(status == DecodeQRStatus.INVALID)
+        with pytest.raises(Exception) as e:
+            decoder.add_data(settings_qr_str)
+        assert("Invalid value for" in str(e.value))
 
 
     def test_settingsqr_parses_line_break_separators(self):

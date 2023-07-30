@@ -847,53 +847,49 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
             See `Settings.update()` for info on settings validation, especially for
             missing settings.
         """
-        try:
-            if not segment.startswith("settings::"):
-                raise Exception("Invalid SettingsQR data")
+        if not segment.startswith("settings::"):
+            raise Exception("Invalid SettingsQR data")
 
-            version = segment.split()[0].split("::")[1]
-            if version != "v1":
-                raise Exception(f"Unsupported SettingsQR version: {version}")
+        version = segment.split()[0].split("::")[1]
+        if version != "v1":
+            raise Exception(f"Unsupported SettingsQR version: {version}")
+        
+        # Start parsing key/value settings at the nth split() index
+        split_index = 1
+
+        # handle optional "name" attr
+        if "name=" in segment.split()[1]:
+            self.config_name = segment.split("name=")[1].split()[0].replace("_", " ")
+            split_index += 1
+
+        self.settings = {}
+        for entry in segment.split()[split_index:]:
+            abbreviated_name, value = entry.split("=")
+            if "," in value:
+                value = value.split(",")
+            elif value.isdigit():
+                value = int(value)
             
-            # Start parsing key/value settings at the nth split() index
-            split_index = 1
+            # Replace abbreviated name with full attr_name
+            settings_entry = SettingsDefinition.get_settings_entry_by_abbreviated_name(abbreviated_name)
+            if not settings_entry:
+                logger.warning(f"Ignoring unrecognized attribute: {abbreviated_name}")
+                continue
 
-            # handle optional "name" attr
-            if "name=" in segment.split()[1]:
-                self.config_name = segment.split("name=")[1].split()[0].replace("_", " ")
-                split_index += 1
+            # Validate value(s) against SettingsDefinition's valid options
+            if type(value) is not list:
+                values = [value]
+            else:
+                values = value
+            for v in values:
+                if v not in [opt[0] for opt in settings_entry.selection_options]:
+                    raise Exception(f"Invalid value for {settings_entry.attr_name}: {v} ({settings_entry.selection_options})")
 
-            self.settings = {}
-            for entry in segment.split()[split_index:]:
-                abbreviated_name, value = entry.split("=")
-                if "," in value:
-                    value = value.split(",")
-                elif value.isdigit():
-                    value = int(value)
-                
-                # Replace abbreviated name with full attr_name
-                settings_entry = SettingsDefinition.get_settings_entry_by_abbreviated_name(abbreviated_name)
-                if not settings_entry:
-                    logger.warning(f"Ignoring unrecognized attribute: {abbreviated_name}")
-                    continue
+            self.settings[settings_entry.attr_name] = value
 
-                # Validate value(s) against SettingsDefinition's valid options
-                if type(value) is not list:
-                    values = [value]
-                else:
-                    values = value
-                for v in values:
-                    if v not in [opt[0] for opt in settings_entry.selection_options]:
-                        raise Exception(f"Invalid value for {settings_entry.attr_name}: {v} ({settings_entry.selection_options})")
-
-                self.settings[settings_entry.attr_name] = value
-
-            self.complete = True
-            self.collected_segments = 1
-            return DecodeQRStatus.COMPLETE
-        except Exception as e:
-            logger.exception(e)
-            return DecodeQRStatus.INVALID
+        self.complete = True
+        self.collected_segments = 1
+        return DecodeQRStatus.COMPLETE
 
 
 
