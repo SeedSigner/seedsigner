@@ -874,7 +874,7 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
                 # Replace abbreviated name with full attr_name
                 settings_entry = SettingsDefinition.get_settings_entry_by_abbreviated_name(abbreviated_name)
                 if not settings_entry:
-                    logger.warn(f"Ignoring unrecognized attribute: {abbreviated_name}")
+                    logger.warning(f"Ignoring unrecognized attribute: {abbreviated_name}")
                     continue
 
                 # Validate value(s) against SettingsDefinition's valid options

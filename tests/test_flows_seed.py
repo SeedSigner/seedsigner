@@ -248,10 +248,10 @@ class TestSeedFlows(FlowTest):
 
         # exclusively set only one choice for each of sig_types, script_types and coordinators
         self.settings.update({
-            SettingsConstants.SETTING__SIG_TYPES: SettingsConstants.MULTISIG,
-            SettingsConstants.SETTING__SCRIPT_TYPES: SettingsConstants.NESTED_SEGWIT,
-            SettingsConstants.SETTING__COORDINATORS: SettingsConstants.COORDINATOR__SPECTER_DESKTOP,
-        }, disable_missing_entries=False)
+            SettingsConstants.SETTING__SIG_TYPES: [SettingsConstants.MULTISIG],
+            SettingsConstants.SETTING__SCRIPT_TYPES: [SettingsConstants.NESTED_SEGWIT],
+            SettingsConstants.SETTING__COORDINATORS: [SettingsConstants.COORDINATOR__SPECTER_DESKTOP],
+        })
 
         self.run_sequence(
             initial_destination_view_args=dict(seed_num=0),
