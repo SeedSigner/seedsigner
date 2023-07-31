@@ -497,7 +497,7 @@ class SettingsDefinition:
                       display_name="QR background color",
                       type=SettingsConstants.TYPE__FREE_ENTRY,
                       visibility=SettingsConstants.VISIBILITY__HIDDEN,
-                      default_value=189),
+                      default_value=62),
     ]
 
 

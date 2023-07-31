@@ -110,5 +110,5 @@ class TestController(BaseTest):
         assert controller.settings.get_value(SettingsConstants.SETTING__PARTNER_LOGOS) == SettingsConstants.OPTION__ENABLED
 
         # Hidden Settings defaults
-        assert controller.settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS) == 189
+        assert controller.settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS) == 62
 
