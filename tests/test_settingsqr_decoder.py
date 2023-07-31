@@ -1,7 +1,4 @@
-import pytest
 from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
-from seedsigner.models.settings import Settings
-from seedsigner.models.settings_definition import SettingsConstants
 
 
 

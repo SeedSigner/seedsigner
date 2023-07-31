@@ -1,6 +1,6 @@
 # Must import test base before the Controller
 from base import BaseTest, FlowTest, FlowStep
-from base import FlowTestUnexpectedViewException, FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDataSelectionException
+from base import FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDataSelectionException
 
 import pytest
 from seedsigner.models.settings import SettingsConstants

@@ -2,7 +2,7 @@ import json
 import os
 import platform
 
-from typing import Any, List
+from typing import List
 
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from .singleton import Singleton

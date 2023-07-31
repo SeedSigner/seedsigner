@@ -15,7 +15,6 @@ from urtypes.bytes import Bytes
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
 from seedsigner.models import QRType, Seed
 from seedsigner.models.settings import SettingsConstants
-from seedsigner.models.settings_definition import SettingsDefinition
 
 
 logger = logging.getLogger(__name__)
