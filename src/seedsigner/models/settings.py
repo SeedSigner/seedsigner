@@ -109,7 +109,7 @@ class Settings(Singleton):
                 os.fsync(settings_file.fileno())
 
 
-    def update(self, new_settings: dict, ):
+    def update(self, new_settings: dict):
         """
             Replaces the current settings with the incoming dict.
 
