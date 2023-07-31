@@ -34,7 +34,12 @@ class Renderer(ConfigurableSingleton):
         renderer.draw = ImageDraw.Draw(renderer.canvas)
 
 
-    def show_image(self, image=None, alpha_overlay=None):
+    def show_image(self, image=None, alpha_overlay=None, show_direct=False):
+        if show_direct:
+            # Use the incoming image as the canvas and immediately render
+            self.disp.ShowImage(image, 0, 0)
+            return
+
         if alpha_overlay:
             if image == None:
                 image = self.canvas
