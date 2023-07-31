@@ -1,14 +1,12 @@
-import json
 import re
 
 from embit.descriptor import Descriptor
 
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.gui.screens import scan_screens
 from seedsigner.models import DecodeQR, Seed
 from seedsigner.models.settings import SettingsConstants
-
-from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
+from seedsigner.views.settings_views import SettingsIngestSettingsQRView
+from seedsigner.views.view import MainMenuView, NotYetImplementedView, View, Destination
 
 
 
@@ -55,13 +53,8 @@ class ScanView(View):
                 return Destination(PSBTSelectSeedView, skip_current_view=True)
 
             elif self.decoder.is_settings:
-                from seedsigner.models.settings import Settings
-                settings = self.decoder.get_settings_data()
-                Settings.get_instance().update(new_settings=settings)
-
-                print(json.dumps(Settings.get_instance()._data, indent=4))
-
-                return Destination(SettingsUpdatedView, {"config_name": self.decoder.get_settings_config_name()})
+                data = self.decoder.get_settings_data()
+                return Destination(SettingsIngestSettingsQRView, view_args=dict(data=data))
             
             elif self.decoder.is_wallet_descriptor:
                 from seedsigner.views.seed_views import MultisigWalletDescriptorView
@@ -113,24 +106,3 @@ class ScanView(View):
             raise Exception("QRCode not recognized or not yet supported.")
 
         return Destination(MainMenuView)
-
-
-
-class SettingsUpdatedView(View):
-    def __init__(self, config_name: str):
-        super().__init__()
-
-        self.config_name = config_name
-    
-
-    def run(self):
-        from seedsigner.gui.screens.scan_screens import SettingsUpdatedScreen
-        screen = SettingsUpdatedScreen(config_name=self.config_name)
-        selected_menu_num = screen.display()
-
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-
-        # Only one exit point
-        return Destination(MainMenuView)
-

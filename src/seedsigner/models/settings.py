@@ -9,6 +9,10 @@ from .singleton import Singleton
 
 
 
+class InvalidSettingsQRData(Exception):
+    pass
+
+
 
 class Settings(Singleton):
     HOSTNAME = platform.uname()[1]
@@ -31,6 +35,64 @@ class Settings(Singleton):
                     settings.update(json.load(settings_file))
 
         return cls._instance
+
+
+    @classmethod
+    def parse_settingsqr(cls, data: str) -> tuple[str, dict]:
+        """
+        Parses SettingsQR data and returns a tuple of (config_name, settings_dict).
+
+        The resulting settings config can be applied by calling `Settings.update(settings_dict)`.
+        """
+        if not data.startswith("settings::"):
+            raise InvalidSettingsQRData()
+
+        version = data.split()[0].split("::")[1]
+        if version != "v1":
+            raise InvalidSettingsQRData(f"Unsupported SettingsQR version: {version}")
+        
+        # Start parsing key/value settings at the nth split() index
+        split_index = 1
+
+        # handle optional "name" attr
+        config_name = None
+        if "name=" in data.split()[1]:
+            config_name = data.split("name=")[1].split()[0].replace("_", " ")
+            split_index += 1
+
+        updated_settings = {}
+        for entry in data.split()[split_index:]:
+            abbreviated_name, value = entry.split("=")
+
+            # Parse multi-value settings; integer-ize where needed
+            if "," in value:
+                values_updated = []
+                for v in value.split(","):
+                    if v.isdigit():
+                        v = int(v)
+                    values_updated.append(v)
+                value = values_updated
+            elif value.isdigit():
+                value = int(value)
+            
+            # Replace abbreviated name with full attr_name
+            settings_entry = SettingsDefinition.get_settings_entry_by_abbreviated_name(abbreviated_name)
+            if not settings_entry:
+                print(f"Ignoring unrecognized attribute: {abbreviated_name}")
+                continue
+
+            # Validate value(s) against SettingsDefinition's valid options
+            if type(value) is not list:
+                values = [value]
+            else:
+                values = value
+            for v in values:
+                if v not in [opt[0] for opt in settings_entry.selection_options]:
+                    raise InvalidSettingsQRData(f"""{abbreviated_name} = '{v}' is not valid""")
+
+            updated_settings[settings_entry.attr_name] = value
+        
+        return (config_name, updated_settings)
 
 
     def __str__(self):
@@ -63,6 +125,13 @@ class Settings(Singleton):
                 else:
                     # Setting is missing; insert default
                     new_settings[entry.attr_name] = entry.default_value
+
+            else:
+                # Clean the incoming data, if necessary
+                if entry.type == SettingsConstants.TYPE__MULTISELECT:
+                    if type(new_settings[entry.attr_name]) == str:
+                        # Break comma-separated SettingsQR input into List
+                        new_settings[entry.attr_name] = new_settings[entry.attr_name].split(",")
 
         # Can't just merge the _data dict; have to replace keys they have in common
         #   (otherwise list values will be merged instead of replaced).

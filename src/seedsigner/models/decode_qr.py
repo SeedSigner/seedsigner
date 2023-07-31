@@ -174,12 +174,7 @@ class DecodeQR:
 
     def get_settings_data(self):
         if self.is_settings:
-            return self.decoder.settings
-
-
-    def get_settings_config_name(self):
-        if self.is_settings:
-            return self.decoder.config_name
+            return self.decoder.data
 
 
     def get_address(self):
@@ -835,8 +830,7 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
     """
     def __init__(self):
         super().__init__()
-        self.settings = {}
-        self.config_name = None
+        self.data = None
 
 
     def add(self, segment, qr_type=QRType.SETTINGS):
@@ -849,43 +843,10 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
         """
         if not segment.startswith("settings::"):
             raise Exception("Invalid SettingsQR data")
-
-        version = segment.split()[0].split("::")[1]
-        if version != "v1":
-            raise Exception(f"Unsupported SettingsQR version: {version}")
         
-        # Start parsing key/value settings at the nth split() index
-        split_index = 1
-
-        # handle optional "name" attr
-        if "name=" in segment.split()[1]:
-            self.config_name = segment.split("name=")[1].split()[0].replace("_", " ")
-            split_index += 1
-
-        self.settings = {}
-        for entry in segment.split()[split_index:]:
-            abbreviated_name, value = entry.split("=")
-            if "," in value:
-                value = value.split(",")
-            elif value.isdigit():
-                value = int(value)
-            
-            # Replace abbreviated name with full attr_name
-            settings_entry = SettingsDefinition.get_settings_entry_by_abbreviated_name(abbreviated_name)
-            if not settings_entry:
-                logger.warning(f"Ignoring unrecognized attribute: {abbreviated_name}")
-                continue
-
-            # Validate value(s) against SettingsDefinition's valid options
-            if type(value) is not list:
-                values = [value]
-            else:
-                values = value
-            for v in values:
-                if v not in [opt[0] for opt in settings_entry.selection_options]:
-                    raise Exception(f"Invalid value for {settings_entry.attr_name}: {v} ({settings_entry.selection_options})")
-
-            self.settings[settings_entry.attr_name] = value
+        # Leave any other parsing or validation up to the Settings class itself.
+        # SettingsQR are just ascii data to hand it over as-is.
+        self.data = segment
 
         self.complete = True
         self.collected_segments = 1
