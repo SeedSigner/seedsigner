@@ -57,6 +57,7 @@ Set the following:
 When you exit the System Configuration tool, you will be prompted to reboot the system; allow the system to reboot and continue with these instructions.
 
 
+Each command should be run individually,unless its specified as a multi-line command.
 ### Change the default password
 Change the system's default password from the default "raspberry". Run the command:
 ```bash
@@ -154,7 +155,7 @@ Edit your bash profile with the command `nano ~/.profile` and add the following 
 ```bash
 export WORKON_HOME=$HOME/.envs
 export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3
-source /home/pi/.local/bin/virtualenvwrapper.sh
+source $HOME/.local/bin/virtualenvwrapper.sh
 ```
 Then `CTRL-X` and `y` to exit and save changes.
 
@@ -216,11 +217,13 @@ pwd
 
 
 ### Configure `systemd` to run SeedSigner at boot:
+
 ```bash
 sudo nano /etc/systemd/system/seedsigner.service
 ```
 
-Add the following contents to the text file that was created:
+Add the following contents to the text file that was created:  
+If you are not using the username pi, then replace  `pi` in the service section below with your username. There are 3 lines to change.   
 ```ini
 [Unit]
 Description=Seedsigner
