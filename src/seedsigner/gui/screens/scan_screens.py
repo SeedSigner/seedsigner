@@ -137,6 +137,7 @@ class SettingsUpdatedScreen(ButtonListScreen):
     def __post_init__(self):
         # Customize defaults
         self.button_data = ["Home"]
+        self.show_back_button = False
 
         super().__post_init__()
 
