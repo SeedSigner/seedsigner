@@ -1013,8 +1013,10 @@ class SeedBIP85InvalidChildIndexView(View):
 ****************************************************************************"""
 class SeedWordsBackupTestPromptView(View):
     def __init__(self, seed_num: int, bip85_data: dict = None):
+        super().__init__()
         self.seed_num = seed_num
         self.bip85_data = bip85_data
+        self.seed = self.controller.get_seed(self.seed_num)
 
 
     def run(self):
@@ -1033,7 +1035,10 @@ class SeedWordsBackupTestPromptView(View):
 
         elif button_data[selected_menu_num] == SKIP:
             if self.seed_num is not None:
-                return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num))
+                if self.seed.passphrase:
+                    return Destination(SeedPassphraseTestPromptView, view_args=dict(seed_num=self.seed_num))
+                else:
+                    return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num))
             else:
                 return Destination(SeedFinalizeView)
 
@@ -1172,6 +1177,115 @@ class SeedWordsBackupTestSuccessView(View):
             return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num), clear_history=True)
         else:
             return Destination(SeedFinalizeView)
+
+"""****************************************************************************
+    Passphrase Verification Test
+****************************************************************************"""
+
+class SeedPassphraseTestPromptView(View):
+    def __init__(self, seed_num: int, num_attempts: int = 0):
+        self.seed_num = seed_num
+        self.num_attempts = num_attempts
+
+    def run(self):
+        VERIFY = "Verify"
+        SKIP = "Skip"
+        button_data = [VERIFY, SKIP]
+
+        selected_menu_num = seed_screens.SeedPassphraseTestPromptScreen(
+            button_data=button_data,
+        ).display()
+
+        if button_data[selected_menu_num] == VERIFY:
+            return Destination(
+                SeedPassphraseInputView,
+                view_args=dict(
+                    seed_num=self.seed_num,
+                    num_attempts=self.num_attempts,
+                    )
+                )
+
+        elif button_data[selected_menu_num] == SKIP:
+            return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num))
+
+
+
+class SeedPassphraseInputView(View):
+    def __init__(self, seed_num: int, num_attempts: int):
+        super().__init__()
+        self.seed_num = seed_num
+        self.num_attempts = num_attempts
+        self.seed = self.controller.get_seed(seed_num)
+
+    def run(self):
+        ret = seed_screens.SeedAddPassphraseScreen(passphrase="").display()
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        elif ret == self.seed.passphrase:
+            return Destination(SeedPassphraseTestSuccessView, view_args=dict(seed_num=self.seed_num))
+        else:
+            if self.num_attempts <= 10:
+                return Destination(
+                    SeedPassphraseTestMistakeView,
+                    view_args=dict(
+                        seed_num=self.seed_num,
+                        num_attempts=self.num_attempts+1
+                        )
+                    )
+            else: 
+                return Destination(NotYetImplementedView)
+
+
+
+class SeedPassphraseTestSuccessView(View):
+    def __init__(self, seed_num):
+        self.seed_num = seed_num
+
+    def run(self):
+        LargeIconStatusScreen(
+            title="Passphrase Verified",
+            show_back_button=False,
+            status_headline="Success!",
+            text="The passphrase you entered matches the one used to create this seed.",
+            button_data=["OK"]
+        ).display()
+
+        return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num), clear_history=True)
+
+
+
+class SeedPassphraseTestMistakeView(View):
+    def __init__(self, seed_num: int, num_attempts):
+        super().__init__()
+        self.seed = self.controller.get_seed(seed_num)
+        self.seed_num = seed_num
+        self.num_attempts = num_attempts
+
+    def run(self):
+        RETRY = "Try Again"
+        SKIP = "Skip Verification"
+        button_data = [RETRY, SKIP]
+
+        selected_menu_num = DireWarningScreen(
+            title="Verification Error",
+            show_back_button=False,
+            status_headline=f"Incorrect Passphrase",
+            text=f"Incorrect passphrase for this seed.",
+            button_data=button_data,
+        ).display()
+
+        if button_data[selected_menu_num] == RETRY:
+            return Destination(
+                SeedPassphraseInputView,
+                view_args=dict(
+                    seed_num=self.seed_num,
+                    num_attempts=self.num_attempts,
+                    )
+                )
+        elif button_data[selected_menu_num] == SKIP:
+            return Destination(SeedOptionsView, view_args=dict(seed_num=self.seed_num), clear_history=True)
+        return
 
 
 
@@ -1355,8 +1469,8 @@ class SeedTranscribeSeedQRConfirmQRPromptView(View):
 
     def run(self):
         SCAN = ("Confirm SeedQR", FontAwesomeIconConstants.QRCODE)
-        DONE = "Done"
-        button_data = [SCAN, DONE]
+        SKIP = "Skip"
+        button_data = [SCAN, SKIP]
 
         selected_menu_option = seed_screens.SeedTranscribeSeedQRConfirmQRPromptScreen(
             title="Confirm SeedQR?",
@@ -1369,8 +1483,11 @@ class SeedTranscribeSeedQRConfirmQRPromptView(View):
         elif button_data[selected_menu_option] == SCAN:
             return Destination(SeedTranscribeSeedQRConfirmScanView, view_args={"seed_num": self.seed_num})
 
-        elif button_data[selected_menu_option] == DONE:
-            return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
+        elif button_data[selected_menu_option] == SKIP:
+            if self.seed.passphrase:
+                return Destination(SeedPassphraseTestPromptView, view_args=dict(seed_num=self.seed_num))
+            else:
+                return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
 
 
 
@@ -1412,8 +1529,10 @@ class SeedTranscribeSeedQRConfirmScanView(View):
                         show_back_button=False,
                         button_data=["OK"],
                     ).display()
-
-                    return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num})
+                    if self.seed.passphrase:
+                        return Destination(SeedPassphraseTestPromptView, view_args=dict(seed_num=self.seed_num))
+                    else:
+                        return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num})
 
             else:
                 # Will this case ever happen? Will trigger if a different kind of QR code is scanned
