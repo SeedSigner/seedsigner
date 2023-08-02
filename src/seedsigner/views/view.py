@@ -142,12 +142,12 @@ class MainMenuView(View):
     TOOLS = ("Tools", FontAwesomeIconConstants.SCREWDRIVER_WRENCH)
     SETTINGS = ("Settings", FontAwesomeIconConstants.GEAR)
 
-    # returns a Destination for: RemoveMicroSDWarning or next_view
+    # returns a Destination for: RemoveMicroSDWarningView or next_view
     def microsd_warning_or_next_view(self, next_view):
         if (self.settings.HOSTNAME == Settings.SEEDSIGNER_OS
-        and self.controller.microsd.is_inserted()
         and self.controller.microsd.warn_to_remove
-        and len(self.controller.storage.seeds) == 0):
+        and len(self.controller.storage.seeds) == 0
+        and self.controller.microsd.is_inserted()):
             self.controller.microsd.warn_to_remove = False
             return Destination(RemoveMicroSDWarningView, view_args={'next_view': next_view})
         else:
@@ -303,11 +303,10 @@ class RemoveMicroSDWarningView(View):
     def run(self):
         self.run_screen(
             WarningScreen,
-            title="Best-Practice Tip",
+            title="Security Tip",
             status_icon_name=FontAwesomeIconConstants.SDCARD,
-            status_headline="Microsd is inserted!",
-            status_color="red",
-            text="For maximum security\nremove the MicroSD card\nbefore continuing.",
+            status_headline="",
+            text="For maximum security,\nremove the MicroSD card\nbefore continuing.",
             show_back_button=False,
             button_data=["Continue"],
         )
