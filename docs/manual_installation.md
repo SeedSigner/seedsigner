@@ -215,6 +215,13 @@ workon seedsigner-env
 pwd
 ```
 
+### Optional: increase spidev buffer size
+This allows `ST7789.py` to update the LCD without performing multiple write operations because the default buffer size is 4096 bytes. The default can be changed via the  `/boot/cmdline.txt` file. You will need to add `spidev.bufsiz=131072` to the end of this single lined file command.
+
+Example `cmdline.txt` contents:
+```
+console=serial0,115200 console=tty1 root=PARTUUID=2fa4ba7e-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait modules-load=dwc2,g_ether spidev.bufsiz=131072
+```
 
 ### Configure `systemd` to run SeedSigner at boot:
 
