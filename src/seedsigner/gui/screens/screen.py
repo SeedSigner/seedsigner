@@ -692,7 +692,7 @@ class QRDisplayScreen(BaseScreen):
                 canvas=rectangle,
                 screen_x=GUIConstants.EDGE_PADDING*2 + 1,
                 screen_y=GUIConstants.COMPONENT_PADDING + 4,  # +4 fudge factor to account for where the chevron is drawn relative to baseline
-                icon_name=FontAwesomeIconConstants.CHEVRON_UP,
+                icon_name=SeedSignerIconConstants.CHEVRON_UP,
                 icon_size=GUIConstants.BODY_FONT_SIZE,
             )
             chevron_up_icon.render()
@@ -702,7 +702,7 @@ class QRDisplayScreen(BaseScreen):
                 canvas=rectangle,
                 screen_x=chevron_up_icon.screen_x,
                 screen_y=chevron_up_icon.screen_y + chevron_up_icon.icon_size + GUIConstants.BODY_LINE_SPACING,
-                icon_name=FontAwesomeIconConstants.CHEVRON_DOWN,
+                icon_name=SeedSignerIconConstants.CHEVRON_DOWN,
                 icon_size=chevron_up_icon.icon_size,
             )
             chevron_down_icon.render()
@@ -824,7 +824,7 @@ class QRDisplayScreen(BaseScreen):
 @dataclass
 class LargeIconStatusScreen(ButtonListScreen):
     title: str = "Success!"
-    status_icon_name: str = SeedSignerCustomIconConstants.CIRCLE_CHECK
+    status_icon_name: str = SeedSignerIconConstants.SUCCESS
     status_icon_size: int = GUIConstants.ICON_PRIMARY_SCREEN_SIZE
     status_color: str = GUIConstants.SUCCESS_COLOR
     status_headline: str = "Success!"  # The colored text under the large icon
@@ -948,7 +948,7 @@ class WarningEdgesMixin:
 @dataclass
 class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
     title: str = "Caution"
-    status_icon_name: str = SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION
+    status_icon_name: str = SeedSignerIconConstants.WARNING
     status_color: str = "yellow"
     status_headline: str = "Privacy Leak!"     # The colored text under the alert icon
 
@@ -1242,7 +1242,7 @@ class MicroSDToastScreen(BaseScreen):
         if self.action == MicroSD.ACTION__REMOVED:
         
             self.toast = ToastOverlay(
-                icon_name=FontAwesomeIconConstants.SDCARD,
+                icon_name=SeedSignerIconConstants.MICROSD,
                 color=GUIConstants.NOTIFICATION_COLOR,
                 label_text="MicroSD removed"
             )
@@ -1250,7 +1250,7 @@ class MicroSDToastScreen(BaseScreen):
         elif self.action == MicroSD.ACTION__INSERTED:
             
             self.toast = ToastOverlay(
-                icon_name=FontAwesomeIconConstants.SDCARD,
+                icon_name=SeedSignerIconConstants.MICROSD,
                 color=GUIConstants.NOTIFICATION_COLOR,
                 label_text="MicroSD inserted"
             )

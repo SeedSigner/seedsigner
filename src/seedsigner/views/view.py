@@ -137,10 +137,10 @@ class Destination:
 #
 #########################################################################################
 class MainMenuView(View):
-    SCAN = ("Scan", FontAwesomeIconConstants.QRCODE)
-    SEEDS = ("Seeds", FontAwesomeIconConstants.KEY)
-    TOOLS = ("Tools", FontAwesomeIconConstants.SCREWDRIVER_WRENCH)
-    SETTINGS = ("Settings", FontAwesomeIconConstants.GEAR)
+    SCAN = ("Scan", SeedSignerIconConstants.SCAN)
+    SEEDS = ("Seeds", SeedSignerIconConstants.SEEDS)
+    TOOLS = ("Tools", SeedSignerIconConstants.TOOLS)
+    SETTINGS = ("Settings", SeedSignerIconConstants.SETTINGS)
 
     def run(self):
         button_data = [self.SCAN, self.SEEDS, self.TOOLS, self.SETTINGS]
@@ -176,7 +176,7 @@ class MainMenuView(View):
 
 class PowerOptionsView(View):
     RESET = ("Restart", FontAwesomeIconConstants.ROTATE_RIGHT)
-    POWER_OFF = ("Power Off", FontAwesomeIconConstants.POWER_OFF)
+    POWER_OFF = ("Power Off", SeedSignerIconConstants.POWER)
 
     def run(self):
         button_data = [self.RESET, self.POWER_OFF]

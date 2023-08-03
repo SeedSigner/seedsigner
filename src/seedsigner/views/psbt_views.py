@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class PSBTSelectSeedView(View):
-    SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
+    SCAN_SEED = ("Scan a seed", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
     button_data = []
@@ -41,7 +41,7 @@ class PSBTSelectSeedView(View):
                 # Doesn't look like this seed can sign the current PSBT
                 button_str += " (?)"
 
-            self.button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+            self.button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT, "blue"))
 
         self.button_data.append(self.SCAN_SEED)
         self.button_data.append(self.TYPE_12WORD)
@@ -531,7 +531,7 @@ class PSBTSigningErrorView(View):
         # Just a WarningScreen here; only use DireWarningScreen for true security risks.
         selected_menu_num = WarningScreen(
             title="PSBT Error",
-            status_icon_name=SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION,
+            status_icon_name=SeedSignerIconConstants.WARNING,
             status_headline="Signing Failed",
             text="Signing with this seed did not add a valid signature.",
             button_data=["Select Diff Seed"],

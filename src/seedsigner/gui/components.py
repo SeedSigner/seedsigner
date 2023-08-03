@@ -28,7 +28,7 @@ class GUIConstants:
     REGTEST_COLOR = "#00caf1"
 
     ICON_FONT_NAME__FONT_AWESOME = "Font_Awesome_6_Free-Solid-900"
-    ICON_FONT_NAME__SEEDSIGNER = "seedsigner-glyphs"
+    ICON_FONT_NAME__SEEDSIGNER = "seedsigner-icons"
     ICON_FONT_SIZE = 22
     ICON_INLINE_FONT_SIZE = 24
     ICON_LARGE_BUTTON_SIZE = 36
@@ -69,10 +69,6 @@ class FontAwesomeIconConstants:
     ANGLE_RIGHT = "\uf105"
     ANGLE_UP = "\uf106"
     CAMERA = "\uf030"
-    CARET_DOWN = "\uf0d7"
-    CARET_LEFT = "\uf0d9"
-    CARET_RIGHT = "\uf0da"
-    CARET_UP = "\uf0d8"
     CHEVRON_UP = "\uf077"
     CHEVRON_DOWN = "\uf078"
     SOLID_CIRCLE_CHECK = "\uf058"
@@ -85,46 +81,59 @@ class FontAwesomeIconConstants:
     DICE_FOUR = "\uf524"
     DICE_FIVE = "\uf523"
     DICE_SIX = "\uf526"
-    GEAR = "\uf013"
-    KEY = "\uf084"
     KEYBOARD = "\uf11c"
     LOCK = "\uf023"
     MAP = "\uf279"
     PAPER_PLANE = "\uf1d8"
     PEN = "\uf304"
-    PLUS = "+"
-    POWER_OFF = "\uf011"
     ROTATE_RIGHT = "\uf2f9"
-    SCREWDRIVER_WRENCH = "\uf7d9"
+    SDCARD = "\uf7c2"
     SQUARE = "\uf0c8"
     SQUARE_CARET_DOWN = "\uf150"
     SQUARE_CARET_LEFT = "\uf191"
     SQUARE_CARET_RIGHT = "\uf152"
     SQUARE_CARET_UP = "\uf151"
     SQUARE_CHECK = "\uf14a"
-    TRIANGLE_EXCLAMATION = "\uf071"
     UNLOCK = "\uf09c"
-    QRCODE = "\uf029"
     X = "\u0058"
-    SDCARD = "\uf7c2"
 
 
-class SeedSignerCustomIconConstants:
-    LARGE_CHEVRON_LEFT = "\ue900"
-    SMALL_CHEVRON_RIGHT = "\ue901"
-    PAGE_UP = "\ue903"
-    PAGE_DOWN = "\ue902"
-    PLUS = "\ue904"
-    CIRCLE_CHECK = "\ue907"
-    CIRCLE_EXCLAMATION = "\ue908"
-    CIRCLE_X = "\ue909"
-    FINGERPRINT = "\ue90a"
-    PATH = "\ue90b"
-    BITCOIN_LOGO_STRAIGHT = "\ue90c"
-    BITCOIN_LOGO_TILTED = "\ue90d"
+class SeedSignerIconConstants:
+    SCAN = "\ue900"
+    SEEDS = "\ue901"
+    SETTINGS = "\ue902"
+    TOOLS = "\ue903"
 
-    MIN_VALUE = LARGE_CHEVRON_LEFT
-    MAX_VALUE = BITCOIN_LOGO_TILTED
+    BACK = "\ue904"
+    CHEVRON_DOWN = "\ue905"
+    CHEVRON_LEFT = "\ue906"
+    CHEVRON_RIGHT = "\ue907"
+    CHEVRON_UP = "\ue908"
+    CLOSE = "\ue909"
+    PAGE_DOWN = "\ue90a"
+    PAGE_UP = "\ue90b"
+    PLUS = "\ue90c"
+    POWER = "\ue90d"
+
+    ERROR = "\ue90e"
+    SUCCESS = "\ue90f"
+    WARNING = "\ue910"
+
+    ADDRESS = "\ue911"
+    CHANGE = "\ue912"
+    DERIVATION = "\ue913"
+    FEE = "\ue914"
+    FINGERPRINT = "\ue915"
+    PASSPHRASE = "\ue916"
+
+    BITCOIN = "\ue917"
+    BITCOIN_ALT = "\ue918"
+    BRIGHTNESS = "\ue919"
+    MICROSD = "\ue91a"
+    QRCODE = "\ue91b"
+
+    MIN_VALUE = BACK
+    MAX_VALUE = BITCOIN_ALT
 
 
 
@@ -425,7 +434,7 @@ class TextArea(BaseComponent):
 class Icon(BaseComponent):
     screen_x: int = 0
     screen_y: int = 0
-    icon_name: str = SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED
+    icon_name: str = SeedSignerIconConstants.BITCOIN_ALT
     icon_size: int = GUIConstants.ICON_FONT_SIZE
     icon_color: str = GUIConstants.BODY_FONT_COLOR
 
@@ -859,7 +868,7 @@ class BtcAmount(BaseComponent):
         btc_icon = Icon(
             image_draw=draw,
             canvas=self.paste_image,
-            icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED,
+            icon_name=SeedSignerIconConstants.BITCOIN_ALT,
             icon_color=btc_color,
             icon_size=self.icon_size,
             screen_x=0,
@@ -947,7 +956,7 @@ class BtcAmount(BaseComponent):
             btc_icon = Icon(
                 image_draw=draw,
                 canvas=self.paste_image,
-                icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED,
+                icon_name=SeedSignerIconConstants.BITCOIN_ALT,
                 icon_color=btc_color,
                 icon_size=self.icon_size,
                 screen_x=0,
@@ -1279,7 +1288,7 @@ class TopNav(BaseComponent):
 
         if self.show_back_button:
             self.left_button = IconButton(
-                icon_name=SeedSignerCustomIconConstants.LARGE_CHEVRON_LEFT,
+                icon_name=SeedSignerIconConstants.BACK,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,
@@ -1289,7 +1298,7 @@ class TopNav(BaseComponent):
 
         if self.show_power_button:
             self.right_button = IconButton(
-                icon_name=FontAwesomeIconConstants.POWER_OFF,
+                icon_name=SeedSignerIconConstants.POWER,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_x=self.width - GUIConstants.TOP_NAV_BUTTON_SIZE - GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,

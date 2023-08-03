@@ -421,7 +421,7 @@ class SeedFinalizeScreen(ButtonListScreen):
         super().__post_init__()
 
         self.fingerprint_icontl = IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
+            icon_name=SeedSignerIconConstants.FINGERPRINT,
             icon_color="blue",
             icon_size=GUIConstants.ICON_FONT_SIZE + 12,
             label_text="fingerprint",
@@ -441,7 +441,7 @@ class SeedOptionsScreen(ButtonListScreen):
     has_passphrase: bool = False
 
     def __post_init__(self):
-        self.top_nav_icon_name = SeedSignerCustomIconConstants.FINGERPRINT
+        self.top_nav_icon_name = SeedSignerIconConstants.FINGERPRINT
         self.top_nav_icon_color = "blue"
         self.title = self.fingerprint
         self.is_button_text_centered = False
@@ -584,7 +584,7 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
 
         # Set up the fingerprint and passphrase displays
         self.fingerprint_line = IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
+            icon_name=SeedSignerIconConstants.FINGERPRINT,
             icon_color="blue",
             label_text="Fingerprint",
             value_text=self.fingerprint,
@@ -594,7 +594,7 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
         self.components.append(self.fingerprint_line)
 
         self.derivation_line = IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.PATH,
+            icon_name=SeedSignerIconConstants.DERIVATION,
             label_text="Derivation",
             value_text=self.derivation_path,
             screen_x=GUIConstants.COMPONENT_PADDING,
@@ -1009,7 +1009,7 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
         super().__post_init__()
 
         self.components.append(IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
+            icon_name=SeedSignerIconConstants.FINGERPRINT,
             icon_color="blue",
             label_text="changes fingerprint",
             value_text=f"{self.fingerprint_without} >> {self.fingerprint_with}",

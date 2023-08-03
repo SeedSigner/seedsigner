@@ -655,7 +655,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
             # Adjust the vertical spacing
             screen_y -= GUIConstants.COMPONENT_PADDING
         self.components.append(IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
+            icon_name=SeedSignerIconConstants.FINGERPRINT,
             icon_color="blue",
             value_text=f"""{"Multisig" if self.is_multisig else self.fingerprint}: {"Change" if self.is_change_derivation_path else "Addr"} #{self.derivation_path_addr_index}""",
             is_text_centered=False,
@@ -665,7 +665,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
 
         if self.is_change_addr_verified:
             self.components.append(IconTextLine(
-                icon_name=SeedSignerCustomIconConstants.CIRCLE_CHECK,
+                icon_name=SeedSignerIconConstants.SUCCESS,
                 icon_color="#00dd00",
                 value_text="Address verified!",
                 is_text_centered=False,
