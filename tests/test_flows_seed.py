@@ -1,6 +1,6 @@
 # Must import test base before the Controller
 from base import BaseTest, FlowTest, FlowStep
-from base import FlowTestUnexpectedViewException, FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDataSelectionException
+from base import FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDataSelectionException
 
 import pytest
 from seedsigner.models.settings import SettingsConstants
@@ -251,7 +251,7 @@ class TestSeedFlows(FlowTest):
             SettingsConstants.SETTING__SIG_TYPES: SettingsConstants.MULTISIG,
             SettingsConstants.SETTING__SCRIPT_TYPES: SettingsConstants.NESTED_SEGWIT,
             SettingsConstants.SETTING__COORDINATORS: SettingsConstants.COORDINATOR__SPECTER_DESKTOP,
-        }, disable_missing_entries=False)
+        })
 
         self.run_sequence(
             initial_destination_view_args=dict(seed_num=0),
