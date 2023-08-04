@@ -132,8 +132,8 @@ class SeedSignerIconConstants:
     MICROSD = "\ue91a"
     QRCODE = "\ue91b"
 
-    MIN_VALUE = BACK
-    MAX_VALUE = BITCOIN_ALT
+    MIN_VALUE = SCAN
+    MAX_VALUE = QRCODE
 
 
 
