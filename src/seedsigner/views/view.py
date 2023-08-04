@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Type
 
 from seedsigner.gui.components import FontAwesomeIconConstants
+from seedsigner.gui.components import SeedSignerIconConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON, RET_CODE__BACK_BUTTON
 from seedsigner.gui.screens.screen import BaseScreen, DireWarningScreen, LargeButtonScreen, PowerOffScreen, PowerOffNotRequiredScreen, ResetScreen, WarningScreen
 from seedsigner.models.threads import BaseThread
