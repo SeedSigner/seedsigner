@@ -11,7 +11,7 @@ from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.settings import SettingsConstants
 
 from ..components import (FontAwesomeIconConstants, GUIConstants, BaseComponent, Button, Icon, IconButton,
-                          LargeIconButton, SeedSignerCustomIconConstants, TopNav, TextArea, load_image, ToastOverlay,
+                          LargeIconButton, SeedSignerIconConstants, TopNav, TextArea, load_image, ToastOverlay,
                           Fonts)
 
 from seedsigner.hardware.buttons import HardwareButtonsConstants, HardwareButtons

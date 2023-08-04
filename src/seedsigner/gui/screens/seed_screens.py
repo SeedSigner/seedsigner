@@ -15,7 +15,7 @@ from seedsigner.models.settings_definition import SettingsConstants, SettingsDef
 
 from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, KeyboardScreen, WarningEdgesMixin
 from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddress, IconButton,
-    IconTextLine, SeedSignerCustomIconConstants, TextArea, GUIConstants,
+    IconTextLine, SeedSignerIconConstants, TextArea, GUIConstants,
     calc_text_centering)
 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay

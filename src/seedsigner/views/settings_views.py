@@ -1,5 +1,5 @@
 import logging
-from seedsigner.gui.components import SeedSignerCustomIconConstants
+from seedsigner.gui.components import SeedSignerIconConstants
 
 from .view import View, Destination, MainMenuView
 

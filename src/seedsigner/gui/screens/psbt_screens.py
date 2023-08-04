@@ -7,7 +7,7 @@ from seedsigner.gui.renderer import Renderer
 from seedsigner.models.threads import BaseThread
 
 from .screen import ButtonListScreen, WarningScreen
-from ..components import (BtcAmount, Button, Icon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, SeedSignerCustomIconConstants, TextArea,
+from ..components import (BtcAmount, Button, Icon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, SeedSignerIconConstants, TextArea,
     calc_bezier_curve, linear_interp)
 
 
