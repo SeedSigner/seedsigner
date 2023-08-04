@@ -12,7 +12,7 @@ from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen, PSBTMathScreen, PSBTAddressDetailsScreen, PSBTChangeDetailsScreen, PSBTFinalizeScreen
-from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, DireWarningScreen, QRDisplayScreen)
+from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
 
 from .view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
