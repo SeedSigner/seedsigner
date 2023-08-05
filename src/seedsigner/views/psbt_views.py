@@ -1,5 +1,4 @@
 import logging
-from typing import List
 
 from embit.psbt import PSBT
 from embit import script

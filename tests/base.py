@@ -14,7 +14,7 @@ sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 
 from seedsigner.controller import Controller, FlowBasedTestException, StopFlowBasedTest
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
-from seedsigner.models import Settings
+from seedsigner.models.settings import Settings
 from seedsigner.views.view import Destination, MainMenuView, View
 
 

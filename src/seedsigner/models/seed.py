@@ -6,7 +6,6 @@ from embit.networks import NETWORKS
 from typing import List
 
 from seedsigner.models.settings import SettingsConstants
-from seedsigner.helpers import embit_utils
 
 
 class InvalidSeedException(Exception):
@@ -108,6 +107,8 @@ class Seed:
 
 
     def get_xpub(self, wallet_path: str = '/', network: str = SettingsConstants.MAINNET):
+        # Import here to avoid slow startup times; takes 1.35s to import the first time
+        from seedsigner.helpers import embit_utils
         return embit_utils.get_xpub(seed_bytes=self.seed_bytes, derivation_path=wallet_path, embit_network=SettingsConstants.map_network_to_embit(network))
 
 

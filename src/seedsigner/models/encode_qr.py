@@ -11,12 +11,13 @@ from embit.psbt import PSBT
 from seedsigner.helpers.ur2.ur_encoder import UREncoder
 from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.qr import QR
-from seedsigner.models import Seed, QRType
+from seedsigner.models.qr_type import QRType
+from seedsigner.models.seed import Seed
+from seedsigner.models.settings import SettingsConstants
 
 from urtypes.crypto import PSBT as UR_PSBT
 from urtypes.crypto import Account, HDKey, Output, Keypath, PathComponent, SCRIPT_EXPRESSION_TAG_MAP
 
-from seedsigner.models.settings import SettingsConstants
 
 
 

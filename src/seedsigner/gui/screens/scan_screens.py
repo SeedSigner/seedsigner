@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw
 from seedsigner.gui import renderer
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.hardware.camera import Camera
-from seedsigner.models import DecodeQR, DecodeQRStatus
+from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
 from seedsigner.models.threads import BaseThread
 
 from .screen import BaseScreen, ButtonListScreen
