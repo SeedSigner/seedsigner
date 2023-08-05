@@ -41,7 +41,7 @@ class PSBTSelectSeedView(View):
                 # Doesn't look like this seed can sign the current PSBT
                 button_str += " (?)"
 
-            self.button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT, "blue"))
+            self.button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT))
 
         self.button_data.append(self.SCAN_SEED)
         self.button_data.append(self.TYPE_12WORD)

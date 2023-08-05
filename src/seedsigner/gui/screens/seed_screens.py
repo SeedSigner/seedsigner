@@ -595,6 +595,7 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
 
         self.derivation_line = IconTextLine(
             icon_name=SeedSignerIconConstants.DERIVATION,
+            icon_color="blue",
             label_text="Derivation",
             value_text=self.derivation_path,
             screen_x=GUIConstants.COMPONENT_PADDING,
@@ -604,6 +605,7 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
 
         self.xpub_line = IconTextLine(
             icon_name=FontAwesomeIconConstants.X,
+            icon_color="blue",
             label_text="Xpub",
             value_text=f"{self.xpub[:18]}...",
             font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,

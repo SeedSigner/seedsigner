@@ -1538,7 +1538,7 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
 
         for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT, "blue"))
+            button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT))
             text = "Select seed to verify"
 
         button_data.append(SCAN_SEED)
