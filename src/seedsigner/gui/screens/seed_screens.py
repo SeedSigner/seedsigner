@@ -422,7 +422,7 @@ class SeedFinalizeScreen(ButtonListScreen):
 
         self.fingerprint_icontl = IconTextLine(
             icon_name=SeedSignerIconConstants.FINGERPRINT,
-            icon_color="blue",
+            icon_color="0084ff",
             icon_size=GUIConstants.ICON_FONT_SIZE + 12,
             label_text="fingerprint",
             value_text=self.fingerprint,
@@ -442,7 +442,7 @@ class SeedOptionsScreen(ButtonListScreen):
 
     def __post_init__(self):
         self.top_nav_icon_name = SeedSignerIconConstants.FINGERPRINT
-        self.top_nav_icon_color = "blue"
+        self.top_nav_icon_color = "0084ff"
         self.title = self.fingerprint
         self.is_button_text_centered = False
         self.is_bottom_list = True
@@ -585,7 +585,7 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
         # Set up the fingerprint and passphrase displays
         self.fingerprint_line = IconTextLine(
             icon_name=SeedSignerIconConstants.FINGERPRINT,
-            icon_color="blue",
+            icon_color="0084ff",
             label_text="Fingerprint",
             value_text=self.fingerprint,
             screen_x=GUIConstants.COMPONENT_PADDING,
@@ -595,7 +595,7 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
 
         self.derivation_line = IconTextLine(
             icon_name=SeedSignerIconConstants.DERIVATION,
-            icon_color="blue",
+            icon_color="0084ff",
             label_text="Derivation",
             value_text=self.derivation_path,
             screen_x=GUIConstants.COMPONENT_PADDING,
@@ -605,7 +605,7 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
 
         self.xpub_line = IconTextLine(
             icon_name=FontAwesomeIconConstants.X,
-            icon_color="blue",
+            icon_color="0084ff",
             label_text="Xpub",
             value_text=f"{self.xpub[:18]}...",
             font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
@@ -1012,7 +1012,7 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
 
         self.components.append(IconTextLine(
             icon_name=SeedSignerIconConstants.FINGERPRINT,
-            icon_color="blue",
+            icon_color="0084ff",
             label_text="changes fingerprint",
             value_text=f"{self.fingerprint_without} >> {self.fingerprint_with}",
             is_text_centered=True,
