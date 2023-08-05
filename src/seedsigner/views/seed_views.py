@@ -49,7 +49,7 @@ class SeedsMenuView(View):
 
         button_data = []
         for seed in self.seeds:
-            button_data.append((seed["fingerprint"], SeedSignerIconConstants.FINGERPRINT, "blue"))
+            button_data.append((seed["fingerprint"], SeedSignerIconConstants.FINGERPRINT))
         button_data.append("Load a seed")
 
         selected_menu_num = self.run_screen(
