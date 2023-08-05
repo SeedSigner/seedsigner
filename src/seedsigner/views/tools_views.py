@@ -479,14 +479,6 @@ class ToolsAddressExplorerSelectSourceView(View):
             from seedsigner.views.scan_views import ScanWalletDescriptorView
             return Destination(ScanWalletDescriptorView)
 
-        elif button_data[selected_menu_num] == self.SCAN_DESCRIPTOR:
-            from seedsigner.views.scan_views import ScanWalletDescriptorView
-            return Destination(ScanWalletDescriptorView)
-
-        elif button_data[selected_menu_num] == self.SCAN_DESCRIPTOR:
-            from seedsigner.views.scan_views import ScanWalletDescriptorView
-            return Destination(ScanWalletDescriptorView)
-
         elif button_data[selected_menu_num] in [self.TYPE_12WORD, self.TYPE_24WORD]:
             from seedsigner.views.seed_views import SeedMnemonicEntryView
             if button_data[selected_menu_num] == self.TYPE_12WORD:

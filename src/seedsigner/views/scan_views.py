@@ -50,6 +50,10 @@ class ScanView(View):
         # Handle the results
         if self.decoder.is_complete:
             if not self.is_valid_qr_type:
+                # We recognized the QR type but it was not the type expected for the
+                # current flow.
+                # Report QR types in more human-readable text (e.g. QRType
+                # `seed__compactseedqr` as "seed: compactseedqr").
                 return Destination(ErrorView, view_args=dict(
                     title="Error",
                     status_headline="Wrong QR Type",
@@ -184,24 +188,3 @@ class ScanAddressView(ScanView):
     @property
     def is_valid_qr_type(self):
         return self.decoder.is_address
-
-
-
-class SettingsUpdatedView(View):
-    def __init__(self, config_name: str):
-        super().__init__()
-
-        self.config_name = config_name
-    
-
-    def run(self):
-        from seedsigner.gui.screens.scan_screens import SettingsUpdatedScreen
-        screen = SettingsUpdatedScreen(config_name=self.config_name)
-        selected_menu_num = screen.display()
-
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-
-        # Only one exit point
-        return Destination(MainMenuView)
-
