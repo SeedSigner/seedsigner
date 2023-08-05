@@ -62,7 +62,7 @@ def test_generate_screenshots(target_locale):
     decoder = DecodeQR()
     decoder.add_data(BASE64_PSBT_1)
     controller.psbt = decoder.get_psbt()
-    controller.psbt_seed = seed_24
+    controller.psbt_seed = seed_12b
 
     # Multisig wallet descriptor for the multisig in the above PSBT
     MULTISIG_WALLET_DESCRIPTOR = """wsh(sortedmulti(1,[22bde1a9/48h/1h/0h/2h]tpubDFfsBrmpj226ZYiRszYi2qK6iGvh2vkkghfGB2YiRUVY4rqqedHCFEgw12FwDkm7rUoVtq9wLTKc6BN2sxswvQeQgp7m8st4FP8WtP8go76/{0,1}/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*))#3jhtf6yx"""
@@ -162,7 +162,7 @@ def test_generate_screenshots(target_locale):
             (seed_views.SeedDiscardView, dict(seed_num=0)),
         ],
         "PSBT Views": [
-            psbt_views.PSBTSelectSeedView,
+            psbt_views.PSBTSelectSeedView, # this will fail, be rerun below
             psbt_views.PSBTOverviewView,
             psbt_views.PSBTUnsupportedScriptTypeWarningView,
             psbt_views.PSBTNoChangeWarningView,
@@ -208,7 +208,7 @@ def test_generate_screenshots(target_locale):
         readme += "\n\n---\n\n"
         readme += f"## {section_name}\n\n"
         readme += """<table style="border: 0;">"""
-        readme += f"""<tr><td align="center">"""
+        readme += f"""<tr><td align="center">\n"""
         for screenshot in screenshot_list:
             if type(screenshot) == tuple:
                 if len(screenshot) == 2:
@@ -222,11 +222,15 @@ def test_generate_screenshots(target_locale):
                 view_name = view_cls.__name__
 
             screencap_view(view_cls, view_name, view_args)
-            readme += """<table align="left" style="border: 1px solid gray;">"""
+            readme += """  <table align="left" style="border: 1px solid gray;">"""
             readme += f"""<tr><td align="center">{view_name}<br/><br/><img src="{view_name}.png"></td></tr>"""
-            readme += """</table>"""
+            readme += """</table>\n"""
 
         readme += "</td></tr></table>"
+
+    # many screens don't work, leaving a missing image, re-run here for now
+    controller.psbt_seed = None
+    screencap_view(psbt_views.PSBTSelectSeedView, 'PSBTSelectSeedView', {})
 
     with open(os.path.join(screenshot_renderer.screenshot_path, "README.md"), 'w') as readme_file:
        readme_file.write(readme)
