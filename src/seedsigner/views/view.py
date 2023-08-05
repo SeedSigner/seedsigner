@@ -1,5 +1,3 @@
-print("view.py")
-
 from dataclasses import dataclass
 from typing import Type
 
