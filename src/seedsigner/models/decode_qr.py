@@ -1,5 +1,3 @@
-print("decode_qr.py")
-
 import base64
 import json
 import logging

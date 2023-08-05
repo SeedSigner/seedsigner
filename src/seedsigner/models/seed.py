@@ -1,4 +1,3 @@
-print("seed.py")
 import unicodedata
 
 from binascii import hexlify

@@ -1,5 +1,3 @@
-print("seed_storage.py")
-
 from typing import List
 from seedsigner.models.seed import Seed, InvalidSeedException
 from seedsigner.models.settings_definition import SettingsConstants

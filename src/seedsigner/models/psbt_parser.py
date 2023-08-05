@@ -1,5 +1,3 @@
-print("psbt_parser.py")
-
 from binascii import hexlify
 from embit import psbt, script, ec, bip32
 from embit.descriptor import Descriptor

@@ -1,4 +1,3 @@
-print("embit_utils.py")
 import embit
 from embit import bip32
 from embit.bip32 import HDKey

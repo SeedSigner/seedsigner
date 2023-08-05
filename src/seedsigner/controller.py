@@ -1,26 +1,18 @@
-print("controller.py")
-
 import time
-
-from seedsigner.models.threads import BaseThread
-
-start = time.time()
-print("Starting Controller import...")
-
 import logging
+
 import traceback
 
 from PIL.Image import Image
 
+from seedsigner.models.settings import Settings
+from seedsigner.models.singleton import Singleton
+from seedsigner.models.threads import BaseThread
 from seedsigner.views.view import Destination
-
-from .models.settings import Settings
-from .models.singleton import Singleton
 
 
 logger = logging.getLogger(__name__)
 
-print("Total Controller import time:", time.time() - start)
 
 
 class BackStack(list[Destination]):
@@ -52,9 +44,9 @@ class FlowBasedTestException(Exception):
     pass
 
 
+
 class BackgroundImportThread(BaseThread):
     def run(self):
-        start = time.time()
         from importlib import import_module
 
         # import seedsigner.hardware.buttons # slowly imports GPIO along the way
@@ -62,7 +54,7 @@ class BackgroundImportThread(BaseThread):
         def time_import(module_name):
             last = time.time()
             import_module(module_name)
-            print(time.time() - last, module_name)
+            # print(time.time() - last, module_name)
 
         time_import('embit')
         time_import('seedsigner.helpers.embit_utils')
@@ -80,13 +72,6 @@ class BackgroundImportThread(BaseThread):
         time_import('seedsigner.views.tools_views')
 
         time_import('seedsigner.views.settings_views')
-
-        # Lowest priority costly initializations
-        # time_import('picamera')
-        # time_import('picamera.array')
-        # time_import('seedsigner.hardware.pivideostream')
-
-        print("Total BackgroundImportThread import time:", time.time() - start)
 
 
 
@@ -166,7 +151,6 @@ class Controller(Singleton):
 
             each time you try to re-initialize a Controller.
         """
-        start = time.time()
         from seedsigner.gui.renderer import Renderer
         from seedsigner.hardware.microsd import MicroSD
 
@@ -195,13 +179,9 @@ class Controller(Singleton):
 
         # Other behavior constants
         controller.screensaver_activation_ms = 120 * 1000
-
-        print(f"Controller configured in {time.time() - start:.3f}s")
     
-        start = time.time()
         background_import_thread = BackgroundImportThread()
         background_import_thread.start()
-        print("Time elapsed through BackgroundImportThread.start():", time.time() - start)
 
         return cls._instance
 
@@ -214,15 +194,10 @@ class Controller(Singleton):
 
     @property
     def storage(self):
-        start = time.time()
-        did_sleep = False
         while not self._storage:
             # Wait for the BackgroundImportThread to finish initializing the storage.
             # This is a rare timing issue that likely only occurs in the test suite.
-            did_sleep = True
             time.sleep(0.001)
-        if did_sleep:
-            print(f"Controller.storage waited {time.time() - start:.3f}s for BackgroundImportThread")
         return self._storage
 
 
@@ -265,15 +240,7 @@ class Controller(Singleton):
         from .views import MainMenuView, BackStackView
         from .views.screensaver import OpeningSplashScreen
 
-        start = time.time()
-
-        opening_splash = OpeningSplashScreen()
-
-        print(f"Instantiating opening splash screen took {time.time() - start:.3f}s")
-        start = time.time()
-        opening_splash.start()
-
-        print(f"Opening splash screen took {time.time() - start:.3f}s")
+        OpeningSplashScreen().start()
 
         """ Class references can be stored as variables in python!
 

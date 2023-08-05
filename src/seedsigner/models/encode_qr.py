@@ -1,5 +1,3 @@
-print("encode_qr.py")
-
 import math
 
 from embit import bip32

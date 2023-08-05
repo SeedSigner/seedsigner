@@ -1,5 +1,3 @@
-print("psbt_views.py")
-
 import logging
 
 from embit.psbt import PSBT

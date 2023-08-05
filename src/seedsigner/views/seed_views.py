@@ -1,5 +1,3 @@
-print("seed_views.py")
-
 import embit
 import random
 import time
@@ -12,10 +10,10 @@ from typing import List
 
 from seedsigner.controller import Controller
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
-from seedsigner.helpers import embit_utils
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
 from seedsigner.gui.screens.screen import LargeIconStatusScreen, QRDisplayScreen
+from seedsigner.helpers import embit_utils
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
@@ -26,8 +24,7 @@ from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.views.psbt_views import PSBTChangeDetailsView
 from seedsigner.views.scan_views import ScanView
-
-from .view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
+from seedsigner.views.view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
 
 
 
