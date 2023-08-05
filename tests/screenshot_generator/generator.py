@@ -62,7 +62,7 @@ def test_generate_screenshots(target_locale):
     decoder = DecodeQR()
     decoder.add_data(BASE64_PSBT_1)
     controller.psbt = decoder.get_psbt()
-    controller.psbt_seed = seed_12b
+    controller.psbt_seed = seed_24
 
     # Multisig wallet descriptor for the multisig in the above PSBT
     MULTISIG_WALLET_DESCRIPTOR = """wsh(sortedmulti(1,[22bde1a9/48h/1h/0h/2h]tpubDFfsBrmpj226ZYiRszYi2qK6iGvh2vkkghfGB2YiRUVY4rqqedHCFEgw12FwDkm7rUoVtq9wLTKc6BN2sxswvQeQgp7m8st4FP8WtP8go76/{0,1}/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*))#3jhtf6yx"""
