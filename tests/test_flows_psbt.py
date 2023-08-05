@@ -41,7 +41,7 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
 			FlowStep(scan_views.ScanView, before_run=load_psbt_into_decoder),  # simulate read PSBT; ret val is ignored
 			FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.SCAN_SEED),
-			FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
+			FlowStep(scan_views.ScanSeedQRView, before_run=load_seed_into_decoder),
 			FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
 			FlowStep(seed_views.SeedOptionsView, is_redirect=True),
 			FlowStep(psbt_views.PSBTOverviewView),
