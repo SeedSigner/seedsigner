@@ -1271,13 +1271,12 @@ class MainMenuScreen(LargeButtonScreen):
 
     class SDCardNotificationToastThread(BaseThread):
         def run(self):
-            print("Started SDCardNotificationToastThread")
             activation_delay = 3  # seconds
             toast = ToastOverlay(
                 icon_name=FontAwesomeIconConstants.SDCARD,
                 color=GUIConstants.NOTIFICATION_COLOR,
                 label_text="Security tip:\nRemove SD card",
-                duration=999,  # seconds
+                duration=999999,  # persist "forever"
                 font_size=GUIConstants.BODY_FONT_SIZE,
                 height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
             )
@@ -1292,6 +1291,8 @@ class MainMenuScreen(LargeButtonScreen):
     
 
     def __post_init__(self):
+        from seedsigner.controller import Controller
         super().__post_init__()
-        self.threads.append(self.SDCardNotificationToastThread())
-
+        if Controller.get_instance().microsd.is_inserted:
+            # Remind user they can/should remove the SD card
+            self.threads.append(self.SDCardNotificationToastThread())

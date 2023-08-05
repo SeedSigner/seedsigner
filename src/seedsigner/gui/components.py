@@ -584,12 +584,12 @@ class ToastOverlay(BaseComponent):
         self.icon = Icon(
             image_draw=self.image_draw,
             canvas=self.canvas,
-            screen_x=GUIConstants.EDGE_PADDING + self.outline_thickness + GUIConstants.EDGE_PADDING,
+            screen_x=self.outline_thickness + 2*GUIConstants.EDGE_PADDING,  # Push the icon further from the left edge than strictly necessary
             icon_name=self.icon_name,
             icon_size=30,
             icon_color=self.color
         )
-        self.icon.screen_y = self.canvas_height - self.height + int((self.height - self.icon.height)/2)
+        self.icon.screen_y = self.canvas_height - self.height + int((self.height - self.icon.height)/2) - 1  # -1 fudge factor
         
         self.label = TextArea(
             image_draw=self.image_draw,
@@ -600,7 +600,7 @@ class ToastOverlay(BaseComponent):
             edge_padding=0,
             is_text_centered=False,
             auto_line_break=True,
-            width=self.canvas_width - self.icon.screen_x - self.icon.width - GUIConstants.COMPONENT_PADDING - self.outline_thickness - GUIConstants.EDGE_PADDING,
+            width=self.canvas_width - self.icon.screen_x - self.icon.width - GUIConstants.COMPONENT_PADDING - self.outline_thickness,
             screen_x=self.icon.screen_x + self.icon.width + GUIConstants.COMPONENT_PADDING,
             screen_y=self.canvas_height - self.height + GUIConstants.EDGE_PADDING,
             allow_text_overflow=False
@@ -621,7 +621,7 @@ class ToastOverlay(BaseComponent):
 
         with self.renderer.lock:
             self.image_draw.rounded_rectangle(
-                ( GUIConstants.EDGE_PADDING, self.canvas_height - self.height, self.canvas_width - GUIConstants.EDGE_PADDING, self.canvas_height),
+                (0, self.canvas_height - self.height, self.canvas_width, self.canvas_height),
                 fill=GUIConstants.BACKGROUND_COLOR,
                 radius=8,
                 outline=self.color,
