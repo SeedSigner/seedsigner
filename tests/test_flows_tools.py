@@ -48,7 +48,7 @@ class TestToolsFlows(FlowTest):
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
             FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.EXPLORER),
             FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_SEED),
-            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),  # simulate read SeedQR
+            FlowStep(scan_views.ScanSeedQRView, before_run=load_seed_into_decoder),  # simulate read SeedQR
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
             FlowStep(seed_views.SeedOptionsView, is_redirect=True),
             FlowStep(seed_views.SeedExportXpubScriptTypeView),
