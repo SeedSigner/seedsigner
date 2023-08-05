@@ -271,12 +271,13 @@ class ErrorView(View):
     next_destination: Destination = Destination(MainMenuView, clear_history=True)
 
     def run(self):
-        WarningScreen(
+        self.run_screen(
+            WarningScreen,
             title=self.title,
             status_headline=self.status_headline,
             text=self.text,
             button_data=[self.button_text],
-        ).display()
+        )
 
         return self.next_destination
 

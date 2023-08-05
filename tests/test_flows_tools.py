@@ -4,7 +4,7 @@ from base import FlowTest, FlowStep
 from seedsigner.controller import Controller
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
-from seedsigner.views.view import MainMenuView
+from seedsigner.views.view import ErrorView, MainMenuView
 from seedsigner.views import scan_views, seed_views, tools_views
 
 
@@ -70,3 +70,20 @@ class TestToolsFlows(FlowTest):
                 FlowStep(seed_views.SeedExportXpubScriptTypeView),
             ]
         )
+
+
+    def test_addressexplorer_scan_wrong_qrtype(self):
+        """
+        Scanning the wrong type of QR code when a SeedQR is expected should route to ErrorView
+        """
+        def load_wrong_data_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq")
+
+        # Finalize the new seed w/out passphrase
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_SEED),
+            FlowStep(scan_views.ScanSeedQRView, before_run=load_wrong_data_into_decoder),  # simulate scanning the wrong QR type
+            FlowStep(ErrorView),
+        ])
