@@ -1222,6 +1222,8 @@ class KeyboardScreen(BaseTopNavScreen):
         """
         return False
 
+
+
 class MicroSDToastScreen(BaseScreen):
     """
         This screen is an overlay with special behavior with the ToastOverlay component. The ToastOverlay component overides all button
@@ -1256,3 +1258,40 @@ class MicroSDToastScreen(BaseScreen):
             )
         
         self.toast.render()
+
+
+
+@dataclass
+class MainMenuScreen(LargeButtonScreen):
+    # Override LargeButtonScreen defaults
+    title_font_size: int = 26
+    show_back_button: bool = False
+    show_power_button: bool = True
+
+
+    class SDCardNotificationToastThread(BaseThread):
+        def run(self):
+            print("Started SDCardNotificationToastThread")
+            activation_delay = 3  # seconds
+            toast = ToastOverlay(
+                icon_name=FontAwesomeIconConstants.SDCARD,
+                color=GUIConstants.NOTIFICATION_COLOR,
+                label_text="Security tip:\nRemove SD card",
+                duration=999,  # seconds
+                font_size=GUIConstants.BODY_FONT_SIZE,
+                height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
+            )
+
+            start = time.time()
+            has_rendered = False
+            while self.keep_running:
+                if time.time() - start > activation_delay and not has_rendered:
+                    toast.render()
+                    has_rendered = True
+                time.sleep(0.1)
+    
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.threads.append(self.SDCardNotificationToastThread())
+

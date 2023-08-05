@@ -185,45 +185,33 @@ class MainMenuView(View):
     TOOLS = ("Tools", SeedSignerIconConstants.TOOLS)
     SETTINGS = ("Settings", SeedSignerIconConstants.SETTINGS)
 
-    # returns a Destination for: RemoveMicroSDWarningView or next_view
-    def microsd_warning_or_next_view(self, next_view):
-        if (self.settings.HOSTNAME == Settings.SEEDSIGNER_OS
-        and self.controller.microsd.warn_to_remove
-        and len(self.controller.storage.seeds) == 0
-        and self.controller.microsd.is_inserted()):
-            self.controller.microsd.warn_to_remove = False
-            return Destination(RemoveMicroSDWarningView, view_args={'next_view': next_view})
-        else:
-            return Destination(next_view)
 
     def run(self):
+        from seedsigner.gui.screens.screen import MainMenuScreen
         button_data = [self.SCAN, self.SEEDS, self.TOOLS, self.SETTINGS]
         selected_menu_num = self.run_screen(
-            LargeButtonScreen,
+            MainMenuScreen,
             title="Home",
-            title_font_size=26,
             button_data=button_data,
-            show_back_button=False,
-            show_power_button=True,
         )
 
         if selected_menu_num == RET_CODE__POWER_BUTTON:
             return Destination(PowerOptionsView)
 
         if button_data[selected_menu_num] == self.SCAN:
-            from .scan_views import ScanView
-            return self.microsd_warning_or_next_view(ScanView)
+            from seedsigner.views.scan_views import ScanView
+            return Destination(ScanView)
         
         elif button_data[selected_menu_num] == self.SEEDS:
-            from .seed_views import SeedsMenuView
-            return self.microsd_warning_or_next_view(SeedsMenuView)
+            from seedsigner.views.seed_views import SeedsMenuView
+            return Destination(SeedsMenuView)
 
         elif button_data[selected_menu_num] == self.TOOLS:
-            from .tools_views import ToolsMenuView
-            return self.microsd_warning_or_next_view(ToolsMenuView)
+            from seedsigner.views.tools_views import ToolsMenuView
+            return Destination(ToolsMenuView)
 
         elif button_data[selected_menu_num] == self.SETTINGS:
-            from .settings_views import SettingsMenuView
+            from seedsigner.views.settings_views import SettingsMenuView
             return Destination(SettingsMenuView)
 
 

@@ -572,68 +572,78 @@ class ToastOverlay(BaseComponent):
     icon_name: str = None
     color: str = None
     label_text: str = None
+    height: int = 20
+    font_size: int = 19
+    duration: int = 3  # seconds
+    outline_thickness: int = 2  # pixels
 
     def __post_init__(self):
         super().__post_init__()
 
+        # TODO: change absolute value pixels to use GUIConstants
         self.icon = Icon(
             image_draw=self.image_draw,
             canvas=self.canvas,
-            screen_x=20,
-            screen_y=190,
+            screen_x=GUIConstants.EDGE_PADDING + self.outline_thickness + GUIConstants.EDGE_PADDING,
             icon_name=self.icon_name,
             icon_size=30,
             icon_color=self.color
         )
+        self.icon.screen_y = self.canvas_height - self.height + int((self.height - self.icon.height)/2)
         
         self.label = TextArea(
             image_draw=self.image_draw,
             canvas=self.canvas,
             text=self.label_text,
-            font_size=19,
+            font_size=self.font_size,
             font_color=self.color,
             edge_padding=0,
             is_text_centered=False,
-            auto_line_break=False,
-            width=160,
-            height=20,
-            screen_x=55,
-            screen_y=195,
+            auto_line_break=True,
+            width=self.canvas_width - self.icon.screen_x - self.icon.width - GUIConstants.COMPONENT_PADDING - self.outline_thickness - GUIConstants.EDGE_PADDING,
+            screen_x=self.icon.screen_x + self.icon.width + GUIConstants.COMPONENT_PADDING,
+            screen_y=self.canvas_height - self.height + GUIConstants.EDGE_PADDING,
             allow_text_overflow=False
         )
-            
+
+
     def render(self):
         import time
         from seedsigner.controller import Controller
         from seedsigner.hardware.buttons import HardwareButtons
-        
+
         self.controller: Controller = Controller.get_instance()
         self.current_screen = self.renderer.canvas.copy()
         buttons = HardwareButtons.get_instance()
-        
-        # Special case when screensaver is running
-        if self.controller.is_screensaver_running:
-            buttons.override_ind = True
 
-        self.image_draw.rounded_rectangle(
-            ( GUIConstants.EDGE_PADDING + 2, self.canvas_height - 60, self.canvas_width - GUIConstants.EDGE_PADDING - 2, self.canvas_width - GUIConstants.EDGE_PADDING - 2),
-            fill=GUIConstants.BACKGROUND_COLOR,
-            radius=8,
-            outline=self.color,
-            width=2,
-        )
-        
-        self.icon.render()
-        self.label.render()
-        
-        self.renderer.show_image()
-        
-        t_end = time.time() + 3
+        # Special case when screensaver is running
+        buttons.override_ind = True
+
+        with self.renderer.lock:
+            self.image_draw.rounded_rectangle(
+                ( GUIConstants.EDGE_PADDING, self.canvas_height - self.height, self.canvas_width - GUIConstants.EDGE_PADDING, self.canvas_height),
+                fill=GUIConstants.BACKGROUND_COLOR,
+                radius=8,
+                outline=self.color,
+                width=self.outline_thickness,
+            )
+
+            self.icon.render()
+            self.label.render()
+
+            self.renderer.show_image()
+
+        t_end = time.time() + self.duration
+
+        # Persist until timeout...
         while time.time() < t_end:
+            # or hide it on button press
             if buttons.has_any_input():
                 break
-            
-        self.renderer.show_image(self.current_screen)
+
+        # Restore the screen as it was before the toast
+        with self.renderer.lock:
+            self.renderer.show_image(self.current_screen)
 
 
 
