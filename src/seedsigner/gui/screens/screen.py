@@ -1276,7 +1276,7 @@ class MainMenuScreen(LargeButtonScreen):
                 icon_name=FontAwesomeIconConstants.SDCARD,
                 color=GUIConstants.NOTIFICATION_COLOR,
                 label_text="Security tip:\nRemove SD card",
-                duration=999999,  # persist "forever"
+                duration=1e6,  # persist "forever"
                 font_size=GUIConstants.BODY_FONT_SIZE,
                 height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
             )
