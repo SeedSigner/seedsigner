@@ -363,7 +363,7 @@ class ToolsCalcFinalWordDoneScreen(ButtonListScreen):
 
         self.components.append(IconTextLine(
             icon_name=SeedSignerIconConstants.FINGERPRINT,
-            icon_color="0084ff",
+            icon_color="#0084ff",
             label_text="fingerprint",
             value_text=self.fingerprint,
             is_text_centered=True,
@@ -387,7 +387,7 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
         if self.fingerprint:
             self.components.append(IconTextLine(
                 icon_name=SeedSignerIconConstants.FINGERPRINT,
-                icon_color="0084ff",
+                icon_color="#0084ff",
                 label_text="Fingerprint",
                 value_text=self.fingerprint,
                 screen_x=GUIConstants.EDGE_PADDING,

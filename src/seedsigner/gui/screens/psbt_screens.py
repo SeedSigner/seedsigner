@@ -656,7 +656,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
             screen_y -= GUIConstants.COMPONENT_PADDING
         self.components.append(IconTextLine(
             icon_name=SeedSignerIconConstants.FINGERPRINT,
-            icon_color="0084ff",
+            icon_color="#0084ff",
             value_text=f"""{"Multisig" if self.is_multisig else self.fingerprint}: {"Change" if self.is_change_derivation_path else "Addr"} #{self.derivation_path_addr_index}""",
             is_text_centered=False,
             screen_x=GUIConstants.EDGE_PADDING,
