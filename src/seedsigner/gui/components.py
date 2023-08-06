@@ -35,6 +35,7 @@ class GUIConstants:
     ICON_FONT_SIZE = 22
     ICON_INLINE_FONT_SIZE = 24
     ICON_LARGE_BUTTON_SIZE = 48
+    ICON_TOAST_FONT_SIZE = 30
     ICON_PRIMARY_SCREEN_SIZE = 50
 
     TOP_NAV_TITLE_FONT_NAME = "OpenSans-SemiBold"
@@ -572,21 +573,19 @@ class ToastOverlay(BaseComponent):
     icon_name: str = None
     color: str = None
     label_text: str = None
-    height: int = 20
+    height: int = GUIConstants.ICON_TOAST_FONT_SIZE + 2*GUIConstants.EDGE_PADDING
     font_size: int = 19
-    duration: int = 3  # seconds
     outline_thickness: int = 2  # pixels
 
     def __post_init__(self):
         super().__post_init__()
 
-        # TODO: change absolute value pixels to use GUIConstants
         self.icon = Icon(
             image_draw=self.image_draw,
             canvas=self.canvas,
             screen_x=self.outline_thickness + 2*GUIConstants.EDGE_PADDING,  # Push the icon further from the left edge than strictly necessary
             icon_name=self.icon_name,
-            icon_size=30,
+            icon_size=GUIConstants.ICON_TOAST_FONT_SIZE,
             icon_color=self.color
         )
         self.icon.screen_y = self.canvas_height - self.height + int((self.height - self.icon.height)/2) - 1  # -1 fudge factor
@@ -602,48 +601,25 @@ class ToastOverlay(BaseComponent):
             auto_line_break=True,
             width=self.canvas_width - self.icon.screen_x - self.icon.width - GUIConstants.COMPONENT_PADDING - self.outline_thickness,
             screen_x=self.icon.screen_x + self.icon.width + GUIConstants.COMPONENT_PADDING,
-            screen_y=self.canvas_height - self.height + GUIConstants.EDGE_PADDING,
             allow_text_overflow=False
         )
+        self.label.screen_y = self.canvas_height - self.height + int((self.height - self.label.height)/2)
 
 
     def render(self):
-        import time
-        from seedsigner.controller import Controller
-        from seedsigner.hardware.buttons import HardwareButtons
+        self.image_draw.rounded_rectangle(
+            (0, self.canvas_height - self.height, self.canvas_width, self.canvas_height),
+            fill=GUIConstants.BACKGROUND_COLOR,
+            radius=8,
+            outline=self.color,
+            width=self.outline_thickness,
+        )
 
-        self.controller: Controller = Controller.get_instance()
-        self.current_screen = self.renderer.canvas.copy()
-        buttons = HardwareButtons.get_instance()
+        self.icon.render()
+        self.label.render()
 
-        # Special case when screensaver is running
-        buttons.override_ind = True
+        self.renderer.show_image()
 
-        with self.renderer.lock:
-            self.image_draw.rounded_rectangle(
-                (0, self.canvas_height - self.height, self.canvas_width, self.canvas_height),
-                fill=GUIConstants.BACKGROUND_COLOR,
-                radius=8,
-                outline=self.color,
-                width=self.outline_thickness,
-            )
-
-            self.icon.render()
-            self.label.render()
-
-            self.renderer.show_image()
-
-        t_end = time.time() + self.duration
-
-        # Persist until timeout...
-        while time.time() < t_end:
-            # or hide it on button press
-            if buttons.has_any_input():
-                break
-
-        # Restore the screen as it was before the toast
-        with self.renderer.lock:
-            self.renderer.show_image(self.current_screen)
 
 
 
