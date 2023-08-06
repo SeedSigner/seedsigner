@@ -1,5 +1,6 @@
+import time
 from dataclasses import dataclass
-from seedsigner.gui.components import BaseComponent, GUIConstants, Icon, TextArea
+from seedsigner.gui.components import BaseComponent, FontAwesomeIconConstants, GUIConstants, Icon, TextArea
 from seedsigner.models.threads import BaseThread
 
 
@@ -132,8 +133,6 @@ class BaseToastOverlayManagerThread(BaseThread):
                     # User has pressed a button, hide the toast
                     print(f"{self.__class__.__name__}: Exiting due to user input")
                     break
-
-                print(time.time(), self._toggle_renderer_lock)
 
                 if self._toggle_renderer_lock:
                     # Controller has notified us that another process needs the lock

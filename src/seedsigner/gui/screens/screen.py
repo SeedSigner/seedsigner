@@ -2,19 +2,16 @@ import time
 
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageColor
-from typing import Any, Callable, List, Tuple
-from seedsigner.gui.components import ToastOverlay
+from typing import Any, List, Tuple
+
+from seedsigner.gui.components import (GUIConstants,
+    BaseComponent, Button, Icon, IconButton, LargeIconButton,
+    SeedSignerIconConstants, TopNav, TextArea, load_image)
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
-
-from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-from seedsigner.models.settings import SettingsConstants
-
-from ..components import (FontAwesomeIconConstants, GUIConstants, BaseComponent, Button, Icon, IconButton,
-                          LargeIconButton, SeedSignerIconConstants, TopNav, TextArea, load_image, ToastOverlay,
-                          Fonts)
-
 from seedsigner.hardware.buttons import HardwareButtonsConstants, HardwareButtons
+from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
 
 # Must be huge numbers to avoid conflicting with the selected_button returned by the
