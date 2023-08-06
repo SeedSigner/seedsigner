@@ -571,7 +571,7 @@ class IconTextLine(BaseComponent):
 @dataclass
 class ToastOverlay(BaseComponent):
     icon_name: str = None
-    color: str = None
+    color: str = GUIConstants.NOTIFICATION_COLOR
     label_text: str = None
     height: int = GUIConstants.ICON_TOAST_FONT_SIZE + 2*GUIConstants.EDGE_PADDING
     font_size: int = 19

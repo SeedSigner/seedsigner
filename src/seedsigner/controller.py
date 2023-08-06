@@ -181,7 +181,8 @@ class Controller(Singleton):
         controller.back_stack = BackStack()
 
         # Other behavior constants
-        controller.screensaver_activation_ms = 120 * 1000
+        # controller.screensaver_activation_ms = 2 * 60 * 1000
+        controller.screensaver_activation_ms = 20 * 1000  # DEBUGGING
     
         background_import_thread = BackgroundImportThread()
         background_import_thread.start()

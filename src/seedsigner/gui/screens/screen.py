@@ -1240,19 +1240,10 @@ class MicroSDToastScreen(BaseScreen):
         super().__post_init__()
         self.current_screen = self.renderer.canvas.copy()
 
-        if self.action == MicroSD.ACTION__REMOVED:
-            self.toast = ToastOverlay(
-                icon_name=SeedSignerIconConstants.MICROSD,
-                color=GUIConstants.NOTIFICATION_COLOR,
-                label_text="SD card removed",
-            )
-        
-        elif self.action == MicroSD.ACTION__INSERTED:
-            self.toast = ToastOverlay(
-                icon_name=SeedSignerIconConstants.MICROSD,
-                color=GUIConstants.NOTIFICATION_COLOR,
-                label_text="SD card inserted"
-            )
+        self.toast = ToastOverlay(
+            icon_name=FontAwesomeIconConstants.SDCARD,
+            label_text="SD card removed" if self.action == MicroSD.ACTION__REMOVED else "SD card inserted",
+        )
 
 
     def _run(self):
@@ -1306,7 +1297,6 @@ class MainMenuScreen(LargeButtonScreen):
             activation_delay = 3  # seconds
             toast = ToastOverlay(
                 icon_name=FontAwesomeIconConstants.SDCARD,
-                color=GUIConstants.NOTIFICATION_COLOR,
                 label_text="Security tip:\nRemove SD card",
                 font_size=GUIConstants.BODY_FONT_SIZE,
                 height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
@@ -1326,6 +1316,14 @@ class MainMenuScreen(LargeButtonScreen):
                     if hw_inputs.has_any_input():
                         # User has pressed a button, hide the toast
                         break
+                    if controller.is_screensaver_running:
+                        # Have to release the lock so the screensaver can render
+                        renderer.lock.release()
+
+                        # Immediately attempt to reacquire the lock, but in reality this
+                        # thread will block here until the screensaver releases it.
+                        time.sleep(0.1)
+                        renderer.lock.acquire()
                     if time.time() - start > activation_delay and not has_rendered:
                         self.previous_screen_state = renderer.canvas.copy()
                         toast.render()
