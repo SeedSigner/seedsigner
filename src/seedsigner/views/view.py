@@ -260,6 +260,29 @@ class NotYetImplementedView(View):
 
 
 
+@dataclass
+class ErrorView(View):
+    """
+    """
+    title: str = "Error"
+    status_headline: str = None
+    text: str = None
+    button_text: str = None
+    next_destination: Destination = Destination(MainMenuView, clear_history=True)
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=self.title,
+            status_headline=self.status_headline,
+            text=self.text,
+            button_data=[self.button_text],
+        )
+
+        return self.next_destination
+
+
+
 class UnhandledExceptionView(View):
     def __init__(self, error: list[str]):
         self.error = error
