@@ -1,11 +1,11 @@
-import time
 import os
 
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
 from seedsigner.models.settings import Settings
-#from seedsigner.views.view import MicroSDToastView
 from seedsigner.gui.screens.screen import MicroSDToastScreen
+
+
 
 class MicroSD(Singleton, BaseThread):
     
@@ -29,15 +29,18 @@ class MicroSD(Singleton, BaseThread):
     
         return cls._instance
     
-    def start_detection(self):
-        self.start()
 
-    def is_inserted(self):
+    @classmethod
+    def is_inserted(cls):
         # could only be False in seedsigner-os, else True
         if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
-            return os.path.exists(self.MOUNT_POINT)
+            return os.path.exists(MicroSD.MOUNT_POINT)
         else:
             return True
+
+
+    def start_detection(self):
+        self.start()
 
 
     def run(self):
@@ -47,7 +50,7 @@ class MicroSD(Singleton, BaseThread):
         if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
 
             # at start-up, get current status and inform Settings
-            if self.is_inserted():
+            if MicroSD.is_inserted():
                 Settings.microsd_handler(self.ACTION__INSERTED)
             else:
                 Settings.microsd_handler(self.ACTION__REMOVED)

@@ -1256,7 +1256,7 @@ class MicroSDToastScreen(BaseScreen):
             # Hold onto the Renderer lock so we're guaranteed to restore the original
             # screen before any other listener can get a screen write in.
             self.renderer.lock.acquire()
-    
+
             # Persist until timeout...
             while time.time() < t_end:
                 # or hide it on button press
@@ -1287,6 +1287,7 @@ class MainMenuScreen(LargeButtonScreen):
             from seedsigner.controller import Controller
             from seedsigner.gui.renderer import Renderer
             from seedsigner.hardware.buttons import HardwareButtons
+            from seedsigner.hardware.microsd import MicroSD
             renderer = Renderer.get_instance()
             controller = Controller.get_instance()
             hw_inputs = HardwareButtons.get_instance()
@@ -1310,7 +1311,7 @@ class MainMenuScreen(LargeButtonScreen):
                 # screen before any other listener can get a screen write in.
                 renderer.lock.acquire()
                 while self.keep_running:
-                    if not controller.microsd.is_inserted:
+                    if not MicroSD.is_inserted():
                         # Card is removed! No need to keep running
                         break
                     if hw_inputs.has_any_input():
@@ -1339,9 +1340,9 @@ class MainMenuScreen(LargeButtonScreen):
     
 
     def __post_init__(self):
-        from seedsigner.controller import Controller
+        from seedsigner.hardware.microsd import MicroSD
         super().__post_init__()
-        if Controller.get_instance().microsd.is_inserted:
+        if MicroSD.is_inserted():
             # Remind user they can/should remove the SD card
             self.threads.append(self.SDCardNotificationToastThread())
     
