@@ -89,7 +89,6 @@ class OpeningSplashScreen(LogoScreen):
 
 
 
-
 class ScreensaverScreen(LogoScreen):
     def __init__(self, buttons):
         super().__init__()

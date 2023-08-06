@@ -3,18 +3,17 @@ import os
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
 from seedsigner.models.settings import Settings
-from seedsigner.gui.screens.screen import MicroSDToastScreen
 
 
 
 class MicroSD(Singleton, BaseThread):
-    
     MOUNT_POINT = "/mnt/microsd"
     FIFO_PATH = "/tmp/mdev_fifo"
     FIFO_MODE = 0o600
     ACTION__INSERTED = "add"
     ACTION__REMOVED = "remove"
     warn_to_remove = True
+
 
     @classmethod
     def get_instance(cls):
@@ -23,12 +22,12 @@ class MicroSD(Singleton, BaseThread):
             # Instantiate the one and only instance
             microsd = cls.__new__(cls)
             cls._instance = microsd
-            
+
             # explicitly call BaseThread __init__ since multiple class inheritance
             BaseThread.__init__(microsd)
     
         return cls._instance
-    
+
 
     @classmethod
     def is_inserted(cls):
@@ -44,6 +43,8 @@ class MicroSD(Singleton, BaseThread):
 
 
     def run(self):
+        from seedsigner.controller import Controller
+        from seedsigner.gui.toast import SDCardStateChangeToastManagerThread
         action = ""
         
         # explicitly only microsd add/remove detection in seedsigner-os
@@ -64,11 +65,10 @@ class MicroSD(Singleton, BaseThread):
                 with open(self.FIFO_PATH) as fifo:
                     action = fifo.read()
                     print(f"fifo message: {action}")
-            
+
                     Settings.microsd_handler(action=action)
 
                     if action == self.ACTION__INSERTED:
                         self.warn_to_remove = True
-                            
-                    toastscreen = MicroSDToastScreen(action=action)
-                    toastscreen.display()
+
+                    Controller.get_instance().activate_toast(SDCardStateChangeToastManagerThread(action=action))

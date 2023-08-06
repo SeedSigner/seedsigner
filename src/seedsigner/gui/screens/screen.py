@@ -2,7 +2,8 @@ import time
 
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageColor
-from typing import Any, List, Tuple
+from typing import Any, Callable, List, Tuple
+from seedsigner.gui.components import ToastOverlay
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
 
@@ -1225,132 +1226,8 @@ class KeyboardScreen(BaseTopNavScreen):
 
 
 @dataclass
-class MicroSDToastScreen(BaseScreen):
-    action: str = None
-    duration: int = 3  # seconds
-
-    """
-        This screen is an overlay with special behavior with the ToastOverlay component. The ToastOverlay component overides all button
-        input and captures the existing screen content and stashes it to be restored once X second passes or any button is pressed. The
-        display method on this screen will not complete until after the ToastOverlay render method is complete it's takeover of the screen.
-    """
-
-    def __post_init__(self):
-        from seedsigner.hardware.microsd import MicroSD
-        super().__post_init__()
-        self.current_screen = self.renderer.canvas.copy()
-
-        self.toast = ToastOverlay(
-            icon_name=FontAwesomeIconConstants.SDCARD,
-            label_text="SD card removed" if self.action == MicroSD.ACTION__REMOVED else "SD card inserted",
-        )
-
-
-    def _run(self):
-        t_end = time.time() + self.duration
-
-        # Special case when screensaver is running
-        self.hw_inputs.override_ind = True
-
-        try:
-            # Hold onto the Renderer lock so we're guaranteed to restore the original
-            # screen before any other listener can get a screen write in.
-            self.renderer.lock.acquire()
-
-            # Persist until timeout...
-            while time.time() < t_end:
-                # or hide it on button press
-                if self.hw_inputs.has_any_input():
-                    break
-        finally:
-            # Restore the screen as it was before the toast
-            self.renderer.show_image(self.current_screen)
-            self.renderer.lock.release()
-
-
-    def _render(self):
-        """ Override Screen.render() so the whole screen isn't cleared """
-        self.toast.render()
-
-
-
-@dataclass
 class MainMenuScreen(LargeButtonScreen):
     # Override LargeButtonScreen defaults
     title_font_size: int = 26
     show_back_button: bool = False
     show_power_button: bool = True
-
-
-    class SDCardNotificationToastThread(BaseThread):
-        def run(self):
-            from seedsigner.controller import Controller
-            from seedsigner.gui.renderer import Renderer
-            from seedsigner.hardware.buttons import HardwareButtons
-            from seedsigner.hardware.microsd import MicroSD
-            renderer = Renderer.get_instance()
-            controller = Controller.get_instance()
-            hw_inputs = HardwareButtons.get_instance()
-
-            # Special case when screensaver is running
-            hw_inputs.override_ind = True
-
-            activation_delay = 3  # seconds
-            toast = ToastOverlay(
-                icon_name=FontAwesomeIconConstants.SDCARD,
-                label_text="Security tip:\nRemove SD card",
-                font_size=GUIConstants.BODY_FONT_SIZE,
-                height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
-            )
-
-            start = time.time()
-            has_rendered = False
-            self.previous_screen_state = None
-            try:
-                # Hold onto the Renderer lock so we're guaranteed to restore the original
-                # screen before any other listener can get a screen write in.
-                renderer.lock.acquire()
-                while self.keep_running:
-                    if not MicroSD.is_inserted():
-                        # Card is removed! No need to keep running
-                        break
-                    if hw_inputs.has_any_input():
-                        # User has pressed a button, hide the toast
-                        break
-                    if controller.is_screensaver_running:
-                        # Have to release the lock so the screensaver can render
-                        renderer.lock.release()
-
-                        # Immediately attempt to reacquire the lock, but in reality this
-                        # thread will block here until the screensaver releases it.
-                        time.sleep(0.1)
-                        renderer.lock.acquire()
-                    if time.time() - start > activation_delay and not has_rendered:
-                        self.previous_screen_state = renderer.canvas.copy()
-                        toast.render()
-                        has_rendered = True
-                    time.sleep(0.1)
-            finally:
-                if has_rendered:
-                    renderer.show_image(self.previous_screen_state)
-                
-                # We're done, release the lock
-                renderer.lock.release()
-
-    
-
-    def __post_init__(self):
-        from seedsigner.hardware.microsd import MicroSD
-        super().__post_init__()
-        if MicroSD.is_inserted():
-            # Remind user they can/should remove the SD card
-            self.threads.append(self.SDCardNotificationToastThread())
-    
-
-    # DEBUGGING
-    # def _run(self):
-    #     from seedsigner.hardware.microsd import MicroSD
-    #     toast = MicroSDToastScreen(action=MicroSD.ACTION__INSERTED)
-    #     toast.display()
-    #     return super()._run()
-    # DEBUGGING

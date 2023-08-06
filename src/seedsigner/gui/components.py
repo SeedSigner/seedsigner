@@ -569,61 +569,6 @@ class IconTextLine(BaseComponent):
 
 
 @dataclass
-class ToastOverlay(BaseComponent):
-    icon_name: str = None
-    color: str = GUIConstants.NOTIFICATION_COLOR
-    label_text: str = None
-    height: int = GUIConstants.ICON_TOAST_FONT_SIZE + 2*GUIConstants.EDGE_PADDING
-    font_size: int = 19
-    outline_thickness: int = 2  # pixels
-
-    def __post_init__(self):
-        super().__post_init__()
-
-        self.icon = Icon(
-            image_draw=self.image_draw,
-            canvas=self.canvas,
-            screen_x=self.outline_thickness + 2*GUIConstants.EDGE_PADDING,  # Push the icon further from the left edge than strictly necessary
-            icon_name=self.icon_name,
-            icon_size=GUIConstants.ICON_TOAST_FONT_SIZE,
-            icon_color=self.color
-        )
-        self.icon.screen_y = self.canvas_height - self.height + int((self.height - self.icon.height)/2) - 1  # -1 fudge factor
-        
-        self.label = TextArea(
-            image_draw=self.image_draw,
-            canvas=self.canvas,
-            text=self.label_text,
-            font_size=self.font_size,
-            font_color=self.color,
-            edge_padding=0,
-            is_text_centered=False,
-            auto_line_break=True,
-            width=self.canvas_width - self.icon.screen_x - self.icon.width - GUIConstants.COMPONENT_PADDING - self.outline_thickness,
-            screen_x=self.icon.screen_x + self.icon.width + GUIConstants.COMPONENT_PADDING,
-            allow_text_overflow=False
-        )
-        self.label.screen_y = self.canvas_height - self.height + int((self.height - self.label.height)/2)
-
-
-    def render(self):
-        self.image_draw.rounded_rectangle(
-            (0, self.canvas_height - self.height, self.canvas_width, self.canvas_height),
-            fill=GUIConstants.BACKGROUND_COLOR,
-            radius=8,
-            outline=self.color,
-            width=self.outline_thickness,
-        )
-
-        self.icon.render()
-        self.label.render()
-
-        self.renderer.show_image()
-
-
-
-
-@dataclass
 class FormattedAddress(BaseComponent):
     """
         Display a Bitcoin address in a "{first 7} {middle} {last 7}" formatted view with
