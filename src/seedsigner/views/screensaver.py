@@ -140,9 +140,9 @@ class ScreensaverScreen(LogoScreen):
         # never gives up the lock until it returns.
         with self.renderer.lock:
             try:
-                while True:
+                while self._is_running:
                     if self.buttons.has_any_input() or self.buttons.override_ind:
-                        return self.stop()
+                        break
 
                     # Must crop the image to the exact display size
                     crop = self.image.crop((
@@ -175,20 +175,23 @@ class ScreensaverScreen(LogoScreen):
                         self.increment_y = self.rand_increment()
                         if self.increment_y > 0.0:
                             self.increment_y *= -1.0
+
             except KeyboardInterrupt as e:
                 # Exit triggered; close gracefully
                 print("Shutting down Screensaver")
-                self.stop()
 
                 # Have to let the interrupt bubble up to exit the main app
                 raise e
 
+            finally:
+                self._is_running = False
+
+                # Restore the original screen
+                self.renderer.show_image(self.last_screen)
+
 
 
     def stop(self):
-        # Restore the original screen
-        self.renderer.show_image(self.last_screen)
-
         self._is_running = False
 
 

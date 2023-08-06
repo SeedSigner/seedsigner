@@ -402,6 +402,7 @@ class Controller(Singleton):
         """
         if self.is_screensaver_running:
             # New toast notifications break out of the Screensaver
+            print("Controller: stopping screensaver")
             self.screensaver.stop()
 
         if self.toast_notification_thread and self.toast_notification_thread.is_alive():

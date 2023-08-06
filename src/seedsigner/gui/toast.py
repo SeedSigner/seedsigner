@@ -119,7 +119,7 @@ class BaseToastOverlayManagerThread(BaseThread):
             print(f"{self.__class__.__name__}: started")
             start = time.time()
             has_rendered = False
-            self.previous_screen_state = None
+            previous_screen_state = None
             if self.activation_delay > 0:
                 time.sleep(self.activation_delay)
 
@@ -151,7 +151,7 @@ class BaseToastOverlayManagerThread(BaseThread):
                     print(f"{self.__class__.__name__}: Lock re-acquired")
 
                 if not has_rendered:
-                    self.previous_screen_state = self.renderer.canvas.copy()
+                    previous_screen_state = self.renderer.canvas.copy()
                     print(f"{self.__class__.__name__}: Showing toast")
                     self.toast.render()
                     has_rendered = True
@@ -167,7 +167,8 @@ class BaseToastOverlayManagerThread(BaseThread):
             print(f"{self.__class__.__name__}: exiting")
             if has_rendered and self.renderer.lock.locked():
                 # As far as we know, we currently hold the Renderer.lock
-                self.renderer.show_image(self.previous_screen_state)
+                self.renderer.show_image(previous_screen_state)
+                print(f"{self.__class__.__name__}: restored previous screen state")
             
             # We're done, release the lock
             self.renderer.lock.release()
