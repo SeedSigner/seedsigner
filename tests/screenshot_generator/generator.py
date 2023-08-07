@@ -1,9 +1,17 @@
 import embit
 import os
-import pathlib
-import pytest
-import shutil
-from mock import Mock, patch
+import sys
+from mock import Mock, patch, MagicMock
+
+# Prevent importing modules w/Raspi hardware dependencies.
+# These must precede any SeedSigner imports.
+sys.modules['seedsigner.hardware.ST7789'] = MagicMock()
+sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
+sys.modules['seedsigner.views.screensaver'] = MagicMock()
+sys.modules['seedsigner.hardware.buttons'] = MagicMock()
+sys.modules['seedsigner.hardware.camera'] = MagicMock()
+sys.modules['seedsigner.hardware.microsd'] = MagicMock()
+
 
 from seedsigner.controller import Controller
 from seedsigner.gui.renderer import Renderer
@@ -18,7 +26,7 @@ from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, NotYe
     psbt_views, scan_views, seed_views, settings_views, tools_views)
 from seedsigner.views.view import View
 
-from .utils import ScreenshotComplete, ScreenshotRenderer
+from tests.screenshot_generator.utils import ScreenshotComplete, ScreenshotRenderer
 
 
 
@@ -30,12 +38,8 @@ def test_generate_screenshots(target_locale):
         When the `Renderer` instance is needed, we patch in our own test-only
         `ScreenshotRenderer`.
     """
-    # Disable hardware dependencies by essentially wiping out this class
-    HardwareButtons.get_instance = Mock()
-    Camera.get_instance = Mock()
-
     # Prep the ScreenshotRenderer that will be patched over the normal Renderer
-    screenshot_root = "/home/pi/seedsigner-screenshots"
+    screenshot_root = os.path.join(os.getcwd(), "seedsigner-screenshots")
     ScreenshotRenderer.configure_instance()
     screenshot_renderer: ScreenshotRenderer = ScreenshotRenderer.get_instance()
 

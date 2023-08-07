@@ -7,3 +7,4 @@ src/seedsigner/models/settings_definition.json
 .idea
 *.mo
 .coverage
+seedsigner-screenshots
