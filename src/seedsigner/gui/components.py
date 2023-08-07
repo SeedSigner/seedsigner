@@ -99,11 +99,13 @@ class FontAwesomeIconConstants:
 
 
 class SeedSignerIconConstants:
+    # Menu icons
     SCAN = "\ue900"
     SEEDS = "\ue901"
     SETTINGS = "\ue902"
     TOOLS = "\ue903"
 
+    # Utility icons
     BACK = "\ue904"
     CHEVRON_DOWN = "\ue905"
     CHEVRON_LEFT = "\ue906"
@@ -115,10 +117,12 @@ class SeedSignerIconConstants:
     PLUS = "\ue90c"
     POWER = "\ue90d"
 
+    # Messaging icons
     ERROR = "\ue90e"
     SUCCESS = "\ue90f"
     WARNING = "\ue910"
 
+    # Informational icons
     ADDRESS = "\ue911"
     CHANGE = "\ue912"
     DERIVATION = "\ue913"
@@ -126,6 +130,7 @@ class SeedSignerIconConstants:
     FINGERPRINT = "\ue915"
     PASSPHRASE = "\ue916"
 
+    # Misc icons
     BITCOIN = "\ue917"
     BITCOIN_ALT = "\ue918"
     BRIGHTNESS = "\ue919"
