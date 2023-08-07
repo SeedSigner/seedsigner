@@ -79,7 +79,6 @@ class SeedSelectSeedView(View):
     SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-    button_data = []
 
 
     def __init__(self, flow: str = Controller.FLOW__VERIFY_SINGLESIG_ADDR):
@@ -107,25 +106,25 @@ class SeedSelectSeedView(View):
         else:
             raise Exception(f"Unsupported `flow` specified: {self.flow}")
 
-        self.button_data = []
+        button_data = []
         for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
             
             if seed.passphrase is not None:
                 # TODO: Include lock icon on right side of button
                 pass
-            self.button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+            button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT, "blue"))
         
-        self.button_data.append(self.SCAN_SEED)
-        self.button_data.append(self.TYPE_12WORD)
-        self.button_data.append(self.TYPE_24WORD)
+        button_data.append(self.SCAN_SEED)
+        button_data.append(self.TYPE_12WORD)
+        button_data.append(self.TYPE_24WORD)
 
         selected_menu_num = self.run_screen(
             seed_screens.SeedSelectSeedScreen,
             title=title,
             text=text,
             is_button_text_centered=False,
-            button_data=self.button_data
+            button_data=button_data,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -143,13 +142,13 @@ class SeedSelectSeedView(View):
 
         self.controller.resume_main_flow = self.flow
 
-        if self.button_data[selected_menu_num] == self.SCAN_SEED:
+        if button_data[selected_menu_num] == self.SCAN_SEED:
             from seedsigner.views.scan_views import ScanView
             return Destination(ScanView)
 
-        elif self.button_data[selected_menu_num] in [self.TYPE_12WORD, self.TYPE_24WORD]:
+        elif button_data[selected_menu_num] in [self.TYPE_12WORD, self.TYPE_24WORD]:
             from seedsigner.views.seed_views import SeedMnemonicEntryView
-            if self.button_data[selected_menu_num] == self.TYPE_12WORD:
+            if button_data[selected_menu_num] == self.TYPE_12WORD:
                 self.controller.storage.init_pending_mnemonic(num_words=12)
             else:
                 self.controller.storage.init_pending_mnemonic(num_words=24)
@@ -1561,7 +1560,7 @@ class AddressVerificationStartView(View):
 
             else:
                 sig_type = SettingsConstants.SINGLE_SIG
-                destination = Destination(SeedSingleSigAddressVerificationSelectSeedView, skip_current_view=True)
+                destination = Destination(SeedSelectSeedView, skip_current_view=True)
 
         elif self.controller.unverified_address["script_type"] == SettingsConstants.TAPROOT:
             # TODO: add Taproot support
@@ -1623,61 +1622,6 @@ class AddressVerificationSigTypeView(View):
         self.controller.unverified_address["derivation_path"] = derivation_path
 
         return destination
-
-
-
-class SeedSingleSigAddressVerificationSelectSeedView(View):
-    def run(self):
-        seeds = self.controller.storage.seeds
-
-        SCAN_SEED = ("Scan a seed", SeedSignerIconConstants.QRCODE)
-        TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
-        TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-        button_data = []
-
-        text = "Load the seed to verify"
-
-        for seed in seeds:
-            button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT))
-            text = "Select seed to verify"
-
-        button_data.append(SCAN_SEED)
-        button_data.append(TYPE_12WORD)
-        button_data.append(TYPE_24WORD)
-
-        selected_menu_num = seed_screens.SeedSingleSigAddressVerificationSelectSeedScreen(
-            title="Verify Address",
-            text=text,
-            is_button_text_centered=False,
-            button_data=button_data
-        ).display()
-
-        if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-        
-        if len(seeds) > 0 and selected_menu_num < len(seeds):
-            # User selected one of the n seeds
-            return Destination(
-                SeedAddressVerificationView,
-                view_args=dict(
-                    seed_num=selected_menu_num,
-                )
-            )
-
-        self.controller.resume_main_flow = Controller.FLOW__VERIFY_SINGLESIG_ADDR
-
-        if button_data[selected_menu_num] == SCAN_SEED:
-            from seedsigner.views.scan_views import ScanSeedQRView
-            return Destination(ScanSeedQRView)
-
-        elif button_data[selected_menu_num] in [TYPE_12WORD, TYPE_24WORD]:
-            from seedsigner.views.seed_views import SeedMnemonicEntryView
-            if button_data[selected_menu_num] == TYPE_12WORD:
-                self.controller.storage.init_pending_mnemonic(num_words=12)
-            else:
-                self.controller.storage.init_pending_mnemonic(num_words=24)
-            return Destination(SeedMnemonicEntryView)
 
 
 

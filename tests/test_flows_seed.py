@@ -291,7 +291,6 @@ class TestSeedFlows(FlowTest):
         )
 
 
-
     def test_sign_message_flow(self):
         """
         """
