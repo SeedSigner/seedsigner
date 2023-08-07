@@ -250,6 +250,7 @@ class PSBTAddressDetailsView(View):
             # Should not be able to get here
             raise Exception("Routing error")
 
+        title = "Will Send"
         if psbt_parser.num_destinations > 1:
             title += f" (#{self.address_num + 1})"
 
