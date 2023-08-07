@@ -26,7 +26,7 @@ from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, NotYe
     psbt_views, scan_views, seed_views, settings_views, tools_views)
 from seedsigner.views.view import View
 
-from tests.screenshot_generator.utils import ScreenshotComplete, ScreenshotRenderer
+from .utils import ScreenshotComplete, ScreenshotRenderer
 
 
 
