@@ -256,7 +256,3 @@ python3 mnemonic_generation.py -h
         # GENERATE 256 random coin flips / 24-word mnemonic
         python3 mnemonic_generation.py coins rand24
 ```
-
-
-### Epilogue
-You can use these methods to do dry run time to time to verify that no one has changed the micro sdcard. But do not use the generated 24 words as a valid wallet, they need to be generated alone, only on the seedsigner!
