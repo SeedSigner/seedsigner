@@ -269,18 +269,17 @@ class PSBTAddressDetailsView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
+        if self.address_num < len(psbt_parser.destination_addresses) - 1:
+            # Show the next receive addr
+            return Destination(PSBTAddressDetailsView, view_args={"address_num": self.address_num + 1})
+
+        elif psbt_parser.change_amount > 0:
+            # Move on to display change
+            return Destination(PSBTChangeDetailsView, view_args={"change_address_num": 0})
+
         else:
-            if self.address_num < len(psbt_parser.destination_addresses) - 1:
-                # Show the next receive addr
-                return Destination(PSBTAddressDetailsView, view_args={"address_num": self.address_num + 1})
-
-            elif psbt_parser.change_amount > 0:
-                # Move on to display change
-                return Destination(PSBTChangeDetailsView, view_args={"change_address_num": 0})
-
-            else:
-                # There's no change output to verify. Move on to sign the PSBT.
-                return Destination(PSBTFinalizeView)
+            # There's no change output to verify. Move on to sign the PSBT.
+            return Destination(PSBTFinalizeView)
 
 
 
