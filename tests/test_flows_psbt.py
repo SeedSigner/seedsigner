@@ -46,7 +46,7 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(seed_views.SeedOptionsView, is_redirect=True),
 			FlowStep(psbt_views.PSBTOverviewView),
 			FlowStep(psbt_views.PSBTMathView),
-			FlowStep(psbt_views.PSBTAddressDetailsView, button_data_selection=psbt_views.PSBTAddressDetailsView.NEXT),
+			FlowStep(psbt_views.PSBTAddressDetailsView, button_data_selection=0),
 			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
 			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
 			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
