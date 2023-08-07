@@ -32,8 +32,9 @@ class PSBTSelectSeedView(View):
                  # skip the seed prompt if a seed was previous selected and has matching input fingerprint
                  return Destination(PSBTOverviewView)
 
+        seeds = self.controller.storage.seeds
         button_data = []
-        for seed in self.controller.storage.seeds:
+        for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
             if not PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 # Doesn't look like this seed can sign the current PSBT
@@ -54,8 +55,6 @@ class PSBTSelectSeedView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-
-        seeds = self.controller.storage.seeds
 
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
@@ -241,7 +240,7 @@ class PSBTAddressDetailsView(View):
     def __init__(self, address_num):
         super().__init__()
         self.address_num = address_num
-    
+
 
     def run(self):
         psbt_parser: PSBTParser = self.controller.psbt_parser
