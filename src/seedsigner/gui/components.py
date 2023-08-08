@@ -20,12 +20,12 @@ class GUIConstants:
 
     BACKGROUND_COLOR = "black"
     WARNING_COLOR = "#FFD60A"
-    DIRE_WARNING_COLOR = "red"
-    SUCCESS_COLOR = "#00dd00"
-    BITCOIN_ORANGE = "#ff9416"
-    ACCENT_COLOR = "orange"
-    TESTNET_COLOR = "#00f100"
-    REGTEST_COLOR = "#00caf1"
+    DIRE_WARNING_COLOR = "FF453A"
+    SUCCESS_COLOR = "#30D158"
+    BITCOIN_ORANGE = "#FF9416"
+    ACCENT_COLOR = "FF9F0A"
+    TESTNET_COLOR = "#00F100"
+    REGTEST_COLOR = "#00CAF1"
 
     ICON_FONT_NAME__FONT_AWESOME = "Font_Awesome_6_Free-Solid-900"
     ICON_FONT_NAME__SEEDSIGNER = "seedsigner-icons"
@@ -71,7 +71,7 @@ class FontAwesomeIconConstants:
     CAMERA = "\uf030"
     CHEVRON_UP = "\uf077"
     CHEVRON_DOWN = "\uf078"
-    SOLID_CIRCLE_CHECK = "\uf058"
+    #SOLID_CIRCLE_CHECK = "\uf058"
     CIRCLE = "\uf111"
     CIRCLE_CHEVRON_RIGHT = "\uf138"
     DICE = "\uf522"
@@ -86,14 +86,14 @@ class FontAwesomeIconConstants:
     MAP = "\uf279"
     PAPER_PLANE = "\uf1d8"
     PEN = "\uf304"
-    ROTATE_RIGHT = "\uf2f9"
+    #ROTATE_RIGHT = "\uf2f9"
     SDCARD = "\uf7c2"
-    SQUARE = "\uf0c8"
+    #SQUARE = "\uf0c8"
     SQUARE_CARET_DOWN = "\uf150"
     SQUARE_CARET_LEFT = "\uf191"
     SQUARE_CARET_RIGHT = "\uf152"
     SQUARE_CARET_UP = "\uf151"
-    SQUARE_CHECK = "\uf14a"
+    #SQUARE_CHECK = "\uf14a"
     UNLOCK = "\uf09c"
     X = "\u0058"
 
@@ -107,35 +107,40 @@ class SeedSignerIconConstants:
 
     # Utility icons
     BACK = "\ue904"
-    CHEVRON_DOWN = "\ue905"
-    CHEVRON_LEFT = "\ue906"
-    CHEVRON_RIGHT = "\ue907"
-    CHEVRON_UP = "\ue908"
-    CLOSE = "\ue909"
-    PAGE_DOWN = "\ue90a"
-    PAGE_UP = "\ue90b"
-    PLUS = "\ue90c"
-    POWER = "\ue90d"
+    CHECK = "\ue905"
+    CHECKBOX = "\ue906"
+    CHECKBOX_SELECTED = "\ue907"
+    CHEVRON_DOWN = "\ue908"
+    CHEVRON_LEFT = "\ue909"
+    CHEVRON_RIGHT = "\ue90a"
+    CHEVRON_UP = "\ue90b"
+    CLOSE = "\ue90c"
+    PAGE_DOWN = "\ue90d"
+    PAGE_UP = "\ue90e"
+    PLUS = "\ue90f"
+    POWER = "\ue910"
+    RESTART = "\ue911"
 
     # Messaging icons
-    ERROR = "\ue90e"
-    SUCCESS = "\ue90f"
-    WARNING = "\ue910"
+    ERROR = "\ue912"
+    SUCCESS = "\ue913"
+    WARNING = "\ue914"
 
     # Informational icons
-    ADDRESS = "\ue911"
-    CHANGE = "\ue912"
-    DERIVATION = "\ue913"
-    FEE = "\ue914"
-    FINGERPRINT = "\ue915"
-    PASSPHRASE = "\ue916"
+    ADDRESS = "\ue915"
+    CHANGE = "\ue916"
+    DERIVATION = "\ue917"
+    FEE = "\ue918"
+    FINGERPRINT = "\ue919"
+    PASSPHRASE = "\ue91a"
 
     # Misc icons
-    BITCOIN = "\ue917"
-    BITCOIN_ALT = "\ue918"
-    BRIGHTNESS = "\ue919"
-    MICROSD = "\ue91a"
-    QRCODE = "\ue91b"
+    BITCOIN = "\ue91b"
+    BITCOIN_ALT = "\ue91c"
+    BRIGHTNESS = "\ue91d"
+    MICROSD = "\ue91e"
+    QRCODE = "\ue91f"
+    SDCARD = "\ue920"
 
     MIN_VALUE = SCAN
     MAX_VALUE = QRCODE
@@ -1217,8 +1222,8 @@ class CheckedSelectionButton(Button):
 
     def __post_init__(self):
         self.is_text_centered = False
-        self.icon_name = FontAwesomeIconConstants.SOLID_CIRCLE_CHECK
-        self.icon_color = "#00dd00"
+        self.icon_name = SeedSignerIconConstants.CHECK
+        self.icon_color = GUIConstants.SUCCESS_COLOR
         super().__post_init__()
 
         if not self.is_checked:
@@ -1236,10 +1241,10 @@ class CheckboxButton(Button):
     def __post_init__(self):
         self.is_text_centered = False
         if self.is_checked:
-            self.icon_name = FontAwesomeIconConstants.SQUARE_CHECK
-            self.icon_color = "#00dd00"
+            self.icon_name = SeedSignerIconConstants.CHECKBOX_SELECTED
+            self.icon_color = GUIConstants.SUCCESS_COLOR
         else:
-            self.icon_name = FontAwesomeIconConstants.SQUARE
+            self.icon_name = SeedSignerIconConstants.CHECKBOX
             self.icon_color = GUIConstants.BODY_FONT_COLOR
         super().__post_init__()
 

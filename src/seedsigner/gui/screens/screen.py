@@ -1059,7 +1059,7 @@ class KeyboardScreen(BaseTopNavScreen):
 
             # Render the right button panel (only has a Key3 "Save" button)
             self.save_button = IconButton(
-                icon_name=FontAwesomeIconConstants.SOLID_CIRCLE_CHECK,
+                icon_name=SeedSignerIconConstants.CHECK,
                 icon_color=GUIConstants.SUCCESS_COLOR,
                 width=right_panel_buttons_width,
                 screen_x=hw_button_x,

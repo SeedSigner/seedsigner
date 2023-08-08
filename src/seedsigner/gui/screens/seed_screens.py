@@ -795,7 +795,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         )
 
         self.hw_button3 = IconButton(
-            icon_name=FontAwesomeIconConstants.SOLID_CIRCLE_CHECK,
+            icon_name=SeedSignerIconConstants.CHECK,
             icon_color=GUIConstants.SUCCESS_COLOR,
             width=self.right_panel_buttons_width,
             screen_x=hw_button_x,

@@ -175,7 +175,7 @@ class MainMenuView(View):
 
 
 class PowerOptionsView(View):
-    RESET = ("Restart", FontAwesomeIconConstants.ROTATE_RIGHT)
+    RESET = ("Restart", SeedSignerIconConstants.RESTART)
     POWER_OFF = ("Power Off", SeedSignerIconConstants.POWER)
 
     def run(self):

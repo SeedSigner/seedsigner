@@ -666,7 +666,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
         if self.is_change_addr_verified:
             self.components.append(IconTextLine(
                 icon_name=SeedSignerIconConstants.SUCCESS,
-                icon_color="#00dd00",
+                icon_color=GUIConstants.SUCCESS_COLOR,
                 value_text="Address verified!",
                 is_text_centered=False,
                 screen_x=GUIConstants.EDGE_PADDING,
