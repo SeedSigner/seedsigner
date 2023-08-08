@@ -22,8 +22,9 @@ class GUIConstants:
     WARNING_COLOR = "#FFD60A"
     DIRE_WARNING_COLOR = "#FF453A"
     SUCCESS_COLOR = "#30D158"
-    BITCOIN_ORANGE = "#FF9416"
+    INFO_COLOR = "#0084FF"
     ACCENT_COLOR = "#FF9F0A"
+    BITCOIN_ORANGE = "#FF9416"
     TESTNET_COLOR = "#00F100"
     REGTEST_COLOR = "#00CAF1"
 
@@ -43,7 +44,7 @@ class GUIConstants:
     BODY_FONT_SIZE = 17
     BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE
     BODY_FONT_MIN_SIZE = 15
-    BODY_FONT_COLOR = "#f8f8f8"
+    BODY_FONT_COLOR = "#FCFCFC"
     BODY_LINE_SPACING = COMPONENT_PADDING
 
     FIXED_WIDTH_FONT_NAME = "Inconsolata-Regular"
@@ -54,12 +55,12 @@ class GUIConstants:
 
     BUTTON_FONT_NAME = "OpenSans-SemiBold"
     BUTTON_FONT_SIZE = 18
-    BUTTON_FONT_COLOR = "#e8e8e8"
-    BUTTON_BACKGROUND_COLOR = "#2c2c2c"
+    BUTTON_FONT_COLOR = "#FCFCFC"
+    BUTTON_BACKGROUND_COLOR = "#2C2C2C"
     BUTTON_HEIGHT = 32
-    BUTTON_SELECTED_FONT_COLOR = "black"
+    BUTTON_SELECTED_FONT_COLOR = BACKGROUND_COLOR
     
-    NOTIFICATION_COLOR = "#00f100"
+    NOTIFICATION_COLOR = "#00F100"
 
 
 
@@ -71,7 +72,6 @@ class FontAwesomeIconConstants:
     CAMERA = "\uf030"
     CHEVRON_UP = "\uf077"
     CHEVRON_DOWN = "\uf078"
-    #SOLID_CIRCLE_CHECK = "\uf058"
     CIRCLE = "\uf111"
     CIRCLE_CHEVRON_RIGHT = "\uf138"
     DICE = "\uf522"
@@ -86,14 +86,10 @@ class FontAwesomeIconConstants:
     MAP = "\uf279"
     PAPER_PLANE = "\uf1d8"
     PEN = "\uf304"
-    #ROTATE_RIGHT = "\uf2f9"
-    SDCARD = "\uf7c2"
-    #SQUARE = "\uf0c8"
     SQUARE_CARET_DOWN = "\uf150"
     SQUARE_CARET_LEFT = "\uf191"
     SQUARE_CARET_RIGHT = "\uf152"
     SQUARE_CARET_UP = "\uf151"
-    #SQUARE_CHECK = "\uf14a"
     UNLOCK = "\uf09c"
     X = "\u0058"
 
