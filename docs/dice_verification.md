@@ -259,3 +259,12 @@ python3 mnemonic_generation.py -h
         # GENERATE 256 random coin flips / 24-word mnemonic
         python3 mnemonic_generation.py coins rand24
 ```
+
+### How to get the same results in iancoleman.io
+Always specify your expected length in the "Mnemonic Length" droplist (defaults to "Use Raw Entropy (3 words per 32 bits)").
+
+Dice Rolls: Do NOT use the "Dice [1-6]" option; select "Base 10 [0-9]" or "Hex [0-9A-F]"
+
+Zero-indexed dice rolls: Select "Base 6 [0-5]", "Base 10 [0-9]", or "Hex [0-9A-F]"
+
+Coin Flips: Select "Binary [0-1]", "Base 6 [0-5]", "Base 10 [0-9]", or "Hex [0-9A-F]"
