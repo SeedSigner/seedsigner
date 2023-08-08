@@ -1424,7 +1424,7 @@ def reflow_text_for_width(text: str,
     def _add_text_line(text, text_width):
         text_lines.append({"text": text, "text_width": text_width})
 
-    if full_text_width < width:
+    if "\n" not in text and full_text_width < width:
         # The whole text fits on one line
         _add_text_line(text, full_text_width)        
 
@@ -1477,7 +1477,6 @@ def reflow_text_for_width(text: str,
                     _add_text_line(" ".join(words[0:index]), tw)
                     words = words[index:]
 
-    print(f"{time() - start:0.2f}s")
     return text_lines
 
 
@@ -1508,7 +1507,8 @@ def reflow_text_into_pages(text: str,
         print(f"""{line_dict["text_width"]:3}: {line_dict["text"]}""")
 
     font = Fonts.get_font(font_name=font_name, size=font_size)
-    # Measure the font's height above baseline via the "baseline" anchor ("_s")
+    # Measure the font's height above baseline and how for below it certain characters
+    # (e.g. lowercase "g") can render.
     (left, top, right, bottom) = font.getbbox("Agjpqy", anchor="ls")
     font_height_above_baseline = -1 * top
     font_height_below_baseline = bottom

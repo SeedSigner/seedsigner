@@ -1944,8 +1944,7 @@ class SeedSignMessageConfirmMessageView(View):
         super().__init__()
         self.page_num = page_num  # Note: zero-indexed numbering!
 
-        self.data = self.controller.sign_message_data
-        self.seed_num = self.data.get("seed_num")
+        self.seed_num = self.controller.sign_message_data.get("seed_num")
         if self.seed_num is None:
             raise Exception("Routing error: seed_num hasn't been set")
 
@@ -1995,7 +1994,14 @@ class SeedSignMessageConfirmAddressView(View):
             if self.settings.get_value(SettingsConstants.SETTING__NETWORK) in [SettingsConstants.TESTNET, SettingsConstants.REGTEST]:
                 addr_format["network"] = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
             else:
-                raise Exception(f"Current network setting ({self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK)}) doesn't match {self.derivation_path}")
+                from seedsigner.views.view import NetworkMismatchErrorView
+                self.set_redirect(Destination(NetworkMismatchErrorView, view_args=dict(text=f"Current network setting ({self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK)}) doesn't match {self.derivation_path}")))
+
+                # cleanup. Note: We could leave this in place so the user can resume the
+                # flow, but for now we avoid complications and keep things simple.
+                self.controller.resume_main_flow = None
+                self.controller.sign_message_data = None
+                return
 
         xpub = seed.get_xpub(wallet_path=self.derivation_path, network=addr_format["network"])
         embit_network = embit_utils.get_embit_network_name(addr_format["network"])
