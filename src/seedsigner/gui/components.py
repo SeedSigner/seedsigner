@@ -889,7 +889,7 @@ class BtcAmount(BaseComponent):
             #     font = smaller_digit_font
 
             (left, top, text_width, bottom) = font.getbbox(btc_text, anchor="ls")
-            text_height = -1 * top
+            text_height = -1 * top + bottom
             text_y = self.paste_image.height - int((self.paste_image.height - text_height)/2)
 
             draw.text(
@@ -916,7 +916,7 @@ class BtcAmount(BaseComponent):
             if self.total_sats > 1e9:
                 font = smaller_digit_font
             (left, top, text_width, bottom) = font.getbbox(sats_text, anchor="ls")
-            text_height = -1 * top
+            text_height = -1 * top + bottom
             text_y = self.paste_image.height - int((self.paste_image.height - text_height)/2)
             draw.text(
                 xy=(
@@ -953,7 +953,7 @@ class BtcAmount(BaseComponent):
             cur_x = btc_icon.width + int(GUIConstants.COMPONENT_PADDING/4)
 
             (left, top, text_width, bottom) = smaller_digit_font.getbbox(btc_text, anchor="ls")
-            text_height = -1 * top
+            text_height = -1 * top + bottom
             text_y = self.paste_image.height - int((self.paste_image.height - text_height)/2)
             
             draw.text(
@@ -1019,7 +1019,7 @@ class BtcAmount(BaseComponent):
         )
         unit_textarea.render()
 
-        final_x = cur_x + GUIConstants.COMPONENT_PADDING + unit_textarea.width
+        final_x = cur_x + GUIConstants.COMPONENT_PADDING + unit_text_width
 
         self.paste_image = self.paste_image.crop((0, 0, final_x, self.paste_image.height))
         self.paste_coords = (
