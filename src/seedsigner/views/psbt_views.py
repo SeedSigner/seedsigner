@@ -3,7 +3,7 @@ from embit import script
 from embit.networks import NETWORKS
 from seedsigner.controller import Controller
 
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
+from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
@@ -15,7 +15,7 @@ from seedsigner.views.view import BackStackView, MainMenuView, NotYetImplemented
 
 
 class PSBTSelectSeedView(View):
-    SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
+    SCAN_SEED = ("Scan a seed", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
 
@@ -36,7 +36,7 @@ class PSBTSelectSeedView(View):
                 # Doesn't look like this seed can sign the current PSBT
                 button_str += " (?)"
 
-            button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+            button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT))
 
         button_data.append(self.SCAN_SEED)
         button_data.append(self.TYPE_12WORD)
@@ -522,7 +522,7 @@ class PSBTSigningErrorView(View):
         # Just a WarningScreen here; only use DireWarningScreen for true security risks.
         selected_menu_num = WarningScreen(
             title="PSBT Error",
-            status_icon_name=SeedSignerCustomIconConstants.CIRCLE_EXCLAMATION,
+            status_icon_name=SeedSignerIconConstants.WARNING,
             status_headline="Signing Failed",
             text="Signing with this seed did not add a valid signature.",
             button_data=["Select Diff Seed"],

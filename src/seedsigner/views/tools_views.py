@@ -8,7 +8,7 @@ from PIL import Image
 from PIL.ImageOps import autocontrast
 from seedsigner.controller import Controller
 from seedsigner.hardware.camera import Camera
-from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerCustomIconConstants
+from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
 from seedsigner.gui.screens.tools_screens import ToolsCalcFinalWordDoneScreen, ToolsCalcFinalWordFinalizePromptScreen, ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen
 from seedsigner.helpers import embit_utils, mnemonic_generation
@@ -431,8 +431,8 @@ class ToolsCalcFinalWordDoneView(View):
     Address Explorer Views
 ****************************************************************************"""
 class ToolsAddressExplorerSelectSourceView(View):
-    SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
-    SCAN_DESCRIPTOR = ("Scan wallet descriptor", FontAwesomeIconConstants.QRCODE)
+    SCAN_SEED = ("Scan a seed", SeedSignerIconConstants.QRCODE)
+    SCAN_DESCRIPTOR = ("Scan wallet descriptor", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
 
@@ -442,7 +442,7 @@ class ToolsAddressExplorerSelectSourceView(View):
         button_data = []
         for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+            button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT))
         button_data = button_data + [self.SCAN_SEED, self.SCAN_DESCRIPTOR, self.TYPE_12WORD, self.TYPE_24WORD]
         
         selected_menu_num = self.run_screen(
@@ -640,7 +640,7 @@ class ToolsAddressExplorerAddressListView(View):
                 end_digits = -4
             button_data.append(f"{cur_index}:{address[:8]}...{address[end_digits:]}")
 
-        button_data.append(("Next {}".format(addrs_per_screen), None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
+        button_data.append(("Next {}".format(addrs_per_screen), None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,

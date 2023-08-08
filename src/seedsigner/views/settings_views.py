@@ -1,5 +1,5 @@
 import logging
-from seedsigner.gui.components import SeedSignerCustomIconConstants
+from seedsigner.gui.components import SeedSignerIconConstants
 
 from .view import View, Destination, MainMenuView
 
@@ -40,7 +40,7 @@ class SettingsMenuView(View):
             title = "Settings"
 
             # Set up the next nested level of menuing
-            button_data.append(("Advanced", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
+            button_data.append(("Advanced", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
             next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
 
             button_data.append(self.IO_TEST)
@@ -50,7 +50,7 @@ class SettingsMenuView(View):
             title = "Advanced"
 
             # So far there are no real Developer options; disabling for now
-            # button_data.append(("Developer Options", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
+            # button_data.append(("Developer Options", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
             # next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__DEVELOPER})
             next_destination = None
         

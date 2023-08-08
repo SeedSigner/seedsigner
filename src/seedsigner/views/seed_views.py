@@ -9,7 +9,8 @@ from embit.networks import NETWORKS
 from typing import List
 
 from seedsigner.controller import Controller
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerCustomIconConstants
+from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
+from seedsigner.helpers import embit_utils
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
 from seedsigner.gui.screens.screen import LargeIconStatusScreen, QRDisplayScreen
@@ -46,7 +47,7 @@ class SeedsMenuView(View):
 
         button_data = []
         for seed in self.seeds:
-            button_data.append((seed["fingerprint"], SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+            button_data.append((seed["fingerprint"], SeedSignerIconConstants.FINGERPRINT))
         button_data.append("Load a seed")
 
         selected_menu_num = self.run_screen(
@@ -71,10 +72,10 @@ class SeedsMenuView(View):
     Loading seeds, passphrases, etc
 ****************************************************************************"""
 class LoadSeedView(View):
-    SEED_QR = (" Scan a SeedQR", FontAwesomeIconConstants.QRCODE)
+    SEED_QR = (" Scan a SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-    CREATE = (" Create a seed", FontAwesomeIconConstants.PLUS)
+    CREATE = (" Create a seed", SeedSignerIconConstants.PLUS)
 
     def run(self):
         button_data = [
@@ -337,11 +338,11 @@ class SeedDiscardView(View):
     Views for actions on individual seeds:
 ****************************************************************************"""
 class SeedOptionsView(View):
-    SCAN_PSBT = ("Scan PSBT", FontAwesomeIconConstants.QRCODE)
+    SCAN_PSBT = ("Scan PSBT", SeedSignerIconConstants.QRCODE)
     VERIFY_ADDRESS = "Verify Addr"
     EXPORT_XPUB = "Export Xpub"
     EXPLORER = "Address Explorer"
-    BACKUP = ("Backup Seed", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT)
+    BACKUP = ("Backup Seed", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT)
     BIP85_CHILD_SEED = "BIP-85 Child Seed"
     DISCARD = ("Discard Seed", None, None, "red")
 
@@ -1351,7 +1352,7 @@ class SeedTranscribeSeedQRConfirmQRPromptView(View):
     
 
     def run(self):
-        SCAN = ("Confirm SeedQR", FontAwesomeIconConstants.QRCODE)
+        SCAN = ("Confirm SeedQR", SeedSignerIconConstants.QRCODE)
         DONE = "Done"
         button_data = [SCAN, DONE]
 
@@ -1526,7 +1527,7 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
     def run(self):
         seeds = self.controller.storage.seeds
 
-        SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
+        SCAN_SEED = ("Scan a seed", SeedSignerIconConstants.QRCODE)
         TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
         TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
         button_data = []
@@ -1535,7 +1536,7 @@ class SeedSingleSigAddressVerificationSelectSeedView(View):
 
         for seed in seeds:
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            button_data.append((button_str, SeedSignerCustomIconConstants.FINGERPRINT, "blue"))
+            button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT))
             text = "Select seed to verify"
 
         button_data.append(SCAN_SEED)
@@ -1781,7 +1782,7 @@ class AddressVerificationSuccessView(View):
 
 class LoadMultisigWalletDescriptorView(View):
     def run(self):
-        SCAN = ("Scan Descriptor", FontAwesomeIconConstants.QRCODE)
+        SCAN = ("Scan Descriptor", SeedSignerIconConstants.QRCODE)
         CANCEL = "Cancel"
         button_data = [SCAN, CANCEL]
         selected_menu_num = seed_screens.LoadMultisigWalletDescriptorScreen(
