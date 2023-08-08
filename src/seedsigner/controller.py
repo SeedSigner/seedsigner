@@ -1,26 +1,28 @@
+import time
 import logging
+
 import traceback
-import os
 
-from embit.descriptor import Descriptor
-from embit.psbt import PSBT
 from PIL.Image import Image
-from typing import List
 
-from seedsigner.gui.renderer import Renderer
-from seedsigner.hardware.buttons import HardwareButtons
-from seedsigner.hardware.microsd import MicroSD
-from seedsigner.views.screensaver import ScreensaverScreen
-from seedsigner.views.view import Destination, NotYetImplementedView, UnhandledExceptionView, RemoveMicroSDWarningView
-
-from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
+#from seedsigner.gui.renderer import Renderer
+#from seedsigner.hardware.buttons import HardwareButtons
+#from seedsigner.hardware.microsd import MicroSD
+#from seedsigner.views.screensaver import ScreensaverScreen
+#from seedsigner.views.view import Destination, NotYetImplementedView, UnhandledExceptionView, RemoveMicroSDWarningView
+#
+#from .models import Seed, SeedStorage, Settings, Singleton, PSBTParser
+from seedsigner.models.settings import Settings
+from seedsigner.models.singleton import Singleton
+from seedsigner.models.threads import BaseThread
+from seedsigner.views.view import Destination
 
 
 logger = logging.getLogger(__name__)
 
 
 
-class BackStack(List[Destination]):
+class BackStack(list[Destination]):
     def __repr__(self):
         if len(self) == 0:
             return "[]"
@@ -40,12 +42,43 @@ class StopFlowBasedTest(Exception):
     pass
 
 
+
 class FlowBasedTestException(Exception):
     """
         This is a special exception that is only raised by the test suite.
         It should not be raised by any other code.
     """
     pass
+
+
+
+class BackgroundImportThread(BaseThread):
+    def run(self):
+        from importlib import import_module
+
+        # import seedsigner.hardware.buttons # slowly imports GPIO along the way
+
+        def time_import(module_name):
+            last = time.time()
+            import_module(module_name)
+            # print(time.time() - last, module_name)
+
+        time_import('embit')
+        time_import('seedsigner.helpers.embit_utils')
+
+        # Do costly initializations
+        time_import('seedsigner.models.seed_storage')
+        from seedsigner.models.seed_storage import SeedStorage
+        Controller.get_instance()._storage = SeedStorage()
+
+        # Get MainMenuView ready to respond quickly
+        time_import('seedsigner.views.scan_views')
+
+        time_import('seedsigner.views.seed_views')
+
+        time_import('seedsigner.views.tools_views')
+
+        time_import('seedsigner.views.settings_views')
 
 
 
@@ -67,26 +100,24 @@ class Controller(Singleton):
         rather than at the top in order avoid circular imports.
     """
 
-    VERSION = "0.6.0"
+    VERSION = "0.7.0"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
-    buttons: HardwareButtons = None
-    storage: SeedStorage = None
+    _storage: 'SeedStorage' = None   # TODO: Rename "storage" to something more indicative of its temp, in-memory state
     settings: Settings = None
-    renderer: Renderer = None
 
     # TODO: Refactor these flow-related attrs that survive across multiple Screens.
     # TODO: Should all in-memory flow-related attrs get wiped on MainMenuView?
-    psbt: PSBT = None
-    psbt_seed: Seed = None
-    psbt_parser: PSBTParser = None
+    psbt: 'embit.psbt.PSBT' = None
+    psbt_seed: 'Seed' = None
+    psbt_parser: 'PSBTParser' = None
 
     unverified_address = None
 
-    multisig_wallet_descriptor: Descriptor = None
+    multisig_wallet_descriptor: 'embit.descriptor.Descriptor' = None
 
-    image_entropy_preview_frames: List[Image] = None
+    image_entropy_preview_frames: list[Image] = None
     image_entropy_final_image: Image = None
 
     address_explorer_data: dict = None
@@ -102,7 +133,7 @@ class Controller(Singleton):
     resume_main_flow: str = None
 
     back_stack: BackStack = None
-    screensaver: ScreensaverScreen = None
+    screensaver: 'ScreensaverScreen' = None
 
 
     @classmethod
@@ -127,6 +158,9 @@ class Controller(Singleton):
 
             each time you try to re-initialize a Controller.
         """
+        from seedsigner.gui.renderer import Renderer
+        from seedsigner.hardware.microsd import MicroSD
+
         # Must be called before the first get_instance() call
         if cls._instance:
             raise Exception("Instance already configured")
@@ -135,15 +169,7 @@ class Controller(Singleton):
         controller = cls.__new__(cls)
         cls._instance = controller
 
-        # Input Buttons
-        if disable_hardware:
-            controller.buttons = None
-        else:
-            controller.buttons = HardwareButtons.get_instance()
-
         # models
-        # TODO: Rename "storage" to something more indicative of its temp, in-memory state
-        controller.storage = SeedStorage()
         controller.settings = Settings.get_instance()
         
         controller.microsd = MicroSD.get_instance()
@@ -156,13 +182,14 @@ class Controller(Singleton):
         # Configure the Renderer
         Renderer.configure_instance()
 
-        controller.screensaver = ScreensaverScreen(controller.buttons)
-
         controller.back_stack = BackStack()
 
         # Other behavior constants
         controller.screensaver_activation_ms = 120 * 1000
     
+        background_import_thread = BackgroundImportThread()
+        background_import_thread.start()
+
         return cls._instance
 
 
@@ -170,9 +197,18 @@ class Controller(Singleton):
     def camera(self):
         from .hardware.camera import Camera
         return Camera.get_instance()
+    
+
+    @property
+    def storage(self):
+        while not self._storage:
+            # Wait for the BackgroundImportThread to finish initializing the storage.
+            # This is a rare timing issue that likely only occurs in the test suite.
+            time.sleep(0.001)
+        return self._storage
 
 
-    def get_seed(self, seed_num: int) -> Seed:
+    def get_seed(self, seed_num: int) -> 'Seed':
         if seed_num < len(self.storage.seeds):
             return self.storage.seeds[seed_num]
         else:
@@ -187,7 +223,6 @@ class Controller(Singleton):
 
 
     def pop_prev_from_back_stack(self):
-        from .views import Destination
         if len(self.back_stack) > 0:
             # Pop the top View (which is the current View_cls)
             self.back_stack.pop()
@@ -212,8 +247,7 @@ class Controller(Singleton):
         from .views import MainMenuView, BackStackView
         from .views.screensaver import OpeningSplashScreen
 
-        opening_splash = OpeningSplashScreen()
-        opening_splash.start()
+        OpeningSplashScreen().start()
 
         """ Class references can be stored as variables in python!
 
@@ -289,6 +323,7 @@ class Controller(Singleton):
 
                 if not next_destination:
                     # Should only happen during dev when you hit an unimplemented option
+                    from seedsigner.views.view import NotYetImplementedView
                     next_destination = Destination(NotYetImplementedView)
 
                 if next_destination.skip_current_view:
@@ -321,7 +356,8 @@ class Controller(Singleton):
                 print("-" * 30)
 
         finally:
-            if self.screensaver.is_running:
+            from seedsigner.gui.renderer import Renderer
+            if self.is_screensaver_running:
                 self.screensaver.stop()
 
             # Clear the screen when exiting
@@ -329,7 +365,17 @@ class Controller(Singleton):
             Renderer.get_instance().display_blank_screen()
 
 
+    @property
+    def is_screensaver_running(self):
+        return self.screensaver is not None and self.screensaver.is_running
+
+
     def start_screensaver(self):
+        if not self.screensaver:
+            # Do a lazy/late import and instantiation to reduce Controller initial startup time
+            from seedsigner.views.screensaver import ScreensaverScreen
+            from seedsigner.hardware.buttons import HardwareButtons
+            self.screensaver = ScreensaverScreen(HardwareButtons.get_instance())
         self.screensaver.start()
 
 
@@ -343,6 +389,7 @@ class Controller(Singleton):
                 * python file, line num, method name
                 * Exception message
         """
+        from seedsigner.views.view import UnhandledExceptionView
         logger.exception(e)
 
         # The final exception output line is:

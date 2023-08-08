@@ -1,9 +1,12 @@
-from seedsigner.gui.components import SeedSignerCustomIconConstants
+import logging
+from seedsigner.gui.components import SeedSignerIconConstants
 
 from .view import View, Destination, MainMenuView
 
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, settings_screens)
-from seedsigner.models.settings import SettingsConstants, SettingsDefinition
+from seedsigner.models.settings import Settings, SettingsConstants, SettingsDefinition
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -37,7 +40,7 @@ class SettingsMenuView(View):
             title = "Settings"
 
             # Set up the next nested level of menuing
-            button_data.append(("Advanced", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
+            button_data.append(("Advanced", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
             next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
 
             button_data.append(self.IO_TEST)
@@ -47,7 +50,7 @@ class SettingsMenuView(View):
             title = "Advanced"
 
             # So far there are no real Developer options; disabling for now
-            # button_data.append(("Developer Options", None, None, None, SeedSignerCustomIconConstants.SMALL_CHEVRON_RIGHT))
+            # button_data.append(("Developer Options", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
             # next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__DEVELOPER})
             next_destination = None
         
@@ -182,6 +185,28 @@ class SettingsEntryUpdateSelectionView(View):
         self.selected_button = ret_value
 
         return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=self.settings_entry.attr_name, parent_initial_scroll=self.parent_initial_scroll, selected_button=self.selected_button), skip_current_view=True)
+
+
+
+class SettingsIngestSettingsQRView(View):
+    def __init__(self, data: str):
+        super().__init__()
+
+        # May raise an Exception which will bubble up to the Controller to display to the
+        # user.
+        self.config_name, settings_update_dict = Settings.parse_settingsqr(data)
+        self.settings.update(settings_update_dict)
+    
+
+    def run(self):
+        from seedsigner.gui.screens.scan_screens import SettingsUpdatedScreen
+        self.run_screen(
+            SettingsUpdatedScreen,
+            config_name=self.config_name
+        )
+
+        # Only one exit point
+        return Destination(MainMenuView)
 
 
 

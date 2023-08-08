@@ -2,11 +2,14 @@ import json
 import os
 import platform
 
-from typing import Any, List
+from typing import List
 
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
-from .singleton import Singleton
+from seedsigner.models.singleton import Singleton
 
+
+class InvalidSettingsQRData(Exception):
+    pass
 
 
 
@@ -28,9 +31,67 @@ class Settings(Singleton):
             # Read persistent settings file, if it exists
             if os.path.exists(Settings.SETTINGS_FILENAME):
                 with open(Settings.SETTINGS_FILENAME) as settings_file:
-                    settings.update(json.load(settings_file), disable_missing_entries=False)
+                    settings.update(json.load(settings_file))
 
         return cls._instance
+
+
+    @classmethod
+    def parse_settingsqr(cls, data: str) -> tuple[str, dict]:
+        """
+        Parses SettingsQR data and returns a tuple of (config_name, settings_dict).
+
+        The resulting settings config can be applied by calling `Settings.update(settings_dict)`.
+        """
+        if not data.startswith("settings::"):
+            raise InvalidSettingsQRData()
+
+        version = data.split()[0].split("::")[1]
+        if version != "v1":
+            raise InvalidSettingsQRData(f"Unsupported SettingsQR version: {version}")
+        
+        # Start parsing key/value settings at the nth split() index
+        split_index = 1
+
+        # handle optional "name" attr
+        config_name = None
+        if "name=" in data.split()[1]:
+            config_name = data.split("name=")[1].split()[0].replace("_", " ")
+            split_index += 1
+
+        updated_settings = {}
+        for entry in data.split()[split_index:]:
+            abbreviated_name, value = entry.split("=")
+
+            # Parse multi-value settings; integer-ize where needed
+            if "," in value:
+                values_updated = []
+                for v in value.split(","):
+                    if v.isdigit():
+                        v = int(v)
+                    values_updated.append(v)
+                value = values_updated
+            elif value.isdigit():
+                value = int(value)
+            
+            # Replace abbreviated name with full attr_name
+            settings_entry = SettingsDefinition.get_settings_entry_by_abbreviated_name(abbreviated_name)
+            if not settings_entry:
+                print(f"Ignoring unrecognized attribute: {abbreviated_name}")
+                continue
+
+            # Validate value(s) against SettingsDefinition's valid options
+            if type(value) is not list:
+                values = [value]
+            else:
+                values = value
+            for v in values:
+                if v not in [opt[0] for opt in settings_entry.selection_options]:
+                    raise InvalidSettingsQRData(f"""{abbreviated_name} = '{v}' is not valid""")
+
+            updated_settings[settings_entry.attr_name] = value
+        
+        return (config_name, updated_settings)
 
 
     def __str__(self):
@@ -47,32 +108,22 @@ class Settings(Singleton):
                 os.fsync(settings_file.fileno())
 
 
-    def update(self, new_settings: dict, disable_missing_entries: bool = True):
+    def update(self, new_settings: dict):
         """
-            * disable_missing_entries: The SettingsQR Generator omits any multiselect
-                fields with zero selections or disabled Enabled/Disabled toggles. So if a
-                field is missing, interpret it as such. But if this is set to False, keep
-                the existing value for the field; most likely this is a new setting that
-                the user may not have a value for when loading their persistent settings,
-                in which case this would preserve the new field's default value.
+            Replaces the current settings with the incoming dict.
+
+            If a setting is missing from `new_settings`:
+                * Hidden settings that have a value remain as-is.
+                * All other missing settings are set to their default value.
         """
         for entry in SettingsDefinition.settings_entries:
             if entry.attr_name not in new_settings:
-                if not disable_missing_entries:
+                if entry.visibility == SettingsConstants.VISIBILITY__HIDDEN and entry.attr_name in self._data:
+                    # Preserve existing hidden values
+                    new_settings[entry.attr_name] = self._data[entry.attr_name]
+                else:
                     # Setting is missing; insert default
                     new_settings[entry.attr_name] = entry.default_value
-                
-                elif entry.visibility == SettingsConstants.VISIBILITY__HIDDEN:
-                    # Missing hidden values always get their default
-                    new_settings[entry.attr_name] = entry.default_value
-
-                elif entry.type == SettingsConstants.TYPE__MULTISELECT:
-                    # Clear out the multiselect
-                    new_settings[entry.attr_name] = []
-
-                elif entry.type in SettingsConstants.ALL_ENABLED_DISABLED_TYPES:
-                    # Set DISABLED for this missing setting
-                    new_settings[entry.attr_name] = SettingsConstants.OPTION__DISABLED
 
             else:
                 # Clean the incoming data, if necessary
@@ -80,9 +131,6 @@ class Settings(Singleton):
                     if type(new_settings[entry.attr_name]) == str:
                         # Break comma-separated SettingsQR input into List
                         new_settings[entry.attr_name] = new_settings[entry.attr_name].split(",")
-                
-                # TODO: If value is not in entry.selection_options...
-
 
         # Can't just merge the _data dict; have to replace keys they have in common
         #   (otherwise list values will be merged instead of replaced).

@@ -1,6 +1,6 @@
 import pytest
 from mock import MagicMock
-from seedsigner.models import Seed
+from seedsigner.models.seed import Seed
 from embit import bip39
 
 from seedsigner.models.settings import SettingsConstants

@@ -3,7 +3,7 @@ from typing import Any
 from PIL.Image import Image
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.hardware.camera import Camera
-from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, FormattedAddress, GUIConstants, IconTextLine, SeedSignerCustomIconConstants, TextArea
+from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, FormattedAddress, GUIConstants, IconTextLine, SeedSignerIconConstants, TextArea
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, KeyboardScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
@@ -362,8 +362,8 @@ class ToolsCalcFinalWordDoneScreen(ButtonListScreen):
         ))
 
         self.components.append(IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
-            icon_color="blue",
+            icon_name=SeedSignerIconConstants.FINGERPRINT,
+            icon_color=GUIConstants.INFO_COLOR,
             label_text="fingerprint",
             value_text=self.fingerprint,
             is_text_centered=True,
@@ -386,8 +386,8 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
 
         if self.fingerprint:
             self.components.append(IconTextLine(
-                icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
-                icon_color="blue",
+                icon_name=SeedSignerIconConstants.FINGERPRINT,
+                icon_color=GUIConstants.INFO_COLOR,
                 label_text="Fingerprint",
                 value_text=self.fingerprint,
                 screen_x=GUIConstants.EDGE_PADDING,
@@ -396,7 +396,7 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
 
             if self.script_type != SettingsConstants.CUSTOM_DERIVATION:
                 self.components.append(IconTextLine(
-                    icon_name=SeedSignerCustomIconConstants.PATH,
+                    icon_name=SeedSignerIconConstants.DERIVATION,
                     label_text="Derivation",
                     value_text=SettingsDefinition.get_settings_entry(attr_name=SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(value=self.script_type),
                     screen_x=GUIConstants.EDGE_PADDING,
@@ -404,7 +404,7 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
                 ))
             else:
                 self.components.append(IconTextLine(
-                    icon_name=SeedSignerCustomIconConstants.PATH,
+                    icon_name=SeedSignerIconConstants.DERIVATION,
                     label_text="Derivation",
                     value_text=self.custom_derivation_path,
                     screen_x=GUIConstants.EDGE_PADDING,

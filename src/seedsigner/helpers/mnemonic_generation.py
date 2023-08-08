@@ -5,7 +5,6 @@ from embit import bip39
 from embit.bip39 import mnemonic_to_bytes, mnemonic_from_bytes
 from typing import List
 
-from seedsigner.models.seed import Seed
 
 
 def calculate_checksum(mnemonic: list, wordlist_language_code: str) -> List[str]:
@@ -15,6 +14,7 @@ def calculate_checksum(mnemonic: list, wordlist_language_code: str) -> List[str]
         If 11- or 23-words are provided, append word `0000` to end of list as temp final
         word.
     """
+    from seedsigner.models.seed import Seed
     if len(mnemonic) in [11, 23]:
         mnemonic.append(Seed.get_wordlist(wordlist_language_code)[0])
 

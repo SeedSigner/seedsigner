@@ -2,20 +2,16 @@ import math
 import time
 
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List
 
 from PIL import Image, ImageDraw, ImageFilter
 from seedsigner.gui.renderer import Renderer
 from seedsigner.helpers.qr import QR
-from seedsigner.models.qr_type import QRType
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-
-from seedsigner.models.seed import Seed
-from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
 from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, KeyboardScreen, WarningEdgesMixin
 from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddress, IconButton,
-    IconTextLine, SeedSignerCustomIconConstants, TextArea, GUIConstants,
+    IconTextLine, SeedSignerIconConstants, TextArea, GUIConstants,
     calc_text_centering)
 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
@@ -421,8 +417,8 @@ class SeedFinalizeScreen(ButtonListScreen):
         super().__post_init__()
 
         self.fingerprint_icontl = IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
-            icon_color="blue",
+            icon_name=SeedSignerIconConstants.FINGERPRINT,
+            icon_color=GUIConstants.INFO_COLOR,
             icon_size=GUIConstants.ICON_FONT_SIZE + 12,
             label_text="fingerprint",
             value_text=self.fingerprint,
@@ -441,8 +437,8 @@ class SeedOptionsScreen(ButtonListScreen):
     has_passphrase: bool = False
 
     def __post_init__(self):
-        self.top_nav_icon_name = SeedSignerCustomIconConstants.FINGERPRINT
-        self.top_nav_icon_color = "blue"
+        self.top_nav_icon_name = SeedSignerIconConstants.FINGERPRINT
+        self.top_nav_icon_color = GUIConstants.INFO_COLOR
         self.title = self.fingerprint
         self.is_button_text_centered = False
         self.is_bottom_list = True
@@ -502,7 +498,7 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
         for index, word in enumerate(self.words):
             draw.rounded_rectangle(
                 (number_box_x, number_box_y, number_box_x + number_box_width, number_box_y + number_box_height),
-                fill="#202020",
+                fill=GUIConstants.BUTTON_BACKGROUND_COLOR,
                 radius=5 * supersampling_factor
             )
             baseline_y = number_box_y + number_box_height - int((number_box_height - number_height)/2)
@@ -510,7 +506,7 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
                 (number_box_x + int(number_box_width/2), baseline_y),
                 font=number_font,
                 text=str(self.page_index * words_per_page + index + 1),
-                fill="#0084ff",
+                fill=GUIConstants.INFO_COLOR,
                 anchor="ms"  # Middle (centered), baSeline
             )
 
@@ -584,8 +580,8 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
 
         # Set up the fingerprint and passphrase displays
         self.fingerprint_line = IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
-            icon_color="blue",
+            icon_name=SeedSignerIconConstants.FINGERPRINT,
+            icon_color=GUIConstants.INFO_COLOR,
             label_text="Fingerprint",
             value_text=self.fingerprint,
             screen_x=GUIConstants.COMPONENT_PADDING,
@@ -594,7 +590,8 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
         self.components.append(self.fingerprint_line)
 
         self.derivation_line = IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.PATH,
+            icon_name=SeedSignerIconConstants.DERIVATION,
+            icon_color=GUIConstants.INFO_COLOR,
             label_text="Derivation",
             value_text=self.derivation_path,
             screen_x=GUIConstants.COMPONENT_PADDING,
@@ -604,6 +601,7 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
 
         self.xpub_line = IconTextLine(
             icon_name=FontAwesomeIconConstants.X,
+            icon_color=GUIConstants.INFO_COLOR,
             label_text="Xpub",
             value_text=f"{self.xpub[:18]}...",
             font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
@@ -793,7 +791,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         )
 
         self.hw_button3 = IconButton(
-            icon_name=FontAwesomeIconConstants.SOLID_CIRCLE_CHECK,
+            icon_name=SeedSignerIconConstants.CHECK,
             icon_color=GUIConstants.SUCCESS_COLOR,
             width=self.right_panel_buttons_width,
             screen_x=hw_button_x,
@@ -1009,8 +1007,8 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
         super().__post_init__()
 
         self.components.append(IconTextLine(
-            icon_name=SeedSignerCustomIconConstants.FINGERPRINT,
-            icon_color="blue",
+            icon_name=SeedSignerIconConstants.FINGERPRINT,
+            icon_color=GUIConstants.INFO_COLOR,
             label_text="changes fingerprint",
             value_text=f"{self.fingerprint_without} >> {self.fingerprint_with}",
             is_text_centered=True,

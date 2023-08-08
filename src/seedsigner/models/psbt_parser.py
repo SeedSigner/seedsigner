@@ -1,12 +1,12 @@
 from binascii import hexlify
-from embit import psbt, script, ec, bip32, bip39
+from embit import psbt, script, ec, bip32
 from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
 from embit.psbt import PSBT
 from io import BytesIO
 from typing import List
 
-from seedsigner.models import Seed
+from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
 

@@ -7,9 +7,9 @@ from decimal import Decimal
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from typing import List, Tuple
 
-from seedsigner.models import Singleton
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
+from seedsigner.models.singleton import Singleton
 
 
 # TODO: Remove all pixel hard coding
@@ -20,18 +20,19 @@ class GUIConstants:
 
     BACKGROUND_COLOR = "black"
     WARNING_COLOR = "#FFD60A"
-    DIRE_WARNING_COLOR = "red"
-    SUCCESS_COLOR = "#00dd00"
-    BITCOIN_ORANGE = "#ff9416"
-    ACCENT_COLOR = "orange"
-    TESTNET_COLOR = "#00f100"
-    REGTEST_COLOR = "#00caf1"
+    DIRE_WARNING_COLOR = "#FF453A"
+    SUCCESS_COLOR = "#30D158"
+    INFO_COLOR = "#0084FF"
+    ACCENT_COLOR = "#FF9F0A"
+    BITCOIN_ORANGE = "#FF9416"
+    TESTNET_COLOR = "#00F100"
+    REGTEST_COLOR = "#00CAF1"
 
     ICON_FONT_NAME__FONT_AWESOME = "Font_Awesome_6_Free-Solid-900"
-    ICON_FONT_NAME__SEEDSIGNER = "seedsigner-glyphs"
+    ICON_FONT_NAME__SEEDSIGNER = "seedsigner-icons"
     ICON_FONT_SIZE = 22
     ICON_INLINE_FONT_SIZE = 24
-    ICON_LARGE_BUTTON_SIZE = 36
+    ICON_LARGE_BUTTON_SIZE = 48
     ICON_PRIMARY_SCREEN_SIZE = 50
 
     TOP_NAV_TITLE_FONT_NAME = "OpenSans-SemiBold"
@@ -43,23 +44,23 @@ class GUIConstants:
     BODY_FONT_SIZE = 17
     BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE
     BODY_FONT_MIN_SIZE = 15
-    BODY_FONT_COLOR = "#f8f8f8"
+    BODY_FONT_COLOR = "#FCFCFC"
     BODY_LINE_SPACING = COMPONENT_PADDING
 
     FIXED_WIDTH_FONT_NAME = "Inconsolata-Regular"
     FIXED_WIDTH_EMPHASIS_FONT_NAME = "Inconsolata-SemiBold"
 
     LABEL_FONT_SIZE = BODY_FONT_MIN_SIZE
-    LABEL_FONT_COLOR = "#777"
+    LABEL_FONT_COLOR = "#B3B3B3"
 
     BUTTON_FONT_NAME = "OpenSans-SemiBold"
     BUTTON_FONT_SIZE = 18
-    BUTTON_FONT_COLOR = "#e8e8e8"
-    BUTTON_BACKGROUND_COLOR = "#2c2c2c"
+    BUTTON_FONT_COLOR = "#FCFCFC"
+    BUTTON_BACKGROUND_COLOR = "#2C2C2C"
     BUTTON_HEIGHT = 32
-    BUTTON_SELECTED_FONT_COLOR = "black"
+    BUTTON_SELECTED_FONT_COLOR = BACKGROUND_COLOR
     
-    NOTIFICATION_COLOR = "#00f100"
+    NOTIFICATION_COLOR = "#00F100"
 
 
 
@@ -69,13 +70,8 @@ class FontAwesomeIconConstants:
     ANGLE_RIGHT = "\uf105"
     ANGLE_UP = "\uf106"
     CAMERA = "\uf030"
-    CARET_DOWN = "\uf0d7"
-    CARET_LEFT = "\uf0d9"
-    CARET_RIGHT = "\uf0da"
-    CARET_UP = "\uf0d8"
     CHEVRON_UP = "\uf077"
     CHEVRON_DOWN = "\uf078"
-    SOLID_CIRCLE_CHECK = "\uf058"
     CIRCLE = "\uf111"
     CIRCLE_CHEVRON_RIGHT = "\uf138"
     DICE = "\uf522"
@@ -85,46 +81,65 @@ class FontAwesomeIconConstants:
     DICE_FOUR = "\uf524"
     DICE_FIVE = "\uf523"
     DICE_SIX = "\uf526"
-    GEAR = "\uf013"
-    KEY = "\uf084"
     KEYBOARD = "\uf11c"
     LOCK = "\uf023"
     MAP = "\uf279"
     PAPER_PLANE = "\uf1d8"
     PEN = "\uf304"
-    PLUS = "+"
-    POWER_OFF = "\uf011"
-    ROTATE_RIGHT = "\uf2f9"
-    SCREWDRIVER_WRENCH = "\uf7d9"
-    SQUARE = "\uf0c8"
     SQUARE_CARET_DOWN = "\uf150"
     SQUARE_CARET_LEFT = "\uf191"
     SQUARE_CARET_RIGHT = "\uf152"
     SQUARE_CARET_UP = "\uf151"
-    SQUARE_CHECK = "\uf14a"
-    TRIANGLE_EXCLAMATION = "\uf071"
     UNLOCK = "\uf09c"
-    QRCODE = "\uf029"
     X = "\u0058"
-    SDCARD = "\uf7c2"
 
 
-class SeedSignerCustomIconConstants:
-    LARGE_CHEVRON_LEFT = "\ue900"
-    SMALL_CHEVRON_RIGHT = "\ue901"
-    PAGE_UP = "\ue903"
-    PAGE_DOWN = "\ue902"
-    PLUS = "\ue904"
-    CIRCLE_CHECK = "\ue907"
-    CIRCLE_EXCLAMATION = "\ue908"
-    CIRCLE_X = "\ue909"
-    FINGERPRINT = "\ue90a"
-    PATH = "\ue90b"
-    BITCOIN_LOGO_STRAIGHT = "\ue90c"
-    BITCOIN_LOGO_TILTED = "\ue90d"
+class SeedSignerIconConstants:
+    # Menu icons
+    SCAN = "\ue900"
+    SEEDS = "\ue901"
+    SETTINGS = "\ue902"
+    TOOLS = "\ue903"
 
-    MIN_VALUE = LARGE_CHEVRON_LEFT
-    MAX_VALUE = BITCOIN_LOGO_TILTED
+    # Utility icons
+    BACK = "\ue904"
+    CHECK = "\ue905"
+    CHECKBOX = "\ue906"
+    CHECKBOX_SELECTED = "\ue907"
+    CHEVRON_DOWN = "\ue908"
+    CHEVRON_LEFT = "\ue909"
+    CHEVRON_RIGHT = "\ue90a"
+    CHEVRON_UP = "\ue90b"
+    CLOSE = "\ue90c"
+    PAGE_DOWN = "\ue90d"
+    PAGE_UP = "\ue90e"
+    PLUS = "\ue90f"
+    POWER = "\ue910"
+    RESTART = "\ue911"
+
+    # Messaging icons
+    ERROR = "\ue912"
+    SUCCESS = "\ue913"
+    WARNING = "\ue914"
+
+    # Informational icons
+    ADDRESS = "\ue915"
+    CHANGE = "\ue916"
+    DERIVATION = "\ue917"
+    FEE = "\ue918"
+    FINGERPRINT = "\ue919"
+    PASSPHRASE = "\ue91a"
+
+    # Misc icons
+    BITCOIN = "\ue91b"
+    BITCOIN_ALT = "\ue91c"
+    BRIGHTNESS = "\ue91d"
+    MICROSD = "\ue91e"
+    QRCODE = "\ue91f"
+    SDCARD = "\ue920"
+
+    MIN_VALUE = SCAN
+    MAX_VALUE = QRCODE
 
 
 
@@ -425,14 +440,14 @@ class TextArea(BaseComponent):
 class Icon(BaseComponent):
     screen_x: int = 0
     screen_y: int = 0
-    icon_name: str = SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED
+    icon_name: str = SeedSignerIconConstants.BITCOIN_ALT
     icon_size: int = GUIConstants.ICON_FONT_SIZE
     icon_color: str = GUIConstants.BODY_FONT_COLOR
 
     def __post_init__(self):
         super().__post_init__()
 
-        if SeedSignerCustomIconConstants.MIN_VALUE <= self.icon_name and self.icon_name <= SeedSignerCustomIconConstants.MAX_VALUE:
+        if SeedSignerIconConstants.MIN_VALUE <= self.icon_name and self.icon_name <= SeedSignerIconConstants.MAX_VALUE:
             self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__SEEDSIGNER, self.icon_size, file_extension="otf")
         else:
             self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__FONT_AWESOME, self.icon_size, file_extension="otf")
@@ -501,7 +516,7 @@ class IconTextLine(BaseComponent):
                 canvas=self.canvas,
                 text=self.label_text,
                 font_size=GUIConstants.BODY_FONT_SIZE - 2,
-                font_color="#666",
+                font_color=GUIConstants.LABEL_FONT_COLOR,
                 edge_padding=0,
                 is_text_centered=self.is_text_centered if not self.icon_name else False,
                 auto_line_break=False,
@@ -610,13 +625,15 @@ class ToastOverlay(BaseComponent):
     def render(self):
         import time
         from seedsigner.controller import Controller
+        from seedsigner.hardware.buttons import HardwareButtons
         
         self.controller: Controller = Controller.get_instance()
         self.current_screen = self.renderer.canvas.copy()
+        buttons = HardwareButtons.get_instance()
         
         # Special case when screensaver is running
-        if self.controller.screensaver._is_running:
-            self.controller.buttons.override_ind = True
+        if self.controller.is_screensaver_running:
+            buttons.override_ind = True
 
         self.image_draw.rounded_rectangle(
             ( GUIConstants.EDGE_PADDING + 2, self.canvas_height - 60, self.canvas_width - GUIConstants.EDGE_PADDING - 2, self.canvas_width - GUIConstants.EDGE_PADDING - 2),
@@ -633,10 +650,12 @@ class ToastOverlay(BaseComponent):
         
         t_end = time.time() + 3
         while time.time() < t_end:
-            if self.controller.buttons.has_any_input():
+            if buttons.has_any_input():
                 break
             
         self.renderer.show_image(self.current_screen)
+
+
 
 @dataclass
 class FormattedAddress(BaseComponent):
@@ -859,7 +878,7 @@ class BtcAmount(BaseComponent):
         btc_icon = Icon(
             image_draw=draw,
             canvas=self.paste_image,
-            icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED,
+            icon_name=SeedSignerIconConstants.BITCOIN_ALT,
             icon_color=btc_color,
             icon_size=self.icon_size,
             screen_x=0,
@@ -947,7 +966,7 @@ class BtcAmount(BaseComponent):
             btc_icon = Icon(
                 image_draw=draw,
                 canvas=self.paste_image,
-                icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED,
+                icon_name=SeedSignerIconConstants.BITCOIN_ALT,
                 icon_color=btc_color,
                 icon_size=self.icon_size,
                 screen_x=0,
@@ -1203,8 +1222,8 @@ class CheckedSelectionButton(Button):
 
     def __post_init__(self):
         self.is_text_centered = False
-        self.icon_name = FontAwesomeIconConstants.SOLID_CIRCLE_CHECK
-        self.icon_color = "#00dd00"
+        self.icon_name = SeedSignerIconConstants.CHECK
+        self.icon_color = GUIConstants.SUCCESS_COLOR
         super().__post_init__()
 
         if not self.is_checked:
@@ -1222,10 +1241,10 @@ class CheckboxButton(Button):
     def __post_init__(self):
         self.is_text_centered = False
         if self.is_checked:
-            self.icon_name = FontAwesomeIconConstants.SQUARE_CHECK
-            self.icon_color = "#00dd00"
+            self.icon_name = SeedSignerIconConstants.CHECKBOX_SELECTED
+            self.icon_color = GUIConstants.SUCCESS_COLOR
         else:
-            self.icon_name = FontAwesomeIconConstants.SQUARE
+            self.icon_name = SeedSignerIconConstants.CHECKBOX
             self.icon_color = GUIConstants.BODY_FONT_COLOR
         super().__post_init__()
 
@@ -1264,7 +1283,7 @@ class TopNav(BaseComponent):
     icon_color: str = GUIConstants.BODY_FONT_COLOR
     font_name: str = GUIConstants.TOP_NAV_TITLE_FONT_NAME
     font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE
-    font_color: str = "#fcfcfc"
+    font_color: str = GUIConstants.BODY_FONT_COLOR
     show_back_button: bool = True
     show_power_button: bool = False
     is_selected: bool = False
@@ -1279,7 +1298,7 @@ class TopNav(BaseComponent):
 
         if self.show_back_button:
             self.left_button = IconButton(
-                icon_name=SeedSignerCustomIconConstants.LARGE_CHEVRON_LEFT,
+                icon_name=SeedSignerIconConstants.BACK,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,
@@ -1289,7 +1308,7 @@ class TopNav(BaseComponent):
 
         if self.show_power_button:
             self.right_button = IconButton(
-                icon_name=FontAwesomeIconConstants.POWER_OFF,
+                icon_name=SeedSignerIconConstants.POWER,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_x=self.width - GUIConstants.TOP_NAV_BUTTON_SIZE - GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,
