@@ -1,6 +1,5 @@
-import pytest
-from mock import MagicMock
-from seedsigner.models import EncodeQR, QRType
+from seedsigner.models.encode_qr import EncodeQR
+from seedsigner.models.qr_type import QRType
 from embit import psbt
 from binascii import a2b_base64
 

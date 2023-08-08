@@ -1,9 +1,9 @@
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 from threading import Lock
 
 from seedsigner.gui.components import Fonts, GUIConstants
 from seedsigner.hardware.ST7789 import ST7789
-from seedsigner.models import ConfigurableSingleton
+from seedsigner.models.singleton import ConfigurableSingleton
 
 
 
@@ -19,8 +19,6 @@ class Renderer(ConfigurableSingleton):
 
     @classmethod
     def configure_instance(cls):
-        from seedsigner.models.settings import Settings
-
         # Instantiate the one and only Renderer instance
         renderer = cls.__new__(cls)
         cls._instance = renderer

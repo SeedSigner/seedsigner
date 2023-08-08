@@ -3,9 +3,8 @@ import os
 # Must import test base before the Controller
 from base import FlowTest, FlowStep
 
-from seedsigner.models import SettingsDefinition
 from seedsigner.models.settings import Settings
-from seedsigner.models.settings_definition import SettingsConstants
+from seedsigner.models.settings_definition import SettingsDefinition, SettingsConstants
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import settings_views

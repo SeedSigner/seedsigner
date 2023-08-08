@@ -2,16 +2,12 @@ import math
 import time
 
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List
 
 from PIL import Image, ImageDraw, ImageFilter
 from seedsigner.gui.renderer import Renderer
 from seedsigner.helpers.qr import QR
-from seedsigner.models.qr_type import QRType
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-
-from seedsigner.models.seed import Seed
-from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
 from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, KeyboardScreen, WarningEdgesMixin
 from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddress, IconButton,

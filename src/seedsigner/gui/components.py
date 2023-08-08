@@ -7,9 +7,9 @@ from decimal import Decimal
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from typing import List, Tuple
 
-from seedsigner.models import Singleton
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
+from seedsigner.models.singleton import Singleton
 
 
 # TODO: Remove all pixel hard coding
@@ -625,13 +625,15 @@ class ToastOverlay(BaseComponent):
     def render(self):
         import time
         from seedsigner.controller import Controller
+        from seedsigner.hardware.buttons import HardwareButtons
         
         self.controller: Controller = Controller.get_instance()
         self.current_screen = self.renderer.canvas.copy()
+        buttons = HardwareButtons.get_instance()
         
         # Special case when screensaver is running
-        if self.controller.screensaver._is_running:
-            self.controller.buttons.override_ind = True
+        if self.controller.is_screensaver_running:
+            buttons.override_ind = True
 
         self.image_draw.rounded_rectangle(
             ( GUIConstants.EDGE_PADDING + 2, self.canvas_height - 60, self.canvas_width - GUIConstants.EDGE_PADDING - 2, self.canvas_width - GUIConstants.EDGE_PADDING - 2),
@@ -648,10 +650,12 @@ class ToastOverlay(BaseComponent):
         
         t_end = time.time() + 3
         while time.time() < t_end:
-            if self.controller.buttons.has_any_input():
+            if buttons.has_any_input():
                 break
             
         self.renderer.show_image(self.current_screen)
+
+
 
 @dataclass
 class FormattedAddress(BaseComponent):

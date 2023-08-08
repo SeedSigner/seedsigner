@@ -5,8 +5,7 @@ import platform
 from typing import List
 
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
-from .singleton import Singleton
-
+from seedsigner.models.singleton import Singleton
 
 
 class InvalidSettingsQRData(Exception):

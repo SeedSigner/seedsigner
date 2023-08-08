@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw
 from seedsigner.gui import renderer
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.hardware.camera import Camera
-from seedsigner.models import DecodeQR, DecodeQRStatus
+from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
 from seedsigner.models.threads import BaseThread
 
 from .screen import BaseScreen, ButtonListScreen
@@ -42,7 +42,7 @@ class ScanScreen(BaseScreen):
     this should probably be refactored into the Controller.
     """
     decoder: DecodeQR = None
-    instructions_text: str = "< back  |  Scan a QR code"
+    instructions_text: str = None
     resolution: tuple[int,int] = (480, 480)
     framerate: int = 6  # TODO: alternate optimization for Pi Zero 2W?
     render_rect: tuple[int,int,int,int] = None
@@ -52,6 +52,8 @@ class ScanScreen(BaseScreen):
         from seedsigner.hardware.camera import Camera
         # Initialize the base class
         super().__post_init__()
+
+        self.instructions_text = "< back  |  " + self.instructions_text
 
         self.camera = Camera.get_instance()
         self.camera.start_video_stream_mode(resolution=self.resolution, framerate=self.framerate, format="rgb")

@@ -1,6 +1,5 @@
-import pytest
-from mock import MagicMock
-from seedsigner.models import PSBTParser, Seed
+from seedsigner.models.psbt_parser import PSBTParser
+from seedsigner.models.seed import Seed
 from embit import psbt
 from binascii import a2b_base64
 from seedsigner.models.settings_definition import SettingsConstants

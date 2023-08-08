@@ -4,8 +4,8 @@ from typing import Type
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON, RET_CODE__BACK_BUTTON
 from seedsigner.gui.screens.screen import BaseScreen, DireWarningScreen, LargeButtonScreen, PowerOffScreen, PowerOffNotRequiredScreen, ResetScreen, WarningScreen
+from seedsigner.models.settings import Settings
 from seedsigner.models.threads import BaseThread
-from seedsigner.models import Settings
 
 
 class BackStackView:
@@ -46,7 +46,6 @@ class View:
         # Import here to avoid circular imports
         from seedsigner.controller import Controller
         from seedsigner.gui import Renderer
-        from seedsigner.models import Settings
 
         self.controller: Controller = Controller.get_instance()
         self.settings = Settings.get_instance()
@@ -258,6 +257,29 @@ class NotYetImplementedView(View):
         )
 
         return Destination(MainMenuView)
+
+
+
+@dataclass
+class ErrorView(View):
+    """
+    """
+    title: str = "Error"
+    status_headline: str = None
+    text: str = None
+    button_text: str = None
+    next_destination: Destination = Destination(MainMenuView, clear_history=True)
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=self.title,
+            status_headline=self.status_headline,
+            text=self.text,
+            button_data=[self.button_text],
+        )
+
+        return self.next_destination
 
 
 
