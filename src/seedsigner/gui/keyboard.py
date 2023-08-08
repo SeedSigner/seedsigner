@@ -574,7 +574,7 @@ class TextEntryDisplay(TextEntryDisplayConstants):
             draw.text((self.text_offset, self.height - int(text_height/2)), self.cur_text[:-1], fill=GUIConstants.ACCENT_COLOR, font=self.font, anchor="ls")
 
             # Draw the highlighted cursor block
-            cursor_color = GUIConstants.LABEL_FONT_COLOR
+            cursor_color = "#666"
             draw.rectangle((cursor_block_offset, 1, cursor_block_offset + cursor_block_width, self.height - 1), fill=cursor_color)
             draw.text((cursor_block_offset + 1, self.height - int(text_height/2)), self.cur_text[-1], fill=GUIConstants.ACCENT_COLOR, font=self.font, anchor="ls")
 
