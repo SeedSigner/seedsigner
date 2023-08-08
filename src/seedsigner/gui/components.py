@@ -18,7 +18,7 @@ class GUIConstants:
     COMPONENT_PADDING = 8
     LIST_ITEM_PADDING = 4
 
-    BACKGROUND_COLOR = "black"
+    BACKGROUND_COLOR = "#0A0A0A"
     WARNING_COLOR = "#FFD60A"
     DIRE_WARNING_COLOR = "#FF453A"
     SUCCESS_COLOR = "#30D158"
@@ -51,7 +51,7 @@ class GUIConstants:
     FIXED_WIDTH_EMPHASIS_FONT_NAME = "Inconsolata-SemiBold"
 
     LABEL_FONT_SIZE = BODY_FONT_MIN_SIZE
-    LABEL_FONT_COLOR = "#777"
+    LABEL_FONT_COLOR = "#B3B3B3"
 
     BUTTON_FONT_NAME = "OpenSans-SemiBold"
     BUTTON_FONT_SIZE = 18
@@ -516,7 +516,7 @@ class IconTextLine(BaseComponent):
                 canvas=self.canvas,
                 text=self.label_text,
                 font_size=GUIConstants.BODY_FONT_SIZE - 2,
-                font_color="#666",
+                font_color=GUIConstants.LABEL_FONT_COLOR,
                 edge_padding=0,
                 is_text_centered=self.is_text_centered if not self.icon_name else False,
                 auto_line_break=False,
@@ -1279,7 +1279,7 @@ class TopNav(BaseComponent):
     icon_color: str = GUIConstants.BODY_FONT_COLOR
     font_name: str = GUIConstants.TOP_NAV_TITLE_FONT_NAME
     font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE
-    font_color: str = "#fcfcfc"
+    font_color: str = GUIConstants.BODY_FONT_COLOR
     show_back_button: bool = True
     show_power_button: bool = False
     is_selected: bool = False

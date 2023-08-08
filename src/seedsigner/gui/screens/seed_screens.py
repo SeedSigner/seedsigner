@@ -502,7 +502,7 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
         for index, word in enumerate(self.words):
             draw.rounded_rectangle(
                 (number_box_x, number_box_y, number_box_x + number_box_width, number_box_y + number_box_height),
-                fill="#202020",
+                fill=GUIConstants.BUTTON_BACKGROUND_COLOR,
                 radius=5 * supersampling_factor
             )
             baseline_y = number_box_y + number_box_height - int((number_box_height - number_height)/2)
