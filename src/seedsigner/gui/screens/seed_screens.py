@@ -1555,6 +1555,7 @@ class SeedSignMessageConfirmAddressScreen(ButtonListScreen):
 
         derivation_path_display = IconTextLine(
             icon_name=SeedSignerIconConstants.DERIVATION,
+            icon_color=GUIConstants.INFO_COLOR,
             label_text="derivation path",
             value_text=self.derivation_path,
             is_text_centered=True,
