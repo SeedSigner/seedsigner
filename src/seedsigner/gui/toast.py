@@ -25,7 +25,7 @@ class ToastOverlay(BaseComponent):
             icon_size=GUIConstants.ICON_TOAST_FONT_SIZE,
             icon_color=self.color
         )
-        self.icon.screen_y = self.canvas_height - self.height + self.outline_thickness + int((self.height - self.icon.height)/2)
+        self.icon.screen_y = self.canvas_height - self.height + int((self.height - self.icon.height)/2)
 
         self.label = TextArea(
             image_draw=self.image_draw,
@@ -40,7 +40,7 @@ class ToastOverlay(BaseComponent):
             screen_x=self.icon.screen_x + self.icon.width + GUIConstants.COMPONENT_PADDING,
             allow_text_overflow=False
         )
-        self.label.screen_y = self.canvas_height - self.height + self.outline_thickness + int((self.height - self.label.height)/2)
+        self.label.screen_y = self.canvas_height - self.height + int((self.height - self.label.height)/2)
 
 
     def render(self):
@@ -188,7 +188,7 @@ class RemoveSDCardToastManagerThread(BaseToastOverlayManagerThread):
     def instantiate_toast(self) -> ToastOverlay:
         return ToastOverlay(
             icon_name=SeedSignerIconConstants.MICROSD,
-            label_text="Security tip:\nRemove SD card",
+            label_text="You can remove\nthe SD card now",
             font_size=GUIConstants.BODY_FONT_SIZE,
             height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
         )
