@@ -111,6 +111,7 @@ def test_generate_screenshots(target_locale):
             #PowerOffView # this test is too real; pi will power-off
             NotYetImplementedView,
             (RemoveMicroSDWarningView, dict(next_view=seed_views.SeedsMenuView)),
+            (RemoveMicroSDWarningView, dict(required=True, next_view=seed_views.SeedsMenuView), 'RemoveMicroSDWarningViewRequired'),
             (UnhandledExceptionView, dict(error=UnhandledExceptionViewFood)),
             (settings_views.SettingsIngestSettingsQRView, dict(data="settings::v1 name=factory_reset")),
 

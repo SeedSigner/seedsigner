@@ -4,7 +4,7 @@ from typing import Type
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON, RET_CODE__BACK_BUTTON
 from seedsigner.gui.screens.screen import BaseScreen, DireWarningScreen, LargeButtonScreen, PowerOffScreen, PowerOffNotRequiredScreen, ResetScreen, WarningScreen
-from seedsigner.models.settings import Settings
+from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.threads import BaseThread
 
 
@@ -141,16 +141,31 @@ class MainMenuView(View):
     TOOLS = ("Tools", SeedSignerIconConstants.TOOLS)
     SETTINGS = ("Settings", SeedSignerIconConstants.SETTINGS)
 
-    # returns a Destination for: RemoveMicroSDWarningView or next_view
     def microsd_warning_or_next_view(self, next_view):
-        if (self.settings.HOSTNAME == Settings.SEEDSIGNER_OS
-        and self.controller.microsd.warn_to_remove
-        and len(self.controller.storage.seeds) == 0
-        and self.controller.microsd.is_inserted()):
-            self.controller.microsd.warn_to_remove = False
-            return Destination(RemoveMicroSDWarningView, view_args={'next_view': next_view})
-        else:
+        '''returns a Destination for: RemoveMicroSDWarningView or next_view'''
+
+        user_preference = self.settings.get_value(SettingsConstants.SETTING__STORAGE_REMOVAL)
+
+        if user_preference == SettingsConstants.OPTION__DISABLED:
             return Destination(next_view)
+
+        elif user_preference == SettingsConstants.OPTION__PROMPT:
+            if (self.settings.HOSTNAME == Settings.SEEDSIGNER_OS
+            and self.controller.microsd.warn_to_remove
+            and len(self.controller.storage.seeds) == 0
+            and self.controller.microsd.is_inserted()):
+                self.controller.microsd.warn_to_remove = False
+                return Destination(RemoveMicroSDWarningView, view_args={'next_view': next_view})
+            else:
+                return Destination(next_view)
+
+        else: # user_preference MUST be SettingsConstants.OPTION__REQUIRED
+            if (self.settings.HOSTNAME == Settings.SEEDSIGNER_OS
+            and self.controller.microsd.is_inserted()):
+                return Destination(RemoveMicroSDWarningView, view_args={'required':True, 'next_view': MainMenuView})
+            else:
+                return Destination(next_view)
+
 
     def run(self):
         button_data = [self.SCAN, self.SEEDS, self.TOOLS, self.SETTINGS]
@@ -318,16 +333,17 @@ class RemoveMicroSDWarningView(View):
     """
         Warning to remove the microsd
     """
-    def __init__(self, next_view: View):
+    def __init__(self, next_view: View, required: bool = False):
         super().__init__()
         self.next_view = next_view
+        self.required = required
 
     def run(self):
         self.run_screen(
-            WarningScreen,
-            title="Security Tip",
+            WarningScreen if not self.required else DireWarningScreen,
+            title="Security Tip" if not self.required else "Remove SD Card",
             status_icon_name=SeedSignerIconConstants.MICROSD,
-            status_headline="",
+            status_headline="" if not self.required else "Removal is required!",
             text="For maximum security,\nremove the MicroSD card\nbefore continuing.",
             show_back_button=False,
             button_data=["Continue"],
