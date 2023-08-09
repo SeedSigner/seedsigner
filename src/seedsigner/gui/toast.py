@@ -25,7 +25,7 @@ class ToastOverlay(BaseComponent):
             icon_size=GUIConstants.ICON_TOAST_FONT_SIZE,
             icon_color=self.color
         )
-        self.icon.screen_y = self.canvas_height - self.height + int((self.height - self.icon.height)/2) - 1  # -1 fudge factor
+        self.icon.screen_y = self.canvas_height - self.height + self.outline_thickness + int((self.height - self.icon.height)/2)
 
         self.label = TextArea(
             image_draw=self.image_draw,
@@ -40,7 +40,7 @@ class ToastOverlay(BaseComponent):
             screen_x=self.icon.screen_x + self.icon.width + GUIConstants.COMPONENT_PADDING,
             allow_text_overflow=False
         )
-        self.label.screen_y = self.canvas_height - self.height + int((self.height - self.label.height)/2)
+        self.label.screen_y = self.canvas_height - self.height + self.outline_thickness + int((self.height - self.label.height)/2)
 
 
     def render(self):
