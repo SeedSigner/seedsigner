@@ -150,13 +150,13 @@ class Destination:
     
 
     def _run_view(self):
+        if self.view.has_redirect:
+            return self.view.get_redirect()
         return self.view.run()
 
 
     def run(self):
         self._instantiate_view()
-        if self.view.has_redirect:
-            return self.view.get_redirect()
         return self._run_view()
 
 

@@ -151,6 +151,15 @@ class FlowTest(BaseTest):
                         # View.run() call below.
                         sequence.pop(0)
 
+                        if destination.view.has_redirect:
+                            # TODO: Migrate all View redirects to use `View.set_redirect()`
+                            # in their `__init__()` rather than `run()` and then refactor
+                            # here to explicitly require `has_redirect` to be True.
+                            # For now: Support the newer `set_redirect()` routing while
+                            # still letting redirects get returned by `View.run()` further
+                            # below.
+                            return destination.view.get_redirect()
+
                     # Some Views reach into their Screen's variables directly (e.g. 
                     # Screen.buttons to preserve the scroll position), so we need to mock out the
                     # Screen instance that is created by the View.
