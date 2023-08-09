@@ -76,7 +76,7 @@ class SeedSelectSeedView(View):
     * `flow`: indicates which user flow is in progress during seed selection (e.g.
                 verify single sig addr or sign message).
     """
-    SCAN_SEED = ("Scan a seed", FontAwesomeIconConstants.QRCODE)
+    SCAN_SEED = ("Scan a seed", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
 
@@ -431,7 +431,7 @@ class SeedOptionsView(View):
     EXPORT_XPUB = "Export Xpub"
     EXPLORER = "Address Explorer"
     SIGN_MESSAGE = "Sign Message"
-    BACKUP = ("Backup Seed", None, None, None, SeedSignerIconConstants.SMALL_CHEVRON_RIGHT)
+    BACKUP = ("Backup Seed", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT)
     BIP85_CHILD_SEED = "BIP-85 Child Seed"
     DISCARD = ("Discard Seed", None, None, "red")
 
