@@ -26,7 +26,7 @@ class ToastOverlay(BaseComponent):
             icon_color=self.color
         )
         self.icon.screen_y = self.canvas_height - self.height + int((self.height - self.icon.height)/2) - 1  # -1 fudge factor
-        
+
         self.label = TextArea(
             image_draw=self.image_draw,
             canvas=self.canvas,
@@ -99,7 +99,7 @@ class BaseToastOverlayManagerThread(BaseThread):
         self.hw_inputs.override_ind = True
 
         self.toast = self.instantiate_toast()
-    
+
 
     def instantiate_toast(self) -> ToastOverlay:
         raise Exception("Must be implemented by subclass")
@@ -155,7 +155,7 @@ class BaseToastOverlayManagerThread(BaseThread):
                     print(f"{self.__class__.__name__}: Showing toast")
                     self.toast.render()
                     has_rendered = True
-                
+
                 if time.time() - start > self.activation_delay + self.duration and has_rendered:
                     print(f"{self.__class__.__name__}: Hiding toast")
                     break
@@ -169,28 +169,30 @@ class BaseToastOverlayManagerThread(BaseThread):
                 # As far as we know, we currently hold the Renderer.lock
                 self.renderer.show_image(previous_screen_state)
                 print(f"{self.__class__.__name__}: restored previous screen state")
-            
+
             # We're done, release the lock
             self.renderer.lock.release()
 
 
 
 class RemoveSDCardToastManagerThread(BaseToastOverlayManagerThread):
-    def __init__(self):
+    def __init__(self, activation_delay=3):
+        # Note: activation_delay is configurable so the screenshot generator can get the
+        # toast to immediately render.
         super().__init__(
-            activation_delay=3,  # seconds
-            duration=1e6,        # seconds ("forever")
+            activation_delay=activation_delay,  # seconds
+            duration=1e6,                       # seconds ("forever")
         )
 
 
     def instantiate_toast(self) -> ToastOverlay:
         return ToastOverlay(
-            icon_name=SeedSignerIconConstants.SDCARD,
+            icon_name=SeedSignerIconConstants.MICROSD,
             label_text="Security tip:\nRemove SD card",
             font_size=GUIConstants.BODY_FONT_SIZE,
             height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
         )
-        
+
 
     def should_keep_running(self) -> bool:
         """ Custom exit condition: keep running until the SD card is removed """
@@ -210,9 +212,8 @@ class SDCardStateChangeToastManagerThread(BaseToastOverlayManagerThread):
 
 
     def instantiate_toast(self) -> ToastOverlay:
+        print("instantiating toast!")
         return ToastOverlay(
-            icon_name=SeedSignerIconConstants.SDCARD,
+            icon_name=SeedSignerIconConstants.MICROSD,
             label_text=self.message,
         )
-
-

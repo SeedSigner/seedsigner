@@ -139,7 +139,6 @@ class SeedSignerIconConstants:
     BRIGHTNESS = "\ue91d"
     MICROSD = "\ue91e"
     QRCODE = "\ue91f"
-    SDCARD = "\ue920"
 
     MIN_VALUE = SCAN
     MAX_VALUE = QRCODE
