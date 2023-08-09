@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass
-from seedsigner.gui.components import BaseComponent, FontAwesomeIconConstants, GUIConstants, Icon, TextArea
+from seedsigner.gui.components import BaseComponent, FontAwesomeIconConstants, GUIConstants, Icon, SeedSignerIconConstants, TextArea
 from seedsigner.models.threads import BaseThread
 
 
@@ -185,7 +185,7 @@ class RemoveSDCardToastManagerThread(BaseToastOverlayManagerThread):
 
     def instantiate_toast(self) -> ToastOverlay:
         return ToastOverlay(
-            icon_name=FontAwesomeIconConstants.SDCARD,
+            icon_name=SeedSignerIconConstants.SDCARD,
             label_text="Security tip:\nRemove SD card",
             font_size=GUIConstants.BODY_FONT_SIZE,
             height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
@@ -211,7 +211,7 @@ class SDCardStateChangeToastManagerThread(BaseToastOverlayManagerThread):
 
     def instantiate_toast(self) -> ToastOverlay:
         return ToastOverlay(
-            icon_name=FontAwesomeIconConstants.SDCARD,
+            icon_name=SeedSignerIconConstants.SDCARD,
             label_text=self.message,
         )
 
