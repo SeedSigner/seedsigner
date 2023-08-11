@@ -132,8 +132,8 @@ def generate_mnemonic_from_coin_flips(coin_flips: str, wordlist_language_code: s
 
 def get_partial_final_word(coin_flips: str, wordlist_language_code: str = WORDLIST_LANGUAGE__ENGLISH) -> str:
     """ Look up the partial final word for the given coin flips.
-        7 coin flips: 0101010 + 0000 where the final 4 bits will be replaced with the checksum
-        3 coin flips: 0101 + 0000000 where the final 8 bits will be replaced with the checksum
+        7 coin flips: 0101010 + **** where the final 4 bits will be replaced with the checksum
+        3 coin flips: 010 + ******** where the final 8 bits will be replaced with the checksum
     """
     binary_string = coin_flips + "0" * (11 - len(coin_flips))
     wordlist_index = int(binary_string, 2)
