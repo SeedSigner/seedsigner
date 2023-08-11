@@ -1,4 +1,5 @@
 import os
+import time
 
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
@@ -12,7 +13,6 @@ class MicroSD(Singleton, BaseThread):
     FIFO_MODE = 0o600
     ACTION__INSERTED = "add"
     ACTION__REMOVED = "remove"
-    warn_to_remove = True
 
 
     @classmethod
@@ -31,10 +31,10 @@ class MicroSD(Singleton, BaseThread):
 
     @classmethod
     def is_inserted(cls):
-        # could only be False in seedsigner-os, else True
         if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
             return os.path.exists(MicroSD.MOUNT_POINT)
         else:
+            # Always True for Raspi OS
             return True
 
 
@@ -51,10 +51,9 @@ class MicroSD(Singleton, BaseThread):
         if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
 
             # at start-up, get current status and inform Settings
-            if MicroSD.is_inserted():
-                Settings.microsd_handler(self.ACTION__INSERTED)
-            else:
-                Settings.microsd_handler(self.ACTION__REMOVED)
+            Settings.handle_microsd_state_change(
+                action=MicroSD.ACTION__INSERTED if MicroSD.is_inserted else MicroSD.ACTION__REMOVED
+            )
 
             if os.path.exists(self.FIFO_PATH):
                 os.remove(self.FIFO_PATH)
@@ -66,9 +65,7 @@ class MicroSD(Singleton, BaseThread):
                     action = fifo.read()
                     print(f"fifo message: {action}")
 
-                    Settings.microsd_handler(action=action)
-
-                    if action == self.ACTION__INSERTED:
-                        self.warn_to_remove = True
-
+                    Settings.handle_microsd_state_change(action=action)
                     Controller.get_instance().activate_toast(SDCardStateChangeToastManagerThread(action=action))
+
+                time.sleep(0.1)

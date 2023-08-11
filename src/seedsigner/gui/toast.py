@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass
-from seedsigner.gui.components import BaseComponent, FontAwesomeIconConstants, GUIConstants, Icon, SeedSignerIconConstants, TextArea
+from seedsigner.gui.components import BaseComponent, GUIConstants, Icon, SeedSignerIconConstants, TextArea
 from seedsigner.models.threads import BaseThread
 
 
@@ -203,6 +203,8 @@ class RemoveSDCardToastManagerThread(BaseToastOverlayManagerThread):
 
 class SDCardStateChangeToastManagerThread(BaseToastOverlayManagerThread):
     def __init__(self, action: str, *args, **kwargs):
+        # Note: we could just directly detect the MicroSD status here, but passing it in
+        # via `action` lets us simulate the state we want in the screenshot generator.
         from seedsigner.hardware.microsd import MicroSD
         if action not in [MicroSD.ACTION__INSERTED, MicroSD.ACTION__REMOVED]:
             raise Exception(f"Invalid MicroSD action: {action}")
