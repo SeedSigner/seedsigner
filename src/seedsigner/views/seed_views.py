@@ -427,6 +427,7 @@ class SeedDiscardView(View):
 ****************************************************************************"""
 class SeedOptionsView(View):
     SCAN_PSBT = ("Scan PSBT", SeedSignerIconConstants.QRCODE)
+    OPEN_PSBT = "Open PSBT on MicroSD"
     VERIFY_ADDRESS = "Verify Addr"
     EXPORT_XPUB = "Export Xpub"
     EXPLORER = "Address Explorer"
@@ -478,6 +479,9 @@ class SeedOptionsView(View):
 
         button_data.append(self.SCAN_PSBT)
         
+        if len(self.controller.microsd.psbt_files) > 0:
+            button_data.append(self.OPEN_PSBT)
+        
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.EXPORT_XPUB)
 
@@ -507,6 +511,11 @@ class SeedOptionsView(View):
             from seedsigner.views.scan_views import ScanPSBTView
             self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
             return Destination(ScanPSBTView)
+            
+        elif button_data[selected_menu_num] == self.OPEN_PSBT:
+            from seedsigner.views.psbt_views import PSBTFileSelectionView
+            self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
+            return Destination(PSBTFileSelectionView)
 
         elif button_data[selected_menu_num] == self.VERIFY_ADDRESS:
             return Destination(SeedAddressVerificationView, view_args=dict(seed_num=self.seed_num))
