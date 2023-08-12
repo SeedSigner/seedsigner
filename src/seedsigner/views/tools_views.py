@@ -17,7 +17,7 @@ from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
-from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedWordsWarningView, SeedExportXpubScriptTypeView
+from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
 
 from .view import View, Destination, BackStackView
 
@@ -562,9 +562,13 @@ class ToolsAddressExplorerAddressTypeView(View):
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
-            # Clear the current flow
-            self.controller.resume_main_flow = None
-            self.controller.address_explorer_data = None
+            # If we entered this flow via an already-loaded seed's SeedOptionsView, we
+            # need to clear the `resume_main_flow` so that we don't get stuck in a 
+            # SeedOptionsView redirect loop.
+            if len(self.controller.back_stack) > 1 and self.controller.back_stack[-2].View_cls == SeedOptionsView:
+                # The BackStack has the current View on the top with the real "back" in second position.
+                self.controller.resume_main_flow = None
+                self.controller.address_explorer_data = None
             return Destination(BackStackView)
         
         elif button_data[selected_menu_num] in [self.RECEIVE, self.CHANGE]:
