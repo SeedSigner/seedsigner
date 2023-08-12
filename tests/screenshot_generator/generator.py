@@ -1,7 +1,7 @@
 import embit
 import os
 import sys
-from mock import Mock, patch, MagicMock
+from mock import Mock, MagicMock
 
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
@@ -15,16 +15,13 @@ sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 
 from seedsigner.controller import Controller
 from seedsigner.gui.renderer import Renderer
-from seedsigner.hardware.buttons import HardwareButtons
-from seedsigner.hardware.camera import Camera
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
-from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, NotYetImplementedView, UnhandledExceptionView, 
-    psbt_views, scan_views, seed_views, settings_views, tools_views)
-from seedsigner.views.view import View
+    psbt_views, seed_views, settings_views, tools_views)
+from seedsigner.views.view import NetworkMismatchErrorView, PowerOffView, View
 
 from .utils import ScreenshotComplete, ScreenshotRenderer
 
@@ -46,6 +43,9 @@ def test_generate_screenshots(target_locale):
     # Replace the core `Singleton` calls so that only our ScreenshotRenderer is used.
     Renderer.configure_instance = Mock()
     Renderer.get_instance = Mock(return_value=screenshot_renderer)
+
+    # Additional mocks needed
+    PowerOffView.PowerOffThread = Mock()  # Don't let this View actually send the `shutdown` command!
 
     controller = Controller.get_instance()
 
@@ -71,21 +71,14 @@ def test_generate_screenshots(target_locale):
     # Multisig wallet descriptor for the multisig in the above PSBT
     MULTISIG_WALLET_DESCRIPTOR = """wsh(sortedmulti(1,[22bde1a9/48h/1h/0h/2h]tpubDFfsBrmpj226ZYiRszYi2qK6iGvh2vkkghfGB2YiRUVY4rqqedHCFEgw12FwDkm7rUoVtq9wLTKc6BN2sxswvQeQgp7m8st4FP8WtP8go76/{0,1}/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*))#3jhtf6yx"""
     controller.multisig_wallet_descriptor = embit.descriptor.Descriptor.from_string(MULTISIG_WALLET_DESCRIPTOR)
-
-    def screencap_view(view_cls: View, view_name: str, view_args: dict={}):
-        screenshot_renderer.set_screenshot_filename(f"{view_name}.png")
-        try:
-            print(f"Running {view_name}")
-            view_cls(**view_args).run()
-        except ScreenshotComplete:
-            # Slightly hacky way to exit ScreenshotRenderer as expected
-            pass
-            print(f"Completed {view_name}")
-        except Exception as e:
-            # Something else went wrong
-            print(repr(e))
-            raise e
     
+    # Message signing data
+    controller.sign_message_data = {
+        "seed_num": 0,
+        "derivation_path": "m/84h/0h/0h/0/0",
+        "message": "I attest that I control this bitcoin address blah blah blah",
+    }
+
     # Automatically populate all Settings options Views
     settings_views_list = []
     settings_views_list.append(settings_views.SettingsMenuView)
@@ -108,10 +101,12 @@ def test_generate_screenshots(target_locale):
             MainMenuView,
             PowerOptionsView,
             RestartView,
-            #PowerOffView # this test is too real; pi will power-off
+            PowerOffView,
             NotYetImplementedView,
             (UnhandledExceptionView, dict(error=UnhandledExceptionViewFood)),
-            (settings_views.SettingsIngestSettingsQRView, dict(data="settings::v1 name=factory_reset"))
+            (settings_views.SettingsIngestSettingsQRView, dict(data="settings::v1 name=factory_reset")),
+            NetworkMismatchErrorView,
+
 
         ],
         "Seed Views": [
@@ -164,6 +159,9 @@ def test_generate_screenshots(target_locale):
             seed_views.LoadMultisigWalletDescriptorView,
             seed_views.MultisigWalletDescriptorView,
             (seed_views.SeedDiscardView, dict(seed_num=0)),
+
+            seed_views.SeedSignMessageConfirmMessageView,
+            seed_views.SeedSignMessageConfirmAddressView,
         ],
         "PSBT Views": [
             psbt_views.PSBTSelectSeedView, # this will fail, be rerun below
@@ -203,12 +201,25 @@ def test_generate_screenshots(target_locale):
         "Settings Views": settings_views_list,
     }
 
-
-    screenshot_renderer.set_screenshot_path(screenshot_root)
-
     readme = f"""# SeedSigner Screenshots\n"""
 
+    def screencap_view(view_cls: View, view_name: str, view_args: dict={}):
+        screenshot_renderer.set_screenshot_filename(f"{view_name}.png")
+        try:
+            print(f"Running {view_name}")
+            view_cls(**view_args).run()
+        except ScreenshotComplete:
+            # Slightly hacky way to exit ScreenshotRenderer as expected
+            pass
+            print(f"Completed {view_name}")
+        except Exception as e:
+            # Something else went wrong
+            print(repr(e))
+            raise e
+
     for section_name, screenshot_list in screenshot_sections.items():
+        subdir = section_name.lower().replace(" ", "_")
+        screenshot_renderer.set_screenshot_path(os.path.join(screenshot_root, subdir))
         readme += "\n\n---\n\n"
         readme += f"## {section_name}\n\n"
         readme += """<table style="border: 0;">"""
@@ -227,14 +238,15 @@ def test_generate_screenshots(target_locale):
 
             screencap_view(view_cls, view_name, view_args)
             readme += """  <table align="left" style="border: 1px solid gray;">"""
-            readme += f"""<tr><td align="center">{view_name}<br/><br/><img src="{view_name}.png"></td></tr>"""
+            readme += f"""<tr><td align="center">{view_name}<br/><br/><img src="{subdir}/{view_name}.png"></td></tr>"""
             readme += """</table>\n"""
 
         readme += "</td></tr></table>"
 
     # many screens don't work, leaving a missing image, re-run here for now
     controller.psbt_seed = None
+    screenshot_renderer.set_screenshot_path(os.path.join(screenshot_root, "psbt_views"))
     screencap_view(psbt_views.PSBTSelectSeedView, 'PSBTSelectSeedView', {})
 
-    with open(os.path.join(screenshot_renderer.screenshot_path, "README.md"), 'w') as readme_file:
+    with open(os.path.join(screenshot_root, "README.md"), 'w') as readme_file:
        readme_file.write(readme)

@@ -4,7 +4,7 @@ from typing import Type
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON, RET_CODE__BACK_BUTTON
 from seedsigner.gui.screens.screen import BaseScreen, DireWarningScreen, LargeButtonScreen, PowerOffScreen, PowerOffNotRequiredScreen, ResetScreen, WarningScreen
-from seedsigner.models.settings import Settings
+from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.threads import BaseThread
 
 
@@ -42,7 +42,12 @@ class BackStackView:
     "Cancel" - End task and return to entry point (destructive)
 """
 class View:
-    def __init__(self) -> None:
+    def _initialize(self):
+        """
+        Whether the View is a regular class initialized by __init__() or a dataclass
+        initialized by __post_init__(), this method will be called to set up the View's
+        instance variables.
+        """
         # Import here to avoid circular imports
         from seedsigner.controller import Controller
         from seedsigner.gui import Renderer
@@ -56,7 +61,44 @@ class View:
         self.canvas_height = self.renderer.canvas_height
 
         self.screen = None
-    
+
+        self._redirect: 'Destination' = None
+
+
+    def __init__(self):
+        self._initialize()
+
+
+    def __post_init__(self):
+        self._initialize()
+
+
+    @property
+    def has_redirect(self) -> bool:
+        if not hasattr(self, '_redirect'):
+            # Easy for a View to forget to call super().__init__()
+            raise Exception(f"{self.__class__.__name__} did not call super().__init__()")
+        return self._redirect is not None
+
+
+    def set_redirect(self, destination: 'Destination'):
+        """
+        Enables early `__init__()` / `__post_init__()` logic to redirect away from the
+        current View.
+
+        Set a redirect Destination and then immediately `return` to exit `__init__()` or
+        `__post_init__()`. When the `Destination.run()` is called, it will see the redirect
+        and immediately return that new Destination to the Controller without running
+        the View's `run()`.
+        """
+        # Always insure skip_current_view is set for a redirect
+        destination.skip_current_view = True
+        self._redirect = destination
+
+
+    def get_redirect(self) -> 'Destination':
+        return self._redirect
+
 
     def run_screen(self, Screen_cls: Type[BaseScreen], **kwargs) -> int | str:
         """
@@ -108,6 +150,8 @@ class Destination:
     
 
     def _run_view(self):
+        if self.view.has_redirect:
+            return self.view.get_redirect()
         return self.view.run()
 
 
@@ -262,13 +306,13 @@ class NotYetImplementedView(View):
 
 @dataclass
 class ErrorView(View):
-    """
-    """
     title: str = "Error"
+    show_back_button: bool = True
     status_headline: str = None
     text: str = None
     button_text: str = None
     next_destination: Destination = Destination(MainMenuView, clear_history=True)
+
 
     def run(self):
         self.run_screen(
@@ -277,15 +321,35 @@ class ErrorView(View):
             status_headline=self.status_headline,
             text=self.text,
             button_data=[self.button_text],
+            show_back_button=self.show_back_button,
         )
 
         return self.next_destination
 
 
 
+@dataclass
+class NetworkMismatchErrorView(ErrorView):
+    title: str = "Network Mismatch"
+    show_back_button: bool = False
+    button_text: str = "Change Settings"
+    next_destination: Destination = None
+
+
+    def __post_init__(self):
+        super().__post_init__()
+        if not self.text:
+            self.text = f"Current network setting ({self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK)}) doesn't match current action."
+
+        if not self.next_destination:
+            from seedsigner.views.settings_views import SettingsEntryUpdateSelectionView
+            self.next_destination = Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=SettingsConstants.SETTING__NETWORK), clear_history=True)
+
+
+
+@dataclass
 class UnhandledExceptionView(View):
-    def __init__(self, error: list[str]):
-        self.error = error
+    error: list[str]
 
 
     def run(self):
@@ -298,5 +362,24 @@ class UnhandledExceptionView(View):
             show_back_button=False,
             allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
         )
+        
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+@dataclass
+class OptionDisabledView(View):
+    error_msg: str
+
+
+    def run(self):
+        WarningScreen(
+            title="Option Disabled",
+            status_headline=None,
+            text=self.error_msg,
+            button_data=["OK"],
+            show_back_button=False,
+            allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
+        ).display()
         
         return Destination(MainMenuView, clear_history=True)

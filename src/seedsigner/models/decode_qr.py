@@ -83,6 +83,9 @@ class DecodeQR:
             elif self.qr_type == QRType.BITCOIN_ADDRESS:
                 self.decoder = BitcoinAddressQrDecoder() # Single Segment bitcoin address
 
+            elif self.qr_type == QRType.SIGN_MESSAGE:
+                self.decoder = SignMessageQrDecoder() # Single Segment sign message request
+
             elif self.qr_type == QRType.WALLET__SPECTER:
                 self.decoder = SpecterWalletQrDecoder() # Specter Desktop Wallet Export decoder
 
@@ -131,6 +134,9 @@ class DecodeQR:
             return rt
 
 
+    # TODO: Refactor all of these specific `get_` to just something generic like
+    #   `get_data` and let each QRDecoder class return whatever it needs to as a
+    #   str, tuple, dict, etc?
     def get_psbt(self):
         if self.complete:
             data = self.get_data_psbt()
@@ -185,6 +191,15 @@ class DecodeQR:
     def get_address_type(self):
         if self.is_address:
             return self.decoder.get_address_type()
+
+
+    def get_qr_data(self) -> dict:
+        """
+        This provides a single access point for external code to retrieve the QR data,
+        regardless of which decoder is actually instantiated.
+        """
+        # TODO: Implement this approach across all decoders
+        return self.decoder.get_qr_data()
 
 
     def get_wallet_descriptor(self):
@@ -265,6 +280,11 @@ class DecodeQR:
     @property
     def is_address(self):
         return self.qr_type == QRType.BITCOIN_ADDRESS
+        
+
+    @property
+    def is_sign_message(self):
+        return self.qr_type == QRType.SIGN_MESSAGE
         
 
     @property
@@ -356,6 +376,10 @@ class DecodeQR:
             # Bitcoin Address
             elif DecodeQR.is_bitcoin_address(s):
                 return QRType.BITCOIN_ADDRESS
+
+            # message signing
+            elif DecodeQR.is_sign_message(s):
+                return QRType.SIGN_MESSAGE
 
             # config data
             if s.startswith("settings::"):
@@ -476,7 +500,13 @@ class DecodeQR:
             return True
         else:
             return False
-    
+
+
+    @staticmethod
+    def is_sign_message(s):
+        return type(s) == str and s.startswith("signmessage")
+
+
     @staticmethod
     def multisig_setup_file_to_descriptor(text) -> str:
         # sample text file, parse the contents and create descriptor
@@ -586,6 +616,10 @@ class BaseQrDecoder:
 
     def add(self, segment, qr_type):
         raise Exception("Not implemented in child class")
+    
+    def get_qr_data(self) -> dict:
+        # TODO: standardize this approach across all decoders (example: SignMessageQrDecoder)
+        raise Exception("get_qr_data must be implemented in decoder child class")
 
 
 
@@ -854,6 +888,40 @@ class SettingsQrDecoder(BaseSingleFrameQrDecoder):
 
 
 
+class SignMessageQrDecoder(BaseSingleFrameQrDecoder):
+    def __init__(self):
+        super().__init__()
+        self.message = None
+        self.derivation_path = None
+
+
+    def add(self, segment, qr_type=QRType.SIGN_MESSAGE):
+        """
+            Expected QR data format:
+
+            signmessage {derivation_path} ascii:{message}
+        """
+        parts = segment.split()
+        self.derivation_path = parts[1].replace("h", "'")
+        fmt = parts[2].split(":")[0]
+        self.message = segment.split(f"{fmt}:")[1]
+
+        # TODO: support formats other than ascii?
+        if fmt != "ascii":
+            print(f"Sign message: Unsupported format: {fmt}")
+            return DecodeQRStatus.INVALID
+
+        self.complete = True
+        self.collected_segments = 1
+
+        return DecodeQRStatus.COMPLETE
+
+
+    def get_qr_data(self) -> dict:
+        return dict(derivation_path=self.derivation_path, message=self.message)
+
+
+
 class BitcoinAddressQrDecoder(BaseSingleFrameQrDecoder):
     """
         Decodes single frame representing a bitcoin address
@@ -1019,8 +1087,7 @@ class GenericWalletQrDecoder(BaseSingleFrameQrDecoder):
 
 
 
-class MultiSigConfigFileQRDecoder(GenericWalletQrDecoder):
-    
+class MultiSigConfigFileQRDecoder(GenericWalletQrDecoder):    
     def add(self, segment, qr_type=QRType.WALLET__CONFIGFILE):
         descriptor = DecodeQR.multisig_setup_file_to_descriptor(segment)
         return super().add(descriptor,qr_type=QRType.WALLET__CONFIGFILE)

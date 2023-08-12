@@ -166,7 +166,7 @@ class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
 
         self.components.append(TextArea(
             text=f"The {self.mnemonic_length}th word is built from {self.num_entropy_bits} more entropy bits plus auto-calculated checksum.",
-            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+            screen_y=self.top_nav.height + int(GUIConstants.COMPONENT_PADDING/2),
         ))
 
 
@@ -252,7 +252,6 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
             edge_padding=0,
             screen_x=bit_display_x,
             screen_y=screen_y,
-            height=bit_font_height,
             is_text_centered=False,
         ))
 
@@ -266,7 +265,6 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
             edge_padding=0,
             screen_x=checksum_x,
             screen_y=screen_y,
-            height=bit_font_height,
             is_text_centered=False,
         ))
 
@@ -291,7 +289,6 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
             edge_padding=0,
             screen_x=bit_display_x,
             screen_y=screen_y,
-            height=bit_font_height,
             is_text_centered=False,
         ))
 

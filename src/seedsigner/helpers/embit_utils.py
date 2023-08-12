@@ -1,9 +1,14 @@
 import embit
-from embit import bip32
+
+from binascii import b2a_base64
+from hashlib import sha256
+
+from embit import bip32, compact, ec
 from embit.bip32 import HDKey
 from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
-from embit.networks import NETWORKS
+from embit.util import secp256k1
+
 
 from seedsigner.models.settings_definition import SettingsConstants
 
@@ -93,3 +98,85 @@ def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool
     elif descriptor.is_taproot:
         # TODO: Not yet implemented!
         raise Exception("Taproot verification not yet implemented!")
+
+
+
+def get_embit_network_name(settings_name):
+    """ Convert SeedSigner SettingsConstants for `network` to embit's NETWORK key """
+    lookup = {
+        SettingsConstants.MAINNET: "main",
+        SettingsConstants.TESTNET: "test",
+        SettingsConstants.REGTEST: "regtest",
+    }
+    return lookup.get(settings_name)
+
+
+
+def parse_derivation_path(derivation_path: str) -> dict:
+    """
+    Parses a derivation path into its related SettingsConstants equivalents.
+
+    Primarily only supports single sig derivation paths.
+
+    May return None for fields it cannot parse.
+    """
+    # Support either m/44'/... or m/44h/... style
+    derivation_path = derivation_path.replace("'", "h")
+
+    sections = derivation_path.split("/")
+
+    if sections[1] == "48h":
+        # So far this helper is only meant for single sig message signing
+        raise Exception("Not implemented")
+
+    lookups = {
+        "script_types": {
+            "84h": SettingsConstants.NATIVE_SEGWIT,
+            "49h": SettingsConstants.NESTED_SEGWIT,
+            "86h": SettingsConstants.TAPROOT,
+        },
+        "networks": {
+            "0h": SettingsConstants.MAINNET,
+            "1h": [SettingsConstants.TESTNET, SettingsConstants.REGTEST],
+        }
+    }
+
+    details = dict()
+    details["script_type"] = lookups["script_types"].get(sections[1])
+    if not details["script_type"]:
+        details["script_type"] = SettingsConstants.CUSTOM_DERIVATION
+    details["network"] = lookups["networks"].get(sections[2])
+    details["is_change"] = sections[-2] == "1"
+    details["index"] = int(sections[-1])
+
+    details["clean_match"] = True
+    for k, v in details.items():
+        if v is None:
+            # At least one field couldn't be parsed
+            details["clean_match"] = False
+            break
+
+    return details
+
+
+
+def sign_message(seed_bytes: bytes, derivation: str, msg: bytes, compressed: bool = True, embit_network: str = "main") -> bytes:
+    """
+        from: https://github.com/cryptoadvance/specter-diy/blob/b58a819ef09b2bca880a82c7e122618944355118/src/apps/signmessage/signmessage.py
+    """
+    """Sign message with private key"""
+    msghash = sha256(
+        sha256(
+            b"\x18Bitcoin Signed Message:\n" + compact.to_bytes(len(msg)) + msg
+        ).digest()
+    ).digest()
+
+    root = bip32.HDKey.from_seed(seed_bytes, version=NETWORKS[embit_network]["xprv"])
+    prv = root.derive(derivation).key
+    sig = secp256k1.ecdsa_sign_recoverable(msghash, prv._secret)
+    flag = sig[64]
+    sig = ec.Signature(sig[:64])
+    c = 4 if compressed else 0
+    flag = bytes([27 + flag + c])
+    ser = flag + secp256k1.ecdsa_signature_serialize_compact(sig._sig)
+    return b2a_base64(ser).strip().decode()
