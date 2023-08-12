@@ -1,16 +1,17 @@
 import hashlib
 import os
-
 import time
 
 from embit.descriptor import Descriptor
 from PIL import Image
 from PIL.ImageOps import autocontrast
+
 from seedsigner.controller import Controller
-from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
-from seedsigner.gui.screens.tools_screens import ToolsCalcFinalWordDoneScreen, ToolsCalcFinalWordFinalizePromptScreen, ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen
+from seedsigner.gui.screens.tools_screens import (ToolsCalcFinalWordDoneScreen, ToolsCalcFinalWordFinalizePromptScreen,
+    ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen,
+    ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen)
 from seedsigner.helpers import embit_utils, mnemonic_generation
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
@@ -79,6 +80,7 @@ class ToolsImageEntropyLivePreviewView(View):
 class ToolsImageEntropyFinalImageView(View):
     def run(self):
         if not self.controller.image_entropy_final_image:
+            from seedsigner.hardware.camera import Camera
             # Take the final full-res image
             camera = Camera.get_instance()
             camera.start_single_frame_mode(resolution=(720, 480))
@@ -560,6 +562,9 @@ class ToolsAddressExplorerAddressTypeView(View):
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
+            # Clear the current flow
+            self.controller.resume_main_flow = None
+            self.controller.address_explorer_data = None
             return Destination(BackStackView)
         
         elif button_data[selected_menu_num] in [self.RECEIVE, self.CHANGE]:
