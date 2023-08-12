@@ -565,7 +565,7 @@ class ToolsAddressExplorerAddressTypeView(View):
             # If we entered this flow via an already-loaded seed's SeedOptionsView, we
             # need to clear the `resume_main_flow` so that we don't get stuck in a 
             # SeedOptionsView redirect loop.
-            # TODO: Provide a cleaner `BackStack.get_previous_View_cls()`
+            # TODO: Refactor to a cleaner `BackStack.get_previous_View_cls()`
             if len(self.controller.back_stack) > 1 and self.controller.back_stack[-2].View_cls == SeedOptionsView:
                 # The BackStack has the current View on the top with the real "back" in second position.
                 self.controller.resume_main_flow = None
