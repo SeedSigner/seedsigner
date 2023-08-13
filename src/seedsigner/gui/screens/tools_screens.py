@@ -397,7 +397,7 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
                     label_text="Derivation",
                     value_text=SettingsDefinition.get_settings_entry(attr_name=SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(value=self.script_type),
                     screen_x=GUIConstants.EDGE_PADDING,
-                    screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+                    screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
                 ))
             else:
                 self.components.append(IconTextLine(
@@ -405,14 +405,14 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
                     label_text="Derivation",
                     value_text=self.custom_derivation_path,
                     screen_x=GUIConstants.EDGE_PADDING,
-                    screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+                    screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
                 ))
 
         else:
             self.components.append(IconTextLine(
                 label_text="Wallet descriptor",
                 value_text=self.wallet_descriptor_display_name,
-                is_text_centered=False,
+                is_text_centered=True,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
             ))

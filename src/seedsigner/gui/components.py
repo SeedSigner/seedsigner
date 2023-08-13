@@ -53,7 +53,7 @@ class GUIConstants:
     FIXED_WIDTH_EMPHASIS_FONT_NAME = "Inconsolata-SemiBold"
 
     LABEL_FONT_SIZE = BODY_FONT_MIN_SIZE
-    LABEL_FONT_COLOR = "#B3B3B3"
+    LABEL_FONT_COLOR = "#777777"
 
     BUTTON_FONT_NAME = "OpenSans-SemiBold"
     BUTTON_FONT_SIZE = 18
@@ -317,7 +317,10 @@ class TextArea(BaseComponent):
 
         # Note: from the baseline anchor, `top` is a negative number while `bottom`
         # conveys the pixels used below the baseline (e.g. in "py").
-        (left, top, right, bottom) = font.getbbox(self.text + "A", anchor="ls")  # For consistency, ensure we have a full-height character above baseline
+        # For consistency, ensure we have a full-height character above baseline.
+        # Also include some "below baseline" chars.
+        measurement_chars = "Agjpqy"
+        (left, top, right, bottom) = font.getbbox(self.text + measurement_chars, anchor="ls")
         self.text_height_above_baseline = -1 * top
         self.text_height_below_baseline = bottom
 
@@ -374,7 +377,7 @@ class TextArea(BaseComponent):
 
         resample_padding = 10 if self.supersampling_factor > 1.0 else 0
         img = Image.new(
-            "RGB",
+            "RGBA",
             (
                 self.width * self.supersampling_factor,
                 (self.height + 2*resample_padding) * self.supersampling_factor
@@ -503,7 +506,7 @@ class IconTextLine(BaseComponent):
                 auto_line_break=False,
                 screen_x=text_screen_x,
                 screen_y=self.screen_y,
-                allow_text_overflow=False
+                allow_text_overflow=False,
             )
         else:
             self.label_textarea = None        
@@ -1097,7 +1100,9 @@ class Button(BaseComponent):
             (left, top, self.text_width, bottom) = self.font.getbbox(self.text, anchor="ls")
             # print(f"left: {left} |  top: {top} | right: {self.text_width} | bottom: {bottom}")
 
-            # Note: "top" is negative when measured from a "baseline" anchor
+            # Note: "top" is negative when measured from a "baseline" anchor. Intentionally
+            # ignore any chars below the baseline for consistent vertical positioning
+            # regardless of the Button text.
             self.text_height = -1 * top
 
             # TODO: Only apply screen_y at render
@@ -1323,6 +1328,9 @@ class TopNav(BaseComponent):
                 font_name=self.font_name,
                 font_size=self.font_size,
             )
+            # remove the vertical centering that account for any portions of chars that
+            # render below baseline in order to keep titles consistently positioned.
+            self.title.screen_y += int(self.title.text_height_below_baseline/2)
 
 
     @property
