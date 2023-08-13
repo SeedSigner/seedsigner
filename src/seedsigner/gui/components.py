@@ -1328,9 +1328,6 @@ class TopNav(BaseComponent):
                 font_name=self.font_name,
                 font_size=self.font_size,
             )
-            # remove the vertical centering that account for any portions of chars that
-            # render below baseline in order to keep titles consistently positioned.
-            self.title.screen_y += int(self.title.text_height_below_baseline/2)
 
 
     @property
