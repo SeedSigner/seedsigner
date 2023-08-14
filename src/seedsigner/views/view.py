@@ -190,14 +190,21 @@ class MainMenuView(View):
         
         user_preference = self.settings.get_value(SettingsConstants.SETTING__STORAGE_REMOVAL)
         
+        '''
+            Skip MicroSD Removal Warning screen if disabled in settings.
+            If Prompt is selected in setting for MicroSD removal then only warn once per session
+            If Required is selected force a hard stop to remove MicroSD even if the warning has been seen before
+            or if there is already private key material in RAM.
+        '''
         if user_preference == SettingsConstants.OPTION__DISABLED:
             return Destination(next_view)
         
         elif (user_preference in (SettingsConstants.OPTION__PROMPT, SettingsConstants.OPTION__REQUIRED)
         and self.settings.HOSTNAME == Settings.SEEDSIGNER_OS
-        and (( self.controller.microsd.warn_to_remove and user_preference == SettingsConstants.OPTION__PROMPT )
+        and (( self.controller.microsd.warn_to_remove 
+               and user_preference == SettingsConstants.OPTION__PROMPT
+               and len(self.controller.storage.seeds) == 0)
             or (user_preference == SettingsConstants.OPTION__REQUIRED))
-        and len(self.controller.storage.seeds) == 0
         and self.controller.microsd.is_inserted()):
         
             if user_preference == SettingsConstants.OPTION__PROMPT:
