@@ -6,7 +6,7 @@ from base import FlowTest, FlowStep
 from seedsigner.gui.screens.screen import RET_CODE__POWER_BUTTON
 from seedsigner.models.settings import Settings
 from seedsigner.views.tools_views import ToolsCalcFinalWordNumWordsView, ToolsMenuView
-from seedsigner.views.view import MainMenuView, NotYetImplementedView, PowerOptionsView, PowerOffView, RestartView, UnhandledExceptionView, View
+from seedsigner.views.view import MainMenuView, NotYetImplementedView, PowerOptionsView, PowerOffView, RestartView, UnhandledExceptionView, View, RemoveMicroSDWarningView
 
 
 
@@ -65,6 +65,7 @@ class TestViewFlows(FlowTest):
         """
         Basic flow from any arbitrary View to the UnhandledExceptionView
         """
+        Settings.HOSTNAME = "NOT seedsigner-os"
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
             FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.KEYBOARD),

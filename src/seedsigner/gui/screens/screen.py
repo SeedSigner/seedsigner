@@ -6,7 +6,7 @@ from typing import Any, List, Tuple
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
 
-from seedsigner.models.threads import BaseThread, ThreadsafeCounter
+from seedsigner.models.threads import BaseThread, ThreadsafeCounter, ThreadsafeBool
 from seedsigner.models.settings import SettingsConstants
 
 from ..components import (FontAwesomeIconConstants, GUIConstants, BaseComponent, Button, Icon, IconButton,
@@ -949,7 +949,7 @@ class WarningEdgesMixin:
 class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
     title: str = "Caution"
     status_icon_name: str = SeedSignerIconConstants.WARNING
-    status_color: str = "yellow"
+    status_color: str = GUIConstants.WARNING_COLOR
     status_headline: str = "Privacy Leak!"     # The colored text under the alert icon
 
     def __post_init__(self):
@@ -964,6 +964,61 @@ class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
 class DireWarningScreen(WarningScreen):
     status_headline: str = "Classified Info!"     # The colored text under the alert icon
     status_color: str = GUIConstants.DIRE_WARNING_COLOR
+
+
+@dataclass
+class RemoveMicroSDWarningScreen(LargeIconStatusScreen):
+    require_removal: bool = False
+    title: str = "Security Tip"
+    status_icon_name: str = SeedSignerIconConstants.MICROSD
+    text: str = "For improved security,\nremove the MicroSD card\nbefore continuing."
+    show_back_button: bool = False
+    status_headline: str = ""     # The colored text under the alert icon
+    microsd_removed: ThreadsafeBool = ThreadsafeBool()
+
+    def __post_init__(self):
+        if not self.button_data:
+            self.button_data = ["I Understand"]
+        
+        if self.require_removal:
+            self.status_color = GUIConstants.DIRE_WARNING_COLOR
+            self.status_headline = "Removal is required!"
+            self.title = "Remove SD Card"
+        
+        super().__post_init__()
+        
+        self.threads.append(RemoveMicroSDWarningScreen.MicroSDRemovalDetectionThread(
+            microsd_removed=self.microsd_removed
+        ))
+
+        
+    def _run_callback(self):
+        if self.microsd_removed.value:
+            print("Screen callback returning microsd removed!")
+            self.threads[-1].stop()
+            while self.threads[-1].is_alive():
+                time.sleep(0.01)
+            return 1
+        
+    class MicroSDRemovalDetectionThread(BaseThread):
+        def __init__(self, microsd_removed: ThreadsafeBool):
+            self.microsd_removed = microsd_removed
+            super().__init__()
+            
+        def run(self):
+            while self.keep_running:
+                from seedsigner.hardware.microsd import MicroSD
+                if not MicroSD.get_instance().is_inserted():
+                    print("MicroSD Removed!")
+                    # This thread will detect when the microsd is removed while its parent
+                    # Screen holds in its `wait_for`. Have to trigger a hw_input event to break
+                    # the Screen._run out of the `wait_for` state. The Screen will then
+                    # call its `_run_callback` and detect the success state and exit.
+                    self.microsd_removed.set_value(True)
+                    HardwareButtons.get_instance().trigger_override(force_release=True)
+                    return
+            
+                time.sleep(0.2)
 
 
 
@@ -1221,38 +1276,3 @@ class KeyboardScreen(BaseTopNavScreen):
                 self.title = f"Roll {self.cursor_position + 1}"
         """
         return False
-
-class MicroSDToastScreen(BaseScreen):
-    """
-        This screen is an overlay with special behavior with the ToastOverlay component. The ToastOverlay component overides all button
-        input and captures the existing screen content and stashes it to be restored once X second passes or any button is pressed. The
-        display method on this screen will not complete until after the ToastOverlay render method is complete it's takeover of the screen.
-    """
-    def __init__(self, action):
-        self.action = action
-        self.toast = None
-        super().__init__()
-    
-    def _run(self):
-        return
-    
-    def _render(self):
-        from seedsigner.hardware.microsd import MicroSD
-        
-        if self.action == MicroSD.ACTION__REMOVED:
-        
-            self.toast = ToastOverlay(
-                icon_name=SeedSignerIconConstants.MICROSD,
-                color=GUIConstants.NOTIFICATION_COLOR,
-                label_text="MicroSD removed"
-            )
-        
-        elif self.action == MicroSD.ACTION__INSERTED:
-            
-            self.toast = ToastOverlay(
-                icon_name=SeedSignerIconConstants.MICROSD,
-                color=GUIConstants.NOTIFICATION_COLOR,
-                label_text="MicroSD inserted"
-            )
-        
-        self.toast.render()

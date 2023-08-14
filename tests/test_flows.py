@@ -8,7 +8,7 @@ from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedBackupView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView
-from seedsigner.views.view import MainMenuView, PowerOptionsView, UnhandledExceptionView
+from seedsigner.views.view import MainMenuView, PowerOptionsView, UnhandledExceptionView, RemoveMicroSDWarningView
 from seedsigner.views.tools_views import ToolsMenuView, ToolsCalcFinalWordNumWordsView
 
 
@@ -22,6 +22,7 @@ class TestFlowTest(FlowTest):
         """
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(RemoveMicroSDWarningView, button_data_selection=RemoveMicroSDWarningView.I_UNDERSTAND),
             FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.KEYBOARD),
             FlowStep(ToolsCalcFinalWordNumWordsView, button_data_selection=ToolsCalcFinalWordNumWordsView.TWELVE),
             FlowStep(SeedMnemonicEntryView),

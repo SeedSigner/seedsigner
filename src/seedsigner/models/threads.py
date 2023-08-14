@@ -44,3 +44,21 @@ class ThreadsafeCounter:
             self.count = value
 
 
+
+     
+class ThreadsafeBool:
+    def __init__(self, initial_value: bool = False):
+        self.val = initial_value
+        self._lock = Lock()
+    
+    @property
+    def value(self):
+        # Reads don't require the lock
+        return self.val
+        
+    def set_value(self, value: bool):
+        with self._lock:
+            self.val = value
+    
+
+
