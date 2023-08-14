@@ -177,6 +177,20 @@ git clone https://github.com/SeedSigner/seedsigner
 cd seedsigner
 ```
 
+### Adding swap space
+Compiling the dependencies requires more RAM than is available on a Raspberry
+Pi 3B, let alone a Zero. Temporarily adding 1GB of additional swap space will
+work around this limitation. The `/swapfile` can be deleted after you reboot.
+
+If building on a Raspberry Pi board with more than 1GB of RAM, this step can
+be safely skipped.
+
+```bash
+sudo dd if=/dev/zero of=/swapfile bs=4096 count=$((1024*256))
+sudo chmod 0600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+```
 
 ### Install Python `pip` dependencies:
 ```bash
