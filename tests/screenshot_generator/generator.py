@@ -213,11 +213,18 @@ def test_generate_screenshots(target_locale):
 
     readme = f"""# SeedSigner Screenshots\n"""
 
-    def screencap_view(view_cls: View, view_name: str, view_args: dict={}):
+    def screencap_view(view_cls: View, view_name: str, view_args: dict={}, toast_thread: BaseToastOverlayManagerThread = None):
         screenshot_renderer.set_screenshot_filename(f"{view_name}.png")
         try:
             print(f"Running {view_name}")
-            view_cls(**view_args).run()
+            try:
+                view_cls(**view_args).run()
+            except ScreenshotComplete:
+                if toast_thread is not None:
+                    controller.activate_toast(toast_thread)
+                    while controller.toast_notification_thread.is_alive():
+                        time.sleep(0.1)
+                raise ScreenshotComplete()
         except ScreenshotComplete:
             # Slightly hacky way to exit ScreenshotRenderer as expected
             pass
@@ -226,6 +233,10 @@ def test_generate_screenshots(target_locale):
             # Something else went wrong
             print(repr(e))
             raise e
+        finally:
+            if toast_thread:
+                toast_thread.stop()
+
 
     for section_name, screenshot_list in screenshot_sections.items():
         subdir = section_name.lower().replace(" ", "_")
