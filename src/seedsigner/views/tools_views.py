@@ -1,22 +1,23 @@
 import hashlib
 import os
-
 import time
 
 from embit.descriptor import Descriptor
 from PIL import Image
 from PIL.ImageOps import autocontrast
+
 from seedsigner.controller import Controller
-from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
-from seedsigner.gui.screens.tools_screens import ToolsCalcFinalWordDoneScreen, ToolsCalcFinalWordFinalizePromptScreen, ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen, ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen
+from seedsigner.gui.screens.tools_screens import (ToolsCalcFinalWordDoneScreen, ToolsCalcFinalWordFinalizePromptScreen,
+    ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen,
+    ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen)
 from seedsigner.helpers import embit_utils, mnemonic_generation
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
-from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedWordsWarningView, SeedExportXpubScriptTypeView
+from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
 
 from .view import View, Destination, BackStackView
 
@@ -79,6 +80,7 @@ class ToolsImageEntropyLivePreviewView(View):
 class ToolsImageEntropyFinalImageView(View):
     def run(self):
         if not self.controller.image_entropy_final_image:
+            from seedsigner.hardware.camera import Camera
             # Take the final full-res image
             camera = Camera.get_instance()
             camera.start_single_frame_mode(resolution=(720, 480))
@@ -560,6 +562,14 @@ class ToolsAddressExplorerAddressTypeView(View):
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
+            # If we entered this flow via an already-loaded seed's SeedOptionsView, we
+            # need to clear the `resume_main_flow` so that we don't get stuck in a 
+            # SeedOptionsView redirect loop.
+            # TODO: Refactor to a cleaner `BackStack.get_previous_View_cls()`
+            if len(self.controller.back_stack) > 1 and self.controller.back_stack[-2].View_cls == SeedOptionsView:
+                # The BackStack has the current View on the top with the real "back" in second position.
+                self.controller.resume_main_flow = None
+                self.controller.address_explorer_data = None
             return Destination(BackStackView)
         
         elif button_data[selected_menu_num] in [self.RECEIVE, self.CHANGE]:
