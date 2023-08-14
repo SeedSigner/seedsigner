@@ -1113,6 +1113,7 @@ class SeedBIP85InvalidChildIndexView(View):
 ****************************************************************************"""
 class SeedWordsBackupTestPromptView(View):
     def __init__(self, seed_num: int, bip85_data: dict = None):
+        super().__init__()
         self.seed_num = seed_num
         self.bip85_data = bip85_data
 
@@ -1257,6 +1258,7 @@ class SeedWordsBackupTestMistakeView(View):
 
 class SeedWordsBackupTestSuccessView(View):
     def __init__(self, seed_num: int):
+        super().__init__()
         self.seed_num = seed_num
 
     def run(self):
