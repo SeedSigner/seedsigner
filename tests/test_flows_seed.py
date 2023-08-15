@@ -5,10 +5,14 @@ from base import BaseTest, FlowTest, FlowStep
 from base import FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDataSelectionException
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
-from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import Seed
-from seedsigner.views.view import MainMenuView, View, NetworkMismatchErrorView
-from seedsigner.views import seed_views, scan_views, settings_views
+from seedsigner.views.view import MainMenuView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView
+from seedsigner.views import seed_views, scan_views, settings_views, tools_views
+
+
+def load_seed_into_decoder(view: scan_views.ScanView):
+    view.decoder.add_data("0000" * 11 + "0003")
 
 
 
@@ -19,9 +23,6 @@ class TestSeedFlows(FlowTest):
             Selecting "Scan" from the MainMenuView and scanning a SeedQR should enter the
             Finalize Seed flow and end at the SeedOptionsView.
         """
-        def load_seed_into_decoder(view: scan_views.ScanView):
-            view.decoder.add_data("0000" * 11 + "0003")
-
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
             FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
@@ -36,6 +37,7 @@ class TestSeedFlows(FlowTest):
             the SeedOptionsView.
         """
         def test_with_mnemonic(mnemonic):
+            Settings.HOSTNAME = "not seedsigner-os"
             sequence = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView

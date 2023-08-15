@@ -65,6 +65,7 @@ class TestViewFlows(FlowTest):
         """
         Basic flow from any arbitrary View to the UnhandledExceptionView
         """
+        Settings.HOSTNAME = "NOT seedsigner-os"
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
             FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.KEYBOARD),

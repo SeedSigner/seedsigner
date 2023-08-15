@@ -35,6 +35,7 @@ class GUIConstants:
     ICON_FONT_SIZE = 22
     ICON_INLINE_FONT_SIZE = 24
     ICON_LARGE_BUTTON_SIZE = 48
+    ICON_TOAST_FONT_SIZE = 30
     ICON_PRIMARY_SCREEN_SIZE = 50
 
     TOP_NAV_TITLE_FONT_NAME = "OpenSans-SemiBold"
@@ -138,7 +139,6 @@ class SeedSignerIconConstants:
     BRIGHTNESS = "\ue91d"
     MICROSD = "\ue91e"
     QRCODE = "\ue91f"
-    SDCARD = "\ue920"
 
     MIN_VALUE = SCAN
     MAX_VALUE = QRCODE
@@ -370,6 +370,9 @@ class TextArea(BaseComponent):
     def render(self):
         # Render to a temp img scaled up by self.supersampling_factor, then resize down
         #   with bicubic resampling.
+        # Add a `resample_padding` above and below when supersampling to avoid edge
+        # effects (resized text that's right up against the top/bottom gets slightly
+        # dimmer at the edge otherwise).
         # TODO: Store resulting super-sampled image as a member var in __post_init__ and 
         # just re-paste it here.
         if self.font_size < 20 and (not self.supersampling_factor or self.supersampling_factor == 1):
@@ -415,7 +418,9 @@ class TextArea(BaseComponent):
         if self.supersampling_factor > 1.0:
             resized = img.resize((self.width, self.height + 2*resample_padding), Image.LANCZOS)
             sharpened = resized.filter(ImageFilter.SHARPEN)
-            img = sharpened.crop((0, resample_padding, self.width, self.height + 2*resample_padding))
+
+            # Crop args are actually (left, top, WIDTH, HEIGHT)
+            img = sharpened.crop((0, resample_padding, self.width, self.height + resample_padding))
         self.canvas.paste(img, (self.screen_x, self.screen_y))
 
 
@@ -564,76 +569,6 @@ class IconTextLine(BaseComponent):
 
         if self.icon_name:
             self.icon.render()
-
-
-
-@dataclass
-class ToastOverlay(BaseComponent):
-    icon_name: str = None
-    color: str = None
-    label_text: str = None
-
-    def __post_init__(self):
-        super().__post_init__()
-
-        self.icon = Icon(
-            image_draw=self.image_draw,
-            canvas=self.canvas,
-            screen_x=20,
-            screen_y=190,
-            icon_name=self.icon_name,
-            icon_size=30,
-            icon_color=self.color
-        )
-        
-        self.label = TextArea(
-            image_draw=self.image_draw,
-            canvas=self.canvas,
-            text=self.label_text,
-            font_size=19,
-            font_color=self.color,
-            edge_padding=0,
-            is_text_centered=False,
-            auto_line_break=False,
-            width=160,
-            height=20,
-            screen_x=55,
-            screen_y=195,
-            allow_text_overflow=False
-        )
-            
-    def render(self):
-        import time
-        from seedsigner.controller import Controller
-        from seedsigner.hardware.buttons import HardwareButtons
-        
-        self.controller: Controller = Controller.get_instance()
-        self.current_screen = self.renderer.canvas.copy()
-        buttons = HardwareButtons.get_instance()
-        
-        # Special case when screensaver is running
-        if self.controller.is_screensaver_running:
-            buttons.override_ind = True
-
-        self.image_draw.rounded_rectangle(
-            ( GUIConstants.EDGE_PADDING + 2, self.canvas_height - 60, self.canvas_width - GUIConstants.EDGE_PADDING - 2, self.canvas_width - GUIConstants.EDGE_PADDING - 2),
-            fill=GUIConstants.BACKGROUND_COLOR,
-            radius=8,
-            outline=self.color,
-            width=2,
-        )
-        
-        self.icon.render()
-        self.label.render()
-        
-        self.renderer.show_image()
-        
-        t_end = time.time() + 3
-        while time.time() < t_end:
-            if buttons.has_any_input():
-                break
-            
-        self.renderer.show_image(self.current_screen)
 
 
 

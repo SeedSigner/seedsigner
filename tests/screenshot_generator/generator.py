@@ -1,20 +1,27 @@
 import embit
 import os
 import sys
-from mock import Mock, MagicMock
+import time
+from mock import Mock, patch, MagicMock
+
 
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
 sys.modules['seedsigner.hardware.ST7789'] = MagicMock()
 sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
 sys.modules['seedsigner.views.screensaver'] = MagicMock()
-sys.modules['seedsigner.hardware.buttons'] = MagicMock()
+sys.modules['RPi'] = MagicMock()
+sys.modules['RPi.GPIO'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
 sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 
 
 from seedsigner.controller import Controller
 from seedsigner.gui.renderer import Renderer
+from seedsigner.gui.toast import BaseToastOverlayManagerThread, RemoveSDCardToastManagerThread, SDCardStateChangeToastManagerThread
+from seedsigner.hardware.buttons import HardwareButtons
+from seedsigner.hardware.camera import Camera
+from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
@@ -99,6 +106,9 @@ def test_generate_screenshots(target_locale):
     screenshot_sections = {
         "Main Menu Views": [
             MainMenuView,
+            (MainMenuView, {}, 'MainMenuView_SDCardStateChangeToast_removed', SDCardStateChangeToastManagerThread(action=MicroSD.ACTION__REMOVED)),
+            (MainMenuView, {}, 'MainMenuView_SDCardStateChangeToast_inserted', SDCardStateChangeToastManagerThread(action=MicroSD.ACTION__INSERTED)),
+            (MainMenuView, {}, 'MainMenuView_RemoveSDCardToast', RemoveSDCardToastManagerThread(activation_delay=0)),
             PowerOptionsView,
             RestartView,
             PowerOffView,
@@ -203,11 +213,18 @@ def test_generate_screenshots(target_locale):
 
     readme = f"""# SeedSigner Screenshots\n"""
 
-    def screencap_view(view_cls: View, view_name: str, view_args: dict={}):
+    def screencap_view(view_cls: View, view_name: str, view_args: dict={}, toast_thread: BaseToastOverlayManagerThread = None):
         screenshot_renderer.set_screenshot_filename(f"{view_name}.png")
         try:
             print(f"Running {view_name}")
-            view_cls(**view_args).run()
+            try:
+                view_cls(**view_args).run()
+            except ScreenshotComplete:
+                if toast_thread is not None:
+                    controller.activate_toast(toast_thread)
+                    while controller.toast_notification_thread.is_alive():
+                        time.sleep(0.1)
+                raise ScreenshotComplete()
         except ScreenshotComplete:
             # Slightly hacky way to exit ScreenshotRenderer as expected
             pass
@@ -216,6 +233,10 @@ def test_generate_screenshots(target_locale):
             # Something else went wrong
             print(repr(e))
             raise e
+        finally:
+            if toast_thread:
+                toast_thread.stop()
+
 
     for section_name, screenshot_list in screenshot_sections.items():
         subdir = section_name.lower().replace(" ", "_")
@@ -231,12 +252,15 @@ def test_generate_screenshots(target_locale):
                     view_name = view_cls.__name__
                 elif len(screenshot) == 3:
                     view_cls, view_args, view_name = screenshot
+                elif len(screenshot) == 4:
+                    view_cls, view_args, view_name, toast_thread = screenshot
             else:
                 view_cls = screenshot
                 view_args = {}
                 view_name = view_cls.__name__
+                toast_thread = None
 
-            screencap_view(view_cls, view_name, view_args)
+            screencap_view(view_cls, view_name, view_args, toast_thread=toast_thread)
             readme += """  <table align="left" style="border: 1px solid gray;">"""
             readme += f"""<tr><td align="center">{view_name}<br/><br/><img src="{subdir}/{view_name}.png"></td></tr>"""
             readme += """</table>\n"""

@@ -130,6 +130,7 @@ class Controller(Singleton):
 
     back_stack: BackStack = None
     screensaver: 'ScreensaverScreen' = None
+    toast_notification_thread: 'BaseToastOverlayManagerThread' = None
 
 
     @classmethod
@@ -181,7 +182,7 @@ class Controller(Singleton):
         controller.back_stack = BackStack()
 
         # Other behavior constants
-        controller.screensaver_activation_ms = 120 * 1000
+        controller.screensaver_activation_ms = 2 * 60 * 1000  # two minutes
     
         background_import_thread = BackgroundImportThread()
         background_import_thread.start()
@@ -240,8 +241,9 @@ class Controller(Singleton):
             * initial_destination: The first View to run. If None, the MainMenuView is
             used. Only used by the test suite.
         """
-        from .views import MainMenuView, BackStackView
-        from .views.screensaver import OpeningSplashScreen
+        from seedsigner.views import MainMenuView, BackStackView
+        from seedsigner.views.screensaver import OpeningSplashScreen
+        from seedsigner.gui.toast import RemoveSDCardToastManagerThread
 
         OpeningSplashScreen().start()
 
@@ -275,6 +277,10 @@ class Controller(Singleton):
                 next_destination = initial_destination
             else:
                 next_destination = Destination(MainMenuView)
+            
+            # Set up our one-time toast notification tip to remove the SD card
+            self.activate_toast(RemoveSDCardToastManagerThread())
+
             while True:
                 # Destination(None) is a special case; render the Home screen
                 if next_destination.View_cls is None:
@@ -354,6 +360,9 @@ class Controller(Singleton):
             from seedsigner.gui.renderer import Renderer
             if self.is_screensaver_running:
                 self.screensaver.stop()
+            
+            if self.toast_notification_thread and self.toast_notification_thread.is_alive():
+                self.toast_notification_thread.stop()
 
             # Clear the screen when exiting
             print("Clearing screen, exiting")
@@ -366,12 +375,43 @@ class Controller(Singleton):
 
 
     def start_screensaver(self):
+        # If a toast is running, tell it to give up the Renderer.lock; it will then
+        # block until the screensaver is done, at which point the toast can re-acquire
+        # the Renderer.lock and resume where it left off.
+        if self.toast_notification_thread and self.toast_notification_thread.is_alive():
+            print(f"Controller: settings toggle_render_lock for {self.toast_notification_thread.__class__.__name__}")
+            self.toast_notification_thread.toggle_renderer_lock()
+
+        print("Controller: Starting screensaver")
         if not self.screensaver:
             # Do a lazy/late import and instantiation to reduce Controller initial startup time
             from seedsigner.views.screensaver import ScreensaverScreen
             from seedsigner.hardware.buttons import HardwareButtons
             self.screensaver = ScreensaverScreen(HardwareButtons.get_instance())
+        
+        # Start the screensaver, but it will block until it can acquire the Renderer.lock.
         self.screensaver.start()
+        print("Controller: Screensaver started")
+
+
+    def activate_toast(self, toast_manager_thread: 'BaseToastOverlayManagerThread'):
+        """
+        Ensures that the Controller has explicit control over which processes get to
+        claim the Renderer.lock and which need to (potentially) release it.
+        """
+        if self.is_screensaver_running:
+            # New toast notifications break out of the Screensaver
+            print("Controller: stopping screensaver")
+            self.screensaver.stop()
+
+        if self.toast_notification_thread and self.toast_notification_thread.is_alive():
+            # Can only run one toast at a time
+            print(f"Controller: stopping {self.toast_notification_thread.__class__.__name__}")
+            self.toast_notification_thread.stop()
+        
+        self.toast_notification_thread = toast_manager_thread
+        print(f"Controller: starting {self.toast_notification_thread.__class__.__name__}")
+        self.toast_notification_thread.start()
 
 
     def handle_exception(self, e) -> Destination:

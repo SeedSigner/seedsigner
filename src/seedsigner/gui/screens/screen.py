@@ -3,17 +3,15 @@ import time
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageColor
 from typing import Any, List, Tuple
+
+from seedsigner.gui.components import (GUIConstants,
+    BaseComponent, Button, Icon, IconButton, LargeIconButton,
+    SeedSignerIconConstants, TopNav, TextArea, load_image)
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
-
-from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-from seedsigner.models.settings import SettingsConstants
-
-from ..components import (FontAwesomeIconConstants, GUIConstants, BaseComponent, Button, Icon, IconButton,
-                          LargeIconButton, SeedSignerIconConstants, TopNav, TextArea, load_image, ToastOverlay,
-                          Fonts)
-
 from seedsigner.hardware.buttons import HardwareButtonsConstants, HardwareButtons
+from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
 
 # Must be huge numbers to avoid conflicting with the selected_button returned by the
@@ -1222,37 +1220,11 @@ class KeyboardScreen(BaseTopNavScreen):
         """
         return False
 
-class MicroSDToastScreen(BaseScreen):
-    """
-        This screen is an overlay with special behavior with the ToastOverlay component. The ToastOverlay component overides all button
-        input and captures the existing screen content and stashes it to be restored once X second passes or any button is pressed. The
-        display method on this screen will not complete until after the ToastOverlay render method is complete it's takeover of the screen.
-    """
-    def __init__(self, action):
-        self.action = action
-        self.toast = None
-        super().__init__()
-    
-    def _run(self):
-        return
-    
-    def _render(self):
-        from seedsigner.hardware.microsd import MicroSD
-        
-        if self.action == MicroSD.ACTION__REMOVED:
-        
-            self.toast = ToastOverlay(
-                icon_name=SeedSignerIconConstants.MICROSD,
-                color=GUIConstants.NOTIFICATION_COLOR,
-                label_text="MicroSD removed"
-            )
-        
-        elif self.action == MicroSD.ACTION__INSERTED:
-            
-            self.toast = ToastOverlay(
-                icon_name=SeedSignerIconConstants.MICROSD,
-                color=GUIConstants.NOTIFICATION_COLOR,
-                label_text="MicroSD inserted"
-            )
-        
-        self.toast.render()
+
+
+@dataclass
+class MainMenuScreen(LargeButtonScreen):
+    # Override LargeButtonScreen defaults
+    title_font_size: int = 26
+    show_back_button: bool = False
+    show_power_button: bool = True
