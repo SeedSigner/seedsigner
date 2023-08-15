@@ -370,6 +370,9 @@ class TextArea(BaseComponent):
     def render(self):
         # Render to a temp img scaled up by self.supersampling_factor, then resize down
         #   with bicubic resampling.
+        # Add a `resample_padding` above and below when supersampling to avoid edge
+        # effects (resized text that's right up against the top/bottom gets slightly
+        # dimmer at the edge otherwise).
         # TODO: Store resulting super-sampled image as a member var in __post_init__ and 
         # just re-paste it here.
         if self.font_size < 20 and (not self.supersampling_factor or self.supersampling_factor == 1):
@@ -415,7 +418,9 @@ class TextArea(BaseComponent):
         if self.supersampling_factor > 1.0:
             resized = img.resize((self.width, self.height + 2*resample_padding), Image.LANCZOS)
             sharpened = resized.filter(ImageFilter.SHARPEN)
-            img = sharpened.crop((0, resample_padding, self.width, self.height + 2*resample_padding))
+
+            # Crop args are actually (left, top, WIDTH, HEIGHT)
+            img = sharpened.crop((0, resample_padding, self.width, self.height + resample_padding))
         self.canvas.paste(img, (self.screen_x, self.screen_y))
 
 

@@ -40,10 +40,17 @@ class ToastOverlay(BaseComponent):
             screen_x=self.icon.screen_x + self.icon.width + GUIConstants.COMPONENT_PADDING,
             allow_text_overflow=False
         )
-        self.label.screen_y = self.canvas_height - self.height + int((self.height - self.label.height)/2)
+        # Single-line toast messages need their vertical centering nudged down to account
+        # for TextArea including below the baseline in its height calculation.
+        below_baseline = self.label.text_height_below_baseline if len(self.label.text_lines) == 1 else 0
+
+        # Vertically center the message within the toast (for single- or multi-line
+        # messages).
+        self.label.screen_y = self.canvas_height - self.height + self.outline_thickness + int((self.height - 2*self.outline_thickness - (self.label.height - below_baseline))/2)
 
 
     def render(self):
+        # Render the toast's solid background
         self.image_draw.rounded_rectangle(
             (0, self.canvas_height - self.height, self.canvas_width, self.canvas_height),
             fill=GUIConstants.BACKGROUND_COLOR,
@@ -52,6 +59,7 @@ class ToastOverlay(BaseComponent):
             width=self.outline_thickness,
         )
 
+        # Draw the toast visual elements
         self.icon.render()
         self.label.render()
 
@@ -115,19 +123,24 @@ class BaseToastOverlayManagerThread(BaseThread):
 
 
     def run(self):
-        try:
-            print(f"{self.__class__.__name__}: started")
-            start = time.time()
-            has_rendered = False
-            previous_screen_state = None
-            if self.activation_delay > 0:
-                time.sleep(self.activation_delay)
+        print(f"{self.__class__.__name__}: started")
+        start = time.time()
+        while time.time() - start < self.activation_delay:
+            if self.hw_inputs.has_any_input():
+                # User has pressed a button, cancel the toast
+                print(f"{self.__class__.__name__}: Canceling toast due to user input")
+                return
+            time.sleep(0.1)
 
+        try:
             # Hold onto the Renderer lock so we're guaranteed to restore the original
             # screen before any other listener can get a screen write in.
             print(f"{self.__class__.__name__}: Acquiring lock")
             self.renderer.lock.acquire()
             print(f"{self.__class__.__name__}: Lock acquired")
+
+            has_rendered = False
+            previous_screen_state = None
             while self.keep_running and self.should_keep_running():
                 if self.hw_inputs.has_any_input():
                     # User has pressed a button, hide the toast
