@@ -421,7 +421,7 @@ class TestMessageSigningFlows(FlowTest):
         # Ensure message signing is enabled
         self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
 
-        def expect_network_mismatch_error(load_message: Callable[[str], None]):
+        def expect_network_mismatch_error(load_message: Callable):
             self.run_sequence([
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
                 FlowStep(scan_views.ScanView, before_run=load_message),  # simulate read message QR; ret val is ignored
