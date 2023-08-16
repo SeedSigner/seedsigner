@@ -1991,19 +1991,23 @@ class SeedSignMessageConfirmAddressView(View):
         if not addr_format["clean_match"]:
             raise Exception("Signing messages for custom derivation paths not supported")
 
-        if addr_format["network"] != SettingsConstants.MAINNET:
-            # We're in either Testnet or Regtest or...?
-            if self.settings.get_value(SettingsConstants.SETTING__NETWORK) in [SettingsConstants.TESTNET, SettingsConstants.REGTEST]:
-                addr_format["network"] = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-            else:
-                from seedsigner.views.view import NetworkMismatchErrorView
-                self.set_redirect(Destination(NetworkMismatchErrorView, view_args=dict(text=f"Current network setting ({self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK)}) doesn't match {self.derivation_path}")))
+        # addr_format["network"] can be MAINNET or [TESTNET, REGTEST]
+        message_network = addr_format["network"]
+        if type(message_network) == str:
+            message_network = [message_network]
 
-                # cleanup. Note: We could leave this in place so the user can resume the
-                # flow, but for now we avoid complications and keep things simple.
-                self.controller.resume_main_flow = None
-                self.controller.sign_message_data = None
-                return
+        if self.settings.get_value(SettingsConstants.SETTING__NETWORK) in message_network:
+            # Does nothing for MAINNET, but uses current setting to decide between TESTNET and REGTEST
+            addr_format["network"] = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        else:
+            from seedsigner.views.view import NetworkMismatchErrorView
+            self.set_redirect(Destination(NetworkMismatchErrorView, view_args=dict(text=f"Current network setting ({self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK)}) doesn't match {self.derivation_path}")))
+
+            # cleanup. Note: We could leave this in place so the user can resume the
+            # flow, but for now we avoid complications and keep things simple.
+            self.controller.resume_main_flow = None
+            self.controller.sign_message_data = None
+            return
 
         xpub = seed.get_xpub(wallet_path=self.derivation_path, network=addr_format["network"])
         embit_network = embit_utils.get_embit_network_name(addr_format["network"])
