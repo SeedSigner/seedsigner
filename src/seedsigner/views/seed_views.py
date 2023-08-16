@@ -1992,11 +1992,7 @@ class SeedSignMessageConfirmAddressView(View):
             raise Exception("Signing messages for custom derivation paths not supported")
 
         # addr_format["network"] can be MAINNET or [TESTNET, REGTEST]
-        message_network = addr_format["network"]
-        if type(message_network) == str:
-            message_network = [message_network]
-
-        if self.settings.get_value(SettingsConstants.SETTING__NETWORK) in message_network:
+        if self.settings.get_value(SettingsConstants.SETTING__NETWORK) in addr_format["network"]:
             # Does nothing for MAINNET, but uses current setting to decide between TESTNET and REGTEST
             addr_format["network"] = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
         else:
