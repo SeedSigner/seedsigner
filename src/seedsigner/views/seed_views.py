@@ -23,7 +23,7 @@ from seedsigner.models.seed import InvalidSeedException, Seed
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-from seedsigner.views.view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
+from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
 
 
 
@@ -1920,6 +1920,10 @@ class SeedSignMessageStartView(View):
         super().__init__()
         self.derivation_path = derivation_path
         self.message = message
+
+        if self.settings.get_value(SettingsConstants.SETTING__MESSAGE_SIGNING) == SettingsConstants.OPTION__DISABLED:
+            self.set_redirect(Destination(OptionDisabledView, view_args=dict(settings_attr=SettingsConstants.SETTING__MESSAGE_SIGNING)))
+            return
 
         # calculate the actual receive address
         addr_format = embit_utils.parse_derivation_path(derivation_path)

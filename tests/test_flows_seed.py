@@ -8,7 +8,7 @@ from base import FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDat
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import Seed
-from seedsigner.views.view import MainMenuView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView
+from seedsigner.views.view import MainMenuView, OptionDisabledView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView
 from seedsigner.views import seed_views, scan_views, settings_views, tools_views
 
 
@@ -441,3 +441,39 @@ class TestMessageSigningFlows(FlowTest):
         # REGTEST settings vs MAINNET derivation path with the message
         self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
         expect_network_mismatch_error(self.load_short_message_into_decoder)
+
+
+
+
+    def test_sign_message_option_disabled(self):
+        """
+        Should redirect to OptionDisabledView if a `signmessage` QR is scanned with
+        message signing disabled.
+
+        Should offer the option to route directly to enable that settings or return to
+        MainMenuView.
+        """
+        # Ensure message signing is disabled
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__DISABLED)
+
+        sequence = [
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_short_message_into_decoder),  # simulate read message QR; ret val is ignored
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+        ]
+
+        # First test routing to update the setting
+        self.run_sequence(
+            sequence + [
+                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.UPDATE_SETTING, is_redirect=True),
+                FlowStep(settings_views.SettingsEntryUpdateSelectionView),
+            ]
+        )
+
+        # Now test exiting to Main Menu
+        self.run_sequence(
+            sequence + [
+                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.DONE, is_redirect=True),
+                FlowStep(MainMenuView),
+            ]
+        )
