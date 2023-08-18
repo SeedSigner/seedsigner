@@ -343,24 +343,33 @@ class ToolsCalcFinalWordShowFinalWordView(View):
         from seedsigner.helpers import mnemonic_generation
 
         if coin_flips:
+            # fill the last bits (what will eventually be the checksum) with zeros
             binary_string = coin_flips + "0" * (11 - len(coin_flips))
+
+            # retrieve the matching word for the resulting index
             wordlist_index = int(binary_string, 2)
             wordlist = Seed.get_wordlist(self.controller.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
             word = wordlist[wordlist_index]
+
+            # update the pending mnemonic with our new "final" (pre-checksum) word
             self.controller.storage.update_pending_mnemonic(word, -1)
 
-        mnemonic = self.controller.storage.pending_mnemonic
-        mnemonic_length = len(mnemonic)
         wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-        wordlist = Seed.get_wordlist(wordlist_language_code)
 
+        # Now calculate the REAL final word (has a proper checksum)
         final_mnemonic = mnemonic_generation.calculate_checksum(
             mnemonic=self.controller.storage.pending_mnemonic,
             wordlist_language_code=wordlist_language_code,
         )
+
+        # Update our pending mnemonic with the real final word
         self.controller.storage.update_pending_mnemonic(final_mnemonic[-1], -1)
 
-        # Prep the user's selected word (if there was one) and the actual final word for
+        mnemonic = self.controller.storage.pending_mnemonic
+        mnemonic_length = len(mnemonic)
+        wordlist = Seed.get_wordlist(wordlist_language_code)
+
+        # Prep the user's selected word / coin flips and the actual final word for
         # the display.
         if coin_flips:
             self.selected_final_word = None
