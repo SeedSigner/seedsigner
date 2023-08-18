@@ -333,20 +333,17 @@ class ToolsCalcFinalWordCoinFlipsView(View):
 
 
 
-@dataclass
 class ToolsCalcFinalWordShowFinalWordView(View):
-    coin_flips: str = None
-
-
-    def run(self):
+    def __init__(self, coin_flips: str = None):
+        super().__init__()
         # Construct the actual final word. The user's selected_final_word
         # contributes:
         #   * 3 bits to a 24-word seed (plus 8-bit checksum)
         #   * 7 bits to a 12-word seed (plus 4-bit checksum)
         from seedsigner.helpers import mnemonic_generation
 
-        if self.coin_flips:
-            binary_string = self.coin_flips + "0" * (11 - len(self.coin_flips))
+        if coin_flips:
+            binary_string = coin_flips + "0" * (11 - len(coin_flips))
             wordlist_index = int(binary_string, 2)
             wordlist = Seed.get_wordlist(self.controller.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
             word = wordlist[wordlist_index]
@@ -365,31 +362,31 @@ class ToolsCalcFinalWordShowFinalWordView(View):
 
         # Prep the user's selected word (if there was one) and the actual final word for
         # the display.
-        if self.coin_flips:
-            selected_final_word = None
-            selected_final_bits = self.coin_flips
+        if coin_flips:
+            self.selected_final_word = None
+            self.selected_final_bits = coin_flips
         else:
             # Convert the user's final word selection into its binary index equivalent
-            selected_final_word = mnemonic[-1]
-            selected_final_bits = format(wordlist.index(selected_final_word), '011b')
+            self.selected_final_word = mnemonic[-1]
+            self.selected_final_bits = format(wordlist.index(self.selected_final_word), '011b')
 
         # And grab the actual final word's checksum bits
-        actual_final_word = self.controller.storage.pending_mnemonic[-1]
-        if mnemonic_length == 12:
-            checksum_bits = format(wordlist.index(actual_final_word), '011b')[-4:]
-        else:
-            checksum_bits = format(wordlist.index(actual_final_word), '011b')[-8:]
+        self.actual_final_word = self.controller.storage.pending_mnemonic[-1]
+        num_checksum_bits = 4 if mnemonic_length == 12 else 8
+        self.checksum_bits = format(wordlist.index(self.actual_final_word), '011b')[-num_checksum_bits:]
 
+
+    def run(self):
         NEXT = "Next"
         button_data = [NEXT]
         selected_menu_num = self.run_screen(
             ToolsCalcFinalWordScreen,
             title="Final Word Calc",
             button_data=button_data,
-            selected_final_word=selected_final_word,
-            selected_final_bits=selected_final_bits,
-            checksum_bits=checksum_bits,
-            actual_final_word=actual_final_word,
+            selected_final_word=self.selected_final_word,
+            selected_final_bits=self.selected_final_bits,
+            checksum_bits=self.checksum_bits,
+            actual_final_word=self.actual_final_word,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
