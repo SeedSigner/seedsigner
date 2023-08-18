@@ -63,6 +63,11 @@ class SeedStorage:
 
 
     def update_pending_mnemonic(self, word: str, index: int):
+        """
+        Replaces the nth word in the pending mnemonic.
+
+        * may specify a negative `index` (e.g. -1 is the last word).
+        """
         if index >= len(self._pending_mnemonic):
             raise Exception(f"index {index} is too high")
         self._pending_mnemonic[index] = word

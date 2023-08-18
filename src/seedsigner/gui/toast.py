@@ -38,15 +38,12 @@ class ToastOverlay(BaseComponent):
             auto_line_break=True,
             width=self.canvas_width - self.icon.screen_x - self.icon.width - GUIConstants.COMPONENT_PADDING - self.outline_thickness,
             screen_x=self.icon.screen_x + self.icon.width + GUIConstants.COMPONENT_PADDING,
-            allow_text_overflow=False
+            allow_text_overflow=False,
         )
-        # Single-line toast messages need their vertical centering nudged down to account
-        # for TextArea including below the baseline in its height calculation.
-        below_baseline = self.label.text_height_below_baseline if len(self.label.text_lines) == 1 else 0
 
         # Vertically center the message within the toast (for single- or multi-line
         # messages).
-        self.label.screen_y = self.canvas_height - self.height + self.outline_thickness + int((self.height - 2*self.outline_thickness - (self.label.height - below_baseline))/2)
+        self.label.screen_y = self.canvas_height - self.height + self.outline_thickness + int((self.height - 2*self.outline_thickness - self.label.height)/2)
 
 
     def render(self):
@@ -64,7 +61,6 @@ class ToastOverlay(BaseComponent):
         self.label.render()
 
         self.renderer.show_image()
-
 
 
 

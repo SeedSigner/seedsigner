@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import hashlib
 import os
 import time
@@ -313,8 +314,7 @@ class ToolsCalcFinalWordFinalizePromptView(View):
 
 class ToolsCalcFinalWordCoinFlipsView(View):
     def run(self):
-        mnemonic = self.controller.storage.pending_mnemonic
-        mnemonic_length = len(mnemonic)
+        mnemonic_length = len(self.controller.storage.pending_mnemonic)
 
         if mnemonic_length == 12:
             total_flips = 7
@@ -329,21 +329,13 @@ class ToolsCalcFinalWordCoinFlipsView(View):
             return Destination(BackStackView)
         
         else:
-            print(ret_val)
-            binary_string = ret_val + "0" * (11 - total_flips)
-            wordlist_index = int(binary_string, 2)
-            wordlist = Seed.get_wordlist(self.controller.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
-            word = wordlist[wordlist_index]
-            self.controller.storage.update_pending_mnemonic(word, mnemonic_length - 1)
-
             return Destination(ToolsCalcFinalWordShowFinalWordView, view_args=dict(coin_flips=ret_val))
 
 
 
+@dataclass
 class ToolsCalcFinalWordShowFinalWordView(View):
-    def __init__(self, coin_flips=None):
-        super().__init__()
-        self.coin_flips = coin_flips
+    coin_flips: str = None
 
 
     def run(self):
@@ -352,6 +344,13 @@ class ToolsCalcFinalWordShowFinalWordView(View):
         #   * 3 bits to a 24-word seed (plus 8-bit checksum)
         #   * 7 bits to a 12-word seed (plus 4-bit checksum)
         from seedsigner.helpers import mnemonic_generation
+
+        if self.coin_flips:
+            binary_string = self.coin_flips + "0" * (11 - len(self.coin_flips))
+            wordlist_index = int(binary_string, 2)
+            wordlist = Seed.get_wordlist(self.controller.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+            word = wordlist[wordlist_index]
+            self.controller.storage.update_pending_mnemonic(word, -1)
 
         mnemonic = self.controller.storage.pending_mnemonic
         mnemonic_length = len(mnemonic)
@@ -362,7 +361,7 @@ class ToolsCalcFinalWordShowFinalWordView(View):
             mnemonic=self.controller.storage.pending_mnemonic,
             wordlist_language_code=wordlist_language_code,
         )
-        self.controller.storage.update_pending_mnemonic(final_mnemonic[-1], mnemonic_length - 1)
+        self.controller.storage.update_pending_mnemonic(final_mnemonic[-1], -1)
 
         # Prep the user's selected word (if there was one) and the actual final word for
         # the display.
@@ -383,14 +382,15 @@ class ToolsCalcFinalWordShowFinalWordView(View):
 
         NEXT = "Next"
         button_data = [NEXT]
-        selected_menu_num = ToolsCalcFinalWordScreen(
+        selected_menu_num = self.run_screen(
+            ToolsCalcFinalWordScreen,
             title="Final Word Calc",
             button_data=button_data,
             selected_final_word=selected_final_word,
             selected_final_bits=selected_final_bits,
             checksum_bits=checksum_bits,
             actual_final_word=actual_final_word,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
