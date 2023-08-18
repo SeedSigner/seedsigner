@@ -342,6 +342,19 @@ class ToolsCalcFinalWordShowFinalWordView(View):
         #   * 7 bits to a 12-word seed (plus 4-bit checksum)
         from seedsigner.helpers import mnemonic_generation
 
+        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+        wordlist = Seed.get_wordlist(wordlist_language_code)
+
+        # Prep the user's selected word / coin flips and the actual final word for
+        # the display.
+        if coin_flips:
+            self.selected_final_word = None
+            self.selected_final_bits = coin_flips
+        else:
+            # Convert the user's final word selection into its binary index equivalent
+            self.selected_final_word = self.controller.storage.pending_mnemonic[-1]
+            self.selected_final_bits = format(wordlist.index(self.selected_final_word), '011b')
+
         if coin_flips:
             # fill the last bits (what will eventually be the checksum) with zeros
             binary_string = coin_flips + "0" * (11 - len(coin_flips))
@@ -354,8 +367,6 @@ class ToolsCalcFinalWordShowFinalWordView(View):
             # update the pending mnemonic with our new "final" (pre-checksum) word
             self.controller.storage.update_pending_mnemonic(word, -1)
 
-        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-
         # Now calculate the REAL final word (has a proper checksum)
         final_mnemonic = mnemonic_generation.calculate_checksum(
             mnemonic=self.controller.storage.pending_mnemonic,
@@ -367,17 +378,6 @@ class ToolsCalcFinalWordShowFinalWordView(View):
 
         mnemonic = self.controller.storage.pending_mnemonic
         mnemonic_length = len(mnemonic)
-        wordlist = Seed.get_wordlist(wordlist_language_code)
-
-        # Prep the user's selected word / coin flips and the actual final word for
-        # the display.
-        if coin_flips:
-            self.selected_final_word = None
-            self.selected_final_bits = coin_flips
-        else:
-            # Convert the user's final word selection into its binary index equivalent
-            self.selected_final_word = mnemonic[-1]
-            self.selected_final_bits = format(wordlist.index(self.selected_final_word), '011b')
 
         # And grab the actual final word's checksum bits
         self.actual_final_word = self.controller.storage.pending_mnemonic[-1]
