@@ -52,7 +52,7 @@ class MicroSD(Singleton, BaseThread):
 
             # at start-up, get current status and inform Settings
             Settings.handle_microsd_state_change(
-                action=MicroSD.ACTION__INSERTED if MicroSD.is_inserted else MicroSD.ACTION__REMOVED
+                action=MicroSD.ACTION__INSERTED if MicroSD.is_inserted() else MicroSD.ACTION__REMOVED
             )
 
             if os.path.exists(self.FIFO_PATH):
