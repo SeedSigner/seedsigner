@@ -244,11 +244,12 @@ class Settings(Singleton):
                 # settings) should overwrite the settings on disk, if they differ:
                 # - Overwrite settings on the SD?
                 # - Load settings from SD?
+                # - Do nothing without informing the user first?
                 # if Settings file exists (meaning persistent settings was previously enabled), write out current settings to disk
-                if os.path.exists(Settings.SETTINGS_FILENAME):
-                    # enable persistent settings first, then save
-                    Settings.get_instance()._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] = SettingsConstants.OPTION__ENABLED
-                    Settings.get_instance().save()
+                #if os.path.exists(Settings.SETTINGS_FILENAME):
+                #    # enable persistent settings first, then save
+                #    Settings.get_instance()._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] = SettingsConstants.OPTION__ENABLED
+                #    Settings.get_instance().save()
 
             elif action == MicroSD.ACTION__REMOVED:
                 # SD card was just removed.
