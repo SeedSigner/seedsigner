@@ -210,7 +210,7 @@ class RemoveSDCardToastManagerThread(BaseToastOverlayManagerThread):
     def should_keep_running(self) -> bool:
         """ Custom exit condition: keep running until the SD card is removed """
         from seedsigner.hardware.microsd import MicroSD
-        return MicroSD.is_inserted()
+        return MicroSD.get_instance().is_inserted
 
 
 
