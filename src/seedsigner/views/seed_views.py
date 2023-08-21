@@ -1988,7 +1988,7 @@ class SeedSignMessageConfirmAddressView(View):
         # calculate the actual receive address
         seed = self.controller.storage.seeds[self.seed_num]
         addr_format = embit_utils.parse_derivation_path(self.derivation_path)
-        if not addr_format["clean_match"]:
+        if not addr_format["clean_match"] or addr_format["script_type"] == SettingsConstants.CUSTOM_DERIVATION:
             raise Exception("Signing messages for custom derivation paths not supported")
 
         if addr_format["network"] != SettingsConstants.MAINNET:
