@@ -371,9 +371,12 @@ def test_parse_derivation_path():
 
         # CRAZY custom derivation paths
         (None, SC.CUSTOM_DERIVATION, False, 5): "m/879345978543'/908327034508534983495'/9085098430894380959043'/0/5",
+
+        # non-standard change and/or index
         (None, SC.CUSTOM_DERIVATION, None, 5): "m/9'/78/5",
         (None, SC.CUSTOM_DERIVATION, None, 5): "m/9'/78'/5",
         (None, SC.CUSTOM_DERIVATION, None, None): "m/9'/78'/5'",
+        (None, SC.CUSTOM_DERIVATION, False, None): "m/9'/0/5'",
     }
 
     for expected_result, derivation_path in vectors_args.items():
