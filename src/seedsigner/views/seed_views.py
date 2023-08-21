@@ -2005,7 +2005,7 @@ class SeedSignMessageConfirmAddressView(View):
                 self.controller.sign_message_data = None
                 return
 
-        xpub = seed.get_xpub(wallet_path=self.derivation_path, network=addr_format["network"])
+        xpub = seed.get_xpub(wallet_path=addr_format["wallet_derivation_path"], network=addr_format["network"])
         embit_network = embit_utils.get_embit_network_name(addr_format["network"])
         self.address = embit_utils.get_single_sig_address(xpub=xpub, script_type=addr_format["script_type"], index=addr_format["index"], is_change=addr_format["is_change"], embit_network=embit_network)
 

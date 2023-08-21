@@ -369,8 +369,11 @@ def test_parse_derivation_path():
         (SC.TESTNET, SC.CUSTOM_DERIVATION, True): "m/45'/1'/0'/1/5",
         (SC.REGTEST, SC.CUSTOM_DERIVATION, True): "m/45'/1'/0'/1/5",
 
-        # CRAZY custom derivation path
-        (None, SC.CUSTOM_DERIVATION, False): "m/879345978543'/908327034508534983495'/9085098430894380959043'/0/5",
+        # CRAZY custom derivation paths
+        (None, SC.CUSTOM_DERIVATION, False, 5): "m/879345978543'/908327034508534983495'/9085098430894380959043'/0/5",
+        (None, SC.CUSTOM_DERIVATION, None, 5): "m/9'/78/5",
+        (None, SC.CUSTOM_DERIVATION, None, 5): "m/9'/78'/5",
+        (None, SC.CUSTOM_DERIVATION, None, None): "m/9'/78'/5'",
     }
 
     for expected_result, derivation_path in vectors_args.items():
@@ -389,4 +392,8 @@ def test_parse_derivation_path():
 
         assert(actual_result["script_type"] == expected_result[1])
         assert(actual_result["is_change"] == expected_result[2])
-        assert(actual_result["index"] == int(derivation_path.split("/")[-1]))
+
+        if len(expected_result) == 4:
+            assert(actual_result["index"] == expected_result[3])
+        else:
+            assert(actual_result["index"] == int(derivation_path.split("/")[-1]))
