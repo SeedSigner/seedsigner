@@ -5,6 +5,7 @@ from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconCo
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON, RET_CODE__BACK_BUTTON
 from seedsigner.gui.screens.screen import BaseScreen, DireWarningScreen, LargeButtonScreen, PowerOffScreen, PowerOffNotRequiredScreen, ResetScreen, WarningScreen
 from seedsigner.models.settings import Settings, SettingsConstants
+from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread
 
 
@@ -331,7 +332,7 @@ class ErrorView(View):
 class NetworkMismatchErrorView(ErrorView):
     title: str = "Network Mismatch"
     show_back_button: bool = False
-    button_text: str = "Change Settings"
+    button_text: str = "Change Setting"
     next_destination: Destination = None
 
 
@@ -368,18 +369,33 @@ class UnhandledExceptionView(View):
 
 @dataclass
 class OptionDisabledView(View):
-    error_msg: str
+    UPDATE_SETTING = "Update Setting"
+    DONE = "Done"
+    settings_attr: str
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.settings_entry = SettingsDefinition.get_settings_entry(self.settings_attr)
+        self.error_msg = f"\"{self.settings_entry.display_name}\" is currently disabled in Settings."
 
 
     def run(self):
-        WarningScreen(
+        button_data = [self.UPDATE_SETTING, self.DONE]
+        selected_menu_num = self.run_screen(
+            WarningScreen,
             title="Option Disabled",
             status_headline=None,
             text=self.error_msg,
-            button_data=["OK"],
+            button_data=button_data,
             show_back_button=False,
             allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
-        ).display()
+        )
+
+        if button_data[selected_menu_num] == self.UPDATE_SETTING:
+            from seedsigner.views.settings_views import SettingsEntryUpdateSelectionView
+            return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=self.settings_attr), clear_history=True)
+        else:
+            return Destination(MainMenuView, clear_history=True)
 
 
 
