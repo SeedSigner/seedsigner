@@ -240,12 +240,13 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
 
         self.components.append(TextArea(
             text=f"""Your input: \"{selection_text}\"""",
-            screen_y=self.top_nav.height,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING - 2,  # Nudge to last line doesn't get too close to "Next" button
+            height_ignores_below_baseline=True,  # Keep the next line (bits display) snugged up, regardless of text rendering below the baseline
         ))
 
         # ...and that entropy's associated 11 bits
-        screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
-        self.components.append(TextArea(
+        screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        first_bits_line = TextArea(
             text=keeper_selected_bits,
             font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
             font_size=bit_font_size,
@@ -253,10 +254,13 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
             screen_x=bit_display_x,
             screen_y=screen_y,
             is_text_centered=False,
-        ))
+        )
+        self.components.append(first_bits_line)
 
         # Render the least significant bits that will be replaced by the checksum in a
         # de-emphasized font color.
+        if "_" in discard_selected_bits:
+            screen_y += int(first_bits_line.height/2)  # center the underscores vertically like hypens
         self.components.append(TextArea(
             text=discard_selected_bits,
             font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
@@ -272,7 +276,7 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
         self.components.append(TextArea(
             text="Checksum",
             edge_padding=0,
-            screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+            screen_y=first_bits_line.screen_y + first_bits_line.height + 2*GUIConstants.COMPONENT_PADDING,
         ))
 
         # ...and its actual bits. Prepend spacers to keep vertical alignment
@@ -288,7 +292,7 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
             font_size=bit_font_size,
             edge_padding=0,
             screen_x=bit_display_x,
-            screen_y=screen_y,
+            screen_y=screen_y + int(first_bits_line.height/2),  # center the underscores vertically like hypens
             is_text_centered=False,
         ))
 
@@ -308,6 +312,7 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
         self.components.append(TextArea(
             text=f"""Final Word: \"{self.actual_final_word}\"""",
             screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+            height_ignores_below_baseline=True,  # Keep the next line (bits display) snugged up, regardless of text rendering below the baseline
         ))
 
         # Once again show the bits that came from the user's entropy...

@@ -287,6 +287,7 @@ class TextArea(BaseComponent):
     supersampling_factor: int = 1
     auto_line_break: bool = True
     allow_text_overflow: bool = False
+    height_ignores_below_baseline: bool = False  # If True, characters that render below the baseline (e.g. "pqgy") will not affect the final height calculation
 
 
     def __post_init__(self):
@@ -316,11 +317,9 @@ class TextArea(BaseComponent):
         font = Fonts.get_font(self.font_name, self.font_size)
 
         # Note: from the baseline anchor, `top` is a negative number while `bottom`
-        # conveys the pixels used below the baseline (e.g. in "py").
-        # For consistency, ensure we have a full-height character above baseline.
-        # Also include some "below baseline" chars.
-        measurement_chars = "Agjpqy"
-        (left, top, right, bottom) = font.getbbox(self.text + measurement_chars, anchor="ls")
+        # conveys the height of the pixels that rendered below the baseline, if any
+        # (e.g. "py" in "python").
+        (left, top, right, bottom) = font.getbbox(self.text, anchor="ls")
         self.text_height_above_baseline = -1 * top
         self.text_height_below_baseline = bottom
 
@@ -333,12 +332,14 @@ class TextArea(BaseComponent):
 
         # Calculate the actual height
         if len(self.text_lines) == 1:
-            total_text_height = self.text_height_above_baseline + self.text_height_below_baseline
+            total_text_height = self.text_height_above_baseline
+            if not self.height_ignores_below_baseline:
+                total_text_height += self.text_height_below_baseline
         else:
             # Multiply for the number of lines plus the spacer
             total_text_height = self.text_height_above_baseline * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
 
-            if re.findall(f"[gjpqy]", self.text_lines[-1]["text"]):
+            if not self.height_ignores_below_baseline and re.findall(f"[gjpqy]", self.text_lines[-1]["text"]):
                 # Last line has at least one char that dips below baseline
                 total_text_height += self.text_height_below_baseline
 
@@ -356,15 +357,7 @@ class TextArea(BaseComponent):
 
             else:
                 # Vertically center the text's starting point
-                if len(self.text_lines) == 1:
-                    # For consistency when used in TopNav and elsewhere, ignore the
-                    # text's pixels below the baseline.
-                    # In other words: "Home" and "Something" will get the same text_y,
-                    # even though the "g" dips below baseline.
-                    self.text_y += int(self.height - (total_text_height - self.text_height_below_baseline))/2
-                else:
-                    # Vertically center for the full height.
-                    self.text_y += int(self.height - (total_text_height))/2
+                self.text_y += int(self.height - total_text_height)/2
 
 
     def render(self):
@@ -373,26 +366,28 @@ class TextArea(BaseComponent):
         # Add a `resample_padding` above and below when supersampling to avoid edge
         # effects (resized text that's right up against the top/bottom gets slightly
         # dimmer at the edge otherwise).
-        # TODO: Store resulting super-sampled image as a member var in __post_init__ and 
-        # just re-paste it here.
         if self.font_size < 20 and (not self.supersampling_factor or self.supersampling_factor == 1):
             self.supersampling_factor = 2
+
+        actual_text_height = self.height
+        if self.height_ignores_below_baseline:
+            # Even though we're ignoring the pixels below the baseline for spacing
+            # purposes, we have to make sure we don't crop those pixels out during the
+            # supersampling operations here.
+            actual_text_height += self.text_height_below_baseline
 
         resample_padding = 10 if self.supersampling_factor > 1.0 else 0
         img = Image.new(
             "RGBA",
             (
                 self.width * self.supersampling_factor,
-                (self.height + 2*resample_padding) * self.supersampling_factor
+                (actual_text_height + 2*resample_padding) * self.supersampling_factor
             ),
             self.background_color
         )
         draw = ImageDraw.Draw(img)
 
-        # draw.line((0, resample_padding * self.supersampling_factor, self.width * self.supersampling_factor, resample_padding * self.supersampling_factor), fill="blue", width=1)
-        # draw.line((0, (resample_padding + self.height) * self.supersampling_factor, self.width * self.supersampling_factor, (resample_padding + self.height) * self.supersampling_factor), fill="red", width=1)
         cur_y = (self.text_y + resample_padding) * self.supersampling_factor
-
         supersampled_font = Fonts.get_font(self.font_name, int(self.supersampling_factor * self.font_size))
 
         if self.is_text_centered:
@@ -412,15 +407,20 @@ class TextArea(BaseComponent):
                     text_x = self.min_text_x + int(line["text_width"]/2)
 
             draw.text((text_x * self.supersampling_factor, cur_y), line["text"], fill=self.font_color, font=supersampled_font, anchor=anchor)
+
+            # Debugging: show the exact vertical extents of each line of text
+            # draw.line((0, cur_y - self.text_height_above_baseline * self.supersampling_factor, self.width * self.supersampling_factor, cur_y - self.text_height_above_baseline * self.supersampling_factor), fill="red", width=int(self.supersampling_factor))
+            # draw.line((0, cur_y, self.width * self.supersampling_factor, cur_y), fill="red", width=int(self.supersampling_factor))
+
             cur_y += (self.text_height_above_baseline + self.line_spacing) * self.supersampling_factor
 
         # Crop off the top_padding and resize the result down to onscreen size
         if self.supersampling_factor > 1.0:
-            resized = img.resize((self.width, self.height + 2*resample_padding), Image.LANCZOS)
+            resized = img.resize((self.width, actual_text_height + 2*resample_padding), Image.LANCZOS)
             sharpened = resized.filter(ImageFilter.SHARPEN)
 
             # Crop args are actually (left, top, WIDTH, HEIGHT)
-            img = sharpened.crop((0, resample_padding, self.width, self.height + resample_padding))
+            img = sharpened.crop((0, resample_padding, self.width, actual_text_height + resample_padding))
         self.canvas.paste(img, (self.screen_x, self.screen_y))
 
 
@@ -1218,7 +1218,7 @@ class TopNav(BaseComponent):
                 icon_name=SeedSignerIconConstants.BACK,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_x=GUIConstants.EDGE_PADDING,
-                screen_y=GUIConstants.EDGE_PADDING,
+                screen_y=GUIConstants.EDGE_PADDING - 1,  # Text can't perfectly vertically center relative to the button; shifting it down 1px looks better.
                 width=GUIConstants.TOP_NAV_BUTTON_SIZE,
                 height=GUIConstants.TOP_NAV_BUTTON_SIZE,
             )
@@ -1262,6 +1262,7 @@ class TopNav(BaseComponent):
                 is_text_centered=True,
                 font_name=self.font_name,
                 font_size=self.font_size,
+                height_ignores_below_baseline=True,  # Consistently vertically center text, ignoring chars that render below baseline (e.g. "pqyj")
             )
 
 
@@ -1288,15 +1289,6 @@ class TopNav(BaseComponent):
         if self.show_power_button:
             self.right_button.is_selected = self.is_selected
             self.right_button.render()
-
-        # self.image_draw.text(
-        #     (self.text_x, self.text_y),
-        #     self.text,
-        #     font=self.font,
-        #     fill=self.font_color,
-        #     stroke_width=1,
-        #     stroke_fill=GUIConstants.BACKGROUND_COLOR,
-        # )
 
 
 
