@@ -3,6 +3,9 @@ import os
 import sys
 import time
 from mock import Mock, patch, MagicMock
+from seedsigner.helpers import embit_utils
+
+from seedsigner.models.settings import Settings
 
 
 # Prevent importing modules w/Raspi hardware dependencies.
@@ -28,7 +31,7 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, NotYetImplementedView, UnhandledExceptionView, 
     psbt_views, seed_views, settings_views, tools_views)
-from seedsigner.views.view import NetworkMismatchErrorView, PowerOffView, View
+from seedsigner.views.view import NetworkMismatchErrorView, OptionDisabledView, PowerOffView, View
 
 from .utils import ScreenshotComplete, ScreenshotRenderer
 
@@ -80,10 +83,12 @@ def test_generate_screenshots(target_locale):
     controller.multisig_wallet_descriptor = embit.descriptor.Descriptor.from_string(MULTISIG_WALLET_DESCRIPTOR)
     
     # Message signing data
+    derivation_path = "m/84h/0h/0h/0/0"
     controller.sign_message_data = {
         "seed_num": 0,
-        "derivation_path": "m/84h/0h/0h/0/0",
+        "derivation_path": derivation_path,
         "message": "I attest that I control this bitcoin address blah blah blah",
+        "addr_format": embit_utils.parse_derivation_path(derivation_path)
     }
 
     # Automatically populate all Settings options Views
@@ -116,6 +121,7 @@ def test_generate_screenshots(target_locale):
             (UnhandledExceptionView, dict(error=UnhandledExceptionViewFood)),
             (settings_views.SettingsIngestSettingsQRView, dict(data="settings::v1 name=factory_reset")),
             NetworkMismatchErrorView,
+            (OptionDisabledView, dict(settings_attr=SettingsConstants.SETTING__MESSAGE_SIGNING)),
 
 
         ],
@@ -231,7 +237,8 @@ def test_generate_screenshots(target_locale):
             print(f"Completed {view_name}")
         except Exception as e:
             # Something else went wrong
-            print(repr(e))
+            from traceback import print_exc
+            print_exc()
             raise e
         finally:
             if toast_thread:

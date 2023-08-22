@@ -1,3 +1,4 @@
+from typing import Callable
 import pytest
 
 # Must import test base before the Controller
@@ -7,7 +8,7 @@ from base import FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDat
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import Seed
-from seedsigner.views.view import MainMenuView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView
+from seedsigner.views.view import MainMenuView, OptionDisabledView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView
 from seedsigner.views import seed_views, scan_views, settings_views, tools_views
 
 
@@ -420,19 +421,59 @@ class TestMessageSigningFlows(FlowTest):
         # Ensure message signing is enabled
         self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
 
-        # Ensure we're configured for mainnet
-        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+        def expect_network_mismatch_error(load_message: Callable):
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+                FlowStep(scan_views.ScanView, before_run=load_message),  # simulate read message QR; ret val is ignored
+                FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+                FlowStep(NetworkMismatchErrorView),
+                FlowStep(settings_views.SettingsEntryUpdateSelectionView),
+            ])
 
-        self.run_sequence([
+        # MAINNET settings vs TESTNET derivation path with the message
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+        expect_network_mismatch_error(self.load_testnet_message_into_decoder)
+
+        # TESTNET settings vs MAINNET derivation path with the message
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.TESTNET)
+        expect_network_mismatch_error(self.load_short_message_into_decoder)
+
+        # REGTEST settings vs MAINNET derivation path with the message
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+        expect_network_mismatch_error(self.load_short_message_into_decoder)
+
+
+
+
+    def test_sign_message_option_disabled(self):
+        """
+        Should redirect to OptionDisabledView if a `signmessage` QR is scanned with
+        message signing disabled.
+
+        Should offer the option to route directly to enable that settings or return to
+        MainMenuView.
+        """
+        # Ensure message signing is disabled
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__DISABLED)
+
+        sequence = [
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
-            FlowStep(scan_views.ScanView, before_run=self.load_testnet_message_into_decoder),  # simulate read message QR; ret val is ignored
+            FlowStep(scan_views.ScanView, before_run=self.load_short_message_into_decoder),  # simulate read message QR; ret val is ignored
             FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
-            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
-            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
-            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
-            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
-            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
-            FlowStep(seed_views.SeedSignMessageConfirmAddressView, is_redirect=True),
-            FlowStep(NetworkMismatchErrorView),
-            FlowStep(settings_views.SettingsEntryUpdateSelectionView),
-        ])
+        ]
+
+        # First test routing to update the setting
+        self.run_sequence(
+            sequence + [
+                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.UPDATE_SETTING, is_redirect=True),
+                FlowStep(settings_views.SettingsEntryUpdateSelectionView),
+            ]
+        )
+
+        # Now test exiting to Main Menu
+        self.run_sequence(
+            sequence + [
+                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.DONE, is_redirect=True),
+                FlowStep(MainMenuView),
+            ]
+        )
