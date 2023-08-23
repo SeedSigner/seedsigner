@@ -513,6 +513,8 @@ class PSBTSignedQRDisplayView(View):
 
 
 class PSBTSigningErrorView(View):
+    SELECT_DIFF_SEED = "Select Diff Seed"
+    
     def run(self):
         psbt_parser: PSBTParser = self.controller.psbt_parser
         if not psbt_parser:
@@ -520,15 +522,18 @@ class PSBTSigningErrorView(View):
             return Destination(MainMenuView)
 
         # Just a WarningScreen here; only use DireWarningScreen for true security risks.
-        selected_menu_num = WarningScreen(
+        selected_menu_num = self.run_screen(
+            WarningScreen,
             title="PSBT Error",
             status_icon_name=SeedSignerIconConstants.WARNING,
             status_headline="Signing Failed",
             text="Signing with this seed did not add a valid signature.",
-            button_data=["Select Diff Seed"],
-        ).display()
+            button_data=[self.SELECT_DIFF_SEED]
+        )
 
         if selected_menu_num == 0:
+            # clear seed selected for psbt signing since it did not add a valid signature
+            self.controller.psbt_seed = None
             return Destination(PSBTSelectSeedView, clear_history=True)
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
