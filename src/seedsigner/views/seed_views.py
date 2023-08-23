@@ -1997,14 +1997,37 @@ class SeedSignMessageConfirmAddressView(View):
     def __init__(self):
         super().__init__()
         data = self.controller.sign_message_data
-        seed = self.controller.storage.seeds[data.get("seed_num")]
+        seed_num = data.get("seed_num")
         self.derivation_path = data.get("derivation_path")
+
+        if seed_num is None or not self.derivation_path:
+            raise Exception("Routing error: sign_message_data hasn't been set")
+
+        seed = self.controller.storage.seeds[seed_num]
         addr_format = data.get("addr_format")
 
-        # Current settings will differentiate TESTNET and REGTEST (since derivation path
-        # alone doesn't specify which one we're using).
-        xpub = seed.get_xpub(wallet_path=self.derivation_path, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-        embit_network = embit_utils.get_embit_network_name(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+        # calculate the actual receive address
+        seed = self.controller.storage.seeds[seed_num]
+        addr_format = embit_utils.parse_derivation_path(self.derivation_path)
+        if not addr_format["clean_match"] or addr_format["script_type"] == SettingsConstants.CUSTOM_DERIVATION:
+            raise Exception("Signing messages for custom derivation paths not supported")
+
+        if addr_format["network"] != SettingsConstants.MAINNET:
+            # We're in either Testnet or Regtest or...?
+            if self.settings.get_value(SettingsConstants.SETTING__NETWORK) in [SettingsConstants.TESTNET, SettingsConstants.REGTEST]:
+                addr_format["network"] = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+            else:
+                from seedsigner.views.view import NetworkMismatchErrorView
+                self.set_redirect(Destination(NetworkMismatchErrorView, view_args=dict(text=f"Current network setting ({self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK)}) doesn't match {self.derivation_path}")))
+
+                # cleanup. Note: We could leave this in place so the user can resume the
+                # flow, but for now we avoid complications and keep things simple.
+                self.controller.resume_main_flow = None
+                self.controller.sign_message_data = None
+                return
+
+        xpub = seed.get_xpub(wallet_path=addr_format["wallet_derivation_path"], network=addr_format["network"])
+        embit_network = embit_utils.get_embit_network_name(addr_format["network"])
         self.address = embit_utils.get_single_sig_address(xpub=xpub, script_type=addr_format["script_type"], index=addr_format["index"], is_change=addr_format["is_change"], embit_network=embit_network)
 
 

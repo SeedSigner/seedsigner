@@ -146,8 +146,24 @@ def parse_derivation_path(derivation_path: str) -> dict:
     if not details["script_type"]:
         details["script_type"] = SettingsConstants.CUSTOM_DERIVATION
     details["network"] = lookups["networks"].get(sections[2])
-    details["is_change"] = sections[-2] == "1"
-    details["index"] = int(sections[-1])
+
+    # Check if there's a standard change path
+    if sections[-2] in ["0", "1"]:
+        details["is_change"] = sections[-2] == "1"
+    else:
+        details["is_change"] = None
+
+    # Check if there's a standard address index
+    if sections[-1].isdigit():
+        details["index"] = int(sections[-1])
+    else:
+        details["index"] = None
+
+    if details["is_change"] is not None and details["index"] is not None:
+        # standard change and addr index; safe to truncate to the wallet level
+        details["wallet_derivation_path"] = "/".join(sections[:-2])
+    else:
+        details["wallet_derivation_path"] = None
 
     details["clean_match"] = True
     for k, v in details.items():
