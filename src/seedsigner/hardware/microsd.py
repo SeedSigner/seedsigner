@@ -29,8 +29,8 @@ class MicroSD(Singleton, BaseThread):
         return cls._instance
 
 
-    @classmethod
-    def is_inserted(cls):
+    @property
+    def is_inserted(self):
         if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
             return os.path.exists(MicroSD.MOUNT_POINT)
         else:
@@ -52,7 +52,7 @@ class MicroSD(Singleton, BaseThread):
 
             # at start-up, get current status and inform Settings
             Settings.handle_microsd_state_change(
-                action=MicroSD.ACTION__INSERTED if MicroSD.is_inserted else MicroSD.ACTION__REMOVED
+                action=MicroSD.ACTION__INSERTED if self.is_inserted else MicroSD.ACTION__REMOVED
             )
 
             if os.path.exists(self.FIFO_PATH):
