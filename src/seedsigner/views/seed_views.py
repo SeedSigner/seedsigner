@@ -1997,15 +1997,17 @@ class SeedSignMessageConfirmAddressView(View):
     def __init__(self):
         super().__init__()
         data = self.controller.sign_message_data
-        seed = self.controller.storage.seeds[data.get("seed_num")]
+        seed_num = data.get("seed_num")
         self.derivation_path = data.get("derivation_path")
-        addr_format = data.get("addr_format")
 
-        if self.seed_num is None or not self.derivation_path:
+        if seed_num is None or not self.derivation_path:
             raise Exception("Routing error: sign_message_data hasn't been set")
 
+        seed = self.controller.storage.seeds[seed_num]
+        addr_format = data.get("addr_format")
+
         # calculate the actual receive address
-        seed = self.controller.storage.seeds[self.seed_num]
+        seed = self.controller.storage.seeds[seed_num]
         addr_format = embit_utils.parse_derivation_path(self.derivation_path)
         if not addr_format["clean_match"] or addr_format["script_type"] == SettingsConstants.CUSTOM_DERIVATION:
             raise Exception("Signing messages for custom derivation paths not supported")
