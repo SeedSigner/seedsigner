@@ -224,9 +224,7 @@ class ToolsDiceEntropyEntryView(View):
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
-        print(f"Dice rolls: {ret}")
         dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret)
-        print(f"""Mnemonic: "{dice_seed_phrase}" """)
 
         # Add the mnemonic as an in-memory Seed
         seed = Seed(dice_seed_phrase, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
