@@ -502,4 +502,4 @@ class TestMessageSigningFlows(FlowTest):
             FlowStep(MainMenuView),
         ])
 
-        assert(self.controller.resume_main_flow is None)
+        assert self.controller.resume_main_flow is None
