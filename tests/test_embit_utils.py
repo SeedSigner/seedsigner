@@ -331,12 +331,12 @@ def test_parse_derivation_path():
     derivation_path = "m/84'/0'/0'/0/0"
 
     result = embit_utils.parse_derivation_path(derivation_path)
-    assert(result["script_type"] == SC.NATIVE_SEGWIT)
-    assert(result["network"] == SC.MAINNET)
+    assert result["script_type"] == SC.NATIVE_SEGWIT
+    assert result["network"] == SC.MAINNET
 
     result = embit_utils.parse_derivation_path(derivation_path.replace("'", "h"))
-    assert(result["script_type"] == SC.NATIVE_SEGWIT)
-    assert(result["network"] == SC.MAINNET)
+    assert result["script_type"] == SC.NATIVE_SEGWIT
+    assert result["network"] == SC.MAINNET
 
     # Now exhaustively test supported permutations
     vectors_args = {
@@ -383,20 +383,20 @@ def test_parse_derivation_path():
         actual_result = embit_utils.parse_derivation_path(derivation_path)
 
         if expected_result[0] == SC.MAINNET:
-            assert(actual_result["network"] == expected_result[0])
-            assert(actual_result["clean_match"] is True)
+            assert actual_result["network"] == expected_result[0]
+            assert actual_result["clean_match"] is True
         elif expected_result[0] is None:
-            assert(actual_result["network"] is None)
-            assert(actual_result["clean_match"] is False)
+            assert actual_result["network"] is None
+            assert actual_result["clean_match"] is False
         else:
             # Testnet and regtest are returned as a list since the parser can't tell which is intended
-            assert(expected_result[0] in actual_result["network"])
-            assert(actual_result["clean_match"] is True)
+            assert expected_result[0] in actual_result["network"]
+            assert actual_result["clean_match"] is True
 
-        assert(actual_result["script_type"] == expected_result[1])
-        assert(actual_result["is_change"] == expected_result[2])
+        assert actual_result["script_type"] == expected_result[1]
+        assert actual_result["is_change"] == expected_result[2]
 
         if len(expected_result) == 4:
-            assert(actual_result["index"] == expected_result[3])
+            assert actual_result["index"] == expected_result[3]
         else:
-            assert(actual_result["index"] == int(derivation_path.split("/")[-1]))
+            assert actual_result["index"] == int(derivation_path.split("/")[-1])
