@@ -151,12 +151,15 @@ class ScanView(View):
                 return Destination(NotYetImplementedView)
 
         elif self.decoder.is_invalid:
+            # For now, don't even try to re-do the attempted operation, just reset and
+            # start everything over.
+            self.controller.resume_main_flow = None
             return Destination(ErrorView, view_args=dict(
                 title="Error",
                 status_headline="Unknown QR Type",
                 text="QRCode is invalid or is a data format not yet supported.",
-                button_text="Back",
-                next_destination=Destination(BackStackView, skip_current_view=True),
+                button_text="Done",
+                next_destination=Destination(MainMenuView, clear_history=True),
             ))
 
         return Destination(MainMenuView)
