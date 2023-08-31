@@ -1,5 +1,6 @@
 import logging
 from seedsigner.gui.components import SeedSignerIconConstants
+from seedsigner.hardware.microsd import MicroSD
 
 from .view import View, Destination, MainMenuView
 
@@ -195,13 +196,21 @@ class SettingsIngestSettingsQRView(View):
         # May raise an Exception which will bubble up to the Controller to display to the
         # user.
         self.config_name, settings_update_dict = Settings.parse_settingsqr(data)
+
+        persistent_settings = settings_update_dict.get(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
+        if persistent_settings == SettingsConstants.OPTION__ENABLED and not MicroSD.get_instance().is_inserted:
+            # SettingsQR wants to enable persistent settings, but no MicroSD is inserted.
+            # For the sake of simplicity we just ignore that setting for now.
+            # TODO: Can consider a warning screen instead that gives the user some options.
+            del settings_update_dict[SettingsConstants.SETTING__PERSISTENT_SETTINGS]
+            
         self.settings.update(settings_update_dict)
     
 
     def run(self):
-        from seedsigner.gui.screens.scan_screens import SettingsUpdatedScreen
+        from seedsigner.gui.screens.settings_screens import SettingsQRConfirmationScreen
         self.run_screen(
-            SettingsUpdatedScreen,
+            SettingsQRConfirmationScreen,
             config_name=self.config_name
         )
 
