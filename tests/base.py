@@ -28,7 +28,8 @@ class BaseTest:
         A test suite-friendly replacement for `MicroSD` that gives a test explicit
         control over the reported state of the SD card.
         """
-        # Tests are free to directly manipulate this attribute as needed
+        # Tests are free to directly manipulate this attribute as needed (it's reset to
+        # True before each test in `BaseTest.setup_method()`).
         is_inserted: bool = True
 
 
