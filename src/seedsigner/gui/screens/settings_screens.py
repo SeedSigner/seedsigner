@@ -303,22 +303,14 @@ class DonateScreen(BaseTopNavScreen):
 class SettingsQRConfirmationScreen(ButtonListScreen):
     config_name: str = None
     title: str = "Settings QR"
+    status_message: str = "Settings updated..."
     is_bottom_list: bool = True
 
     def __post_init__(self):
-        from seedsigner.hardware.microsd import MicroSD
-        from seedsigner.models.settings import Settings, SettingsConstants
-
         # Customize defaults
         self.button_data = ["Home"]
         self.show_back_button = False
         super().__post_init__()
-
-        settings = Settings.get_instance()
-        if MicroSD.get_instance().is_inserted and settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS) == SettingsConstants.OPTION__ENABLED:
-            status_message = "Persistent Settings enabled. Settings saved to SD card."
-        else:
-            status_message = "Settings updated in temporary memory"
 
         start_y = self.top_nav.height + 20
         if self.config_name:
@@ -332,7 +324,7 @@ class SettingsQRConfirmationScreen(ButtonListScreen):
             start_y = self.config_name_textarea.screen_y + 50
         
         self.components.append(TextArea(
-            text=status_message,
+            text=self.status_message,
             is_text_centered=True,
             auto_line_break=True,
             screen_y=start_y
