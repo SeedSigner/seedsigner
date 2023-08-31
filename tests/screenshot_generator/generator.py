@@ -110,9 +110,10 @@ def test_generate_screenshots(target_locale):
             continue
 
         settings_views_list.append((settings_views.SettingsEntryUpdateSelectionView, dict(attr_name=settings_entry.attr_name), f"SettingsEntryUpdateSelectionView_{settings_entry.attr_name}"))
-    settings_views_list.append(settings_views.IOTestView)
-    settings_views_list.append(settings_views.DonateView)
     
+
+    settingsqr_data_persistent = "settings::v1 name=Total_noob_mode persistent=E coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"
+    settingsqr_data_not_persistent = "settings::v1 name=Ephemeral_noob_mode persistent=D coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"
 
     screenshot_sections = {
         "Main Menu Views": [
@@ -123,7 +124,6 @@ def test_generate_screenshots(target_locale):
             PowerOptionsView,
             RestartView,
             PowerOffView,
-            (settings_views.SettingsIngestSettingsQRView, dict(data="settings::v1 name=Uncle_Jim's_noob_mode")),
         ],
         "Seed Views": [
             seed_views.SeedsMenuView,
@@ -215,7 +215,12 @@ def test_generate_screenshots(target_locale):
             tools_views.ToolsAddressExplorerAddressListView,
             #tools_views.ToolsAddressExplorerAddressView,
         ],
-        "Settings Views": settings_views_list,
+        "Settings Views": settings_views_list + [
+            settings_views.IOTestView,
+            settings_views.DonateView,
+            (settings_views.SettingsIngestSettingsQRView, dict(data=settingsqr_data_persistent), "SettingsIngestSettingsQRView_persistent"),
+            (settings_views.SettingsIngestSettingsQRView, dict(data=settingsqr_data_not_persistent), "SettingsIngestSettingsQRView_not_persistent"),
+        ],
         "Misc Error Views": [
             NotYetImplementedView,
             (UnhandledExceptionView, dict(error=UnhandledExceptionViewFood)),
@@ -227,7 +232,7 @@ def test_generate_screenshots(target_locale):
                 text="QRCode is invalid or is a data format not yet supported.",
                 button_text="Back",
             )),
-        ],
+        ]
     }
 
     readme = f"""# SeedSigner Screenshots\n"""
