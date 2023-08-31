@@ -1,6 +1,8 @@
 import os
 from typing import Callable
 
+from mock import PropertyMock, patch
+
 # Must import test base before the Controller
 from base import FlowTest, FlowStep
 
@@ -115,6 +117,19 @@ class TestSettingsFlows(FlowTest):
         # Now try to enable persistent settings when the SD card is not inserted
         self.mock_microsd.is_inserted = False
         assert MicroSD.get_instance().is_inserted is False
+
+        # Have to jump through some hoops to completely simulate the SD card being
+        # removed; we need Settings to restrict Persistent Settings to only allow
+        # DISABLED.
+        with patch('seedsigner.models.settings.Settings.HOSTNAME', new_callable=PropertyMock) as mock_hostname:
+            # Must identify itself as SeedSigner OS to trigger the SD card removal logic
+            mock_hostname.return_value = Settings.SEEDSIGNER_OS
+            Settings.handle_microsd_state_change(MicroSD.ACTION__REMOVED)
+        
+        selection_options = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__PERSISTENT_SETTINGS).selection_options
+        assert len(selection_options) == 1
+        assert selection_options[0][0] == SettingsConstants.OPTION__DISABLED
+        assert self.settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS) == SettingsConstants.OPTION__DISABLED
 
         _run_test(
             initial_setting_state=SettingsConstants.OPTION__DISABLED,
