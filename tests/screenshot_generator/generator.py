@@ -31,7 +31,7 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, NotYetImplementedView, UnhandledExceptionView, 
     psbt_views, seed_views, settings_views, tools_views)
-from seedsigner.views.view import NetworkMismatchErrorView, OptionDisabledView, PowerOffView, View
+from seedsigner.views.view import ErrorView, NetworkMismatchErrorView, OptionDisabledView, PowerOffView, View
 
 from .utils import ScreenshotComplete, ScreenshotRenderer
 
@@ -123,13 +123,7 @@ def test_generate_screenshots(target_locale):
             PowerOptionsView,
             RestartView,
             PowerOffView,
-            NotYetImplementedView,
-            (UnhandledExceptionView, dict(error=UnhandledExceptionViewFood)),
-            (settings_views.SettingsIngestSettingsQRView, dict(data="settings::v1 name=factory_reset")),
-            NetworkMismatchErrorView,
-            (OptionDisabledView, dict(settings_attr=SettingsConstants.SETTING__MESSAGE_SIGNING)),
-
-
+            (settings_views.SettingsIngestSettingsQRView, dict(data="settings::v1 name=Uncle_Jim's_noob_mode")),
         ],
         "Seed Views": [
             seed_views.SeedsMenuView,
@@ -222,6 +216,18 @@ def test_generate_screenshots(target_locale):
             #tools_views.ToolsAddressExplorerAddressView,
         ],
         "Settings Views": settings_views_list,
+        "Misc Error Views": [
+            NotYetImplementedView,
+            (UnhandledExceptionView, dict(error=UnhandledExceptionViewFood)),
+            NetworkMismatchErrorView,
+            (OptionDisabledView, dict(settings_attr=SettingsConstants.SETTING__MESSAGE_SIGNING)),
+            (ErrorView, dict(
+                title="Error",
+                status_headline="Unknown QR Type",
+                text="QRCode is invalid or is a data format not yet supported.",
+                button_text="Back",
+            )),
+        ],
     }
 
     readme = f"""# SeedSigner Screenshots\n"""
