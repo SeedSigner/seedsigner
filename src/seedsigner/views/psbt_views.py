@@ -318,7 +318,7 @@ class PSBTChangeDetailsView(View):
 
         if seed_fingerprint not in change_data.get("fingerprint"):
             # TODO: Something is wrong with this psbt(?). Reroute to warning?
-            return Destination(NotYetImplementedView)
+            return Destination(PSBTSigningErrorView)
 
         i = change_data.get("fingerprint").index(seed_fingerprint)
         derivation_path = change_data.get("derivation_path")[i]

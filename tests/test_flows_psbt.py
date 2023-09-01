@@ -90,4 +90,27 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(psbt_views.PSBTSignedQRDisplayView),
 			FlowStep(MainMenuView),
 		])
+
+	def test_scan_multisig_psbt_wrong_seed_flow(self):
+
+		def load_psbt_into_decoder(view: scan_views.ScanView):
+			view.decoder.add_data("cHNidP8BAIkCAAAAAc9dCSh2RcRPfHaT5bNVBpbg0jAekRLqOK+bpN/QA0jeAAAAAAD9////AtAHAAAAAAAAIlEg24shYsV3IRCzlgmMKjAsR4Ad9tX896z7zDAi5q0TU9H3CgAAAAAAACIAIByGQg/VP2aRID62ty40E64HYZeRRsKRGLt8J/76R6stQ04FAE8BBDWHzwSLLGdzgAAAAq3q6nR20JnHR+vKrBQdWxN9C7xU8zNX942mVF7AQpl2ArrdLwVlkGxaatQJ4wwkvypNBKbwOq9hXGLNlKi7rZWAFDUxzXUwAACAAQAAgAAAAIACAACATwEENYfPBHOCZmWAAAACmH6KTXIny0vueRgQFBq4M6oMuG8f1QM0I/RzKQ03bCgCHrF0fyUtV0+FD2N34u/woqb8MAt/o+7Ed58RddhY8zYUCUjSaDAAAIABAACAAAAAgAIAAIAAAQEriBMAAAAAAAAiACBY4WsjDgJXLj3VW222jU1tkIIhT26ce/2efH73BWGGBiICAqyfkrdUO662QBrdvJcSOZMFxniD7M1awm9U0Kb5XCm5RzBEAiAPkQTY84YjFFkpD6MI2cc5rJySqws5fsTQA/8XEZFpbAIgTNVykbEH4Z7bqyzhhy6lty0K8rtCUDCaHNv+47NNIWgBAQMEAQAAAAEFR1IhApL4XO+VE1pPYn5wnRFyJQKVSc9TX2dO6KIBH6jwvgPaIQKsn5K3VDuutkAa3byXEjmTBcZ4g+zNWsJvVNCm+VwpuVKuIgYCkvhc75UTWk9ifnCdEXIlApVJz1NfZ07oogEfqPC+A9ocNTHNdTAAAIABAACAAAAAgAIAAIAAAAAAAAAAACIGAqyfkrdUO662QBrdvJcSOZMFxniD7M1awm9U0Kb5XCm5HAlI0mgwAACAAQAAgAAAAIACAACAAAAAAAAAAAAAAAEBR1IhApYXaczuYbBM/A+EH639Ir2yIB4PxL46dK/I1V1O9aHgIQLa02HCI/+EP+9gGpxHskjYWFN5hZzXY7RRvwV4UF42ylKuIgIClhdpzO5hsEz8D4Qfrf0ivbIgHg/Evjp0r8jVXU71oeAcNTHNdTAAAIABAACAAAAAgAIAAIABAAAAAAAAACICAtrTYcIj/4Q/72AanEeySNhYU3mFnNdjtFG/BXhQXjbKHAlI0mgwAACAAQAAgAAAAIACAACAAQAAAAAAAAAA")
+
+		def load_wrong_seed_into_decoder(view: scan_views.ScanView):
+			view.decoder.add_data("000000000000000000000000000000000000000000000003")
+
+		self.run_sequence([
+			FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+			FlowStep(scan_views.ScanView, before_run=load_wrong_seed_into_decoder),
+			FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+			FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SCAN_PSBT),
+			FlowStep(scan_views.ScanPSBTView, before_run=load_psbt_into_decoder), # simulate read PSBT; ret val is ignored
+			FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+			FlowStep(psbt_views.PSBTOverviewView),
+			FlowStep(psbt_views.PSBTMathView),
+			FlowStep(psbt_views.PSBTAddressDetailsView, button_data_selection=0),
+			FlowStep(psbt_views.PSBTChangeDetailsView, is_redirect=True),
+			FlowStep(psbt_views.PSBTSigningErrorView, button_data_selection=psbt_views.PSBTSigningErrorView.SELECT_DIFF_SEED),
+			FlowStep(psbt_views.PSBTSelectSeedView),
+		])
 		
