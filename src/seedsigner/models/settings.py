@@ -87,6 +87,12 @@ class Settings(Singleton):
                 values = value
             for v in values:
                 if v not in [opt[0] for opt in settings_entry.selection_options]:
+                    if settings_entry.attr_name == SettingsConstants.SETTING__PERSISTENT_SETTINGS and v == SettingsConstants.OPTION__ENABLED:
+                        # Special case: trying to enable Persistent Settings when 
+                        # DISABLED is the only option allowed (because the SD card is not
+                        # inserted. Explicitly set to DISABLED.
+                        value = SettingsConstants.OPTION__DISABLED
+                        break
                     raise InvalidSettingsQRData(f"""{abbreviated_name} = '{v}' is not valid""")
 
             updated_settings[settings_entry.attr_name] = value
