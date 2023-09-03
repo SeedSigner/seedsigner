@@ -37,4 +37,24 @@ jobs:
           pip install .
       - name: Test with pytest
         run: |
-          pytest
+          mkdir artifacts
+          python -m pytest \
+            --color=yes \
+            --cov=seedsigner \
+            --cov-append \
+            --cov-branch \
+            --cov-report term \
+            --cov-report html \
+            --cov-report html:./artifacts/cov_html \
+            --cov-report xml \
+            --durations 5 \
+            -vv
+      - name: Archive CI Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ci-artifacts
+          path: artifacts/**
+          retention-days: 10
+        # Upload also when tests fail. The workflow result (red/green) will
+        # be not effected by this.
+        if: always()
