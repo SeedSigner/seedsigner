@@ -31,10 +31,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          sudo apt-get install fonts-open-sans libzbar0
+          sudo apt-get install libzbar0
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r tests/requirements.txt
-          pip install .
+          python setup.py install
       - name: Test with pytest
         run: |
           mkdir artifacts
@@ -49,6 +49,10 @@ jobs:
             --cov-report xml \
             --durations 5 \
             -vv
+      - name: Generate screenshots
+        run: |
+          python -m pytest tests/screenshot_generator/generator.py
+          cp -r ./seedsigner-screenshots ./artifacts/
       - name: Archive CI Artifacts
         uses: actions/upload-artifact@v3
         with:
