@@ -1,6 +1,6 @@
 # Build an offline, airgapped Bitcoin signing device for less than $50!
 
-![Image of SeedSigners in Open Pill Enclosures](docs/img/Open_Pill_Star.JPG)![Image of SeedSigner in an Orange Pill enclosure](docs/img/Orange_Pill.JPG)
+![Image of SeedSigners in Open Pill Enclosures](docs/img/Open_Pill_Star.JPG)![Image of SeedSigners in Mini Pill Enclosures](docs/img/Mini_Pill_Unassembled_And_Assembled.png)
 
 ---------------
 
