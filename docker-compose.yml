@@ -7,8 +7,4 @@ services:
       dockerfile: docker/Dockerfile
     command: sh -c 'bash -c "tail -f /dev/null"'
     volumes:
-      # map the outside directory to /code inside the container
-       - ../seedsigner:/seedsigner
-    #ports:
-	  # enable ssh outside the container
-	  # - 22:22
+      - ../seedsigner:/seedsigner
