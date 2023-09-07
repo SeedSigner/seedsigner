@@ -5,6 +5,6 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    command: sh -c 'bash -c "tail -f /dev/null"'
+    command: sh -c 'bash -c "docker/setup.sh"'
     volumes:
       - ../seedsigner:/seedsigner

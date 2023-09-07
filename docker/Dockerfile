@@ -4,20 +4,17 @@ FROM python:3.10-bullseye
 RUN apt-get -qq update
 RUN apt-get -y -qq install zbar-tools
 
-# temp add/copy seedsigner local repo to do pip3 install
-ADD . /seedsigner
-WORKDIR /seedsigner
+# temp copy requirements files to local repo to do pip3 install
+COPY ../requirements.txt /requirements.txt
+COPY ../tests/requirements.txt /tests-requirements.txt
 
-#COPY ../requirements.txt /requirements.txt
-#COPY ../tests/requirements.txt /tests-requirements.txt
-
+WORKDIR /
 RUN pip3 install -r requirements.txt
-RUN pip3 install -r tests/requirements.txt
-RUN pip3 install -e .
+RUN pip3 install -r tests-requirements.txt
 
 # clean up copied files
-WORKDIR /
-RUN rm -r /seedsigner
+RUN rm /requirements.txt
+RUN rm /tests-requirements.txt
 
 # set working dir
 WORKDIR /seedsigner
