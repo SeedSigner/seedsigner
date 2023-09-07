@@ -97,7 +97,8 @@ class PSBTOverviewScreen(ButtonListScreen):
 
         max_inputs_text_width = 0
         for input in inputs_column:
-            tw, th = font.getsize(input)
+            left, top, right, bottom  = font.getbbox(input)
+            tw, th = right - left, bottom - top
             max_inputs_text_width = max(tw, max_inputs_text_width)
 
         # Given how wide we want our curves on each side to be...
@@ -148,7 +149,8 @@ class PSBTOverviewScreen(ButtonListScreen):
 
             max_destination_text_width = 0
             for destination in destination_column:
-                tw, th = font.getsize(destination)
+                left, top, right, bottom  = font.getbbox(destination)
+                tw, th = right - left, bottom - top
                 max_destination_text_width = max(tw, max_destination_text_width)
             
             return (max_destination_text_width, destination_column)
@@ -194,7 +196,9 @@ class PSBTOverviewScreen(ButtonListScreen):
         input_curves = []
         for input in inputs_column:
             # Calculate right-justified input display
-            tw, th = font.getsize(input)
+            left, top, right, bottom  = font.getbbox(input)
+            tw, th = right - left, bottom - top
+            
             cur_x = inputs_x + max_inputs_text_width - tw
             draw.text(
                 (cur_x, inputs_y),
@@ -503,7 +507,8 @@ class PSBTMathScreen(ButtonListScreen):
 
         body_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, (GUIConstants.BODY_FONT_SIZE)*ssf)
         fixed_width_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, (GUIConstants.BODY_FONT_SIZE + 6)*ssf)
-        digits_width, digits_height = fixed_width_font.getsize(self.input_amount + "+")
+        left, top, right, bottom  = fixed_width_font.getbbox(self.input_amount + "+")
+        digits_width, digits_height = right - left, bottom - top
 
         # Draw each line of the equation
         cur_y = 0
@@ -520,8 +525,10 @@ class PSBTMathScreen(ButtonListScreen):
                 main_zone = display_str[:-6]
                 mid_zone = display_str[-6:-3]
                 end_zone = display_str[-3:]
-                main_zone_width, th = fixed_width_font.getsize(main_zone)
-                mid_zone_width, th = fixed_width_font.getsize(end_zone)
+                left, top, right, bottom  = fixed_width_font.getbbox(main_zone)
+                main_zone_width, th = right - left, bottom - top
+                left, top, right, bottom  = fixed_width_font.getbbox(end_zone)
+                mid_zone_width, th = right - left, bottom - top
                 draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
                 draw.text((main_zone_width + digit_group_spacing, cur_y), text=mid_zone, font=fixed_width_font, fill=secondary_digit_color)
                 draw.text((main_zone_width + digit_group_spacing + mid_zone_width + digit_group_spacing, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)
