@@ -101,8 +101,8 @@ Download the current Version (0.7.0) software image that is compatible with your
 Note: If you have physically removed the WiFi component from your board, you will still use the image file of the original(un-modified) hardware. (Our files are compiled/based on the *processor* architecture). Although it is better to spend a few minutes upfront to determine which specific Pi hardware/model you have, if you are still unsure which hardware you have, you can try using the pi0.img file. Making an incorrect choice here will not ruin your board, because this is software, not firmware. 
 
 **also download** these 2 signature verification files to the same folder  
-[The Plaintext manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.7.0/seedsigner.0.7.0.manifest.txt)  
-[The Signature of the manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.7.0/seedsigner.0.7.0.manifest.txt.sig)
+[The Plaintext manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.7.0/seedsigner.0.7.0.sha256.txt)  
+[The Signature of the manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.7.0/seedsigner.0.7.0.sha256.txt.sig)
 
 Users familiar with older versions of the SeedSigner software might be surprised with how fast their software downloads now are, because since version 0.6.0 the software image files are now 100x smaller! Each image file is now under 42 Megabytes so your downloads and verifications will be very quick now (and might even seem *too* quick)!  
 
@@ -131,7 +131,7 @@ The result should confirm that 1 key was *either* imported or updated. *Ignore* 
 
 Next, you will run the *verify* command on the signature (.sig) file. (*Verify* must be run from inside the same folder that you downloaded the files into earlier. The `*`'s in this command will auto-fill the version from your current folder, so it should be copied and pasted as-is.)   
 ```
-gpg --verify seedsigner.0.7.*.manifest.sig
+gpg --verify seedsigner.0.7.*.sha256.txt.sig
 ```
 
 When the verify command completes successfully, it should display output like this:
@@ -201,7 +201,7 @@ Now that you have confirmed that you do have the real SeedSigner Project's Publi
 
  **On Linux or OSX:** Run this command
 ```
-shasum -a 256 --ignore-missing --check seedsigner.0.7.*.manifest.txt  
+shasum -a 256 --ignore-missing --check seedsigner.0.7.*.sha256.txt  
 ```
 
 **On Windows (inside Powershell):** Run this command
