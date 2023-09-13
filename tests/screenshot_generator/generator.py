@@ -1,27 +1,37 @@
 import embit
 import os
 import sys
-from mock import Mock, MagicMock
+import time
+from mock import Mock, patch, MagicMock
+from seedsigner.helpers import embit_utils
+
+from seedsigner.models.settings import Settings
+
 
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
 sys.modules['seedsigner.hardware.ST7789'] = MagicMock()
 sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
 sys.modules['seedsigner.views.screensaver'] = MagicMock()
-sys.modules['seedsigner.hardware.buttons'] = MagicMock()
+sys.modules['RPi'] = MagicMock()
+sys.modules['RPi.GPIO'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
 sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 
 
 from seedsigner.controller import Controller
 from seedsigner.gui.renderer import Renderer
+from seedsigner.gui.toast import BaseToastOverlayManagerThread, RemoveSDCardToastManagerThread, SDCardStateChangeToastManagerThread
+from seedsigner.hardware.buttons import HardwareButtons
+from seedsigner.hardware.camera import Camera
+from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, NotYetImplementedView, UnhandledExceptionView, 
     psbt_views, seed_views, settings_views, tools_views)
-from seedsigner.views.view import NetworkMismatchErrorView, PowerOffView, View
+from seedsigner.views.view import ErrorView, NetworkMismatchErrorView, OptionDisabledView, PowerOffView, View
 
 from .utils import ScreenshotComplete, ScreenshotRenderer
 
@@ -61,6 +71,12 @@ def test_generate_screenshots(target_locale):
     controller.storage.set_pending_seed(seed_24)
     UnhandledExceptionViewFood = ["IndexError", "line 1, in some_buggy_code.py", "list index out of range"]
 
+    # Pending mnemonic for ToolsCalcFinalWordShowFinalWordView
+    controller.storage.init_pending_mnemonic(num_words=12)
+    for i, word in enumerate(mnemonic_12[:11]):
+        controller.storage.update_pending_mnemonic(word=word, index=i)
+    controller.storage.update_pending_mnemonic(word="satoshi", index=11)  # random last word; not supposed to be a valid checksum (yet)
+
     # Load a PSBT into memory
     BASE64_PSBT_1 = """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"""
     decoder = DecodeQR()
@@ -73,10 +89,12 @@ def test_generate_screenshots(target_locale):
     controller.multisig_wallet_descriptor = embit.descriptor.Descriptor.from_string(MULTISIG_WALLET_DESCRIPTOR)
     
     # Message signing data
+    derivation_path = "m/84h/0h/0h/0/0"
     controller.sign_message_data = {
         "seed_num": 0,
-        "derivation_path": "m/84h/0h/0h/0/0",
+        "derivation_path": derivation_path,
         "message": "I attest that I control this bitcoin address blah blah blah",
+        "addr_format": embit_utils.parse_derivation_path(derivation_path)
     }
 
     # Automatically populate all Settings options Views
@@ -92,22 +110,20 @@ def test_generate_screenshots(target_locale):
             continue
 
         settings_views_list.append((settings_views.SettingsEntryUpdateSelectionView, dict(attr_name=settings_entry.attr_name), f"SettingsEntryUpdateSelectionView_{settings_entry.attr_name}"))
-    settings_views_list.append(settings_views.IOTestView)
-    settings_views_list.append(settings_views.DonateView)
     
+
+    settingsqr_data_persistent = "settings::v1 name=Total_noob_mode persistent=E coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"
+    settingsqr_data_not_persistent = "settings::v1 name=Ephemeral_noob_mode persistent=D coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"
 
     screenshot_sections = {
         "Main Menu Views": [
             MainMenuView,
+            (MainMenuView, {}, 'MainMenuView_SDCardStateChangeToast_removed', SDCardStateChangeToastManagerThread(action=MicroSD.ACTION__REMOVED)),
+            (MainMenuView, {}, 'MainMenuView_SDCardStateChangeToast_inserted', SDCardStateChangeToastManagerThread(action=MicroSD.ACTION__INSERTED)),
+            (MainMenuView, {}, 'MainMenuView_RemoveSDCardToast', RemoveSDCardToastManagerThread(activation_delay=0)),
             PowerOptionsView,
             RestartView,
             PowerOffView,
-            NotYetImplementedView,
-            (UnhandledExceptionView, dict(error=UnhandledExceptionViewFood)),
-            (settings_views.SettingsIngestSettingsQRView, dict(data="settings::v1 name=factory_reset")),
-            NetworkMismatchErrorView,
-
-
         ],
         "Seed Views": [
             seed_views.SeedsMenuView,
@@ -191,31 +207,61 @@ def test_generate_screenshots(target_locale):
             tools_views.ToolsCalcFinalWordNumWordsView,
             tools_views.ToolsCalcFinalWordFinalizePromptView,
             tools_views.ToolsCalcFinalWordCoinFlipsView,
-            #(tools_views.ToolsCalcFinalWordShowFinalWordView, dict(coin_flips=3)),
+            (tools_views.ToolsCalcFinalWordShowFinalWordView, {}, "ToolsCalcFinalWordShowFinalWordView_pick_word"),
+            (tools_views.ToolsCalcFinalWordShowFinalWordView, dict(coin_flips="0010101"), "ToolsCalcFinalWordShowFinalWordView_coin_flips"),
             #tools_views.ToolsCalcFinalWordDoneView,
             tools_views.ToolsAddressExplorerSelectSourceView,
             tools_views.ToolsAddressExplorerAddressTypeView,
             tools_views.ToolsAddressExplorerAddressListView,
             #tools_views.ToolsAddressExplorerAddressView,
         ],
-        "Settings Views": settings_views_list,
+        "Settings Views": settings_views_list + [
+            settings_views.IOTestView,
+            settings_views.DonateView,
+            (settings_views.SettingsIngestSettingsQRView, dict(data=settingsqr_data_persistent), "SettingsIngestSettingsQRView_persistent"),
+            (settings_views.SettingsIngestSettingsQRView, dict(data=settingsqr_data_not_persistent), "SettingsIngestSettingsQRView_not_persistent"),
+        ],
+        "Misc Error Views": [
+            NotYetImplementedView,
+            (UnhandledExceptionView, dict(error=UnhandledExceptionViewFood)),
+            NetworkMismatchErrorView,
+            (OptionDisabledView, dict(settings_attr=SettingsConstants.SETTING__MESSAGE_SIGNING)),
+            (ErrorView, dict(
+                title="Error",
+                status_headline="Unknown QR Type",
+                text="QRCode is invalid or is a data format not yet supported.",
+                button_text="Back",
+            )),
+        ]
     }
 
     readme = f"""# SeedSigner Screenshots\n"""
 
-    def screencap_view(view_cls: View, view_name: str, view_args: dict={}):
+    def screencap_view(view_cls: View, view_name: str, view_args: dict={}, toast_thread: BaseToastOverlayManagerThread = None):
         screenshot_renderer.set_screenshot_filename(f"{view_name}.png")
         try:
             print(f"Running {view_name}")
-            view_cls(**view_args).run()
+            try:
+                view_cls(**view_args).run()
+            except ScreenshotComplete:
+                if toast_thread is not None:
+                    controller.activate_toast(toast_thread)
+                    while controller.toast_notification_thread.is_alive():
+                        time.sleep(0.1)
+                raise ScreenshotComplete()
         except ScreenshotComplete:
             # Slightly hacky way to exit ScreenshotRenderer as expected
             pass
             print(f"Completed {view_name}")
         except Exception as e:
             # Something else went wrong
-            print(repr(e))
+            from traceback import print_exc
+            print_exc()
             raise e
+        finally:
+            if toast_thread:
+                toast_thread.stop()
+
 
     for section_name, screenshot_list in screenshot_sections.items():
         subdir = section_name.lower().replace(" ", "_")
@@ -231,12 +277,15 @@ def test_generate_screenshots(target_locale):
                     view_name = view_cls.__name__
                 elif len(screenshot) == 3:
                     view_cls, view_args, view_name = screenshot
+                elif len(screenshot) == 4:
+                    view_cls, view_args, view_name, toast_thread = screenshot
             else:
                 view_cls = screenshot
                 view_args = {}
                 view_name = view_cls.__name__
+                toast_thread = None
 
-            screencap_view(view_cls, view_name, view_args)
+            screencap_view(view_cls, view_name, view_args, toast_thread=toast_thread)
             readme += """  <table align="left" style="border: 1px solid gray;">"""
             readme += f"""<tr><td align="center">{view_name}<br/><br/><img src="{subdir}/{view_name}.png"></td></tr>"""
             readme += """</table>\n"""

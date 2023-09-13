@@ -1,5 +1,6 @@
 import logging
 from seedsigner.gui.components import SeedSignerIconConstants
+from seedsigner.hardware.microsd import MicroSD
 
 from .view import View, Destination, MainMenuView
 
@@ -195,14 +196,21 @@ class SettingsIngestSettingsQRView(View):
         # May raise an Exception which will bubble up to the Controller to display to the
         # user.
         self.config_name, settings_update_dict = Settings.parse_settingsqr(data)
+            
         self.settings.update(settings_update_dict)
-    
+
+        if MicroSD.get_instance().is_inserted and self.settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS) == SettingsConstants.OPTION__ENABLED:
+            self.status_message = "Persistent Settings enabled. Settings saved to SD card."
+        else:
+            self.status_message = "Settings updated in temporary memory"
+
 
     def run(self):
-        from seedsigner.gui.screens.scan_screens import SettingsUpdatedScreen
+        from seedsigner.gui.screens.settings_screens import SettingsQRConfirmationScreen
         self.run_screen(
-            SettingsUpdatedScreen,
-            config_name=self.config_name
+            SettingsQRConfirmationScreen,
+            config_name=self.config_name,
+            status_message=self.status_message,
         )
 
         # Only one exit point

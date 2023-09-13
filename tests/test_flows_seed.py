@@ -1,3 +1,4 @@
+from typing import Callable
 import pytest
 
 # Must import test base before the Controller
@@ -5,10 +6,14 @@ from base import BaseTest, FlowTest, FlowStep
 from base import FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDataSelectionException
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
-from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import Seed
-from seedsigner.views.view import MainMenuView, View, NetworkMismatchErrorView
-from seedsigner.views import seed_views, scan_views, settings_views
+from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView
+from seedsigner.views import seed_views, scan_views, settings_views, tools_views
+
+
+def load_seed_into_decoder(view: scan_views.ScanView):
+    view.decoder.add_data("0000" * 11 + "0003")
 
 
 
@@ -19,9 +24,6 @@ class TestSeedFlows(FlowTest):
             Selecting "Scan" from the MainMenuView and scanning a SeedQR should enter the
             Finalize Seed flow and end at the SeedOptionsView.
         """
-        def load_seed_into_decoder(view: scan_views.ScanView):
-            view.decoder.add_data("0000" * 11 + "0003")
-
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
             FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
@@ -36,6 +38,7 @@ class TestSeedFlows(FlowTest):
             the SeedOptionsView.
         """
         def test_with_mnemonic(mnemonic):
+            Settings.HOSTNAME = "not seedsigner-os"
             sequence = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
@@ -418,19 +421,85 @@ class TestMessageSigningFlows(FlowTest):
         # Ensure message signing is enabled
         self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
 
-        # Ensure we're configured for mainnet
+        def expect_network_mismatch_error(load_message: Callable):
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+                FlowStep(scan_views.ScanView, before_run=load_message),  # simulate read message QR; ret val is ignored
+                FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+                FlowStep(NetworkMismatchErrorView),
+                FlowStep(settings_views.SettingsEntryUpdateSelectionView),
+            ])
+
+        # MAINNET settings vs TESTNET derivation path with the message
         self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+        expect_network_mismatch_error(self.load_testnet_message_into_decoder)
+
+        # TESTNET settings vs MAINNET derivation path with the message
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.TESTNET)
+        expect_network_mismatch_error(self.load_short_message_into_decoder)
+
+        # REGTEST settings vs MAINNET derivation path with the message
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+        expect_network_mismatch_error(self.load_short_message_into_decoder)
+
+
+
+
+    def test_sign_message_option_disabled(self):
+        """
+        Should redirect to OptionDisabledView if a `signmessage` QR is scanned with
+        message signing disabled.
+
+        Should offer the option to route directly to enable that settings or return to
+        MainMenuView.
+        """
+        # Ensure message signing is disabled
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__DISABLED)
+
+        sequence = [
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_short_message_into_decoder),  # simulate read message QR; ret val is ignored
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+        ]
+
+        # First test routing to update the setting
+        self.run_sequence(
+            sequence + [
+                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.UPDATE_SETTING, is_redirect=True),
+                FlowStep(settings_views.SettingsEntryUpdateSelectionView),
+            ]
+        )
+
+        # Now test exiting to Main Menu
+        self.run_sequence(
+            sequence + [
+                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.DONE, is_redirect=True),
+                FlowStep(MainMenuView),
+            ]
+        )
+
+
+    def test_sign_message_invalid_qr_flow(self):
+        """
+        Should clear `Controller.resume_main_flow` and redirect to ErrorView if an
+        invalid signmessage QR is scanned.
+
+        The error view should then forward to MainMenuView.
+        """
+        # Ensure message signing is enabled
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+
+        def load_invalid_signmessage_qr(view: scan_views.ScanView):
+            view.decoder.add_data("this text will not make sense to the decoder")
 
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
-            FlowStep(scan_views.ScanView, before_run=self.load_testnet_message_into_decoder),  # simulate read message QR; ret val is ignored
-            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
-            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
             FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
-            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
-            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
-            FlowStep(seed_views.SeedSignMessageConfirmAddressView, is_redirect=True),
-            FlowStep(NetworkMismatchErrorView),
-            FlowStep(settings_views.SettingsEntryUpdateSelectionView),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
+            FlowStep(scan_views.ScanView, before_run=load_invalid_signmessage_qr),  # simulate read message QR; ret val is ignored
+            FlowStep(ErrorView),
+            FlowStep(MainMenuView),
         ])
+
+        assert self.controller.resume_main_flow is None

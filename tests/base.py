@@ -1,25 +1,37 @@
 import sys
 from dataclasses import dataclass
-from mock import MagicMock, patch
+from mock import MagicMock, Mock, patch
 from typing import Callable
 
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
 sys.modules['seedsigner.gui.renderer'] = MagicMock()
 sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
+sys.modules['seedsigner.gui.toast'] = MagicMock()
 sys.modules['seedsigner.views.screensaver'] = MagicMock()
 sys.modules['seedsigner.hardware.buttons'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
-sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 
 from seedsigner.controller import Controller, FlowBasedTestException, StopFlowBasedTest
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
+from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.settings import Settings
 from seedsigner.views.view import Destination, MainMenuView, View
 
 
 
+
 class BaseTest:
+
+    class MockMicroSD(Mock):
+        """
+        A test suite-friendly replacement for `MicroSD` that gives a test explicit
+        control over the reported state of the SD card.
+        """
+        # Tests are free to directly manipulate this attribute as needed (it's reset to
+        # True before each test in `BaseTest.setup_method()`).
+        is_inserted: bool = True
+
 
     @classmethod
     def setup_class(cls):
@@ -28,6 +40,13 @@ class BaseTest:
 
         # Mock out the loading screen so it can't spawn. View classes must import locally!
         patch('seedsigner.gui.screens.screen.LoadingScreenThread').start()
+
+        # Instantiate the mocked MicroSD; hold on to the instance so tests can manipulate
+        # it later.
+        cls.mock_microsd = BaseTest.MockMicroSD()
+
+        # And mock it over `MicroSD`'s instance
+        MicroSD.get_instance = Mock(return_value=cls.mock_microsd)
 
 
     @classmethod
@@ -61,11 +80,12 @@ class BaseTest:
 
 
     def setup_method(self):
-        """ Guarantee a clean/default Controller and Settings state for each test case """
+        """ Guarantee a clean/default Controller, Settings, & MicroSD state for each test case """
         BaseTest.reset_controller()
         BaseTest.reset_settings()
         self.controller = Controller.get_instance()
         self.settings = Settings.get_instance()
+        self.mock_microsd.is_inserted = True
     
 
     def teardown_method(self):

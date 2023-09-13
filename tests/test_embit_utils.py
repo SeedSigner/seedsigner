@@ -331,12 +331,12 @@ def test_parse_derivation_path():
     derivation_path = "m/84'/0'/0'/0/0"
 
     result = embit_utils.parse_derivation_path(derivation_path)
-    assert(result["script_type"] == SC.NATIVE_SEGWIT)
-    assert(result["network"] == SC.MAINNET)
+    assert result["script_type"] == SC.NATIVE_SEGWIT
+    assert result["network"] == SC.MAINNET
 
     result = embit_utils.parse_derivation_path(derivation_path.replace("'", "h"))
-    assert(result["script_type"] == SC.NATIVE_SEGWIT)
-    assert(result["network"] == SC.MAINNET)
+    assert result["script_type"] == SC.NATIVE_SEGWIT
+    assert result["network"] == SC.MAINNET
 
     # Now exhaustively test supported permutations
     vectors_args = {
@@ -361,7 +361,7 @@ def test_parse_derivation_path():
         (SC.TESTNET, SC.TAPROOT, True): "m/86'/1'/0'/1/5",
         (SC.REGTEST, SC.TAPROOT, True): "m/86'/1'/0'/1/5",
 
-        # Try a typical custom derivation path (Unchained Capital)
+        # Try a typical custom derivation path (Unchained vault keys)
         (SC.MAINNET, SC.CUSTOM_DERIVATION, False): "m/45'/0'/0'/0/5",
         (SC.TESTNET, SC.CUSTOM_DERIVATION, False): "m/45'/1'/0'/0/5",
         (SC.REGTEST, SC.CUSTOM_DERIVATION, False): "m/45'/1'/0'/0/5",
@@ -369,24 +369,34 @@ def test_parse_derivation_path():
         (SC.TESTNET, SC.CUSTOM_DERIVATION, True): "m/45'/1'/0'/1/5",
         (SC.REGTEST, SC.CUSTOM_DERIVATION, True): "m/45'/1'/0'/1/5",
 
-        # CRAZY custom derivation path
-        (None, SC.CUSTOM_DERIVATION, False): "m/879345978543'/908327034508534983495'/9085098430894380959043'/0/5",
+        # CRAZY custom derivation paths
+        (None, SC.CUSTOM_DERIVATION, False, 5): "m/123'/9083270/9083270/9083270/9083270/0/5",
+
+        # non-standard change and/or index
+        (None, SC.CUSTOM_DERIVATION, None, 5): "m/9'/78/5",
+        (None, SC.CUSTOM_DERIVATION, None, 5): "m/9'/78'/5",
+        (None, SC.CUSTOM_DERIVATION, None, None): "m/9'/78'/5'",
+        (None, SC.CUSTOM_DERIVATION, False, None): "m/9'/0/5'",
     }
 
     for expected_result, derivation_path in vectors_args.items():
         actual_result = embit_utils.parse_derivation_path(derivation_path)
 
         if expected_result[0] == SC.MAINNET:
-            assert(actual_result["network"] == expected_result[0])
-            assert(actual_result["clean_match"] is True)
+            assert actual_result["network"] == expected_result[0]
+            assert actual_result["clean_match"] is True
         elif expected_result[0] is None:
-            assert(actual_result["network"] is None)
-            assert(actual_result["clean_match"] is False)
+            assert actual_result["network"] is None
+            assert actual_result["clean_match"] is False
         else:
             # Testnet and regtest are returned as a list since the parser can't tell which is intended
-            assert(expected_result[0] in actual_result["network"])
-            assert(actual_result["clean_match"] is True)
+            assert expected_result[0] in actual_result["network"]
+            assert actual_result["clean_match"] is True
 
-        assert(actual_result["script_type"] == expected_result[1])
-        assert(actual_result["is_change"] == expected_result[2])
-        assert(actual_result["index"] == int(derivation_path.split("/")[-1]))
+        assert actual_result["script_type"] == expected_result[1]
+        assert actual_result["is_change"] == expected_result[2]
+
+        if len(expected_result) == 4:
+            assert actual_result["index"] == expected_result[3]
+        else:
+            assert actual_result["index"] == int(derivation_path.split("/")[-1])

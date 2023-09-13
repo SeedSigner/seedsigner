@@ -23,7 +23,7 @@ from seedsigner.models.seed import InvalidSeedException, Seed
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-from seedsigner.views.view import NotYetImplementedView, View, Destination, BackStackView, MainMenuView
+from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
 
 
 
@@ -1921,23 +1921,41 @@ class SeedSignMessageStartView(View):
         self.derivation_path = derivation_path
         self.message = message
 
+        if self.settings.get_value(SettingsConstants.SETTING__MESSAGE_SIGNING) == SettingsConstants.OPTION__DISABLED:
+            self.set_redirect(Destination(OptionDisabledView, view_args=dict(settings_attr=SettingsConstants.SETTING__MESSAGE_SIGNING)))
+            return
+
+        # calculate the actual receive address
+        addr_format = embit_utils.parse_derivation_path(derivation_path)
+        if not addr_format["clean_match"]:
+            raise NotYetImplementedView("Signing messages for custom derivation paths not supported")
+
+        # Note: addr_format["network"] can be MAINNET or [TESTNET, REGTEST]
+        if self.settings.get_value(SettingsConstants.SETTING__NETWORK) not in addr_format["network"]:
+            from seedsigner.views.view import NetworkMismatchErrorView
+            self.set_redirect(Destination(NetworkMismatchErrorView, view_args=dict(text=f"Current network setting ({self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK)}) doesn't match {self.derivation_path}")))
+
+            # cleanup. Note: We could leave this in place so the user can resume the
+            # flow, but for now we avoid complications and keep things simple.
+            self.controller.resume_main_flow = None
+            return
+
         data = self.controller.sign_message_data
         if not data:
             data = {}
             self.controller.sign_message_data = data
         data["derivation_path"] = derivation_path
         data["message"] = message
+        data["addr_format"] = addr_format
 
         # May be None
         self.seed_num = data.get("seed_num")
     
-
-    def run(self):
         if self.seed_num is not None:
             # We already know which seed we're signing with
-            return Destination(SeedSignMessageConfirmMessageView, skip_current_view=True)
+            self.set_redirect(Destination(SeedSignMessageConfirmMessageView, skip_current_view=True))
         else:
-            return Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__SIGN_MESSAGE), skip_current_view=True)
+            self.set_redirect(Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__SIGN_MESSAGE), skip_current_view=True))
 
 
 
@@ -1979,16 +1997,19 @@ class SeedSignMessageConfirmAddressView(View):
     def __init__(self):
         super().__init__()
         data = self.controller.sign_message_data
-        self.seed_num = data.get("seed_num")
+        seed_num = data.get("seed_num")
         self.derivation_path = data.get("derivation_path")
 
-        if self.seed_num is None or not self.derivation_path:
+        if seed_num is None or not self.derivation_path:
             raise Exception("Routing error: sign_message_data hasn't been set")
 
+        seed = self.controller.storage.seeds[seed_num]
+        addr_format = data.get("addr_format")
+
         # calculate the actual receive address
-        seed = self.controller.storage.seeds[self.seed_num]
+        seed = self.controller.storage.seeds[seed_num]
         addr_format = embit_utils.parse_derivation_path(self.derivation_path)
-        if not addr_format["clean_match"]:
+        if not addr_format["clean_match"] or addr_format["script_type"] == SettingsConstants.CUSTOM_DERIVATION:
             raise Exception("Signing messages for custom derivation paths not supported")
 
         if addr_format["network"] != SettingsConstants.MAINNET:
@@ -2005,7 +2026,7 @@ class SeedSignMessageConfirmAddressView(View):
                 self.controller.sign_message_data = None
                 return
 
-        xpub = seed.get_xpub(wallet_path=self.derivation_path, network=addr_format["network"])
+        xpub = seed.get_xpub(wallet_path=addr_format["wallet_derivation_path"], network=addr_format["network"])
         embit_network = embit_utils.get_embit_network_name(addr_format["network"])
         self.address = embit_utils.get_single_sig_address(xpub=xpub, script_type=addr_format["script_type"], index=addr_format["index"], is_change=addr_format["is_change"], embit_network=embit_network)
 

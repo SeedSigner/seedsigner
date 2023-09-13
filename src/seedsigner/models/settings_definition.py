@@ -101,6 +101,8 @@ class SettingsConstants:
         if network == SettingsConstants.REGTEST:
             return "regtest"
     
+    PERSISTENT_SETTINGS__SD_INSERTED__HELP_TEXT = "Store Settings on SD card"
+    PERSISTENT_SETTINGS__SD_REMOVED__HELP_TEXT = "Insert SD card to enable"
 
     SINGLE_SIG = "ss"
     MULTISIG = "ms"
@@ -354,7 +356,7 @@ class SettingsDefinition:
                       attr_name=SettingsConstants.SETTING__PERSISTENT_SETTINGS,
                       abbreviated_name="persistent",
                       display_name="Persistent settings",
-                      help_text="Store Settings on SD card.",
+                      help_text=SettingsConstants.PERSISTENT_SETTINGS__SD_INSERTED__HELP_TEXT,
                       default_value=SettingsConstants.OPTION__DISABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__WALLET,
