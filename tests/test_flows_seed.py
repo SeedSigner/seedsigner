@@ -8,7 +8,7 @@ from base import FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDat
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import Seed
-from seedsigner.views.view import MainMenuView, OptionDisabledView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView
+from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView
 from seedsigner.views import seed_views, scan_views, settings_views, tools_views
 
 
@@ -477,3 +477,29 @@ class TestMessageSigningFlows(FlowTest):
                 FlowStep(MainMenuView),
             ]
         )
+
+
+    def test_sign_message_invalid_qr_flow(self):
+        """
+        Should clear `Controller.resume_main_flow` and redirect to ErrorView if an
+        invalid signmessage QR is scanned.
+
+        The error view should then forward to MainMenuView.
+        """
+        # Ensure message signing is enabled
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+
+        def load_invalid_signmessage_qr(view: scan_views.ScanView):
+            view.decoder.add_data("this text will not make sense to the decoder")
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
+            FlowStep(scan_views.ScanView, before_run=load_invalid_signmessage_qr),  # simulate read message QR; ret val is ignored
+            FlowStep(ErrorView),
+            FlowStep(MainMenuView),
+        ])
+
+        assert self.controller.resume_main_flow is None

@@ -1,10 +1,12 @@
 # Manual Installation Instructions
 
-Begin by acquiring a specific copy of the Raspberry Pi Lite operating system, dated 2021-05-28; this version can be found here:
+Begin by acquiring the latest 32-bit, Buster-based Raspberry Pi Lite operating system. This guide was tested using the version dated 2023-05-03; which can be found here:
 
-https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2021-05-28/
+https://downloads.raspberrypi.org/raspios_oldstable_lite_armhf/images/raspios_oldstable_lite_armhf-2023-05-03/
 
-Best practice is to verify the downloaded .zip file containing the Raspberry Pi Lite OS matches the published SHA256 hash of the file; for additional reference that hash is: c5dad159a2775c687e9281b1a0e586f7471690ae28f2f2282c90e7d59f64273c. After verifying the file's data integrity, you can decompress the .zip file to obtain the operating system image that it contains. You can then use Balena's Etcher tool (https://www.balena.io/etcher/) to write the Raspberry Pi Lite software image to a memory card (4 GB or larger). It's important to note that an image authoring tool must be used (the operating system image cannot be simply copied into a file storage partition on the memory card).
+SeedSigner does not work any of the more recent versions of Debian. This is a known limitation and there are open tickets to track the progress of this ([Debian 11 ticket](https://github.com/SeedSigner/seedsigner/issues/431), [Debian 12 ticket](https://github.com/SeedSigner/seedsigner/issues/430)). This guide does not work on the 64-bit versions of Buster, however pull requests to update it to be compatible are welcome.
+
+Best practice is to verify the downloaded file containing the Raspberry Pi Lite OS matches the published SHA256 hash of the file; for additional reference that hash is: 3d210e61b057de4de90eadb46e28837585a9b24247c221998f5bead04f88624c. After verifying the file's data integrity, you can decompress the .tar.xz file to obtain the operating system image that it contains. You can then use Balena's Etcher tool (https://www.balena.io/etcher/) to write the Raspberry Pi Lite software image to a memory card (4 GB or larger). It's important to note that an image authoring tool must be used (the operating system image cannot be simply copied into a file storage partition on the memory card).
 
 The manual SeedSigner installation and configuration process requires an internet connection on the Pi to download the necessary libraries and code.  
 If your Pi does not have onboard wifi, you have two options:
@@ -177,6 +179,20 @@ git clone https://github.com/SeedSigner/seedsigner
 cd seedsigner
 ```
 
+### Adding swap space
+Compiling the dependencies requires more RAM than is available on a Raspberry
+Pi 3B, let alone a Zero. Temporarily adding 1GB of additional swap space will
+work around this limitation. The `/swapfile` can be deleted after you reboot.
+
+If building on a Raspberry Pi board with more than 1GB of RAM, this step can
+be safely skipped.
+
+```bash
+sudo dd if=/dev/zero of=/swapfile bs=4096 count=$((1024*256))
+sudo chmod 0600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+```
 
 ### Install Python `pip` dependencies:
 ```bash
