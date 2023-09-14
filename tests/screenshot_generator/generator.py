@@ -163,7 +163,7 @@ def test_generate_screenshots(target_locale):
             (seed_views.SeedTranscribeSeedQRWholeQRView, dict(seed_num=2, seedqr_format=QRType.SEED__SEEDQR, num_modules=29), "SeedTranscribeSeedQRWholeQRView_24_Standard"),
 
             # Screenshot doesn't render properly due to how the transparency mask is pre-rendered
-            (seed_views.SeedTranscribeSeedQRZoomedInView, dict(seed_num=0, seedqr_format=QRType.SEED__SEEDQR)),
+            # (seed_views.SeedTranscribeSeedQRZoomedInView, dict(seed_num=0, seedqr_format=QRType.SEED__SEEDQR)),
 
             (seed_views.SeedTranscribeSeedQRConfirmQRPromptView, dict(seed_num=0)),
 
