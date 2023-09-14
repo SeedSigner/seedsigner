@@ -215,7 +215,7 @@ class Fonts(Singleton):
                 cls.fonts[font_name][size] = ImageFont.truetype(os.path.join(cls.font_path, f"{font_name}.{file_extension}"), size)
             except OSError as e:
                 if "cannot open resource" in str(e):
-                    raise Exception(f"Font {font_name}.ttf not found: {repr(e)}")
+                    raise Exception(f"Font {font_name}.{file_extension} not found: {repr(e)}")
                 else:
                     raise e
 

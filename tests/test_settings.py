@@ -8,6 +8,7 @@ from seedsigner.models.settings_definition import SettingsConstants
 class TestSettings(BaseTest):
     @classmethod
     def setup_class(cls):
+        super().setup_class()
         cls.settings = Settings.get_instance()
 
 
