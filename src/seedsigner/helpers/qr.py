@@ -1,7 +1,7 @@
 import qrcode
 from qrcode.image.styledpil import StyledPilImage
 from qrcode.image.styles.moduledrawers import CircleModuleDrawer, GappedSquareModuleDrawer
-from PIL import Image
+from PIL import Image, ImageDraw
 import subprocess
 
 class QR:
@@ -13,19 +13,73 @@ class QR:
         return
 
     def qrimage(self, data, width=240, height=240, border=3, style=None, background_color="#444"):
-        qr = qrcode.QRCode( version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=5, border=border )
+        box_size = 5
+        qr = qrcode.QRCode( version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=box_size, border=border )
         qr.add_data(data)
         qr.make(fit=True)
         if not style or style == QR.STYLE__DEFAULT:
             return qr.make_image(fill_color="black", back_color=background_color).resize((width,height)).convert('RGBA')
         else:
             if style == QR.STYLE__ROUNDED:
-                return qr.make_image(
+                qr_image = qr.make_image(
                     fill_color="black",
                     back_color=background_color,
                     image_factory=StyledPilImage,
                     module_drawer=CircleModuleDrawer()
-                ).resize((width,height)).convert('RGBA')
+                )
+
+                qr_image_width, _ = qr_image.size
+                qr_code_dims = int(qr_image_width / box_size) - 2*border
+
+                if qr_code_dims > 21:
+                    # The ROUNDED style mis-renders the small lower-right registration box in 25x25
+                    # and 29x29.
+                    draw = ImageDraw.Draw(qr_image)
+                    if qr_code_dims == 25:
+                        # registration block starts at 16, 16 and is 5x5
+                        starting_point = 16 + border
+
+                    elif qr_code_dims == 29:
+                        # The registration block starts at 20,20 and is 5x5
+                        starting_point = 20 + border
+                    
+                    else:
+                        raise Exception(f"Unrecognized qrimage size: {qr_code_dims}")
+                    
+                    # Render black rectangular lines on top of the qr_image to square off
+                    # the registration block.
+                    lines = [
+                        (
+                            # top
+                            (starting_point*box_size, starting_point*box_size),
+                            (starting_point*box_size + 5*box_size - 1, starting_point*box_size + box_size - 1)
+                        ),
+                        (
+                            # right
+                            (starting_point*box_size + 4*box_size, starting_point*box_size),
+                            (starting_point*box_size + 5*box_size - 1, starting_point*box_size + 5*box_size - 1)
+                        ),
+                        (
+                            # left
+                            (starting_point*box_size, starting_point*box_size),
+                            (starting_point*box_size + box_size - 1, starting_point*box_size + 5*box_size - 1)
+                        ),
+                        (
+                            # bottom
+                            (starting_point*box_size + box_size, starting_point*box_size + 4*box_size),
+                            (starting_point*box_size + 5*box_size - 1, starting_point*box_size + 5*box_size - 1)
+                        ),
+                        (
+                            # center dot
+                            (starting_point*box_size + 2*box_size, starting_point*box_size + 2*box_size),
+                            (starting_point*box_size + 3*box_size - 1, starting_point*box_size + 3*box_size - 1)
+                        )
+                    ]
+
+                    for line in lines:
+                        draw.rectangle(line, fill="black")
+                
+                return qr_image.resize((width,height)).convert('RGBA')
 
             elif style == QR.STYLE__GRID:
                 return qr.make_image(
