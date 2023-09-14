@@ -175,7 +175,6 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
 
         highlighted_row = 3
         num_possible_rows = 11
-        y = self.highlighted_row_y - GUIConstants.LIST_ITEM_PADDING - 3 * self.matches_list_row_height
 
         if not highlight_word:
             list_starting_index = self.selected_possible_words_index - highlighted_row
@@ -1185,8 +1184,8 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
         msg = "click to exit"
         font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE)
         (left, top, right, bottom) = font.getbbox(msg, anchor="ls")
-        msg_height = -1 * top
-        msg_width = right
+        # msg_height = -1 * top
+        # msg_width = right
         # draw.rectangle(
         #     (
         #         int((self.canvas_width - msg_width)/2 - GUIConstants.COMPONENT_PADDING),

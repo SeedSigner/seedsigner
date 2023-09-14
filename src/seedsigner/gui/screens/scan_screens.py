@@ -9,8 +9,8 @@ from seedsigner.hardware.camera import Camera
 from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
 from seedsigner.models.threads import BaseThread
 
-from .screen import BaseScreen, ButtonListScreen
-from ..components import GUIConstants, Fonts, TextArea
+from .screen import BaseScreen
+from ..components import GUIConstants, Fonts
 
 
 
@@ -85,7 +85,6 @@ class ScanScreen(BaseScreen):
 
 
         def run(self):
-            from timeit import default_timer as timer
 
             instructions_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
 

@@ -1,1 +1,1 @@
-from .screen import *
+from .screen import *  # noqa

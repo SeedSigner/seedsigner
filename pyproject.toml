@@ -1,0 +1,3 @@
+[tool.ruff]
+# List of rules https://beta.ruff.rs/docs/rules/
+select = ["F"]

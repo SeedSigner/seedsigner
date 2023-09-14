@@ -3,10 +3,9 @@ import time
 from dataclasses import dataclass
 from PIL.ImageOps import autocontrast
 from typing import List
-from seedsigner.gui.components import Button, CheckboxButton, CheckedSelectionButton, FontAwesomeIconConstants, Fonts, GUIConstants, Icon, IconButton, IconTextLine, TextArea
-from seedsigner.gui.screens.scan_screens import ScanScreen
+from seedsigner.gui.components import Button, CheckboxButton, CheckedSelectionButton, FontAwesomeIconConstants, Fonts, GUIConstants, Icon, IconButton, TextArea
 
-from seedsigner.gui.screens.screen import BaseScreen, BaseTopNavScreen, ButtonListScreen
+from seedsigner.gui.screens.screen import BaseTopNavScreen, ButtonListScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.hardware.camera import Camera
 from seedsigner.models.settings import SettingsConstants

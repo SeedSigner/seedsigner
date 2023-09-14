@@ -2,12 +2,11 @@ import re
 
 from embit.descriptor import Descriptor
 
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.settings_views import SettingsIngestSettingsQRView
-from seedsigner.views.view import BackStackView, ErrorView, MainMenuView, NotYetImplementedView, OptionDisabledView, View, Destination
+from seedsigner.views.view import BackStackView, ErrorView, MainMenuView, NotYetImplementedView, View, Destination
 
 
 
@@ -178,7 +177,7 @@ class ScanPSBTView(ScanView):
 
 class ScanSeedQRView(ScanView):
     instructions_text = "Scan SeedQR"
-    invalid_qr_type_message = f"Expected a SeedQR"
+    invalid_qr_type_message = "Expected a SeedQR"
 
     @property
     def is_valid_qr_type(self):

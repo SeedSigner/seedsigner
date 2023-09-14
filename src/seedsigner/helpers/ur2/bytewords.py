@@ -105,8 +105,8 @@ def decode(s, separator, word_len):
 
     # Validate checksum
     body = buf[0:-4]
-    body_checksum = buf[-4:]
-    checksum = crc32_bytes(body)
+    # body_checksum = buf[-4:]
+    # checksum = crc32_bytes(body)
     # if checksum != body_checksum:
     #     raise ValueError('Invalid Bytewords.')
 

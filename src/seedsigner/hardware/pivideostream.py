@@ -2,7 +2,6 @@
 from picamera.array import PiRGBArray
 from picamera import PiCamera
 from threading import Thread
-import time
 
 
 # Modified from: https://github.com/jrosebr1/imutils

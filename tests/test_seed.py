@@ -1,6 +1,5 @@
 from seedsigner.models.seed import Seed
 
-from seedsigner.models.settings import SettingsConstants
 
 
 

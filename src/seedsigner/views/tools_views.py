@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import hashlib
 import os
 import time
@@ -280,7 +279,7 @@ class ToolsCalcFinalWordFinalizePromptView(View):
             num_entropy_bits = 3
 
         COIN_FLIPS = "Coin flip entropy"
-        SELECT_WORD = f"Word selection entropy"
+        SELECT_WORD = "Word selection entropy"
         ZEROS = "Finalize with zeros"
 
         button_data = [COIN_FLIPS, SELECT_WORD, ZEROS]

@@ -8,8 +8,8 @@ from base import FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDat
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import Seed
-from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView
-from seedsigner.views import seed_views, scan_views, settings_views, tools_views
+from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
+from seedsigner.views import seed_views, scan_views, settings_views
 
 
 def load_seed_into_decoder(view: scan_views.ScanView):
@@ -172,7 +172,7 @@ class TestSeedFlows(FlowTest):
         self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x,y in coordinators if x!=disabled_coord])
 
         # test that multisig is not an option via exception raised when redirected to next step instead of having a choice
-        with pytest.raises(FlowTestRunScreenNotExecutedException) as e:
+        with pytest.raises(FlowTestRunScreenNotExecutedException):
             self.run_sequence(
                 initial_destination_view_args=dict(seed_num=0),
                 sequence=[
@@ -182,7 +182,7 @@ class TestSeedFlows(FlowTest):
             )
 
         # test that taproot is not an option via exception raised when choice is taproot
-        with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException):
             self.run_sequence(
                 initial_destination_view_args=dict(seed_num=0),
                 sequence=[
@@ -193,7 +193,7 @@ class TestSeedFlows(FlowTest):
             )
 
         # test that nunchuk is not an option via exception raised when choice is nunchuk
-        with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException):
             self.run_sequence(
                 initial_destination_view_args=dict(seed_num=0),
                 sequence=[

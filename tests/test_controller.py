@@ -22,7 +22,7 @@ class TestController(BaseTest):
     def test_singleton_init_fails(self):
         """ The Controller should not allow any code to instantiate it via Controller() """
         with pytest.raises(Exception):
-            c = Controller()
+            Controller()
 
 
     def test_handle_exception(reset_controller):

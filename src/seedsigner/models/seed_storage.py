@@ -37,7 +37,7 @@ class SeedStorage:
     def validate_mnemonic(self, mnemonic: List[str]) -> bool:
         try:
             Seed(mnemonic=mnemonic)
-        except InvalidSeedException as e:
+        except InvalidSeedException:
             return False
         
         return True

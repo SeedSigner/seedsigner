@@ -1,0 +1,28 @@
+# Apply to all files without commiting:
+#   pre-commit run --all-files
+# Or enabled to run as git pre-commit hook:
+#   pre-commit install
+# Update this file:
+#   pre-commit autoupdate
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-ast
+      - id: fix-byte-order-marker
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: debug-statements
+      - id: detect-private-key
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.289
+    hooks:
+      - id: ruff
+        # enable locally for auto-fixing what is possible
+        # args: [--fix]
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+      - id: check-useless-excludes

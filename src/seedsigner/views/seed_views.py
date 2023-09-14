@@ -14,7 +14,6 @@ from seedsigner.helpers import embit_utils
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
 from seedsigner.gui.screens.screen import LargeIconStatusScreen, QRDisplayScreen
-from seedsigner.helpers import embit_utils
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.psbt_parser import PSBTParser
@@ -272,7 +271,7 @@ class SeedMnemonicInvalidView(View):
             WarningScreen,
             title="Invalid Mnemonic!",
             status_headline=None,
-            text=f"Checksum failure; not a valid seed phrase.",
+            text="Checksum failure; not a valid seed phrase.",
             show_back_button=False,
             button_data=button_data,
         )
@@ -1092,7 +1091,7 @@ class SeedBIP85InvalidChildIndexView(View):
         DireWarningScreen(
             title="BIP-85 Index Error",
             show_back_button=False,
-            status_headline=f"Invalid Child Index",
+            status_headline="Invalid Child Index",
             text=f"BIP-85 Child Index must be between 0 and {2**31-1}.",
             button_data=["Try Again"]
         ).display()
@@ -1232,7 +1231,7 @@ class SeedWordsBackupTestMistakeView(View):
         selected_menu_num = DireWarningScreen(
             title="Verification Error",
             show_back_button=False,
-            status_headline=f"Wrong Word!",
+            status_headline="Wrong Word!",
             text=f"Word #{self.cur_index + 1} is not \"{self.wrong_word}\"!",
             button_data=button_data,
         ).display()

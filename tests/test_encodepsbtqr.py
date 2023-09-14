@@ -17,7 +17,7 @@ def test_ur_qr_encode():
     cnt = 0
     while cnt <= 10:
         fragment = e.next_part()
-        img = e.part_to_image(fragment)
+        e.part_to_image(fragment)
         cnt += 1
 
 
@@ -55,7 +55,7 @@ def test_specter_qr_encode():
         elif (cnt+1) == 11:
             assert fragment == "p11of117 REKtbWkqONAvETqIlMPWJ/f1uBvSCGFm+zzDYnnEBtuAYjZiQrzj9mFLQz4JUwAAC"
         
-        img = e.part_to_image(fragment)
+        e.part_to_image(fragment)
         cnt += 1
 
 

@@ -134,8 +134,6 @@ class ScreensaverScreen(LogoScreen):
         # Store the current screen in order to restore it later
         self.last_screen = self.renderer.canvas.copy()
 
-        screensaver_start = int(time.time() * 1000)
-
         # Screensaver must block any attempts to use the Renderer in another thread so it
         # never gives up the lock until it returns.
         with self.renderer.lock:

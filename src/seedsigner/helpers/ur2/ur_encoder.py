@@ -6,7 +6,7 @@
 #
 
 from .fountain_encoder import FountainEncoder
-from .bytewords import *
+from .bytewords import Bytewords, Bytewords_Style_minimal
 
 class UREncoder:
     # Start encoding a (possibly) multi-part UR.

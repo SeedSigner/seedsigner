@@ -6,9 +6,9 @@
 #
 
 from .ur import UR
-from .fountain_encoder import FountainEncoder, Part as FountainEncoderPart
+from .fountain_encoder import Part as FountainEncoderPart
 from .fountain_decoder import FountainDecoder
-from .bytewords import *
+from .bytewords import Bytewords, Bytewords_Style_minimal
 from .utils import drop_first, is_ur_type
 
 class InvalidScheme(Exception):
@@ -135,7 +135,7 @@ class URDecoder:
                 self.result = self.fountain_decoder.result_error()
 
             return True
-        except Exception as err:
+        except Exception:
             return False
 
     def expected_type(self):

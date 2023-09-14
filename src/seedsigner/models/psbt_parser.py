@@ -62,7 +62,7 @@ class PSBTParser():
 
     def parse(self):
         if self.psbt is None:
-            print(f"self.psbt is None!!")
+            print("self.psbt is None!!")
             return False
 
         if not self.seed:

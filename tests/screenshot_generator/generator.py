@@ -2,10 +2,9 @@ import embit
 import os
 import sys
 import time
-from mock import Mock, patch, MagicMock
+from mock import Mock, MagicMock
 from seedsigner.helpers import embit_utils
 
-from seedsigner.models.settings import Settings
 
 
 # Prevent importing modules w/Raspi hardware dependencies.
@@ -22,8 +21,6 @@ sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 from seedsigner.controller import Controller
 from seedsigner.gui.renderer import Renderer
 from seedsigner.gui.toast import BaseToastOverlayManagerThread, RemoveSDCardToastManagerThread, SDCardStateChangeToastManagerThread
-from seedsigner.hardware.buttons import HardwareButtons
-from seedsigner.hardware.camera import Camera
 from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.qr_type import QRType
@@ -235,7 +232,7 @@ def test_generate_screenshots(target_locale):
         ]
     }
 
-    readme = f"""# SeedSigner Screenshots\n"""
+    readme = """# SeedSigner Screenshots\n"""
 
     def screencap_view(view_cls: View, view_name: str, view_args: dict={}, toast_thread: BaseToastOverlayManagerThread = None):
         screenshot_renderer.set_screenshot_filename(f"{view_name}.png")
@@ -269,7 +266,7 @@ def test_generate_screenshots(target_locale):
         readme += "\n\n---\n\n"
         readme += f"## {section_name}\n\n"
         readme += """<table style="border: 0;">"""
-        readme += f"""<tr><td align="center">\n"""
+        readme += """<tr><td align="center">\n"""
         for screenshot in screenshot_list:
             if type(screenshot) == tuple:
                 if len(screenshot) == 2:

@@ -2,7 +2,6 @@ import math
 import os
 import pathlib
 import re
-from time import time
 
 from dataclasses import dataclass
 from decimal import Decimal
@@ -339,7 +338,7 @@ class TextArea(BaseComponent):
             # Multiply for the number of lines plus the spacer
             total_text_height = self.text_height_above_baseline * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
 
-            if not self.height_ignores_below_baseline and re.findall(f"[gjpqy]", self.text_lines[-1]["text"]):
+            if not self.height_ignores_below_baseline and re.findall("[gjpqy]", self.text_lines[-1]["text"]):
                 # Last line has at least one char that dips below baseline
                 total_text_height += self.text_height_below_baseline
 
@@ -1346,7 +1345,6 @@ def reflow_text_for_width(text: str,
     # We have to figure out if and where to make line breaks in the text so that it
     #   fits in its bounding rect (plus accounting for edge padding) using its given
     #   font.
-    start = time()
     font = Fonts.get_font(font_name=font_name, size=font_size)
     # Measure from left baseline ("ls")
     (left, top, full_text_width, bottom) = font.getbbox(text, anchor="ls")

@@ -373,7 +373,6 @@ def test_parse_derivation_path():
         (None, SC.CUSTOM_DERIVATION, False, 5): "m/123'/9083270/9083270/9083270/9083270/0/5",
 
         # non-standard change and/or index
-        (None, SC.CUSTOM_DERIVATION, None, 5): "m/9'/78/5",
         (None, SC.CUSTOM_DERIVATION, None, 5): "m/9'/78'/5",
         (None, SC.CUSTOM_DERIVATION, None, None): "m/9'/78'/5'",
         (None, SC.CUSTOM_DERIVATION, False, None): "m/9'/0/5'",

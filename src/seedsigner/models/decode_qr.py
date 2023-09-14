@@ -282,9 +282,10 @@ class DecodeQR:
         return self.qr_type == QRType.BITCOIN_ADDRESS
         
 
-    @property
-    def is_sign_message(self):
-        return self.qr_type == QRType.SIGN_MESSAGE
+    # not reachable as overwitten by the `is_sign_message` static method below
+    # @property
+    # def is_sign_message(self):
+    #    return self.qr_type == QRType.SIGN_MESSAGE
         
 
     @property
@@ -419,7 +420,7 @@ class DecodeQR:
                 # print(bitstream)
 
                 return QRType.SEED__COMPACTSEEDQR
-            except Exception as e:
+            except Exception:
                 # Couldn't extract byte data; assume it's not a byte format
                 pass
 
@@ -556,7 +557,7 @@ class DecodeQR:
                     m = int(match.group(1))
                     n = int(match.group(2))
                 except:
-                    raise Exception(f"Policy line not supported")
+                    raise Exception("Policy line not supported")
             elif label == 'derivation':
                 derivation = value
             elif label == 'format':
@@ -570,16 +571,16 @@ class DecodeQR:
                 x += 1
         
         if None in xpubs or len(xpubs) != n:
-            raise Exception(f"bad or missing xpub")
+            raise Exception("bad or missing xpub")
         
         if m <= 0 or m > 9 or n <= 0 or n > 9:
-            raise Exception(f"bad or missing policy")
+            raise Exception("bad or missing policy")
         
         if len(derivation) == 0:
-            raise Exception(f"bad or missing derivation path")
+            raise Exception("bad or missing derivation path")
         
         if script_type not in ['p2wsh', 'p2sh-p2wsh', 'p2wsh-p2sh']:
-            raise Exception(f"bad or missing script format")
+            raise Exception("bad or missing script format")
         
         # create descriptor string
         
@@ -787,7 +788,7 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
                     return DecodeQRStatus.COMPLETE
                 else:
                     return DecodeQRStatus.INVALID
-            except Exception as e:
+            except Exception:
                 return DecodeQRStatus.INVALID
 
         if qr_type == QRType.SEED__COMPACTSEEDQR:
@@ -815,7 +816,7 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
                 self.complete = True
                 self.collected_segments = 1
                 return DecodeQRStatus.COMPLETE
-            except Exception as e:
+            except Exception:
                 return DecodeQRStatus.INVALID
 
         elif qr_type == QRType.SEED__FOUR_LETTER_MNEMONIC:
@@ -838,7 +839,7 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
                 self.complete = True
                 self.collected_segments = 1
                 return DecodeQRStatus.COMPLETE
-            except Exception as e:
+            except Exception:
                 return DecodeQRStatus.INVALID
 
         else:

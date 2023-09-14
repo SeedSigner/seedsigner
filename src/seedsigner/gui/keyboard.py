@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 from typing import Tuple
 
 from seedsigner.gui.components import Fonts, GUIConstants
@@ -318,7 +318,6 @@ class Keyboard:
                 return None
 
         effective_index = 0
-        key = None
         for cur_key in self.keys[index_y]:
             if index_x >= effective_index and index_x < effective_index + cur_key.size:
                 return cur_key
@@ -552,7 +551,6 @@ class TextEntryDisplay(TextEntryDisplayConstants):
 
         if self.cursor_mode == TextEntryDisplay.CURSOR_MODE__BLOCK:
             cursor_block_width = 18
-            cursor_block_height = 33
 
             # Draw n-1 of the selected letters
             (left, top, right, bottom) = self.font.getbbox(self.cur_text[:-1], anchor="ls")

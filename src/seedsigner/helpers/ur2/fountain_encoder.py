@@ -50,7 +50,7 @@ class Part:
             (data, _) = decoder.decodeBytes()
 
             return Part(seq_num, seq_len, message_len, checksum, data)
-        except Exception as err:
+        except Exception:
             raise InvalidHeader()
 
     def cbor(self):

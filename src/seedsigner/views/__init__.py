@@ -1,1 +1,1 @@
-from .view import *  # base class has to be first
+from .view import *  # base class has to be first  # noqa
