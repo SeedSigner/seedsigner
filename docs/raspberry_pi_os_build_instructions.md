@@ -1,4 +1,6 @@
-# Manual Installation Instructions
+# Raspberry Pi OS Build Instructions
+
+The released version of [SeedSigner OS](https://github.com/SeedSigner/seedsigner-os/) does not use Raspberry Pi OS since version 0.6.0. These build instructions (previously referred to as "Manual Installation Instructions") are most commonly used by projects contributors looking to do rapid development cycles and testing to app code. If this is what you'd like to do, then continue reading.
 
 Begin by acquiring the latest 32-bit, Buster-based Raspberry Pi Lite operating system. This guide was tested using the version dated 2023-05-03; which can be found here:
 
