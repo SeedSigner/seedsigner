@@ -34,12 +34,22 @@ class UREncoder:
     def is_single_part(self):
         return self.fountain_encoder.is_single_part()
 
-    def next_part(self):
-        part = self.fountain_encoder.next_part()
+    def next_part(self) -> str:
         if self.is_single_part():
             return UREncoder.encode(self.ur)
         else:
+            part = self.fountain_encoder.next_part()
             return UREncoder.encode_part(self.ur.type, part)
+    
+    def current_part(self) -> str:
+        if self.is_single_part():
+            return UREncoder.encode(self.ur)
+        else:
+            part = self.fountain_encoder.current_part
+            if not part:
+                part = self.fountain_encoder.next_part()
+            return UREncoder.encode_part(self.ur.type, part)
+
 
     @staticmethod
     def encode_part(type, part):
