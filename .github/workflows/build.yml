@@ -1,0 +1,131 @@
+name: Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [ "pi0", "pi2", "pi02w", "pi4" ]
+    steps:
+      - name: checkout seedsigner-os
+        uses: actions/checkout@v3
+        with:
+          repository: "seedsigner/seedsigner-os"
+          submodules: true
+          path: "seedsigner-os"
+
+      - name: get seedsigner-os latest commit hash
+        id: get-seedsigner-os-hash
+        run: |
+          cd seedsigner-os
+          echo "builder_hash=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: checkout source
+        uses: actions/checkout@v3
+        with:
+          path: "seedsigner-os/opt/rootfs-overlay/opt"
+
+      - name: get seedsigner latest commit hash
+        id: get-seedsigner-hash
+        run: |
+          git init
+          echo "source_hash=$(git rev-parse --short ${{ github.sha }})" >> $GITHUB_ENV
+
+      - name: delete unnecessary files
+        run: |
+          cd seedsigner-os/opt/rootfs-overlay/opt
+          find . -mindepth 1 -maxdepth 1 ! -name src -exec rm -rf {} +
+          ls -la .
+          ls -la src
+
+      - name: restore build cache
+        id: build-cache-restore
+        uses: actions/cache/restore@v3
+        # Caching seedsigner-os/buildroot_dl is optional.
+        # Caching it can save a small amount of build time,
+        # but it will occupy a larger amount of storage space.
+        with:
+          path: |
+            ~/.buildroot-ccache/
+            seedsigner-os/buildroot_dl
+          key: build-cache-${{ matrix.target }}-${{ env.builder_hash }}
+          restore-keys: |
+            build-cache-${{ matrix.target }}-
+
+      - name: build
+        run: |
+          cd seedsigner-os/opt
+          ./build.sh --${{ matrix.target }} --skip-repo --no-clean
+
+      - name: save build cache
+        id: build-cache-save
+        if: steps.build-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            ~/.buildroot-ccache/
+            seedsigner-os/buildroot_dl
+          key: build-cache-${{ matrix.target }}-${{ env.builder_hash }}
+
+      - name: list image (before rename)
+        run: |
+          ls -la seedsigner-os/images
+
+      - name: rename image
+        run: |
+          cd seedsigner-os/images
+          mv seedsigner_os*.img seedsigner_os.${{ env.source_hash }}.${{ matrix.target }}.img
+
+      - name: print sha256sum
+        run: |
+          cd seedsigner-os/images
+          sha256sum *.img
+
+      - name: list image (after rename)
+        run: |
+          ls -la seedsigner-os/images
+
+      - name: upload images
+        uses: actions/upload-artifact@v3
+        with:
+          name: seedsigner_os_images
+          path: "seedsigner-os/images/*.img"
+          if-no-files-found: error
+
+  sha256sum:
+    name: calculate sha256sum
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: download images
+        uses: actions/download-artifact@v3
+        with:
+          name: seedsigner_os_images
+          path: images
+
+      - name: list images
+        run: |
+          ls -la images
+
+      - name: get seedsigner latest commit hash
+        id: get-seedsigner-hash
+        run: |
+          git init
+          echo "source_hash=$(git rev-parse --short ${{ github.sha }})" >> $GITHUB_ENV
+
+      - name: write sha256sum
+        run: |
+          cd images
+          sha256sum *.img > seedsigner_os.${{ env.source_hash }}.sha256
+
+      - name: upload checksums
+        uses: actions/upload-artifact@v3
+        with:
+          name: seedsigner_os_images
+          path: "images/*.sha256"
+          if-no-files-found: error
