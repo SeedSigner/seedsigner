@@ -283,6 +283,9 @@ def test_short_4_letter_mnemonic_qr():
 
 def test_bitcoin_address():    
     bad1 = "loremipsum"
+    # TODO: use for negative test cases
+    # bad2 = "0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae"
+    # bad3 = "121802020768124106400009195602431595117715840445"
     
     legacy_address1 = "1KFHE7w8BhaENAswwryaoccDb6qcT6DbYY"
     legacy_address2 = "16ftSEQ4ctQFDtVZiUBusQUjRrGhM3JYwe"
