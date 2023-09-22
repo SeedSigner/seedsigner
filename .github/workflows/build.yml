@@ -1,6 +1,10 @@
 name: Build
 
 on:
+  pull_request:
+    # Build on changes to this workflow files in PRs to test proposed changes
+    paths:
+      - '.github/workflows/build.yml'
   schedule:
     # Build daily at 5:30 UTC
     - cron:  '30 5 * * *'
