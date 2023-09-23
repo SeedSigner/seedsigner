@@ -43,7 +43,7 @@ def test_seedsigner_qr():
 def test_xpub_qr():
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = StaticXpubQrEncoder(seed_phrase=mnemonic.split(),
+    e = StaticXpubQrEncoder(mnemonic=mnemonic.split(),
                             passphrase="pass",
                             derivation="m/48h/1h/0h/2h",
                             network=SettingsConstants.TESTNET)
@@ -54,7 +54,7 @@ def test_xpub_qr():
 def test_specter_xpub_qr():
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = SpecterXPubQrEncoder(seed_phrase=mnemonic.split(" "), passphrase="pass", network=SettingsConstants.TESTNET, derivation="m/48h/1h/0h/2h", qr_density=SettingsConstants.DENSITY__LOW)
+    e = SpecterXPubQrEncoder(mnemonic=mnemonic.split(" "), passphrase="pass", network=SettingsConstants.TESTNET, derivation="m/48h/1h/0h/2h", qr_density=SettingsConstants.DENSITY__LOW)
 
     assert e.next_part() == "p1of4 [c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDN"
     assert e.next_part() == "p2of4 c5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBo"
@@ -67,7 +67,7 @@ def test_ur_xpub_qr():
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
     
     e = UrXpubQrEncoder(
-        seed_phrase=mnemonic.split(),
+        mnemonic=mnemonic.split(),
         passphrase="pass",
         network=SettingsConstants.TESTNET,
         derivation="m/48h/1h/0h/2h",

@@ -864,7 +864,7 @@ class SeedExportXpubQRDisplayView(View):
         self.seed = self.controller.get_seed(seed_num)
 
         encoder_args = dict(
-            seed_phrase=self.seed.mnemonic_list,
+            mnemonic=self.seed.mnemonic_list,
             passphrase=self.seed.passphrase,
             derivation=derivation_path,
             network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
@@ -1418,7 +1418,7 @@ class SeedTranscribeSeedQRZoomedInView(View):
     
 
     def run(self):
-        encoder_args = dict(seed_phrase=self.seed.mnemonic_list,
+        encoder_args = dict(mnemonic=self.seed.mnemonic_list,
                             wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
         if self.seedqr_format == QRType.SEED__SEEDQR:
             e = SeedQrEncoder(**encoder_args)

@@ -155,7 +155,7 @@ class BaseXpubQrEncoder(BaseQrEncoder):
     """
     Base Xpub QrEncoder for static and animated formats
     """
-    seed_phrase: list = None
+    mnemonic: list = None
     passphrase: str = None
     derivation: str = None
     network: str = SettingsConstants.MAINNET
@@ -169,7 +169,7 @@ class BaseXpubQrEncoder(BaseQrEncoder):
             raise Exception('Wordlist Required')
             
         version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
-        self.seed = Seed(mnemonic=self.seed_phrase,
+        self.seed = Seed(mnemonic=self.mnemonic,
                          passphrase=self.passphrase,
                          wordlist_language_code=self.wordlist_language_code)
         self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(self.network)]["xprv"])
