@@ -49,6 +49,10 @@ class UREncoder:
             if not part:
                 part = self.fountain_encoder.next_part()
             return UREncoder.encode_part(self.ur.type, part)
+    
+
+    def restart(self):
+        self.fountain_encoder.restart()
 
 
     @staticmethod

@@ -146,6 +146,15 @@ class FountainEncoder:
         data = bytes(mixed)
         self.current_part = Part(self.seq_num, self.seq_len(), self.message_len, self.checksum, data)
         return self.current_part
+    
+
+    def restart(self):
+        """
+        Restart from the beginning; each cycle's first n frames are full data frames
+        (not XOR composites).
+        """
+        self.seq_num = 0
+
 
     def mix(self, indexes):
         result = [0] * self.fragment_len
