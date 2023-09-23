@@ -1,13 +1,12 @@
-import time
 import logging
-
+import time
 import traceback
 
 from embit.descriptor import Descriptor
 from embit.psbt import PSBT
 from PIL.Image import Image
-from seedsigner.gui.toast import BaseToastOverlayManagerThread
 
+from seedsigner.gui.toast import BaseToastOverlayManagerThread
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.seed import Seed
 from seedsigner.models.seed_storage import SeedStorage
