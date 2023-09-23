@@ -3,11 +3,18 @@ import logging
 
 import traceback
 
+from embit.descriptor import Descriptor
+from embit.psbt import PSBT
 from PIL.Image import Image
+from seedsigner.gui.toast import BaseToastOverlayManagerThread
 
+from seedsigner.models.psbt_parser import PSBTParser
+from seedsigner.models.seed import Seed
+from seedsigner.models.seed_storage import SeedStorage
 from seedsigner.models.settings import Settings
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
+from seedsigner.views.screensaver import ScreensaverScreen
 from seedsigner.views.view import Destination
 
 
@@ -97,18 +104,18 @@ class Controller(Singleton):
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
-    _storage: 'SeedStorage' = None   # TODO: Rename "storage" to something more indicative of its temp, in-memory state
+    _storage: SeedStorage = None   # TODO: Rename "storage" to something more indicative of its temp, in-memory state
     settings: Settings = None
 
     # TODO: Refactor these flow-related attrs that survive across multiple Screens.
     # TODO: Should all in-memory flow-related attrs get wiped on MainMenuView?
-    psbt: 'embit.psbt.PSBT' = None
-    psbt_seed: 'Seed' = None
-    psbt_parser: 'PSBTParser' = None
+    psbt: PSBT = None
+    psbt_seed: Seed = None
+    psbt_parser: PSBTParser = None
 
     unverified_address = None
 
-    multisig_wallet_descriptor: 'embit.descriptor.Descriptor' = None
+    multisig_wallet_descriptor: Descriptor = None
 
     image_entropy_preview_frames: list[Image] = None
     image_entropy_final_image: Image = None
@@ -129,8 +136,8 @@ class Controller(Singleton):
     resume_main_flow: str = None
 
     back_stack: BackStack = None
-    screensaver: 'ScreensaverScreen' = None
-    toast_notification_thread: 'BaseToastOverlayManagerThread' = None
+    screensaver: ScreensaverScreen = None
+    toast_notification_thread: BaseToastOverlayManagerThread = None
 
 
     @classmethod
@@ -205,7 +212,7 @@ class Controller(Singleton):
         return self._storage
 
 
-    def get_seed(self, seed_num: int) -> 'Seed':
+    def get_seed(self, seed_num: int) -> Seed:
         if seed_num < len(self.storage.seeds):
             return self.storage.seeds[seed_num]
         else:
@@ -394,7 +401,7 @@ class Controller(Singleton):
         print("Controller: Screensaver started")
 
 
-    def activate_toast(self, toast_manager_thread: 'BaseToastOverlayManagerThread'):
+    def activate_toast(self, toast_manager_thread: BaseToastOverlayManagerThread):
         """
         Ensures that the Controller has explicit control over which processes get to
         claim the Renderer.lock and which need to (potentially) release it.
