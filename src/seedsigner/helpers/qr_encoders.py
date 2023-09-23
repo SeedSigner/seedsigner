@@ -46,6 +46,10 @@ class BaseQrEncoder:
     
     def cur_part(self) -> str:
         raise Exception("Not implemented in child class")
+    
+    def restart(self):
+        # only used by animated QR encoders
+        pass
 
     def _create_parts(self):
         raise Exception("Not implemented in child class")
@@ -242,6 +246,10 @@ class BaseSimpleAnimatedQREncoder(BaseQrEncoder):
         return self.next_part()
 
 
+    def restart(self) -> str:
+        self.part_num_sent = 0
+
+
 
 @dataclass
 class SpecterXPubQrEncoder(BaseSimpleAnimatedQREncoder, BaseXpubQrEncoder):
@@ -274,52 +282,6 @@ class SpecterXPubQrEncoder(BaseSimpleAnimatedQREncoder, BaseXpubQrEncoder):
             if stop > len(self.xpubstring):
                 stop = len(self.xpubstring)
             cnt += 1
-
-
-
-# !! This format is no longer used !!
-# @dataclass
-# class SpecterPsbtQrEncoder(BaseSimpleAnimatedQREncoder, BaseQrEncoder):
-#     psbt: PSBT
-#     qr_density: str
-
-#     def __post_init__(self):
-#         super().__post_init__()
-#         if self.qr_density == SettingsConstants.DENSITY__LOW:
-#             self.qr_max_fragement_size = 40
-#         elif self.qr_density == SettingsConstants.DENSITY__MEDIUM:
-#             self.qr_max_fragement_size = 65
-#         elif self.qr_density == SettingsConstants.DENSITY__HIGH:
-#             self.qr_max_fragement_size = 90
-
-#         self._create_parts()
-
-
-#     def _create_parts(self):
-#         base64_psbt = b2a_base64(self.psbt.serialize())
-
-#         if base64_psbt[-1:] == b"\n":
-#             base64_psbt = base64_psbt[:-1]
-
-#         base64_psbt = base64_psbt.decode('utf-8')
-
-#         start = 0
-#         stop = self.qr_max_fragement_size
-#         qr_cnt = ((len(base64_psbt)-1) // self.qr_max_fragement_size) + 1
-
-#         if qr_cnt == 1:
-#             self.parts.append(base64_psbt[start:stop])
-
-#         cnt = 0
-#         while cnt < qr_cnt and qr_cnt != 1:
-#             part = "p" + str(cnt+1) + "of" + str(qr_cnt) + " " + base64_psbt[start:stop]
-#             self.parts.append(part)
-
-#             start = start + self.qr_max_fragement_size
-#             stop = stop + self.qr_max_fragement_size
-#             if stop > len(base64_psbt):
-#                 stop = len(base64_psbt)
-#             cnt += 1
 
 
 
@@ -365,6 +327,10 @@ class BaseFountainQrEncoder(BaseQrEncoder):
 
     def cur_part(self) -> str:
         return self.ur2_encode.current_part().upper()
+    
+
+    def restart(self):
+        self.ur2_encode.fountain_encoder.restart()
 
 
 
