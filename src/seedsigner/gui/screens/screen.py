@@ -752,15 +752,12 @@ class QRDisplayScreen(BaseScreen):
             while self.keep_running:
                 # convert the self.qr_brightness integer (31-255) into hex triplets
                 hex_color = (hex(self.qr_brightness.cur_count).split('x')[1]) * 3
+                image = self.qr_encoder.next_part_image(240, 240, border=2, background_color=hex_color)
 
                 # Display the brightness tips toast
                 duration = 10 ** 9 * 1.2  # 1.2 seconds
                 if show_brightness_tips and time.time_ns() - self.tips_start_time.cur_count < duration:
-                    image = self.qr_encoder.part_to_image(self.qr_encoder.cur_part(), 240, 240, border=2, background_color=hex_color)
                     self.add_brightness_tips(image)
-                else:
-                    # Only advance the QR animation when the brightness tip is not displayed
-                    image = self.qr_encoder.next_part_image(240, 240, border=2, background_color=hex_color)
 
                 with self.renderer.lock:
                     self.renderer.show_image(image)
