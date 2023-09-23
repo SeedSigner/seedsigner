@@ -7,10 +7,10 @@ from seedsigner.gui import renderer
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.hardware.camera import Camera
 from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
-from seedsigner.models.threads import BaseThread
+from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
-from .screen import BaseScreen, ButtonListScreen
-from ..components import GUIConstants, Fonts, TextArea
+from .screen import BaseScreen
+from ..components import GUIConstants, Fonts, SeedSignerIconConstants
 
 
 
@@ -47,6 +47,9 @@ class ScanScreen(BaseScreen):
     framerate: int = 6  # TODO: alternate optimization for Pi Zero 2W?
     render_rect: tuple[int,int,int,int] = None
 
+    FRAME__ADDED_PART = 1
+    FRAME__REPEATED_PART = 2
+    FRAME__MISS = 3
 
     def __post_init__(self):
         from seedsigner.hardware.camera import Camera
@@ -58,17 +61,22 @@ class ScanScreen(BaseScreen):
         self.camera = Camera.get_instance()
         self.camera.start_video_stream_mode(resolution=self.resolution, framerate=self.framerate, format="rgb")
 
+        self.frames_decode_status = ThreadsafeCounter()
+        self.frames_decoded_counter = ThreadsafeCounter()
+
         self.threads.append(ScanScreen.LivePreviewThread(
             camera=self.camera,
             decoder=self.decoder,
             renderer=self.renderer,
             instructions_text=self.instructions_text,
             render_rect=self.render_rect,
+            frame_decode_status=self.frames_decode_status,
+            frames_decoded_counter=self.frames_decoded_counter,
         ))
 
 
     class LivePreviewThread(BaseThread):
-        def __init__(self, camera: Camera, decoder: DecodeQR, renderer: renderer.Renderer, instructions_text: str, render_rect: tuple[int,int,int,int]):
+        def __init__(self, camera: Camera, decoder: DecodeQR, renderer: renderer.Renderer, instructions_text: str, render_rect: tuple[int,int,int,int], frame_decode_status: ThreadsafeCounter, frames_decoded_counter: ThreadsafeCounter):
             self.camera = camera
             self.decoder = decoder
             self.renderer = renderer
@@ -77,6 +85,9 @@ class ScanScreen(BaseScreen):
                 self.render_rect = render_rect            
             else:
                 self.render_rect = (0, 0, self.renderer.canvas_width, self.renderer.canvas_height)
+            self.frame_decode_status = frame_decode_status
+            self.frames_decoded_counter = frames_decoded_counter
+            self.last_frame_decoded_count = self.frames_decoded_counter.cur_count
             self.render_width = self.render_rect[2] - self.render_rect[0]
             self.render_height = self.render_rect[3] - self.render_rect[1]
             self.decoder_fps = "0.0"
@@ -99,7 +110,7 @@ class ScanScreen(BaseScreen):
                     cur_time = time.time()
                     cur_fps = num_frames / (cur_time - start_time)
                     if self.decoder and self.decoder.get_percent_complete() > 0 and self.decoder.is_psbt:
-                        scan_text = str(self.decoder.get_percent_complete()) + "% Complete"
+                        scan_text = f"{self.decoder.get_percent_complete()}% | {self.decoder.get_percent_complete(weight_mixed_frames=True)}%"
                         if show_framerate:
                             scan_text += f" {cur_fps:0.2f} | {self.decoder_fps}"
                     else:
@@ -141,6 +152,47 @@ class ScanScreen(BaseScreen):
                                      fill=GUIConstants.BODY_FONT_COLOR,
                                      font=instructions_font,
                                      anchor="ms")
+                        
+                        # if self.last_frame_decoded_count != self.frames_decoded_counter.cur_count:
+                        # At least one new frame was processed since last screen render; update onscreen status
+                        self.last_frame_decoded_count = self.frames_decoded_counter.cur_count
+                        status_mapping = {
+                            ScanScreen.FRAME__ADDED_PART: "#00ff00",
+                            ScanScreen.FRAME__REPEATED_PART: "#cccccc",
+                            ScanScreen.FRAME__MISS: None,
+                        }
+                        status_color = status_mapping.get(self.frame_decode_status.cur_count)
+                        if status_color:
+                            # Good! Most recent frame successfully decoded.
+                            # Draw an onscreen indication.
+                            # status_block_size = 10
+                            # draw.rectangle(
+                            #     # Lower right
+                            #     (
+                            #         (self.renderer.canvas_width - GUIConstants.EDGE_PADDING - status_block_size, self.renderer.canvas_height - GUIConstants.EDGE_PADDING - status_block_size),
+                            #         (self.renderer.canvas_width - GUIConstants.EDGE_PADDING, self.renderer.canvas_height - GUIConstants.EDGE_PADDING),
+                            #     ),
+                            #     # Upper left
+                            #     # (
+                            #     #     (GUIConstants.EDGE_PADDING, GUIConstants.EDGE_PADDING),
+                            #     #     (GUIConstants.EDGE_PADDING + status_block_size, GUIConstants.EDGE_PADDING + status_block_size),
+                            #     # ),
+                            #     # Upper right
+                            #     # (
+                            #     #     (self.renderer.canvas_width - GUIConstants.EDGE_PADDING - status_block_size, GUIConstants.EDGE_PADDING),
+                            #     #     (self.renderer.canvas_width - GUIConstants.EDGE_PADDING, GUIConstants.EDGE_PADDING + status_block_size),
+                            #     # ),
+                            #     fill=status_color,
+                            # )
+                            indicator_size = 10
+                            draw.ellipse(
+                                (
+                                    (self.renderer.canvas_width - GUIConstants.EDGE_PADDING - indicator_size, self.renderer.canvas_height - GUIConstants.EDGE_PADDING - indicator_size),
+                                    (self.renderer.canvas_width - GUIConstants.EDGE_PADDING, self.renderer.canvas_height - GUIConstants.EDGE_PADDING)
+                                ),
+                                fill=status_color,
+                            )
+
 
                         self.renderer.show_image(frame, show_direct=True)
                         # print(f" {cur_fps:0.2f} | {self.decoder_fps}")
@@ -169,6 +221,21 @@ class ScanScreen(BaseScreen):
                 if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
                     self.camera.stop_video_stream_mode()
                     break
+
+                self.frames_decoded_counter.increment()
+                # Notify the live preview thread how our most recent decode went
+                if status == DecodeQRStatus.FALSE:
+                    # Did not find anything to decode in the current frame
+                    self.frames_decode_status.set_value(self.FRAME__MISS)
+
+                else:
+                    if status == DecodeQRStatus.PART_COMPLETE:
+                        # We received a valid frame that added new data
+                        self.frames_decode_status.set_value(self.FRAME__ADDED_PART)
+
+                    elif status == DecodeQRStatus.PART_EXISTING:
+                        # We received a valid frame, but we've already seen in
+                        self.frames_decode_status.set_value(self.FRAME__REPEATED_PART)
                 
                 if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
                     self.camera.stop_video_stream_mode()

@@ -120,11 +120,14 @@ class DecodeQR:
             qr_str = data
 
         if self.qr_type in [QRType.PSBT__UR2, QRType.OUTPUT__UR, QRType.ACCOUNT__UR, QRType.BYTES__UR]:
-            self.decoder.receive_part(qr_str)
+            added_part = self.decoder.receive_part(qr_str)
             if self.decoder.is_complete():
                 self.complete = True
                 return DecodeQRStatus.COMPLETE
-            return DecodeQRStatus.PART_COMPLETE # segment added to ur2 decoder
+            if added_part:
+                return DecodeQRStatus.PART_COMPLETE
+            else:
+                return DecodeQRStatus.PART_EXISTING
 
         else:
             # All other formats use the same method signature
@@ -219,12 +222,12 @@ class DecodeQR:
                 return self.decoder.get_wallet_descriptor()
 
 
-    def get_percent_complete(self) -> int:
+    def get_percent_complete(self, weight_mixed_frames: bool = False) -> int:
         if not self.decoder:
             return 0
 
         if self.qr_type in [QRType.PSBT__UR2, QRType.OUTPUT__UR, QRType.ACCOUNT__UR, QRType.BYTES__UR]:
-            return int(self.decoder.estimated_percent_complete() * 100)
+            return int(self.decoder.estimated_percent_complete(weight_mixed_frames=weight_mixed_frames) * 100)
 
         elif self.qr_type in [QRType.PSBT__SPECTER]:
             if self.decoder.total_segments == None:
@@ -305,7 +308,7 @@ class DecodeQR:
 
 
     @staticmethod
-    def extract_qr_data(image, is_binary:bool = False) -> str:
+    def extract_qr_data(image, is_binary:bool = False) -> [str|None]:
         if image is None:
             return None
 
@@ -318,6 +321,8 @@ class DecodeQR:
         for barcode in barcodes:
             # Only pull and return the first barcode
             return barcode.data
+        
+        print("No QR data")
 
 
     @staticmethod
