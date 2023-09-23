@@ -610,7 +610,8 @@ class FormattedAddress(BaseComponent):
         self.accent_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, self.font_size)
 
         # Fixed width font means we only have to measure one max-height character
-        char_width, char_height = self.font.getsize("Q")
+        (left, top, right, bottom) = self.font.getbbox("Q")
+        char_width, char_height = right - left, bottom - top
 
         n = 7
         display_str = f"{self.address[:n]} {self.address[n:-1*n]} {self.address[-1*n:]}"
