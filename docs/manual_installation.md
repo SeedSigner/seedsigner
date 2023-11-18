@@ -106,7 +106,7 @@ sudo apt install python3-apt -y
 
 
 ### Install dependencies
-Copy this entire box and run it as one command (will take a while to complete):
+Copy this entire box and run it as one command (~15 minutes on a Pi Zero 1.3):
 ```bash
 sudo apt update && sudo apt install -y wiringpi python3-pip \
    python3-numpy python-pil libjpeg-dev zlib1g-dev libopenjp2-7 \
