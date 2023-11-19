@@ -88,12 +88,17 @@ class PSBTParser():
         for inp in self.psbt.inputs:
             if inp.witness_utxo:
                 self.input_amount += inp.witness_utxo.value
-                inp_policy = PSBTParser._get_policy(inp, inp.witness_utxo.script_pubkey, self.psbt.xpubs)
-                if self.policy == None:
-                    self.policy = inp_policy
-                else:
-                    if self.policy != inp_policy:
-                        raise RuntimeError("Mixed inputs in the transaction")
+                script_pubkey = inp.witness_utxo.script_pubkey
+            elif inp.non_witness_utxo:
+                self.input_amount += inp.utxo.value
+                script_pubkey = inp.script_pubkey
+
+            inp_policy = PSBTParser._get_policy(inp, script_pubkey, self.psbt.xpubs)
+            if self.policy == None:
+                self.policy = inp_policy
+            else:
+                if self.policy != inp_policy:
+                    raise RuntimeError("Mixed inputs in the transaction")
 
 
     def _parse_outputs(self):
@@ -118,21 +123,30 @@ class PSBTParser():
 
                 # empty script by default
                 sc = script.Script(b"")
+
                 # multisig, we know witness script
                 if self.policy["type"] == "p2wsh":
                     sc = script.p2wsh(out.witness_script)
+
                 elif self.policy["type"] == "p2sh-p2wsh":
                     sc = script.p2sh(script.p2wsh(out.witness_script))
+                
+                elif "p2sh" in self.policy["type"]:
+                    # pre-segwit multisig
+                    sc = script.p2sh(out.redeem_script)
 
                 # single-sig
                 elif "pkh" in self.policy["type"]:
                     my_pubkey = None
+
                     # should be one or zero for single-key addresses
                     if len(out.bip32_derivations.values()) > 0:
                         der = list(out.bip32_derivations.values())[0].derivation
                         my_pubkey = self.root.derive(der)
+
                     if self.policy["type"] == "p2wpkh" and my_pubkey is not None:
                         sc = script.p2wpkh(my_pubkey)
+
                     elif self.policy["type"] == "p2sh-p2wpkh" and my_pubkey is not None:
                         sc = script.p2sh(script.p2wpkh(my_pubkey))
 
@@ -236,15 +250,25 @@ class PSBTParser():
             ):
                 script_type = "p2sh-p2wpkh"
         policy = {"type": script_type}
+
         # expected multisig
+        script = None
         if "p2wsh" in script_type and scope.witness_script is not None:
-            m, n, pubkeys = PSBTParser._parse_multisig(scope.witness_script)
+            script = scope.witness_script
+
+        elif "p2sh" in script_type and scope.redeem_script is not None:
+            script = scope.redeem_script
+
+        if script is not None:
+            m, n, pubkeys = PSBTParser._parse_multisig(script)
+        
             # check pubkeys are derived from cosigners
             try:
                 cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
                 policy.update({"m": m, "n": n, "cosigners": cosigners})
             except:
                 policy.update({"m": m, "n": n})
+        
         return policy
 
 
