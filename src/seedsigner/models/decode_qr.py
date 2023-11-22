@@ -954,11 +954,12 @@ class BitcoinAddressQrDecoder(BaseSingleFrameQrDecoder):
                     self.address_type = (SettingsConstants.LEGACY_P2PKH, SettingsConstants.TESTNET)
 
                 elif r == "3":
-                    # Nested Segwit Single Sig (P2WPKH in P2SH) or Multisig (P2WSH in P2SH); mainnet
+                    # Nested segwit single sig (p2sh-p2wpkh), nested segwit multisig (p2sh-p2wsh), or legacy multisig (p2sh); mainnet
+                    # TODO: Would be more correct to use a P2SH constant
                     self.address_type = (SettingsConstants.NESTED_SEGWIT, SettingsConstants.MAINNET)
 
                 elif r == "2":
-                    # Nested Segwit Single Sig (P2WPKH in P2SH) or Multisig (P2WSH in P2SH); testnet
+                    # Nested segwit single sig (p2sh-p2wpkh), nested segwit multisig (p2sh-p2wsh), or legacy multisig (p2sh); testnet / regtest
                     self.address_type = (SettingsConstants.NESTED_SEGWIT, SettingsConstants.TESTNET)
 
                 elif r == "bc1q":

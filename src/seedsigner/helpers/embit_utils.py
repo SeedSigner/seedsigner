@@ -87,17 +87,15 @@ def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool
     else:
         branch_index = 0
 
-    if descriptor.is_segwit:
-        # Could be native segwit or nested segwit (descriptor.is_wrapped)
+    # Can derive p2wsh, p2sh-p2wsh, and legacy (non-segwit) p2sh
+    if descriptor.is_segwit or (descriptor.is_legacy and descriptor.is_basic_multisig):
         return descriptor.derive(index, branch_index=branch_index).script_pubkey().address(network=NETWORKS[embit_network])
-
-    elif descriptor.is_legacy:
-        # TODO: Not yet implemented!
-        raise Exception("Legacy P2PKH verification not yet implemented!")
 
     elif descriptor.is_taproot:
         # TODO: Not yet implemented!
         raise Exception("Taproot verification not yet implemented!")
+
+    raise Exception(f"{descriptor.script_pubkey().script_type()} address verification not yet implemented!")
 
 
 
