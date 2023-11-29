@@ -2294,15 +2294,21 @@ class SaveToSeedkeeperView(View):
                 )
                 return Destination(BackStackView)
 
+            ret = seed_screens.SeedAddPassphraseScreen(title="Seed Label").display()
 
-            label = "test-export"
+            if ret == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+
+            label = ret
             export_rights = "Plaintext export allowed"
             type = "BIP39 mnemonic"
             header = Satochip_Connector.make_header(type, export_rights, label)
             seed = self.controller.get_seed(self.seed_num)
-            secret = seed.mnemonic_str
-            secret_list = list(bytes(secret, 'utf-8'))
-            secret_list = [len(secret_list)] + secret_list
+            bip39_mnemonic = seed.mnemonic_str
+            bip39_mnemonic_list = list(bytes(bip39_mnemonic, 'utf-8'))
+            bip39_passphrase = seed.passphrase
+            bip39_passphrase_list = list(bytes(bip39_passphrase, 'utf-8'))
+            secret_list = [len(bip39_mnemonic_list)] + bip39_mnemonic_list + [len(bip39_passphrase_list)] + bip39_passphrase_list
             secret_dic = {'header': header, 'secret_list': secret_list}
             (sid, fingerprint) = Satochip_Connector.seedkeeper_import_secret(secret_dic)
             print("Imported - SID:", sid, " Fingerprint:", fingerprint)
