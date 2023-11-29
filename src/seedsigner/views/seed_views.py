@@ -25,7 +25,10 @@ from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
 
-
+from pysatochip.CardConnector import CardConnector
+from pysatochip.JCconstants import SEEDKEEPER_DIC_TYPE, SEEDKEEPER_DIC_ORIGIN, SEEDKEEPER_DIC_EXPORT_RIGHTS
+from binascii import unhexlify
+import os
 
 
 class SeedsMenuView(View):
@@ -162,7 +165,7 @@ class LoadSeedView(View):
     SEED_QR = (" Scan a SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-    IMPORT_NFC = ("From SeedKeeper", FontAwesomeIconConstants.NFC)
+    IMPORT_SEEDKEEPER = ("From SeedKeeper", FontAwesomeIconConstants.NFC)
     CREATE = (" Create a seed", SeedSignerIconConstants.PLUS)
 
     def run(self):
@@ -170,7 +173,7 @@ class LoadSeedView(View):
             self.SEED_QR,
             self.TYPE_12WORD,
             self.TYPE_24WORD,
-            self.IMPORT_NFC,
+            self.IMPORT_SEEDKEEPER,
             self.CREATE,
         ]
         selected_menu_num = self.run_screen(
@@ -195,40 +198,44 @@ class LoadSeedView(View):
             self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
-        elif button_data[selected_menu_num] == self.IMPORT_NFC:
-            return Destination(SeedKeeperPINView)
+        elif button_data[selected_menu_num] == self.IMPORT_SEEDKEEPER:
+            return Destination(SeedKeeperPINView, view_args={"load_workflow": True})
 
         elif button_data[selected_menu_num] == self.CREATE:
             from .tools_views import ToolsMenuView
             return Destination(ToolsMenuView)
 
-SeedkeeperPIN = ""
-
 class SeedKeeperPINView(View):
+    def __init__(self, save_workflow = False, load_workflow = False, seed_num = None):
+        super().__init__()
+        self.save_workflow = save_workflow
+        self.load_workflow = load_workflow
+        self.seed_num = seed_num
+
     def run(self):
-        global SeedkeeperPIN
         ret = seed_screens.SeedAddPassphraseScreen(title="Seedkeeper PIN").display()
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
         # The new passphrase will be the return value; it might be empty.
-
         if len(ret) > 0:
-            SeedkeeperPIN = ret
-            return Destination(SeedKeeperSelectView)
+            seedkeeper_pin = ret
+            if self.load_workflow:
+                return Destination(SeedKeeperSelectView, view_args={"seedkeeper_pin": seedkeeper_pin})
+            if self.save_workflow:
+                return Destination(SaveToSeedkeeperView, view_args={"seedkeeper_pin": seedkeeper_pin, "seed_num": self.seed_num })
+
         else:
             return Destination(BackStackView)
     
 class SeedKeeperSelectView(View):
+    def __init__(self, seedkeeper_pin):
+        super().__init__()
+        self.seedkeeper_pin = seedkeeper_pin
     def run(self):
-        global SeedkeeperPIN
         try:
-            from pysatochip.CardConnector import CardConnector
-            from pysatochip.JCconstants import SEEDKEEPER_DIC_TYPE, SEEDKEEPER_DIC_ORIGIN, SEEDKEEPER_DIC_EXPORT_RIGHTS
-            from binascii import unhexlify
 
-            import os
             os.system("ifdnfc-activate")
             time.sleep(0.5)  # give some time to initialize reader...
 
@@ -257,7 +264,7 @@ class SeedKeeperSelectView(View):
                 print("Initiating Secure Channel")
                 Satochip_Connector.card_initiate_secure_channel()
 
-            Satochip_Connector.set_pin(0, list(bytes(SeedkeeperPIN, "utf-8")))
+            Satochip_Connector.set_pin(0, list(bytes(self.seedkeeper_pin, "utf-8")))
 
             try:
                 headers = Satochip_Connector.seedkeeper_list_secret_headers()
@@ -687,6 +694,7 @@ class SeedOptionsView(View):
 class SeedBackupView(View):
     VIEW_WORDS = "View Seed Words"
     EXPORT_SEEDQR = "Export as SeedQR"
+    TO_SEEDKEEPER = "To SeedKeeper"
 
     def __init__(self, seed_num):
         super().__init__()
@@ -695,7 +703,7 @@ class SeedBackupView(View):
     
 
     def run(self):
-        button_data = [self.VIEW_WORDS, self.EXPORT_SEEDQR]
+        button_data = [self.VIEW_WORDS, self.EXPORT_SEEDQR, self.TO_SEEDKEEPER]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -713,6 +721,8 @@ class SeedBackupView(View):
         elif button_data[selected_menu_num] == self.EXPORT_SEEDQR:
             return Destination(SeedTranscribeSeedQRFormatView, view_args={"seed_num": self.seed_num})
 
+        elif button_data[selected_menu_num] == self.TO_SEEDKEEPER:
+            return Destination(SeedKeeperPINView, view_args={"save_workflow": True, "seed_num": self.seed_num})
 
 
 """****************************************************************************
@@ -2226,3 +2236,86 @@ class SeedSignMessageSignedMessageQRView(View):
 
         # Exiting/Canceling the QR display screen always returns Home
         return Destination(MainMenuView, skip_current_view=True)
+
+
+"""****************************************************************************
+    Save to SeedKeeper Workflow
+****************************************************************************"""
+class SaveToSeedkeeperView(View):
+    def __init__(self, seed_num: int, seedkeeper_pin = None, bip85_data: dict = None):
+        super().__init__()
+        self.seed_num = seed_num
+        self.bip85_data = bip85_data
+        self.seedkeeper_pin = seedkeeper_pin
+
+    def run(self):
+        try:
+            import os
+            os.system("ifdnfc-activate")
+            time.sleep(0.5)  # give some time to initialize reader...
+
+            status = None
+            for i in range(20):
+                try:
+                    Satochip_Connector = CardConnector()
+                    time.sleep(0.1)  # give some time to initialize reader...
+                    status = Satochip_Connector.card_get_status()
+                    break
+                except Exception as e:
+                    print(e)
+                    time.sleep(0.5)  # Sleep for half a second
+
+            if not status:
+                self.run_screen(
+                    WarningScreen,
+                    title="Unable to Connect",
+                    status_headline=None,
+                    text=f"Unable to find SeedKeeper, missing card or missing reader",
+                    show_back_button=True,
+                )
+                return Destination(BackStackView)
+
+            if (Satochip_Connector.needs_secure_channel):
+                print("Initiating Secure Channel")
+                Satochip_Connector.card_initiate_secure_channel()
+
+            Satochip_Connector.set_pin(0, list(bytes(self.seedkeeper_pin, "utf-8")))
+
+            try:
+                headers = Satochip_Connector.seedkeeper_list_secret_headers()
+            except RuntimeError as e:  # Incorrect PIN
+                print(e)  #
+                self.run_screen(
+                    WarningScreen,
+                    title="Incorrect PIN",
+                    status_headline=None,
+                    text=f"Unable to unlock SeedKeeper, Incorrect PIN",
+                    show_back_button=True,
+                )
+                return Destination(BackStackView)
+
+
+            label = "test-export"
+            export_rights = "Plaintext export allowed"
+            type = "BIP39 mnemonic"
+            header = Satochip_Connector.make_header(type, export_rights, label)
+            seed = self.controller.get_seed(self.seed_num)
+            secret = seed.mnemonic_str
+            secret_list = list(bytes(secret, 'utf-8'))
+            secret_list = [len(secret_list)] + secret_list
+            secret_dic = {'header': header, 'secret_list': secret_list}
+            (sid, fingerprint) = Satochip_Connector.seedkeeper_import_secret(secret_dic)
+            print("Imported - SID:", sid, " Fingerprint:", fingerprint)
+
+            self.run_screen(
+                WarningScreen,
+                title="Secret Saved",
+                status_headline=None,
+                text=f"Secret Successfully Saved to Seedkeeper",
+                show_back_button=True,
+            )
+            return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
+
+        except Exception as e:
+            print(e)
+            return Destination(BackStackView)
