@@ -716,9 +716,12 @@ class ToolsAddressExplorerAddressView(View):
 ****************************************************************************"""
 class ToolsSeedkeeperMenuView(View):
     CHANGE_PIN = ("Change PIN")
+    IFDNFC_ACTIVATE = ("Run ifdnfc-activate")
+    INSTALL_APPLET = ("Install Applet")
+    UNINSTALL_APPLET = ("Uninstall Applet")
 
     def run(self):
-        button_data = [self.CHANGE_PIN]
+        button_data = [self.CHANGE_PIN, self.IFDNFC_ACTIVATE, self.INSTALL_APPLET, self.UNINSTALL_APPLET]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -732,6 +735,15 @@ class ToolsSeedkeeperMenuView(View):
 
         elif button_data[selected_menu_num] == self.CHANGE_PIN:
             return Destination(ToolsSeedkeeperChangePinView)
+        
+        elif button_data[selected_menu_num] == self.IFDNFC_ACTIVATE:
+            return Destination(ToolsSeedkeeperStartIfdNFCView)
+
+        elif button_data[selected_menu_num] == self.INSTALL_APPLET:
+            return Destination(ToolsSeedkeeperInstallAppletView)
+
+        elif button_data[selected_menu_num] == self.UNINSTALL_APPLET:
+            return Destination(ToolsSeedkeeperUninstallAppletView)
 
 class ToolsSeedkeeperChangePinView(View):
     def run(self):
@@ -769,3 +781,37 @@ class ToolsSeedkeeperChangePinView(View):
         
         return Destination(MainMenuView)
 
+class ToolsSeedkeeperStartIfdNFCView(View):
+    def run(self):
+        import os
+
+        os.system("ifdnfc-activate")
+        time.sleep(1)
+
+        return Destination(MainMenuView)
+
+class ToolsSeedkeeperInstallAppletView(View):
+    def run(self):
+        from subprocess import run
+        import os
+
+        data = run("java -jar /home/pi/Satochip-DIY/gp.jar --install /home/pi/Satochip-DIY/build/SeedKeeper-official-3.0.4.cap", capture_output=True, shell=True, text=True)
+        print("StdOut:", data.stdout)
+        print("StdErr:", data.stderr)
+
+        os.system("ifdnfc-activate")
+
+        return Destination(MainMenuView)
+
+class ToolsSeedkeeperUninstallAppletView(View):
+    def run(self):
+        from subprocess import run
+        import os
+
+        data = run("java -jar /home/pi/Satochip-DIY/gp.jar --uninstall /home/pi/Satochip-DIY/build/SeedKeeper-official-3.0.4.cap", capture_output=True, shell=True, text=True)
+        print("StdOut:", data.stdout)
+        print("StdErr:", data.stderr)
+
+        os.system("ifdnfc-activate")
+
+        return Destination(MainMenuView)
