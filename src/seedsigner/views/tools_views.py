@@ -20,8 +20,11 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
 
-from .view import View, Destination, BackStackView
+from .view import View, Destination, BackStackView, MainMenuView
 
+from seedsigner.helpers import seedkeeper_utils
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
+    WarningScreen, DireWarningScreen, seed_screens, LargeIconStatusScreen)
 
 
 class ToolsMenuView(View):
@@ -30,9 +33,10 @@ class ToolsMenuView(View):
     KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     EXPLORER = "Address Explorer"
     ADDRESS = "Verify address"
+    SEEDKEEPER = ("SeedKeeper", FontAwesomeIconConstants.LOCK)
 
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.EXPLORER, self.ADDRESS]
+        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.EXPLORER, self.ADDRESS, self.SEEDKEEPER]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -59,6 +63,9 @@ class ToolsMenuView(View):
         elif button_data[selected_menu_num] == self.ADDRESS:
             from seedsigner.views.scan_views import ScanAddressView
             return Destination(ScanAddressView)
+
+        elif button_data[selected_menu_num] == self.SEEDKEEPER:
+            return Destination(ToolsSeedkeeperMenuView)
 
 
 
@@ -703,3 +710,62 @@ class ToolsAddressExplorerAddressView(View):
     
         # Exiting/Cancelling the QR display screen always returns to the list
         return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.is_change, start_index=self.start_index, selected_button_index=self.index - self.start_index, initial_scroll=self.parent_initial_scroll), skip_current_view=True)
+
+"""****************************************************************************
+    Seedkeeper Views
+****************************************************************************"""
+class ToolsSeedkeeperMenuView(View):
+    CHANGE_PIN = ("Change PIN")
+
+    def run(self):
+        button_data = [self.CHANGE_PIN]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="Tools",
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.CHANGE_PIN:
+            return Destination(ToolsSeedkeeperChangePinView)
+
+class ToolsSeedkeeperChangePinView(View):
+    def run(self):
+        
+        Satochip_Connector = seedkeeper_utils.init_seedkeeper(self)
+
+        if not Satochip_Connector:
+            return Destination(BackStackView)
+
+        NewPin = seed_screens.SeedAddPassphraseScreen(title="New PIN").display()
+
+        if NewPin == RET_CODE__BACK_BUTTON:
+            return Destination(ToolsSeedkeeperMenuView)
+        
+        new_pin = list(NewPin.encode('utf8'))
+        response, sw1, sw2 = Satochip_Connector.card_change_PIN(0, Satochip_Connector.pin, new_pin)
+        if sw1 == 0x90 and sw2 == 0x00:
+            print("Success: Pin Changed")
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"PIN Updated",
+                show_back_button=False,
+            )
+        else:
+            print("Failure: Pin Change Failed")
+            self.run_screen(
+                WarningScreen,
+                title="Invalid PIN",
+                status_headline=None,
+                text=f"Invalid PIN entered, select another and try again.",
+                show_back_button=True,
+            )
+        
+        return Destination(MainMenuView)
+

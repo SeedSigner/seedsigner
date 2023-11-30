@@ -89,7 +89,6 @@ class FontAwesomeIconConstants:
     MAP = "\uf279"
     PAPER_PLANE = "\uf1d8"
     PEN = "\uf304"
-    NFC = "\uf023"
     SQUARE_CARET_DOWN = "\uf150"
     SQUARE_CARET_LEFT = "\uf191"
     SQUARE_CARET_RIGHT = "\uf152"
