@@ -2,7 +2,9 @@
 ## Background
 Smart Cards are specifically designed to securely store digital data. Javacards are a type of Smart Cards that implement open standards development tools, making them ideal for DIY.
 
-SeedKeeper is a open source seed storage product from Satochip which can be used to securely store multiple BIP39 seeds & passphrases. (And other types of secrets, but these aren't relevant to SeedSigner)
+SeedKeeper is a open source seed storage product from Satochip which can be used to securely store multiple BIP39 seeds & passphrases. (And other types of secrets, but these aren't relevant to SeedSigner) In addition to providing the nessesary functionality, along with security features like secure-channel to protect the data exchange from eavesdropping, etc, the SeedKeeper also has standalone software available for users who may need to securely retrieve their data without access to a SeedSigner... 
+
+This guide focuses on DIY SeedKeeper cards (which are the best for testing) but this will also work with retail SeedKeeper cards for those who prefer that simplicity...
 
 ## Hardware Requirements
 ### USB Smart Card Readers
@@ -54,21 +56,25 @@ _Choose option 1 to install Rust_
 
 **Install LibNFC**
 
+    cd ~
     git clone https://github.com/nfc-tools/libnfc
+    cd libnfc
     autoreconf -vis
     ./configure --with-drivers=pn532_i2c
     make
-    make install
+    sudo make install
     sudo sh -c "echo /usr/local/lib > /etc/ld.so.conf.d/usr-local-lib.conf"
     sudo ldconfig
 
 **Install IfdNFC**
 
-    git clone https://github.com/nfc-tools/ifdnfc.git
+    cd ~
+    git clone https://github.com/nfc-tools/ifdnfc
+    cd ifdnfc
     autoreconf -vis
     ./configure
     make
-    make install
+    sudo make install
 
 **Add Configuration Files** 
 Create the folder 
