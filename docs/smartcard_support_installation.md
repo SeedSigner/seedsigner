@@ -135,7 +135,7 @@ It's possible to obtain very cheap USB "Sim Readers" (Often Blue) for under $5 U
 
 These types of devices will *not* be automatically detected or usable on modern Systems (Windows will give you an explicit error that the PL2302 USB-to-Serial converter is not supported) but can be made to work on Linux and/or Raspberry Pi through using OpenCT and configuring it to work as a Phoenix type reader.
 
-_Note: The version of OpenSC that can be installed via APT is buggy and will not work, it must be built from source..._
+_Note: The version of OpenST that can be installed via APT is buggy and will not work, it must be built from source..._
 
 To Install and configure OpenCT
 
