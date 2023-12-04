@@ -840,6 +840,9 @@ class ToolsSeedkeeperInstallAppletView(View):
             if " Card cryptogram invalid" in data.stderr:
                 failureText = "Card is locked with custom keys. Please refer to the Satochip-DIY documentation..."
 
+            if "SCARD_E_NO_SMARTCARD" in data.stderr:
+                failureText = "Unable to detect Card and/or Reader..."
+
             self.run_screen(
                 WarningScreen,
                 title="Install Failed",
@@ -887,6 +890,9 @@ class ToolsSeedkeeperUninstallAppletView(View):
 
             if " Card cryptogram invalid" in data.stderr:
                 failureText = "Card is locked with custom keys. Please refer to the Satochip-DIY documentation..."
+
+            if "SCARD_E_NO_SMARTCARD" in data.stderr:
+                failureText = "Unable to detect Card and/or Reader..."
 
             self.run_screen(
                 WarningScreen,
