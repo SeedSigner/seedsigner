@@ -798,7 +798,7 @@ class ToolsSeedkeeperStartOpenCTView(View):
     def run(self):
         import os
 
-        os.system("sudo openct-contril init")
+        os.system("sudo openct-control init")
         time.sleep(1)
         os.system("sudo service pcscd restart")
         time.sleep(1)
