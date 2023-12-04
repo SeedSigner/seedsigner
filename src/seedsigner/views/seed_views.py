@@ -289,6 +289,9 @@ class SeedMnemonicInvalidView(View):
 class SeedFinalizeView(View):
     FINALIZE = "Done"
     PASSPHRASE = "BIP-39 Passphrase"
+    CUSTOM_EXTENSION = "Custom Extension"
+    SWITCH = "Switch"
+    CANCEL = "Cancel"
 
     def __init__(self):
         super().__init__()
@@ -297,9 +300,26 @@ class SeedFinalizeView(View):
 
 
     def run(self):
+        if self.seed.electrum_seed_bytes:
+            # see if user wants to enter electrum mode since it's a valid electrum seed
+            button_data = [self.SWITCH, self.CANCEL]
+            selected_menu_num = self.run_screen(
+                    seed_screens.SeedSwitchElectrumModeScreen,
+                    button_data=button_data
+                    )
+            if button_data[selected_menu_num] == self.SWITCH:
+                self.seed.switch_to_electrum()
+                # recalculate fingerprint
+                self.fingerprint = self.seed.get_fingerprint(network=self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+            elif not self.seed.seed_bytes: 
+                # we only got here because it was a valid electrum seed
+                # thus if user didn't mean to enter an electrum seed, it's invalid
+                raise InvalidSeedException(f"Invalid seed entered")
+
         button_data = [self.FINALIZE]
+        passphrase_button = self.CUSTOM_EXTENSION if self.seed.is_electrum else self.PASSPHRASE
         if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) != SettingsConstants.OPTION__DISABLED:
-            button_data.append(self.PASSPHRASE)
+            button_data.append(passphrase_button)
 
         selected_menu_num = self.run_screen(
             seed_screens.SeedFinalizeScreen,
@@ -311,7 +331,7 @@ class SeedFinalizeView(View):
             seed_num = self.controller.storage.finalize_pending_seed()
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
 
-        elif button_data[selected_menu_num] == self.PASSPHRASE:
+        elif button_data[selected_menu_num] == passphrase_button:
             return Destination(SeedAddPassphraseView)
 
 
@@ -323,7 +343,8 @@ class SeedAddPassphraseView(View):
 
 
     def run(self):
-        ret = self.run_screen(seed_screens.SeedAddPassphraseScreen, passphrase=self.seed.passphrase)
+        passphrase_title="Custom Extension" if self.seed.is_electrum else "BIP-39 Passphrase"
+        ret = self.run_screen(seed_screens.SeedAddPassphraseScreen, passphrase=self.seed.passphrase, title=passphrase_title)
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -612,7 +633,9 @@ class SeedExportXpubScriptTypeView(View):
     def run(self):
         from .tools_views import ToolsAddressExplorerAddressTypeView
         args = {"seed_num": self.seed_num, "sig_type": self.sig_type}
-        if len(self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)) == 1:
+        seed = self.controller.storage.seeds[self.seed_num]
+        script_types = [SettingsConstants.NATIVE_SEGWIT] if seed.is_electrum else self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)
+        if len(script_types) == 1:
             # Nothing to select; skip this screen
             args["script_type"] = self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)[0]
 
@@ -629,6 +652,8 @@ class SeedExportXpubScriptTypeView(View):
         button_data = []
         for script_type in self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES):
             button_data.append(script_type)
+        if seed.is_electrum:
+            button_data = [SettingsConstants.NATIVE_SEGWIT]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -799,7 +824,8 @@ class SeedExportXpubDetailsView(View):
             derivation_path = embit_utils.get_standard_derivation_path(
                 network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
                 wallet_type=self.sig_type,
-                script_type=self.script_type
+                script_type=self.script_type,
+                is_electrum=self.seed.is_electrum
             )
 
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__DISABLED:
@@ -1299,7 +1325,7 @@ class SeedTranscribeSeedQRFormatView(View):
             num_modules_standard = 29
             num_modules_compact = 25
 
-        if self.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR) != SettingsConstants.OPTION__ENABLED:
+        if seed.is_electrum or self.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR) != SettingsConstants.OPTION__ENABLED:
             # Only configured for standard SeedQR
             return Destination(
                 SeedTranscribeSeedQRWarningView,

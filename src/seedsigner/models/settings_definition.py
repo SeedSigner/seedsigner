@@ -198,6 +198,11 @@ class SettingsConstants:
         TYPE__ENABLED_DISABLED_PROMPT_REQUIRED,
     ]
 
+    # Electrum seed constants
+    ELECTRUM_SEED_LEGACY = "01"
+    ELECTRUM_SEED_SEGWIT = "100"
+    ELECTRUM_SEED_2FA = "101"
+    ELECTRUM_PBKDF2_ROUNDS=2048
 
 @dataclass
 class SettingsEntry:

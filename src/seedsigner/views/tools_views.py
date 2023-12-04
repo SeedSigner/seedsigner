@@ -534,6 +534,7 @@ class ToolsAddressExplorerAddressTypeView(View):
                     network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
                     wallet_type=SettingsConstants.SINGLE_SIG,
                     script_type=self.script_type,
+                    is_electrum = self.seed.is_electrum
                 )
 
             data["derivation_path"] = derivation_path

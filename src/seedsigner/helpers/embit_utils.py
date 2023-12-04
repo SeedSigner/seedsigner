@@ -19,7 +19,7 @@ from seedsigner.models.settings_definition import SettingsConstants
 # TODO: PR these directly into `embit`? Or replace with new/existing methods already in `embit`?
 
 
-def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, script_type: str = SettingsConstants.NATIVE_SEGWIT) -> str:
+def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, script_type: str = SettingsConstants.NATIVE_SEGWIT, is_electrum : bool = False) -> str:
     if network == SettingsConstants.MAINNET:
         network_path = "0'"
     elif network == SettingsConstants.TESTNET:
@@ -30,6 +30,8 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
         raise Exception("Unexpected network")
 
     if wallet_type == SettingsConstants.SINGLE_SIG:
+        if is_electrum:
+            return f"m/0h"
         if script_type == SettingsConstants.NATIVE_SEGWIT:
             return f"m/84'/{network_path}/0'"
         elif script_type == SettingsConstants.NESTED_SEGWIT:
@@ -40,6 +42,8 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
             raise Exception("Unexpected script type")
 
     elif wallet_type == SettingsConstants.MULTISIG:
+        if is_electrum:
+            return f"m/1h"
         if script_type == SettingsConstants.NATIVE_SEGWIT:
             return f"m/48'/{network_path}/0'/2'"
         elif script_type == SettingsConstants.NESTED_SEGWIT:
