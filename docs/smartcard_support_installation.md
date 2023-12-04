@@ -6,6 +6,9 @@ SeedKeeper is a open source seed storage product from Satochip which can be used
 
 This guide focuses on DIY SeedKeeper cards (which are the best for testing) but this will also work with retail SeedKeeper cards for those who prefer that simplicity...
 
+Demo 1: Pi4 + NFC - https://youtu.be/WHVWqJJBNdA
+Demo 2: PiZero 1.3 + NFC + USB Sim Reader (Phoenix) - https://youtu.be/uG44Fw3rOLg
+
 ## Hardware Requirements
 ### USB Smart Card Readers 
 Any USB smart card reader that is compatible with will work, either hard-wired (Contact) or NFC (Contactless).
