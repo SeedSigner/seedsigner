@@ -722,7 +722,7 @@ class ToolsSeedkeeperMenuView(View):
     UNINSTALL_APPLET = ("Uninstall Applet")
 
     def run(self):
-        button_data = [self.CHANGE_PIN, self.IFDNFC_ACTIVATE, self.OPENCT_ACTIVATE self.INSTALL_APPLET, self.UNINSTALL_APPLET]
+        button_data = [self.CHANGE_PIN, self.IFDNFC_ACTIVATE, self.OPENCT_ACTIVATE, self.INSTALL_APPLET, self.UNINSTALL_APPLET]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -794,7 +794,7 @@ class ToolsSeedkeeperStartIfdNFCView(View):
 
         return Destination(MainMenuView)
 
-class ToolsSeedkeeperStartIfdNFCView(View):
+class ToolsSeedkeeperStartOpenCTView(View):
     def run(self):
         import os
 
