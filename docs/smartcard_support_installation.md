@@ -165,8 +165,12 @@ and add the following to the end of the file
     };
 
 
-Once you have done this, you can boot the device with the USB SIM reader connected.
+Once you have done this, you can boot the device with the USB SIM reader connected. 
 
 Once the device is started, go into `tools->seedkeeper>Start OpenCT(SIM)` and the USB reader should then work until the next restart.
+
+**Troubleshooting Connection Issues with OpenCT(Sim Readers)**
+
+It's possible that when you run `Start OpenCT(SIM)` that this command will fail and the device will go into a bugged state. During normal operation, the Red LED on the SIM reader will flash once or twice when you start OpenCT, but should then stay off unless you are performing operations on your SeedKeeper... If the red LED just flashes continiously after you have started OpenCT, disconnect the power, re-start the device and try again... (And if it keeps happening, try a different power supply)
 
 _Adapted from https://timesinker.blogspot.com/2016/04/using-cheap-sim-card-readers.html_
