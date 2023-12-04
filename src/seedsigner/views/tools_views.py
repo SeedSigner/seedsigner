@@ -813,10 +813,49 @@ class ToolsSeedkeeperInstallAppletView(View):
         self.loading_screen.start()
 
         data = run("java -jar /home/pi/Satochip-DIY/gp.jar --install /home/pi/Satochip-DIY/build/SeedKeeper-official-3.0.4.cap", capture_output=True, shell=True, text=True)
+
+        self.loading_screen.stop()
+
         print("StdOut:", data.stdout)
         print("StdErr:", data.stderr)
 
-        self.loading_screen.stop()
+        data.stderr = data.stderr.replace("Warning: no keys given, defaulting to 404142434445464748494A4B4C4D4E4F", "")
+        print("StdErr:", len(data.stderr))
+
+        if len(data.stderr) > 1:
+            # If it fails, report the error back (And make it more human readable for common errors)
+            failureText = data.stderr
+            if "Applet loading not allowed" in data.stderr:
+                failureText = "Applet is already installed..."
+
+            if "Multiple readers, must choose one" in data.stderr:
+                failureText = "Multiple readers connected, please run with a single reader connected/activated..."
+
+            if "0x6444" in data.stderr or "0x6F00" in data.stderr:
+                failureText = "Incompatible Javacard..."
+
+            if "Not enough memory space" in data.stderr:
+                failureText = "Not enough space on Javacard for Applet..."
+
+            if " Card cryptogram invalid" in data.stderr:
+                failureText = "Card is locked with custom keys. Please refer to the Satochip-DIY documentation..."
+
+            self.run_screen(
+                WarningScreen,
+                title="Install Failed",
+                status_headline=None,
+                text=failureText,
+                show_back_button=True,
+            )
+        else:
+            print("Applet Installed")
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"Applet Installed",
+                show_back_button=False,
+            )
 
         return Destination(MainMenuView)
 
@@ -829,9 +868,41 @@ class ToolsSeedkeeperUninstallAppletView(View):
         self.loading_screen.start()
 
         data = run("java -jar /home/pi/Satochip-DIY/gp.jar --uninstall /home/pi/Satochip-DIY/build/SeedKeeper-official-3.0.4.cap", capture_output=True, shell=True, text=True)
+        self.loading_screen.stop()
+
         print("StdOut:", data.stdout)
         print("StdErr:", data.stderr)
 
-        self.loading_screen.stop()
+        data.stderr = data.stderr.replace("Warning: no keys given, defaulting to 404142434445464748494A4B4C4D4E4F", "")
+        print("StdErr:", len(data.stderr))
+
+        if len(data.stderr) > 1:
+            # If it fails, report the error back (And make it more human readable for common errors)
+            failureText = data.stderr
+            if "is not present on card" in data.stderr:
+                failureText = "Applet is not on the card, nothing to uninstall..."
+
+            if "Multiple readers, must choose one" in data.stderr:
+                failureText = "Multiple readers connected, please run with a single reader connected/activated..."
+
+            if " Card cryptogram invalid" in data.stderr:
+                failureText = "Card is locked with custom keys. Please refer to the Satochip-DIY documentation..."
+
+            self.run_screen(
+                WarningScreen,
+                title="Uninstall Failed",
+                status_headline=None,
+                text=failureText,
+                show_back_button=True,
+            )
+        else:
+            print("Applet Uninstalled")
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"Applet Uninstalled",
+                show_back_button=False,
+            )
 
         return Destination(MainMenuView)
