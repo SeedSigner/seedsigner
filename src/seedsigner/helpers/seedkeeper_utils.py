@@ -13,7 +13,8 @@ def init_seedkeeper(parentObject):
 
     # Spam connecting for 10 seconds to give the user time to insert the card
     status = None
-    for i in range(100):
+    time_end = time.time() + 10
+    while time.time() < time_end:
         try:
             Satochip_Connector = CardConnector(card_filter="seedkeeper")
             time.sleep(0.1)  # give some time to initialize reader...

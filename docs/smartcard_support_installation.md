@@ -7,7 +7,7 @@ SeedKeeper is a open source seed storage product from Satochip which can be used
 This guide focuses on DIY SeedKeeper cards (which are the best for testing) but this will also work with retail SeedKeeper cards for those who prefer that simplicity...
 
 ## Hardware Requirements
-### USB Smart Card Readers
+### USB Smart Card Readers 
 Any USB smart card reader that is compatible with will work, either hard-wired (Contact) or NFC (Contactless).
 
 If you are running SeedSigner on a system image that is derived from a standard Raspberry Pi OS image, USB devices should be plug and play once PC/SC services are installed.
@@ -17,7 +17,7 @@ If you are running SeedSigner on a system image that is derived from a standard 
 The **ACS ACR 122U reader** is unreliable for flashing applets and may brick your card. (Though works fine for normal operation after they have been flashed)
 
 ### GPIO Connected Smart Card Readers
-The PN352 NFC module is low cost ($5 on Aliexpress) can be connected via available IO pins and is well supported by LibNFC.
+The PN352 NFC V3 module is low cost ($5 on Aliexpress) can be connected via available IO pins and is well supported by LibNFC.
 
 Instructions on how to physically connect it can be found here: https://blog.stigok.com/2017/10/12/setting-up-a-pn532-nfc-module-on-a-raspberry-pi-using-i2c.html (Stop when you get to the section on LibNFC, as that part is not relevant)
 
@@ -47,7 +47,9 @@ _Choose option 1 to install Rust_
 
 **Install PySatoChip**
 
+    cd ~
     git clone https://github.com/3rdIteration/pysatochip
+    cd pysatochip
     pip3 install -r requirements.txt
     cd pysatochip
     python setup.py install
@@ -76,17 +78,20 @@ _Choose option 1 to install Rust_
     make
     sudo make install
 
+**Note Concerning IfdNFC**
+You may get a message like `Insufficient buffer` you run `idfnfc-activate`, or a message like `ifdnfc inactive` but it is actually working. (Even on x86 platforms when it doesn't work with other tools like pcsc_scan) 
+
 **Add Configuration Files** 
 Create the folder 
 
-    mkdir /usr/local/etc/nfc/
+    sudo mkdir /usr/local/etc/nfc/
 
-Create the file `/usr/local/etc/nfc/libnfc.conf` and add the following 
+Create the file `/usr/local/etc/nfc/libnfc.conf` and add the following (`sudo nano /usr/local/etc/nfc/libnfc.conf`)
 
     device.name = "IFD-NFC"
     device.connstring = "pn532_i2c:/dev/i2c-1"
 
-Create the file `/etc/reader.conf.d/libifdnfc` and add the following
+Create the file `/etc/reader.conf.d/libifdnfc` and add the following (`sudo nano /etc/reader.conf.d/libifdnfc`)
 
     FRIENDLYNAME      "IFD-NFC"
     LIBPATH           /usr/local/lib/libifdnfc.so
@@ -98,7 +103,7 @@ Create the file `/etc/reader.conf.d/libifdnfc` and add the following
 
 **Activating IFD-NFC**
 
-You will notice that there is a menu option to `ifdnfc-activate` under the tools->SeedKeeper menu. Basically IFDNFC only needs to be run once on each boot, after which you need to restart the SeedSigner app. (But not the device)
+You will notice that there is a menu option to `Start PN532(PN532)` under the tools->SeedKeeper menu. Basically IFDNFC only needs to be run once on each boot, after which you need to restart the SeedSigner app. (But not the device)
 
 Applet management operations (Installing, uninstalling, etc) often terminate the `idfnfc` process after completing, so if you can no longer do SeedKeeper operations like change PIN, load or save secrets, immediatly after flashing the applet, then this is likely why. (Just re-run the `ifdnfc-activate` process I mention above, restart the app and it should work fine)
 
@@ -119,3 +124,49 @@ The commands that the menu items run are currently hardcoded to be:
 ### Javacard Build Environment (Optional: Needed to build SeedKeeper from Source)
 
 Follow the guide here: https://github.com/3rdIteration/Satochip-DIY
+
+### OpenCT and Generic/Old Blue "Sim Readers" (Optional: Get a more modern Smart Card reader if possible... )
+**Included only for Reference/Education/Backup, as these can be built from Scratch...**
+
+It's possible to obtain very cheap USB "Sim Readers" (Often Blue) for under $5 USD that can be used to access the Seedkeeper. (Or you can build on using the schematic here: https://circuitsarchive.org/circuits/smartcard/smartcard-pc-serial-reader-writer-phoenix/) 
+
+These types of devices will *not* be automatically detected or usable on modern Systems (Windows will give you an explicit error that the PL2302 USB-to-Serial converter is not supported) but can be made to work on Linux and/or Raspberry Pi through using OpenCT and configuring it to work as a Phoenix type reader.
+
+_Note: The version of OpenSC that can be installed via APT is buggy and will not work, it must be built from source..._
+
+To Install and configure OpenCT
+
+    cd ~
+    git clone https://github.com/OpenSC/openct
+    cd openct
+    ./bootstrap
+    ./configure --enable-pcsc
+    make
+    sudo make install
+    sudo ldconfig
+    sudo mkdir -p /usr/local/var/run/openct/
+
+Then Add configuration files to use it with PCSC tools
+
+Add it to the list of readers `sudo nano /etc/reader.conf.d/openct`
+
+    FRIENDLYNAME     "OpenCT"
+    DEVICENAME       /dev/null
+    LIBPATH          /usr/local/lib/openct-ifd.so
+    CHANNELID        0
+
+Enable the Phoenix Driver in OpenCT `sudo nano /usr/local/etc/openct.conf`
+
+and add the following to the end of the file
+
+    reader phoenix {
+        driver = phoenix;
+        device = serial:/dev/ttyUSB0;
+    };
+
+
+Once you have done this, you can boot the device with the USB SIM reader connected.
+
+Once the device is started, go into `tools->seedkeeper>Start OpenCT(SIM)` and the USB reader should then work until the next restart.
+
+_Adapted from https://timesinker.blogspot.com/2016/04/using-cheap-sim-card-readers.html_

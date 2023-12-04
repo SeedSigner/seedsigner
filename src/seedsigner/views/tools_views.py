@@ -716,12 +716,13 @@ class ToolsAddressExplorerAddressView(View):
 ****************************************************************************"""
 class ToolsSeedkeeperMenuView(View):
     CHANGE_PIN = ("Change PIN")
-    IFDNFC_ACTIVATE = ("Run ifdnfc-activate")
+    IFDNFC_ACTIVATE = ("Start PN532(PN532)")
+    OPENCT_ACTIVATE = ("Start OpenCT(SIM)")
     INSTALL_APPLET = ("Install Applet")
     UNINSTALL_APPLET = ("Uninstall Applet")
 
     def run(self):
-        button_data = [self.CHANGE_PIN, self.IFDNFC_ACTIVATE, self.INSTALL_APPLET, self.UNINSTALL_APPLET]
+        button_data = [self.CHANGE_PIN, self.IFDNFC_ACTIVATE, self.OPENCT_ACTIVATE self.INSTALL_APPLET, self.UNINSTALL_APPLET]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -738,6 +739,9 @@ class ToolsSeedkeeperMenuView(View):
         
         elif button_data[selected_menu_num] == self.IFDNFC_ACTIVATE:
             return Destination(ToolsSeedkeeperStartIfdNFCView)
+
+        elif button_data[selected_menu_num] == self.OPENCT_ACTIVATE:
+            return Destination(ToolsSeedkeeperStartOpenCTView)
 
         elif button_data[selected_menu_num] == self.INSTALL_APPLET:
             return Destination(ToolsSeedkeeperInstallAppletView)
@@ -786,6 +790,17 @@ class ToolsSeedkeeperStartIfdNFCView(View):
         import os
 
         os.system("ifdnfc-activate")
+        time.sleep(1)
+
+        return Destination(MainMenuView)
+
+class ToolsSeedkeeperStartIfdNFCView(View):
+    def run(self):
+        import os
+
+        os.system("sudo openct-contril init")
+        time.sleep(1)
+        os.system("sudo service pcscd restart")
         time.sleep(1)
 
         return Destination(MainMenuView)
