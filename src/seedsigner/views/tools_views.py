@@ -26,7 +26,6 @@ from seedsigner.helpers import seedkeeper_utils
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens, LargeIconStatusScreen)
 
-
 class ToolsMenuView(View):
     IMAGE = (" New seed", FontAwesomeIconConstants.CAMERA)
     DICE = ("New seed", FontAwesomeIconConstants.DICE)
@@ -809,12 +808,15 @@ class ToolsSeedkeeperInstallAppletView(View):
     def run(self):
         from subprocess import run
         import os
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+        self.loading_screen = LoadingScreenThread(text="Installing Applet")
+        self.loading_screen.start()
 
         data = run("java -jar /home/pi/Satochip-DIY/gp.jar --install /home/pi/Satochip-DIY/build/SeedKeeper-official-3.0.4.cap", capture_output=True, shell=True, text=True)
         print("StdOut:", data.stdout)
         print("StdErr:", data.stderr)
 
-        os.system("ifdnfc-activate")
+        self.loading_screen.stop()
 
         return Destination(MainMenuView)
 
@@ -822,11 +824,14 @@ class ToolsSeedkeeperUninstallAppletView(View):
     def run(self):
         from subprocess import run
         import os
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+        self.loading_screen = LoadingScreenThread(text="Uninstalling Applet")
+        self.loading_screen.start()
 
         data = run("java -jar /home/pi/Satochip-DIY/gp.jar --uninstall /home/pi/Satochip-DIY/build/SeedKeeper-official-3.0.4.cap", capture_output=True, shell=True, text=True)
         print("StdOut:", data.stdout)
         print("StdErr:", data.stderr)
 
-        os.system("ifdnfc-activate")
+        self.loading_screen.stop()
 
         return Destination(MainMenuView)

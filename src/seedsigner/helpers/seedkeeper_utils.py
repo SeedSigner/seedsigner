@@ -2,14 +2,16 @@ from pysatochip.CardConnector import CardConnector
 from pysatochip.JCconstants import SEEDKEEPER_DIC_TYPE, SEEDKEEPER_DIC_ORIGIN, SEEDKEEPER_DIC_EXPORT_RIGHTS
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens, LargeIconStatusScreen)
+from seedsigner.gui.screens.screen import LoadingScreenThread
+
 
 import os
 import time
 from os import urandom
 
 def init_seedkeeper(parentObject):
-    # os.system("ifdnfc-activate")
-    # time.sleep(0.1)  # give some time to initialize reader...
+    parentObject.loading_screen = LoadingScreenThread(text="Searching for SeedKeeper")
+    parentObject.loading_screen.start()
 
     # Spam connecting for 10 seconds to give the user time to insert the card
     status = None
@@ -23,6 +25,8 @@ def init_seedkeeper(parentObject):
         except Exception as e:
             print(e)
             time.sleep(0.1) # Sleep for 100ms
+
+    parentObject.loading_screen.stop()
 
     if not status:
         parentObject.run_screen(
@@ -41,6 +45,8 @@ def init_seedkeeper(parentObject):
     if (Satochip_Connector.needs_secure_channel):
         print("Initiating Secure Channel")
         Satochip_Connector.card_initiate_secure_channel()
+
+
 
     if status[3]['setup_done']:
         ret = seed_screens.SeedAddPassphraseScreen(title="Seedkeeper PIN").display()
@@ -84,6 +90,7 @@ def init_seedkeeper(parentObject):
             text=f"Set a device PIN to complete Card Setup",
             show_back_button=True,
         )
+
 
         ret = seed_screens.SeedAddPassphraseScreen(title="Seedkeeper PIN").display()
 
