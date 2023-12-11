@@ -106,9 +106,25 @@ Create the file `/etc/reader.conf.d/libifdnfc` and add the following (`sudo nano
 
 **Activating IFD-NFC**
 
-You will notice that there is a menu option to `Start PN532(PN532)` under the tools->SeedKeeper menu. Basically IFDNFC only needs to be run once on each boot, after which you need to restart the SeedSigner app. (But not the device)
+You will notice that there is a menu option to `Start PN532(PN532)` under the tools->SeedKeeper menu. Basically IFDNFC only needs to be run once on each boot, after which you may also need to restart the SeedSigner app. (But not the device)
 
 Applet management operations (Installing, uninstalling, etc) often terminate the `idfnfc` process after completing, so if you can no longer do SeedKeeper operations like change PIN, load or save secrets, immediatly after flashing the applet, then this is likely why. (Just re-run the `ifdnfc-activate` process I mention above, restart the app and it should work fine)
+
+### Python Bindings for LibNFC (Optional: Useful for Debugging the PN532 NFC)
+
+Install some additional build packages
+
+    sudo apt install cmake
+
+Download, install and build
+
+    cd ~
+    git clone https://github.com/xantares/nfc-bindings.git
+    cd nfc-bindings
+    cmake cmake -DCMAKE_INSTALL_PREFIX=~/.local -DPYTHON_EXECUTABLE=/usr/local/bin/python3.10 -DPYTHON_LIBRARY=/usr/local/lib/libpython3.10.a -DPYTHON_INCLUDE_DIR=/usr/local/include/python3.10
+    make install
+    cp /home/pi/.local/lib/python3.7/site-packages/_nfc.py ~/.envs/seedsigner-env/lib/python3.10/site-packages/nfc.py
+    cp /home/pi/.local/lib/python3.7/site-packages/_nfc.so ~/.envs/seedsigner-env/lib/python3.10/site-packages/_nfc.so
 
 ### Javacard Managment Tools (Optional: Needed to flash SeedKeeper to Javacards)
 
