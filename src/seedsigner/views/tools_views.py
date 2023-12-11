@@ -715,13 +715,14 @@ class ToolsAddressExplorerAddressView(View):
 ****************************************************************************"""
 class ToolsSeedkeeperMenuView(View):
     CHANGE_PIN = ("Change PIN")
+    TEST_NFC = ("Test NFC Scan")
     IFDNFC_ACTIVATE = ("Start PN532(PN532)")
     OPENCT_ACTIVATE = ("Start OpenCT(SIM)")
     INSTALL_APPLET = ("Install Applet")
     UNINSTALL_APPLET = ("Uninstall Applet")
 
     def run(self):
-        button_data = [self.CHANGE_PIN, self.IFDNFC_ACTIVATE, self.OPENCT_ACTIVATE, self.INSTALL_APPLET, self.UNINSTALL_APPLET]
+        button_data = [self.CHANGE_PIN, self.TEST_NFC, self.IFDNFC_ACTIVATE, self.OPENCT_ACTIVATE, self.INSTALL_APPLET, self.UNINSTALL_APPLET]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -735,6 +736,9 @@ class ToolsSeedkeeperMenuView(View):
 
         elif button_data[selected_menu_num] == self.CHANGE_PIN:
             return Destination(ToolsSeedkeeperChangePinView)
+        
+        elif button_data[selected_menu_num] == self.TEST_NFC:
+            return Destination(ToolsSeedkeeperTestNFCView)
         
         elif button_data[selected_menu_num] == self.IFDNFC_ACTIVATE:
             return Destination(ToolsSeedkeeperStartIfdNFCView)
@@ -781,6 +785,108 @@ class ToolsSeedkeeperChangePinView(View):
                 text=f"Invalid PIN entered, select another and try again.",
                 show_back_button=True,
             )
+        
+        return Destination(MainMenuView)
+
+class ToolsSeedkeeperTestNFCView(View):
+    def run(self):
+        
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+        self.loading_screen = LoadingScreenThread(text="Scanning for NFC Tag")
+        self.loading_screen.start()
+
+        """Quick start example that presents how to use libnfc"""
+        import sys
+        import nfc
+        import binascii
+
+        context = nfc.init()
+        nfcdevice = nfc.open(context)
+        if nfcdevice is None:
+            self.loading_screen.stop()
+            print('ERROR: Unable to open NFC device.')
+            self.run_screen(
+                WarningScreen,
+                title="NFC Failure",
+                status_headline=None,
+                text=f"ERROR: Unable to open NFC device.",
+                show_back_button=True,
+            )
+            return Destination(BackStackView)
+            
+        if nfc.initiator_init(nfcdevice) < 0:
+            self.loading_screen.stop()
+            print('ERROR: Unable to init NFC device.')
+            self.run_screen(
+                WarningScreen,
+                title="NFC Failure",
+                status_headline=None,
+                text=f"ERROR: Unable to init NFC device.",
+                show_back_button=True,
+            )
+            return Destination(BackStackView)
+
+        print('NFC reader: %s opened' % nfc.device_get_name(nfcdevice))
+
+        nfcmodulation = nfc.modulation()
+        nfcmodulation.nmt = nfc.NMT_ISO14443A
+        nfcmodulation.nbr = nfc.NBR_106
+
+        nt = nfc.target()
+
+        # Scan for 15 seconds
+        ret = nfc.initiator_poll_target(nfcdevice, nfcmodulation, 1, 100, 1, nt)
+
+        self.loading_screen.stop()
+
+
+        if ret and nt.nti.nai.szUidLen:
+
+            print('The following (NFC) ISO14443A tag was found:')
+            print('    ATQA (SENS_RES): ', end='')
+            nfc.print_hex(nt.nti.nai.abtAtqa, 2)
+            id = 1
+            if nt.nti.nai.abtUid[0] == 8:
+                id = 3
+            print('       UID (NFCID%d): ' % id , end='')
+            nfc.print_hex(nt.nti.nai.abtUid, nt.nti.nai.szUidLen)
+            foundtext="UID:\n" + binascii.hexlify(nt.nti.nai.abtUid).decode()[:14]
+
+            print('      SAK (SEL_RES): ', end='')
+            print(nt.nti.nai.btSak)
+            if nt.nti.nai.szAtsLen:
+                print('          ATS (ATR): ', end='')
+                nfc.print_hex(nt.nti.nai.abtAts, nt.nti.nai.szAtsLen)
+                foundtext = foundtext + "\nATR:\n" + binascii.hexlify(nt.nti.nai.abtAts).decode()[:28]
+
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Found NFC Tag",
+                status_headline=None,
+                text=foundtext,
+                show_back_button=False,
+            )
+        elif ret:
+            print('Warning: IFD-NFC Conflict.')
+            self.run_screen(
+                WarningScreen,
+                title="NFC Conflict",
+                status_headline=None,
+                text=f"Can't scan when IFD-NFC Active",
+                show_back_button=True,
+            )
+        else:
+            print('Warning: No NFC Tag Detected.')
+            self.run_screen(
+                WarningScreen,
+                title="Warning",
+                status_headline=None,
+                text=f"Warning: No NFC Tag Detected.",
+                show_back_button=True,
+            )
+
+        nfc.close(nfcdevice)
+        nfc.exit(context)
         
         return Destination(MainMenuView)
 
