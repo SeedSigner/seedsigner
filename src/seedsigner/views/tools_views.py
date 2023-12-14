@@ -949,34 +949,35 @@ class ToolsSeedkeeperUninstallAppletView(View):
 
         installed_applets = seedkeeper_utils.run_globalplatform(self,"-l -v", "Checking Installed Applets", None)
 
-        installed_applets = installed_applets.split('\n')
+        if installed_applets:
+            installed_applets = installed_applets.split('\n')
 
-        installed_applets_aids = []
-        installed_applets_list = []
+            installed_applets_aids = []
+            installed_applets_list = []
 
-        for line in installed_applets:
-            if "PKG: " in line:
-                package_info = line.split()
-                print(package_info)
-                # Ignore system packages
-                if package_info[1] in ['A0000001515350', 'A00000016443446F634C697465', 'A0000000620204', 'A0000000620202', 'D27600012401']:
-                    continue
-                
-                installed_applets_list.append(package_info[3][2:-2])
-                installed_applets_aids.append(package_info[1])
+            for line in installed_applets:
+                if "PKG: " in line:
+                    package_info = line.split()
+                    print(package_info)
+                    # Ignore system packages
+                    if package_info[1] in ['A0000001515350', 'A00000016443446F634C697465', 'A0000000620204', 'A0000000620202', 'D27600012401']:
+                        continue
+                    
+                    installed_applets_list.append(package_info[3][2:-2])
+                    installed_applets_aids.append(package_info[1])
 
-        selected_applet_num = self.run_screen(
-            ButtonListScreen,
-            title="Select Applet",
-            is_button_text_centered=False,
-            button_data=installed_applets_list
-        )
+            selected_applet_num = self.run_screen(
+                ButtonListScreen,
+                title="Select Applet",
+                is_button_text_centered=False,
+                button_data=installed_applets_list
+            )
 
-        if selected_applet_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
+            if selected_applet_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
 
-        applet_aid = installed_applets_aids[selected_applet_num]
+            applet_aid = installed_applets_aids[selected_applet_num]
 
-        seedkeeper_utils.run_globalplatform(self,"--delete " + applet_aid + " -force", "Uninstalling Applet", "Applet Uninstalled")
+            seedkeeper_utils.run_globalplatform(self,"--delete " + applet_aid + " -force", "Uninstalling Applet", "Applet Uninstalled")
 
         return Destination(MainMenuView)

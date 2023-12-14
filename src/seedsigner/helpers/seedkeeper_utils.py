@@ -204,8 +204,11 @@ def run_globalplatform(parentObject, command, loadingText = "Loading", successte
             title="Failed",
             status_headline=None,
             text=failureText,
-            show_back_button=True,
+            show_back_button=False,
         )
+
+        return None
+
     else:
         if successtext:
             print(successtext)
@@ -217,4 +220,4 @@ def run_globalplatform(parentObject, command, loadingText = "Loading", successte
                 show_back_button=False,
             )
 
-    return data.stdout
+        return data.stdout
