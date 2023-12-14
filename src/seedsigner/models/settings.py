@@ -177,6 +177,20 @@ class Settings(Singleton):
             import time
             print("Smartcard Interface Changed")
 
+            # Execution order matters here if swithing from Phoenix to PN352, basically we want to disable phoenix first and then enable PN532
+            if "phoenix" in value and "phoenix" not in self._data[attr_name]:
+                print("Phoenix Enabled")
+                os.system("sudo openct-control init") # OpenCT needs a bit of time to get going before restarting PCSCD (At least two seconds) to work reliabily
+                time.sleep(3)
+                os.system("sudo service pcscd restart")
+
+            if "phoenix" not in value and "phoenix" in self._data[attr_name]:
+                print("Phoenix Disabled")
+                print("Phoenix Enabled")
+                os.system("sudo openct-control shutdown")
+                time.sleep(3)
+                os.system("sudo service pcscd restart")
+
             if "pn532" in value and "pn532" not in self._data[attr_name]:
                 print("PN532 Enabled")
                 os.system("ifdnfc-activate yes")
@@ -185,20 +199,6 @@ class Settings(Singleton):
                 print("PN532 Disabled")
                 os.system("ifdnfc-activate no")
 
-            if "phoenix" in value and "phoenix" not in self._data[attr_name]:
-                print("Phoenix Enabled")
-                os.system("sudo openct-control init")
-                time.sleep(0.5)
-                os.system("sudo service pcscd restart")
-
-            if "phoenix" not in value and "phoenix" in self._data[attr_name]:
-                print("Phoenix Disabled")
-                print("Phoenix Enabled")
-                os.system("sudo openct-control shutdown")
-                time.sleep(0.5)
-                os.system("sudo service pcscd restart")
-        
-                
         self._data[attr_name] = value
         self.save()
 
