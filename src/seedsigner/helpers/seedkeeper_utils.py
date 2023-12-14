@@ -139,4 +139,82 @@ def init_seedkeeper(parentObject):
 
     return Satochip_Connector
 
-                
+def run_globalplatform(parentObject, command, loadingText = "Loading", successtext = "Success"):
+    from subprocess import run
+
+    parentObject.loading_screen = LoadingScreenThread(text=loadingText)
+    parentObject.loading_screen.start()
+
+    commandString = "java -jar /home/pi/Satochip-DIY/gp.jar " + command
+
+    data = run(commandString, capture_output=True, shell=True, text=True)
+    parentObject.loading_screen.stop()
+
+    print("StdOut:", data.stdout)
+    print("StdErr:", data.stderr)
+
+    #data.stderr = data.stderr.replace("Warning: no keys given, defaulting to 404142434445464748494A4B4C4D4E4F", "")
+
+    data.stderr = data.stderr.split('\n')
+
+    errors_cleaned = []
+    for errorLine in data.stderr:
+        if "[INFO]" in errorLine: 
+            continue
+        elif "404142434445464748494A4B4C4D4E4F" in errorLine:
+            continue
+        elif len(errorLine) < 1:
+            continue
+
+        errors_cleaned.append(errorLine)
+
+    print("StdErr (Cleaned):", errors_cleaned)
+
+    errors_cleaned = " ".join(errors_cleaned)
+
+    if len(errors_cleaned) > 1:
+        # If it fails, report the error back (And make it more human readable for common errors)
+        failureText = errors_cleaned
+        if "is not present on card" in errors_cleaned:
+            failureText = "Applet is not on the card, nothing to uninstall..."
+
+        if "Multiple readers, must choose one" in errors_cleaned:
+            failureText = "Multiple readers connected, please run with a single reader connected/activated..."
+
+        if " Card cryptogram invalid" in errors_cleaned:
+            failureText = "Card is locked with custom keys. Please refer to the Satochip-DIY documentation..."
+
+        if "SCARD_E_NO_SMARTCARD" in errors_cleaned:
+            failureText = "Unable to detect Card and/or Reader..."
+
+        if "Applet loading not allowed" in errors_cleaned:
+            failureText = "Applet is already installed..."
+
+        if "0x6444" in errors_cleaned or "0x6F00" in errors_cleaned:
+            failureText = "Incompatible Javacard..."
+
+        if "Not enough memory space" in errors_cleaned:
+            failureText = "Not enough space on Javacard for Applet..."
+
+        if "SCARD_E_NO_SMARTCARD" in errors_cleaned:
+            failureText = "Unable to detect Card and/or Reader..."
+
+        parentObject.run_screen(
+            WarningScreen,
+            title="Failed",
+            status_headline=None,
+            text=failureText,
+            show_back_button=True,
+        )
+    else:
+        if successtext:
+            print(successtext)
+            parentObject.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=successtext,
+                show_back_button=False,
+            )
+
+    return data.stdout

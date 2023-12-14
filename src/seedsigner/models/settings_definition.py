@@ -92,6 +92,18 @@ class SettingsConstants:
         (REGTEST, "Regtest")
     ]
 
+    #Smartcard Related Constants
+    SMARTCARD_INTERFACE_NONE = "none"
+    SMARTCARD_INTERFACE_USB = "usb"
+    SMARTCARD_INTERFACE_PN532 = "pn532"
+    SMARTCARD_INTERFACE_PHOENIX = "phoenix"
+    ALL_SMARTCARD_INTERFACES = [
+        (SMARTCARD_INTERFACE_NONE, "None"),
+        (SMARTCARD_INTERFACE_USB, "USB PC/SC Reader"),
+        (SMARTCARD_INTERFACE_PN532, "PN532 via GPIO"),
+        (SMARTCARD_INTERFACE_PHOENIX, "Phoenix via USB")
+    ]
+
     @classmethod
     def map_network_to_embit(cls, network) -> str:
         if network == SettingsConstants.MAINNET:
@@ -149,6 +161,7 @@ class SettingsConstants:
     SETTING__PERSISTENT_SETTINGS = "persistent_settings"
     SETTING__COORDINATORS = "coordinators"
     SETTING__BTC_DENOMINATION = "denomination"
+    SETTING__SMARTCARD_INTERFACES = "smartcard_interfaces"
 
     SETTING__NETWORK = "network"
     SETTING__QR_DENSITY = "qr_density"
@@ -379,7 +392,14 @@ class SettingsDefinition:
                       type=SettingsConstants.TYPE__SELECT_1,
                       selection_options=SettingsConstants.ALL_BTC_DENOMINATIONS,
                       default_value=SettingsConstants.BTC_DENOMINATION__THRESHOLD),
-     
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                    attr_name=SettingsConstants.SETTING__SMARTCARD_INTERFACES,
+                    abbreviated_name="screaders",
+                    display_name="Smartcard Interfaces",
+                    type=SettingsConstants.TYPE__SELECT_1,
+                    selection_options=SettingsConstants.ALL_SMARTCARD_INTERFACES,
+                    default_value=SettingsConstants.SMARTCARD_INTERFACE_NONE),
 
         # Advanced options
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,

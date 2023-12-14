@@ -32,10 +32,10 @@ class ToolsMenuView(View):
     KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     EXPLORER = "Address Explorer"
     ADDRESS = "Verify address"
-    SEEDKEEPER = ("SeedKeeper", FontAwesomeIconConstants.LOCK)
+    SMARTCARD = ("Smartcard Tools", FontAwesomeIconConstants.LOCK)
 
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.EXPLORER, self.ADDRESS, self.SEEDKEEPER]
+        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.EXPLORER, self.ADDRESS, self.SMARTCARD]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -63,8 +63,8 @@ class ToolsMenuView(View):
             from seedsigner.views.scan_views import ScanAddressView
             return Destination(ScanAddressView)
 
-        elif button_data[selected_menu_num] == self.SEEDKEEPER:
-            return Destination(ToolsSeedkeeperMenuView)
+        elif button_data[selected_menu_num] == self.SMARTCARD:
+            return Destination(ToolsSmartcardMenuView)
 
 
 
@@ -713,7 +713,7 @@ class ToolsAddressExplorerAddressView(View):
 """****************************************************************************
     Seedkeeper Views
 ****************************************************************************"""
-class ToolsSeedkeeperMenuView(View):
+class ToolsSmartcardMenuView(View):
     CHANGE_PIN = ("Change PIN")
     TEST_NFC = ("Test NFC Scan")
     IFDNFC_ACTIVATE = ("Start PN532(PN532)")
@@ -722,7 +722,7 @@ class ToolsSeedkeeperMenuView(View):
     UNINSTALL_APPLET = ("Uninstall Applet")
 
     def run(self):
-        button_data = [self.CHANGE_PIN, self.TEST_NFC, self.IFDNFC_ACTIVATE, self.OPENCT_ACTIVATE, self.INSTALL_APPLET, self.UNINSTALL_APPLET]
+        button_data = [self.CHANGE_PIN, self.TEST_NFC, self.INSTALL_APPLET, self.UNINSTALL_APPLET]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -795,8 +795,10 @@ class ToolsSeedkeeperTestNFCView(View):
         self.loading_screen = LoadingScreenThread(text="Scanning for NFC Tag")
         self.loading_screen.start()
 
-        """Quick start example that presents how to use libnfc"""
-        import sys
+        os.system("ifdnfc-activate no") # Need to disable IFD-NFC to be able to scan using libnfc-bindings...
+
+        time.sleep(0.2) #Just give the loading screen a chance to load before moving on...
+
         import nfc
         import binascii
 
@@ -809,7 +811,7 @@ class ToolsSeedkeeperTestNFCView(View):
                 WarningScreen,
                 title="NFC Failure",
                 status_headline=None,
-                text=f"ERROR: Unable to open NFC device.",
+                text=f"ERROR: Unable to open NFC device. \n(May not be connected)",
                 show_back_button=True,
             )
             return Destination(BackStackView)
@@ -830,7 +832,7 @@ class ToolsSeedkeeperTestNFCView(View):
 
         nfcmodulation = nfc.modulation()
         nfcmodulation.nmt = nfc.NMT_ISO14443A
-        nfcmodulation.nbr = nfc.NBR_106
+        nfcmodulation.nbr = nfc.NBR_847 #Test at the highest baud rate for the best simulation of Smartcard operation
 
         nt = nfc.target()
 
@@ -838,7 +840,6 @@ class ToolsSeedkeeperTestNFCView(View):
         ret = nfc.initiator_poll_target(nfcdevice, nfcmodulation, 1, 100, 1, nt)
 
         self.loading_screen.stop()
-
 
         if ret and nt.nti.nai.szUidLen:
 
@@ -887,6 +888,11 @@ class ToolsSeedkeeperTestNFCView(View):
 
         nfc.close(nfcdevice)
         nfc.exit(context)
+
+        scinterface = self.settings.get_value(SettingsConstants.SETTING__SMARTCARD_INTERFACES)
+
+        if "pn532" in scinterface:
+            os.system("ifdnfc-activate yes") # Need to re-enable IFD-NFC if required...
         
         return Destination(MainMenuView)
 
@@ -894,7 +900,7 @@ class ToolsSeedkeeperStartIfdNFCView(View):
     def run(self):
         import os
 
-        os.system("ifdnfc-activate")
+        os.system("ifdnfc-activate yes")
         time.sleep(1)
 
         return Destination(MainMenuView)
@@ -915,56 +921,23 @@ class ToolsSeedkeeperInstallAppletView(View):
         from subprocess import run
         import os
         from seedsigner.gui.screens.screen import LoadingScreenThread
-        self.loading_screen = LoadingScreenThread(text="Installing Applet")
-        self.loading_screen.start()
 
-        data = run("java -jar /home/pi/Satochip-DIY/gp.jar --install /home/pi/Satochip-DIY/build/SeedKeeper-official-3.0.4.cap", capture_output=True, shell=True, text=True)
+        cap_files = os.listdir('/home/pi/Satochip-DIY/build/')
 
-        self.loading_screen.stop()
+        selected_file_num = self.run_screen(
+            ButtonListScreen,
+            title="Select Applet",
+            is_button_text_centered=False,
+            button_data=cap_files
+        )
 
-        print("StdOut:", data.stdout)
-        print("StdErr:", data.stderr)
+        if selected_file_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
 
-        data.stderr = data.stderr.replace("Warning: no keys given, defaulting to 404142434445464748494A4B4C4D4E4F", "")
-        print("StdErr:", len(data.stderr))
+        applet_file = cap_files[selected_file_num]
+        print("Selected:", applet_file)
 
-        if len(data.stderr) > 1:
-            # If it fails, report the error back (And make it more human readable for common errors)
-            failureText = data.stderr
-            if "Applet loading not allowed" in data.stderr:
-                failureText = "Applet is already installed..."
-
-            if "Multiple readers, must choose one" in data.stderr:
-                failureText = "Multiple readers connected, please run with a single reader connected/activated..."
-
-            if "0x6444" in data.stderr or "0x6F00" in data.stderr:
-                failureText = "Incompatible Javacard..."
-
-            if "Not enough memory space" in data.stderr:
-                failureText = "Not enough space on Javacard for Applet..."
-
-            if " Card cryptogram invalid" in data.stderr:
-                failureText = "Card is locked with custom keys. Please refer to the Satochip-DIY documentation..."
-
-            if "SCARD_E_NO_SMARTCARD" in data.stderr:
-                failureText = "Unable to detect Card and/or Reader..."
-
-            self.run_screen(
-                WarningScreen,
-                title="Install Failed",
-                status_headline=None,
-                text=failureText,
-                show_back_button=True,
-            )
-        else:
-            print("Applet Installed")
-            self.run_screen(
-                LargeIconStatusScreen,
-                title="Success",
-                status_headline=None,
-                text=f"Applet Installed",
-                show_back_button=False,
-            )
+        installed_applets = seedkeeper_utils.run_globalplatform(self,"--install /home/pi/Satochip-DIY/build/" + applet_file, "Installing Applet", "Applet Installed")
 
         return Destination(MainMenuView)
 
@@ -973,48 +946,37 @@ class ToolsSeedkeeperUninstallAppletView(View):
         from subprocess import run
         import os
         from seedsigner.gui.screens.screen import LoadingScreenThread
-        self.loading_screen = LoadingScreenThread(text="Uninstalling Applet")
-        self.loading_screen.start()
 
-        data = run("java -jar /home/pi/Satochip-DIY/gp.jar --uninstall /home/pi/Satochip-DIY/build/SeedKeeper-official-3.0.4.cap", capture_output=True, shell=True, text=True)
-        self.loading_screen.stop()
+        installed_applets = seedkeeper_utils.run_globalplatform(self,"-l -v", "Checking Installed Applets", None)
 
-        print("StdOut:", data.stdout)
-        print("StdErr:", data.stderr)
+        installed_applets = installed_applets.split('\n')
 
-        data.stderr = data.stderr.replace("Warning: no keys given, defaulting to 404142434445464748494A4B4C4D4E4F", "")
-        print("StdErr:", len(data.stderr))
+        installed_applets_aids = []
+        installed_applets_list = []
 
-        if len(data.stderr) > 1:
-            # If it fails, report the error back (And make it more human readable for common errors)
-            failureText = data.stderr
-            if "is not present on card" in data.stderr:
-                failureText = "Applet is not on the card, nothing to uninstall..."
+        for line in installed_applets:
+            if "PKG: " in line:
+                package_info = line.split()
+                print(package_info)
+                # Ignore system packages
+                if package_info[1] in ['A0000001515350', 'A00000016443446F634C697465', 'A0000000620204', 'A0000000620202', 'D27600012401']:
+                    continue
+                
+                installed_applets_list.append(package_info[3][2:-2])
+                installed_applets_aids.append(package_info[1])
 
-            if "Multiple readers, must choose one" in data.stderr:
-                failureText = "Multiple readers connected, please run with a single reader connected/activated..."
+        selected_applet_num = self.run_screen(
+            ButtonListScreen,
+            title="Select Applet",
+            is_button_text_centered=False,
+            button_data=installed_applets_list
+        )
 
-            if " Card cryptogram invalid" in data.stderr:
-                failureText = "Card is locked with custom keys. Please refer to the Satochip-DIY documentation..."
+        if selected_applet_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
 
-            if "SCARD_E_NO_SMARTCARD" in data.stderr:
-                failureText = "Unable to detect Card and/or Reader..."
+        applet_aid = installed_applets_aids[selected_applet_num]
 
-            self.run_screen(
-                WarningScreen,
-                title="Uninstall Failed",
-                status_headline=None,
-                text=failureText,
-                show_back_button=True,
-            )
-        else:
-            print("Applet Uninstalled")
-            self.run_screen(
-                LargeIconStatusScreen,
-                title="Success",
-                status_headline=None,
-                text=f"Applet Uninstalled",
-                show_back_button=False,
-            )
+        seedkeeper_utils.run_globalplatform(self,"--delete " + applet_aid + " -force", "Uninstalling Applet", "Applet Uninstalled")
 
         return Destination(MainMenuView)

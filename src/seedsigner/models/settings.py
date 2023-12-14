@@ -115,6 +115,10 @@ class Settings(Singleton):
 
 
     def update(self, new_settings: dict):
+        print("Updating Settings")
+        print("Existing Settings:", self._data) 
+        print()
+        print("New Settings:", new_settings)
         """
             Replaces the current settings with the incoming dict.
 
@@ -140,9 +144,11 @@ class Settings(Singleton):
 
         # Can't just merge the _data dict; have to replace keys they have in common
         #   (otherwise list values will be merged instead of replaced).
+        # Do this by running set_value
         for key, value in new_settings.items():
-            self._data.pop(key, None)
-            self._data[key] = value
+            #self._data.pop(key, None)
+            #self._data[key] = value
+            self.set_value(key,value)
 
 
     def set_value(self, attr_name: str, value: any):
@@ -165,10 +171,37 @@ class Settings(Singleton):
                 print(f"Removed {self.SETTINGS_FILENAME}")
             except:
                 print(f"{self.SETTINGS_FILENAME} not found to be removed")
+
+         # Special handling for enabling Smartcard readers
+        if attr_name == SettingsConstants.SETTING__SMARTCARD_INTERFACES:
+            import time
+            print("Smartcard Interface Changed")
+
+            if "pn532" in value and "pn532" not in self._data[attr_name]:
+                print("PN532 Enabled")
+                os.system("ifdnfc-activate yes")
+
+            if "pn532" not in value and "pn532" in self._data[attr_name]:
+                print("PN532 Disabled")
+                os.system("ifdnfc-activate no")
+
+            if "phoenix" in value and "phoenix" not in self._data[attr_name]:
+                print("Phoenix Enabled")
+                os.system("sudo openct-control init")
+                time.sleep(0.5)
+                os.system("sudo service pcscd restart")
+
+            if "phoenix" not in value and "phoenix" in self._data[attr_name]:
+                print("Phoenix Disabled")
+                print("Phoenix Enabled")
+                os.system("sudo openct-control shutdown")
+                time.sleep(0.5)
+                os.system("sudo service pcscd restart")
+        
                 
         self._data[attr_name] = value
         self.save()
-    
+
 
     def get_value(self, attr_name: str):
         """
