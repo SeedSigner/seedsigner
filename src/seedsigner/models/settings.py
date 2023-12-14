@@ -177,6 +177,22 @@ class Settings(Singleton):
             import time
             print("Smartcard Interface Changed")
 
+            # Basically just check through a a bunch of possible USB hubs and ports and enable/disable them all (Should cover all RPi models, RPi4 has lots of USB ports...)
+            if "usb" not in value and "usb" in self._data[attr_name]:
+                print("Disabling USB")
+                for hub in range(3):
+                    for port in range(3):
+                        os.system("sudo hub-ctrl -H " + str(hub) + " -P " + str(port) + " -p 0")
+
+            if "usb" in value and "usb" not in self._data[attr_name]:
+                print("Enabling USB")
+                for hub in range(3):
+                    for port in range(5):
+                        os.system("sudo hub-ctrl -H " + str(hub) + " -P " + str(port) + " -p 1")
+
+                time.sleep(1)
+                os.system("sudo service pcscd restart") # PCSC doesn't always work properly after USB ports have been re-enabled
+
             # Execution order matters here if swithing from Phoenix to PN352, basically we want to disable phoenix first and then enable PN532
             if "phoenix" in value and "phoenix" not in self._data[attr_name]:
                 print("Phoenix Enabled")
@@ -186,7 +202,6 @@ class Settings(Singleton):
 
             if "phoenix" not in value and "phoenix" in self._data[attr_name]:
                 print("Phoenix Disabled")
-                print("Phoenix Enabled")
                 os.system("sudo openct-control shutdown")
                 time.sleep(3)
                 os.system("sudo service pcscd restart")

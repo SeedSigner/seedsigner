@@ -126,6 +126,14 @@ Download, install and build
     cp /home/pi/.local/lib/python3.7/site-packages/_nfc.py ~/.envs/seedsigner-env/lib/python3.10/site-packages/nfc.py
     cp /home/pi/.local/lib/python3.7/site-packages/_nfc.so ~/.envs/seedsigner-env/lib/python3.10/site-packages/_nfc.so
 
+### hub-ctrl (Optional: Disables USB ports when not needed for Smartcard Interface)
+
+    cd ~
+    git clone https://github.com/yy502/hub-ctrl.git
+    cd hub-ctrl
+    gcc -o hub-ctrl hub-ctrl.c -lusb -std=c99
+    sudo cp hub-ctrl /usr/local/bin/hub-ctrl
+
 ### Javacard Managment Tools (Optional: Needed to flash SeedKeeper to Javacards)
 
 You just need to install openjdk-8-jdk and Apache Ant

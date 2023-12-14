@@ -96,7 +96,7 @@ class SettingsConstants:
     SMARTCARD_INTERFACE_NONE = "none"
     SMARTCARD_INTERFACE_USB = "usb"
     SMARTCARD_INTERFACE_PN532 = "pn532"
-    SMARTCARD_INTERFACE_PHOENIX = "phoenix"
+    SMARTCARD_INTERFACE_PHOENIX = "phoenix-usb"
     ALL_SMARTCARD_INTERFACES = [
         (SMARTCARD_INTERFACE_NONE, "None"),
         (SMARTCARD_INTERFACE_USB, "USB PC/SC Reader"),
@@ -399,7 +399,7 @@ class SettingsDefinition:
                     display_name="Smartcard Interfaces",
                     type=SettingsConstants.TYPE__SELECT_1,
                     selection_options=SettingsConstants.ALL_SMARTCARD_INTERFACES,
-                    default_value=SettingsConstants.SMARTCARD_INTERFACE_NONE),
+                    default_value=SettingsConstants.SMARTCARD_INTERFACE_USB),
 
         # Advanced options
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
