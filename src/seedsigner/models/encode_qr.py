@@ -40,6 +40,7 @@ class EncodeQR:
     wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
     bitcoin_address: str = None
     signed_message: str = None
+    is_electrum : bool = False
 
     def __post_init__(self):
         self.qr = QR()
@@ -66,7 +67,8 @@ class EncodeQR:
                 passphrase=self.passphrase,
                 derivation=self.derivation,
                 network=self.network,
-                wordlist_language_code=self.wordlist_language_code
+                wordlist_language_code=self.wordlist_language_code,
+                is_electrum=self.is_electrum
             )
 
         elif self.qr_type == QRType.XPUB__UR:
@@ -76,7 +78,8 @@ class EncodeQR:
                 passphrase=self.passphrase,
                 derivation=self.derivation,
                 network=self.network,
-                wordlist_language_code=self.wordlist_language_code
+                wordlist_language_code=self.wordlist_language_code,
+                is_electrum=self.is_electrum
             )
 
         elif self.qr_type == QRType.XPUB__SPECTER:
@@ -86,7 +89,8 @@ class EncodeQR:
                 passphrase=self.passphrase,
                 derivation=self.derivation,
                 network=self.network,
-                wordlist_language_code=self.wordlist_language_code
+                wordlist_language_code=self.wordlist_language_code,
+                is_electrum=self.is_electrum
             )
 
 
@@ -356,7 +360,7 @@ class SignedMessageEncoder(BaseStaticQrEncoder):
 
 
 class XpubQrEncoder(BaseQrEncoder):
-    def __init__(self, seed_phrase, passphrase, derivation, network, wordlist_language_code):
+    def __init__(self, seed_phrase, passphrase, derivation, network, wordlist_language_code, is_electrum : bool = False):
         self.seed_phrase = seed_phrase
         self.passphrase = passphrase
         self.derivation = derivation
@@ -373,6 +377,8 @@ class XpubQrEncoder(BaseQrEncoder):
         self.seed = Seed(mnemonic=self.seed_phrase,
                          passphrase=self.passphrase,
                          wordlist_language_code=wordlist_language_code)
+        if is_electrum:
+            self.seed.switch_to_electrum()
         self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(self.network)]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
         self.xprv = self.root.derive(self.derivation)

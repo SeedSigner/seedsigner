@@ -908,7 +908,8 @@ class SeedExportXpubQRDisplayView(View):
             network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
             qr_type=qr_type,
             qr_density=qr_density,
-            wordlist_language_code=self.seed.wordlist_language_code
+            wordlist_language_code=self.seed.wordlist_language_code,
+            is_electrum=self.seed.is_electrum
         )
 
 
