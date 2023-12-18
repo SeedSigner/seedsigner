@@ -1674,6 +1674,9 @@ class SeedAddressVerificationView(View):
         else:
             self.seed = None
         self.address = self.controller.unverified_address["address"]
+        # override derivation path if it's electrum as bip-39 path was set by default
+        if self.seed and self.seed.is_electrum:
+            self.controller.unverified_address["derivation_path"] = 'm/0h'
         self.derivation_path = self.controller.unverified_address["derivation_path"]
         self.script_type = self.controller.unverified_address["script_type"]
         self.sig_type = self.controller.unverified_address["sig_type"]
