@@ -18,7 +18,7 @@ from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
-from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
+from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView, LoadSeedView
 
 from .view import View, Destination, BackStackView, MainMenuView
 
@@ -471,7 +471,7 @@ class ToolsAddressExplorerSelectSourceView(View):
         # Most of the options require us to go through a side flow(s) before we can
         # continue to the address explorer. Set the Controller-level flow so that it
         # knows to re-route us once the side flow is complete.        
-        self.controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
+        # self.controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
 
         if len(seeds) > 0 and selected_menu_num < len(seeds):
             # User selected one of the n seeds
@@ -711,18 +711,16 @@ class ToolsAddressExplorerAddressView(View):
         return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.is_change, start_index=self.start_index, selected_button_index=self.index - self.start_index, initial_scroll=self.parent_initial_scroll), skip_current_view=True)
 
 """****************************************************************************
-    Seedkeeper Views
+    Smartcard Views
 ****************************************************************************"""
 class ToolsSmartcardMenuView(View):
     CHANGE_PIN = ("Change PIN")
-    TEST_NFC = ("Test NFC Scan")
-    IFDNFC_ACTIVATE = ("Start PN532(PN532)")
-    OPENCT_ACTIVATE = ("Start OpenCT(SIM)")
-    INSTALL_APPLET = ("Install Applet")
-    UNINSTALL_APPLET = ("Uninstall Applet")
+    CHANGE_LABEL = ("Change Label")
+    SATOCHIP = ("Satochip Functions")
+    Satochip_DIY = ("DIY Tools")
 
     def run(self):
-        button_data = [self.CHANGE_PIN, self.TEST_NFC, self.INSTALL_APPLET, self.UNINSTALL_APPLET]
+        button_data = [self.CHANGE_PIN, self.CHANGE_LABEL, self.SATOCHIP, self.Satochip_DIY]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -735,27 +733,22 @@ class ToolsSmartcardMenuView(View):
             return Destination(BackStackView)
 
         elif button_data[selected_menu_num] == self.CHANGE_PIN:
-            return Destination(ToolsSeedkeeperChangePinView)
+            return Destination(ToolsSatochipChangePinView)
         
-        elif button_data[selected_menu_num] == self.TEST_NFC:
-            return Destination(ToolsSeedkeeperTestNFCView)
-        
-        elif button_data[selected_menu_num] == self.IFDNFC_ACTIVATE:
-            return Destination(ToolsSeedkeeperStartIfdNFCView)
+        elif button_data[selected_menu_num] == self.CHANGE_LABEL:
+            return Destination(ToolsSatochipChangeLabelView)
 
-        elif button_data[selected_menu_num] == self.OPENCT_ACTIVATE:
-            return Destination(ToolsSeedkeeperStartOpenCTView)
+        elif button_data[selected_menu_num] == self.SATOCHIP:
+            return Destination(ToolsSatochipView)
 
-        elif button_data[selected_menu_num] == self.INSTALL_APPLET:
-            return Destination(ToolsSeedkeeperInstallAppletView)
+        elif button_data[selected_menu_num] == self.Satochip_DIY:
+            return Destination(ToolsSatochipDIYView)
 
-        elif button_data[selected_menu_num] == self.UNINSTALL_APPLET:
-            return Destination(ToolsSeedkeeperUninstallAppletView)
 
-class ToolsSeedkeeperChangePinView(View):
+class ToolsSatochipChangePinView(View):
     def run(self):
         
-        Satochip_Connector = seedkeeper_utils.init_seedkeeper(self)
+        Satochip_Connector = seedkeeper_utils.init_satochip(self)
 
         if not Satochip_Connector:
             return Destination(BackStackView)
@@ -763,7 +756,7 @@ class ToolsSeedkeeperChangePinView(View):
         NewPin = seed_screens.SeedAddPassphraseScreen(title="New PIN").display()
 
         if NewPin == RET_CODE__BACK_BUTTON:
-            return Destination(ToolsSeedkeeperMenuView)
+            return Destination(ToolsSmartcardMenuView)
         
         new_pin = list(NewPin.encode('utf8'))
         response, sw1, sw2 = Satochip_Connector.card_change_PIN(0, Satochip_Connector.pin, new_pin)
@@ -788,135 +781,217 @@ class ToolsSeedkeeperChangePinView(View):
         
         return Destination(MainMenuView)
 
-class ToolsSeedkeeperTestNFCView(View):
+class ToolsSatochipChangeLabelView(View):
     def run(self):
         
-        from seedsigner.gui.screens.screen import LoadingScreenThread
-        self.loading_screen = LoadingScreenThread(text="Scanning for NFC Tag")
-        self.loading_screen.start()
+        Satochip_Connector = seedkeeper_utils.init_satochip(self)
 
-        os.system("ifdnfc-activate no") # Need to disable IFD-NFC to be able to scan using libnfc-bindings...
+        if not Satochip_Connector:
+            return Destination(BackStackView)
 
-        time.sleep(0.2) #Just give the loading screen a chance to load before moving on...
+        NewLabel = seed_screens.SeedAddPassphraseScreen(title="New Label").display()
 
-        import nfc
+        if NewLabel == RET_CODE__BACK_BUTTON:
+            return Destination(ToolsSmartcardMenuView)
+
+        """Sets a plain text label for the card (Optional)"""
+        try:
+            (response, sw1, sw2) = Satochip_Connector.card_set_label(NewLabel)
+            if sw1 != 0x90 or sw2 != 0x00:
+                print("ERROR: Set Label Failed")
+                self.run_screen(
+                    WarningScreen,
+                    title="Failed",
+                    status_headline=None,
+                    text=f"Set Label Failed...",
+                    show_back_button=True,
+                )
+            else:
+                print("Device Label Updated")
+                self.run_screen(
+                    LargeIconStatusScreen,
+                    title="Success",
+                    status_headline=None,
+                    text=f"Label Updated",
+                    show_back_button=False,
+                )
+        except Exception as e:
+            print(e)
+
+        return Destination(MainMenuView)
+
+class ToolsSatochipView(View):
+    IMPORT_SEED = ("Import Seed")
+    ENABLE_2FA = ("Enable 2FA")
+
+    def run(self):
+        button_data = [self.IMPORT_SEED, self.ENABLE_2FA]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="Satochip",
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.IMPORT_SEED:
+            return Destination(ToolsSatochipImportSeedView)
+
+        elif button_data[selected_menu_num] == self.ENABLE_2FA:
+            return Destination(ToolsSatochipEnable2FAView)
+        
+class ToolsSatochipImportSeedView(View):
+    SCAN_SEED = ("Scan a seed", SeedSignerIconConstants.QRCODE)
+    SCAN_DESCRIPTOR = ("Scan wallet descriptor", SeedSignerIconConstants.QRCODE)
+    TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+
+    def run(self):
+        
+        Satochip_Connector = seedkeeper_utils.init_satochip(self)
+
+        if not Satochip_Connector:
+            return Destination(BackStackView)
+
+        seeds = self.controller.storage.seeds
+        button_data = []
+        for seed in seeds:
+            button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+            button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT))
+        button_data = button_data + [self.SCAN_SEED, self.SCAN_DESCRIPTOR, self.TYPE_12WORD, self.TYPE_24WORD]
+        
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="Seed to Import",
+            button_data=button_data,
+            is_button_text_centered=False,
+            is_bottom_list=True,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # Most of the options require us to go through a side flow(s) before we can
+        # continue to the address explorer. Set the Controller-level flow so that it
+        # knows to re-route us once the side flow is complete.        
+        self.controller.resume_main_flow = Controller.FLOW__SATOCHIP_IMPORT_SEED
+
+        print(seeds[selected_menu_num])
+
+        if len(seeds) > 0 and selected_menu_num < len(seeds):
+            # User selected one of the n seeds
+            try:
+                Satochip_Connector.card_bip32_import_seed(seeds[selected_menu_num].seed_bytes)
+                print("Seed Successfully Imported")
+                self.run_screen(
+                    LargeIconStatusScreen,
+                    title="Success",
+                    status_headline=None,
+                    text=f"Seed Imported",
+                    show_back_button=False,
+                )
+            except Exception as e:
+                print(e)
+                self.run_screen(
+                    WarningScreen,
+                    title="Failed",
+                    status_headline=None,
+                    text=f"Seed Import Failed",
+                    show_back_button=False,
+                )
+
+        elif button_data[selected_menu_num] == self.SCAN_SEED:
+            from seedsigner.views.scan_views import ScanSeedQRView
+            return Destination(ScanSeedQRView)
+
+        elif button_data[selected_menu_num] == self.SCAN_DESCRIPTOR:
+            from seedsigner.views.scan_views import ScanWalletDescriptorView
+            return Destination(ScanWalletDescriptorView)
+
+        elif button_data[selected_menu_num] in [self.TYPE_12WORD, self.TYPE_24WORD]:
+            from seedsigner.views.seed_views import SeedMnemonicEntryView
+            if button_data[selected_menu_num] == self.TYPE_12WORD:
+                self.controller.storage.init_pending_mnemonic(num_words=12)
+            else:
+                self.controller.storage.init_pending_mnemonic(num_words=24)
+            return Destination(SeedMnemonicEntryView)
+        
+        return Destination(MainMenuView)
+
+class ToolsSatochipEnable2FAView(View):
+    def run(self):
+        from os import urandom
         import binascii
+        key = urandom(20)
+        print("2FA Key:", binascii.hexlify(key))
 
-        context = nfc.init()
-        nfcdevice = nfc.open(context)
-        if nfcdevice is None:
-            self.loading_screen.stop()
-            print('ERROR: Unable to open NFC device.')
-            self.run_screen(
-                WarningScreen,
-                title="NFC Failure",
-                status_headline=None,
-                text=f"ERROR: Unable to open NFC device. \n(May not be connected)",
-                show_back_button=True,
-            )
+        Satochip_Connector = seedkeeper_utils.init_satochip(self)
+
+        if not Satochip_Connector:
             return Destination(BackStackView)
-            
-        if nfc.initiator_init(nfcdevice) < 0:
-            self.loading_screen.stop()
-            print('ERROR: Unable to init NFC device.')
-            self.run_screen(
-                WarningScreen,
-                title="NFC Failure",
-                status_headline=None,
-                text=f"ERROR: Unable to init NFC device.",
-                show_back_button=True,
-            )
-            return Destination(BackStackView)
-
-        print('NFC reader: %s opened' % nfc.device_get_name(nfcdevice))
-
-        nfcmodulation = nfc.modulation()
-        nfcmodulation.nmt = nfc.NMT_ISO14443A
-        nfcmodulation.nbr = nfc.NBR_847 #Test at the highest baud rate for the best simulation of Smartcard operation
-
-        nt = nfc.target()
-
-        # Scan for 15 seconds
-        ret = nfc.initiator_poll_target(nfcdevice, nfcmodulation, 1, 100, 1, nt)
-
-        self.loading_screen.stop()
-
-        if ret and nt.nti.nai.szUidLen:
-
-            print('The following (NFC) ISO14443A tag was found:')
-            print('    ATQA (SENS_RES): ', end='')
-            nfc.print_hex(nt.nti.nai.abtAtqa, 2)
-            id = 1
-            if nt.nti.nai.abtUid[0] == 8:
-                id = 3
-            print('       UID (NFCID%d): ' % id , end='')
-            nfc.print_hex(nt.nti.nai.abtUid, nt.nti.nai.szUidLen)
-            foundtext="UID:\n" + binascii.hexlify(nt.nti.nai.abtUid).decode()[:14]
-
-            print('      SAK (SEL_RES): ', end='')
-            print(nt.nti.nai.btSak)
-            if nt.nti.nai.szAtsLen:
-                print('          ATS (ATR): ', end='')
-                nfc.print_hex(nt.nti.nai.abtAts, nt.nti.nai.szAtsLen)
-                foundtext = foundtext + "\nATR:\n" + binascii.hexlify(nt.nti.nai.abtAts).decode()[:28]
-
-            self.run_screen(
-                LargeIconStatusScreen,
-                title="Found NFC Tag",
-                status_headline=None,
-                text=foundtext,
-                show_back_button=False,
-            )
-        elif ret:
-            print('Warning: IFD-NFC Conflict.')
-            self.run_screen(
-                WarningScreen,
-                title="NFC Conflict",
-                status_headline=None,
-                text=f"Can't scan when IFD-NFC Active",
-                show_back_button=True,
-            )
-        else:
-            print('Warning: No NFC Tag Detected.')
+        
+        try:
             self.run_screen(
                 WarningScreen,
                 title="Warning",
                 status_headline=None,
-                text=f"Warning: No NFC Tag Detected.",
-                show_back_button=True,
+                text=f"Scan the following QR code with the Satochip 2FA app before proceeding (You will not see this code again...)",
+                show_back_button=False,
+            )
+            from seedsigner.gui.screens.screen import QRDisplayScreen
+            qr_encoder = EncodeQR(qr_type=QRType.HEX_STRING, hex_string=binascii.hexlify(key).decode())
+            self.run_screen(
+                QRDisplayScreen,
+                qr_encoder=qr_encoder,
+            )
+            Satochip_Connector.card_set_2FA_key(key, 0)
+            print("Success: 2FA Key Imported and Enabled")
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"Seed Imported",
+                show_back_button=False,
+            )
+        except Exception as e:
+            print(e)
+            self.run_screen(
+                WarningScreen,
+                title="Failed",
+                status_headline=None,
+                text=f"Enable 2FA Failed",
+                show_back_button=False,
             )
 
-        nfc.close(nfcdevice)
-        nfc.exit(context)
-
-        scinterface = self.settings.get_value(SettingsConstants.SETTING__SMARTCARD_INTERFACES)
-
-        if "pn532" in scinterface:
-            os.system("ifdnfc-activate yes") # Need to re-enable IFD-NFC if required...
-        
         return Destination(MainMenuView)
 
-class ToolsSeedkeeperStartIfdNFCView(View):
+class ToolsSatochipDIYView(View):
+    INSTALL_APPLET = ("Install Applet")
+    UNINSTALL_APPLET = ("Uninstall Applet")
+
     def run(self):
-        import os
+        button_data = [self.INSTALL_APPLET, self.UNINSTALL_APPLET]
 
-        os.system("ifdnfc-activate yes")
-        time.sleep(1)
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="Tools",
+            is_button_text_centered=False,
+            button_data=button_data
+        )
 
-        return Destination(MainMenuView)
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
 
-class ToolsSeedkeeperStartOpenCTView(View):
-    def run(self):
-        import os
+        elif button_data[selected_menu_num] == self.INSTALL_APPLET:
+            return Destination(ToolsDIYInstallAppletView)
 
-        os.system("sudo openct-control init")
-        time.sleep(1)
-        os.system("sudo service pcscd restart")
-        time.sleep(1)
+        elif button_data[selected_menu_num] == self.UNINSTALL_APPLET:
+            return Destination(ToolsDIYUninstallAppletView)
 
-        return Destination(MainMenuView)
-
-class ToolsSeedkeeperInstallAppletView(View):
+class ToolsDIYInstallAppletView(View):
     def run(self):
         from subprocess import run
         import os
@@ -939,9 +1014,16 @@ class ToolsSeedkeeperInstallAppletView(View):
 
         installed_applets = seedkeeper_utils.run_globalplatform(self,"--install /home/pi/Satochip-DIY/build/" + applet_file, "Installing Applet", "Applet Installed")
 
+        # This process often kills IFD-NFC, so restart it if required
+        scinterface = self.settings.get_value(SettingsConstants.SETTING__SMARTCARD_INTERFACES)
+        if "pn532" in scinterface:
+            os.system("ifdnfc-activate no")
+            time.sleep(1)
+            os.system("ifdnfc-activate yes")
+
         return Destination(MainMenuView)
 
-class ToolsSeedkeeperUninstallAppletView(View):
+class ToolsDIYUninstallAppletView(View):
     def run(self):
         from subprocess import run
         import os
@@ -979,5 +1061,12 @@ class ToolsSeedkeeperUninstallAppletView(View):
             applet_aid = installed_applets_aids[selected_applet_num]
 
             seedkeeper_utils.run_globalplatform(self,"--delete " + applet_aid + " -force", "Uninstalling Applet", "Applet Uninstalled")
+
+                # This process often kills IFD-NFC, so restart it if required
+        scinterface = self.settings.get_value(SettingsConstants.SETTING__SMARTCARD_INTERFACES)
+        if "pn532" in scinterface:
+            os.system("ifdnfc-activate no")
+            time.sleep(1)
+            os.system("ifdnfc-activate yes")
 
         return Destination(MainMenuView)

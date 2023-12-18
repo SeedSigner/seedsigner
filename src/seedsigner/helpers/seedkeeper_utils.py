@@ -9,8 +9,8 @@ import os
 import time
 from os import urandom
 
-def init_seedkeeper(parentObject):
-    parentObject.loading_screen = LoadingScreenThread(text="Searching for SeedKeeper")
+def init_satochip(parentObject):
+    parentObject.loading_screen = LoadingScreenThread(text="Searching for Card")
     parentObject.loading_screen.start()
 
     # Spam connecting for 10 seconds to give the user time to insert the card
@@ -18,7 +18,7 @@ def init_seedkeeper(parentObject):
     time_end = time.time() + 10
     while time.time() < time_end:
         try:
-            Satochip_Connector = CardConnector(card_filter="seedkeeper")
+            Satochip_Connector = CardConnector()
             time.sleep(0.1)  # give some time to initialize reader...
             status = Satochip_Connector.card_get_status()
             break
@@ -33,7 +33,7 @@ def init_seedkeeper(parentObject):
             WarningScreen,
             title="Unable to Connect",
             status_headline=None,
-            text=f"Unable to find SeedKeeper, missing card or missing reader",
+            text=f"Unable to find SmartCard, missing card or missing reader",
             show_back_button=True,
         )
         return None
@@ -46,10 +46,8 @@ def init_seedkeeper(parentObject):
         print("Initiating Secure Channel")
         Satochip_Connector.card_initiate_secure_channel()
 
-
-
     if status[3]['setup_done']:
-        ret = seed_screens.SeedAddPassphraseScreen(title="Seedkeeper PIN").display()
+        ret = seed_screens.SeedAddPassphraseScreen(title="Card PIN").display()
 
         if ret == RET_CODE__BACK_BUTTON:
             return None
@@ -59,7 +57,20 @@ def init_seedkeeper(parentObject):
         try:
             print("Verifying PIN")
             (response, sw1, sw2) = Satochip_Connector.card_verify_PIN()
-            print(response)
+            if sw1 == 0x90 and sw2 == 0x00:
+                pass #Pin is correct
+            else:
+                # Pin is not incorrect, but isn't valid either (doesn't increment the failed pin counter)
+                print("Failure: Invalid PIN")
+                parentObject.run_screen(
+                    WarningScreen,
+                    title="Invalid PIN",
+                    status_headline=None,
+                    text=f"Invalid PIN entered, select another and try again.",
+                    show_back_button=True,
+                )
+                return None
+            
         except RuntimeError as e: #Incorrect PIN
             print(e) #
             status = Satochip_Connector.card_get_status()
@@ -77,22 +88,22 @@ def init_seedkeeper(parentObject):
                     WarningScreen,
                     title="Incorrect PIN",
                     status_headline=None,
-                    text=f"Unable to unlock SeedKeeper, Incorrect PIN " + str(pin_tries_left) + " tries remain before card locks...",
+                    text=f"Unable to unlock Card, Incorrect PIN " + str(pin_tries_left) + " tries remain before card locks...",
                     show_back_button=True,
                 )
             return None
     else:
-        print("Seedkeeper Needs Initial Setup")
+        print("Card Needs Initial Setup")
         parentObject.run_screen(
             WarningScreen,
-            title="Seedkeeper Uninitialised",
+            title="Card Uninitialised",
             status_headline=None,
             text=f"Set a device PIN to complete Card Setup",
             show_back_button=True,
         )
 
 
-        ret = seed_screens.SeedAddPassphraseScreen(title="Seedkeeper PIN").display()
+        ret = seed_screens.SeedAddPassphraseScreen(title="Card PIN").display()
 
         if ret == RET_CODE__BACK_BUTTON:
             return None
@@ -141,6 +152,7 @@ def init_seedkeeper(parentObject):
 
 def run_globalplatform(parentObject, command, loadingText = "Loading", successtext = "Success"):
     from subprocess import run
+    from seedsigner.models.settings import Settings, SettingsConstants, SettingsDefinition
 
     parentObject.loading_screen = LoadingScreenThread(text=loadingText)
     parentObject.loading_screen.start()
@@ -148,6 +160,14 @@ def run_globalplatform(parentObject, command, loadingText = "Loading", successte
     commandString = "java -jar /home/pi/Satochip-DIY/gp.jar " + command
 
     data = run(commandString, capture_output=True, shell=True, text=True)
+
+            # This process often kills IFD-NFC, so restart it if required
+    scinterface = parentObject.settings.get_value(SettingsConstants.SETTING__SMARTCARD_INTERFACES)
+    if "pn532" in scinterface:
+        os.system("ifdnfc-activate no")
+        time.sleep(1)
+        os.system("ifdnfc-activate yes")
+
     parentObject.loading_screen.stop()
 
     print("StdOut:", data.stdout)

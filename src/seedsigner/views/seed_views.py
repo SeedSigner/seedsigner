@@ -206,7 +206,7 @@ class LoadSeedView(View):
 class SeedKeeperSelectView(View):
     def run(self):
         try:
-            Satochip_Connector = seedkeeper_utils.init_seedkeeper(self)
+            Satochip_Connector = seedkeeper_utils.init_satochip(self)
 
             if not Satochip_Connector:
                 return Destination(BackStackView)
@@ -2191,7 +2191,7 @@ class SaveToSeedkeeperView(View):
 
     def run(self):
         try:
-            Satochip_Connector = seedkeeper_utils.init_seedkeeper(self)
+            Satochip_Connector = seedkeeper_utils.init_satochip(self)
 
             if not Satochip_Connector:
                 return Destination(BackStackView)
