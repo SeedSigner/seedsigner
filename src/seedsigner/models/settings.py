@@ -175,16 +175,23 @@ class Settings(Singleton):
          # Special handling for enabling Smartcard readers
         if attr_name == SettingsConstants.SETTING__SMARTCARD_INTERFACES:
             import time
+            from seedsigner.gui.screens.screen import LoadingScreenThread
+            
             print("Smartcard Interface Changed")
 
             # Basically just check through a a bunch of possible USB hubs and ports and enable/disable them all (Should cover all RPi models, RPi4 has lots of USB ports...)
             if "usb" not in value and "usb" in self._data[attr_name]:
+                self.loading_screen = LoadingScreenThread(text="Disabling USB Ports")
+                self.loading_screen.start()
                 print("Disabling USB")
                 for hub in range(3):
                     for port in range(3):
                         os.system("sudo hub-ctrl -H " + str(hub) + " -P " + str(port) + " -p 0")
+                self.loading_screen.stop()
 
             if "usb" in value and "usb" not in self._data[attr_name]:
+                self.loading_screen = LoadingScreenThread(text="Enabling USB Ports")
+                self.loading_screen.start()
                 print("Enabling USB")
                 for hub in range(3):
                     for port in range(5):
@@ -192,27 +199,41 @@ class Settings(Singleton):
 
                 time.sleep(1)
                 os.system("sudo service pcscd restart") # PCSC doesn't always work properly after USB ports have been re-enabled
+                self.loading_screen.stop()
 
             # Execution order matters here if swithing from Phoenix to PN352, basically we want to disable phoenix first and then enable PN532
             if "phoenix" in value and "phoenix" not in self._data[attr_name]:
+                self.loading_screen = LoadingScreenThread(text="Starting OpenCT")
+                self.loading_screen.start()
                 print("Phoenix Enabled")
+
                 os.system("sudo openct-control init") # OpenCT needs a bit of time to get going before restarting PCSCD (At least two seconds) to work reliabily
                 time.sleep(3)
                 os.system("sudo service pcscd restart")
+                self.loading_screen.stop()
 
             if "phoenix" not in value and "phoenix" in self._data[attr_name]:
+                self.loading_screen = LoadingScreenThread(text="Stopping OpenCT")
+                self.loading_screen.start()
                 print("Phoenix Disabled")
                 os.system("sudo openct-control shutdown")
                 time.sleep(3)
                 os.system("sudo service pcscd restart")
+                self.loading_screen.stop()
 
             if "pn532" in value and "pn532" not in self._data[attr_name]:
+                self.loading_screen = LoadingScreenThread(text="Enabling PN532")
+                self.loading_screen.start()
                 print("PN532 Enabled")
                 os.system("ifdnfc-activate yes")
+                self.loading_screen.stop()
 
             if "pn532" not in value and "pn532" in self._data[attr_name]:
+                self.loading_screen = LoadingScreenThread(text="Disabling PN532")
+                self.loading_screen.start()
                 print("PN532 Disabled")
                 os.system("ifdnfc-activate no")
+                self.loading_screen.stop()
 
         self._data[attr_name] = value
         self.save()
