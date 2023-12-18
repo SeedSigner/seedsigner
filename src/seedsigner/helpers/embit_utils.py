@@ -30,9 +30,9 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
         raise Exception("Unexpected network")
 
     if wallet_type == SettingsConstants.SINGLE_SIG:
-        if is_electrum:
-            return f"m/0h"
         if script_type == SettingsConstants.NATIVE_SEGWIT:
+            if is_electrum:
+                return f"m/0h"
             return f"m/84'/{network_path}/0'"
         elif script_type == SettingsConstants.NESTED_SEGWIT:
             return f"m/49'/{network_path}/0'"
@@ -42,9 +42,9 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
             raise Exception("Unexpected script type")
 
     elif wallet_type == SettingsConstants.MULTISIG:
-        if is_electrum:
-            return f"m/1h"
         if script_type == SettingsConstants.NATIVE_SEGWIT:
+            if is_electrum:
+                return f"m/1h"
             return f"m/48'/{network_path}/0'/2'"
         elif script_type == SettingsConstants.NESTED_SEGWIT:
             return f"m/48'/{network_path}/0'/1'"

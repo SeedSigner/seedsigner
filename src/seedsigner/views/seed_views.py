@@ -652,8 +652,6 @@ class SeedExportXpubScriptTypeView(View):
         button_data = []
         for script_type in self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES):
             button_data.append(script_type)
-        if seed.is_electrum:
-            button_data = [SettingsConstants.NATIVE_SEGWIT]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
