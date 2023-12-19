@@ -902,12 +902,14 @@ class SeedExportXpubQRDisplayView(View):
             qr_type = QRType.XPUB__UR
 
         self.qr_encoder = EncodeQR(
-            seed=self.seed,
+            seed_phrase=self.seed.mnemonic_list,
+            passphrase=self.seed.passphrase,
             derivation=derivation_path,
             network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
             qr_type=qr_type,
             qr_density=qr_density,
             wordlist_language_code=self.seed.wordlist_language_code,
+            is_electrum=self.seed.is_electrum
         )
 
 
@@ -1410,7 +1412,7 @@ class SeedTranscribeSeedQRWholeQRView(View):
 
     def run(self):
         e = EncodeQR(
-            seed=self.seed,
+            seed_phrase=self.seed.mnemonic_list,
             qr_type=self.seedqr_format,
             wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
         )
@@ -1445,7 +1447,7 @@ class SeedTranscribeSeedQRZoomedInView(View):
 
     def run(self):
         e = EncodeQR(
-            seed=self.seed,
+            seed_phrase=self.seed.mnemonic_list,
             qr_type=self.seedqr_format,
             wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
         )
