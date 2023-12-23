@@ -207,13 +207,12 @@ class SeedKeeperSelectView(View):
     def run(self):
         try:
             Satochip_Connector = seedkeeper_utils.init_satochip(self)
-
+            
             if not Satochip_Connector:
                 return Destination(BackStackView)
 
             headers = Satochip_Connector.seedkeeper_list_secret_headers()
 
-            print(headers)
             headers_parsed = []
             button_data = []
             for header in headers:
@@ -240,7 +239,7 @@ class SeedKeeperSelectView(View):
                 title="No Secrets to Load",
                 status_headline=None,
                 text=f"No BIP39 Secrets to Load from Seedkeeper",
-                show_back_button=True,
+                show_back_button=False,
                 )   
                 return Destination(BackStackView)
 
@@ -248,14 +247,14 @@ class SeedKeeperSelectView(View):
                 ButtonListScreen,
                 title="Select Secret",
                 is_button_text_centered=False,
-                button_data=button_data
+                button_data=button_data,
+                show_back_button=True,
             )
 
-            print(type(headers_parsed[selected_menu_num][0]))
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
 
             secret_dict = Satochip_Connector.seedkeeper_export_secret(headers_parsed[selected_menu_num][0], None)
-
-            print(secret_dict)
 
             secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode().rstrip("\x00")
 
@@ -266,21 +265,18 @@ class SeedKeeperSelectView(View):
             secret_mnemonic = bip39_secret[:secret_size]
             secret_passphrase = bip39_secret[secret_size+1:]
 
-            print("BIP39-Mnemonic:", secret_mnemonic, "BIP39-Passphrase:", secret_passphrase)
-
         except Exception as e:
             print(e)
             self.run_screen(
                 WarningScreen,
-                title="Unknown Error...",
+                title="Error",
                 status_headline=None,
-                text=f"Load from Seedkeeper Failed",
+                text=str(e),
                 show_back_button=True,
             )
             return Destination(BackStackView)
 
         mnemonic = secret_mnemonic.split(" ")
-        print(len(mnemonic))
         self.controller.storage.init_pending_mnemonic(num_words=len(mnemonic))
         for i, word in enumerate(mnemonic):
             self.controller.storage.update_pending_mnemonic(word, i)

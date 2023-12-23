@@ -2,7 +2,7 @@ import logging
 from seedsigner.gui.components import SeedSignerIconConstants
 from seedsigner.hardware.microsd import MicroSD
 
-from .view import View, Destination, MainMenuView
+from .view import View, Destination, MainMenuView, BackStackView
 
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, settings_screens)
 from seedsigner.models.settings import Settings, SettingsConstants, SettingsDefinition

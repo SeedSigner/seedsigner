@@ -10,25 +10,40 @@ import time
 from os import urandom
 
 def init_satochip(parentObject):
+    from seedsigner.models.settings import Settings, SettingsConstants, SettingsDefinition
+
     parentObject.loading_screen = LoadingScreenThread(text="Searching for Card")
     parentObject.loading_screen.start()
 
-    # Spam connecting for 10 seconds to give the user time to insert the card
+    # Spam connecting for 5 seconds to give the user time to insert the card
     status = None
-    time_end = time.time() + 10
+    time_end = time.time() + 5
     while time.time() < time_end:
         try:
             Satochip_Connector = CardConnector()
-            time.sleep(0.1)  # give some time to initialize reader...
+            time.sleep(1)  # give some time to initialize reader...
             status = Satochip_Connector.card_get_status()
-            break
+
+            print("Found Card:")
+            print(status[3])
+            
+            if (Satochip_Connector.needs_secure_channel):
+                print("Initiating Secure Channel")
+                Satochip_Connector.card_initiate_secure_channel()
+                print("Secure Channel Initialised")
+
+            if len(status[3]) > 0: #Sometimes it's possible to end up with an invalid of zero length here...
+                break
         except Exception as e:
             print(e)
             time.sleep(0.1) # Sleep for 100ms
+        
+        status = None # Reset this every loop...
 
     parentObject.loading_screen.stop()
 
     if not status:
+
         parentObject.run_screen(
             WarningScreen,
             title="Unable to Connect",
@@ -39,39 +54,32 @@ def init_satochip(parentObject):
         return None
 
     status = Satochip_Connector.card_get_status()
-    print("Found Card:")
-    print(status[3])
-
-    if (Satochip_Connector.needs_secure_channel):
-        print("Initiating Secure Channel")
-        Satochip_Connector.card_initiate_secure_channel()
 
     if status[3]['setup_done']:
-        ret = seed_screens.SeedAddPassphraseScreen(title="Card PIN").display()
-
-        if ret == RET_CODE__BACK_BUTTON:
+        card_pin = seed_screens.SeedAddPassphraseScreen(title="Card PIN").display()
+        if card_pin == RET_CODE__BACK_BUTTON:
             return None
         
-        Satochip_Connector.set_pin(0, list(bytes(ret, "utf-8")))
+        Satochip_Connector.set_pin(0, list(bytes(card_pin, "utf-8")))
 
         try:
             print("Verifying PIN")
             (response, sw1, sw2) = Satochip_Connector.card_verify_PIN()
             if sw1 == 0x90 and sw2 == 0x00:
+                print("Pin Correct")
                 pass #Pin is correct
             else:
-                # Pin is not incorrect, but isn't valid either (doesn't increment the failed pin counter)
-                print("Failure: Invalid PIN")
                 parentObject.run_screen(
                     WarningScreen,
-                    title="Invalid PIN",
+                    title="Failure",
                     status_headline=None,
-                    text=f"Invalid PIN entered, select another and try again.",
+                    text=f"Failed, Code:" + str(sw1) + " " + str(sw2),
                     show_back_button=True,
                 )
                 return None
-            
+
         except RuntimeError as e: #Incorrect PIN
+            print("RunTimeError")
             print(e) #
             status = Satochip_Connector.card_get_status()
             pin_tries_left = status[3]['PIN0_remaining_tries']
@@ -92,6 +100,16 @@ def init_satochip(parentObject):
                     show_back_button=True,
                 )
             return None
+        
+        except Exception as e:
+            parentObject.run_screen(
+                WarningScreen,
+                title="Failed",
+                status_headline=None,
+                text=str(e),
+                show_back_button=True,
+            )
+            return None
     else:
         print("Card Needs Initial Setup")
         parentObject.run_screen(
@@ -101,7 +119,6 @@ def init_satochip(parentObject):
             text=f"Set a device PIN to complete Card Setup",
             show_back_button=True,
         )
-
 
         ret = seed_screens.SeedAddPassphraseScreen(title="Card PIN").display()
 
