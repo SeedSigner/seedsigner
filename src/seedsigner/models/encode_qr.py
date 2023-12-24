@@ -11,6 +11,7 @@ from embit.psbt import PSBT
 from seedsigner.helpers.ur2.ur_encoder import UREncoder
 from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.qr import QR
+from seedsigner.helpers import embit_utils
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
@@ -41,6 +42,7 @@ class EncodeQR:
     bitcoin_address: str = None
     signed_message: str = None
     is_electrum : bool = False
+    sig_type : str = SettingsConstants.SINGLE_SIG
 
     def __post_init__(self):
         self.qr = QR()
@@ -68,7 +70,8 @@ class EncodeQR:
                 derivation=self.derivation,
                 network=self.network,
                 wordlist_language_code=self.wordlist_language_code,
-                is_electrum=self.is_electrum
+                is_electrum=self.is_electrum,
+                sig_type=self.sig_type
             )
 
         elif self.qr_type == QRType.XPUB__UR:
@@ -79,7 +82,8 @@ class EncodeQR:
                 derivation=self.derivation,
                 network=self.network,
                 wordlist_language_code=self.wordlist_language_code,
-                is_electrum=self.is_electrum
+                is_electrum=self.is_electrum,
+                sig_type=self.sig_type
             )
 
         elif self.qr_type == QRType.XPUB__SPECTER:
@@ -90,7 +94,8 @@ class EncodeQR:
                 derivation=self.derivation,
                 network=self.network,
                 wordlist_language_code=self.wordlist_language_code,
-                is_electrum=self.is_electrum
+                is_electrum=self.is_electrum,
+                sig_type=self.sig_type
             )
 
 
@@ -360,7 +365,7 @@ class SignedMessageEncoder(BaseStaticQrEncoder):
 
 
 class XpubQrEncoder(BaseQrEncoder):
-    def __init__(self, seed_phrase, passphrase, derivation, network, wordlist_language_code, is_electrum : bool = False):
+    def __init__(self, seed_phrase, passphrase, derivation, network, wordlist_language_code, is_electrum : bool = False, sig_type : str = SettingsConstants.SINGLE_SIG):
         self.seed_phrase = seed_phrase
         self.passphrase = passphrase
         self.derivation = derivation
@@ -373,12 +378,12 @@ class XpubQrEncoder(BaseQrEncoder):
         if self.wordlist == None:
             raise Exception('Wordlist Required')
             
-        version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
         self.seed = Seed(mnemonic=self.seed_phrase,
                          passphrase=self.passphrase,
                          wordlist_language_code=wordlist_language_code)
         if is_electrum:
             self.seed.switch_to_electrum()
+        version = embit_utils.detect_version(self.derivation, network, sig_type, self.seed.is_electrum)
         self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(self.network)]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
         self.xprv = self.root.derive(self.derivation)

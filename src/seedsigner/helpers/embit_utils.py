@@ -56,6 +56,12 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
         raise Exception("Unexpected wallet type")    # checks that all inputs are from the same wallet
 
 
+def detect_version(derivation_path: str, network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, is_electrum : bool = False) -> str:
+    embit_network = NETWORKS[SettingsConstants.map_network_to_embit(network)]
+    if is_electrum:
+        return embit_network["zpub"] if SettingsConstants.SINGLE_SIG == wallet_type else embit_network["Zpub"]
+    else:
+        return embit.bip32.detect_version(derivation_path, default="xpub", network=embit_network)
 
 def get_xpub(seed_bytes, derivation_path: str, embit_network: str = "main") -> HDKey:
     root = bip32.HDKey.from_seed(seed_bytes, version=NETWORKS[embit_network]["xprv"])

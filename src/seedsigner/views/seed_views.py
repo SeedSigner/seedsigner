@@ -838,10 +838,11 @@ class SeedExportXpubDetailsView(View):
 
             try:
                 embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.settings.get_value(SettingsConstants.SETTING__NETWORK))]
-                version = embit.bip32.detect_version(
-                    derivation_path,
-                    default="xpub",
-                    network=embit_network
+                version = embit_utils.detect_version(
+                        derivation_path,
+                        self.settings.get_value(SettingsConstants.SETTING__NETWORK),
+                        self.sig_type,
+                        self.seed.is_electrum
                 )
                 root = embit.bip32.HDKey.from_seed(
                     self.seed.seed_bytes,
@@ -869,6 +870,7 @@ class SeedExportXpubDetailsView(View):
                 dict(seed_num=self.seed_num,
                      coordinator=self.coordinator,
                      derivation_path=derivation_path,
+                     sig_type=self.sig_type
                 )
             )
 
@@ -878,7 +880,7 @@ class SeedExportXpubDetailsView(View):
 
 
 class SeedExportXpubQRDisplayView(View):
-    def __init__(self, seed_num: int, coordinator: str, derivation_path: str):
+    def __init__(self, seed_num: int, coordinator: str, derivation_path: str, sig_type: str = SettingsConstants.SINGLE_SIG):
         super().__init__()
         self.seed = self.controller.get_seed(seed_num)
 
@@ -909,7 +911,8 @@ class SeedExportXpubQRDisplayView(View):
             qr_type=qr_type,
             qr_density=qr_density,
             wordlist_language_code=self.seed.wordlist_language_code,
-            is_electrum=self.seed.is_electrum
+            is_electrum=self.seed.is_electrum,
+            sig_type=sig_type
         )
 
 
