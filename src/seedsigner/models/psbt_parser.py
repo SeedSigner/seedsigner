@@ -182,6 +182,10 @@ class PSBTParser():
                 })
                 self.change_amount += self.psbt.tx.vout[i].value
 
+            elif self.psbt.tx.vout[i].value == 0 and self.psbt.tx.vout[i].script_pubkey.script_type() is None and self.psbt.tx.vout[i].script_pubkey.data:
+                # OP_RETURN
+                self.op_return = self.psbt.tx.vout[i].script_pubkey.data[3:].decode('UTF-8')
+
             else:
                 addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
                 self.destination_addresses.append(addr)
@@ -236,15 +240,17 @@ class PSBTParser():
             ):
                 script_type = "p2sh-p2wpkh"
         policy = {"type": script_type}
-        # expected multisig
-        if "p2wsh" in script_type and scope.witness_script is not None:
-            m, n, pubkeys = PSBTParser._parse_multisig(scope.witness_script)
-            # check pubkeys are derived from cosigners
-            try:
-                cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
-                policy.update({"m": m, "n": n, "cosigners": cosigners})
-            except:
-                policy.update({"m": m, "n": n})
+
+        if script_type:
+            # expected multisig
+            if "p2wsh" in script_type and scope.witness_script is not None:
+                m, n, pubkeys = PSBTParser._parse_multisig(scope.witness_script)
+                # check pubkeys are derived from cosigners
+                try:
+                    cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
+                    policy.update({"m": m, "n": n, "cosigners": cosigners})
+                except:
+                    policy.update({"m": m, "n": n})
         return policy
 
 
