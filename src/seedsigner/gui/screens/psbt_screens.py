@@ -21,6 +21,7 @@ class PSBTOverviewScreen(ButtonListScreen):
     num_self_transfer_outputs: int = 0
     num_change_outputs: int = 0
     destination_addresses: List[str] = None
+    has_op_return: bool = False
     
 
     def __post_init__(self):
@@ -142,6 +143,9 @@ class PSBTOverviewScreen(ButtonListScreen):
                 destination_column.append(f"recipient {len(self.destination_addresses) + self.num_self_transfer_outputs}")
 
             destination_column.append(f"fee")
+
+            if self.has_op_return:
+                destination_column.append("OP_RETURN")
 
             if self.num_change_outputs > 0:
                 for i in range(0, self.num_change_outputs):
@@ -678,6 +682,27 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
             ))
+
+
+
+@dataclass
+class PSBTOpReturnScreen(ButtonListScreen):
+    op_return: str = None
+
+    def __post_init__(self):
+        # Customize defaults
+        self.is_bottom_list = True
+
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text=self.op_return,
+            font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2,
+            is_text_centered=True,
+            # edge_padding=GUIConstants.EDGE_PADDING * 2,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+            height=self.buttons[0].screen_y - self.top_nav.height - 2*GUIConstants.COMPONENT_PADDING,
+        ))
 
 
 

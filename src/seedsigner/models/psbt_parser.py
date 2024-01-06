@@ -195,6 +195,10 @@ class PSBTParser():
                 })
                 self.change_amount += self.psbt.tx.vout[i].value
 
+            elif self.psbt.tx.vout[i].value == 0 and self.psbt.tx.vout[i].script_pubkey.script_type() is None and self.psbt.tx.vout[i].script_pubkey.data:
+                # OP_RETURN
+                self.op_return = self.psbt.tx.vout[i].script_pubkey.data[3:].decode('UTF-8')
+
             else:
                 addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
                 self.destination_addresses.append(addr)
