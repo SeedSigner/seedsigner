@@ -10,6 +10,10 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
 
+class OPCODES:
+    OP_RETURN = 106
+    OP_PUSHDATA1 = 76
+
 
 class PSBTParser():
     def __init__(self, p: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET):
@@ -169,7 +173,11 @@ class PSBTParser():
                 if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
                     is_change = True
 
-            if is_change:
+            if self.psbt.tx.vout[i].script_pubkey.data[0] == OPCODES.OP_RETURN:
+                # data = OP_RETURN + OP_PUSHDATA1 + len(payload) + payload
+                self.op_return = self.psbt.tx.vout[i].script_pubkey.data[3:].decode('UTF-8')
+
+            elif is_change:
                 addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
                 fingerprints = []
                 derivation_paths = []
@@ -194,10 +202,6 @@ class PSBTParser():
                     "derivation_path": derivation_paths,
                 })
                 self.change_amount += self.psbt.tx.vout[i].value
-
-            elif self.psbt.tx.vout[i].value == 0 and self.psbt.tx.vout[i].script_pubkey.script_type() is None and self.psbt.tx.vout[i].script_pubkey.data:
-                # OP_RETURN
-                self.op_return = self.psbt.tx.vout[i].script_pubkey.data[3:].decode('UTF-8')
 
             else:
                 addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
