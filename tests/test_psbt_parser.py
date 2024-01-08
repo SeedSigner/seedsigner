@@ -112,3 +112,45 @@ def test_p2sh_legacy_multisig():
     # And the self-transfer receive addr
     assert psbt_parser.verify_multisig_output(descriptor, 1)
 
+
+
+def test_parse_op_return_content():
+    """
+        Should successfully parse the OP_RETURN content from a PSBT.
+
+        PSBT Tx and Wallet Details
+        - Single Sig Wallet P2WPKH (Native Segwit) with no passphrase
+        - Regtest 0fb882ff m/84'/1'/0' tpubDCfk37PqcQx6nFtFVuYHvRLJHxvYj33NjHkKRyRmWyCjyJ64sYBXyVjsTHaLBp5GLhM91VBgJ8nKDWDu52J2xVRy64c7ybEjjyWQJuQGLcg
+        - 1 Input
+            - 99,992,460 sats
+        - 2 Outputs
+            - 1 Output back to self (bcrt1qvwkhakqhz7m7kmz6332avatsmdy32m644g86vv) of 99,992,296 sats
+            - 1 OP_RETURN: "Chancellor on the brink of third bailout"
+        - Fee 164 sats
+    """
+    psbt_base64 = "cHNidP8BAIYCAAAAATpQ10o+gKdZ8ThpKsbfHiHYn3NhvUrQ5DvW0ZWX8jKLAAAAAAD9////AujC9QUAAAAAFgAUY61+2BcXt+tsWoxV1nVw20kVb1UAAAAAAAAAACtqTChDaGFuY2VsbG9yIG9uIHRoZSBicmluayBvZiB0aGlyZCBiYWlsb3V0aQAAAE8BBDWHzwNXmUmVgAAAANRFa7R5gYD84Wbha3d1QnjgfYPOBw87on6cXS32WoyqAsPFtPxB7PRTdbujUnBPUVDh9YUBtwrl4nc0OcRNGvIyEA+4gv9UAACAAQAAgAAAAIAAAQB0AgAAAAGNFK/1X0fP5q+nu5XX7Tk2VRa0EL+jkGI9CHiJvsjZCgAAAAAA/f///wKMw/UFAAAAABYAFIpZMNnUU6cQt8Q0YpZ0pnvsSA5fAAAAAAAAAAAZakwWYml0Y29pbiBpcyBmcmVlIHNwZWVjaGgAAAABAR+Mw/UFAAAAABYAFIpZMNnUU6cQt8Q0YpZ0pnvsSA5fAQMEAQAAACIGAvxDI0eNI1oQ2AU69R7A0jf+hUdilWCgrWHgdzkqlaXMGA+4gv9UAACAAQAAgAAAAIAAAAAAAQAAAAAiAgK9qKtzGWyiRrpmupdA99NVLriz3GQy6cENbyD19sfl/hgPuIL/VAAAgAEAAIAAAACAAAAAAAIAAAAAAA=="
+
+    raw = a2b_base64(psbt_base64)
+    tx = psbt.PSBT.parse(raw)
+
+    mnemonic = "model ensure search plunge galaxy firm exclude brain satoshi meadow cable roast".split()
+    pw = ""
+    seed = Seed(mnemonic, passphrase=pw)
+
+    psbt_parser = PSBTParser(p=tx, seed=seed, network=SettingsConstants.REGTEST)
+
+    assert psbt_parser.op_return == "Chancellor on the brink of third bailout"
+
+    # PSBT is an internal self-spend to the its own receive addr, but the parser categorizes it as "change"
+    assert psbt_parser.change_data == [
+        {
+            'output_index': 0,
+            'address': 'bcrt1qvwkhakqhz7m7kmz6332avatsmdy32m644g86vv',
+            'amount': 99992296,
+            'fingerprint': ['0fb882ff'],
+            'derivation_path': ["m/84h/1h/0h/0/2"]}
+        ]
+    assert psbt_parser.spend_amount == 0  # This is a self-spend; no value being spent, other than the tx fee
+    assert psbt_parser.change_amount == 99992296
+    assert psbt_parser.destination_addresses == []
+    assert psbt_parser.destination_amounts == []
