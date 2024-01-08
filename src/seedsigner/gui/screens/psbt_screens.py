@@ -721,7 +721,7 @@ class PSBTOpReturnScreen(ButtonListScreen):
             text = text[:-1]
 
             label = TextArea(
-                text="raw hex",
+                text="raw hex data",
                 font_color=GUIConstants.LABEL_FONT_COLOR,
                 font_size=GUIConstants.LABEL_FONT_SIZE,
                 screen_y=self.top_nav.height,
