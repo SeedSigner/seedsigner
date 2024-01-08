@@ -714,7 +714,6 @@ class PSBTOpReturnScreen(ButtonListScreen):
             (left, top, right, bottom) = font.getbbox("X", anchor="ls")
             chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
             decoded_str = self.op_return.hex()
-            # decoded_str = self.op_return.decode(errors="ignore")
             num_lines = math.ceil(len(decoded_str) / chars_per_line)
             text = ""
             for i in range(num_lines):

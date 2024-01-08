@@ -227,7 +227,7 @@ def test_generate_screenshots(target_locale):
             (psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), "PSBTChangeDetailsView_multisig_verified"),
 
             (NotYetImplementedView, {}, "PSBTOverviewView_op_return"),  # Placeholder
-            (NotYetImplementedView, {}, "PSBTOpReturnView_text"),  # Placeholder
+            (NotYetImplementedView, {}, "PSBTOpReturnView_text"),       # Placeholder
             (NotYetImplementedView, {}, "PSBTOpReturnView_raw_bytes"),  # Placeholder
 
             (psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True, is_multisig=False), "PSBTAddressVerificationFailedView_singlesig_change"),
