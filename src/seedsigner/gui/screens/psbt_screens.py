@@ -696,13 +696,11 @@ class PSBTOpReturnScreen(ButtonListScreen):
 
         super().__post_init__()
 
-        font_size = GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2
-
         try:
             # Simple case: display human-readable text
             self.components.append(TextArea(
                 text=self.op_return.decode(errors="strict"),
-                font_size=font_size,
+                font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
                 is_text_centered=True,
                 allow_text_overflow=True,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
@@ -712,8 +710,11 @@ class PSBTOpReturnScreen(ButtonListScreen):
         except UnicodeDecodeError:
             # Contains data that can't be converted to UTF-8; probably encoded and not
             # meant to be human readable.
-            chars_per_line = 16
-            decoded_str = self.op_return.decode(errors="ignore")
+            font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.BODY_FONT_SIZE)
+            (left, top, right, bottom) = font.getbbox("X", anchor="ls")
+            chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
+            decoded_str = self.op_return.hex()
+            # decoded_str = self.op_return.decode(errors="ignore")
             num_lines = math.ceil(len(decoded_str) / chars_per_line)
             text = ""
             for i in range(num_lines):
@@ -721,17 +722,17 @@ class PSBTOpReturnScreen(ButtonListScreen):
             text = text[:-1]
 
             label = TextArea(
-                text="Encoded bytes",
+                text="raw hex",
                 font_color=GUIConstants.LABEL_FONT_COLOR,
                 font_size=GUIConstants.LABEL_FONT_SIZE,
-                screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING * 2,
+                screen_y=self.top_nav.height,
             )
             self.components.append(label)
 
             self.components.append(TextArea(
                 text=text,
-                # font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
-                font_size=font_size,
+                font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
+                font_size=GUIConstants.BODY_FONT_SIZE,
                 screen_y=label.screen_y + label.height + GUIConstants.COMPONENT_PADDING,
             ))
 
