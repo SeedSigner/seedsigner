@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 from PIL import Image, ImageDraw, ImageFilter
 from typing import List
 import time
@@ -695,14 +696,44 @@ class PSBTOpReturnScreen(ButtonListScreen):
 
         super().__post_init__()
 
-        self.components.append(TextArea(
-            text=self.op_return,
-            font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2,
-            is_text_centered=True,
-            # edge_padding=GUIConstants.EDGE_PADDING * 2,
-            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
-            height=self.buttons[0].screen_y - self.top_nav.height - 2*GUIConstants.COMPONENT_PADDING,
-        ))
+        font_size = GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2
+
+        try:
+            # Simple case: display human-readable text
+            self.components.append(TextArea(
+                text=self.op_return.decode(errors="strict"),
+                font_size=font_size,
+                is_text_centered=True,
+                allow_text_overflow=True,
+                screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+                height=self.buttons[0].screen_y - self.top_nav.height - 2*GUIConstants.COMPONENT_PADDING,
+            ))
+            return
+        except UnicodeDecodeError:
+            # Contains data that can't be converted to UTF-8; probably encoded and not
+            # meant to be human readable.
+            chars_per_line = 16
+            decoded_str = self.op_return.decode(errors="ignore")
+            num_lines = math.ceil(len(decoded_str) / chars_per_line)
+            text = ""
+            for i in range(num_lines):
+                text += (decoded_str[i*chars_per_line:(i+1)*chars_per_line]) + "\n"
+            text = text[:-1]
+
+            label = TextArea(
+                text="Encoded bytes",
+                font_color=GUIConstants.LABEL_FONT_COLOR,
+                font_size=GUIConstants.LABEL_FONT_SIZE,
+                screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING * 2,
+            )
+            self.components.append(label)
+
+            self.components.append(TextArea(
+                text=text,
+                # font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
+                font_size=font_size,
+                screen_y=label.screen_y + label.height + GUIConstants.COMPONENT_PADDING,
+            ))
 
 
 
