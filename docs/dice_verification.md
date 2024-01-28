@@ -212,15 +212,19 @@ _(for more advanced/python-savvy users)_
 
 Run the exact same SeedSigner mnemonic generation code from the command line to quickly test and externally verify the results.
 
-Install the `embit` dependency:
-```
+Create a python virtualenv (out of the scope of this doc) and install dependencies:
+```bash
 pip3 install embit
+
+# Install the main project code to make it importable
+pip3 install -e .
 ```
 
+
 Then run the utility script with `-h` to view the usage instructions:
-```
-cd src/seedsigner/helpers
-python3 mnemonic_generation.py -h
+```bash
+cd tools
+python3 mnemonic.py -h
 ```
 
 ```
