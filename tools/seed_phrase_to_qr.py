@@ -1,4 +1,5 @@
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, SeedQrEncoder
+from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
 """
@@ -27,7 +28,7 @@ if __name__ == "__main__":
         print("Invalid option")
         sys.exit(1)
 
-    seed_phrase = input("Enter 12- or 24-word test seed phrase: ").strip().split(" ")
+    seed_phrase = input("\nEnter 12- or 24-word test seed phrase: ").strip().split(" ")
 
     if format == COMPACT:
         encoder = CompactSeedQrEncoder(seed_phrase=seed_phrase, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
@@ -38,3 +39,6 @@ if __name__ == "__main__":
     qr.add_data(encoder.next_part())
     qr.make(fit=True)
     qr.make_image(fill_color="black", back_color="white").resize((240,240)).convert('RGB').show()
+
+    seed = Seed(seed_phrase)
+    print(f"\nfingerprint: {seed.get_fingerprint()}\n")
