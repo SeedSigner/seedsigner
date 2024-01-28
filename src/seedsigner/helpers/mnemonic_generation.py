@@ -3,32 +3,20 @@ import unicodedata
 
 from embit import bip39
 from embit.wordlists.bip39 import WORDLIST as WORDLIST__ENGLISH
+from seedsigner.models.settings_definition import SettingsConstants
 
 """
-    This is SeedSigner's internal mnemonic generation utility but is also meant to
-    function as an independently-executable CLI to facilitate external verification of
-    SeedSigner's mnemonic generation for a given input entropy.
+    This is SeedSigner's internal mnemonic generation utility.
+     
+    It can also be run as an independently-executable CLI to facilitate external
+    verification of SeedSigner's results for a given input entropy.
 
-    Therefore its module imports should be kept to the bare minimum.
-
-    ## Running as a standalone script
-    Install the `embit` library:
-    ```
-    pip3 install embit
-    ```
-
-    And then run:
-    ```
-    python3 mnemonic_generation.py -h
-    ```
+    see: docs/dice_verification.md (the "Command Line Tool" section).
 """
-
-
-# Hard-coded value from SettingsConstants to avoid dependencies
-WORDLIST_LANGUAGE__ENGLISH = 'en'
 
 DICE__NUM_ROLLS__12WORD = 50
 DICE__NUM_ROLLS__24WORD = 99
+
 
 
 def _get_wordlist(wordlist_language_code) -> list[str]:
@@ -37,7 +25,7 @@ def _get_wordlist(wordlist_language_code) -> list[str]:
         requiring any SeedSigner module dependencies for when this is run as a
         standalone CLI.
     """
-    if wordlist_language_code == WORDLIST_LANGUAGE__ENGLISH:
+    if wordlist_language_code == SettingsConstants.WORDLIST_LANGUAGE__ENGLISH:
         return WORDLIST__ENGLISH
     else:
         # Nested import to avoid dependency on Seed model when running this script standalone
@@ -46,7 +34,7 @@ def _get_wordlist(wordlist_language_code) -> list[str]:
 
 
 
-def calculate_checksum(mnemonic: list | str, wordlist_language_code: str = WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
+def calculate_checksum(mnemonic: list | str, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
     """
         Provide 12- or 24-word mnemonic, returns complete mnemonic w/checksum as a list.
 
@@ -83,12 +71,12 @@ def calculate_checksum(mnemonic: list | str, wordlist_language_code: str = WORDL
 
 
 
-def generate_mnemonic_from_bytes(entropy_bytes, wordlist_language_code: str = WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
+def generate_mnemonic_from_bytes(entropy_bytes, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
     return bip39.mnemonic_from_bytes(entropy_bytes, wordlist=_get_wordlist(wordlist_language_code)).split()
 
 
 
-def generate_mnemonic_from_dice(roll_data: str, wordlist_language_code: str = WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
+def generate_mnemonic_from_dice(roll_data: str, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
     """
         Takes a string of 50 or 99 dice rolls and returns a 12- or 24-word mnemonic.
 
@@ -109,7 +97,7 @@ def generate_mnemonic_from_dice(roll_data: str, wordlist_language_code: str = WO
 
 
 
-def generate_mnemonic_from_coin_flips(coin_flips: str, wordlist_language_code: str = WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
+def generate_mnemonic_from_coin_flips(coin_flips: str, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
     """
         Takes a string of 128 or 256 0s and 1s and returns a 12- or 24-word mnemonic.
 
@@ -128,7 +116,7 @@ def generate_mnemonic_from_coin_flips(coin_flips: str, wordlist_language_code: s
 
 
 
-def get_partial_final_word(coin_flips: str, wordlist_language_code: str = WORDLIST_LANGUAGE__ENGLISH) -> str:
+def get_partial_final_word(coin_flips: str, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> str:
     """ Look up the partial final word for the given coin flips.
         7 coin flips: 0101010 + **** where the final 4 bits will be replaced with the checksum
         3 coin flips: 010 + ******** where the final 8 bits will be replaced with the checksum
@@ -142,11 +130,9 @@ def get_partial_final_word(coin_flips: str, wordlist_language_code: str = WORDLI
 
 # Note: This currently isn't being used since we're now chaining hashed bytes for the
 #   image-based entropy and aren't just ingesting a single image.
-def generate_mnemonic_from_image(image, wordlist_language_code: str = WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
+def generate_mnemonic_from_image(image, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
     import hashlib
     hash = hashlib.sha256(image.tobytes())
 
     # Return as a list
     return bip39.mnemonic_from_bytes(hash.digest(), wordlist=_get_wordlist(wordlist_language_code)).split()
-
-
