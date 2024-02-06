@@ -17,6 +17,7 @@ class Settings(Singleton):
     HOSTNAME = platform.uname()[1]
     SEEDSIGNER_OS = "seedsigner-os"
     SETTINGS_FILENAME = "/mnt/microsd/settings.json" if HOSTNAME == SEEDSIGNER_OS else "settings.json"
+    SU_COMMAND_PREFIX = "" if HOSTNAME == SEEDSIGNER_OS else "sudo "
         
     @classmethod
     def get_instance(cls):
@@ -184,21 +185,22 @@ class Settings(Singleton):
                 self.loading_screen = LoadingScreenThread(text="Disabling USB Ports")
                 self.loading_screen.start()
                 print("Disabling USB")
-                for hub in range(3):
-                    for port in range(3):
-                        os.system("sudo hub-ctrl -H " + str(hub) + " -P " + str(port) + " -p 0")
+                os.system(self.SU_COMMAND_PREFIX + "uhubctl -a 0")
                 self.loading_screen.stop()
 
             if "usb" in value and "usb" not in self._data[attr_name]:
                 self.loading_screen = LoadingScreenThread(text="Enabling USB Ports")
                 self.loading_screen.start()
                 print("Enabling USB")
-                for hub in range(3):
-                    for port in range(5):
-                        os.system("sudo hub-ctrl -H " + str(hub) + " -P " + str(port) + " -p 1")
+                os.system(self.SU_COMMAND_PREFIX + "uhubctl -a 1")
 
                 time.sleep(1)
-                os.system("sudo service pcscd restart") # PCSC doesn't always work properly after USB ports have been re-enabled
+                if HOSTNAME == SEEDSIGNER_OS:
+                    os.system(
+                        "/etc/init.d/S10pcscd restart")  # PCSC doesn't always work properly after USB ports have been re-enabled
+                else:
+                    os.system("sudo service pcscd restart") # PCSC doesn't always work properly after USB ports have been re-enabled
+
                 self.loading_screen.stop()
 
             # Execution order matters here if swithing from Phoenix to PN352, basically we want to disable phoenix first and then enable PN532
@@ -207,18 +209,30 @@ class Settings(Singleton):
                 self.loading_screen.start()
                 print("Phoenix Enabled")
 
-                os.system("sudo openct-control init") # OpenCT needs a bit of time to get going before restarting PCSCD (At least two seconds) to work reliabily
+                os.system(self.SU_COMMAND_PREFIX + "openct-control init") # OpenCT needs a bit of time to get going before restarting PCSCD (At least two seconds) to work reliabily
                 time.sleep(3)
-                os.system("sudo service pcscd restart")
+
+                if HOSTNAME == SEEDSIGNER_OS:
+                    os.system(
+                        "/etc/init.d/S10pcscd restart")
+                else:
+                    os.system("sudo service pcscd restart")
+
                 self.loading_screen.stop()
 
             if "phoenix" not in value and "phoenix" in self._data[attr_name]:
                 self.loading_screen = LoadingScreenThread(text="Stopping OpenCT")
                 self.loading_screen.start()
                 print("Phoenix Disabled")
-                os.system("sudo openct-control shutdown")
+                os.system(self.SU_COMMAND_PREFIX + "openct-control shutdown")
                 time.sleep(3)
-                os.system("sudo service pcscd restart")
+
+                if HOSTNAME == SEEDSIGNER_OS:
+                    os.system(
+                        "/etc/init.d/S10pcscd restart")
+                else:
+                    os.system("sudo service pcscd restart")
+
                 self.loading_screen.stop()
 
             if "pn532" in value and "pn532" not in self._data[attr_name]:

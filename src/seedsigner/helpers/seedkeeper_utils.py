@@ -174,7 +174,10 @@ def run_globalplatform(parentObject, command, loadingText = "Loading", successte
     parentObject.loading_screen = LoadingScreenThread(text=loadingText)
     parentObject.loading_screen.start()
 
-    commandString = "java -jar /home/pi/Satochip-DIY/gp.jar " + command
+    if HOSTNAME == SEEDSIGNER_OS:
+        commandString = "/mnt/diy/jdk/bin/java -jar /mnt/diy/jdk/Satochip-DIY/gp.jar " + command
+    else:
+        commandString = "java -jar /home/pi/Satochip-DIY/gp.jar " + command
 
     data = run(commandString, capture_output=True, shell=True, text=True)
 
