@@ -1016,7 +1016,11 @@ class ToolsDIYInstallAppletView(View):
         applet_file = cap_files[selected_file_num]
         print("Selected:", applet_file)
 
-        installed_applets = seedkeeper_utils.run_globalplatform(self,"--install /home/pi/Satochip-DIY/build/" + applet_file, "Installing Applet", "Applet Installed")
+        if platform.uname()[1] == "seedsigner-os":
+            installed_applets = seedkeeper_utils.run_globalplatform(self,
+                                                                    "--install /mnt/microsd/javacard-cap/" + applet_file, "Installing Applet", "Applet Installed")
+        else:
+            installed_applets = seedkeeper_utils.run_globalplatform(self,"--install /home/pi/Satochip-DIY/build/" + applet_file, "Installing Applet", "Applet Installed")
 
         # This process often kills IFD-NFC, so restart it if required
         scinterface = self.settings.get_value(SettingsConstants.SETTING__SMARTCARD_INTERFACES)
