@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import hashlib
 import os
 import time
+import platform
 
 from embit.descriptor import Descriptor
 from PIL import Image
