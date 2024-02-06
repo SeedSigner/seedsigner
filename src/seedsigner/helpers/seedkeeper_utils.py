@@ -8,6 +8,7 @@ from seedsigner.gui.screens.screen import LoadingScreenThread
 import os
 import time
 from os import urandom
+import platform
 
 def init_satochip(parentObject):
     from seedsigner.models.settings import Settings, SettingsConstants, SettingsDefinition
@@ -174,7 +175,7 @@ def run_globalplatform(parentObject, command, loadingText = "Loading", successte
     parentObject.loading_screen = LoadingScreenThread(text=loadingText)
     parentObject.loading_screen.start()
 
-    if HOSTNAME == SEEDSIGNER_OS:
+    if platform.uname()[1] == "seedsigner-os":
         commandString = "/mnt/diy/jdk/bin/java -jar /mnt/diy/jdk/Satochip-DIY/gp.jar " + command
     else:
         commandString = "java -jar /home/pi/Satochip-DIY/gp.jar " + command

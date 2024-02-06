@@ -195,7 +195,7 @@ class Settings(Singleton):
                 os.system(self.SU_COMMAND_PREFIX + "uhubctl -a 1")
 
                 time.sleep(1)
-                if HOSTNAME == SEEDSIGNER_OS:
+                if self.HOSTNAME == self.SEEDSIGNER_OS:
                     os.system(
                         "/etc/init.d/S10pcscd restart")  # PCSC doesn't always work properly after USB ports have been re-enabled
                 else:
@@ -212,7 +212,7 @@ class Settings(Singleton):
                 os.system(self.SU_COMMAND_PREFIX + "openct-control init") # OpenCT needs a bit of time to get going before restarting PCSCD (At least two seconds) to work reliabily
                 time.sleep(3)
 
-                if HOSTNAME == SEEDSIGNER_OS:
+                if self.HOSTNAME == self.SEEDSIGNER_OS:
                     os.system(
                         "/etc/init.d/S10pcscd restart")
                 else:
@@ -227,7 +227,7 @@ class Settings(Singleton):
                 os.system(self.SU_COMMAND_PREFIX + "openct-control shutdown")
                 time.sleep(3)
 
-                if HOSTNAME == SEEDSIGNER_OS:
+                if self.HOSTNAME == self.SEEDSIGNER_OS:
                     os.system(
                         "/etc/init.d/S10pcscd restart")
                 else:
