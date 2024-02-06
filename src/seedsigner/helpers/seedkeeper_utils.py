@@ -176,7 +176,7 @@ def run_globalplatform(parentObject, command, loadingText = "Loading", successte
     parentObject.loading_screen.start()
 
     if platform.uname()[1] == "seedsigner-os":
-        commandString = "/mnt/diy/jdk/bin/java -jar /mnt/diy/jdk/Satochip-DIY/gp.jar " + command
+        commandString = "/mnt/diy/jdk/bin/java -jar /mnt/diy/Satochip-DIY/gp.jar " + command
     else:
         commandString = "java -jar /home/pi/Satochip-DIY/gp.jar " + command
 

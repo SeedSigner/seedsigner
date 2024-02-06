@@ -997,7 +997,10 @@ class ToolsDIYInstallAppletView(View):
         import os
         from seedsigner.gui.screens.screen import LoadingScreenThread
 
-        cap_files = os.listdir('/home/pi/Satochip-DIY/build/')
+        if platform.uname()[1] == "seedsigner-os":
+            cap_files = os.listdir('/mnt/microsd/javacard-cap/')
+        else:
+            cap_files = os.listdir('/home/pi/Satochip-DIY/build/')
 
         selected_file_num = self.run_screen(
             ButtonListScreen,

@@ -197,7 +197,7 @@ class Settings(Singleton):
                 time.sleep(1)
                 if self.HOSTNAME == self.SEEDSIGNER_OS:
                     os.system(
-                        "/etc/init.d/S10pcscd restart")  # PCSC doesn't always work properly after USB ports have been re-enabled
+                        "/etc/init.d/S01pcscd restart")  # PCSC doesn't always work properly after USB ports have been re-enabled
                 else:
                     os.system("sudo service pcscd restart") # PCSC doesn't always work properly after USB ports have been re-enabled
 
@@ -214,7 +214,7 @@ class Settings(Singleton):
 
                 if self.HOSTNAME == self.SEEDSIGNER_OS:
                     os.system(
-                        "/etc/init.d/S10pcscd restart")
+                        "/etc/init.d/S01pcscd restart")
                 else:
                     os.system("sudo service pcscd restart")
 
@@ -229,7 +229,7 @@ class Settings(Singleton):
 
                 if self.HOSTNAME == self.SEEDSIGNER_OS:
                     os.system(
-                        "/etc/init.d/S10pcscd restart")
+                        "/etc/init.d/S01pcscd restart")
                 else:
                     os.system("sudo service pcscd restart")
 
