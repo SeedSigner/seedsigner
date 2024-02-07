@@ -196,10 +196,13 @@ class Settings(Singleton):
 
                 time.sleep(1)
                 if self.HOSTNAME == self.SEEDSIGNER_OS:
-                    os.system(
-                        "/etc/init.d/S01pcscd restart")  # PCSC doesn't always work properly after USB ports have been re-enabled
+                    os.system("/etc/init.d/S01pcscd stop")
+                    time.sleep(1)
+                    os.system("/etc/init.d/S01pcscd start")
                 else:
-                    os.system("sudo service pcscd restart") # PCSC doesn't always work properly after USB ports have been re-enabled
+                    os.system("sudo service pcscd stop")
+                    time.sleep(1)
+                    os.system("sudo service pcscd start")
 
                 self.loading_screen.stop()
 
@@ -213,10 +216,13 @@ class Settings(Singleton):
                 time.sleep(3)
 
                 if self.HOSTNAME == self.SEEDSIGNER_OS:
-                    os.system(
-                        "/etc/init.d/S01pcscd restart")
+                    os.system("/etc/init.d/S01pcscd stop")
+                    time.sleep(1)
+                    os.system("/etc/init.d/S01pcscd start")
                 else:
-                    os.system("sudo service pcscd restart")
+                    os.system("sudo service pcscd stop")
+                    time.sleep(1)
+                    os.system("sudo service pcscd start")
 
                 self.loading_screen.stop()
 
@@ -228,10 +234,13 @@ class Settings(Singleton):
                 time.sleep(3)
 
                 if self.HOSTNAME == self.SEEDSIGNER_OS:
-                    os.system(
-                        "/etc/init.d/S01pcscd restart")
+                    os.system("/etc/init.d/S01pcscd stop")
+                    time.sleep(1)
+                    os.system("/etc/init.d/S01pcscd start")
                 else:
-                    os.system("sudo service pcscd restart")
+                    os.system("sudo service pcscd stop")
+                    time.sleep(1)
+                    os.system("sudo service pcscd start")
 
                 self.loading_screen.stop()
 
