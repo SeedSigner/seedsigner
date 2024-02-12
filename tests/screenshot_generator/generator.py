@@ -187,8 +187,8 @@ def test_generate_screenshots(target_locale):
             psbt_views.PSBTMathView,
             (psbt_views.PSBTAddressDetailsView, dict(address_num=0)),
 
-            # TODO: Render Multisig change w/ and w/out the multisig wallet descriptor onboard
-            (psbt_views.PSBTChangeDetailsView, dict(change_address_num=0)),
+            (NotYetImplementedView, {}, "PSBTChangeDetailsView_multisig_unverified"),  # Must manually re-run this below
+            (psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), "PSBTChangeDetailsView_multisig_verified"),
             (psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True, is_multisig=False), "PSBTAddressVerificationFailedView_singlesig_change"),
             (psbt_views.PSBTAddressVerificationFailedView, dict(is_change=False, is_multisig=False), "PSBTAddressVerificationFailedView_singlesig_selftransfer"),
             (psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True, is_multisig=True), "PSBTAddressVerificationFailedView_multisig_change"),
@@ -293,8 +293,16 @@ def test_generate_screenshots(target_locale):
         readme += "</td></tr></table>"
 
     # many screens don't work, leaving a missing image, re-run here for now
-    controller.psbt_seed = None
     screenshot_renderer.set_screenshot_path(os.path.join(screenshot_root, "psbt_views"))
+
+    decoder = DecodeQR()
+    decoder.add_data(BASE64_PSBT_1)
+    controller.psbt = decoder.get_psbt()
+    controller.psbt_seed = seed_12b
+    controller.multisig_wallet_descriptor = None
+    screencap_view(psbt_views.PSBTChangeDetailsView, 'PSBTChangeDetailsView_multisig_unverified', dict(change_address_num=0))
+
+    controller.psbt_seed = None
     screencap_view(psbt_views.PSBTSelectSeedView, 'PSBTSelectSeedView', {})
 
     with open(os.path.join(screenshot_root, "README.md"), 'w') as readme_file:
