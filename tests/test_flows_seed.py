@@ -32,6 +32,23 @@ class TestSeedFlows(FlowTest):
         ])
 
 
+    def test_passphrase_entry_flow(self):
+        """
+        Opting to add a bip39 passphrase on the Finalize Seed screen should enter the
+        passphrase entry / review flow and end at the SeedOptionsView. 
+        """
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
+            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value="muhpassphrase"),
+            FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.EDIT),
+            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value="muhpassphrase2"),
+            FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
+            FlowStep(seed_views.SeedOptionsView),
+        ])
+
+
     def test_mnemonic_entry_flow(self):
         """
             Manually entering a mnemonic should land at the Finalize Seed flow and end at
