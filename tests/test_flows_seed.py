@@ -8,7 +8,7 @@ from base import FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDat
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import Seed
-from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView
+from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView, NotYetImplementedView
 from seedsigner.views import seed_views, scan_views, settings_views, tools_views
 
 
@@ -316,6 +316,7 @@ class TestSeedFlows(FlowTest):
 class TestMessageSigningFlows(FlowTest):
     MAINNET_DERIVATION_PATH = "m/84h/0h/0h/0/0"
     TESTNET_DERIVATION_PATH = "m/84h/1h/0h/0/0"
+    CUSTOM_DERIVATION_PATH = "m/99h/0/0"
     SHORT_MESSAGE = "I attest that I control this bitcoin address blah blah blah"
     MULTIPAGE_MESSAGE = """Chancellor on brink of second bailout for banks
 
@@ -344,6 +345,10 @@ class TestMessageSigningFlows(FlowTest):
 
     def load_multipage_message_into_decoder(self, view: View):
         self.load_signmessage_into_decoder(view, self.MAINNET_DERIVATION_PATH, self.MULTIPAGE_MESSAGE)
+
+
+    def load_custom_derivation_into_decoder(self, view: View):
+        self.load_signmessage_into_decoder(view, self.CUSTOM_DERIVATION_PATH, self.SHORT_MESSAGE)
 
 
     def inject_mesage_as_paged_message(self, view: View):
@@ -520,3 +525,27 @@ class TestMessageSigningFlows(FlowTest):
         ])
 
         assert self.controller.resume_main_flow is None
+
+
+    def test_sign_message_unsupported_derivation_flow(self):
+        """
+        Should redirect to NotYetImplementedView if a message's derivation path isn't yet supported
+        """
+        # Ensure message signing is enabled
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+
+        def expect_unsupported_derivation(load_message: Callable):
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+                FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
+                FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
+                FlowStep(scan_views.ScanView, before_run=load_message),  # simulate read message QR; ret val is ignored
+                FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+                FlowStep(seed_views.NotYetImplementedView),
+                FlowStep(MainMenuView),
+            ])
+
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+        expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
+
