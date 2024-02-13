@@ -1017,7 +1017,8 @@ class ToolsDIYBuildAppletsView(View):
             if not os.path.exists("/mnt/microsd/javacard-cap/"):
                 os.system("mkdir -p /mnt/microsd/javacard-cap/")
 
-            commandString = "/mnt/diy/ant/bin/ant -f /mnt/microsd/javacard-build.xml -DJAVA_HOME=/mnt/diy/jdk"
+            os.system("export JAVA_HOME=/mnt/diy/jdk")
+            commandString = "/mnt/diy/ant/bin/ant -f /mnt/microsd/javacard-build.xml"
         else:
             if not os.path.exists("/boot/javacard-build.xml"):
                 os.system("sudo cp /home/pi/seedsigner/tools/javacard-build.xml.manual /boot/javacard-build.xml")
@@ -1033,16 +1034,7 @@ class ToolsDIYBuildAppletsView(View):
 
         self.loading_screen.stop()
 
-        if(len(data.stderr) > 1):
-            data.stderr = data.stderr.split("Total time:")[0]
-            self.run_screen(
-                WarningScreen,
-                title="Failed",
-                status_headline=None,
-                text=data.stderr.replace("\n", " "),
-                show_back_button=False,
-            )
-        else:
+        if "BUILD SUCCESSFUL" in data.stdout:
             self.run_screen(
                 LargeIconStatusScreen,
                 title="Success",
@@ -1050,6 +1042,15 @@ class ToolsDIYBuildAppletsView(View):
                 text=f"Applets Built",
                 show_back_button=False,
             )
+        else:
+            self.run_screen(
+                WarningScreen,
+                title="Failed",
+                status_headline=None,
+                text=data.stderr.replace("\n", " "),
+                show_back_button=False,
+            )
+
 
         return Destination(MainMenuView)
 
