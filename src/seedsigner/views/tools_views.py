@@ -1217,26 +1217,27 @@ class ToolsMicroSDFlashView(View):
             )
 
             data = run("dd if=/tmp/img.img of=/dev/mmcblk0", capture_output=True, shell=True, text=True)
+
             if len(data.stderr) > 1:
                 self.run_screen(
                     WarningScreen,
                     title="Error",
                     status_headline=None,
-                    text="data.stderr",
+                    text=data.stderr,
+                    show_back_button=False,
+                )
+            else:
+                self.run_screen(
+                    LargeIconStatusScreen,
+                    title="Success",
+                    status_headline=None,
+                    text=f"MicroSD Flashed",
                     show_back_button=False,
                 )
 
         else:
             os.system("cp /boot/microsd-images/" + microsd_image + " /tmp/img.img")
             os.system("sudo dd if=/tmp/img.img of=/dev/mmcblk0")
-
-        self.run_screen(
-            LargeIconStatusScreen,
-            title="Success",
-            status_headline=None,
-            text=f"MicroSD Flashed",
-            show_back_button=False,
-        )
 
         return Destination(MainMenuView)
 
@@ -1277,10 +1278,38 @@ class ToolsMicroSDVerifyView(View):
 class ToolsMicroSDWipeZeroView(View):
     def run(self):
         from subprocess import run
+
+        self.run_screen(
+            WarningScreen,
+            title="Notice",
+            status_headline=None,
+            text="Insert MicroSD to be Wiped",
+            show_back_button=False,
+        )
+
         if platform.uname()[1] == "seedsigner-os":
-            os.system("dd if=/dev/zero of=/dev/mmcblk0 bs=1M count=1024")
+            cmd = "dd if=/dev/zero of=/dev/mmcblk0 bs=1M count=1024"
         else:
-            os.system("sudo dd if=/dev/zero of=/dev/mmcblk0 bs=1M count=1024")
+            cmd = "sudo dd if=/dev/zero of=/dev/mmcblk0 bs=1M count=1024"
+
+        data = run(cmd, capture_output=True, shell=True, text=True)
+
+        if len(data.stderr) > 1:
+            self.run_screen(
+                WarningScreen,
+                title="Error",
+                status_headline=None,
+                text=data.stderr,
+                show_back_button=False,
+            )
+        else:
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"MicroSD Wiped",
+                show_back_button=False,
+            )
 
         return Destination(MainMenuView)
 
@@ -1288,9 +1317,36 @@ class ToolsMicroSDWipeRandomView(View):
     def run(self):
         from subprocess import run
 
+        self.run_screen(
+            WarningScreen,
+            title="Notice",
+            status_headline=None,
+            text="Insert MicroSD to be Wiped",
+            show_back_button=False,
+        )
+
         if platform.uname()[1] == "seedsigner-os":
-            os.system("dd if=/dev/urandom of=/dev/mmcblk0 bs=1M count=1024")
+            cmd = "dd if=/dev/urandom of=/dev/mmcblk0 bs=1M count=1024"
         else:
-            os.system("sudo dd if=/dev/urandom of=/dev/mmcblk0 bs=1M count=1024")
+            cmd = "sudo dd if=/dev/urandom of=/dev/mmcblk0 bs=1M count=1024"
+
+        data = run(cmd, capture_output=True, shell=True, text=True)
+
+        if len(data.stderr) > 1:
+            self.run_screen(
+                WarningScreen,
+                title="Error",
+                status_headline=None,
+                text=data.stderr,
+                show_back_button=False,
+            )
+        else:
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"MicroSD Wiped",
+                show_back_button=False,
+            )
 
         return Destination(MainMenuView)
