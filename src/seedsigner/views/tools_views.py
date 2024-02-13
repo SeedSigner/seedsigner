@@ -1200,9 +1200,8 @@ class ToolsMicroSDFlashView(View):
             os.system("dd if=/tmp/img.img of=/dev/mmcblk0")
 
         else:
-            print("cp /mnt/microsd/microsd-images/" + microsd_image + " /tmp/img.img")
-            #os.system("cp /mnt/microsd/microsd-images/" + microsd_image + " /tmp/img.img")
-            #os.system("sudo dd if=/tmp/img.img of=/dev/mmcblk0")
+            os.system("cp /boot/microsd-images/" + microsd_image + " /tmp/img.img")
+            os.system("sudo dd if=/tmp/img.img of=/dev/mmcblk0")
 
         return Destination(MainMenuView)
 
