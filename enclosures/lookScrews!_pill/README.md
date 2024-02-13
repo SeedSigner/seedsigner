@@ -7,3 +7,4 @@ This design has a few requirements.
     8x 10mm M2.5 screws
 The buttons and pressPad HAVE to be printed out of TPU fillament. The Top and Bottom are best from PLA but PETG will work just as well. 
 The pressPad has a slightly smaller cavity for a stubby nub of the waveshare hat. DO NOT PANIC!. Its done on purpouse to achieve a friction for the pad to hold on the nub. 
+![image](https://github.com/surfac3/seedsigner/assets/89400663/082c3c22-6bbd-402c-806e-98a32700621b)
