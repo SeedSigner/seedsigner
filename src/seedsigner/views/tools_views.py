@@ -1011,6 +1011,12 @@ class ToolsDIYBuildAppletsView(View):
         self.loading_screen.start()
 
         if platform.uname()[1] == "seedsigner-os":
+            if not os.path.exists("/mnt/microsd/javacard-build.xml"):
+                os.system("cp /opt/tools/javacard-build.xml.seedsigneros /mnt/microsd/javacard-build.xml")
+
+            if not os.path.exists("/mnt/microsd/javacard-cap/"):
+                os.system("mkdir -p /mnt/microsd/javacard-cap/")
+
             commandString = "/mnt/diy/ant/bin/ant -f /mnt/microsd/javacard-build.xml"
         else:
             if not os.path.exists("/boot/javacard-build.xml"):
