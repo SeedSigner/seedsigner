@@ -1186,7 +1186,7 @@ class ToolsMicroSDFlashView(View):
 
         selected_file_num = self.run_screen(
             ButtonListScreen,
-            title="Select Applet",
+            title="Select Image",
             is_button_text_centered=False,
             button_data=microsd_images
         )
@@ -1224,11 +1224,11 @@ class ToolsMicroSDFlashView(View):
 
             self.loading_screen.stop()
 
-            data.stderr = data.stderr.split('\n')
+            data_stderr_split = data.stderr.split('\n')
 
             inNum = 1
             outNum = 0
-            for errorLine in data.stderr:
+            for errorLine in data_stderr_split:
                 if "Records In" in errorLine:
                     inNum = errorLine.split("+")[0]
                     continue
@@ -1318,11 +1318,11 @@ class ToolsMicroSDWipeZeroView(View):
 
         self.loading_screen.stop()
 
-        data.stderr = data.stderr.split('\n')
+        data_stderr_split = data.stderr.split('\n')
 
         inNum = 1
         outNum = 0
-        for errorLine in data.stderr:
+        for errorLine in data_stderr_split:
             if "Records In" in errorLine:
                 inNum = errorLine.split("+")[0]
                 continue
@@ -1374,11 +1374,11 @@ class ToolsMicroSDWipeRandomView(View):
 
         self.loading_screen.stop()
 
-        data.stderr = data.stderr.split('\n')
+        data_stderr_split = data.stderr.split('\n')
 
         inNum = 1
         outNum = 0
-        for errorLine in data.stderr:
+        for errorLine in data_stderr_split:
             if "Records In" in errorLine:
                 inNum = errorLine.split("+")[0]
                 continue
