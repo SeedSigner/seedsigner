@@ -34,9 +34,10 @@ class ToolsMenuView(View):
     EXPLORER = "Address Explorer"
     ADDRESS = "Verify address"
     SMARTCARD = ("Smartcard Tools", FontAwesomeIconConstants.LOCK)
+    MICROSD = "MicroSD Tools"
 
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.EXPLORER, self.ADDRESS, self.SMARTCARD]
+        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.EXPLORER, self.ADDRESS, self.SMARTCARD, self.MICROSD]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -66,6 +67,9 @@ class ToolsMenuView(View):
 
         elif button_data[selected_menu_num] == self.SMARTCARD:
             return Destination(ToolsSmartcardMenuView)
+        
+        elif button_data[selected_menu_num] == self.MICROSD:
+            return Destination(ToolsMicroSDMenuView)
 
 
 
@@ -725,7 +729,7 @@ class ToolsSmartcardMenuView(View):
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title="Tools",
+            title="Smartcard Tools",
             is_button_text_centered=False,
             button_data=button_data
         )
@@ -970,15 +974,16 @@ class ToolsSatochipEnable2FAView(View):
         return Destination(MainMenuView)
 
 class ToolsSatochipDIYView(View):
+    BUILD_APPLETS = ("Build Applets")
     INSTALL_APPLET = ("Install Applet")
     UNINSTALL_APPLET = ("Uninstall Applet")
 
     def run(self):
-        button_data = [self.INSTALL_APPLET, self.UNINSTALL_APPLET]
+        button_data = [self.BUILD_APPLETS, self.INSTALL_APPLET, self.UNINSTALL_APPLET]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title="Tools",
+            title="Javacard DIY",
             is_button_text_centered=False,
             button_data=button_data
         )
@@ -986,11 +991,61 @@ class ToolsSatochipDIYView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
+        elif button_data[selected_menu_num] == self.BUILD_APPLETS:
+            return Destination(ToolsDIYBuildAppletsView)
+
         elif button_data[selected_menu_num] == self.INSTALL_APPLET:
             return Destination(ToolsDIYInstallAppletView)
 
         elif button_data[selected_menu_num] == self.UNINSTALL_APPLET:
             return Destination(ToolsDIYUninstallAppletView)
+
+
+class ToolsDIYBuildAppletsView(View):
+    def run(self):
+        from subprocess import run
+        import os
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+
+        self.loading_screen = LoadingScreenThread(text="Building Applets\n\n\n\n\n\n(This takes a while)")
+        self.loading_screen.start()
+
+        if platform.uname()[1] == "seedsigner-os":
+            commandString = "/mnt/diy/ant/bin/ant -f /mnt/microsd/javacard-build.xml"
+        else:
+            if not os.path.exists("/boot/javacard-build.xml"):
+                os.system("sudo cp /home/pi/seedsigner/tools/javacard-build.xml.manual /boot/javacard-build.xml")
+
+            if not os.path.exists("/boot/javacard-cap/"):
+                os.system("sudo mkdir -p /boot/javacard-cap/")
+
+            commandString = "sudo ant -f /boot/javacard-build.xml"
+
+        data = run(commandString, capture_output=True, shell=True, text=True)
+
+        print(data)
+
+        self.loading_screen.stop()
+
+        if(len(data.stderr) > 1):
+            data.stderr = data.stderr.split("Total time:")[0]
+            self.run_screen(
+                WarningScreen,
+                title="Failed",
+                status_headline=None,
+                text=data.stderr.replace("\n", " "),
+                show_back_button=False,
+            )
+        else:
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"Applets Built",
+                show_back_button=False,
+            )
+
+        return Destination(MainMenuView)
 
 class ToolsDIYInstallAppletView(View):
     def run(self):
@@ -1001,7 +1056,7 @@ class ToolsDIYInstallAppletView(View):
         if platform.uname()[1] == "seedsigner-os":
             cap_files = os.listdir('/mnt/microsd/javacard-cap/')
         else:
-            cap_files = os.listdir('/home/pi/Satochip-DIY/build/')
+            cap_files = os.listdir('/boot/javacard-cap/')
 
         selected_file_num = self.run_screen(
             ButtonListScreen,
@@ -1020,7 +1075,7 @@ class ToolsDIYInstallAppletView(View):
             installed_applets = seedkeeper_utils.run_globalplatform(self,
                                                                     "--install /mnt/microsd/javacard-cap/" + applet_file, "Installing Applet", "Applet Installed")
         else:
-            installed_applets = seedkeeper_utils.run_globalplatform(self,"--install /home/pi/Satochip-DIY/build/" + applet_file, "Installing Applet", "Applet Installed")
+            installed_applets = seedkeeper_utils.run_globalplatform(self,"--install /boot/javacard-cap/" + applet_file, "Installing Applet", "Applet Installed")
 
         # This process often kills IFD-NFC, so restart it if required
         scinterface = self.settings.get_value(SettingsConstants.SETTING__SMARTCARD_INTERFACES)
@@ -1078,3 +1133,123 @@ class ToolsDIYUninstallAppletView(View):
             os.system("ifdnfc-activate yes")
 
         return Destination(MainMenuView)
+
+"""****************************************************************************
+    MicroSD Views
+****************************************************************************"""
+class ToolsMicroSDMenuView(View):
+    FLASH_IMAGE = ("Flash Image")
+    VERIFY_IMAGE = ("Verify MicroSD")
+    WIPE_ZERO = ("Wipe (Zero)")
+    WIPE_RANDOM = ("Wipe (Random)")
+
+    def run(self):
+        button_data = [self.FLASH_IMAGE, self.VERIFY_IMAGE, self.WIPE_ZERO, self.WIPE_RANDOM]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="MicroSD Tools",
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.FLASH_IMAGE:
+            return Destination(ToolsMicroSDFlashView)
+        
+        elif button_data[selected_menu_num] == self.VERIFY_IMAGE:
+            return Destination(ToolsMicroSDVerifyView)
+
+        elif button_data[selected_menu_num] == self.WIPE_ZERO:
+            return Destination(ToolsMicroSDWipeZeroView)
+
+        elif button_data[selected_menu_num] == self.WIPE_RANDOM:
+            return Destination(ToolsMicroSDWipeRandomView)
+        
+class ToolsMicroSDFlashView(View):
+    def run(self):
+
+        if platform.uname()[1] == "seedsigner-os":
+            microsd_images = os.listdir('/mnt/microsd/microsd-images/')
+        else:
+            microsd_images = os.listdir('/boot/microsd-images/')
+
+        selected_file_num = self.run_screen(
+            ButtonListScreen,
+            title="Select Applet",
+            is_button_text_centered=False,
+            button_data=microsd_images
+        )
+
+        if selected_file_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        microsd_image = microsd_images[selected_file_num]
+        print("Selected:", microsd_image)
+
+        if platform.uname()[1] == "seedsigner-os":
+            os.system("cp /mnt/microsd/microsd-images/" + microsd_image + " /tmp/img.img")
+            os.system("dd if=/tmp/img.img of=/dev/mmcblk0")
+
+        else:
+            print("cp /mnt/microsd/microsd-images/" + microsd_image + " /tmp/img.img")
+            #os.system("cp /mnt/microsd/microsd-images/" + microsd_image + " /tmp/img.img")
+            #os.system("sudo dd if=/tmp/img.img of=/dev/mmcblk0")
+
+        return Destination(MainMenuView)
+
+class ToolsMicroSDVerifyView(View):
+    def run(self):
+        from subprocess import run
+        import os
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+
+        self.loading_screen = LoadingScreenThread(text="Reading MicroSD\n\n\n\n\n\n")
+        self.loading_screen.start()
+
+        if platform.uname()[1] == "seedsigner-os":
+            os.system("dd if=/dev/mmcblk0 of=/tmp/img.img bs=1M count=26")
+        else:
+            os.system("sudo dd if=/dev/mmcblk0 of=/tmp/img.img bs=1M count=26")
+
+        data = run("sha256sum /tmp/img.img", capture_output=True, shell=True, text=True)
+
+        print(data)
+
+        self.loading_screen.stop()
+
+        checksum = data.stdout[:64]
+
+        formatted_checksum = data.stdout[:16] + "\n" + data.stdout[16:32] + "\n" + data.stdout[32:48] + "\n" + data.stdout[48:64]
+
+        self.run_screen(
+            WarningScreen,
+            title="Unfamilliar Checksum",
+            status_headline=None,
+            text=formatted_checksum,
+            show_back_button=False,
+        )
+
+        return Destination(MainMenuView)
+    
+    class ToolsMicroSDWipeZeroView(View):
+        def run(self):
+
+            if platform.uname()[1] == "seedsigner-os":
+                os.system("dd if=/dev/zero of=/dev/mmcblk0 bs=1M count=1024")
+            else:
+                os.system("sudo dd if=/dev/zero of=/dev/mmcblk0 bs=1M count=1024")
+
+            return Destination(MainMenuView)
+
+    class ToolsMicroSDWipeRandomView(View):
+        def run(self):
+
+            if platform.uname()[1] == "seedsigner-os":
+                os.system("dd if=/dev/urandom of=/dev/mmcblk0 bs=1M count=1024")
+            else:
+                os.system("sudo dd if=/dev/urandom of=/dev/mmcblk0 bs=1M count=1024")
+
+            return Destination(MainMenuView)

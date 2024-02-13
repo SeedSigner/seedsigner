@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- You may freely edit this file. See commented blocks below for -->
+<!-- some examples of how to customize the build. -->
+<!-- (If you delete it and reopen the project it will be recreated.) -->
+<project name="Satochip-DIY" default="build" basedir=".">
+    <description>Builds, tests, and runs the project .</description>
+
+	<!--
+    You could add descriptions of overridable targets here, or just link to online help...
+    -->
+	<taskdef name="javacard" classname="pro.javacard.ant.JavaCard" classpath="/home/pi/Satochip-DIY/lib/ant-javacard.jar"/>
+
+	<target name="build">
+
+		<mkdir dir="build"/>
+
+		<!-- Build Satochip (Official) for Javacard 3.0.4 -->
+		<javacard>
+		  <cap jckit="/home/pi/Satochip-DIY/sdks/jc304_kit" aid="5361746F43686970" version="0.1" output="/boot/javacard-cap/SatoChip-built-0.12.cap" sources="/home/pi/Satochip-DIY/applets\satochip\src\org\satochip\applet">
+			<applet class="org.satochip.applet.CardEdge" aid="5361746F4368697000"/>
+		  </cap>
+		</javacard>
+
+		<!-- Build Seedkeeper (Official) for Javacard 3.0.4 -->
+		<javacard>
+		  <cap jckit="/home/pi/Satochip-DIY/sdks/jc304_kit" aid="536565644b6565706572" version="0.1" output="/boot/javacard-cap/SeedKeeper-built-0.1.cap" sources="/home/pi/Satochip-DIY/applets\seedkeeper\src\org\seedkeeper\applet">
+			<applet class="org.seedkeeper.applet.SeedKeeper" aid="536565644b656570657200"/>
+		  </cap>
+		</javacard>
+
+		<!-- Build Satodime (Official) for Javacard 3.0.4 -->
+		<javacard>
+		  <cap jckit="/home/pi/Satochip-DIY/sdks/jc304_kit" aid="5361746f44696d65" version="0.1" output="/boot/javacard-cap/SatoDime-built-0.1.2.cap" sources="/home/pi/Satochip-DIY/applets\satodime\src\org\satodime\applet">
+			<applet class="org.satodime.applet.Satodime" aid="5361746f44696d6500"/>
+		  </cap>
+		</javacard>
+
+		<!-- Build Satochip (THD-89) for Javacard 3.0.4 -->
+		<javacard>
+		  <cap jckit="/home/pi/Satochip-DIY/sdks/jc304_kit" aid="5361746F43686970" version="0.1" output="/boot/javacard-cap/SatoChip-THD89-built-0.12.cap" sources="/home/pi/Satochip-DIY/applets\satochip-thd89\src\org\satochip\applet">
+			<applet class="org.satochip.applet.CardEdge" aid="5361746F4368697000"/>
+		  </cap>
+		</javacard>
+
+		<!-- Build Seedkeeper (THD-89) for Javacard 3.0.4 -->
+		<javacard>
+		  <cap jckit="/home/pi/Satochip-DIY/sdks/jc304_kit" aid="536565644b6565706572" version="0.1" output="/boot/javacard-cap/SeedKeeper-THD89-built-0.1.cap" sources="/home/pi/Satochip-DIY/applets\seedkeeper-thd89\src\org\seedkeeper\applet">
+			<applet class="org.seedkeeper.applet.SeedKeeper" aid="536565644b656570657200"/>
+		  </cap>
+		</javacard>
+
+		<!-- Build Satodime (THD-89) for Javacard 3.0.4 -->
+		<javacard>
+		  <cap jckit="/home/pi/Satochip-DIY/sdks/jc304_kit" aid="5361746f44696d65" version="0.1" output="/boot/javacard-cap/SatoDime-THD89-built-0.1.2.cap" sources="/home/pi/Satochip-DIY/applets\satodime-thd89\src\org\satodime\applet">
+			<applet class="org.satodime.applet.Satodime" aid="5361746f44696d6500"/>
+		  </cap>
+		</javacard>
+
+	</target>
+	
+</project>
