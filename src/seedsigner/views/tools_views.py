@@ -1176,6 +1176,7 @@ class ToolsMicroSDMenuView(View):
         
 class ToolsMicroSDFlashView(View):
     def run(self):
+        from subprocess import run
 
         if platform.uname()[1] == "seedsigner-os":
             microsd_images = os.listdir('/mnt/microsd/microsd-images/')
@@ -1196,12 +1197,46 @@ class ToolsMicroSDFlashView(View):
         print("Selected:", microsd_image)
 
         if platform.uname()[1] == "seedsigner-os":
-            os.system("cp /mnt/microsd/microsd-images/" + microsd_image + " /tmp/img.img")
-            os.system("dd if=/tmp/img.img of=/dev/mmcblk0")
+            data = run("cp /mnt/microsd/microsd-images/" + microsd_image + " /tmp/img.img", capture_output=True, shell=True, text=True)
+            if len(data.stderr) > 1:
+                self.run_screen(
+                    WarningScreen,
+                    title="Error",
+                    status_headline=None,
+                    text="data.stderr",
+                    show_back_button=False,
+                )
+                return Destination(MainMenuView)
+
+            self.run_screen(
+                WarningScreen,
+                title="Notice",
+                status_headline=None,
+                text="Insert MicroSD to be Flashed",
+                show_back_button=False,
+            )
+
+            data = run("dd if=/tmp/img.img of=/dev/mmcblk0", capture_output=True, shell=True, text=True)
+            if len(data.stderr) > 1:
+                self.run_screen(
+                    WarningScreen,
+                    title="Error",
+                    status_headline=None,
+                    text="data.stderr",
+                    show_back_button=False,
+                )
 
         else:
             os.system("cp /boot/microsd-images/" + microsd_image + " /tmp/img.img")
             os.system("sudo dd if=/tmp/img.img of=/dev/mmcblk0")
+
+        self.run_screen(
+            LargeIconStatusScreen,
+            title="Success",
+            status_headline=None,
+            text=f"MicroSD Flashed",
+            show_back_button=False,
+        )
 
         return Destination(MainMenuView)
 
@@ -1239,22 +1274,23 @@ class ToolsMicroSDVerifyView(View):
 
         return Destination(MainMenuView)
     
-    class ToolsMicroSDWipeZeroView(View):
-        def run(self):
+class ToolsMicroSDWipeZeroView(View):
+    def run(self):
+        from subprocess import run
+        if platform.uname()[1] == "seedsigner-os":
+            os.system("dd if=/dev/zero of=/dev/mmcblk0 bs=1M count=1024")
+        else:
+            os.system("sudo dd if=/dev/zero of=/dev/mmcblk0 bs=1M count=1024")
 
-            if platform.uname()[1] == "seedsigner-os":
-                os.system("dd if=/dev/zero of=/dev/mmcblk0 bs=1M count=1024")
-            else:
-                os.system("sudo dd if=/dev/zero of=/dev/mmcblk0 bs=1M count=1024")
+        return Destination(MainMenuView)
 
-            return Destination(MainMenuView)
+class ToolsMicroSDWipeRandomView(View):
+    def run(self):
+        from subprocess import run
 
-    class ToolsMicroSDWipeRandomView(View):
-        def run(self):
+        if platform.uname()[1] == "seedsigner-os":
+            os.system("dd if=/dev/urandom of=/dev/mmcblk0 bs=1M count=1024")
+        else:
+            os.system("sudo dd if=/dev/urandom of=/dev/mmcblk0 bs=1M count=1024")
 
-            if platform.uname()[1] == "seedsigner-os":
-                os.system("dd if=/dev/urandom of=/dev/mmcblk0 bs=1M count=1024")
-            else:
-                os.system("sudo dd if=/dev/urandom of=/dev/mmcblk0 bs=1M count=1024")
-
-            return Destination(MainMenuView)
+        return Destination(MainMenuView)
