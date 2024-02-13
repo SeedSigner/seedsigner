@@ -1299,9 +1299,6 @@ class ToolsMicroSDWipeZeroView(View):
         from subprocess import run
         from seedsigner.gui.screens.screen import LoadingScreenThread
 
-        self.loading_screen = LoadingScreenThread(text="Wiping MicroSD\n\n\n\n\n\n(This takes a while)")
-        self.loading_screen.start()
-
         self.run_screen(
             WarningScreen,
             title="Notice",
@@ -1309,6 +1306,9 @@ class ToolsMicroSDWipeZeroView(View):
             text="Insert MicroSD to be Wiped",
             show_back_button=False,
         )
+
+        self.loading_screen = LoadingScreenThread(text="Wiping MicroSD\n\n\n\n\n\n(This takes a while)")
+        self.loading_screen.start()
 
         if platform.uname()[1] == "seedsigner-os":
             cmd = "dd if=/dev/zero of=/dev/mmcblk0 bs=10M count=50"
@@ -1355,9 +1355,6 @@ class ToolsMicroSDWipeRandomView(View):
         from subprocess import run
         from seedsigner.gui.screens.screen import LoadingScreenThread
 
-        self.loading_screen = LoadingScreenThread(text="Wiping MicroSD\n\n\n\n\n\n(This takes a while)")
-        self.loading_screen.start()
-
         self.run_screen(
             WarningScreen,
             title="Notice",
@@ -1365,6 +1362,9 @@ class ToolsMicroSDWipeRandomView(View):
             text="Insert MicroSD to be Wiped",
             show_back_button=False,
         )
+
+        self.loading_screen = LoadingScreenThread(text="Wiping MicroSD\n\n\n\n\n\n(This takes a while)")
+        self.loading_screen.start()
 
         if platform.uname()[1] == "seedsigner-os":
             cmd = "dd if=/dev/urandom of=/dev/mmcblk0 bs=10M count=50"
