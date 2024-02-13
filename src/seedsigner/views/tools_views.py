@@ -1226,7 +1226,8 @@ class ToolsMicroSDFlashView(View):
 
             data.stderr = data.stderr.split('\n')
 
-            errors_cleaned = []
+            inNum = 1
+            outNum = 0
             for errorLine in data.stderr:
                 if "Records In" in errorLine:
                     inNum = errorLine.split("+")[0]
@@ -1234,9 +1235,6 @@ class ToolsMicroSDFlashView(View):
                 elif "Records Out" in errorLine:
                     outNum = errorLine.split("+")[0]
                     continue
-                elif len(errorLine) < 1:
-                    continue
-                errors_cleaned.append(errorLine)
 
             if inNum != outNum:
                 self.run_screen(
@@ -1322,7 +1320,8 @@ class ToolsMicroSDWipeZeroView(View):
 
         data.stderr = data.stderr.split('\n')
 
-        errors_cleaned = []
+        inNum = 1
+        outNum = 0
         for errorLine in data.stderr:
             if "Records In" in errorLine:
                 inNum = errorLine.split("+")[0]
@@ -1330,9 +1329,6 @@ class ToolsMicroSDWipeZeroView(View):
             elif "Records Out" in errorLine:
                 outNum = errorLine.split("+")[0]
                 continue
-            elif len(errorLine) < 1:
-                continue
-            errors_cleaned.append(errorLine)
 
         if inNum != outNum:
             self.run_screen(
@@ -1380,7 +1376,8 @@ class ToolsMicroSDWipeRandomView(View):
 
         data.stderr = data.stderr.split('\n')
 
-        errors_cleaned = []
+        inNum = 1
+        outNum = 0
         for errorLine in data.stderr:
             if "Records In" in errorLine:
                 inNum = errorLine.split("+")[0]
@@ -1388,9 +1385,6 @@ class ToolsMicroSDWipeRandomView(View):
             elif "Records Out" in errorLine:
                 outNum = errorLine.split("+")[0]
                 continue
-            elif len(errorLine) < 1:
-                continue
-            errors_cleaned.append(errorLine)
 
         if inNum != outNum:
             self.run_screen(
