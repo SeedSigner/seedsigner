@@ -1017,7 +1017,7 @@ class ToolsDIYBuildAppletsView(View):
             if not os.path.exists("/mnt/microsd/javacard-cap/"):
                 os.system("mkdir -p /mnt/microsd/javacard-cap/")
 
-            commandString = "/mnt/diy/ant/bin/ant -f /mnt/microsd/javacard-build.xml -DJAVA_HOME /mnt/diy/jdk"
+            commandString = "/mnt/diy/ant/bin/ant -f /mnt/microsd/javacard-build.xml -DJAVA_HOME=/mnt/diy/jdk"
         else:
             if not os.path.exists("/boot/javacard-build.xml"):
                 os.system("sudo cp /home/pi/seedsigner/tools/javacard-build.xml.manual /boot/javacard-build.xml")
@@ -1177,6 +1177,7 @@ class ToolsMicroSDMenuView(View):
 class ToolsMicroSDFlashView(View):
     def run(self):
         from subprocess import run
+        from seedsigner.gui.screens.screen import LoadingScreenThread
 
         if platform.uname()[1] == "seedsigner-os":
             microsd_images = os.listdir('/mnt/microsd/microsd-images/')
@@ -1216,9 +1217,28 @@ class ToolsMicroSDFlashView(View):
                 show_back_button=False,
             )
 
+            self.loading_screen = LoadingScreenThread(text="Flashing MicroSD\n\n\n\n\n\n")
+            self.loading_screen.start()
+
             data = run("dd if=/tmp/img.img of=/dev/mmcblk0", capture_output=True, shell=True, text=True)
 
-            if len(data.stderr) > 1:
+            self.loading_screen.stop()
+
+            data.stderr = data.stderr.split('\n')
+
+            errors_cleaned = []
+            for errorLine in data.stderr:
+                if "Records In" in errorLine:
+                    inNum = errorLine.split("+")[0]
+                    continue
+                elif "Records Out" in errorLine:
+                    outNum = errorLine.split("+")[0]
+                    continue
+                elif len(errorLine) < 1:
+                    continue
+                errors_cleaned.append(errorLine)
+
+            if inNum != outNum:
                 self.run_screen(
                     WarningScreen,
                     title="Error",
@@ -1278,6 +1298,10 @@ class ToolsMicroSDVerifyView(View):
 class ToolsMicroSDWipeZeroView(View):
     def run(self):
         from subprocess import run
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+
+        self.loading_screen = LoadingScreenThread(text="Wiping MicroSD\n\n\n\n\n\n(This takes a while)")
+        self.loading_screen.start()
 
         self.run_screen(
             WarningScreen,
@@ -1294,7 +1318,23 @@ class ToolsMicroSDWipeZeroView(View):
 
         data = run(cmd, capture_output=True, shell=True, text=True)
 
-        if len(data.stderr) > 1:
+        self.loading_screen.stop()
+
+        data.stderr = data.stderr.split('\n')
+
+        errors_cleaned = []
+        for errorLine in data.stderr:
+            if "Records In" in errorLine:
+                inNum = errorLine.split("+")[0]
+                continue
+            elif "Records Out" in errorLine:
+                outNum = errorLine.split("+")[0]
+                continue
+            elif len(errorLine) < 1:
+                continue
+            errors_cleaned.append(errorLine)
+
+        if inNum != outNum:
             self.run_screen(
                 WarningScreen,
                 title="Error",
@@ -1316,6 +1356,10 @@ class ToolsMicroSDWipeZeroView(View):
 class ToolsMicroSDWipeRandomView(View):
     def run(self):
         from subprocess import run
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+
+        self.loading_screen = LoadingScreenThread(text="Wiping MicroSD\n\n\n\n\n\n(This takes a while)")
+        self.loading_screen.start()
 
         self.run_screen(
             WarningScreen,
@@ -1332,7 +1376,23 @@ class ToolsMicroSDWipeRandomView(View):
 
         data = run(cmd, capture_output=True, shell=True, text=True)
 
-        if len(data.stderr) > 1:
+        self.loading_screen.stop()
+
+        data.stderr = data.stderr.split('\n')
+
+        errors_cleaned = []
+        for errorLine in data.stderr:
+            if "Records In" in errorLine:
+                inNum = errorLine.split("+")[0]
+                continue
+            elif "Records Out" in errorLine:
+                outNum = errorLine.split("+")[0]
+                continue
+            elif len(errorLine) < 1:
+                continue
+            errors_cleaned.append(errorLine)
+
+        if inNum != outNum:
             self.run_screen(
                 WarningScreen,
                 title="Error",
