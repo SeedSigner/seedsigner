@@ -1017,7 +1017,7 @@ class ToolsDIYBuildAppletsView(View):
             if not os.path.exists("/mnt/microsd/javacard-cap/"):
                 os.system("mkdir -p /mnt/microsd/javacard-cap/")
 
-            os.system("export JAVA_HOME=/mnt/diy/jdk")
+            os.environ["JAVA_HOME"] = "/mnt/diy/jdk"
             commandString = "/mnt/diy/ant/bin/ant -f /mnt/microsd/javacard-build.xml"
         else:
             if not os.path.exists("/boot/javacard-build.xml"):
