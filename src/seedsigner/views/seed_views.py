@@ -382,7 +382,8 @@ class SeedMnemonicInvalidView(View):
 
 class SeedFinalizeView(View):
     FINALIZE = "Done"
-    PASSPHRASE = "BIP-39 Passphrase"
+    PASSPHRASE = "Enter BIP39 Passphrase"
+    LOAD_SEEDKEEPER = "Load BIP39 Passphrase"
 
     def __init__(self):
         super().__init__()
@@ -394,6 +395,8 @@ class SeedFinalizeView(View):
         button_data = [self.FINALIZE]
         if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) != SettingsConstants.OPTION__DISABLED:
             button_data.append(self.PASSPHRASE)
+
+        button_data.append(self.LOAD_SEEDKEEPER)
 
         selected_menu_num = self.run_screen(
             seed_screens.SeedFinalizeScreen,
@@ -407,6 +410,9 @@ class SeedFinalizeView(View):
 
         elif button_data[selected_menu_num] == self.PASSPHRASE:
             return Destination(SeedAddPassphraseView)
+
+        elif button_data[selected_menu_num] == self.LOAD_SEEDKEEPER:
+            return Destination(SeedLoadSeedKeeperPassphraseView)
 
 
 
@@ -429,7 +435,91 @@ class SeedAddPassphraseView(View):
         else:
             return Destination(SeedFinalizeView)
 
+class SeedLoadSeedKeeperPassphraseView(View):
+    def __init__(self):
+        super().__init__()
+        self.seed = self.controller.storage.get_pending_seed()
 
+    def run(self):
+        try:
+            Satochip_Connector = seedkeeper_utils.init_satochip(self)
+            
+            if not Satochip_Connector:
+                return Destination(BackStackView)
+
+            headers = Satochip_Connector.seedkeeper_list_secret_headers()
+
+            headers_parsed = []
+            button_data = []
+            for header in headers:
+                sid = header['id']
+                label = header['label']
+                stype = SEEDKEEPER_DIC_TYPE.get(header['type'], hex(header['type']))  # hex(header['type'])
+                origin = SEEDKEEPER_DIC_ORIGIN.get(header['origin'], hex(header['origin']))  # hex(header['origin'])
+                export_rights = SEEDKEEPER_DIC_EXPORT_RIGHTS.get(header['export_rights'],
+                                                                 hex(header[
+                                                                         'export_rights']))  # str(header['export_rights'])
+                export_nbplain = str(header['export_nbplain'])
+                export_nbsecure = str(header['export_nbsecure'])
+                export_nbcounter = str(header['export_counter']) if header['type'] == 0x70 else 'N/A'
+                fingerprint = header['fingerprint']
+
+                if stype == "Password" and export_rights == 'Plaintext export allowed':
+                    headers_parsed.append((sid, label))
+                    button_data.append(label)
+
+            print(headers_parsed)
+            if len(headers_parsed) < 1:
+                self.run_screen(
+                WarningScreen,
+                title="No Secrets to Load",
+                status_headline=None,
+                text=f"No Password Secrets to Load from Seedkeeper",
+                show_back_button=False,
+                )   
+                return Destination(BackStackView)
+
+            selected_menu_num = self.run_screen(
+                ButtonListScreen,
+                title="Select Secret",
+                is_button_text_centered=False,
+                button_data=button_data,
+                show_back_button=True,
+            )
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+
+            secret_dict = Satochip_Connector.seedkeeper_export_secret(headers_parsed[selected_menu_num][0], None)
+
+            secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode().rstrip("\x00")
+
+            secret = secret_dict['secret']
+
+            print(secret)
+
+            secret_size = secret_dict['secret_list'][0]
+
+            secret_passphrase = secret[:secret_size]
+            
+
+        except Exception as e:
+            print(e)
+            self.run_screen(
+                WarningScreen,
+                title="Error",
+                status_headline=None,
+                text=str(e),
+                show_back_button=True,
+            )
+            return Destination(BackStackView)
+        
+        # The new passphrase will be the return value; it might be empty.
+        self.seed.set_passphrase(secret)
+        if len(self.seed.passphrase) > 0:
+            return Destination(SeedReviewPassphraseView)
+        else:
+            return Destination(SeedFinalizeView)
 
 class SeedReviewPassphraseView(View):
     """

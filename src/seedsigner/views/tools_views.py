@@ -27,6 +27,9 @@ from seedsigner.helpers import seedkeeper_utils
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens, LargeIconStatusScreen)
 
+from pysatochip.JCconstants import SEEDKEEPER_DIC_TYPE, SEEDKEEPER_DIC_ORIGIN, SEEDKEEPER_DIC_EXPORT_RIGHTS
+from binascii import unhexlify
+
 class ToolsMenuView(View):
     IMAGE = (" New seed", FontAwesomeIconConstants.CAMERA)
     DICE = ("New seed", FontAwesomeIconConstants.DICE)
@@ -722,10 +725,11 @@ class ToolsSmartcardMenuView(View):
     CHANGE_PIN = ("Change PIN")
     CHANGE_LABEL = ("Change Label")
     SATOCHIP = ("Satochip Functions")
+    SEEDKEEPER = ("SeedKeeper Functions")
     Satochip_DIY = ("DIY Tools")
 
     def run(self):
-        button_data = [self.CHANGE_PIN, self.CHANGE_LABEL, self.SATOCHIP, self.Satochip_DIY]
+        button_data = [self.CHANGE_PIN, self.CHANGE_LABEL, self.SEEDKEEPER, self.SATOCHIP, self.Satochip_DIY]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -745,6 +749,9 @@ class ToolsSmartcardMenuView(View):
 
         elif button_data[selected_menu_num] == self.SATOCHIP:
             return Destination(ToolsSatochipView)
+        
+        elif button_data[selected_menu_num] == self.SEEDKEEPER:
+            return Destination(ToolsSeedkeeperView)
 
         elif button_data[selected_menu_num] == self.Satochip_DIY:
             return Destination(ToolsSatochipDIYView)
@@ -824,6 +831,149 @@ class ToolsSatochipChangeLabelView(View):
             print(e)
 
         return Destination(MainMenuView)
+
+class ToolsSeedkeeperView(View):
+    VIEW_SECRETS = ("View Secrets")
+    IMPORT_PASSWORD = ("Import Password")
+
+    def run(self):
+        button_data = [self.VIEW_SECRETS, self.IMPORT_PASSWORD]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="SeedKeeper",
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.VIEW_SECRETS:
+            return Destination(ToolsSeedkeeperViewSecretsView)
+
+        elif button_data[selected_menu_num] == self.IMPORT_PASSWORD:
+            return Destination(ToolsSeedkeeperImportPasswordView)
+
+class ToolsSeedkeeperViewSecretsView(View):
+    def run(self):
+        try:
+            Satochip_Connector = seedkeeper_utils.init_satochip(self)
+            
+            if not Satochip_Connector:
+                return Destination(BackStackView)
+
+            headers = Satochip_Connector.seedkeeper_list_secret_headers()
+
+            headers_parsed = []
+            button_data = []
+            for header in headers:
+                sid = header['id']
+                stype = SEEDKEEPER_DIC_TYPE.get(header['type'], hex(header['type']))  # hex(header['type'])
+                label = stype
+                if stype == "Password":
+                    label = "Pass:" + header['label']
+                elif stype == "BIP39 mnemonic":
+                    label = "Seed:" + header['label']
+                elif stype == "2FA secret":
+                    label = "2FA:" + header['label']
+                origin = SEEDKEEPER_DIC_ORIGIN.get(header['origin'], hex(header['origin']))  # hex(header['origin'])
+                export_rights = SEEDKEEPER_DIC_EXPORT_RIGHTS.get(header['export_rights'],
+                                                                 hex(header[
+                                                                         'export_rights']))  # str(header['export_rights'])
+                export_nbplain = str(header['export_nbplain'])
+                export_nbsecure = str(header['export_nbsecure'])
+                export_nbcounter = str(header['export_counter']) if header['type'] == 0x70 else 'N/A'
+                fingerprint = header['fingerprint']
+
+                if export_rights == 'Plaintext export allowed':
+                    headers_parsed.append((sid, label))
+                    button_data.append(label)
+
+            print(headers_parsed)
+            if len(headers_parsed) < 1:
+                self.run_screen(
+                WarningScreen,
+                title="No Secrets to Load",
+                status_headline=None,
+                text=f"No Secrets to Load from Seedkeeper",
+                show_back_button=False,
+                )   
+                return Destination(BackStackView)
+
+            selected_menu_num = self.run_screen(
+                ButtonListScreen,
+                title="Select Secret",
+                is_button_text_centered=False,
+                button_data=button_data,
+                show_back_button=True,
+            )
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+
+            secret_dict = Satochip_Connector.seedkeeper_export_secret(headers_parsed[selected_menu_num][0], None)
+
+            stype = SEEDKEEPER_DIC_TYPE.get(secret_dict['type'], hex(secret_dict['type']))  # hex(header['type'])
+            print(stype)
+
+            if 'mnemonic' in stype:
+                secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode().rstrip("\x00")
+
+                bip39_secret = secret_dict['secret']
+
+                secret_size = secret_dict['secret_list'][0]
+                secret_mnemonic = bip39_secret[:secret_size]
+                secret_passphrase = bip39_secret[secret_size + 1:]
+
+                secret_dict['secret'] = "Mnemonic:" + secret_mnemonic + " Passphrase:" + secret_passphrase
+
+            elif stype == 'Password':
+                secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode()
+            else:
+                secret_dict['secret'] =  secret_dict['secret'][2:]
+
+            selected_menu_num = self.run_screen(
+                LargeIconStatusScreen,
+                title=secret_dict['label'],
+                status_headline=None,
+                text = secret_dict['secret'],
+                status_icon_size=0,
+                show_back_button=True,
+                allow_text_overflow=True,
+                button_data=["Show as QR"],
+            )
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+            else:
+                from seedsigner.gui.screens.screen import QRDisplayScreen
+                qr_encoder = EncodeQR(qr_type=QRType.GENERIC_STRING, generic_string=secret_dict['secret'])
+                self.run_screen(
+                    QRDisplayScreen,
+                    qr_encoder=qr_encoder,
+                )
+
+            return Destination(BackStackView)
+            
+
+        except Exception as e:
+            print(e)
+            self.run_screen(
+                WarningScreen,
+                title="Error",
+                status_headline=None,
+                text=str(e),
+                show_back_button=True,
+            )
+            return Destination(BackStackView)
+        
+        # The new passphrase will be the return value; it might be empty.
+        self.seed.set_passphrase(secret)
+        if len(self.seed.passphrase) > 0:
+            return Destination(SeedReviewPassphraseView)
+        else:
+            return Destination(SeedFinalizeView)
 
 class ToolsSatochipView(View):
     IMPORT_SEED = ("Import Seed")
