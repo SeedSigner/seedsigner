@@ -28,7 +28,7 @@ from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens, LargeIconStatusScreen)
 
 from pysatochip.JCconstants import SEEDKEEPER_DIC_TYPE, SEEDKEEPER_DIC_ORIGIN, SEEDKEEPER_DIC_EXPORT_RIGHTS
-from binascii import unhexlify
+from binascii import unhexlify, hexlify
 
 class ToolsMenuView(View):
     IMAGE = (" New seed", FontAwesomeIconConstants.CAMERA)
@@ -835,9 +835,11 @@ class ToolsSatochipChangeLabelView(View):
 class ToolsSeedkeeperView(View):
     VIEW_SECRETS = ("View Secrets")
     IMPORT_PASSWORD = ("Import Password")
+    LOAD_DESCRIPTOR = "Load MultiSig Descriptor"
+    SAVE_DESCRIPTOR = "Save MultiSig Descriptor"
 
     def run(self):
-        button_data = [self.VIEW_SECRETS, self.IMPORT_PASSWORD]
+        button_data = [self.VIEW_SECRETS, self.IMPORT_PASSWORD, self.LOAD_DESCRIPTOR, self.SAVE_DESCRIPTOR]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -854,6 +856,12 @@ class ToolsSeedkeeperView(View):
 
         elif button_data[selected_menu_num] == self.IMPORT_PASSWORD:
             return Destination(ToolsSeedkeeperImportPasswordView)
+
+        elif button_data[selected_menu_num] == self.LOAD_DESCRIPTOR:
+            return Destination(ToolsSeedkeeperLoadDescriptorView)
+        
+        elif button_data[selected_menu_num] == self.SAVE_DESCRIPTOR:
+            return Destination(ToolsSeedkeeperSaveDescriptorView)
 
 class ToolsSeedkeeperViewSecretsView(View):
     def run(self):
@@ -915,7 +923,6 @@ class ToolsSeedkeeperViewSecretsView(View):
             secret_dict = Satochip_Connector.seedkeeper_export_secret(headers_parsed[selected_menu_num][0], None)
 
             stype = SEEDKEEPER_DIC_TYPE.get(secret_dict['type'], hex(secret_dict['type']))  # hex(header['type'])
-            print(stype)
 
             if 'mnemonic' in stype:
                 secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode().rstrip("\x00")
@@ -956,6 +963,135 @@ class ToolsSeedkeeperViewSecretsView(View):
 
             return Destination(BackStackView)
             
+        except Exception as e:
+            print(e)
+            self.run_screen(
+                WarningScreen,
+                title="Error",
+                status_headline=None,
+                text=str(e),
+                show_back_button=True,
+            )
+            return Destination(BackStackView)
+
+
+
+class ToolsSeedkeeperImportPasswordView(View):
+    def run(self):
+        secret_label = seed_screens.SeedAddPassphraseScreen(title="Secret Label").display()
+        if secret_label == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        secret_text = seed_screens.SeedAddPassphraseScreen(title="Secret Text").display()
+        if secret_text == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        Satochip_Connector = seedkeeper_utils.init_satochip(self)
+        if not Satochip_Connector:
+            return Destination(BackStackView)
+        
+        header = Satochip_Connector.make_header("Password", "Plaintext export allowed", secret_label)
+        secret_text_list = list(bytes(secret_text, 'utf-8'))
+        secret_list = [len(secret_text_list)] + secret_text_list
+        secret_dic = {'header': header, 'secret_list': secret_list}
+        try:
+            (sid, fingerprint) = Satochip_Connector.seedkeeper_import_secret(secret_dic)
+            print("Imported - SID:", sid, " Fingerprint:", fingerprint)
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"Password Imported",
+                show_back_button=False,
+            )
+        except Exception as e:
+            print(e)
+            self.run_screen(
+                WarningScreen,
+                title="Failed",
+                status_headline=None,
+                text=f"Password Import Failed",
+                show_back_button=False,
+            )
+        
+        return Destination(BackStackView)
+
+class ToolsSeedkeeperLoadDescriptorView(View):
+    def run(self):
+        from seedsigner.views.seed_views import MultisigWalletDescriptorView
+        try:
+            Satochip_Connector = seedkeeper_utils.init_satochip(self)
+            
+            if not Satochip_Connector:
+                return Destination(BackStackView)
+
+            headers = Satochip_Connector.seedkeeper_list_secret_headers()
+
+            multisig_descriptor_secrets = []
+            xpub_secrets = []
+            button_data = []
+            for header in headers:
+                sid = header['id']
+                stype = SEEDKEEPER_DIC_TYPE.get(header['type'], hex(header['type']))  # hex(header['type'])
+                label = header['label']
+                origin = SEEDKEEPER_DIC_ORIGIN.get(header['origin'], hex(header['origin']))  # hex(header['origin'])
+                export_rights = SEEDKEEPER_DIC_EXPORT_RIGHTS.get(header['export_rights'],
+                                                                 hex(header[
+                                                                         'export_rights']))  # str(header['export_rights'])
+                export_nbplain = str(header['export_nbplain'])
+                export_nbsecure = str(header['export_nbsecure'])
+                export_nbcounter = str(header['export_counter']) if header['type'] == 0x70 else 'N/A'
+                fingerprint = header['fingerprint']
+
+                if export_rights == 'Plaintext export allowed':
+                    if "msig_desc_" in label:
+                        multisig_descriptor_secrets.append((sid, label.replace("msig_desc_", "")))
+                        button_data.append(label.replace("msig_desc_", ""))
+
+                    if "xpub_" in label:
+                        xpub_secrets.append((sid, label))
+
+            print("Multisig Descriptor Secrets:", multisig_descriptor_secrets)
+            print("Xpub Secrets:",xpub_secrets)
+
+            if len(multisig_descriptor_secrets) < 1:
+                self.run_screen(
+                WarningScreen,
+                title="No Descriptors",
+                status_headline=None,
+                text=f"No Multisig Descriptors to Load from Seedkeeper",
+                show_back_button=False,
+                )   
+                return Destination(BackStackView)
+
+            selected_menu_num = self.run_screen(
+                ButtonListScreen,
+                title="Select Descriptor",
+                is_button_text_centered=False,
+                button_data=button_data,
+                show_back_button=True,
+            )
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+
+            secret_dict = Satochip_Connector.seedkeeper_export_secret(multisig_descriptor_secrets[selected_menu_num][0], None)
+
+            secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode()
+
+            secret_template = secret_dict['secret']
+
+            for xpub_secret_id, xpub_secret_label in xpub_secrets: 
+                if xpub_secret_label in secret_template:
+                    print("Matched on:", xpub_secret_label)
+                    secret_dict = Satochip_Connector.seedkeeper_export_secret(xpub_secret_id, None)
+                    secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode()
+                    secret_template = secret_template.replace(xpub_secret_label, secret_dict['secret'])
+            
+            self.controller.multisig_wallet_descriptor = Descriptor.from_string(secret_template)
+
+            return Destination(MultisigWalletDescriptorView, skip_current_view=True)
+            
 
         except Exception as e:
             print(e)
@@ -967,13 +1103,45 @@ class ToolsSeedkeeperViewSecretsView(View):
                 show_back_button=True,
             )
             return Destination(BackStackView)
+
+
+class ToolsSeedkeeperSaveDescriptorView(View):
+    def run(self):
+        descriptor = self.controller.multisig_wallet_descriptor
+
+        descriptor_string = descriptor.to_string()
+
+        print(descriptor_string)
+
+        key_strings = []
+
+        for key in descriptor.keys:
+            key_string = key.to_string()
+            key_name = "xpub_" + hexlify(key.fingerprint).decode()
+            
+            descriptor_string = descriptor_string.replace(key_string, key_name)
+            key_strings.append((key_name, key_string))
+
+        ret = seed_screens.SeedAddPassphraseScreen(title="Descriptor Label").display()
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
         
-        # The new passphrase will be the return value; it might be empty.
-        self.seed.set_passphrase(secret)
-        if len(self.seed.passphrase) > 0:
-            return Destination(SeedReviewPassphraseView)
-        else:
-            return Destination(SeedFinalizeView)
+        key_strings.append(("msig_desc_" + ret, descriptor_string))
+
+        Satochip_Connector = seedkeeper_utils.init_satochip(self)
+
+        if not Satochip_Connector:
+            return Destination(BackStackView)
+        
+        for secret_label, secret_text in key_strings:
+            header = Satochip_Connector.make_header("Password", "Plaintext export allowed", secret_label)
+            secret_text_list = list(bytes(secret_text, 'utf-8'))
+            secret_list = [len(secret_text_list)] + secret_text_list
+            secret_dic = {'header': header, 'secret_list': secret_list}
+            (sid, fingerprint) = Satochip_Connector.seedkeeper_import_secret(secret_dic)
+            print("Imported - SID:", sid, " Fingerprint:", fingerprint)
+
 
 class ToolsSatochipView(View):
     IMPORT_SEED = ("Import Seed")

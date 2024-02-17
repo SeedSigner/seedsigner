@@ -496,8 +496,6 @@ class SeedLoadSeedKeeperPassphraseView(View):
 
             secret = secret_dict['secret']
 
-            print(secret)
-
             secret_size = secret_dict['secret_list'][0]
 
             secret_passphrase = secret[:secret_size]
