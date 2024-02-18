@@ -285,6 +285,7 @@ class PSBTAddressDetailsView(View):
 
 class PSBTChangeDetailsView(View):
     NEXT = "Next"
+    SKIP_VERIFICATION = "Skip Verificiation"
     VERIFY_MULTISIG = "Verify Multisig Change"
 
 
@@ -330,9 +331,11 @@ class PSBTChangeDetailsView(View):
         if is_change_derivation_path:
             title = "Your Change"
             self.VERIFY_MULTISIG = "Verify Multisig Change"
+            unverified_warning_text = "Can't Verify that Change Outputs Belong to your Wallet"
         else:
             title = "Self-Transfer"
             self.VERIFY_MULTISIG = "Verify Multisig Addr"
+            unverified_warning_text = "Can't Verify that Self-Transfer Outputs Belong to your Wallet"
         # if psbt_parser.num_change_outputs > 1:
         #     title += f" (#{self.change_address_num + 1})"
 
@@ -345,7 +348,7 @@ class PSBTChangeDetailsView(View):
 
             else:
                 # Have the Screen offer to load in the multisig descriptor.            
-                button_data = [self.VERIFY_MULTISIG, self.NEXT]
+                button_data = [self.VERIFY_MULTISIG, self.SKIP_VERIFICATION]
 
         else:
             # Single sig
@@ -413,7 +416,19 @@ class PSBTChangeDetailsView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        elif button_data[selected_menu_num] == self.NEXT:
+        elif button_data[selected_menu_num] == self.NEXT or button_data[selected_menu_num] == self.SKIP_VERIFICATION:
+            if button_data[selected_menu_num] == self.SKIP_VERIFICATION:
+                self.run_screen(
+                    DireWarningScreen,
+                    title="Security Warning",
+                    status_icon_name=SeedSignerIconConstants.WARNING,
+                    status_headline="Potential Loss of Funds",
+                    text=unverified_warning_text,
+                )
+
+                if selected_menu_num == RET_CODE__BACK_BUTTON:
+                    return Destination(BackStackView)
+
             if self.change_address_num < psbt_parser.num_change_outputs - 1:
                 return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
             else:
