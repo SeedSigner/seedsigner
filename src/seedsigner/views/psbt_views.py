@@ -418,7 +418,7 @@ class PSBTChangeDetailsView(View):
 
         elif button_data[selected_menu_num] == self.NEXT or button_data[selected_menu_num] == self.SKIP_VERIFICATION:
             if button_data[selected_menu_num] == self.SKIP_VERIFICATION:
-                self.run_screen(
+                selected_menu_num = self.run_screen(
                     DireWarningScreen,
                     title="Security Warning",
                     status_icon_name=SeedSignerIconConstants.WARNING,
