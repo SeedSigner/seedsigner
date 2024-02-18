@@ -25,8 +25,9 @@ from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
 
-
-
+from pysatochip.JCconstants import SEEDKEEPER_DIC_TYPE, SEEDKEEPER_DIC_ORIGIN, SEEDKEEPER_DIC_EXPORT_RIGHTS
+from seedsigner.helpers import seedkeeper_utils
+from binascii import unhexlify
 
 class SeedsMenuView(View):
     LOAD = "Load a seed"
@@ -79,7 +80,6 @@ class SeedSelectSeedView(View):
     SCAN_SEED = ("Scan a seed", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-
 
     def __init__(self, flow: str = Controller.FLOW__VERIFY_SINGLESIG_ADDR):
         super().__init__()
@@ -163,6 +163,7 @@ class LoadSeedView(View):
     SEED_QR = (" Scan a SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    IMPORT_SEEDKEEPER = ("From SeedKeeper", FontAwesomeIconConstants.LOCK)
     CREATE = (" Create a seed", SeedSignerIconConstants.PLUS)
 
     def run(self):
@@ -170,6 +171,7 @@ class LoadSeedView(View):
             self.SEED_QR,
             self.TYPE_12WORD,
             self.TYPE_24WORD,
+            self.IMPORT_SEEDKEEPER,
             self.CREATE,
         ]
         selected_menu_num = self.run_screen(
@@ -181,11 +183,11 @@ class LoadSeedView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
         if button_data[selected_menu_num] == self.SEED_QR:
             from .scan_views import ScanSeedQRView
             return Destination(ScanSeedQRView)
-        
+
         elif button_data[selected_menu_num] == self.TYPE_12WORD:
             self.controller.storage.init_pending_mnemonic(num_words=12)
             return Destination(SeedMnemonicEntryView)
@@ -194,11 +196,103 @@ class LoadSeedView(View):
             self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
+        elif button_data[selected_menu_num] == self.IMPORT_SEEDKEEPER:
+            return Destination(SeedKeeperSelectView)
+
         elif button_data[selected_menu_num] == self.CREATE:
             from .tools_views import ToolsMenuView
             return Destination(ToolsMenuView)
+    
+class SeedKeeperSelectView(View):
+    def run(self):
+        try:
+            Satochip_Connector = seedkeeper_utils.init_satochip(self)
+            
+            if not Satochip_Connector:
+                return Destination(BackStackView)
 
+            headers = Satochip_Connector.seedkeeper_list_secret_headers()
 
+            headers_parsed = []
+            button_data = []
+            for header in headers:
+                sid = header['id']
+                label = header['label']
+                stype = SEEDKEEPER_DIC_TYPE.get(header['type'], hex(header['type']))  # hex(header['type'])
+                origin = SEEDKEEPER_DIC_ORIGIN.get(header['origin'], hex(header['origin']))  # hex(header['origin'])
+                export_rights = SEEDKEEPER_DIC_EXPORT_RIGHTS.get(header['export_rights'],
+                                                                 hex(header[
+                                                                         'export_rights']))  # str(header['export_rights'])
+                export_nbplain = str(header['export_nbplain'])
+                export_nbsecure = str(header['export_nbsecure'])
+                export_nbcounter = str(header['export_counter']) if header['type'] == 0x70 else 'N/A'
+                fingerprint = header['fingerprint']
+
+                if stype == "BIP39 mnemonic" and export_rights == 'Plaintext export allowed':
+                    headers_parsed.append((sid, label))
+                    button_data.append(label)
+
+            print(headers_parsed)
+            if len(headers_parsed) < 1:
+                self.run_screen(
+                WarningScreen,
+                title="No Secrets to Load",
+                status_headline=None,
+                text=f"No BIP39 Secrets to Load from Seedkeeper",
+                show_back_button=False,
+                )   
+                return Destination(BackStackView)
+
+            selected_menu_num = self.run_screen(
+                ButtonListScreen,
+                title="Select Secret",
+                is_button_text_centered=False,
+                button_data=button_data,
+                show_back_button=True,
+            )
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+
+            secret_dict = Satochip_Connector.seedkeeper_export_secret(headers_parsed[selected_menu_num][0], None)
+
+            secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode().rstrip("\x00")
+
+            bip39_secret = secret_dict['secret']
+
+            secret_size = secret_dict['secret_list'][0]
+
+            secret_mnemonic = bip39_secret[:secret_size]
+            secret_passphrase = bip39_secret[secret_size+1:]
+
+        except Exception as e:
+            print(e)
+            self.run_screen(
+                WarningScreen,
+                title="Error",
+                status_headline=None,
+                text=str(e),
+                show_back_button=True,
+            )
+            return Destination(BackStackView)
+
+        mnemonic = secret_mnemonic.split(" ")
+        self.controller.storage.init_pending_mnemonic(num_words=len(mnemonic))
+        for i, word in enumerate(mnemonic):
+            self.controller.storage.update_pending_mnemonic(word, i)
+
+        try:
+            self.controller.storage.convert_pending_mnemonic_to_pending_seed()
+        except InvalidSeedException:
+            return Destination(SeedMnemonicInvalidView)
+
+        if len(secret_passphrase) > 0:
+            self.seed = self.controller.storage.get_pending_seed()
+            self.seed.set_passphrase(secret_passphrase)
+            return Destination(SeedReviewPassphraseView)
+
+        # Attempt to finalize the mnemonic
+        return Destination(SeedFinalizeView)
 
 class SeedMnemonicEntryView(View):
     def __init__(self, cur_word_index: int = 0, is_calc_final_word: bool=False):
@@ -288,7 +382,8 @@ class SeedMnemonicInvalidView(View):
 
 class SeedFinalizeView(View):
     FINALIZE = "Done"
-    PASSPHRASE = "BIP-39 Passphrase"
+    PASSPHRASE = "Enter BIP39 Passphrase"
+    LOAD_SEEDKEEPER = "Load BIP39 Passphrase"
 
     def __init__(self):
         super().__init__()
@@ -300,6 +395,8 @@ class SeedFinalizeView(View):
         button_data = [self.FINALIZE]
         if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) != SettingsConstants.OPTION__DISABLED:
             button_data.append(self.PASSPHRASE)
+
+        button_data.append(self.LOAD_SEEDKEEPER)
 
         selected_menu_num = self.run_screen(
             seed_screens.SeedFinalizeScreen,
@@ -313,6 +410,9 @@ class SeedFinalizeView(View):
 
         elif button_data[selected_menu_num] == self.PASSPHRASE:
             return Destination(SeedAddPassphraseView)
+
+        elif button_data[selected_menu_num] == self.LOAD_SEEDKEEPER:
+            return Destination(SeedLoadSeedKeeperPassphraseView)
 
 
 
@@ -335,7 +435,89 @@ class SeedAddPassphraseView(View):
         else:
             return Destination(SeedFinalizeView)
 
+class SeedLoadSeedKeeperPassphraseView(View):
+    def __init__(self):
+        super().__init__()
+        self.seed = self.controller.storage.get_pending_seed()
 
+    def run(self):
+        try:
+            Satochip_Connector = seedkeeper_utils.init_satochip(self)
+            
+            if not Satochip_Connector:
+                return Destination(BackStackView)
+
+            headers = Satochip_Connector.seedkeeper_list_secret_headers()
+
+            headers_parsed = []
+            button_data = []
+            for header in headers:
+                sid = header['id']
+                label = header['label']
+                stype = SEEDKEEPER_DIC_TYPE.get(header['type'], hex(header['type']))  # hex(header['type'])
+                origin = SEEDKEEPER_DIC_ORIGIN.get(header['origin'], hex(header['origin']))  # hex(header['origin'])
+                export_rights = SEEDKEEPER_DIC_EXPORT_RIGHTS.get(header['export_rights'],
+                                                                 hex(header[
+                                                                         'export_rights']))  # str(header['export_rights'])
+                export_nbplain = str(header['export_nbplain'])
+                export_nbsecure = str(header['export_nbsecure'])
+                export_nbcounter = str(header['export_counter']) if header['type'] == 0x70 else 'N/A'
+                fingerprint = header['fingerprint']
+
+                if stype == "Password" and export_rights == 'Plaintext export allowed':
+                    headers_parsed.append((sid, label))
+                    button_data.append(label)
+
+            print(headers_parsed)
+            if len(headers_parsed) < 1:
+                self.run_screen(
+                WarningScreen,
+                title="No Secrets to Load",
+                status_headline=None,
+                text=f"No Password Secrets to Load from Seedkeeper",
+                show_back_button=False,
+                )   
+                return Destination(BackStackView)
+
+            selected_menu_num = self.run_screen(
+                ButtonListScreen,
+                title="Select Secret",
+                is_button_text_centered=False,
+                button_data=button_data,
+                show_back_button=True,
+            )
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+
+            secret_dict = Satochip_Connector.seedkeeper_export_secret(headers_parsed[selected_menu_num][0], None)
+
+            secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode().rstrip("\x00")
+
+            secret = secret_dict['secret']
+
+            secret_size = secret_dict['secret_list'][0]
+
+            secret_passphrase = secret[:secret_size]
+            
+
+        except Exception as e:
+            print(e)
+            self.run_screen(
+                WarningScreen,
+                title="Error",
+                status_headline=None,
+                text=str(e),
+                show_back_button=True,
+            )
+            return Destination(BackStackView)
+        
+        # The new passphrase will be the return value; it might be empty.
+        self.seed.set_passphrase(secret)
+        if len(self.seed.passphrase) > 0:
+            return Destination(SeedReviewPassphraseView)
+        else:
+            return Destination(SeedFinalizeView)
 
 class SeedReviewPassphraseView(View):
     """
@@ -538,6 +720,7 @@ class SeedOptionsView(View):
 class SeedBackupView(View):
     VIEW_WORDS = "View Seed Words"
     EXPORT_SEEDQR = "Export as SeedQR"
+    TO_SEEDKEEPER = "To SeedKeeper"
 
     def __init__(self, seed_num):
         super().__init__()
@@ -546,7 +729,7 @@ class SeedBackupView(View):
     
 
     def run(self):
-        button_data = [self.VIEW_WORDS, self.EXPORT_SEEDQR]
+        button_data = [self.VIEW_WORDS, self.EXPORT_SEEDQR, self.TO_SEEDKEEPER]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -564,6 +747,8 @@ class SeedBackupView(View):
         elif button_data[selected_menu_num] == self.EXPORT_SEEDQR:
             return Destination(SeedTranscribeSeedQRFormatView, view_args={"seed_num": self.seed_num})
 
+        elif button_data[selected_menu_num] == self.TO_SEEDKEEPER:
+            return Destination(SaveToSeedkeeperView, view_args={"seed_num": self.seed_num})
 
 
 """****************************************************************************
@@ -2079,3 +2264,52 @@ class SeedSignMessageSignedMessageQRView(View):
 
         # Exiting/Canceling the QR display screen always returns Home
         return Destination(MainMenuView, skip_current_view=True)
+
+
+"""****************************************************************************
+    Save to SeedKeeper Workflow
+****************************************************************************"""
+class SaveToSeedkeeperView(View):
+    def __init__(self, seed_num: int, bip85_data: dict = None):
+        super().__init__()
+        self.seed_num = seed_num
+        self.bip85_data = bip85_data
+
+    def run(self):
+        try:
+            Satochip_Connector = seedkeeper_utils.init_satochip(self)
+
+            if not Satochip_Connector:
+                return Destination(BackStackView)
+
+            ret = seed_screens.SeedAddPassphraseScreen(title="Seed Label").display()
+
+            if ret == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+
+            label = ret
+            export_rights = "Plaintext export allowed"
+            type = "BIP39 mnemonic"
+            header = Satochip_Connector.make_header(type, export_rights, label)
+            seed = self.controller.get_seed(self.seed_num)
+            bip39_mnemonic = seed.mnemonic_str
+            bip39_mnemonic_list = list(bytes(bip39_mnemonic, 'utf-8'))
+            bip39_passphrase = seed.passphrase
+            bip39_passphrase_list = list(bytes(bip39_passphrase, 'utf-8'))
+            secret_list = [len(bip39_mnemonic_list)] + bip39_mnemonic_list + [len(bip39_passphrase_list)] + bip39_passphrase_list
+            secret_dic = {'header': header, 'secret_list': secret_list}
+            (sid, fingerprint) = Satochip_Connector.seedkeeper_import_secret(secret_dic)
+            print("Imported - SID:", sid, " Fingerprint:", fingerprint)
+
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Secret Saved",
+                status_headline=None,
+                text=f"Secret Successfully Saved to Seedkeeper",
+                show_back_button=True,
+            )
+            return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
+
+        except Exception as e:
+            print(e)
+            return Destination(BackStackView)

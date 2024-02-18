@@ -99,7 +99,7 @@ class Controller(Singleton):
         rather than at the top in order avoid circular imports.
     """
 
-    VERSION = "0.7.0"
+    VERSION = "0.7.0+Satochip-ALPHA1"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
@@ -285,7 +285,7 @@ class Controller(Singleton):
                 next_destination = Destination(MainMenuView)
             
             # Set up our one-time toast notification tip to remove the SD card
-            self.activate_toast(RemoveSDCardToastManagerThread())
+            # self.activate_toast(RemoveSDCardToastManagerThread()) TODO ADD THIS BACK FOR ANY PROPER MERGE
 
             while True:
                 # Destination(None) is a special case; render the Home screen

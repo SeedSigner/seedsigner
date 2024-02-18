@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import hashlib
 import os
 import time
+import platform
 
 from embit.descriptor import Descriptor
 from PIL import Image
@@ -18,11 +19,16 @@ from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
-from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
+from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView, LoadSeedView
 
-from .view import View, Destination, BackStackView
+from .view import View, Destination, BackStackView, MainMenuView
 
+from seedsigner.helpers import seedkeeper_utils
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
+    WarningScreen, DireWarningScreen, seed_screens, LargeIconStatusScreen)
 
+from pysatochip.JCconstants import SEEDKEEPER_DIC_TYPE, SEEDKEEPER_DIC_ORIGIN, SEEDKEEPER_DIC_EXPORT_RIGHTS
+from binascii import unhexlify, hexlify
 
 class ToolsMenuView(View):
     IMAGE = (" New seed", FontAwesomeIconConstants.CAMERA)
@@ -30,9 +36,11 @@ class ToolsMenuView(View):
     KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     EXPLORER = "Address Explorer"
     ADDRESS = "Verify address"
+    SMARTCARD = ("Smartcard Tools", FontAwesomeIconConstants.LOCK)
+    MICROSD = "MicroSD Tools"
 
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.EXPLORER, self.ADDRESS]
+        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.EXPLORER, self.ADDRESS, self.SMARTCARD, self.MICROSD]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -59,6 +67,12 @@ class ToolsMenuView(View):
         elif button_data[selected_menu_num] == self.ADDRESS:
             from seedsigner.views.scan_views import ScanAddressView
             return Destination(ScanAddressView)
+
+        elif button_data[selected_menu_num] == self.SMARTCARD:
+            return Destination(ToolsSmartcardMenuView)
+        
+        elif button_data[selected_menu_num] == self.MICROSD:
+            return Destination(ToolsMicroSDMenuView)
 
 
 
@@ -703,3 +717,1089 @@ class ToolsAddressExplorerAddressView(View):
     
         # Exiting/Cancelling the QR display screen always returns to the list
         return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.is_change, start_index=self.start_index, selected_button_index=self.index - self.start_index, initial_scroll=self.parent_initial_scroll), skip_current_view=True)
+
+"""****************************************************************************
+    Smartcard Views
+****************************************************************************"""
+class ToolsSmartcardMenuView(View):
+    CHANGE_PIN = ("Change PIN")
+    CHANGE_LABEL = ("Change Label")
+    SATOCHIP = ("Satochip Functions")
+    SEEDKEEPER = ("SeedKeeper Functions")
+    Satochip_DIY = ("DIY Tools")
+
+    def run(self):
+        button_data = [self.CHANGE_PIN, self.CHANGE_LABEL, self.SEEDKEEPER, self.SATOCHIP, self.Satochip_DIY]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="Smartcard Tools",
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.CHANGE_PIN:
+            return Destination(ToolsSatochipChangePinView)
+        
+        elif button_data[selected_menu_num] == self.CHANGE_LABEL:
+            return Destination(ToolsSatochipChangeLabelView)
+
+        elif button_data[selected_menu_num] == self.SATOCHIP:
+            return Destination(ToolsSatochipView)
+        
+        elif button_data[selected_menu_num] == self.SEEDKEEPER:
+            return Destination(ToolsSeedkeeperView)
+
+        elif button_data[selected_menu_num] == self.Satochip_DIY:
+            return Destination(ToolsSatochipDIYView)
+
+
+class ToolsSatochipChangePinView(View):
+    def run(self):
+        
+        Satochip_Connector = seedkeeper_utils.init_satochip(self)
+
+        if not Satochip_Connector:
+            return Destination(BackStackView)
+
+        NewPin = seed_screens.SeedAddPassphraseScreen(title="New PIN").display()
+
+        if NewPin == RET_CODE__BACK_BUTTON:
+            return Destination(ToolsSmartcardMenuView)
+        
+        new_pin = list(NewPin.encode('utf8'))
+        response, sw1, sw2 = Satochip_Connector.card_change_PIN(0, Satochip_Connector.pin, new_pin)
+        if sw1 == 0x90 and sw2 == 0x00:
+            print("Success: Pin Changed")
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"PIN Updated",
+                show_back_button=False,
+            )
+        else:
+            print("Failure: Pin Change Failed")
+            self.run_screen(
+                WarningScreen,
+                title="Invalid PIN",
+                status_headline=None,
+                text=f"Invalid PIN entered, select another and try again.",
+                show_back_button=True,
+            )
+        
+        return Destination(MainMenuView)
+
+class ToolsSatochipChangeLabelView(View):
+    def run(self):
+        
+        Satochip_Connector = seedkeeper_utils.init_satochip(self)
+
+        if not Satochip_Connector:
+            return Destination(BackStackView)
+
+        NewLabel = seed_screens.SeedAddPassphraseScreen(title="New Label").display()
+
+        if NewLabel == RET_CODE__BACK_BUTTON:
+            return Destination(ToolsSmartcardMenuView)
+
+        """Sets a plain text label for the card (Optional)"""
+        try:
+            (response, sw1, sw2) = Satochip_Connector.card_set_label(NewLabel)
+            if sw1 != 0x90 or sw2 != 0x00:
+                print("ERROR: Set Label Failed")
+                self.run_screen(
+                    WarningScreen,
+                    title="Failed",
+                    status_headline=None,
+                    text=f"Set Label Failed...",
+                    show_back_button=True,
+                )
+            else:
+                print("Device Label Updated")
+                self.run_screen(
+                    LargeIconStatusScreen,
+                    title="Success",
+                    status_headline=None,
+                    text=f"Label Updated",
+                    show_back_button=False,
+                )
+        except Exception as e:
+            print(e)
+
+        return Destination(MainMenuView)
+
+class ToolsSeedkeeperView(View):
+    VIEW_SECRETS = ("View Secrets")
+    IMPORT_PASSWORD = ("Import Password")
+    LOAD_DESCRIPTOR = "Load MultiSig Descriptor"
+    SAVE_DESCRIPTOR = "Save MultiSig Descriptor"
+
+    def run(self):
+        button_data = [self.VIEW_SECRETS, self.IMPORT_PASSWORD, self.LOAD_DESCRIPTOR, self.SAVE_DESCRIPTOR]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="SeedKeeper",
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.VIEW_SECRETS:
+            return Destination(ToolsSeedkeeperViewSecretsView)
+
+        elif button_data[selected_menu_num] == self.IMPORT_PASSWORD:
+            return Destination(ToolsSeedkeeperImportPasswordView)
+
+        elif button_data[selected_menu_num] == self.LOAD_DESCRIPTOR:
+            return Destination(ToolsSeedkeeperLoadDescriptorView)
+        
+        elif button_data[selected_menu_num] == self.SAVE_DESCRIPTOR:
+            return Destination(ToolsSeedkeeperSaveDescriptorView)
+
+class ToolsSeedkeeperViewSecretsView(View):
+    def run(self):
+        try:
+            Satochip_Connector = seedkeeper_utils.init_satochip(self)
+            
+            if not Satochip_Connector:
+                return Destination(BackStackView)
+
+            headers = Satochip_Connector.seedkeeper_list_secret_headers()
+
+            headers_parsed = []
+            button_data = []
+            for header in headers:
+                sid = header['id']
+                stype = SEEDKEEPER_DIC_TYPE.get(header['type'], hex(header['type']))  # hex(header['type'])
+                label = stype
+                if stype == "Password":
+                    label = "Pass:" + header['label']
+                elif stype == "BIP39 mnemonic":
+                    label = "Seed:" + header['label']
+                elif stype == "2FA secret":
+                    label = "2FA:" + header['label']
+                origin = SEEDKEEPER_DIC_ORIGIN.get(header['origin'], hex(header['origin']))  # hex(header['origin'])
+                export_rights = SEEDKEEPER_DIC_EXPORT_RIGHTS.get(header['export_rights'],
+                                                                 hex(header[
+                                                                         'export_rights']))  # str(header['export_rights'])
+                export_nbplain = str(header['export_nbplain'])
+                export_nbsecure = str(header['export_nbsecure'])
+                export_nbcounter = str(header['export_counter']) if header['type'] == 0x70 else 'N/A'
+                fingerprint = header['fingerprint']
+
+                if export_rights == 'Plaintext export allowed':
+                    headers_parsed.append((sid, label))
+                    button_data.append(label)
+
+            print(headers_parsed)
+            if len(headers_parsed) < 1:
+                self.run_screen(
+                WarningScreen,
+                title="No Secrets to Load",
+                status_headline=None,
+                text=f"No Secrets to Load from Seedkeeper",
+                show_back_button=False,
+                )   
+                return Destination(BackStackView)
+
+            selected_menu_num = self.run_screen(
+                ButtonListScreen,
+                title="Select Secret",
+                is_button_text_centered=False,
+                button_data=button_data,
+                show_back_button=True,
+            )
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+
+            secret_dict = Satochip_Connector.seedkeeper_export_secret(headers_parsed[selected_menu_num][0], None)
+
+            stype = SEEDKEEPER_DIC_TYPE.get(secret_dict['type'], hex(secret_dict['type']))  # hex(header['type'])
+
+            if 'mnemonic' in stype:
+                secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode().rstrip("\x00")
+
+                bip39_secret = secret_dict['secret']
+
+                secret_size = secret_dict['secret_list'][0]
+                secret_mnemonic = bip39_secret[:secret_size]
+                secret_passphrase = bip39_secret[secret_size + 1:]
+
+                secret_dict['secret'] = "Mnemonic:" + secret_mnemonic + " Passphrase:" + secret_passphrase
+
+            elif stype == 'Password':
+                secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode()
+            else:
+                secret_dict['secret'] =  secret_dict['secret'][2:]
+
+            selected_menu_num = self.run_screen(
+                LargeIconStatusScreen,
+                title=secret_dict['label'],
+                status_headline=None,
+                text = secret_dict['secret'],
+                status_icon_size=0,
+                show_back_button=True,
+                allow_text_overflow=True,
+                button_data=["Show as QR"],
+            )
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+            else:
+                from seedsigner.gui.screens.screen import QRDisplayScreen
+                qr_encoder = EncodeQR(qr_type=QRType.GENERIC_STRING, generic_string=secret_dict['secret'])
+                self.run_screen(
+                    QRDisplayScreen,
+                    qr_encoder=qr_encoder,
+                )
+
+            return Destination(BackStackView)
+            
+        except Exception as e:
+            print(e)
+            self.run_screen(
+                WarningScreen,
+                title="Error",
+                status_headline=None,
+                text=str(e),
+                show_back_button=True,
+            )
+            return Destination(BackStackView)
+
+
+
+class ToolsSeedkeeperImportPasswordView(View):
+    def run(self):
+        secret_label = seed_screens.SeedAddPassphraseScreen(title="Secret Label").display()
+        if secret_label == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        secret_text = seed_screens.SeedAddPassphraseScreen(title="Secret Text").display()
+        if secret_text == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        Satochip_Connector = seedkeeper_utils.init_satochip(self)
+        if not Satochip_Connector:
+            return Destination(BackStackView)
+        
+        header = Satochip_Connector.make_header("Password", "Plaintext export allowed", secret_label)
+        secret_text_list = list(bytes(secret_text, 'utf-8'))
+        secret_list = [len(secret_text_list)] + secret_text_list
+        secret_dic = {'header': header, 'secret_list': secret_list}
+        try:
+            (sid, fingerprint) = Satochip_Connector.seedkeeper_import_secret(secret_dic)
+            print("Imported - SID:", sid, " Fingerprint:", fingerprint)
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"Password Imported",
+                show_back_button=False,
+            )
+        except Exception as e:
+            print(e)
+            self.run_screen(
+                WarningScreen,
+                title="Failed",
+                status_headline=None,
+                text=f"Password Import Failed",
+                show_back_button=False,
+            )
+        
+        return Destination(BackStackView)
+
+class ToolsSeedkeeperLoadDescriptorView(View):
+    def run(self):
+        from seedsigner.views.seed_views import MultisigWalletDescriptorView
+        try:
+            Satochip_Connector = seedkeeper_utils.init_satochip(self)
+            
+            if not Satochip_Connector:
+                return Destination(BackStackView)
+
+            headers = Satochip_Connector.seedkeeper_list_secret_headers()
+
+            multisig_descriptor_secrets = []
+            xpub_secrets = []
+            button_data = []
+            for header in headers:
+                sid = header['id']
+                stype = SEEDKEEPER_DIC_TYPE.get(header['type'], hex(header['type']))  # hex(header['type'])
+                label = header['label']
+                origin = SEEDKEEPER_DIC_ORIGIN.get(header['origin'], hex(header['origin']))  # hex(header['origin'])
+                export_rights = SEEDKEEPER_DIC_EXPORT_RIGHTS.get(header['export_rights'],
+                                                                 hex(header[
+                                                                         'export_rights']))  # str(header['export_rights'])
+                export_nbplain = str(header['export_nbplain'])
+                export_nbsecure = str(header['export_nbsecure'])
+                export_nbcounter = str(header['export_counter']) if header['type'] == 0x70 else 'N/A'
+                fingerprint = header['fingerprint']
+
+                if export_rights == 'Plaintext export allowed':
+                    if "msig_desc_" in label:
+                        multisig_descriptor_secrets.append((sid, label.replace("msig_desc_", "")))
+                        button_data.append(label.replace("msig_desc_", ""))
+
+                    if "xpub_" in label:
+                        xpub_secrets.append((sid, label))
+
+            print("Multisig Descriptor Secrets:", multisig_descriptor_secrets)
+            print("Xpub Secrets:",xpub_secrets)
+
+            if len(multisig_descriptor_secrets) < 1:
+                self.run_screen(
+                WarningScreen,
+                title="No Descriptors",
+                status_headline=None,
+                text=f"No Multisig Descriptors to Load from Seedkeeper",
+                show_back_button=False,
+                )   
+                return Destination(BackStackView)
+
+            selected_menu_num = self.run_screen(
+                ButtonListScreen,
+                title="Select Descriptor",
+                is_button_text_centered=False,
+                button_data=button_data,
+                show_back_button=True,
+            )
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+
+            secret_dict = Satochip_Connector.seedkeeper_export_secret(multisig_descriptor_secrets[selected_menu_num][0], None)
+
+            secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode()
+
+            secret_template = secret_dict['secret']
+
+            for xpub_secret_id, xpub_secret_label in xpub_secrets: 
+                if xpub_secret_label in secret_template:
+                    print("Matched on:", xpub_secret_label)
+                    secret_dict = Satochip_Connector.seedkeeper_export_secret(xpub_secret_id, None)
+                    secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode()
+                    secret_template = secret_template.replace(xpub_secret_label, secret_dict['secret'])
+            
+            self.controller.multisig_wallet_descriptor = Descriptor.from_string(secret_template)
+
+            return Destination(MultisigWalletDescriptorView, skip_current_view=True)
+            
+
+        except Exception as e:
+            print(e)
+            self.run_screen(
+                WarningScreen,
+                title="Error",
+                status_headline=None,
+                text=str(e),
+                show_back_button=True,
+            )
+            return Destination(BackStackView)
+
+
+class ToolsSeedkeeperSaveDescriptorView(View):
+    def run(self):
+        try:
+            descriptor = self.controller.multisig_wallet_descriptor
+
+            descriptor_string = descriptor.to_string()
+
+            print(descriptor_string)
+
+            key_strings = []
+
+            for key in descriptor.keys:
+                key_string = key.to_string()
+                key_name = "xpub_" + hexlify(key.fingerprint).decode()
+                
+                descriptor_string = descriptor_string.replace(key_string, key_name)
+                key_strings.append((key_name, key_string))
+
+            ret = seed_screens.SeedAddPassphraseScreen(title="Descriptor Label").display()
+
+            if ret == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+            
+            key_strings.append(("msig_desc_" + ret, descriptor_string))
+
+            Satochip_Connector = seedkeeper_utils.init_satochip(self)
+
+            if not Satochip_Connector:
+                return Destination(BackStackView)
+            
+            # Check for existing secrest on the Seedkeeper (Related to this descriptor)
+            headers = Satochip_Connector.seedkeeper_list_secret_headers()
+
+            multisig_descriptor_secrets = []
+            xpub_labels = []
+            button_data = []
+            for header in headers:
+                sid = header['id']
+                stype = SEEDKEEPER_DIC_TYPE.get(header['type'], hex(header['type']))  # hex(header['type'])
+                label = header['label']
+                origin = SEEDKEEPER_DIC_ORIGIN.get(header['origin'], hex(header['origin']))  # hex(header['origin'])
+                export_rights = SEEDKEEPER_DIC_EXPORT_RIGHTS.get(header['export_rights'],
+                                                                    hex(header[
+                                                                            'export_rights']))  # str(header['export_rights'])
+                export_nbplain = str(header['export_nbplain'])
+                export_nbsecure = str(header['export_nbsecure'])
+                export_nbcounter = str(header['export_counter']) if header['type'] == 0x70 else 'N/A'
+                fingerprint = header['fingerprint']
+
+                if export_rights == 'Plaintext export allowed':
+                    if "msig_desc_" in label:
+                        multisig_descriptor_secrets.append((sid, label.replace("msig_desc_", "")))
+                        button_data.append(label.replace("msig_desc_", ""))
+
+                    if "xpub_" in label:
+                        xpub_labels.append(label)
+
+            print("Multisig Descriptor Secrets:", multisig_descriptor_secrets)
+            print("Xpub Secrets:",xpub_labels)
+
+            multisig_descriptor_templates = []
+
+            for secret_id, secret_label in multisig_descriptor_secrets:
+                secret_dict = Satochip_Connector.seedkeeper_export_secret(secret_id, None)
+
+                secret_dict['secret'] = unhexlify(secret_dict['secret'])[1:].decode()
+
+                multisig_descriptor_templates.append(secret_dict['secret'])
+
+            print(multisig_descriptor_templates)
+
+            secrets_imported = 0
+            secrets_skipped = 0
+            # Add required secrets to seedkeeper
+            for secret_label, secret_text in key_strings:
+                if secret_text in multisig_descriptor_templates or secret_label in xpub_labels:
+                    print("Mached Existing Secret, skipping:", secret_label)
+                    secrets_skipped += 1
+                    continue
+                header = Satochip_Connector.make_header("Password", "Plaintext export allowed", secret_label)
+                secret_text_list = list(bytes(secret_text, 'utf-8'))
+                secret_list = [len(secret_text_list)] + secret_text_list
+                secret_dic = {'header': header, 'secret_list': secret_list}
+                (sid, fingerprint) = Satochip_Connector.seedkeeper_import_secret(secret_dic)
+                print("Imported - SID:", sid, " Fingerprint:", fingerprint)
+                secrets_imported += 1
+
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text="Multisig Descriptor Imported." + "\nImported:" + str(secrets_imported) + "\nSkipped:" + str(secrets_skipped),
+                show_back_button=False,
+            )
+
+        except Exception as e:
+            print(e)
+            self.run_screen(
+                WarningScreen,
+                title="Error",
+                status_headline=None,
+                text=str(e),
+                show_back_button=True,
+            )
+        
+        return Destination(BackStackView)
+
+class ToolsSatochipView(View):
+    IMPORT_SEED = ("Import Seed")
+    ENABLE_2FA = ("Enable 2FA")
+
+    def run(self):
+        button_data = [self.IMPORT_SEED, self.ENABLE_2FA]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="Satochip",
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.IMPORT_SEED:
+            return Destination(ToolsSatochipImportSeedView)
+
+        elif button_data[selected_menu_num] == self.ENABLE_2FA:
+            return Destination(ToolsSatochipEnable2FAView)
+        
+class ToolsSatochipImportSeedView(View):
+    SCAN_SEED = ("Scan a seed", SeedSignerIconConstants.QRCODE)
+    SCAN_DESCRIPTOR = ("Scan wallet descriptor", SeedSignerIconConstants.QRCODE)
+    TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+
+    def run(self):
+        
+        Satochip_Connector = seedkeeper_utils.init_satochip(self)
+
+        if not Satochip_Connector:
+            return Destination(BackStackView)
+
+        seeds = self.controller.storage.seeds
+        button_data = []
+        for seed in seeds:
+            button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+            button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT))
+        button_data = button_data + [self.SCAN_SEED, self.SCAN_DESCRIPTOR, self.TYPE_12WORD, self.TYPE_24WORD]
+        
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="Seed to Import",
+            button_data=button_data,
+            is_button_text_centered=False,
+            is_bottom_list=True,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # Most of the options require us to go through a side flow(s) before we can
+        # continue to the address explorer. Set the Controller-level flow so that it
+        # knows to re-route us once the side flow is complete.        
+        # self.controller.resume_main_flow = Controller.FLOW__SATOCHIP_IMPORT_SEED
+
+        print(seeds[selected_menu_num])
+
+        if len(seeds) > 0 and selected_menu_num < len(seeds):
+            # User selected one of the n seeds
+            try:
+                Satochip_Connector.card_bip32_import_seed(seeds[selected_menu_num].seed_bytes)
+                print("Seed Successfully Imported")
+                self.run_screen(
+                    LargeIconStatusScreen,
+                    title="Success",
+                    status_headline=None,
+                    text=f"Seed Imported",
+                    show_back_button=False,
+                )
+            except Exception as e:
+                print(e)
+                self.run_screen(
+                    WarningScreen,
+                    title="Failed",
+                    status_headline=None,
+                    text=f"Seed Import Failed",
+                    show_back_button=False,
+                )
+
+        elif button_data[selected_menu_num] == self.SCAN_SEED:
+            from seedsigner.views.scan_views import ScanSeedQRView
+            return Destination(ScanSeedQRView)
+
+        elif button_data[selected_menu_num] == self.SCAN_DESCRIPTOR:
+            from seedsigner.views.scan_views import ScanWalletDescriptorView
+            return Destination(ScanWalletDescriptorView)
+
+        elif button_data[selected_menu_num] in [self.TYPE_12WORD, self.TYPE_24WORD]:
+            from seedsigner.views.seed_views import SeedMnemonicEntryView
+            if button_data[selected_menu_num] == self.TYPE_12WORD:
+                self.controller.storage.init_pending_mnemonic(num_words=12)
+            else:
+                self.controller.storage.init_pending_mnemonic(num_words=24)
+            return Destination(SeedMnemonicEntryView)
+        
+        return Destination(MainMenuView)
+
+class ToolsSatochipEnable2FAView(View):
+    def run(self):
+        from os import urandom
+        import binascii
+        key = urandom(20)
+        print("2FA Key:", binascii.hexlify(key))
+
+        Satochip_Connector = seedkeeper_utils.init_satochip(self)
+
+        if not Satochip_Connector:
+            return Destination(BackStackView)
+        
+        try:
+            self.run_screen(
+                WarningScreen,
+                title="Warning",
+                status_headline=None,
+                text=f"Scan the following QR code with the Satochip 2FA app before proceeding (You will not see this code again...)",
+                show_back_button=False,
+            )
+            from seedsigner.gui.screens.screen import QRDisplayScreen
+            qr_encoder = EncodeQR(qr_type=QRType.GENERIC_STRING, generic_string=binascii.hexlify(key).decode())
+            self.run_screen(
+                QRDisplayScreen,
+                qr_encoder=qr_encoder,
+            )
+            Satochip_Connector.card_set_2FA_key(key, 0)
+            print("Success: 2FA Key Imported and Enabled")
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"2FA Enabled",
+                show_back_button=False,
+            )
+        except Exception as e:
+            print(e)
+            self.run_screen(
+                WarningScreen,
+                title="Failed",
+                status_headline=None,
+                text=f"Enable 2FA Failed",
+                show_back_button=False,
+            )
+
+        return Destination(MainMenuView)
+
+class ToolsSatochipDIYView(View):
+    BUILD_APPLETS = ("Build Applets")
+    INSTALL_APPLET = ("Install Applet")
+    UNINSTALL_APPLET = ("Uninstall Applet")
+
+    def run(self):
+        button_data = [self.BUILD_APPLETS, self.INSTALL_APPLET, self.UNINSTALL_APPLET]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="Javacard DIY",
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.BUILD_APPLETS:
+            return Destination(ToolsDIYBuildAppletsView)
+
+        elif button_data[selected_menu_num] == self.INSTALL_APPLET:
+            return Destination(ToolsDIYInstallAppletView)
+
+        elif button_data[selected_menu_num] == self.UNINSTALL_APPLET:
+            return Destination(ToolsDIYUninstallAppletView)
+
+
+class ToolsDIYBuildAppletsView(View):
+    def run(self):
+        from subprocess import run
+        import os
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+
+        self.loading_screen = LoadingScreenThread(text="Building Applets\n\n\n\n\n\n(This takes a while)")
+        self.loading_screen.start()
+
+        if platform.uname()[1] == "seedsigner-os":
+            if not os.path.exists("/mnt/microsd/javacard-build.xml"):
+                os.system("cp /opt/tools/javacard-build.xml.seedsigneros /mnt/microsd/javacard-build.xml")
+
+            if not os.path.exists("/mnt/microsd/javacard-cap/"):
+                os.system("mkdir -p /mnt/microsd/javacard-cap/")
+
+            os.environ["JAVA_HOME"] = "/mnt/diy/jdk"
+            commandString = "/mnt/diy/ant/bin/ant -f /mnt/microsd/javacard-build.xml"
+        else:
+            if not os.path.exists("/boot/javacard-build.xml"):
+                os.system("sudo cp /home/pi/seedsigner/tools/javacard-build.xml.manual /boot/javacard-build.xml")
+
+            if not os.path.exists("/boot/javacard-cap/"):
+                os.system("sudo mkdir -p /boot/javacard-cap/")
+
+            commandString = "sudo ant -f /boot/javacard-build.xml"
+
+        data = run(commandString, capture_output=True, shell=True, text=True)
+
+        print(data)
+
+        self.loading_screen.stop()
+
+        if "BUILD SUCCESSFUL" in data.stdout:
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"Applets Built",
+                show_back_button=False,
+            )
+        else:
+            self.run_screen(
+                WarningScreen,
+                title="Failed",
+                status_headline=None,
+                text=data.stderr.replace("\n", " "),
+                show_back_button=False,
+            )
+
+
+        return Destination(MainMenuView)
+
+class ToolsDIYInstallAppletView(View):
+    def run(self):
+        from subprocess import run
+        import os
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+
+        if platform.uname()[1] == "seedsigner-os":
+            cap_files = os.listdir('/mnt/microsd/javacard-cap/')
+        else:
+            cap_files = os.listdir('/boot/javacard-cap/')
+
+        selected_file_num = self.run_screen(
+            ButtonListScreen,
+            title="Select Applet",
+            is_button_text_centered=False,
+            button_data=cap_files
+        )
+
+        if selected_file_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        applet_file = cap_files[selected_file_num]
+        print("Selected:", applet_file)
+
+        if platform.uname()[1] == "seedsigner-os":
+            installed_applets = seedkeeper_utils.run_globalplatform(self,
+                                                                    "--install /mnt/microsd/javacard-cap/" + applet_file, "Installing Applet", "Applet Installed")
+        else:
+            installed_applets = seedkeeper_utils.run_globalplatform(self,"--install /boot/javacard-cap/" + applet_file, "Installing Applet", "Applet Installed")
+
+        # This process often kills IFD-NFC, so restart it if required
+        scinterface = self.settings.get_value(SettingsConstants.SETTING__SMARTCARD_INTERFACES)
+        if "pn532" in scinterface:
+            os.system("ifdnfc-activate no")
+            time.sleep(1)
+            os.system("ifdnfc-activate yes")
+
+        return Destination(MainMenuView)
+
+class ToolsDIYUninstallAppletView(View):
+    def run(self):
+        from subprocess import run
+        import os
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+
+        installed_applets = seedkeeper_utils.run_globalplatform(self,"-l -v", "Checking Installed Applets", None)
+
+        if installed_applets:
+            installed_applets = installed_applets.split('\n')
+
+            installed_applets_aids = []
+            installed_applets_list = []
+
+            for line in installed_applets:
+                if "PKG: " in line:
+                    package_info = line.split()
+                    print(package_info)
+                    # Ignore system packages
+                    if package_info[1] in ['A0000001515350', 'A00000016443446F634C697465', 'A0000000620204', 'A0000000620202', 'D27600012401']:
+                        continue
+                    
+                    installed_applets_list.append(package_info[3][2:-2])
+                    installed_applets_aids.append(package_info[1])
+
+            selected_applet_num = self.run_screen(
+                ButtonListScreen,
+                title="Select Applet",
+                is_button_text_centered=False,
+                button_data=installed_applets_list
+            )
+
+            if selected_applet_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+
+            applet_aid = installed_applets_aids[selected_applet_num]
+
+            seedkeeper_utils.run_globalplatform(self,"--delete " + applet_aid + " -force", "Uninstalling Applet", "Applet Uninstalled")
+
+                # This process often kills IFD-NFC, so restart it if required
+        scinterface = self.settings.get_value(SettingsConstants.SETTING__SMARTCARD_INTERFACES)
+        if "pn532" in scinterface:
+            os.system("ifdnfc-activate no")
+            time.sleep(1)
+            os.system("ifdnfc-activate yes")
+
+        return Destination(MainMenuView)
+
+"""****************************************************************************
+    MicroSD Views
+****************************************************************************"""
+class ToolsMicroSDMenuView(View):
+    FLASH_IMAGE = ("Flash Image")
+    VERIFY_IMAGE = ("Verify MicroSD")
+    WIPE_ZERO = ("Wipe (Zero)")
+    WIPE_RANDOM = ("Wipe (Random)")
+
+    def run(self):
+        button_data = [self.FLASH_IMAGE, self.VERIFY_IMAGE, self.WIPE_ZERO, self.WIPE_RANDOM]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="MicroSD Tools",
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.FLASH_IMAGE:
+            return Destination(ToolsMicroSDFlashView)
+        
+        elif button_data[selected_menu_num] == self.VERIFY_IMAGE:
+            return Destination(ToolsMicroSDVerifyView)
+
+        elif button_data[selected_menu_num] == self.WIPE_ZERO:
+            return Destination(ToolsMicroSDWipeZeroView)
+
+        elif button_data[selected_menu_num] == self.WIPE_RANDOM:
+            return Destination(ToolsMicroSDWipeRandomView)
+        
+class ToolsMicroSDFlashView(View):
+    def run(self):
+        from subprocess import run
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+
+        if platform.uname()[1] == "seedsigner-os":
+            microsd_images = os.listdir('/mnt/microsd/microsd-images/')
+        else:
+            microsd_images = os.listdir('/boot/microsd-images/')
+
+        selected_file_num = self.run_screen(
+            ButtonListScreen,
+            title="Select Image",
+            is_button_text_centered=False,
+            button_data=microsd_images
+        )
+
+        if selected_file_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        microsd_image = microsd_images[selected_file_num]
+        print("Selected:", microsd_image)
+
+        if platform.uname()[1] == "seedsigner-os":
+            data = run("cp /mnt/microsd/microsd-images/" + microsd_image + " /tmp/img.img", capture_output=True, shell=True, text=True)
+            if len(data.stderr) > 1:
+                self.run_screen(
+                    WarningScreen,
+                    title="Error",
+                    status_headline=None,
+                    text="data.stderr",
+                    show_back_button=False,
+                )
+                return Destination(MainMenuView)
+
+            self.run_screen(
+                WarningScreen,
+                title="Notice",
+                status_headline=None,
+                text="Insert MicroSD to be Flashed",
+                show_back_button=False,
+                button_data=["Continue"]
+            )
+
+            self.loading_screen = LoadingScreenThread(text="Flashing MicroSD\n\n\n\n\n\n")
+            self.loading_screen.start()
+
+            data = run("dd if=/tmp/img.img of=/dev/mmcblk0", capture_output=True, shell=True, text=True)
+
+            self.loading_screen.stop()
+
+            data_stderr_split = data.stderr.split('\n')
+
+            inNum = 1
+            outNum = 0
+            for errorLine in data_stderr_split:
+                if "records in" in errorLine:
+                    inNum = errorLine.split("+")[0]
+                    continue
+                elif "records out" in errorLine:
+                    outNum = errorLine.split("+")[0]
+                    continue
+
+            if inNum != outNum:
+                self.run_screen(
+                    WarningScreen,
+                    title="Error",
+                    status_headline=None,
+                    text=data.stderr,
+                    show_back_button=False,
+                    button_data=["Continue"]
+                )
+            else:
+                self.run_screen(
+                    LargeIconStatusScreen,
+                    title="Success",
+                    status_headline=None,
+                    text=f"MicroSD Flashed",
+                    show_back_button=False,
+                    button_data=["Continue"]
+                )
+
+        else:
+            os.system("cp /boot/microsd-images/" + microsd_image + " /tmp/img.img")
+            os.system("sudo dd if=/tmp/img.img of=/dev/mmcblk0")
+
+        return Destination(MainMenuView)
+
+class ToolsMicroSDVerifyView(View):
+    def run(self):
+        from subprocess import run
+        import os
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+
+        self.loading_screen = LoadingScreenThread(text="Reading MicroSD\n\n\n\n\n\n")
+        self.loading_screen.start()
+
+        if platform.uname()[1] == "seedsigner-os":
+            os.system("dd if=/dev/mmcblk0 of=/tmp/img.img bs=1M count=26")
+        else:
+            os.system("sudo dd if=/dev/mmcblk0 of=/tmp/img.img bs=1M count=26")
+
+        data = run("sha256sum /tmp/img.img", capture_output=True, shell=True, text=True)
+
+        print(data)
+
+        self.loading_screen.stop()
+
+        checksum = data.stdout[:64]
+
+        formatted_checksum = data.stdout[:16] + "\n" + data.stdout[16:32] + "\n" + data.stdout[32:48] + "\n" + data.stdout[48:64]
+
+        self.run_screen(
+            WarningScreen,
+            title="Unfamilliar Checksum",
+            status_headline=None,
+            text=formatted_checksum,
+            show_back_button=False,
+            button_data=["Continue"]
+        )
+
+        return Destination(MainMenuView)
+    
+class ToolsMicroSDWipeZeroView(View):
+    def run(self):
+        from subprocess import run
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+
+        self.run_screen(
+            WarningScreen,
+            title="Notice",
+            status_headline=None,
+            text="Insert MicroSD to be Wiped",
+            show_back_button=False,
+            button_data=["Continue"]
+        )
+
+        self.loading_screen = LoadingScreenThread(text="Wiping MicroSD\n\n\n\n\n\n(This takes a while)")
+        self.loading_screen.start()
+
+        if platform.uname()[1] == "seedsigner-os":
+            cmd = "dd if=/dev/zero of=/dev/mmcblk0 bs=10M count=50"
+        else:
+            cmd = "sudo dd if=/dev/zero of=/dev/mmcblk0 bs=10M count=50"
+
+        data = run(cmd, capture_output=True, shell=True, text=True)
+
+        self.loading_screen.stop()
+
+        data_stderr_split = data.stderr.split('\n')
+
+        inNum = 1
+        outNum = 0
+        for errorLine in data_stderr_split:
+            if "records in" in errorLine:
+                inNum = errorLine.split("+")[0]
+                continue
+            elif "records out" in errorLine:
+                outNum = errorLine.split("+")[0]
+                continue
+
+        if inNum != outNum:
+            self.run_screen(
+                WarningScreen,
+                title="Error",
+                status_headline=None,
+                text=data.stderr,
+                show_back_button=False,
+                button_data=["Continue"]
+            )
+        else:
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"MicroSD Wiped",
+                show_back_button=False,
+                button_data=["Continue"]
+            )
+
+        return Destination(MainMenuView)
+
+class ToolsMicroSDWipeRandomView(View):
+    def run(self):
+        from subprocess import run
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+
+        self.run_screen(
+            WarningScreen,
+            title="Notice",
+            status_headline=None,
+            text="Insert MicroSD to be Wiped",
+            show_back_button=False,
+            button_data=["Continue"]
+        )
+
+        self.loading_screen = LoadingScreenThread(text="Wiping MicroSD\n\n\n\n\n\n(This takes a while)")
+        self.loading_screen.start()
+
+        if platform.uname()[1] == "seedsigner-os":
+            cmd = "dd if=/dev/urandom of=/dev/mmcblk0 bs=10M count=50"
+        else:
+            cmd = "sudo dd if=/dev/urandom of=/dev/mmcblk0 bs=10M count=50"
+
+        data = run(cmd, capture_output=True, shell=True, text=True)
+
+        self.loading_screen.stop()
+
+        data_stderr_split = data.stderr.split('\n')
+
+        inNum = 1
+        outNum = 0
+        for errorLine in data_stderr_split:
+            if "records in" in errorLine:
+                inNum = errorLine.split("+")[0]
+                continue
+
+            if "records out" in errorLine:
+                outNum = errorLine.split("+")[0]
+                continue
+
+        if inNum != outNum:
+            self.run_screen(
+                WarningScreen,
+                title="Error",
+                status_headline=None,
+                text=data.stderr,
+                show_back_button=False,
+                button_data=["Continue"]
+            )
+        else:
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Success",
+                status_headline=None,
+                text=f"MicroSD Wiped",
+                show_back_button=False,
+                button_data=["Continue"]
+            )
+
+        return Destination(MainMenuView)

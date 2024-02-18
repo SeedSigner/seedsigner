@@ -40,6 +40,7 @@ class EncodeQR:
     wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
     bitcoin_address: str = None
     signed_message: str = None
+    generic_string: str = None
 
     def __post_init__(self):
         self.qr = QR()
@@ -105,6 +106,9 @@ class EncodeQR:
 
         elif self.qr_type == QRType.SIGN_MESSAGE:
             self.encoder = SignedMessageEncoder(signed_message=self.signed_message)
+
+        elif self.qr_type == QRType.GENERIC_STRING:
+            self.encoder = GenericStringEncoder(generic_string=self.generic_string)
 
         else:
             raise Exception('QR Type not supported')
@@ -536,3 +540,12 @@ class UrXpubQrEncoder(XpubQrEncoder):
 
     def next_part(self) -> str:
         return self.ur2_encode.next_part().upper()
+
+class GenericStringEncoder(BaseStaticQrEncoder):
+    def __init__(self, generic_string: str):
+        super().__init__()
+        self.generic_string = generic_string
+
+
+    def next_part(self):
+        return self.generic_string

@@ -17,6 +17,7 @@ class Settings(Singleton):
     HOSTNAME = platform.uname()[1]
     SEEDSIGNER_OS = "seedsigner-os"
     SETTINGS_FILENAME = "/mnt/microsd/settings.json" if HOSTNAME == SEEDSIGNER_OS else "settings.json"
+    SU_COMMAND_PREFIX = "" if HOSTNAME == SEEDSIGNER_OS else "sudo "
         
     @classmethod
     def get_instance(cls):
@@ -115,6 +116,10 @@ class Settings(Singleton):
 
 
     def update(self, new_settings: dict):
+        print("Updating Settings")
+        print("Existing Settings:", self._data) 
+        print()
+        print("New Settings:", new_settings)
         """
             Replaces the current settings with the incoming dict.
 
@@ -140,9 +145,11 @@ class Settings(Singleton):
 
         # Can't just merge the _data dict; have to replace keys they have in common
         #   (otherwise list values will be merged instead of replaced).
+        # Do this by running set_value
         for key, value in new_settings.items():
-            self._data.pop(key, None)
-            self._data[key] = value
+            #self._data.pop(key, None)
+            #self._data[key] = value
+            self.set_value(key,value)
 
 
     def set_value(self, attr_name: str, value: any):
@@ -165,10 +172,95 @@ class Settings(Singleton):
                 print(f"Removed {self.SETTINGS_FILENAME}")
             except:
                 print(f"{self.SETTINGS_FILENAME} not found to be removed")
-                
+
+         # Special handling for enabling Smartcard readers
+        if attr_name == SettingsConstants.SETTING__SMARTCARD_INTERFACES:
+            import time
+            from seedsigner.gui.screens.screen import LoadingScreenThread
+            
+            print("Smartcard Interface Changed")
+
+            # Basically just check through a a bunch of possible USB hubs and ports and enable/disable them all (Should cover all RPi models, RPi4 has lots of USB ports...)
+            if "usb" not in value and "usb" in self._data[attr_name]:
+                self.loading_screen = LoadingScreenThread(text="Disabling USB Ports")
+                self.loading_screen.start()
+                print("Disabling USB")
+                os.system(self.SU_COMMAND_PREFIX + "uhubctl -a 0")
+                self.loading_screen.stop()
+
+            if "usb" in value and "usb" not in self._data[attr_name]:
+                self.loading_screen = LoadingScreenThread(text="Enabling USB Ports")
+                self.loading_screen.start()
+                print("Enabling USB")
+                os.system(self.SU_COMMAND_PREFIX + "uhubctl -a 1")
+
+                time.sleep(1)
+                if self.HOSTNAME == self.SEEDSIGNER_OS:
+                    os.system("/etc/init.d/S01pcscd stop")
+                    time.sleep(1)
+                    os.system("/etc/init.d/S01pcscd start")
+                else:
+                    os.system("sudo service pcscd stop")
+                    time.sleep(1)
+                    os.system("sudo service pcscd start")
+
+                self.loading_screen.stop()
+
+            # Execution order matters here if swithing from Phoenix to PN352, basically we want to disable phoenix first and then enable PN532
+            if "phoenix" in value and "phoenix" not in self._data[attr_name]:
+                self.loading_screen = LoadingScreenThread(text="Starting OpenCT")
+                self.loading_screen.start()
+                print("Phoenix Enabled")
+
+                os.system(self.SU_COMMAND_PREFIX + "openct-control init") # OpenCT needs a bit of time to get going before restarting PCSCD (At least two seconds) to work reliabily
+                time.sleep(3)
+
+                if self.HOSTNAME == self.SEEDSIGNER_OS:
+                    os.system("/etc/init.d/S01pcscd stop")
+                    time.sleep(1)
+                    os.system("/etc/init.d/S01pcscd start")
+                else:
+                    os.system("sudo service pcscd stop")
+                    time.sleep(1)
+                    os.system("sudo service pcscd start")
+
+                self.loading_screen.stop()
+
+            if "phoenix" not in value and "phoenix" in self._data[attr_name]:
+                self.loading_screen = LoadingScreenThread(text="Stopping OpenCT")
+                self.loading_screen.start()
+                print("Phoenix Disabled")
+                os.system(self.SU_COMMAND_PREFIX + "openct-control shutdown")
+                time.sleep(3)
+
+                if self.HOSTNAME == self.SEEDSIGNER_OS:
+                    os.system("/etc/init.d/S01pcscd stop")
+                    time.sleep(1)
+                    os.system("/etc/init.d/S01pcscd start")
+                else:
+                    os.system("sudo service pcscd stop")
+                    time.sleep(1)
+                    os.system("sudo service pcscd start")
+
+                self.loading_screen.stop()
+
+            if "pn532" in value and "pn532" not in self._data[attr_name]:
+                self.loading_screen = LoadingScreenThread(text="Enabling PN532")
+                self.loading_screen.start()
+                print("PN532 Enabled")
+                os.system("ifdnfc-activate yes")
+                self.loading_screen.stop()
+
+            if "pn532" not in value and "pn532" in self._data[attr_name]:
+                self.loading_screen = LoadingScreenThread(text="Disabling PN532")
+                self.loading_screen.start()
+                print("PN532 Disabled")
+                os.system("ifdnfc-activate no")
+                self.loading_screen.stop()
+
         self._data[attr_name] = value
         self.save()
-    
+
 
     def get_value(self, attr_name: str):
         """

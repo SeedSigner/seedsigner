@@ -2,7 +2,7 @@ import logging
 from seedsigner.gui.components import SeedSignerIconConstants
 from seedsigner.hardware.microsd import MicroSD
 
-from .view import View, Destination, MainMenuView
+from .view import View, Destination, MainMenuView, BackStackView
 
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, settings_screens)
 from seedsigner.models.settings import Settings, SettingsConstants, SettingsDefinition
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 class SettingsMenuView(View):
     IO_TEST = "I/O test"
+    NFC_TEST = "Test NFC Scan"
     DONATE = "Donate"
 
     def __init__(self, visibility: str = SettingsConstants.VISIBILITY__GENERAL, selected_attr: str = None, initial_scroll: int = 0):
@@ -45,6 +46,7 @@ class SettingsMenuView(View):
             next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
 
             button_data.append(self.IO_TEST)
+            button_data.append(self.NFC_TEST)
             button_data.append(self.DONATE)
 
         elif self.visibility == SettingsConstants.VISIBILITY__ADVANCED:
@@ -84,6 +86,9 @@ class SettingsMenuView(View):
 
         elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == self.IO_TEST:
             return Destination(IOTestView)
+        
+        elif button_data[selected_menu_num] == self.NFC_TEST:
+            return Destination(NFCTestView)
 
         elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == self.DONATE:
             return Destination(DonateView)
@@ -227,6 +232,117 @@ class IOTestView(View):
 
         return Destination(SettingsMenuView)
 
+class NFCTestView(View):
+    def run(self):
+        
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+        import os
+        import time
+        from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, WarningScreen, DireWarningScreen, seed_screens, LargeIconStatusScreen)
+
+        self.loading_screen = LoadingScreenThread(text="Scanning for NFC Tag")
+        self.loading_screen.start()
+
+        os.system("ifdnfc-activate no") # Need to disable IFD-NFC to be able to scan using libnfc-bindings...
+
+        time.sleep(0.2) #Just give the loading screen a chance to load before moving on...
+
+        import nfc
+        import binascii
+
+        context = nfc.init()
+        nfcdevice = nfc.open(context)
+        if nfcdevice is None:
+            self.loading_screen.stop()
+            print('ERROR: Unable to open NFC device.')
+            self.run_screen(
+                WarningScreen,
+                title="NFC Failure",
+                status_headline=None,
+                text=f"ERROR: Unable to open NFC device. \n(May not be connected)",
+                show_back_button=True,
+            )
+            return Destination(BackStackView)
+            
+        if nfc.initiator_init(nfcdevice) < 0:
+            self.loading_screen.stop()
+            print('ERROR: Unable to init NFC device.')
+            self.run_screen(
+                WarningScreen,
+                title="NFC Failure",
+                status_headline=None,
+                text=f"ERROR: Unable to init NFC device.",
+                show_back_button=True,
+            )
+            return Destination(BackStackView)
+
+        print('NFC reader: %s opened' % nfc.device_get_name(nfcdevice))
+
+        nfcmodulation = nfc.modulation()
+        nfcmodulation.nmt = nfc.NMT_ISO14443A
+        nfcmodulation.nbr = nfc.NBR_847 #Test at the highest baud rate for the best simulation of Smartcard operation
+
+        nt = nfc.target()
+
+        # Scan for 15 seconds
+        ret = nfc.initiator_poll_target(nfcdevice, nfcmodulation, 1, 100, 1, nt)
+
+        self.loading_screen.stop()
+
+        if ret and nt.nti.nai.szUidLen:
+
+            print('The following (NFC) ISO14443A tag was found:')
+            print('    ATQA (SENS_RES): ', end='')
+            nfc.print_hex(nt.nti.nai.abtAtqa, 2)
+            id = 1
+            if nt.nti.nai.abtUid[0] == 8:
+                id = 3
+            print('       UID (NFCID%d): ' % id , end='')
+            nfc.print_hex(nt.nti.nai.abtUid, nt.nti.nai.szUidLen)
+            foundtext="UID:\n" + binascii.hexlify(nt.nti.nai.abtUid).decode()[:14]
+
+            print('      SAK (SEL_RES): ', end='')
+            print(nt.nti.nai.btSak)
+            if nt.nti.nai.szAtsLen:
+                print('          ATS (ATR): ', end='')
+                nfc.print_hex(nt.nti.nai.abtAts, nt.nti.nai.szAtsLen)
+                foundtext = foundtext + "\nATR:\n" + binascii.hexlify(nt.nti.nai.abtAts).decode()[:28]
+
+            self.run_screen(
+                LargeIconStatusScreen,
+                title="Found NFC Tag",
+                status_headline=None,
+                text=foundtext,
+                show_back_button=False,
+            )
+        elif ret:
+            print('Warning: IFD-NFC Conflict.')
+            self.run_screen(
+                WarningScreen,
+                title="NFC Conflict",
+                status_headline=None,
+                text=f"Can't scan when IFD-NFC Active",
+                show_back_button=True,
+            )
+        else:
+            print('Warning: No NFC Tag Detected.')
+            self.run_screen(
+                WarningScreen,
+                title="Warning",
+                status_headline=None,
+                text=f"Warning: No NFC Tag Detected.",
+                show_back_button=True,
+            )
+
+        nfc.close(nfcdevice)
+        nfc.exit(context)
+
+        scinterface = self.settings.get_value(SettingsConstants.SETTING__SMARTCARD_INTERFACES)
+
+        if "pn532" in scinterface:
+            os.system("ifdnfc-activate yes") # Need to re-enable IFD-NFC if required...
+        
+        return Destination(MainMenuView)
 
 
 class DonateView(View):
