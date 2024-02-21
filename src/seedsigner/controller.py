@@ -298,6 +298,7 @@ class Controller(Singleton):
                     
                     # Home always wipes the back_stack/state of temp vars
                     self.resume_main_flow = None
+                    self.multisig_wallet_descriptor = None
                     self.unverified_address = None
                     self.address_explorer_data = None
                     self.psbt = None
