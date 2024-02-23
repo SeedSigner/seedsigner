@@ -65,10 +65,12 @@ def test_generate_screenshots(target_locale):
     mnemonic_12b = ["abandon"] * 11 + ["about"]
     seed_12 = Seed(mnemonic=mnemonic_12, passphrase="cap*BRACKET3stove", wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
     seed_12b = Seed(mnemonic=mnemonic_12b, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
-    seed_24 = Seed(mnemonic=mnemonic_24, passphrase="some-PASS*phrase9", wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    seed_24 = Seed(mnemonic=mnemonic_24, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    seed_24_w_passphrase = Seed(mnemonic=mnemonic_24, passphrase="some-PASS*phrase9", wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
     controller.storage.seeds.append(seed_12)
     controller.storage.seeds.append(seed_12b)
-    controller.storage.set_pending_seed(seed_24)
+    controller.storage.seeds.append(seed_24)
+    controller.storage.set_pending_seed(seed_24_w_passphrase)
     UnhandledExceptionViewFood = ["IndexError", "line 1, in some_buggy_code.py", "list index out of range"]
 
     # Pending mnemonic for ToolsCalcFinalWordShowFinalWordView
@@ -155,8 +157,10 @@ def test_generate_screenshots(target_locale):
             (seed_views.SeedWordsBackupTestSuccessView, dict(seed_num=0)),
             (seed_views.SeedTranscribeSeedQRFormatView, dict(seed_num=0)),
             (seed_views.SeedTranscribeSeedQRWarningView, dict(seed_num=0)),
-            (seed_views.SeedTranscribeSeedQRWholeQRView, dict(seed_num=0, seedqr_format=QRType.SEED__SEEDQR, num_modules=25), "SeedTranscribeSeedQRWholeQRView_12_Standard"),
             (seed_views.SeedTranscribeSeedQRWholeQRView, dict(seed_num=0, seedqr_format=QRType.SEED__COMPACTSEEDQR, num_modules=21), "SeedTranscribeSeedQRWholeQRView_12_Compact"),
+            (seed_views.SeedTranscribeSeedQRWholeQRView, dict(seed_num=0, seedqr_format=QRType.SEED__SEEDQR, num_modules=25), "SeedTranscribeSeedQRWholeQRView_12_Standard"),
+            (seed_views.SeedTranscribeSeedQRWholeQRView, dict(seed_num=2, seedqr_format=QRType.SEED__COMPACTSEEDQR, num_modules=25), "SeedTranscribeSeedQRWholeQRView_24_Compact"),
+            (seed_views.SeedTranscribeSeedQRWholeQRView, dict(seed_num=2, seedqr_format=QRType.SEED__SEEDQR, num_modules=29), "SeedTranscribeSeedQRWholeQRView_24_Standard"),
 
             # Screenshot doesn't render properly due to how the transparency mask is pre-rendered
             # (seed_views.SeedTranscribeSeedQRZoomedInView, dict(seed_num=0, seedqr_format=QRType.SEED__SEEDQR)),
