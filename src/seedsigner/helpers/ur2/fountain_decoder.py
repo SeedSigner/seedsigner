@@ -255,7 +255,7 @@ class FountainDecoder:
         elif self.is_failure():
             return 'Exception: {}'.format(self.result)
         else:
-            assert(False)
+            assert False
 
     def print_part(self, p):
         print('part indexes: {}'.format(self.indexes_to_string(p.indexes)))

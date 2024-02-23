@@ -31,7 +31,7 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, NotYetImplementedView, UnhandledExceptionView, 
     psbt_views, seed_views, settings_views, tools_views)
-from seedsigner.views.view import NetworkMismatchErrorView, OptionDisabledView, PowerOffView, View
+from seedsigner.views.view import ErrorView, NetworkMismatchErrorView, OptionDisabledView, PowerOffView, View
 
 from .utils import ScreenshotComplete, ScreenshotRenderer
 
@@ -110,9 +110,10 @@ def test_generate_screenshots(target_locale):
             continue
 
         settings_views_list.append((settings_views.SettingsEntryUpdateSelectionView, dict(attr_name=settings_entry.attr_name), f"SettingsEntryUpdateSelectionView_{settings_entry.attr_name}"))
-    settings_views_list.append(settings_views.IOTestView)
-    settings_views_list.append(settings_views.DonateView)
     
+
+    settingsqr_data_persistent = "settings::v1 name=Total_noob_mode persistent=E coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"
+    settingsqr_data_not_persistent = "settings::v1 name=Ephemeral_noob_mode persistent=D coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"
 
     screenshot_sections = {
         "Main Menu Views": [
@@ -123,13 +124,6 @@ def test_generate_screenshots(target_locale):
             PowerOptionsView,
             RestartView,
             PowerOffView,
-            NotYetImplementedView,
-            (UnhandledExceptionView, dict(error=UnhandledExceptionViewFood)),
-            (settings_views.SettingsIngestSettingsQRView, dict(data="settings::v1 name=factory_reset")),
-            NetworkMismatchErrorView,
-            (OptionDisabledView, dict(settings_attr=SettingsConstants.SETTING__MESSAGE_SIGNING)),
-
-
         ],
         "Seed Views": [
             seed_views.SeedsMenuView,
@@ -193,8 +187,8 @@ def test_generate_screenshots(target_locale):
             psbt_views.PSBTMathView,
             (psbt_views.PSBTAddressDetailsView, dict(address_num=0)),
 
-            # TODO: Render Multisig change w/ and w/out the multisig wallet descriptor onboard
-            (psbt_views.PSBTChangeDetailsView, dict(change_address_num=0)),
+            (NotYetImplementedView, {}, "PSBTChangeDetailsView_multisig_unverified"),  # Must manually re-run this below
+            (psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), "PSBTChangeDetailsView_multisig_verified"),
             (psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True, is_multisig=False), "PSBTAddressVerificationFailedView_singlesig_change"),
             (psbt_views.PSBTAddressVerificationFailedView, dict(is_change=False, is_multisig=False), "PSBTAddressVerificationFailedView_singlesig_selftransfer"),
             (psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True, is_multisig=True), "PSBTAddressVerificationFailedView_multisig_change"),
@@ -221,7 +215,24 @@ def test_generate_screenshots(target_locale):
             tools_views.ToolsAddressExplorerAddressListView,
             #tools_views.ToolsAddressExplorerAddressView,
         ],
-        "Settings Views": settings_views_list,
+        "Settings Views": settings_views_list + [
+            settings_views.IOTestView,
+            settings_views.DonateView,
+            (settings_views.SettingsIngestSettingsQRView, dict(data=settingsqr_data_persistent), "SettingsIngestSettingsQRView_persistent"),
+            (settings_views.SettingsIngestSettingsQRView, dict(data=settingsqr_data_not_persistent), "SettingsIngestSettingsQRView_not_persistent"),
+        ],
+        "Misc Error Views": [
+            NotYetImplementedView,
+            (UnhandledExceptionView, dict(error=UnhandledExceptionViewFood)),
+            NetworkMismatchErrorView,
+            (OptionDisabledView, dict(settings_attr=SettingsConstants.SETTING__MESSAGE_SIGNING)),
+            (ErrorView, dict(
+                title="Error",
+                status_headline="Unknown QR Type",
+                text="QRCode is invalid or is a data format not yet supported.",
+                button_text="Back",
+            )),
+        ]
     }
 
     readme = f"""# SeedSigner Screenshots\n"""
@@ -282,8 +293,16 @@ def test_generate_screenshots(target_locale):
         readme += "</td></tr></table>"
 
     # many screens don't work, leaving a missing image, re-run here for now
-    controller.psbt_seed = None
     screenshot_renderer.set_screenshot_path(os.path.join(screenshot_root, "psbt_views"))
+
+    decoder = DecodeQR()
+    decoder.add_data(BASE64_PSBT_1)
+    controller.psbt = decoder.get_psbt()
+    controller.psbt_seed = seed_12b
+    controller.multisig_wallet_descriptor = None
+    screencap_view(psbt_views.PSBTChangeDetailsView, 'PSBTChangeDetailsView_multisig_unverified', dict(change_address_num=0))
+
+    controller.psbt_seed = None
     screencap_view(psbt_views.PSBTSelectSeedView, 'PSBTSelectSeedView', {})
 
     with open(os.path.join(screenshot_root, "README.md"), 'w') as readme_file:

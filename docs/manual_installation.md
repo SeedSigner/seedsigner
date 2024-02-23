@@ -1,10 +1,12 @@
 # Manual Installation Instructions
 
-Begin by acquiring a specific copy of the Raspberry Pi Lite operating system, dated 2021-05-28; this version can be found here:
+Begin by acquiring the latest 32-bit, Buster-based Raspberry Pi Lite operating system. This guide was tested using the version dated 2023-05-03; which can be found here:
 
-https://downloads.raspberrypi.org/raspios_lite_armhf/images/raspios_lite_armhf-2021-05-28/
+https://downloads.raspberrypi.org/raspios_oldstable_lite_armhf/images/raspios_oldstable_lite_armhf-2023-05-03/
 
-Best practice is to verify the downloaded .zip file containing the Raspberry Pi Lite OS matches the published SHA256 hash of the file; for additional reference that hash is: c5dad159a2775c687e9281b1a0e586f7471690ae28f2f2282c90e7d59f64273c. After verifying the file's data integrity, you can decompress the .zip file to obtain the operating system image that it contains. You can then use Balena's Etcher tool (https://www.balena.io/etcher/) to write the Raspberry Pi Lite software image to a memory card (4 GB or larger). It's important to note that an image authoring tool must be used (the operating system image cannot be simply copied into a file storage partition on the memory card).
+SeedSigner does not work any of the more recent versions of Debian. This is a known limitation and there are open tickets to track the progress of this ([Debian 11 ticket](https://github.com/SeedSigner/seedsigner/issues/431), [Debian 12 ticket](https://github.com/SeedSigner/seedsigner/issues/430)). This guide does not work on the 64-bit versions of Buster, however pull requests to update it to be compatible are welcome.
+
+Best practice is to verify the downloaded file containing the Raspberry Pi Lite OS matches the published SHA256 hash of the file; for additional reference that hash is: 3d210e61b057de4de90eadb46e28837585a9b24247c221998f5bead04f88624c. After verifying the file's data integrity, you can decompress the .tar.xz file to obtain the operating system image that it contains. You can then use Balena's Etcher tool (https://www.balena.io/etcher/) to write the Raspberry Pi Lite software image to a memory card (4 GB or larger). It's important to note that an image authoring tool must be used (the operating system image cannot be simply copied into a file storage partition on the memory card).
 
 The manual SeedSigner installation and configuration process requires an internet connection on the Pi to download the necessary libraries and code.  
 If your Pi does not have onboard wifi, you have two options:
@@ -104,7 +106,7 @@ sudo apt install python3-apt -y
 
 
 ### Install dependencies
-Copy this entire box and run it as one command (will take a while to complete):
+Copy this entire box and run it as one command (~15 minutes on a Pi Zero 1.3):
 ```bash
 sudo apt update && sudo apt install -y wiringpi python3-pip \
    python3-numpy python-pil libjpeg-dev zlib1g-dev libopenjp2-7 \
@@ -146,43 +148,34 @@ rm bcm2835-1.60.tar.gz
 sudo rm -rf bcm2835-1.60
 ```
 
-### Set up `virtualenv`
-```bash
-python -m pip install virtualenvwrapper
-```
-
-Edit your bash profile with the command `nano ~/.profile` and add the following to the end:
-```bash
-export WORKON_HOME=$HOME/.envs
-export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3
-source $HOME/.local/bin/virtualenvwrapper.sh
-```
-Then `CTRL-X` and `y` to exit and save changes.
-
-Now create the virtualenv for SeedSigner:
-```bash
-source ~/.profile
-mkvirtualenv seedsigner-env
-```
-
-For convenience you can configure your `.profile` to auto-activate the SeedSigner virtualenv when you ssh in. Once again `nano ~/.profile` and add at the end:
-```bash
-workon seedsigner-env
-```
-
-
 ### Download the SeedSigner code:
 ```bash
 git clone https://github.com/SeedSigner/seedsigner
 cd seedsigner
 ```
 
+### Adding swap space
+Compiling the dependencies requires more RAM than is available on a Raspberry
+Pi 3B, let alone a Zero. Temporarily adding 1GB of additional swap space will
+work around this limitation. The `/swapfile` can be deleted after you reboot.
+
+If building on a Raspberry Pi board with more than 1GB of RAM, this step can
+be safely skipped.
+
+```bash
+sudo dd if=/dev/zero of=/swapfile bs=4096 count=$((1024*256))
+sudo chmod 0600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+```
 
 ### Install Python `pip` dependencies:
 ```bash
-# Takes 1hr 45min on a Pi Zero 1.3
-pip install -r requirements.txt
-pip install -r requirements-raspi.txt
+# Takes 1hr 15min on a Pi Zero 1.3
+python3 -m pip install -r requirements.txt
+
+# Only takes ~100 seconds
+python3 -m pip install -r requirements-raspi.txt
 ```
 
 #### `pyzbar`
@@ -192,28 +185,6 @@ The fork is required because the main `pyzbar` repo has been abandoned. This [gi
 * [PR 76](https://github.com/NaturalHistoryMuseum/pyzbar/pull/76/files): enables scanning to continue even when a null byte (`x\00`) is found.
 * [PR 82](https://github.com/NaturalHistoryMuseum/pyzbar/pull/82): enable `zbar`'s new binary mode. Note that this PR has a trivial bug that was fixed in our fork.
 
-
-### Finish configuring the virtualenv
-Set the SeedSigner `src/` directory as the project directory for the virtualenv (this is where the virtualenv will take you when you activate it):
-```bash
-cd src
-setvirtualenvproject
-```
-
-Test it out:
-```bash
-# exit the virtualenv
-deactivate
-
-# change dirs to somewhere else
-cd ~
-
-# activate the virtualenv
-workon seedsigner-env
-
-# you should now be back in the SeedSigner src/ directory
-pwd
-```
 
 ### Optional: increase spidev buffer size
 This allows `ST7789.py` to update the LCD without performing multiple write operations because the default buffer size is 4096 bytes. The default can be changed via the  `/boot/cmdline.txt` file. You will need to add `spidev.bufsiz=131072` to the end of this single lined file command.
@@ -238,7 +209,7 @@ Description=Seedsigner
 [Service]
 User=pi
 WorkingDirectory=/home/pi/seedsigner/src/
-ExecStart=/home/pi/.envs/seedsigner-env/bin/python3 main.py > /dev/null 2>&1
+ExecStart=/usr/bin/python3 main.py > /dev/null 2>&1
 Restart=always
 
 [Install]
@@ -287,13 +258,9 @@ sudo rm /var/swap
 
 ## Manually start the SeedSigner code
 ```bash
-# activate the virtualenv if you haven't already
-workon seedsigner-env
+cd ~/seedsigner/src
 
-# You should now be in the SeedSigner src/ directory. List its contents:
-ls
-
-# You should see the main.py file. Run it:
+# You'll find the main.py file in that directory. Run it:
 python main.py
 
 # To kill the process, use CTRL-C

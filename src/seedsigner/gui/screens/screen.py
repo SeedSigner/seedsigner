@@ -826,6 +826,7 @@ class LargeIconStatusScreen(ButtonListScreen):
     status_color: str = GUIConstants.SUCCESS_COLOR
     status_headline: str = "Success!"  # The colored text under the large icon
     text: str = ""                          # The body text of the screen
+    text_edge_padding: int = GUIConstants.EDGE_PADDING
     button_data: list = None
     allow_text_overflow: bool = False
 
@@ -861,7 +862,7 @@ class LargeIconStatusScreen(ButtonListScreen):
             height=self.buttons[0].screen_y - next_y,
             text=self.text,
             width=self.canvas_width,
-            edge_padding=GUIConstants.EDGE_PADDING,  # Don't render all the way up to the far left/right edges
+            edge_padding=self.text_edge_padding,  # Don't render all the way up to the far left/right edges
             screen_y=next_y,
             allow_text_overflow=self.allow_text_overflow,
         ))
@@ -935,6 +936,7 @@ class WarningEdgesThread(BaseThread):
 @dataclass
 class WarningEdgesMixin:
     status_color: str = GUIConstants.WARNING_COLOR
+    text_edge_padding: int = 2 * GUIConstants.EDGE_PADDING
 
     def __post_init__(self):
         super().__post_init__()

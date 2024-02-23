@@ -126,7 +126,7 @@ class Bytewords:
         elif style == Bytewords_Style_minimal:
             return encode_minimal(bytes)
         else:
-            assert(False)
+            assert False
 
     @staticmethod
     def decode(style, str):
@@ -137,4 +137,4 @@ class Bytewords:
         elif style == Bytewords_Style_minimal:
             return decode(str, 0, 2)
         else:
-            assert(False)
+            assert False

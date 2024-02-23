@@ -1,7 +1,7 @@
 embit==0.7.0
-numpy==1.21.1
-Pillow==8.2.0
--e git+https://github.com/seedsigner/pyzbar.git@c3c237821c6a20b17953efe59b90df0b514a1c03#egg=pyzbar
+numpy==1.25.2
+Pillow==9.4.0
+pyzbar @ git+https://github.com/seedsigner/pyzbar.git@c3c237821c6a20b17953efe59b90df0b514a1c03
 qrcode==7.3.1
 six==1.16.0
 urtypes @ git+https://github.com/selfcustody/urtypes.git@7fb280eab3b3563dfc57d2733b0bf5cbc0a96a6a
