@@ -1,8 +1,8 @@
 # SeedQR Format Specification
 
-[SeedSigner](https://github.com/SeedSigner/seedsigner/) is an open source, DIY, fully-airgapped Bitcoin hardware wallet that wipes all private data from memory each time it's turned off. That means users need to re-enter their Bitcoin private key each time they use it.
+[SeedSigner](https://github.com/SeedSigner/seedsigner/) is an open source, DIY, fully-airgapped Bitcoin hardware wallet that wipes all private data from memory each time it's turned off. That means users need to re-enter their mnemonic seed phrase each time they use it.
 
-To speed up this key entry process we have defined a way to encode a private key as a QR code that can be instantly scanned into a SeedSigner or potentially any other Bitcoin hardware wallet that has a camera.
+To speed up this key entry process we have defined a way to encode a BIP-39 mnemonic seed phrase as a QR code that can be instantly scanned into a SeedSigner or potentially any other Bitcoin hardware wallet that has a camera.
 
 The approach is specifically designed to encode the minimum possible amount of data in order to keep the resulting QR code small enough that it can be transcribed *by hand*. This sounds ridiculous at first, but remember that this is secret data that should never be stored in any digital medium. And even printers present some additional risk vectors.
 
@@ -20,7 +20,7 @@ Specifications for each follow below, as well as discussion of the pros and cons
 
 
 ## Quick Review of BIP-39 Mnemonic Seed Phrases
-The typical method for backing up a Bitcoin private key is to store it as a [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) mnemonic seed phrase that consists of 12 or 24 words.
+The typical method for backing up a Bitcoin wallet is to store its [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) mnemonic seed phrase consisting of 12 or 24 words.
 
 Each word comes from a [list of 2048 words](https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt). The words themselves are meaningless; all that matters is the word's position number (aka index) in the word list.
 
@@ -150,7 +150,7 @@ But here the unit being described isn't alphanumeric characters or numeric digit
 1 byte = 8 bits
 ```
 
-Rather than having the QR format interpret our data as numbers or characters, we can directly encode the relevant bits that determine our Bitcoin private key.
+Rather than having the QR format interpret our data as numbers or characters, we can directly encode the relevant bits that determine our mnemonic seed phrase.
 
 We can extract exactly those bits from our mnemonic seed phrase digit stream that we generated above.
 
@@ -311,7 +311,7 @@ Conversely, having limited support for reading binary QR codes and the complicat
 
 
 # Some Additional Notes on QR Codes
-Our main use case is to be able to quickly initialize a SeedSigner with your Bitcoin private key. But using a QR code as your key loader--or even as your permanent backup etched in metal--has other advantages.
+Our main use case is to be able to quickly initialize a SeedSigner with your mnemonic seed phrase. But using a QR code as your key loader--or even as your permanent backup etched in metal--has other advantages.
 
 QR codes are ubiquitous now so plenty of hardware and software exists to read and generate them.
 
