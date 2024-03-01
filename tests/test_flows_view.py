@@ -1,4 +1,4 @@
-from mock import patch
+from unittest.mock import patch
 
 # Must import test base before the Controller
 from base import FlowTest, FlowStep

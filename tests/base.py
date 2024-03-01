@@ -1,6 +1,6 @@
 import sys
 from dataclasses import dataclass
-from mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 from typing import Callable
 
 # Prevent importing modules w/Raspi hardware dependencies.

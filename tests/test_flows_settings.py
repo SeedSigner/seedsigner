@@ -1,7 +1,7 @@
 import os
 from typing import Callable
 
-from mock import PropertyMock, patch
+from unittest.mock import PropertyMock, patch
 
 # Must import test base before the Controller
 from base import FlowTest, FlowStep

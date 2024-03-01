@@ -2,7 +2,7 @@ import embit
 import os
 import sys
 import time
-from mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock
 from seedsigner.helpers import embit_utils
 
 from seedsigner.models.settings import Settings
