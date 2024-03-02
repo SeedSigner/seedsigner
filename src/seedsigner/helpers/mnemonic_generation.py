@@ -4,6 +4,7 @@ import unicodedata
 from embit import bip39
 from embit.wordlists.bip39 import WORDLIST as WORDLIST__ENGLISH
 from seedsigner.models.settings_definition import SettingsConstants
+from seedsigner.models.seed import Seed
 
 """
     This is SeedSigner's internal mnemonic generation utility.
@@ -16,21 +17,6 @@ from seedsigner.models.settings_definition import SettingsConstants
 
 DICE__NUM_ROLLS__12WORD = 50
 DICE__NUM_ROLLS__24WORD = 99
-
-
-
-def _get_wordlist(wordlist_language_code) -> list[str]:
-    """
-        Convenience method to fetch the wordlist for the given language code without
-        requiring any SeedSigner module dependencies for when this is run as a
-        standalone CLI.
-    """
-    if wordlist_language_code == SettingsConstants.WORDLIST_LANGUAGE__ENGLISH:
-        return WORDLIST__ENGLISH
-    else:
-        # Nested import to avoid dependency on Seed model when running this script standalone
-        from seedsigner.models import Seed
-        return Seed.get_wordlist(wordlist_language_code)
 
 
 
@@ -49,7 +35,7 @@ def calculate_checksum(mnemonic: list | str, wordlist_language_code: str = Setti
         mnemonic = re.findall(r'[^,\s]+', mnemonic)
 
     if len(mnemonic) in [11, 23]:
-        temp_final_word = _get_wordlist(wordlist_language_code)[0]
+        temp_final_word = Seed.get_wordlist(wordlist_language_code)[0]
         mnemonic.append(temp_final_word)
 
     if len(mnemonic) not in [12, 24]:
@@ -61,7 +47,7 @@ def calculate_checksum(mnemonic: list | str, wordlist_language_code: str = Setti
     # Convert the resulting mnemonic to bytes, but we `ignore_checksum` validation
     # because we assume it's incorrect since we either let the user select their own
     # final word OR we injected the 0000 word from the wordlist.
-    mnemonic_bytes = bip39.mnemonic_to_bytes(unicodedata.normalize("NFKD", " ".join(mnemonic_copy)), ignore_checksum=True, wordlist=_get_wordlist(wordlist_language_code))
+    mnemonic_bytes = bip39.mnemonic_to_bytes(unicodedata.normalize("NFKD", " ".join(mnemonic_copy)), ignore_checksum=True, wordlist=Seed.get_wordlist(wordlist_language_code))
 
     # This function will convert the bytes back into a mnemonic, but it will also
     # calculate the proper checksum bits while doing so. For a 12-word seed it will just
@@ -72,7 +58,7 @@ def calculate_checksum(mnemonic: list | str, wordlist_language_code: str = Setti
 
 
 def generate_mnemonic_from_bytes(entropy_bytes, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
-    return bip39.mnemonic_from_bytes(entropy_bytes, wordlist=_get_wordlist(wordlist_language_code)).split()
+    return bip39.mnemonic_from_bytes(entropy_bytes, wordlist=Seed.get_wordlist(wordlist_language_code)).split()
 
 
 
@@ -93,7 +79,7 @@ def generate_mnemonic_from_dice(roll_data: str, wordlist_language_code: str = Se
         entropy_bytes = entropy_bytes[:16]
 
     # Return as a list
-    return bip39.mnemonic_from_bytes(entropy_bytes, wordlist=_get_wordlist(wordlist_language_code)).split()
+    return bip39.mnemonic_from_bytes(entropy_bytes, wordlist=Seed.get_wordlist(wordlist_language_code)).split()
 
 
 
@@ -112,7 +98,7 @@ def generate_mnemonic_from_coin_flips(coin_flips: str, wordlist_language_code: s
         entropy_bytes = entropy_bytes[:16]
 
     # Return as a list
-    return bip39.mnemonic_from_bytes(entropy_bytes, wordlist=_get_wordlist(wordlist_language_code)).split()
+    return bip39.mnemonic_from_bytes(entropy_bytes, wordlist=Seed.get_wordlist(wordlist_language_code)).split()
 
 
 
@@ -124,7 +110,7 @@ def get_partial_final_word(coin_flips: str, wordlist_language_code: str = Settin
     binary_string = coin_flips + "0" * (11 - len(coin_flips))
     wordlist_index = int(binary_string, 2)
 
-    return _get_wordlist(wordlist_language_code)[wordlist_index]
+    return Seed.get_wordlist(wordlist_language_code)[wordlist_index]
 
 
 
@@ -135,4 +121,4 @@ def generate_mnemonic_from_image(image, wordlist_language_code: str = SettingsCo
     hash = hashlib.sha256(image.tobytes())
 
     # Return as a list
-    return bip39.mnemonic_from_bytes(hash.digest(), wordlist=_get_wordlist(wordlist_language_code)).split()
+    return bip39.mnemonic_from_bytes(hash.digest(), wordlist=Seed.get_wordlist(wordlist_language_code)).split()
