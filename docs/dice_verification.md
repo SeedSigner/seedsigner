@@ -234,34 +234,34 @@ python3 mnemonic.py -h
 
     Usage:
         # 50 dice rolls / 12-word mnemonic
-        python3 mnemonic_generation.py dice 5624433434...
+        python3 mnemonic.py dice 5624433434...
         
         # 99 dice rolls / 24-word mnemonic
-        python3 mnemonic_generation.py dice 6151463561...
+        python3 mnemonic.py dice 6151463561...
 
         # 50 dice rolls, entered as 0-5 / 12-word mnemonic
-        python3 mnemonic_generation.py --zero-indexed-dice dice 5135535514...
+        python3 mnemonic.py --zero-indexed-dice dice 5135535514...
 
         # 128 coin flips / 12-word mnemonic
-        python3 mnemonic_generation.py coins 1111100111...
+        python3 mnemonic.py coins 1111100111...
 
         # 256 coin flips / 24-word mnemonic
-        python mnemonic_generation.py coins 0010111010...
+        python mnemonic.py coins 0010111010...
 
         # GENERATE 50 random dice rolls / 12-word mnemonic
-        python3 mnemonic_generation.py dice rand12
+        python3 mnemonic.py dice rand12
 
         # GENERATE 99 random dice rolls / 24-word mnemonic
-        python3 mnemonic_generation.py dice rand24
+        python3 mnemonic.py dice rand24
 
         # GENERATE 99 random dice rolls, entered as 0-5 / 24-word mnemonic
-        python3 mnemonic_generation.py --zero-indexed-dice dice rand24
+        python3 mnemonic.py --zero-indexed-dice dice rand24
 
         # GENERATE 128 random coin flips / 12-word mnemonic
-        python3 mnemonic_generation.py coins rand12
+        python3 mnemonic.py coins rand12
 
         # GENERATE 256 random coin flips / 24-word mnemonic
-        python3 mnemonic_generation.py coins rand24
+        python3 mnemonic.py coins rand24
 ```
 
 ### How to get the same results in iancoleman.io
