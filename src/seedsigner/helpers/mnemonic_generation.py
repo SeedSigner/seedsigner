@@ -2,7 +2,6 @@ import hashlib
 import unicodedata
 
 from embit import bip39
-from embit.wordlists.bip39 import WORDLIST as WORDLIST__ENGLISH
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.models.seed import Seed
 
