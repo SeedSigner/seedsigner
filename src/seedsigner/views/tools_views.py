@@ -14,8 +14,7 @@ from seedsigner.gui.screens.tools_screens import (ToolsCalcFinalWordDoneScreen, 
     ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen,
     ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen)
 from seedsigner.helpers import embit_utils, mnemonic_generation
-from seedsigner.models.encode_qr import EncodeQR
-from seedsigner.models.qr_type import QRType
+from seedsigner.models.encode_qr import GenericStaticQrEncoder
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
@@ -695,7 +694,7 @@ class ToolsAddressExplorerAddressView(View):
     
     def run(self):
         from seedsigner.gui.screens.screen import QRDisplayScreen
-        qr_encoder = EncodeQR(qr_type=QRType.BITCOIN_ADDRESS, bitcoin_address=self.address)
+        qr_encoder = GenericStaticQrEncoder(data=self.address)
         self.run_screen(
             QRDisplayScreen,
             qr_encoder=qr_encoder,
