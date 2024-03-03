@@ -4,7 +4,7 @@ from embit.networks import NETWORKS
 from seedsigner.controller import Controller
 
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
-from seedsigner.helpers.qr_encoders import UrPsbtQrEncoder
+from seedsigner.models.encode_qr import UrPsbtQrEncoder
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen, PSBTMathScreen, PSBTAddressDetailsScreen, PSBTChangeDetailsScreen, PSBTFinalizeScreen

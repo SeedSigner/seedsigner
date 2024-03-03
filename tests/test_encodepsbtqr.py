@@ -1,4 +1,4 @@
-from seedsigner.helpers.qr_encoders import CompactSeedQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrPsbtQrEncoder, UrXpubQrEncoder
+from seedsigner.models.encode_qr import CompactSeedQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrPsbtQrEncoder, UrXpubQrEncoder
 from embit import psbt
 from binascii import a2b_base64
 

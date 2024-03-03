@@ -2,7 +2,7 @@ import math
 
 from embit import bip32
 from embit.networks import NETWORKS
-from binascii import b2a_base64, hexlify
+from binascii import hexlify
 from dataclasses import dataclass
 from typing import List
 from embit import bip32
@@ -11,7 +11,6 @@ from embit.psbt import PSBT
 from seedsigner.helpers.ur2.ur_encoder import UREncoder
 from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.qr import QR
-from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
@@ -26,7 +25,6 @@ class BaseQrEncoder:
 
 
     def __post_init__(self):
-        print("BaseQrEncoder.__post_init__")
         self.qr = QR()
 
 
@@ -162,7 +160,6 @@ class BaseXpubQrEncoder(BaseQrEncoder):
     wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
 
     def prep_xpub(self):
-        print("BaseXpubQrEncoder.prep_xpub")
         self.wordlist = Seed.get_wordlist(self.wordlist_language_code)
 
         if self.wordlist == None:
@@ -292,7 +289,6 @@ class SpecterXPubQrEncoder(BaseSimpleAnimatedQREncoder, BaseXpubQrEncoder):
 class BaseFountainQrEncoder(BaseQrEncoder):
     def __post_init__(self):
         super().__post_init__()
-        print("BaseFountainQrEncoder __post_init__")
 
         self.ur2_encode: UREncoder = None
 
@@ -338,8 +334,6 @@ class BaseFountainQrEncoder(BaseQrEncoder):
 class UrXpubQrEncoder(BaseFountainQrEncoder, BaseXpubQrEncoder):
     def __post_init__(self):
         super().__post_init__()
-        print("UrXpubQrEncoder __post_init__")
-
         self.prep_xpub()
         
         def derivation_to_keypath(path: str) -> list:

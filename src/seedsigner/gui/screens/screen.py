@@ -10,7 +10,7 @@ from seedsigner.gui.components import (GUIConstants,
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.buttons import HardwareButtonsConstants, HardwareButtons
-from seedsigner.helpers.qr_encoders import BaseQrEncoder
+from seedsigner.models.encode_qr import BaseQrEncoder
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
