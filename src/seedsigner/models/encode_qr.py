@@ -54,10 +54,6 @@ class BaseQrEncoder:
 
 
     def part_to_image(self, part, width, height, border: int = 3, background_color: str = "ffffff"):
-        # if self.qr_type == QRType.SEED__SEEDQR:
-        #     return self.qr.qrimage(part, width, height, border)
-        # else:
-        #     return self.qr.qrimage_io(part, width, height, border, background_color=background_color)
         return self.qr.qrimage_io(part, width, height, border, background_color=background_color)
 
 
