@@ -4,9 +4,8 @@ from embit.networks import NETWORKS
 from seedsigner.controller import Controller
 
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
-from seedsigner.models.encode_qr import EncodeQR
+from seedsigner.models.encode_qr import UrPsbtQrEncoder
 from seedsigner.models.psbt_parser import PSBTParser
-from seedsigner.models.qr_type import QRType
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen, PSBTMathScreen, PSBTAddressDetailsScreen, PSBTChangeDetailsScreen, PSBTFinalizeScreen
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
@@ -498,11 +497,9 @@ class PSBTFinalizeView(View):
 
 class PSBTSignedQRDisplayView(View):
     def run(self):
-        qr_encoder = EncodeQR(
+        qr_encoder = UrPsbtQrEncoder(
             psbt=self.controller.psbt,
-            qr_type=QRType.PSBT__UR2,  # All coordinators (as of 2022-08) use this format
             qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
-            wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE),
         )
         self.run_screen(QRDisplayScreen, qr_encoder=qr_encoder)
 

@@ -10,6 +10,7 @@ from seedsigner.gui.components import (GUIConstants,
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.buttons import HardwareButtonsConstants, HardwareButtons
+from seedsigner.models.encode_qr import BaseQrEncoder
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
@@ -657,10 +658,10 @@ class LargeButtonScreen(BaseTopNavScreen):
 
 @dataclass
 class QRDisplayScreen(BaseScreen):
-    qr_encoder: 'EncodeQR' = None
+    qr_encoder: BaseQrEncoder = None
 
     class QRDisplayThread(BaseThread):
-        def __init__(self, qr_encoder: 'EncodeQR', qr_brightness: ThreadsafeCounter, renderer: Renderer,
+        def __init__(self, qr_encoder: BaseQrEncoder, qr_brightness: ThreadsafeCounter, renderer: Renderer,
                      tips_start_time: ThreadsafeCounter):
             super().__init__()
             self.qr_encoder = qr_encoder
@@ -669,7 +670,7 @@ class QRDisplayScreen(BaseScreen):
             self.tips_start_time = tips_start_time
 
 
-        def add_brightness_tips(self, image: Image.Image) -> None:
+        def render_brightness_tip(self, image: Image.Image) -> None:
             # TODO: Refactor ToastOverlay to support two lines of icon + text and use
             # that instead of this more manual approach.
 
@@ -744,19 +745,29 @@ class QRDisplayScreen(BaseScreen):
             from seedsigner.models.settings import Settings
             settings = Settings.get_instance()
             cur_brightness_setting = settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS_TIPS)
-            show_brightness_tips = cur_brightness_setting == SettingsConstants.OPTION__ENABLED
+            is_brightness_tip_enabled = cur_brightness_setting == SettingsConstants.OPTION__ENABLED
+            pending_encoder_restart = False
 
             # Loop whether the QR is a single frame or animated; each loop might adjust
             # brightness setting.
             while self.keep_running:
                 # convert the self.qr_brightness integer (31-255) into hex triplets
                 hex_color = (hex(self.qr_brightness.cur_count).split('x')[1]) * 3
-                image = self.qr_encoder.next_part_image(240, 240, border=2, background_color=hex_color)
 
                 # Display the brightness tips toast
                 duration = 10 ** 9 * 1.2  # 1.2 seconds
-                if show_brightness_tips and time.time_ns() - self.tips_start_time.cur_count < duration:
-                    self.add_brightness_tips(image)
+                if is_brightness_tip_enabled and time.time_ns() - self.tips_start_time.cur_count < duration:
+                    image = self.qr_encoder.part_to_image(self.qr_encoder.cur_part(), 240, 240, border=2, background_color=hex_color)
+                    self.render_brightness_tip(image)
+                    pending_encoder_restart = True
+                else:
+                    # Only advance the QR animation when the brightness tip is not displayed
+                    if pending_encoder_restart:
+                        # Animated QRs should restart their frame sequence after the
+                        # brightness tip is stowed.
+                        self.qr_encoder.restart()
+                        pending_encoder_restart = False
+                    image = self.qr_encoder.next_part_image(240, 240, border=2, background_color=hex_color)
 
                 with self.renderer.lock:
                     self.renderer.show_image(image)
