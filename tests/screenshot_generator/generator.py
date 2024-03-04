@@ -228,7 +228,7 @@ def test_generate_screenshots(target_locale):
 
             (NotYetImplementedView, {}, "PSBTOverviewView_op_return"),  # Placeholder
             (NotYetImplementedView, {}, "PSBTOpReturnView_text"),       # Placeholder
-            (NotYetImplementedView, {}, "PSBTOpReturnView_raw_bytes"),  # Placeholder
+            (NotYetImplementedView, {}, "PSBTOpReturnView_raw_hex_data"),  # Placeholder
 
             (psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True, is_multisig=False), "PSBTAddressVerificationFailedView_singlesig_change"),
             (psbt_views.PSBTAddressVerificationFailedView, dict(is_change=False, is_multisig=False), "PSBTAddressVerificationFailedView_singlesig_selftransfer"),
@@ -361,7 +361,7 @@ def test_generate_screenshots(target_locale):
     decoder.add_data(BASE64_PSBT_WITH_OP_RETURN_RAW_BYTES)
     controller.psbt = decoder.get_psbt()
     controller.psbt_parser = PSBTParser(p=controller.psbt, seed=seed_12b)
-    screencap_view(psbt_views.PSBTOpReturnView, view_name="PSBTOpReturnView_raw_bytes")
+    screencap_view(psbt_views.PSBTOpReturnView, view_name="PSBTOpReturnView_raw_hex_data")
 
     with open(os.path.join(screenshot_root, "README.md"), 'w') as readme_file:
        readme_file.write(readme)
