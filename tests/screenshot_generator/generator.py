@@ -65,10 +65,12 @@ def test_generate_screenshots(target_locale):
     mnemonic_12b = ["abandon"] * 11 + ["about"]
     seed_12 = Seed(mnemonic=mnemonic_12, passphrase="cap*BRACKET3stove", wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
     seed_12b = Seed(mnemonic=mnemonic_12b, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
-    seed_24 = Seed(mnemonic=mnemonic_24, passphrase="some-PASS*phrase9", wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    seed_24 = Seed(mnemonic=mnemonic_24, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    seed_24_w_passphrase = Seed(mnemonic=mnemonic_24, passphrase="some-PASS*phrase9", wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
     controller.storage.seeds.append(seed_12)
     controller.storage.seeds.append(seed_12b)
-    controller.storage.set_pending_seed(seed_24)
+    controller.storage.seeds.append(seed_24)
+    controller.storage.set_pending_seed(seed_24_w_passphrase)
     UnhandledExceptionViewFood = ["IndexError", "line 1, in some_buggy_code.py", "list index out of range"]
 
     # Pending mnemonic for ToolsCalcFinalWordShowFinalWordView
@@ -155,8 +157,10 @@ def test_generate_screenshots(target_locale):
             (seed_views.SeedWordsBackupTestSuccessView, dict(seed_num=0)),
             (seed_views.SeedTranscribeSeedQRFormatView, dict(seed_num=0)),
             (seed_views.SeedTranscribeSeedQRWarningView, dict(seed_num=0)),
-            (seed_views.SeedTranscribeSeedQRWholeQRView, dict(seed_num=0, seedqr_format=QRType.SEED__SEEDQR, num_modules=25), "SeedTranscribeSeedQRWholeQRView_12_Standard"),
             (seed_views.SeedTranscribeSeedQRWholeQRView, dict(seed_num=0, seedqr_format=QRType.SEED__COMPACTSEEDQR, num_modules=21), "SeedTranscribeSeedQRWholeQRView_12_Compact"),
+            (seed_views.SeedTranscribeSeedQRWholeQRView, dict(seed_num=0, seedqr_format=QRType.SEED__SEEDQR, num_modules=25), "SeedTranscribeSeedQRWholeQRView_12_Standard"),
+            (seed_views.SeedTranscribeSeedQRWholeQRView, dict(seed_num=2, seedqr_format=QRType.SEED__COMPACTSEEDQR, num_modules=25), "SeedTranscribeSeedQRWholeQRView_24_Compact"),
+            (seed_views.SeedTranscribeSeedQRWholeQRView, dict(seed_num=2, seedqr_format=QRType.SEED__SEEDQR, num_modules=29), "SeedTranscribeSeedQRWholeQRView_24_Standard"),
 
             # Screenshot doesn't render properly due to how the transparency mask is pre-rendered
             # (seed_views.SeedTranscribeSeedQRZoomedInView, dict(seed_num=0, seedqr_format=QRType.SEED__SEEDQR)),
@@ -187,8 +191,8 @@ def test_generate_screenshots(target_locale):
             psbt_views.PSBTMathView,
             (psbt_views.PSBTAddressDetailsView, dict(address_num=0)),
 
-            # TODO: Render Multisig change w/ and w/out the multisig wallet descriptor onboard
-            (psbt_views.PSBTChangeDetailsView, dict(change_address_num=0)),
+            (NotYetImplementedView, {}, "PSBTChangeDetailsView_multisig_unverified"),  # Must manually re-run this below
+            (psbt_views.PSBTChangeDetailsView, dict(change_address_num=0), "PSBTChangeDetailsView_multisig_verified"),
             (psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True, is_multisig=False), "PSBTAddressVerificationFailedView_singlesig_change"),
             (psbt_views.PSBTAddressVerificationFailedView, dict(is_change=False, is_multisig=False), "PSBTAddressVerificationFailedView_singlesig_selftransfer"),
             (psbt_views.PSBTAddressVerificationFailedView, dict(is_change=True, is_multisig=True), "PSBTAddressVerificationFailedView_multisig_change"),
@@ -293,8 +297,16 @@ def test_generate_screenshots(target_locale):
         readme += "</td></tr></table>"
 
     # many screens don't work, leaving a missing image, re-run here for now
-    controller.psbt_seed = None
     screenshot_renderer.set_screenshot_path(os.path.join(screenshot_root, "psbt_views"))
+
+    decoder = DecodeQR()
+    decoder.add_data(BASE64_PSBT_1)
+    controller.psbt = decoder.get_psbt()
+    controller.psbt_seed = seed_12b
+    controller.multisig_wallet_descriptor = None
+    screencap_view(psbt_views.PSBTChangeDetailsView, 'PSBTChangeDetailsView_multisig_unverified', dict(change_address_num=0))
+
+    controller.psbt_seed = None
     screencap_view(psbt_views.PSBTSelectSeedView, 'PSBTSelectSeedView', {})
 
     with open(os.path.join(screenshot_root, "README.md"), 'w') as readme_file:

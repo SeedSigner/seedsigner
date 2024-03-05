@@ -1959,7 +1959,9 @@ class SeedSignMessageStartView(View):
         # calculate the actual receive address
         addr_format = embit_utils.parse_derivation_path(derivation_path)
         if not addr_format["clean_match"]:
-            raise NotYetImplementedView("Signing messages for custom derivation paths not supported")
+            self.set_redirect(Destination(NotYetImplementedView, view_args=dict(text=f"Signing messages for custom derivation paths not supported")))
+            self.controller.resume_main_flow = None
+            return
 
         # Note: addr_format["network"] can be MAINNET or [TESTNET, REGTEST]
         if self.settings.get_value(SettingsConstants.SETTING__NETWORK) not in addr_format["network"]:
