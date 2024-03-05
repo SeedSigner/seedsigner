@@ -77,6 +77,7 @@ class FontAwesomeIconConstants:
     CHEVRON_DOWN = "\uf078"
     CIRCLE = "\uf111"
     CIRCLE_CHEVRON_RIGHT = "\uf138"
+    COIN = "\uf51e"
     DICE = "\uf522"
     DICE_ONE = "\uf525"
     DICE_TWO = "\uf528"

@@ -205,3 +205,70 @@ We double-checked in two different web tools implementing different methods for 
 
 So congratulations if the fingerprints, zpubs and addresses all match up in your example so you can be much more confident that nothing is wrong with your generated seed.
 
+---
+
+# Command Line Tool
+_(for more advanced/python-savvy users)_
+
+Run the exact same SeedSigner mnemonic generation code from the command line to quickly test and externally verify the results.
+
+Create a python virtualenv (out of the scope of this doc) and install dependencies:
+```bash
+pip3 install embit
+
+# Install the main project code to make it importable
+pip3 install -e .
+```
+
+
+Then run the utility script with `-h` to view the usage instructions:
+```bash
+cd tools
+python3 mnemonic.py -h
+```
+
+```
+    Verify SeedSigner's dice rolls and coin flip entropy-to-mnemonic conversion via this tool.
+
+    Compare its results against iancoleman.io/bip39 and bitcoiner.guide/seed
+
+    Usage:
+        # 50 dice rolls / 12-word mnemonic
+        python3 mnemonic.py dice 5624433434...
+        
+        # 99 dice rolls / 24-word mnemonic
+        python3 mnemonic.py dice 6151463561...
+
+        # 50 dice rolls, entered as 0-5 / 12-word mnemonic
+        python3 mnemonic.py --zero-indexed-dice dice 5135535514...
+
+        # 128 coin flips / 12-word mnemonic
+        python3 mnemonic.py coins 1111100111...
+
+        # 256 coin flips / 24-word mnemonic
+        python mnemonic.py coins 0010111010...
+
+        # GENERATE 50 random dice rolls / 12-word mnemonic
+        python3 mnemonic.py dice rand12
+
+        # GENERATE 99 random dice rolls / 24-word mnemonic
+        python3 mnemonic.py dice rand24
+
+        # GENERATE 99 random dice rolls, entered as 0-5 / 24-word mnemonic
+        python3 mnemonic.py --zero-indexed-dice dice rand24
+
+        # GENERATE 128 random coin flips / 12-word mnemonic
+        python3 mnemonic.py coins rand12
+
+        # GENERATE 256 random coin flips / 24-word mnemonic
+        python3 mnemonic.py coins rand24
+```
+
+### How to get the same results in iancoleman.io
+Always specify your expected length in the "Mnemonic Length" droplist (defaults to "Use Raw Entropy (3 words per 32 bits)").
+
+Dice Rolls: Do NOT use the "Dice [1-6]" option; select "Base 10 [0-9]" or "Hex [0-9A-F]"
+
+Zero-indexed dice rolls: Select "Base 6 [0-5]", "Base 10 [0-9]", or "Hex [0-9A-F]"
+
+Coin Flips: Select "Binary [0-1]", "Base 6 [0-5]", "Base 10 [0-9]", or "Hex [0-9A-F]"

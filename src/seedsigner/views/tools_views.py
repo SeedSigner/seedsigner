@@ -27,12 +27,13 @@ from .view import View, Destination, BackStackView
 class ToolsMenuView(View):
     IMAGE = (" New seed", FontAwesomeIconConstants.CAMERA)
     DICE = ("New seed", FontAwesomeIconConstants.DICE)
+    COIN = ("New seed", FontAwesomeIconConstants.COIN)
     KEYBOARD = ("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     EXPLORER = "Address Explorer"
     ADDRESS = "Verify address"
 
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.EXPLORER, self.ADDRESS]
+        button_data = [self.IMAGE, self.DICE, self.COIN, self.KEYBOARD, self.EXPLORER, self.ADDRESS]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -49,6 +50,9 @@ class ToolsMenuView(View):
 
         elif button_data[selected_menu_num] == self.DICE:
             return Destination(ToolsDiceEntropyMnemonicLengthView)
+
+        elif button_data[selected_menu_num] == self.COIN:
+            return Destination(ToolsCoinEntropyMnemonicLengthView)
 
         elif button_data[selected_menu_num] == self.KEYBOARD:
             return Destination(ToolsCalcFinalWordNumWordsView)
@@ -188,8 +192,8 @@ class ToolsImageEntropyMnemonicLengthView(View):
 ****************************************************************************"""
 class ToolsDiceEntropyMnemonicLengthView(View):
     def run(self):
-        TWELVE = "12 words (50 rolls)"
-        TWENTY_FOUR = "24 words (99 rolls)"
+        TWELVE = f"12 words ({mnemonic_generation.DICE__NUM_ROLLS__12WORD} rolls)"
+        TWENTY_FOUR = f"24 words ({mnemonic_generation.DICE__NUM_ROLLS__24WORD} rolls)"
         
         button_data = [TWELVE, TWENTY_FOUR]
         selected_menu_num = ButtonListScreen(
@@ -203,10 +207,10 @@ class ToolsDiceEntropyMnemonicLengthView(View):
             return Destination(BackStackView)
 
         elif button_data[selected_menu_num] == TWELVE:
-            return Destination(ToolsDiceEntropyEntryView, view_args=dict(total_rolls=50))
+            return Destination(ToolsDiceEntropyEntryView, view_args=dict(total_rolls=mnemonic_generation.DICE__NUM_ROLLS__12WORD))
 
         elif button_data[selected_menu_num] == TWENTY_FOUR:
-            return Destination(ToolsDiceEntropyEntryView, view_args=dict(total_rolls=99))
+            return Destination(ToolsDiceEntropyEntryView, view_args=dict(total_rolls=mnemonic_generation.DICE__NUM_ROLLS__24WORD))
 
 
 
@@ -232,6 +236,60 @@ class ToolsDiceEntropyEntryView(View):
 
         # Cannot return BACK to this View
         return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
+
+
+"""****************************************************************************
+    Coin Flip Views
+****************************************************************************"""
+class ToolsCoinEntropyMnemonicLengthView(View):
+    def run(self):
+        TWELVE = f"12 words ({mnemonic_generation.COIN__NUM_FLIPS__12WORD} flips)"
+        TWENTY_FOUR = f"24 words ({mnemonic_generation.COIN__NUM_FLIPS__24WORD} flips)"
+
+        button_data = [TWELVE, TWENTY_FOUR]
+        selected_menu_num = ButtonListScreen(
+            title="Mnemonic Length",
+            is_bottom_list=True,
+            is_button_text_centered=True,
+            button_data=button_data,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == TWELVE:
+            return Destination(ToolsCoinEntropyEntryView, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__12WORD))
+
+        elif button_data[selected_menu_num] == TWENTY_FOUR:
+            return Destination(ToolsCoinEntropyEntryView, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__24WORD))
+
+
+
+class ToolsCoinEntropyEntryView(View):
+    def __init__(self, total_flips: int):
+        super().__init__()
+        self.total_flips = total_flips
+
+
+    def run(self):
+        ret = ToolsCoinFlipEntryScreen(
+            return_after_n_chars=self.total_flips,
+        ).display()
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        print(f"Coin Flips: {ret}")
+        coin_seed_phrase = mnemonic_generation.generate_mnemonic_from_coin_flips(ret)
+        print(f"""Mnemonic: "{coin_seed_phrase}" """)
+
+        # Add the mnemonic as an in-memory Seed
+        seed = Seed(coin_seed_phrase, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+        self.controller.storage.set_pending_seed(seed)
+
+        # Cannot return BACK to this View
+        return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
+
 
 
 
