@@ -281,9 +281,8 @@ class PowerOffView(View):
         def run(self):
             import time
             from subprocess import call
-            while self.keep_running:
-                time.sleep(5)
-                call("sudo shutdown --poweroff now", shell=True)
+            time.sleep(5)
+            call("sudo shutdown --poweroff now", shell=True)
 
 
 

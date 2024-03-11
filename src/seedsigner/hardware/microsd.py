@@ -60,12 +60,10 @@ class MicroSD(Singleton, BaseThread):
             
             os.mkfifo(self.FIFO_PATH, self.FIFO_MODE)
 
-            while self.keep_running:
+            while not self.event.wait(timeout=0.1):
                 with open(self.FIFO_PATH) as fifo:
                     action = fifo.read()
                     print(f"fifo message: {action}")
 
                     Settings.handle_microsd_state_change(action=action)
                     Controller.get_instance().activate_toast(SDCardStateChangeToastManagerThread(action=action))
-
-                time.sleep(0.1)

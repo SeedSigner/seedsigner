@@ -22,7 +22,7 @@ from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import InvalidSeedException, Seed
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
-from seedsigner.models.threads import BaseThread, ThreadsafeCounter
+from seedsigner.models.threads import BaseThread, ThreadsafeCounter, ThreadsafeVar
 from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
 
 
@@ -1665,11 +1665,11 @@ class SeedAddressVerificationView(View):
         # The ThreadsafeCounter will be shared by the brute-force thread to keep track of
         # its current addr index number and the Screen to display its progress and
         # respond to UI requests to jump the index ahead.
-        self.threadsafe_counter = ThreadsafeCounter()
+        self.cur_addr_index = ThreadsafeCounter()
 
         # Shared coordination var so the display thread can detect success
-        self.verified_index = ThreadsafeCounter(initial_value=None)
-        self.verified_index_is_change = ThreadsafeCounter(initial_value=None)
+        self.verified_index = ThreadsafeVar[int]()
+        self.verified_index_is_change = ThreadsafeVar[bool]()
 
         # Create the brute-force calculation thread that will run in the background
         self.addr_verification_thread = self.BruteForceAddressVerificationThread(
@@ -1679,7 +1679,7 @@ class SeedAddressVerificationView(View):
             script_type=self.script_type,
             embit_network=embit_network,
             derivation_path=self.derivation_path,
-            threadsafe_counter=self.threadsafe_counter,
+            cur_addr_index=self.cur_addr_index,
             verified_index=self.verified_index,
             verified_index_is_change=self.verified_index_is_change,
         )
@@ -1708,49 +1708,55 @@ class SeedAddressVerificationView(View):
         # and resume displaying the screen. User won't even notice that the Screen is
         # being re-constructed.
         while True:
-            selected_menu_num = seed_screens.SeedAddressVerificationScreen(
+            selected_menu_num = self.run_screen(
+                seed_screens.SeedAddressVerificationScreen,
                 address=self.address,
                 derivation_path=self.derivation_path,
                 script_type=script_type_display,
                 sig_type=sig_type_display,
                 network=network_display,
                 is_mainnet=network_display == mainnet,
-                threadsafe_counter=self.threadsafe_counter,
+                cur_addr_index=self.cur_addr_index,
                 verified_index=self.verified_index,
                 button_data=button_data,
-            ).display()
+            )
 
-            if self.verified_index.cur_count is not None:
+            if selected_menu_num is None:
+                # Only occurs during the test suite's flow tests since it doesn't wait
+                # for the Screen's logic to complete. If the brute force thread is still
+                # going, we should wait.
+                self.addr_verification_thread.join()
+                break
+
+            if self.verified_index.cur_value is not None:
                 break
 
             if selected_menu_num == RET_CODE__BACK_BUTTON:
                 break
 
             if button_data[selected_menu_num] == SKIP_10:
-                self.threadsafe_counter.increment(10)
+                self.cur_addr_index.increment(10)
 
             elif button_data[selected_menu_num] == CANCEL:
                 break
 
-        if self.verified_index.cur_count is not None:
+        if self.verified_index.cur_value is not None:
             # Successfully verified the addr; update the data
-            self.controller.unverified_address["verified_index"] = self.verified_index.cur_count
-            self.controller.unverified_address["verified_index_is_change"] = self.verified_index_is_change.cur_count == 1
+            self.controller.unverified_address["verified_index"] = self.verified_index.cur_value
+            self.controller.unverified_address["verified_index_is_change"] = self.verified_index_is_change.cur_value == 1
             return Destination(AddressVerificationSuccessView, view_args=dict(seed_num=self.seed_num))
 
         else:
             # Halt the thread if the user gave up (will already be stopped if it verified the
             # target addr).
             self.addr_verification_thread.stop()
-            while self.addr_verification_thread.is_alive():
-                time.sleep(0.01)
 
         return Destination(MainMenuView)
 
 
 
     class BruteForceAddressVerificationThread(BaseThread):
-        def __init__(self, address: str, seed: Seed, descriptor: Descriptor, script_type: str, embit_network: str, derivation_path: str, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter, verified_index_is_change: ThreadsafeCounter):
+        def __init__(self, address: str, seed: Seed, descriptor: Descriptor, script_type: str, embit_network: str, derivation_path: str, cur_addr_index: ThreadsafeCounter, verified_index: ThreadsafeVar[int], verified_index_is_change: ThreadsafeVar[bool]):
             """
                 Either seed or descriptor will be None
             """
@@ -1761,7 +1767,7 @@ class SeedAddressVerificationView(View):
             self.script_type = script_type
             self.embit_network = embit_network
             self.derivation_path = derivation_path
-            self.threadsafe_counter = threadsafe_counter
+            self.cur_addr_index = cur_addr_index
             self.verified_index = verified_index
             self.verified_index_is_change = verified_index_is_change
 
@@ -1770,11 +1776,11 @@ class SeedAddressVerificationView(View):
  
 
         def run(self):
-            while self.keep_running:
-                if self.threadsafe_counter.cur_count % 10 == 0:
-                    print(f"Incremented to {self.threadsafe_counter.cur_count}")
+            while not self.event.is_set():
+                if self.cur_addr_index.cur_value % 10 == 0:
+                    print(f"Incremented to {self.cur_addr_index.cur_value}")
                 
-                i = self.threadsafe_counter.cur_count
+                i = self.cur_addr_index.cur_value
 
                 if self.descriptor:
                     receive_address = embit_utils.get_multisig_address(descriptor=self.descriptor, index=i, is_change=False, embit_network=self.embit_network)
@@ -1786,19 +1792,17 @@ class SeedAddressVerificationView(View):
                     
                 if self.address == receive_address:
                     self.verified_index.set_value(i)
-                    self.verified_index_is_change.set_value(0)
-                    self.keep_running = False
+                    self.verified_index_is_change.set_value(False)
                     break
 
                 elif self.address == change_address:
                     self.verified_index.set_value(i)
-                    self.verified_index_is_change.set_value(1)
-                    self.keep_running = False
+                    self.verified_index_is_change.set_value(True)
                     break
 
                 # Increment our index counter
-                self.threadsafe_counter.increment()
-        
+                self.cur_addr_index.increment()
+
 
 
 class AddressVerificationSuccessView(View):
@@ -1820,11 +1824,12 @@ class AddressVerificationSuccessView(View):
         else:
             source = f"seed {self.seed.get_fingerprint()}"
 
-        LargeIconStatusScreen(
+        self.run_screen(
+            LargeIconStatusScreen,
             status_headline="Address Verified",
             text=f"""{address[:7]} = {source}'s {"change" if verified_index_is_change else "receive"} address #{verified_index}.""",
             show_back_button=False,
-        ).display()
+        )
 
         return Destination(MainMenuView)
 

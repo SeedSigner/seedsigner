@@ -85,16 +85,19 @@ class ScanScreen(BaseScreen):
 
 
         def run(self):
-            from timeit import default_timer as timer
-
             instructions_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
 
             start_time = time.time()
             num_frames = 0
             show_framerate = False  # enable for debugging / testing
-            while self.keep_running:
+            while not self.event.is_set():
                 frame = self.camera.read_video_stream(as_image=True)
-                if frame is not None:
+                if frame is None:
+                    # give the camera a moment to get started
+                    time.sleep(0.1)
+                    continue
+
+                else:
                     num_frames += 1
                     cur_time = time.time()
                     cur_fps = num_frames / (cur_time - start_time)
@@ -167,10 +170,17 @@ class ScanScreen(BaseScreen):
                 self.threads[0].decoder_fps = decoder_fps
 
                 if status in (DecodeQRStatus.COMPLETE, DecodeQRStatus.INVALID):
-                    self.camera.stop_video_stream_mode()
                     break
                 
                 if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
-                    self.camera.stop_video_stream_mode()
                     break
+
+        self.camera.stop_video_stream_mode()
+
+        # Stop the LivePreviewThread and...
+        self.threads[-1].stop()
+
+        # ...WAIT for it to exit so that it doesn't compete to render one last preview
+        # frame while we start rendering the next screen.
+        self.threads[-1].join()
 

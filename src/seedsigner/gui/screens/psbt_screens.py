@@ -406,7 +406,7 @@ class PSBTOverviewScreen(ButtonListScreen):
                     )
 
             prev_color = reset_color
-            while self.keep_running:
+            while not self.event.wait(timeout=0.02):  # No need to CPU limit when running in its own thread?
                 with self.renderer.lock:
                     # Only generate one new pulse at a time; trailing "reset_color" pulse
                     # erases the most recent pulse.
@@ -440,10 +440,6 @@ class PSBTOverviewScreen(ButtonListScreen):
                         pulse[0] += 1
 
                     self.renderer.show_image()
-
-                # No need to CPU limit when running in its own thread?
-                time.sleep(0.02)
-
 
 
 @dataclass
