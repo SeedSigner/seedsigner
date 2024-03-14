@@ -21,7 +21,8 @@ class BaseThread(Thread):
 
 
     def stop(self):
-        print("STOP called")
+        # Set the thread's Event; the thread's execution loop will exit on its next
+        # iteration.
         self.event.set()
 
 

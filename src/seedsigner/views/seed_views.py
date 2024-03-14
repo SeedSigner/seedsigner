@@ -1722,9 +1722,10 @@ class SeedAddressVerificationView(View):
             )
 
             if selected_menu_num is None:
-                # Only occurs during the test suite's flow tests since it doesn't wait
-                # for the Screen's logic to complete. If the brute force thread is still
-                # going, we should wait.
+                # Only occurs during the test suite's flow tests since it doesn't
+                # actually run the Screen. The test must wait for the brute force thread
+                # to complete its work.
+                # TODO: Add an IS_TESTING env var to ensure that we're in the test suite?
                 self.addr_verification_thread.join()
                 break
 
