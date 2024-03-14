@@ -10,8 +10,9 @@ from seedsigner.gui.components import (GUIConstants,
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.buttons import HardwareButtonsConstants, HardwareButtons
+from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.settings import SettingsConstants
-from seedsigner.models.threads import BaseThread, ThreadsafeCounter
+from seedsigner.models.threads import BaseThread, ThreadsafeCounter, ThreadsafeVar
 
 
 # Must be huge numbers to avoid conflicting with the selected_button returned by the
@@ -150,7 +151,7 @@ class LoadingScreenThread(BaseThread):
                     screen_y=int((renderer.canvas_height - bounding_box[3])/2),
                 ).render()
 
-        while self.keep_running:
+        while not self.event.is_set():
             with renderer.lock:
                 # Render leading arc
                 renderer.draw.arc(
@@ -657,11 +658,10 @@ class LargeButtonScreen(BaseTopNavScreen):
 
 @dataclass
 class QRDisplayScreen(BaseScreen):
-    qr_encoder: 'EncodeQR' = None
+    qr_encoder: EncodeQR = None
 
     class QRDisplayThread(BaseThread):
-        def __init__(self, qr_encoder: 'EncodeQR', qr_brightness: ThreadsafeCounter, renderer: Renderer,
-                     tips_start_time: ThreadsafeCounter):
+        def __init__(self, qr_encoder: EncodeQR, qr_brightness: ThreadsafeVar[int], renderer: Renderer, tips_start_time: ThreadsafeCounter):
             super().__init__()
             self.qr_encoder = qr_encoder
             self.qr_brightness = qr_brightness
@@ -748,21 +748,18 @@ class QRDisplayScreen(BaseScreen):
 
             # Loop whether the QR is a single frame or animated; each loop might adjust
             # brightness setting.
-            while self.keep_running:
+            while not self.event.wait(timeout=(5/30.0)):  # Target n held frames per second before rendering next QR image
                 # convert the self.qr_brightness integer (31-255) into hex triplets
-                hex_color = (hex(self.qr_brightness.cur_count).split('x')[1]) * 3
+                hex_color = (hex(self.qr_brightness.cur_value).split('x')[1]) * 3
                 image = self.qr_encoder.next_part_image(240, 240, border=2, background_color=hex_color)
 
                 # Display the brightness tips toast
                 duration = 10 ** 9 * 1.2  # 1.2 seconds
-                if show_brightness_tips and time.time_ns() - self.tips_start_time.cur_count < duration:
+                if show_brightness_tips and time.time_ns() - self.tips_start_time.cur_value < duration:
                     self.add_brightness_tips(image)
 
                 with self.renderer.lock:
                     self.renderer.show_image(image)
-
-                # Target n held frames per second before rendering next QR image
-                time.sleep(5 / 30.0)
 
 
     def __post_init__(self):
@@ -771,7 +768,7 @@ class QRDisplayScreen(BaseScreen):
 
         # Shared coordination var so the display thread can detect success
         settings = Settings.get_instance()
-        self.qr_brightness = ThreadsafeCounter(
+        self.qr_brightness = ThreadsafeVar[int](
             initial_value=settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS))
         self.tips_start_time = ThreadsafeCounter(initial_value=time.time_ns())
 
@@ -799,12 +796,12 @@ class QRDisplayScreen(BaseScreen):
             )
             if user_input == HardwareButtonsConstants.KEY_DOWN:
                 # Reduce QR code background brightness
-                self.qr_brightness.set_value(max(31, self.qr_brightness.cur_count - 31))
+                self.qr_brightness.set_value(max(31, self.qr_brightness.cur_value - 31))
                 self.tips_start_time.set_value(time.time_ns())
 
             elif user_input == HardwareButtonsConstants.KEY_UP:
                 # Incrase QR code background brightness
-                self.qr_brightness.set_value(min(self.qr_brightness.cur_count + 31, 255))
+                self.qr_brightness.set_value(min(self.qr_brightness.cur_value + 31, 255))
                 self.tips_start_time.set_value(time.time_ns())
 
             else:
@@ -814,7 +811,7 @@ class QRDisplayScreen(BaseScreen):
                     time.sleep(0.01)
                 break
 
-        Settings.get_instance().set_value(SettingsConstants.SETTING__QR_BRIGHTNESS, self.qr_brightness.cur_count)
+        Settings.get_instance().set_value(SettingsConstants.SETTING__QR_BRIGHTNESS, self.qr_brightness.cur_value)
 
 
 
@@ -894,7 +891,7 @@ class WarningEdgesThread(BaseThread):
             )
 
         try:
-            while self.keep_running:
+            while not self.event.wait(timeout=0.05):  # Target ~10fps
                 with screen.renderer.lock:
                     # Ramp the edges from a darker version out to full color
                     inhale_scalar = inhale_factor * int(255/inhale_max)
@@ -923,9 +920,6 @@ class WarningEdgesThread(BaseThread):
                         # It's about to be decremented below zero
                         inhale_factor = 1
                 inhale_factor += inhale_step
-
-                # Target ~10fps
-                time.sleep(0.05)
 
         except KeyboardInterrupt as e:
             self.stop()

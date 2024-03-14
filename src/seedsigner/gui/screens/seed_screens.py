@@ -7,7 +7,7 @@ from typing import List
 from PIL import Image, ImageDraw, ImageFilter
 from seedsigner.gui.renderer import Renderer
 from seedsigner.helpers.qr import QR
-from seedsigner.models.threads import BaseThread, ThreadsafeCounter
+from seedsigner.models.threads import BaseThread, ThreadsafeCounter, ThreadsafeVar
 
 from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, KeyboardScreen, WarningEdgesMixin
 from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddress, IconButton,
@@ -1370,8 +1370,8 @@ class SeedAddressVerificationScreen(ButtonListScreen):
     sig_type: str = None
     network: str = None
     is_mainnet: bool = None
-    threadsafe_counter: ThreadsafeCounter = None
-    verified_index: ThreadsafeCounter = None
+    cur_addr_index: ThreadsafeCounter = None
+    verified_index: ThreadsafeVar[int] = None
 
 
     def __post_init__(self):
@@ -1404,34 +1404,33 @@ class SeedAddressVerificationScreen(ButtonListScreen):
         self.threads.append(SeedAddressVerificationScreen.ProgressThread(
             renderer=self.renderer,
             screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
-            threadsafe_counter=self.threadsafe_counter,
+            cur_addr_index=self.cur_addr_index,
             verified_index=self.verified_index,
         ))
     
 
     def _run_callback(self):
         # Exit the screen on success via a non-None value
-        print(f"verified_index: {self.verified_index.cur_count}")
-        if self.verified_index.cur_count is not None:
-            print("Screen callback returning success!")
+        if self.verified_index.cur_value is not None:
             self.threads[-1].stop()
-            while self.threads[-1].is_alive():
-                time.sleep(0.01)
+
+            # Wait for the thread to exit
+            self.threads[-1].join()
             return 1
 
 
     class ProgressThread(BaseThread):
-        def __init__(self, renderer: Renderer, screen_y: int, threadsafe_counter: ThreadsafeCounter, verified_index: ThreadsafeCounter):
+        def __init__(self, renderer: Renderer, screen_y: int, cur_addr_index: ThreadsafeCounter, verified_index: ThreadsafeVar[int]):
             self.renderer = renderer
             self.screen_y = screen_y
-            self.threadsafe_counter = threadsafe_counter
+            self.cur_addr_index = cur_addr_index
             self.verified_index = verified_index
             super().__init__()
         
 
         def run(self):
-            while self.keep_running:
-                if self.verified_index.cur_count is not None:
+            while not self.event.wait(timeout=0.1):
+                if self.verified_index.cur_value is not None:
                     # This thread will detect the success state while its parent Screen
                     # holds in its `wait_for`. Have to trigger a hw_input event to break
                     # the Screen._run out of the `wait_for` state. The Screen will then
@@ -1440,7 +1439,7 @@ class SeedAddressVerificationScreen(ButtonListScreen):
                     return
 
                 textarea = TextArea(
-                    text=f"Checking address {self.threadsafe_counter.cur_count}",
+                    text=f"Checking address {self.cur_addr_index.cur_value}",
                     font_name=GUIConstants.BODY_FONT_NAME,
                     font_size=GUIConstants.BODY_FONT_SIZE,
                     screen_y=self.screen_y
@@ -1449,8 +1448,6 @@ class SeedAddressVerificationScreen(ButtonListScreen):
                 with self.renderer.lock:
                     textarea.render()
                     self.renderer.show_image()
-
-                time.sleep(0.1)
 
 
 

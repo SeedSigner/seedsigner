@@ -1,6 +1,7 @@
 import time
 from dataclasses import dataclass
 from seedsigner.gui.components import BaseComponent, GUIConstants, Icon, SeedSignerIconConstants, TextArea
+from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.threads import BaseThread
 
 
@@ -70,7 +71,7 @@ class BaseToastOverlayManagerThread(BaseThread):
     manager thread that the Controller will use to coordinate handing off resources
     between competing toasts, the screensaver, and the current underlying Screen.
 
-    Controller should set BaseThread.keep_running = False to terminate the toast when it
+    Controller should call the thread's stop() to terminate the toast when it
     needs to be removed or replaced.
 
     Controller should set toggle_renderer_lock = True to make the toast temporarily
@@ -109,11 +110,6 @@ class BaseToastOverlayManagerThread(BaseThread):
         raise Exception("Must be implemented by subclass")
 
 
-    def should_keep_running(self) -> bool:
-        """ Placeholder for custom exit conditions """
-        return True
-
-
     def toggle_renderer_lock(self):
         self._toggle_renderer_lock = True
 
@@ -137,8 +133,11 @@ class BaseToastOverlayManagerThread(BaseThread):
 
             has_rendered = False
             previous_screen_state = None
-            while self.keep_running and self.should_keep_running():
-                if self.hw_inputs.has_any_input():
+            while not self.event.wait(timeout=0.1):
+                if not MicroSD.get_instance().is_inserted:
+                    break
+
+                elif self.hw_inputs.has_any_input():
                     # User has pressed a button, hide the toast
                     print(f"{self.__class__.__name__}: Exiting due to user input")
                     break
@@ -169,9 +168,6 @@ class BaseToastOverlayManagerThread(BaseThread):
                     print(f"{self.__class__.__name__}: Hiding toast")
                     break
 
-                # Free up cpu resources for main thread
-                time.sleep(0.1)
-
         finally:
             print(f"{self.__class__.__name__}: exiting")
             if has_rendered and self.renderer.lock.locked():
@@ -201,12 +197,6 @@ class RemoveSDCardToastManagerThread(BaseToastOverlayManagerThread):
             font_size=GUIConstants.BODY_FONT_SIZE,
             height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
         )
-
-
-    def should_keep_running(self) -> bool:
-        """ Custom exit condition: keep running until the SD card is removed """
-        from seedsigner.hardware.microsd import MicroSD
-        return MicroSD.get_instance().is_inserted
 
 
 
