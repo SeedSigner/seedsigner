@@ -73,6 +73,13 @@ class FountainDecoder:
 
 
     def estimated_percent_complete(self, weight_mixed_frames: bool = False):
+        """
+        Weighted mixed frame method:
+            * counts completed frames
+            * counts each additional frame that is currently XORed in a mixed frame; its
+                score is weighted by the number of frames mixed together (1/num frames mixed).
+            TODO: try just using the largest fraction of the XOR total
+        """
         if self.is_complete():
             return 1
         if self.expected_part_indexes == None:
@@ -83,11 +90,6 @@ class FountainDecoder:
             estimated_input_parts = self.expected_part_count() * 1.75
             return min(0.99, self.processed_parts_count / estimated_input_parts)
         else:
-            # Weighted mixed frame method:
-            # * counts completed frames
-            # * counts each additional frame that is currently XORed in a mixed frame;
-            #   its score is weighted by the number of frames mixed together
-            #   (1/num frames mixed).
             parts = self.expected_part_count() if self.expected_part_indexes != None else 'None'
             mixed = []
             mixed_index_scoring = {}
@@ -101,7 +103,12 @@ class FountainDecoder:
                 for index in indexes:
                     if index not in mixed_index_scoring:
                         mixed_index_scoring[index] = 0.0
+                    
+                    # metric 1: sum up partial scores
                     mixed_index_scoring[index] += score
+
+                    # metric 2: just keep the max
+                    # mixed_index_scoring[index] = max(score, mixed_index_scoring[index])
 
             mixed_score = 0.0
             for index, score in mixed_index_scoring.items():
@@ -109,7 +116,7 @@ class FountainDecoder:
                 # achieve equal weight as a fully decoded frame. Also if
                 # the ceiling is too high, can potentially see your
                 # reported progress percentage DECREASE during a decode.
-                mixed_score += min(score, 0.80)
+                mixed_score += min(score, 0.75)
             
             num_complete = len(self.received_part_indexes)
             weighted_estimate = (num_complete + mixed_score) / float(parts)

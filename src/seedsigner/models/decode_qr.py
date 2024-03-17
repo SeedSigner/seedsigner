@@ -264,6 +264,7 @@ class DecodeQR:
             QRType.PSBT__BASE43,
         ]
 
+
     @property
     def is_seed(self):
         return self.qr_type in [
@@ -308,7 +309,7 @@ class DecodeQR:
 
 
     @staticmethod
-    def extract_qr_data(image, is_binary:bool = False) -> [str|None]:
+    def extract_qr_data(image, is_binary:bool = False) -> str | None:
         if image is None:
             return None
 

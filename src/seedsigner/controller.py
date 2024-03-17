@@ -398,6 +398,16 @@ class Controller(Singleton):
         # Start the screensaver, but it will block until it can acquire the Renderer.lock.
         self.screensaver.start()
         print("Controller: Screensaver started")
+    
+
+    def reset_screensaver_timeout(self):
+        """
+        Reset the screensaver's timeout starting point to right now (i.e. make it think
+        that zero time has elapsed since the last user interaction).
+        """
+        from seedsigner.hardware.buttons import HardwareButtons
+        HardwareButtons.get_instance().update_last_input_time()
+        print("reset_screensaver_timeout")
 
 
     def activate_toast(self, toast_manager_thread: BaseToastOverlayManagerThread):
