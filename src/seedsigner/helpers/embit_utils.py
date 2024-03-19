@@ -19,7 +19,7 @@ from seedsigner.models.settings_definition import SettingsConstants
 # TODO: PR these directly into `embit`? Or replace with new/existing methods already in `embit`?
 
 
-def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, script_type: str = SettingsConstants.NATIVE_SEGWIT, is_electrum : bool = False) -> str:
+def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, script_type: str = SettingsConstants.NATIVE_SEGWIT) -> str:
     if network == SettingsConstants.MAINNET:
         network_path = "0'"
     elif network == SettingsConstants.TESTNET:
@@ -31,8 +31,6 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
 
     if wallet_type == SettingsConstants.SINGLE_SIG:
         if script_type == SettingsConstants.NATIVE_SEGWIT:
-            if is_electrum:
-                return f"m/0h"
             return f"m/84'/{network_path}/0'"
         elif script_type == SettingsConstants.NESTED_SEGWIT:
             return f"m/49'/{network_path}/0'"
@@ -43,8 +41,6 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
 
     elif wallet_type == SettingsConstants.MULTISIG:
         if script_type == SettingsConstants.NATIVE_SEGWIT:
-            if is_electrum:
-                return f"m/1h"
             return f"m/48'/{network_path}/0'/2'"
         elif script_type == SettingsConstants.NESTED_SEGWIT:
             return f"m/48'/{network_path}/0'/1'"
@@ -56,12 +52,6 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
         raise Exception("Unexpected wallet type")    # checks that all inputs are from the same wallet
 
 
-def detect_version(derivation_path: str, network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, is_electrum : bool = False) -> str:
-    embit_network = NETWORKS[SettingsConstants.map_network_to_embit(network)]
-    if is_electrum:
-        return embit_network["zpub"] if SettingsConstants.SINGLE_SIG == wallet_type else embit_network["Zpub"]
-    else:
-        return embit.bip32.detect_version(derivation_path, default="xpub", network=embit_network)
 
 def get_xpub(seed_bytes, derivation_path: str, embit_network: str = "main") -> HDKey:
     root = bip32.HDKey.from_seed(seed_bytes, version=NETWORKS[embit_network]["xprv"])

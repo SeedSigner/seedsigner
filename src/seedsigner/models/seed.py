@@ -27,11 +27,9 @@ class Seed:
         self._mnemonic: List[str] = unicodedata.normalize("NFKD", " ".join(mnemonic).strip()).split()
 
         self._passphrase: str = ""
-        self._is_electrum = False
         self.set_passphrase(passphrase, regenerate_seed=False)
 
         self.seed_bytes: bytes = None
-        self.electrum_seed_bytes: bytes = None
         self._generate_seed()
 
 
@@ -46,42 +44,11 @@ class Seed:
 
     def _generate_seed(self) -> bool:
         try:
-            self._generate_electrum_seed()
-            if not self.is_electrum:
-                # only do regular bip39 if not already confirmed this seed is_electrum (i.e. during passphrase change)
-                self.seed_bytes = bip39.mnemonic_to_seed(self.mnemonic_str, password=self._passphrase, wordlist=self.wordlist)
+            self.seed_bytes = bip39.mnemonic_to_seed(self.mnemonic_str, password=self._passphrase, wordlist=self.wordlist)
         except Exception as e:
             print(repr(e))
-            # only re-raise if we didn't get valid electrum seed
-            # we can raise in the electrum confirmation if they didn't mean to enter an electrum seed
-            if not self.electrum_seed_bytes:
-                raise InvalidSeedException(repr(e))
+            raise InvalidSeedException(repr(e))
 
-    def _generate_electrum_seed(self) -> bool:
-        if len(self._mnemonic) != 12:
-            return False
-        s = hmac.digest(b"Seed version", self.mnemonic_str.encode('utf8'), hashlib.sha512).hex()
-        if s[0] != '0' and s[0] != '1':
-            return False
-        length = int(s[0]) + 2
-        prefix = s[0:length];
-        # only support Electrum Segwit version for now
-        if SettingsConstants.ELECTRUM_SEED_SEGWIT == prefix:
-            self.electrum_seed_bytes=hashlib.pbkdf2_hmac('sha512', self.mnemonic_str.encode('utf-8'), b'electrum' + self._passphrase.encode('utf-8'), iterations = SettingsConstants.ELECTRUM_PBKDF2_ROUNDS)
-            if self.is_electrum:
-                # if already is_electrum (passphrase change), make sure to set main seed_bytes
-                self.seed_bytes = self.electrum_seed_bytes
-            return True
-        else:
-            return False
-
-    def switch_to_electrum(self):
-        self.seed_bytes = self.electrum_seed_bytes
-        self._is_electrum = True
-
-    @property
-    def is_electrum(self) -> bool:
-        return self._is_electrum
 
     @property
     def mnemonic_str(self) -> str:
@@ -116,8 +83,6 @@ class Seed:
     def set_passphrase(self, passphrase: str, regenerate_seed: bool = True):
         if passphrase:
             self._passphrase = unicodedata.normalize("NFKD", passphrase)
-            if self.is_electrum:
-                self._passphrase = Seed.normalize_electrum_passphrase(passphrase)
         else:
             # Passphrase must always have a string value, even if it's just the empty
             # string.
@@ -127,14 +92,6 @@ class Seed:
             # Regenerate the internal seed since passphrase changes the result
             self._generate_seed()
 
-    @staticmethod
-    def normalize_electrum_passphrase(passphrase : str) -> str:
-        passphrase = unicodedata.normalize('NFKD', passphrase)
-        # lower
-        passphrase = passphrase.lower()
-        # normalize whitespaces
-        passphrase = u' '.join(passphrase.split())
-        return passphrase
 
     @property
     def wordlist(self) -> List[str]:
@@ -145,6 +102,24 @@ class Seed:
         # TODO: Support other BIP-39 wordlist languages!
         raise Exception("Not yet implemented!")
 
+    @property
+    def script_override(self) -> list:
+        return None
+    
+    def derivation_override(self, wallet_type: str  = SettingsConstants.SINGLE_SIG) -> str:
+        return None
+
+    def detect_version(self, derivation_path: str, network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG) -> str:
+        embit_network = NETWORKS[SettingsConstants.map_network_to_embit(network)]
+        return bip32.detect_version(derivation_path, default="xpub", network=embit_network)
+
+    @property
+    def passphrase_label(self) -> str:
+        return SettingsConstants.LABEL__BIP39_PASSPHRASE
+
+    @property
+    def seedqr_supported(self) -> bool:
+        return True
 
     def get_fingerprint(self, network: str = SettingsConstants.MAINNET) -> str:
         root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
@@ -169,4 +144,62 @@ class Seed:
     def __eq__(self, other):
         if isinstance(other, Seed):
             return self.seed_bytes == other.seed_bytes
+        return False
+
+
+
+class ElectrumSeed(Seed):
+
+
+    def _generate_seed(self) -> bool:
+        if len(self._mnemonic) != 12:
+            return False
+        s = hmac.digest(b"Seed version", self.mnemonic_str.encode('utf8'), hashlib.sha512).hex()
+        prefix = s[0:3]
+        # only support Electrum Segwit version for now
+        if SettingsConstants.ELECTRUM_SEED_SEGWIT == prefix:
+            self.seed_bytes=hashlib.pbkdf2_hmac('sha512', self.mnemonic_str.encode('utf-8'), b'electrum' + self._passphrase.encode('utf-8'), iterations = SettingsConstants.ELECTRUM_PBKDF2_ROUNDS)
+            return True
+        else:
+            raise InvalidSeedException("Unsupported electrum seed input")
+            return False
+
+    def set_passphrase(self, passphrase: str, regenerate_seed: bool = True):
+        if passphrase:
+            self._passphrase = ElectrumSeed.normalize_electrum_passphrase(passphrase)
+        else:
+            # Passphrase must always have a string value, even if it's just the empty
+            # string.
+            self._passphrase = ""
+
+        if regenerate_seed:
+            # Regenerate the internal seed since passphrase changes the result
+            self._generate_seed()
+
+    @staticmethod
+    def normalize_electrum_passphrase(passphrase : str) -> str:
+        passphrase = unicodedata.normalize('NFKD', passphrase)
+        # lower
+        passphrase = passphrase.lower()
+        # normalize whitespaces
+        passphrase = u' '.join(passphrase.split())
+        return passphrase
+
+    @property
+    def script_override(self) -> list:
+            return [SettingsConstants.NATIVE_SEGWIT]
+
+    def derivation_override(self, wallet_type: str = SettingsConstants.SINGLE_SIG) -> str:
+        return "m/0h" if SettingsConstants.SINGLE_SIG == wallet_type else "m/1h"
+
+    def detect_version(self, derivation_path: str, network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG) -> str:
+        embit_network = NETWORKS[SettingsConstants.map_network_to_embit(network)]
+        return embit_network["zpub"] if SettingsConstants.SINGLE_SIG == wallet_type else embit_network["Zpub"]
+
+    @property
+    def passphrase_label(self) -> str:
+        return SettingsConstants.LABEL__CUSTOM_EXTENSION
+
+    @property
+    def seedqr_supported(self) -> bool:
         return False

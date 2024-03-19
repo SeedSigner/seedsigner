@@ -79,6 +79,7 @@ class SeedSelectSeedView(View):
     SCAN_SEED = ("Scan a seed", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_ELECTRUM = ("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
 
 
     def __init__(self, flow: str = Controller.FLOW__VERIFY_SINGLESIG_ADDR):
@@ -118,6 +119,8 @@ class SeedSelectSeedView(View):
         button_data.append(self.SCAN_SEED)
         button_data.append(self.TYPE_12WORD)
         button_data.append(self.TYPE_24WORD)
+        if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.TYPE_ELECTRUM)
 
         selected_menu_num = self.run_screen(
             seed_screens.SeedSelectSeedScreen,
@@ -154,6 +157,11 @@ class SeedSelectSeedView(View):
                 self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
+        elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
+            from seedsigner.views.seed_views import SeedMnemonicEntryView
+            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
+            return Destination(SeedMnemonicEntryView)
+
 
 
 """****************************************************************************
@@ -163,6 +171,7 @@ class LoadSeedView(View):
     SEED_QR = (" Scan a SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_ELECTRUM = ("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
     CREATE = (" Create a seed", SeedSignerIconConstants.PLUS)
 
     def run(self):
@@ -172,6 +181,9 @@ class LoadSeedView(View):
             self.TYPE_24WORD,
             self.CREATE,
         ]
+        if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+            button_data.insert(len(button_data)-1, self.TYPE_ELECTRUM)
+
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title="Load A Seed",
@@ -192,6 +204,10 @@ class LoadSeedView(View):
 
         elif button_data[selected_menu_num] == self.TYPE_24WORD:
             self.controller.storage.init_pending_mnemonic(num_words=24)
+            return Destination(SeedMnemonicEntryView)
+
+        elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
+            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
             return Destination(SeedMnemonicEntryView)
 
         elif button_data[selected_menu_num] == self.CREATE:
@@ -288,10 +304,6 @@ class SeedMnemonicInvalidView(View):
 
 class SeedFinalizeView(View):
     FINALIZE = "Done"
-    PASSPHRASE = "BIP-39 Passphrase"
-    CUSTOM_EXTENSION = "Custom Extension"
-    SWITCH = "Switch"
-    CANCEL = "Cancel"
 
     def __init__(self):
         super().__init__()
@@ -300,24 +312,8 @@ class SeedFinalizeView(View):
 
 
     def run(self):
-        if self.seed.electrum_seed_bytes:
-            # see if user wants to enter electrum mode since it's a valid electrum seed
-            button_data = [self.SWITCH, self.CANCEL]
-            selected_menu_num = self.run_screen(
-                    seed_screens.SeedSwitchElectrumModeScreen,
-                    button_data=button_data
-                    )
-            if button_data[selected_menu_num] == self.SWITCH:
-                self.seed.switch_to_electrum()
-                # recalculate fingerprint
-                self.fingerprint = self.seed.get_fingerprint(network=self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            elif not self.seed.seed_bytes: 
-                # we only got here because it was a valid electrum seed
-                # thus if user didn't mean to enter an electrum seed, it's invalid
-                raise InvalidSeedException(f"Invalid seed entered")
-
         button_data = [self.FINALIZE]
-        passphrase_button = self.CUSTOM_EXTENSION if self.seed.is_electrum else self.PASSPHRASE
+        passphrase_button = self.seed.passphrase_label
         if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) != SettingsConstants.OPTION__DISABLED:
             button_data.append(passphrase_button)
 
@@ -343,7 +339,7 @@ class SeedAddPassphraseView(View):
 
 
     def run(self):
-        passphrase_title="Custom Extension" if self.seed.is_electrum else "BIP-39 Passphrase"
+        passphrase_title=self.seed.passphrase_label
         ret = self.run_screen(seed_screens.SeedAddPassphraseScreen, passphrase=self.seed.passphrase, title=passphrase_title)
 
         if ret == RET_CODE__BACK_BUTTON:
@@ -567,7 +563,9 @@ class SeedBackupView(View):
     
 
     def run(self):
-        button_data = [self.VIEW_WORDS, self.EXPORT_SEEDQR]
+        button_data = [self.VIEW_WORDS]
+        if self.seed.seedqr_supported:
+            button_data.append(self.EXPORT_SEEDQR)
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -634,7 +632,7 @@ class SeedExportXpubScriptTypeView(View):
         from .tools_views import ToolsAddressExplorerAddressTypeView
         args = {"seed_num": self.seed_num, "sig_type": self.sig_type}
         seed = self.controller.storage.seeds[self.seed_num]
-        script_types = [SettingsConstants.NATIVE_SEGWIT] if seed.is_electrum else self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)
+        script_types = seed.script_override if seed.script_override else self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)
         if len(script_types) == 1:
             # Nothing to select; skip this screen
             args["script_type"] = self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)[0]
@@ -816,14 +814,16 @@ class SeedExportXpubDetailsView(View):
 
 
     def run(self):
+        seed_derivation_override = self.seed.derivation_override(self.sig_type)
         if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
             derivation_path = self.custom_derivation
+        elif seed_derivation_override:
+            derivation_path = seed_derivation_override
         else:
             derivation_path = embit_utils.get_standard_derivation_path(
                 network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
                 wallet_type=self.sig_type,
-                script_type=self.script_type,
-                is_electrum=self.seed.is_electrum
+                script_type=self.script_type
             )
 
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__DISABLED:
@@ -838,11 +838,10 @@ class SeedExportXpubDetailsView(View):
 
             try:
                 embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.settings.get_value(SettingsConstants.SETTING__NETWORK))]
-                version = embit_utils.detect_version(
-                        derivation_path,
-                        self.settings.get_value(SettingsConstants.SETTING__NETWORK),
-                        self.sig_type,
-                        self.seed.is_electrum
+                version = self.seed.detect_version(
+                    derivation_path,
+                    self.settings.get_value(SettingsConstants.SETTING__NETWORK),
+                    self.sig_type
                 )
                 root = embit.bip32.HDKey.from_seed(
                     self.seed.seed_bytes,
@@ -904,14 +903,12 @@ class SeedExportXpubQRDisplayView(View):
             qr_type = QRType.XPUB__UR
 
         self.qr_encoder = EncodeQR(
-            seed_phrase=self.seed.mnemonic_list,
-            passphrase=self.seed.passphrase,
+            seed=self.seed,
             derivation=derivation_path,
             network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
             qr_type=qr_type,
             qr_density=qr_density,
             wordlist_language_code=self.seed.wordlist_language_code,
-            is_electrum=self.seed.is_electrum,
             sig_type=sig_type
         )
 
@@ -1327,7 +1324,7 @@ class SeedTranscribeSeedQRFormatView(View):
             num_modules_standard = 29
             num_modules_compact = 25
 
-        if seed.is_electrum or self.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR) != SettingsConstants.OPTION__ENABLED:
+        if self.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR) != SettingsConstants.OPTION__ENABLED:
             # Only configured for standard SeedQR
             return Destination(
                 SeedTranscribeSeedQRWarningView,
@@ -1415,7 +1412,7 @@ class SeedTranscribeSeedQRWholeQRView(View):
 
     def run(self):
         e = EncodeQR(
-            seed_phrase=self.seed.mnemonic_list,
+            seed=self.seed,
             qr_type=self.seedqr_format,
             wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
         )
@@ -1450,7 +1447,7 @@ class SeedTranscribeSeedQRZoomedInView(View):
 
     def run(self):
         e = EncodeQR(
-            seed_phrase=self.seed.mnemonic_list,
+            seed=self.seed,
             qr_type=self.seedqr_format,
             wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
         )
@@ -1670,18 +1667,17 @@ class SeedAddressVerificationView(View):
         super().__init__()
         self.seed_num = seed_num
         self.is_multisig = self.controller.unverified_address["sig_type"] == SettingsConstants.MULTISIG
+        self.seed_derivation_override = ""
         if not self.is_multisig:
             if seed_num is None:
                 raise Exception("Can't validate a single sig addr without specifying a seed")
             self.seed_num = seed_num
             self.seed = self.controller.get_seed(seed_num)
+            self.seed_derivation_override = self.seed.derivation_override(wallet_type=SettingsConstants.SINGLE_SIG)
         else:
             self.seed = None
         self.address = self.controller.unverified_address["address"]
-        # override derivation path if it's electrum as bip-39 path was set by default
-        if self.seed and self.seed.is_electrum:
-            self.controller.unverified_address["derivation_path"] = 'm/0h'
-        self.derivation_path = self.controller.unverified_address["derivation_path"]
+        self.derivation_path = self.seed_derivation_override if self.seed_derivation_override else self.seed.derivation_self.controller.unverified_address["derivation_path"]
         self.script_type = self.controller.unverified_address["script_type"]
         self.sig_type = self.controller.unverified_address["sig_type"]
         self.network = self.controller.unverified_address["network"]

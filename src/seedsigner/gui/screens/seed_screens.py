@@ -427,21 +427,6 @@ class SeedFinalizeScreen(ButtonListScreen):
         )
         self.components.append(self.fingerprint_icontl)
 
-class SeedSwitchElectrumModeScreen(ButtonListScreen):
-    button_data: list = None
-
-    def __post_init__(self):
-        self.show_back_button = False
-        self.title = "Switch to Electrum?"
-        self.is_bottom_list: bool = True
-
-        super().__post_init__()
-
-        self.components.append(TextArea(
-            text="It appears this is an Electrum-style seed, switch it to be so? Some functions are not supported for Electrum seeds",
-            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
-            is_text_centered=True,
-        ))
 
 
 @dataclass

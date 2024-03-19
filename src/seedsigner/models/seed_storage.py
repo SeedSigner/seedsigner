@@ -1,5 +1,5 @@
 from typing import List
-from seedsigner.models.seed import Seed, InvalidSeedException
+from seedsigner.models.seed import Seed, ElectrumSeed, InvalidSeedException
 from seedsigner.models.settings_definition import SettingsConstants
 
 
@@ -9,6 +9,7 @@ class SeedStorage:
         self.seeds: List[Seed] = []
         self.pending_seed: Seed = None
         self._pending_mnemonic: List[str] = []
+        self._pending_is_electrum : bool = False
 
 
     def set_pending_seed(self, seed: Seed):
@@ -58,8 +59,9 @@ class SeedStorage:
         return len(self._pending_mnemonic)
 
 
-    def init_pending_mnemonic(self, num_words:int = 12):
+    def init_pending_mnemonic(self, num_words:int = 12, is_electrum:bool = False):
         self._pending_mnemonic = [None] * num_words
+        self._pending_is_electrum = is_electrum
 
 
     def update_pending_mnemonic(self, word: str, index: int):
@@ -81,16 +83,23 @@ class SeedStorage:
 
     def get_pending_mnemonic_fingerprint(self, network: str = SettingsConstants.MAINNET) -> str:
         try:
-            seed = Seed(self._pending_mnemonic)
+            if self._pending_is_electrum:
+                seed = ElectrumSeed(self._pending_mnemonic)
+            else:
+                seed = Seed(self._pending_mnemonic)
             return seed.get_fingerprint(network)
         except InvalidSeedException:
             return None
 
 
     def convert_pending_mnemonic_to_pending_seed(self):
-        self.pending_seed = Seed(self._pending_mnemonic)
+        if self._pending_is_electrum:
+            self.pending_seed = ElectrumSeed(self._pending_mnemonic)
+        else:
+            self.pending_seed = Seed(self._pending_mnemonic)
         self.discard_pending_mnemonic()
     
 
     def discard_pending_mnemonic(self):
         self._pending_mnemonic = []
+        self._pending_is_electrum = False

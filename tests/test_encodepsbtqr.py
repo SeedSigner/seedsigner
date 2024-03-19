@@ -4,6 +4,7 @@ from embit import psbt
 from binascii import a2b_base64
 
 from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.seed import Seed
 
 
 
@@ -63,7 +64,7 @@ def test_specter_qr_encode():
 def test_seedsigner_qr():
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(seed_phrase=mnemonic.split(), qr_type=QRType.SEED__SEEDQR)
+    e = EncodeQR(seed=Seed(mnemonic.split()), qr_type=QRType.SEED__SEEDQR)
 
     print(e.next_part())
 
@@ -74,7 +75,7 @@ def test_seedsigner_qr():
 def test_xpub_qr():
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(seed_phrase=mnemonic.split(), passphrase="pass", qr_type=QRType.XPUB, network=SettingsConstants.TESTNET, derivation="m/48h/1h/0h/2h")
+    e = EncodeQR(seed=Seed(mnemonic.split(), passphrase="pass"), qr_type=QRType.XPUB, network=SettingsConstants.TESTNET, derivation="m/48h/1h/0h/2h")
 
     assert e.next_part() == "[c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDNc5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBoMxfrVggXj5NJmaNEToWpax8GMMucozvAdqf1bW1JsZsfdBzsK3VUC5"
 
@@ -83,7 +84,7 @@ def test_xpub_qr():
 def test_specter_xpub_qr():
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 
-    e = EncodeQR(seed_phrase=mnemonic.split(" "), passphrase="pass", qr_type=QRType.XPUB__SPECTER, network=SettingsConstants.TESTNET, derivation="m/48h/1h/0h/2h", qr_density=SettingsConstants.DENSITY__LOW)
+    e = EncodeQR(seed=Seed(mnemonic.split(), passphrase="pass"), qr_type=QRType.XPUB__SPECTER, network=SettingsConstants.TESTNET, derivation="m/48h/1h/0h/2h", qr_density=SettingsConstants.DENSITY__LOW)
 
     assert e.next_part() == "p1of4 [c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDN"
     assert e.next_part() == "p2of4 c5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBo"
@@ -96,8 +97,7 @@ def test_ur_xpub_qr():
     mnemonic = "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
     
     e = EncodeQR(
-        seed_phrase=mnemonic.split(),
-        passphrase="pass",
+        seed=Seed(mnemonic.split(), passphrase="pass"),
         qr_type=QRType.XPUB__UR,
         network=SettingsConstants.TESTNET,
         derivation="m/48h/1h/0h/2h",
