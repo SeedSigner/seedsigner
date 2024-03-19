@@ -519,7 +519,7 @@ class SeedOptionsView(View):
         if self.settings.get_value(SettingsConstants.SETTING__MESSAGE_SIGNING) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.SIGN_MESSAGE)
         
-        if self.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS) == SettingsConstants.OPTION__ENABLED:
+        if self.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS) == SettingsConstants.OPTION__ENABLED and self.seed.bip85_supported:
             button_data.append(self.BIP85_CHILD_SEED)
 
         button_data.append(self.DISCARD)
