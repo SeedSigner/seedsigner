@@ -1,4 +1,4 @@
-from seedsigner.models.seed import Seed
+from seedsigner.models.seed import Seed, ElectrumSeed
 
 from seedsigner.models.settings import SettingsConstants
 
@@ -36,6 +36,10 @@ def test_seed():
 	# assert seed.passphrase == "test"
 
 	
-	
-	
-	
+def test_electrum_seed():
+	seed = ElectrumSeed(mnemonic="regular reject rare profit once math fringe chase until ketchup century escape".split())
+
+	intended_seed = b'\xcan|\xf8\x8a\x8d\xf78=Pq\xc4_\xe6\x02\x91\xfcs\xb2[\xed*\xdc\xc7%\xb6[_-(~D\xe5\x1e\x85%N\x9c\x03\x9dh\xafX}\x16\xb1\x99,\xbe\xc4\x11\xfaW\x0f\xb0\x89yD\xf4\x0f\xd5?\x8eA'
+
+	assert seed.seed_bytes == intended_seed
+

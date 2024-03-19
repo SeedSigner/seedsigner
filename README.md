@@ -40,6 +40,7 @@ If you have specific questions about the project, our [Telegram Group](https://t
 * Optimized seed word entry interface
 * Support for Bitcoin Mainnet & Testnet
 * Support for custom user-defined derivation paths
+* Support for loading Electrum Segwit seed phrases with feature limitations: [Electrum support info](docs/electrum.md)
 * On-demand receive address verification
 * Address Explorer for single sig and multisig wallets
 * User-configurable QR code display density

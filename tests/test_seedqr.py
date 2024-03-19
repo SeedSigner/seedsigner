@@ -6,6 +6,7 @@ from seedsigner.helpers.ur2.bytewords import decode
 from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
 from seedsigner.models.encode_qr import EncodeQR
 from seedsigner.models.qr_type import QRType
+from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
 
@@ -17,7 +18,7 @@ def run_encode_decode_test(entropy: bytes, mnemonic_length, qr_type):
     print(seed_phrase)
     assert len(seed_phrase) == mnemonic_length
 
-    e = EncodeQR(seed_phrase=seed_phrase, qr_type=qr_type)
+    e = EncodeQR(seed=Seed(seed_phrase), qr_type=qr_type)
     data = e.next_part()
     print(data)
 

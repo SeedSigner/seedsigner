@@ -11,6 +11,7 @@ from embit.psbt import PSBT
 from seedsigner.helpers.ur2.ur_encoder import UREncoder
 from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.qr import QR
+from seedsigner.helpers import embit_utils
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
@@ -31,8 +32,7 @@ class EncodeQR:
 
     # Dataclass input vars on __init__()
     psbt: PSBT = None
-    seed_phrase: List[str] = None
-    passphrase: str = None
+    seed: Seed = None
     derivation: str = None
     network: str = SettingsConstants.MAINNET
     qr_type: str = None
@@ -40,6 +40,7 @@ class EncodeQR:
     wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
     bitcoin_address: str = None
     signed_message: str = None
+    sig_type : str = SettingsConstants.SINGLE_SIG
 
     def __post_init__(self):
         self.qr = QR()
@@ -62,41 +63,41 @@ class EncodeQR:
         # XPUB formats
         elif self.qr_type == QRType.XPUB:
             self.encoder = XpubQrEncoder(
-                seed_phrase=self.seed_phrase,
-                passphrase=self.passphrase,
+                seed=self.seed,
                 derivation=self.derivation,
                 network=self.network,
-                wordlist_language_code=self.wordlist_language_code
+                wordlist_language_code=self.wordlist_language_code,
+                sig_type=self.sig_type
             )
 
         elif self.qr_type == QRType.XPUB__UR:
             self.encoder = UrXpubQrEncoder(
                 qr_density=self.qr_density,
-                seed_phrase=self.seed_phrase,
-                passphrase=self.passphrase,
+                seed=self.seed,
                 derivation=self.derivation,
                 network=self.network,
-                wordlist_language_code=self.wordlist_language_code
+                wordlist_language_code=self.wordlist_language_code,
+                sig_type=self.sig_type
             )
 
         elif self.qr_type == QRType.XPUB__SPECTER:
             self.encoder = SpecterXPubQrEncoder(
                 qr_density=self.qr_density,
-                seed_phrase=self.seed_phrase,
-                passphrase=self.passphrase,
+                seed=self.seed,
                 derivation=self.derivation,
                 network=self.network,
-                wordlist_language_code=self.wordlist_language_code
+                wordlist_language_code=self.wordlist_language_code,
+                sig_type=self.sig_type
             )
 
 
         # SeedQR formats
         elif self.qr_type == QRType.SEED__SEEDQR:
-            self.encoder = SeedQrEncoder(seed_phrase=self.seed_phrase,
+            self.encoder = SeedQrEncoder(seed_phrase=self.seed.mnemonic_list,
                                          wordlist_language_code=self.wordlist_language_code)
 
         elif self.qr_type == QRType.SEED__COMPACTSEEDQR:
-            self.encoder = CompactSeedQrEncoder(seed_phrase=self.seed_phrase,
+            self.encoder = CompactSeedQrEncoder(seed_phrase=self.seed.mnemonic_list,
                                                 wordlist_language_code=self.wordlist_language_code)
         
         # Misc formats
@@ -356,9 +357,8 @@ class SignedMessageEncoder(BaseStaticQrEncoder):
 
 
 class XpubQrEncoder(BaseQrEncoder):
-    def __init__(self, seed_phrase, passphrase, derivation, network, wordlist_language_code):
-        self.seed_phrase = seed_phrase
-        self.passphrase = passphrase
+    def __init__(self, seed, derivation, network, wordlist_language_code, sig_type : str = SettingsConstants.SINGLE_SIG):
+        self.seed = seed
         self.derivation = derivation
         self.network = network
         self.wordlist = Seed.get_wordlist(wordlist_language_code)
@@ -369,10 +369,7 @@ class XpubQrEncoder(BaseQrEncoder):
         if self.wordlist == None:
             raise Exception('Wordlist Required')
             
-        version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
-        self.seed = Seed(mnemonic=self.seed_phrase,
-                         passphrase=self.passphrase,
-                         wordlist_language_code=wordlist_language_code)
+        version = self.seed.detect_version(self.derivation, network, sig_type)
         self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(self.network)]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
         self.xprv = self.root.derive(self.derivation)
