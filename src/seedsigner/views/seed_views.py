@@ -1692,7 +1692,7 @@ class SeedAddressVerificationView(View):
         else:
             self.seed = None
         self.address = self.controller.unverified_address["address"]
-        self.derivation_path = self.seed_derivation_override if self.seed_derivation_override else self.seed.derivation_self.controller.unverified_address["derivation_path"]
+        self.derivation_path = self.seed_derivation_override if self.seed_derivation_override else self.controller.unverified_address["derivation_path"]
         self.script_type = self.controller.unverified_address["script_type"]
         self.sig_type = self.controller.unverified_address["sig_type"]
         self.network = self.controller.unverified_address["network"]
