@@ -420,7 +420,7 @@ class SettingsDefinition:
                       type=SettingsConstants.TYPE__MULTISELECT,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SettingsConstants.ALL_SCRIPT_TYPES,
-                      default_value=[SettingsConstants.NATIVE_SEGWIT, SettingsConstants.NESTED_SEGWIT]),
+                      default_value=[SettingsConstants.NATIVE_SEGWIT, SettingsConstants.NESTED_SEGWIT, SettingsConstants.TAPROOT]),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__XPUB_DETAILS,
