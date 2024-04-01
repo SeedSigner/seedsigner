@@ -131,8 +131,8 @@ class PSBTParser():
                 elif self.policy["type"] == "p2sh-p2wsh":
                     sc = script.p2sh(script.p2wsh(out.witness_script))
                 
+                # Arbitrary p2sh; includes pre-segwit multisig (m/45')
                 elif self.policy["type"] == "p2sh":
-                    # pre-segwit multisig
                     sc = script.p2sh(out.redeem_script)
 
                 # single-sig
@@ -154,7 +154,6 @@ class PSBTParser():
                         is_change = True
 
                 elif "p2tr" in self.policy["type"]:
-                    print("TAPROOT output!")
                     my_pubkey = None
                     # should have one or zero derivations for single-key addresses
                     if len(out.taproot_bip32_derivations.values()) > 0:
