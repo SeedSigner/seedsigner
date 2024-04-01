@@ -1586,28 +1586,28 @@ class AddressVerificationStartView(View):
 
 
 class AddressVerificationSigTypeView(View):
-    def run(self):
-        sig_type_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SIG_TYPES)
-        SINGLE_SIG = sig_type_settings_entry.get_selection_option_display_name_by_value(SettingsConstants.SINGLE_SIG)
-        MULTISIG = sig_type_settings_entry.get_selection_option_display_name_by_value(SettingsConstants.MULTISIG)
+    SINGLE_SIG = "Single Sig"
+    MULTISIG = "Multisig"
 
-        button_data = [SINGLE_SIG, MULTISIG]
-        selected_menu_num = seed_screens.AddressVerificationSigTypeScreen(
+    def run(self):
+        button_data = [self.SINGLE_SIG, self.MULTISIG]
+        selected_menu_num = self.run_screen(
+            seed_screens.AddressVerificationSigTypeScreen,
             title="Verify Address",
             text="Sig type can't be auto-detected from this address. Please specify:",
             button_data=button_data,
             is_bottom_list=True,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             self.controller.unverified_address = None
             return Destination(BackStackView)
         
-        elif button_data[selected_menu_num] == SINGLE_SIG:
+        elif button_data[selected_menu_num] == self.SINGLE_SIG:
             sig_type = SettingsConstants.SINGLE_SIG
             destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR))
 
-        elif button_data[selected_menu_num] == MULTISIG:
+        elif button_data[selected_menu_num] == self.MULTISIG:
             sig_type = SettingsConstants.MULTISIG
             if self.controller.multisig_wallet_descriptor:
                 destination = Destination(SeedAddressVerificationView)
@@ -1708,7 +1708,8 @@ class SeedAddressVerificationView(View):
         # and resume displaying the screen. User won't even notice that the Screen is
         # being re-constructed.
         while True:
-            selected_menu_num = seed_screens.SeedAddressVerificationScreen(
+            selected_menu_num = self.run_screen(
+                seed_screens.SeedAddressVerificationScreen,
                 address=self.address,
                 derivation_path=self.derivation_path,
                 script_type=script_type_display,
@@ -1718,13 +1719,19 @@ class SeedAddressVerificationView(View):
                 threadsafe_counter=self.threadsafe_counter,
                 verified_index=self.verified_index,
                 button_data=button_data,
-            ).display()
+            )
 
             if self.verified_index.cur_count is not None:
                 break
 
             if selected_menu_num == RET_CODE__BACK_BUTTON:
                 break
+
+            if selected_menu_num is None:
+                # Only happens in the test suite; the screen isn't actually executed so
+                # it returns before the brute force thread has completed.
+                time.sleep(0.1)
+                continue
 
             if button_data[selected_menu_num] == SKIP_10:
                 self.threadsafe_counter.increment(10)
@@ -1831,20 +1838,25 @@ class AddressVerificationSuccessView(View):
 
 
 class LoadMultisigWalletDescriptorView(View):
+    SCAN = ("Scan Descriptor", SeedSignerIconConstants.QRCODE)
+    CANCEL = "Cancel"
+
     def run(self):
-        SCAN = ("Scan Descriptor", SeedSignerIconConstants.QRCODE)
-        CANCEL = "Cancel"
-        button_data = [SCAN, CANCEL]
-        selected_menu_num = seed_screens.LoadMultisigWalletDescriptorScreen(
+        button_data = [
+            self.SCAN,
+            self.CANCEL
+        ]
+        selected_menu_num = self.run_screen(
+            seed_screens.LoadMultisigWalletDescriptorScreen,
             button_data=button_data,
             show_back_button=False,
-        ).display()
+        )
 
-        if button_data[selected_menu_num] == SCAN:
+        if button_data[selected_menu_num] == self.SCAN:
             from seedsigner.views.scan_views import ScanWalletDescriptorView
             return Destination(ScanWalletDescriptorView)
 
-        elif button_data[selected_menu_num] == CANCEL:
+        elif button_data[selected_menu_num] == self.CANCEL:
             if self.controller.resume_main_flow == Controller.FLOW__PSBT:
                 return Destination(BackStackView)
             else:
@@ -1853,6 +1865,11 @@ class LoadMultisigWalletDescriptorView(View):
 
 
 class MultisigWalletDescriptorView(View):
+    RETURN = "Return to PSBT"
+    VERIFY_ADDR = "Verify Addr"
+    ADDRESS_EXPLORER = "Address Explorer"
+    OK = "OK"
+
     def run(self):
         descriptor = self.controller.multisig_wallet_descriptor
 
@@ -1863,42 +1880,38 @@ class MultisigWalletDescriptorView(View):
         
         policy = descriptor.brief_policy.split("multisig")[0].strip()
 
-        RETURN = "Return to PSBT"
-        VERIFY = "Verify Addr"
-        EXPLORER = "Address Explorer"
-        OK = "OK"
-
-        button_data = [OK]
+        button_data = [self.OK]
         if self.controller.resume_main_flow:
             if self.controller.resume_main_flow == Controller.FLOW__PSBT:
-                button_data = [RETURN]
+                button_data = [self.RETURN]
             elif self.controller.resume_main_flow == Controller.FLOW__VERIFY_MULTISIG_ADDR and self.controller.unverified_address:
-                VERIFY += f""" {self.controller.unverified_address["address"][:7]}"""
-                button_data = [VERIFY]
+                verify_addr_display = f"""{self.VERIFY_ADDR} {self.controller.unverified_address["address"][:7]}"""
+                button_data = [verify_addr_display]
             elif self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
-                button_data = [EXPLORER]
+                button_data = [self.ADDRESS_EXPLORER]
 
-        selected_menu_num = seed_screens.MultisigWalletDescriptorScreen(
+        selected_menu_num = self.run_screen(
+            seed_screens.MultisigWalletDescriptorScreen,
             policy=policy,
             fingerprints=fingerprints,
             button_data=button_data,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             self.controller.multisig_wallet_descriptor = None
             return Destination(BackStackView)
         
-        elif button_data[selected_menu_num] == RETURN:
+        elif button_data[selected_menu_num] == self.RETURN:
             # Jump straight back to PSBT change verification
             from seedsigner.views.psbt_views import PSBTChangeDetailsView
             self.controller.resume_main_flow = None
             return Destination(PSBTChangeDetailsView, view_args=dict(change_address_num=0))
 
-        elif button_data[selected_menu_num] == VERIFY:
+        elif button_data[selected_menu_num].startswith(self.VERIFY_ADDR):
             self.controller.resume_main_flow = None
             return Destination(SeedAddressVerificationView)
 
-        elif button_data[selected_menu_num] == EXPLORER:
+        elif button_data[selected_menu_num] == self.ADDRESS_EXPLORER:
             from seedsigner.views.tools_views import ToolsAddressExplorerAddressTypeView
             self.controller.resume_main_flow = None
             return Destination(ToolsAddressExplorerAddressTypeView)
