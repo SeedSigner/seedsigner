@@ -6,6 +6,8 @@ from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
+
+
 def test_p2tr_change_detection():
     """ Should successfully detect change in a p2tr to p2tr psbt spend
     
@@ -48,8 +50,11 @@ def test_p2tr_change_detection():
     assert pp.destination_amounts == [319049328]
 
 
+
 def test_p2sh_legacy_multisig():
     """
+        Should correctly parse a legacy multisig p2sh (m/45') psbt.
+
         PSBT Tx and Wallet Details
         - Legacy 2-of-3 multisig p2sh; same format as Unchained
         - Regtest xpubs:
@@ -81,24 +86,24 @@ def test_p2sh_legacy_multisig():
     seed = Seed(mnemonic)
     assert seed.get_fingerprint() == "03cd0a2b"
 
-    pp = PSBTParser(p=tx, seed=seed, network=SettingsConstants.REGTEST)
+    psbt_parser = PSBTParser(p=tx, seed=seed, network=SettingsConstants.REGTEST)
 
-    assert pp.spend_amount == 50000
-    assert pp.change_amount == 90000 + 58969
-    assert pp.fee_amount == 692
+    assert psbt_parser.spend_amount == 50000
+    assert psbt_parser.change_amount == 90000 + 58969
+    assert psbt_parser.fee_amount == 692
 
-    assert pp.destination_addresses == ['bcrt1q8q5uk9z7ta08h8hvknysd5n80w6f7kuvk5ey2m']
-    assert pp.destination_amounts == [50000]
+    assert psbt_parser.destination_addresses == ['bcrt1q8q5uk9z7ta08h8hvknysd5n80w6f7kuvk5ey2m']
+    assert psbt_parser.destination_amounts == [50000]
 
-    assert pp.get_change_data(0)['address'] == '2NEnA5emHw9Q6vHXr912hGMSPtnrwAMReLz'
-    assert pp.get_change_data(0)["amount"] == 58969
+    assert psbt_parser.get_change_data(0)['address'] == '2NEnA5emHw9Q6vHXr912hGMSPtnrwAMReLz'
+    assert psbt_parser.get_change_data(0)["amount"] == 58969
 
-    assert pp.get_change_data(1)['address'] == '2N5eN5vUpgsLHAGzKm2VfmYyvNwXmCug5dH'
-    assert pp.get_change_data(1)["amount"] == 90000
+    assert psbt_parser.get_change_data(1)['address'] == '2N5eN5vUpgsLHAGzKm2VfmYyvNwXmCug5dH'
+    assert psbt_parser.get_change_data(1)["amount"] == 90000
 
     # We should be able to verify the change addr
-    assert pp.verify_multisig_output(descriptor, 0)
+    assert psbt_parser.verify_multisig_output(descriptor, 0)
 
     # And the self-transfer receive addr
-    assert pp.verify_multisig_output(descriptor, 1)
+    assert psbt_parser.verify_multisig_output(descriptor, 1)
 
