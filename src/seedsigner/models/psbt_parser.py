@@ -131,7 +131,7 @@ class PSBTParser():
                 elif self.policy["type"] == "p2sh-p2wsh":
                     sc = script.p2sh(script.p2wsh(out.witness_script))
                 
-                elif "p2sh" in self.policy["type"]:
+                elif self.policy["type"] == "p2sh":
                     # pre-segwit multisig
                     sc = script.p2sh(out.redeem_script)
 
