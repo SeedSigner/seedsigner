@@ -322,8 +322,6 @@ class DecodeQR:
         for barcode in barcodes:
             # Only pull and return the first barcode
             return barcode.data
-        
-        print("No QR data")
 
 
     @staticmethod
@@ -343,10 +341,10 @@ class DecodeQR:
             # PSBT
             if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
                 return QRType.PSBT__UR2
-                
+
             elif re.search("^UR:CRYPTO-OUTPUT/", s, re.IGNORECASE):
                 return QRType.OUTPUT__UR
-                
+
             elif re.search("^UR:CRYPTO-ACCOUNT/", s, re.IGNORECASE):
                 return QRType.ACCOUNT__UR
 
@@ -368,10 +366,10 @@ class DecodeQR:
             elif re.search(r'^\{\"label\".*\"descriptor\"\:.*', desc_str, re.IGNORECASE):
                 # if json starting with label and contains descriptor, assume specter wallet json
                 return QRType.WALLET__SPECTER
-            
+
             elif "multisig setup file" in s.lower():
                 return QRType.WALLET__CONFIGFILE
-            
+
             elif "sortedmulti" in s:
                 return QRType.WALLET__GENERIC
 
@@ -398,7 +396,7 @@ class DecodeQR:
                 _4LETTER_WORDLIST = [word[:4].strip() for word in wordlist]
             except:
                 _4LETTER_WORDLIST = []
-            
+
             if all(x in wordlist for x in s.strip().split(" ")):
                 # checks if all words in list are in bip39 word list
                 return QRType.SEED__MNEMONIC
@@ -414,7 +412,7 @@ class DecodeQR:
             # Probably this isn't meant to be string data; check if it's valid byte data
             # below.
             pass
-        
+
         # Is it byte data?
         # 32 bytes for 24-word CompactSeedQR; 16 bytes for 12-word CompactSeedQR
         if len(s) == 32 or len(s) == 16:
