@@ -104,7 +104,7 @@ class ScanScreen(BaseScreen):
 
             start_time = time.time()
             num_frames = 0
-            debug = True
+            debug = False
             show_framerate = False  # enable for debugging / testing
             while self.keep_running:
                 frame = self.camera.read_video_stream(as_image=True)
@@ -112,8 +112,7 @@ class ScanScreen(BaseScreen):
                     num_frames += 1
                     cur_time = time.time()
                     cur_fps = num_frames / (cur_time - start_time)
-                    print(f"{cur_fps=}")
-
+                    
                     scan_text = None
                     progress_percentage = self.decoder.get_percent_complete()
                     if progress_percentage == 0:

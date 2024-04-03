@@ -407,7 +407,6 @@ class Controller(Singleton):
         """
         from seedsigner.hardware.buttons import HardwareButtons
         HardwareButtons.get_instance().update_last_input_time()
-        print("reset_screensaver_timeout")
 
 
     def activate_toast(self, toast_manager_thread: BaseToastOverlayManagerThread):
