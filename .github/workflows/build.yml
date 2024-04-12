@@ -5,15 +5,19 @@ on:
     # Build on changes to this workflow files in PRs to test proposed changes
     paths:
       - '.github/workflows/build.yml'
-  schedule:
-    # Build daily at 5:30 UTC
-    - cron:  '30 5 * * *'
+  push:
+    branches:
+      - main
+      - dev
   workflow_dispatch:
     inputs:
       os-ref:
         description: The seedsigner-os ref (tag/branch/sha1) to use
         default: main
         required: true
+
+# Increment this number as part of a PR to trigger an image build for the PR
+# trigger = 0
 
 jobs:
   build:
@@ -114,7 +118,8 @@ jobs:
           name: seedsigner_os_images
           path: "seedsigner-os/images/*.img"
           if-no-files-found: error
-          retention-days: 7
+          # maximum 90 days retention
+          retention-days: 90
 
   sha256sum:
     name: calculate sha256sum
@@ -148,4 +153,5 @@ jobs:
           name: seedsigner_os_images
           path: "images/*.sha256"
           if-no-files-found: error
-          retention-days: 7
+          # maximum 90 days retention
+          retention-days: 90
