@@ -718,19 +718,24 @@ class SeedExportXpubCoordinatorView(View):
             args["coordinator"] = self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[0]
             return Destination(SeedExportXpubWarningView, view_args=args, skip_current_view=True)
 
+        button_data = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)
+
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title="Export Xpub",
             is_button_text_centered=False,
-            button_data=self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS),
+            button_data=button_data,
         )
 
-        if selected_menu_num < len(self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)):
-            args["coordinator"] = self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[selected_menu_num]
-            return Destination(SeedExportXpubWarningView, view_args=args)
-
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
+
+        coordinators_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__COORDINATORS)
+        selected_display_name = button_data[selected_menu_num]
+        args["coordinator"] = coordinators_settings_entry.get_selection_option_value_by_display_name(selected_display_name)
+
+        return Destination(SeedExportXpubWarningView, view_args=args)
+
 
 
 
