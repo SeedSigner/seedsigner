@@ -1,6 +1,6 @@
-# Raspberry Pi OS Build Instructions
+# Raspberry Pi OS Local Dev Build Instructions
 
-The released version of [SeedSigner OS](https://github.com/SeedSigner/seedsigner-os/) does not use Raspberry Pi OS since version 0.6.0. These build instructions (previously referred to as "Manual Installation Instructions") are most commonly used by project contributors looking to do rapid development cycles. If this is what you'd like to do, then continue reading.
+Since v0.6.0, official releases use our custom [SeedSigner OS](https://github.com/SeedSigner/seedsigner-os/) However, project contributors looking to do rapid development cycles typically use the older Raspberry Pi OS that we had previously built on prior to v0.6.0. If you're here to set up your SeedSigner for local development, continue reading.
 
 Begin by acquiring the latest 32-bit, Buster-based Raspberry Pi Lite operating system. This guide was tested using the version dated 2023-05-03; which can be found here:
 
