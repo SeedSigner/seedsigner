@@ -11,7 +11,7 @@
 * [Enclosure Designs](#enclosure-designs)
 * [SeedQR Printable Templates](#seedqr-printable-templates)
 * [Build from Source](#build-from-source)
-* [Developer Local Build Instructions](#developer-build-instructions)
+* [Developer Local Build Instructions](#developer-local-build-instructions)
 
 
 ---------------
