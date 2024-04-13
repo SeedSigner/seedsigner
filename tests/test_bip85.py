@@ -1,5 +1,5 @@
 import pytest
-from mock import MagicMock
+from unittest.mock import MagicMock
 from seedsigner.models.seed import Seed
 from embit import bip39
 
