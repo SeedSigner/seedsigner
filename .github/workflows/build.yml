@@ -1,12 +1,30 @@
 name: Build
 
 on:
+  pull_request:
+    # Build on changes to this workflow files in PRs to test proposed changes
+    paths:
+      - '.github/workflows/build.yml'
+  push:
+    branches:
+      - main
+      - dev
   workflow_dispatch:
+    inputs:
+      os-ref:
+        description: The seedsigner-os ref (tag/branch/sha1) to use
+        default: main
+        required: true
+
+# Increment this number as part of a PR to trigger an image build for the PR
+# trigger = 0
 
 jobs:
   build:
     name: build
     runs-on: ubuntu-latest
+    # Prevent resource consuming cron triggered runs in forks
+    if: (!github.event.repository.fork || github.event_name == 'workflow_dispatch')
     strategy:
       fail-fast: false
       matrix:
@@ -16,25 +34,41 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: "seedsigner/seedsigner-os"
+          # use the os-ref input parameter in case of workflow_dispatch or default to main in case of cron triggers
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.os-ref || 'main' }}
           submodules: true
           path: "seedsigner-os"
-
-      - name: get seedsigner-os latest commit hash
-        id: get-seedsigner-os-hash
-        run: |
-          cd seedsigner-os
-          echo "builder_hash=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          # get full history + tags for "git describe"
+          fetch-depth: 0
 
       - name: checkout source
         uses: actions/checkout@v3
         with:
+          # ref defaults to repo default-branch=dev (cron) or SHA of event (workflow_dispatch)
           path: "seedsigner-os/opt/rootfs-overlay/opt"
+          # get full history + tags for "git describe"
+          fetch-depth: 0
 
-      - name: get seedsigner latest commit hash
-        id: get-seedsigner-hash
+      - name: Get and set meta data
         run: |
-          git init
-          echo "source_hash=$(git rev-parse --short ${{ github.sha }})" >> $GITHUB_ENV
+          # The builder_hash (seedsigner-os hash) for the cache action step key
+          echo "builder_hash=$(git -C seedsigner-os rev-parse --short HEAD)"| tee -a $GITHUB_ENV
+
+          # Derive tag based versions, like 0.7.0-40-g0424967 (=$tag-$number-of-commits-since-tag-$short-sha1),
+          # or just e.g. 0.7.0, if we are exactly on a 0.7.0 tagged commit.
+          # --always to fall back to commit sha, if no tag present like in partial forks of the repo
+          os_version="$(git -C seedsigner-os describe --tags --always)"
+          source_version="$(git -C seedsigner-os/opt/rootfs-overlay/opt describe --tags --always)"
+
+          # Combine seedsigner and seedsigner-os version into one version string and squash the versions, if
+          # they are identical: So os_version=0.7.0 + source_version=0.7.0 combine to just only "0.7.0",
+          # whereas os_version=0.6.0-61-g9fafebe + source_version=0.7.0-40-g0424967 combine to "os0.6.0-61-g9fafebe_sw0.7.0-40-g0424967"
+          if [ "${os_version}" = "${source_version}" ]; then
+            # seedsigner + seedsigner_os have the same tag
+            echo "img_version=${source_version}"| tee -a $GITHUB_ENV
+          else
+            echo "img_version=os${os_version}_sw${source_version}"| tee -a $GITHUB_ENV
+          fi
 
       - name: delete unnecessary files
         run: |
@@ -44,11 +78,9 @@ jobs:
           ls -la src
 
       - name: restore build cache
-        id: build-cache-restore
-        uses: actions/cache/restore@v3
-        # Caching seedsigner-os/buildroot_dl is optional.
-        # Caching it can save a small amount of build time,
-        # but it will occupy a larger amount of storage space.
+        uses: actions/cache@v3
+        # Caching reduces the build time to ~50% (currently: ~30 mins instead of ~1 hour,
+        # while consuming ~850 MB storage space).
         with:
           path: |
             ~/.buildroot-ccache/
@@ -62,16 +94,6 @@ jobs:
           cd seedsigner-os/opt
           ./build.sh --${{ matrix.target }} --skip-repo --no-clean
 
-      - name: save build cache
-        id: build-cache-save
-        if: steps.build-cache-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            ~/.buildroot-ccache/
-            seedsigner-os/buildroot_dl
-          key: build-cache-${{ matrix.target }}-${{ env.builder_hash }}
-
       - name: list image (before rename)
         run: |
           ls -la seedsigner-os/images
@@ -79,7 +101,7 @@ jobs:
       - name: rename image
         run: |
           cd seedsigner-os/images
-          mv seedsigner_os*.img seedsigner_os.${{ env.source_hash }}.${{ matrix.target }}.img
+          mv seedsigner_os*.img seedsigner_os.${{ env.img_version }}.${{ matrix.target }}.img
 
       - name: print sha256sum
         run: |
@@ -96,6 +118,8 @@ jobs:
           name: seedsigner_os_images
           path: "seedsigner-os/images/*.img"
           if-no-files-found: error
+          # maximum 90 days retention
+          retention-days: 90
 
   sha256sum:
     name: calculate sha256sum
@@ -129,3 +153,5 @@ jobs:
           name: seedsigner_os_images
           path: "images/*.sha256"
           if-no-files-found: error
+          # maximum 90 days retention
+          retention-days: 90
