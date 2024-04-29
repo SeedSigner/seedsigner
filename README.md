@@ -122,6 +122,8 @@ Once the files have all finished downloading, follow the steps below to verify t
 You can quickly verify that the software you just downloaded is both authentic and unaltered, by following these instructions.
 We assume you are running the commands from a computer where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are already installed, and that you also know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal). 
 
+> You must run the following verification before opening or mounting the .img file.
+> Some operating systems modify the file on mount causing verification to fail.
 
 ### Step 1. Verify that the signature (.sig) file is genuine:
 
