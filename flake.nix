@@ -89,6 +89,10 @@
             pkgs.zbar
             pythonEnv
           ];
+
+          shellHook = ''
+            export SEEDSIGNER_USE_EMULATOR=true
+          '';
         };
     };
 }
