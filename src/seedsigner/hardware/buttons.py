@@ -1,33 +1,21 @@
 from typing import List
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
+from seedsigner.emulator.virtualGPIO import GPIO
 import time
 
 from seedsigner.models.singleton import Singleton
 
 class HardwareButtons(Singleton):
-    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
-        print("Detected 40pin GPIO (Rasbperry Pi 2 and above)")
-        KEY_UP_PIN = 31
-        KEY_DOWN_PIN = 35
-        KEY_LEFT_PIN = 29
-        KEY_RIGHT_PIN = 37
-        KEY_PRESS_PIN = 33
+    
+    KEY_UP_PIN = 6
+    KEY_DOWN_PIN = 19
+    KEY_LEFT_PIN = 5
+    KEY_RIGHT_PIN = 26
+    KEY_PRESS_PIN = 13
 
-        KEY1_PIN = 40
-        KEY2_PIN = 38
-        KEY3_PIN = 36
-
-    else:
-        print("Assuming 26 Pin GPIO (Raspberry P1 1)")
-        KEY_UP_PIN = 5
-        KEY_DOWN_PIN = 11
-        KEY_LEFT_PIN = 3
-        KEY_RIGHT_PIN = 15
-        KEY_PRESS_PIN = 7
-
-        KEY1_PIN = 16
-        KEY2_PIN = 12
-        KEY3_PIN = 8
+    KEY1_PIN = 21
+    KEY2_PIN = 20
+    KEY3_PIN = 16
 
     @classmethod
     def get_instance(cls):
@@ -138,7 +126,7 @@ class HardwareButtons(Singleton):
 
     def add_events(self, keys=[]):
         for key in keys:
-            GPIO.add_event_detect(key, self.GPIO.RISING, callback=HardwareButtons.rising_callback)
+            GPIO.add_event_detect(0, 0, callback=HardwareButtons.rising_callback)
 
 
     def rising_callback(channel):
@@ -178,26 +166,16 @@ class HardwareButtons(Singleton):
 # TODO: Implement `release_lock` functionality as a global somewhere. Mixes up design
 #   patterns to have a static constants class plus a settable global value.
 class HardwareButtonsConstants:
-    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
-        KEY_UP = 31
-        KEY_DOWN = 35
-        KEY_LEFT = 29
-        KEY_RIGHT = 37
-        KEY_PRESS = 33
 
-        KEY1 = 40
-        KEY2 = 38
-        KEY3 = 36
-    else:
-        KEY_UP = 5
-        KEY_DOWN = 11
-        KEY_LEFT = 3
-        KEY_RIGHT = 15
-        KEY_PRESS = 7
+    KEY_UP = 6
+    KEY_DOWN = 19
+    KEY_LEFT = 5
+    KEY_RIGHT = 26
+    KEY_PRESS = 13
 
-        KEY1 = 16
-        KEY2 = 12
-        KEY3 = 8
+    KEY1 = 21
+    KEY2 = 20
+    KEY3 = 16        
 
     OVERRIDE = 1000
 
