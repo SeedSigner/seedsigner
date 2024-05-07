@@ -21,7 +21,9 @@
       };
 
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      lib = pkgs.lib;
       python = pkgs.python3;
+      stdenv = pkgs.python311Packages.stdenv;
 
       # embit is not currently available in nixpkgs, so we build it here
       embit = pkgs.python3Packages.buildPythonPackage rec {
@@ -54,7 +56,7 @@
           ];
       };
 
-      # dataclasses (old version?)
+      # dataclasses (this might not be necessary since dataclasses are native to python 3.11 now)
       dataclasses = pkgs.python3Packages.buildPythonPackage rec {
           pname = "dataclasses";
           version = "0.8";
@@ -68,12 +70,44 @@
           ];
       };
 
+      # pyzbar - using https://github.com/enteropositivo/pyzbar.git@a52ff0b2e8ff714ba53bbf6461c89d672a304411#egg=pyzbar
+      # by modifying https://github.com/NixOS/nixpkgs/blob/nixos-unstable/pkgs/development/python-modules/pyzbar/default.nix#L48
+      pyzbar-seedsigner = pkgs.python3Packages.buildPythonPackage rec {
+          pname = "pyzbar";
+          version = "0.1.10-ss";
+          pyproject = true;
+          src = pkgs.fetchFromGitHub {
+            inherit pname version;
+            owner = "enteropositivo";
+            repo = "pyzbar";
+            rev = "master";
+            hash = "sha256-M51MclbldqTVUffWNRNFDTFweIwK12fpbTYGid1Aa5s=";
+          };
+
+          buildInputs = [ pkgs.zbar ];
+
+          nativeBuildInputs = [
+            pkgs.python3Packages.setuptools
+          ];
+
+          propagatedBuildInputs = with pkgs.python3Packages; [ pillow numpy ];
+
+          # find_library doesn't return an absolute path
+          # https://github.com/NixOS/nixpkgs/issues/7307
+          postPatch = ''
+            substituteInPlace pyzbar/zbar_library.py \
+              --replace \
+                "find_library('zbar')" \
+                '"${lib.getLib pkgs.zbar}/lib/libzbar${stdenv.hostPlatform.extensions.sharedLibrary}"'
+          '';
+      };
+
       # now we build our actual environment
       pythonEnv = pkgs.python3.withPackages (ps: with ps; [
         embit
         urtypes
         dataclasses
-        pyzbar
+        pyzbar-seedsigner
         pillow
         qrcode
         tkinter
