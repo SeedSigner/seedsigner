@@ -16,6 +16,8 @@ from seedsigner.models.seed import Seed
 
 DICE__NUM_ROLLS__12WORD = 50
 DICE__NUM_ROLLS__24WORD = 99
+COIN__NUM_FLIPS__12WORD = 128
+COIN__NUM_FLIPS__24WORD = 256
 
 
 
