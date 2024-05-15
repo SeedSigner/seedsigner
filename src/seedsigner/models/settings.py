@@ -1,3 +1,4 @@
+import logging
 import json
 import os
 import platform
@@ -6,6 +7,8 @@ from typing import List
 
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.models.singleton import Singleton
+
+logger = logging.getLogger(__name__)
 
 
 class InvalidSettingsQRData(Exception):
@@ -77,7 +80,7 @@ class Settings(Singleton):
             # Replace abbreviated name with full attr_name
             settings_entry = SettingsDefinition.get_settings_entry_by_abbreviated_name(abbreviated_name)
             if not settings_entry:
-                print(f"Ignoring unrecognized attribute: {abbreviated_name}")
+                logger.info(f"Ignoring unrecognized attribute: {abbreviated_name}")
                 continue
 
             # Validate value(s) against SettingsDefinition's valid options
@@ -162,9 +165,9 @@ class Settings(Singleton):
         if attr_name == SettingsConstants.SETTING__PERSISTENT_SETTINGS and value == SettingsConstants.OPTION__DISABLED:
             try:
                 os.remove(self.SETTINGS_FILENAME)
-                print(f"Removed {self.SETTINGS_FILENAME}")
+                logger.info(f"Removed {self.SETTINGS_FILENAME}")
             except:
-                print(f"{self.SETTINGS_FILENAME} not found to be removed")
+                logger.info(f"{self.SETTINGS_FILENAME} not found to be removed")
                 
         self._data[attr_name] = value
         self.save()

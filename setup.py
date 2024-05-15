@@ -23,5 +23,10 @@ setuptools.setup(
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
     include_package_data=True,
+    entry_points={
+        "console_scripts": [
+            "seedsigner = seedsigner.main:main",
+        ]
+    },
     python_requires=">=3.10",
 )

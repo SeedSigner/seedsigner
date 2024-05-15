@@ -1,3 +1,4 @@
+import logging
 import math
 import os
 import pathlib
@@ -12,6 +13,8 @@ from typing import List, Tuple
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.models.singleton import Singleton
+
+logger = logging.getLogger(__name__)
 
 
 # TODO: Remove all pixel hard coding
@@ -1439,7 +1442,7 @@ def reflow_text_into_pages(text: str,
     lines = []
     for line_dict in reflowed_lines_dicts:
         lines.append(line_dict["text"])
-        print(f"""{line_dict["text_width"]:3}: {line_dict["text"]}""")
+        logging.info(f"""{line_dict["text_width"]:3}: {line_dict["text"]}""")
 
     font = Fonts.get_font(font_name=font_name, size=font_size)
     # Measure the font's height above baseline and how for below it certain characters

@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 import time
@@ -9,6 +10,7 @@ from seedsigner.gui.screens.screen import BaseScreen
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
 
+logger = logging.getLogger(__name__)
 
 
 # TODO: This early code is now outdated vis-a-vis Screen vs View distinctions
@@ -178,7 +180,7 @@ class ScreensaverScreen(LogoScreen):
 
             except KeyboardInterrupt as e:
                 # Exit triggered; close gracefully
-                print("Shutting down Screensaver")
+                logger.info("Shutting down Screensaver")
 
                 # Have to let the interrupt bubble up to exit the main app
                 raise e

@@ -912,7 +912,7 @@ class SignMessageQrDecoder(BaseSingleFrameQrDecoder):
 
         # TODO: support formats other than ascii?
         if fmt != "ascii":
-            print(f"Sign message: Unsupported format: {fmt}")
+            logger.info(f"Sign message: Unsupported format: {fmt}")
             return DecodeQRStatus.INVALID
 
         self.complete = True
@@ -1082,7 +1082,7 @@ class GenericWalletQrDecoder(BaseSingleFrameQrDecoder):
             self.complete = True
             return DecodeQRStatus.COMPLETE
         except Exception as e:
-            print(repr(e))
+            logger.info(repr(e), exc_info=True)
         return DecodeQRStatus.INVALID
     
 

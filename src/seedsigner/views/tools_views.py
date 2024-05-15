@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import hashlib
+import logging
 import os
 import time
 
@@ -21,6 +22,7 @@ from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedM
 
 from .view import View, Destination, BackStackView
 
+logger = logging.getLogger(__name__)
 
 
 class ToolsMenuView(View):
@@ -143,7 +145,7 @@ class ToolsImageEntropyMnemonicLengthView(View):
             serial_hash = hashlib.sha256(serial_num)
             hash_bytes = serial_hash.digest()
         except Exception as e:
-            print(repr(e))
+            logger.info(repr(e), exc_info=True)
             hash_bytes = b'0'
 
         # Build in modest entropy via millis since power on
