@@ -90,6 +90,7 @@ class FountainEncoder:
         self.fragment_len = FountainEncoder.find_nominal_fragment_length(self.message_len, min_fragment_len, max_fragment_len)
         self.fragments = FountainEncoder.partition_message(message, self.fragment_len)
         self.seq_num = first_seq_num
+        self.current_part: Part = None
     
     @staticmethod
     def find_nominal_fragment_length(message_len, min_fragment_len, max_fragment_len):
@@ -143,7 +144,17 @@ class FountainEncoder:
         indexes = choose_fragments(self.seq_num, self.seq_len(), self.checksum)
         mixed = self.mix(indexes)
         data = bytes(mixed)
-        return Part(self.seq_num, self.seq_len(), self.message_len, self.checksum, data)
+        self.current_part = Part(self.seq_num, self.seq_len(), self.message_len, self.checksum, data)
+        return self.current_part
+    
+
+    def restart(self):
+        """
+        Restart from the beginning; each cycle's first n frames are full data frames
+        (not XOR composites).
+        """
+        self.seq_num = 0
+
 
     def mix(self, indexes):
         result = [0] * self.fragment_len
