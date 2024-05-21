@@ -28,6 +28,10 @@ The motivation for this design was to get a thin, screwless and good looking enc
 
 Please note that the prints must be accurate in order to fit tightly without screws and for the buttons to perform smoothly. The prints are well tested with a Prusa MK3s (.3mf files attached), Prusament PLA and hardware components from early 2024. With this setup, the enclosure holds strongly together, but can still be opened again with a little effort (although this is not recommended, as it may not hold together as tightly afterwards). Other printers or newer or older hardware may produce results that do not fit and in worst case damage the hardware.
 
+## Known issues
+
+- Bambu Studio Slicer: There is a strange problem when slicing the buttons. A few layers are missing. As a workaround you can use another slicer, e.g. the Prusa Slicer.
+
 ## Assembly
 
 ### 1. Get all the parts
@@ -119,7 +123,7 @@ Get in touch if you have any questions or suggestions. Success stories are also 
 
 ## Donation
 
-If you like my work and want to honor it, I appreciate any small donation to my Lightning Address kayth@blink.sv. But even more importantly, please consider a donation to the [Seedsigner Development Fund](https://seedsigner.com/donate-now/). 
+If you like my work and want to honor it, I appreciate any small donation to my Lightning Address kayth@blink.sv. But even more important, please consider a donation to the [Seedsigner Development Fund](https://seedsigner.com/donate-now/). 
 
 ## Shop
 
