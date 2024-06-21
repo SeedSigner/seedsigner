@@ -907,7 +907,8 @@ class SeedExportXpubQRDisplayView(View):
             seed=self.seed,
             derivation=derivation_path,
             network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
-            qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY)
+            qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
+            sig_type=sig_type
         )
 
         if coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
