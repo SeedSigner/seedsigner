@@ -16,7 +16,7 @@ from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
 from seedsigner.gui.screens.screen import LargeIconStatusScreen, QRDisplayScreen
 from seedsigner.helpers import embit_utils
 from seedsigner.models.decode_qr import DecodeQR
-from seedsigner.models.encode_qr import EncodeQR
+from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import InvalidSeedException, Seed
@@ -754,19 +754,24 @@ class SeedExportXpubCoordinatorView(View):
             args["coordinator"] = self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[0]
             return Destination(SeedExportXpubWarningView, view_args=args, skip_current_view=True)
 
+        button_data = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)
+
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title="Export Xpub",
             is_button_text_centered=False,
-            button_data=self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS),
+            button_data=button_data,
         )
 
-        if selected_menu_num < len(self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)):
-            args["coordinator"] = self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[selected_menu_num]
-            return Destination(SeedExportXpubWarningView, view_args=args)
-
-        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
+
+        coordinators_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__COORDINATORS)
+        selected_display_name = button_data[selected_menu_num]
+        args["coordinator"] = coordinators_settings_entry.get_selection_option_value_by_display_name(selected_display_name)
+
+        return Destination(SeedExportXpubWarningView, view_args=args)
+
 
 
 
@@ -898,34 +903,23 @@ class SeedExportXpubQRDisplayView(View):
         super().__init__()
         self.seed = self.controller.get_seed(seed_num)
 
-        qr_density = self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY)
-        if coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
-            qr_type = QRType.XPUB__SPECTER
-
-        elif coordinator == SettingsConstants.COORDINATOR__BLUE_WALLET:
-            qr_type = QRType.XPUB
-
-        elif coordinator == SettingsConstants.COORDINATOR__KEEPER:
-            qr_type = QRType.XPUB
-
-        elif coordinator == SettingsConstants.COORDINATOR__NUNCHUK:
-            qr_type = QRType.XPUB__UR
-
-            # As of 2022-03-02 Nunchuk doesn't seem to support animated QRs for Xpub import
-            qr_density = SettingsConstants.DENSITY__HIGH
-
-        else:
-            qr_type = QRType.XPUB__UR
-
-        self.qr_encoder = EncodeQR(
+        encoder_args = dict(
             seed=self.seed,
             derivation=derivation_path,
             network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
-            qr_type=qr_type,
-            qr_density=qr_density,
-            wordlist_language_code=self.seed.wordlist_language_code,
-            sig_type=sig_type
+            qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY)
         )
+
+        if coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
+            self.qr_encoder = SpecterXPubQrEncoder(**encoder_args)
+
+        elif coordinator in [SettingsConstants.COORDINATOR__BLUE_WALLET,
+                             SettingsConstants.COORDINATOR__KEEPER,
+                             SettingsConstants.COORDINATOR__NUNCHUK]:
+            self.qr_encoder = StaticXpubQrEncoder(**encoder_args)
+
+        else:
+            self.qr_encoder = UrXpubQrEncoder(**encoder_args)
 
 
     def run(self):
@@ -1426,11 +1420,12 @@ class SeedTranscribeSeedQRWholeQRView(View):
     
 
     def run(self):
-        e = EncodeQR(
-            seed=self.seed,
-            qr_type=self.seedqr_format,
-            wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-        )
+        encoder_args = dict(seed=self.seed)
+        if self.seedqr_format == QRType.SEED__SEEDQR:
+            e = SeedQrEncoder(**encoder_args)
+        elif self.seedqr_format == QRType.SEED__COMPACTSEEDQR:
+            e = CompactSeedQrEncoder(**encoder_args)
+
         data = e.next_part()
 
         ret = seed_screens.SeedTranscribeSeedQRWholeQRScreen(
@@ -1461,11 +1456,12 @@ class SeedTranscribeSeedQRZoomedInView(View):
     
 
     def run(self):
-        e = EncodeQR(
-            seed=self.seed,
-            qr_type=self.seedqr_format,
-            wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-        )
+        encoder_args = dict(seed=self.seed)
+        if self.seedqr_format == QRType.SEED__SEEDQR:
+            e = SeedQrEncoder(**encoder_args)
+        elif self.seedqr_format == QRType.SEED__COMPACTSEEDQR:
+            e = CompactSeedQrEncoder(**encoder_args)
+
         data = e.next_part()
 
         if len(self.seed.mnemonic_list) == 24:
@@ -2108,7 +2104,7 @@ class SeedSignMessageSignedMessageQRView(View):
 
 
     def run(self):
-        qr_encoder = EncodeQR(qr_type=QRType.SIGN_MESSAGE, signed_message=self.signed_message)
+        qr_encoder = GenericStaticQrEncoder(data=self.signed_message)
         
         self.run_screen(
             QRDisplayScreen,

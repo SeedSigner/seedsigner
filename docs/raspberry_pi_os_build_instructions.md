@@ -1,4 +1,6 @@
-# Manual Installation Instructions
+# Raspberry Pi OS Local Dev Build Instructions
+
+Since v0.6.0, official releases use our custom [SeedSigner OS](https://github.com/SeedSigner/seedsigner-os/) However, project contributors looking to do rapid development cycles typically use the older Raspberry Pi OS that we had previously built on prior to v0.6.0. If you're here to set up your SeedSigner for local development, continue reading.
 
 Begin by acquiring the latest 32-bit, Buster-based Raspberry Pi Lite operating system. This guide was tested using the version dated 2023-05-03; which can be found here:
 
@@ -109,7 +111,7 @@ sudo apt install python3-apt -y
 Copy this entire box and run it as one command (~15 minutes on a Pi Zero 1.3):
 ```bash
 sudo apt update && sudo apt install -y wiringpi python3-pip \
-   python3-numpy python-pil libjpeg-dev zlib1g-dev libopenjp2-7 \
+   python-pil libjpeg-dev zlib1g-dev libopenjp2-7 \
    git python3-opencv python3-picamera libatlas-base-dev qrencode
 ```
 

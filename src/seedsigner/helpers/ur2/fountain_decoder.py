@@ -4,7 +4,7 @@
 # Copyright © 2020 Foundation Devices, Inc.
 # Licensed under the "BSD-2-Clause Plus Patent License"
 #
-
+import time
 from .fountain_utils import choose_fragments, contains, is_strict_subset, set_difference
 from .utils import join_lists, join_bytes, crc32_int, xor_with, take_first
 
@@ -71,13 +71,53 @@ class FountainDecoder:
     def result_error(self):
          return self.result
 
-    def estimated_percent_complete(self):
+
+    def estimated_percent_complete(self, weight_mixed_frames: bool = False):
+        """
+        Weighted mixed frame method:
+            * counts completed frames
+            * counts each additional frame that is currently XORed in a mixed frame; its
+                score is weighted by the number of frames mixed together (1/num frames mixed).
+        """
         if self.is_complete():
             return 1
         if self.expected_part_indexes == None:
             return 0
-        estimated_input_parts = self.expected_part_count() * 1.75
-        return min(0.99, self.processed_parts_count / estimated_input_parts)
+        
+        if not weight_mixed_frames:
+            # Original estimation method
+            estimated_input_parts = self.expected_part_count() * 1.75
+            return min(0.99, self.processed_parts_count / estimated_input_parts)
+        else:
+            parts = self.expected_part_count() if self.expected_part_indexes != None else 'None'
+            mixed = []
+            mixed_index_scoring = {}
+            mixed_set = set()
+            for indexes, p in self.mixed_parts.items():
+                if not indexes:
+                    continue
+                mixed.append(self.indexes_to_string(indexes))
+                mixed_set.update(indexes)
+                score = 1.0 / float(len(indexes))
+                for index in indexes:
+                    if index not in mixed_index_scoring:
+                        mixed_index_scoring[index] = 0.0
+                    
+                    # sum up partial scores
+                    mixed_index_scoring[index] += score
+
+            mixed_score = 0.0
+            for index, score in mixed_index_scoring.items():
+                # set a ceiling; don't let an index in a mixed/XOR frame
+                # achieve equal weight as a fully decoded frame. Also if
+                # the ceiling is too high, can potentially see your
+                # reported progress percentage DECREASE during a decode.
+                mixed_score += min(score, 0.75)
+
+            num_complete = len(self.received_part_indexes)
+            weighted_estimate = (num_complete + mixed_score) / float(parts)
+            return weighted_estimate
+
 
     def receive_part(self, encoder_part):
         # Don't process the part if we're already done
@@ -93,6 +133,9 @@ class FountainDecoder:
         self.last_part_indexes = p.indexes
         self.enqueue(p)
 
+        num_complete = len(self.received_part_indexes)
+        num_mixed_frames = len(self.mixed_parts)
+
         # Process the queue until we're done or the queue is empty
         while not self.is_complete() and len(self.queued_parts) != 0:
             self.process_queue_item()
@@ -101,6 +144,12 @@ class FountainDecoder:
         self.processed_parts_count += 1
 
         # self.print_part_end()
+        # self.print_state()
+
+        if num_complete == len(self.received_part_indexes) and num_mixed_frames == len(self.mixed_parts):
+            # This part didn't add any new info
+            # print("No new data")
+            return False
 
         return True
 
@@ -114,6 +163,7 @@ class FountainDecoder:
         self.queued_parts.append(p)
 
     def process_queue_item(self):
+        start = time.time()
         part = self.queued_parts.pop(0)
         # self.print_part(part)
 
@@ -121,6 +171,8 @@ class FountainDecoder:
             self.process_simple_part(part)
         else:
             self.process_mixed_part(part)
+        
+        # print(f"Queue processing: {int((time.time() - start)*1000.0)}ms")
         # self.print_state()
 
     def reduce_mixed_by(self, p):
@@ -141,6 +193,7 @@ class FountainDecoder:
                 new_mixed[reduced_part.indexes] = reduced_part
 
         self.mixed_parts = new_mixed
+        # print(self.mixed_parts.keys())
 
     def reduce_part_by_part(self, a, b):
         # If the fragments mixed into `b` are a strict (proper) subset of those in `a`...
@@ -266,13 +319,23 @@ class FountainDecoder:
         print("processed: {}, expected: {}, received: {}, percent: {}%".format(self.processed_parts_count, expected, len(self.received_part_indexes), percent))
 
     def print_state(self):
-        parts = self.expected_part_count() if self.expected_part_indexes != None else 'None'
-        received = self.indexes_to_string(self.received_part_indexes)
+        guesstimate = self.estimated_percent_complete(weight_mixed_frames=True)
+        original_metric = self.estimated_percent_complete()
         mixed = []
-        for indexes, p in self.mixed_parts.items():
-            mixed.append(self.indexes_to_string(indexes))
-        
-        mixed_s = "[{}]".format(', '.join(mixed))
-        queued = len(self.queued_parts)
-        res = self.result_description()
-        print('parts: {}, received: {}, mixed: {}, queued: {}, result: {}'.format(parts, received, mixed_s, queued, res))
+        mixed_set = set()
+        try:
+            for indexes, p in self.mixed_parts.items():
+                if not indexes or len(indexes) == 0:
+                    continue
+                mixed.append(self.indexes_to_string(indexes))
+                mixed_set.update(indexes)
+            
+            num_complete = len(self.received_part_indexes)
+
+            mixed_s = "[{}]".format(', '.join(mixed))
+            queued = len(self.queued_parts)
+            print(f"{original_metric*100.0:5.1f}% | {guesstimate*100.0:5.1f}% | done: {num_complete:2d}, mixed: {len(mixed_set):2d}, queued: {queued}, frames: {self.processed_parts_count:2d} | {mixed_s}")
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()

@@ -20,7 +20,7 @@ class Seed:
                  mnemonic: List[str] = None,
                  passphrase: str = "",
                  wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> None:
-        self.wordlist_language_code = wordlist_language_code
+        self._wordlist_language_code = wordlist_language_code
 
         if not mnemonic:
             raise Exception("Must initialize a Seed with a mnemonic List[str]")
@@ -58,7 +58,10 @@ class Seed:
     @property
     def mnemonic_list(self) -> List[str]:
         return self._mnemonic
-    
+
+    @property 
+    def wordlist_language_code(self) -> str:
+        return self._wordlist_language_code
 
     @property
     def mnemonic_display_str(self) -> str:
@@ -95,7 +98,7 @@ class Seed:
 
     @property
     def wordlist(self) -> List[str]:
-        return Seed.get_wordlist(self.wordlist_language_code)
+        return Seed.get_wordlist(self._wordlist_language_code)
 
 
     def set_wordlist_language_code(self, language_code: str):

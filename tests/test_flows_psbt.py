@@ -1,6 +1,5 @@
 from base import FlowTest, FlowStep
 
-from seedsigner.controller import Controller
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
 from seedsigner.models.settings import SettingsConstants
@@ -74,7 +73,7 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(psbt_views.PSBTOverviewView),
 			FlowStep(psbt_views.PSBTMathView),
 			FlowStep(psbt_views.PSBTAddressDetailsView, button_data_selection=0),
-			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.SKIP_VERIFICATION),
 			FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
 			FlowStep(psbt_views.PSBTSigningErrorView, button_data_selection=psbt_views.PSBTSigningErrorView.SELECT_DIFF_SEED),
 			FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.SCAN_SEED),
@@ -86,7 +85,7 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(psbt_views.PSBTOverviewView),
 			FlowStep(psbt_views.PSBTMathView),
 			FlowStep(psbt_views.PSBTAddressDetailsView, button_data_selection=0),
-			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.SKIP_VERIFICATION),
 			FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
 			FlowStep(psbt_views.PSBTSignedQRDisplayView),
 			FlowStep(MainMenuView),

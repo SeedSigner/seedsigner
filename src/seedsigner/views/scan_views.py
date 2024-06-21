@@ -47,6 +47,10 @@ class ScanView(View):
             decoder=self.decoder
         )
 
+        # A long scan might have exceeded the screensaver timeout; ensure screensaver
+        # doesn't immediately engage when we leave here.
+        self.controller.reset_screensaver_timeout()
+
         # Handle the results
         if self.decoder.is_complete:
             if not self.is_valid_qr_type:
