@@ -59,6 +59,7 @@ class Seed:
     def mnemonic_list(self) -> List[str]:
         return self._mnemonic
 
+
     @property 
     def wordlist_language_code(self) -> str:
         return self._wordlist_language_code
@@ -98,7 +99,7 @@ class Seed:
 
     @property
     def wordlist(self) -> List[str]:
-        return Seed.get_wordlist(self._wordlist_language_code)
+        return Seed.get_wordlist(self.wordlist_language_code)
 
 
     def set_wordlist_language_code(self, language_code: str):

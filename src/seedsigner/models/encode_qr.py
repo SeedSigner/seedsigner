@@ -151,13 +151,8 @@ class BaseXpubQrEncoder(BaseQrEncoder):
     seed: Seed = None
     derivation: str = None
     network: str = SettingsConstants.MAINNET
-    wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
 
     def prep_xpub(self):
-        self.wordlist = Seed.get_wordlist()
-
-        if self.wordlist == None:
-            raise Exception('Wordlist Required')
             
         version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
         self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(self.network)]["xprv"])
