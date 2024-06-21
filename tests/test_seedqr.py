@@ -5,7 +5,6 @@ from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
 from seedsigner.models.encode_qr import SeedQrEncoder, CompactSeedQrEncoder
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
-from seedsigner.models.settings import SettingsConstants
 
 
 
