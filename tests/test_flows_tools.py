@@ -65,7 +65,7 @@ class TestToolsFlows(FlowTest):
         self.run_sequence(
             sequence=[
                 FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
-                FlowStep(seed_views.SeedAddPassphraseView, screen_return_value="mypassphrase"),
+                FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=("mypassphrase",None)),
                 FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
                 FlowStep(seed_views.SeedOptionsView, is_redirect=True),
                 FlowStep(seed_views.SeedExportXpubScriptTypeView),

@@ -134,6 +134,7 @@ def test_generate_screenshots(target_locale):
             seed_views.SeedMnemonicInvalidView,
             seed_views.SeedFinalizeView,
             seed_views.SeedAddPassphraseView,
+            seed_views.SeedAddPassphraseExitDialogView,
             seed_views.SeedReviewPassphraseView,
             
             (seed_views.SeedOptionsView, dict(seed_num=0)),

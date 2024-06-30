@@ -323,18 +323,50 @@ class SeedAddPassphraseView(View):
 
 
     def run(self):
-        ret = self.run_screen(seed_screens.SeedAddPassphraseScreen, passphrase=self.seed.passphrase)
+        ret_passphrase, ret_btn = self.run_screen(seed_screens.SeedAddPassphraseScreen, passphrase=self.seed.passphrase)
 
-        if ret == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-        
         # The new passphrase will be the return value; it might be empty.
-        self.seed.set_passphrase(ret)
-        if len(self.seed.passphrase) > 0:
+        self.seed.set_passphrase(ret_passphrase)
+        if ret_btn == RET_CODE__BACK_BUTTON:
+            if len(self.seed.passphrase) > 0:
+                return Destination(SeedAddPassphraseExitDialogView)
+            else:
+                return Destination(BackStackView)
+        elif len(self.seed.passphrase) > 0:
             return Destination(SeedReviewPassphraseView)
         else:
             return Destination(SeedFinalizeView)
 
+
+class SeedAddPassphraseExitDialogView(View):
+    EXIT = ("Exit", None, None, "red")
+    CONTINUE = "Continue editing"
+
+    def __init__(self):
+        super().__init__()
+        self.seed = self.controller.storage.get_pending_seed()
+
+
+    def run(self):
+        passphrase = self.seed.passphrase
+
+        button_data = [self.EXIT, self.CONTINUE]
+        
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title="Exit",
+            status_headline=None,
+            text=f"Please confirm that you want to exit",
+            show_back_button=False,
+            button_data=button_data,
+        )
+
+        if button_data[selected_menu_num] == self.EXIT:
+            self.seed.set_passphrase("")
+            return Destination(SeedFinalizeView)
+        
+        elif button_data[selected_menu_num] == self.CONTINUE:
+            return Destination(SeedAddPassphraseView)
 
 
 class SeedReviewPassphraseView(View):
