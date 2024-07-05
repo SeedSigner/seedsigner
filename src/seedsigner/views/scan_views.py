@@ -1,3 +1,4 @@
+import logging
 import re
 
 from embit.descriptor import Descriptor
@@ -9,6 +10,7 @@ from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.settings_views import SettingsIngestSettingsQRView
 from seedsigner.views.view import BackStackView, ErrorView, MainMenuView, NotYetImplementedView, OptionDisabledView, View, Destination
 
+logger = logging.getLogger(__name__)
 
 
 class ScanView(View):
@@ -111,14 +113,14 @@ class ScanView(View):
                         p = re.compile(r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])')
                         descriptor_str = p.sub(r'\1/{0,1}/*\2', descriptor_str)
                 except Exception as e:
-                    print(repr(e))
+                    logger.info(repr(e), exc_info=True)
                     descriptor_str = orig_descriptor_str
 
                 descriptor = Descriptor.from_string(descriptor_str)
 
                 if not descriptor.is_basic_multisig:
                     # TODO: Handle single-sig descriptors?
-                    print(f"Received single sig descriptor: {descriptor}")
+                    logger.info(f"Received single sig descriptor: {descriptor}")
                     return Destination(NotYetImplementedView)
 
                 self.controller.multisig_wallet_descriptor = descriptor

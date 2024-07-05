@@ -15,6 +15,9 @@ readme = "README.md"
 requires-python = ">=3.10"
 version = "0.8.0-rc1"
 
+[project.scripts]
+seedsigner = "seedsigner.main:main"
+
 [project.urls]
 "Bug Tracker" = "https://github.com/SeedSigner/seedsigner/issues"
 Homepage = "https://seedsigner.com/"

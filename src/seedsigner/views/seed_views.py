@@ -1,3 +1,4 @@
+import logging
 import embit
 import random
 import time
@@ -25,7 +26,7 @@ from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
 
-
+logger = logging.getLogger(__name__)
 
 
 class SeedsMenuView(View):
@@ -1778,7 +1779,7 @@ class SeedAddressVerificationView(View):
         def run(self):
             while self.keep_running:
                 if self.threadsafe_counter.cur_count % 10 == 0:
-                    print(f"Incremented to {self.threadsafe_counter.cur_count}")
+                    logger.info(f"Incremented to {self.threadsafe_counter.cur_count}")
                 
                 i = self.threadsafe_counter.cur_count
 

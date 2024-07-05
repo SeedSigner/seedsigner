@@ -1,8 +1,10 @@
+import logging
 import time
 from dataclasses import dataclass
 from seedsigner.gui.components import BaseComponent, GUIConstants, Icon, SeedSignerIconConstants, TextArea
 from seedsigner.models.threads import BaseThread
 
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -119,33 +121,33 @@ class BaseToastOverlayManagerThread(BaseThread):
 
 
     def run(self):
-        print(f"{self.__class__.__name__}: started")
+        logger.info(f"{self.__class__.__name__}: started")
         start = time.time()
         while time.time() - start < self.activation_delay:
             if self.hw_inputs.has_any_input():
                 # User has pressed a button, cancel the toast
-                print(f"{self.__class__.__name__}: Canceling toast due to user input")
+                logger.info(f"{self.__class__.__name__}: Canceling toast due to user input")
                 return
             time.sleep(0.1)
 
         try:
             # Hold onto the Renderer lock so we're guaranteed to restore the original
             # screen before any other listener can get a screen write in.
-            print(f"{self.__class__.__name__}: Acquiring lock")
+            logger.info(f"{self.__class__.__name__}: Acquiring lock")
             self.renderer.lock.acquire()
-            print(f"{self.__class__.__name__}: Lock acquired")
+            logger.info(f"{self.__class__.__name__}: Lock acquired")
 
             has_rendered = False
             previous_screen_state = None
             while self.keep_running and self.should_keep_running():
                 if self.hw_inputs.has_any_input():
                     # User has pressed a button, hide the toast
-                    print(f"{self.__class__.__name__}: Exiting due to user input")
+                    logger.info(f"{self.__class__.__name__}: Exiting due to user input")
                     break
 
                 if self._toggle_renderer_lock:
                     # Controller has notified us that another process needs the lock
-                    print(f"{self.__class__.__name__}: Releasing lock")
+                    logger.info(f"{self.__class__.__name__}: Releasing lock")
                     self._toggle_renderer_lock = False
                     self.renderer.lock.release()
 
@@ -155,29 +157,29 @@ class BaseToastOverlayManagerThread(BaseThread):
                         time.sleep(0.1)
 
                     # Block while waiting to reaquire the lock
-                    print(f"{self.__class__.__name__}: Blocking to re-acquire lock")
+                    logger.info(f"{self.__class__.__name__}: Blocking to re-acquire lock")
                     self.renderer.lock.acquire()
-                    print(f"{self.__class__.__name__}: Lock re-acquired")
+                    logger.info(f"{self.__class__.__name__}: Lock re-acquired")
 
                 if not has_rendered:
                     previous_screen_state = self.renderer.canvas.copy()
-                    print(f"{self.__class__.__name__}: Showing toast")
+                    logger.info(f"{self.__class__.__name__}: Showing toast")
                     self.toast.render()
                     has_rendered = True
 
                 if time.time() - start > self.activation_delay + self.duration and has_rendered:
-                    print(f"{self.__class__.__name__}: Hiding toast")
+                    logger.info(f"{self.__class__.__name__}: Hiding toast")
                     break
 
                 # Free up cpu resources for main thread
                 time.sleep(0.1)
 
         finally:
-            print(f"{self.__class__.__name__}: exiting")
+            logger.info(f"{self.__class__.__name__}: exiting")
             if has_rendered and self.renderer.lock.locked():
                 # As far as we know, we currently hold the Renderer.lock
                 self.renderer.show_image(previous_screen_state)
-                print(f"{self.__class__.__name__}: restored previous screen state")
+                logger.info(f"{self.__class__.__name__}: restored previous screen state")
 
             # We're done, release the lock
             self.renderer.lock.release()
@@ -223,7 +225,7 @@ class SDCardStateChangeToastManagerThread(BaseToastOverlayManagerThread):
 
 
     def instantiate_toast(self) -> ToastOverlay:
-        print("instantiating toast!")
+        logger.info("instantiating toast!")
         return ToastOverlay(
             icon_name=SeedSignerIconConstants.MICROSD,
             label_text=self.message,
