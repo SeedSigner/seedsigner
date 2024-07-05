@@ -1,4 +1,4 @@
-embit==0.7.0
+embit==0.8.0
 Pillow==9.4.0
 pyzbar @ git+https://github.com/seedsigner/pyzbar.git@c3c237821c6a20b17953efe59b90df0b514a1c03
 qrcode==7.3.1
