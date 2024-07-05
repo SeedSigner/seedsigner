@@ -1,0 +1,37 @@
+# Apply to all files without commiting:
+#   pre-commit run --all-files
+# Or enabled to run as git pre-commit hook:
+#   pre-commit install
+# Update this file:
+#   pre-commit autoupdate
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-ast
+      - id: fix-byte-order-marker
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: debug-statements
+      - id: detect-private-key
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.5
+    hooks:
+      - id: ruff
+        args: [--fix, --show-fixes]
+  - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
+    rev: v2.14.0
+    hooks:
+      - id: pretty-format-toml
+        args: [--autofix]
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.29.0
+    hooks:
+      - id: check-github-workflows
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+      - id: check-useless-excludes

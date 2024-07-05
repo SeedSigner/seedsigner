@@ -60,6 +60,20 @@ branch = true
 testpaths = ["tests"]
 log_level = "DEBUG"
 
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+fixable = ["ALL"]
+# List of rules https://docs.astral.sh/ruff/rules/
+select = ["F", "T20"]
+
+[tool.ruff.lint.per-file-ignores]
+# vendored, so ignoring
+"src/seedsigner/helpers/ur2/*" = ["F", "T20"]
+"tests/**" = ["T20"]
+"tools/*.py" = ["T20"]
+
 [tool.setuptools]
 include-package-data = true
 
