@@ -38,3 +38,10 @@ def test_main__argparse__enable_debug_logging(patched_controller, patched_loggin
 def test_main__argparse__invalid_arg():
     with pytest.raises(SystemExit):
         main(["--invalid"])
+
+
+@patch("seedsigner.main.Controller")
+def test_main__logging__writes_to_stderr(patched_controller, capsys):
+    main([])
+    _, err = capsys.readouterr()
+    assert "INFO:	Starting Seedsigner with: {'loglevel': 'INFO'}" in err
