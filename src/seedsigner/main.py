@@ -17,7 +17,11 @@ def main(sys_argv=None):
         choices=list((logging._nameToLevel.keys())),
         default="INFO",
         type=str,
-        help='Set the log level (default: %(default)s)',
+        help=(
+            "Set the log level (default: %(default)s), WARNING: changing the log level "
+            "to something more verbose than %(default)s may result in unwanted data "
+            "being written to stderr"
+        ),
     )
 
     args = parser.parse_args(sys_argv)
@@ -26,7 +30,6 @@ def main(sys_argv=None):
         format="%(asctime)s.%(msecs)03d %(levelname)s:\t%(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-
     logger.info(f"Starting Seedsigner with: {args.__dict__}")
 
     # Get the one and only Controller instance and start our main loop
