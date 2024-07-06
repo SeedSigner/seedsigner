@@ -25,11 +25,15 @@ def main(sys_argv=None):
     )
 
     args = parser.parse_args(sys_argv)
-    logging.basicConfig(
-        level=logging.getLevelName(args.loglevel),
-        format="%(asctime)s.%(msecs)03d %(levelname)s:\t%(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.getLevelName(args.loglevel))
+    console_handler = logging.StreamHandler(sys.stderr)
+    console_handler.setFormatter(
+        logging.Formatter("%(asctime)s.%(msecs)03d %(levelname)s:\t%(message)s")
     )
+    root_logger.addHandler(console_handler)
+
     logger.info(f"Starting Seedsigner with: {args.__dict__}")
 
     # Get the one and only Controller instance and start our main loop
