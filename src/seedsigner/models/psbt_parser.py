@@ -100,6 +100,15 @@ class PSBTParser():
                 if self.policy != inp_policy:
                     raise RuntimeError("Mixed inputs in the transaction")
 
+            if inp.non_witness_utxo:
+                self.input_amount += inp.utxo.value
+                inp_policy = PSBTParser._get_policy(inp, inp.script_pubkey, self.psbt.xpubs)
+                if self.policy == None:
+                    self.policy = inp_policy
+                else:
+                    if self.policy != inp_policy:
+                       raise RuntimeError("Mixed inputs in the transaction")
+
 
     def _parse_outputs(self):
         self.spend_amount = 0
@@ -124,6 +133,10 @@ class PSBTParser():
                 # empty script by default
                 sc = script.Script(b"")
 
+                # if older multisig, just use existing script
+                if self.policy["type"] == "p2sh":
+                    sc = script.p2sh(out.redeem_script)
+
                 # multisig, we know witness script
                 if self.policy["type"] == "p2wsh":
                     sc = script.p2wsh(out.witness_script)
@@ -144,11 +157,14 @@ class PSBTParser():
                         der = list(out.bip32_derivations.values())[0].derivation
                         my_pubkey = self.root.derive(der)
 
-                    if self.policy["type"] == "p2wpkh" and my_pubkey is not None:
-                        sc = script.p2wpkh(my_pubkey)
+                    if self.policy["type"] == "p2pkh" and my_pubkey is not None:
+                        sc = script.p2pkh(my_pubkey)
 
                     elif self.policy["type"] == "p2sh-p2wpkh" and my_pubkey is not None:
                         sc = script.p2sh(script.p2wpkh(my_pubkey))
+
+                    elif self.policy["type"] == "p2wpkh" and my_pubkey is not None:
+                        sc = script.p2wpkh(my_pubkey)
 
                     if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
                         is_change = True
@@ -257,6 +273,7 @@ class PSBTParser():
 
         elif "p2sh" in script_type and scope.redeem_script is not None:
             script = scope.redeem_script
+
 
         if script is not None:
             m, n, pubkeys = PSBTParser._parse_multisig(script)

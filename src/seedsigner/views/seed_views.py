@@ -1544,6 +1544,11 @@ class AddressVerificationStartView(View):
 
 
     def run(self):
+        if self.controller.unverified_address["script_type"] == SettingsConstants.LEGACY_P2PKH:
+            # Legacy P2PKH addresses are always singlesig
+            sig_type = SettingsConstants.SINGLE_SIG
+            destination = Destination(SeedSelectSeedView, skip_current_view=True)
+
         if self.controller.unverified_address["script_type"] == SettingsConstants.NESTED_SEGWIT:
             # No way to differentiate single sig from multisig
             return Destination(AddressVerificationSigTypeView, skip_current_view=True)
