@@ -338,9 +338,10 @@ class SeedAddPassphraseView(View):
             return Destination(SeedFinalizeView)
 
 
+
 class SeedAddPassphraseExitDialogView(View):
-    EXIT = ("Exit", None, None, "red")
     CONTINUE = "Continue editing"
+    EXIT = ("Exit", None, None, "red")
 
     def __init__(self):
         super().__init__()
@@ -348,25 +349,24 @@ class SeedAddPassphraseExitDialogView(View):
 
 
     def run(self):
-        passphrase = self.seed.passphrase
-
-        button_data = [self.EXIT, self.CONTINUE]
+        button_data = [self.CONTINUE, self.EXIT]
         
         selected_menu_num = self.run_screen(
             WarningScreen,
-            title="Exit",
+            title="Abandon passphrase?",
             status_headline=None,
-            text=f"Please confirm that you want to exit",
+            text=f"Exiting will abandon the BIP-39 Passphrase",
             show_back_button=False,
             button_data=button_data,
         )
 
-        if button_data[selected_menu_num] == self.EXIT:
+        if button_data[selected_menu_num] == self.CONTINUE:
+            return Destination(SeedAddPassphraseView)
+
+        elif button_data[selected_menu_num] == self.EXIT:
             self.seed.set_passphrase("")
             return Destination(SeedFinalizeView)
         
-        elif button_data[selected_menu_num] == self.CONTINUE:
-            return Destination(SeedAddPassphraseView)
 
 
 class SeedReviewPassphraseView(View):
