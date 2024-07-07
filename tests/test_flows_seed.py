@@ -42,10 +42,10 @@ class TestSeedFlows(FlowTest):
             FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
             FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=("muhpassphrase",RET_CODE__BACK_BUTTON)),
-            FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.EXIT),
+            FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.DISCARD),
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
             FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=("muhpassphrase",RET_CODE__BACK_BUTTON)),
-            FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.CONTINUE),
+            FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.EDIT),
             FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=("muhpassphrase",None)),
             FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.EDIT),
             FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=("muhpassphrase2",None)),
