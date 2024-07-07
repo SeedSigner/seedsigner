@@ -30,20 +30,24 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
         raise Exception("Unexpected network")
 
     if wallet_type == SettingsConstants.SINGLE_SIG:
-        if script_type == SettingsConstants.NATIVE_SEGWIT:
-            return f"m/84'/{network_path}/0'"
+        if script_type == SettingsConstants.LEGACY_P2PKH:
+            return f"m/44'/{network_path}/0'"
         elif script_type == SettingsConstants.NESTED_SEGWIT:
             return f"m/49'/{network_path}/0'"
+        elif script_type == SettingsConstants.NATIVE_SEGWIT:
+            return f"m/84'/{network_path}/0'"
         elif script_type == SettingsConstants.TAPROOT:
             return f"m/86'/{network_path}/0'"
         else:
             raise Exception("Unexpected script type")
 
     elif wallet_type == SettingsConstants.MULTISIG:
-        if script_type == SettingsConstants.NATIVE_SEGWIT:
-            return f"m/48'/{network_path}/0'/2'"
+        if script_type == SettingsConstants.LEGACY_P2PKH:
+            return f"m/45'" #BIP45
         elif script_type == SettingsConstants.NESTED_SEGWIT:
             return f"m/48'/{network_path}/0'/1'"
+        elif script_type == SettingsConstants.NATIVE_SEGWIT:
+            return f"m/48'/{network_path}/0'/2'"
         elif script_type == SettingsConstants.TAPROOT:
             raise Exception("Taproot multisig/musig not yet supported")
         else:
@@ -67,14 +71,14 @@ def get_single_sig_address(xpub: HDKey, script_type: str = SettingsConstants.NAT
     else:
         pubkey = xpub.derive([0,index]).key
 
-    if script_type == SettingsConstants.NATIVE_SEGWIT:
-        return embit.script.p2wpkh(pubkey).address(network=NETWORKS[embit_network])
+    if script_type == SettingsConstants.LEGACY_P2PKH:
+        return embit.script.p2pkh(pubkey).address(network=NETWORKS[embit_network])
 
     elif script_type == SettingsConstants.NESTED_SEGWIT:
         return embit.script.p2sh(embit.script.p2wpkh(pubkey)).address(network=NETWORKS[embit_network])
 
-    elif script_type == SettingsConstants.LEGACY_P2PKH:
-        return embit.script.p2pkh(pubkey).address(network=NETWORKS[embit_network])
+    elif script_type == SettingsConstants.NATIVE_SEGWIT:
+        return embit.script.p2wpkh(pubkey).address(network=NETWORKS[embit_network])
 
     elif script_type == SettingsConstants.TAPROOT:
         return embit.script.p2tr(pubkey).address(network=NETWORKS[embit_network])
@@ -129,8 +133,9 @@ def parse_derivation_path(derivation_path: str) -> dict:
 
     lookups = {
         "script_types": {
-            "84h": SettingsConstants.NATIVE_SEGWIT,
+            "44h": SettingsConstants.LEGACY_P2PKH,
             "49h": SettingsConstants.NESTED_SEGWIT,
+            "84h": SettingsConstants.NATIVE_SEGWIT,
             "86h": SettingsConstants.TAPROOT,
         },
         "networks": {
