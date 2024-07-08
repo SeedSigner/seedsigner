@@ -8,6 +8,11 @@ from seedsigner.controller import Controller
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_MODULE_LOG_LEVELS = {
+    "PIL": logging.WARNING,
+    # "seedsigner.gui.toast": logging.DEBUG,  # example of more specific submodule logging config
+}
+
 
 def main(sys_argv=None):
     parser = argparse.ArgumentParser()
@@ -33,6 +38,10 @@ def main(sys_argv=None):
         logging.Formatter("%(asctime)s.%(msecs)03d %(levelname)s:\t%(message)s")
     )
     root_logger.addHandler(console_handler)
+
+    # Set log levels for specific modules
+    for module, level in DEFAULT_MODULE_LOG_LEVELS.items():
+        logging.getLogger(module).setLevel(level)
 
     logger.info(f"Starting Seedsigner with: {args.__dict__}")
 
