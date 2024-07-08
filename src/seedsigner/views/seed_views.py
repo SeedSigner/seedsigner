@@ -650,7 +650,7 @@ class SeedExportXpubScriptTypeView(View):
         script_types = seed.script_override if seed.script_override else self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)
         if len(script_types) == 1:
             # Nothing to select; skip this screen
-            args["script_type"] = self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)[0]
+            args["script_type"] = script_types[0]
 
             if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
                 del args["sig_type"]
