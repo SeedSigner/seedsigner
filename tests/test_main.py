@@ -1,12 +1,14 @@
 import logging
-
-import pytest
+import sys
 from unittest.mock import patch, call
 
-from seedsigner.main import main
+import pytest
+
+sys.path.insert(0,'src')
+from main import main
 
 
-@patch("seedsigner.main.Controller")
+@patch("main.Controller")
 def test_main__argparse__default(patched_controller):
     main([])
     assert logging.root.level == 20
@@ -16,7 +18,7 @@ def test_main__argparse__default(patched_controller):
     )
 
 
-@patch("seedsigner.main.Controller")
+@patch("main.Controller")
 def test_main__argparse__enable_debug_logging(patched_controller):
     main(["--loglevel", "DEBUG"])
     assert logging.root.level == 10
@@ -31,7 +33,7 @@ def test_main__argparse__invalid_arg():
         main(["--invalid"])
 
 
-@patch("seedsigner.main.Controller")
+@patch("main.Controller")
 def test_main__logging__writes_to_stderr(patched_controller, capsys):
     main([])
     _, err = capsys.readouterr()
