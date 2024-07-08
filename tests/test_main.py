@@ -11,7 +11,7 @@ from main import main
 @patch("main.Controller")
 def test_main__argparse__default(patched_controller):
     main([])
-    assert logging.root.level == 20
+    assert logging.root.level == logging.INFO
     assert logging.getLogger().getEffectiveLevel() == 20
     patched_controller.assert_has_calls(
         [call.get_instance(), call.get_instance().start()]
@@ -21,7 +21,7 @@ def test_main__argparse__default(patched_controller):
 @patch("main.Controller")
 def test_main__argparse__enable_debug_logging(patched_controller):
     main(["--loglevel", "DEBUG"])
-    assert logging.root.level == 10
+    assert logging.root.level == logging.DEBUG
     assert logging.getLogger().getEffectiveLevel() == 10
     patched_controller.assert_has_calls(
         [call.get_instance(), call.get_instance().start()]
