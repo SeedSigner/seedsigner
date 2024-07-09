@@ -305,7 +305,7 @@ class Controller(Singleton):
                     self.psbt_parser = None
                     self.psbt_seed = None
                 
-                logger.info(f"back_stack: {self.back_stack}")
+                logger.info(f"\nback_stack: {self.back_stack}")
 
                 try:
                     # Instantiate the View class and run it
