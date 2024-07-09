@@ -4,7 +4,7 @@ from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
 
 
-
+# TODO: Cleanup: convert TAB spacing to SPACE
 class TestPSBTFlows(FlowTest):
 
 	def test_scan_psbt_first_then_correct_seedqr_flow(self):
