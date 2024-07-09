@@ -688,7 +688,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
 
 @dataclass
 class PSBTOpReturnScreen(ButtonListScreen):
-    op_return: str = None
+    op_return_data: bytes = None
 
     def __post_init__(self):
         # Customize defaults
@@ -699,7 +699,7 @@ class PSBTOpReturnScreen(ButtonListScreen):
         try:
             # Simple case: display human-readable text
             self.components.append(TextArea(
-                text=self.op_return.decode(errors="strict"),
+                text=self.op_return_data.decode(errors="strict"),  # "strict" is a good enough heuristic to decide if it's human readable
                 font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
                 is_text_centered=True,
                 allow_text_overflow=True,
@@ -713,7 +713,7 @@ class PSBTOpReturnScreen(ButtonListScreen):
             font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.BODY_FONT_SIZE)
             (left, top, right, bottom) = font.getbbox("X", anchor="ls")
             chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
-            decoded_str = self.op_return.hex()
+            decoded_str = self.op_return_data.hex()
             num_lines = math.ceil(len(decoded_str) / chars_per_line)
             text = ""
             for i in range(num_lines):

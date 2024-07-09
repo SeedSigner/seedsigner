@@ -140,7 +140,7 @@ def test_parse_op_return_content():
     psbt_parser = PSBTParser(p=tx, seed=seed, network=SettingsConstants.REGTEST)
 
     # Remember to do the comparison as bytes
-    assert psbt_parser.op_return == "Chancellor on the brink of third bailout".encode()
+    assert psbt_parser.op_return_data == "Chancellor on the brink of third bailout".encode()
 
     # PSBT is an internal self-spend to the its own receive addr, but the parser categorizes it as "change"
     assert psbt_parser.change_data == [

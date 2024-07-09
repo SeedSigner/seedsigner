@@ -138,7 +138,7 @@ class PSBTOverviewView(View):
             num_self_transfer_outputs=num_self_transfer_outputs,
             num_change_outputs=num_change_outputs,
             destination_addresses=psbt_parser.destination_addresses,
-            has_op_return=psbt_parser.op_return is not None,
+            has_op_return=psbt_parser.op_return_data is not None,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -277,7 +277,7 @@ class PSBTAddressDetailsView(View):
             # Move on to display change
             return Destination(PSBTChangeDetailsView, view_args={"change_address_num": 0})
 
-        elif psbt_parser.op_return:
+        elif psbt_parser.op_return_data:
             return Destination(PSBTOpReturnView)
 
         else:
@@ -421,7 +421,7 @@ class PSBTChangeDetailsView(View):
             if self.change_address_num < psbt_parser.num_change_outputs - 1:
                 return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
 
-            elif psbt_parser.op_return:
+            elif psbt_parser.op_return_data:
                 return Destination(PSBTOpReturnView)
 
             else:
@@ -481,7 +481,7 @@ class PSBTOpReturnView(View):
             PSBTOpReturnScreen,
             title=title,
             button_data=button_data,
-            op_return=psbt_parser.op_return,
+            op_return_data=psbt_parser.op_return_data,
         )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:
