@@ -358,7 +358,7 @@ class SeedAddPassphraseExitDialogView(View):
             WarningScreen,
             title="Discard passphrase?",
             status_headline=None,
-            text=f"Discard passphrase and go back?",
+            text=f"Your current passphrase entry will be erased",
             show_back_button=False,
             button_data=button_data,
         )
