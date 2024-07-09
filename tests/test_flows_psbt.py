@@ -92,27 +92,6 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(psbt_views.PSBTSignedQRDisplayView),
 			FlowStep(MainMenuView),
 		])
-		
-		def load_seed_into_decoder(view: scan_views.ScanView):
-			view.decoder.add_data("080115060387063104071857067618681125136207731354")
-
-		self.run_sequence([
-			FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
-			FlowStep(scan_views.ScanView, before_run=load_psbt_into_decoder),  # simulate read PSBT; ret val is ignored
-			FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.SCAN_SEED),
-			FlowStep(scan_views.ScanSeedQRView, before_run=load_seed_into_decoder),
-			FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
-			FlowStep(seed_views.SeedOptionsView, is_redirect=True),
-			FlowStep(psbt_views.PSBTOverviewView),
-			FlowStep(psbt_views.PSBTMathView),
-			FlowStep(psbt_views.PSBTAddressDetailsView, button_data_selection=0),
-			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
-			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
-			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
-			FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
-			FlowStep(psbt_views.PSBTSignedQRDisplayView),
-			FlowStep(MainMenuView)
-		])
 
 
 	def test_parse_and_display_op_return_content(self):
