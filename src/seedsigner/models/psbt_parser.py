@@ -262,21 +262,22 @@ class PSBTParser():
 
         # expected multisig
         script = None
-        if "p2wsh" in script_type and scope.witness_script is not None:
-            script = scope.witness_script
+        if script_type:
+            if "p2wsh" in script_type and scope.witness_script is not None:
+                script = scope.witness_script
 
-        elif "p2sh" in script_type and scope.redeem_script is not None:
-            script = scope.redeem_script
+            elif "p2sh" in script_type and scope.redeem_script is not None:
+                script = scope.redeem_script
 
-        if script is not None:
-            m, n, pubkeys = PSBTParser._parse_multisig(script)
-        
-            # check pubkeys are derived from cosigners
-            try:
-                cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
-                policy.update({"m": m, "n": n, "cosigners": cosigners})
-            except:
-                policy.update({"m": m, "n": n})
+            if script is not None:
+                m, n, pubkeys = PSBTParser._parse_multisig(script)
+            
+                # check pubkeys are derived from cosigners
+                try:
+                    cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
+                    policy.update({"m": m, "n": n, "cosigners": cosigners})
+                except:
+                    policy.update({"m": m, "n": n})
         
         return policy
 
