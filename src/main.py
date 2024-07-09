@@ -35,7 +35,7 @@ def main(sys_argv=None):
     root_logger.setLevel(logging.getLevelName(args.loglevel))
     console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setFormatter(
-        logging.Formatter("%(asctime)s.%(msecs)03d %(levelname)s:\t%(message)s")
+        logging.Formatter("%(asctime)s %(levelname)8s [%(name)s %(funcName)s (%(lineno)d)]: %(message)s")
     )
     root_logger.addHandler(console_handler)
 
