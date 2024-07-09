@@ -323,17 +323,20 @@ class SeedAddPassphraseView(View):
 
 
     def run(self):
-        ret_passphrase, ret_btn = self.run_screen(seed_screens.SeedAddPassphraseScreen, passphrase=self.seed.passphrase)
+        ret_dict = self.run_screen(seed_screens.SeedAddPassphraseScreen, passphrase=self.seed.passphrase)
 
         # The new passphrase will be the return value; it might be empty.
-        self.seed.set_passphrase(ret_passphrase)
-        if ret_btn == RET_CODE__BACK_BUTTON:
+        self.seed.set_passphrase(ret_dict["passphrase"])
+
+        if "is_back_button" in ret_dict:
             if len(self.seed.passphrase) > 0:
                 return Destination(SeedAddPassphraseExitDialogView)
             else:
                 return Destination(BackStackView)
+            
         elif len(self.seed.passphrase) > 0:
             return Destination(SeedReviewPassphraseView)
+        
         else:
             return Destination(SeedFinalizeView)
 
