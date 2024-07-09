@@ -37,4 +37,4 @@ def test_main__argparse__invalid_arg():
 def test_main__logging__writes_to_stderr(patched_controller, capsys):
     main([])
     _, err = capsys.readouterr()
-    assert "INFO:	Starting Seedsigner with: {'loglevel': 'INFO'}" in err
+    assert "     INFO [main main (46)]: Starting Seedsigner with: {'loglevel': 'INFO'}" in err
