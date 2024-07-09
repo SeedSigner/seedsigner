@@ -359,8 +359,6 @@ class Controller(Singleton):
                     self.back_stack.append(next_destination)
                 else:
                     logger.info(f"NOT appending {next_destination}")
-                
-                logger.info("-" * 30)
 
         finally:
             from seedsigner.gui.renderer import Renderer
