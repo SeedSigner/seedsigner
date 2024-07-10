@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 from PIL import Image, ImageDraw, ImageFilter
 from typing import List
 import time
@@ -21,6 +22,7 @@ class PSBTOverviewScreen(ButtonListScreen):
     num_self_transfer_outputs: int = 0
     num_change_outputs: int = 0
     destination_addresses: List[str] = None
+    has_op_return: bool = False
     
 
     def __post_init__(self):
@@ -142,6 +144,9 @@ class PSBTOverviewScreen(ButtonListScreen):
                 destination_column.append(f"recipient {len(self.destination_addresses) + self.num_self_transfer_outputs}")
 
             destination_column.append(f"fee")
+
+            if self.has_op_return:
+                destination_column.append("OP_RETURN")
 
             if self.num_change_outputs > 0:
                 for i in range(0, self.num_change_outputs):
@@ -677,6 +682,57 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
                 is_text_centered=False,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+            ))
+
+
+
+@dataclass
+class PSBTOpReturnScreen(ButtonListScreen):
+    op_return_data: bytes = None
+
+    def __post_init__(self):
+        # Customize defaults
+        self.is_bottom_list = True
+
+        super().__post_init__()
+
+        try:
+            # Simple case: display human-readable text
+            self.components.append(TextArea(
+                text=self.op_return_data.decode(errors="strict"),  # "strict" is a good enough heuristic to decide if it's human readable
+                font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
+                is_text_centered=True,
+                allow_text_overflow=True,
+                screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+                height=self.buttons[0].screen_y - self.top_nav.height - 2*GUIConstants.COMPONENT_PADDING,
+            ))
+            return
+        except UnicodeDecodeError:
+            # Contains data that can't be converted to UTF-8; probably encoded and not
+            # meant to be human readable.
+            font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.BODY_FONT_SIZE)
+            (left, top, right, bottom) = font.getbbox("X", anchor="ls")
+            chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
+            decoded_str = self.op_return_data.hex()
+            num_lines = math.ceil(len(decoded_str) / chars_per_line)
+            text = ""
+            for i in range(num_lines):
+                text += (decoded_str[i*chars_per_line:(i+1)*chars_per_line]) + "\n"
+            text = text[:-1]
+
+            label = TextArea(
+                text="raw hex data",
+                font_color=GUIConstants.LABEL_FONT_COLOR,
+                font_size=GUIConstants.LABEL_FONT_SIZE,
+                screen_y=self.top_nav.height,
+            )
+            self.components.append(label)
+
+            self.components.append(TextArea(
+                text=text,
+                font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
+                font_size=GUIConstants.BODY_FONT_SIZE,
+                screen_y=label.screen_y + label.height + GUIConstants.COMPONENT_PADDING,
             ))
 
 
