@@ -2,7 +2,8 @@ from PIL import Image, ImageDraw
 from threading import Lock
 
 from seedsigner.gui.components import Fonts, GUIConstants
-from seedsigner.hardware.ST7789 import ST7789
+#from seedsigner.hardware.ST7789 import ST7789
+from seedsigner.emulator.desktopDisplay import desktopDisplay
 from seedsigner.models.singleton import ConfigurableSingleton
 
 
@@ -24,7 +25,8 @@ class Renderer(ConfigurableSingleton):
         cls._instance = renderer
 
         # Eventually we'll be able to plug in other display controllers
-        renderer.disp = ST7789()
+        #renderer.disp = ST7789()
+        renderer.disp = desktopDisplay()
         renderer.canvas_width = renderer.disp.width
         renderer.canvas_height = renderer.disp.height
 
