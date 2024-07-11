@@ -17,6 +17,7 @@ class PSBTSelectSeedView(View):
     SCAN_SEED = ("Scan a seed", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_ELECTRUM = ("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
 
 
     def run(self):
@@ -44,6 +45,8 @@ class PSBTSelectSeedView(View):
         button_data.append(self.SCAN_SEED)
         button_data.append(self.TYPE_12WORD)
         button_data.append(self.TYPE_24WORD)
+        if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.TYPE_ELECTRUM)
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -73,6 +76,18 @@ class PSBTSelectSeedView(View):
                 self.controller.storage.init_pending_mnemonic(num_words=12)
             else:
                 self.controller.storage.init_pending_mnemonic(num_words=24)
+            return Destination(SeedMnemonicEntryView)
+
+        elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
+            self.run_screen(
+                    WarningScreen,
+                    title="Electrum warning",
+                    status_headline=None,
+                    text=f"Some features disabled for Electrum seeds",
+                    show_back_button=False,
+            )
+            from seedsigner.views.seed_views import SeedMnemonicEntryView
+            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
             return Destination(SeedMnemonicEntryView)
 
 
