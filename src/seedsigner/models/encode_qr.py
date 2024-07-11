@@ -85,16 +85,15 @@ class BaseStaticQrEncoder(BaseQrEncoder):
 
 @dataclass
 class SeedQrEncoder(BaseStaticQrEncoder):
-    mnemonic: List[str] = None
-    wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
+    seed : Seed = None
 
     def __post_init__(self):
-        self.wordlist = Seed.get_wordlist(self.wordlist_language_code)
+        self.wordlist = Seed.get_wordlist(self.seed.wordlist_language_code)
         super().__post_init__()
 
         self.data = ""
         # Output as Numeric data format
-        for word in self.mnemonic:
+        for word in self.seed.mnemonic_list:
             index = self.wordlist.index(word)
             self.data += str("%04d" % index)
     
@@ -109,18 +108,18 @@ class CompactSeedQrEncoder(SeedQrEncoder):
     def next_part(self):
         # Output as binary data format
         binary_str = ""
-        for word in self.mnemonic:
+        for word in self.seed.mnemonic_list:
             index = self.wordlist.index(word)
 
             # Convert index to binary, strip out '0b' prefix; zero-pad to 11 bits
             binary_str += bin(index).split('b')[1].zfill(11)
 
         # We can exclude the checksum bits at the end
-        if len(self.mnemonic) == 24:
+        if len(self.seed.mnemonic_list) == 24:
             # 8 checksum bits in a 24-word seed
             binary_str = binary_str[:-8]
 
-        elif len(self.mnemonic) == 12:
+        elif len(self.seed.mnemonic_list) == 12:
             # 4 checksum bits in a 12-word seed
             binary_str = binary_str[:-4]
 
@@ -149,22 +148,14 @@ class BaseXpubQrEncoder(BaseQrEncoder):
     """
     Base Xpub QrEncoder for static and animated formats
     """
-    mnemonic: list = None
-    passphrase: str = None
+    seed: Seed = None
     derivation: str = None
     network: str = SettingsConstants.MAINNET
-    wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
+    sig_type : str = None
 
     def prep_xpub(self):
-        self.wordlist = Seed.get_wordlist(self.wordlist_language_code)
-
-        if self.wordlist == None:
-            raise Exception('Wordlist Required')
             
-        version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
-        self.seed = Seed(mnemonic=self.mnemonic,
-                         passphrase=self.passphrase,
-                         wordlist_language_code=self.wordlist_language_code)
+        version = self.seed.detect_version(self.derivation, self.network, self.sig_type)
         self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(self.network)]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
         self.xprv = self.root.derive(self.derivation)

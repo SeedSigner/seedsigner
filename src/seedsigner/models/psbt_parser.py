@@ -10,6 +10,11 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
 
+class OPCODES:
+    OP_RETURN = 106
+    OP_PUSHDATA1 = 76
+
+
 
 class PSBTParser():
     def __init__(self, p: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET):
@@ -26,6 +31,7 @@ class PSBTParser():
         self.num_inputs = 0
         self.destination_addresses = []
         self.destination_amounts = []
+        self.op_return_data: bytes = None
 
         self.root = None
 
@@ -169,7 +175,11 @@ class PSBTParser():
                 if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
                     is_change = True
 
-            if is_change:
+            if self.psbt.tx.vout[i].script_pubkey.data[0] == OPCODES.OP_RETURN:
+                # The data is written as: OP_RETURN + OP_PUSHDATA1 + len(payload) + payload
+                self.op_return_data = self.psbt.tx.vout[i].script_pubkey.data[3:]
+
+            elif is_change:
                 addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
                 fingerprints = []
                 derivation_paths = []
@@ -252,21 +262,22 @@ class PSBTParser():
 
         # expected multisig
         script = None
-        if "p2wsh" in script_type and scope.witness_script is not None:
-            script = scope.witness_script
+        if script_type:
+            if "p2wsh" in script_type and scope.witness_script is not None:
+                script = scope.witness_script
 
-        elif "p2sh" in script_type and scope.redeem_script is not None:
-            script = scope.redeem_script
+            elif "p2sh" in script_type and scope.redeem_script is not None:
+                script = scope.redeem_script
 
-        if script is not None:
-            m, n, pubkeys = PSBTParser._parse_multisig(script)
-        
-            # check pubkeys are derived from cosigners
-            try:
-                cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
-                policy.update({"m": m, "n": n, "cosigners": cosigners})
-            except:
-                policy.update({"m": m, "n": n})
+            if script is not None:
+                m, n, pubkeys = PSBTParser._parse_multisig(script)
+            
+                # check pubkeys are derived from cosigners
+                try:
+                    cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
+                    policy.update({"m": m, "n": n, "cosigners": cosigners})
+                except:
+                    policy.update({"m": m, "n": n})
         
         return policy
 
