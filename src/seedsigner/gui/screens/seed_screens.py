@@ -1513,6 +1513,8 @@ class SeedSignMessageConfirmMessageScreen(ButtonListScreen):
         end_y = renderer.canvas_height - GUIConstants.EDGE_PADDING - GUIConstants.BUTTON_HEIGHT - GUIConstants.COMPONENT_PADDING
         message_height = end_y - start_y
 
+        # TODO: Pass the full message in from the View so that this Screen doesn't need to
+        # interact with the Controller here.
         self.sign_message_data = Controller.get_instance().sign_message_data
         if "paged_message" not in self.sign_message_data:
             paged = reflow_text_into_pages(

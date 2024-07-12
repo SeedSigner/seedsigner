@@ -160,6 +160,7 @@ class SettingsConstants:
     SETTING__CAMERA_ROTATION = "camera_rotation"
     SETTING__COMPACT_SEEDQR = "compact_seedqr"
     SETTING__BIP85_CHILD_SEEDS = "bip85_child_seeds"
+    SETTING__ELECTRUM_SEEDS = "electrum_seeds"
     SETTING__MESSAGE_SIGNING = "message_signing"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
@@ -198,6 +199,15 @@ class SettingsConstants:
         TYPE__ENABLED_DISABLED_PROMPT_REQUIRED,
     ]
 
+    # Electrum seed constants
+    ELECTRUM_SEED_STANDARD = "01"
+    ELECTRUM_SEED_SEGWIT = "100"
+    ELECTRUM_SEED_2FA = "101"
+    ELECTRUM_PBKDF2_ROUNDS=2048
+
+    # Label strings
+    LABEL__BIP39_PASSPHRASE = "BIP-39 Passphrase"
+    LABEL__CUSTOM_EXTENSION = "Custom Extension"
 
 @dataclass
 class SettingsEntry:
@@ -455,6 +465,13 @@ class SettingsDefinition:
                       attr_name=SettingsConstants.SETTING__BIP85_CHILD_SEEDS,
                       abbreviated_name="bip85",
                       display_name="BIP-85 child seeds",
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__DISABLED),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__ELECTRUM_SEEDS,
+                      abbreviated_name="Electrum",
+                      display_name="Electrum seed support (Native Segwit only)",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__DISABLED),
 

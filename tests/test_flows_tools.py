@@ -64,7 +64,7 @@ class TestToolsFlows(FlowTest):
         # Finalize the new seed w/passphrase
         self.run_sequence(
             sequence=[
-                FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
+                FlowStep(seed_views.SeedFinalizeView, button_data_selection=SettingsConstants.LABEL__BIP39_PASSPHRASE),
                 FlowStep(seed_views.SeedAddPassphraseView, screen_return_value="mypassphrase"),
                 FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
                 FlowStep(seed_views.SeedOptionsView, is_redirect=True),
