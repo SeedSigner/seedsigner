@@ -118,8 +118,8 @@ class SettingsConstants:
     CUSTOM_DERIVATION = "cus"
     ALL_SCRIPT_TYPES = [
         (NATIVE_SEGWIT, "Native Segwit"),
-        (NESTED_SEGWIT, "Nested Segwit (legacy)"),
-        (LEGACY_P2PKH, "Legacy P2PKH"),
+        (NESTED_SEGWIT, "Nested Segwit"),
+        (LEGACY_P2PKH, "Legacy"),
         (TAPROOT, "Taproot"),
         (CUSTOM_DERIVATION, "Custom Derivation"),
     ]
