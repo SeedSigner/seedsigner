@@ -209,6 +209,8 @@ class SettingsConstants:
     LABEL__BIP39_PASSPHRASE = "BIP-39 Passphrase"
     LABEL__CUSTOM_EXTENSION = "Custom Extension"
 
+
+
 @dataclass
 class SettingsEntry:
     """

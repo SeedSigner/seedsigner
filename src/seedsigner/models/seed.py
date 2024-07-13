@@ -42,7 +42,7 @@ class Seed:
             raise Exception(f"Unrecognized wordlist_language_code {wordlist_language_code}")
 
 
-    def _generate_seed(self) -> bool:
+    def _generate_seed(self):
         try:
             self.seed_bytes = bip39.mnemonic_to_seed(self.mnemonic_str, password=self._passphrase, wordlist=self.wordlist)
         except Exception as e:
@@ -63,6 +63,7 @@ class Seed:
     @property 
     def wordlist_language_code(self) -> str:
         return self._wordlist_language_code
+
 
     @property
     def mnemonic_display_str(self) -> str:
@@ -106,28 +107,35 @@ class Seed:
         # TODO: Support other BIP-39 wordlist languages!
         raise Exception("Not yet implemented!")
 
+
     @property
     def script_override(self) -> list:
         return None
-    
+
+
     def derivation_override(self, wallet_type: str  = SettingsConstants.SINGLE_SIG) -> str:
         return None
+
 
     def detect_version(self, derivation_path: str, network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG) -> str:
         embit_network = NETWORKS[SettingsConstants.map_network_to_embit(network)]
         return bip32.detect_version(derivation_path, default="xpub", network=embit_network)
 
+
     @property
     def passphrase_label(self) -> str:
         return SettingsConstants.LABEL__BIP39_PASSPHRASE
+
 
     @property
     def seedqr_supported(self) -> bool:
         return True
 
+
     @property
     def bip85_supported(self) -> bool:
         return True
+
 
     def get_fingerprint(self, network: str = SettingsConstants.MAINNET) -> str:
         root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
@@ -158,19 +166,20 @@ class Seed:
 
 class ElectrumSeed(Seed):
 
-
-    def _generate_seed(self) -> bool:
+    def _generate_seed(self):
         if len(self._mnemonic) != 12:
-            return False
+            raise InvalidSeedException(f"Unsupported Electrum seed length: {len(self._mnemonic)}")
+
         s = hmac.digest(b"Seed version", self.mnemonic_str.encode('utf8'), hashlib.sha512).hex()
         prefix = s[0:3]
+
         # only support Electrum Segwit version for now
         if SettingsConstants.ELECTRUM_SEED_SEGWIT == prefix:
             self.seed_bytes=hashlib.pbkdf2_hmac('sha512', self.mnemonic_str.encode('utf-8'), b'electrum' + self._passphrase.encode('utf-8'), iterations = SettingsConstants.ELECTRUM_PBKDF2_ROUNDS)
-            return True
+
         else:
-            raise InvalidSeedException("Unsupported electrum seed input")
-            return False
+            raise InvalidSeedException(f"Unsupported Electrum seed format: {prefix}")
+
 
     def set_passphrase(self, passphrase: str, regenerate_seed: bool = True):
         if passphrase:
@@ -184,6 +193,7 @@ class ElectrumSeed(Seed):
             # Regenerate the internal seed since passphrase changes the result
             self._generate_seed()
 
+
     @staticmethod
     def normalize_electrum_passphrase(passphrase : str) -> str:
         passphrase = unicodedata.normalize('NFKD', passphrase)
@@ -193,24 +203,30 @@ class ElectrumSeed(Seed):
         passphrase = u' '.join(passphrase.split())
         return passphrase
 
+
     @property
     def script_override(self) -> list:
             return [SettingsConstants.NATIVE_SEGWIT]
 
+
     def derivation_override(self, wallet_type: str = SettingsConstants.SINGLE_SIG) -> str:
         return "m/0h" if SettingsConstants.SINGLE_SIG == wallet_type else "m/1h"
+
 
     def detect_version(self, derivation_path: str, network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG) -> str:
         embit_network = NETWORKS[SettingsConstants.map_network_to_embit(network)]
         return embit_network["zpub"] if SettingsConstants.SINGLE_SIG == wallet_type else embit_network["Zpub"]
 
+
     @property
     def passphrase_label(self) -> str:
         return SettingsConstants.LABEL__CUSTOM_EXTENSION
 
+
     @property
     def seedqr_supported(self) -> bool:
         return False
+
 
     @property
     def bip85_supported(self) -> bool:

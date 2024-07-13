@@ -620,6 +620,7 @@ class SeedBackupView(View):
 
     def run(self):
         button_data = [self.VIEW_WORDS]
+
         if self.seed.seedqr_supported:
             button_data.append(self.EXPORT_SEEDQR)
 
