@@ -134,6 +134,16 @@ def test_generate_screenshots(target_locale):
     # Automatically populate all Settings options Views
     settings_views_list = []
     settings_views_list.append(settings_views.SettingsMenuView)
+    settings_views_list.append((
+        settings_views.SettingsMenuView,
+        dict(
+            visibility=SettingsConstants.VISIBILITY__ADVANCED,
+            selected_attr=SettingsConstants.SETTING__ELECTRUM_SEEDS,
+            initial_scroll=240,  # Just guessing how many pixels to scroll down
+        ),
+        "SettingsMenuView__Advanced"
+    ))
+
     # so we get a choice for transcribe seed qr format
     controller.settings.set_value(
         attr_name=SettingsConstants.SETTING__COMPACT_SEEDQR,
