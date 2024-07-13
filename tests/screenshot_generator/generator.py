@@ -215,6 +215,8 @@ def test_generate_screenshots(target_locale):
 
             seed_views.SeedSignMessageConfirmMessageView,
             seed_views.SeedSignMessageConfirmAddressView,
+
+            seed_views.SeedElectrumMnemonicStartView,
         ],
         "PSBT Views": [
             psbt_views.PSBTSelectSeedView, # this will fail, be rerun below

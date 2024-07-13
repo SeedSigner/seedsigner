@@ -119,6 +119,7 @@ class SeedSelectSeedView(View):
         button_data.append(self.SCAN_SEED)
         button_data.append(self.TYPE_12WORD)
         button_data.append(self.TYPE_24WORD)
+
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
 
@@ -158,17 +159,7 @@ class SeedSelectSeedView(View):
             return Destination(SeedMnemonicEntryView)
 
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
-            self.run_screen(
-                    WarningScreen,
-                    title="Electrum warning",
-                    status_headline=None,
-                    text=f"Some features disabled for Electrum seeds",
-                    show_back_button=False,
-            )
-
-            from seedsigner.views.seed_views import SeedMnemonicEntryView
-            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
-            return Destination(SeedMnemonicEntryView)
+            return Destination(SeedElectrumMnemonicStartView)
 
 
 
@@ -187,10 +178,12 @@ class LoadSeedView(View):
             self.SEED_QR,
             self.TYPE_12WORD,
             self.TYPE_24WORD,
-            self.CREATE,
         ]
+
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
-            button_data.insert(len(button_data)-1, self.TYPE_ELECTRUM)
+            button_data.append(self.TYPE_ELECTRUM)
+        
+        button_data.append(self.CREATE)
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -215,15 +208,7 @@ class LoadSeedView(View):
             return Destination(SeedMnemonicEntryView)
 
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
-            self.run_screen(
-                    WarningScreen,
-                    title="Electrum warning",
-                    status_headline=None,
-                    text=f"Some features disabled for Electrum seeds",
-                    show_back_button=False,
-            )
-            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
-            return Destination(SeedMnemonicEntryView)
+            return Destination(SeedElectrumMnemonicStartView)
 
         elif button_data[selected_menu_num] == self.CREATE:
             from .tools_views import ToolsMenuView
@@ -486,6 +471,27 @@ class SeedDiscardView(View):
             else:
                 self.controller.storage.clear_pending_seed()
             return Destination(MainMenuView, clear_history=True)
+
+
+
+class SeedElectrumMnemonicStartView(View):
+    """
+    Currently just a warning display before entering an Electrum seed.
+    
+    Could be expanded with a follow-up View to specify Electrum seed type.
+    """
+    def run(self):
+        self.run_screen(
+                WarningScreen,
+                title="Electrum warning",
+                status_headline=None,
+                text=f"Some features are disabled for Electrum seeds.",
+                show_back_button=False,
+        )
+
+        self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
+
+        return Destination(SeedMnemonicEntryView)
 
 
 
@@ -1456,7 +1462,8 @@ class SeedTranscribeSeedQRWholeQRView(View):
     
 
     def run(self):
-        encoder_args = dict(seed=self.seed)
+        encoder_args = dict(mnemonic=self.seed.mnemonic_list,
+                            wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
         if self.seedqr_format == QRType.SEED__SEEDQR:
             e = SeedQrEncoder(**encoder_args)
         elif self.seedqr_format == QRType.SEED__COMPACTSEEDQR:
@@ -1492,7 +1499,8 @@ class SeedTranscribeSeedQRZoomedInView(View):
     
 
     def run(self):
-        encoder_args = dict(seed=self.seed)
+        encoder_args = dict(mnemonic=self.seed.mnemonic_list,
+                            wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
         if self.seedqr_format == QRType.SEED__SEEDQR:
             e = SeedQrEncoder(**encoder_args)
         elif self.seedqr_format == QRType.SEED__COMPACTSEEDQR:

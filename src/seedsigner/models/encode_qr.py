@@ -85,15 +85,17 @@ class BaseStaticQrEncoder(BaseQrEncoder):
 
 @dataclass
 class SeedQrEncoder(BaseStaticQrEncoder):
-    seed : Seed = None
+    mnemonic: List[str] = None
+    wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
+
 
     def __post_init__(self):
-        self.wordlist = Seed.get_wordlist(self.seed.wordlist_language_code)
+        self.wordlist = Seed.get_wordlist(self.wordlist_language_code)
         super().__post_init__()
 
         self.data = ""
         # Output as Numeric data format
-        for word in self.seed.mnemonic_list:
+        for word in self.mnemonic:
             index = self.wordlist.index(word)
             self.data += str("%04d" % index)
     
@@ -108,18 +110,18 @@ class CompactSeedQrEncoder(SeedQrEncoder):
     def next_part(self):
         # Output as binary data format
         binary_str = ""
-        for word in self.seed.mnemonic_list:
+        for word in self.mnemonic:
             index = self.wordlist.index(word)
 
             # Convert index to binary, strip out '0b' prefix; zero-pad to 11 bits
             binary_str += bin(index).split('b')[1].zfill(11)
 
         # We can exclude the checksum bits at the end
-        if len(self.seed.mnemonic_list) == 24:
+        if len(self.mnemonic) == 24:
             # 8 checksum bits in a 24-word seed
             binary_str = binary_str[:-8]
 
-        elif len(self.seed.mnemonic_list) == 12:
+        elif len(self.mnemonic) == 12:
             # 4 checksum bits in a 12-word seed
             binary_str = binary_str[:-4]
 

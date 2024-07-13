@@ -25,19 +25,18 @@ def test_ur_psbt_qr_encode():
 def test_seedsigner_qr():
     # test vector 1 from the SeedQR docs
     mnemonic = "attack pizza motion avocado network gather crop fresh patrol unusual wild holiday candy pony ranch winter theme error hybrid van cereal salon goddess expire".split()
-    e = SeedQrEncoder(seed=Seed(mnemonic))
+    e = SeedQrEncoder(mnemonic=mnemonic)
     assert e.next_part() == "011513251154012711900771041507421289190620080870026613431420201617920614089619290300152408010643"
 
-    e = CompactSeedQrEncoder(seed=Seed(mnemonic))
+    e = CompactSeedQrEncoder(mnemonic=mnemonic)
     assert e.next_part() == b'\x0et\xb6A\x07\xf9L\xc0\xcc\xfa\xe6\xa1=\xcb\xec6b\x15O\xecg\xe0\xe0\t\x99\xc0x\x92Y}\x19\n'
 
     # test vector 4 from the SeedQR docs
     mnemonic="forum undo fragile fade shy sign arrest garment culture tube off merit".split()
-    seed = Seed(mnemonic)
-    e = SeedQrEncoder(seed=seed)
+    e = SeedQrEncoder(mnemonic=mnemonic)
     assert e.next_part() == "073318950739065415961602009907670428187212261116"
 
-    e = CompactSeedQrEncoder(seed=seed)
+    e = CompactSeedQrEncoder(mnemonic=mnemonic)
     assert e.next_part() == b'[\xbd\x9dq\xa8\xecy\x90\x83\x1a\xff5\x9dBeE'
 
 
