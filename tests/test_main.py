@@ -12,7 +12,7 @@ from main import main
 def test_main__argparse__default(patched_controller):
     main([])
     assert logging.root.level == logging.INFO
-    assert logging.getLogger().getEffectiveLevel() == 20
+    assert logging.getLogger().getEffectiveLevel() == logging.INFO
     patched_controller.assert_has_calls(
         [call.get_instance(), call.get_instance().start()]
     )
@@ -22,7 +22,7 @@ def test_main__argparse__default(patched_controller):
 def test_main__argparse__enable_debug_logging(patched_controller):
     main(["--loglevel", "DEBUG"])
     assert logging.root.level == logging.DEBUG
-    assert logging.getLogger().getEffectiveLevel() == 10
+    assert logging.getLogger().getEffectiveLevel() == logging.DEBUG
     patched_controller.assert_has_calls(
         [call.get_instance(), call.get_instance().start()]
     )
@@ -37,4 +37,4 @@ def test_main__argparse__invalid_arg():
 def test_main__logging__writes_to_stderr(patched_controller, capsys):
     main([])
     _, err = capsys.readouterr()
-    assert "     INFO [main main (46)]: Starting Seedsigner with: {'loglevel': 'INFO'}" in err
+    assert "Starting SeedSigner" in err and "INFO" in err

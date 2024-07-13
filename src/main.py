@@ -43,7 +43,7 @@ def main(sys_argv=None):
     for module, level in DEFAULT_MODULE_LOG_LEVELS.items():
         logging.getLogger(module).setLevel(level)
 
-    logger.info(f"Starting Seedsigner with: {args.__dict__}")
+    logger.info(f"Starting SeedSigner with: {args.__dict__}")
 
     # Get the one and only Controller instance and start our main loop
     Controller.get_instance().start()
