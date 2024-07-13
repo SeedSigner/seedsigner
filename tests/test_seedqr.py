@@ -19,7 +19,6 @@ def run_encode_decode_test(entropy: bytes, mnemonic_length, qr_type):
         e = CompactSeedQrEncoder(mnemonic=mnemonic)
 
     data = e.next_part()
-    print(data)
 
     qr = QR()
     image = qr.qrimage(
