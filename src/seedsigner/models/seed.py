@@ -109,15 +109,15 @@ class Seed:
 
 
     @property
-    def script_override(self) -> list:
+    def script_override(self) -> str:
         return None
 
 
-    def derivation_override(self, wallet_type: str  = SettingsConstants.SINGLE_SIG) -> str:
+    def derivation_override(self, sig_type: str = SettingsConstants.SINGLE_SIG) -> str:
         return None
 
 
-    def detect_version(self, derivation_path: str, network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG) -> str:
+    def detect_version(self, derivation_path: str, network: str = SettingsConstants.MAINNET, sig_type: str = SettingsConstants.SINGLE_SIG) -> str:
         embit_network = NETWORKS[SettingsConstants.map_network_to_embit(network)]
         return bip32.detect_version(derivation_path, default="xpub", network=embit_network)
 
@@ -205,17 +205,17 @@ class ElectrumSeed(Seed):
 
 
     @property
-    def script_override(self) -> list:
-            return [SettingsConstants.NATIVE_SEGWIT]
+    def script_override(self) -> str:
+        return SettingsConstants.NATIVE_SEGWIT
 
 
-    def derivation_override(self, wallet_type: str = SettingsConstants.SINGLE_SIG) -> str:
-        return "m/0h" if SettingsConstants.SINGLE_SIG == wallet_type else "m/1h"
+    def derivation_override(self, sig_type: str = SettingsConstants.SINGLE_SIG) -> str:
+        return "m/0h" if sig_type == SettingsConstants.SINGLE_SIG else "m/1h"
 
 
-    def detect_version(self, derivation_path: str, network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG) -> str:
+    def detect_version(self, derivation_path: str, network: str = SettingsConstants.MAINNET, sig_type: str = SettingsConstants.SINGLE_SIG) -> str:
         embit_network = NETWORKS[SettingsConstants.map_network_to_embit(network)]
-        return embit_network["zpub"] if SettingsConstants.SINGLE_SIG == wallet_type else embit_network["Zpub"]
+        return embit_network["zpub"] if sig_type == SettingsConstants.SINGLE_SIG else embit_network["Zpub"]
 
 
     @property

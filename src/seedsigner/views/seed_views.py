@@ -688,8 +688,16 @@ class SeedExportXpubScriptTypeView(View):
     def run(self):
         from .tools_views import ToolsAddressExplorerAddressTypeView
         args = {"seed_num": self.seed_num, "sig_type": self.sig_type}
+
+        script_types = self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)
+
         seed = self.controller.storage.seeds[self.seed_num]
-        script_types = seed.script_override if seed.script_override else self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)
+        if seed.script_override:
+            # This seed only allows one script type
+            # TODO: Does it matter if the Settings don't have the override script type
+            # enabled?
+            script_types = [seed.script_override]
+
         if len(script_types) == 1:
             # Nothing to select; skip this screen
             args["script_type"] = script_types[0]
@@ -1729,7 +1737,7 @@ class SeedAddressVerificationView(View):
                 raise Exception("Can't validate a single sig addr without specifying a seed")
             self.seed_num = seed_num
             self.seed = self.controller.get_seed(seed_num)
-            self.seed_derivation_override = self.seed.derivation_override(wallet_type=SettingsConstants.SINGLE_SIG)
+            self.seed_derivation_override = self.seed.derivation_override(sig_type=SettingsConstants.SINGLE_SIG)
         else:
             self.seed = None
         self.address = self.controller.unverified_address["address"]

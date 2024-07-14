@@ -3,11 +3,11 @@ import pytest
 
 # Must import test base before the Controller
 from base import BaseTest, FlowTest, FlowStep
-from base import FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDataSelectionException
+from base import FlowTestInvalidButtonDataSelectionException
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models.settings import Settings, SettingsConstants
-from seedsigner.models.seed import Seed
+from seedsigner.models.seed import ElectrumSeed, Seed
 from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView, NotYetImplementedView
 from seedsigner.views import seed_views, scan_views, settings_views, tools_views
 
@@ -243,15 +243,15 @@ class TestSeedFlows(FlowTest):
         self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [x for x,y in script_types if x!=disabled_script])
         self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x,y in coordinators if x!=disabled_coord])
 
-        # test that multisig is not an option via exception raised when redirected to next step instead of having a choice
-        with pytest.raises(FlowTestRunScreenNotExecutedException) as e:
-            self.run_sequence(
-                initial_destination_view_args=dict(seed_num=0),
-                sequence=[
-                    FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
-                    FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=disabled_sig),
-                ]
-            )
+        # If multisig isn't an option, then the sig type selection is skipped altogether
+        self.run_sequence(
+            initial_destination_view_args=dict(seed_num=0),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView),
+            ]
+        )
 
         # test that taproot is not an option via exception raised when choice is taproot
         with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
@@ -337,6 +337,37 @@ class TestSeedFlows(FlowTest):
                 FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
                 FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
                 FlowStep(seed_views.SeedExportXpubCoordinatorView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
+                FlowStep(MainMenuView),
+            ]
+        )
+
+
+    def test_export_xpub_electrum_seed_flow(self):
+        """
+            Electrum seeds should skip script type selection
+        """            
+        # Load a finalized Seed into the Controller
+        self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
+        self.controller.storage.set_pending_seed(ElectrumSeed("regular reject rare profit once math fringe chase until ketchup century escape".split()))
+        self.controller.storage.finalize_pending_seed()
+
+        # Make sure all options are enabled
+        self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [x for x,y in SettingsConstants.ALL_SIG_TYPES])
+        self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [x for x,y in SettingsConstants.ALL_SCRIPT_TYPES])
+        self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x,y in SettingsConstants.ALL_COORDINATORS])
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed_num=0),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.SINGLE_SIG),
+
+                # Skips past the script type options via redirect
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[0]),
                 FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
