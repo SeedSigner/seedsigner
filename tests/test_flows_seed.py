@@ -8,8 +8,8 @@ from base import FlowTestInvalidButtonDataSelectionException
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import ElectrumSeed, Seed
-from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView, NotYetImplementedView
-from seedsigner.views import seed_views, scan_views, settings_views, tools_views
+from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
+from seedsigner.views import seed_views, scan_views, settings_views
 
 
 def load_seed_into_decoder(view: scan_views.ScanView):
