@@ -207,7 +207,7 @@ class SettingsConstants:
 
     # Label strings
     LABEL__BIP39_PASSPHRASE = "BIP-39 Passphrase"
-    LABEL__CUSTOM_EXTENSION = "Custom Extension"
+    LABEL__CUSTOM_EXTENSION = "Custom Extension"   # Terminology used by Electrum seeds
 
 
 
