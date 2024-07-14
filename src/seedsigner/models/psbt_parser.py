@@ -266,7 +266,7 @@ class PSBTParser():
             if "p2wsh" in script_type and scope.witness_script is not None:
                 script = scope.witness_script
 
-            elif "p2sh" in script_type and scope.redeem_script is not None:
+            elif "p2sh" == script_type and scope.redeem_script is not None:
                 script = scope.redeem_script
 
             if script is not None:
