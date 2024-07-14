@@ -149,7 +149,7 @@ class TestSeedFlows(FlowTest):
                 if custom_extension:
                     sequence += [
                         FlowStep(seed_views.SeedFinalizeView, screen_return_value=1),  # The passphrase / custom extension button is dynamic so there's no constant to refer to here
-                        FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=custom_extension),
+                        FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase=custom_extension)),  # This is a one-off oddity where the Screen returns dict instead of int | str
                         FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
                         FlowStep(seed_views.SeedOptionsView),
                     ]
