@@ -176,6 +176,7 @@ class FlowTest(BaseTest):
                 def run_view(destination: Destination, *args, **kwargs):
                     """ Replaces Destination._run_view() """
                     if len(sequence) == 0:
+                        # Nothing left to do.
                         self.stop_test()
 
                     cur_flow_step = sequence[0]
@@ -184,6 +185,13 @@ class FlowTest(BaseTest):
                     # View class that is being run.
                     if destination.View_cls != cur_flow_step.expected_view:
                         raise FlowTestUnexpectedViewException(f"Expected {cur_flow_step.expected_view}, got {destination.View_cls}")
+                    
+                    if len(sequence) == 1:
+                        # This is the last step in the sequence
+                        if cur_flow_step.screen_return_value is None and cur_flow_step.button_data_selection is None:
+                            # This is the last View in the sequence and it doesn't specify any
+                            # user-mimicking interactions for the Screen. Nothing left to do.
+                            self.stop_test()
 
                     try:
                         if cur_flow_step.is_redirect and destination.view.has_redirect:
@@ -245,6 +253,10 @@ class FlowTest(BaseTest):
                             raise Exception(f"Can't specify `FlowStep.button_data_selection` if `button_data` isn't a kwarg in {view.__class__.__name__}'s run_screen()")
 
                     elif type(cur_flow_step.screen_return_value) in [StopFlowBasedTest, FlowBasedTestException]:
+                        raise cur_flow_step.screen_return_value
+                    
+                    elif isinstance(cur_flow_step.screen_return_value, Exception):
+                        # The FlowStep wants to mimic the Screen raising an exception.
                         raise cur_flow_step.screen_return_value
 
                     return cur_flow_step.screen_return_value

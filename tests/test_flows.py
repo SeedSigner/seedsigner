@@ -7,7 +7,7 @@ from seedsigner.controller import Controller
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
 from seedsigner.models.seed import Seed
 from seedsigner.views.psbt_views import PSBTSelectSeedView
-from seedsigner.views.seed_views import SeedBackupView, SeedMnemonicEntryView, SeedOptionsView, SeedSelectSeedView, SeedsMenuView
+from seedsigner.views.seed_views import SeedBackupView, SeedMnemonicEntryView, SeedOptionsView, SeedsMenuView
 from seedsigner.views.view import MainMenuView, PowerOptionsView, UnhandledExceptionView
 from seedsigner.views.tools_views import ToolsMenuView, ToolsCalcFinalWordNumWordsView
 
@@ -36,7 +36,7 @@ class TestFlowTest(FlowTest):
         with pytest.raises(FlowTestUnexpectedViewException):
             self.run_sequence([
                 FlowStep(MainMenuView, button_data_selection=RET_CODE__POWER_BUTTON),
-                FlowStep(ToolsMenuView),  # <-- Wrong target View! Should raise an AssertionError.
+                FlowStep(ToolsMenuView),  # <-- Wrong target View!
             ])
     
 
@@ -74,7 +74,7 @@ class TestFlowTest(FlowTest):
         """
         with pytest.raises(FlowTestUnexpectedRedirectException) as e:
             self.run_sequence([
-                FlowStep(SeedsMenuView, screen_return_value=0),  # <-- No seeds loaded, so it'll redirect elsewhere
+                FlowStep(SeedsMenuView, button_data_selection=SeedsMenuView.LOAD),  # <-- No seeds loaded, so it'll redirect elsewhere
             ])
 
         # This time we'll show that we know it should redirect
