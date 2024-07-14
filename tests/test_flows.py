@@ -1,7 +1,7 @@
 import pytest
 
 # Must import test base before the Controller
-from base import FlowTest, FlowStep, FlowTestUnexpectedViewException, FlowTestInvalidButtonDataSelectionException
+from base import FlowTest, FlowStep, FlowTestUnexpectedRedirectException, FlowTestUnexpectedViewException, FlowTestInvalidButtonDataSelectionException
 
 from seedsigner.controller import Controller
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
@@ -68,11 +68,11 @@ class TestFlowTest(FlowTest):
             ])
 
 
-    def test_unexpected_redirect_flow(self):
+    def test_FlowTestUnexpectedRedirectException(self):
         """
-        If the FlowStep doesn't specify is_redirect when the View redirects, raise an exception.
+        If the FlowStep doesn't specify is_redirect when the View redirects, raise FlowTestUnexpectedRedirectException
         """
-        with pytest.raises(FlowTestUnexpectedViewException) as e:
+        with pytest.raises(FlowTestUnexpectedRedirectException) as e:
             self.run_sequence([
                 FlowStep(SeedsMenuView, screen_return_value=0),  # <-- No seeds loaded, so it'll redirect elsewhere
             ])
