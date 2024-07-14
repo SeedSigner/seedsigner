@@ -355,18 +355,53 @@ class SeedAddPassphraseView(View):
 
     def run(self):
         passphrase_title=self.seed.passphrase_label
-        ret = self.run_screen(seed_screens.SeedAddPassphraseScreen, passphrase=self.seed.passphrase, title=passphrase_title)
+        ret_dict = self.run_screen(seed_screens.SeedAddPassphraseScreen, passphrase=self.seed.passphrase, title=passphrase_title)
 
-        if ret == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-        
         # The new passphrase will be the return value; it might be empty.
-        self.seed.set_passphrase(ret)
-        if len(self.seed.passphrase) > 0:
+        self.seed.set_passphrase(ret_dict["passphrase"])
+
+        if "is_back_button" in ret_dict:
+            if len(self.seed.passphrase) > 0:
+                return Destination(SeedAddPassphraseExitDialogView)
+            else:
+                return Destination(BackStackView)
+            
+        elif len(self.seed.passphrase) > 0:
             return Destination(SeedReviewPassphraseView)
+        
         else:
             return Destination(SeedFinalizeView)
 
+
+
+class SeedAddPassphraseExitDialogView(View):
+    EDIT = "Edit passphrase"
+    DISCARD = ("Discard passphrase", None, None, "red")
+
+    def __init__(self):
+        super().__init__()
+        self.seed = self.controller.storage.get_pending_seed()
+
+
+    def run(self):
+        button_data = [self.EDIT, self.DISCARD]
+        
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title="Discard passphrase?",
+            status_headline=None,
+            text=f"Your current passphrase entry will be erased",
+            show_back_button=False,
+            button_data=button_data,
+        )
+
+        if button_data[selected_menu_num] == self.EDIT:
+            return Destination(SeedAddPassphraseView)
+
+        elif button_data[selected_menu_num] == self.DISCARD:
+            self.seed.set_passphrase("")
+            return Destination(SeedFinalizeView)
+        
 
 
 class SeedReviewPassphraseView(View):

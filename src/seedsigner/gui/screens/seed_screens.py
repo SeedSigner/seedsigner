@@ -844,17 +844,18 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             keyboard_swap = False
 
             # Check our two possible exit conditions
+            # TODO: note the unusual return value, consider refactoring to a Response object in the future
             if input == HardwareButtonsConstants.KEY3:
                 # Save!
                 # First light up key3
                 self.hw_button3.is_selected = True
                 self.hw_button3.render()
                 self.renderer.show_image()
-                return self.passphrase
+                return dict(passphrase=self.passphrase)
 
             elif input == HardwareButtonsConstants.KEY_PRESS and self.top_nav.is_selected:
                 # Back button clicked
-                return self.top_nav.selected_button
+                return dict(passphrase=self.passphrase, is_back_button=True)
 
             # Check for keyboard swaps
             if input == HardwareButtonsConstants.KEY1:
