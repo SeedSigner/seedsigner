@@ -4,7 +4,8 @@ from seedsigner.hardware.microsd import MicroSD
 
 from .view import View, Destination, MainMenuView
 
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, settings_screens)
+from seedsigner.gui.screens import settings_screens
+from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen)
 from seedsigner.models.settings import Settings, SettingsConstants, SettingsDefinition
 
 logger = logging.getLogger(__name__)

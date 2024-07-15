@@ -12,9 +12,9 @@ from typing import List
 from seedsigner.controller import Controller
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.helpers import embit_utils
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    WarningScreen, DireWarningScreen, seed_screens)
-from seedsigner.gui.screens.screen import LargeIconStatusScreen, QRDisplayScreen
+from  seedsigner.gui.screens import seed_screens
+from seedsigner.gui.screens.screen import (LargeIconStatusScreen, QRDisplayScreen, RET_CODE__BACK_BUTTON, ButtonListScreen,
+    WarningScreen, DireWarningScreen)
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.psbt_parser import PSBTParser

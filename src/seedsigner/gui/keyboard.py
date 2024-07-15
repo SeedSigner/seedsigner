@@ -318,7 +318,7 @@ class Keyboard:
                 return None
 
         effective_index = 0
-        key = None
+        # key = None
         for cur_key in self.keys[index_y]:
             if index_x >= effective_index and index_x < effective_index + cur_key.size:
                 return cur_key
@@ -552,7 +552,7 @@ class TextEntryDisplay(TextEntryDisplayConstants):
 
         if self.cursor_mode == TextEntryDisplay.CURSOR_MODE__BLOCK:
             cursor_block_width = 18
-            cursor_block_height = 33
+            # cursor_block_height = 33
 
             # Draw n-1 of the selected letters
             (left, top, right, bottom) = self.font.getbbox(self.cur_text[:-1], anchor="ls")
@@ -592,7 +592,7 @@ class TextEntryDisplay(TextEntryDisplayConstants):
                 # The entire cur_text plus the cursor bar fits
                 self.text_offset = 3 + cursor_bar_serif_half_width
                 left, top, right, bottom  = self.font.getbbox(self.cur_text[:cursor_position])
-                tw_left, th = right - left, bottom - top
+                tw_left, _ = right - left, bottom - top
                 cursor_bar_x = self.text_offset + tw_left
 
             else:
@@ -601,7 +601,7 @@ class TextEntryDisplay(TextEntryDisplayConstants):
 
                 # Is the cursor at either extreme?
                 left, top, right, bottom  = self.font.getbbox(self.cur_text[:cursor_position])
-                tw_left, th = right - left, bottom - top
+                tw_left, _ = right - left, bottom - top
 
                 if self.text_offset + tw_left + cursor_bar_serif_half_width + 3 >= self.width:
                     # Cursor is at the extreme right; have to push the full tw_right off

@@ -79,7 +79,7 @@ class TestFlowTest(FlowTest):
         """
         If the FlowStep doesn't specify is_redirect when the View redirects, raise FlowTestUnexpectedRedirectException
         """
-        with pytest.raises(FlowTestUnexpectedRedirectException) as e:
+        with pytest.raises(FlowTestUnexpectedRedirectException):
             self.run_sequence([
                 FlowStep(SeedsMenuView, button_data_selection=SeedsMenuView.LOAD),  # <-- No seeds loaded, so it'll redirect elsewhere
             ])

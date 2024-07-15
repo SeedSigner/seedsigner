@@ -100,7 +100,7 @@ class PSBTOverviewScreen(ButtonListScreen):
         max_inputs_text_width = 0
         for input in inputs_column:
             left, top, right, bottom  = font.getbbox(input)
-            tw, th = right - left, bottom - top
+            tw, _ = right - left, bottom - top
             max_inputs_text_width = max(tw, max_inputs_text_width)
 
         # Given how wide we want our curves on each side to be...
@@ -155,7 +155,7 @@ class PSBTOverviewScreen(ButtonListScreen):
             max_destination_text_width = 0
             for destination in destination_column:
                 left, top, right, bottom  = font.getbbox(destination)
-                tw, th = right - left, bottom - top
+                tw, _ = right - left, bottom - top
                 max_destination_text_width = max(tw, max_destination_text_width)
             
             return (max_destination_text_width, destination_column)
@@ -202,7 +202,7 @@ class PSBTOverviewScreen(ButtonListScreen):
         for input in inputs_column:
             # Calculate right-justified input display
             left, top, right, bottom  = font.getbbox(input)
-            tw, th = right - left, bottom - top
+            tw, _ = right - left, bottom - top
             cur_x = inputs_x + max_inputs_text_width - tw
             draw.text(
                 (cur_x, inputs_y),
@@ -530,9 +530,9 @@ class PSBTMathScreen(ButtonListScreen):
                 mid_zone = display_str[-6:-3]
                 end_zone = display_str[-3:]
                 left, top, right, bottom  = fixed_width_font.getbbox(main_zone)
-                main_zone_width, th = right - left, bottom - top
+                main_zone_width, _ = right - left, bottom - top
                 left, top, right, bottom  = fixed_width_font.getbbox(end_zone)
-                mid_zone_width, th = right - left, bottom - top
+                mid_zone_width, _ = right - left, bottom - top
                 draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
                 draw.text((main_zone_width + digit_group_spacing, cur_y), text=mid_zone, font=fixed_width_font, fill=secondary_digit_color)
                 draw.text((main_zone_width + digit_group_spacing + mid_zone_width + digit_group_spacing, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)

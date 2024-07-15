@@ -60,7 +60,7 @@ class BackgroundImportThread(BaseThread):
         def time_import(module_name):
             last = time.time()
             import_module(module_name)
-            # print(time.time() - last, module_name)
+            logger.debug(f"Importing {module_name} took {time.time() - last} seconds")
 
         time_import('embit')
         time_import('seedsigner.helpers.embit_utils')

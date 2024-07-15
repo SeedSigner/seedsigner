@@ -3,7 +3,6 @@ import math
 import os
 import pathlib
 import re
-from time import time
 
 from dataclasses import dataclass
 from decimal import Decimal
@@ -1352,7 +1351,7 @@ def reflow_text_for_width(text: str,
     # We have to figure out if and where to make line breaks in the text so that it
     #   fits in its bounding rect (plus accounting for edge padding) using its given
     #   font.
-    start = time()
+    # start = time()
     font = Fonts.get_font(font_name=font_name, size=font_size)
     # Measure from left baseline ("ls")
     (left, top, full_text_width, bottom) = font.getbbox(text, anchor="ls")

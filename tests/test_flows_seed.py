@@ -264,7 +264,7 @@ class TestSeedFlows(FlowTest):
         )
 
         # test that taproot is not an option via exception raised when choice is taproot
-        with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException):
             self.run_sequence(
                 initial_destination_view_args=dict(seed_num=0),
                 sequence=[
@@ -275,7 +275,7 @@ class TestSeedFlows(FlowTest):
             )
 
         # test that nunchuk is not an option via exception raised when choice is nunchuk
-        with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException):
             self.run_sequence(
                 initial_destination_view_args=dict(seed_num=0),
                 sequence=[
