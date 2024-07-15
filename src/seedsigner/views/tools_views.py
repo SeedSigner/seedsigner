@@ -32,12 +32,18 @@ class ToolsMenuView(View):
     ADDRESS_EXPLORER = "Address Explorer"
     VERIFY_ADDRESS = "Verify address"
 
+    def __init__(self, new_seeds_only: bool = False):
+        super().__init__()
+        self.new_seeds_only = new_seeds_only
+
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
+        button_data = [self.IMAGE, self.DICE, self.KEYBOARD]
+        if not self.new_seeds_only:
+            button_data.extend([self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS])
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title="Tools",
+            title="Tools" if not self.new_seeds_only else "Create A Seed",
             is_button_text_centered=False,
             button_data=button_data
         )
@@ -54,10 +60,10 @@ class ToolsMenuView(View):
         elif button_data[selected_menu_num] == self.KEYBOARD:
             return Destination(ToolsCalcFinalWordNumWordsView)
 
-        elif button_data[selected_menu_num] == self.ADDRESS_EXPLORER:
+        elif not self.new_seeds_only and button_data[selected_menu_num] == self.ADDRESS_EXPLORER:
             return Destination(ToolsAddressExplorerSelectSourceView)
 
-        elif button_data[selected_menu_num] == self.VERIFY_ADDRESS:
+        elif not self.new_seeds_only and button_data[selected_menu_num] == self.VERIFY_ADDRESS:
             from seedsigner.views.scan_views import ScanAddressView
             return Destination(ScanAddressView)
 

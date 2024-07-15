@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 class SeedsMenuView(View):
     LOAD = "Load a seed"
+    CREATE = "Create a seed"
 
     def __init__(self):
         super().__init__()
@@ -49,7 +50,7 @@ class SeedsMenuView(View):
         button_data = []
         for seed in self.seeds:
             button_data.append((seed["fingerprint"], SeedSignerIconConstants.FINGERPRINT))
-        button_data.append("Load a seed")
+        button_data.extend([self.LOAD, self.CREATE])
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -61,8 +62,13 @@ class SeedsMenuView(View):
         if len(self.seeds) > 0 and selected_menu_num < len(self.seeds):
             return Destination(SeedOptionsView, view_args={"seed_num": selected_menu_num})
 
+        # accessed relative to len(self.seeds) which may have changed
         elif selected_menu_num == len(self.seeds):
             return Destination(LoadSeedView)
+
+        elif selected_menu_num == len(self.seeds) + 1:
+            from .tools_views import ToolsMenuView
+            return Destination(ToolsMenuView, view_args={"new_seeds_only": True})
 
         elif selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -213,8 +219,7 @@ class LoadSeedView(View):
 
         elif button_data[selected_menu_num] == self.CREATE:
             from .tools_views import ToolsMenuView
-            return Destination(ToolsMenuView)
-
+            return Destination(ToolsMenuView, view_args={"new_seeds_only": True})
 
 
 class SeedMnemonicEntryView(View):
