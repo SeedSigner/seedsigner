@@ -1,3 +1,4 @@
+import logging
 import unicodedata
 import hashlib
 import hmac
@@ -8,6 +9,8 @@ from embit.networks import NETWORKS
 from typing import List
 
 from seedsigner.models.settings import SettingsConstants
+
+logger = logging.getLogger(__name__)
 
 
 class InvalidSeedException(Exception):
@@ -46,7 +49,7 @@ class Seed:
         try:
             self.seed_bytes = bip39.mnemonic_to_seed(self.mnemonic_str, password=self._passphrase, wordlist=self.wordlist)
         except Exception as e:
-            print(repr(e))
+            logger.info(repr(e), exc_info=True)
             raise InvalidSeedException(repr(e))
 
 

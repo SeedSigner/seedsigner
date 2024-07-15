@@ -1,4 +1,5 @@
 import math
+import logging
 import time
 
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddr
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
 
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -1412,9 +1414,9 @@ class SeedAddressVerificationScreen(ButtonListScreen):
 
     def _run_callback(self):
         # Exit the screen on success via a non-None value
-        print(f"verified_index: {self.verified_index.cur_count}")
+        logger.info(f"verified_index: {self.verified_index.cur_count}")
         if self.verified_index.cur_count is not None:
-            print("Screen callback returning success!")
+            logger.info("Screen callback returning success!")
             self.threads[-1].stop()
             while self.threads[-1].is_alive():
                 time.sleep(0.01)

@@ -58,6 +58,7 @@ branch = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-p no:logging"
 
 [tool.setuptools]
 include-package-data = true

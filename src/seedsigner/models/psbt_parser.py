@@ -1,3 +1,4 @@
+import logging
 from binascii import hexlify
 from embit import psbt, script, ec, bip32
 from embit.descriptor import Descriptor
@@ -9,6 +10,7 @@ from typing import List
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
+logger = logging.getLogger(__name__)
 
 class OPCODES:
     OP_RETURN = 106
@@ -68,11 +70,11 @@ class PSBTParser():
 
     def parse(self):
         if self.psbt is None:
-            print(f"self.psbt is None!!")
+            logger.info(f"self.psbt is None!!")
             return False
 
         if not self.seed:
-            print("self.seed is None!")
+            logger.info("self.seed is None!")
             return False
 
         self._set_root()
