@@ -79,16 +79,8 @@ class PSBTSelectSeedView(View):
             return Destination(SeedMnemonicEntryView)
 
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
-            self.run_screen(
-                    WarningScreen,
-                    title="Electrum warning",
-                    status_headline=None,
-                    text=f"Some features disabled for Electrum seeds",
-                    show_back_button=False,
-            )
-            from seedsigner.views.seed_views import SeedMnemonicEntryView
-            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
-            return Destination(SeedMnemonicEntryView)
+            from seedsigner.views.seed_views import SeedElectrumMnemonicStartView
+            return Destination(SeedElectrumMnemonicStartView)
 
 
 

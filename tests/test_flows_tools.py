@@ -39,8 +39,6 @@ class TestToolsFlows(FlowTest):
             Finalizing a seed during the Address Explorer flow should return to the next
             Address Explorer step upon completion.
         """
-        controller = Controller.get_instance()
-
         def load_seed_into_decoder(view: scan_views.ScanView):
             view.decoder.add_data("0000" * 11 + "0003")
 
@@ -55,11 +53,11 @@ class TestToolsFlows(FlowTest):
             FlowStep(seed_views.SeedExportXpubScriptTypeView),
         ])
 
-        assert controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER
+        assert self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER
 
         # Reset
-        controller.storage.seeds.clear()
-        controller.storage.set_pending_seed(Seed(mnemonic=["abandon "* 11 + "about"]))
+        self.controller.storage.seeds.clear()
+        self.controller.storage.set_pending_seed(Seed(mnemonic=["abandon "* 11 + "about"]))
 
         # Finalize the new seed w/passphrase
         self.run_sequence(
@@ -71,6 +69,39 @@ class TestToolsFlows(FlowTest):
                 FlowStep(seed_views.SeedExportXpubScriptTypeView),
             ]
         )
+
+
+    def test__address_explorer__load_electrum_seed__sideflow(self):
+        """
+            Loading an Electrum seed during the Address Explorer flow should return to
+            the Address Explorer flow upon completion, skip the script type selection,
+            and successfully generate receive or change addresses.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
+
+        sequence = [
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.TYPE_ELECTRUM),
+            FlowStep(seed_views.SeedElectrumMnemonicStartView),
+        ]
+
+        # Load an Electrum mnemonic during the flow (same one used in test_seed.py)
+        for word in "regular reject rare profit once math fringe chase until ketchup century escape".split():
+            sequence += [
+                FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=word),
+            ]
+
+        sequence += [
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+            FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
+            FlowStep(tools_views.ToolsAddressExplorerAddressTypeView, button_data_selection=tools_views.ToolsAddressExplorerAddressTypeView.RECEIVE),
+            FlowStep(tools_views.ToolsAddressExplorerAddressListView),
+        ]
+
+        self.run_sequence(sequence)
+
 
 
     def test__address_explorer__scan_wrong_qrtype__flow(self):

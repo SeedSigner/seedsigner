@@ -119,6 +119,7 @@ class SeedSelectSeedView(View):
         button_data.append(self.SCAN_SEED)
         button_data.append(self.TYPE_12WORD)
         button_data.append(self.TYPE_24WORD)
+
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
 
@@ -158,17 +159,7 @@ class SeedSelectSeedView(View):
             return Destination(SeedMnemonicEntryView)
 
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
-            self.run_screen(
-                    WarningScreen,
-                    title="Electrum warning",
-                    status_headline=None,
-                    text=f"Some features disabled for Electrum seeds",
-                    show_back_button=False,
-            )
-
-            from seedsigner.views.seed_views import SeedMnemonicEntryView
-            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
-            return Destination(SeedMnemonicEntryView)
+            return Destination(SeedElectrumMnemonicStartView)
 
 
 
@@ -187,10 +178,12 @@ class LoadSeedView(View):
             self.SEED_QR,
             self.TYPE_12WORD,
             self.TYPE_24WORD,
-            self.CREATE,
         ]
+
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
-            button_data.insert(len(button_data)-1, self.TYPE_ELECTRUM)
+            button_data.append(self.TYPE_ELECTRUM)
+        
+        button_data.append(self.CREATE)
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -215,15 +208,7 @@ class LoadSeedView(View):
             return Destination(SeedMnemonicEntryView)
 
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
-            self.run_screen(
-                    WarningScreen,
-                    title="Electrum warning",
-                    status_headline=None,
-                    text=f"Some features disabled for Electrum seeds",
-                    show_back_button=False,
-            )
-            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
-            return Destination(SeedMnemonicEntryView)
+            return Destination(SeedElectrumMnemonicStartView)
 
         elif button_data[selected_menu_num] == self.CREATE:
             from .tools_views import ToolsMenuView
@@ -489,6 +474,27 @@ class SeedDiscardView(View):
 
 
 
+class SeedElectrumMnemonicStartView(View):
+    """
+    Currently just a warning display before entering an Electrum seed.
+    
+    Could be expanded with a follow-up View to specify Electrum seed type.
+    """
+    def run(self):
+        self.run_screen(
+                WarningScreen,
+                title="Electrum warning",
+                status_headline=None,
+                text=f"Some features are disabled for Electrum seeds.",
+                show_back_button=False,
+        )
+
+        self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
+
+        return Destination(SeedMnemonicEntryView)
+
+
+
 """****************************************************************************
     Views for actions on individual seeds:
 ****************************************************************************"""
@@ -614,6 +620,7 @@ class SeedBackupView(View):
 
     def run(self):
         button_data = [self.VIEW_WORDS]
+
         if self.seed.seedqr_supported:
             button_data.append(self.EXPORT_SEEDQR)
 
@@ -681,8 +688,16 @@ class SeedExportXpubScriptTypeView(View):
     def run(self):
         from .tools_views import ToolsAddressExplorerAddressTypeView
         args = {"seed_num": self.seed_num, "sig_type": self.sig_type}
+
+        script_types = self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)
+
         seed = self.controller.storage.seeds[self.seed_num]
-        script_types = seed.script_override if seed.script_override else self.settings.get_value(SettingsConstants.SETTING__SCRIPT_TYPES)
+        if seed.script_override:
+            # This seed only allows one script type
+            # TODO: Does it matter if the Settings don't have the override script type
+            # enabled?
+            script_types = [seed.script_override]
+
         if len(script_types) == 1:
             # Nothing to select; skip this screen
             args["script_type"] = script_types[0]
@@ -1456,7 +1471,8 @@ class SeedTranscribeSeedQRWholeQRView(View):
     
 
     def run(self):
-        encoder_args = dict(seed=self.seed)
+        encoder_args = dict(mnemonic=self.seed.mnemonic_list,
+                            wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
         if self.seedqr_format == QRType.SEED__SEEDQR:
             e = SeedQrEncoder(**encoder_args)
         elif self.seedqr_format == QRType.SEED__COMPACTSEEDQR:
@@ -1492,7 +1508,8 @@ class SeedTranscribeSeedQRZoomedInView(View):
     
 
     def run(self):
-        encoder_args = dict(seed=self.seed)
+        encoder_args = dict(mnemonic=self.seed.mnemonic_list,
+                            wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
         if self.seedqr_format == QRType.SEED__SEEDQR:
             e = SeedQrEncoder(**encoder_args)
         elif self.seedqr_format == QRType.SEED__COMPACTSEEDQR:
@@ -1720,7 +1737,7 @@ class SeedAddressVerificationView(View):
                 raise Exception("Can't validate a single sig addr without specifying a seed")
             self.seed_num = seed_num
             self.seed = self.controller.get_seed(seed_num)
-            self.seed_derivation_override = self.seed.derivation_override(wallet_type=SettingsConstants.SINGLE_SIG)
+            self.seed_derivation_override = self.seed.derivation_override(sig_type=SettingsConstants.SINGLE_SIG)
         else:
             self.seed = None
         self.address = self.controller.unverified_address["address"]

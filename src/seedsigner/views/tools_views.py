@@ -496,16 +496,8 @@ class ToolsAddressExplorerSelectSourceView(View):
             return Destination(SeedMnemonicEntryView)
 
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
-            self.run_screen(
-                    WarningScreen,
-                    title="Electrum warning",
-                    status_headline=None,
-                    text=f"Some features disabled for Electrum seeds",
-                    show_back_button=False,
-            )
-            from seedsigner.views.seed_views import SeedMnemonicEntryView
-            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
-            return Destination(SeedMnemonicEntryView)
+            from seedsigner.views.seed_views import SeedElectrumMnemonicStartView
+            return Destination(SeedElectrumMnemonicStartView)
 
 
 
@@ -540,7 +532,7 @@ class ToolsAddressExplorerAddressTypeView(View):
         if self.seed_num is not None:
             self.seed = self.controller.storage.seeds[seed_num]
             data["seed_num"] = self.seed
-            seed_derivation_override = self.seed.derivation_override(wallet_type=SettingsConstants.SINGLE_SIG)
+            seed_derivation_override = self.seed.derivation_override(sig_type=SettingsConstants.SINGLE_SIG)
 
             if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
                 derivation_path = self.custom_derivation

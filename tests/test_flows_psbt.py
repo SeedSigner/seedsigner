@@ -1,5 +1,6 @@
 from base import FlowTest, FlowStep
 
+from seedsigner.controller import Controller
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
 from seedsigner.models.settings import SettingsConstants
@@ -57,7 +58,40 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(MainMenuView)
 		])
 
-		
+
+	def test_scan_psbt_first_then_load_electrum_seed(self):
+		"""
+			Should be able to load an Electrum mnemonic after first loading in a psbt.
+		"""
+		def load_psbt_into_decoder(view: scan_views.ScanView):
+			# Single sig psbt for the below Electrum mnemonic
+			view.decoder.add_data("cHNidP8BAHECAAAAAX9/d6VyI7nvVTyhLBfqu05za2AJ2Z0dKMC0cUX+S2U7AQAAAAD9////AgeHAAAAAAAAFgAUOnNPuZMD1sQudt3+7LvHBUvGhyd//gAAAAAAABYAFGO9QLvu4V9/hz6ZjbIGMrqsEiIYAjQTAAABAR+ghgEAAAAAABYAFKawrgcT62jmIVQwyHPCV0thmJWbAQDBAQAAAAABAYeHL9UQlz/jEKUuNNY3LTeQRjudjBinsP2L0ppvgRt0AAAAAAD/////AnbP3rsPAAAAIlEgtgmCioGjfKwp6f8rOoI4OPb+ZV8db581J9IizZPskl2ghgEAAAAAABYAFKawrgcT62jmIVQwyHPCV0thmJWbAUDCBlMh9VjZN2NdU9Wabi0o3Ct1q9YHTsJRLAkLfUuIHB+BE+ucR4bdGAJG5nBhCWOmCXbpRwKP1INRYvkuQ2fHAAAAACIGA2+PEYHyVy6nhYwAx5SJKBIWXjsWgjhhf/2FEWqXgxnoEKNOC3gAAACAAAAAAAAAAAAAACICA0SBeeHxfHdny6rUnQJuteAnQ7shSydexjJCkSJarn3mEKNOC3gAAACAAQAAAAEAAAAA")
+
+		self.settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
+
+		sequence = [
+			FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+			FlowStep(scan_views.ScanView, before_run=load_psbt_into_decoder),  # simulate read PSBT; ret val is ignored
+			FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.TYPE_ELECTRUM),
+			FlowStep(seed_views.SeedElectrumMnemonicStartView),
+		]
+
+		# Load the associated Electrum mnemonic during the flow
+		for word in "apple drip silly junior language resource unaware whale snake copy gravity tank".split():
+			sequence += [
+				FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=word),
+			]
+
+		sequence += [
+			FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+			FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+			FlowStep(psbt_views.PSBTOverviewView),
+			FlowStep(psbt_views.PSBTMathView),
+		]
+
+		self.run_sequence(sequence)
+
+
 	def test_scan_multisig_psbt_seed_already_signed_flow(self):
 		
 		def load_psbt_into_decoder(view: scan_views.ScanView):

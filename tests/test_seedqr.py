@@ -14,12 +14,11 @@ def run_encode_decode_test(entropy: bytes, mnemonic_length, qr_type):
     assert len(mnemonic) == mnemonic_length
 
     if qr_type == QRType.SEED__SEEDQR:
-        e = SeedQrEncoder(seed=Seed(mnemonic))
+        e = SeedQrEncoder(mnemonic=mnemonic)
     elif qr_type == QRType.SEED__COMPACTSEEDQR:
-        e = CompactSeedQrEncoder(seed=Seed(mnemonic))
+        e = CompactSeedQrEncoder(mnemonic=mnemonic)
 
     data = e.next_part()
-    print(data)
 
     qr = QR()
     image = qr.qrimage(
