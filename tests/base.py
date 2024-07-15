@@ -18,6 +18,8 @@ from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.settings import Settings
 from seedsigner.views.view import Destination, MainMenuView, View
 
+import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -90,6 +92,28 @@ class BaseTest:
 
     def teardown_method(self):
         BaseTest.remove_settings()
+
+
+
+class TestBaseTest(BaseTest):
+    def test_howto_log_from_test(self):
+        """
+            Not actually a test, just a demonstration of how to use/access logs while
+            testing.
+
+            Enable log visibility by running with:
+                --log-cli-level=NOTSET (or the level of your choice)
+                -o log_cli=1
+            
+            Enable print() visibility by running with:
+                -s or --capture=no
+        """
+        print("This is a test print message")
+        logger.info("This is a test log message")
+        logger.debug("This is a test debug message")
+        logger.warning("This is a test warning message")
+        logger.error("This is a test error message")
+        logger.critical("This is a test critical message")
 
 
 
