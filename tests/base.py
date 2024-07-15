@@ -157,6 +157,10 @@ class FlowTestUnexpectedRedirectException(FlowBasedTestException):
     pass
 
 
+class FlowTestMissingRedirectException(FlowBasedTestException):
+    """ The Controller's current View did NOT trigger a redirect when one was expected by the current FlowStep in the sequence """
+    pass
+
 
 class FlowTest(BaseTest):
     """ Base class for any tests that do flow-based testing """
@@ -224,6 +228,11 @@ class FlowTest(BaseTest):
                             # The current View redirected without calling run_screen()
                             # but we weren't expecting it.
                             raise FlowTestUnexpectedRedirectException(f"Unexpected redirect to {destination.View_cls}")
+
+                        elif mock_run_screen.call_count > prev_mock_run_screen_call_count and cur_flow_step.is_redirect:
+                            # The View ran its Screen, but the current FlowStep was expecting it
+                            # to redirect (is_redirect=True) *instead of* running its Screen.
+                            raise FlowTestMissingRedirectException(f"FlowStep expected redirect but {cur_flow_step.expected_view} did not redirect")
 
                     finally:
                         # Regardless of the outcome, we always move our FlowTest

@@ -1,11 +1,12 @@
 import pytest
 
 # Must import test base before the Controller
-from base import FlowTest, FlowStep, FlowTestUnexpectedRedirectException, FlowTestUnexpectedViewException, FlowTestInvalidButtonDataSelectionException
+from base import FlowTest, FlowStep, FlowTestMissingRedirectException, FlowTestUnexpectedRedirectException, FlowTestUnexpectedViewException, FlowTestInvalidButtonDataSelectionException
 
 from seedsigner.controller import Controller
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
 from seedsigner.models.seed import Seed
+from seedsigner.views import scan_views
 from seedsigner.views.psbt_views import PSBTSelectSeedView
 from seedsigner.views.seed_views import SeedBackupView, SeedMnemonicEntryView, SeedOptionsView, SeedsMenuView
 from seedsigner.views.view import MainMenuView, PowerOptionsView, UnhandledExceptionView
@@ -42,15 +43,21 @@ class TestFlowTest(FlowTest):
 
     def test_UnhandledExceptionView(self):
         """
-        Ensure that the FlowTest will raise a FlowTestUnexpectedViewException if an
-        UnhandledExceptionView is encountered.
+        This is a regression test to ensure that the FlowTest is aware of exceptions that
+        redirect to the UnhandledExceptionView. If that isn't the expected View, the
+        FlowTest should raise a FlowTestUnexpectedViewException.
         """
+        # This sequence simulates a FlowTest that is unaware of an exception that will
+        # derail the sequence (i.e. somebody wrote a bad FlowTest or something unexpected
+        # is breaking). The sequence should fail with FlowTestUnexpectedViewException.
         with pytest.raises(FlowTestUnexpectedViewException):
             self.run_sequence([
-                FlowStep(SeedOptionsView),  # <-- There is no seed loaded nor a seed_num specified. Should raise an UnhandledException.
+                FlowStep(PSBTSelectSeedView),  # <-- There is no PSBT loaded. Should raise an exception that routes us to the UnhandledExceptionView.
+                FlowStep(scan_views.ScanSeedQRView),  # <-- This is not the View we'll end up at; FlowTest should raise the FlowTestUnexpectedViewException
             ])
 
-        # If we don't trap the exception, we should end up at the UnhandledExceptionView.
+        # This sequence *expects* an exception to route us to the UnhandledExceptionView
+        # and therefore can complete successfully.
         self.run_sequence([
             FlowStep(PSBTSelectSeedView),  # <-- There's no PSBT loaded.
             FlowStep(UnhandledExceptionView),
@@ -81,6 +88,16 @@ class TestFlowTest(FlowTest):
         self.run_sequence([
             FlowStep(SeedsMenuView, is_redirect=True),
         ])
+
+
+    def test_FlowTestMissingRedirectException(self):
+        """
+        If the FlowStep specifies is_redirect but the View does NOT redirect, raise FlowTestMissingRedirectException
+        """
+        with pytest.raises(FlowTestMissingRedirectException):
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS, is_redirect=True),
+            ])
 
 
     def test_before_run_executes(self):
