@@ -625,7 +625,7 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
             0,
             0,
             self.canvas_width,
-            formatted_address.screen_y + formatted_address.height
+            formatted_address.screen_y + formatted_address.height + btc_amount.height
         ))
         body_img_y = self.top_nav.height + int((center_img_height - self.body_img.height - GUIConstants.COMPONENT_PADDING)/2)
 
