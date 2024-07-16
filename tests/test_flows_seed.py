@@ -8,8 +8,8 @@ from base import FlowTestInvalidButtonDataSelectionException
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import ElectrumSeed, Seed
-from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView, NotYetImplementedView
-from seedsigner.views import seed_views, scan_views, settings_views, tools_views
+from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
+from seedsigner.views import seed_views, scan_views, settings_views
 
 
 def load_seed_into_decoder(view: scan_views.ScanView):
@@ -561,8 +561,6 @@ class TestMessageSigningFlows(FlowTest):
         expect_network_mismatch_error(self.load_short_message_into_decoder)
 
 
-
-
     def test_sign_message_option_disabled(self):
         """
         Should redirect to OptionDisabledView if a `signmessage` QR is scanned with
@@ -583,7 +581,7 @@ class TestMessageSigningFlows(FlowTest):
         # First test routing to update the setting
         self.run_sequence(
             sequence + [
-                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.UPDATE_SETTING, is_redirect=True),
+                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.UPDATE_SETTING),
                 FlowStep(settings_views.SettingsEntryUpdateSelectionView),
             ]
         )
@@ -591,7 +589,7 @@ class TestMessageSigningFlows(FlowTest):
         # Now test exiting to Main Menu
         self.run_sequence(
             sequence + [
-                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.DONE, is_redirect=True),
+                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.DONE),
                 FlowStep(MainMenuView),
             ]
         )
