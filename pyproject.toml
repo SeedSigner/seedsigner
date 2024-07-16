@@ -57,8 +57,8 @@ skip_empty = true
 branch = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
 log_level = "DEBUG"
+testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py310"

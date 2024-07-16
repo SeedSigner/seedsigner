@@ -344,7 +344,7 @@ class TextArea(BaseComponent):
             # Multiply for the number of lines plus the spacer
             total_text_height = self.text_height_above_baseline * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
 
-            if not self.height_ignores_below_baseline and re.findall(f"[gjpqy]", self.text_lines[-1]["text"]):
+            if not self.height_ignores_below_baseline and re.findall("[gjpqy]", self.text_lines[-1]["text"]):
                 # Last line has at least one char that dips below baseline
                 total_text_height += self.text_height_below_baseline
 

@@ -15,7 +15,6 @@ from seedsigner.helpers import embit_utils
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
 from seedsigner.gui.screens.screen import LargeIconStatusScreen, QRDisplayScreen
-from seedsigner.helpers import embit_utils
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.psbt_parser import PSBTParser
@@ -289,7 +288,7 @@ class SeedMnemonicInvalidView(View):
             WarningScreen,
             title="Invalid Mnemonic!",
             status_headline=None,
-            text=f"Checksum failure; not a valid seed phrase.",
+            text="Checksum failure; not a valid seed phrase.",
             show_back_button=False,
             button_data=button_data,
         )
@@ -376,7 +375,7 @@ class SeedAddPassphraseExitDialogView(View):
             WarningScreen,
             title="Discard passphrase?",
             status_headline=None,
-            text=f"Your current passphrase entry will be erased",
+            text="Your current passphrase entry will be erased",
             show_back_button=False,
             button_data=button_data,
         )
@@ -486,7 +485,7 @@ class SeedElectrumMnemonicStartView(View):
                 WarningScreen,
                 title="Electrum warning",
                 status_headline=None,
-                text=f"Some features are disabled for Electrum seeds.",
+                text="Some features are disabled for Electrum seeds.",
                 show_back_button=False,
         )
 
@@ -1178,7 +1177,7 @@ class SeedBIP85InvalidChildIndexView(View):
         DireWarningScreen(
             title="BIP-85 Index Error",
             show_back_button=False,
-            status_headline=f"Invalid Child Index",
+            status_headline="Invalid Child Index",
             text=f"BIP-85 Child Index must be between 0 and {2**31-1}.",
             button_data=["Try Again"]
         ).display()
@@ -1318,7 +1317,7 @@ class SeedWordsBackupTestMistakeView(View):
         selected_menu_num = DireWarningScreen(
             title="Verification Error",
             show_back_button=False,
-            status_headline=f"Wrong Word!",
+            status_headline="Wrong Word!",
             text=f"Word #{self.cur_index + 1} is not \"{self.wrong_word}\"!",
             button_data=button_data,
         ).display()
@@ -2034,7 +2033,7 @@ class SeedSignMessageStartView(View):
         # calculate the actual receive address
         addr_format = embit_utils.parse_derivation_path(derivation_path)
         if not addr_format["clean_match"]:
-            self.set_redirect(Destination(NotYetImplementedView, view_args=dict(text=f"Signing messages for custom derivation paths not supported")))
+            self.set_redirect(Destination(NotYetImplementedView, view_args=dict(text="Signing messages for custom derivation paths not supported")))
             self.controller.resume_main_flow = None
             return
 

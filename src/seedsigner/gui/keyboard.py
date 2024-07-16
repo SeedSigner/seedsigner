@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 from typing import Tuple
 
 from seedsigner.gui.components import Fonts, GUIConstants

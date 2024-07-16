@@ -44,7 +44,7 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
 
     elif wallet_type == SettingsConstants.MULTISIG:
         if script_type == SettingsConstants.LEGACY_P2PKH:
-            return f"m/45'" #BIP45
+            return "m/45'" #BIP45
         elif script_type == SettingsConstants.NESTED_SEGWIT:
             return f"m/48'/{network_path}/0'/1'"
         elif script_type == SettingsConstants.NATIVE_SEGWIT:

@@ -3,7 +3,6 @@ import random
 
 from embit import bip39
 from seedsigner.helpers import mnemonic_generation
-from seedsigner.models.settings_definition import SettingsConstants
 
 
 

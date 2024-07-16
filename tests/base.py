@@ -16,7 +16,7 @@ from seedsigner.controller import Controller, FlowBasedTestException, StopFlowBa
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
 from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.settings import Settings
-from seedsigner.views.view import Destination, MainMenuView, UnhandledExceptionView, View
+from seedsigner.views.view import Destination, MainMenuView, View
 
 import logging
 logger = logging.getLogger(__name__)

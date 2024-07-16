@@ -142,7 +142,7 @@ Type 1, 2, or 3: """)
             entropy += f" {final_word}"
 
         elif final_entropy_method == '2':
-            final_word = input(f"""    Enter the final word: """)
+            final_word = input("""    Enter the final word: """)
             if final_word not in WORDLIST__ENGLISH:
                 print(f"Invalid word: {final_word}")
                 exit(1)
@@ -164,6 +164,6 @@ if is_rand_seed:
     print(f"\tEntropy: {entropy}\n")
 
 if method == "dice":
-    print(f"""\tVerify at iancoleman.io/bip39 or bitcoiner.guide/seed using "Base 10" or "Hex" mode.\n""")
+    print("""\tVerify at iancoleman.io/bip39 or bitcoiner.guide/seed using "Base 10" or "Hex" mode.\n""")
 elif method == "coins":
-    print(f"""\tVerify at iancoleman.io/bip39 or bitcoiner.guide/seed using "Binary" mode.\n""")
+    print("""\tVerify at iancoleman.io/bip39 or bitcoiner.guide/seed using "Binary" mode.\n""")

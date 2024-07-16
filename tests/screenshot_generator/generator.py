@@ -3,14 +3,13 @@ import os
 import random
 import sys
 import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, MagicMock
 from seedsigner.helpers import embit_utils
 
 from embit import compact
 from embit.psbt import PSBT, OutputScope
 from embit.script import Script
 
-from seedsigner.helpers import embit_utils
 from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 
 
@@ -289,7 +288,7 @@ def test_generate_screenshots(target_locale):
         ]
     }
 
-    readme = f"""# SeedSigner Screenshots\n"""
+    readme = """# SeedSigner Screenshots\n"""
 
     def screencap_view(view_cls: View, view_args: dict = {}, view_name: str = None, toast_thread: BaseToastOverlayManagerThread = None):
         if not view_name:
@@ -324,7 +323,7 @@ def test_generate_screenshots(target_locale):
         readme += "\n\n---\n\n"
         readme += f"## {section_name}\n\n"
         readme += """<table style="border: 0;">"""
-        readme += f"""<tr><td align="center">\n"""
+        readme += """<tr><td align="center">\n"""
         for screenshot in screenshot_list:
             if type(screenshot) == tuple:
                 if len(screenshot) == 2:

@@ -7,8 +7,8 @@ import time
 from seedsigner.gui.renderer import Renderer
 from seedsigner.models.threads import BaseThread
 
-from .screen import ButtonListScreen, WarningScreen
-from ..components import (BtcAmount, Button, Icon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, SeedSignerIconConstants, TextArea,
+from .screen import ButtonListScreen
+from ..components import (BtcAmount, Icon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, SeedSignerIconConstants, TextArea,
     calc_bezier_curve, linear_interp)
 
 
@@ -139,11 +139,11 @@ class PSBTOverviewScreen(ButtonListScreen):
                     destination_column.append(truncate_destination_addr("self-transfer"))
             else:
                 # destination_column.append(f"{len(self.destination_addresses)} recipients")
-                destination_column.append(f"recipient 1")
-                destination_column.append(f"[ ... ]")
+                destination_column.append("recipient 1")
+                destination_column.append("[ ... ]")
                 destination_column.append(f"recipient {len(self.destination_addresses) + self.num_self_transfer_outputs}")
 
-            destination_column.append(f"fee")
+            destination_column.append("fee")
 
             if self.has_op_return:
                 destination_column.append("OP_RETURN")
@@ -562,7 +562,7 @@ class PSBTMathScreen(ButtonListScreen):
         render_amount(
             cur_y,
             f"-{self.fee_amount}",
-            info_text=f""" fee""",
+            info_text=""" fee""",
         )
 
         cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf

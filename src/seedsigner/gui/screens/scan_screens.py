@@ -10,7 +10,7 @@ from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
 from .screen import BaseScreen
-from ..components import GUIConstants, Fonts, SeedSignerIconConstants
+from ..components import GUIConstants, Fonts
 
 
 
