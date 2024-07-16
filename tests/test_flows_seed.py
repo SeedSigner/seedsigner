@@ -9,7 +9,7 @@ from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import ElectrumSeed, Seed
 from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
-from seedsigner.views import seed_views, scan_views, settings_views
+from seedsigner.views import seed_views, scan_views, settings_views, tools_views
 
 
 def load_seed_into_decoder(view: scan_views.ScanView):
@@ -643,3 +643,11 @@ class TestMessageSigningFlows(FlowTest):
         self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
         expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
 
+
+    def test_create_seed_via_seeds_while_none_loaded(self):
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.CREATE),
+            FlowStep(tools_views.ToolsMenuView),
+        ])
