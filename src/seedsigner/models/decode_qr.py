@@ -382,7 +382,7 @@ class DecodeQR:
                 return QRType.BITCOIN_ADDRESS
 
             # message signing
-            elif DecodeQR.is_sign_message(s):
+            elif s.startswith("signmessage"):
                 return QRType.SIGN_MESSAGE
 
             # config data
@@ -504,11 +504,6 @@ class DecodeQR:
             return True
         else:
             return False
-
-
-    @staticmethod
-    def is_sign_message(s):
-        return type(s) == str and s.startswith("signmessage")
 
 
     @staticmethod
