@@ -100,16 +100,6 @@ class PSBTParser():
                 if self.policy != inp_policy:
                     raise RuntimeError("Mixed inputs in the transaction")
 
-            if inp.non_witness_utxo:
-                self.input_amount += inp.utxo.value
-                inp_policy = PSBTParser._get_policy(inp, inp.script_pubkey, self.psbt.xpubs)
-                if self.policy == None:
-                    self.policy = inp_policy
-                else:
-                    if self.policy != inp_policy:
-                       raise RuntimeError("Mixed inputs in the transaction")
-
-
     def _parse_outputs(self):
         self.spend_amount = 0
         self.change_amount = 0
