@@ -31,6 +31,20 @@ Run a specific test:
 pytest tests/test_this_file.py::test_this_specific_test
 ```
 
+Force pytest to show logging output:
+```bash
+pytest tests/test_this_file.py::test_this_specific_test -o log_cli=1
+
+# or (same result)
+
+pytest tests/test_this_file.py::test_this_specific_test --log-cli-level=DEBUG
+```
+
+Annoying complications:
+* If you want to see `print()` statements that are in a test file, add `-s`
+* Better idea: use a proper logger in the test file and use one of the above options to display logs
+
+
 ### Test Coverage
 Run tests and generate test coverage
 ```

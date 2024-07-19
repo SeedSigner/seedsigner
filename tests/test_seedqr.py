@@ -4,6 +4,7 @@ from seedsigner.helpers.qr import QR
 from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
 from seedsigner.models.encode_qr import SeedQrEncoder, CompactSeedQrEncoder
 from seedsigner.models.qr_type import QRType
+from seedsigner.models.seed import Seed
 
 
 
@@ -18,7 +19,6 @@ def run_encode_decode_test(entropy: bytes, mnemonic_length, qr_type):
         e = CompactSeedQrEncoder(mnemonic=mnemonic)
 
     data = e.next_part()
-    print(data)
 
     qr = QR()
     image = qr.qrimage(

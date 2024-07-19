@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import hashlib
+import logging
 import os
 import time
 
@@ -9,7 +10,7 @@ from PIL.ImageOps import autocontrast
 
 from seedsigner.controller import Controller
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen)
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, WarningScreen)
 from seedsigner.gui.screens.tools_screens import (ToolsCalcFinalWordDoneScreen, ToolsCalcFinalWordFinalizePromptScreen,
     ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen,
     ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen)
@@ -21,6 +22,7 @@ from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedM
 
 from .view import View, Destination, BackStackView
 
+logger = logging.getLogger(__name__)
 
 
 class ToolsMenuView(View):
@@ -143,7 +145,7 @@ class ToolsImageEntropyMnemonicLengthView(View):
             serial_hash = hashlib.sha256(serial_num)
             hash_bytes = serial_hash.digest()
         except Exception as e:
-            print(repr(e))
+            logger.info(repr(e), exc_info=True)
             hash_bytes = b'0'
 
         # Build in modest entropy via millis since power on
@@ -440,6 +442,7 @@ class ToolsAddressExplorerSelectSourceView(View):
     SCAN_DESCRIPTOR = ("Scan wallet descriptor", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_ELECTRUM = ("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
 
 
     def run(self):
@@ -449,6 +452,8 @@ class ToolsAddressExplorerSelectSourceView(View):
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
             button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT))
         button_data = button_data + [self.SCAN_SEED, self.SCAN_DESCRIPTOR, self.TYPE_12WORD, self.TYPE_24WORD]
+        if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.TYPE_ELECTRUM)
         
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -492,6 +497,10 @@ class ToolsAddressExplorerSelectSourceView(View):
                 self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
+        elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
+            from seedsigner.views.seed_views import SeedElectrumMnemonicStartView
+            return Destination(SeedElectrumMnemonicStartView)
+
 
 
 class ToolsAddressExplorerAddressTypeView(View):
@@ -525,9 +534,12 @@ class ToolsAddressExplorerAddressTypeView(View):
         if self.seed_num is not None:
             self.seed = self.controller.storage.seeds[seed_num]
             data["seed_num"] = self.seed
+            seed_derivation_override = self.seed.derivation_override(sig_type=SettingsConstants.SINGLE_SIG)
 
             if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
                 derivation_path = self.custom_derivation
+            elif seed_derivation_override:
+                derivation_path = seed_derivation_override
             else:
                 derivation_path = embit_utils.get_standard_derivation_path(
                     network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),

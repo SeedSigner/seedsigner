@@ -1,4 +1,5 @@
 import math
+import logging
 import time
 
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddr
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
 
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -844,17 +846,18 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             keyboard_swap = False
 
             # Check our two possible exit conditions
+            # TODO: note the unusual return value, consider refactoring to a Response object in the future
             if input == HardwareButtonsConstants.KEY3:
                 # Save!
                 # First light up key3
                 self.hw_button3.is_selected = True
                 self.hw_button3.render()
                 self.renderer.show_image()
-                return self.passphrase
+                return dict(passphrase=self.passphrase)
 
             elif input == HardwareButtonsConstants.KEY_PRESS and self.top_nav.is_selected:
                 # Back button clicked
-                return self.top_nav.selected_button
+                return dict(passphrase=self.passphrase, is_back_button=True)
 
             # Check for keyboard swaps
             if input == HardwareButtonsConstants.KEY1:
@@ -1411,9 +1414,9 @@ class SeedAddressVerificationScreen(ButtonListScreen):
 
     def _run_callback(self):
         # Exit the screen on success via a non-None value
-        print(f"verified_index: {self.verified_index.cur_count}")
+        logger.info(f"verified_index: {self.verified_index.cur_count}")
         if self.verified_index.cur_count is not None:
-            print("Screen callback returning success!")
+            logger.info("Screen callback returning success!")
             self.threads[-1].stop()
             while self.threads[-1].is_alive():
                 time.sleep(0.01)
@@ -1511,6 +1514,8 @@ class SeedSignMessageConfirmMessageScreen(ButtonListScreen):
         end_y = renderer.canvas_height - GUIConstants.EDGE_PADDING - GUIConstants.BUTTON_HEIGHT - GUIConstants.COMPONENT_PADDING
         message_height = end_y - start_y
 
+        # TODO: Pass the full message in from the View so that this Screen doesn't need to
+        # interact with the Controller here.
         self.sign_message_data = Controller.get_instance().sign_message_data
         if "paged_message" not in self.sign_message_data:
             paged = reflow_text_into_pages(

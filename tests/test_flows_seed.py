@@ -3,13 +3,13 @@ import pytest
 
 # Must import test base before the Controller
 from base import BaseTest, FlowTest, FlowStep
-from base import FlowTestRunScreenNotExecutedException, FlowTestInvalidButtonDataSelectionException
+from base import FlowTestInvalidButtonDataSelectionException
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.models.settings import Settings, SettingsConstants
-from seedsigner.models.seed import Seed
-from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, RemoveMicroSDWarningView, View, NetworkMismatchErrorView, NotYetImplementedView
-from seedsigner.views import seed_views, scan_views, settings_views, tools_views
+from seedsigner.models.seed import ElectrumSeed, Seed
+from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
+from seedsigner.views import seed_views, scan_views, settings_views
 
 
 def load_seed_into_decoder(view: scan_views.ScanView):
@@ -40,10 +40,15 @@ class TestSeedFlows(FlowTest):
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
             FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
-            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
-            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value="muhpassphrase"),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=SettingsConstants.LABEL__BIP39_PASSPHRASE),
+            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
+            FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.DISCARD),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=SettingsConstants.LABEL__BIP39_PASSPHRASE),
+            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
+            FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.EDIT),
+            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
             FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.EDIT),
-            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value="muhpassphrase2"),
+            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
             FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
             FlowStep(seed_views.SeedOptionsView),
         ])
@@ -112,6 +117,66 @@ class TestSeedFlows(FlowTest):
         ]
 
         self.run_sequence(sequence)
+
+
+    def test_electrum_mnemonic_entry_flow(self):
+        """
+            Manually entering an Electrum mnemonic should land at the Finalize Seed flow and end at
+            the SeedOptionsView.
+
+            Most BIP-39 mnemonics should generate an error if entered as Electrum seeds.
+        """
+        def test_with_mnemonic(mnemonic: list[str], custom_extension: str = None, expects_electrum_seed_is_valid: bool = True):
+            Settings.HOSTNAME = "not seedsigner-os"
+            settings = Settings.get_instance()
+            settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
+
+            sequence = [
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+                FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
+                FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_ELECTRUM),
+                FlowStep(seed_views.SeedElectrumMnemonicStartView),  # Warning screen; no relevant button data selection.
+            ]
+
+            # Now add each manual word entry step
+            for word in mnemonic:
+                sequence.append(
+                    FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=word)
+                )
+
+            if expects_electrum_seed_is_valid:
+                # With the mnemonic completely entered, we land on the SeedFinalizeView
+                if custom_extension:
+                    sequence += [
+                        FlowStep(seed_views.SeedFinalizeView, screen_return_value=1),  # The passphrase / custom extension button is dynamic so there's no constant to refer to here
+                        FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase=custom_extension)),  # This is a one-off oddity where the Screen returns dict instead of int | str
+                        FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
+                        FlowStep(seed_views.SeedOptionsView),
+                    ]
+                else:
+                    sequence += [
+                        FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+                        FlowStep(seed_views.SeedOptionsView),
+                    ]
+
+            else:
+                # Or we bomb out if the mnemonic is invalid for Electrum
+                sequence.append(FlowStep(seed_views.SeedMnemonicInvalidView, button_data_selection=seed_views.SeedMnemonicInvalidView.DISCARD))
+
+            self.run_sequence(sequence)
+
+            BaseTest.reset_controller()
+
+
+        # Test seeds generated by Electrum v4.5.5
+        test_with_mnemonic("bomb congress scorpion mutual word stamp tongue valid permit salmon yellow spy".split())
+        test_with_mnemonic("morning pretty hobby click extend color wait joke define sausage boost salmon".split())
+        test_with_mnemonic("basket print toy noodle betray weird filter ticket insect copy force machine".split())
+        test_with_mnemonic("basket print toy noodle betray weird filter ticket insect copy force machine".split(), custom_extension="test")
+        test_with_mnemonic("basket print toy noodle betray weird filter ticket insect copy force machine".split(), custom_extension="monkey fling orange coin good")
+
+        # Most BIP-39 seeds should fail; test seed generated by bitcoiner.guide
+        test_with_mnemonic("pioneer divide volcano art victory family grow novel mandate bicycle senior adjust".split(), expects_electrum_seed_is_valid=False)
 
 
     def test_export_xpub_standard_flow(self):
@@ -188,15 +253,15 @@ class TestSeedFlows(FlowTest):
         self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [x for x,y in script_types if x!=disabled_script])
         self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x,y in coordinators if x!=disabled_coord])
 
-        # test that multisig is not an option via exception raised when redirected to next step instead of having a choice
-        with pytest.raises(FlowTestRunScreenNotExecutedException) as e:
-            self.run_sequence(
-                initial_destination_view_args=dict(seed_num=0),
-                sequence=[
-                    FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
-                    FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=disabled_sig),
-                ]
-            )
+        # If multisig isn't an option, then the sig type selection is skipped altogether
+        self.run_sequence(
+            initial_destination_view_args=dict(seed_num=0),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView),
+            ]
+        )
 
         # test that taproot is not an option via exception raised when choice is taproot
         with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
@@ -282,6 +347,37 @@ class TestSeedFlows(FlowTest):
                 FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
                 FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
                 FlowStep(seed_views.SeedExportXpubCoordinatorView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
+                FlowStep(MainMenuView),
+            ]
+        )
+
+
+    def test_export_xpub_electrum_seed_flow(self):
+        """
+            Electrum seeds should skip script type selection
+        """            
+        # Load a finalized Seed into the Controller
+        self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
+        self.controller.storage.set_pending_seed(ElectrumSeed("regular reject rare profit once math fringe chase until ketchup century escape".split()))
+        self.controller.storage.finalize_pending_seed()
+
+        # Make sure all options are enabled
+        self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [x for x,y in SettingsConstants.ALL_SIG_TYPES])
+        self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [x for x,y in SettingsConstants.ALL_SCRIPT_TYPES])
+        self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x,y in SettingsConstants.ALL_COORDINATORS])
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed_num=0),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.SINGLE_SIG),
+
+                # Skips past the script type options via redirect
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[0]),
                 FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
@@ -465,8 +561,6 @@ class TestMessageSigningFlows(FlowTest):
         expect_network_mismatch_error(self.load_short_message_into_decoder)
 
 
-
-
     def test_sign_message_option_disabled(self):
         """
         Should redirect to OptionDisabledView if a `signmessage` QR is scanned with
@@ -487,7 +581,7 @@ class TestMessageSigningFlows(FlowTest):
         # First test routing to update the setting
         self.run_sequence(
             sequence + [
-                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.UPDATE_SETTING, is_redirect=True),
+                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.UPDATE_SETTING),
                 FlowStep(settings_views.SettingsEntryUpdateSelectionView),
             ]
         )
@@ -495,7 +589,7 @@ class TestMessageSigningFlows(FlowTest):
         # Now test exiting to Main Menu
         self.run_sequence(
             sequence + [
-                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.DONE, is_redirect=True),
+                FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.DONE),
                 FlowStep(MainMenuView),
             ]
         )

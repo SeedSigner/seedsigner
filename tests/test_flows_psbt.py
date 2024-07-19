@@ -1,8 +1,12 @@
 from base import FlowTest, FlowStep
 
+from seedsigner.controller import Controller
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
+from seedsigner.models.settings import SettingsConstants
 
+
+# TODO: Cleanup: convert TAB spacing to SPACE
 class TestPSBTFlows(FlowTest):
 
 	def test_scan_psbt_first_then_correct_seedqr_flow(self):
@@ -53,7 +57,41 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(psbt_views.PSBTSignedQRDisplayView),
 			FlowStep(MainMenuView)
 		])
-		
+
+
+	def test_scan_psbt_first_then_load_electrum_seed(self):
+		"""
+			Should be able to load an Electrum mnemonic after first loading in a psbt.
+		"""
+		def load_psbt_into_decoder(view: scan_views.ScanView):
+			# Single sig psbt for the below Electrum mnemonic
+			view.decoder.add_data("cHNidP8BAHECAAAAAX9/d6VyI7nvVTyhLBfqu05za2AJ2Z0dKMC0cUX+S2U7AQAAAAD9////AgeHAAAAAAAAFgAUOnNPuZMD1sQudt3+7LvHBUvGhyd//gAAAAAAABYAFGO9QLvu4V9/hz6ZjbIGMrqsEiIYAjQTAAABAR+ghgEAAAAAABYAFKawrgcT62jmIVQwyHPCV0thmJWbAQDBAQAAAAABAYeHL9UQlz/jEKUuNNY3LTeQRjudjBinsP2L0ppvgRt0AAAAAAD/////AnbP3rsPAAAAIlEgtgmCioGjfKwp6f8rOoI4OPb+ZV8db581J9IizZPskl2ghgEAAAAAABYAFKawrgcT62jmIVQwyHPCV0thmJWbAUDCBlMh9VjZN2NdU9Wabi0o3Ct1q9YHTsJRLAkLfUuIHB+BE+ucR4bdGAJG5nBhCWOmCXbpRwKP1INRYvkuQ2fHAAAAACIGA2+PEYHyVy6nhYwAx5SJKBIWXjsWgjhhf/2FEWqXgxnoEKNOC3gAAACAAAAAAAAAAAAAACICA0SBeeHxfHdny6rUnQJuteAnQ7shSydexjJCkSJarn3mEKNOC3gAAACAAQAAAAEAAAAA")
+
+		self.settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
+
+		sequence = [
+			FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+			FlowStep(scan_views.ScanView, before_run=load_psbt_into_decoder),  # simulate read PSBT; ret val is ignored
+			FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.TYPE_ELECTRUM),
+			FlowStep(seed_views.SeedElectrumMnemonicStartView),
+		]
+
+		# Load the associated Electrum mnemonic during the flow
+		for word in "apple drip silly junior language resource unaware whale snake copy gravity tank".split():
+			sequence += [
+				FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=word),
+			]
+
+		sequence += [
+			FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+			FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+			FlowStep(psbt_views.PSBTOverviewView),
+			FlowStep(psbt_views.PSBTMathView),
+		]
+
+		self.run_sequence(sequence)
+
+
 	def test_scan_multisig_psbt_seed_already_signed_flow(self):
 		
 		def load_psbt_into_decoder(view: scan_views.ScanView):
@@ -77,8 +115,8 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(psbt_views.PSBTSigningErrorView, button_data_selection=psbt_views.PSBTSigningErrorView.SELECT_DIFF_SEED),
 			FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.SCAN_SEED),
 			FlowStep(scan_views.ScanSeedQRView, before_run=load_seed_into_decoder),
-			FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
-			FlowStep(seed_views.SeedAddPassphraseView, screen_return_value="abc"),
+			FlowStep(seed_views.SeedFinalizeView, button_data_selection=SettingsConstants.LABEL__BIP39_PASSPHRASE),
+			FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="abc")),
 			FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
 			FlowStep(seed_views.SeedOptionsView, is_redirect=True),
 			FlowStep(psbt_views.PSBTOverviewView),
@@ -89,4 +127,46 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(psbt_views.PSBTSignedQRDisplayView),
 			FlowStep(MainMenuView),
 		])
-		
+
+
+	def test_parse_and_display_op_return_content(self):
+		"""
+			PSBTs that include an OP_RETURN should be able to be parsed like any other
+			PSBT and route to the dedicated OP_RETURN View to display the content
+		"""
+		def load_psbt_into_decoder(view: scan_views.ScanView):
+			"""
+				PSBT Tx and Wallet Details
+				- Single Sig Wallet P2WPKH (Native Segwit) with no passphrase
+				- Regtest 0fb882ff m/84'/1'/0' tpubDCfk37PqcQx6nFtFVuYHvRLJHxvYj33NjHkKRyRmWyCjyJ64sYBXyVjsTHaLBp5GLhM91VBgJ8nKDWDu52J2xVRy64c7ybEjjyWQJuQGLcg
+				- 1 Input
+					- 99,992,460 sats
+				- 2 Outputs
+					- 1 Output back to self (bcrt1qvwkhakqhz7m7kmz6332avatsmdy32m644g86vv) of 99,992,296 sats
+					- 1 OP_RETURN: "Chancellor on the brink of third bailout"
+				- Fee 164 sats
+			"""
+			view.decoder.add_data("cHNidP8BAIYCAAAAATpQ10o+gKdZ8ThpKsbfHiHYn3NhvUrQ5DvW0ZWX8jKLAAAAAAD9////AujC9QUAAAAAFgAUY61+2BcXt+tsWoxV1nVw20kVb1UAAAAAAAAAACtqTChDaGFuY2VsbG9yIG9uIHRoZSBicmluayBvZiB0aGlyZCBiYWlsb3V0aQAAAE8BBDWHzwNXmUmVgAAAANRFa7R5gYD84Wbha3d1QnjgfYPOBw87on6cXS32WoyqAsPFtPxB7PRTdbujUnBPUVDh9YUBtwrl4nc0OcRNGvIyEA+4gv9UAACAAQAAgAAAAIAAAQB0AgAAAAGNFK/1X0fP5q+nu5XX7Tk2VRa0EL+jkGI9CHiJvsjZCgAAAAAA/f///wKMw/UFAAAAABYAFIpZMNnUU6cQt8Q0YpZ0pnvsSA5fAAAAAAAAAAAZakwWYml0Y29pbiBpcyBmcmVlIHNwZWVjaGgAAAABAR+Mw/UFAAAAABYAFIpZMNnUU6cQt8Q0YpZ0pnvsSA5fAQMEAQAAACIGAvxDI0eNI1oQ2AU69R7A0jf+hUdilWCgrWHgdzkqlaXMGA+4gv9UAACAAQAAgAAAAIAAAAAAAQAAAAAiAgK9qKtzGWyiRrpmupdA99NVLriz3GQy6cENbyD19sfl/hgPuIL/VAAAgAEAAIAAAACAAAAAAAIAAAAAAA==")
+
+		def load_seed_into_decoder(view: scan_views.ScanView):
+			view.decoder.add_data("114006021552133507590698063102151531110102551496")
+
+		self.run_sequence([
+			FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+			FlowStep(scan_views.ScanView, before_run=load_psbt_into_decoder),  # simulate read PSBT; ret val is ignored
+			FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.SCAN_SEED),
+			FlowStep(scan_views.ScanSeedQRView, before_run=load_seed_into_decoder),
+			FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+			FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+			FlowStep(psbt_views.PSBTOverviewView),
+			FlowStep(psbt_views.PSBTMathView),
+			FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+
+			# Should route to display OP_RETURN content
+			FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+
+			# Should be able to sign the psbt
+			FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+			FlowStep(psbt_views.PSBTSignedQRDisplayView),
+			FlowStep(MainMenuView)
+		])

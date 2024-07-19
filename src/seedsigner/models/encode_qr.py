@@ -88,6 +88,7 @@ class SeedQrEncoder(BaseStaticQrEncoder):
     mnemonic: List[str] = None
     wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
 
+
     def __post_init__(self):
         self.wordlist = Seed.get_wordlist(self.wordlist_language_code)
         super().__post_init__()
@@ -149,22 +150,14 @@ class BaseXpubQrEncoder(BaseQrEncoder):
     """
     Base Xpub QrEncoder for static and animated formats
     """
-    mnemonic: list = None
-    passphrase: str = None
+    seed: Seed = None
     derivation: str = None
     network: str = SettingsConstants.MAINNET
-    wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
+    sig_type : str = None
 
     def prep_xpub(self):
-        self.wordlist = Seed.get_wordlist(self.wordlist_language_code)
-
-        if self.wordlist == None:
-            raise Exception('Wordlist Required')
             
-        version = bip32.detect_version(self.derivation, default="xpub", network=NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
-        self.seed = Seed(mnemonic=self.mnemonic,
-                         passphrase=self.passphrase,
-                         wordlist_language_code=self.wordlist_language_code)
+        version = self.seed.detect_version(self.derivation, self.network, self.sig_type)
         self.root = bip32.HDKey.from_seed(self.seed.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(self.network)]["xprv"])
         self.fingerprint = self.root.child(0).fingerprint
         self.xprv = self.root.derive(self.derivation)
