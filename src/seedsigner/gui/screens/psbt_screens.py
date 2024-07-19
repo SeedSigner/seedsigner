@@ -512,8 +512,7 @@ class PSBTMathScreen(ButtonListScreen):
         body_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, (GUIConstants.BODY_FONT_SIZE)*ssf)
         fixed_width_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, (GUIConstants.BODY_FONT_SIZE + 6)*ssf)
         left, top, right, bottom  = fixed_width_font.getbbox(self.input_amount + "Q")
-        ascent, descent = fixed_width_font.getmetrics()
-        digits_width, digits_height = right - left, bottom - top + descent
+        digits_width, digits_height = right - left, bottom - top
 
         # Draw each line of the equation
         cur_y = 0
@@ -551,7 +550,7 @@ class PSBTMathScreen(ButtonListScreen):
         # spend_amount will be zero on self-transfers; only display when there's an
         # external recipient.
         if self.num_recipients > 0:
-            cur_y += int(digits_height * 1.2)
+            cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
             render_amount(
                 cur_y,
                 f"-{self.spend_amount}",
@@ -559,16 +558,16 @@ class PSBTMathScreen(ButtonListScreen):
                 info_text=f""" recipient{"s" if self.num_recipients > 1 else ""}""",
             )
 
-        cur_y += int(digits_height * 1.2)
+        cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
         render_amount(
             cur_y,
             f"-{self.fee_amount}",
             info_text=f""" fee""",
         )
 
-        cur_y += int(digits_height * 1.2) + 4 * ssf
+        cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
         draw.line((0, cur_y, image.width, cur_y), fill=GUIConstants.BODY_FONT_COLOR, width=1)
-        cur_y += 8 * ssf
+        cur_y += GUIConstants.BODY_LINE_SPACING * ssf
 
         render_amount(
             cur_y,

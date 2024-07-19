@@ -616,8 +616,7 @@ class FormattedAddress(BaseComponent):
 
         # Fixed width font means we only have to measure one max-height character
         left, top, right, bottom  = self.font.getbbox("Q")
-        ascent, descent = self.font.getmetrics()
-        char_width, char_height = right - left, bottom - top + descent
+        char_width, char_height = right - left, bottom - top
 
         n = 7
         display_str = f"{self.address[:n]} {self.address[n:-1*n]} {self.address[-1*n:]}"
@@ -740,7 +739,7 @@ class FormattedAddress(BaseComponent):
                     ))
 
                 remaining_display_str = remaining_display_str[max_chars_per_line:]
-                cur_y += char_height
+                cur_y += char_height + GUIConstants.BODY_LINE_SPACING
         
         self.height = cur_y
     
