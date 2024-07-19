@@ -1522,6 +1522,7 @@ class SeedSignMessageConfirmMessageScreen(ButtonListScreen):
                 text=self.sign_message_data["message"],
                 width=renderer.canvas_width - 2*GUIConstants.EDGE_PADDING,
                 height=message_height,
+                allow_text_overflow=True,
             )
             self.sign_message_data["paged_message"] = paged
 
