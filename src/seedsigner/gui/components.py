@@ -22,6 +22,7 @@ class GUIConstants:
     EDGE_PADDING = 8
     COMPONENT_PADDING = 8
     LIST_ITEM_PADDING = 4
+    FIXED_FONT_HEIGHT_PADDING = 6
 
     BACKGROUND_COLOR = "black"
     WARNING_COLOR = "#FFD60A"
@@ -616,7 +617,8 @@ class FormattedAddress(BaseComponent):
 
         # Fixed width font means we only have to measure one max-height character
         left, top, right, bottom  = self.font.getbbox("Q")
-        char_width, char_height = right - left, bottom - top
+        ascent, descent = self.font.getmetrics()
+        char_width, char_height = right - left, bottom - top + descent
 
         n = 7
         display_str = f"{self.address[:n]} {self.address[n:-1*n]} {self.address[-1*n:]}"

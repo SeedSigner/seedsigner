@@ -511,8 +511,9 @@ class PSBTMathScreen(ButtonListScreen):
 
         body_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, (GUIConstants.BODY_FONT_SIZE)*ssf)
         fixed_width_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, (GUIConstants.BODY_FONT_SIZE + 6)*ssf)
-        left, top, right, bottom  = fixed_width_font.getbbox(self.input_amount + "+")
-        digits_width, digits_height = right - left, bottom - top
+        left, top, right, bottom  = fixed_width_font.getbbox(self.input_amount + "Q")
+        ascent, descent = fixed_width_font.getmetrics()
+        digits_width, digits_height = right - left, bottom - top + descent
 
         # Draw each line of the equation
         cur_y = 0
