@@ -38,9 +38,9 @@ def test_seed():
 	# assert seed.passphrase == "test"
 
 	
-def test_electrum_seed():
+def test_electrum_segwit_seed():
 	"""
-	ElectrumSeed should correctly parse a modern Electrum mnemonic.
+	ElectrumSeed should correctly parse a Native Segwit Electrum mnemonic.
 	"""
 	seed = ElectrumSeed(mnemonic="regular reject rare profit once math fringe chase until ketchup century escape".split())
 
@@ -49,18 +49,15 @@ def test_electrum_seed():
 	assert seed.seed_bytes == intended_seed
 
 
-def test_electrum_mnemonic_format():
+def test_electrum_standard_seed():
 	"""
-	ElectrumSeed should reject mnemonics that are not 12 words long.
+	ElectrumSeed should correctly parse a Standard Electrum mnemonic.
 	"""
-	with pytest.raises(InvalidSeedException):
-		ElectrumSeed(mnemonic=["regular"] * 11)
+	seed = ElectrumSeed(mnemonic="valve attack fence zero swim frequent visa myth tobacco dismiss useless marble".split())
 
-	with pytest.raises(InvalidSeedException):
-		ElectrumSeed(mnemonic=["regular"] * 13)
+	intended_seed = b'\x0c$\x97\xb1r\x11{\xdf\xa8\xe6\xb8\xa7!_\xf6\xb9\xacz\x08\xbe5Fa\xeb\xd6\xb7.#\xb6:=\xf7_hZY\xc2\x9b:W\xdc!f\x16\x7f\x98\x99k\x90\x8f1t>Qq\xeb\xf3\x96@\x91}\x19\x1cy'
 
-	with pytest.raises(InvalidSeedException):
-		ElectrumSeed(mnemonic=["regular"] * 24)
+	assert seed.seed_bytes == intended_seed
 
 
 def test_electrum_seed_rejects_most_bip39_mnemonics():

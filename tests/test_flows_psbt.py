@@ -74,6 +74,7 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(scan_views.ScanView, before_run=load_psbt_into_decoder),  # simulate read PSBT; ret val is ignored
 			FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.TYPE_ELECTRUM),
 			FlowStep(seed_views.SeedElectrumMnemonicStartView),
+			FlowStep(seed_views.SeedElectrumMnemonicLengthView, button_data_selection=seed_views.SeedElectrumMnemonicLengthView.TYPE_12WORD),
 		]
 
 		# Load the associated Electrum mnemonic during the flow

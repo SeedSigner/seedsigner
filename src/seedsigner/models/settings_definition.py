@@ -475,7 +475,6 @@ class SettingsDefinition:
                       attr_name=SettingsConstants.SETTING__ELECTRUM_SEEDS,
                       abbreviated_name="electrum",
                       display_name="Electrum seeds",
-                      help_text="Native Segwit only",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__DISABLED),
 

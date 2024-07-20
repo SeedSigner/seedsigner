@@ -492,6 +492,37 @@ class SeedElectrumMnemonicStartView(View):
 
         self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
 
+        return Destination(SeedElectrumMnemonicLengthView)
+
+
+
+class SeedElectrumMnemonicLengthView(View):
+    TYPE_12WORD = "12-word Electrum seed"
+    TYPE_13WORD = "13-word Electrum seed"
+
+    def run(self):
+        button_data = [
+            self.TYPE_12WORD,
+            self.TYPE_13WORD,
+        ]
+
+        selected_menu_num = self.run_screen(
+            seed_screens.SeedElectrumMnemonicLengthScreen,
+            title="Seed length",
+            text="Electrum seed length. Note: 13th word does NOT refer to the custom extension (passphrase). See docs if unsure.",
+            is_button_text_centered=False,
+            button_data=button_data,
+            show_back_button=True,
+        )
+
+        if RET_CODE__BACK_BUTTON == selected_menu_num:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.TYPE_12WORD:
+            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
+        elif button_data[selected_menu_num] == self.TYPE_13WORD:
+            self.controller.storage.init_pending_mnemonic(num_words=13, is_electrum=True)
+
         return Destination(SeedMnemonicEntryView)
 
 
