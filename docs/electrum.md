@@ -1,8 +1,10 @@
 # SeedSigner Electrum seed phrase support
 
-SeedSigner supports loading of [Electrum's Segwit seed phrases](https://electrum.readthedocs.io/en/latest/seedphrase.html#electrum-seed-version-system).  This is considered an Advanced feature that is disabled by default.  
+SeedSigner supports loading of [Electrum's Standard(P2PKH) and Native Segwit seed phrases](https://electrum.readthedocs.io/en/latest/seedphrase.html#electrum-seed-version-system).  The "old" mnemonics used prior to Electrum wallet software version 2.0 are not currently supported.
 
 To load an Electrum Segwit seed phrase, first enable Electrum seed support in Settings -> Advanced -> Electrum seed support.  After this option is enabled, the user will now be able to enter an Electrum seed phrase by selecting "Enter Electrum seed" in the Load Seed screen.
+
+The user has the option to load a 12 word or 13 word seed phrase.  Note that the 13th word does NOT refer to the custom extension words (passphrase), but rather Electrum wallet software used 13 word seed phrases from version 2.0 up until prior to version 2.7.  If you need to enter the words you used for "Extend this seed with custom words" in the electrum software, first enter the seed, then before finalizing you will be given the option to add a custom extension similar to the workflow for entering a BIP-39 seed and BIP-39 passphrase.
 
 Some SeedSigner functionality is deliberately disabled when using an Electrum mnemonic:
 
