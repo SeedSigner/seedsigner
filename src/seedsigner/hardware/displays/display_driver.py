@@ -1,14 +1,17 @@
 DISPLAY_TYPE__ST7789 = "st7789"
 DISPLAY_TYPE__ILI9341 = "ili9341"
 DISPLAY_TYPE__ILI9486 = "ili9486"
-
 ALL_DISPLAY_TYPES = [DISPLAY_TYPE__ST7789, DISPLAY_TYPE__ILI9341, DISPLAY_TYPE__ILI9486]
 
 
+
 class DisplayDriver:
-    def __init__(self, display_type: str = DISPLAY_TYPE__ST7789, width: int = None, height: int = None):
-        if display_type not in ALL_DISPLAY_TYPES:
-            raise ValueError(f"Invalid display type: {display_type}")
+    def __init__(self, display_type: str = DISPLAY_TYPE__ST7789, width: int = 240, height: int = 240):
+        from seedsigner.models.settings_definition import SettingsConstants
+
+        display_config = f"{display_type}_{width}x{height}"
+        if display_config not in [x for x,_ in SettingsConstants.ALL_DISPLAY_CONFIGURATIONS]:
+            raise ValueError(f"Invalid display config: {display_config}")
         self.display_type = display_type
 
         if self.display_type == DISPLAY_TYPE__ST7789:
