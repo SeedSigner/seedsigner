@@ -17,6 +17,7 @@ from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
 sys.modules['seedsigner.hardware.ST7789'] = MagicMock()
+sys.modules['seedsigner.hardware.st7789_mpy'] = MagicMock()
 sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
 sys.modules['seedsigner.views.screensaver'] = MagicMock()
 sys.modules['RPi'] = MagicMock()
@@ -349,6 +350,12 @@ def test_generate_screenshots(target_locale):
 
     # Re-render some screens that require more manual intervention / setup than the above
     # scripting can support.
+    screenshot_renderer.set_screenshot_path(os.path.join(screenshot_root, "seed_views"))
+    controller.storage.init_pending_mnemonic(num_words=12)
+    controller.storage.update_pending_mnemonic(word="sc", index=0)
+    screencap_view(seed_views.SeedMnemonicEntryView)
+
+
     screenshot_renderer.set_screenshot_path(os.path.join(screenshot_root, "psbt_views"))
 
     # Render the PSBTChangeDetailsView_multisig_unverified screenshot
