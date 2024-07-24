@@ -14,7 +14,9 @@ from embit.script import Script
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
 sys.modules['seedsigner.hardware.ST7789'] = MagicMock()
-sys.modules['seedsigner.views.screensaver.ScreensaverScreen'] = MagicMock()
+sys.modules['seedsigner.hardware.st7789_mpy'] = MagicMock()
+sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
+sys.modules['seedsigner.views.screensaver'] = MagicMock()
 sys.modules['RPi'] = MagicMock()
 sys.modules['RPi.GPIO'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
