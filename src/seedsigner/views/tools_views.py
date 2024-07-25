@@ -602,6 +602,7 @@ class ToolsAddressExplorerAddressListView(View):
 
 
     def run(self):
+        from seedsigner.gui.screens.tools_screens import ToolsAddressExplorerAddressListScreen
         self.loading_screen = None
 
         addresses = []
@@ -652,29 +653,12 @@ class ToolsAddressExplorerAddressListView(View):
                 # Everything is set. Stop the loading screen
                 self.loading_screen.stop()
 
-        for i, address in enumerate(addresses):
-            cur_index = i + self.start_index
-
-            # Adjust the trailing addr display length based on available room
-            # (the index number will push it out on each order of magnitude)
-            if cur_index < 10:
-                end_digits = -6
-            elif cur_index < 100:
-                end_digits = -5
-            else:
-                end_digits = -4
-            button_data.append(f"{cur_index}:{address[:8]}...{address[end_digits:]}")
-
-        button_data.append(("Next {}".format(addrs_per_screen), None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
-
         selected_menu_num = self.run_screen(
-            ButtonListScreen,
+            ToolsAddressExplorerAddressListScreen,
             title="{} Addrs".format("Receive" if not self.is_change else "Change"),
-            button_data=button_data,
-            button_font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
-            button_font_size=GUIConstants.BUTTON_FONT_SIZE + 4,
-            is_button_text_centered=False,
-            is_bottom_list=True,
+            start_index=self.start_index,
+            addresses=addresses,
+            next_button=("Next {}".format(addrs_per_screen), None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT),
             selected_button=self.selected_button_index,
             scroll_y_initial_offset=self.initial_scroll,
         )
