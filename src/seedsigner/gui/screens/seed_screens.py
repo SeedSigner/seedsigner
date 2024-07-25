@@ -643,12 +643,17 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
         )
         self.components.append(self.derivation_line)
 
+        font_name = GUIConstants.FIXED_WIDTH_FONT_NAME
+        font_size = GUIConstants.BODY_FONT_SIZE + 2
+        left, top, right, bottom  = Fonts.get_font(font_name, font_size).getbbox("X")
+        char_width = right - left
+        num_chars = int((self.canvas_width - GUIConstants.ICON_FONT_SIZE - 2*GUIConstants.COMPONENT_PADDING) / char_width) - 3  # ellipsis
+
         self.xpub_line = IconTextLine(
             icon_name=FontAwesomeIconConstants.X,
             icon_color=GUIConstants.INFO_COLOR,
-            # TRANSLATOR_NOTE: Short for "BIP32 Extended Public Key"
             label_text=_("Xpub"),
-            value_text=f"{self.xpub[:18]}...",
+            value_text=f"{self.xpub[:num_chars]}...",
             font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
             font_size=GUIConstants.get_body_font_size() + 2,
             screen_x=GUIConstants.COMPONENT_PADDING,
