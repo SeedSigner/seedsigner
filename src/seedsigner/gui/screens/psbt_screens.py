@@ -656,15 +656,12 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
         ))
 
         self.components.append(FormattedAddress(
-            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+            screen_y=self.components[-1].screen_y + self.components[-1].height,
             address=self.address,
             max_lines=1,
         ))
 
         screen_y = self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING
-        if self.is_multisig and not self.is_change_addr_verified:
-            # Adjust the vertical spacing
-            screen_y -= GUIConstants.COMPONENT_PADDING
         self.components.append(IconTextLine(
             icon_name=SeedSignerIconConstants.FINGERPRINT,
             icon_color=GUIConstants.INFO_COLOR,
