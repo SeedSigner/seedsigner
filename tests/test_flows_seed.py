@@ -414,6 +414,7 @@ class TestMessageSigningFlows(FlowTest):
     TESTNET_DERIVATION_PATH = "m/84h/1h/0h/0/0"
     CUSTOM_DERIVATION_PATH = "m/99h/0/0"
     SHORT_MESSAGE = "I attest that I control this bitcoin address blah blah blah"
+    NO_WHITESPACE_MESSAGE = """{"height":841407,"lightning_bolt12":"lno1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}"""
     MULTIPAGE_MESSAGE = """Chancellor on brink of second bailout for banks
 
         Billions may be needed as lending squeeze tightens
@@ -443,6 +444,10 @@ class TestMessageSigningFlows(FlowTest):
         self.load_signmessage_into_decoder(view, self.MAINNET_DERIVATION_PATH, self.MULTIPAGE_MESSAGE)
 
 
+    def load_no_whitespace_message_into_decoder(self, view: View):
+        self.load_signmessage_into_decoder(view, self.MAINNET_DERIVATION_PATH, self.NO_WHITESPACE_MESSAGE)
+
+
     def load_custom_derivation_into_decoder(self, view: View):
         self.load_signmessage_into_decoder(view, self.CUSTOM_DERIVATION_PATH, self.SHORT_MESSAGE)
 
@@ -454,6 +459,7 @@ class TestMessageSigningFlows(FlowTest):
             text=self.controller.sign_message_data["message"],
             width=240 - 2*GUIConstants.EDGE_PADDING,
             height=240 - GUIConstants.TOP_NAV_HEIGHT - 3*GUIConstants.EDGE_PADDING - GUIConstants.BUTTON_HEIGHT,
+            allow_text_overflow=True,
         )
         self.controller.sign_message_data["paged_message"] = paged
 
@@ -524,6 +530,21 @@ class TestMessageSigningFlows(FlowTest):
             FlowStep(seed_views.SeedSignMessageConfirmMessageView, screen_return_value=0),  # page 3/5
             FlowStep(seed_views.SeedSignMessageConfirmMessageView, screen_return_value=0),  # page 4/5
             FlowStep(seed_views.SeedSignMessageConfirmMessageView, screen_return_value=0),  # page 5/5
+            FlowStep(seed_views.SeedSignMessageConfirmAddressView, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageSignedMessageQRView, screen_return_value=0),
+            FlowStep(MainMenuView),
+        ])
+
+        # Scenario 4: Load a long message without whitespace
+        self.controller.discard_seed(0)
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
+            FlowStep(scan_views.ScanView, before_run=self.load_no_whitespace_message_into_decoder),  # simulate read message QR; ret val is ignored
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
             FlowStep(seed_views.SeedSignMessageConfirmAddressView, screen_return_value=0),
             FlowStep(seed_views.SeedSignMessageSignedMessageQRView, screen_return_value=0),
             FlowStep(MainMenuView),

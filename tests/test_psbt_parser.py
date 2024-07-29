@@ -113,6 +113,52 @@ def test_p2sh_legacy_multisig():
     assert psbt_parser.verify_multisig_output(descriptor, 1)
 
 
+def test_p2sh_p2wpkh_nested_segwit():
+    """
+        Should correctly parse a nested segwit (m/49'/1'/0') psbt.
+
+        PSBT Tx, wallet, and keys
+        - nested segwit single sig
+        - Regtest xpubs:
+            - c751dc07 c751dc07 tpubDDS23bf7c9mdfWpuvA61HHCYDusq25UtMNYsFagKPNMNWHSm8bvwmNNP2KSpivN3gQWAK8fhDFk3dzgoBn9rPoMncKxJuqNAv7sJMShbZ6i
+
+        - 1 Inputs
+            - 149,009 sats
+        - 2 Outputs
+            - 1 Output spend to another wallet: 93,000 sats to tb1qs7mdpjq7g7zq46vvycr8d6udc7za726ut8har9krfxpnc7kr04gqmdy2e4
+            - 1 Output change
+                - addresss 2Mz3MthXyM4YDjLPw1V4PAacKt4pD8Cz8N3)
+                - amount 55,832 sats
+                - change addresses is index 1/1
+            - Fee 177 sats
+
+        seed: goddess rough corn exclude cream trial fee trumpet million prevent gaze power
+        passphrase: test
+
+    """
+
+    descriptor = Descriptor.from_string("sh(wpkh([c751dc07/49h/1h/0h]tpubDDS23bf7c9mdfWpuvA61HHCYDusq25UtMNYsFagKPNMNWHSm8bvwmNNP2KSpivN3gQWAK8fhDFk3dzgoBn9rPoMncKxJuqNAv7sJMShbZ6i/<0;1>/*))#7sn8gf37".replace("<0;1>", "{0,1}"))
+    psbt_base64 = "cHNidP8BAH4CAAAAAXfY5crHl+bXtTvKvdo2MaFQeIXw+P+3kzZwBRgw84lFAQAAAAD9////AhjaAAAAAAAAF6kUSop8lEmO4FB1AyV1GJe2bygA7ASHSGsBAAAAAAAiACCHttDIHkeECumMJgZ2643Hhd8rXFnv0ZbDSYM8esN9UIouEwBPAQQ1h88Dv3UWAIAAAACfHgAYuw3ODwXCSP0valI9edAB1t3EInR2TXkbOd+F+AJgmJs8XUkZD5zQAgd3+/ijOqVphlWUMzxDnRorBQYEgxDHUdwHMQAAgAEAAIAAAACAAAEBIBFGAgAAAAAAF6kU7ijES3iWT8u0+44/blPlLfh9WkyHAQMEAQAAAAEEFgAUX7JspW1r0gC+WkUHwGABJ8DU9f8iBgO1/adRC+r8XJ/bjnfdwk3740n0m8gE3+xN8GHsNrxDUxjHUdwHMQAAgAEAAIAAAACAAQAAAAAAAAAAAQAWABT8V9vY29XR8niVYdVSF9H4zRTAbiICArH6DjPShnzXiaAnc2BR1f61QQliH0BOhqAvksByf3e9GMdR3AcxAACAAQAAgAAAAIABAAAAAQAAAAAA"
+    raw = a2b_base64(psbt_base64)
+    tx = psbt.PSBT.parse(raw)
+
+    # 03cd0a2b test seed
+    mnemonic = "goddess rough corn exclude cream trial fee trumpet million prevent gaze power".split()
+    seed = Seed(mnemonic=mnemonic, passphrase="test")
+    assert seed.get_fingerprint() == "c751dc07"
+
+    psbt_parser = PSBTParser(p=tx, seed=seed, network=SettingsConstants.TESTNET)
+
+    assert psbt_parser.spend_amount == 93000
+    assert psbt_parser.change_amount == 55832
+    assert psbt_parser.fee_amount == 177
+
+    assert psbt_parser.destination_addresses == ['tb1qs7mdpjq7g7zq46vvycr8d6udc7za726ut8har9krfxpnc7kr04gqmdy2e4']
+    assert psbt_parser.destination_amounts == [93000]
+
+    assert psbt_parser.get_change_data(0)['address'] == '2Mz3MthXyM4YDjLPw1V4PAacKt4pD8Cz8N3'
+    assert psbt_parser.get_change_data(0)["amount"] == 55832
+
 
 def test_parse_op_return_content():
     """

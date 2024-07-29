@@ -27,6 +27,10 @@ def test_get_standard_derivation_path():
         (SC.TESTNET, SC.SINGLE_SIG, SC.TAPROOT): "m/86'/1'/0'",
         (SC.REGTEST, SC.SINGLE_SIG, SC.TAPROOT): "m/86'/1'/0'",
 
+        (SC.MAINNET, SC.SINGLE_SIG, SC.LEGACY_P2PKH): "m/44'/0'/0'",
+        (SC.TESTNET, SC.SINGLE_SIG, SC.LEGACY_P2PKH): "m/44'/1'/0'",
+        (SC.REGTEST, SC.SINGLE_SIG, SC.LEGACY_P2PKH): "m/44'/1'/0'",
+
 
         # multi sig
         (SC.MAINNET, SC.MULTISIG, SC.NATIVE_SEGWIT): "m/48'/0'/0'/2'",
@@ -40,6 +44,8 @@ def test_get_standard_derivation_path():
         (SC.MAINNET, SC.MULTISIG, SC.TAPROOT): Exception,
         (SC.TESTNET, SC.MULTISIG, SC.TAPROOT): Exception,
         (SC.REGTEST, SC.MULTISIG, SC.TAPROOT): Exception,
+
+        (SC.MAINNET, SC.MULTISIG, SC.LEGACY_P2PKH): "m/45'",
 
         # intentionally fall into exceptions
         (SC.MAINNET, SC.SINGLE_SIG, 'invalid'): Exception,
@@ -155,6 +161,10 @@ def test_get_xpub():
         (vector_seeds[4], "m/49'/1'/0'", "test"): 
              bip32.HDKey.from_string("upub5EFU65HtV5TeiSHmZZm7FUffBGy8UKeqp7vw43jYbvZPpoVsgU93oac7Wk3u6moKegAEWtGNF8DehrnHtv21XXEMYRUocHqguyjknFHYfgY").to_base58(version=b'\x04\x35\x87\xcf'),
 
+        # https://github.com/satoshilabs/slips/blob/master/slip-0132.md#bitcoin-test-vectors
+        (vector_seeds[4], "m/44'/0'/0'", "main"): 
+             bip32.HDKey.from_string("xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj").to_base58(version=b'\x04\x88\xb2\x1e'),
+
         # https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki#test-vectors
         (vector_seeds[4], "m/86'/0'/0'", "main"): "xpub6BgBgsespWvERF3LHQu6CnqdvfEvtMcQjYrcRzx53QJjSxarj2afYWcLteoGVky7D3UKDP9QyrLprQ3VCECoY49yfdDEHGCtMMj92pReUsQ",
 
@@ -233,6 +243,14 @@ def test_get_single_sig_address():
         # jdlcdl: derived via electrum m/44'/1'/0 (first change address p2pkh on testnet)
         (HDKey.from_string("tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba"), "leg", 0, True, "test"):
             "mi8nhzZgGZQthq6DQHbru9crMDerUdTKva",
+
+        # https://github.com/satoshilabs/slips/blob/master/slip-0132.md#bitcoin-test-vectors (first payment address p2pkh on mainnet)
+        (HDKey.from_string("xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"), "leg", 0, False, "main"):
+            "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA",
+
+        # 3rdIteration: derived via electrum m/44'/0'/0 (first change address p2pkh on mainnet)
+        (HDKey.from_string("xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"), "leg", 0, True, "main"):
+            "1J3J6EvPrv8q6AC3VCjWV45Uf3nssNMRtH",
 
         # jdlcdl: nonsense script_type falls off end of function returning None.  TODO: Would it be preferred to "else: raise ValueError"?
         (HDKey.from_string("tpubDC5FSnBiZDMmhiuCmWAYsLwgLYrrT9rAqvTySfuCCrgsWz8wxMXUS9Tb9iVMvcRbvFcAHGkMD5Kx8koh4GquNGNTfohfk7pgjhaPCdXpoba"), "NONSENSE", 0, True, "test"):
@@ -361,6 +379,13 @@ def test_parse_derivation_path():
         (SC.MAINNET, SC.TAPROOT, True): "m/86'/0'/0'/1/5",
         (SC.TESTNET, SC.TAPROOT, True): "m/86'/1'/0'/1/5",
         (SC.REGTEST, SC.TAPROOT, True): "m/86'/1'/0'/1/5",
+
+        (SC.MAINNET, SC.LEGACY_P2PKH, False): "m/44'/0'/0'/0/5",
+        (SC.TESTNET, SC.LEGACY_P2PKH, False): "m/44'/1'/0'/0/5",
+        (SC.REGTEST, SC.LEGACY_P2PKH, False): "m/44'/1'/0'/0/5",
+        (SC.MAINNET, SC.LEGACY_P2PKH, True): "m/44'/0'/0'/1/5",
+        (SC.TESTNET, SC.LEGACY_P2PKH, True): "m/44'/1'/0'/1/5",
+        (SC.REGTEST, SC.LEGACY_P2PKH, True): "m/44'/1'/0'/1/5",
 
         # Try a typical custom derivation path (Unchained vault keys)
         (SC.MAINNET, SC.CUSTOM_DERIVATION, False): "m/45'/0'/0'/0/5",

@@ -739,7 +739,7 @@ class FormattedAddress(BaseComponent):
                     ))
 
                 remaining_display_str = remaining_display_str[max_chars_per_line:]
-                cur_y += char_height
+                cur_y += char_height + GUIConstants.BODY_LINE_SPACING
         
         self.height = cur_y
     
