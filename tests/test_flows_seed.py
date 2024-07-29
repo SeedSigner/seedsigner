@@ -408,6 +408,75 @@ class TestSeedFlows(FlowTest):
         )
 
 
+    def test_create_first_seed_via_seeds(self):
+        # From SeedMenu into "Create a Seed", then foreach valid option: in-out-next
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.CREATE),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.IMAGE),
+            FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=RET_CODE__BACK_BUTTON, is_redirect=True),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.DICE),
+            FlowStep(tools_views.ToolsDiceEntropyMnemonicLengthView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.KEYBOARD),
+            FlowStep(tools_views.ToolsCalcFinalWordNumWordsView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsMenuView)
+        ])
+
+        # From SeedMenu into "Create a Seed", Address Explorer not available
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+                FlowStep(seed_views.SeedsMenuView, is_redirect=True),
+                FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.CREATE),
+                FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            ])
+
+        # From SeedMenu into "Create a Seed", Verify Address not available
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+                FlowStep(seed_views.SeedsMenuView, is_redirect=True),
+                FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.CREATE),
+                FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            ])
+
+
+    def test_create_additional_seed_via_seeds(self):
+        # Load a finalized Seed into the Controller
+        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        self.controller.storage.finalize_pending_seed()
+
+        # From SeedMenu into "Create a Seed", then foreach valid option: in-out-next
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, button_data_selection=seed_views.SeedsMenuView.CREATE),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.IMAGE),
+            FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=RET_CODE__BACK_BUTTON, is_redirect=True),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.DICE),
+            FlowStep(tools_views.ToolsDiceEntropyMnemonicLengthView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.KEYBOARD),
+            FlowStep(tools_views.ToolsCalcFinalWordNumWordsView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsMenuView)
+        ])
+
+        # From SeedMenu into "Create a Seed", Address Explorer not available
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+                FlowStep(seed_views.SeedsMenuView, button_data_selection=seed_views.SeedsMenuView.CREATE),
+                FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            ])
+
+        # From SeedMenu into "Create a Seed", Verify Address not available
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+                FlowStep(seed_views.SeedsMenuView, button_data_selection=seed_views.SeedsMenuView.CREATE),
+                FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            ])
+
 
 class TestMessageSigningFlows(FlowTest):
     MAINNET_DERIVATION_PATH = "m/84h/0h/0h/0/0"
@@ -665,10 +734,3 @@ class TestMessageSigningFlows(FlowTest):
         expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
 
 
-    def test_create_seed_via_seeds_while_none_loaded(self):
-        self.run_sequence([
-            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
-            FlowStep(seed_views.SeedsMenuView, is_redirect=True),
-            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.CREATE),
-            FlowStep(tools_views.ToolsMenuView),
-        ])

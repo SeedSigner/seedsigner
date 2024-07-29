@@ -199,12 +199,13 @@ class ToolsDiceEntropyMnemonicLengthView(View):
         TWENTY_FOUR = f"24 words ({mnemonic_generation.DICE__NUM_ROLLS__24WORD} rolls)"
         
         button_data = [TWELVE, TWENTY_FOUR]
-        selected_menu_num = ButtonListScreen(
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title="Mnemonic Length",
             is_bottom_list=True,
             is_button_text_centered=True,
             button_data=button_data,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
