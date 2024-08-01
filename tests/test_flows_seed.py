@@ -460,6 +460,14 @@ class TestSeedFlows(FlowTest):
             FlowStep(tools_views.ToolsCalcFinalWordNumWordsView, screen_return_value=RET_CODE__BACK_BUTTON),
             FlowStep(tools_views.ToolsMenuView)
         ])
+   
+        # From SeedMenu into "Load a Seed", Create a seed not available
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+                FlowStep(seed_views.SeedsMenuView, button_data_selection=seed_views.SeedsMenuView.LOAD),
+                FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.CREATE),
+            ])
 
         # From SeedMenu into "Create a Seed", Address Explorer not available
         with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:

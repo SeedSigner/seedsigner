@@ -190,7 +190,8 @@ class LoadSeedView(View):
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
         
-        button_data.append(self.CREATE)
+        if len(self.controller.storage.seeds) == 0:
+            button_data.append(self.CREATE)
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
