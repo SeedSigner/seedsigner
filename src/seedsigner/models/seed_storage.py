@@ -31,6 +31,9 @@ class SeedStorage:
         return index
 
 
+    def pending_seed_is_loaded(self) -> bool:
+        return self.pending_seed in self.seeds
+
     def clear_pending_seed(self):
         self.pending_seed = None
 

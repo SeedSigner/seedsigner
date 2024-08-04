@@ -27,7 +27,7 @@ sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 
 from seedsigner.controller import Controller
 from seedsigner.gui.renderer import Renderer
-from seedsigner.gui.toast import BaseToastOverlayManagerThread, RemoveSDCardToastManagerThread, SDCardStateChangeToastManagerThread
+from seedsigner.gui.toast import BaseToastOverlayManagerThread, RemoveSDCardToastManagerThread, SDCardStateChangeToastManagerThread, AlreadyLoadedSeedToastManagerThread
 from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.qr_type import QRType
@@ -180,6 +180,10 @@ def test_generate_screenshots(target_locale):
             seed_views.SeedReviewPassphraseView,
             
             (seed_views.SeedOptionsView, dict(seed_num=0)),
+
+            # Screenshot raises RuntimeError: threads can only be started once
+            # (seed_views.SeedOptionsView, dict(seed_num=0), "SeedOptionsView_AlreadyLoadedSeed", AlreadyLoadedSeedToastManagerThread(activation_delay=0)),
+            
             (seed_views.SeedBackupView, dict(seed_num=0)),
             (seed_views.SeedExportXpubSigTypeView, dict(seed_num=0)),
             (seed_views.SeedExportXpubScriptTypeView, dict(seed_num=0, sig_type="msig")),
