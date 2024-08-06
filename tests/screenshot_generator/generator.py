@@ -180,10 +180,7 @@ def test_generate_screenshots(target_locale):
             seed_views.SeedReviewPassphraseView,
             
             (seed_views.SeedOptionsView, dict(seed_num=0)),
-
-            # Screenshot raises RuntimeError: threads can only be started once
-            # (seed_views.SeedOptionsView, dict(seed_num=0), "SeedOptionsView_AlreadyLoadedSeed", AlreadyLoadedSeedToastManagerThread(activation_delay=0)),
-            
+            (seed_views.SeedOptionsView, dict(seed_num=0), "SeedOptionsView_AlreadyLoadedSeed", AlreadyLoadedSeedToastManagerThread(activation_delay=0)),
             (seed_views.SeedBackupView, dict(seed_num=0)),
             (seed_views.SeedExportXpubSigTypeView, dict(seed_num=0)),
             (seed_views.SeedExportXpubScriptTypeView, dict(seed_num=0, sig_type="msig")),
@@ -330,6 +327,7 @@ def test_generate_screenshots(target_locale):
         readme += """<table style="border: 0;">"""
         readme += f"""<tr><td align="center">\n"""
         for screenshot in screenshot_list:
+            toast_thread = None
             if type(screenshot) == tuple:
                 if len(screenshot) == 2:
                     view_cls, view_args = screenshot
@@ -342,7 +340,6 @@ def test_generate_screenshots(target_locale):
                 view_cls = screenshot
                 view_args = {}
                 view_name = view_cls.__name__
-                toast_thread = None
 
             screencap_view(view_cls, view_args=view_args, view_name=view_name, toast_thread=toast_thread)
             readme += """  <table align="left" style="border: 1px solid gray;">"""
