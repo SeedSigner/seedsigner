@@ -244,7 +244,7 @@ class AlreadyLoadedSeedToastManagerThread(BaseToastOverlayManagerThread):
 
     def instantiate_toast(self) -> ToastOverlay:
         return ToastOverlay(
-            icon_name=SeedSignerIconConstants.WARNING,
+            icon_name=SeedSignerIconConstants.INFO,
             label_text="Seed already in memory",
             font_size=GUIConstants.BODY_FONT_SIZE,
             height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,

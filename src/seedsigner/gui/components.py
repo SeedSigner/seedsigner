@@ -129,6 +129,7 @@ class SeedSignerIconConstants:
     ERROR = "\ue912"
     SUCCESS = "\ue913"
     WARNING = "\ue914"
+    INFO = "\ue921"
 
     # Informational icons
     ADDRESS = "\ue915"
@@ -146,7 +147,7 @@ class SeedSignerIconConstants:
     QRCODE = "\ue91f"
 
     MIN_VALUE = SCAN
-    MAX_VALUE = QRCODE
+    MAX_VALUE = INFO
 
 
 
