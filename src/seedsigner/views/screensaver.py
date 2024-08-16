@@ -144,17 +144,24 @@ class ScreensaverScreen(LogoScreen):
 
         self.buttons = buttons
 
-        # Paste the logo in a bigger image that is 2x the size of the logo
-        self.image = Image.new("RGB", (2 * self.logo.size[0], 2 * self.logo.size[1]), (0,0,0))
-        self.image.paste(self.logo, (int(self.logo.size[0] / 2), int(self.logo.size[1] / 2)))
+        # Paste the logo in a bigger image that is the canvas + the logo dims (half the
+        # logo will render off the canvas at each edge).
+        self.image = Image.new("RGB", (self.renderer.canvas_width + self.logo.width, self.renderer.canvas_height + self.logo.height), (0,0,0))
+
+        # Place the logo centered on the larger image
+        logo_x = int((self.image.width - self.logo.width) / 2)
+        logo_y = int((self.image.height - self.logo.height) / 2)
+        self.image.paste(self.logo, (logo_x, logo_y))
 
         self.min_coords = (0, 0)
-        self.max_coords = (self.logo.size[0], self.logo.size[1])
+        self.max_coords = (self.renderer.canvas_width, self.renderer.canvas_height)
+
+        # Update our first rendering position so we're centered
+        self.cur_x = int(self.logo.width / 2)
+        self.cur_y = int(self.logo.height / 2)
 
         self.increment_x = self.rand_increment()
         self.increment_y = self.rand_increment()
-        self.cur_x = int(self.logo.size[0] / 2)
-        self.cur_y = int(self.logo.size[1] / 2)
 
         self._is_running = False
         self.last_screen = None
