@@ -1,8 +1,8 @@
 from PIL import Image, ImageDraw
 from threading import Lock
 
-from seedsigner.gui.components import Fonts, GUIConstants
-from seedsigner.hardware.st7789_mpy import ST7789
+# from seedsigner.hardware.st7789_mpy import ST7789
+from seedsigner.hardware.ili9341 import ILI9341, ILI9341_TFTWIDTH, ILI9341_TFTHEIGHT
 from seedsigner.models.singleton import ConfigurableSingleton
 
 
@@ -24,10 +24,13 @@ class Renderer(ConfigurableSingleton):
         cls._instance = renderer
 
         # Eventually we'll be able to plug in other display controllers
-        renderer.disp = ST7789(width=240, height=320)
+        renderer.disp = ILI9341()
+        renderer.disp.begin()
 
-        renderer.canvas_width = renderer.disp.width
-        renderer.canvas_height = renderer.disp.height
+        renderer.canvas_width = ILI9341_TFTWIDTH
+        renderer.canvas_height = ILI9341_TFTHEIGHT
+        # renderer.canvas_width = renderer.disp.width
+        # renderer.canvas_height = renderer.disp.height
 
         renderer.canvas = Image.new('RGB', (renderer.canvas_width, renderer.canvas_height))
         renderer.draw = ImageDraw.Draw(renderer.canvas)
