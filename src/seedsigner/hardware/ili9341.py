@@ -18,6 +18,9 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+"""
+Tested with a 320x240 IPS display (https://a.co/d/2Q9wDLo)
+"""
 import numbers
 import time
 # import numpy as np
@@ -123,7 +126,7 @@ class ILI9341(object):
     """Representation of an ILI9341 TFT LCD."""
 
     def __init__(self, dc=22, rst=13, led=12, width=ILI9341_TFTWIDTH,
-        height=ILI9341_TFTHEIGHT):
+        height=ILI9341_TFTHEIGHT, rotation=90):
         """Create an instance of the display using SPI communication.  Must
         provide the GPIO pin number for the D/C pin and the SPI driver.  Can
         optionally provide the GPIO pin number for the reset pin as the rst
@@ -138,6 +141,8 @@ class ILI9341(object):
         self._spi = spi
         self.width = width
         self.height = height
+        self.rotation = rotation
+        self.inverted = False
         # if self._gpio is None:
         #     self._gpio = GPIO.get_platform_gpio()
         # Set DC as output.
@@ -289,6 +294,17 @@ class ILI9341(object):
         self.reset()
         self._init()
 
+    def invert(self, state: bool = True):
+        """Sets display inversion to the specified state. If not provided, state
+        is True, which inverts the display. If state is False, the display turns
+        back into normal mode."""
+        if state:
+            self.command(ILI9341_INVON)
+        else:
+            self.command(ILI9341_INVOFF)
+        self.inverted = state
+        return self
+
     def set_window(self, x0=0, y0=0, x1=None, y1=None):
         """Set the pixel address window for proceeding drawing commands. x0 and
         x1 should define the minimum and maximum x pixel bounds.  y0 and y1
@@ -327,7 +343,7 @@ class ILI9341(object):
         # Unfortunate that this copy has to occur, but the SPI byte writing
         # function needs to take an array of bytes and PIL doesn't natively
         # store images in 16-bit 565 RGB format.
-        pixelbytes = image_to_data(image)
+        pixelbytes = image_to_data(image.rotate(self.rotation, expand=True))
         # Write data to hardware.
         self.data(pixelbytes)
 
