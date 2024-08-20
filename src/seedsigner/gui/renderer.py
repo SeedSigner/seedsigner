@@ -26,9 +26,10 @@ class Renderer(ConfigurableSingleton):
         # Eventually we'll be able to plug in other display controllers
         renderer.disp = ILI9341()
         renderer.disp.begin()
+        renderer.disp.invert()
 
-        renderer.canvas_width = ILI9341_TFTWIDTH
-        renderer.canvas_height = ILI9341_TFTHEIGHT
+        renderer.canvas_width = ILI9341_TFTHEIGHT
+        renderer.canvas_height = ILI9341_TFTWIDTH
         # renderer.canvas_width = renderer.disp.width
         # renderer.canvas_height = renderer.disp.height
 
