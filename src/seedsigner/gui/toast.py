@@ -123,6 +123,7 @@ class BaseToastOverlayManagerThread(BaseThread):
     def run(self):
         logger.info(f"{self.__class__.__name__}: started")
         start = time.time()
+        time.sleep(0.1)
         while time.time() - start < self.activation_delay:
             if self.hw_inputs.has_any_input():
                 # User has pressed a button, cancel the toast
@@ -229,4 +230,23 @@ class SDCardStateChangeToastManagerThread(BaseToastOverlayManagerThread):
         return ToastOverlay(
             icon_name=SeedSignerIconConstants.MICROSD,
             label_text=self.message,
+        )
+
+class AlreadyLoadedSeedToastManagerThread(BaseToastOverlayManagerThread):
+    def __init__(self, activation_delay=0):
+        # Note: activation_delay is configurable so the screenshot generator can get the
+        # toast to immediately render.
+        super().__init__(
+            activation_delay=activation_delay,  # seconds
+            duration=5,                         # seconds
+        )
+
+
+    def instantiate_toast(self) -> ToastOverlay:
+        return ToastOverlay(
+            icon_name=SeedSignerIconConstants.INFO,
+            label_text="Seed already in memory",
+            font_size=GUIConstants.BODY_FONT_SIZE,
+            height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
+            color=GUIConstants.INFO_COLOR,
         )

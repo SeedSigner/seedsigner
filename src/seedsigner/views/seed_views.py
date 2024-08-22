@@ -15,6 +15,7 @@ from seedsigner.helpers import embit_utils
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
 from seedsigner.gui.screens.screen import LargeIconStatusScreen, QRDisplayScreen
+from seedsigner.gui.toast import AlreadyLoadedSeedToastManagerThread
 from seedsigner.helpers import embit_utils
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
@@ -325,6 +326,8 @@ class SeedFinalizeView(View):
         )
 
         if button_data[selected_menu_num] == self.FINALIZE:
+            if self.controller.storage.pending_seed_is_loaded():
+                self.controller.activate_toast(AlreadyLoadedSeedToastManagerThread())
             seed_num = self.controller.storage.finalize_pending_seed()
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
 
@@ -428,6 +431,8 @@ class SeedReviewPassphraseView(View):
             return Destination(SeedAddPassphraseView)
         
         elif button_data[selected_menu_num] == self.DONE:
+            if self.controller.storage.pending_seed_is_loaded():
+                self.controller.activate_toast(AlreadyLoadedSeedToastManagerThread())
             seed_num = self.controller.storage.finalize_pending_seed()
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
             
