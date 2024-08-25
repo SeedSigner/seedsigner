@@ -13,7 +13,7 @@ class DisplayDriver:
 
         if self.display_type == DISPLAY_TYPE__ST7789:
             from seedsigner.hardware.displays.st7789_mpy import ST7789
-            if height != 240 or width not in [240, 320]:
+            if height not in [240, 320] or width != 240:
                 raise ValueError("ST7789 display only supports 240x240 or 320x240 resolutions")
             self.display = ST7789(width=width, height=height)
         
