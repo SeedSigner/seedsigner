@@ -20,6 +20,9 @@
 # THE SOFTWARE.
 """
 Tested with a 320x240 IPS display (https://a.co/d/2Q9wDLo)
+* Framerate is excellent (~10fps)
+* Requires `invert()` and 90° rotation
+* Exhibits noticeable residual ghosting
 """
 import numbers
 import time
@@ -116,7 +119,11 @@ def image_to_data(image):
     # color = ((pb[:,:,0] & 0xF8) << 8) | ((pb[:,:,1] & 0xFC) << 3) | (pb[:,:,2] >> 3)
     # return np.dstack(((color >> 8) & 0xFF, color & 0xFF)).flatten().tolist()
 
-    # convert 24-bit RGB-8:8:8 to gBRG-3:5:5:3; then per-pixel byteswap to 16-bit RGB-5:6:5
+    # convert 24-bit RGB-8:8:8 to gBRG-3:5:5:3 ("BGR;16"):
+    #   3 highest bits of green + 5 highest bits of blue in the first byte and
+    #   5 highest bits of red + the next 3 highest bits of green (not yet expressed) in the second byte.
+    # Then per-pixel byteswap to 16-bit RGB-5:6:5
+    # This approach was measured to be ~3.4x faster than the numpy code above.
     arr = array.array("H", image.convert("BGR;16").tobytes())
     arr.byteswap()
     return arr.tobytes()
@@ -159,6 +166,15 @@ class ILI9341(object):
 
         # Create an image buffer.
         self.buffer = Image.new('RGB', (width, height))
+
+    # @property
+    # def width(self):
+    #     return self.width
+
+    # @property
+    # def height(self):
+    #     return self.height
+
 
     def send(self, data, is_data=True, chunk_size=4096):
         """Write a byte or array of bytes to the display. Is_data parameter
@@ -328,7 +344,7 @@ class ILI9341(object):
         self.data(y1)                    # YEND
         self.command(ILI9341_RAMWR)        # write to RAM
 
-    def display(self, image=None):
+    def show_image(self, image=None, x_start: int = 0, y_start: int = 0):
         """Write the display buffer or provided image to the hardware.  If no
         image parameter is provided the display buffer will be written to the
         hardware.  If an image is provided, it should be RGB format and the
@@ -337,18 +353,18 @@ class ILI9341(object):
         # By default write the internal buffer to the display.
         if image is None:
             image = self.buffer
-        # Set address bounds to entire display.
-        self.set_window()
+        
+        output_image = image.rotate(self.rotation, expand=True)
+        self.set_window(x_start, y_start, x_start + output_image.width - 1, y_start + output_image.height - 1)
+
         # Convert image to array of 16bit 565 RGB data bytes.
         # Unfortunate that this copy has to occur, but the SPI byte writing
         # function needs to take an array of bytes and PIL doesn't natively
         # store images in 16-bit 565 RGB format.
-        pixelbytes = image_to_data(image.rotate(self.rotation, expand=True))
+        pixelbytes = image_to_data(output_image)
+
         # Write data to hardware.
         self.data(pixelbytes)
-
-    def ShowImage(self, image, x, y):
-        self.display(image)
 
     def clear(self, color=(0,0,0)):
         """Clear the image buffer to the specified RGB color (default black)."""

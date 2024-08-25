@@ -42,22 +42,22 @@ class SettingsMenuView(View):
 
             # Set up the next nested level of menuing
             button_data.append(("Advanced", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
-            next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
-
+            advanced_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
             button_data.append(self.IO_TEST)
             button_data.append(self.DONATE)
 
         elif self.visibility == SettingsConstants.VISIBILITY__ADVANCED:
             title = "Advanced"
 
-            # So far there are no real Developer options; disabling for now
-            # button_data.append(("Developer Options", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
-            # next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__DEVELOPER})
-            next_destination = None
-        
+            # The hardware options nest below "Advanced"
+            button_data.append(("Hardware", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
+            hardware_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__HARDWARE})
+
+        elif self.visibility == SettingsConstants.VISIBILITY__HARDWARE:
+            title = "Hardware"
+
         elif self.visibility == SettingsConstants.VISIBILITY__DEVELOPER:
             title = "Dev Options"
-            next_destination = None
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -79,8 +79,15 @@ class SettingsMenuView(View):
             else:
                 return Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
         
-        elif selected_menu_num == len(settings_entries):
-            return next_destination
+        elif isinstance(button_data[selected_menu_num], tuple):
+            if button_data[selected_menu_num][0] == "Advanced":
+                return advanced_destination
+
+            elif button_data[selected_menu_num][0] == "Hardware":
+                return hardware_destination
+            
+            else:
+                raise ValueError(f"Unknown tuple value in settings menu: {button_data[selected_menu_num]}")
 
         elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == self.IO_TEST:
             return Destination(IOTestView)
@@ -178,6 +185,9 @@ class SettingsEntryUpdateSelectionView(View):
             attr_name=self.settings_entry.attr_name,
             value=updated_value
         )
+
+        if self.settings_entry.attr_name == SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED:
+            self.renderer.disp.invert(enabled=updated_value == SettingsConstants.OPTION__ENABLED)
 
         if destination:
             return destination

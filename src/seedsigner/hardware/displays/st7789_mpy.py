@@ -341,7 +341,10 @@ class ST7789:
             self._write(command, data)
             sleep_ms(delay)
 
-    def ShowImage(self,image,Xstart,Ystart):
+    def invert(self, enabled: bool = True):
+        raise Exception("Invert not implemented")
+
+    def show_image(self, image, x_start: int = 0, y_start: int = 0):
         """Set buffer to value of Python Imaging Library image."""
         """Write display buffer to physical display"""
 
@@ -351,52 +354,46 @@ class ST7789:
         if imwidth != self.width or imheight != self.height:
             raise ValueError('Image must be same dimensions as display \
                 ({0}x{1}).' .format(self.width, self.height))
+
         # convert 24-bit RGB-8:8:8 to gBRG-3:5:5:3; then per-pixel byteswap to 16-bit RGB-5:6:5
         arr = array.array("H", image.convert("BGR;16").tobytes())
         arr.byteswap()
         pix = arr.tobytes()
-        self.SetWindows ( 0, 0, self.width, self.height)
-        GPIO.output(self.dc,GPIO.HIGH)
-        # self.spi.writebytes2(pix)
-        self._write(data=pix)
 
+        self._set_window(x_start, y_start, self.width, self.height)
+        GPIO.output(self.dc,GPIO.HIGH)
+        self._write(data=pix)
 
     def _write(self, command=None, data=None):
         """SPI write to the device: commands and data."""
         if self.cs:
-            self.cs.off()
+            GPIO.output(self.cs, GPIO.LOW)
         if command is not None:
             GPIO.output(self.dc, GPIO.LOW)
-            # self.dc.off()
             self.spi.writebytes2(command)
         if data is not None:
             GPIO.output(self.dc,GPIO.HIGH)
-            # self.dc.on()
             self.spi.writebytes2(data)
             if self.cs:
-                self.cs.on()
+                GPIO.output(self.cs,GPIO.HIGH)
 
     def hard_reset(self):
         """
         Hard reset display.
         """
         if self.cs:
-            self.cs.off()
+            GPIO.output(self.cs, GPIO.LOW)
         if self.reset:
             GPIO.output(self.reset, GPIO.HIGH)
-            # self.reset.on()
         sleep_ms(10)
         if self.reset:
             GPIO.output(self.reset, GPIO.LOW)
-            # self.reset.off()
         sleep_ms(10)
         if self.reset:
             GPIO.output(self.reset, GPIO.HIGH)
-            # self.reset.on()
         sleep_ms(120)
         if self.cs:
-            GPIO.output(self.reset, GPIO.HIGH)
-            # self.cs.on()
+            GPIO.output(self.cs, GPIO.HIGH)
 
     def soft_reset(self):
         """
@@ -461,9 +458,6 @@ class ST7789:
             madctl &= ~_ST7789_MADCTL_BGR
 
         self._write(_ST7789_MADCTL, bytes([madctl]))
-
-    def SetWindows(self, x0, y0, x1, y1):
-        self._set_window(x0, y0, x1, y1)
 
     def _set_window(self, x0, y0, x1, y1):
         """
@@ -574,7 +568,6 @@ class ST7789:
             _ENCODE_PIXEL_SWAPPED if self.needs_swap else _ENCODE_PIXEL, color
         )
         GPIO.output(self.dc,GPIO.HIGH)
-        # self.dc.on()
         if chunks:
             data = pixel * _BUFFER_SIZE
             for _ in range(chunks):

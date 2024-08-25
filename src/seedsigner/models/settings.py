@@ -173,13 +173,16 @@ class Settings(Singleton):
         self.save()
     
 
-    def get_value(self, attr_name: str):
+    def get_value(self, attr_name: str, default_if_none: bool = None):
         """
             Returns the attr's current value.
 
             Note that for multiselect, the current value is a List.
         """
         if attr_name not in self._data:
+            if default_if_none:
+                return SettingsDefinition.get_settings_entry(attr_name).default_value
+            
             raise Exception(f"Setting for {attr_name} not found")
         return self._data[attr_name]
 

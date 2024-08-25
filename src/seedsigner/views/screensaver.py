@@ -46,12 +46,16 @@ class OpeningSplashScreen(LogoScreen):
         if show_partner_logos:
             logo_y -= 56
 
+        start = time.time()
+
         # Fade in alpha
         for i in range(250, -1, -25):
             self.logo.putalpha(255 - i)
             background = Image.new("RGBA", size=self.logo.size, color="black")
             self.renderer.canvas.paste(Image.alpha_composite(background, self.logo), (logo_x, logo_y))
             self.renderer.show_image()
+        
+        print(f"{(time.time() - start)} elapsed")
 
         # Display version num below SeedSigner logo
         font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.TOP_NAV_TITLE_FONT_SIZE)
@@ -156,7 +160,7 @@ class ScreensaverScreen(LogoScreen):
                     crop = self.image.crop((
                         self.cur_x, self.cur_y,
                         self.cur_x + self.renderer.canvas_width, self.cur_y + self.renderer.canvas_height))
-                    self.renderer.disp.ShowImage(crop, 0, 0)
+                    self.renderer.disp.show_image(crop, 0, 0)
 
                     self.cur_x += self.increment_x
                     self.cur_y += self.increment_y
