@@ -30,7 +30,10 @@ class Renderer(ConfigurableSingleton):
 
 
     def initialize_display(self):
-        # TODO: How to handle unspecified settings + non-default display hardware?
+        # May be called while already running with a previous display driver; must
+        # prevent any other screen writes while we're changing the display driver.
+        self.lock.acquire()
+
         display_config = Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_CONFIGURATION, default_if_none=True)
         self.display_type = display_config.split("_")[0]
         if self.display_type not in ALL_DISPLAY_TYPES:
@@ -53,6 +56,8 @@ class Renderer(ConfigurableSingleton):
 
         self.canvas = Image.new('RGB', (self.canvas_width, self.canvas_height))
         self.draw = ImageDraw.Draw(self.canvas)
+
+        self.lock.release()
 
 
     def show_image(self, image=None, alpha_overlay=None, show_direct=False):

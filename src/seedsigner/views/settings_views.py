@@ -206,8 +206,15 @@ class SettingsIngestSettingsQRView(View):
         # May raise an Exception which will bubble up to the Controller to display to the
         # user.
         self.config_name, settings_update_dict = Settings.parse_settingsqr(data)
+
+        changes_display_driver = (
+            SettingsConstants.SETTING__DISPLAY_CONFIGURATION in settings_update_dict and
+            self.settings.get_value(SettingsConstants.SETTING__DISPLAY_CONFIGURATION) != settings_update_dict[SettingsConstants.SETTING__DISPLAY_CONFIGURATION])
             
         self.settings.update(settings_update_dict)
+
+        if changes_display_driver:
+            self.renderer.initialize_display()
 
         if MicroSD.get_instance().is_inserted and self.settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS) == SettingsConstants.OPTION__ENABLED:
             self.status_message = "Persistent Settings enabled. Settings saved to SD card."
