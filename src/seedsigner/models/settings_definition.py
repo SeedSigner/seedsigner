@@ -534,6 +534,7 @@ class SettingsDefinition:
         # Hardware config
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__DISPLAY_CONFIGURATION,
+                      abbreviated_name="disp_conf",
                       display_name="Display type",
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__HARDWARE,
@@ -542,6 +543,7 @@ class SettingsDefinition:
         
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED,
+                      abbreviated_name="rgb_inv",
                       display_name="Invert colors",
                       type=SettingsConstants.TYPE__ENABLED_DISABLED,
                       visibility=SettingsConstants.VISIBILITY__HARDWARE,
