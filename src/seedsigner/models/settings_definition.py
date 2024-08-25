@@ -178,12 +178,12 @@ class SettingsConstants:
     DISPLAY_CONFIGURATION__ST7789__240x240 = "st7789_240x240"  # default; original Waveshare 1.3" display hat
     DISPLAY_CONFIGURATION__ST7789__320x240 = "st7789_320x240"
     DISPLAY_CONFIGURATION__ILI9341__240x320 = "ili9341_240x320"  # natively portrait dimensions; we apply a 90° rotation
-    DISPLAY_CONFIGURATION__ILI9486__480x320 = "ili9486_320x480"  # natively portrait dimensions; we apply a 90° rotation
+    DISPLAY_CONFIGURATION__ILI9486__320x480 = "ili9486_320x480"  # natively portrait dimensions; we apply a 90° rotation
     ALL_DISPLAY_CONFIGURATIONS = [
         (DISPLAY_CONFIGURATION__ST7789__240x240, "st7789 240x240"),
         (DISPLAY_CONFIGURATION__ST7789__320x240, "st7789 320x240"),
         (DISPLAY_CONFIGURATION__ILI9341__240x320, "ili9341 240x320"),
-        # (DISPLAY_CONFIGURATION__ILI9486__480x320, "ili9486 320x480"),  # TODO: Enable when ili9486 driver performance is improved
+        # (DISPLAY_CONFIGURATION__ILI9486__320x480, "ili9486 320x480"),  # TODO: Enable when ili9486 driver performance is improved
     ]
 
 
@@ -199,8 +199,8 @@ class SettingsConstants:
     CATEGORY__FEATURES = "features"
 
     VISIBILITY__GENERAL = "general"
-    VISIBILITY__HARDWARE = "hardware"
     VISIBILITY__ADVANCED = "advanced"
+    VISIBILITY__HARDWARE = "hardware"
     VISIBILITY__DEVELOPER = "developer"
     VISIBILITY__HIDDEN = "hidden"   # For data-only (e.g. custom_derivation), not configurable by the user
 
