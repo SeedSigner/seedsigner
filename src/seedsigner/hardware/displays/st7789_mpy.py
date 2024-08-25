@@ -342,7 +342,7 @@ class ST7789:
             sleep_ms(delay)
 
     def invert(self, enabled: bool = True):
-        raise Exception("Invert not implemented")
+        self.inversion_mode(enabled)
 
     def show_image(self, image, x_start: int = 0, y_start: int = 0):
         """Set buffer to value of Python Imaging Library image."""
