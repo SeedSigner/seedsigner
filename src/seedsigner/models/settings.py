@@ -108,7 +108,8 @@ class Settings(Singleton):
     
 
     def save(self):
-        if self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] == SettingsConstants.OPTION__ENABLED:
+        from seedsigner.hardware.microsd import MicroSD
+        if self._data[SettingsConstants.SETTING__PERSISTENT_SETTINGS] == SettingsConstants.OPTION__ENABLED and MicroSD.get_instance().is_inserted:
             with open(Settings.SETTINGS_FILENAME, 'w') as settings_file:
                 json.dump(self._data, settings_file, indent=4)
                 # SeedSignerOS makes removing the microsd possible, flush and then fsync forces persistent settings to disk
@@ -146,6 +147,8 @@ class Settings(Singleton):
         for key, value in new_settings.items():
             self._data.pop(key, None)
             self._data[key] = value
+        
+        self.save()
 
 
     def set_value(self, attr_name: str, value: any):
@@ -173,13 +176,16 @@ class Settings(Singleton):
         self.save()
     
 
-    def get_value(self, attr_name: str):
+    def get_value(self, attr_name: str, default_if_none: bool = None):
         """
             Returns the attr's current value.
 
             Note that for multiselect, the current value is a List.
         """
         if attr_name not in self._data:
+            if default_if_none:
+                return SettingsDefinition.get_settings_entry(attr_name).default_value
+
             raise Exception(f"Setting for {attr_name} not found")
         return self._data[attr_name]
 

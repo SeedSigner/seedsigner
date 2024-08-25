@@ -20,7 +20,7 @@ class ScreenshotRenderer(Renderer):
         cls._instance = renderer
 
         # Hard-coding output values for now
-        renderer.canvas_width = 240
+        renderer.canvas_width = 320
         renderer.canvas_height = 240
 
         renderer.canvas = Image.new('RGB', (renderer.canvas_width, renderer.canvas_height))

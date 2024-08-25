@@ -4,19 +4,15 @@ import random
 import sys
 import time
 from unittest.mock import Mock, patch, MagicMock
-from seedsigner.helpers import embit_utils
 
 from embit import compact
 from embit.psbt import PSBT, OutputScope
 from embit.script import Script
 
-from seedsigner.helpers import embit_utils
-from seedsigner.models.psbt_parser import OPCODES, PSBTParser
-
-
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
-sys.modules['seedsigner.hardware.ST7789'] = MagicMock()
+sys.modules['seedsigner.hardware.displays.st7789_mpy'] = MagicMock()
+sys.modules['seedsigner.hardware.displays.ili9341'] = MagicMock()
 sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
 sys.modules['seedsigner.views.screensaver'] = MagicMock()
 sys.modules['RPi'] = MagicMock()
@@ -24,6 +20,9 @@ sys.modules['RPi.GPIO'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
 sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 
+from seedsigner.gui.components import GUIConstants
+from seedsigner.helpers import embit_utils
+from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 
 from seedsigner.controller import Controller
 from seedsigner.gui.renderer import Renderer
@@ -142,6 +141,24 @@ def test_generate_screenshots(target_locale):
             initial_scroll=240,  # Just guessing how many pixels to scroll down
         ),
         "SettingsMenuView__Advanced"
+    ))
+
+    # Render the nested "Hardware" submenu option at the end of "Advanced"
+    num_advanced_settings = len(SettingsDefinition.get_settings_entries(visibility=SettingsConstants.VISIBILITY__ADVANCED)) - 5  # hard-coded for 240px height: the first 5 settings options are already visible
+    settings_views_list.append((
+        settings_views.SettingsMenuView,
+        dict(
+            visibility=SettingsConstants.VISIBILITY__ADVANCED,
+            selected_attr=SettingsConstants.SETTING__PARTNER_LOGOS,
+            initial_scroll=num_advanced_settings*GUIConstants.BUTTON_HEIGHT + (num_advanced_settings-1)*GUIConstants.COMPONENT_PADDING,  # Force menu to scroll to the bottom
+        ),
+        "SettingsMenuView__Advanced_Hardware"
+    ))
+
+    settings_views_list.append((
+        settings_views.SettingsMenuView,
+        dict(visibility=SettingsConstants.VISIBILITY__HARDWARE),
+        "SettingsMenuView__Hardware"
     ))
 
     # so we get a choice for transcribe seed qr format
@@ -349,6 +366,12 @@ def test_generate_screenshots(target_locale):
 
     # Re-render some screens that require more manual intervention / setup than the above
     # scripting can support.
+    screenshot_renderer.set_screenshot_path(os.path.join(screenshot_root, "seed_views"))
+    controller.storage.init_pending_mnemonic(num_words=12)
+    controller.storage.update_pending_mnemonic(word="sc", index=0)
+    screencap_view(seed_views.SeedMnemonicEntryView)
+
+
     screenshot_renderer.set_screenshot_path(os.path.join(screenshot_root, "psbt_views"))
 
     # Render the PSBTChangeDetailsView_multisig_unverified screenshot

@@ -30,8 +30,17 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
 
         self.possible_alphabet = "abcdefghijklmnopqrstuvwxyz"
 
+        # Measure the width required to display the longest word in the English bip39
+        # wordlist.
+        # TODO: If we ever support other wordlist languages, adjust accordingly.
+        matches_list_highlight_font_name = GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME
+        matches_list_highlight_font_size = GUIConstants.BUTTON_FONT_SIZE + 4
+        (left, top, right, bottom) = Fonts.get_font(matches_list_highlight_font_name, matches_list_highlight_font_size).getbbox("mushroom", anchor="ls")
+        matches_list_max_text_width = right - left
+        matches_list_button_width = matches_list_max_text_width + 2*GUIConstants.COMPONENT_PADDING
+
         # Set up the keyboard params
-        self.keyboard_width = 128
+        self.keyboard_width = self.canvas_width - GUIConstants.EDGE_PADDING - matches_list_button_width
         text_entry_display_y = self.top_nav.height
         text_entry_display_height = 30
 
@@ -77,7 +86,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         else:
             self.keyboard.set_selected_key(selected_letter=self.letters[-1])
 
-        self.matches_list_x = GUIConstants.EDGE_PADDING + self.keyboard.width + GUIConstants.COMPONENT_PADDING
+        self.matches_list_x = self.canvas_width - matches_list_button_width
         self.matches_list_y = self.top_nav.height
         self.highlighted_row_y = int((self.canvas_height - GUIConstants.BUTTON_HEIGHT)/2)
 
@@ -616,11 +625,17 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
         )
         self.components.append(self.derivation_line)
 
+        font_name = GUIConstants.FIXED_WIDTH_FONT_NAME
+        font_size = GUIConstants.BODY_FONT_SIZE + 2
+        left, top, right, bottom  = Fonts.get_font(font_name, font_size).getbbox("X")
+        char_width = right - left
+        num_chars = int((self.canvas_width - GUIConstants.ICON_FONT_SIZE - 2*GUIConstants.COMPONENT_PADDING) / char_width) - 3  # ellipsis
+
         self.xpub_line = IconTextLine(
             icon_name=FontAwesomeIconConstants.X,
             icon_color=GUIConstants.INFO_COLOR,
             label_text="Xpub",
-            value_text=f"{self.xpub[:18]}...",
+            value_text=f"{self.xpub[:num_chars]}...",
             font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
             font_size=GUIConstants.BODY_FONT_SIZE + 2,
             screen_x=GUIConstants.COMPONENT_PADDING,

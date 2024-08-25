@@ -522,9 +522,11 @@ class LargeButtonScreen(BaseTopNavScreen):
         if len(self.button_data) not in [2, 4]:
             raise Exception("LargeButtonScreen only supports 2 or 4 buttons")
 
-        # Maximize 2-across width; calc height with a 4:3 aspect ratio
+        # Maximize 2-across width
         button_width = int((self.canvas_width - (2 * GUIConstants.EDGE_PADDING) - GUIConstants.COMPONENT_PADDING) / 2)
-        button_height = int(button_width * (3.0 / 4.0))
+
+        # Maximize 2-row height
+        button_height = int((self.canvas_height - self.top_nav.height - (2 * GUIConstants.COMPONENT_PADDING) - GUIConstants.EDGE_PADDING) / 2)
 
         # Vertically center the buttons
         if len(self.button_data) == 2:

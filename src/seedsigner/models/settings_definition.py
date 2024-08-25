@@ -151,6 +151,9 @@ class SettingsConstants:
     SETTING__COORDINATORS = "coordinators"
     SETTING__BTC_DENOMINATION = "denomination"
 
+    SETTING__DISPLAY_CONFIGURATION = "display_config"
+    SETTING__DISPLAY_COLOR_INVERTED = "color_inverted"
+
     SETTING__NETWORK = "network"
     SETTING__QR_DENSITY = "qr_density"
     SETTING__XPUB_EXPORT = "xpub_export"
@@ -170,6 +173,20 @@ class SettingsConstants:
 
     SETTING__DEBUG = "debug"
 
+
+    # Hardware config settings
+    DISPLAY_CONFIGURATION__ST7789__240x240 = "st7789_240x240"  # default; original Waveshare 1.3" display hat
+    DISPLAY_CONFIGURATION__ST7789__240x320 = "st7789_240x320"
+    DISPLAY_CONFIGURATION__ILI9341__240x320 = "ili9341_240x320"  # natively portrait dimensions; we apply a 90° rotation
+    DISPLAY_CONFIGURATION__ILI9486__320x480 = "ili9486_320x480"  # natively portrait dimensions; we apply a 90° rotation
+    ALL_DISPLAY_CONFIGURATIONS = [
+        (DISPLAY_CONFIGURATION__ST7789__240x240, "st7789 240x240"),
+        (DISPLAY_CONFIGURATION__ST7789__240x320, "st7789 240x320"),
+        (DISPLAY_CONFIGURATION__ILI9341__240x320, "ili9341 240x320"),
+        # (DISPLAY_CONFIGURATION__ILI9486__320x480, "ili9486 320x480"),  # TODO: Enable when ili9486 driver performance is improved
+    ]
+
+
     # Hidden settings
     SETTING__QR_BRIGHTNESS = "qr_background_color"
 
@@ -183,6 +200,7 @@ class SettingsConstants:
 
     VISIBILITY__GENERAL = "general"
     VISIBILITY__ADVANCED = "advanced"
+    VISIBILITY__HARDWARE = "hardware"
     VISIBILITY__DEVELOPER = "developer"
     VISIBILITY__HIDDEN = "hidden"   # For data-only (e.g. custom_derivation), not configurable by the user
 
@@ -511,6 +529,26 @@ class SettingsDefinition:
                       display_name="Show partner logos",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__ENABLED),
+
+
+        # Hardware config
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__DISPLAY_CONFIGURATION,
+                      abbreviated_name="disp_conf",
+                      display_name="Display type",
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__HARDWARE,
+                      selection_options=SettingsConstants.ALL_DISPLAY_CONFIGURATIONS,
+                      default_value=SettingsConstants.DISPLAY_CONFIGURATION__ST7789__240x240),
+        
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED,
+                      abbreviated_name="rgb_inv",
+                      display_name="Invert colors",
+                      type=SettingsConstants.TYPE__ENABLED_DISABLED,
+                      visibility=SettingsConstants.VISIBILITY__HARDWARE,
+                      default_value=SettingsConstants.OPTION__DISABLED),
+
 
         # Developer options
         # TODO: No real Developer options needed yet. Disable for now.

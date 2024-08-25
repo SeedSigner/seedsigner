@@ -3,6 +3,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 from PIL.Image import Image
+from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConstants, IconTextLine, SeedSignerIconConstants, TextArea
 
@@ -432,3 +433,40 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
             ))
+
+
+
+@dataclass
+class ToolsAddressExplorerAddressListScreen(ButtonListScreen):
+    start_index: int = 0
+    addresses: list[str] = None
+    next_button: tuple = None
+
+    def __post_init__(self):
+        self.button_font_name = GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME
+        self.button_font_size = GUIConstants.BUTTON_FONT_SIZE + 4
+        self.is_button_text_centered = False
+        self.is_bottom_list = True
+
+        left, top, right, bottom  = Fonts.get_font(self.button_font_name, self.button_font_size).getbbox("X")
+        char_width = right - left
+
+        last_index = self.start_index + len(self.addresses) - 1
+        index_digits = len(str(last_index))
+        
+        # Calculate how many pixels we have available within each address button,
+        # remembering to account for the index number that will be displayed.
+        # Note: because we haven't called the parent's post_init yet, we don't have a
+        # self.canvas_width set; have to use the Renderer singleton to get it.
+        available_width = Renderer.get_instance().canvas_width - 2*GUIConstants.EDGE_PADDING - 2*GUIConstants.COMPONENT_PADDING - (index_digits + 1)*char_width
+        displayable_chars = int(available_width / char_width) - 3  # ellipsis
+        displayable_half = int(displayable_chars/2)
+
+        self.button_data = []
+        for i, address in enumerate(self.addresses):
+            cur_index = i + self.start_index
+            self.button_data.append(f"{cur_index}:{address[:displayable_half]}...{address[-1*displayable_half:]}")
+        
+        self.button_data.append(self.next_button)
+
+        super().__post_init__()
