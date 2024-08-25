@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class SettingsMenuView(View):
+    ADVANCED = ButtonOption("Advanced", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
+    HARDWARE = ButtonOption("Hardware", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
     IO_TEST = ButtonOption("I/O test")
     DONATE = ButtonOption("Donate")
 
@@ -29,7 +31,7 @@ class SettingsMenuView(View):
         settings_entries = SettingsDefinition.get_settings_entries(
             visibility=self.visibility
         )
-        button_data=[ButtonOption(e.display_name) for e in settings_entries]
+        button_data: list[ButtonOption] = [ButtonOption(e.display_name) for e in settings_entries]
 
         selected_button = 0
         if self.selected_attr:
@@ -42,7 +44,7 @@ class SettingsMenuView(View):
             title = _("Settings")
 
             # Set up the next nested level of menuing
-            button_data.append(ButtonOption("Advanced", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT))
+            button_data.append(self.ADVANCED)
             next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
 
             button_data.append(self.IO_TEST)
@@ -51,11 +53,14 @@ class SettingsMenuView(View):
         elif self.visibility == SettingsConstants.VISIBILITY__ADVANCED:
             title = _("Advanced")
 
-            # So far there are no real Developer options; disabling for now
-            # button_data.append(("Developer Options", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
-            # next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__DEVELOPER})
+            # The hardware options nest below "Advanced"
+            button_data.append(self.HARDWARE)
+            next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__HARDWARE})
+
+        elif self.visibility == SettingsConstants.VISIBILITY__HARDWARE:
+            title = "Hardware"
             next_destination = None
-        
+
         elif self.visibility == SettingsConstants.VISIBILITY__DEVELOPER:
             title = _("Dev Options")
             next_destination = None
@@ -80,7 +85,10 @@ class SettingsMenuView(View):
             else:
                 return Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
         
-        elif selected_menu_num == len(settings_entries):
+        if button_data[selected_menu_num] == self.ADVANCED:
+            return next_destination
+
+        elif button_data[selected_menu_num] == self.HARDWARE:
             return next_destination
 
         elif button_data[selected_menu_num] == self.IO_TEST:
@@ -221,6 +229,9 @@ class SettingsEntryUpdateSelectionView(View):
             attr_name=self.settings_entry.attr_name,
             value=updated_value
         )
+
+        if self.settings_entry.attr_name == SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED:
+            self.renderer.disp.invert(enabled=updated_value == SettingsConstants.OPTION__ENABLED)
 
         if destination:
             return destination
