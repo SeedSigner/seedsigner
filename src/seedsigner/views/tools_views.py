@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import hashlib
 import logging
 import os
@@ -10,7 +9,7 @@ from PIL.ImageOps import autocontrast
 
 from seedsigner.controller import Controller
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, WarningScreen)
+from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen)
 from seedsigner.gui.screens.tools_screens import (ToolsCalcFinalWordDoneScreen, ToolsCalcFinalWordFinalizePromptScreen,
     ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen,
     ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen)
@@ -281,7 +280,7 @@ class ToolsCalcFinalWordFinalizePromptView(View):
             num_entropy_bits = 3
 
         COIN_FLIPS = "Coin flip entropy"
-        SELECT_WORD = f"Word selection entropy"
+        SELECT_WORD = "Word selection entropy"
         ZEROS = "Finalize with zeros"
 
         button_data = [COIN_FLIPS, SELECT_WORD, ZEROS]

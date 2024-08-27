@@ -7,8 +7,8 @@ import time
 from seedsigner.gui.renderer import Renderer
 from seedsigner.models.threads import BaseThread
 
-from .screen import ButtonListScreen, WarningScreen
-from ..components import (BtcAmount, Button, Icon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, SeedSignerIconConstants, TextArea,
+from .screen import ButtonListScreen
+from ..components import (BtcAmount, Icon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, SeedSignerIconConstants, TextArea,
     calc_bezier_curve, linear_interp)
 
 
@@ -100,7 +100,7 @@ class PSBTOverviewScreen(ButtonListScreen):
         max_inputs_text_width = 0
         for input in inputs_column:
             left, top, right, bottom  = font.getbbox(input)
-            tw, th = right - left, bottom - top
+            tw, _ = right - left, bottom - top
             max_inputs_text_width = max(tw, max_inputs_text_width)
 
         # Given how wide we want our curves on each side to be...
@@ -139,11 +139,11 @@ class PSBTOverviewScreen(ButtonListScreen):
                     destination_column.append(truncate_destination_addr("self-transfer"))
             else:
                 # destination_column.append(f"{len(self.destination_addresses)} recipients")
-                destination_column.append(f"recipient 1")
-                destination_column.append(f"[ ... ]")
+                destination_column.append("recipient 1")
+                destination_column.append("[ ... ]")
                 destination_column.append(f"recipient {len(self.destination_addresses) + self.num_self_transfer_outputs}")
 
-            destination_column.append(f"fee")
+            destination_column.append("fee")
 
             if self.has_op_return:
                 destination_column.append("OP_RETURN")
@@ -155,7 +155,7 @@ class PSBTOverviewScreen(ButtonListScreen):
             max_destination_text_width = 0
             for destination in destination_column:
                 left, top, right, bottom  = font.getbbox(destination)
-                tw, th = right - left, bottom - top
+                tw, _ = right - left, bottom - top
                 max_destination_text_width = max(tw, max_destination_text_width)
             
             return (max_destination_text_width, destination_column)
@@ -202,7 +202,7 @@ class PSBTOverviewScreen(ButtonListScreen):
         for input in inputs_column:
             # Calculate right-justified input display
             left, top, right, bottom  = font.getbbox(input)
-            tw, th = right - left, bottom - top
+            tw, _ = right - left, bottom - top
             cur_x = inputs_x + max_inputs_text_width - tw
             draw.text(
                 (cur_x, inputs_y),
@@ -530,9 +530,9 @@ class PSBTMathScreen(ButtonListScreen):
                 mid_zone = display_str[-6:-3]
                 end_zone = display_str[-3:]
                 left, top, right, bottom  = fixed_width_font.getbbox(main_zone)
-                main_zone_width, th = right - left, bottom - top
+                main_zone_width, _ = right - left, bottom - top
                 left, top, right, bottom  = fixed_width_font.getbbox(end_zone)
-                mid_zone_width, th = right - left, bottom - top
+                mid_zone_width, _ = right - left, bottom - top
                 draw.text((0, cur_y), text=main_zone, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
                 draw.text((main_zone_width + digit_group_spacing, cur_y), text=mid_zone, font=fixed_width_font, fill=secondary_digit_color)
                 draw.text((main_zone_width + digit_group_spacing + mid_zone_width + digit_group_spacing, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)
@@ -562,7 +562,7 @@ class PSBTMathScreen(ButtonListScreen):
         render_amount(
             cur_y,
             f"-{self.fee_amount}",
-            info_text=f""" fee""",
+            info_text=""" fee""",
         )
 
         cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf

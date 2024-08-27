@@ -3,7 +3,6 @@ import logging
 from picamera.array import PiRGBArray
 from picamera import PiCamera
 from threading import Thread
-import time
 
 logger = logging.getLogger(__name__)
 

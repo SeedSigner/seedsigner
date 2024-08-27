@@ -1,7 +1,6 @@
 import pytest
 from seedsigner.models.seed import InvalidSeedException, Seed, ElectrumSeed
 
-from seedsigner.models.settings import SettingsConstants
 
 
 # TODO: Change TAB indents to SPACE
