@@ -31,7 +31,7 @@ class Keyboard:
         "code": "DEL",
         "letter": "del",
         "font": COMPACT_KEY_FONT,
-        "size": 2,
+        "size": 3,
     }
     KEY_SPACE = {
         "code": "SPACE",
