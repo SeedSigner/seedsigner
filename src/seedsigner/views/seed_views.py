@@ -121,7 +121,7 @@ class SeedSelectSeedView(View):
         button_data.append(self.TYPE_12WORD)
         button_data.append(self.TYPE_24WORD)
 
-        if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+        if SettingsConstants.ELECTRUM_SEED_NONE != self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS):
             button_data.append(self.TYPE_ELECTRUM)
 
         selected_menu_num = self.run_screen(
@@ -181,7 +181,7 @@ class LoadSeedView(View):
             self.TYPE_24WORD,
         ]
 
-        if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+        if SettingsConstants.ELECTRUM_SEED_NONE != self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS):
             button_data.append(self.TYPE_ELECTRUM)
         
         button_data.append(self.CREATE)
@@ -490,9 +490,14 @@ class SeedElectrumMnemonicStartView(View):
                 show_back_button=False,
         )
 
-        self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
+        enabled_electrum_length = self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS)
+        if SettingsConstants.ELECTRUM_SEED_13WORD == enabled_electrum_length:
+            self.controller.storage.init_pending_mnemonic(num_words=13, is_electrum=True)
+        else:
+            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
 
-        return Destination(SeedMnemonicEntryView)
+        return Destination(SeedMnemonicEntryView, skip_current_view=True)
+
 
 
 

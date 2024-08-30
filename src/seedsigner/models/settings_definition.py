@@ -205,6 +205,14 @@ class SettingsConstants:
     ELECTRUM_SEED_SEGWIT = "100"
     ELECTRUM_SEED_2FA = "101"
     ELECTRUM_PBKDF2_ROUNDS=2048
+    ELECTRUM_SEED_NONE="electrum_none"
+    ELECTRUM_SEED_12WORD="electrum_12w"
+    ELECTRUM_SEED_13WORD="electrum_13w"
+    ALL_ELECTRUM_SEEDS = [
+        (ELECTRUM_SEED_NONE, "Disabled"),
+        (ELECTRUM_SEED_12WORD, "12 Word Seeds"),
+        (ELECTRUM_SEED_13WORD, "13 Word Seeds"),
+    ]
 
     # Label strings
     LABEL__BIP39_PASSPHRASE = "BIP-39 Passphrase"
@@ -475,9 +483,11 @@ class SettingsDefinition:
                       attr_name=SettingsConstants.SETTING__ELECTRUM_SEEDS,
                       abbreviated_name="electrum",
                       display_name="Electrum seeds",
-                      help_text="Native Segwit only",
+                      help_text="Most Electrum seeds are 12 words, see docs if unsure",
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      selection_options=SettingsConstants.ALL_ELECTRUM_SEEDS,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      default_value=SettingsConstants.OPTION__DISABLED),
+                      default_value=SettingsConstants.ELECTRUM_SEED_NONE),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__MESSAGE_SIGNING,

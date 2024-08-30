@@ -170,18 +170,26 @@ class Seed:
 class ElectrumSeed(Seed):
 
     def _generate_seed(self):
-        if len(self._mnemonic) != 12:
-            raise InvalidSeedException(f"Unsupported Electrum seed length: {len(self._mnemonic)}")
 
         s = hmac.digest(b"Seed version", self.mnemonic_str.encode('utf8'), hashlib.sha512).hex()
         prefix = s[0:3]
 
         # only support Electrum Segwit version for now
         if SettingsConstants.ELECTRUM_SEED_SEGWIT == prefix:
-            self.seed_bytes=hashlib.pbkdf2_hmac('sha512', self.mnemonic_str.encode('utf-8'), b'electrum' + self._passphrase.encode('utf-8'), iterations = SettingsConstants.ELECTRUM_PBKDF2_ROUNDS)
+            self._singlesig_derivation = "m/0h"
+            self._multisig_derivation = "m/1h"
+            self._script_override = SettingsConstants.NATIVE_SEGWIT
+            self._electrum_seed_type = SettingsConstants.ELECTRUM_SEED_SEGWIT
+
+        elif prefix.startswith(SettingsConstants.ELECTRUM_SEED_STANDARD):
+            self._singlesig_derivation = "m"
+            self._multisig_derivation = "m"
+            self._script_override = SettingsConstants.LEGACY_P2PKH
+            self._electrum_seed_type = SettingsConstants.ELECTRUM_SEED_STANDARD
 
         else:
             raise InvalidSeedException(f"Unsupported Electrum seed format: {prefix}")
+        self.seed_bytes=hashlib.pbkdf2_hmac('sha512', self.mnemonic_str.encode('utf-8'), b'electrum' + self._passphrase.encode('utf-8'), iterations = SettingsConstants.ELECTRUM_PBKDF2_ROUNDS)
 
 
     def set_passphrase(self, passphrase: str, regenerate_seed: bool = True):
@@ -209,16 +217,19 @@ class ElectrumSeed(Seed):
 
     @property
     def script_override(self) -> str:
-        return SettingsConstants.NATIVE_SEGWIT
+        return self._script_override
 
 
     def derivation_override(self, sig_type: str = SettingsConstants.SINGLE_SIG) -> str:
-        return "m/0h" if sig_type == SettingsConstants.SINGLE_SIG else "m/1h"
+        return self._singlesig_derivation if SettingsConstants.SINGLE_SIG == sig_type else self._multisig_derivation
 
 
     def detect_version(self, derivation_path: str, network: str = SettingsConstants.MAINNET, sig_type: str = SettingsConstants.SINGLE_SIG) -> str:
         embit_network = NETWORKS[SettingsConstants.map_network_to_embit(network)]
-        return embit_network["zpub"] if sig_type == SettingsConstants.SINGLE_SIG else embit_network["Zpub"]
+        if SettingsConstants.ELECTRUM_SEED_SEGWIT == self._electrum_seed_type:
+            return embit_network["zpub"] if SettingsConstants.SINGLE_SIG == sig_type else embit_network["Zpub"]
+        else:
+            return embit_network["xpub"]
 
 
     @property
