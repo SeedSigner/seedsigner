@@ -452,7 +452,7 @@ class ToolsAddressExplorerSelectSourceView(View):
             button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
             button_data.append((button_str, SeedSignerIconConstants.FINGERPRINT))
         button_data = button_data + [self.SCAN_SEED, self.SCAN_DESCRIPTOR, self.TYPE_12WORD, self.TYPE_24WORD]
-        if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+        if SettingsConstants.ELECTRUM_SEED_NONE != self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS):
             button_data.append(self.TYPE_ELECTRUM)
         
         selected_menu_num = self.run_screen(

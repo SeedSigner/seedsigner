@@ -121,7 +121,7 @@ class SeedSelectSeedView(View):
         button_data.append(self.TYPE_12WORD)
         button_data.append(self.TYPE_24WORD)
 
-        if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+        if SettingsConstants.ELECTRUM_SEED_NONE != self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS):
             button_data.append(self.TYPE_ELECTRUM)
 
         selected_menu_num = self.run_screen(
@@ -181,7 +181,7 @@ class LoadSeedView(View):
             self.TYPE_24WORD,
         ]
 
-        if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+        if SettingsConstants.ELECTRUM_SEED_NONE != self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS):
             button_data.append(self.TYPE_ELECTRUM)
         
         button_data.append(self.CREATE)
@@ -492,7 +492,7 @@ class SeedElectrumMnemonicStartView(View):
 
         self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
 
-        return Destination(SeedElectrumMnemonicLengthView)
+        return Destination(SeedElectrumMnemonicLengthView, skip_current_view=True)
 
 
 
@@ -500,30 +500,17 @@ class SeedElectrumMnemonicLengthView(View):
     TYPE_12WORD = "12-word Electrum seed"
     TYPE_13WORD = "13-word Electrum seed"
 
-    def run(self):
-        button_data = [
-            self.TYPE_12WORD,
-            self.TYPE_13WORD,
-        ]
-
-        selected_menu_num = self.run_screen(
-            seed_screens.SeedElectrumMnemonicLengthScreen,
-            title="Seed length",
-            text="Electrum seed length. Note: 13th word does NOT refer to the custom extension (passphrase). See docs if unsure.",
-            is_button_text_centered=False,
-            button_data=button_data,
-            show_back_button=True,
-        )
-
-        if RET_CODE__BACK_BUTTON == selected_menu_num:
-            return Destination(BackStackView)
-
-        elif button_data[selected_menu_num] == self.TYPE_12WORD:
-            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
-        elif button_data[selected_menu_num] == self.TYPE_13WORD:
+    def __init__(self):
+        super().__init__()
+        enabled_electrum_length = self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS)
+        if SettingsConstants.ELECTRUM_SEED_13WORD == enabled_electrum_length:
             self.controller.storage.init_pending_mnemonic(num_words=13, is_electrum=True)
+        else:
+            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
 
-        return Destination(SeedMnemonicEntryView)
+        self.set_redirect(Destination(SeedMnemonicEntryView))
+        return
+
 
 
 
