@@ -1360,21 +1360,6 @@ class SeedSelectSeedScreen(ButtonListScreen):
 
 
 @dataclass
-class SeedElectrumMnemonicLengthScreen(ButtonListScreen):
-    text: str = ""
-
-    def __post_init__(self):
-        self.is_bottom_list = True
-        super().__post_init__()
-
-        self.components.append(TextArea(
-            text=self.text,
-            screen_y=self.top_nav.height,
-        ))
-
-
-
-@dataclass
 class SeedAddressVerificationScreen(ButtonListScreen):
     """
         "Skip 10" feature increments the `ThreadsafeCounter` via its `increment(step=10)`

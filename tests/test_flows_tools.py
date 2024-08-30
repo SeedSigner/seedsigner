@@ -84,7 +84,6 @@ class TestToolsFlows(FlowTest):
             FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
             FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.TYPE_ELECTRUM),
             FlowStep(seed_views.SeedElectrumMnemonicStartView),
-            FlowStep(seed_views.SeedElectrumMnemonicLengthView, button_data_selection=seed_views.SeedElectrumMnemonicLengthView.TYPE_12WORD),
         ]
 
         # Load an Electrum mnemonic during the flow (same one used in test_seed.py)

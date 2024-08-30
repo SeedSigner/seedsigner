@@ -490,26 +490,13 @@ class SeedElectrumMnemonicStartView(View):
                 show_back_button=False,
         )
 
-        self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
-
-        return Destination(SeedElectrumMnemonicLengthView, skip_current_view=True)
-
-
-
-class SeedElectrumMnemonicLengthView(View):
-    TYPE_12WORD = "12-word Electrum seed"
-    TYPE_13WORD = "13-word Electrum seed"
-
-    def __init__(self):
-        super().__init__()
         enabled_electrum_length = self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS)
         if SettingsConstants.ELECTRUM_SEED_13WORD == enabled_electrum_length:
             self.controller.storage.init_pending_mnemonic(num_words=13, is_electrum=True)
         else:
             self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
 
-        self.set_redirect(Destination(SeedMnemonicEntryView))
-        return
+        return Destination(SeedMnemonicEntryView, skip_current_view=True)
 
 
 

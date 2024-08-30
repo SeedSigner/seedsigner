@@ -129,16 +129,16 @@ class TestSeedFlows(FlowTest):
         def test_with_mnemonic(mnemonic: list[str], custom_extension: str = None, expects_electrum_seed_is_valid: bool = True):
             Settings.HOSTNAME = "not seedsigner-os"
             settings = Settings.get_instance()
-            settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
 
-            length_choice = seed_views.SeedElectrumMnemonicLengthView.TYPE_13WORD if 13==len(mnemonic) else seed_views.SeedElectrumMnemonicLengthView.TYPE_12WORD
+            length_choice = SettingsConstants.ELECTRUM_SEED_13WORD if 13==len(mnemonic) else SettingsConstants.ELECTRUM_SEED_12WORD
+            settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, length_choice)
+
 
             sequence = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
                 FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_ELECTRUM),
                 FlowStep(seed_views.SeedElectrumMnemonicStartView),  # Warning screen; no relevant button data selection.
-                FlowStep(seed_views.SeedElectrumMnemonicLengthView, button_data_selection=length_choice),
             ]
 
             # Now add each manual word entry step
