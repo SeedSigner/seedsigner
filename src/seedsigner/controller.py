@@ -248,7 +248,7 @@ class Controller(Singleton):
             * initial_destination: The first View to run. If None, the MainMenuView is
             used. Only used by the test suite.
         """
-        from seedsigner.views import MainMenuView, BackStackView
+        from seedsigner.views import MainMenuView, BackStackView, RemoveMicroSDWarningView
         from seedsigner.views.screensaver import OpeningSplashScreen
         from seedsigner.gui.toast import RemoveSDCardToastManagerThread
 
@@ -289,7 +289,7 @@ class Controller(Singleton):
             if self.settings.get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER) == SettingsConstants.MICROSD_TOAST_TIMER_FIVE_SECONDS:
                 self.activate_toast(RemoveSDCardToastManagerThread())
             elif self.settings.get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER) == SettingsConstants.MICROSD_TOAST_TIMER_FOREVER:
-                self.activate_toast(RemoveSDCardToastManagerThread(duration=1e6, hw_input_lock=True))
+                next_destination = Destination(RemoveMicroSDWarningView)
 
             while True:
                 # Destination(None) is a special case; render the Home screen

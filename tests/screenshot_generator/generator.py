@@ -165,7 +165,6 @@ def test_generate_screenshots(target_locale):
             (MainMenuView, {}, 'MainMenuView_SDCardStateChangeToast_removed', SDCardStateChangeToastManagerThread(action=MicroSD.ACTION__REMOVED)),
             (MainMenuView, {}, 'MainMenuView_SDCardStateChangeToast_inserted', SDCardStateChangeToastManagerThread(action=MicroSD.ACTION__INSERTED)),
             (MainMenuView, {}, 'MainMenuView_RemoveSDCardToast', RemoveSDCardToastManagerThread(activation_delay=0)),
-            (MainMenuView, {}, 'MainMenuView_RemoveSDCardToast_Forever', RemoveSDCardToastManagerThread(activation_delay=0, fullscreen=True, hw_input_lock=True)),
             PowerOptionsView,
             RestartView,
             PowerOffView,

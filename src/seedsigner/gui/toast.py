@@ -88,7 +88,6 @@ class BaseToastOverlayManagerThread(BaseThread):
     def __init__(self,
                  activation_delay: int = 0,  # seconds before toast is displayed
                  duration: int = 3,          # seconds toast is displayed
-                 hw_input_lock: bool = False,
                  ):
         from seedsigner.controller import Controller
         from seedsigner.gui.renderer import Renderer
@@ -96,7 +95,6 @@ class BaseToastOverlayManagerThread(BaseThread):
         super().__init__()
         self.activation_delay: int = activation_delay
         self.duration: int = duration
-        self.hw_input_lock: bool = hw_input_lock
         self._toggle_renderer_lock: bool = False
 
         self.renderer = Renderer.get_instance()
@@ -126,7 +124,7 @@ class BaseToastOverlayManagerThread(BaseThread):
         logger.info(f"{self.__class__.__name__}: started")
         start = time.time()
         while time.time() - start < self.activation_delay:
-            if self.hw_inputs.has_any_input() and not self.hw_input_lock:
+            if self.hw_inputs.has_any_input():
                 # User has pressed a button, cancel the toast
                 logger.info(f"{self.__class__.__name__}: Canceling toast due to user input")
                 return
@@ -142,7 +140,7 @@ class BaseToastOverlayManagerThread(BaseThread):
             has_rendered = False
             previous_screen_state = None
             while self.keep_running and self.should_keep_running():
-                if self.hw_inputs.has_any_input() and not self.hw_input_lock:
+                if self.hw_inputs.has_any_input():
                     # User has pressed a button, hide the toast
                     logger.info(f"{self.__class__.__name__}: Exiting due to user input")
                     break
@@ -189,29 +187,21 @@ class BaseToastOverlayManagerThread(BaseThread):
 
 
 class RemoveSDCardToastManagerThread(BaseToastOverlayManagerThread):
-    def __init__(self, activation_delay=3, duration=5, hw_input_lock=False):
+    def __init__(self, activation_delay=3):
         # Note: activation_delay is configurable so the screenshot generator can get the
         # toast to immediately render.
         super().__init__(
             activation_delay=activation_delay,  # seconds
-            duration=duration,                  # seconds
-            hw_input_lock=hw_input_lock,
+            duration=5,                         # seconds
         )
 
 
     def instantiate_toast(self) -> ToastOverlay:
-        if self.hw_input_lock:
-            self.height=self.renderer.canvas_height # Fullscreen toast
-            label_text="You must remove\nthe SD card now"
-        else:
-            self.height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING
-            label_text="You can remove\nthe SD card now"
-
         return ToastOverlay(
             icon_name=SeedSignerIconConstants.MICROSD,
-            label_text=label_text,
+            label_text="You can remove\nthe SD card now",
             font_size=GUIConstants.BODY_FONT_SIZE,
-            height=self.height
+            height=GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
         )
 
 
