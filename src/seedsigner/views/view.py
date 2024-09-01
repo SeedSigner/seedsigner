@@ -423,8 +423,6 @@ class RemoveMicroSDWarningView(View):
 
         from seedsigner.hardware.microsd import MicroSD
         if button_data[selected_menu_num] == self.CONTINUE and MicroSD.get_instance().is_inserted:
-            return Destination(MainMenuView, clear_history=True)
-        elif button_data[selected_menu_num] == self.DISMISS:
-            return Destination(MainMenuView, clear_history=True)
-        else:
             return Destination(RemoveMicroSDWarningView, clear_history=True)
+        else:
+            return Destination(MainMenuView, clear_history=True)
