@@ -416,7 +416,7 @@ class RemoveMicroSDWarningView(View):
             title="Action Required",
             status_icon_name=SeedSignerIconConstants.MICROSD,
             status_headline="",
-            text="You must remove the,\nMicroSD card to continue.",
+            text="You must remove the\nMicroSD card to continue.",
             show_back_button=False,
             button_data=button_data,
         )
