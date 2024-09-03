@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Type
 
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
+from seedsigner.gui.components import SeedSignerIconConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON, RET_CODE__BACK_BUTTON
 from seedsigner.gui.screens.screen import BaseScreen, DireWarningScreen, LargeButtonScreen, PowerOffScreen, PowerOffNotRequiredScreen, ResetScreen, WarningScreen
 from seedsigner.models.settings import Settings, SettingsConstants
@@ -405,19 +405,24 @@ class RemoveMicroSDWarningView(View):
     """
         Warning to remove the microsd
     """
-    def __init__(self, next_view: View):
-        super().__init__()
-        self.next_view = next_view
+    CONTINUE = "Continue"
+    DISMISS = "Dismiss"
+
 
     def run(self):
-        self.run_screen(
+        button_data = [self.CONTINUE, self.DISMISS]
+        selected_menu_num = self.run_screen(
             WarningScreen,
-            title="Security Tip",
-            status_icon_name=FontAwesomeIconConstants.SDCARD,
+            title="Action Required",
+            status_icon_name=SeedSignerIconConstants.MICROSD,
             status_headline="",
-            text="For maximum security,\nremove the MicroSD card\nbefore continuing.",
+            text="You must remove the\nMicroSD card to continue.",
             show_back_button=False,
-            button_data=["Continue"],
+            button_data=button_data,
         )
 
-        return Destination(self.next_view, clear_history=True)
+        from seedsigner.hardware.microsd import MicroSD
+        if button_data[selected_menu_num] == self.CONTINUE and MicroSD.get_instance().is_inserted:
+            return Destination(RemoveMicroSDWarningView, clear_history=True)
+        else:
+            return Destination(MainMenuView, clear_history=True)

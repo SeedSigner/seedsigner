@@ -192,7 +192,7 @@ class RemoveSDCardToastManagerThread(BaseToastOverlayManagerThread):
         # toast to immediately render.
         super().__init__(
             activation_delay=activation_delay,  # seconds
-            duration=1e6,                       # seconds ("forever")
+            duration=5,                         # seconds
         )
 
 

@@ -124,6 +124,15 @@ class SettingsConstants:
         (CUSTOM_DERIVATION, "Custom Derivation"),
     ]
 
+    MICROSD_TOAST_TIMER_DISABLED = "D"
+    MICROSD_TOAST_TIMER_FIVE_SECONDS = "E"
+    MICROSD_TOAST_TIMER_FOREVER = "inf"
+    ALL_MICROSD_TOAST_TIMERS = [
+        (MICROSD_TOAST_TIMER_DISABLED, "Disabled"),
+        (MICROSD_TOAST_TIMER_FIVE_SECONDS, "5 seconds"),
+        (MICROSD_TOAST_TIMER_FOREVER, "Until SD removed")
+    ]
+
     WORDLIST_LANGUAGE__ENGLISH = "en"
     WORDLIST_LANGUAGE__CHINESE_SIMPLIFIED = "zh_Hans_CN"
     WORDLIST_LANGUAGE__CHINESE_TRADITIONAL = "zh_Hant_TW"
@@ -167,6 +176,7 @@ class SettingsConstants:
     SETTING__DIRE_WARNINGS = "dire_warnings"
     SETTING__QR_BRIGHTNESS_TIPS = "qr_brightness_tips"
     SETTING__PARTNER_LOGOS = "partner_logos"
+    SETTING__MICROSD_TOAST_TIMER = "microsd_toast_timer"
 
     SETTING__DEBUG = "debug"
 
@@ -478,6 +488,14 @@ class SettingsDefinition:
                       help_text="Native Segwit only",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__DISABLED),
+        
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__MICROSD_TOAST_TIMER,
+                      display_name="MicroSD toast timer",
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      selection_options=SettingsConstants.ALL_MICROSD_TOAST_TIMERS,
+                      default_value=SettingsConstants.MICROSD_TOAST_TIMER_FIVE_SECONDS),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__MESSAGE_SIGNING,

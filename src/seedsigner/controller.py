@@ -11,6 +11,7 @@ from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.seed import Seed
 from seedsigner.models.seed_storage import SeedStorage
 from seedsigner.models.settings import Settings
+from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
 from seedsigner.views.screensaver import ScreensaverScreen
@@ -247,7 +248,7 @@ class Controller(Singleton):
             * initial_destination: The first View to run. If None, the MainMenuView is
             used. Only used by the test suite.
         """
-        from seedsigner.views import MainMenuView, BackStackView
+        from seedsigner.views import MainMenuView, BackStackView, RemoveMicroSDWarningView
         from seedsigner.views.screensaver import OpeningSplashScreen
         from seedsigner.gui.toast import RemoveSDCardToastManagerThread
 
@@ -285,7 +286,10 @@ class Controller(Singleton):
                 next_destination = Destination(MainMenuView)
             
             # Set up our one-time toast notification tip to remove the SD card
-            self.activate_toast(RemoveSDCardToastManagerThread())
+            if self.settings.get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER) == SettingsConstants.MICROSD_TOAST_TIMER_FIVE_SECONDS:
+                self.activate_toast(RemoveSDCardToastManagerThread())
+            elif self.settings.get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER) == SettingsConstants.MICROSD_TOAST_TIMER_FOREVER:
+                next_destination = Destination(RemoveMicroSDWarningView)
 
             while True:
                 # Destination(None) is a special case; render the Home screen
