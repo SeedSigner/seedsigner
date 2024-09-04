@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import re
+import zlib
 
 from binascii import a2b_base64, b2a_base64
 from enum import IntEnum
@@ -11,6 +12,7 @@ from pyzbar.pyzbar import ZBarSymbol
 from urtypes.crypto import PSBT as UR_PSBT
 from urtypes.crypto import Account, Output
 from urtypes.bytes import Bytes
+from base64 import b32encode, b32decode
 
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
 from seedsigner.models.qr_type import QRType
@@ -73,6 +75,9 @@ class DecodeQR:
 
             elif self.qr_type == QRType.PSBT__BASE43:
                 self.decoder = Base43PsbtQrDecoder() # Single Segment Base43
+
+            elif self.qr_type == QRType.PSBT__BBQR:
+                self.decoder = BBQRPsbtQrDecoder() # BBQr Decoder
 
             elif self.qr_type in [QRType.SEED__SEEDQR, QRType.SEED__COMPACTSEEDQR, QRType.SEED__MNEMONIC, QRType.SEED__FOUR_LETTER_MNEMONIC, QRType.SEED__UR2]:
                 self.decoder = SeedQrDecoder(wordlist_language_code=self.wordlist_language_code)          
@@ -229,7 +234,7 @@ class DecodeQR:
         if self.qr_type in [QRType.PSBT__UR2, QRType.OUTPUT__UR, QRType.ACCOUNT__UR, QRType.BYTES__UR]:
             return int(self.decoder.estimated_percent_complete(weight_mixed_frames=weight_mixed_frames) * 100)
 
-        elif self.qr_type in [QRType.PSBT__SPECTER]:
+        elif self.qr_type in [QRType.PSBT__SPECTER, QRType.PSBT__BBQR]:
             if self.decoder.total_segments == None:
                 return 0
             return int((self.decoder.collected_segments / self.decoder.total_segments) * 100)
@@ -262,6 +267,7 @@ class DecodeQR:
             QRType.PSBT__SPECTER,
             QRType.PSBT__BASE64,
             QRType.PSBT__BASE43,
+            QRType.PSBT__BBQR,
         ]
 
 
@@ -326,9 +332,6 @@ class DecodeQR:
 
     @staticmethod
     def detect_segment_type(s, wordlist_language_code=None):
-        # print("-------------- DecodeQR.detect_segment_type --------------")
-        # print(type(s))
-        # print(len(s))
 
         try:
             # Convert to str data
@@ -337,6 +340,9 @@ class DecodeQR:
                 # are strings.
                 # TODO: Convert the test suite rather than handle here?
                 s = s.decode('utf-8')
+
+            logger.debug(f"segment string: {s}")
+            logger.debug(f"segment string length: {len(s)}")
 
             # PSBT
             if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
@@ -356,6 +362,9 @@ class DecodeQR:
 
             elif DecodeQR.is_base64_psbt(s):
                 return QRType.PSBT__BASE64
+
+            elif re.search("^B\$[2HZ]P[0-9A-Z]...", s): # https://github.com/coinkite/BBQr/blob/master/BBQr.md#spliting-the-data
+                return QRType.PSBT__BBQR
 
             # Wallet Descriptor
             desc_str = s.replace("\n","").replace(" ","")
@@ -654,8 +663,9 @@ class BaseAnimatedQrDecoder(BaseQrDecoder):
         elif self.total_segments != self.total_segment_nums(segment):
             raise Exception('Segment total changed unexpectedly')
 
-        if self.segments[self.current_segment_num(segment) - 1] == None:
-            self.segments[self.current_segment_num(segment) - 1] = self.parse_segment(segment)
+        current_segment_num = self.current_segment_num(segment)
+        if self.segments[current_segment_num - 1] == None:
+            self.segments[current_segment_num - 1] = self.parse_segment(segment)
             self.collected_segments += 1
             if self.total_segments == self.collected_segments:
                 if self.is_valid:
@@ -701,6 +711,59 @@ class SpecterPsbtQrDecoder(BaseAnimatedQrDecoder):
 
     def parse_segment(self, segment) -> str:
         return segment.split(" ")[-1].strip()
+
+
+
+class BBQRPsbtQrDecoder(BaseAnimatedQrDecoder):
+    """
+        Used to decode BBQR Animated PSBT encoding.
+    """
+    def __init__(self):
+        super().__init__()
+        self.encoding = None
+
+
+    def get_data(self) -> str:
+        logger.debug("BBQRPsbtQrDecoder get_data")
+        data = "".join(self.segments)
+        if self.complete and self.encoding:
+            if self.encoding == 'H':
+                return b''.join(bytes.fromhex(s) for s in self.segments)
+
+            # base32 decode, but insert padding for API
+            rv = b''
+            for p in self.segments:
+                padding = (8 - (len(p) % 8)) % 8
+                rv += b32decode(p + (padding*'='))
+
+            if self.encoding == 'Z':
+                # decompress
+                z = zlib.decompressobj(wbits=-10)
+                rv = z.decompress(rv)
+                rv += z.flush()
+
+            return rv
+
+        return None
+
+    def current_segment_num(self, segment) -> int:
+        current_segment = int(segment[6:8], 36) + 1
+        logger.debug(f"BBQRPsbtQrDecoder current_segment_num {current_segment}")
+        return current_segment
+
+
+    def total_segment_nums(self, segment) -> int:
+        total_segments = int(segment[4:6], 36)
+        logger.debug(f"BBQRPsbtQrDecoder total_segment_nums {total_segments}")
+        return total_segments
+
+
+    def parse_segment(self, segment) -> str:
+        self.encoding = segment[2]
+        file_type = segment[3]
+        data = segment[8:]
+
+        return data.strip()
 
 
 
