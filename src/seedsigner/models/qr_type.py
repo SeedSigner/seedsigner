@@ -6,6 +6,7 @@ class QRType:
     PSBT__SPECTER = "psbt__specter"
     PSBT__BASE43 = "psbt__base43"
     PSBT__UR2 = "psbt__ur2"
+    PSBT__BBQR = "psbt__bbqr"
 
     SEED__SEEDQR = "seed__seedqr"
     SEED__COMPACTSEEDQR = "seed__compactseedqr"
