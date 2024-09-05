@@ -363,7 +363,7 @@ class DecodeQR:
             elif DecodeQR.is_base64_psbt(s):
                 return QRType.PSBT__BASE64
 
-            elif re.search("^B\$[2HZ]P[0-9A-Z]...", s): # https://github.com/coinkite/BBQr/blob/master/BBQr.md#spliting-the-data
+            elif re.search(r"^B\$[2HZ]P[0-9A-Z]{4}", s): # https://github.com/coinkite/BBQr/blob/master/BBQr.md#spliting-the-data
                 return QRType.PSBT__BBQR
 
             # Wallet Descriptor
