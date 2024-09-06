@@ -174,6 +174,7 @@ class LoadSeedView(View):
     SEED_QR = (" Scan a SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    OTHER_FORMATS = ("Other seed formats", FontAwesomeIconConstants.KEYBOARD)
     TYPE_ELECTRUM = ("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
     CREATE = (" Create a seed", SeedSignerIconConstants.PLUS)
 
@@ -182,6 +183,7 @@ class LoadSeedView(View):
             self.SEED_QR,
             self.TYPE_12WORD,
             self.TYPE_24WORD,
+            self.OTHER_FORMATS,
         ]
 
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
@@ -211,6 +213,9 @@ class LoadSeedView(View):
             self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
 
+        elif button_data[selected_menu_num] == self.OTHER_FORMATS:
+            return Destination(LoadOtherFormatSeedView)
+
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
             return Destination(SeedElectrumMnemonicStartView)
 
@@ -218,21 +223,59 @@ class LoadSeedView(View):
             from .tools_views import ToolsMenuView
             return Destination(ToolsMenuView)
 
+class LoadOtherFormatSeedView(View):
+    TYPE_12WORD_BINARY = ("12-word binary", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_24WORD_BINARY = ("24-word binary", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_12WORD_DECIMAL = ("12-word decimal", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_24WORD_DECIMAL = ("24-word decimal", FontAwesomeIconConstants.KEYBOARD)
 
+    def run(self):
+        button_data = [
+            self.TYPE_12WORD_BINARY,
+            self.TYPE_24WORD_BINARY,
+            self.TYPE_12WORD_DECIMAL,
+            self.TYPE_24WORD_DECIMAL,
+        ]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title="Load A Seed",
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        elif button_data[selected_menu_num] == self.TYPE_12WORD_BINARY:
+            self.controller.storage.init_pending_mnemonic(num_words=12)
+            return Destination(SeedMnemonicEntryView)
+
+        elif button_data[selected_menu_num] == self.TYPE_24WORD_BINARY:
+            self.controller.storage.init_pending_mnemonic(num_words=24)
+            return Destination(SeedMnemonicEntryView)
+        
+        elif button_data[selected_menu_num] == self.TYPE_12WORD_DECIMAL:
+            self.controller.storage.init_pending_mnemonic(num_words=12)
+            return Destination(SeedMnemonicEntryView, view_args={"entry_screen_cls": seed_screens.SeedMnemonicDecimalEntryScreen})
+
+        elif button_data[selected_menu_num] == self.TYPE_24WORD_DECIMAL:
+            self.controller.storage.init_pending_mnemonic(num_words=24)
+            return Destination(SeedMnemonicEntryView, view_args={"entry_screen_cls": seed_screens.SeedMnemonicDecimalEntryScreen})
 
 class SeedMnemonicEntryView(View):
-    def __init__(self, cur_word_index: int = 0, is_calc_final_word: bool=False):
+    def __init__(self, cur_word_index: int = 0, is_calc_final_word: bool=False, entry_screen_cls=seed_screens.SeedMnemonicEntryScreen):
         super().__init__()
         self.cur_word_index = cur_word_index
         self.cur_word = self.controller.storage.get_pending_mnemonic_word(cur_word_index)
         self.is_calc_final_word = is_calc_final_word
-
+        self.entry_screen_cls = entry_screen_cls
 
     def run(self):
         ret = self.run_screen(
-            seed_screens.SeedMnemonicEntryScreen,
+            self.entry_screen_cls,
             title=f"Seed Word #{self.cur_word_index + 1}",  # Human-readable 1-indexing!
-            initial_letters=list(self.cur_word) if self.cur_word else ["a"],
+            current_word=self.cur_word,
             wordlist=Seed.get_wordlist(wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)),
         )
 
@@ -263,7 +306,8 @@ class SeedMnemonicEntryView(View):
                 SeedMnemonicEntryView,
                 view_args={
                     "cur_word_index": self.cur_word_index + 1,
-                    "is_calc_final_word": self.is_calc_final_word
+                    "is_calc_final_word": self.is_calc_final_word,
+                    "entry_screen_cls": self.entry_screen_cls,
                 }
             )
         else:
@@ -274,8 +318,6 @@ class SeedMnemonicEntryView(View):
                 return Destination(SeedMnemonicInvalidView)
 
             return Destination(SeedFinalizeView)
-
-
 
 class SeedMnemonicInvalidView(View):
     EDIT = "Review & Edit"
@@ -647,10 +689,10 @@ class SeedBackupView(View):
             return Destination(SeedTranscribeSeedQRFormatView, view_args={"seed_num": self.seed_num})
 
         elif button_data[selected_menu_num] == self.VIEW_BINARY:
-            return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "transformer": seed_format_transformers.convert_word_to_11_bits})
+            return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "seed_format_transformer": seed_format_transformers.convert_word_to_11_bits})
         
         elif button_data[selected_menu_num] == self.VIEW_DECIMAL:
-            return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "transformer": seed_format_transformers.convert_word_to_decimal})
+            return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "seed_format_transformer": seed_format_transformers.convert_word_to_decimal})
 
 
 

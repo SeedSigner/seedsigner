@@ -17,18 +17,24 @@ from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddr
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
 
+import seedsigner.helpers.seed_format_transformers as seed_format_transformers
+
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class SeedMnemonicEntryScreen(BaseTopNavScreen):
-    initial_letters: list = None
+    current_word: str = None
     wordlist: list = None
+    possible_alphabet: str = "abcdefghijklmnopqrstuvwxyz"
 
     def __post_init__(self):
         super().__post_init__()
 
-        self.possible_alphabet = "abcdefghijklmnopqrstuvwxyz"
+        if not self.current_word:
+            self.initial_letters = [self.possible_alphabet[0]]
+        else:
+            self.initial_letters = list(self.current_word)
 
         # Set up the keyboard params
         self.keyboard_width = 128
@@ -119,7 +125,6 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         self.word_font_height = -1 * top
         self.matches_list_row_height = self.word_font_height + GUIConstants.COMPONENT_PADDING
 
-
     def calc_possible_alphabet(self, new_letter = False):
         if (self.letters and len(self.letters) > 1 and new_letter == False) or (len(self.letters) > 0 and new_letter == True):
             search_letters = self.letters[:]
@@ -137,11 +142,9 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
             self.possible_alphabet = "abcdefghijklmnopqrstuvwxyz"
             self.possible_words = []
 
-
     def calc_possible_words(self):
         self.possible_words = [i for i in self.wordlist if i.startswith("".join(self.letters).strip())]
         self.selected_possible_words_index = 0        
-
 
     def render_possible_matches(self, highlight_word=None):
         """ Internal helper method to render the KEY 1, 2, 3 word candidates.
@@ -229,7 +232,6 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         self.matches_list_up_button.render()
         self.matches_list_down_button.render()
 
-
     def _render(self):
         super()._render()
         self.keyboard.render_keys()
@@ -237,7 +239,6 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         self.render_possible_matches()
 
         self.renderer.show_image()
-
 
     def _run(self):
         while True:
@@ -403,7 +404,192 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
             # Now issue one call to send the pixels to the screen
             self.renderer.show_image()
 
+@dataclass
+class SeedMnemonicDecimalEntryScreen(BaseTopNavScreen):
+    current_word: str = None
+    wordlist: list = None
+    possible_alphabet: str = "1234567890"
 
+    def __post_init__(self):
+        super().__post_init__()
+        
+        if not self.current_word:
+            self.initial_letters = [self.possible_alphabet[0]]
+        else:
+            self.initial_letters = list(seed_format_transformers.convert_word_to_decimal("".join(self.current_word)))
+
+        self.keyboard_width = 200
+        text_entry_display_y = self.top_nav.height
+        text_entry_display_height = 30
+
+        self.arrow_up_is_active = False
+        self.arrow_down_is_active = False
+
+        self.keyboard = Keyboard(
+            draw=self.image_draw,
+            charset=self.possible_alphabet,
+            rows=3,
+            cols=4,
+            rect=(
+                GUIConstants.EDGE_PADDING,
+                text_entry_display_y + text_entry_display_height + 6,
+                GUIConstants.EDGE_PADDING + self.keyboard_width,
+                self.canvas_height
+            ),
+            auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT]
+        )
+
+        self.decimal_seed_word_length = 4
+
+        self.text_entry_display = TextEntryDisplay(
+            canvas=self.canvas,
+            rect=(
+                GUIConstants.EDGE_PADDING,
+                text_entry_display_y,
+                GUIConstants.EDGE_PADDING + (GUIConstants.BUTTON_FONT_SIZE * self.decimal_seed_word_length),
+                text_entry_display_y + text_entry_display_height
+            ),
+            is_centered=False,
+            cur_text="".join(self.initial_letters)
+        )
+
+        self.letters = self.initial_letters
+
+        if len(self.letters) > 1:
+            self.letters.append(" ")    # "Lock in" the last letter as if KEY_PRESS
+            self.calc_possible_alphabet()
+            self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
+            self.keyboard.set_selected_key(selected_letter=self.letters[-2])
+        else:
+            self.keyboard.set_selected_key(selected_letter=self.letters[-1])
+  
+    def calc_possible_alphabet(self):
+        valid_characters = []
+        for character in "1234567890":
+            prediction_number = int("".join(self.letters).strip() + character)
+            if prediction_number <= 2047:
+                valid_characters.append(character)
+        self.possible_alphabet = "".join(valid_characters) 
+
+    def _render(self):
+        super()._render()
+        self.keyboard.render_keys()
+        self.text_entry_display.render()
+        self.renderer.show_image()
+
+    def _run(self):
+        while True:
+            final_selection = None
+
+            input = self.hw_inputs.wait_for(
+                HardwareButtonsConstants.ALL_KEYS,
+                check_release=True,
+                release_keys=[HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY2]
+            )
+
+            if self.is_input_in_top_nav:
+                if input == HardwareButtonsConstants.KEY_PRESS:
+                    # User clicked the "back" arrow
+                    return RET_CODE__BACK_BUTTON
+
+                elif input == HardwareButtonsConstants.KEY_UP:
+                    input = Keyboard.ENTER_BOTTOM
+                    self.is_input_in_top_nav = False
+                    # Re-render it without the highlight
+                    self.top_nav.left_button.is_selected = False
+                    self.top_nav.left_button.render()
+
+                elif input == HardwareButtonsConstants.KEY_DOWN:
+                    input = Keyboard.ENTER_TOP
+                    self.is_input_in_top_nav = False
+                    # Re-render it without the highlight
+                    self.top_nav.left_button.is_selected = False
+                    self.top_nav.left_button.render()
+
+                elif input in [HardwareButtonsConstants.KEY_RIGHT, HardwareButtonsConstants.KEY_LEFT]:
+                    # no action in this context
+                    continue
+
+            ret_val = self.keyboard.update_from_input(input)
+
+            if ret_val in Keyboard.EXIT_DIRECTIONS:
+                self.is_input_in_top_nav = True
+                self.top_nav.left_button.is_selected = True
+                self.top_nav.left_button.render()
+
+            elif ret_val in Keyboard.ADDITIONAL_KEYS:
+                if input == HardwareButtonsConstants.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                    self.letters = self.letters[:-2]
+                    self.letters.append(" ")
+
+                    self.calc_possible_alphabet()
+                    self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
+                    self.keyboard.render_keys()
+
+                elif ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                    # We're just hovering over DEL but haven't clicked. Show blank (" ")
+                    #   in the live text entry display at the top.
+                    self.letters = self.letters[:-1]
+                    self.letters.append(" ")
+
+            elif input == HardwareButtonsConstants.KEY_PRESS and ret_val in self.possible_alphabet:
+                # User has locked in the current letter
+                if self.letters[-1] != " ":
+                    # We'll save that locked in letter next but for now update the
+                    # live text entry display with blank (" ") so that we don't try
+                    # to autocalc matches against a second copy of the letter they
+                    # just selected. e.g. They KEY_PRESS on "s" to build "mus". If
+                    # we advance the live block cursor AND display "s" in it, the
+                    # current word would then be "muss" with no matches. If "mus"
+                    # can get us to our match, we don't want it to disappear right
+                    # as we KEY_PRESS.
+                    self.letters.append(" ")
+                else:
+                    # clicked same letter twice in a row. Because of the above, an
+                    # immediate second click of the same letter would lock in "ap "
+                    # (note the space) instead of "app". So we replace that trailing
+                    # space with the correct repeated letter and then, as above,
+                    # append a trailing blank.
+                    self.letters = self.letters[:-1]
+                    self.letters.append(ret_val)
+                    self.letters.append(" ")
+
+                self.calc_possible_alphabet()
+                self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
+                self.keyboard.render_keys()
+
+                if len(self.letters) > (self.decimal_seed_word_length):
+                    final_selection = True
+                    
+
+            elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN \
+                    or input in (Keyboard.ENTER_TOP, Keyboard.ENTER_BOTTOM):
+                if not len(self.letters) > self.decimal_seed_word_length:
+                    self.letters = self.letters[:-1]
+                    self.letters.append(ret_val)
+
+            # Has the user made a final selection of a candidate word?
+            if input == HardwareButtonsConstants.KEY2:                    
+                final_selection = True
+                
+            if final_selection:
+                current_entered_value = "".join(self.letters[:-1])
+                if current_entered_value != "":
+                    current_entered_value_int = int(current_entered_value)
+                    if (current_entered_value_int < 0 or current_entered_value_int > 2047):
+                        raise ValueError("Invalid word number (must be between 0 and 2047)")
+                    self.text_entry_display.cur_text = str(current_entered_value_int)
+                    self.text_entry_display.render()
+                    self.renderer.show_image()
+
+                    return self.wordlist[current_entered_value_int]
+
+            # Render the text entry display and cursor block
+            self.text_entry_display.cur_text = ''.join(self.letters)
+            self.text_entry_display.render()
+
+            # Now issue one call to send the pixels to the screen
+            self.renderer.show_image()
 
 @dataclass
 class SeedFinalizeScreen(ButtonListScreen):
