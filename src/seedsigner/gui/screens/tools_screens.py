@@ -9,6 +9,7 @@ from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConsta
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, KeyboardScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
+from seedsigner.gui.keyboard import Keyboard
 
 
 
