@@ -31,8 +31,32 @@ class Keyboard:
         "code": "DEL",
         "letter": "del",
         "font": COMPACT_KEY_FONT,
-        "size": 2,
+        "size": 3,
     }
+    KEY_BACKSPACE_2 = {
+         "code": "DEL",
+         "letter": "del",
+         "font": COMPACT_KEY_FONT,
+         "size": 2,
+    }
+    KEY_BACKSPACE_4 = {
+        "code": "DEL",
+        "letter": "del",
+        "font": COMPACT_KEY_FONT,
+        "size": 4,
+    }
+    KEY_BACKSPACE_5 = {
+        "code": "DEL",
+        "letter": "del",
+        "font": COMPACT_KEY_FONT,
+        "size": 5,
+    }
+    KEY_BACKSPACE_6 = {
+        "code": "DEL",
+        "letter": "del",
+        "font": COMPACT_KEY_FONT,
+        "size": 6,
+    }   
     KEY_SPACE = {
         "code": "SPACE",
         "letter": "space",
