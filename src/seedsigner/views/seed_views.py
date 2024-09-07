@@ -315,7 +315,7 @@ class SeedMnemonicEntryView(View):
             try:
                 self.controller.storage.convert_pending_mnemonic_to_pending_seed()
             except InvalidSeedException:
-                return Destination(SeedMnemonicInvalidView)
+                return Destination(SeedMnemonicInvalidView, view_args={"entry_screen_cls": self.entry_screen_cls})
 
             return Destination(SeedFinalizeView)
 
@@ -323,9 +323,10 @@ class SeedMnemonicInvalidView(View):
     EDIT = "Review & Edit"
     DISCARD = ("Discard", None, None, "red")
 
-    def __init__(self):
+    def __init__(self, entry_screen_cls=seed_screens.SeedMnemonicEntryScreen):
         super().__init__()
         self.mnemonic: List[str] = self.controller.storage.pending_mnemonic
+        self.entry_screen_cls = entry_screen_cls
 
 
     def run(self):
@@ -340,7 +341,7 @@ class SeedMnemonicInvalidView(View):
         )
 
         if button_data[selected_menu_num] == self.EDIT:
-            return Destination(SeedMnemonicEntryView, view_args={"cur_word_index": 0})
+            return Destination(SeedMnemonicEntryView, view_args={"cur_word_index": 0, "entry_screen_cls": self.entry_screen_cls})
 
         elif button_data[selected_menu_num] == self.DISCARD:
             self.controller.storage.discard_pending_mnemonic()
