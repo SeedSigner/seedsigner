@@ -21,6 +21,6 @@ def convert_11_bits_to_word(bits: str) -> str:
 
     return wordlist[int(bits, 2)]
 
-def convert_decimal_to_word(decimal: str) -> str:
+def convert_decimal_to_word(decimal: str | int) -> str:
     wordlist = bip39.WORDLIST
     return wordlist[int(decimal)]

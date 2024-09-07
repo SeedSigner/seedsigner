@@ -249,11 +249,11 @@ class LoadOtherFormatSeedView(View):
         
         elif button_data[selected_menu_num] == self.TYPE_12WORD_BINARY:
             self.controller.storage.init_pending_mnemonic(num_words=12)
-            return Destination(SeedMnemonicEntryView)
+            return Destination(SeedMnemonicEntryView, view_args={"entry_screen_cls": seed_screens.SeedMnemonicBinaryEntryScreen})
 
         elif button_data[selected_menu_num] == self.TYPE_24WORD_BINARY:
             self.controller.storage.init_pending_mnemonic(num_words=24)
-            return Destination(SeedMnemonicEntryView)
+            return Destination(SeedMnemonicEntryView, view_args={"entry_screen_cls": seed_screens.SeedMnemonicBinaryEntryScreen})
         
         elif button_data[selected_menu_num] == self.TYPE_12WORD_DECIMAL:
             self.controller.storage.init_pending_mnemonic(num_words=12)
