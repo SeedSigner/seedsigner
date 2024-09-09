@@ -23,17 +23,18 @@ class GUIConstants:
     COMPONENT_PADDING = 8
     LIST_ITEM_PADDING = 4
 
-    BACKGROUND_COLOR = "black"
+    BACKGROUND_COLOR = "#000000"
+    INACTIVE_COLOR = "#414141"
+    ACCENT_COLOR = "#FF9F0A" # Active Color
     WARNING_COLOR = "#FFD60A"
-    DIRE_WARNING_COLOR = "#FF453A"
+    DIRE_WARNING_COLOR = "#FF5700"
+    ERROR_COLOR = "#FF1B0A"
     SUCCESS_COLOR = "#30D158"
-    INFO_COLOR = "#0084FF"
-    ACCENT_COLOR = "#FF9F0A"
+    INFO_COLOR = "#409CFF"
     BITCOIN_ORANGE = "#FF9416"
     TESTNET_COLOR = "#00F100"
     REGTEST_COLOR = "#00CAF1"
     GREEN_INDICATOR_COLOR = "#00FF00"
-    INACTIVE_COLOR = "#414141"
 
     ICON_FONT_NAME__FONT_AWESOME = "Font_Awesome_6_Free-Solid-900"
     ICON_FONT_NAME__SEEDSIGNER = "seedsigner-icons"
@@ -126,24 +127,26 @@ class SeedSignerIconConstants:
     RESTART = "\ue911"
 
     # Messaging icons
-    ERROR = "\ue912"
-    SUCCESS = "\ue913"
-    WARNING = "\ue914"
+    INFO = "\ue912"
+    ERROR = "\ue913"
+    SUCCESS = "\ue914"
+    WARNING = "\ue915"
 
     # Informational icons
-    ADDRESS = "\ue915"
-    CHANGE = "\ue916"
-    DERIVATION = "\ue917"
-    FEE = "\ue918"
-    FINGERPRINT = "\ue919"
-    PASSPHRASE = "\ue91a"
+    ADDRESS = "\ue916"
+    CHANGE = "\ue917"
+    DERIVATION = "\ue918"
+    FEE = "\ue919"
+    FINGERPRINT = "\ue91a"
+    PASSPHRASE = "\ue91b"
 
     # Misc icons
-    BITCOIN = "\ue91b"
-    BITCOIN_ALT = "\ue91c"
-    BRIGHTNESS = "\ue91d"
-    MICROSD = "\ue91e"
-    QRCODE = "\ue91f"
+    BITCOIN = "\ue91c"
+    BITCOIN_ALT = "\ue91d"
+    BRIGHTNESS = "\ue91e"
+    MICROSD = "\ue91f"
+    QRCODE = "\ue920"
+    SIGN = "\ue921"
 
     MIN_VALUE = SCAN
     MAX_VALUE = QRCODE
