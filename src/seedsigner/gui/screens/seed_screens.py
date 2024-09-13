@@ -422,9 +422,6 @@ class SeedMnemonicDecimalEntryScreen(BaseTopNavScreen):
         text_entry_display_y = self.top_nav.height
         text_entry_display_height = 30
 
-        self.arrow_up_is_active = False
-        self.arrow_down_is_active = False
-
         self.keyboard = Keyboard(
             draw=self.image_draw,
             charset=self.possible_alphabet,
@@ -535,21 +532,8 @@ class SeedMnemonicDecimalEntryScreen(BaseTopNavScreen):
             elif input == HardwareButtonsConstants.KEY_PRESS and ret_val in self.possible_alphabet:
                 # User has locked in the current letter
                 if self.letters[-1] != " ":
-                    # We'll save that locked in letter next but for now update the
-                    # live text entry display with blank (" ") so that we don't try
-                    # to autocalc matches against a second copy of the letter they
-                    # just selected. e.g. They KEY_PRESS on "s" to build "mus". If
-                    # we advance the live block cursor AND display "s" in it, the
-                    # current word would then be "muss" with no matches. If "mus"
-                    # can get us to our match, we don't want it to disappear right
-                    # as we KEY_PRESS.
                     self.letters.append(" ")
                 else:
-                    # clicked same letter twice in a row. Because of the above, an
-                    # immediate second click of the same letter would lock in "ap "
-                    # (note the space) instead of "app". So we replace that trailing
-                    # space with the correct repeated letter and then, as above,
-                    # append a trailing blank.
                     self.letters = self.letters[:-1]
                     self.letters.append(ret_val)
                     self.letters.append(" ")
@@ -605,12 +589,9 @@ class SeedMnemonicBinaryEntryScreen(BaseTopNavScreen):
         else:
             self.initial_letters = list(seed_format_transformers.convert_word_to_11_bits("".join(self.current_word)))
 
-        self.keyboard_width = 200
+        self.keyboard_width = 180
         text_entry_display_y = self.top_nav.height
         text_entry_display_height = 30
-
-        self.arrow_up_is_active = False
-        self.arrow_down_is_active = False
 
         self.keyboard = Keyboard(
             draw=self.image_draw,
@@ -633,12 +614,41 @@ class SeedMnemonicBinaryEntryScreen(BaseTopNavScreen):
             rect=(
                 GUIConstants.EDGE_PADDING,
                 text_entry_display_y,
-                GUIConstants.EDGE_PADDING + (GUIConstants.BUTTON_FONT_SIZE * self.binary_seed_word_length),
+                GUIConstants.EDGE_PADDING + (GUIConstants.BODY_FONT_MIN_SIZE * self.binary_seed_word_length),
                 text_entry_display_y + text_entry_display_height
             ),
             is_centered=False,
             cur_text="".join(self.initial_letters)
         )
+
+        self.highlighted_row_y = int((self.canvas_height - GUIConstants.BUTTON_HEIGHT)/2)
+        arrow_button_width = GUIConstants.BUTTON_HEIGHT + GUIConstants.EDGE_PADDING
+        arrow_button_height = int(0.75*GUIConstants.BUTTON_HEIGHT)
+
+        # Button '1' for KEY1
+        self.one_button = IconButton(
+            icon_name=FontAwesomeIconConstants.NUMBER_1,
+            icon_size=GUIConstants.ICON_FONT_SIZE,
+            is_text_centered=False,
+            screen_x=self.canvas_width - arrow_button_width + GUIConstants.COMPONENT_PADDING,
+            screen_y=self.highlighted_row_y - 3*GUIConstants.COMPONENT_PADDING - GUIConstants.BUTTON_HEIGHT,
+            width=arrow_button_width,
+            height=arrow_button_height + 1,
+        )
+
+        # Button '0' for KEY3
+        self.zero_button = IconButton(
+            icon_name=FontAwesomeIconConstants.NUMBER_0,
+            icon_size=GUIConstants.ICON_FONT_SIZE,
+            is_text_centered=False,
+            screen_x=self.canvas_width - arrow_button_width + GUIConstants.COMPONENT_PADDING,
+            screen_y=self.highlighted_row_y + GUIConstants.BUTTON_HEIGHT + 3*GUIConstants.COMPONENT_PADDING,
+            width=arrow_button_width,
+            height=arrow_button_height + 1,
+        )
+
+        self.one_button.render()
+        self.zero_button.render()
 
         self.letters = self.initial_letters
 
@@ -660,6 +670,8 @@ class SeedMnemonicBinaryEntryScreen(BaseTopNavScreen):
         super()._render()
         self.keyboard.render_keys()
         self.text_entry_display.render()
+        self.one_button.render()
+        self.zero_button.render()
         self.renderer.show_image()
 
     def _run(self):
@@ -739,13 +751,34 @@ class SeedMnemonicBinaryEntryScreen(BaseTopNavScreen):
                     self.letters = self.letters[:-1]
                     self.letters.append(ret_val)
 
+            if input == HardwareButtonsConstants.KEY1:
+                self.letters = self.letters[:-1]
+                self.letters.append("1")
+                self.letters.append(" ")
+
+                self.calc_possible_alphabet()
+                self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
+                self.keyboard.render_keys()
+
+                if len(self.letters) > (self.binary_seed_word_length):
+                    final_selection = True
+
+            if input == HardwareButtonsConstants.KEY3:
+                self.letters = self.letters[:-1]
+                self.letters.append("0")
+                self.letters.append(" ")
+
+                self.calc_possible_alphabet()
+                self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
+                self.keyboard.render_keys()
+
+                if len(self.letters) > (self.binary_seed_word_length):
+                    final_selection = True
             # Has the user made a final selection of a candidate word?
             if input == HardwareButtonsConstants.KEY2 and len(self.letters) > self.binary_seed_word_length:                    
                 final_selection = True
                 
             if final_selection:
-                print("FINAL SELECTION")
-                print(self.letters)
                 current_entered_value = "".join(self.letters[:-1])
                 if current_entered_value != "":
                     if len(current_entered_value) != self.binary_seed_word_length:

@@ -100,6 +100,8 @@ class FontAwesomeIconConstants:
     SQUARE_CARET_UP = "\uf151"
     UNLOCK = "\uf09c"
     X = "\u0058"
+    NUMBER_0 = "\u0030"
+    NUMBER_1 = "\u0031"
 
 
 class SeedSignerIconConstants:
