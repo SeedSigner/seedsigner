@@ -622,18 +622,18 @@ class SeedMnemonicBinaryEntryScreen(BaseTopNavScreen):
         )
 
         self.highlighted_row_y = int((self.canvas_height - GUIConstants.BUTTON_HEIGHT)/2)
-        arrow_button_width = GUIConstants.BUTTON_HEIGHT + GUIConstants.EDGE_PADDING
-        arrow_button_height = int(0.75*GUIConstants.BUTTON_HEIGHT)
+        binary_buttons_width = GUIConstants.BUTTON_HEIGHT + GUIConstants.EDGE_PADDING
+        binary_buttons_height = int(0.75*GUIConstants.BUTTON_HEIGHT)
 
         # Button '1' for KEY1
         self.one_button = IconButton(
             icon_name=FontAwesomeIconConstants.NUMBER_1,
             icon_size=GUIConstants.ICON_FONT_SIZE,
             is_text_centered=False,
-            screen_x=self.canvas_width - arrow_button_width + GUIConstants.COMPONENT_PADDING,
+            screen_x=self.canvas_width - binary_buttons_width + GUIConstants.COMPONENT_PADDING,
             screen_y=self.highlighted_row_y - 3*GUIConstants.COMPONENT_PADDING - GUIConstants.BUTTON_HEIGHT,
-            width=arrow_button_width,
-            height=arrow_button_height + 1,
+            width=binary_buttons_width,
+            height=binary_buttons_height + 1,
         )
 
         # Button '0' for KEY3
@@ -641,10 +641,10 @@ class SeedMnemonicBinaryEntryScreen(BaseTopNavScreen):
             icon_name=FontAwesomeIconConstants.NUMBER_0,
             icon_size=GUIConstants.ICON_FONT_SIZE,
             is_text_centered=False,
-            screen_x=self.canvas_width - arrow_button_width + GUIConstants.COMPONENT_PADDING,
+            screen_x=self.canvas_width - binary_buttons_width + GUIConstants.COMPONENT_PADDING,
             screen_y=self.highlighted_row_y + GUIConstants.BUTTON_HEIGHT + 3*GUIConstants.COMPONENT_PADDING,
-            width=arrow_button_width,
-            height=arrow_button_height + 1,
+            width=binary_buttons_width,
+            height=binary_buttons_height + 1,
         )
 
         self.one_button.render()
