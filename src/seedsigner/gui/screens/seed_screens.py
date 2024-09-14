@@ -125,6 +125,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         self.word_font_height = -1 * top
         self.matches_list_row_height = self.word_font_height + GUIConstants.COMPONENT_PADDING
 
+
     def calc_possible_alphabet(self, new_letter = False):
         if (self.letters and len(self.letters) > 1 and new_letter == False) or (len(self.letters) > 0 and new_letter == True):
             search_letters = self.letters[:]
@@ -142,9 +143,11 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
             self.possible_alphabet = "abcdefghijklmnopqrstuvwxyz"
             self.possible_words = []
 
+
     def calc_possible_words(self):
         self.possible_words = [i for i in self.wordlist if i.startswith("".join(self.letters).strip())]
         self.selected_possible_words_index = 0        
+
 
     def render_possible_matches(self, highlight_word=None):
         """ Internal helper method to render the KEY 1, 2, 3 word candidates.
@@ -232,6 +235,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         self.matches_list_up_button.render()
         self.matches_list_down_button.render()
 
+
     def _render(self):
         super()._render()
         self.keyboard.render_keys()
@@ -239,6 +243,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         self.render_possible_matches()
 
         self.renderer.show_image()
+
 
     def _run(self):
         while True:
@@ -403,6 +408,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
 
             # Now issue one call to send the pixels to the screen
             self.renderer.show_image()
+
 
 @dataclass
 class SeedMnemonicDecimalEntryScreen(BaseTopNavScreen):
