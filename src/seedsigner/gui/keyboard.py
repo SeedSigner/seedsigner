@@ -39,6 +39,12 @@ class Keyboard:
         "font": COMPACT_KEY_FONT,
         "size": 1,
     }
+    KEY_SPACE_2 = {
+        "code": "SPACE",
+        "letter": "space",
+        "font": COMPACT_KEY_FONT,
+        "size": 2,
+    }
     KEY_SPACE_3 = {
         "code": "SPACE",
         "letter": "space",
@@ -117,6 +123,7 @@ class Keyboard:
                 rect_color = self.keyboard.deactivated_background_color
                 font_color = "#333"  # Show the letter but render as gray
                 outline_color = self.keyboard.deactivated_background_color
+
                 if self.is_selected:
                     # Inactive, selected just gets highlighted outline
                     outline_color = self.keyboard.highlight_color
@@ -125,11 +132,11 @@ class Keyboard:
                 font_color = "black"
             else:
                 if self.is_additional_key:
-                    # rect_color = "#111"
-                    rect_color = self.keyboard.background_color
+                    rect_color = "#000"
+                    font_color = "#999"
                 else:
                     rect_color = self.keyboard.background_color
-                font_color = "#e8e8e8"
+                    font_color = "#e8e8e8"
 
             self.keyboard.draw.rounded_rectangle(
                 (
@@ -186,6 +193,7 @@ class Keyboard:
         self.auto_wrap = auto_wrap
         self.background_color = GUIConstants.BUTTON_BACKGROUND_COLOR
         self.deactivated_background_color = GUIConstants.BACKGROUND_COLOR
+        self.additional_key_deactivated_background_color = GUIConstants.BACKGROUND_COLOR
         self.highlight_color = highlight_color
 
         # Does the specified layout work?
@@ -583,7 +591,8 @@ class TextEntryDisplay(TextEntryDisplayConstants):
             if end_pos_x < self.width:
                 # The entire cur_text plus the cursor bar fits
                 self.text_offset = 3 + cursor_bar_serif_half_width
-                tw_left, th = self.font.getsize(self.cur_text[:cursor_position])
+                left, top, right, bottom  = self.font.getbbox(self.cur_text[:cursor_position])
+                tw_left, th = right - left, bottom - top
                 cursor_bar_x = self.text_offset + tw_left
 
             else:
@@ -591,7 +600,8 @@ class TextEntryDisplay(TextEntryDisplayConstants):
                     cursor_position = len(self.cur_text)
 
                 # Is the cursor at either extreme?
-                tw_left, th = self.font.getsize(self.cur_text[:cursor_position])
+                left, top, right, bottom  = self.font.getbbox(self.cur_text[:cursor_position])
+                tw_left, th = right - left, bottom - top
 
                 if self.text_offset + tw_left + cursor_bar_serif_half_width + 3 >= self.width:
                     # Cursor is at the extreme right; have to push the full tw_right off

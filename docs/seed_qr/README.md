@@ -1,8 +1,8 @@
 # SeedQR Format Specification
 
-[SeedSigner](https://github.com/SeedSigner/seedsigner/) is an open source, DIY, fully-airgapped Bitcoin hardware wallet that wipes all private data from memory each time it's turned off. That means users need to re-enter their Bitcoin private key each time they use it.
+[SeedSigner](https://github.com/SeedSigner/seedsigner/) is an open source, DIY, fully-airgapped Bitcoin hardware wallet that wipes all private data from memory each time it's turned off. That means users need to re-enter their mnemonic seed phrase each time they use it.
 
-To speed up this key entry process we have defined a way to encode a private key as a QR code that can be instantly scanned into a SeedSigner or potentially any other Bitcoin hardware wallet that has a camera.
+To speed up this key entry process we have defined a way to encode a BIP-39 mnemonic seed phrase as a QR code that can be instantly scanned into a SeedSigner or potentially any other Bitcoin hardware wallet that has a camera.
 
 The approach is specifically designed to encode the minimum possible amount of data in order to keep the resulting QR code small enough that it can be transcribed *by hand*. This sounds ridiculous at first, but remember that this is secret data that should never be stored in any digital medium. And even printers present some additional risk vectors.
 
@@ -20,7 +20,7 @@ Specifications for each follow below, as well as discussion of the pros and cons
 
 
 ## Quick Review of BIP-39 Mnemonic Seed Phrases
-The typical method for backing up a Bitcoin private key is to store it as a [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) mnemonic seed phrase that consists of 12 or 24 words.
+The typical method for backing up a Bitcoin wallet is to store its [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) mnemonic seed phrase consisting of 12 or 24 words.
 
 Each word comes from a [list of 2048 words](https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt). The words themselves are meaningless; all that matters is the word's position number (aka index) in the word list.
 
@@ -70,7 +70,7 @@ It's important to note here that QR codes can encode data in a number of differe
 
 QR codes are typically used to encode a website url, in which case the "Alphanumeric" format has to be used (the encoded data can consist of upper- and lowercase letters, numbers, and certain allowed symbols).
 
-If you have a long url like `https://ohnoihavealongurl.com` (29 characters), the chart shows that it would not fit in a 21x21 QR code; its max capacity is 25 alphanumeric chars. But it's within the 47-char capacity of the 29x29 size.
+If you have a long url like `https://ohnoihavealongurl.com` (29 characters), the chart shows that it would not fit in a 21x21 QR code; its max capacity is 25 alphanumeric chars. But it's within the 47-char capacity of the 25x25 size.
 
 ### Bit efficiency matters
 Notice that the "Numeric" column has greater capacity. This is because when you have fewer possible characters to encode, it takes less data to specify each one.
@@ -150,7 +150,7 @@ But here the unit being described isn't alphanumeric characters or numeric digit
 1 byte = 8 bits
 ```
 
-Rather than having the QR format interpret our data as numbers or characters, we can directly encode the relevant bits that determine our Bitcoin private key.
+Rather than having the QR format interpret our data as numbers or characters, we can directly encode the relevant bits that determine our mnemonic seed phrase.
 
 We can extract exactly those bits from our mnemonic seed phrase digit stream that we generated above.
 
@@ -298,23 +298,20 @@ It's just the above process in reverse:
 12. nuclear   1210
 ```
 
-It would be much more difficult to manually recreate your seed from a CompactSeedQR. Tools like [zxing.org](https://zxing.org/w/decode.jspx) can help you get the binary data out as a hexidecimal string:
+It would be much more difficult to manually recreate your seed from a CompactSeedQR. Tools like [zxing.org](https://zxing.org/w/decode.jspx) or [ZBar](https://zbar.sourceforge.net/) can help you get the binary data out as a hexidecimal string:
 
 <img src="img/zxing_screenshot.png">
 
-All 12-word CompactSeedQRs will start with `41 0` (that specifies the binary data format and says the length of the data is 16 bytes) and end with `0 ec` (unused byte and a half).
+Note that for some QR decoders, zxing in particular, may return more data than the compact seed itself: the data type, the data length, and padding.  For example, the zxing result from 12-word CompactSeedQRs in low error correction mode will start with `41 0` (that specifies the binary data format and says the length of the data is 16 bytes) and end with `0 ec` (unused byte and a half). Similarly, 24-word CompactSeedQRs will start with `42 0` (binary, data length is 32 bytes) and end with `0` (unused half a byte).
 
-All 24-word CompactSeedQRs will start with `42 0` (binary, data length is 32 bytes) and end with `0` (unused half a byte).
-
-The remaining hexidecimal data is just an alternate representation of the 128-bit entropy for your 12-word mnemonic (or 256 bits for a 24-word mnemonic). Various programming tools exist to convert from hex back into mnemonic form.
-
+The ZBar library just returns the encoded data, without metadata or padding.
 
 ## Obfuscation
 Conversely, having limited support for reading binary QR codes and the complications described above are seen by some as an added security feature. Should someone steal your CompactSeedQR or take a photo of it, they'll have to be fairly savvy to know how to decode it.
 
 
 # Some Additional Notes on QR Codes
-Our main use case is to be able to quickly initialize a SeedSigner with your Bitcoin private key. But using a QR code as your key loader--or even as your permanent backup etched in metal--has other advantages.
+Our main use case is to be able to quickly initialize a SeedSigner with your mnemonic seed phrase. But using a QR code as your key loader--or even as your permanent backup etched in metal--has other advantages.
 
 QR codes are ubiquitous now so plenty of hardware and software exists to read and generate them.
 
@@ -480,3 +477,72 @@ b'\n\xcb\xba\x00\x8d\x9b\xa0\x05\xf5\x99k@\xa3G\\\xd9'
     </tr>
 </table>
 
+---
+
+## Test Vectors 7-9: Additional Compact SeedQR problem characters
+Explicitly check Compact SeedQRs whose byte stream contains `\n`, `\r`, or `\r\n`:
+
+`\n`:
+```bash
+# 12-word seed:
+dignity utility vacant shiver thought canoe feel multiply item youth actor coyote
+
+# Standard SeedQR digit stream:
+049619221923158517990268067811630950204300210397
+
+# CompactSeedQR bitstream:
+00111110000111100000101111000001111000110001111000001110010000110001010100110100100010110111011011011111111011000000101010011000
+
+# CompactSeedQR bytestream:
+b'>\x1e\x0b\xc1\xe3\x1e\x0eC\x154\x8bv\xdf\xec\n\x98'
+```
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector7_compact_12word.png"><br/>CompactSeedQR</td>
+    </tr>
+</table>
+
+
+`\r`:
+```bash
+# 12-word seed:
+corn voice scrap arrow original diamond trial property benefit choose junk lock
+
+# Standard SeedQR digit stream:
+038719631547010112530489185713790169032209701051
+
+# CompactSeedQR bitstream:
+00110000011111101010111100000101100001100101100111001010011110100111101000001101011000110001010100100101000010011110010101000001
+
+# CompactSeedQR bytestream:
+b'0~\xaf\x05\x86Y\xcazz\rc\x15%\t\xe5A'
+```
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector8_compact_12word.png"><br/>CompactSeedQR</td>
+    </tr>
+</table>
+
+
+`\r\n`:
+```bash
+# 12-word seed:
+vocal tray giggle tool duck letter category pattern train magnet excite swamp
+
+# Standard SeedQR digit stream:
+196218530783182905421028028912901848107106301753
+
+# CompactSeedQR bitstream:
+11110101010111001111010110000111111100100101010000111101000000010000100100001101000010101110011100010000101111010011101101101101
+
+# CompactSeedQR bytestream:
+b'\xf5\\\xf5\x87\xf2T=\x01\t\r\n\xe7\x10\xbd;m'
+```
+
+<table align="center">
+    <tr>
+        <td align="center"><img src="img/vector9_compact_12word.png"><br/>CompactSeedQR</td>
+    </tr>
+</table>

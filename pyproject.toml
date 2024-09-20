@@ -1,0 +1,70 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools", "wheel"]
+
+[project]
+authors = [{name = "SeedSigner", email = "author@example.com"}]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent"
+]
+description = "Build an offline, airgapped Bitcoin signing device for less than $50!"
+name = "seedsigner"
+readme = "README.md"
+requires-python = ">=3.10"
+version = "0.8.0"
+
+[project.urls]
+"Bug Tracker" = "https://github.com/SeedSigner/seedsigner/issues"
+Homepage = "https://seedsigner.com/"
+Repository = "https://github.com/SeedSigner/seedsigner"
+
+[tool.coverage.html]
+directory = "coverage_html_report"
+skip_covered = false
+skip_empty = true
+
+[tool.coverage.report]
+# Regexes for lines to exclude from consideration
+exclude_lines = [
+  # Have to re-enable the standard pragma
+  "pragma: no cover",
+  # Don't complain about missing debug-only code:
+  "def __repr__",
+  "def __str__",
+  "if self\\.debug",
+  # Don't complain if tests don't hit defensive assertion code:
+  "raise AssertionError",
+  "raise NotImplementedError",
+  # Don't complain if non-runnable code isn't run:
+  "if 0:",
+  "if __name__ == .__main__.:",
+  # Don't complain about abstract methods, they aren't run:
+  "@(abc\\.)?abstractmethod"
+]
+# Omit; need a different approach to test modules with hardware dependencies
+omit = [
+  "*/__init__.py",
+  "*/tests/*",
+  "*/pyzbar/*",
+  "*/gui/*"
+]
+skip_covered = true
+skip_empty = true
+
+[tool.coverage.run]
+branch = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+log_level = "DEBUG"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"seedsigner.resources" = ["**"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

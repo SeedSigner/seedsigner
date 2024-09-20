@@ -1,25 +1,24 @@
 import os
-import pyzbar
 from embit import bip39
 from seedsigner.helpers.qr import QR
-from seedsigner.helpers.ur2.bytewords import decode
 from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
-from seedsigner.models.encode_qr import EncodeQR
+from seedsigner.models.encode_qr import SeedQrEncoder, CompactSeedQrEncoder
 from seedsigner.models.qr_type import QRType
-from seedsigner.models.settings import SettingsConstants
+from seedsigner.models.seed import Seed
 
 
 
 def run_encode_decode_test(entropy: bytes, mnemonic_length, qr_type):
     """ Helper method to re-run multiple variations of the same encode/decode test """
-    print(entropy)
-    seed_phrase = bip39.mnemonic_from_bytes(entropy).split()
-    print(seed_phrase)
-    assert len(seed_phrase) == mnemonic_length
+    mnemonic = bip39.mnemonic_from_bytes(entropy).split()
+    assert len(mnemonic) == mnemonic_length
 
-    e = EncodeQR(seed_phrase=seed_phrase, qr_type=qr_type)
+    if qr_type == QRType.SEED__SEEDQR:
+        e = SeedQrEncoder(mnemonic=mnemonic)
+    elif qr_type == QRType.SEED__COMPACTSEEDQR:
+        e = CompactSeedQrEncoder(mnemonic=mnemonic)
+
     data = e.next_part()
-    print(data)
 
     qr = QR()
     image = qr.qrimage(
@@ -34,8 +33,7 @@ def run_encode_decode_test(entropy: bytes, mnemonic_length, qr_type):
     assert status == DecodeQRStatus.COMPLETE
 
     decoded_seed_phrase = decoder.get_seed_phrase()
-    print(decoded_seed_phrase)
-    assert seed_phrase == decoded_seed_phrase
+    assert mnemonic == decoded_seed_phrase
 
 
 

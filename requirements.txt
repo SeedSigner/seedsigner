@@ -1,10 +1,5 @@
-embit @ git+https://github.com/seedsigner/embit.git@03cba13e0add64b241972c67e2aa970cb2e3a5d2
-numpy==1.21.1
-picamera==1.13
-Pillow==8.2.0
--e git+https://github.com/seedsigner/pyzbar.git@c3c237821c6a20b17953efe59b90df0b514a1c03#egg=pyzbar
+embit==0.8.0
+Pillow==10.0.1
+pyzbar @ git+https://github.com/seedsigner/pyzbar.git@c3c237821c6a20b17953efe59b90df0b514a1c03
 qrcode==7.3.1
-RPi.GPIO==0.7.0
-six==1.16.0
-spidev==3.5
-urtypes @ git+https://github.com/jreesun/urtypes.git@e0d0db277ec2339650343eaf7b220fffb9233241
+urtypes @ git+https://github.com/selfcustody/urtypes.git@7fb280eab3b3563dfc57d2733b0bf5cbc0a96a6a

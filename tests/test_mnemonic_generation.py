@@ -1,3 +1,4 @@
+import pytest
 import random
 
 from embit import bip39
@@ -11,16 +12,17 @@ def test_dice_rolls():
     dice_rolls = ""
     for i in range(0, 99):
         # Do not need truly rigorous random for this test
-        dice_rolls += str(random.randint(0, 5))
+        dice_rolls += str(random.randint(1, 6))
 
     mnemonic = mnemonic_generation.generate_mnemonic_from_dice(dice_rolls)
+
     assert len(mnemonic) == 24
     assert bip39.mnemonic_is_valid(" ".join(mnemonic))
 
     dice_rolls = ""
-    for i in range(0, 50):
+    for i in range(0, mnemonic_generation.DICE__NUM_ROLLS__12WORD):
         # Do not need truly rigorous random for this test
-        dice_rolls += str(random.randint(0, 5))
+        dice_rolls += str(random.randint(1, 6))
 
     mnemonic = mnemonic_generation.generate_mnemonic_from_dice(dice_rolls)
     assert len(mnemonic) == 12
@@ -28,18 +30,69 @@ def test_dice_rolls():
 
 
 
-def test_calculate_checksum():
-    """ Given an 11-word or 23-word mnemonic, the calculated checksum should yield a
+def test_calculate_checksum_input_type():
+    """
+        Given an 11-word or 23-word mnemonic, the calculated checksum should yield a
         valid complete mnemonic.
+        
+        calculate_checksum should accept the mnemonic as:
+        * a list of strings
+        * string: "A B C", "A, B, C", "A,B,C"
     """
     # Test mnemonics from https://iancoleman.io/bip39/
+    def _try_all_input_formats(partial_mnemonic: str):
+        # List of strings
+        mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "))
+        assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+
+        # Comma-separated string
+        mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.replace(" ", ","))
+        assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+
+        # Comma-separated string w/space
+        mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.replace(" ", ", "))
+        assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+
+        # Space-separated string
+        mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic)
+        assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+
     partial_mnemonic = "crawl focus rescue cable view pledge rather dinner cousin unfair day"
-    mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
-    assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+    _try_all_input_formats(partial_mnemonic)
 
     partial_mnemonic = "bubble father debate ankle injury fence mesh evolve section wet coyote violin pyramid flower rent arrow round clutch myth safe base skin mobile"
-    mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
-    assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+    _try_all_input_formats(partial_mnemonic)
+
+
+
+
+def test_calculate_checksum_invalid_mnemonics():
+    """
+        Should raise an Exception on a mnemonic that is invalid due to length or using invalid words.
+    """
+    with pytest.raises(Exception) as e:
+        # Mnemonic is too short: 10 words instead of 11
+        partial_mnemonic = "abandon " * 9 + "about"
+        mnemonic_generation.calculate_checksum(partial_mnemonic)
+    assert "12- or 24-word" in str(e)
+
+    with pytest.raises(Exception) as e:
+        # Valid mnemonic but unsupported length
+        mnemonic = "devote myth base logic dust horse nut collect buddy element eyebrow visit empty dress jungle"
+        mnemonic_generation.calculate_checksum(mnemonic)
+    assert "12- or 24-word" in str(e)
+
+    with pytest.raises(Exception) as e:
+        # Mnemonic is too short: 22 words instead of 23
+        partial_mnemonic = "abandon " * 21 + "about"
+        mnemonic_generation.calculate_checksum(partial_mnemonic)
+    assert "12- or 24-word" in str(e)
+
+    with pytest.raises(ValueError) as e:
+        # Invalid BIP-39 word
+        partial_mnemonic = "foobar " * 11 + "about"
+        mnemonic_generation.calculate_checksum(partial_mnemonic)
+    assert "not in the dictionary" in str(e)
 
 
 
@@ -48,18 +101,34 @@ def test_calculate_checksum_with_default_final_word():
         the mnemonic.
     """
     partial_mnemonic = "crawl focus rescue cable view pledge rather dinner cousin unfair day"
-    mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic)
 
     partial_mnemonic += " abandon"
-    mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic)
     assert mnemonic1 == mnemonic2
 
     partial_mnemonic = "bubble father debate ankle injury fence mesh evolve section wet coyote violin pyramid flower rent arrow round clutch myth safe base skin mobile"
-    mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic)
 
     partial_mnemonic += " abandon"
-    mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic.split(" "), wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+    mnemonic2 = mnemonic_generation.calculate_checksum(partial_mnemonic)
     assert mnemonic1 == mnemonic2
+
+
+def test_generate_mnemonic_from_bytes():
+    """
+        Should generate a valid BIP-39 mnemonic from entropy bytes
+    """
+    # From iancoleman.io
+    entropy = "3350f6ac9eeb07d2c6209932808aa7f6"
+    expected_mnemonic = "crew marble private differ race truly blush basket crater affair prepare unique".split()
+    mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(bytes.fromhex(entropy))
+    assert mnemonic == expected_mnemonic
+
+    entropy = "5bf41629fce815c3570955e8f45422abd7e2234141bd4d7ec63b741043b98cad"
+    expected_mnemonic = "fossil pass media what life ticket found click trophy pencil anger fish lawsuit balance agree dash estate wage mom trial aerobic system crawl review".split()
+    mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(bytes.fromhex(entropy))
+    assert mnemonic == expected_mnemonic
 
 
 

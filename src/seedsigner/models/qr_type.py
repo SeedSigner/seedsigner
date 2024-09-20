@@ -21,6 +21,8 @@ class QRType:
 
     BITCOIN_ADDRESS = "bitcoin_address"
 
+    SIGN_MESSAGE = "sign_message"
+
     WALLET__SPECTER = "wallet__specter"
     WALLET__UR = "wallet__ur"
     WALLET__CONFIGFILE = "wallet__configfile"
