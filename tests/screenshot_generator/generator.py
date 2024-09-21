@@ -164,7 +164,7 @@ def test_generate_screenshots(target_locale):
             MainMenuView,
             (MainMenuView, {}, 'MainMenuView_SDCardStateChangeToast_removed', SDCardStateChangeToastManagerThread(action=MicroSD.ACTION__REMOVED)),
             (MainMenuView, {}, 'MainMenuView_SDCardStateChangeToast_inserted', SDCardStateChangeToastManagerThread(action=MicroSD.ACTION__INSERTED)),
-            (MainMenuView, {}, 'MainMenuView_RemoveSDCardToast', RemoveSDCardToastManagerThread(activation_delay=0)),
+            (MainMenuView, {}, 'MainMenuView_RemoveSDCardToast', RemoveSDCardToastManagerThread(activation_delay=0, duration=0)),
             PowerOptionsView,
             RestartView,
             PowerOffView,
@@ -300,10 +300,13 @@ def test_generate_screenshots(target_locale):
             try:
                 view_cls(**view_args).run()
             except ScreenshotComplete:
+                # The target View has run and its Screen has rendered what it needs to
                 if toast_thread is not None:
+                    # Now run the Toast so it can render on top of the current image buffer
                     controller.activate_toast(toast_thread)
                     while controller.toast_notification_thread.is_alive():
-                        time.sleep(0.1)
+                        # Give the Toast a moment to complete its work
+                        time.sleep(0.01)
                 raise ScreenshotComplete()
         except ScreenshotComplete:
             # Slightly hacky way to exit ScreenshotRenderer as expected
