@@ -187,12 +187,14 @@ class BaseToastOverlayManagerThread(BaseThread):
 
 
 class RemoveSDCardToastManagerThread(BaseToastOverlayManagerThread):
-    def __init__(self, activation_delay=3):
+    def __init__(self, activation_delay: int = 3, duration: int = 1e6):
         # Note: activation_delay is configurable so the screenshot generator can get the
         # toast to immediately render.
+        # `duration` gives the screenshot generator explicit control over the Toast's
+        # lifespan.
         super().__init__(
             activation_delay=activation_delay,  # seconds
-            duration=1e6,                       # seconds ("forever")
+            duration=duration,                  # seconds (1e6 default = "forever")
         )
 
 
