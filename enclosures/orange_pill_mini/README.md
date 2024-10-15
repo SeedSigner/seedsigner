@@ -1,6 +1,6 @@
 ## The Orange Pill Mini Enclosure
 
-<img src="OrangePillMini_Thumb.jpg" width="800" height="600">
+<img src="/docs/img/OrangePillMini_Thumb.jpg" width="800" height="600">
 
 - The Orange Pill Mini is a smaller, hommage to the original Orange Pill enclosure.
 - Hardware free build, no screws or spacers needed.
