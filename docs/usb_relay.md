@@ -24,7 +24,7 @@ touch ssh
 # Windows:
 type nul > ssh
 ```
-
+If you get a "Read-Only" error when writing to `boot`, please refer to the [Troubleshooting](#Troubleshooting) section at the bottom.
 
 Now we have some incomprehensible configuration steps to set up the internet access relay.
 
@@ -271,3 +271,18 @@ del ssh
 ```
 
 You're now good to go with a SeedSigner that is back to being fully air-gapped!
+
+## Troubleshooting
+
+### touch: ssh: Read-only file system
+
+In MacOS, immediately after installing the Raspberry Pi OS and trying to run `touch /Volumes/boot/ssh`, I received the error message about the SD card being "Read-only".
+First thing to check is the SD adapter lock toggle. If it is in the "lock" state, you should switch it back and reinsert the adapter before trying again.
+If the error persists, you may try `sudo mount -u -w /Volumes/boot` to remount the SD card in write mode. 
+
+In my case, the steps above did not solve the problem. The solution was to:
+1. Identify the `boot` partition with `diskutil list`. Under the column `NAME` you should see an entry with `boot`, then find its identifier in the column `IDENTIFIER` (e.g., "disk6s1").
+2. Unmount your partition with `sudo diskutil unmount /dev/<IDENTIFIER>` (e.g., "/dev/disk6s1").
+3. Create the `Volume/boot` directory with `mkdir /Volumes/boot`.
+4. Mount the disk again with `sudo mount -w -t msdos /dev/<IDENTIFIER> /Volumes/boot`.
+5. You should now be able to write to `/Volumes/boot` normally (e.g., `touch /Volumes/boot/ssh`).
