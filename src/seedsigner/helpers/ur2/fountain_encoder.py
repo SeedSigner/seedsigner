@@ -84,18 +84,19 @@ class Part:
 
 class FountainEncoder:
     def __init__(self, message, max_fragment_len, first_seq_num = 0, min_fragment_len = 10):
-        assert(len(message) <= MAX_UINT32)
+        assert len(message) <= MAX_UINT32
         self.message_len = len(message)
         self.checksum = crc32_int(message)
         self.fragment_len = FountainEncoder.find_nominal_fragment_length(self.message_len, min_fragment_len, max_fragment_len)
         self.fragments = FountainEncoder.partition_message(message, self.fragment_len)
         self.seq_num = first_seq_num
+        self.current_part: Part = None
     
     @staticmethod
     def find_nominal_fragment_length(message_len, min_fragment_len, max_fragment_len):
-        assert(message_len > 0)
-        assert(min_fragment_len > 0)
-        assert(max_fragment_len >= min_fragment_len)
+        assert message_len > 0
+        assert min_fragment_len > 0
+        assert max_fragment_len >= min_fragment_len
         max_fragment_count = message_len // min_fragment_len
         fragment_len = None
 
@@ -104,7 +105,7 @@ class FountainEncoder:
             if fragment_len <= max_fragment_len:
                 break
 
-        assert(fragment_len != None)
+        assert fragment_len != None
         return fragment_len
 
 
@@ -143,7 +144,17 @@ class FountainEncoder:
         indexes = choose_fragments(self.seq_num, self.seq_len(), self.checksum)
         mixed = self.mix(indexes)
         data = bytes(mixed)
-        return Part(self.seq_num, self.seq_len(), self.message_len, self.checksum, data)
+        self.current_part = Part(self.seq_num, self.seq_len(), self.message_len, self.checksum, data)
+        return self.current_part
+    
+
+    def restart(self):
+        """
+        Restart from the beginning; each cycle's first n frames are full data frames
+        (not XOR composites).
+        """
+        self.seq_num = 0
+
 
     def mix(self, indexes):
         result = [0] * self.fragment_len

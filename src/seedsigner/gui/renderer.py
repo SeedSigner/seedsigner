@@ -1,9 +1,9 @@
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 from threading import Lock
 
 from seedsigner.gui.components import Fonts, GUIConstants
 from seedsigner.hardware.ST7789 import ST7789
-from seedsigner.models import ConfigurableSingleton
+from seedsigner.models.singleton import ConfigurableSingleton
 
 
 
@@ -19,8 +19,6 @@ class Renderer(ConfigurableSingleton):
 
     @classmethod
     def configure_instance(cls):
-        from seedsigner.models.settings import Settings
-
         # Instantiate the one and only Renderer instance
         renderer = cls.__new__(cls)
         cls._instance = renderer
@@ -34,7 +32,12 @@ class Renderer(ConfigurableSingleton):
         renderer.draw = ImageDraw.Draw(renderer.canvas)
 
 
-    def show_image(self, image=None, alpha_overlay=None):
+    def show_image(self, image=None, alpha_overlay=None, show_direct=False):
+        if show_direct:
+            # Use the incoming image as the canvas and immediately render
+            self.disp.ShowImage(image, 0, 0)
+            return
+
         if alpha_overlay:
             if image == None:
                 image = self.canvas
@@ -81,125 +84,7 @@ class Renderer(ConfigurableSingleton):
             self.disp.ShowImage(crop, 0, 0)
 
 
-    # TODO: Remove all references
-    def show_image_with_text(self, image, text, font=None, text_color="GREY", text_background=None):
-        image_copy = image.copy().convert("RGBA")
-
-        text_overlay = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
-        text_overlay_draw = ImageDraw.Draw(text_overlay)
-        if not font:
-            font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE)
-        tw, th = text_overlay_draw.textsize(text, font=font)
-        if text_background:
-            text_overlay_draw.rectangle(((240 - tw) / 2 - 3, 240 - th, (240 - tw) / 2 + tw + 3, 240), fill=text_background)
-        text_overlay_draw.text(((240 - tw) / 2, 240 - th - 1), text, fill=text_color, font=font)
-
-        self.show_image(image_copy, alpha_overlay=text_overlay)
-
-
-    # TODO: Should probably move this to screens.py
-    def draw_modal(self, lines = [], title = "", bottom = "") -> None:
-        self.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
-
-        if len(title) > 0:
-            tw, th = self.draw.textsize(title, font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 2), title, fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-
-        if len(bottom) > 0:
-            tw, th = self.draw.textsize(bottom, font=Fonts.get_font("Assistant-Medium", 18))
-            self.draw.text(((240 - tw) / 2, 210), bottom, fill=self.color, font=Fonts.get_font("Assistant-Medium", 18))
-
-        if len(lines) == 1:
-            tw, th = self.draw.textsize(lines[0], font=Fonts.get_font("Assistant-Medium", 26))
-            self.draw.text(((240 - tw) / 2, 90), lines[0], fill=self.color, font=Fonts.get_font("Assistant-Medium", 26))
-        elif len(lines) == 2:
-            tw, th = self.draw.textsize(lines[0], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 90), lines[0], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-            tw, th = self.draw.textsize(lines[1], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 125), lines[1], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-        elif len(lines) == 3:
-            tw, th = self.draw.textsize(lines[0], font=Fonts.get_font("Assistant-Medium", 26))
-            self.draw.text(((240 - tw) / 2, 55), lines[0], fill=self.color, font=Fonts.get_font("Assistant-Medium", 26))
-            tw, th = self.draw.textsize(lines[1], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 90), lines[1], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-            tw, th = self.draw.textsize(lines[2], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 125), lines[2], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-        elif len(lines) == 4:
-            tw, th = self.draw.textsize(lines[0], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 55), lines[0], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-            tw, th = self.draw.textsize(lines[1], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 90), lines[1], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-            tw, th = self.draw.textsize(lines[2], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 125), lines[2], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-            tw, th = self.draw.textsize(lines[3], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 160), lines[3], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-
-        self.show_image()
-
-        return
-
-
-    # TODO: Should probably move this to templates.py
-    def draw_prompt_yes_no(self, lines = [], title = "", bottom = "") -> None:
-        self.draw_prompt_custom("", "Yes ", "No ", lines, title, bottom)
-        return
-
-
-    # TODO: Should probably move this to templates.py
-    def draw_prompt_custom(self, a_txt, b_txt, c_txt, lines = [], title = "", bottom = "") -> None:
-        self.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
-
-        if len(title) > 0:
-            tw, th = self.draw.textsize(title, font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 2), title, fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-
-        if len(bottom) > 0:
-            tw, th = self.draw.textsize(bottom, font=Fonts.get_font("Assistant-Medium", 18))
-            self.draw.text(((240 - tw) / 2, 210), bottom, fill=self.color, font=Fonts.get_font("Assistant-Medium", 18))
-
-        if len(lines) == 1:
-            tw, th = self.draw.textsize(lines[0], font=Fonts.get_font("Assistant-Medium", 26))
-            self.draw.text(((240 - tw) / 2, 90), lines[0], fill=self.color, font=Fonts.get_font("Assistant-Medium", 26))
-        elif len(lines) == 2:
-            tw, th = self.draw.textsize(lines[0], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 90), lines[0], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-            tw, th = self.draw.textsize(lines[1], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 125), lines[1], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-        elif len(lines) == 3:
-            tw, th = self.draw.textsize(lines[0], font=Fonts.get_font("Assistant-Medium", 26))
-            self.draw.text(((240 - tw) / 2, 20), lines[0], fill=self.color, font=Fonts.get_font("Assistant-Medium", 26))
-            tw, th = self.draw.textsize(lines[1], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 90), lines[1], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-            tw, th = self.draw.textsize(lines[2], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 125), lines[2], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-        elif len(lines) == 4:
-            tw, th = self.draw.textsize(lines[0], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 20), lines[0], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-            tw, th = self.draw.textsize(lines[1], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 90), lines[1], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-            tw, th = self.draw.textsize(lines[2], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 125), lines[2], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-            tw, th = self.draw.textsize(lines[3], font=Fonts.get_font("Assistant-Medium", 22))
-            self.draw.text(((240 - tw) / 2, 160), lines[3], fill=self.color, font=Fonts.get_font("Assistant-Medium", 22))
-
-        a_x_offset = 240 - Fonts.get_font("Assistant-Medium", 25).getsize(a_txt)[0]
-        self.draw.text((a_x_offset, 39 + 0), a_txt, fill=self.color, font=Fonts.get_font("Assistant-Medium", 25))
-
-        b_x_offset = 240 - Fonts.get_font("Assistant-Medium", 25).getsize(b_txt)[0]
-        self.draw.text((b_x_offset , 39 + 60), b_txt, fill=self.color, font=Fonts.get_font("Assistant-Medium", 25))
-
-        c_x_offset = 240 - Fonts.get_font("Assistant-Medium", 25).getsize(c_txt)[0]
-        self.draw.text((c_x_offset , 39 + 120), c_txt, fill=self.color, font=Fonts.get_font("Assistant-Medium", 25))
-
-        self.show_image()
-
-        return
-
 
     def display_blank_screen(self):
         self.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
         self.show_image()
-
-
-
-

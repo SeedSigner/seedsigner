@@ -1,15 +1,20 @@
+import logging
 import math
 import os
 import pathlib
+import re
+from time import time
 
 from dataclasses import dataclass
 from decimal import Decimal
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from typing import List, Tuple
 
-from seedsigner.models import Singleton
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
+from seedsigner.models.singleton import Singleton
+
+logger = logging.getLogger(__name__)
 
 
 # TODO: Remove all pixel hard coding
@@ -20,18 +25,22 @@ class GUIConstants:
 
     BACKGROUND_COLOR = "black"
     WARNING_COLOR = "#FFD60A"
-    DIRE_WARNING_COLOR = "red"
-    SUCCESS_COLOR = "#00dd00"
-    BITCOIN_ORANGE = "#ff9416"
-    ACCENT_COLOR = "orange"
-    TESTNET_COLOR = "#00f100"
-    REGTEST_COLOR = "#00caf1"
+    DIRE_WARNING_COLOR = "#FF453A"
+    SUCCESS_COLOR = "#30D158"
+    INFO_COLOR = "#0084FF"
+    ACCENT_COLOR = "#FF9F0A"
+    BITCOIN_ORANGE = "#FF9416"
+    TESTNET_COLOR = "#00F100"
+    REGTEST_COLOR = "#00CAF1"
+    GREEN_INDICATOR_COLOR = "#00FF00"
+    INACTIVE_COLOR = "#414141"
 
     ICON_FONT_NAME__FONT_AWESOME = "Font_Awesome_6_Free-Solid-900"
-    ICON_FONT_NAME__SEEDSIGNER = "seedsigner-glyphs"
+    ICON_FONT_NAME__SEEDSIGNER = "seedsigner-icons"
     ICON_FONT_SIZE = 22
     ICON_INLINE_FONT_SIZE = 24
-    ICON_LARGE_BUTTON_SIZE = 36
+    ICON_LARGE_BUTTON_SIZE = 48
+    ICON_TOAST_FONT_SIZE = 30
     ICON_PRIMARY_SCREEN_SIZE = 50
 
     TOP_NAV_TITLE_FONT_NAME = "OpenSans-SemiBold"
@@ -43,21 +52,23 @@ class GUIConstants:
     BODY_FONT_SIZE = 17
     BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE
     BODY_FONT_MIN_SIZE = 15
-    BODY_FONT_COLOR = "#f8f8f8"
+    BODY_FONT_COLOR = "#FCFCFC"
     BODY_LINE_SPACING = COMPONENT_PADDING
 
     FIXED_WIDTH_FONT_NAME = "Inconsolata-Regular"
     FIXED_WIDTH_EMPHASIS_FONT_NAME = "Inconsolata-SemiBold"
 
     LABEL_FONT_SIZE = BODY_FONT_MIN_SIZE
-    LABEL_FONT_COLOR = "#777"
+    LABEL_FONT_COLOR = "#777777"
 
     BUTTON_FONT_NAME = "OpenSans-SemiBold"
     BUTTON_FONT_SIZE = 18
-    BUTTON_FONT_COLOR = "#e8e8e8"
-    BUTTON_BACKGROUND_COLOR = "#2c2c2c"
+    BUTTON_FONT_COLOR = "#FCFCFC"
+    BUTTON_BACKGROUND_COLOR = "#2C2C2C"
     BUTTON_HEIGHT = 32
-    BUTTON_SELECTED_FONT_COLOR = "black"
+    BUTTON_SELECTED_FONT_COLOR = BACKGROUND_COLOR
+    
+    NOTIFICATION_COLOR = "#00F100"
 
 
 
@@ -67,11 +78,8 @@ class FontAwesomeIconConstants:
     ANGLE_RIGHT = "\uf105"
     ANGLE_UP = "\uf106"
     CAMERA = "\uf030"
-    CARET_DOWN = "\uf0d7"
-    CARET_LEFT = "\uf0d9"
-    CARET_RIGHT = "\uf0da"
-    CARET_UP = "\uf0d8"
-    SOLID_CIRCLE_CHECK = "\uf058"
+    CHEVRON_UP = "\uf077"
+    CHEVRON_DOWN = "\uf078"
     CIRCLE = "\uf111"
     CIRCLE_CHEVRON_RIGHT = "\uf138"
     DICE = "\uf522"
@@ -81,46 +89,64 @@ class FontAwesomeIconConstants:
     DICE_FOUR = "\uf524"
     DICE_FIVE = "\uf523"
     DICE_SIX = "\uf526"
-    GEAR = "\uf013"
-    KEY = "\uf084"
     KEYBOARD = "\uf11c"
     LOCK = "\uf023"
     MAP = "\uf279"
     PAPER_PLANE = "\uf1d8"
     PEN = "\uf304"
-    PLUS = "+"
-    POWER_OFF = "\uf011"
-    ROTATE_RIGHT = "\uf2f9"
-    SCREWDRIVER_WRENCH = "\uf7d9"
-    SQUARE = "\uf0c8"
     SQUARE_CARET_DOWN = "\uf150"
     SQUARE_CARET_LEFT = "\uf191"
     SQUARE_CARET_RIGHT = "\uf152"
     SQUARE_CARET_UP = "\uf151"
-    SQUARE_CHECK = "\uf14a"
-    TRIANGLE_EXCLAMATION = "\uf071"
     UNLOCK = "\uf09c"
-    QRCODE = "\uf029"
     X = "\u0058"
 
 
+class SeedSignerIconConstants:
+    # Menu icons
+    SCAN = "\ue900"
+    SEEDS = "\ue901"
+    SETTINGS = "\ue902"
+    TOOLS = "\ue903"
 
-class SeedSignerCustomIconConstants:
-    LARGE_CHEVRON_LEFT = "\ue900"
-    SMALL_CHEVRON_RIGHT = "\ue901"
-    PAGE_UP = "\ue903"
-    PAGE_DOWN = "\ue902"
-    PLUS = "\ue904"
-    CIRCLE_CHECK = "\ue907"
-    CIRCLE_EXCLAMATION = "\ue908"
-    CIRCLE_X = "\ue909"
-    FINGERPRINT = "\ue90a"
-    PATH = "\ue90b"
-    BITCOIN_LOGO_STRAIGHT = "\ue90c"
-    BITCOIN_LOGO_TILTED = "\ue90d"
+    # Utility icons
+    BACK = "\ue904"
+    CHECK = "\ue905"
+    CHECKBOX = "\ue906"
+    CHECKBOX_SELECTED = "\ue907"
+    CHEVRON_DOWN = "\ue908"
+    CHEVRON_LEFT = "\ue909"
+    CHEVRON_RIGHT = "\ue90a"
+    CHEVRON_UP = "\ue90b"
+    CLOSE = "\ue90c"
+    PAGE_DOWN = "\ue90d"
+    PAGE_UP = "\ue90e"
+    PLUS = "\ue90f"
+    POWER = "\ue910"
+    RESTART = "\ue911"
 
-    MIN_VALUE = LARGE_CHEVRON_LEFT
-    MAX_VALUE = BITCOIN_LOGO_TILTED
+    # Messaging icons
+    ERROR = "\ue912"
+    SUCCESS = "\ue913"
+    WARNING = "\ue914"
+
+    # Informational icons
+    ADDRESS = "\ue915"
+    CHANGE = "\ue916"
+    DERIVATION = "\ue917"
+    FEE = "\ue918"
+    FINGERPRINT = "\ue919"
+    PASSPHRASE = "\ue91a"
+
+    # Misc icons
+    BITCOIN = "\ue91b"
+    BITCOIN_ALT = "\ue91c"
+    BRIGHTNESS = "\ue91d"
+    MICROSD = "\ue91e"
+    QRCODE = "\ue91f"
+
+    MIN_VALUE = SCAN
+    MAX_VALUE = QRCODE
 
 
 
@@ -194,7 +220,7 @@ class Fonts(Singleton):
                 cls.fonts[font_name][size] = ImageFont.truetype(os.path.join(cls.font_path, f"{font_name}.{file_extension}"), size)
             except OSError as e:
                 if "cannot open resource" in str(e):
-                    raise Exception(f"Font {font_name}.ttf not found: {repr(e)}")
+                    raise Exception(f"Font {font_name}.{file_extension} not found: {repr(e)}")
                 else:
                     raise e
 
@@ -256,7 +282,7 @@ class TextArea(BaseComponent):
     height: int = None      # None = special case: autosize to min height
     screen_x: int = 0
     screen_y: int = 0
-    min_text_x: int = None
+    min_text_x: int = 0  # Text can not start at x any less than this
     background_color: str = GUIConstants.BACKGROUND_COLOR
     font_name: str = GUIConstants.BODY_FONT_NAME
     font_size: int = GUIConstants.BODY_FONT_SIZE
@@ -266,6 +292,7 @@ class TextArea(BaseComponent):
     supersampling_factor: int = 1
     auto_line_break: bool = True
     allow_text_overflow: bool = False
+    height_ignores_below_baseline: bool = False  # If True, characters that render below the baseline (e.g. "pqgy") will not affect the final height calculation
 
 
     def __post_init__(self):
@@ -273,147 +300,133 @@ class TextArea(BaseComponent):
 
         if not self.width:
             self.width = self.canvas_width
+        
+        if self.screen_x + self.width > self.canvas_width:
+            self.width = self.canvas_width - self.screen_x
 
-        if self.font_size < 18 and (not self.supersampling_factor or self.supersampling_factor == 1):
-            self.supersampling_factor = 2
-
-        self.font = Fonts.get_font(self.font_name, int(self.supersampling_factor * self.font_size))
-        self.supersampled_width = self.supersampling_factor * self.width
-        if self.height is None:
-            self.supersampled_height = None
-        else:
-            self.supersampled_height = self.supersampling_factor * self.height
         self.line_spacing = GUIConstants.BODY_LINE_SPACING
 
         # We have to figure out if and where to make line breaks in the text so that it
         #   fits in its bounding rect (plus accounting for edge padding) using its given
         #   font.
-        # Measure from left baseline ("ls")
-        # TODO: getbbox() seems to ignore "\n" so isn't properly factored into height
-        # calcs and yields incorrect full_text_width. For now must specify self.height to
-        # render properly. Centering will be wrong.
-        (left, top, full_text_width, bottom) = self.font.getbbox(self.text, anchor="ls")
-        self.text_font_height = -1 * top
-        self.bbox_height = self.text_font_height + bottom
+        # Do initial calcs without worrying about supersampling.
+        self.text_lines = reflow_text_for_width(
+            text=self.text,
+            width=self.width - 2*self.edge_padding,
+            font_name=self.font_name,
+            font_size=self.font_size,
+            allow_text_overflow=self.allow_text_overflow,
+        )
 
-        # Stores each line of text and its rendering starting x-coord
-        self.text_lines = []
-        self.text_width = 0
-        def _add_text_line(text, width):
-            if self.is_text_centered:
-                text_x = int((self.supersampled_width - width) / 2)
-            else:
-                text_x = self.supersampling_factor * self.edge_padding
-            if self.min_text_x is not None and text_x < self.min_text_x:
-                text_x = self.min_text_x
-            self.text_lines.append({"text": text, "text_x": text_x})
+        # Calculate the actual font height from the "baseline" anchor ("_s")
+        font = Fonts.get_font(self.font_name, self.font_size)
 
-            if width > self.text_width:
-                self.text_width = width
+        # Note: from the baseline anchor, `top` is a negative number while `bottom`
+        # conveys the height of the pixels that rendered below the baseline, if any
+        # (e.g. "py" in "python").
+        (left, top, right, bottom) = font.getbbox(self.text, anchor="ls")
+        self.text_height_above_baseline = -1 * top
+        self.text_height_below_baseline = bottom
 
-        if not self.auto_line_break or full_text_width < self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
-            # The whole text fits on one line
-            _add_text_line(self.text, full_text_width)
+        # Initialize the text rendering relative to the baseline
+        self.text_y = self.text_height_above_baseline
 
-            if self.height is None:
-                self.text_y = self.text_font_height
-                self.supersampled_height = self.bbox_height
-                self.height = int(self.bbox_height / self.supersampling_factor)
-            else:
-                # Vertical starting point calc is easy in this case
-                self.text_y = self.text_font_height + int((self.supersampled_height - self.text_font_height)/2)
-            
-            self.text_width = full_text_width
+        # Other components, like IconTextLine will need to know how wide the actual
+        # rendered text will be, separate from the TextArea's defined overall `width`.
+        self.text_width = max(line["text_width"] for line in self.text_lines)
+
+        # Calculate the actual height
+        if len(self.text_lines) == 1:
+            total_text_height = self.text_height_above_baseline
+            if not self.height_ignores_below_baseline:
+                total_text_height += self.text_height_below_baseline
+        else:
+            # Multiply for the number of lines plus the spacer
+            total_text_height = self.text_height_above_baseline * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
+
+            if not self.height_ignores_below_baseline and re.findall(f"[gjpqy]", self.text_lines[-1]["text"]):
+                # Last line has at least one char that dips below baseline
+                total_text_height += self.text_height_below_baseline
+
+        if self.height is None:
+            # Autoscale height to text lines
+            self.height = total_text_height
 
         else:
-            # Have to calc how to break text into multiple lines
-            def _binary_len_search(min_index, max_index):
-                # Try the middle of the range
-                index = math.ceil((max_index + min_index) / 2)
-                if index == 0:
-                    # Handle edge case where there's only one word in the last line
-                    index = 1
-
-                tw, th = self.font.getsize(" ".join(words[0:index]))
-
-                if tw > self.supersampled_width - (2 * self.edge_padding * self.supersampling_factor):
-                    # Candidate line is still too long. Restrict search range down.
-                    if min_index + 1 == index:
-                        if index == 1:
-                            # It's just one long, unbreakable word. There's no good
-                            # solution here. Just accept it as is and let it render off
-                            # the edges.
-                            return (index, tw)
-                        else:
-                            # There's still room to back down the min_index in the next
-                            # round.
-                            index -= 1
-                    return _binary_len_search(min_index=min_index, max_index=index)
-                elif index == max_index:
-                    # We have converged
-                    return (index, tw)
+            if total_text_height > self.height:
+                if not self.allow_text_overflow:
+                    raise TextDoesNotFitException(f"Text cannot fit in target rect with this font/size\n\ttotal_text_height: {total_text_height} | self.height: {self.height}")
                 else:
-                    # Candidate line is possibly shorter than necessary.
-                    return _binary_len_search(min_index=index, max_index=max_index)
-
-            if len(self.text.split()) == 1 and not self.allow_text_overflow:
-                # No whitespace chars to split on!
-                raise TextDoesNotFitException("Text cannot fit in target rect with this font/size")
-
-            for line in self.text.split("\n"):
-                words = line.split()
-                if not words:
-                    # It's a blank line
-                    _add_text_line("", 0)
-                else:
-                    while words:
-                        (index, tw) = _binary_len_search(0, len(words))
-                        _add_text_line(" ".join(words[0:index]), tw)
-                        words = words[index:]
-
-            # TODO: Don't render blank lines as full height
-            total_text_height = self.bbox_height * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
-            if self.height is None:
-                # Autoscale height to text lines
-                self.supersampled_height = total_text_height
-                self.height = int(self.supersampled_height / self.supersampling_factor)
-                self.text_y = self.text_font_height
+                    # Just let it render off the edge, but preserve the top portion
+                    pass
 
             else:
-                self.supersampled_height = self.height * self.supersampling_factor
-                if total_text_height > self.height * self.supersampling_factor + 2*GUIConstants.COMPONENT_PADDING * self.supersampling_factor:
-                    if not self.allow_text_overflow:
-                        raise TextDoesNotFitException("Text cannot fit in target rect with this font/size")
-                    else:
-                        # Just let it render off the edge, but preserve the top portion
-                        self.text_y = self.text_font_height
-
-                else:
-                    # Vertically center the multiline text's starting point
-                    self.text_y = self.text_font_height + int((self.supersampled_height - total_text_height)/2)
-
-        # Make sure the width/height that get referenced outside this obj are
-        #   specified and restored to their normal scaling factor.
-        self.width = int(self.text_width / self.supersampling_factor)
-        self.text_font_height = int(self.text_font_height / self.supersampling_factor)
+                # Vertically center the text's starting point
+                self.text_y += int(self.height - total_text_height)/2
 
 
     def render(self):
         # Render to a temp img scaled up by self.supersampling_factor, then resize down
         #   with bicubic resampling.
-        # TODO: Store resulting super-sampled image as a member var in __post_init__ and 
-        # just re-paste it here.
-        img = Image.new("RGB", (self.supersampled_width, self.supersampled_height), self.background_color)
+        # Add a `resample_padding` above and below when supersampling to avoid edge
+        # effects (resized text that's right up against the top/bottom gets slightly
+        # dimmer at the edge otherwise).
+        if self.font_size < 20 and (not self.supersampling_factor or self.supersampling_factor == 1):
+            self.supersampling_factor = 2
+
+        actual_text_height = self.height
+        if self.height_ignores_below_baseline:
+            # Even though we're ignoring the pixels below the baseline for spacing
+            # purposes, we have to make sure we don't crop those pixels out during the
+            # supersampling operations here.
+            actual_text_height += self.text_height_below_baseline
+
+        resample_padding = 10 if self.supersampling_factor > 1.0 else 0
+        img = Image.new(
+            "RGBA",
+            (
+                self.width * self.supersampling_factor,
+                (actual_text_height + 2*resample_padding) * self.supersampling_factor
+            ),
+            self.background_color
+        )
         draw = ImageDraw.Draw(img)
-        cur_y = self.text_y
+
+        cur_y = (self.text_y + resample_padding) * self.supersampling_factor
+        supersampled_font = Fonts.get_font(self.font_name, int(self.supersampling_factor * self.font_size))
+
+        if self.is_text_centered:
+            anchor = "ms"
+        else:
+            anchor = "ls"
+
+        # Position where we'll render each line of text
+        text_x = self.edge_padding
 
         for line in self.text_lines:
-            draw.text((line["text_x"], cur_y), line["text"], fill=self.font_color, font=self.font, anchor="ls")
-            cur_y += self.bbox_height + self.line_spacing
+            if self.is_text_centered:
+                # We'll render with a centered anchor so we just need the midpoint
+                text_x = int(self.width/2)
+                if text_x - int(line["text_width"]/2) < self.min_text_x:
+                    # The left edge of the centered text will protrude too far; nudge it right
+                    text_x = self.min_text_x + int(line["text_width"]/2)
 
-        resized = img.resize((int(self.supersampled_width / self.supersampling_factor), self.height), Image.LANCZOS)
-        resized = resized.filter(ImageFilter.SHARPEN)
-        self.canvas.paste(resized, (self.screen_x, self.screen_y))
+            draw.text((text_x * self.supersampling_factor, cur_y), line["text"], fill=self.font_color, font=supersampled_font, anchor=anchor)
+
+            # Debugging: show the exact vertical extents of each line of text
+            # draw.line((0, cur_y - self.text_height_above_baseline * self.supersampling_factor, self.width * self.supersampling_factor, cur_y - self.text_height_above_baseline * self.supersampling_factor), fill="red", width=int(self.supersampling_factor))
+            # draw.line((0, cur_y, self.width * self.supersampling_factor, cur_y), fill="red", width=int(self.supersampling_factor))
+
+            cur_y += (self.text_height_above_baseline + self.line_spacing) * self.supersampling_factor
+
+        # Crop off the top_padding and resize the result down to onscreen size
+        if self.supersampling_factor > 1.0:
+            resized = img.resize((self.width, actual_text_height + 2*resample_padding), Image.LANCZOS)
+            sharpened = resized.filter(ImageFilter.SHARPEN)
+
+            # Crop args are actually (left, top, WIDTH, HEIGHT)
+            img = sharpened.crop((0, resample_padding, self.width, actual_text_height + resample_padding))
+        self.canvas.paste(img, (self.screen_x, self.screen_y))
 
 
 
@@ -421,14 +434,14 @@ class TextArea(BaseComponent):
 class Icon(BaseComponent):
     screen_x: int = 0
     screen_y: int = 0
-    icon_name: str = SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED
+    icon_name: str = SeedSignerIconConstants.BITCOIN_ALT
     icon_size: int = GUIConstants.ICON_FONT_SIZE
     icon_color: str = GUIConstants.BODY_FONT_COLOR
 
     def __post_init__(self):
         super().__post_init__()
 
-        if SeedSignerCustomIconConstants.MIN_VALUE <= self.icon_name and self.icon_name <= SeedSignerCustomIconConstants.MAX_VALUE:
+        if SeedSignerIconConstants.MIN_VALUE <= self.icon_name and self.icon_name <= SeedSignerIconConstants.MAX_VALUE:
             self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__SEEDSIGNER, self.icon_size, file_extension="otf")
         else:
             self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__FONT_AWESOME, self.icon_size, file_extension="otf")
@@ -497,21 +510,21 @@ class IconTextLine(BaseComponent):
                 canvas=self.canvas,
                 text=self.label_text,
                 font_size=GUIConstants.BODY_FONT_SIZE - 2,
-                font_color="#666",
+                font_color=GUIConstants.LABEL_FONT_COLOR,
                 edge_padding=0,
                 is_text_centered=self.is_text_centered if not self.icon_name else False,
                 auto_line_break=False,
                 screen_x=text_screen_x,
                 screen_y=self.screen_y,
-                allow_text_overflow=False
+                allow_text_overflow=False,
             )
         else:
             self.label_textarea = None        
         
         value_textarea_screen_y = self.screen_y
         if self.label_text:
-            label_padding_y = GUIConstants.COMPONENT_PADDING
-            value_textarea_screen_y += self.label_textarea.text_font_height + label_padding_y
+            label_padding_y = int(GUIConstants.COMPONENT_PADDING / 2)
+            value_textarea_screen_y += self.label_textarea.height + label_padding_y
 
         self.value_textarea = TextArea(
             image_draw=self.image_draw,
@@ -531,11 +544,11 @@ class IconTextLine(BaseComponent):
         if self.label_text:
             if not self.height:
                 self.height = self.label_textarea.height + label_padding_y + self.value_textarea.height
-            max_textarea_width = max(self.label_textarea.width, self.value_textarea.width)
+            max_textarea_width = max(self.label_textarea.text_width, self.value_textarea.text_width)
         else:
             if not self.height:
                 self.height = self.value_textarea.height
-            max_textarea_width = self.value_textarea.width
+            max_textarea_width = self.value_textarea.text_width
         
         # Now we can update the icon's y position
         if self.icon_name:
@@ -544,17 +557,12 @@ class IconTextLine(BaseComponent):
 
             self.height = max(self.icon.height, self.height)
         
-        if self.is_text_centered:
-            if self.icon_name:
-                total_width = max_textarea_width + self.icon.width + self.icon_horizontal_spacer
-                self.icon.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - total_width) / 2)
-                if self.label_text:
-                    self.label_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
-                self.value_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
-            # else:
-            #     if self.label_text:
-            #         self.label_textarea.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - max_textarea_width + (max_textarea_width - self.label_textarea.width))/2)
-            #     self.value_textarea.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - max_textarea_width + (max_textarea_width - self.value_textarea.width))/2)
+        if self.is_text_centered and self.icon_name:
+            total_width = max_textarea_width + self.icon.width + self.icon_horizontal_spacer
+            self.icon.screen_x = self.screen_x + int((self.canvas_width - self.screen_x - total_width) / 2)
+            if self.label_text:
+                self.label_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
+            self.value_textarea.screen_x = self.icon.screen_x + self.icon.width + self.icon_horizontal_spacer
 
         self.width = self.canvas_width
 
@@ -607,7 +615,8 @@ class FormattedAddress(BaseComponent):
         self.accent_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, self.font_size)
 
         # Fixed width font means we only have to measure one max-height character
-        char_width, char_height = self.font.getsize("Q")
+        left, top, right, bottom  = self.font.getbbox("Q")
+        char_width, char_height = right - left, bottom - top
 
         n = 7
         display_str = f"{self.address[:n]} {self.address[n:-1*n]} {self.address[-1*n:]}"
@@ -730,7 +739,7 @@ class FormattedAddress(BaseComponent):
                     ))
 
                 remaining_display_str = remaining_display_str[max_chars_per_line:]
-                cur_y += char_height
+                cur_y += char_height + GUIConstants.BODY_LINE_SPACING
         
         self.height = cur_y
     
@@ -790,7 +799,7 @@ class BtcAmount(BaseComponent):
         btc_icon = Icon(
             image_draw=draw,
             canvas=self.paste_image,
-            icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED,
+            icon_name=SeedSignerIconConstants.BITCOIN_ALT,
             icon_color=btc_color,
             icon_size=self.icon_size,
             screen_x=0,
@@ -824,7 +833,7 @@ class BtcAmount(BaseComponent):
             #     font = smaller_digit_font
 
             (left, top, text_width, bottom) = font.getbbox(btc_text, anchor="ls")
-            text_height = -1 * top
+            text_height = -1 * top + bottom
             text_y = self.paste_image.height - int((self.paste_image.height - text_height)/2)
 
             draw.text(
@@ -851,7 +860,7 @@ class BtcAmount(BaseComponent):
             if self.total_sats > 1e9:
                 font = smaller_digit_font
             (left, top, text_width, bottom) = font.getbbox(sats_text, anchor="ls")
-            text_height = -1 * top
+            text_height = -1 * top + bottom
             text_y = self.paste_image.height - int((self.paste_image.height - text_height)/2)
             draw.text(
                 xy=(
@@ -878,7 +887,7 @@ class BtcAmount(BaseComponent):
             btc_icon = Icon(
                 image_draw=draw,
                 canvas=self.paste_image,
-                icon_name=SeedSignerCustomIconConstants.BITCOIN_LOGO_TILTED,
+                icon_name=SeedSignerIconConstants.BITCOIN_ALT,
                 icon_color=btc_color,
                 icon_size=self.icon_size,
                 screen_x=0,
@@ -888,7 +897,7 @@ class BtcAmount(BaseComponent):
             cur_x = btc_icon.width + int(GUIConstants.COMPONENT_PADDING/4)
 
             (left, top, text_width, bottom) = smaller_digit_font.getbbox(btc_text, anchor="ls")
-            text_height = -1 * top
+            text_height = -1 * top + bottom
             text_y = self.paste_image.height - int((self.paste_image.height - text_height)/2)
             
             draw.text(
@@ -954,7 +963,7 @@ class BtcAmount(BaseComponent):
         )
         unit_textarea.render()
 
-        final_x = cur_x + GUIConstants.COMPONENT_PADDING + unit_textarea.width
+        final_x = cur_x + GUIConstants.COMPONENT_PADDING + unit_text_width
 
         self.paste_image = self.paste_image.crop((0, 0, final_x, self.paste_image.height))
         self.paste_coords = (
@@ -1032,7 +1041,9 @@ class Button(BaseComponent):
             (left, top, self.text_width, bottom) = self.font.getbbox(self.text, anchor="ls")
             # print(f"left: {left} |  top: {top} | right: {self.text_width} | bottom: {bottom}")
 
-            # Note: "top" is negative when measured from a "baseline" anchor
+            # Note: "top" is negative when measured from a "baseline" anchor. Intentionally
+            # ignore any chars below the baseline for consistent vertical positioning
+            # regardless of the Button text.
             self.text_height = -1 * top
 
             # TODO: Only apply screen_y at render
@@ -1134,8 +1145,8 @@ class CheckedSelectionButton(Button):
 
     def __post_init__(self):
         self.is_text_centered = False
-        self.icon_name = FontAwesomeIconConstants.SOLID_CIRCLE_CHECK
-        self.icon_color = "#00dd00"
+        self.icon_name = SeedSignerIconConstants.CHECK
+        self.icon_color = GUIConstants.SUCCESS_COLOR
         super().__post_init__()
 
         if not self.is_checked:
@@ -1153,10 +1164,10 @@ class CheckboxButton(Button):
     def __post_init__(self):
         self.is_text_centered = False
         if self.is_checked:
-            self.icon_name = FontAwesomeIconConstants.SQUARE_CHECK
-            self.icon_color = "#00dd00"
+            self.icon_name = SeedSignerIconConstants.CHECKBOX_SELECTED
+            self.icon_color = GUIConstants.SUCCESS_COLOR
         else:
-            self.icon_name = FontAwesomeIconConstants.SQUARE
+            self.icon_name = SeedSignerIconConstants.CHECKBOX
             self.icon_color = GUIConstants.BODY_FONT_COLOR
         super().__post_init__()
 
@@ -1195,7 +1206,7 @@ class TopNav(BaseComponent):
     icon_color: str = GUIConstants.BODY_FONT_COLOR
     font_name: str = GUIConstants.TOP_NAV_TITLE_FONT_NAME
     font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE
-    font_color: str = "#fcfcfc"
+    font_color: str = GUIConstants.BODY_FONT_COLOR
     show_back_button: bool = True
     show_power_button: bool = False
     is_selected: bool = False
@@ -1210,17 +1221,17 @@ class TopNav(BaseComponent):
 
         if self.show_back_button:
             self.left_button = IconButton(
-                icon_name=SeedSignerCustomIconConstants.LARGE_CHEVRON_LEFT,
+                icon_name=SeedSignerIconConstants.BACK,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_x=GUIConstants.EDGE_PADDING,
-                screen_y=GUIConstants.EDGE_PADDING,
+                screen_y=GUIConstants.EDGE_PADDING - 1,  # Text can't perfectly vertically center relative to the button; shifting it down 1px looks better.
                 width=GUIConstants.TOP_NAV_BUTTON_SIZE,
                 height=GUIConstants.TOP_NAV_BUTTON_SIZE,
             )
 
         if self.show_power_button:
             self.right_button = IconButton(
-                icon_name=FontAwesomeIconConstants.POWER_OFF,
+                icon_name=SeedSignerIconConstants.POWER,
                 icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_x=self.width - GUIConstants.TOP_NAV_BUTTON_SIZE - GUIConstants.EDGE_PADDING,
                 screen_y=GUIConstants.EDGE_PADDING,
@@ -1228,10 +1239,10 @@ class TopNav(BaseComponent):
                 height=GUIConstants.TOP_NAV_BUTTON_SIZE,
             )
 
-        min_x = 0
+        min_text_x = 0
         if self.show_back_button:
             # Don't let the title intrude on the BACK button
-            min_x = self.left_button.screen_x + self.left_button.width + GUIConstants.COMPONENT_PADDING
+            min_text_x = self.left_button.screen_x + self.left_button.width + GUIConstants.COMPONENT_PADDING
 
         if self.icon_name:
             self.title = IconTextLine(
@@ -1250,12 +1261,14 @@ class TopNav(BaseComponent):
             self.title = TextArea(
                 screen_x=0,
                 screen_y=0,
-                min_text_x=min_x,
+                min_text_x=min_text_x,
+                width=self.width,
                 height=self.height,
                 text=self.text,
                 is_text_centered=True,
                 font_name=self.font_name,
                 font_size=self.font_size,
+                height_ignores_below_baseline=True,  # Consistently vertically center text, ignoring chars that render below baseline (e.g. "pqyj")
             )
 
 
@@ -1282,15 +1295,6 @@ class TopNav(BaseComponent):
         if self.show_power_button:
             self.right_button.is_selected = self.is_selected
             self.right_button.render()
-
-        # self.image_draw.text(
-        #     (self.text_x, self.text_y),
-        #     self.text,
-        #     font=self.font,
-        #     fill=self.font_color,
-        #     stroke_width=1,
-        #     stroke_fill=GUIConstants.BACKGROUND_COLOR,
-        # )
 
 
 
@@ -1330,3 +1334,133 @@ def calc_bezier_curve(p1: Tuple[int,int], p2: Tuple[int,int], p3: Tuple[int,int]
     
     return points
 
+
+
+def reflow_text_for_width(text: str,
+                          width: int,
+                          font_name=GUIConstants.BODY_FONT_NAME,
+                          font_size=GUIConstants.BODY_FONT_SIZE,
+                          allow_text_overflow: bool=False) -> list[dict]:
+    """
+    Reflows text to fit within `width` by breaking long lines up.
+
+    Returns a List with each reflowed line of text as its own entry.
+
+    Note: It is up to the calling code to handle any height considerations for the 
+    resulting lines of text.
+    """
+    # We have to figure out if and where to make line breaks in the text so that it
+    #   fits in its bounding rect (plus accounting for edge padding) using its given
+    #   font.
+    start = time()
+    font = Fonts.get_font(font_name=font_name, size=font_size)
+    # Measure from left baseline ("ls")
+    (left, top, full_text_width, bottom) = font.getbbox(text, anchor="ls")
+
+    # Stores each line of text and its rendering starting x-coord
+    text_lines = []
+    def _add_text_line(text, text_width):
+        text_lines.append({"text": text, "text_width": text_width})
+
+    if "\n" not in text and full_text_width < width:
+        # The whole text fits on one line
+        _add_text_line(text, full_text_width)        
+
+    else:
+        # Have to calc how to break text into multiple lines
+        def _binary_len_search(min_index, max_index):
+            # Try the middle of the range
+            index = math.ceil((max_index + min_index) / 2)
+            if index == 0:
+                # Handle edge case where there's only one word in the last line
+                index = 1
+
+            # Measure rendered width from "left" anchor (anchor="l_")
+            (left, top, right, bottom) = font.getbbox(" ".join(words[0:index]), anchor="ls")
+            line_width = right - left
+
+            if line_width >= width:
+                # Candidate line is still too long. Restrict search range down.
+                if min_index + 1 == index:
+                    if index == 1:
+                        # It's just one long, unbreakable word. There's no good
+                        # solution here. Just accept it as is and let it render off
+                        # the edges.
+                        return (index, line_width)
+                    else:
+                        # There's still room to back down the min_index in the next
+                        # round.
+                        index -= 1
+                return _binary_len_search(min_index=min_index, max_index=index)
+            elif index == max_index:
+                # We have converged
+                return (index, line_width)
+            else:
+                # Candidate line is possibly shorter than necessary.
+                return _binary_len_search(min_index=index, max_index=max_index)
+
+        if len(text.split()) == 1 and not allow_text_overflow:
+            # No whitespace chars to split on!
+            raise TextDoesNotFitException("Text cannot fit in target rect with this font+size")
+
+        # Now we're ready to go line-by-line into our line break binary search!
+        for line in text.split("\n"):
+            words = line.split()
+            if not words:
+                # It's a blank line
+                _add_text_line("", 0)
+            else:
+                while words:
+                    (index, tw) = _binary_len_search(0, len(words))
+                    _add_text_line(" ".join(words[0:index]), tw)
+                    words = words[index:]
+
+    return text_lines
+
+
+
+def reflow_text_into_pages(text: str,
+                           width: int,
+                           height: int,
+                           font_name=GUIConstants.BODY_FONT_NAME,
+                           font_size=GUIConstants.BODY_FONT_SIZE,
+                           line_spacer: int = GUIConstants.BODY_LINE_SPACING,
+                           allow_text_overflow: bool=False) -> list[str]:
+    """
+    Invokes `reflow_text_for_width` above to convert long text into width-limited
+    individual text lines and then calculates how many lines will fit on a "page" and
+    groups the output accordingly.
+
+    Returns a list of strings where each string is a page's worth of line-breaked text.
+    """
+    reflowed_lines_dicts = reflow_text_for_width(text=text,
+                                           width=width,
+                                           font_name=font_name,
+                                           font_size=font_size,
+                                           allow_text_overflow=allow_text_overflow)
+
+    lines = []
+    for line_dict in reflowed_lines_dicts:
+        lines.append(line_dict["text"])
+        logging.info(f"""{line_dict["text_width"]:3}: {line_dict["text"]}""")
+
+    font = Fonts.get_font(font_name=font_name, size=font_size)
+    # Measure the font's height above baseline and how for below it certain characters
+    # (e.g. lowercase "g") can render.
+    (left, top, right, bottom) = font.getbbox("Agjpqy", anchor="ls")
+    font_height_above_baseline = -1 * top
+    font_height_below_baseline = bottom
+
+    # I'm sure there's a smarter way to do this...
+    lines_per_page = 0
+    for i in range(1, height):
+        if height > font_height_above_baseline * i + line_spacer * (i-1) + font_height_below_baseline:
+            lines_per_page = i
+        else:
+            break
+
+    pages = []
+    for i in range(0, len(lines), lines_per_page):
+        pages.append("\n".join(lines[i:i+lines_per_page]))
+    
+    return pages

@@ -1,13 +1,20 @@
+import logging
 from binascii import hexlify
-from embit import psbt, script, ec, bip32, bip39
+from embit import psbt, script, ec, bip32
 from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
 from embit.psbt import PSBT
 from io import BytesIO
 from typing import List
 
-from seedsigner.models import Seed
+from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
+
+logger = logging.getLogger(__name__)
+
+class OPCODES:
+    OP_RETURN = 106
+    OP_PUSHDATA1 = 76
 
 
 
@@ -26,6 +33,7 @@ class PSBTParser():
         self.num_inputs = 0
         self.destination_addresses = []
         self.destination_amounts = []
+        self.op_return_data: bytes = None
 
         self.root = None
 
@@ -62,11 +70,11 @@ class PSBTParser():
 
     def parse(self):
         if self.psbt is None:
-            print(f"self.psbt is None!!")
+            logger.info(f"self.psbt is None!!")
             return False
 
         if not self.seed:
-            print("self.seed is None!")
+            logger.info("self.seed is None!")
             return False
 
         self._set_root()
@@ -88,13 +96,17 @@ class PSBTParser():
         for inp in self.psbt.inputs:
             if inp.witness_utxo:
                 self.input_amount += inp.witness_utxo.value
-                inp_policy = PSBTParser._get_policy(inp, inp.witness_utxo.script_pubkey, self.psbt.xpubs)
-                if self.policy == None:
-                    self.policy = inp_policy
-                else:
-                    if self.policy != inp_policy:
-                        raise RuntimeError("Mixed inputs in the transaction")
+                script_pubkey = inp.witness_utxo.script_pubkey
+            elif inp.non_witness_utxo:
+                self.input_amount += inp.utxo.value
+                script_pubkey = inp.script_pubkey
 
+            inp_policy = PSBTParser._get_policy(inp, script_pubkey, self.psbt.xpubs)
+            if self.policy == None:
+                self.policy = inp_policy
+            else:
+                if self.policy != inp_policy:
+                    raise RuntimeError("Mixed inputs in the transaction")
 
     def _parse_outputs(self):
         self.spend_amount = 0
@@ -118,39 +130,80 @@ class PSBTParser():
 
                 # empty script by default
                 sc = script.Script(b"")
+
+                # if older multisig, just use existing script
+                if self.policy["type"] == "p2sh":
+                    sc = script.p2sh(out.redeem_script)
+
                 # multisig, we know witness script
                 if self.policy["type"] == "p2wsh":
                     sc = script.p2wsh(out.witness_script)
+
                 elif self.policy["type"] == "p2sh-p2wsh":
                     sc = script.p2sh(script.p2wsh(out.witness_script))
+                
+                # Arbitrary p2sh; includes pre-segwit multisig (m/45')
+                elif self.policy["type"] == "p2sh":
+                    sc = script.p2sh(out.redeem_script)
 
                 # single-sig
                 elif "pkh" in self.policy["type"]:
                     my_pubkey = None
+
                     # should be one or zero for single-key addresses
                     if len(out.bip32_derivations.values()) > 0:
                         der = list(out.bip32_derivations.values())[0].derivation
                         my_pubkey = self.root.derive(der)
-                    if self.policy["type"] == "p2wpkh" and my_pubkey is not None:
-                        sc = script.p2wpkh(my_pubkey)
+
+                    if self.policy["type"] == "p2pkh" and my_pubkey is not None:
+                        sc = script.p2pkh(my_pubkey)
+
                     elif self.policy["type"] == "p2sh-p2wpkh" and my_pubkey is not None:
                         sc = script.p2sh(script.p2wpkh(my_pubkey))
+
+                    elif self.policy["type"] == "p2wpkh" and my_pubkey is not None:
+                        sc = script.p2wpkh(my_pubkey)
+
+                    if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
+                        is_change = True
+
+                elif "p2tr" in self.policy["type"]:
+                    my_pubkey = None
+                    # should have one or zero derivations for single-key addresses
+                    if len(out.taproot_bip32_derivations.values()) > 0:
+                        # TODO: Support keys in taptree leaves
+                        leaf_hashes, derivation = list(out.taproot_bip32_derivations.values())[0]
+                        der = derivation.derivation
+                        my_pubkey = self.root.derive(der)
+                        sc = script.p2tr(my_pubkey)
 
                     if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
                         is_change = True
 
                 if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
                     is_change = True
-            if is_change:
+
+            if self.psbt.tx.vout[i].script_pubkey.data[0] == OPCODES.OP_RETURN:
+                # The data is written as: OP_RETURN + OP_PUSHDATA1 + len(payload) + payload
+                self.op_return_data = self.psbt.tx.vout[i].script_pubkey.data[3:]
+
+            elif is_change:
                 addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
-                fingerprints = None
-                derivation_paths = None
+                fingerprints = []
+                derivation_paths = []
+
+                # extract info from non-taproot outputs
                 if len(self.psbt.outputs[i].bip32_derivations) > 0:
-                    fingerprints = []
-                    derivation_paths = []
                     for d, derivation_path in self.psbt.outputs[i].bip32_derivations.items():
                         fingerprints.append(hexlify(derivation_path.fingerprint).decode())
                         derivation_paths.append(bip32.path_to_str(derivation_path.derivation))
+
+                # extract info from taproot outputs
+                if len(self.psbt.outputs[i].taproot_bip32_derivations) > 0:
+                    for d, (leaf_hashes, derivation) in self.psbt.outputs[i].taproot_bip32_derivations.items():
+                        fingerprints.append(hexlify(derivation.fingerprint).decode())
+                        derivation_paths.append(bip32.path_to_str(derivation.derivation))
+
                 self.change_data.append({
                     "output_index": i,
                     "address": addr,
@@ -159,6 +212,7 @@ class PSBTParser():
                     "derivation_path": derivation_paths,
                 })
                 self.change_amount += self.psbt.tx.vout[i].value
+
             else:
                 addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
                 self.destination_addresses.append(addr)
@@ -172,10 +226,14 @@ class PSBTParser():
     @staticmethod
     def trim(tx):
         trimmed_psbt = psbt.PSBT(tx.tx)
-        sigsEnd = 0
         for i, inp in enumerate(tx.inputs):
-            sigsEnd += len(list(inp.partial_sigs.keys()))
-            trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
+            if inp.final_scriptwitness:
+                # Taproot sign; trim to only final_scriptwitness
+                # From BIP-371 and BIP-174, once final script witness is populated
+                # it contains all necessary signatures
+                trimmed_psbt.inputs[i].final_scriptwitness = inp.final_scriptwitness
+            else:
+                trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
 
         return trimmed_psbt
 
@@ -184,45 +242,13 @@ class PSBTParser():
     def sig_count(tx):
         cnt = 0
         for i, inp in enumerate(tx.inputs):
-            cnt += len(list(inp.partial_sigs.keys()))
+            if inp.final_scriptwitness is not None:
+                # Taproot sign
+                cnt += 1
+            else:
+                cnt += len(list(inp.partial_sigs.keys()))
 
         return cnt
-
-
-    @staticmethod
-    def calc_derivation(network, wallet_type, script_type):
-        # TODO: Move this to Seed?
-        if network == SettingsConstants.MAINNET:
-            network_path = "0'"
-        elif network == SettingsConstants.TESTNET:
-            network_path = "1'"
-        elif network == SettingsConstants.REGTEST:
-            # TODO: Is this right?
-            network_path = "1'"
-        else:
-            raise Exception("Unexpected network")
-
-        if wallet_type == SettingsConstants.SINGLE_SIG:
-            if script_type == SettingsConstants.NATIVE_SEGWIT:
-                return f"m/84'/{network_path}/0'"
-            elif script_type == SettingsConstants.NESTED_SEGWIT:
-                return f"m/49'/{network_path}/0'"
-            elif script_type == SettingsConstants.TAPROOT:
-                return f"m/86'/{network_path}/0'"
-            else:
-                raise Exception("Unexpected script type")
-
-        elif wallet_type == SettingsConstants.MULTISIG:
-            if script_type == SettingsConstants.NATIVE_SEGWIT:
-                return f"m/48'/{network_path}/0'/2'"
-            elif script_type == SettingsConstants.NESTED_SEGWIT:
-                return f"m/48'/{network_path}/0'/1'"
-            elif script_type == SettingsConstants.TAPROOT:
-                raise Exception("Taproot multisig/musig not yet supported")
-            else:
-                raise Exception("Unexpected script type")
-        else:
-            raise Exception("Unexpected wallet type")    # checks that all inputs are from the same wallet
 
 
     @staticmethod
@@ -241,15 +267,26 @@ class PSBTParser():
             ):
                 script_type = "p2sh-p2wpkh"
         policy = {"type": script_type}
+
         # expected multisig
-        if "p2wsh" in script_type and scope.witness_script is not None:
-            m, n, pubkeys = PSBTParser._parse_multisig(scope.witness_script)
-            # check pubkeys are derived from cosigners
-            try:
-                cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
-                policy.update({"m": m, "n": n, "cosigners": cosigners})
-            except:
-                policy.update({"m": m, "n": n})
+        script = None
+        if script_type:
+            if "p2wsh" in script_type and scope.witness_script is not None:
+                script = scope.witness_script
+
+            elif "p2sh" == script_type and scope.redeem_script is not None:
+                script = scope.redeem_script
+
+            if script is not None:
+                m, n, pubkeys = PSBTParser._parse_multisig(script)
+            
+                # check pubkeys are derived from cosigners
+                try:
+                    cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs)
+                    policy.update({"m": m, "n": n, "cosigners": cosigners})
+                except:
+                    policy.update({"m": m, "n": n})
+        
         return policy
 
 
@@ -319,6 +356,12 @@ class PSBTParser():
         for input in psbt.inputs:
             for pub, derivation_path in input.bip32_derivations.items():
                 fingerprints.add(hexlify(derivation_path.fingerprint).decode())
+
+            for pub, (leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
+                # TODO: Support spends from leaves; depends on support in embit
+                if len(leaf_hashes) > 0:
+                    raise Exception("Signing keyspends from within a taptree not yet implemented")
+                fingerprints.add(hexlify(derivation_path.fingerprint).decode())
         return list(fingerprints)
 
 
@@ -331,6 +374,10 @@ class PSBTParser():
         seed_fingerprint = seed.get_fingerprint(network)
         for input in psbt.inputs:
             for pub, derivation_path in input.bip32_derivations.items():
+                if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():
+                    return True
+
+            for pub, (leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
                 if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():
                     return True
         return False

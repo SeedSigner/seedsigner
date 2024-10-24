@@ -1,0 +1,5 @@
+picamera==1.13
+# numpy = transitive picamera dependency
+numpy==1.25.2
+RPi.GPIO==0.7.0
+spidev==3.5

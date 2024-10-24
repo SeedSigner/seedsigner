@@ -1,0 +1,10 @@
+version: '3.7'
+
+services:
+  seedsigner-dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: sh -c 'bash -c "docker/setup.sh"'
+    volumes:
+      - ../seedsigner:/seedsigner
