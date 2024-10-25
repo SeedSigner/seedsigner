@@ -172,6 +172,7 @@ def test_generate_screenshots(target_locale):
         "Seed Views": [
             seed_views.SeedsMenuView,
             seed_views.LoadSeedView,
+            (tools_views.ToolsMenuView, dict(new_seeds_only=True), "ToolsViaCreateASeed"),
             seed_views.SeedMnemonicEntryView,
             seed_views.SeedMnemonicInvalidView,
             seed_views.SeedFinalizeView,

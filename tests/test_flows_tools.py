@@ -245,3 +245,15 @@ class TestToolsFlows(FlowTest):
             FlowStep(seed_views.AddressVerificationSuccessView),
         ])
 
+
+    def test_create_seed_via_tools_has_other_tools(self):
+        """
+        When Navigating to ToolsMenuView (also used for "Create a seed") from MainMenu,
+        other tools exist; Into AddressExplorer, then back, then into VerifyAddress
+        """
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+        ])
