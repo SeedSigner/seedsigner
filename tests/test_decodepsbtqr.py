@@ -297,6 +297,8 @@ def test_bitcoin_address():
     
     main_bech32_address2 = "bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?amount=12000"
     main_bech32_address3 = "BITCOIN:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?junk"
+    main_bech32_address4 = "bitcoin:BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ?junk"
+    main_bech32_address5 = "BITCOIN:BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ?junk"
     
     d = DecodeQR()
     d.add_data(bad1)
@@ -315,12 +317,18 @@ def test_bitcoin_address():
     assert d.get_address() == legacy_address2
     assert d.get_address_type() == (SettingsConstants.LEGACY_P2PKH, SettingsConstants.MAINNET)
     
-    d = DecodeQR()
-    d.add_data(main_bech32_address)
-    
-    assert d.get_address() == main_bech32_address
-    assert d.get_address_type() == (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.MAINNET)
-    
+    for address_test_case in (
+        main_bech32_address,
+        main_bech32_address2,
+        main_bech32_address3,
+        main_bech32_address4,
+        main_bech32_address5
+    ):
+        d = DecodeQR()
+        d.add_data(address_test_case)
+        assert d.get_address() == main_bech32_address
+        assert d.get_address_type() == (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.MAINNET)
+
     d = DecodeQR()
     d.add_data(test_bech32_address)
     
