@@ -299,6 +299,7 @@ def test_bitcoin_address():
     main_bech32_address3 = "BITCOIN:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?junk"
     main_bech32_address4 = "bitcoin:BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ?junk"
     main_bech32_address5 = "BITCOIN:BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ?junk"
+    main_bech32_address6 = "BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ"
     
     d = DecodeQR()
     d.add_data(bad1)
@@ -322,7 +323,8 @@ def test_bitcoin_address():
         main_bech32_address2,
         main_bech32_address3,
         main_bech32_address4,
-        main_bech32_address5
+        main_bech32_address5,
+        main_bech32_address6
     ):
         d = DecodeQR()
         d.add_data(address_test_case)
