@@ -31,7 +31,7 @@ jobs:
         target: [ "pi0", "pi2", "pi02w", "pi4" ]
     steps:
       - name: checkout seedsigner-os
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: "seedsigner/seedsigner-os"
           # use the os-ref input parameter in case of workflow_dispatch or default to main in case of cron triggers
@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
 
       - name: checkout source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # ref defaults to repo default-branch=dev (cron) or SHA of event (workflow_dispatch)
           path: "seedsigner-os/opt/rootfs-overlay/opt"
@@ -78,7 +78,7 @@ jobs:
           ls -la src
 
       - name: restore build cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         # Caching reduces the build time to ~50% (currently: ~30 mins instead of ~1 hour,
         # while consuming ~850 MB storage space).
         with:
@@ -101,7 +101,7 @@ jobs:
       - name: rename image
         run: |
           cd seedsigner-os/images
-          mv seedsigner_os*.img seedsigner_os.${{ env.img_version }}.${{ matrix.target }}.img
+          mv *.img seedsigner_os.${{ env.img_version }}.${{ matrix.target }}.img
 
       - name: print sha256sum
         run: |
@@ -113,9 +113,9 @@ jobs:
           ls -la seedsigner-os/images
 
       - name: upload images
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: seedsigner_os_images
+          name: seedsigner_os_images-${{ matrix.target }}
           path: "seedsigner-os/images/*.img"
           if-no-files-found: error
           # maximum 90 days retention
@@ -127,9 +127,9 @@ jobs:
     needs: build
     steps:
       - name: download images
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: seedsigner_os_images
+          name: seedsigner_os_images-${{ matrix.target }}
           path: images
 
       - name: list images
@@ -148,9 +148,9 @@ jobs:
           sha256sum *.img > seedsigner_os.${{ env.source_hash }}.sha256
 
       - name: upload checksums
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: seedsigner_os_images
+          name: seedsigner_os_hashes-${{ matrix.target }}
           path: "images/*.sha256"
           if-no-files-found: error
           # maximum 90 days retention
