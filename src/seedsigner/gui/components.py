@@ -217,9 +217,9 @@ class SeedSignerIconConstants:
 
     # Messaging icons
     INFO = "\ue912"
-    ERROR = "\ue913"
-    SUCCESS = "\ue914"
-    WARNING = "\ue915"
+    SUCCESS = "\ue913"
+    WARNING = "\ue914"
+    ERROR = "\ue915"
 
     # Informational icons
     ADDRESS = "\ue916"
@@ -241,8 +241,9 @@ class SeedSignerIconConstants:
     DELETE = "\ue922"
     SPACE = "\ue923"
 
+    # Must be updated whenever new icons are added. See usage in `Icon` class below.
     MIN_VALUE = SCAN
-    MAX_VALUE = QRCODE
+    MAX_VALUE = SPACE
 
 
 
@@ -277,17 +278,6 @@ def calc_text_centering(font: ImageFont,
     text_y = int((total_height - (ascent - offset_y)) / 2) - offset_y
 
     return (start_x + text_x, start_y + text_y)
-
-
-
-def load_icon(icon_name: str, load_selected_variant: bool = False):
-    icon_url = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "icons", icon_name)
-    icon = Image.open(icon_url + ".png").convert("RGB")
-    if not load_selected_variant:
-        return icon
-    else:
-        icon_selected = Image.open(icon_url + "_selected.png").convert("RGB")
-        return (icon, icon_selected)
 
 
 

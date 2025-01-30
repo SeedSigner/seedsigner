@@ -140,7 +140,7 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
         self.rows = 3
         self.cols = 3
         self.keyboard_font_name = GUIConstants.ICON_FONT_NAME__FONT_AWESOME
-        self.keyboard_font_size = None  # Force auto-scaling to Key height
+        self.keyboard_font_size = 36
         self.keys_charset = "".join([
             FontAwesomeIconConstants.DICE_ONE,
             FontAwesomeIconConstants.DICE_TWO,

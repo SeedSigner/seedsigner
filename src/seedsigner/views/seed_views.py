@@ -279,8 +279,9 @@ class SeedMnemonicInvalidView(View):
     def run(self):
         button_data = [self.EDIT, self.DISCARD]
         selected_menu_num = self.run_screen(
-            WarningScreen,
+            DireWarningScreen,
             title=_("Invalid Mnemonic!"),
+            status_icon_name=SeedSignerIconConstants.ERROR,
             status_headline=None,
             text=_("Checksum failure; not a valid seed phrase."),
             show_back_button=False,
@@ -1206,6 +1207,7 @@ class SeedBIP85InvalidChildIndexView(View):
         DireWarningScreen(
             title=_("BIP-85 Index Error"),
             show_back_button=False,
+            status_icon_name=SeedSignerIconConstants.ERROR,
             status_headline=_("Invalid Child Index"),
             text=_("BIP-85 Child Index must be between 0 and 2^31-1."),
             button_data=[ButtonOption("Try Again")]
@@ -1366,6 +1368,7 @@ class SeedWordsBackupTestMistakeView(View):
         selected_menu_num = DireWarningScreen(
             title=_("Verification Error"),
             show_back_button=False,
+            status_icon_name=SeedSignerIconConstants.ERROR,
             status_headline=status_headline,
             button_data=button_data,
             text=text,
@@ -1722,8 +1725,8 @@ class AddressVerificationStartView(View):
                 destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR), skip_current_view=True)
 
         elif self.controller.unverified_address["script_type"] == SettingsConstants.TAPROOT:
-            # TODO: add Taproot support
-            return Destination(NotYetImplementedView)
+            sig_type = SettingsConstants.SINGLE_SIG
+            destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR), skip_current_view=True)
 
         derivation_path = embit_utils.get_standard_derivation_path(
             network=self.controller.unverified_address["network"],
@@ -1815,10 +1818,6 @@ class SeedAddressVerificationView(View):
         self.script_type = self.controller.unverified_address["script_type"]
         self.sig_type = self.controller.unverified_address["sig_type"]
         self.network = self.controller.unverified_address["network"]
-
-        if self.script_type == SettingsConstants.TAPROOT:
-            # TODO: Taproot addr verification
-            return Destination(NotYetImplementedView)
 
         # TODO: This should be in `Seed` or `PSBT` utility class
         embit_network = SettingsConstants.map_network_to_embit(self.network)

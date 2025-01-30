@@ -6,7 +6,7 @@ from PIL.ImageOps import autocontrast
 from typing import List
 
 from seedsigner.helpers.l10n import mark_for_translation as _mft
-from seedsigner.gui.components import Button, CheckboxButton, CheckedSelectionButton, FontAwesomeIconConstants, Fonts, GUIConstants, Icon, IconButton, IconTextLine, TextArea
+from seedsigner.gui.components import Button, CheckboxButton, CheckedSelectionButton, FontAwesomeIconConstants, Fonts, GUIConstants, Icon, IconButton, IconTextLine, SeedSignerIconConstants, TextArea
 from seedsigner.gui.screens.scan_screens import ScanScreen
 from seedsigner.gui.screens.screen import BaseScreen, BaseTopNavScreen, ButtonListScreen, ButtonOption
 from seedsigner.hardware.buttons import HardwareButtonsConstants
@@ -82,7 +82,7 @@ class IOTestScreen(BaseTopNavScreen):
         self.components.append(self.joystick_click_button)
 
         self.joystick_up_button = IconButton(
-            icon_name=FontAwesomeIconConstants.ANGLE_UP,
+            icon_name=SeedSignerIconConstants.CHEVRON_UP,
             icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
             width=input_button_width,
             height=input_button_height,
@@ -93,7 +93,7 @@ class IOTestScreen(BaseTopNavScreen):
         self.components.append(self.joystick_up_button)
 
         self.joystick_down_button = IconButton(
-            icon_name=FontAwesomeIconConstants.ANGLE_DOWN,
+            icon_name=SeedSignerIconConstants.CHEVRON_DOWN,
             icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
             width=input_button_width,
             height=input_button_height,
@@ -104,9 +104,8 @@ class IOTestScreen(BaseTopNavScreen):
         self.components.append(self.joystick_down_button)
 
         self.joystick_left_button = IconButton(
-            text=FontAwesomeIconConstants.ANGLE_LEFT,
-            font_name=GUIConstants.ICON_FONT_NAME__FONT_AWESOME,
-            font_size=GUIConstants.ICON_INLINE_FONT_SIZE,
+            icon_name=SeedSignerIconConstants.CHEVRON_LEFT,
+            icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
             width=input_button_width,
             height=input_button_height,
             screen_x=dpad_center_x - input_button_width - GUIConstants.COMPONENT_PADDING,
@@ -116,7 +115,7 @@ class IOTestScreen(BaseTopNavScreen):
         self.components.append(self.joystick_left_button)
 
         self.joystick_right_button = IconButton(
-            icon_name=FontAwesomeIconConstants.ANGLE_RIGHT,
+            icon_name=SeedSignerIconConstants.CHEVRON_RIGHT,
             icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
             width=input_button_width,
             height=input_button_height,

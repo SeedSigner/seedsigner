@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: seedsigner 0.8.5-rc1\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-01-15 10:45-0600\n"
+"POT-Creation-Date: 2025-01-19 10:20-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,16 +34,6 @@ msgstr ""
 #: src/seedsigner/gui/components.py src/seedsigner/gui/screens/psbt_screens.py
 #: src/seedsigner/models/settings_definition.py
 msgid "sats"
-msgstr ""
-
-#. The abbreviated label for the special key <del> on a standard keyboard.
-#: src/seedsigner/gui/keyboard.py
-msgid "del"
-msgstr ""
-
-#. The abbreviated label for the special key <space> on a standard keyboard.
-#: src/seedsigner/gui/keyboard.py
-msgid "space"
 msgstr ""
 
 #: src/seedsigner/gui/toast.py
@@ -215,7 +205,7 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
-#: src/seedsigner/gui/screens/screen.py src/seedsigner/views/psbt_views.py
+#: src/seedsigner/gui/screens/screen.py
 msgid "Caution"
 msgstr ""
 
@@ -901,18 +891,16 @@ msgstr ""
 
 #. Variable is either "change" or "self-transfer".
 #: src/seedsigner/views/psbt_views.py
-msgid ""
-"PSBT's {} address could not be verified with your multisig wallet "
-"descriptor."
-msgstr ""
-
-#: src/seedsigner/views/psbt_views.py
-msgid "Suspicious PSBT"
+msgid "PSBT's {} address could not be verified from wallet descriptor."
 msgstr ""
 
 #. Variable is either "change" or "self-transfer".
 #: src/seedsigner/views/psbt_views.py
 msgid "PSBT's {} address could not be generated from your seed."
+msgstr ""
+
+#: src/seedsigner/views/psbt_views.py
+msgid "Suspicious PSBT"
 msgstr ""
 
 #: src/seedsigner/views/psbt_views.py
@@ -1459,10 +1447,13 @@ msgstr ""
 msgid "Back to Main Menu"
 msgstr ""
 
+#. The network setting (mainnet/testnet/regtest) doesn't match the provided
+#. derivation path
 #: src/seedsigner/views/view.py
 msgid "Network Mismatch"
 msgstr ""
 
+#. Button option to alter a setting
 #: src/seedsigner/views/view.py
 msgid "Change Setting"
 msgstr ""

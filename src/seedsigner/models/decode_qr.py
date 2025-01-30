@@ -507,8 +507,7 @@ class DecodeQR:
     def is_bitcoin_address(s):
         if re.search(r'^bitcoin\:.*', s, re.IGNORECASE):
             return True
-        elif re.search(r'^((bc1|tb1|bcr|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', s):
-            # TODO: Handle regtest bcrt?
+        elif re.search(r'^((bc1|tb1|bcr|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,62})$', s, re.IGNORECASE):
             return True
         else:
             return False
@@ -940,61 +939,72 @@ class BitcoinAddressQrDecoder(BaseSingleFrameQrDecoder):
 
 
     def add(self, segment, qr_type=QRType.BITCOIN_ADDRESS):
-        r = re.search(r'((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})', segment)
-        if r != None:
-            self.address = r.group(1)
-        
-            if re.search(r'^((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})$', self.address) != None:
-                self.complete = True
-                self.collected_segments = 1
-                
-                # get address type
-                r = re.search(r'^((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})$', self.address)
-                if r != None:
-                    r = r.group(2)
-                
-                if r == "1":
-                    # Legacy P2PKH. mainnet
-                    self.address_type = (SettingsConstants.LEGACY_P2PKH, SettingsConstants.MAINNET)
+        """
+            Input may be prefixed with "bitcoin:" but will be ignored.
 
-                elif r == "m" or r == "n":
-                    self.address_type = (SettingsConstants.LEGACY_P2PKH, SettingsConstants.TESTNET)
+            RegEx searches for a recognizable bitcoin address.
+                * The `^` ensures that the specified address prefixes can only match at
+                    the beginning of the address.
 
-                elif r == "3":
-                    # Nested segwit single sig (p2sh-p2wpkh), nested segwit multisig (p2sh-p2wsh), or legacy multisig (p2sh); mainnet
-                    # TODO: Would be more correct to use a P2SH constant
-                    self.address_type = (SettingsConstants.NESTED_SEGWIT, SettingsConstants.MAINNET)
+            Result will yield the following match groups:
+                * group 1: complete address
+                * group 2: address prefix
+        """
+        address_match = re.search(r'^((bc1q|tb1q|bcrt1q|bc1p|tb1p|bcrt1p|[123]|[mn])[a-zA-HJ-NP-Z0-9]{25,64})', segment.split(":")[-1], re.IGNORECASE)
+        if address_match != None:
+            self.address = address_match.group(1)
+            self.complete = True
+            self.collected_segments = 1
+            
+            # Have to handle wallets that uppercase bech32 addresses.
+            # Note that it's safe to lowercase the prefix for ALL addr formats.
+            addr_prefix = address_match.group(2).lower()
+            
+            if addr_prefix == "1":
+                # Legacy P2PKH. mainnet
+                self.address_type = (SettingsConstants.LEGACY_P2PKH, SettingsConstants.MAINNET)
 
-                elif r == "2":
-                    # Nested segwit single sig (p2sh-p2wpkh), nested segwit multisig (p2sh-p2wsh), or legacy multisig (p2sh); testnet / regtest
-                    self.address_type = (SettingsConstants.NESTED_SEGWIT, SettingsConstants.TESTNET)
+            elif addr_prefix in ["m", "n"]:
+                self.address_type = (SettingsConstants.LEGACY_P2PKH, SettingsConstants.TESTNET)
 
-                elif r == "bc1q":
-                    # Native Segwit (single sig or multisig), mainnet 
-                    self.address_type = (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.MAINNET)
+            elif addr_prefix == "3":
+                # Nested segwit single sig (p2sh-p2wpkh), nested segwit multisig (p2sh-p2wsh), or legacy multisig (p2sh); mainnet
+                # TODO: Would be more correct to use a P2SH constant
+                self.address_type = (SettingsConstants.NESTED_SEGWIT, SettingsConstants.MAINNET)
 
-                elif r == "tb1q":
-                    # Native Segwit (single sig or multisig), testnet
-                    self.address_type = (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.TESTNET)
+            elif addr_prefix == "2":
+                # Nested segwit single sig (p2sh-p2wpkh), nested segwit multisig (p2sh-p2wsh), or legacy multisig (p2sh); testnet / regtest
+                self.address_type = (SettingsConstants.NESTED_SEGWIT, SettingsConstants.TESTNET)
 
-                elif r == "bcrt1q":
-                    # Native Segwit (single sig or multisig), regtest
-                    self.address_type = (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.REGTEST)
+            elif addr_prefix == "bc1q":
+                # Native Segwit (single sig or multisig), mainnet 
+                self.address_type = (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.MAINNET)
 
-                elif r == "bc1p":
-                    # Native Segwit (single sig or multisig), mainnet 
-                    self.address_type = (SettingsConstants.TAPROOT, SettingsConstants.MAINNET)
+            elif addr_prefix == "tb1q":
+                # Native Segwit (single sig or multisig), testnet
+                self.address_type = (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.TESTNET)
 
-                elif r == "tb1p":
-                    # Native Segwit (single sig or multisig), testnet
-                    self.address_type = (SettingsConstants.TAPROOT, SettingsConstants.TESTNET)
+            elif addr_prefix == "bcrt1q":
+                # Native Segwit (single sig or multisig), regtest
+                self.address_type = (SettingsConstants.NATIVE_SEGWIT, SettingsConstants.REGTEST)
 
-                elif r == "bcrt1p":
-                    # Native Segwit (single sig or multisig), regtest
-                    self.address_type = (SettingsConstants.TAPROOT, SettingsConstants.REGTEST)
-                
-                return DecodeQRStatus.COMPLETE
+            elif addr_prefix == "bc1p":
+                self.address_type = (SettingsConstants.TAPROOT, SettingsConstants.MAINNET)
 
+            elif addr_prefix == "tb1p":
+                self.address_type = (SettingsConstants.TAPROOT, SettingsConstants.TESTNET)
+
+            elif addr_prefix == "bcrt1p":
+                self.address_type = (SettingsConstants.TAPROOT, SettingsConstants.REGTEST)
+            # Note: there is no final "else" here because the regex won't return any other matches.
+
+            # If the addr type is case-insensitive, ensure we return it lowercase
+            if self.address_type[0] in [SettingsConstants.NATIVE_SEGWIT, SettingsConstants.TAPROOT]:
+                self.address = self.address.lower()
+
+            return DecodeQRStatus.COMPLETE
+
+        logger.debug(f"Invalid address: {segment}")
         return DecodeQRStatus.INVALID
 
 

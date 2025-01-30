@@ -646,7 +646,7 @@ class TestMessageSigningFlows(FlowTest):
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
             FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
             FlowStep(scan_views.ScanView, before_run=load_invalid_signmessage_qr),  # simulate read message QR; ret val is ignored
-            FlowStep(ErrorView),
+            FlowStep(scan_views.ScanInvalidQRTypeView),
             FlowStep(MainMenuView),
         ])
 

@@ -309,7 +309,7 @@ class ButtonListScreen(BaseTopNavScreen):
         if len(self.button_data) == 1:
             button_list_height = button_height
         else:
-            button_list_height = (len(self.button_data) * button_height) + (GUIConstants.COMPONENT_PADDING * (len(self.button_data) - 1))
+            button_list_height = (len(self.button_data) * button_height) + (GUIConstants.LIST_ITEM_PADDING * (len(self.button_data) - 1))
 
         if self.is_bottom_list:
             button_list_y = self.canvas_height - (button_list_height + GUIConstants.EDGE_PADDING)
@@ -1013,9 +1013,12 @@ class WarningEdgesMixin:
 
 @dataclass
 class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
+    """
+    Exclamation point icon + yellow WARNING color
+    """
     title: str = _mft("Caution")
     status_icon_name: str = SeedSignerIconConstants.WARNING
-    status_color: str = "yellow"
+    status_color: str = GUIConstants.WARNING_COLOR
     status_headline: str = _mft("Privacy Leak!")     # The colored text under the alert icon
     button_data: list = field(default_factory=lambda: [ButtonOption("I Understand")])
 
@@ -1023,8 +1026,22 @@ class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
 
 @dataclass
 class DireWarningScreen(WarningScreen):
+    """
+    Exclamation point icon + orange DIRE_WARNING color
+    """
     status_headline: str = _mft("Classified Info!")     # The colored text under the alert icon
     status_color: str = GUIConstants.DIRE_WARNING_COLOR
+
+
+
+@dataclass
+class ErrorScreen(WarningScreen):
+    """
+    X icon + red ERROR color
+    """
+    title: str = _mft("Error")
+    status_icon_name: str = SeedSignerIconConstants.ERROR
+    status_color: str = GUIConstants.ERROR_COLOR
 
 
 
