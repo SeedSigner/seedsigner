@@ -317,8 +317,8 @@ class TestSeedFlows(FlowTest):
         script_type = ButtonOption(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES)[2], return_data=custom_derivation)
 
         specter = SettingsConstants.COORDINATOR__SPECTER_DESKTOP
-        assert SettingsConstants.ALL_COORDINATORS[3][0] == specter
-        coordinator = ButtonOption(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[3], return_data=specter)
+        assert SettingsConstants.ALL_COORDINATORS[4][0] == specter
+        coordinator = ButtonOption(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[4], return_data=specter)
 
         self.run_sequence(
             initial_destination_view_args=dict(seed_num=0),
