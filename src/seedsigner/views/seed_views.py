@@ -1661,9 +1661,8 @@ class SeedTranscribeSeedQRConfirmScanView(View):
                 else:
                     return Destination(SeedTranscribeSeedQRConfirmSuccessView, view_args={"seed_num": self.seed_num})
 
-        else:
-            # Will this case ever happen? Will trigger if a different kind of QR code is scanned
-            return Destination(SeedTranscribeSeedQRConfirmInvalidQRView, skip_current_view=True)
+        # Will trigger if a different kind of QR code is scanned (non SeedQR)
+        return Destination(SeedTranscribeSeedQRConfirmInvalidQRView, skip_current_view=True)
 
 
 
