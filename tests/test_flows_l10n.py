@@ -13,7 +13,7 @@ from seedsigner.views.view import MainMenuView
 class TestL10nFlows(FlowTest):
     def test_change_locale(self):
         settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__LOCALE)
-        spanish_display_name = [locale_tuple[1] for locale_tuple in SettingsConstants.ALL_LOCALES if locale_tuple[0] == SettingsConstants.LOCALE__SPANISH][0]
+        spanish_display_name = SettingsConstants.ALL_LOCALES[SettingsConstants.LOCALE__SPANISH]
 
         # Initially we get English
         assert _(MainMenuView.SCAN.button_label) == "Scan"

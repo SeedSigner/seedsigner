@@ -1,7 +1,12 @@
+import os
 from dataclasses import dataclass
 from typing import Any, List
 
 from seedsigner.helpers.l10n import mark_for_translation as _mft
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 
 class SettingsConstants:
@@ -46,31 +51,149 @@ class SettingsConstants:
         (COORDINATOR__KEEPER, "Keeper"),
     ]
 
+    # Over-specifying current and possible future locales to reduce/eliminate main repo
+    # changes when adding/testing new languages.
     LOCALE__ARABIC = "ar"
+    LOCALE__BENGALI = "bn"
+    LOCALE__BULGARIAN = "bg"
+    LOCALE__CATALAN = "ca"
+    LOCALE__CHINESE_SIMPLIFIED = "zh_Hans_CN"
+    LOCALE__CHINESE_TRADITIONAL = "zh_Hant_TW"
+    LOCALE__CROATIAN = "hr"
     LOCALE__CZECH = "cs"
+    LOCALE__DANISH = "da"
+    LOCALE__DUTCH = "nl"
+    LOCALE__EGYPTIAN = "ar_EG"
     LOCALE__ENGLISH = "en"
+    LOCALE__ESTONIAN = "et"
+    LOCALE__FINNISH = "fi"
     LOCALE__FRENCH = "fr"
+    LOCALE__GAELIC = "gd"
     LOCALE__GERMAN = "de"
+    LOCALE__GREEK = "el"
+    LOCALE__GUJARATI = "gu"
+    LOCALE__HAUSA = "ha"
     LOCALE__HEBREW = "he"
+    LOCALE__HINDI = "hi"
+    LOCALE__HUNGARIAN = "hu"
+    LOCALE__INDONESIAN = "id"
+    LOCALE__ITALIAN = "it"
     LOCALE__JAPANESE = "ja"
-    LOCALE__KOREAN = "kr"
-    LOCALE__PORTUGUESE = "pt"
+    LOCALE__JAVANESE = "jv"
+    LOCALE__KOREAN = "ko"
+    LOCALE__LAO = "lo"
+    LOCALE__LATVIAN = "lv"
+    LOCALE__LITHUANIAN = "lt"
+    LOCALE__MALAY = "ms"
+    LOCALE__MALTESE = "mt"
+    LOCALE__MARATHI = "mr"
+    LOCALE__NORWEGIAN = "no"
+    LOCALE__PERSIAN = "fa"
+    LOCALE__POLISH = "pl"
+    LOCALE__PORTUGUESE_BR = "pt_BR"
+    LOCALE__PORTUGUESE_PT = "pt_PT"
+    LOCALE__PUNJABI = "pa"
+    LOCALE__ROMANIAN = "ro"
     LOCALE__RUSSIAN = "ru"
+    LOCALE__SLOVAK = "sk"
+    LOCALE__SLOVENIAN = "sl"
     LOCALE__SPANISH = "es"
-    # Do not wrap for translation; always present each language in its native form
-    ALL_LOCALES = [
-        # (LOCALE__ARABIC, "Arabic"),
-        # (LOCALE__CZECH, "čeština"),
-        (LOCALE__ENGLISH, "English"),
-        # (LOCALE__FRENCH, "Français"),
-        # (LOCALE__GERMAN, "Deutsch"),
-        # (LOCALE__HEBREW, "Hebrew"),
-        # (LOCALE__JAPANESE, "Japanese"),
-        # (LOCALE__KOREAN, "Korean"),
-        # (LOCALE__PORTUGUESE, "Português"),
-        # (LOCALE__RUSSIAN, "русский"),
-        (LOCALE__SPANISH, "Español"),
-    ]
+    LOCALE__SWEDISH = "sv"
+    LOCALE__TAGALOG = "tl"
+    LOCALE__TAMIL = "ta"
+    LOCALE__TELUGU = "te"
+    LOCALE__THAI = "th"
+    LOCALE__TURKISH = "tr"
+    LOCALE__UKRANIAN = "uk"
+    LOCALE__URDU = "ur"
+    LOCALE__VIETNAMESE = "vi"
+
+    # Do not wrap for translation. Present each language in its native form. Sort by
+    # native form when in Western chars, otherwise sort by English name.
+    # Note that dicts preserve insertion order as of Python 3.7.
+    ALL_LOCALES = {
+        LOCALE__ARABIC: "العربية (Arabic)",
+        LOCALE__BENGALI: "বাংলা (Bengali)",
+        LOCALE__BULGARIAN: "български (Bulgarian)",
+        LOCALE__CATALAN: "Català",
+        LOCALE__CHINESE_SIMPLIFIED: "简体中文 (Chinese Simplified)",
+        LOCALE__CHINESE_TRADITIONAL: "繁體中文 (Chinese Traditional)",
+        LOCALE__CZECH: "čeština",
+        LOCALE__DANISH: "Dansk",
+        LOCALE__GERMAN: "Deutsch",
+        LOCALE__ESTONIAN: "Eesti",
+        LOCALE__EGYPTIAN: "مصرى (Egyptian)",
+        LOCALE__ENGLISH: "English",
+        LOCALE__SPANISH: "Español",
+        LOCALE__FRENCH: "Français",
+        LOCALE__GAELIC: "Gaeilge",
+        LOCALE__GREEK: "Ελληνικά (Greek)",
+        LOCALE__GUJARATI: "ગુજરાતી (Gujarati)",
+        LOCALE__HAUSA: "Hausa",
+        LOCALE__HEBREW: "עברית (Hebrew)",
+        LOCALE__HINDI: "हिन्दी (Hindi)",
+        LOCALE__CROATIAN: "Hrvatski",
+        LOCALE__ITALIAN: "Italiano",
+        LOCALE__INDONESIAN: "Indonesia",
+        LOCALE__JAPANESE: "日本語 (Japanese)",
+        LOCALE__JAVANESE: "Jawa (Javanese)",
+        LOCALE__LAO: "ລາວ (Lao)",
+        LOCALE__LATVIAN: "Latviešu",
+        LOCALE__LITHUANIAN: "Lietuvių",
+        LOCALE__HUNGARIAN: "Magyar",
+        LOCALE__MALAY: "Melayu",
+        LOCALE__MALTESE: "Malti",
+        LOCALE__MARATHI: "मराठी (Marathi)",
+        LOCALE__KOREAN: "한국어 (Korean)",
+        LOCALE__DUTCH: "Nederlands",
+        LOCALE__NORWEGIAN: "Norsk",
+        LOCALE__PERSIAN: "فارسی (Persian)",
+        LOCALE__POLISH: "Polski",
+        LOCALE__PORTUGUESE_BR: "Português (Brasil)",
+        LOCALE__PORTUGUESE_PT: "Português (Portugal)",
+        LOCALE__PUNJABI: "ਪੰਜਾਬੀ (Punjabi)",
+        LOCALE__ROMANIAN: "Română",
+        LOCALE__RUSSIAN: "русский (Russian)",
+        LOCALE__SLOVAK: "Slovenčina",
+        LOCALE__SLOVENIAN: "Slovenščina",
+        LOCALE__FINNISH: "Suomi",
+        LOCALE__SWEDISH: "Svenska",
+        LOCALE__TAGALOG: "Tagalog",
+        LOCALE__TAMIL: "தமிழ் (Tamil)",
+        LOCALE__TELUGU: "తెలుగు (Telugu)",
+        LOCALE__THAI: "ไทย (Thai)",
+        LOCALE__TURKISH: "Türkçe",
+        LOCALE__UKRANIAN: "українська (Ukranian)",
+        LOCALE__URDU: "اردو (Urdu)",
+        LOCALE__VIETNAMESE: "Tiếng Việt (Vietnamese)",
+    }
+
+    @classmethod
+    def get_detected_languages(cls) -> list[tuple[str, str]]:
+        """
+        Return a list of tuples of language codes and their native names.
+
+        Scans the filesystem to autodiscover which language codes are onboard.
+        """
+        # Will normally be the launch dir (where main.py is located)...
+        cwd = os.getcwd()
+
+        # ...except when running the tests
+        if "src" not in cwd:
+            cwd = os.path.join(cwd, "src")
+
+        # Always list English first (sorry, world)
+        detected_languages = [(cls.LOCALE__ENGLISH, cls.ALL_LOCALES[cls.LOCALE__ENGLISH])]
+
+        entries = os.listdir(os.path.join(cwd, "seedsigner", "resources", "seedsigner-translations", "l10n"))
+        for locale in cls.ALL_LOCALES.keys():
+            if locale in entries:
+                detected_languages.append((locale, cls.ALL_LOCALES[locale]))
+        
+        logger.debug(f"Detected languages: {detected_languages}")
+
+        return detected_languages
+
 
     BTC_DENOMINATION__BTC = "btc"
     BTC_DENOMINATION__SATS = "sats"
@@ -172,7 +295,6 @@ class SettingsConstants:
         # (WORDLIST_LANGUAGE__PORTUGUESE, "Português"),
     ]
 
-    
     # Individual SettingsEntry attr_names
     # Note: attr_names are internal constants; do not wrap for translation
     SETTING__LOCALE = "locale"
@@ -382,7 +504,7 @@ class SettingsDefinition:
                       abbreviated_name="lang",
                       display_name=_mft("Language"),
                       type=SettingsConstants.TYPE__SELECT_1,
-                      selection_options=SettingsConstants.ALL_LOCALES,
+                      selection_options=SettingsConstants.get_detected_languages(),
                       default_value=SettingsConstants.LOCALE__ENGLISH),
 
         # TODO: Support other bip-39 wordlist languages! Until then, type == HIDDEN

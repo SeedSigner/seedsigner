@@ -48,7 +48,7 @@ import warnings; warnings.warn = lambda *args, **kwargs: None
 
 
 # Dynamically generate a pytest test run for each locale
-@pytest.mark.parametrize("locale", [x for x, y in SettingsConstants.ALL_LOCALES])
+@pytest.mark.parametrize("locale", [x for x, y in SettingsConstants.get_detected_languages()])
 def test_generate_all(locale, target_locale):
     """
     `target_locale` is a fixture created in conftest.py via the `--locale` command line arg.
@@ -428,7 +428,7 @@ def generate_screenshots(locale):
     with open(messages_source_path, 'r') as messages_source_file:
         num_source_messages = messages_source_file.read().count("msgid \"") - 1
 
-    locale_tuple_list = [locale_tuple for locale_tuple in SettingsConstants.ALL_LOCALES if locale_tuple[0] == locale]
+    locale_tuple_list = [locale_tuple for locale_tuple in SettingsConstants.get_detected_languages() if locale_tuple[0] == locale]
     if not locale_tuple_list:
         raise Exception(f"Invalid locale: {locale}")
 
@@ -478,7 +478,7 @@ def generate_screenshots(locale):
     with open(os.path.join("tests", "screenshot_generator", "template.md"), 'r') as readme_template:
         main_readme = readme_template.read()
 
-    for locale, display_name in SettingsConstants.ALL_LOCALES:
+    for locale, display_name in SettingsConstants.get_detected_languages():
         main_readme += f"* [{display_name}]({locale}/README.md)\n"
 
     with open(os.path.join(screenshot_root, "README.md"), 'w') as readme_file:
