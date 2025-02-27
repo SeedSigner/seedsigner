@@ -185,12 +185,14 @@ class SettingsConstants:
         # Always list English first (sorry, world)
         detected_languages = [(cls.LOCALE__ENGLISH, cls.ALL_LOCALES[cls.LOCALE__ENGLISH])]
 
-        entries = os.listdir(os.path.join(cwd, "seedsigner", "resources", "seedsigner-translations", "l10n"))
+        locales_present = set()
+        for root, dirs, files in os.walk(os.path.join(cwd, "seedsigner", "resources", "seedsigner-translations", "l10n")):
+            for file in [f for f in files if f.endswith(".mo")]:
+                locales_present.add(root.split(f"l10n{ os.sep }")[1].split(os.sep)[0])
+
         for locale in cls.ALL_LOCALES.keys():
-            if locale in entries:
+            if locale in locales_present:
                 detected_languages.append((locale, cls.ALL_LOCALES[locale]))
-        
-        logger.debug(f"Detected languages: {detected_languages}")
 
         return detected_languages
 
