@@ -3,18 +3,22 @@ import math
 import os
 import pathlib
 import re
-from time import time
+import time
 
 from dataclasses import dataclass
 from decimal import Decimal
+from gettext import gettext as _
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
+from seedsigner.gui.renderer import Renderer
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.models.singleton import Singleton
+from seedsigner.models.threads import BaseThread
 
 logger = logging.getLogger(__name__)
+
 
 
 # TODO: Remove all pixel hard coding
@@ -23,17 +27,18 @@ class GUIConstants:
     COMPONENT_PADDING = 8
     LIST_ITEM_PADDING = 4
 
-    BACKGROUND_COLOR = "black"
+    BACKGROUND_COLOR = "#000000"
+    INACTIVE_COLOR = "#414141"
+    ACCENT_COLOR = "#FF9F0A" # Active Color
     WARNING_COLOR = "#FFD60A"
-    DIRE_WARNING_COLOR = "#FF453A"
+    DIRE_WARNING_COLOR = "#FF5700"
+    ERROR_COLOR = "#FF1B0A"
     SUCCESS_COLOR = "#30D158"
-    INFO_COLOR = "#0084FF"
-    ACCENT_COLOR = "#FF9F0A"
+    INFO_COLOR = "#409CFF"
     BITCOIN_ORANGE = "#FF9416"
     TESTNET_COLOR = "#00F100"
     REGTEST_COLOR = "#00CAF1"
     GREEN_INDICATOR_COLOR = "#00FF00"
-    INACTIVE_COLOR = "#414141"
 
     ICON_FONT_NAME__FONT_AWESOME = "Font_Awesome_6_Free-Solid-900"
     ICON_FONT_NAME__SEEDSIGNER = "seedsigner-icons"
@@ -43,14 +48,33 @@ class GUIConstants:
     ICON_TOAST_FONT_SIZE = 30
     ICON_PRIMARY_SCREEN_SIZE = 50
 
-    TOP_NAV_TITLE_FONT_NAME = "OpenSans-SemiBold"
-    TOP_NAV_TITLE_FONT_SIZE = 20
+    TOP_NAV_TITLE_FONT_NAME = {
+        "default": "OpenSans-SemiBold",
+        # "ar": "multilanguage/NotoSansAR-Regular",
+        # "he": "multilanguage/NotoSansHE-Regular",
+        # "ja": "multilanguage/NotoSansJP-Regular",
+        # "kr": "multilanguage/NotoSansKR-Regular",
+        # "ru": "multilanguage/NotoSans-Regular",
+    }
+    TOP_NAV_TITLE_FONT_SIZE = {
+        "default": 20,
+    }
     TOP_NAV_HEIGHT = 48
     TOP_NAV_BUTTON_SIZE = 32
 
-    BODY_FONT_NAME = "OpenSans-Regular"
-    BODY_FONT_SIZE = 17
-    BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE
+    BODY_FONT_NAME = {
+        "default": "OpenSans-Regular",
+        # "ar": "multilanguage/NotoSansAR-Regular",
+        # "he": "multilanguage/NotoSansHE-Regular",
+        # "ja": "multilanguage/NotoSansJP-Regular",
+        # "kr": "multilanguage/NotoSansKR-Regular",
+        # "ru": "multilanguage/NotoSans-Regular",
+    }
+    BODY_FONT_SIZE = {
+        "default": 17,
+        # "ar": 16,
+    }
+    BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE["default"]
     BODY_FONT_MIN_SIZE = 15
     BODY_FONT_COLOR = "#FCFCFC"
     BODY_LINE_SPACING = COMPONENT_PADDING
@@ -61,14 +85,79 @@ class GUIConstants:
     LABEL_FONT_SIZE = BODY_FONT_MIN_SIZE
     LABEL_FONT_COLOR = "#777777"
 
-    BUTTON_FONT_NAME = "OpenSans-SemiBold"
-    BUTTON_FONT_SIZE = 18
+    BUTTON_FONT_NAME = {
+        "default": "OpenSans-SemiBold",
+        # "ar": "multilanguage/NotoSansAR-Regular",
+        # "he": "multilanguage/NotoSansHE-Regular",
+        # "ja": "multilanguage/NotoSansJP-Regular",
+        # "kr": "multilanguage/NotoSansKR-Regular",
+        # "ru": "multilanguage/NotoSans-Regular",
+    }
+    BUTTON_FONT_SIZE = {
+        "default": 18,
+        # "ar": 16,
+        # "ja": 16,
+    }
     BUTTON_FONT_COLOR = "#FCFCFC"
     BUTTON_BACKGROUND_COLOR = "#2C2C2C"
     BUTTON_HEIGHT = 32
     BUTTON_SELECTED_FONT_COLOR = BACKGROUND_COLOR
     
     NOTIFICATION_COLOR = "#00F100"
+
+
+    @staticmethod
+    def get_body_font_name():
+        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+        if locale in GUIConstants.BODY_FONT_NAME:
+            return GUIConstants.BODY_FONT_NAME[locale]
+        else:
+            return GUIConstants.BODY_FONT_NAME["default"]
+
+
+    @staticmethod
+    def get_body_font_size():
+        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+        if locale in GUIConstants.BODY_FONT_SIZE:
+            return GUIConstants.BODY_FONT_SIZE[locale]
+        else:
+            return GUIConstants.BODY_FONT_SIZE["default"]
+
+
+    @staticmethod
+    def get_top_nav_title_font_name():
+        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+        if locale in GUIConstants.TOP_NAV_TITLE_FONT_NAME:
+            return GUIConstants.TOP_NAV_TITLE_FONT_NAME[locale]
+        else:
+            return GUIConstants.TOP_NAV_TITLE_FONT_NAME["default"]
+
+
+    @staticmethod
+    def get_top_nav_title_font_size():
+        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+        if locale in GUIConstants.TOP_NAV_TITLE_FONT_SIZE:
+            return GUIConstants.TOP_NAV_TITLE_FONT_SIZE[locale]
+        else:
+            return GUIConstants.TOP_NAV_TITLE_FONT_SIZE["default"]
+
+
+    @staticmethod
+    def get_button_font_name():
+        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+        if locale in GUIConstants.BUTTON_FONT_NAME:
+            return GUIConstants.BUTTON_FONT_NAME[locale]
+        else:
+            return GUIConstants.BUTTON_FONT_NAME["default"]
+
+
+    @staticmethod
+    def get_button_font_size():
+        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+        if locale in GUIConstants.BUTTON_FONT_SIZE:
+            return GUIConstants.BUTTON_FONT_SIZE[locale]
+        else:
+            return GUIConstants.BUTTON_FONT_SIZE["default"]
 
 
 
@@ -102,6 +191,7 @@ class FontAwesomeIconConstants:
     X = "\u0058"
 
 
+
 class SeedSignerIconConstants:
     # Menu icons
     SCAN = "\ue900"
@@ -126,27 +216,34 @@ class SeedSignerIconConstants:
     RESTART = "\ue911"
 
     # Messaging icons
-    ERROR = "\ue912"
+    INFO = "\ue912"
     SUCCESS = "\ue913"
     WARNING = "\ue914"
+    ERROR = "\ue915"
 
     # Informational icons
-    ADDRESS = "\ue915"
-    CHANGE = "\ue916"
-    DERIVATION = "\ue917"
-    FEE = "\ue918"
-    FINGERPRINT = "\ue919"
-    PASSPHRASE = "\ue91a"
+    ADDRESS = "\ue916"
+    CHANGE = "\ue917"
+    DERIVATION = "\ue918"
+    FEE = "\ue919"
+    FINGERPRINT = "\ue91a"
+    PASSPHRASE = "\ue91b"
 
     # Misc icons
-    BITCOIN = "\ue91b"
-    BITCOIN_ALT = "\ue91c"
-    BRIGHTNESS = "\ue91d"
-    MICROSD = "\ue91e"
-    QRCODE = "\ue91f"
+    BITCOIN = "\ue91c"
+    BITCOIN_ALT = "\ue91d"
+    BRIGHTNESS = "\ue91e"
+    MICROSD = "\ue91f"
+    QRCODE = "\ue920"
+    SIGN = "\ue921"
 
+    # Input icons
+    DELETE = "\ue922"
+    SPACE = "\ue923"
+
+    # Must be updated whenever new icons are added. See usage in `Icon` class below.
     MIN_VALUE = SCAN
-    MAX_VALUE = QRCODE
+    MAX_VALUE = SPACE
 
 
 
@@ -184,17 +281,6 @@ def calc_text_centering(font: ImageFont,
 
 
 
-def load_icon(icon_name: str, load_selected_variant: bool = False):
-    icon_url = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "icons", icon_name)
-    icon = Image.open(icon_url + ".png").convert("RGB")
-    if not load_selected_variant:
-        return icon
-    else:
-        icon_selected = Image.open(icon_url + "_selected.png").convert("RGB")
-        return (icon, icon_selected)
-
-
-
 def load_image(image_name: str) -> Image.Image:
     image_url = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "img", image_name)
     image = Image.open(image_url).convert("RGB")
@@ -203,7 +289,11 @@ def load_image(image_name: str) -> Image.Image:
 
 
 class Fonts(Singleton):
-    font_path = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "fonts")
+    font_path = os.path.join(
+        pathlib.Path(__file__).parent.resolve().parent.resolve(),
+        "resources",
+        "fonts"
+    )
     fonts = {}
 
     @classmethod
@@ -214,7 +304,7 @@ class Fonts(Singleton):
         
         if font_name in [GUIConstants.ICON_FONT_NAME__FONT_AWESOME, GUIConstants.ICON_FONT_NAME__SEEDSIGNER]:
             file_extension = "otf"
-        
+
         if size not in cls.fonts[font_name]:
             try:
                 cls.fonts[font_name][size] = ImageFont.truetype(os.path.join(cls.font_path, f"{font_name}.{file_extension}"), size)
@@ -239,10 +329,13 @@ class BaseComponent:
     canvas: Image.Image = None
 
     def __post_init__(self):
-        from seedsigner.gui import Renderer
+        from seedsigner.gui.renderer import Renderer
         self.renderer: Renderer = Renderer.get_instance()
         self.canvas_width = self.renderer.canvas_width
         self.canvas_height = self.renderer.canvas_height
+
+        # Component threads will be managed in their parent's `Screen.display()`
+        self.threads: list[BaseThread] = []
 
         if not self.image_draw:
             self.set_image_draw(self.renderer.draw)
@@ -253,6 +346,7 @@ class BaseComponent:
 
     def set_image_draw(self, image_draw: ImageDraw):
         self.image_draw = image_draw
+
 
     def set_canvas(self, canvas: Image):
         self.canvas = canvas
@@ -282,20 +376,37 @@ class TextArea(BaseComponent):
     height: int = None      # None = special case: autosize to min height
     screen_x: int = 0
     screen_y: int = 0
+    scroll_y: int = 0
     min_text_x: int = 0  # Text can not start at x any less than this
     background_color: str = GUIConstants.BACKGROUND_COLOR
-    font_name: str = GUIConstants.BODY_FONT_NAME
-    font_size: int = GUIConstants.BODY_FONT_SIZE
+    font_name: str = None
+    font_size: int = None
     font_color: str = GUIConstants.BODY_FONT_COLOR
     edge_padding: int = GUIConstants.EDGE_PADDING
     is_text_centered: bool = True
-    supersampling_factor: int = 1
+    supersampling_factor: int = 2  # 1 = disabled; 2 = default, double sample (4px square rendered for 1px)
     auto_line_break: bool = True
     allow_text_overflow: bool = False
+    is_horizontal_scrolling_enabled: bool = False
+    horizontal_scroll_speed: int = 40  # px per sec
+    horizontal_scroll_begin_hold_secs: float = 2.0
+    horizontal_scroll_end_hold_secs: float = 1.0
     height_ignores_below_baseline: bool = False  # If True, characters that render below the baseline (e.g. "pqgy") will not affect the final height calculation
 
 
     def __post_init__(self):
+        if self.is_horizontal_scrolling_enabled and self.auto_line_break:
+            raise Exception("TextArea: Cannot have auto_line_break and horizontal scrolling enabled at the same time")
+
+        if self.is_horizontal_scrolling_enabled and not self.allow_text_overflow:
+            self.allow_text_overflow = True
+            logger.warning("TextArea: allow_text_overflow gets overridden to True when horizontal scrolling is enabled")
+
+        if not self.font_name:
+            self.font_name = GUIConstants.get_body_font_name()
+        if not self.font_size:
+            self.font_size = GUIConstants.get_body_font_size()
+
         super().__post_init__()
 
         if not self.width:
@@ -306,34 +417,53 @@ class TextArea(BaseComponent):
 
         self.line_spacing = GUIConstants.BODY_LINE_SPACING
 
-        # We have to figure out if and where to make line breaks in the text so that it
-        #   fits in its bounding rect (plus accounting for edge padding) using its given
-        #   font.
-        # Do initial calcs without worrying about supersampling.
-        self.text_lines = reflow_text_for_width(
-            text=self.text,
-            width=self.width - 2*self.edge_padding,
-            font_name=self.font_name,
-            font_size=self.font_size,
-            allow_text_overflow=self.allow_text_overflow,
-        )
-
         # Calculate the actual font height from the "baseline" anchor ("_s")
         font = Fonts.get_font(self.font_name, self.font_size)
 
         # Note: from the baseline anchor, `top` is a negative number while `bottom`
         # conveys the height of the pixels that rendered below the baseline, if any
         # (e.g. "py" in "python").
-        (left, top, right, bottom) = font.getbbox(self.text, anchor="ls")
+        (left, top, full_text_width, bottom) = font.getbbox(self.text, anchor="ls")
         self.text_height_above_baseline = -1 * top
         self.text_height_below_baseline = bottom
 
         # Initialize the text rendering relative to the baseline
         self.text_y = self.text_height_above_baseline
 
-        # Other components, like IconTextLine will need to know how wide the actual
-        # rendered text will be, separate from the TextArea's defined overall `width`.
-        self.text_width = max(line["text_width"] for line in self.text_lines)
+        self.visible_width = self.width - max(self.edge_padding, self.min_text_x) - self.edge_padding
+        if not ImageFont.core.HAVE_RAQM:
+            # Fudge factor for imprecise width calcs w/out libraqm
+            full_text_width = int(full_text_width * 1.05)
+            self.visible_width = int(self.visible_width * 1.05)
+
+        if self.is_horizontal_scrolling_enabled or not self.auto_line_break:
+            # Guaranteed to be a single line of text, possibly wider than self.width
+            self.text_lines = [{"text": self.text, "text_width": full_text_width}]
+            self.text_width = full_text_width
+            if self.text_width > self.visible_width:
+                # We'll have to left justify the text and scroll it (if scrolling is enabled,
+                # otherwise it'll just run off the right edge).
+                self.is_text_centered = False
+            else:
+                # The text fits; horizontal scrolling isn't needed
+                self.is_horizontal_scrolling_enabled = False
+
+        else:
+            # We have to figure out if and where to make line breaks in the text so that it
+            #   fits in its bounding rect (plus accounting for edge padding) using its given
+            #   font.
+            # Do initial calcs without worrying about supersampling.
+            self.text_lines = reflow_text_for_width(
+                text=self.text,
+                width=self.width - 2*self.edge_padding,
+                font_name=self.font_name,
+                font_size=self.font_size,
+                allow_text_overflow=self.allow_text_overflow,
+            )
+
+            # Other components, like IconTextLine will need to know how wide the actual
+            # rendered text will be, separate from the TextArea's defined overall `width`.
+            self.text_width = max(line["text_width"] for line in self.text_lines)
 
         # Calculate the actual height
         if len(self.text_lines) == 1:
@@ -348,6 +478,7 @@ class TextArea(BaseComponent):
                 # Last line has at least one char that dips below baseline
                 total_text_height += self.text_height_below_baseline
 
+        self.text_offset_y = 0
         if self.height is None:
             # Autoscale height to text lines
             self.height = total_text_height
@@ -355,53 +486,78 @@ class TextArea(BaseComponent):
         else:
             if total_text_height > self.height:
                 if not self.allow_text_overflow:
-                    raise TextDoesNotFitException(f"Text cannot fit in target rect with this font/size\n\ttotal_text_height: {total_text_height} | self.height: {self.height}")
+                    # For now, early into the l10n rollout, we can't enforce strict
+                    # conformance here. Too many screens will just break if this is were
+                    # to raise an exception.
+                    logger.warning(f"Text cannot fit in target rect with this font/size\n\ttotal_text_height: {total_text_height} | self.height: {self.height}")
                 else:
-                    # Just let it render off the edge, but preserve the top portion
+                    # Just let it render past the bottom edge
                     pass
 
             else:
                 # Vertically center the text's starting point
-                self.text_y += int(self.height - total_text_height)/2
+                self.text_offset_y = int((self.height - total_text_height)/2)
+                self.text_y += self.text_offset_y  # (relative to text rendering baseline)
 
-
-    def render(self):
         # Render to a temp img scaled up by self.supersampling_factor, then resize down
         #   with bicubic resampling.
         # Add a `resample_padding` above and below when supersampling to avoid edge
         # effects (resized text that's right up against the top/bottom gets slightly
         # dimmer at the edge otherwise).
-        if self.font_size < 20 and (not self.supersampling_factor or self.supersampling_factor == 1):
-            self.supersampling_factor = 2
+        # if self.background_color == GUIConstants.ACCENT_COLOR and self.supersampling_factor == 1:
+        #     # Don't boost supersampling factor. Text against the accent color does not
+        #     # render well when supersampled.
+        #     pass
+        # elif self.font_size < 20 and (not self.supersampling_factor or self.supersampling_factor == 1):
+        #     self.supersampling_factor = 2
+        if self.font_size >= 20 and self.supersampling_factor != 1:
+            self.supersampling_factor = 1
+            logger.warning(f"Supersampling disabled for large font size: {self.font_size}")
 
-        actual_text_height = self.height
         if self.height_ignores_below_baseline:
             # Even though we're ignoring the pixels below the baseline for spacing
             # purposes, we have to make sure we don't crop those pixels out during the
             # supersampling operations here.
-            actual_text_height += self.text_height_below_baseline
+            total_text_height += self.text_height_below_baseline
 
-        resample_padding = 10 if self.supersampling_factor > 1.0 else 0
+        resample_padding = 10 if self.supersampling_factor > 1 else 0
+
+        if self.is_horizontal_scrolling_enabled:
+            # Temp img will be the full width of the text
+            image_width = self.text_width
+        else:
+            # Temp img will be the component's width, but must respect right edge padding
+            image_width = self.width - self.edge_padding
+        
+        if self.supersampling_factor > 1:
+            start = time.time()
+            supersampled_font = Fonts.get_font(self.font_name, int(self.supersampling_factor * self.font_size))
+            print(f"Supersampled font load time: {time.time() - start:.04}")
+        else:
+            supersampled_font = font
+
         img = Image.new(
             "RGBA",
             (
-                self.width * self.supersampling_factor,
-                (actual_text_height + 2*resample_padding) * self.supersampling_factor
+                image_width * self.supersampling_factor,
+                (total_text_height + 2*resample_padding) * self.supersampling_factor
             ),
             self.background_color
+            # "red"
         )
         draw = ImageDraw.Draw(img)
 
-        cur_y = (self.text_y + resample_padding) * self.supersampling_factor
-        supersampled_font = Fonts.get_font(self.font_name, int(self.supersampling_factor * self.font_size))
+        cur_y = (resample_padding + self.text_height_above_baseline) * self.supersampling_factor
 
         if self.is_text_centered:
+            # middle baseline
             anchor = "ms"
         else:
+            # left baseline
             anchor = "ls"
 
-        # Position where we'll render each line of text
-        text_x = self.edge_padding
+        # Default, not-centered text will be relative to its left-justified starting point
+        text_x = max([self.edge_padding, self.min_text_x])
 
         for line in self.text_lines:
             if self.is_text_centered:
@@ -410,23 +566,197 @@ class TextArea(BaseComponent):
                 if text_x - int(line["text_width"]/2) < self.min_text_x:
                     # The left edge of the centered text will protrude too far; nudge it right
                     text_x = self.min_text_x + int(line["text_width"]/2)
+            
+            elif self.is_horizontal_scrolling_enabled:
+                # Scrolling temp img isn't relative to any positioning other than its own text
+                text_x = 0
 
             draw.text((text_x * self.supersampling_factor, cur_y), line["text"], fill=self.font_color, font=supersampled_font, anchor=anchor)
 
             # Debugging: show the exact vertical extents of each line of text
-            # draw.line((0, cur_y - self.text_height_above_baseline * self.supersampling_factor, self.width * self.supersampling_factor, cur_y - self.text_height_above_baseline * self.supersampling_factor), fill="red", width=int(self.supersampling_factor))
-            # draw.line((0, cur_y, self.width * self.supersampling_factor, cur_y), fill="red", width=int(self.supersampling_factor))
+            # draw.line((0, cur_y - self.text_height_above_baseline * self.supersampling_factor, image_width * self.supersampling_factor, cur_y - self.text_height_above_baseline * self.supersampling_factor), fill="blue", width=int(self.supersampling_factor))
+            # draw.line((0, cur_y, image_width * self.supersampling_factor, cur_y), fill="red", width=int(self.supersampling_factor))
 
             cur_y += (self.text_height_above_baseline + self.line_spacing) * self.supersampling_factor
 
         # Crop off the top_padding and resize the result down to onscreen size
-        if self.supersampling_factor > 1.0:
-            resized = img.resize((self.width, actual_text_height + 2*resample_padding), Image.LANCZOS)
+        if self.supersampling_factor > 1:
+            resized = img.resize((image_width, total_text_height + 2*resample_padding), Image.LANCZOS)
             sharpened = resized.filter(ImageFilter.SHARPEN)
 
-            # Crop args are actually (left, top, WIDTH, HEIGHT)
-            img = sharpened.crop((0, resample_padding, self.width, actual_text_height + resample_padding))
-        self.canvas.paste(img, (self.screen_x, self.screen_y))
+            img = sharpened.crop((0, resample_padding, image_width, resample_padding + total_text_height))
+        
+        self.rendered_text_img = img
+
+        if not ImageFont.core.HAVE_RAQM:
+            # At this point we need the visible_width to be the "actual" (yet still incorrect) width
+            self.visible_width = int(self.visible_width * 0.95)
+
+        self.horizontal_text_scroll_thread: TextArea.HorizontalTextScrollThread = None
+        if self.is_horizontal_scrolling_enabled:
+            self.horizontal_text_scroll_thread = TextArea.HorizontalTextScrollThread(
+                rendered_text_img=self.rendered_text_img,
+                screen_x=self.screen_x + self.min_text_x,
+                screen_y=self.screen_y + self.text_y - self.text_height_above_baseline,
+                visible_width=self.visible_width,
+                horizontal_scroll_speed=self.horizontal_scroll_speed,
+                begin_hold_secs=self.horizontal_scroll_begin_hold_secs,
+                end_hold_secs=self.horizontal_scroll_end_hold_secs
+            )
+
+
+    class HorizontalTextScrollThread(BaseThread):
+        """
+        Note that Components in general should not try to manage the Renderer.lock; we
+        leave that up to the calling Screen to manage. HOWEVER, since this renders in its
+        own thread, we lose all normal timing guarantees and therefore this thread must
+        manage the lock itself.
+        """
+        def __init__(self, rendered_text_img: Image, screen_x: int, screen_y: int, visible_width: int, horizontal_scroll_speed:int, begin_hold_secs: float, end_hold_secs: float):
+            super().__init__()
+            self.rendered_text_img = rendered_text_img
+            self.screen_x = screen_x
+            self.screen_y = screen_y
+            self.visible_width = visible_width
+            self.horizontal_scroll_speed = horizontal_scroll_speed
+            self.begin_hold_secs = begin_hold_secs
+            self.end_hold_secs = end_hold_secs
+
+            self.scroll_y = 0
+            self.scrolling_active = True
+            self.horizontal_scroll_position = 0
+            self.scroll_increment_sign = 1  # flip to negative to scroll text to the right
+
+            self.renderer = Renderer.get_instance()        
+
+
+        def stop_scrolling(self):
+            self.scrolling_active = False
+
+
+        def start_scrolling(self):
+            # Reset scroll position to left edge
+            self.horizontal_scroll_position = 0
+            self.scroll_increment_sign = 1
+            self.scrolling_active = True
+
+
+        def run(self):
+            """
+            Subjective opinion: on a Pi Zero, scrolling at 40px/sec looks smooth but
+            50px/sec creates a slight ghosting / doubling effect that impedes
+            readability. 45px/sec is better but still perceptually a bit stuttery.
+            """
+            max_scroll = self.rendered_text_img.width - self.visible_width
+
+            while self.keep_running:
+                if not self.scrolling_active:
+                    time.sleep(0.1)
+                    continue
+
+                with self.renderer.lock:
+                    if not self.scrolling_active:
+                        # We were stopped while waiting for the lock
+                        continue
+
+                    img = self.rendered_text_img.crop((self.horizontal_scroll_position, 0, self.horizontal_scroll_position + self.visible_width, self.rendered_text_img.height))
+                    self.renderer.canvas.paste(img, (self.screen_x, self.screen_y - self.scroll_y))
+                    self.renderer.show_image()
+
+                if self.horizontal_scroll_position == 0:
+                    # Pause on initial (left-justified) position...                
+                    time.sleep(self.begin_hold_secs)
+
+                    # Don't count those pause seconds
+                    last_render_time = None
+
+                    # Scroll the text left
+                    self.scroll_increment_sign = 1
+
+                elif self.horizontal_scroll_position == max_scroll:
+                    # ...and slight pause at end of scroll
+                    time.sleep(self.end_hold_secs)
+
+                    # Don't count those pause seconds
+                    last_render_time = None
+
+                    # Scroll the text right
+                    self.scroll_increment_sign = -1
+                
+                else:
+                    # No need to CPU limit when running in its own thread?
+                    time.sleep(0.02)
+                
+                next_render_time = time.time()
+
+                if not last_render_time:
+                    # First frame when pulling off either end will move 1 pixel; have to
+                    # "get off zero" for the real increment calc logic to kick in.
+                    scroll_position_increment = 1 * self.scroll_increment_sign
+                else:
+                    scroll_position_increment = int(self.horizontal_scroll_speed * (next_render_time - last_render_time) * self.scroll_increment_sign)
+
+                if abs(scroll_position_increment) > 0:
+                    self.horizontal_scroll_position += scroll_position_increment
+                    self.horizontal_scroll_position = max(0, min(self.horizontal_scroll_position, max_scroll))
+
+                    last_render_time = next_render_time
+                else:
+                    # Wait to accumulate more time before scrolling
+                    pass
+
+
+    def render(self):
+        """
+            Even if we need to animate for scrolling, all instances should explicitly render
+            their initial state. Note that the screenshot generator currently does not render
+            anything from within child threads.
+        """
+        # Default text and centered text already include any edge padding considerations
+        # in their rendered img that we're about to paste onto the canvas.
+        text_x = self.screen_x
+        text_img = self.rendered_text_img
+        if self.is_horizontal_scrolling_enabled:
+            # Scrolling text has no edge considerations so must be placed exactly
+            text_x += self.min_text_x
+
+            # Must also account for the right edge running off our visible width
+            text_img = text_img.crop((0, 0, self.visible_width, text_img.height))
+
+        self.canvas.paste(text_img, (text_x, self.screen_y + self.text_y - self.text_height_above_baseline - self.scroll_y))
+
+
+    def set_scroll_y(self, scroll_y: int):
+        """ Used by ButtonListScreen """
+        self.scroll_y = scroll_y
+        if self.horizontal_text_scroll_thread:
+            self.horizontal_text_scroll_thread.scroll_y = scroll_y
+
+
+
+@dataclass
+class ScrollableTextLine(TextArea):
+    """
+    Convenience class to more clearly communicate usage intention:
+    * A single line of text
+    * Can be centered (e.g. TopNav title)
+    * Will automatically scroll if it does not fit the specified width
+    """
+    def __post_init__(self):
+        self.auto_line_break = False
+        self.is_horizontal_scrolling_enabled = True
+        self.allow_text_overflow = True
+        super().__post_init__()
+
+
+    @property
+    def needs_scroll(self) -> bool:
+        return self.horizontal_text_scroll_thread is not None
+
+
+    @property
+    def scroll_thread(self) -> TextArea.HorizontalTextScrollThread:
+        return self.horizontal_text_scroll_thread
 
 
 
@@ -444,7 +774,7 @@ class Icon(BaseComponent):
         if SeedSignerIconConstants.MIN_VALUE <= self.icon_name and self.icon_name <= SeedSignerIconConstants.MAX_VALUE:
             self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__SEEDSIGNER, self.icon_size, file_extension="otf")
         else:
-            self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__FONT_AWESOME, self.icon_size, file_extension="otf")
+            self.icon_font = Fonts.get_font(GUIConstants.ICON_FONT_NAME__FONT_AWESOME, self.icon_size)
         
         # Set width/height based on exact pixels that are rendered
         (left, top, self.width, bottom) = self.icon_font.getbbox(self.icon_name, anchor="ls")
@@ -472,16 +802,20 @@ class IconTextLine(BaseComponent):
     icon_size: int = GUIConstants.ICON_FONT_SIZE
     icon_color: str = GUIConstants.BODY_FONT_COLOR
     label_text: str = None
-    value_text: str = "73c5da0a"
-    font_name: str = GUIConstants.BODY_FONT_NAME
-    font_size: int = GUIConstants.BODY_FONT_SIZE
+    value_text: str = ""
+    font_name: str = None
+    font_size: int = None
     is_text_centered: bool = False
     auto_line_break: bool = False
-    allow_text_overflow: bool = False
+    allow_text_overflow: bool = True
     screen_x: int = 0
     screen_y: int = 0
 
     def __post_init__(self):
+        if not self.font_name:
+            self.font_name = GUIConstants.get_body_font_name()
+        if not self.font_size:
+            self.font_size = GUIConstants.get_body_font_size()
         super().__post_init__()
 
         if self.height is not None and self.label_text:
@@ -509,7 +843,7 @@ class IconTextLine(BaseComponent):
                 image_draw=self.image_draw,
                 canvas=self.canvas,
                 text=self.label_text,
-                font_size=GUIConstants.BODY_FONT_SIZE - 2,
+                font_size=GUIConstants.get_body_font_size() - 2,
                 font_color=GUIConstants.LABEL_FONT_COLOR,
                 edge_padding=0,
                 is_text_centered=self.is_text_centered if not self.icon_name else False,
@@ -774,11 +1108,14 @@ class BtcAmount(BaseComponent):
         denomination = Settings.get_instance().get_value(SettingsConstants.SETTING__BTC_DENOMINATION)
         network = Settings.get_instance().get_value(SettingsConstants.SETTING__NETWORK)
 
-        btc_unit = "tBtc"
-        sats_unit = "tSats"
+        # TRANSLATOR_NOTE: Testnet bitcoin
+        btc_unit = _("tBtc")
+
+        # TRANSLATOR_NOTE: Testnet sats
+        sats_unit = _("tSats")
         if network == SettingsConstants.MAINNET:
-            btc_unit = "btc"
-            sats_unit = "sats"
+            btc_unit = _("btc")
+            sats_unit = _("sats")
             btc_color = GUIConstants.ACCENT_COLOR
 
         elif network == SettingsConstants.TESTNET:
@@ -787,9 +1124,9 @@ class BtcAmount(BaseComponent):
         elif network == SettingsConstants.REGTEST:
             btc_color = GUIConstants.REGTEST_COLOR
         
-        digit_font = Fonts.get_font(font_name=GUIConstants.BODY_FONT_NAME, size=self.font_size)
-        smaller_digit_font = Fonts.get_font(font_name=GUIConstants.BODY_FONT_NAME, size=self.font_size - 2)
-        unit_font_size = GUIConstants.BUTTON_FONT_SIZE + 2
+        digit_font = Fonts.get_font(font_name=GUIConstants.get_body_font_name(), size=self.font_size)
+        smaller_digit_font = Fonts.get_font(font_name=GUIConstants.get_body_font_name(), size=self.font_size - 2)
+        unit_font_size = GUIConstants.get_button_font_size() + 2
 
         # Render to a temp surface
         self.paste_image = Image.new(mode="RGB", size=(self.canvas_width, self.icon_size), color=GUIConstants.BACKGROUND_COLOR)
@@ -913,7 +1250,7 @@ class BtcAmount(BaseComponent):
             cur_x += text_width - int(GUIConstants.COMPONENT_PADDING/2)
 
             # Draw the pipe separator
-            pipe_font = Fonts.get_font(font_name=GUIConstants.BODY_FONT_NAME, size=self.icon_size - 4)
+            pipe_font = Fonts.get_font(font_name=GUIConstants.get_body_font_name(), size=self.icon_size - 4)
             (left, top, text_width, bottom) = pipe_font.getbbox("|", anchor="ls")
             draw.text(
                 xy=(
@@ -944,7 +1281,7 @@ class BtcAmount(BaseComponent):
             unit_text = sats_unit
 
         # Draw the unit
-        unit_font = Fonts.get_font(font_name=GUIConstants.BODY_FONT_NAME, size=unit_font_size)
+        unit_font = Fonts.get_font(font_name=GUIConstants.get_body_font_name(), size=unit_font_size)
         (left, top, unit_text_width, bottom) = unit_font.getbbox(unit_text, anchor="ls")
         unit_font_height = -1 * top
 
@@ -952,7 +1289,7 @@ class BtcAmount(BaseComponent):
             image_draw=draw,
             canvas=self.paste_image,
             text=f" {unit_text}",
-            font_name=GUIConstants.BODY_FONT_NAME,
+            font_name=GUIConstants.get_body_font_name(),
             font_size=unit_font_size,
             font_color=GUIConstants.BODY_FONT_COLOR,
             supersampling_factor=2,
@@ -982,12 +1319,29 @@ class BtcAmount(BaseComponent):
 
 @dataclass
 class Button(BaseComponent):
-    # TODO: Rename the seedsigner.helpers.Buttons class (to Inputs?) to reduce confusion
-    # with this GUI component.
     """
-        Attrs with defaults must be listed last.
+    Buttons offer two rendering methods:
+
+    * Reusable in-memory image (is_scrollable_text = True; default): For both active and
+        inactive states, the text is rendered once (on a just-in-time basis) into an
+        in-memory image that is then reused as needed during the life of the Component.
+
+        Specifically built with l10n in mind. Will automatically add scrolling via
+        ScrollableTextLine for the Button's active state when necessary; a static
+        TextArea is used otherwise.
+
+        This means that this setting is not suitable for Buttons whose
+        text label needs to interactively change (e.g. the "ABC" vs "abc" soft keys in
+        the passphrase entry Keyboard). 
+
+    * Real-time text (is_scrollable_text = False): The label text's active/inactive state
+        is just rendered as basic text on-the-fly, so it can support uses where the button
+        label can change. Text scrolling is not supported in this mode so in general it
+        should not to used with l10n content whose length might vary by language.
+
     """
     text: str = "Button Label"
+    active_text: str = None  # Optional alt text to replace the button label when the button is selected
     screen_x: int = 0
     screen_y: int = 0
     scroll_y: int = 0
@@ -1005,17 +1359,24 @@ class Button(BaseComponent):
     text_y_offset: int = 0
     background_color: str = GUIConstants.BUTTON_BACKGROUND_COLOR
     selected_color: str = GUIConstants.ACCENT_COLOR
-    font_name: str = GUIConstants.BUTTON_FONT_NAME
-    font_size: int = GUIConstants.BUTTON_FONT_SIZE
+    font_name: str = None
+    font_size: int = None
     font_color: str = GUIConstants.BUTTON_FONT_COLOR
     selected_font_color: str = GUIConstants.BUTTON_SELECTED_FONT_COLOR
     outline_color: str = None
     selected_outline_color: str = None
     is_text_centered: bool = True
     is_selected: bool = False
+    is_scrollable_text: bool = True  # True: active state will automatically scroll if necessary, text is rendered once (not dynamic)
 
 
     def __post_init__(self):
+        if not self.font_name:
+            self.font_name = GUIConstants.get_button_font_name()
+        
+        if not self.font_size:
+            self.font_size = GUIConstants.get_button_font_size()
+        
         super().__post_init__()
 
         if not self.width:
@@ -1027,16 +1388,11 @@ class Button(BaseComponent):
         if not self.icon_color:
             self.icon_color = GUIConstants.BUTTON_FONT_COLOR
 
-        self.font = Fonts.get_font(self.font_name, self.font_size)
+        self.active_button_label = None
 
         if self.text is not None:
-            if self.is_text_centered:
-                self.text_x = int(self.width/2)
-                self.text_anchor = "ms"  # centered horizontally, baseline
-            else:
-                self.text_x = GUIConstants.COMPONENT_PADDING
-                self.text_anchor = "ls"  # left, baseline
-            
+            self.font = Fonts.get_font(self.font_name, self.font_size)
+
             # Calc true pixel height (any anchor from "baseline" will work)
             (left, top, self.text_width, bottom) = self.font.getbbox(self.text, anchor="ls")
             # print(f"left: {left} |  top: {top} | right: {self.text_width} | bottom: {bottom}")
@@ -1046,25 +1402,63 @@ class Button(BaseComponent):
             # regardless of the Button text.
             self.text_height = -1 * top
 
-            # TODO: Only apply screen_y at render
+            # Total space available just for the text (will contract later if there are icons)
+            self.visible_text_width = self.width - 2*GUIConstants.COMPONENT_PADDING
+
+            if self.text_width > self.visible_text_width and not self.is_scrollable_text:
+                logger.warning("Button label \"{self.text}\" will not fit but is_scrollable_text is False")
+
+            if self.is_text_centered and self.text_width < self.visible_text_width:
+                # self.text_x = int(self.width/2)
+                # self.text_anchor = "ms"  # centered horizontally, baseline
+
+                # Calculate the centered text's starting point, but relative to the "ls"
+                # anchor point.
+                self.text_x = int((self.width - self.text_width)/2)
+                self.text_anchor = "ls"  # left, baseline
+            else:
+                # Text is left-justified or has to be because it will be scrolled
+                self.is_text_centered = False
+                self.text_x = GUIConstants.COMPONENT_PADDING
+                self.text_anchor = "ls"  # left, baseline
+
             if self.text_y_offset:
                 self.text_y = self.text_y_offset + self.text_height
             else:
                 self.text_y = self.height - int((self.height - self.text_height)/2)
 
         # Preload the icon and its "_selected" variant
+        icon_padding = GUIConstants.COMPONENT_PADDING
         if self.icon_name:
-            icon_padding = GUIConstants.COMPONENT_PADDING
             self.icon = Icon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.icon_color)
             self.icon_selected = Icon(icon_name=self.icon_name, icon_size=self.icon_size, icon_color=self.selected_icon_color)
 
+            if self.icon_y_offset:
+                self.icon_y = self.icon_y_offset
+            else:
+                self.icon_y = math.ceil((self.height - self.icon.height)/2)
+
             if self.is_icon_inline:
+                self.visible_text_width -= self.icon.width + icon_padding
+                if self.text_width > self.visible_text_width:
+                    self.is_text_centered = False
+                    self.text_x = GUIConstants.COMPONENT_PADDING
+
+                    if not self.is_scrollable_text:
+                        logger.warning("Button label \"{self.text}\" with icon inline will not fit but is_scrollable_text is False")
+
                 if self.is_text_centered:
-                    # Shift the text's centering
                     if self.text:
+                        # Shift the text's center-based anchor to the right to make room
+                        # self.text_x += int((self.icon.width + icon_padding) / 2)
+
+                        # Shift the text's "ls"-based anchor to the right to make room
                         self.text_x += int((self.icon.width + icon_padding) / 2)
-                        self.icon_x = self.text_x - int(self.text_width/2) - (self.icon.width + icon_padding)
+
+                        # Position the icon's left-based anchor on the left
+                        self.icon_x = self.text_x - (self.icon.width + icon_padding)
                     else:
+                        # TODO: Is an inline icon but w/no text even a sensible input configuration?
                         self.icon_x = math.ceil((self.width - self.icon.width)/2)
 
                 else:
@@ -1074,19 +1468,61 @@ class Button(BaseComponent):
 
             else:
                 self.icon_x = int((self.width - self.icon.width) / 2)
-
-            if self.icon_y_offset:
-                self.icon_y = self.icon_y_offset
-            else:
-                self.icon_y = math.ceil((self.height - self.icon.height)/2)
+                if self.text:
+                    self.text_y = self.icon_y + self.icon.height + GUIConstants.COMPONENT_PADDING
 
         if self.right_icon_name:
             self.right_icon = Icon(icon_name=self.right_icon_name, icon_size=self.right_icon_size, icon_color=self.right_icon_color)
             self.right_icon_selected = Icon(icon_name=self.right_icon_name, icon_size=self.right_icon_size, icon_color=self.selected_icon_color)
 
+            self.visible_text_width -= self.right_icon.width + icon_padding
+            if self.text_width > self.visible_text_width:
+                self.is_text_centered = False
+
+                if not self.is_scrollable_text:
+                    logger.warning("Button label \"{self.text}\" with icon inline will not fit but is_scrollable_text is False")
+
             self.right_icon_x = self.width - self.right_icon.width - GUIConstants.COMPONENT_PADDING
 
             self.right_icon_y = math.ceil((self.height - self.right_icon.height)/2)
+
+        if self.text and self.is_scrollable_text:
+            button_kwargs = dict(
+                text=self.active_text if self.active_text else self.text,
+                font_name=self.font_name,
+                font_size=self.font_size,
+                supersampling_factor=1,  # disable; not necessary at button font size. Also black text on orange supersamples poorly
+                font_color=self.selected_font_color,
+                background_color=self.selected_color,
+                screen_x=self.screen_x,
+                screen_y=self.screen_y + self.text_y_offset,
+                width=self.width,
+                height=self.text_height if self.icon_name and not self.is_icon_inline else self.height,
+                min_text_x=self.text_x if self.icon_name and self.is_icon_inline else GUIConstants.COMPONENT_PADDING,
+                is_text_centered=self.is_text_centered,
+                height_ignores_below_baseline=True,  # Consistently vertically center text, ignoring chars that render below baseline (e.g. "pqyj")
+                horizontal_scroll_speed=30,  #px per sec
+                horizontal_scroll_begin_hold_secs=0.5,
+                horizontal_scroll_end_hold_secs=0.5,
+            )
+
+            # ButtonListScreens with lots of buttons will take too long to pre-render all
+            # the Buttons, so we use a just-in-time approach to create BOTH the active and
+            # inactive Buttons. For simple "Done" screens, the inactive state will never be
+            # rendered.
+            self.active_button_label = None
+            self.active_button_label_kwargs = button_kwargs.copy()
+
+            button_kwargs["text"] = self.text
+            button_kwargs["font_color"] = self.font_color
+            button_kwargs["background_color"] = self.background_color
+            button_kwargs["allow_text_overflow"] = True
+            button_kwargs["auto_line_break"] = False
+            del button_kwargs["horizontal_scroll_begin_hold_secs"]
+            del button_kwargs["horizontal_scroll_end_hold_secs"]
+
+            self.inactive_button_label = None
+            self.inactive_button_label_kwargs = button_kwargs.copy()
 
 
     def render(self):
@@ -1113,13 +1549,44 @@ class Button(BaseComponent):
         )
 
         if self.text is not None:
-            self.image_draw.text(
-                (self.screen_x + self.text_x, self.screen_y + self.text_y - self.scroll_y),
-                self.text,
-                fill=font_color,
-                font=self.font,
-                anchor=self.text_anchor
-            )
+            if not self.is_scrollable_text:
+                # Just directly render the text for the current active/inactive state
+                self.image_draw.text(
+                    (self.screen_x + self.text_x, self.screen_y + self.text_y - self.scroll_y),
+                    self.text,
+                    fill=font_color,
+                    font=self.font,
+                    anchor=self.text_anchor
+                )
+
+            else:
+                # Use just-in-time instatiation of pre-rendered ScrollableTextLine and TextArea
+                if self.is_selected:
+                    if not self.active_button_label:
+                        # Just-in-time create the active button label
+                        self.active_button_label = ScrollableTextLine(**self.active_button_label_kwargs)
+
+                        if self.active_button_label.needs_scroll:
+                            self.threads.append(self.active_button_label.scroll_thread)
+                            self.active_button_label.scroll_thread.start()
+
+                    self.active_button_label.set_scroll_y(self.scroll_y)
+                    self.active_button_label.render()
+
+                    if self.active_button_label.needs_scroll:
+                        # Activate the scrollable text line
+                        self.active_button_label.scroll_thread.start_scrolling()
+                
+                else:
+                    if self.active_button_label and self.active_button_label.needs_scroll:
+                        self.active_button_label.scroll_thread.stop_scrolling()
+
+                    if not self.inactive_button_label:
+                        # Just-in-time create the inactive button label
+                        self.inactive_button_label = TextArea(**self.inactive_button_label_kwargs)
+
+                    self.inactive_button_label.set_scroll_y(self.scroll_y)
+                    self.inactive_button_label.render()
 
         if self.icon_name:
             icon = self.icon
@@ -1182,6 +1649,7 @@ class IconButton(Button):
     text: str = None
     is_icon_inline: bool = False
     is_text_centered: bool = True
+    is_scrollable_text: bool = False
 
 
 
@@ -1193,6 +1661,7 @@ class LargeIconButton(IconButton):
     """
     icon_size: int = GUIConstants.ICON_LARGE_BUTTON_SIZE
     icon_y_offset: int = GUIConstants.COMPONENT_PADDING
+    is_scrollable_text: bool = True
 
 
 
@@ -1204,8 +1673,8 @@ class TopNav(BaseComponent):
     background_color: str = GUIConstants.BACKGROUND_COLOR
     icon_name: str = None
     icon_color: str = GUIConstants.BODY_FONT_COLOR
-    font_name: str = GUIConstants.TOP_NAV_TITLE_FONT_NAME
-    font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE
+    font_name: str = GUIConstants.get_top_nav_title_font_name()
+    font_size: int = GUIConstants.get_top_nav_title_font_size()
     font_color: str = GUIConstants.BODY_FONT_COLOR
     show_back_button: bool = True
     show_power_button: bool = False
@@ -1213,11 +1682,16 @@ class TopNav(BaseComponent):
 
 
     def __post_init__(self):
+        if not self.font_name:
+            self.font_name = GUIConstants.get_top_nav_title_font_name()
+        
+        if not self.font_size:
+            self.font_size = GUIConstants.get_top_nav_title_font_size()
+            print(f"self.font_size: {self.font_size}")
+
         super().__post_init__()
         if not self.width:
             self.width = self.canvas_width
-
-        self.font = Fonts.get_font(self.font_name, self.font_size)
 
         if self.show_back_button:
             self.left_button = IconButton(
@@ -1239,12 +1713,13 @@ class TopNav(BaseComponent):
                 height=GUIConstants.TOP_NAV_BUTTON_SIZE,
             )
 
-        min_text_x = 0
+        min_text_x = GUIConstants.EDGE_PADDING
         if self.show_back_button:
             # Don't let the title intrude on the BACK button
             min_text_x = self.left_button.screen_x + self.left_button.width + GUIConstants.COMPONENT_PADDING
 
         if self.icon_name:
+            # TODO: Refactor IconTextLine to use ScrollableTextLine
             self.title = IconTextLine(
                 screen_x=0,
                 screen_y=0,
@@ -1258,7 +1733,7 @@ class TopNav(BaseComponent):
                 font_size=self.font_size,
             )
         else:
-            self.title = TextArea(
+            self.title = ScrollableTextLine(
                 screen_x=0,
                 screen_y=0,
                 min_text_x=min_text_x,
@@ -1270,6 +1745,10 @@ class TopNav(BaseComponent):
                 font_size=self.font_size,
                 height_ignores_below_baseline=True,  # Consistently vertically center text, ignoring chars that render below baseline (e.g. "pqyj")
             )
+            if self.title.needs_scroll:
+                # Add the scroll thread to TopNav's self.threads so it automatically runs
+                # for the life of the Component.
+                self.threads.append(self.title.scroll_thread)
 
 
     @property
@@ -1338,8 +1817,8 @@ def calc_bezier_curve(p1: Tuple[int,int], p2: Tuple[int,int], p3: Tuple[int,int]
 
 def reflow_text_for_width(text: str,
                           width: int,
-                          font_name=GUIConstants.BODY_FONT_NAME,
-                          font_size=GUIConstants.BODY_FONT_SIZE,
+                          font_name=GUIConstants.get_body_font_name(),
+                          font_size=GUIConstants.get_body_font_size(),
                           allow_text_overflow: bool=False) -> list[dict]:
     """
     Reflows text to fit within `width` by breaking long lines up.
@@ -1352,10 +1831,13 @@ def reflow_text_for_width(text: str,
     # We have to figure out if and where to make line breaks in the text so that it
     #   fits in its bounding rect (plus accounting for edge padding) using its given
     #   font.
-    start = time()
     font = Fonts.get_font(font_name=font_name, size=font_size)
     # Measure from left baseline ("ls")
     (left, top, full_text_width, bottom) = font.getbbox(text, anchor="ls")
+
+    if not ImageFont.core.HAVE_RAQM:
+        # Fudge factor for imprecise width calcs w/out libraqm
+        full_text_width = int(full_text_width * 1.05)
 
     # Stores each line of text and its rendering starting x-coord
     text_lines = []
@@ -1378,6 +1860,10 @@ def reflow_text_for_width(text: str,
             # Measure rendered width from "left" anchor (anchor="l_")
             (left, top, right, bottom) = font.getbbox(" ".join(words[0:index]), anchor="ls")
             line_width = right - left
+
+            if not ImageFont.core.HAVE_RAQM:
+                # Fudge factor for imprecise width calcs w/out libraqm
+                line_width = int(line_width * 1.05)
 
             if line_width >= width:
                 # Candidate line is still too long. Restrict search range down.
@@ -1422,8 +1908,8 @@ def reflow_text_for_width(text: str,
 def reflow_text_into_pages(text: str,
                            width: int,
                            height: int,
-                           font_name=GUIConstants.BODY_FONT_NAME,
-                           font_size=GUIConstants.BODY_FONT_SIZE,
+                           font_name=GUIConstants.get_body_font_name(),
+                           font_size=GUIConstants.get_body_font_size(),
                            line_spacer: int = GUIConstants.BODY_LINE_SPACING,
                            allow_text_overflow: bool=False) -> list[str]:
     """

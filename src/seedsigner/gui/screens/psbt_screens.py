@@ -1,15 +1,17 @@
-from dataclasses import dataclass
 import math
-from PIL import Image, ImageDraw, ImageFilter
-from typing import List
 import time
 
+from dataclasses import dataclass
+from gettext import gettext as _
+from gettext import ngettext
+from PIL import Image, ImageDraw, ImageFilter
+
+from seedsigner.gui.components import (BtcAmount, Icon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, SeedSignerIconConstants, TextArea,
+    calc_bezier_curve, linear_interp)
 from seedsigner.gui.renderer import Renderer
 from seedsigner.models.threads import BaseThread
 
-from .screen import ButtonListScreen, WarningScreen
-from ..components import (BtcAmount, Button, Icon, FontAwesomeIconConstants, IconTextLine, FormattedAddress, GUIConstants, Fonts, SeedSignerIconConstants, TextArea,
-    calc_bezier_curve, linear_interp)
+from .screen import ButtonListScreen, ButtonOption
 
 
 
@@ -21,15 +23,15 @@ class PSBTOverviewScreen(ButtonListScreen):
     num_inputs: int = 0
     num_self_transfer_outputs: int = 0
     num_change_outputs: int = 0
-    destination_addresses: List[str] = None
+    destination_addresses: list[str] = None
     has_op_return: bool = False
     
 
     def __post_init__(self):
         # Customize defaults
-        self.title = "Review PSBT"
+        self.title = _("Review PSBT")
         self.is_bottom_list = True
-        self.button_data = ["Review Details"]
+        self.button_data = [ButtonOption("Review Details")]
 
         # This screen can take a while to load while parsing the PSBT
         self.show_loading_screen = True
@@ -69,7 +71,7 @@ class PSBTOverviewScreen(ButtonListScreen):
         draw = ImageDraw.Draw(image)
 
         font_size = GUIConstants.BODY_FONT_MIN_SIZE * ssf
-        font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, font_size)
+        font = Fonts.get_font(GUIConstants.get_body_font_name(), font_size)
 
         (left, top, right, bottom) = font.getbbox(text="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890[]", anchor="lt")
         chart_text_height = bottom
@@ -86,16 +88,18 @@ class PSBTOverviewScreen(ButtonListScreen):
         # First calculate how wide the inputs col will be
         inputs_column = []
         if self.num_inputs == 1:
-            inputs_column.append("1 input")
+            inputs_column.append(_("1 input"))
         elif self.num_inputs > 5:
-            inputs_column.append("input 1")
-            inputs_column.append("input 2")
-            inputs_column.append("[ ... ]")
-            inputs_column.append(f"input {self.num_inputs-1}")
-            inputs_column.append(f"input {self.num_inputs}")
+            inputs_column.append(_("input 1"))
+            inputs_column.append(_("input 2"))
+            # TRANSLATOR_NOTE: Indicates that items have been omitted from a series: e.g. "1, 2, 3, [...], 8"
+            inputs_column.append(_("[ ... ]"))
+            # TRANSLATOR_NOTE: Input number will be inserted (e.g. "input 3")
+            inputs_column.append(_("input {}").format(self.num_inputs-1))
+            inputs_column.append(_("input {}").format(self.num_inputs))
         else:
             for i in range(0, self.num_inputs):
-                inputs_column.append(f"input {i+1}")
+                inputs_column.append(_("input {}").format(i+1))
 
         max_inputs_text_width = 0
         for input in inputs_column:
@@ -123,11 +127,12 @@ class PSBTOverviewScreen(ButtonListScreen):
         # Now let's maximize the actual destination col by adjusting our addr truncation
         def calculate_destination_col_width(truncate_at: int = 0):
             def truncate_destination_addr(addr):
-                # TODO: Properly handle the ellipsis truncation in different languages
-                if len(addr) <= truncate_at + len("..."):
+                # TRANSLATOR_NOTE: Ellipsis ("...") characters used to truncate an address (e.g. "bc1qabc...")
+                if len(addr) <= truncate_at + len(_("...")):
                     # No point in truncating
                     return addr
-                return f"{addr[:truncate_at]}..."
+
+                return addr[:truncate_at] + _("...")
             
             destination_column = []
 
@@ -136,21 +141,25 @@ class PSBTOverviewScreen(ButtonListScreen):
                     destination_column.append(truncate_destination_addr(addr))
 
                 for i in range(0, self.num_self_transfer_outputs):
-                    destination_column.append(truncate_destination_addr("self-transfer"))
+                    destination_column.append(truncate_destination_addr(_("self-transfer")))
             else:
                 # destination_column.append(f"{len(self.destination_addresses)} recipients")
-                destination_column.append(f"recipient 1")
-                destination_column.append(f"[ ... ]")
-                destination_column.append(f"recipient {len(self.destination_addresses) + self.num_self_transfer_outputs}")
+                destination_column.append(_("recipient 1"))
+                # TRANSLATOR_NOTE: Indicates that items have been omitted from a series: e.g. "1, 2, 3, [...], 8"
+                destination_column.append(_("[ ... ]"))
+                # TRANSLATOR_NOTE: Inserts the recipient number (e.g. the fifth one is: "recipient 5")
+                destination_column.append(_("recipient {}").format(len(self.destination_addresses) + self.num_self_transfer_outputs))
 
-            destination_column.append(f"fee")
+            destination_column.append(_("fee"))
 
             if self.has_op_return:
-                destination_column.append("OP_RETURN")
+                # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
+                destination_column.append(_("OP_RETURN"))
 
             if self.num_change_outputs > 0:
                 for i in range(0, self.num_change_outputs):
-                    destination_column.append("change")
+                    # TRANSLATOR_NOTE: Label for a change output in the PSBT Overview flow diagram
+                    destination_column.append(_("change"))
 
             max_destination_text_width = 0
             for destination in destination_column:
@@ -164,10 +173,16 @@ class PSBTOverviewScreen(ButtonListScreen):
             # We're not going to display any destination addrs so truncation doesn't matter
             (destination_text_width, destination_column) = calculate_destination_col_width()
         else:
+            destination_text_width = None
+            destination_column = None
             # Steadliy widen out the destination column until we run out of space
             for i in range(6, 14):
                 (new_width, new_col_text) = calculate_destination_col_width(truncate_at=i)
                 if new_width > max_destination_col_width:
+                    if not destination_text_width:
+                        destination_text_width = new_width
+                    if not destination_column:
+                        destination_column = new_col_text
                     break
                 destination_text_width = new_width
                 destination_column = new_col_text
@@ -349,7 +364,7 @@ class PSBTOverviewScreen(ButtonListScreen):
             destination_y += destination_y_spacing
 
         # Resize to target and sharpen final image
-        image = image.resize((self.canvas_width, chart_height), Image.LANCZOS)
+        image = image.resize((self.canvas_width, chart_height), Image.Resampling.LANCZOS)
         self.paste_images.append((image.filter(ImageFilter.SHARPEN), (self.chart_x, self.chart_y)))
 
         # Pass input and output curves to the animation thread
@@ -463,14 +478,14 @@ class PSBTMathScreen(ButtonListScreen):
 
     def __post_init__(self):
         # Customize defaults
-        self.title = "PSBT Math"
-        self.button_data = ["Review Recipients"]
+        self.title = _("PSBT Math")
+        self.button_data = [ButtonOption("Review Recipients")]
         self.is_bottom_list = True
 
         super().__post_init__()
 
         if self.input_amount > 1e6:
-            denomination = "btc"
+            denomination = _("btc")
             self.input_amount /= 1e8
             self.spend_amount /= 1e8
             self.change_amount /= 1e8
@@ -482,7 +497,7 @@ class PSBTMathScreen(ButtonListScreen):
             # lines up properly.
             self.fee_amount = f"{self.fee_amount:10}"
         else:
-            denomination = "sats"
+            denomination = _("sats")
             self.input_amount = f"{self.input_amount:,}"
             self.spend_amount = f"{self.spend_amount:,}"
             self.fee_amount = f"{self.fee_amount:,}"
@@ -509,9 +524,9 @@ class PSBTMathScreen(ButtonListScreen):
         image = Image.new("RGB", (body_width*ssf, body_height*ssf))
         draw = ImageDraw.Draw(image)
 
-        body_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, (GUIConstants.BODY_FONT_SIZE)*ssf)
-        fixed_width_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, (GUIConstants.BODY_FONT_SIZE + 6)*ssf)
-        left, top, right, bottom  = fixed_width_font.getbbox(self.input_amount + "Q")
+        body_font = Fonts.get_font(GUIConstants.get_body_font_name(), (GUIConstants.get_body_font_size())*ssf)
+        fixed_width_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, (GUIConstants.get_body_font_size() + 6)*ssf)
+        left, top, right, bottom  = fixed_width_font.getbbox(self.input_amount + "+")
         digits_width, digits_height = right - left, bottom - top
 
         # Draw each line of the equation
@@ -524,7 +539,7 @@ class PSBTMathScreen(ButtonListScreen):
             # secondary_digit_color = GUIConstants.BODY_FONT_COLOR
             # tertiary_digit_color = GUIConstants.BODY_FONT_COLOR
             # digit_group_spacing = 0
-            if denomination == 'btc':
+            if denomination == _('btc'):
                 display_str = amount_str
                 main_zone = display_str[:-6]
                 mid_zone = display_str[-6:-3]
@@ -538,13 +553,12 @@ class PSBTMathScreen(ButtonListScreen):
                 draw.text((main_zone_width + digit_group_spacing + mid_zone_width + digit_group_spacing, cur_y), text=end_zone, font=fixed_width_font, fill=tertiary_digit_color)
             else:
                 draw.text((0, cur_y), text=amount_str, font=fixed_width_font, fill=GUIConstants.BODY_FONT_COLOR)
-            draw.text((digits_width + 2*digit_group_spacing, cur_y), text=info_text, font=body_font, fill=info_text_color)
+            draw.text((digits_width + 3*digit_group_spacing, cur_y), text=info_text, font=body_font, fill=info_text_color)
 
         render_amount(
             cur_y,
             f" {self.input_amount}",
-            # info_text=f""" {self.num_inputs} input{"s" if self.num_inputs > 1 else ""}""",
-            info_text=f""" input{"s" if self.num_inputs > 1 else ""}""",
+            info_text=ngettext("input", "inputs", self.num_inputs),
         )
 
         # spend_amount will be zero on self-transfers; only display when there's an
@@ -554,15 +568,14 @@ class PSBTMathScreen(ButtonListScreen):
             render_amount(
                 cur_y,
                 f"-{self.spend_amount}",
-                # info_text=f""" {self.num_recipients} recipient{"s" if self.num_recipients > 1 else ""}""",
-                info_text=f""" recipient{"s" if self.num_recipients > 1 else ""}""",
+                info_text=ngettext("recipient", "recipients", self.num_recipients),
             )
 
         cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
         render_amount(
             cur_y,
             f"-{self.fee_amount}",
-            info_text=f""" fee""",
+            info_text=_("fee"),
         )
 
         cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
@@ -572,12 +585,13 @@ class PSBTMathScreen(ButtonListScreen):
         render_amount(
             cur_y,
             f" {self.change_amount}",
-            info_text=f" {denomination} change",
+            # TRANSLATOR_NOTE: Denonination is inserted (e.g. your "btc change" or "sats change")
+            info_text=_("{} change").format(denomination),
             info_text_color="darkorange"  # super-sampling alters the perceived color
         )
 
         # Resize to target and sharpen final image
-        image = image.resize((body_width, body_height), Image.LANCZOS)
+        image = image.resize((body_width, body_height), Image.Resampling.LANCZOS)
         self.paste_images.append((image.filter(ImageFilter.SHARPEN), (GUIConstants.EDGE_PADDING, self.top_nav.height + GUIConstants.COMPONENT_PADDING)))
 
 
@@ -635,7 +649,6 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
 
 @dataclass
 class PSBTChangeDetailsScreen(ButtonListScreen):
-    title: str = "Your Change"
     amount: int = 0
     address: str = None
     is_multisig: bool = False
@@ -662,10 +675,20 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
         ))
 
         screen_y = self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING
+
+        change_type = _("Multisig") if self.is_multisig else self.fingerprint
+
+        if self.is_change_derivation_path :
+            addr_type = _("Change")
+        else: 
+            # TRANSLATOR_NOTE: Abbreviation for receive address
+            addr_type = _("Addr")
+
+        value_text = "{}: {} #{}".format(change_type, addr_type, self.derivation_path_addr_index)
         self.components.append(IconTextLine(
+            value_text=value_text,
             icon_name=SeedSignerIconConstants.FINGERPRINT,
             icon_color=GUIConstants.INFO_COLOR,
-            value_text=f"""{"Multisig" if self.is_multisig else self.fingerprint}: {"Change" if self.is_change_derivation_path else "Addr"} #{self.derivation_path_addr_index}""",
             is_text_centered=False,
             screen_x=GUIConstants.EDGE_PADDING,
             screen_y=screen_y,
@@ -675,7 +698,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
             self.components.append(IconTextLine(
                 icon_name=SeedSignerIconConstants.SUCCESS,
                 icon_color=GUIConstants.SUCCESS_COLOR,
-                value_text="Address verified!",
+                value_text=_("Address verified!"),
                 is_text_centered=False,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
@@ -697,7 +720,7 @@ class PSBTOpReturnScreen(ButtonListScreen):
             # Simple case: display human-readable text
             self.components.append(TextArea(
                 text=self.op_return_data.decode(errors="strict"),  # "strict" is a good enough heuristic to decide if it's human readable
-                font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
+                font_size=GUIConstants.get_top_nav_title_font_size(),
                 is_text_centered=True,
                 allow_text_overflow=True,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
@@ -707,7 +730,7 @@ class PSBTOpReturnScreen(ButtonListScreen):
         except UnicodeDecodeError:
             # Contains data that can't be converted to UTF-8; probably encoded and not
             # meant to be human readable.
-            font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.BODY_FONT_SIZE)
+            font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.get_body_font_size())
             (left, top, right, bottom) = font.getbbox("X", anchor="ls")
             chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
             decoded_str = self.op_return_data.hex()
@@ -717,8 +740,10 @@ class PSBTOpReturnScreen(ButtonListScreen):
                 text += (decoded_str[i*chars_per_line:(i+1)*chars_per_line]) + "\n"
             text = text[:-1]
 
+            # TRANSLATOR_NOTE: Shown when displaying OP_RETURN as non-human-readable hexadecimal data
+            hex_label = _("raw hex data")
             label = TextArea(
-                text="raw hex data",
+                text=hex_label,
                 font_color=GUIConstants.LABEL_FONT_COLOR,
                 font_size=GUIConstants.LABEL_FONT_SIZE,
                 screen_y=self.top_nav.height,
@@ -728,7 +753,7 @@ class PSBTOpReturnScreen(ButtonListScreen):
             self.components.append(TextArea(
                 text=text,
                 font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
-                font_size=GUIConstants.BODY_FONT_SIZE,
+                font_size=GUIConstants.get_body_font_size(),
                 screen_y=label.screen_y + label.height + GUIConstants.COMPONENT_PADDING,
             ))
 
@@ -738,12 +763,12 @@ class PSBTOpReturnScreen(ButtonListScreen):
 class PSBTFinalizeScreen(ButtonListScreen):
     def __post_init__(self):
         # Customize defaults
-        self.title = "Sign PSBT"
+        self.title = _("Sign PSBT")
         self.is_bottom_list = True
         super().__post_init__()
 
         icon = Icon(
-            icon_name=FontAwesomeIconConstants.PAPER_PLANE,
+            icon_name=SeedSignerIconConstants.SIGN,
             icon_color=GUIConstants.INFO_COLOR,
             icon_size=GUIConstants.ICON_LARGE_BUTTON_SIZE,
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING
@@ -752,6 +777,6 @@ class PSBTFinalizeScreen(ButtonListScreen):
         self.components.append(icon)
 
         self.components.append(TextArea(
-            text="Click to authorize this transaction",
-            screen_y=icon.screen_y + icon.height + GUIConstants.COMPONENT_PADDING
+            text=_("Click to approve this transaction"),
+            screen_y=icon.screen_y + icon.height + 2*GUIConstants.COMPONENT_PADDING
         ))

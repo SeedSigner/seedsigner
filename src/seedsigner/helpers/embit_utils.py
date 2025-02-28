@@ -50,7 +50,7 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
         elif script_type == SettingsConstants.NATIVE_SEGWIT:
             return f"m/48'/{network_path}/0'/2'"
         elif script_type == SettingsConstants.TAPROOT:
-            raise Exception("Taproot multisig/musig not yet supported")
+            raise Exception("Taproot multisig not yet supported")
         else:
             raise Exception("Unexpected script type")
     else:

@@ -1,6 +1,7 @@
 import time
 
 from dataclasses import dataclass
+from gettext import gettext as _
 from typing import Any
 from PIL.Image import Image
 from seedsigner.hardware.camera import Camera
@@ -15,10 +16,6 @@ from seedsigner.models.settings_definition import SettingsConstants, SettingsDef
 @dataclass
 class ToolsImageEntropyLivePreviewScreen(BaseScreen):
     def __post_init__(self):
-        # Customize defaults
-        self.title = "Initializing Camera..."
-
-        # Initialize the base class
         super().__post_init__()
 
         self.camera = Camera.get_instance()
@@ -29,10 +26,9 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
         # save preview image frames to use as additional entropy below
         preview_images = []
         max_entropy_frames = 50
-        instructions_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
+        instructions_font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_button_font_size())
 
         while True:
-            # Check for BACK button press
             if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
                 # Have to manually update last input time since we're not in a wait_for loop
                 self.hw_inputs.update_last_input_time()
@@ -47,12 +43,33 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
                 time.sleep(0.01)
                 continue
 
-            # Check for joystick click to take final entropy image
-            if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_PRESS):
+            # Check for ANYCLICK to take final entropy image
+            if self.hw_inputs.check_for_low(keys=HardwareButtonsConstants.KEYS__ANYCLICK):
                 # Have to manually update last input time since we're not in a wait_for loop
                 self.hw_inputs.update_last_input_time()
                 self.camera.stop_video_stream_mode()
 
+                with self.renderer.lock:
+                    self.renderer.canvas.paste(frame)
+
+                    self.renderer.draw.text(
+                        xy=(
+                            int(self.renderer.canvas_width/2),
+                            self.renderer.canvas_height - GUIConstants.EDGE_PADDING
+                        ),
+                        text=_("Capturing image..."),
+                        fill=GUIConstants.ACCENT_COLOR,
+                        font=instructions_font,
+                        stroke_width=4,
+                        stroke_fill=GUIConstants.BACKGROUND_COLOR,
+                        anchor="ms"
+                    )
+                    self.renderer.show_image()
+
+                return preview_images
+
+            # If we're still here, it's just another preview frame loop
+            with self.renderer.lock:
                 self.renderer.canvas.paste(frame)
 
                 self.renderer.draw.text(
@@ -60,33 +77,14 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
                         int(self.renderer.canvas_width/2),
                         self.renderer.canvas_height - GUIConstants.EDGE_PADDING
                     ),
-                    text="Capturing image...",
-                    fill=GUIConstants.ACCENT_COLOR,
+                    text="< " + _("back") + "  |  " + _("click a button"),  # TODO: Render with UI elements instead of text
+                    fill=GUIConstants.BODY_FONT_COLOR,
                     font=instructions_font,
                     stroke_width=4,
                     stroke_fill=GUIConstants.BACKGROUND_COLOR,
                     anchor="ms"
                 )
                 self.renderer.show_image()
-
-                return preview_images
-
-            # If we're still here, it's just another preview frame loop
-            self.renderer.canvas.paste(frame)
-
-            self.renderer.draw.text(
-                xy=(
-                    int(self.renderer.canvas_width/2),
-                    self.renderer.canvas_height - GUIConstants.EDGE_PADDING
-                ),
-                text="< back  |  click joystick",
-                fill=GUIConstants.BODY_FONT_COLOR,
-                font=instructions_font,
-                stroke_width=4,
-                stroke_fill=GUIConstants.BACKGROUND_COLOR,
-                anchor="ms"
-            )
-            self.renderer.show_image()
 
             if len(preview_images) == max_entropy_frames:
                 # Keep a moving window of the last n preview frames; pop the oldest
@@ -101,24 +99,32 @@ class ToolsImageEntropyFinalImageScreen(BaseScreen):
     final_image: Image = None
 
     def _run(self):
-        instructions_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
+        instructions_font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_button_font_size())
 
-        self.renderer.canvas.paste(self.final_image)
-        self.renderer.draw.text(
-            xy=(
-                int(self.renderer.canvas_width/2),
-                self.renderer.canvas_height - GUIConstants.EDGE_PADDING
-            ),
-            text=" < reshoot  |  accept > ",
-            fill=GUIConstants.BODY_FONT_COLOR,
-            font=instructions_font,
-            stroke_width=4,
-            stroke_fill=GUIConstants.BACKGROUND_COLOR,
-            anchor="ms"
-        )
-        self.renderer.show_image()
+        with self.renderer.lock:
+            self.renderer.canvas.paste(self.final_image)
 
-        input = self.hw_inputs.wait_for([HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT])
+            # TRANSLATOR_NOTE: A prompt to the user to either accept or reshoot the image
+            reshoot = _("reshoot")
+
+            # TRANSLATOR_NOTE: A prompt to the user to either accept or reshoot the image
+            accept = _("accept")
+            self.renderer.draw.text(
+                xy=(
+                    int(self.renderer.canvas_width/2),
+                    self.renderer.canvas_height - GUIConstants.EDGE_PADDING
+                ),
+                text=" < " + reshoot + "  |  " + accept + " > ",
+                fill=GUIConstants.BODY_FONT_COLOR,
+                font=instructions_font,
+                stroke_width=4,
+                stroke_fill=GUIConstants.BACKGROUND_COLOR,
+                anchor="ms"
+            )
+            self.renderer.show_image()
+
+        # LEFT = reshoot, RIGHT / ANYCLICK = accept
+        input = self.hw_inputs.wait_for([HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT] + HardwareButtonsConstants.KEYS__ANYCLICK)
         if input == HardwareButtonsConstants.KEY_LEFT:
             return RET_CODE__BACK_BUTTON
 
@@ -126,15 +132,16 @@ class ToolsImageEntropyFinalImageScreen(BaseScreen):
 
 @dataclass
 class ToolsDiceEntropyEntryScreen(KeyboardScreen):
+
     def __post_init__(self):
-        # Override values set by the parent class
-        self.title = f"Dice Roll 1/{self.return_after_n_chars}"
+        # TRANSLATOR_NOTE: current roll number vs total rolls (e.g. roll 7 of 50)
+        self.title = _("Dice Roll {}/{}").format(1, self.return_after_n_chars)
 
         # Specify the keys in the keyboard
         self.rows = 3
         self.cols = 3
         self.keyboard_font_name = GUIConstants.ICON_FONT_NAME__FONT_AWESOME
-        self.keyboard_font_size = None  # Force auto-scaling to Key height
+        self.keyboard_font_size = 36
         self.keys_charset = "".join([
             FontAwesomeIconConstants.DICE_ONE,
             FontAwesomeIconConstants.DICE_TWO,
@@ -159,7 +166,7 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
     
 
     def update_title(self) -> bool:
-        self.title = f"Dice Roll {self.cursor_position + 1}/{self.return_after_n_chars}"
+        self.title = _("Dice Roll {}/{}").format(self.cursor_position + 1, self.return_after_n_chars)
         return True
 
 
@@ -170,13 +177,15 @@ class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
     num_entropy_bits: int = None
 
     def __post_init__(self):
-        self.title = "Build Final Word"
+        # TRANSLATOR_NOTE: Build the last word in a 12 or 24 word BIP-39 mnemonic seed phrase.
+        self.title = _("Build Final Word")
         self.is_bottom_list = True
         self.is_button_text_centered = True
         super().__post_init__()
 
         self.components.append(TextArea(
-            text=f"The {self.mnemonic_length}th word is built from {self.num_entropy_bits} more entropy bits plus auto-calculated checksum.",
+            # TRANSLATOR_NOTE: Final word calc. `mnemonic_length` = 12 or 24. `num_bits` = 7 or 3 (bits of entropy in final word).
+            text=_("The {mnemonic_length}th word is built from {num_bits} more entropy bits plus auto-calculated checksum.").format(mnemonic_length=self.mnemonic_length, num_bits=self.num_entropy_bits),
             screen_y=self.top_nav.height + int(GUIConstants.COMPONENT_PADDING/2),
         ))
 
@@ -186,29 +195,33 @@ class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
 class ToolsCoinFlipEntryScreen(KeyboardScreen):
     def __post_init__(self):
         # Override values set by the parent class
-        self.title = f"Coin Flip 1/{self.return_after_n_chars}"
+        # TRANSLATOR_NOTE: current coin-flip number vs total flips (e.g. flip 3 of 4)
+        self.title = _("Coin Flip {}/{}").format(1, self.return_after_n_chars)
 
         # Specify the keys in the keyboard
         self.rows = 1
         self.cols = 4
-        self.key_height = GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2 + 2*GUIConstants.EDGE_PADDING
+        self.key_height = GUIConstants.get_top_nav_title_font_size() + 2 + 2*GUIConstants.EDGE_PADDING
         self.keys_charset = "10"
 
         # Now initialize the parent class
         super().__post_init__()
     
         self.components.append(TextArea(
-            text="Heads = 1",
+            # TRANSLATOR_NOTE: How we call the "front" side result during a coin toss.
+            text=_("Heads = 1"),
             screen_y = self.keyboard.rect[3] + 4*GUIConstants.COMPONENT_PADDING,
         ))
         self.components.append(TextArea(
-            text="Tails = 0",
+            # TRANSLATOR_NOTE: How we call the "back" side result during a coin toss.
+            text=_("Tails = 0"),
             screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
         ))
 
 
     def update_title(self) -> bool:
-        self.title = f"Coin Flip {self.cursor_position + 1}/{self.return_after_n_chars}"
+        # l10n_note already done.
+        self.title = _("Coin Flip {}/{}").format(self.cursor_position + 1, self.return_after_n_chars)
         return True
 
 
@@ -225,7 +238,7 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
         super().__post_init__()
 
         # First what's the total bit display width and where do the checksum bits start?
-        bit_font_size = GUIConstants.BUTTON_FONT_SIZE + 2
+        bit_font_size = GUIConstants.get_button_font_size() + 2
         font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, bit_font_size)
         (left, top, bit_display_width, bit_font_height) = font.getbbox("0" * 11, anchor="lt")
         (left, top, checksum_x, bottom) = font.getbbox("0" * (11 - len(self.checksum_bits)), anchor="lt")
@@ -249,8 +262,10 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
             # significant n bits always rendered in same column)
             discard_selected_bits = "_" * (len(self.checksum_bits))
 
+        # TRANSLATOR_NOTE: The additional entropy the user supplied (e.g. coin flips)
+        your_input = _('Your input: "{}"').format(selection_text)
         self.components.append(TextArea(
-            text=f"""Your input: \"{selection_text}\"""",
+            text=your_input,
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING - 2,  # Nudge to last line doesn't get too close to "Next" button
             height_ignores_below_baseline=True,  # Keep the next line (bits display) snugged up, regardless of text rendering below the baseline
         ))
@@ -285,7 +300,8 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
 
         # Show the checksum..
         self.components.append(TextArea(
-            text="Checksum",
+            # TRANSLATOR_NOTE: A function of "x" to be used for detecting errors in "x"
+            text=_("Checksum"),
             edge_padding=0,
             screen_y=first_bits_line.screen_y + first_bits_line.height + 2*GUIConstants.COMPONENT_PADDING,
         ))
@@ -321,7 +337,8 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
 
         # And now the *actual* final word after merging the bit data
         self.components.append(TextArea(
-            text=f"""Final Word: \"{self.actual_final_word}\"""",
+            # TRANSLATOR_NOTE: labeled presentation of the last word in a BIP-39 mnemonic seed phrase.
+            text=_('Final Word: "{}"').format(self.actual_final_word),
             screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
             height_ignores_below_baseline=True,  # Keep the next line (bits display) snugged up, regardless of text rendering below the baseline
         ))
@@ -361,15 +378,20 @@ class ToolsCalcFinalWordDoneScreen(ButtonListScreen):
     fingerprint: str = None
 
     def __post_init__(self):
-        # Customize defaults
-        self.title = f"{self.mnemonic_word_length}th Word"
+        # Manually specify 12 vs 24 case for easier ordinal translation
+        if self.mnemonic_word_length == 12:
+            # TRANSLATOR_NOTE: a label for the last word of a 12-word BIP-39 mnemonic seed phrase
+            self.title = _("12th Word")
+        else:
+            # TRANSLATOR_NOTE: a label for the last word of a 24-word BIP-39 mnemonic seed phrase
+            self.title = _("24th Word")
         self.is_bottom_list = True
 
         super().__post_init__()
 
         self.components.append(TextArea(
             text=f"""\"{self.final_word}\"""",
-            font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 6,
+            font_size=26,
             is_text_centered=True,
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
         ))
@@ -377,7 +399,8 @@ class ToolsCalcFinalWordDoneScreen(ButtonListScreen):
         self.components.append(IconTextLine(
             icon_name=SeedSignerIconConstants.FINGERPRINT,
             icon_color=GUIConstants.INFO_COLOR,
-            label_text="fingerprint",
+            # TRANSLATOR_NOTE: a label for the shortened Key-id of a BIP-32 master HD wallet
+            label_text=_("fingerprint"),
             value_text=self.fingerprint,
             is_text_centered=True,
             screen_y=self.components[-1].screen_y + self.components[-1].height + 3*GUIConstants.COMPONENT_PADDING,
@@ -393,7 +416,8 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
     custom_derivation_path: str = None
 
     def __post_init__(self):
-        self.title = "Address Explorer"
+        # TRANSLATOR_NOTE: a label for the tool to explore public addresses for this seed.
+        self.title = _("Address Explorer")
         self.is_bottom_list = True
         super().__post_init__()
 
@@ -401,7 +425,8 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
             self.components.append(IconTextLine(
                 icon_name=SeedSignerIconConstants.FINGERPRINT,
                 icon_color=GUIConstants.INFO_COLOR,
-                label_text="Fingerprint",
+                # TRANSLATOR_NOTE: a label for the shortened Key-id of a BIP-32 master HD wallet
+                label_text=_("Fingerprint"),
                 value_text=self.fingerprint,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
@@ -410,7 +435,8 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
             if self.script_type != SettingsConstants.CUSTOM_DERIVATION:
                 self.components.append(IconTextLine(
                     icon_name=SeedSignerIconConstants.DERIVATION,
-                    label_text="Derivation",
+                    # TRANSLATOR_NOTE: a label for the derivation-path into a BIP-32 HD wallet
+                    label_text=_("Derivation"),
                     value_text=SettingsDefinition.get_settings_entry(attr_name=SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(value=self.script_type),
                     screen_x=GUIConstants.EDGE_PADDING,
                     screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
@@ -418,7 +444,8 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
             else:
                 self.components.append(IconTextLine(
                     icon_name=SeedSignerIconConstants.DERIVATION,
-                    label_text="Derivation",
+                    # l10n_note already exists.
+                    label_text=_("Derivation"),
                     value_text=self.custom_derivation_path,
                     screen_x=GUIConstants.EDGE_PADDING,
                     screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
@@ -426,8 +453,9 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
 
         else:
             self.components.append(IconTextLine(
-                label_text="Wallet descriptor",
-                value_text=self.wallet_descriptor_display_name,
+                # TRANSLATOR_NOTE: a label for a BIP-380-ish Output Descriptor
+                label_text=_("Wallet descriptor"),
+                value_text=self.wallet_descriptor_display_name,  # TODO: English text from embit (e.g. "1 / 2 multisig"); make l10 friendly
                 is_text_centered=True,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,

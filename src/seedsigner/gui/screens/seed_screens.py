@@ -1,23 +1,24 @@
-import math
 import logging
+import math
 import time
 
 from dataclasses import dataclass
+from gettext import gettext as _
+from PIL import Image, ImageDraw, ImageFilter
 from typing import List
 
-from PIL import Image, ImageDraw, ImageFilter
-from seedsigner.gui.renderer import Renderer
+from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
 from seedsigner.helpers.qr import QR
+from seedsigner.gui.components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddress, IconButton,
+    IconTextLine, SeedSignerIconConstants, TextArea, GUIConstants, reflow_text_into_pages)
+from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
+from seedsigner.gui.renderer import Renderer
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
-from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, KeyboardScreen, WarningEdgesMixin
-from ..components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddress, IconButton,
-    IconTextLine, SeedSignerIconConstants, TextArea, GUIConstants, reflow_text_into_pages)
-
-from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
-from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
+from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, ButtonOption, KeyboardScreen, LargeIconStatusScreen, WarningEdgesMixin
 
 logger = logging.getLogger(__name__)
+
 
 
 @dataclass
@@ -85,11 +86,12 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
             text="abcdefghijklmnopqrstuvwxyz",
             is_text_centered=False,
             font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
-            font_size=GUIConstants.BUTTON_FONT_SIZE+4,
+            font_size=GUIConstants.get_button_font_size() + 4,
             screen_x=self.matches_list_x,
             screen_y=self.highlighted_row_y,
             width=self.canvas_width - self.matches_list_x + GUIConstants.COMPONENT_PADDING,
             height=int(0.75*GUIConstants.BUTTON_HEIGHT),
+            is_scrollable_text=False,
         )
 
         arrow_button_width = GUIConstants.BUTTON_HEIGHT + GUIConstants.EDGE_PADDING
@@ -114,7 +116,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
             height=arrow_button_height,
         )
 
-        self.word_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE+4)
+        self.word_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, GUIConstants.get_button_font_size() + 4)
         (left, top, right, bottom) = self.word_font.getbbox("abcdefghijklmnopqrstuvwxyz", anchor="ls")
         self.word_font_height = -1 * top
         self.matches_list_row_height = self.word_font_height + GUIConstants.COMPONENT_PADDING
@@ -147,7 +149,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         """ Internal helper method to render the KEY 1, 2, 3 word candidates.
             (has access to all vars in the parent's context)
         """
-        # Render the possibler matches to a temp ImageDraw surface and paste it in
+        # Render the possible matches to a temp ImageDraw surface and paste it in
         # BUT render the currently highlighted match as a normal Button element
 
         if not self.possible_words:
@@ -195,14 +197,14 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                     break
 
                 if row < highlighted_row:
-                    cur_y = self.highlighted_row_y - GUIConstants.COMPONENT_PADDING - (highlighted_row - row - 1) * self.matches_list_row_height
+                    self.cur_y = self.highlighted_row_y - GUIConstants.COMPONENT_PADDING - (highlighted_row - row - 1) * self.matches_list_row_height
 
                 elif row > highlighted_row:
-                    cur_y = self.highlighted_row_y + self.matches_list_highlight_button.height + (row - highlighted_row) * self.matches_list_row_height
+                    self.cur_y = self.highlighted_row_y + self.matches_list_highlight_button.height + (row - highlighted_row) * self.matches_list_row_height
 
                 # else draw the nth row
                 draw.text(
-                    (word_indent, cur_y),
+                    (word_indent, self.cur_y),
                     self.possible_words[i],
                     fill="#ddd",
                     font=self.word_font,
@@ -241,189 +243,185 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
 
     def _run(self):
         while True:
-            input = self.hw_inputs.wait_for(
-                HardwareButtonsConstants.ALL_KEYS,
-                check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY2]
-            )
+            input = self.hw_inputs.wait_for(HardwareButtonsConstants.ALL_KEYS)
 
-            if self.is_input_in_top_nav:
-                if input == HardwareButtonsConstants.KEY_PRESS:
-                    # User clicked the "back" arrow
-                    return RET_CODE__BACK_BUTTON
+            with self.renderer.lock:
+                if self.is_input_in_top_nav:
+                    if input == HardwareButtonsConstants.KEY_PRESS:
+                        # User clicked the "back" arrow
+                        return RET_CODE__BACK_BUTTON
 
-                elif input == HardwareButtonsConstants.KEY_UP:
-                    input = Keyboard.ENTER_BOTTOM
-                    self.is_input_in_top_nav = False
-                    # Re-render it without the highlight
-                    self.top_nav.left_button.is_selected = False
+                    elif input == HardwareButtonsConstants.KEY_UP:
+                        input = Keyboard.ENTER_BOTTOM
+                        self.is_input_in_top_nav = False
+                        # Re-render it without the highlight
+                        self.top_nav.left_button.is_selected = False
+                        self.top_nav.left_button.render()
+
+                    elif input == HardwareButtonsConstants.KEY_DOWN:
+                        input = Keyboard.ENTER_TOP
+                        self.is_input_in_top_nav = False
+                        # Re-render it without the highlight
+                        self.top_nav.left_button.is_selected = False
+                        self.top_nav.left_button.render()
+
+                    elif input in [HardwareButtonsConstants.KEY_RIGHT, HardwareButtonsConstants.KEY_LEFT]:
+                        # no action in this context
+                        continue
+
+                ret_val = self.keyboard.update_from_input(input)
+
+                if ret_val in Keyboard.EXIT_DIRECTIONS:
+                    self.is_input_in_top_nav = True
+                    self.top_nav.left_button.is_selected = True
                     self.top_nav.left_button.render()
 
-                elif input == HardwareButtonsConstants.KEY_DOWN:
-                    input = Keyboard.ENTER_TOP
-                    self.is_input_in_top_nav = False
-                    # Re-render it without the highlight
-                    self.top_nav.left_button.is_selected = False
-                    self.top_nav.left_button.render()
+                elif ret_val in Keyboard.ADDITIONAL_KEYS:
+                    if input == HardwareButtonsConstants.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                        self.letters = self.letters[:-2]
+                        self.letters.append(" ")
 
-                elif input in [HardwareButtonsConstants.KEY_RIGHT, HardwareButtonsConstants.KEY_LEFT]:
-                    # no action in this context
-                    continue
+                        # Reactivate keys after deleting last letter
+                        self.calc_possible_alphabet()
+                        self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
+                        self.keyboard.render_keys()
+                            
+                        # Update the right-hand possible matches area
+                        self.render_possible_matches()
 
-            ret_val = self.keyboard.update_from_input(input)
+                    elif ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                        # We're just hovering over DEL but haven't clicked. Show blank (" ")
+                        #   in the live text entry display at the top.
+                        self.letters = self.letters[:-1]
+                        self.letters.append(" ")
 
-            if ret_val in Keyboard.EXIT_DIRECTIONS:
-                self.is_input_in_top_nav = True
-                self.top_nav.left_button.is_selected = True
-                self.top_nav.left_button.render()
+                # Has the user made a final selection of a candidate word?
+                final_selection = None
+                if input == HardwareButtonsConstants.KEY1 and self.possible_words:
+                    # Scroll the list up
+                    self.selected_possible_words_index -= 1
+                    if self.selected_possible_words_index < 0:
+                        self.selected_possible_words_index = 0
 
-            elif ret_val in Keyboard.ADDITIONAL_KEYS:
-                if input == HardwareButtonsConstants.KEY_PRESS and ret_val == Keyboard.KEY_BACKSPACE["code"]:
-                    self.letters = self.letters[:-2]
-                    self.letters.append(" ")
+                    if not self.arrow_up_is_active:
+                        # Flash the up arrow as selected
+                        self.arrow_up_is_active = True
+                        self.matches_list_up_button.is_selected = True
 
-                    # Reactivate keys after deleting last letter
+                elif input == HardwareButtonsConstants.KEY2:
+                    if self.possible_words:
+                        final_selection = self.possible_words[self.selected_possible_words_index]
+
+                elif input == HardwareButtonsConstants.KEY3 and self.possible_words:
+                    # Scroll the list down
+                    self.selected_possible_words_index += 1
+                    if self.selected_possible_words_index >= len(self.possible_words):
+                        self.selected_possible_words_index = len(self.possible_words) - 1
+
+                    if not self.arrow_down_is_active:
+                        # Flash the down arrow as selected
+                        self.arrow_down_is_active = True
+                        self.matches_list_down_button.is_selected = True
+
+                if input is not HardwareButtonsConstants.KEY1 and self.arrow_up_is_active:
+                    # Deactivate the UP arrow and redraw
+                    self.arrow_up_is_active = False
+                    self.matches_list_up_button.is_selected = False
+
+                if input is not HardwareButtonsConstants.KEY3 and self.arrow_down_is_active:
+                    # Deactivate the DOWN arrow and redraw
+                    self.arrow_down_is_active = False
+                    self.matches_list_down_button.is_selected = False
+
+                if final_selection:
+                    # Animate the selection storage, then return the word to the caller
+                    self.letters = list(final_selection + " ")
+                    self.render_possible_matches(highlight_word=final_selection)
+                    self.text_entry_display.cur_text = ''.join(self.letters)
+                    self.text_entry_display.render()
+                    self.renderer.show_image()
+
+                    return final_selection
+
+                elif input == HardwareButtonsConstants.KEY_PRESS and ret_val in self.possible_alphabet:
+                    # User has locked in the current letter
+                    if self.letters[-1] != " ":
+                        # We'll save that locked in letter next but for now update the
+                        # live text entry display with blank (" ") so that we don't try
+                        # to autocalc matches against a second copy of the letter they
+                        # just selected. e.g. They KEY_PRESS on "s" to build "mus". If
+                        # we advance the live block cursor AND display "s" in it, the
+                        # current word would then be "muss" with no matches. If "mus"
+                        # can get us to our match, we don't want it to disappear right
+                        # as we KEY_PRESS.
+                        self.letters.append(" ")
+                    else:
+                        # clicked same letter twice in a row. Because of the above, an
+                        # immediate second click of the same letter would lock in "ap "
+                        # (note the space) instead of "app". So we replace that trailing
+                        # space with the correct repeated letter and then, as above,
+                        # append a trailing blank.
+                        self.letters = self.letters[:-1]
+                        self.letters.append(ret_val)
+                        self.letters.append(" ")
+
+                    # Recalc and deactivate keys after advancing
                     self.calc_possible_alphabet()
                     self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
+
+                    if len(self.possible_alphabet) == 1:
+                        # If there's only one possible letter left, select it
+                        self.keyboard.set_selected_key(self.possible_alphabet[0])
+
                     self.keyboard.render_keys()
-                        
-                    # Update the right-hand possible matches area
-                    self.render_possible_matches()
 
-                elif ret_val == Keyboard.KEY_BACKSPACE["code"]:
-                    # We're just hovering over DEL but haven't clicked. Show blank (" ")
-                    #   in the live text entry display at the top.
-                    self.letters = self.letters[:-1]
-                    self.letters.append(" ")
+                elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN \
+                        or input in (Keyboard.ENTER_TOP, Keyboard.ENTER_BOTTOM):
+                    if ret_val in self.possible_alphabet:
+                        # Live joystick movement; haven't locked this new letter in yet.
+                        # Replace the last letter w/the currently selected one. But don't
+                        # call `calc_possible_alphabet()` because we want to still be able
+                        # to freely float to a different letter; only update the active
+                        # keyboard keys when a selection has been locked in (KEY_PRESS) or
+                        # removed ("del").
+                        self.letters = self.letters[:-1]
+                        self.letters.append(ret_val)
+                        self.calc_possible_words()  # live update our matches as we move
+                    
+                    else:
+                        # We've navigated to a deactivated letter
+                        pass
 
-            # Has the user made a final selection of a candidate word?
-            final_selection = None
-            if input == HardwareButtonsConstants.KEY1 and self.possible_words:
-                # Scroll the list up
-                self.selected_possible_words_index -= 1
-                if self.selected_possible_words_index < 0:
-                    self.selected_possible_words_index = 0
-
-                if not self.arrow_up_is_active:
-                    # Flash the up arrow as selected
-                    self.arrow_up_is_active = True
-                    self.matches_list_up_button.is_selected = True
-
-            elif input == HardwareButtonsConstants.KEY2:
-                if self.possible_words:
-                    final_selection = self.possible_words[self.selected_possible_words_index]
-
-            elif input == HardwareButtonsConstants.KEY3 and self.possible_words:
-                # Scroll the list down
-                self.selected_possible_words_index += 1
-                if self.selected_possible_words_index >= len(self.possible_words):
-                    self.selected_possible_words_index = len(self.possible_words) - 1
-
-                if not self.arrow_down_is_active:
-                    # Flash the down arrow as selected
-                    self.arrow_down_is_active = True
-                    self.matches_list_down_button.is_selected = True
-
-            if input is not HardwareButtonsConstants.KEY1 and self.arrow_up_is_active:
-                # Deactivate the UP arrow and redraw
-                self.arrow_up_is_active = False
-                self.matches_list_up_button.is_selected = False
-
-            if input is not HardwareButtonsConstants.KEY3 and self.arrow_down_is_active:
-                # Deactivate the DOWN arrow and redraw
-                self.arrow_down_is_active = False
-                self.matches_list_down_button.is_selected = False
-
-            if final_selection:
-                # Animate the selection storage, then return the word to the caller
-                self.letters = list(final_selection + " ")
-                self.render_possible_matches(highlight_word=final_selection)
+                # Render the text entry display and cursor block
                 self.text_entry_display.cur_text = ''.join(self.letters)
                 self.text_entry_display.render()
+
+                # Update the right-hand possible matches area
+                self.render_possible_matches()
+
+                # Now issue one call to send the pixels to the screen
                 self.renderer.show_image()
-
-                return final_selection
-
-            elif input == HardwareButtonsConstants.KEY_PRESS and ret_val in self.possible_alphabet:
-                # User has locked in the current letter
-                if self.letters[-1] != " ":
-                    # We'll save that locked in letter next but for now update the
-                    # live text entry display with blank (" ") so that we don't try
-                    # to autocalc matches against a second copy of the letter they
-                    # just selected. e.g. They KEY_PRESS on "s" to build "mus". If
-                    # we advance the live block cursor AND display "s" in it, the
-                    # current word would then be "muss" with no matches. If "mus"
-                    # can get us to our match, we don't want it to disappear right
-                    # as we KEY_PRESS.
-                    self.letters.append(" ")
-                else:
-                    # clicked same letter twice in a row. Because of the above, an
-                    # immediate second click of the same letter would lock in "ap "
-                    # (note the space) instead of "app". So we replace that trailing
-                    # space with the correct repeated letter and then, as above,
-                    # append a trailing blank.
-                    self.letters = self.letters[:-1]
-                    self.letters.append(ret_val)
-                    self.letters.append(" ")
-
-                # Recalc and deactivate keys after advancing
-                self.calc_possible_alphabet()
-                self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
-
-                if len(self.possible_alphabet) == 1:
-                    # If there's only one possible letter left, select it
-                    self.keyboard.set_selected_key(self.possible_alphabet[0])
-
-                self.keyboard.render_keys()
-
-            elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN \
-                    or input in (Keyboard.ENTER_TOP, Keyboard.ENTER_BOTTOM):
-                if ret_val in self.possible_alphabet:
-                    # Live joystick movement; haven't locked this new letter in yet.
-                    # Replace the last letter w/the currently selected one. But don't
-                    # call `calc_possible_alphabet()` because we want to still be able
-                    # to freely float to a different letter; only update the active
-                    # keyboard keys when a selection has been locked in (KEY_PRESS) or
-                    # removed ("del").
-                    self.letters = self.letters[:-1]
-                    self.letters.append(ret_val)
-                    self.calc_possible_words()  # live update our matches as we move
-                
-                else:
-                    # We've navigated to a deactivated letter
-                    pass
-
-            # Render the text entry display and cursor block
-            self.text_entry_display.cur_text = ''.join(self.letters)
-            self.text_entry_display.render()
-
-            # Update the right-hand possible matches area
-            self.render_possible_matches()
-
-            # Now issue one call to send the pixels to the screen
-            self.renderer.show_image()
 
 
 
 @dataclass
 class SeedFinalizeScreen(ButtonListScreen):
     fingerprint: str = None
-    title: str = "Finalize Seed"
     is_bottom_list: bool = True
     button_data: list = None
 
     def __post_init__(self):
         self.show_back_button = False
-
+        self.title = _("Finalize Seed")
         super().__post_init__()
 
         self.fingerprint_icontl = IconTextLine(
             icon_name=SeedSignerIconConstants.FINGERPRINT,
             icon_color=GUIConstants.INFO_COLOR,
             icon_size=GUIConstants.ICON_FONT_SIZE + 12,
-            label_text="fingerprint",
+            label_text=_("fingerprint"),
             value_text=self.fingerprint,
-            font_size=GUIConstants.BODY_FONT_SIZE + 2,
+            font_size=GUIConstants.get_body_font_size() + 2,
             is_text_centered=True,
             screen_y=self.top_nav.height + int((self.buttons[0].screen_y - self.top_nav.height) / 2) - 30
         )
@@ -433,7 +431,6 @@ class SeedFinalizeScreen(ButtonListScreen):
 
 @dataclass
 class SeedOptionsScreen(ButtonListScreen):
-    # Customize defaults
     fingerprint: str = None
     has_passphrase: bool = False
 
@@ -449,6 +446,24 @@ class SeedOptionsScreen(ButtonListScreen):
 
 
 @dataclass
+class SeedBackupScreen(ButtonListScreen):
+    has_passphrase: bool = False
+
+    def __post_init__(self):
+        self.title = _("Backup Seed")
+        self.is_bottom_list = True
+        super().__post_init__()
+
+        if self.has_passphrase:
+            self.components.append(TextArea(
+                # TRANSLATOR_NOTE: Additional explainer for the two seed backup options (mnemonic phrase and SeedQR).
+                text=_("Backups do not include your passphrase."),
+                screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+            ))
+
+
+
+@dataclass
 class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
     words: List[str] = None
     page_index: int = 0
@@ -458,6 +473,8 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
 
 
     def __post_init__(self):
+        # TRANSLATOR_NOTE: Displays the page number and total: (e.g. page 1 of 6)
+        self.title = _("Seed Words: {}/{}").format(self.page_index + 1, self.num_pages)
         super().__post_init__()
 
         words_per_page = len(self.words)
@@ -468,7 +485,7 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
 
         # Have to supersample the whole body since it's all at the small font size
         supersampling_factor = 1
-        font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, (GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2) * supersampling_factor)
+        font = Fonts.get_font(GUIConstants.get_body_font_name(), (GUIConstants.get_top_nav_title_font_size() + 2) * supersampling_factor)
 
         # Calc horizontal center based on longest word
         max_word_width = 0
@@ -478,7 +495,7 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
                 max_word_width = right
 
         # Measure the max digit height for the numbering boxes, from baseline
-        number_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE * supersampling_factor)
+        number_font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_button_font_size() * supersampling_factor)
         (left, top, right, bottom) = number_font.getbbox("24", anchor="ls")
         number_height = -1 * top
         number_width = right
@@ -523,7 +540,7 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
             number_box_y += number_box_height + (int(1.5*GUIConstants.COMPONENT_PADDING) * supersampling_factor)
 
         # Resize to target and sharpen final image
-        self.body_img = self.body_img.resize((self.canvas_width, self.body_height), Image.LANCZOS)
+        self.body_img = self.body_img.resize((self.canvas_width, self.body_height), Image.Resampling.LANCZOS)
         self.body_img = self.body_img.filter(ImageFilter.SHARPEN)
         self.paste_images.append((self.body_img, (self.body_x, self.body_y)))
 
@@ -532,7 +549,7 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
 @dataclass
 class SeedBIP85SelectChildIndexScreen(KeyboardScreen):
     def __post_init__(self):
-        self.title = "BIP-85 Index"
+        self.title = _("BIP-85 Index")
         self.user_input = ""
 
         # Specify the keys in the keyboard
@@ -548,13 +565,13 @@ class SeedBIP85SelectChildIndexScreen(KeyboardScreen):
 @dataclass
 class SeedWordsBackupTestPromptScreen(ButtonListScreen):
     def __post_init__(self):
-        self.title = "Verify Backup?"
+        self.title = _("Verify Backup?")
         self.show_back_button = False
         self.is_bottom_list = True
         super().__post_init__()
 
         self.components.append(TextArea(
-            text="Optionally verify that your mnemonic backup is correct.",
+            text=_("Optionally verify that your mnemonic backup is correct."),
             screen_y=self.top_nav.height,
             is_text_centered=True,
         ))
@@ -564,7 +581,7 @@ class SeedWordsBackupTestPromptScreen(ButtonListScreen):
 @dataclass
 class SeedExportXpubCustomDerivationScreen(KeyboardScreen):
     def __post_init__(self):
-        self.title = "Derivation Path"
+        self.title = _("Derivation Path")
         self.user_input = "m/"
 
         # Specify the keys in the keyboard
@@ -580,17 +597,16 @@ class SeedExportXpubCustomDerivationScreen(KeyboardScreen):
 @dataclass
 class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
     # Customize defaults
-    title: str = "Xpub Details"
     is_bottom_list: bool = True
     fingerprint: str = None
     has_passphrase: bool = False
     derivation_path: str = "m/84'/0'/0'"
     xpub: str = "zpub6r..."
-    button_data=["Export Xpub"]
 
     def __post_init__(self):
         # Programmatically set up other args
-        self.button_data = ["Export Xpub"]
+        self.button_data = [ButtonOption("Export Xpub")]
+        self.title = _("Xpub Details")
 
         # Initialize the base class
         super().__post_init__()
@@ -599,7 +615,8 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
         self.fingerprint_line = IconTextLine(
             icon_name=SeedSignerIconConstants.FINGERPRINT,
             icon_color=GUIConstants.INFO_COLOR,
-            label_text="Fingerprint",
+            # TRANSLATOR_NOTE: Short for "BIP32 Master Fingerprint"
+            label_text=_("Fingerprint"),
             value_text=self.fingerprint,
             screen_x=GUIConstants.COMPONENT_PADDING,
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
@@ -609,7 +626,8 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
         self.derivation_line = IconTextLine(
             icon_name=SeedSignerIconConstants.DERIVATION,
             icon_color=GUIConstants.INFO_COLOR,
-            label_text="Derivation",
+            # TRANSLATOR_NOTE: Short for "Derivation Path"
+            label_text=_("Derivation"),
             value_text=self.derivation_path,
             screen_x=GUIConstants.COMPONENT_PADDING,
             screen_y=self.components[-1].screen_y + self.components[-1].height + int(1.5*GUIConstants.COMPONENT_PADDING),
@@ -619,10 +637,11 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
         self.xpub_line = IconTextLine(
             icon_name=FontAwesomeIconConstants.X,
             icon_color=GUIConstants.INFO_COLOR,
-            label_text="Xpub",
+            # TRANSLATOR_NOTE: Short for "BIP32 Extended Public Key"
+            label_text=_("Xpub"),
             value_text=f"{self.xpub[:18]}...",
             font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
-            font_size=GUIConstants.BODY_FONT_SIZE + 2,
+            font_size=GUIConstants.get_body_font_size() + 2,
             screen_x=GUIConstants.COMPONENT_PADDING,
             screen_y=self.components[-1].screen_y + self.components[-1].height + int(1.5*GUIConstants.COMPONENT_PADDING),
         )
@@ -632,8 +651,10 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
 
 @dataclass
 class SeedAddPassphraseScreen(BaseTopNavScreen):
-    title: str = "BIP-39 Passphrase"
     passphrase: str = ""
+
+    # Only used by the screenshot generator
+    initial_keyboard: str = None
 
     KEYBOARD__LOWERCASE_BUTTON_TEXT = "abc"
     KEYBOARD__UPPERCASE_BUTTON_TEXT = "ABC"
@@ -643,6 +664,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
 
 
     def __post_init__(self):
+        self.title = _("BIP-39 Passphrase")
         super().__post_init__()
 
         keys_lower = "abcdefghijklmnopqrstuvwxyz"
@@ -791,20 +813,22 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             text=self.KEYBOARD__UPPERCASE_BUTTON_TEXT,
             is_text_centered=False,
             font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
-            font_size=GUIConstants.BUTTON_FONT_SIZE + 4,
+            font_size=GUIConstants.get_button_font_size() + 4,
             width=self.right_panel_buttons_width,
             screen_x=hw_button_x,
             screen_y=hw_button_y - 3*GUIConstants.COMPONENT_PADDING - GUIConstants.BUTTON_HEIGHT,
+            is_scrollable_text=False,
         )
 
         self.hw_button2 = Button(
             text=self.KEYBOARD__DIGITS_BUTTON_TEXT,
             is_text_centered=False,
             font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
-            font_size=GUIConstants.BUTTON_FONT_SIZE + 4,
+            font_size=GUIConstants.get_button_font_size() + 4,
             width=self.right_panel_buttons_width,
             screen_x=hw_button_x,
             screen_y=hw_button_y,
+            is_scrollable_text=False,
         )
 
         self.hw_button3 = IconButton(
@@ -813,201 +837,218 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             width=self.right_panel_buttons_width,
             screen_x=hw_button_x,
             screen_y=hw_button_y + 3*GUIConstants.COMPONENT_PADDING + GUIConstants.BUTTON_HEIGHT,
+            is_scrollable_text=False,
         )
 
 
     def _render(self):
         super()._render()
 
+        # Change from the default lowercase keyboard for the screenshot generator
+        if self.initial_keyboard == self.KEYBOARD__UPPERCASE_BUTTON_TEXT:
+            cur_keyboard = self.keyboard_ABC
+            self.hw_button1.text = self.KEYBOARD__LOWERCASE_BUTTON_TEXT
+
+        elif self.initial_keyboard == self.KEYBOARD__DIGITS_BUTTON_TEXT:
+            cur_keyboard = self.keyboard_digits
+            self.hw_button2.text = self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT
+
+        elif self.initial_keyboard == self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT:
+            cur_keyboard = self.keyboard_symbols_1
+            self.hw_button2.text = self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT
+
+        elif self.initial_keyboard == self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT:
+            cur_keyboard = self.keyboard_symbols_2
+            self.hw_button2.text = self.KEYBOARD__DIGITS_BUTTON_TEXT
+        
+        else:
+            cur_keyboard = self.keyboard_abc
+
         self.text_entry_display.render()
         self.hw_button1.render()
         self.hw_button2.render()
         self.hw_button3.render()
-        self.keyboard_abc.render_keys()
+        cur_keyboard.render_keys()
 
         self.renderer.show_image()
 
 
     def _run(self):
         cursor_position = len(self.passphrase)
-
         cur_keyboard = self.keyboard_abc
         cur_button1_text = self.KEYBOARD__UPPERCASE_BUTTON_TEXT
         cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
 
         # Start the interactive update loop
         while True:
-            input = self.hw_inputs.wait_for(
-                HardwareButtonsConstants.ALL_KEYS,
-                check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY1, HardwareButtonsConstants.KEY2, HardwareButtonsConstants.KEY3]
-            )
+            input = self.hw_inputs.wait_for(HardwareButtonsConstants.ALL_KEYS)
 
             keyboard_swap = False
 
-            # Check our two possible exit conditions
-            # TODO: note the unusual return value, consider refactoring to a Response object in the future
-            if input == HardwareButtonsConstants.KEY3:
-                # Save!
-                # First light up key3
-                self.hw_button3.is_selected = True
-                self.hw_button3.render()
-                self.renderer.show_image()
-                return dict(passphrase=self.passphrase)
+            with self.renderer.lock:
+                # Check our two possible exit conditions
+                # TODO: note the unusual return value, consider refactoring to a Response object in the future
+                if input == HardwareButtonsConstants.KEY3:
+                    # Save!
+                    # First light up key3
+                    self.hw_button3.is_selected = True
+                    self.hw_button3.render()
+                    self.renderer.show_image()
+                    return dict(passphrase=self.passphrase)
 
-            elif input == HardwareButtonsConstants.KEY_PRESS and self.top_nav.is_selected:
-                # Back button clicked
-                return dict(passphrase=self.passphrase, is_back_button=True)
+                elif input == HardwareButtonsConstants.KEY_PRESS and self.top_nav.is_selected:
+                    # Back button clicked
+                    return dict(passphrase=self.passphrase, is_back_button=True)
 
-            # Check for keyboard swaps
-            if input == HardwareButtonsConstants.KEY1:
-                # First light up key1
-                self.hw_button1.is_selected = True
-                self.hw_button1.render()
+                # Check for keyboard swaps
+                if input == HardwareButtonsConstants.KEY1:
+                    # First light up key1
+                    self.hw_button1.is_selected = True
+                    self.hw_button1.render()
 
-                # Return to the same button2 keyboard, if applicable
-                if cur_keyboard == self.keyboard_digits:
-                    cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
-                elif cur_keyboard == self.keyboard_symbols_1:
-                    cur_button2_text = self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT
-                elif cur_keyboard == self.keyboard_symbols_2:
-                    cur_button2_text = self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT
+                    # Return to the same button2 keyboard, if applicable
+                    if cur_keyboard == self.keyboard_digits:
+                        cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
+                    elif cur_keyboard == self.keyboard_symbols_1:
+                        cur_button2_text = self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT
+                    elif cur_keyboard == self.keyboard_symbols_2:
+                        cur_button2_text = self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT
 
-                if cur_button1_text == self.KEYBOARD__LOWERCASE_BUTTON_TEXT:
-                    self.keyboard_abc.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard = self.keyboard_abc
-                    cur_button1_text = self.KEYBOARD__UPPERCASE_BUTTON_TEXT
+                    if cur_button1_text == self.KEYBOARD__LOWERCASE_BUTTON_TEXT:
+                        self.keyboard_abc.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                        cur_keyboard = self.keyboard_abc
+                        cur_button1_text = self.KEYBOARD__UPPERCASE_BUTTON_TEXT
+                    else:
+                        self.keyboard_ABC.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                        cur_keyboard = self.keyboard_ABC
+                        cur_button1_text = self.KEYBOARD__LOWERCASE_BUTTON_TEXT
+                    cur_keyboard.render_keys()
+
+                    # Show the changes; this loop will have two renders
+                    self.renderer.show_image()
+
+                    keyboard_swap = True
+                    ret_val = None
+
+                elif input == HardwareButtonsConstants.KEY2:
+                    # First light up key2
+                    self.hw_button2.is_selected = True
+                    self.hw_button2.render()
+                    self.renderer.show_image()
+
+                    # And reset for next redraw
+                    self.hw_button2.is_selected = False
+
+                    # Return to the same button1 keyboard, if applicable
+                    if cur_keyboard == self.keyboard_abc:
+                        cur_button1_text = self.KEYBOARD__LOWERCASE_BUTTON_TEXT
+                    elif cur_keyboard == self.keyboard_ABC:
+                        cur_button1_text = self.KEYBOARD__UPPERCASE_BUTTON_TEXT
+
+                    if cur_button2_text == self.KEYBOARD__DIGITS_BUTTON_TEXT:
+                        self.keyboard_digits.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                        cur_keyboard = self.keyboard_digits
+                        cur_keyboard.render_keys()
+                        cur_button2_text = self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT
+                    elif cur_button2_text == self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT:
+                        self.keyboard_symbols_1.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                        cur_keyboard = self.keyboard_symbols_1
+                        cur_keyboard.render_keys()
+                        cur_button2_text = self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT
+                    elif cur_button2_text == self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT:
+                        self.keyboard_symbols_2.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                        cur_keyboard = self.keyboard_symbols_2
+                        cur_keyboard.render_keys()
+                        cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
+                    cur_keyboard.render_keys()
+
+                    # Show the changes; this loop will have two renders
+                    self.renderer.show_image()
+
+                    keyboard_swap = True
+                    ret_val = None
+
                 else:
-                    self.keyboard_ABC.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard = self.keyboard_ABC
-                    cur_button1_text = self.KEYBOARD__LOWERCASE_BUTTON_TEXT
-                cur_keyboard.render_keys()
+                    # Process normal input
+                    if input in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN] and self.top_nav.is_selected:
+                        # We're navigating off the previous button
+                        self.top_nav.is_selected = False
+                        self.top_nav.render_buttons()
 
-                # Show the changes; this loop will have two renders
-                self.renderer.show_image()
+                        # Override the actual input w/an ENTER signal for the Keyboard
+                        if input == HardwareButtonsConstants.KEY_DOWN:
+                            input = Keyboard.ENTER_TOP
+                        else:
+                            input = Keyboard.ENTER_BOTTOM
+                    elif input in [HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT] and self.top_nav.is_selected:
+                        # ignore
+                        continue
 
-                keyboard_swap = True
-                ret_val = None
+                    ret_val = cur_keyboard.update_from_input(input)
 
-            elif input == HardwareButtonsConstants.KEY2:
-                # First light up key2
-                self.hw_button2.is_selected = True
-                self.hw_button2.render()
-                self.renderer.show_image()
-
-                # And reset for next redraw
-                self.hw_button2.is_selected = False
-
-                # Return to the same button1 keyboard, if applicable
-                if cur_keyboard == self.keyboard_abc:
-                    cur_button1_text = self.KEYBOARD__LOWERCASE_BUTTON_TEXT
-                elif cur_keyboard == self.keyboard_ABC:
-                    cur_button1_text = self.KEYBOARD__UPPERCASE_BUTTON_TEXT
-
-                if cur_button2_text == self.KEYBOARD__DIGITS_BUTTON_TEXT:
-                    self.keyboard_digits.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard = self.keyboard_digits
-                    cur_keyboard.render_keys()
-                    cur_button2_text = self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT
-                elif cur_button2_text == self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT:
-                    self.keyboard_symbols_1.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard = self.keyboard_symbols_1
-                    cur_keyboard.render_keys()
-                    cur_button2_text = self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT
-                elif cur_button2_text == self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT:
-                    self.keyboard_symbols_2.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                    cur_keyboard = self.keyboard_symbols_2
-                    cur_keyboard.render_keys()
-                    cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
-                cur_keyboard.render_keys()
-
-                # Show the changes; this loop will have two renders
-                self.renderer.show_image()
-
-                keyboard_swap = True
-                ret_val = None
-
-            else:
-                # Process normal input
-                if input in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN] and self.top_nav.is_selected:
-                    # We're navigating off the previous button
-                    self.top_nav.is_selected = False
+                # Now process the result from the keyboard
+                if ret_val in Keyboard.EXIT_DIRECTIONS:
+                    self.top_nav.is_selected = True
                     self.top_nav.render_buttons()
 
-                    # Override the actual input w/an ENTER signal for the Keyboard
-                    if input == HardwareButtonsConstants.KEY_DOWN:
-                        input = Keyboard.ENTER_TOP
-                    else:
-                        input = Keyboard.ENTER_BOTTOM
-                elif input in [HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT] and self.top_nav.is_selected:
-                    # ignore
-                    continue
+                elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
+                    if ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                        if cursor_position == 0:
+                            pass
+                        elif cursor_position == len(self.passphrase):
+                            self.passphrase = self.passphrase[:-1]
+                        else:
+                            self.passphrase = self.passphrase[:cursor_position - 1] + self.passphrase[cursor_position:]
 
-                ret_val = cur_keyboard.update_from_input(input)
+                        cursor_position -= 1
 
-            # Now process the result from the keyboard
-            if ret_val in Keyboard.EXIT_DIRECTIONS:
-                self.top_nav.is_selected = True
-                self.top_nav.render_buttons()
+                    elif ret_val == Keyboard.KEY_CURSOR_LEFT["code"]:
+                        cursor_position -= 1
+                        if cursor_position < 0:
+                            cursor_position = 0
 
-            elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
-                if ret_val == Keyboard.KEY_BACKSPACE["code"]:
-                    if cursor_position == 0:
-                        pass
-                    elif cursor_position == len(self.passphrase):
-                        self.passphrase = self.passphrase[:-1]
-                    else:
-                        self.passphrase = self.passphrase[:cursor_position - 1] + self.passphrase[cursor_position:]
+                    elif ret_val == Keyboard.KEY_CURSOR_RIGHT["code"]:
+                        cursor_position += 1
+                        if cursor_position > len(self.passphrase):
+                            cursor_position = len(self.passphrase)
 
-                    cursor_position -= 1
+                    elif ret_val == Keyboard.KEY_SPACE["code"]:
+                        if cursor_position == len(self.passphrase):
+                            self.passphrase += " "
+                        else:
+                            self.passphrase = self.passphrase[:cursor_position] + " " + self.passphrase[cursor_position:]
+                        cursor_position += 1
 
-                elif ret_val == Keyboard.KEY_CURSOR_LEFT["code"]:
-                    cursor_position -= 1
-                    if cursor_position < 0:
-                        cursor_position = 0
+                    # Update the text entry display and cursor
+                    self.text_entry_display.render(self.passphrase, cursor_position)
 
-                elif ret_val == Keyboard.KEY_CURSOR_RIGHT["code"]:
-                    cursor_position += 1
-                    if cursor_position > len(self.passphrase):
-                        cursor_position = len(self.passphrase)
-
-                elif ret_val == Keyboard.KEY_SPACE["code"]:
+                elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
+                    # User has locked in the current letter
                     if cursor_position == len(self.passphrase):
-                        self.passphrase += " "
+                        self.passphrase += ret_val
                     else:
-                        self.passphrase = self.passphrase[:cursor_position] + " " + self.passphrase[cursor_position:]
+                        self.passphrase = self.passphrase[:cursor_position] + ret_val + self.passphrase[cursor_position:]
                     cursor_position += 1
 
-                # Update the text entry display and cursor
-                self.text_entry_display.render(self.passphrase, cursor_position)
+                    # Update the text entry display and cursor
+                    self.text_entry_display.render(self.passphrase, cursor_position)
 
-            elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
-                # User has locked in the current letter
-                if cursor_position == len(self.passphrase):
-                    self.passphrase += ret_val
-                else:
-                    self.passphrase = self.passphrase[:cursor_position] + ret_val + self.passphrase[cursor_position:]
-                cursor_position += 1
+                elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN or keyboard_swap:
+                    # Live joystick movement; haven't locked this new letter in yet.
+                    # Leave current spot blank for now. Only update the active keyboard keys
+                    # when a selection has been locked in (KEY_PRESS) or removed ("del").
+                    pass
+            
+                if keyboard_swap:
+                    # Show the hw buttons' updated text and not active state
+                    self.hw_button1.text = cur_button1_text
+                    self.hw_button2.text = cur_button2_text                
+                    self.hw_button1.is_selected = False
+                    self.hw_button2.is_selected = False
+                    self.hw_button1.render()
+                    self.hw_button2.render()
 
-                # Update the text entry display and cursor
-                self.text_entry_display.render(self.passphrase, cursor_position)
-
-            elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN or keyboard_swap:
-                # Live joystick movement; haven't locked this new letter in yet.
-                # Leave current spot blank for now. Only update the active keyboard keys
-                # when a selection has been locked in (KEY_PRESS) or removed ("del").
-                pass
-        
-            if keyboard_swap:
-                # Show the hw buttons' updated text and not active state
-                self.hw_button1.text = cur_button1_text
-                self.hw_button2.text = cur_button2_text                
-                self.hw_button1.is_selected = False
-                self.hw_button2.is_selected = False
-                self.hw_button1.render()
-                self.hw_button2.render()
-
-            self.renderer.show_image()
+                self.renderer.show_image()
 
 
 
@@ -1019,7 +1060,7 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
 
     def __post_init__(self):
         # Customize defaults
-        self.title = "Verify Passphrase"
+        self.title = _("Verify Passphrase")
         self.is_bottom_list = True
 
         super().__post_init__()
@@ -1027,17 +1068,18 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
         self.components.append(IconTextLine(
             icon_name=SeedSignerIconConstants.FINGERPRINT,
             icon_color=GUIConstants.INFO_COLOR,
-            label_text="changes fingerprint",
+            # TRANSLATOR_NOTE: Describes the effect of applying a BIP-39 passphrase; it changes the seed's fingerprint
+            label_text=_("changes fingerprint"),
             value_text=f"{self.fingerprint_without} >> {self.fingerprint_with}",
             is_text_centered=True,
-            screen_y = self.buttons[0].screen_y - GUIConstants.COMPONENT_PADDING - int(GUIConstants.BODY_FONT_SIZE*2.5)
+            screen_y = self.buttons[0].screen_y - GUIConstants.COMPONENT_PADDING - int(GUIConstants.get_body_font_size()*2.5)
         ))
 
         if self.passphrase != self.passphrase.strip() or "  " in self.passphrase:
             self.passphrase = self.passphrase.replace(" ", "\u2589")
         available_height = self.components[-1].screen_y - self.top_nav.height + GUIConstants.COMPONENT_PADDING
-        max_font_size = GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 8
-        min_font_size = GUIConstants.TOP_NAV_TITLE_FONT_SIZE - 4
+        max_font_size = GUIConstants.get_top_nav_title_font_size() + 8
+        min_font_size = GUIConstants.get_top_nav_title_font_size() - 4
         font_size = max_font_size
         max_lines = 3
         passphrase = [self.passphrase]
@@ -1070,6 +1112,7 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
                 text=line,
                 font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
                 font_size=font_size,
+                font_color="orange",
                 is_text_centered=True,
                 screen_y=screen_y,
                 allow_text_overflow=True
@@ -1085,16 +1128,20 @@ class SeedTranscribeSeedQRFormatScreen(ButtonListScreen):
         super().__post_init__()
 
         self.components.append(IconTextLine(
-            label_text="Standard",
-            value_text="BIP-39 wordlist indices",
+            # TRANSLATOR_NOTE: Refers to the SeedQR type: Standard or Compact
+            label_text=_("Standard"),
+            # TRANSLATOR_NOTE: Briefly explains the Standard SeedQR data format
+            value_text=_("BIP-39 wordlist indices"),
             is_text_centered=False,
             auto_line_break=True,
             screen_x=GUIConstants.EDGE_PADDING,
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
         ))
         self.components.append(IconTextLine(
-            label_text="Compact",
-            value_text="Raw entropy bits",
+            # TRANSLATOR_NOTE: Refers to the SeedQR type: Standard or Compact
+            label_text=_("Compact"),
+            # TRANSLATOR_NOTE: Briefly explains the Compact SeedQR data format
+            value_text=_("Raw entropy bits"),
             is_text_centered=False,
             screen_x=GUIConstants.EDGE_PADDING,
             screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
@@ -1108,8 +1155,10 @@ class SeedTranscribeSeedQRWholeQRScreen(WarningEdgesMixin, ButtonListScreen):
     num_modules: int = None
 
     def __post_init__(self):
-        self.title = "Transcribe SeedQR"
-        self.button_data = [f"Begin {self.num_modules}x{self.num_modules}"]
+        self.title = _("Transcribe SeedQR")
+        # TRANSLATOR_NOTE: Refers to the QR code size: 21x21, 25x25, or 29x29
+        button_label = _("Begin {}x{}").format(self.num_modules, self.num_modules)
+        self.button_data = [ButtonOption(button_label)]
         self.is_bottom_list = True
         self.status_color = GUIConstants.DIRE_WARNING_COLOR
         super().__post_init__()
@@ -1134,6 +1183,8 @@ class SeedTranscribeSeedQRWholeQRScreen(WarningEdgesMixin, ButtonListScreen):
 class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
     qr_data: str = None
     num_modules: int = None
+    initial_block_x: int = 0
+    initial_block_y: int = 0
 
     def __post_init__(self):
         super().__post_init__()
@@ -1186,39 +1237,31 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
         draw.line((self.mask_width, self.mask_height, self.canvas_width - self.mask_width, self.mask_height), fill=GUIConstants.ACCENT_COLOR)
         draw.line((self.mask_width, self.canvas_height - self.mask_height, self.canvas_width - self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
 
-        msg = "click to exit"
-        font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BODY_FONT_SIZE)
+        msg = _("click to exit")
+        font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_body_font_size())
         (left, top, right, bottom) = font.getbbox(msg, anchor="ls")
-        msg_height = -1 * top
-        msg_width = right
-        # draw.rectangle(
-        #     (
-        #         int((self.canvas_width - msg_width)/2 - GUIConstants.COMPONENT_PADDING),
-        #         self.canvas_height - msg_height - GUIConstants.COMPONENT_PADDING,
-        #         int((self.canvas_width + msg_width)/2 + GUIConstants.COMPONENT_PADDING),
-        #         self.canvas_height
-        #     ),
-        #     fill=GUIConstants.BACKGROUND_COLOR,
-        # )
-        # draw.text(
-        #     (int(self.canvas_width/2), self.canvas_height - int(GUIConstants.COMPONENT_PADDING/2)),
-        #     msg,
-        #     fill=GUIConstants.BODY_FONT_COLOR,
-        #     font=font,
-        #     anchor="ms"  # Middle, baSeline
-        # )
-        TextArea(
-            canvas=self.block_mask,
-            image_draw=draw,
-            text=msg,
-            background_color=GUIConstants.BACKGROUND_COLOR,
-            is_text_centered=True,
-            screen_y=self.canvas_height - GUIConstants.BODY_FONT_SIZE - GUIConstants.COMPONENT_PADDING,
-            height=GUIConstants.BODY_FONT_SIZE + GUIConstants.COMPONENT_PADDING,
-        ).render()
+        msg_height = -1 * top + GUIConstants.COMPONENT_PADDING
+        msg_width = right + 2*GUIConstants.COMPONENT_PADDING
+        draw.rectangle(
+            (
+                int((self.canvas_width - msg_width)/2),
+                self.canvas_height - msg_height,
+                int((self.canvas_width + msg_width)/2),
+                self.canvas_height
+            ),
+            fill=GUIConstants.BACKGROUND_COLOR,
+        )
+        draw.text(
+            (int(self.canvas_width/2), self.canvas_height - int(GUIConstants.COMPONENT_PADDING/2)),
+            msg,
+            fill=GUIConstants.BODY_FONT_COLOR,
+            font=font,
+            anchor="ms"  # Middle, baSeline
+        )
 
 
-    def draw_block_labels(self, cur_block_x, cur_block_y):
+
+    def draw_block_labels(self):
         # Create overlay for block labels (e.g. "D-5")
         block_labels_x = ["1", "2", "3", "4", "5", "6"]
         block_labels_y = ["A", "B", "C", "D", "E", "F"]
@@ -1228,8 +1271,8 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
         draw.rectangle((self.mask_width, 0, self.canvas_width - self.mask_width, self.pixels_per_block), fill=GUIConstants.ACCENT_COLOR)
         draw.rectangle((0, self.mask_height, self.pixels_per_block, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
 
-        label_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 8)
-        x_label = block_labels_x[cur_block_x]
+        label_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 28)
+        x_label = block_labels_x[self.cur_block_x]
         (left, top, right, bottom) = label_font.getbbox(x_label, anchor="ls")
         x_label_height = -1 * top
 
@@ -1241,7 +1284,7 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
             anchor="ms",  # Middle, baSeline
         )
 
-        y_label = block_labels_y[cur_block_y]
+        y_label = block_labels_y[self.cur_block_y]
         (left, top, right, bottom) = label_font.getbbox(y_label, anchor="ls")
         y_label_height = -1 * top
         draw.text(
@@ -1255,63 +1298,66 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
         return block_labels
 
 
-    def _run(self):
+    def _render(self):
         # Track our current coordinates for the upper left corner of our view
-        cur_block_x = 0
-        cur_block_y = 0
-        cur_x = self.qr_border * self.pixels_per_block - self.mask_width
-        cur_y = self.qr_border * self.pixels_per_block - self.mask_height
-        next_x = cur_x
-        next_y = cur_y
+        self.cur_block_x = self.initial_block_x
+        self.cur_block_y = self.initial_block_y
+        self.cur_x = (self.cur_block_x * self.qr_blocks_per_zoom * self.pixels_per_block) + self.qr_border * self.pixels_per_block - self.mask_width
+        self.cur_y = (self.cur_block_y * self.qr_blocks_per_zoom * self.pixels_per_block) + self.qr_border * self.pixels_per_block - self.mask_height
+        self.next_x = self.cur_x
+        self.next_y = self.cur_y
 
-        block_labels = self.draw_block_labels(0, 0)
+        block_labels = self.draw_block_labels()
 
         self.renderer.show_image(
-            self.qr_image.crop((cur_x, cur_y, cur_x + self.canvas_width, cur_y + self.canvas_height)),
+            self.qr_image.crop((self.cur_x, self.cur_y, self.cur_x + self.canvas_width, self.cur_y + self.canvas_height)),
             alpha_overlay=Image.alpha_composite(self.block_mask, block_labels)
         )
 
+
+    def _run(self):
         while True:
             input = self.hw_inputs.wait_for(HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + HardwareButtonsConstants.KEYS__ANYCLICK)
             if input == HardwareButtonsConstants.KEY_RIGHT:
-                next_x = cur_x + self.qr_blocks_per_zoom * self.pixels_per_block
-                cur_block_x += 1
-                if next_x > self.qr_width - self.canvas_width:
-                    next_x = cur_x
-                    cur_block_x -= 1
+                self.next_x = self.cur_x + self.qr_blocks_per_zoom * self.pixels_per_block
+                self.cur_block_x += 1
+                if self.next_x > self.qr_width - self.canvas_width:
+                    self.next_x = self.cur_x
+                    self.cur_block_x -= 1
             elif input == HardwareButtonsConstants.KEY_LEFT:
-                next_x = cur_x - self.qr_blocks_per_zoom * self.pixels_per_block
-                cur_block_x -= 1
-                if next_x < 0:
-                    next_x = cur_x
-                    cur_block_x += 1
+                self.next_x = self.cur_x - self.qr_blocks_per_zoom * self.pixels_per_block
+                self.cur_block_x -= 1
+                if self.next_x < 0:
+                    self.next_x = self.cur_x
+                    self.cur_block_x += 1
             elif input == HardwareButtonsConstants.KEY_DOWN:
-                next_y = cur_y + self.qr_blocks_per_zoom * self.pixels_per_block
-                cur_block_y += 1
-                if next_y > self.height - self.canvas_height:
-                    next_y = cur_y
-                    cur_block_y -= 1
+                self.next_y = self.cur_y + self.qr_blocks_per_zoom * self.pixels_per_block
+                self.cur_block_y += 1
+                if self.next_y > self.height - self.canvas_height:
+                    self.next_y = self.cur_y
+                    self.cur_block_y -= 1
             elif input == HardwareButtonsConstants.KEY_UP:
-                next_y = cur_y - self.qr_blocks_per_zoom * self.pixels_per_block
-                cur_block_y -= 1
-                if next_y < 0:
-                    next_y = cur_y
-                    cur_block_y += 1
+                self.next_y = self.cur_y - self.qr_blocks_per_zoom * self.pixels_per_block
+                self.cur_block_y -= 1
+                if self.next_y < 0:
+                    self.next_y = self.cur_y
+                    self.cur_block_y += 1
             elif input in HardwareButtonsConstants.KEYS__ANYCLICK:
                 return
 
             # Create overlay for block labels (e.g. "D-5")
-            block_labels = self.draw_block_labels(cur_block_x, cur_block_y)
+            block_labels = self.draw_block_labels()
 
-            if cur_x != next_x or cur_y != next_y:
-                self.renderer.show_image_pan(
-                    self.qr_image,
-                    cur_x, cur_y, next_x, next_y,
-                    rate=self.pixels_per_block,
-                    alpha_overlay=Image.alpha_composite(self.block_mask, block_labels)
-                )
-                cur_x = next_x
-                cur_y = next_y
+            if self.cur_x != self.next_x or self.cur_y != self.next_y:
+                with self.renderer.lock:
+                    self.renderer.show_image_pan(
+                        self.qr_image,
+                        self.cur_x, self.cur_y, self.next_x, self.next_y,
+                        rate=self.pixels_per_block,
+                        alpha_overlay=Image.alpha_composite(self.block_mask, block_labels)
+                    )
+                    self.cur_x = self.next_x
+                    self.cur_y = self.next_y
 
 
 
@@ -1322,7 +1368,7 @@ class SeedTranscribeSeedQRConfirmQRPromptScreen(ButtonListScreen):
         super().__post_init__()
 
         self.components.append(TextArea(
-            text="Optionally scan your transcribed SeedQR to confirm that it reads back correctly.",
+            text=_("Optionally scan your transcribed SeedQR to confirm that it reads back correctly."),
             screen_y=self.top_nav.height,
             height=self.buttons[0].screen_y - self.top_nav.height,
         ))
@@ -1379,10 +1425,9 @@ class SeedAddressVerificationScreen(ButtonListScreen):
 
     def __post_init__(self):
         # Customize defaults
-        self.title = "Verify Address"
+        self.title = _("Verify Address")
         self.is_bottom_list = True
         self.show_back_button = False
-        self.button_data = ["Skip 10", "Cancel"]
 
         super().__post_init__()
 
@@ -1413,13 +1458,13 @@ class SeedAddressVerificationScreen(ButtonListScreen):
     
 
     def _run_callback(self):
-        # Exit the screen on success via a non-None value
-        logger.info(f"verified_index: {self.verified_index.cur_count}")
+        # Exit the screen on success via a non-None value.
+        # see: ButtonListScreen._run()
         if self.verified_index.cur_count is not None:
-            logger.info("Screen callback returning success!")
-            self.threads[-1].stop()
-            while self.threads[-1].is_alive():
-                time.sleep(0.01)
+            # Note that the ProgressThread will have already exited on its own.
+
+            # Return a success value (anything other than None) to end the 
+            # ButtonListScreen._run() loop.
             return 1
 
 
@@ -1436,16 +1481,20 @@ class SeedAddressVerificationScreen(ButtonListScreen):
             while self.keep_running:
                 if self.verified_index.cur_count is not None:
                     # This thread will detect the success state while its parent Screen
-                    # holds in its `wait_for`. Have to trigger a hw_input event to break
-                    # the Screen._run out of the `wait_for` state. The Screen will then
-                    # call its `_run_callback` and detect the success state and exit.
-                    HardwareButtons.get_instance().trigger_override(force_release=True)
+                    # blocks in its `wait_for`. Have to trigger a hw_input override event
+                    # to break the Screen._run out of the `wait_for` state. The Screen
+                    # will then call its `_run_callback` and detect the success state and
+                    # exit.
+                    HardwareButtons.get_instance().trigger_override()
+
+                    # Exit the loop and thereby end this thread
                     return
 
                 textarea = TextArea(
-                    text=f"Checking address {self.threadsafe_counter.cur_count}",
-                    font_name=GUIConstants.BODY_FONT_NAME,
-                    font_size=GUIConstants.BODY_FONT_SIZE,
+                    # TRANSLATOR_NOTE: Inserts the nth address number (e.g. "Checking address 7")
+                    text=_("Checking address {}").format(self.threadsafe_counter.cur_count),
+                    font_name=GUIConstants.get_body_font_name(),
+                    font_size=GUIConstants.get_body_font_size(),
                     screen_y=self.screen_y
                 )
 
@@ -1458,14 +1507,57 @@ class SeedAddressVerificationScreen(ButtonListScreen):
 
 
 @dataclass
+class SeedAddressVerificationSuccessScreen(LargeIconStatusScreen):
+    address: str = None
+    verified_index: int = None
+    verified_index_is_change: bool = None
+
+
+    def __post_init__(self):
+        # Customize defaults
+        self.title = _("Success!")
+        self.status_headline = _("Address Verified")
+        self.button_data = [ButtonOption("OK")]
+        self.is_bottom_list = True
+        self.show_back_button = False
+        super().__post_init__()
+
+        if self.verified_index_is_change:
+            # TRANSLATOR_NOTE: Describes the address type (change or receive)
+            address_type = _("change address")
+        else:
+            # TRANSLATOR_NOTE: Describes the address type (change or receive)
+            address_type = _("receive address")
+
+        self.components.append(FormattedAddress(
+            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+            address=self.address,
+            max_lines=1,  # Use abbreviated format w/ellipsis
+        ))
+
+        self.components.append(TextArea(
+            text=address_type,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+        ))
+
+        # TRANSLATOR_NOTE: Describes the address index (e.g. "index 7")
+        index_str = _("index {}").format(self.verified_index)
+        self.components.append(TextArea(
+            text=index_str,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+        ))
+
+
+
+@dataclass
 class LoadMultisigWalletDescriptorScreen(ButtonListScreen):
     def __post_init__(self):
-        self.title = "Multisig Verification"
+        self.title = _("Multisig Verification")
         self.is_bottom_list = True
         super().__post_init__()
 
         self.components.append(TextArea(
-            text="Load your multisig wallet descriptor to verify your receive/self-transfer or change address.",
+            text=_("Load your multisig wallet descriptor to verify your receive/self-transfer or change address."),
             screen_y=self.top_nav.height,
             height=self.buttons[0].screen_y - self.top_nav.height,
         ))
@@ -1478,27 +1570,27 @@ class MultisigWalletDescriptorScreen(ButtonListScreen):
     fingerprints: List[str] = None
 
     def __post_init__(self):
-        self.title = "Descriptor Loaded"
+        self.title = _("Descriptor Loaded")
         self.is_bottom_list = True
         super().__post_init__()
 
         self.components.append(IconTextLine(
-            label_text="Policy",
+            # TRANSLATOR_NOTE: Label for the multisig wallet's signing policy (e.g. 2-of-3)
+            label_text=_("Policy"),
             value_text=self.policy,
-            font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
+            font_size=20,
             screen_y=self.top_nav.height,
             is_text_centered=True,
         ))
 
         self.components.append(IconTextLine(
-            label_text="Signing Keys",
+            label_text=_("Signing Keys"),
             value_text=" ".join(self.fingerprints),
-            font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 4,
+            font_size=24,
             font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
             screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
             is_text_centered=True,
             auto_line_break=True,
-            allow_text_overflow=True,
         ))
 
 
@@ -1530,12 +1622,12 @@ class SeedSignMessageConfirmMessageScreen(ButtonListScreen):
             raise Exception("Bug in paged_message calculation")
 
         if len(self.sign_message_data["paged_message"]) == 1:
-            self.title = "Review Message"
+            self.title = _("Review Message")
         else:
             self.title = f"""Message (pt {self.page_num + 1}/{len(self.sign_message_data["paged_message"])})"""
         self.is_bottom_list = True
         self.is_button_text_centered = True
-        self.button_data = ["Next"]
+        self.button_data = [ButtonOption("Next")]
         super().__post_init__()
 
         message_display = TextArea(
@@ -1554,16 +1646,16 @@ class SeedSignMessageConfirmAddressScreen(ButtonListScreen):
     address: str = None
 
     def __post_init__(self):
-        self.title = "Confirm Address"
+        self.title = _("Confirm Address")
         self.is_bottom_list = True
         self.is_button_text_centered = True
-        self.button_data = ["Sign Message"]
+        self.button_data = [ButtonOption("Sign Message")]
         super().__post_init__()
 
         derivation_path_display = IconTextLine(
             icon_name=SeedSignerIconConstants.DERIVATION,
             icon_color=GUIConstants.INFO_COLOR,
-            label_text="derivation path",
+            label_text=_("derivation path"),
             value_text=self.derivation_path,
             is_text_centered=True,
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,

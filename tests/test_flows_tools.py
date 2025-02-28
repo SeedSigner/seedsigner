@@ -2,7 +2,7 @@
 from base import FlowTest, FlowStep
 
 from seedsigner.controller import Controller
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.views.view import ErrorView, MainMenuView
@@ -25,7 +25,7 @@ class TestToolsFlows(FlowTest):
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
             FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
             FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, screen_return_value=0),  # ret 1st onboard seed
-            FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(SettingsConstants.NATIVE_SEGWIT)),
+            FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=ButtonOption(SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(SettingsConstants.NATIVE_SEGWIT), return_data=SettingsConstants.NATIVE_SEGWIT)),
             FlowStep(tools_views.ToolsAddressExplorerAddressTypeView, button_data_selection=tools_views.ToolsAddressExplorerAddressTypeView.RECEIVE),
             FlowStep(tools_views.ToolsAddressExplorerAddressListView, screen_return_value=10),  # ret NEXT page of addrs
             FlowStep(tools_views.ToolsAddressExplorerAddressListView, screen_return_value=4),  # ret a specific addr from the list
@@ -62,7 +62,7 @@ class TestToolsFlows(FlowTest):
         # Finalize the new seed w/passphrase
         self.run_sequence(
             sequence=[
-                FlowStep(seed_views.SeedFinalizeView, button_data_selection=SettingsConstants.LABEL__BIP39_PASSPHRASE),
+                FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
                 FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="mypassphrase")),
                 FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
                 FlowStep(seed_views.SeedOptionsView, is_redirect=True),
@@ -242,6 +242,40 @@ class TestToolsFlows(FlowTest):
             FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_descriptor_into_decoder),  # simulate read descriptor QR
             FlowStep(seed_views.MultisigWalletDescriptorView, screen_return_value=0),
             FlowStep(seed_views.SeedAddressVerificationView),
-            FlowStep(seed_views.AddressVerificationSuccessView),
+            FlowStep(seed_views.SeedAddressVerificationSuccessView),
         ])
 
+
+    def test__verify_address__singlesig__flow(self):
+        """
+            Address Explorer should be able to scan a singlesig address and
+            verify it against a loaded key.
+        """
+        controller = Controller.get_instance()
+        controller.storage.set_pending_seed(Seed(mnemonic=["abandon "* 11 + "about"]))
+        controller.storage.finalize_pending_seed()        
+        settings = controller.settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+
+        addrs = [
+            # Native segwit regtest receive addr @ index 6
+            "bcrt1q4e9q5taxnsvc6m0uxv6h75mkzvnkxeqk6l90u2",
+
+            # Taproot regtest change addr @ index 48
+            "bcrt1pj5v8ean2hc5lh2djsgfx4j9uc0n67942ngv6q9r49qv88ex5mrwsn3u4f7",
+        ]
+
+        for test_addr in addrs:
+            def load_address_into_decoder(view: scan_views.ScanView):
+                # Native segwit regtest receive addr @ index 6
+                view.decoder.add_data(test_addr)
+
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+                FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+                FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),  # simulate read address QR
+                FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+                FlowStep(seed_views.SeedSelectSeedView, screen_return_value=0),
+                FlowStep(seed_views.SeedAddressVerificationView),
+                FlowStep(seed_views.SeedAddressVerificationSuccessView),
+            ])

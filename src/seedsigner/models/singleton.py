@@ -21,7 +21,7 @@ class ConfigurableSingleton(Singleton):
         if cls._instance:
             return cls._instance
         else:
-            raise Exception("Must call %s.configure_instance(config) first" % cls.__name__)
+            raise Exception("Must call %s.configure_instance() first" % cls.__name__)
 
 
     @classmethod

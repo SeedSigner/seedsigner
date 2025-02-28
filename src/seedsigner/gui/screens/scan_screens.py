@@ -1,16 +1,15 @@
 import time
 
 from dataclasses import dataclass
+from gettext import gettext as _
 from PIL import Image, ImageDraw
 
 from seedsigner.gui import renderer
-from seedsigner.hardware.buttons import HardwareButtonsConstants
-from seedsigner.hardware.camera import Camera
-from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
+from seedsigner.gui.components import GUIConstants, Fonts
+from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
 from .screen import BaseScreen
-from ..components import GUIConstants, Fonts, SeedSignerIconConstants
 
 
 
@@ -56,7 +55,8 @@ class ScanScreen(BaseScreen):
         # Initialize the base class
         super().__post_init__()
 
-        self.instructions_text = "< back  |  " + self.instructions_text
+        # TODO: Arrange this with UI elements rather than text
+        self.instructions_text = "< " + _("back") + "  |  " + _(self.instructions_text)
 
         self.camera = Camera.get_instance()
         self.camera.start_video_stream_mode(resolution=self.resolution, framerate=self.framerate, format="rgb")
@@ -65,7 +65,6 @@ class ScanScreen(BaseScreen):
         self.frames_decoded_counter = ThreadsafeCounter()
 
         self.threads.append(ScanScreen.LivePreviewThread(
-            camera=self.camera,
             decoder=self.decoder,
             renderer=self.renderer,
             instructions_text=self.instructions_text,
@@ -76,8 +75,10 @@ class ScanScreen(BaseScreen):
 
 
     class LivePreviewThread(BaseThread):
-        def __init__(self, camera: Camera, decoder: DecodeQR, renderer: renderer.Renderer, instructions_text: str, render_rect: tuple[int,int,int,int], frame_decode_status: ThreadsafeCounter, frames_decoded_counter: ThreadsafeCounter):
-            self.camera = camera
+        def __init__(self, decoder: DecodeQR, renderer: renderer.Renderer, instructions_text: str, render_rect: tuple[int,int,int,int], frame_decode_status: ThreadsafeCounter, frames_decoded_counter: ThreadsafeCounter):
+            from seedsigner.hardware.camera import Camera
+
+            self.camera = Camera.get_instance()
             self.decoder = decoder
             self.renderer = renderer
             self.instructions_text = instructions_text
@@ -96,10 +97,12 @@ class ScanScreen(BaseScreen):
 
 
         def run(self):
-            instructions_font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.BUTTON_FONT_SIZE)
+            from timeit import default_timer as timer
+
+            instructions_font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_button_font_size())
 
             # pre-calculate how big the animated QR percent display can be
-            left, _, right, _ = instructions_font.getbbox("100%")
+            left, top, right, bottom = instructions_font.getbbox("100%")
             progress_text_width = right - left
 
             start_time = time.time()
@@ -201,11 +204,12 @@ class ScanScreen(BaseScreen):
                                 radius=8
                             )
 
+                            # TRANSLATOR_NOTE: Inserts the percentage value of the animated QR scan progress
+                            text = _("{}%").format(progress_percentage)
 
                             draw.text(
                                 xy=(rectangle.width - GUIConstants.EDGE_PADDING, int(rectangle.height / 2)),
-                                text=f"{progress_percentage}%",
-                                # text=f"100%",
+                                text=text,
                                 fill=GUIConstants.BODY_FONT_COLOR,
                                 font=instructions_font,
                                 anchor="rm",  # right-justified, middle
@@ -248,6 +252,9 @@ class ScanScreen(BaseScreen):
             Screen. Once interaction starts, the display updates have to be managed in
             _run(). The live preview is an extra-complex case.
         """
+        from seedsigner.hardware.buttons import HardwareButtonsConstants
+        from seedsigner.models.decode_qr import DecodeQRStatus
+
         num_frames = 0
         start_time = time.time()
         while True:

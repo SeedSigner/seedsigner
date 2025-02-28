@@ -1,19 +1,20 @@
 import logging
+from gettext import gettext as _
+
 from seedsigner.gui.components import SeedSignerIconConstants
-from seedsigner.hardware.microsd import MicroSD
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, settings_screens)
+from seedsigner.gui.screens.screen import ButtonOption
+from seedsigner.models.settings import Settings, SettingsConstants, SettingsDefinition
 
 from .view import View, Destination, MainMenuView
-
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, settings_screens)
-from seedsigner.models.settings import Settings, SettingsConstants, SettingsDefinition
 
 logger = logging.getLogger(__name__)
 
 
 
 class SettingsMenuView(View):
-    IO_TEST = "I/O test"
-    DONATE = "Donate"
+    IO_TEST = ButtonOption("I/O test")
+    DONATE = ButtonOption("Donate")
 
     def __init__(self, visibility: str = SettingsConstants.VISIBILITY__GENERAL, selected_attr: str = None, initial_scroll: int = 0):
         super().__init__()
@@ -28,7 +29,7 @@ class SettingsMenuView(View):
         settings_entries = SettingsDefinition.get_settings_entries(
             visibility=self.visibility
         )
-        button_data=[e.display_name for e in settings_entries]
+        button_data=[ButtonOption(e.display_name) for e in settings_entries]
 
         selected_button = 0
         if self.selected_attr:
@@ -38,17 +39,17 @@ class SettingsMenuView(View):
                     break
 
         if self.visibility == SettingsConstants.VISIBILITY__GENERAL:
-            title = "Settings"
+            title = _("Settings")
 
             # Set up the next nested level of menuing
-            button_data.append(("Advanced", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
+            button_data.append(ButtonOption("Advanced", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT))
             next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
 
             button_data.append(self.IO_TEST)
             button_data.append(self.DONATE)
 
         elif self.visibility == SettingsConstants.VISIBILITY__ADVANCED:
-            title = "Advanced"
+            title = _("Advanced")
 
             # So far there are no real Developer options; disabling for now
             # button_data.append(("Developer Options", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
@@ -56,7 +57,7 @@ class SettingsMenuView(View):
             next_destination = None
         
         elif self.visibility == SettingsConstants.VISIBILITY__DEVELOPER:
-            title = "Dev Options"
+            title = _("Dev Options")
             next_destination = None
 
         selected_menu_num = self.run_screen(
@@ -114,8 +115,7 @@ class SettingsEntryUpdateSelectionView(View):
                 value, display_name = value
             else:
                 display_name = value
-
-            button_data.append(display_name)
+            button_data.append(ButtonOption(display_name))
 
             if (type(initial_value) == list and value in initial_value) or value == initial_value:
                 checked_buttons.append(i)
@@ -191,6 +191,7 @@ class SettingsEntryUpdateSelectionView(View):
 
 class SettingsIngestSettingsQRView(View):
     def __init__(self, data: str):
+        from seedsigner.hardware.microsd import MicroSD
         super().__init__()
 
         # May raise an Exception which will bubble up to the Controller to display to the
@@ -200,15 +201,16 @@ class SettingsIngestSettingsQRView(View):
         self.settings.update(settings_update_dict)
 
         if MicroSD.get_instance().is_inserted and self.settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS) == SettingsConstants.OPTION__ENABLED:
-            self.status_message = "Persistent Settings enabled. Settings saved to SD card."
+            self.status_message = _("Persistent Settings enabled. Settings saved to SD card.")
         else:
-            self.status_message = "Settings updated in temporary memory"
+            self.status_message = _("Settings updated in temporary memory")
 
 
     def run(self):
         from seedsigner.gui.screens.settings_screens import SettingsQRConfirmationScreen
         self.run_screen(
             SettingsQRConfirmationScreen,
+            title=_("Settings QR"),
             config_name=self.config_name,
             status_message=self.status_message,
         )
