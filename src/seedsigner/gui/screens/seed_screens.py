@@ -997,10 +997,10 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                             pass
                         elif cursor_position == len(self.passphrase):
                             self.passphrase = self.passphrase[:-1]
+                            cursor_position -= 1
                         else:
                             self.passphrase = self.passphrase[:cursor_position - 1] + self.passphrase[cursor_position:]
-
-                        cursor_position -= 1
+                            cursor_position -= 1
 
                     elif ret_val == Keyboard.KEY_CURSOR_LEFT["code"]:
                         cursor_position -= 1
