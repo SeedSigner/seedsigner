@@ -7,9 +7,9 @@ from gettext import gettext as _
 
 from embit.descriptor import Descriptor
 
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
+from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants, GUIConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    WarningScreen, DireWarningScreen, seed_screens)
+    WarningScreen, DireWarningScreen, seed_screens, tools_screens)
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
@@ -2068,7 +2068,8 @@ class MultisigWalletDescriptorView(View):
     VERIFY_ADDR = ButtonOption("Verify Addr")
     ADDRESS_EXPLORER = ButtonOption("Address Explorer")
     OK = ButtonOption("OK")
-
+    SIGNING_KEYS_DETAILS = ButtonOption("Signing Keys Details")
+    
     def run(self):
         descriptor = self.controller.multisig_wallet_descriptor
 
@@ -2080,16 +2081,16 @@ class MultisigWalletDescriptorView(View):
         policy = descriptor.brief_policy.split("multisig")[0].strip()
         # policy = " / ".join(policy.split(" of ")) # i18n w/o l10n since coming from non-l10n embit
 
-        button_data = [self.OK]
+        button_data = [self.OK, self.SIGNING_KEYS_DETAILS]
         if self.controller.resume_main_flow:
             from seedsigner.controller import Controller
             if self.controller.resume_main_flow == Controller.FLOW__PSBT:
-                button_data = [self.RETURN]
+                button_data = [self.RETURN, self.SIGNING_KEYS_DETAILS]
             elif self.controller.resume_main_flow == Controller.FLOW__VERIFY_MULTISIG_ADDR and self.controller.unverified_address:
                 verify_addr_display = f"""{_(self.VERIFY_ADDR.button_label)} {self.controller.unverified_address["address"][:7]}"""
-                button_data = [ButtonOption(verify_addr_display)]
+                button_data = [ButtonOption(verify_addr_display), self.SIGNING_KEYS_DETAILS]
             elif self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
-                button_data = [self.ADDRESS_EXPLORER]
+                button_data = [self.ADDRESS_EXPLORER, self.SIGNING_KEYS_DETAILS]
 
         selected_menu_num = self.run_screen(
             seed_screens.MultisigWalletDescriptorScreen,
@@ -2116,10 +2117,145 @@ class MultisigWalletDescriptorView(View):
             from seedsigner.views.tools_views import ToolsAddressExplorerAddressTypeView
             self.controller.resume_main_flow = None
             return Destination(ToolsAddressExplorerAddressTypeView)
+            
+        elif button_data[selected_menu_num] == self.SIGNING_KEYS_DETAILS:
+            return Destination(MultisigWalletDescriptorKeysListView)
 
         return Destination(MainMenuView)
 
 
+
+class MultisigWalletDescriptorKeysListView(View):
+    def __init__(self, start_index: int = 1, selected_button_index: int = 0, initial_scroll: int = 0):
+        super().__init__()
+        self.start_index = start_index
+        self.selected_button_index = selected_button_index
+        self.initial_scroll = initial_scroll
+
+
+    def run(self):
+        self.loading_screen = None
+
+        descriptor = self.controller.multisig_wallet_descriptor
+        button_data = []
+
+        for i, key in enumerate(descriptor.keys):
+            cur_index = i + self.start_index
+
+            # Adjust the trailing addr display length based on available room
+            # (the index number will push it out on each order of magnitude)
+            if cur_index < 10:
+                end_digits = -6
+            elif cur_index < 100:
+                end_digits = -5
+            else:
+                end_digits = -4
+            button_data.append(ButtonOption(f"{cur_index}:{str(key)[:8]}...{str(key)[end_digits:]}", active_button_label=f"{cur_index}:{str(key)}"))
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("Signing Keys"),
+            button_data=button_data,
+            button_font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            button_font_size=GUIConstants.get_button_font_size() + 4,
+            is_button_text_centered=False,
+            is_bottom_list=True,
+            selected_button=self.selected_button_index,
+            scroll_y_initial_offset=self.initial_scroll,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        # Preserve the list's current scroll so we can return to the same spot
+        initial_scroll = self.screen.buttons[0].scroll_y
+
+        index = selected_menu_num + self.start_index
+        
+        fingerprint = hexlify(descriptor.keys[selected_menu_num].fingerprint).decode()
+
+        script_type = (
+            SettingsConstants.LEGACY_P2PKH if descriptor.is_legacy else
+            SettingsConstants.NESTED_SEGWIT if descriptor.is_pkh else
+            SettingsConstants.NATIVE_SEGWIT if descriptor.is_segwit else None
+            )
+        
+        from embit.bip32 import path_to_str
+        derivation_path = path_to_str(descriptor.keys[selected_menu_num].derivation)
+        
+        xpub = str(descriptor.keys[selected_menu_num].key)
+
+        return Destination(
+            MultisigWalletSigningKeyDetailsView,
+            view_args={
+                "fingerprint": fingerprint,
+                "script_type":  script_type,
+                "derivation_path": derivation_path,
+                "xpub": xpub,
+                "index": index,
+                "start_index": self.start_index,
+                "parent_initial_scroll": initial_scroll
+            },
+            skip_current_view=True
+            )
+
+
+
+class MultisigWalletSigningKeyDetailsView(View):
+    """
+        Collects the selected key info from previous multisig descriptor scanned and
+        finally calculates the xpub and displays the summary view to the user.
+    """
+    def __init__(self, fingerprint: str, script_type: str, derivation_path: str, xpub: str, index: int, start_index: int, parent_initial_scroll: int = 0):
+        super().__init__()
+        self.fingerprint = fingerprint
+        #self.script_type = script_type # necesita script type???
+        self.derivation_path = derivation_path
+        self.xpub = xpub
+                
+        self.index = index
+        self.start_index = start_index
+        self.parent_initial_scroll = parent_initial_scroll
+
+
+    def run(self):
+
+        if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__DISABLED:
+            # We're just skipping right past this screen
+            selected_menu_num = 0
+
+        else:
+            # The derivation calc takes a few moments. Run the loading screen while we wait.
+            from seedsigner.gui.screens.screen import LoadingScreenThread
+            self.loading_screen = LoadingScreenThread(text=_("Generating xpub..."))
+            self.loading_screen.start()
+
+            try:
+                from embit.bip32 import HDKey, detect_version
+                from embit.networks import NETWORKS
+                embit_network = NETWORKS[SettingsConstants.map_network_to_embit(self.settings.get_value(SettingsConstants.SETTING__NETWORK))]
+                version=detect_version(
+                    self.derivation_path,
+                    default="xpub",
+                    network=embit_network
+                )
+                root = HDKey.from_base58(self.xpub)
+                xpub_base58 = root.to_string(version=version)
+
+            finally:
+                self.loading_screen.stop()
+
+            selected_menu_num = self.run_screen(
+                tools_screens.ToolsMultisigKeyDetailsScreen,
+                fingerprint=self.fingerprint,
+                derivation_path=self.derivation_path,
+                xpub=xpub_base58,
+            )
+        
+        # Always returns to the list
+        return Destination(MultisigWalletDescriptorKeysListView, view_args=dict(start_index=self.start_index, selected_button_index=self.index - self.start_index, initial_scroll=self.parent_initial_scroll), skip_current_view=True)
+
+            
 
 """****************************************************************************
     Sign Message Views
