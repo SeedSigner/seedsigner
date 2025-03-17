@@ -7,7 +7,7 @@ from PIL.Image import Image
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConstants, IconTextLine, SeedSignerIconConstants, TextArea
 
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, KeyboardScreen
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, ButtonOption, KeyboardScreen, WarningEdgesMixin
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
@@ -460,3 +460,59 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
             ))
+
+
+
+@dataclass
+class ToolsMultisigKeyDetailsScreen(WarningEdgesMixin, ButtonListScreen):
+    # Customize defaults
+    is_bottom_list: bool = True
+    fingerprint: str = None
+    has_passphrase: bool = False
+    derivation_path: str = "m/84'/0'/0'"
+    xpub: str = "zpub6r..."
+
+    def __post_init__(self):
+        # Programmatically set up other args
+        self.button_data = [ButtonOption("Ok")]
+        self.title = _("Key Details")
+
+        # Initialize the base class
+        super().__post_init__()
+
+        # Set up the fingerprint and passphrase displays
+        self.fingerprint_line = IconTextLine(
+            icon_name=SeedSignerIconConstants.FINGERPRINT,
+            icon_color=GUIConstants.INFO_COLOR,
+            # TRANSLATOR_NOTE: Short for "BIP32 Master Fingerprint"
+            label_text=_("Fingerprint"),
+            value_text=self.fingerprint,
+            screen_x=GUIConstants.COMPONENT_PADDING,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+        )
+        self.components.append(self.fingerprint_line)
+
+        self.derivation_line = IconTextLine(
+            icon_name=SeedSignerIconConstants.DERIVATION,
+            icon_color=GUIConstants.INFO_COLOR,
+            # TRANSLATOR_NOTE: Short for "Derivation Path"
+            label_text=_("Derivation"),
+            value_text=self.derivation_path,
+            screen_x=GUIConstants.COMPONENT_PADDING,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + int(1.5*GUIConstants.COMPONENT_PADDING),
+        )
+        self.components.append(self.derivation_line)
+
+        self.xpub_line = IconTextLine(
+            icon_name=FontAwesomeIconConstants.X,
+            icon_color=GUIConstants.INFO_COLOR,
+            # TRANSLATOR_NOTE: Short for "BIP32 Extended Public Key"
+            label_text=_("Xpub"),
+            value_text=f"{self.xpub[:18]}...",
+            font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
+            font_size=GUIConstants.get_body_font_size() + 2,
+            screen_x=GUIConstants.COMPONENT_PADDING,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + int(1.5*GUIConstants.COMPONENT_PADDING),
+        )
+        self.components.append(self.xpub_line)
+        
