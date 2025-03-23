@@ -21,7 +21,7 @@ class TestL10nFlows(FlowTest):
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SETTINGS),
             FlowStep(settings_views.SettingsMenuView, button_data_selection=ButtonOption(settings_entry.display_name)),
-            FlowStep(settings_views.SettingsEntryUpdateSelectionView, button_data_selection=ButtonOption(spanish_display_name)),
+            FlowStep(settings_views.LocaleSelectionView, screen_return_value=1),  # Any index > 0 (English)
         ])
 
         # Now we don't get English

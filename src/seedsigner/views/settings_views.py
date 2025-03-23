@@ -1,7 +1,7 @@
 import logging
 from seedsigner.helpers.l10n import seedsigner_gettext as _
 
-from seedsigner.gui.components import SeedSignerIconConstants
+from seedsigner.gui.components import GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, settings_screens)
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.models.settings import Settings, SettingsConstants, SettingsDefinition
@@ -83,14 +83,49 @@ class SettingsMenuView(View):
         elif selected_menu_num == len(settings_entries):
             return next_destination
 
-        elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == self.IO_TEST:
+        elif button_data[selected_menu_num] == self.IO_TEST:
             return Destination(IOTestView)
 
-        elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == self.DONATE:
+        elif button_data[selected_menu_num] == self.DONATE:
             return Destination(DonateView)
+
+        elif settings_entries[selected_menu_num].attr_name == SettingsConstants.SETTING__LOCALE:
+            return Destination(LocaleSelectionView)
 
         else:
             return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=settings_entries[selected_menu_num].attr_name, parent_initial_scroll=initial_scroll))
+
+
+
+class LocaleSelectionView(View):
+    def run(self):
+        button_data: list[ButtonOption] = []
+        for language_code, display_name in SettingsConstants.get_detected_languages():
+            button_data.append(
+                # Unique to this View: override each button's font so we can display each
+                # language name in its native script.
+                ButtonOption(
+                    button_label=display_name,
+                    return_data=language_code,
+                    font_name=GUIConstants.get_button_font_name(language_code),
+                    font_size=GUIConstants.get_button_font_size(language_code),
+                )
+            )
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            button_data=button_data,
+            title=_(SettingsDefinition.get_settings_entry(attr_name=SettingsConstants.SETTING__LOCALE).display_name),
+            is_button_text_centered=False,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(SettingsMenuView)
+
+        # Set the new language
+        self.settings.set_value(SettingsConstants.SETTING__LOCALE, button_data[selected_menu_num].return_data)
+
+        return Destination(SettingsMenuView)
 
 
 

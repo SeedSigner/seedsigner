@@ -108,63 +108,76 @@ class SettingsConstants:
     LOCALE__URDU = "ur"
     LOCALE__VIETNAMESE = "vi"
 
-    # Do not wrap for translation. Present each language in its native form. Sort by
-    # native form when in Western chars, otherwise sort by English name.
+    # Do not wrap for translation. Present each language in its native form (i.e. either
+    # using its native chars or how they write it in Latin chars; e.g. Spanish is listed
+    # and sorted as "Español").
+    # Sort fully-vetted languages first, then beta languages, then the "placeholders /
+    # coming soon" languages.
+    # Sort by native form when written in Latin chars, otherwise sort by English name.
+    # Include English name in parens for languages that don't use Latin chars.
+    # Include region/country in parens for specific dialects (e.g. "Português (Brasil)").
     # Note that dicts preserve insertion order as of Python 3.7.
     ALL_LOCALES = {
-        LOCALE__ARABIC: "العربية (Arabic)",
-        LOCALE__BENGALI: "বাংলা (Bengali)",
-        LOCALE__BULGARIAN: "български (Bulgarian)",
+        # --------- Fully supported languages -------------------------------------------
         LOCALE__CATALAN: "Català",
-        LOCALE__CHINESE_SIMPLIFIED: "简体中文 (Chinese Simplified)",
-        LOCALE__CHINESE_TRADITIONAL: "繁體中文 (Chinese Traditional)",
-        LOCALE__CZECH: "čeština",
-        LOCALE__DANISH: "Dansk",
         LOCALE__GERMAN: "Deutsch",
-        LOCALE__ESTONIAN: "Eesti",
-        LOCALE__EGYPTIAN: "مصرى (Egyptian)",
         LOCALE__ENGLISH: "English",
         LOCALE__SPANISH: "Español",
         LOCALE__FRENCH: "Français",
+        LOCALE__DUTCH: "Nederlands",
+
+        # --------- Beta languages ------------------------------------------------------
+        LOCALE__JAPANESE: "(beta) 日本語 (Japanese)",
+        LOCALE__KOREAN: "(beta) 한국어 (Korean)",
+
+        # --------- Placeholders / Coming soon ------------------------------------------
+        # Commented out options require explicit additional font support.
+        # -------------------------------------------------------------------------------
+        # LOCALE__ARABIC: "العربية (Arabic)",
+        # LOCALE__BENGALI: "বাংলা (Bengali)",
+        LOCALE__BULGARIAN: "български (Bulgarian)",  # OpenSans includes cyrillic chars
+        LOCALE__CZECH: "čeština",
+        LOCALE__CHINESE_SIMPLIFIED: "简体中文 (Chinese Simplified)",  # Font already included in anticipation of translations being ready soon
+        # LOCALE__CHINESE_TRADITIONAL: "繁體中文 (Chinese Traditional)",
+        LOCALE__DANISH: "Dansk",
+        LOCALE__ESTONIAN: "Eesti",
+        # LOCALE__EGYPTIAN: "مصرى (Egyptian)",
         LOCALE__GAELIC: "Gaeilge",
-        LOCALE__GREEK: "Ελληνικά (Greek)",
-        LOCALE__GUJARATI: "ગુજરાતી (Gujarati)",
+        LOCALE__GREEK: "Ελληνικά (Greek)",  # OpenSans includes Greek chars
+        # LOCALE__GUJARATI: "ગુજરાતી (Gujarati)",
         LOCALE__HAUSA: "Hausa",
-        LOCALE__HEBREW: "עברית (Hebrew)",
-        LOCALE__HINDI: "हिन्दी (Hindi)",
+        # LOCALE__HEBREW: "עברית (Hebrew)",
+        # LOCALE__HINDI: "हिन्दी (Hindi)",
         LOCALE__CROATIAN: "Hrvatski",
         LOCALE__ITALIAN: "Italiano",
         LOCALE__INDONESIAN: "Indonesia",
-        LOCALE__JAPANESE: "日本語 (Japanese)",
         LOCALE__JAVANESE: "Jawa (Javanese)",
-        LOCALE__LAO: "ລາວ (Lao)",
+        # LOCALE__LAO: "ລາວ (Lao)",
         LOCALE__LATVIAN: "Latviešu",
         LOCALE__LITHUANIAN: "Lietuvių",
         LOCALE__HUNGARIAN: "Magyar",
         LOCALE__MALAY: "Melayu",
         LOCALE__MALTESE: "Malti",
-        LOCALE__MARATHI: "मराठी (Marathi)",
-        LOCALE__KOREAN: "한국어 (Korean)",
-        LOCALE__DUTCH: "Nederlands",
+        # LOCALE__MARATHI: "मराठी (Marathi)",
         LOCALE__NORWEGIAN: "Norsk",
-        LOCALE__PERSIAN: "فارسی (Persian)",
+        # LOCALE__PERSIAN: "فارسی (Persian)",
         LOCALE__POLISH: "Polski",
         LOCALE__PORTUGUESE_BR: "Português (Brasil)",
         LOCALE__PORTUGUESE_PT: "Português (Portugal)",
-        LOCALE__PUNJABI: "ਪੰਜਾਬੀ (Punjabi)",
+        # LOCALE__PUNJABI: "ਪੰਜਾਬੀ (Punjabi)",
         LOCALE__ROMANIAN: "Română",
-        LOCALE__RUSSIAN: "русский (Russian)",
+        LOCALE__RUSSIAN: "русский (Russian)",  # OpenSans includes cyrillic chars
         LOCALE__SLOVAK: "Slovenčina",
         LOCALE__SLOVENIAN: "Slovenščina",
         LOCALE__FINNISH: "Suomi",
         LOCALE__SWEDISH: "Svenska",
         LOCALE__TAGALOG: "Tagalog",
-        LOCALE__TAMIL: "தமிழ் (Tamil)",
-        LOCALE__TELUGU: "తెలుగు (Telugu)",
-        LOCALE__THAI: "ไทย (Thai)",
+        # LOCALE__TAMIL: "தமிழ் (Tamil)",
+        # LOCALE__TELUGU: "తెలుగు (Telugu)",
+        # LOCALE__THAI: "ไทย (Thai)",
         LOCALE__TURKISH: "Türkçe",
-        LOCALE__UKRANIAN: "українська (Ukranian)",
-        LOCALE__URDU: "اردو (Urdu)",
+        LOCALE__UKRANIAN: "українська (Ukranian)",   # OpenSans includes cyrillic chars
+        # LOCALE__URDU: "اردو (Urdu)",
         LOCALE__VIETNAMESE: "Tiếng Việt (Vietnamese)",
     }
 
@@ -178,16 +191,18 @@ class SettingsConstants:
         # Will normally be the launch dir (where main.py is located)...
         cwd = os.getcwd()
 
-        # ...except when running the tests
+        # ...except when running the tests which happens one dir higher
         if "src" not in cwd:
             cwd = os.path.join(cwd, "src")
 
-        # Always list English first (sorry, world)
+        # Pre-load English since there's no "en" entry in the translations folder; also
+        # it should always appear first in the list anyway.
         detected_languages = [(cls.LOCALE__ENGLISH, cls.ALL_LOCALES[cls.LOCALE__ENGLISH])]
 
         locales_present = set()
         for root, dirs, files in os.walk(os.path.join(cwd, "seedsigner", "resources", "seedsigner-translations", "l10n")):
             for file in [f for f in files if f.endswith(".mo")]:
+                # `root` will be [...]seedsigner/resources/seedsigner-translations/l10n/pt_BR/LC_MESSAGES
                 locales_present.add(root.split(f"l10n{ os.sep }")[1].split(os.sep)[0])
 
         for locale in cls.ALL_LOCALES.keys():

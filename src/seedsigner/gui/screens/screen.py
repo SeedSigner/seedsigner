@@ -277,6 +277,8 @@ class ButtonOption:
     button_label_color: str = None
     return_data: Any = None
     active_button_label: str = None  # Changes displayed button label when button is active
+    font_name: str = None  # Optional override
+    font_size: int = None  # Optional override
 
 
 
@@ -324,38 +326,26 @@ class ButtonListScreen(BaseTopNavScreen):
 
         self.buttons: List[Button] = []
         for i, button_option in enumerate(self.button_data):
-            icon_name = None
-            icon_color = None
-            right_icon_name = None
-            button_label_color = None
-
-            if type(button_option) == ButtonOption:
-                button_label = button_option.button_label
-                icon_name = button_option.icon_name
-                icon_color = button_option.icon_color
-                right_icon_name = button_option.right_icon_name
-                button_label_color = button_option.button_label_color
-                active_button_label = button_option.active_button_label
-            
-            else:
+            if type(button_option) != ButtonOption:
                 raise Exception("Refactor to ButtonOption approach needed!")
 
+            # TODO: Refactor `Button` to optionally use ButtonOption directly?
             button_kwargs = dict(
-                text=_(button_label),  # Wrap here for just-in-time translations
-                active_text=_(active_button_label),  # Wrap here for just-in-time translations
-                icon_name=icon_name,
-                icon_color=icon_color if icon_color else GUIConstants.BUTTON_FONT_COLOR,
+                text=_(button_option.button_label),  # Wrap here for just-in-time translations
+                active_text=_(button_option.active_button_label),  # Wrap here for just-in-time translations
+                icon_name=button_option.icon_name,
+                icon_color=button_option.icon_color if button_option.icon_color else GUIConstants.BUTTON_FONT_COLOR,
                 is_icon_inline=True,
-                right_icon_name=right_icon_name,
+                right_icon_name=button_option.right_icon_name,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=button_list_y + i * (button_height + GUIConstants.LIST_ITEM_PADDING),
                 scroll_y=self.scroll_y_initial_offset if self.scroll_y_initial_offset is not None else 0,
                 width=self.canvas_width - (2 * GUIConstants.EDGE_PADDING),
                 height=button_height,
                 is_text_centered=self.is_button_text_centered,
-                font_name=self.button_font_name,
-                font_size=self.button_font_size,
-                font_color=button_label_color if button_label_color else GUIConstants.BUTTON_FONT_COLOR,
+                font_name=button_option.font_name if button_option.font_name else self.button_font_name,
+                font_size=button_option.font_size if button_option.font_size else self.button_font_size,
+                font_color=button_option.button_label_color if button_option.button_label_color else GUIConstants.BUTTON_FONT_COLOR,
                 selected_color=self.button_selected_color,
                 is_scrollable_text=True,  # We need to use the ScrollableText class for long button labels
             )

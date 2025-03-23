@@ -48,31 +48,33 @@ class GUIConstants:
     ICON_TOAST_FONT_SIZE = 30
     ICON_PRIMARY_SCREEN_SIZE = 50
 
-    TOP_NAV_TITLE_FONT_NAME = {
-        "default": "OpenSans-SemiBold",
-        # "ar": "multilanguage/NotoSansAR-Regular",
-        # "he": "multilanguage/NotoSansHE-Regular",
-        # "ja": "multilanguage/NotoSansJP-Regular",
-        # "kr": "multilanguage/NotoSansKR-Regular",
-        # "ru": "multilanguage/NotoSans-Regular",
+    BASE_LOCALE_FONTS = {
+        "default": "OpenSans-Regular",
+        # SettingsConstants.LOCALE__ARABIC: "NotoSansAR-Regular",
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: "NotoSansSC-Regular",
+        # SettingsConstants.LOCALE__CHINESE_TRADITIONAL: "NotoSansTC-Regular",
+        SettingsConstants.LOCALE__JAPANESE: "NotoSansJP-Regular",
+        SettingsConstants.LOCALE__KOREAN: "NotoSansKR-Regular",
     }
+
+    TOP_NAV_TITLE_FONT_NAME = BASE_LOCALE_FONTS.copy()
+    TOP_NAV_TITLE_FONT_NAME["default"] = "OpenSans-SemiBold"
+
     TOP_NAV_TITLE_FONT_SIZE = {
         "default": 20,
+        SettingsConstants.LOCALE__JAPANESE: 22,  # Titles won't render below 22px
+        SettingsConstants.LOCALE__KOREAN: 23,    # Titles won't render below 23px
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 23,  # Some chars won't render below 23px
     }
     TOP_NAV_HEIGHT = 48
     TOP_NAV_BUTTON_SIZE = 32
 
-    BODY_FONT_NAME = {
-        "default": "OpenSans-Regular",
-        # "ar": "multilanguage/NotoSansAR-Regular",
-        # "he": "multilanguage/NotoSansHE-Regular",
-        # "ja": "multilanguage/NotoSansJP-Regular",
-        # "kr": "multilanguage/NotoSansKR-Regular",
-        # "ru": "multilanguage/NotoSans-Regular",
-    }
+    BODY_FONT_NAME = BASE_LOCALE_FONTS.copy()
     BODY_FONT_SIZE = {
         "default": 17,
-        # "ar": 16,
+        SettingsConstants.LOCALE__JAPANESE: 18,
+        SettingsConstants.LOCALE__KOREAN: 18,
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 18,
     }
     BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE["default"]
     BODY_FONT_MIN_SIZE = 15
@@ -85,18 +87,15 @@ class GUIConstants:
     LABEL_FONT_SIZE = BODY_FONT_MIN_SIZE
     LABEL_FONT_COLOR = "#777777"
 
-    BUTTON_FONT_NAME = {
-        "default": "OpenSans-SemiBold",
-        # "ar": "multilanguage/NotoSansAR-Regular",
-        # "he": "multilanguage/NotoSansHE-Regular",
-        # "ja": "multilanguage/NotoSansJP-Regular",
-        # "kr": "multilanguage/NotoSansKR-Regular",
-        # "ru": "multilanguage/NotoSans-Regular",
-    }
+    BUTTON_FONT_NAME = BASE_LOCALE_FONTS.copy()
+    BUTTON_FONT_NAME["default"] = "OpenSans-SemiBold"
+
     BUTTON_FONT_SIZE = {
         "default": 18,
         # "ar": 16,
-        # "ja": 16,
+        SettingsConstants.LOCALE__JAPANESE: 20,
+        SettingsConstants.LOCALE__KOREAN: 20,
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 20,
     }
     BUTTON_FONT_COLOR = "#FCFCFC"
     BUTTON_BACKGROUND_COLOR = "#2C2C2C"
@@ -107,8 +106,9 @@ class GUIConstants:
 
 
     @staticmethod
-    def get_body_font_name():
-        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+    def get_body_font_name(locale=None):
+        if not locale:
+            locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
         if locale in GUIConstants.BODY_FONT_NAME:
             return GUIConstants.BODY_FONT_NAME[locale]
         else:
@@ -116,8 +116,9 @@ class GUIConstants:
 
 
     @staticmethod
-    def get_body_font_size():
-        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+    def get_body_font_size(locale=None):
+        if not locale:
+            locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
         if locale in GUIConstants.BODY_FONT_SIZE:
             return GUIConstants.BODY_FONT_SIZE[locale]
         else:
@@ -143,8 +144,9 @@ class GUIConstants:
 
 
     @staticmethod
-    def get_button_font_name():
-        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+    def get_button_font_name(locale=None):
+        if not locale:
+            locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
         if locale in GUIConstants.BUTTON_FONT_NAME:
             return GUIConstants.BUTTON_FONT_NAME[locale]
         else:
@@ -152,8 +154,9 @@ class GUIConstants:
 
 
     @staticmethod
-    def get_button_font_size():
-        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+    def get_button_font_size(locale=None):
+        if not locale:
+            locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
         if locale in GUIConstants.BUTTON_FONT_SIZE:
             return GUIConstants.BUTTON_FONT_SIZE[locale]
         else:
@@ -1839,6 +1842,17 @@ def reflow_text_for_width(text: str,
         # Fudge factor for imprecise width calcs w/out libraqm
         full_text_width = int(full_text_width * 1.05)
 
+    # Assume we can break Asian text on any character
+    treat_chars_as_words = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE) in [
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED,
+        SettingsConstants.LOCALE__CHINESE_TRADITIONAL,
+        SettingsConstants.LOCALE__JAPANESE,
+        SettingsConstants.LOCALE__KOREAN,
+    ]
+    if treat_chars_as_words:
+        # Relax UI constraints even if the result isn't optimal
+        allow_text_overflow = True
+
     # Stores each line of text and its rendering starting x-coord
     text_lines = []
     def _add_text_line(text, text_width):
@@ -1850,7 +1864,7 @@ def reflow_text_for_width(text: str,
 
     else:
         # Have to calc how to break text into multiple lines
-        def _binary_len_search(min_index, max_index):
+        def _binary_len_search(min_index, max_index, word_spacer):
             # Try the middle of the range
             index = math.ceil((max_index + min_index) / 2)
             if index == 0:
@@ -1858,7 +1872,7 @@ def reflow_text_for_width(text: str,
                 index = 1
 
             # Measure rendered width from "left" anchor (anchor="l_")
-            (left, top, right, bottom) = font.getbbox(" ".join(words[0:index]), anchor="ls")
+            (left, top, right, bottom) = font.getbbox(word_spacer.join(words[0:index]), anchor="ls")
             line_width = right - left
 
             if not ImageFont.core.HAVE_RAQM:
@@ -1877,28 +1891,45 @@ def reflow_text_for_width(text: str,
                         # There's still room to back down the min_index in the next
                         # round.
                         index -= 1
-                return _binary_len_search(min_index=min_index, max_index=index)
+                return _binary_len_search(min_index=min_index, max_index=index, word_spacer=word_spacer)
             elif index == max_index:
                 # We have converged
                 return (index, line_width)
             else:
                 # Candidate line is possibly shorter than necessary.
-                return _binary_len_search(min_index=index, max_index=max_index)
+                return _binary_len_search(min_index=index, max_index=max_index, word_spacer=word_spacer)
 
-        if len(text.split()) == 1 and not allow_text_overflow:
+        if len(text.split()) == 1 and not allow_text_overflow and not treat_chars_as_words:
             # No whitespace chars to split on!
             raise TextDoesNotFitException("Text cannot fit in target rect with this font+size")
 
         # Now we're ready to go line-by-line into our line break binary search!
         for line in text.split("\n"):
-            words = line.split()
+            if treat_chars_as_words:
+                # Each char in `line` will be considered a word; lets us make line breaks
+                # at any char.
+                words = line
+
+                # When re-joining words, no additional spacer is used
+                word_spacer = ""
+
+                # TODO: Don't break before 、。「」（) etc.
+                # TODO: If English terms are embedded, don't break mid-word
+
+            else:
+                # Separate words by any whitespace (spaces, line breaks, etc)
+                words = line.split()
+
+                # When re-joining words, separate with a space char
+                word_spacer = " "
+
             if not words:
                 # It's a blank line
                 _add_text_line("", 0)
             else:
                 while words:
-                    (index, tw) = _binary_len_search(0, len(words))
-                    _add_text_line(" ".join(words[0:index]), tw)
+                    (index, tw) = _binary_len_search(0, len(words), word_spacer=word_spacer)
+                    _add_text_line(word_spacer.join(words[0:index]), tw)
                     words = words[index:]
 
     return text_lines
