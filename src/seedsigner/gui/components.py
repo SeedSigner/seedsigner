@@ -59,7 +59,6 @@ class GUIConstants:
 
     TOP_NAV_TITLE_FONT_NAME = BASE_LOCALE_FONTS.copy()
     TOP_NAV_TITLE_FONT_NAME["default"] = "OpenSans-SemiBold"
-
     TOP_NAV_TITLE_FONT_SIZE = {
         "default": 20,
         SettingsConstants.LOCALE__JAPANESE: 22,  # Titles won't render below 22px
@@ -89,7 +88,6 @@ class GUIConstants:
 
     BUTTON_FONT_NAME = BASE_LOCALE_FONTS.copy()
     BUTTON_FONT_NAME["default"] = "OpenSans-SemiBold"
-
     BUTTON_FONT_SIZE = {
         "default": 18,
         # "ar": 16,

@@ -183,9 +183,11 @@ class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
         self.is_button_text_centered = True
         super().__post_init__()
 
+        # TRANSLATOR_NOTE: Final word calc. `mnemonic_length` = 12 or 24. `num_bits` = 7 or 3 (bits of entropy in final word).
+        text=_("The {mnemonic_length}th word is built from {num_bits} more entropy bits plus auto-calculated checksum.").format(mnemonic_length=self.mnemonic_length, num_bits=self.num_entropy_bits)
+
         self.components.append(TextArea(
-            # TRANSLATOR_NOTE: Final word calc. `mnemonic_length` = 12 or 24. `num_bits` = 7 or 3 (bits of entropy in final word).
-            text=_("The {mnemonic_length}th word is built from {num_bits} more entropy bits plus auto-calculated checksum.").format(mnemonic_length=self.mnemonic_length, num_bits=self.num_entropy_bits),
+            text=text,
             screen_y=self.top_nav.height + int(GUIConstants.COMPONENT_PADDING/2),
         ))
 
