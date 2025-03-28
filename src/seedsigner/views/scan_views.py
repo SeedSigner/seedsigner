@@ -5,6 +5,7 @@ from gettext import gettext as _
 from seedsigner.helpers.l10n import mark_for_translation as _mft
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.view import BackStackView, ErrorView, MainMenuView, NotYetImplementedView, View, Destination
+from seedsigner.gui.screens.screen import ButtonOption
 
 logger = logging.getLogger(__name__)
 
@@ -163,13 +164,7 @@ class ScanView(View):
             # For now, don't even try to re-do the attempted operation, just reset and
             # start everything over.
             self.controller.resume_main_flow = None
-            return Destination(ErrorView, view_args=dict(
-                title=_("Error"),
-                status_headline=_("Unknown QR Type"),
-                text=_("QRCode is invalid or is a data format not yet supported."),
-                button_text=_("Done"),
-                next_destination=Destination(MainMenuView, clear_history=True),
-            ))
+            return Destination(ScanInvalidQRTypeView)
 
         return Destination(MainMenuView)
 
@@ -212,3 +207,23 @@ class ScanAddressView(ScanView):
     @property
     def is_valid_qr_type(self):
         return self.decoder.is_address
+
+
+
+class ScanInvalidQRTypeView(View):
+    def run(self):
+        from seedsigner.gui.screens import WarningScreen
+
+        # TODO: This screen says "Error" but is intentionally using the WarningScreen in
+        # order to avoid the perception that something is broken on our end. This should
+        # either change to use the red ErrorScreen or the "Error" title should be
+        # changed to something softer.
+        self.run_screen(
+            WarningScreen,
+            title=_("Error"),
+            status_headline=_("Unknown QR Type"),
+            text=_("QRCode is invalid or is a data format not yet supported."),
+            button_data=[ButtonOption("Done")],
+        )
+
+        return Destination(MainMenuView, clear_history=True)

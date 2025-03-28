@@ -1,14 +1,14 @@
 # Translations template for seedsigner.
-# Copyright (C) 2024 ORGANIZATION
+# Copyright (C) 2025 ORGANIZATION
 # This file is distributed under the same license as the seedsigner project.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2024.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: seedsigner 0.8.5\n"
+"Project-Id-Version: seedsigner 0.8.5-rc1\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2024-11-03 14:15-0600\n"
+"POT-Creation-Date: 2025-01-28 13:28-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,16 +34,6 @@ msgstr ""
 #: src/seedsigner/gui/components.py src/seedsigner/gui/screens/psbt_screens.py
 #: src/seedsigner/models/settings_definition.py
 msgid "sats"
-msgstr ""
-
-#. The abbreviated label for the special key <del> on a standard keyboard.
-#: src/seedsigner/gui/keyboard.py
-msgid "del"
-msgstr ""
-
-#. The abbreviated label for the special key <space> on a standard keyboard.
-#: src/seedsigner/gui/keyboard.py
-msgid "space"
 msgstr ""
 
 #: src/seedsigner/gui/toast.py
@@ -121,9 +111,8 @@ msgid "OP_RETURN"
 msgstr ""
 
 #. Label for a change output in the PSBT Overview flow diagram
-#. Used in a sentence describing the address type (change or receive)
 #: src/seedsigner/gui/screens/psbt_screens.py
-#: src/seedsigner/views/psbt_views.py src/seedsigner/views/seed_views.py
+#: src/seedsigner/views/psbt_views.py
 msgid "change"
 msgstr ""
 
@@ -204,15 +193,19 @@ msgstr ""
 msgid "Darker"
 msgstr ""
 
-#: src/seedsigner/gui/screens/screen.py src/seedsigner/views/seed_views.py
+#: src/seedsigner/gui/screens/screen.py
+#: src/seedsigner/gui/screens/seed_screens.py
+#: src/seedsigner/views/seed_views.py
 msgid "Success!"
 msgstr ""
 
-#: src/seedsigner/gui/screens/screen.py src/seedsigner/views/seed_views.py
+#: src/seedsigner/gui/screens/screen.py
+#: src/seedsigner/gui/screens/seed_screens.py
+#: src/seedsigner/views/seed_views.py
 msgid "OK"
 msgstr ""
 
-#: src/seedsigner/gui/screens/screen.py src/seedsigner/views/psbt_views.py
+#: src/seedsigner/gui/screens/screen.py
 msgid "Caution"
 msgstr ""
 
@@ -226,6 +219,11 @@ msgstr ""
 
 #: src/seedsigner/gui/screens/screen.py
 msgid "Classified Info!"
+msgstr ""
+
+#: src/seedsigner/gui/screens/screen.py src/seedsigner/views/scan_views.py
+#: src/seedsigner/views/view.py
+msgid "Error"
 msgstr ""
 
 #: src/seedsigner/gui/screens/screen.py
@@ -392,6 +390,25 @@ msgid "Checking address {}"
 msgstr ""
 
 #: src/seedsigner/gui/screens/seed_screens.py
+msgid "Address Verified"
+msgstr ""
+
+#. Describes the address type (change or receive)
+#: src/seedsigner/gui/screens/seed_screens.py
+msgid "change address"
+msgstr ""
+
+#. Describes the address type (change or receive)
+#: src/seedsigner/gui/screens/seed_screens.py
+msgid "receive address"
+msgstr ""
+
+#. Describes the address index (e.g. "index 7")
+#: src/seedsigner/gui/screens/seed_screens.py
+msgid "index {}"
+msgstr ""
+
+#: src/seedsigner/gui/screens/seed_screens.py
 msgid "Multisig Verification"
 msgstr ""
 
@@ -494,7 +511,7 @@ msgid "Home"
 msgstr ""
 
 #: src/seedsigner/gui/screens/tools_screens.py
-msgid "click joystick"
+msgid "click a button"
 msgstr ""
 
 #. A prompt to the user to either accept or reshoot the image
@@ -517,11 +534,12 @@ msgstr ""
 msgid "Build Final Word"
 msgstr ""
 
-#. Number of BIP-39 seed words, and the entropy -- in bits, contained within.
+#. Final word calc. `mnemonic_length` = 12 or 24. `num_bits` = 7 or 3 (bits of
+#. entropy in final word).
 #: src/seedsigner/gui/screens/tools_screens.py
 msgid ""
-"The {}th word is built from {} more entropy bits plus auto-calculated "
-"checksum."
+"The {mnemonic_length}th word is built from {num_bits} more entropy bits "
+"plus auto-calculated checksum."
 msgstr ""
 
 #. current coin-flip number vs total flips (e.g. flip 3 of 4)
@@ -745,6 +763,10 @@ msgid "BIP-85 child seeds"
 msgstr ""
 
 #: src/seedsigner/models/settings_definition.py
+msgid "Electrum seeds"
+msgstr ""
+
+#: src/seedsigner/models/settings_definition.py
 msgid "Native Segwit only"
 msgstr ""
 
@@ -874,18 +896,16 @@ msgstr ""
 
 #. Variable is either "change" or "self-transfer".
 #: src/seedsigner/views/psbt_views.py
-msgid ""
-"PSBT's {} address could not be verified with your multisig wallet "
-"descriptor."
-msgstr ""
-
-#: src/seedsigner/views/psbt_views.py
-msgid "Suspicious PSBT"
+msgid "PSBT's {} address could not be verified from wallet descriptor."
 msgstr ""
 
 #. Variable is either "change" or "self-transfer".
 #: src/seedsigner/views/psbt_views.py
 msgid "PSBT's {} address could not be generated from your seed."
+msgstr ""
+
+#: src/seedsigner/views/psbt_views.py
+msgid "Suspicious PSBT"
 msgstr ""
 
 #: src/seedsigner/views/psbt_views.py
@@ -928,23 +948,6 @@ msgstr ""
 msgid "Wrong QR Type"
 msgstr ""
 
-#: src/seedsigner/views/scan_views.py src/seedsigner/views/view.py
-msgid "Error"
-msgstr ""
-
-#: src/seedsigner/views/scan_views.py
-msgid "Unknown QR Type"
-msgstr ""
-
-#: src/seedsigner/views/scan_views.py
-msgid "QRCode is invalid or is a data format not yet supported."
-msgstr ""
-
-#: src/seedsigner/views/scan_views.py src/seedsigner/views/seed_views.py
-#: src/seedsigner/views/view.py
-msgid "Done"
-msgstr ""
-
 #: src/seedsigner/views/scan_views.py src/seedsigner/views/seed_views.py
 msgid "Scan PSBT"
 msgstr ""
@@ -975,6 +978,19 @@ msgstr ""
 
 #: src/seedsigner/views/scan_views.py
 msgid "Expected an address QR"
+msgstr ""
+
+#: src/seedsigner/views/scan_views.py
+msgid "Unknown QR Type"
+msgstr ""
+
+#: src/seedsigner/views/scan_views.py
+msgid "QRCode is invalid or is a data format not yet supported."
+msgstr ""
+
+#: src/seedsigner/views/scan_views.py src/seedsigner/views/seed_views.py
+#: src/seedsigner/views/view.py
+msgid "Done"
 msgstr ""
 
 #. This is on the opening splash screen, displayed above the HRF logo
@@ -1263,30 +1279,6 @@ msgid "Can't validate a single sig addr without specifying a seed"
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
-msgid "multisig"
-msgstr ""
-
-#. Inserts the seed fingerprint
-#: src/seedsigner/views/seed_views.py
-msgid "seed {}"
-msgstr ""
-
-#. Used in a sentence describing the address type (change or receive)
-#: src/seedsigner/views/seed_views.py
-msgid "receive"
-msgstr ""
-
-#. Address verification success message (e.g. "bc1qabc = seed 12345678's
-#. receive address #0.")
-#: src/seedsigner/views/seed_views.py
-msgid "{} = {}'s {} address #{}."
-msgstr ""
-
-#: src/seedsigner/views/seed_views.py
-msgid "Address Verified"
-msgstr ""
-
-#: src/seedsigner/views/seed_views.py
 msgid "Scan Descriptor"
 msgstr ""
 
@@ -1456,10 +1448,13 @@ msgstr ""
 msgid "Back to Main Menu"
 msgstr ""
 
+#. The network setting (mainnet/testnet/regtest) doesn't match the provided
+#. derivation path
 #: src/seedsigner/views/view.py
 msgid "Network Mismatch"
 msgstr ""
 
+#. Button option to alter a setting
 #: src/seedsigner/views/view.py
 msgid "Change Setting"
 msgstr ""

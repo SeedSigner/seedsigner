@@ -31,9 +31,9 @@ if __name__ == "__main__":
     seed_phrase = input("\nEnter 12- or 24-word test seed phrase: ").strip().split(" ")
 
     if format == COMPACT:
-        encoder = CompactSeedQrEncoder(seed_phrase=seed_phrase, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+        encoder = CompactSeedQrEncoder(mnemonic=seed_phrase, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
     else:
-        encoder = SeedQrEncoder(seed_phrase=seed_phrase, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+        encoder = SeedQrEncoder(mnemonic=seed_phrase, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
 
     qr = qrcode.QRCode( version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=5, border=3)
     qr.add_data(encoder.next_part())

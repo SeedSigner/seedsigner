@@ -27,17 +27,18 @@ class GUIConstants:
     COMPONENT_PADDING = 8
     LIST_ITEM_PADDING = 4
 
-    BACKGROUND_COLOR = "black"
+    BACKGROUND_COLOR = "#000000"
+    INACTIVE_COLOR = "#414141"
+    ACCENT_COLOR = "#FF9F0A" # Active Color
     WARNING_COLOR = "#FFD60A"
-    DIRE_WARNING_COLOR = "#FF453A"
+    DIRE_WARNING_COLOR = "#FF5700"
+    ERROR_COLOR = "#FF1B0A"
     SUCCESS_COLOR = "#30D158"
-    INFO_COLOR = "#0084FF"
-    ACCENT_COLOR = "#FF9F0A"
+    INFO_COLOR = "#409CFF"
     BITCOIN_ORANGE = "#FF9416"
     TESTNET_COLOR = "#00F100"
     REGTEST_COLOR = "#00CAF1"
     GREEN_INDICATOR_COLOR = "#00FF00"
-    INACTIVE_COLOR = "#414141"
 
     ICON_FONT_NAME__FONT_AWESOME = "Font_Awesome_6_Free-Solid-900"
     ICON_FONT_NAME__SEEDSIGNER = "seedsigner-icons"
@@ -215,27 +216,34 @@ class SeedSignerIconConstants:
     RESTART = "\ue911"
 
     # Messaging icons
-    ERROR = "\ue912"
+    INFO = "\ue912"
     SUCCESS = "\ue913"
     WARNING = "\ue914"
+    ERROR = "\ue915"
 
     # Informational icons
-    ADDRESS = "\ue915"
-    CHANGE = "\ue916"
-    DERIVATION = "\ue917"
-    FEE = "\ue918"
-    FINGERPRINT = "\ue919"
-    PASSPHRASE = "\ue91a"
+    ADDRESS = "\ue916"
+    CHANGE = "\ue917"
+    DERIVATION = "\ue918"
+    FEE = "\ue919"
+    FINGERPRINT = "\ue91a"
+    PASSPHRASE = "\ue91b"
 
     # Misc icons
-    BITCOIN = "\ue91b"
-    BITCOIN_ALT = "\ue91c"
-    BRIGHTNESS = "\ue91d"
-    MICROSD = "\ue91e"
-    QRCODE = "\ue91f"
+    BITCOIN = "\ue91c"
+    BITCOIN_ALT = "\ue91d"
+    BRIGHTNESS = "\ue91e"
+    MICROSD = "\ue91f"
+    QRCODE = "\ue920"
+    SIGN = "\ue921"
 
+    # Input icons
+    DELETE = "\ue922"
+    SPACE = "\ue923"
+
+    # Must be updated whenever new icons are added. See usage in `Icon` class below.
     MIN_VALUE = SCAN
-    MAX_VALUE = QRCODE
+    MAX_VALUE = SPACE
 
 
 
@@ -270,17 +278,6 @@ def calc_text_centering(font: ImageFont,
     text_y = int((total_height - (ascent - offset_y)) / 2) - offset_y
 
     return (start_x + text_x, start_y + text_y)
-
-
-
-def load_icon(icon_name: str, load_selected_variant: bool = False):
-    icon_url = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "resources", "icons", icon_name)
-    icon = Image.open(icon_url + ".png").convert("RGB")
-    if not load_selected_variant:
-        return icon
-    else:
-        icon_selected = Image.open(icon_url + "_selected.png").convert("RGB")
-        return (icon, icon_selected)
 
 
 

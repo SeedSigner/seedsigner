@@ -505,7 +505,7 @@ class SettingsDefinition:
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__ELECTRUM_SEEDS,
                       abbreviated_name="electrum",
-                      display_name="Electrum seeds",
+                      display_name=_mft("Electrum seeds"),
                       help_text=_mft("Native Segwit only"),
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__DISABLED),

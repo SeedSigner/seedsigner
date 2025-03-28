@@ -768,7 +768,7 @@ class PSBTFinalizeScreen(ButtonListScreen):
         super().__post_init__()
 
         icon = Icon(
-            icon_name=FontAwesomeIconConstants.PAPER_PLANE,
+            icon_name=SeedSignerIconConstants.SIGN,
             icon_color=GUIConstants.INFO_COLOR,
             icon_size=GUIConstants.ICON_LARGE_BUTTON_SIZE,
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING

@@ -1,3 +1,4 @@
+import logging
 import time
 
 from dataclasses import dataclass, field
@@ -14,6 +15,8 @@ from seedsigner.hardware.buttons import HardwareButtonsConstants, HardwareButton
 from seedsigner.models.encode_qr import BaseQrEncoder
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
+
+logger = logging.getLogger(__name__)
 
 
 # Must be huge numbers to avoid conflicting with the selected_button returned by the
@@ -70,6 +73,13 @@ class BaseScreen(BaseComponent):
         finally:
             for t in self.get_threads():
                 t.stop()
+
+            for t in self.get_threads():
+                # Wait for each thread to stop; equivalent to `join()` but gracefully
+                # handles threads that were never run (necessary for screenshot generator
+                # compatibility, perhaps other edge cases).
+                while t.is_alive():
+                    time.sleep(0.01)
 
 
     def clear_screen(self):
@@ -226,11 +236,7 @@ class BaseTopNavScreen(BaseScreen):
                 time.sleep(0.1)
                 continue
 
-            user_input = self.hw_inputs.wait_for(
-                HardwareButtonsConstants.ALL_KEYS,
-                check_release=True,
-                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
-            )
+            user_input = self.hw_inputs.wait_for(HardwareButtonsConstants.ALL_KEYS)
 
             with self.renderer.lock:
                 if not self.top_nav.is_selected and user_input in [
@@ -303,7 +309,7 @@ class ButtonListScreen(BaseTopNavScreen):
         if len(self.button_data) == 1:
             button_list_height = button_height
         else:
-            button_list_height = (len(self.button_data) * button_height) + (GUIConstants.COMPONENT_PADDING * (len(self.button_data) - 1))
+            button_list_height = (len(self.button_data) * button_height) + (GUIConstants.LIST_ITEM_PADDING * (len(self.button_data) - 1))
 
         if self.is_bottom_list:
             button_list_y = self.canvas_height - (button_list_height + GUIConstants.EDGE_PADDING)
@@ -332,7 +338,7 @@ class ButtonListScreen(BaseTopNavScreen):
                 active_button_label = button_option.active_button_label
             
             else:
-                raise Exception("Refactor needed!")
+                raise Exception("Refactor to ButtonOption approach needed!")
 
             button_kwargs = dict(
                 text=_(button_label),  # Wrap here for just-in-time translations
@@ -447,6 +453,7 @@ class ButtonListScreen(BaseTopNavScreen):
         while True:
             ret = self._run_callback()
             if ret is not None:
+                logging.info("Exiting ButtonListScreen due to _run_callback")
                 return ret
 
             user_input = self.hw_inputs.wait_for(
@@ -455,9 +462,7 @@ class ButtonListScreen(BaseTopNavScreen):
                     HardwareButtonsConstants.KEY_DOWN,
                     HardwareButtonsConstants.KEY_LEFT,
                     HardwareButtonsConstants.KEY_RIGHT,
-                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
-                check_release=True,
-                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK
             )
 
             with self.renderer.lock:
@@ -641,9 +646,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                     HardwareButtonsConstants.KEY_DOWN,
                     HardwareButtonsConstants.KEY_LEFT,
                     HardwareButtonsConstants.KEY_RIGHT
-                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
-                check_release=True,
-                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK
             )
 
             with self.renderer.lock:
@@ -858,9 +861,7 @@ class QRDisplayScreen(BaseScreen):
                     HardwareButtonsConstants.KEY_DOWN,
                     HardwareButtonsConstants.KEY_LEFT,
                     HardwareButtonsConstants.KEY_RIGHT,
-                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
-                check_release=True,
-                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK
             )
             if user_input == HardwareButtonsConstants.KEY_DOWN:
                 # Reduce QR code background brightness
@@ -923,13 +924,14 @@ class LargeIconStatusScreen(ButtonListScreen):
             self.components.append(self.warning_headline_textarea)
             next_y = next_y + self.warning_headline_textarea.height
 
-        self.components.append(TextArea(
-            height=self.buttons[0].screen_y - next_y,
-            text=_(self.text),
-            width=self.canvas_width,
-            edge_padding=self.text_edge_padding,  # Don't render all the way up to the far left/right edges
-            screen_y=next_y,
-        ))
+        if self.text:
+            self.components.append(TextArea(
+                height=self.buttons[0].screen_y - next_y,
+                text=_(self.text),
+                width=self.canvas_width,
+                edge_padding=self.text_edge_padding,  # Don't render all the way up to the far left/right edges
+                screen_y=next_y,
+            ))
 
 
 
@@ -1011,9 +1013,12 @@ class WarningEdgesMixin:
 
 @dataclass
 class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
+    """
+    Exclamation point icon + yellow WARNING color
+    """
     title: str = _mft("Caution")
     status_icon_name: str = SeedSignerIconConstants.WARNING
-    status_color: str = "yellow"
+    status_color: str = GUIConstants.WARNING_COLOR
     status_headline: str = _mft("Privacy Leak!")     # The colored text under the alert icon
     button_data: list = field(default_factory=lambda: [ButtonOption("I Understand")])
 
@@ -1021,8 +1026,22 @@ class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
 
 @dataclass
 class DireWarningScreen(WarningScreen):
+    """
+    Exclamation point icon + orange DIRE_WARNING color
+    """
     status_headline: str = _mft("Classified Info!")     # The colored text under the alert icon
     status_color: str = GUIConstants.DIRE_WARNING_COLOR
+
+
+
+@dataclass
+class ErrorScreen(WarningScreen):
+    """
+    X icon + red ERROR color
+    """
+    title: str = _mft("Error")
+    status_icon_name: str = SeedSignerIconConstants.ERROR
+    status_color: str = GUIConstants.ERROR_COLOR
 
 
 
@@ -1191,9 +1210,7 @@ class KeyboardScreen(BaseTopNavScreen):
         # Start the interactive update loop
         while True:
             input = self.hw_inputs.wait_for(
-                HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + [HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3],
-                check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3]
+                HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + [HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3]
             )
 
             with self.renderer.lock:

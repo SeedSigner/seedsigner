@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 class ToastOverlay(BaseComponent):
     icon_name: str = None
     color: str = GUIConstants.NOTIFICATION_COLOR
+    font_color: str = GUIConstants.NOTIFICATION_COLOR
     label_text: str = None
     height: int = GUIConstants.ICON_TOAST_FONT_SIZE + 2*GUIConstants.EDGE_PADDING
     font_size: int = 19
@@ -21,33 +22,42 @@ class ToastOverlay(BaseComponent):
     def __post_init__(self):
         super().__post_init__()
 
-        self.icon = Icon(
-            image_draw=self.image_draw,
-            canvas=self.canvas,
-            screen_x=self.outline_thickness + 2*GUIConstants.EDGE_PADDING,  # Push the icon further from the left edge than strictly necessary
-            icon_name=self.icon_name,
-            icon_size=GUIConstants.ICON_TOAST_FONT_SIZE,
-            icon_color=self.color
-        )
-        self.icon.screen_y = self.canvas_height - self.height + int((self.height - self.icon.height)/2)
-
+        icon_delta_x = 0
+        if self.icon_name:
+            self.icon = Icon(
+                image_draw=self.image_draw,
+                canvas=self.canvas,
+                screen_x=self.outline_thickness + GUIConstants.EDGE_PADDING,  # Push the icon further from the left edge than strictly necessary
+                icon_name=self.icon_name,
+                icon_size=GUIConstants.ICON_TOAST_FONT_SIZE,
+                icon_color=self.color
+            )
+            icon_delta_x = self.icon.width + self.icon.screen_x
+        
         self.label = TextArea(
             image_draw=self.image_draw,
             canvas=self.canvas,
             text=self.label_text,
             font_size=self.font_size,
-            font_color=self.color,
+            font_color=self.font_color,
             edge_padding=0,
             is_text_centered=False,
             auto_line_break=True,
-            width=self.canvas_width - self.icon.screen_x - self.icon.width - GUIConstants.COMPONENT_PADDING - self.outline_thickness,
-            screen_x=self.icon.screen_x + self.icon.width + GUIConstants.COMPONENT_PADDING,
+            width=self.canvas_width - icon_delta_x - 2 * GUIConstants.COMPONENT_PADDING - 2 * self.outline_thickness,
+            screen_x=icon_delta_x + GUIConstants.COMPONENT_PADDING,
             allow_text_overflow=False,
+            height_ignores_below_baseline=True,
         )
+        
+        if self.label.height > GUIConstants.ICON_FONT_SIZE:
+            self.height = self.label.height + GUIConstants.EDGE_PADDING * 2
 
-        # Vertically center the message within the toast (for single- or multi-line
+        # Vertically center the message and icon within the toast (for single- or multi-line
         # messages).
         self.label.screen_y = self.canvas_height - self.height + self.outline_thickness + int((self.height - 2*self.outline_thickness - self.label.height)/2)
+        
+        if self.icon_name:
+            self.icon.screen_y = self.canvas_height - self.height + int((self.height - self.icon.height)/2)
 
 
     def render(self):
@@ -61,7 +71,9 @@ class ToastOverlay(BaseComponent):
         )
 
         # Draw the toast visual elements
-        self.icon.render()
+        if self.icon_name:
+            self.icon.render()
+
         self.label.render()
 
         self.renderer.show_image()
@@ -125,6 +137,7 @@ class BaseToastOverlayManagerThread(BaseThread):
     def run(self):
         logger.info(f"{self.__class__.__name__}: started")
         start = time.time()
+        time.sleep(0.2)
         while time.time() - start < self.activation_delay:
             if self.hw_inputs.has_any_input():
                 # User has pressed a button, cancel the toast
@@ -236,4 +249,95 @@ class SDCardStateChangeToastManagerThread(BaseToastOverlayManagerThread):
         return ToastOverlay(
             icon_name=SeedSignerIconConstants.MICROSD,
             label_text=self.message,
+        )
+
+
+"""****************************************************************************
+    Messaging toasts
+****************************************************************************"""
+
+
+class DefaultToast(BaseToastOverlayManagerThread):
+    def __init__(self, label_text="This is a notification toast", activation_delay=0, duration=3):
+        # Note: activation_delay is configurable so the screenshot generator can get the
+        # toast to immediately render.
+        self.label_text = label_text
+        super().__init__(
+            activation_delay=activation_delay,  # seconds
+            duration=duration                   # seconds
+        )
+
+
+    def instantiate_toast(self) -> ToastOverlay:
+        body_font_size = GUIConstants.get_body_font_size()
+        return ToastOverlay(
+            label_text=self.label_text,
+            color=GUIConstants.BODY_FONT_COLOR,
+            font_color=GUIConstants.BODY_FONT_COLOR,
+            font_size=body_font_size,
+        )
+
+
+
+class InfoToast(DefaultToast):
+    def instantiate_toast(self) -> ToastOverlay:
+        body_font_size = GUIConstants.get_body_font_size()
+        return ToastOverlay(
+            icon_name=SeedSignerIconConstants.INFO,
+            label_text=self.label_text,
+            color=GUIConstants.INFO_COLOR,
+            font_color=GUIConstants.BODY_FONT_COLOR,
+            font_size=body_font_size,
+        )
+    
+
+
+class SuccessToast(DefaultToast):
+    def instantiate_toast(self) -> ToastOverlay:
+        body_font_size = GUIConstants.get_body_font_size()
+        return ToastOverlay(
+            icon_name=SeedSignerIconConstants.SUCCESS,
+            label_text=self.label_text,
+            color=GUIConstants.SUCCESS_COLOR,
+            font_color=GUIConstants.BODY_FONT_COLOR,
+            font_size=body_font_size,
+        )
+    
+
+
+class WarningToast(DefaultToast):
+    def instantiate_toast(self) -> ToastOverlay:
+        body_font_size = GUIConstants.get_body_font_size()
+        return ToastOverlay(
+            icon_name=SeedSignerIconConstants.WARNING,
+            label_text=self.label_text,
+            color=GUIConstants.WARNING_COLOR,
+            font_color=GUIConstants.BODY_FONT_COLOR,
+            font_size=body_font_size,
+        )
+    
+
+
+class DireWarningToast(DefaultToast):
+    def instantiate_toast(self) -> ToastOverlay:
+        body_font_size = GUIConstants.get_body_font_size()
+        return ToastOverlay(
+            icon_name=SeedSignerIconConstants.WARNING,
+            label_text=self.label_text,
+            color=GUIConstants.DIRE_WARNING_COLOR,
+            font_color=GUIConstants.BODY_FONT_COLOR,
+            font_size=body_font_size,
+        )
+
+
+
+class ErrorToast(DefaultToast):
+    def instantiate_toast(self) -> ToastOverlay:
+        body_font_size = GUIConstants.get_body_font_size()
+        return ToastOverlay(
+            icon_name=SeedSignerIconConstants.ERROR,
+            label_text=self.label_text,
+            color=GUIConstants.ERROR_COLOR,
+            font_color=GUIConstants.BODY_FONT_COLOR,
+            font_size=body_font_size,
         )

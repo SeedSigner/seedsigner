@@ -286,8 +286,9 @@ class SeedMnemonicInvalidView(View):
     def run(self):
         button_data = [self.EDIT, self.DISCARD]
         selected_menu_num = self.run_screen(
-            WarningScreen,
+            DireWarningScreen,
             title=_("Invalid Mnemonic!"),
+            status_icon_name=SeedSignerIconConstants.ERROR,
             status_headline=None,
             text=_("Checksum failure; not a valid seed phrase."),
             show_back_button=False,
@@ -856,7 +857,6 @@ class SeedExportXpubCoordinatorView(View):
 
 
 
-
 class SeedExportXpubWarningView(View):
     def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, custom_derivation: str):
         super().__init__()
@@ -1202,6 +1202,7 @@ class SeedBIP85SelectChildIndexView(View):
         )
 
 
+
 class SeedBIP85InvalidChildIndexView(View):
     def __init__(self, seed_num: int, num_words: int):
         super().__init__()
@@ -1213,6 +1214,7 @@ class SeedBIP85InvalidChildIndexView(View):
         DireWarningScreen(
             title=_("BIP-85 Index Error"),
             show_back_button=False,
+            status_icon_name=SeedSignerIconConstants.ERROR,
             status_headline=_("Invalid Child Index"),
             text=_("BIP-85 Child Index must be between 0 and 2^31-1."),
             button_data=[ButtonOption("Try Again")]
@@ -1373,6 +1375,7 @@ class SeedWordsBackupTestMistakeView(View):
         selected_menu_num = DireWarningScreen(
             title=_("Verification Error"),
             show_back_button=False,
+            status_icon_name=SeedSignerIconConstants.ERROR,
             status_headline=status_headline,
             button_data=button_data,
             text=text,
@@ -1423,6 +1426,14 @@ class SeedWordsBackupTestSuccessView(View):
     Export as SeedQR
 ****************************************************************************"""
 class SeedTranscribeSeedQRFormatView(View):
+    # SeedQR dims for 12-word seeds
+    STANDARD_12 = ButtonOption("Standard: 25x25", return_data=25)
+    COMPACT_12 = ButtonOption("Compact: 21x21", return_data=21)
+
+    # SeedQR dims for 24-word seeds
+    STANDARD_24 = ButtonOption("Standard: 29x29", return_data=29)
+    COMPACT_24 = ButtonOption("Compact: 25x25", return_data=25)
+
     def __init__(self, seed_num: int):
         super().__init__()
         self.seed_num = seed_num
@@ -1430,12 +1441,6 @@ class SeedTranscribeSeedQRFormatView(View):
 
     def run(self):
         seed = self.controller.get_seed(self.seed_num)
-        if len(seed.mnemonic_list) == 12:
-            STANDARD = ButtonOption("Standard: 25x25", return_data=25)
-            COMPACT = ButtonOption("Compact: 21x21", return_data=21)
-        else:
-            STANDARD = ButtonOption("Standard: 29x29", return_data=29)
-            COMPACT = ButtonOption("Compact: 25x25", return_data=25)
 
         if self.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR) != SettingsConstants.OPTION__ENABLED:
             # Only configured for standard SeedQR
@@ -1444,22 +1449,26 @@ class SeedTranscribeSeedQRFormatView(View):
                 view_args={
                     "seed_num": self.seed_num,
                     "seedqr_format": QRType.SEED__SEEDQR,
-                    "num_modules": STANDARD.return_data,
+                    "num_modules": self.STANDARD_12.return_data,
                 },
                 skip_current_view=True,
             )
 
-        button_data = [STANDARD, COMPACT]
+        if len(seed.mnemonic_list) == 12:
+            button_data = [self.STANDARD_12, self.COMPACT_12]
+        else:
+            button_data = [self.STANDARD_24, self.COMPACT_24]
 
-        selected_menu_num = seed_screens.SeedTranscribeSeedQRFormatScreen(
+        selected_menu_num = self.run_screen(
+            seed_screens.SeedTranscribeSeedQRFormatScreen,
             title=_("SeedQR Format"),
             button_data=button_data,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
         
-        if button_data[selected_menu_num] == STANDARD:
+        if button_data[selected_menu_num] in [self.STANDARD_12, self.STANDARD_24]:
             seedqr_format = QRType.SEED__SEEDQR
         else:
             seedqr_format = QRType.SEED__COMPACTSEEDQR
@@ -1500,10 +1509,11 @@ class SeedTranscribeSeedQRWarningView(View):
             # Forward straight to transcribing the SeedQR
             return destination
 
-        selected_menu_num = DireWarningScreen(
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
             status_headline=_("SeedQR is your private key!"),
             text=_("Never photograph or scan it into a device that connects to the internet."),
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -1533,10 +1543,11 @@ class SeedTranscribeSeedQRWholeQRView(View):
 
         data = e.next_part()
 
-        ret = seed_screens.SeedTranscribeSeedQRWholeQRScreen(
+        ret = self.run_screen(
+            seed_screens.SeedTranscribeSeedQRWholeQRScreen,
             qr_data=data,
             num_modules=self.num_modules,
-        ).display()
+        )
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -1611,10 +1622,11 @@ class SeedTranscribeSeedQRConfirmQRPromptView(View):
     def run(self):
         button_data = [self.SCAN, self.DONE]
 
-        selected_menu_option = seed_screens.SeedTranscribeSeedQRConfirmQRPromptScreen(
+        selected_menu_option = self.run_screen(
+            seed_screens.SeedTranscribeSeedQRConfirmQRPromptScreen,
             title=_("Confirm SeedQR?"),
             button_data=button_data,
-        ).display()
+        )
 
         if selected_menu_option == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -1629,61 +1641,100 @@ class SeedTranscribeSeedQRConfirmQRPromptView(View):
 
 class SeedTranscribeSeedQRConfirmScanView(View):
     def __init__(self, seed_num: int):
+        from seedsigner.models.decode_qr import DecodeQR
         super().__init__()
         self.seed_num = seed_num
         self.seed = self.controller.get_seed(seed_num)
+        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+        self.decoder = DecodeQR(wordlist_language_code=wordlist_language_code)
 
     def run(self):
         from seedsigner.gui.screens.scan_screens import ScanScreen
-        from seedsigner.models.decode_qr import DecodeQR
 
         # Run the live preview and QR code capture process
         # TODO: Does this belong in its own BaseThread?
-        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-        self.decoder = DecodeQR(wordlist_language_code=wordlist_language_code)
-        ScanScreen(
+        self.run_screen(
+            ScanScreen,
             decoder=self.decoder,
             instructions_text=_("Scan your SeedQR")
-        ).display()
+        )
 
         if self.decoder.is_complete:
             if self.decoder.is_seed:
                 seed_mnemonic = self.decoder.get_seed_phrase()
                 # Found a valid mnemonic seed! But does it match?
                 if seed_mnemonic != self.seed.mnemonic_list:
-                    DireWarningScreen(
-                        title=_("Confirm SeedQR"),
-                        status_headline=_("Error!"),
-                        text=_("Your transcribed SeedQR does not match your original seed!"),
-                        show_back_button=False,
-                        button_data=[_("Review SeedQR")],
-                    ).display()
-
-                    return Destination(BackStackView, skip_current_view=True)
-                
+                    return Destination(SeedTranscribeSeedQRConfirmWrongSeedView, skip_current_view=True)
                 else:
-                    from seedsigner.gui.screens.screen import LargeIconStatusScreen
-                    LargeIconStatusScreen(
-                        title=_("Confirm SeedQR"),
-                        status_headline=_("Success!"),
-                        text=_("Your transcribed SeedQR successfully scanned and yielded the same seed."),
-                        show_back_button=False,
-                        button_data=[_("OK")],
-                    ).display()
+                    return Destination(SeedTranscribeSeedQRConfirmSuccessView, view_args={"seed_num": self.seed_num})
 
-                    return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num})
+        else:
+            # Will this case ever happen? Will trigger if a different kind of QR code is scanned
+            return Destination(SeedTranscribeSeedQRConfirmInvalidQRView, skip_current_view=True)
 
-            else:
-                # Will this case ever happen? Will trigger if a different kind of QR code is scanned
-                DireWarningScreen(
-                    title=_("Confirm SeedQR"),
-                    status_headline=_("Error!"),
-                    text=_("Your transcribed SeedQR could not be read!"),
-                    show_back_button=False,
-                    button_data=[_("Review SeedQR")],
-                ).display()
 
-                return Destination(BackStackView, skip_current_view=True)
+
+class SeedTranscribeSeedQRConfirmWrongSeedView(View):
+    """
+    A valid SeedQR was scanned but it did NOT match the one we just transcribed!
+    """
+    def run(self):
+        self.run_screen(
+            DireWarningScreen,
+            title=_("Confirm SeedQR"),
+            status_headline=_("Error!"),
+            text=_("Your transcribed SeedQR does not match your original seed!"),
+            show_back_button=False,
+            button_data=[ButtonOption("Review SeedQR")],
+        )
+
+        # Skip BACK to the zoomed in transcription view
+        return Destination(BackStackView, skip_current_view=True)
+
+
+
+class SeedTranscribeSeedQRConfirmInvalidQRView(View):
+    """
+    A QR code was scanned but it was not a SeedQR and certainly not the SeedQR we just
+    transcribed!
+    """
+    def run(self):
+        # TODO: A better error message would be something like: "The QR code you scanned does not contain a valid SeedQR."
+        self.run_screen(
+            DireWarningScreen,
+            title=_("Confirm SeedQR"),
+            status_headline=_("Error!"),
+            text=_("Your transcribed SeedQR could not be read!"),
+            show_back_button=False,
+            button_data=[ButtonOption("Review SeedQR")],
+        )
+
+        # Skip BACK to the zoomed in transcription view
+        return Destination(BackStackView, skip_current_view=True)
+
+
+
+class SeedTranscribeSeedQRConfirmSuccessView(View):
+    """
+    The SeedQR we just scanned matched the one we just transcribed.
+    """
+    def __init__(self, seed_num: int):
+        super().__init__()
+        self.seed_num = seed_num
+
+
+    def run(self):
+        from seedsigner.gui.screens.screen import LargeIconStatusScreen
+        self.run_screen(
+            LargeIconStatusScreen,
+            title=_("Confirm SeedQR"),
+            status_headline=_("Success!"),
+            text=_("Your transcribed SeedQR successfully scanned and yielded the same seed."),
+            show_back_button=False,
+            button_data=[ButtonOption("OK")],
+        )
+
+        return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num})
 
 
 
@@ -1729,8 +1780,8 @@ class AddressVerificationStartView(View):
                 destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR), skip_current_view=True)
 
         elif self.controller.unverified_address["script_type"] == SettingsConstants.TAPROOT:
-            # TODO: add Taproot support
-            return Destination(NotYetImplementedView)
+            sig_type = SettingsConstants.SINGLE_SIG
+            destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR), skip_current_view=True)
 
         derivation_path = embit_utils.get_standard_derivation_path(
             network=self.controller.unverified_address["network"],
@@ -1823,10 +1874,6 @@ class SeedAddressVerificationView(View):
         self.sig_type = self.controller.unverified_address["sig_type"]
         self.network = self.controller.unverified_address["network"]
 
-        if self.script_type == SettingsConstants.TAPROOT:
-            # TODO: Taproot addr verification
-            return Destination(NotYetImplementedView)
-
         # TODO: This should be in `Seed` or `PSBT` utility class
         embit_network = SettingsConstants.map_network_to_embit(self.network)
 
@@ -1855,66 +1902,69 @@ class SeedAddressVerificationView(View):
 
     def run(self):
         # Start brute-force calculations from the zero-th index
-        self.addr_verification_thread.start()
+        try:
+            self.addr_verification_thread.start()
 
-        button_data = [self.SKIP_10, self.CANCEL]
+            button_data = [self.SKIP_10, self.CANCEL]
 
-        script_type_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES)
-        script_type_display = script_type_settings_entry.get_selection_option_display_name_by_value(self.script_type)
+            script_type_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES)
+            script_type_display = script_type_settings_entry.get_selection_option_display_name_by_value(self.script_type)
 
-        sig_type_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SIG_TYPES)
-        sig_type_display = sig_type_settings_entry.get_selection_option_display_name_by_value(self.sig_type)
+            sig_type_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SIG_TYPES)
+            sig_type_display = sig_type_settings_entry.get_selection_option_display_name_by_value(self.sig_type)
 
-        network_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__NETWORK)
-        network_display = network_settings_entry.get_selection_option_display_name_by_value(self.network)
-        mainnet = network_settings_entry.get_selection_option_display_name_by_value(SettingsConstants.MAINNET)
+            network_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__NETWORK)
+            network_display = network_settings_entry.get_selection_option_display_name_by_value(self.network)
+            mainnet = network_settings_entry.get_selection_option_display_name_by_value(SettingsConstants.MAINNET)
 
-        # Display the Screen to show the brute-forcing progress.
-        # Using a loop here to handle the SKIP_10 button presses to increment the counter
-        # and resume displaying the screen. User won't even notice that the Screen is
-        # being re-constructed.
-        while True:
-            selected_menu_num = self.run_screen(
-                seed_screens.SeedAddressVerificationScreen,
-                address=self.address,
-                derivation_path=self.derivation_path,
-                script_type=script_type_display,
-                sig_type=sig_type_display,
-                network=network_display,
-                is_mainnet=network_display == mainnet,
-                threadsafe_counter=self.threadsafe_counter,
-                verified_index=self.verified_index,
-                button_data=button_data,
-            )
+            # Display the Screen to show the brute-forcing progress.
+            # Using a loop here to handle the SKIP_10 button presses to increment the counter
+            # and resume displaying the screen. User won't even notice that the Screen is
+            # being re-constructed.
+            while True:
+                selected_menu_num = self.run_screen(
+                    seed_screens.SeedAddressVerificationScreen,
+                    address=self.address,
+                    derivation_path=self.derivation_path,
+                    script_type=script_type_display,
+                    sig_type=sig_type_display,
+                    network=network_display,
+                    is_mainnet=network_display == mainnet,
+                    threadsafe_counter=self.threadsafe_counter,
+                    verified_index=self.verified_index,
+                    button_data=button_data,
+                )
+
+                if self.verified_index.cur_count is not None:
+                    break
+
+                if selected_menu_num == RET_CODE__BACK_BUTTON:
+                    break
+
+                if selected_menu_num is None:
+                    # Only happens in the test suite; the screen isn't actually executed so
+                    # it returns before the brute force thread has completed.
+                    time.sleep(0.1)
+                    continue
+
+                if button_data[selected_menu_num] == self.SKIP_10:
+                    self.threadsafe_counter.increment(10)
+
+                elif button_data[selected_menu_num] == self.CANCEL:
+                    break
 
             if self.verified_index.cur_count is not None:
-                break
+                # Successfully verified the addr; update the data
+                self.controller.unverified_address["verified_index"] = self.verified_index.cur_count
+                self.controller.unverified_address["verified_index_is_change"] = self.verified_index_is_change.cur_count == 1
+                return Destination(SeedAddressVerificationSuccessView, view_args=dict(seed_num=self.seed_num))
 
-            if selected_menu_num == RET_CODE__BACK_BUTTON:
-                break
-
-            if selected_menu_num is None:
-                # Only happens in the test suite; the screen isn't actually executed so
-                # it returns before the brute force thread has completed.
-                time.sleep(0.1)
-                continue
-
-            if button_data[selected_menu_num] == self.SKIP_10:
-                self.threadsafe_counter.increment(10)
-
-            elif button_data[selected_menu_num] == self.CANCEL:
-                break
-
-        if self.verified_index.cur_count is not None:
-            # Successfully verified the addr; update the data
-            self.controller.unverified_address["verified_index"] = self.verified_index.cur_count
-            self.controller.unverified_address["verified_index_is_change"] = self.verified_index_is_change.cur_count == 1
-            return Destination(SeedAddressVerificationSuccessView, view_args=dict(seed_num=self.seed_num))
-
-        else:
+        finally:
             # Halt the thread if the user gave up (will already be stopped if it verified the
             # target addr).
             self.addr_verification_thread.stop()
+
+            # Block until the thread has stopped
             while self.addr_verification_thread.is_alive():
                 time.sleep(0.01)
 
@@ -1940,7 +1990,7 @@ class SeedAddressVerificationView(View):
 
             if self.seed:
                 self.xpub = self.seed.get_xpub(wallet_path=self.derivation_path, network=Settings.get_instance().get_value(SettingsConstants.SETTING__NETWORK))
- 
+
 
         def run(self):
             from seedsigner.helpers import embit_utils
@@ -1972,7 +2022,7 @@ class SeedAddressVerificationView(View):
 
                 # Increment our index counter
                 self.threadsafe_counter.increment()
-        
+
 
 
 class SeedAddressVerificationSuccessView(View):
@@ -1984,36 +2034,12 @@ class SeedAddressVerificationSuccessView(View):
     
 
     def run(self):
-        from seedsigner.gui.screens.screen import LargeIconStatusScreen
-        address = self.controller.unverified_address["address"]
-        sig_type = self.controller.unverified_address["sig_type"]
-        verified_index = self.controller.unverified_address["verified_index"]
-        verified_index_is_change = self.controller.unverified_address["verified_index_is_change"]
-
-        if sig_type == SettingsConstants.MULTISIG:
-            source = _("multisig")
-        else:
-            # TRANSLATOR_NOTE: Inserts the seed fingerprint
-            source = _("seed {}").format(self.seed.get_fingerprint())
-
-        # TRANSLATOR_NOTE: Used in a sentence describing the address type (change or receive)
-        change_text = _("change")
-
-        # TRANSLATOR_NOTE: Used in a sentence describing the address type (change or receive)
-        receive_text = _("receive")
-
-        # TRANSLATOR_NOTE: Address verification success message (e.g. "bc1qabc = seed 12345678's receive address #0.")
-        text = _("{} = {}'s {} address #{}.").format(
-            address[:7],
-            source,
-            change_text if verified_index_is_change else receive_text,
-            verified_index
+        self.run_screen(
+            seed_screens.SeedAddressVerificationSuccessScreen,
+            address = self.controller.unverified_address["address"],
+            verified_index = self.controller.unverified_address["verified_index"],
+            verified_index_is_change = self.controller.unverified_address["verified_index_is_change"],
         )
-        LargeIconStatusScreen(
-            status_headline=_("Address Verified"),
-            text=text,
-            show_back_button=False,
-        ).display()
 
         return Destination(MainMenuView)
 

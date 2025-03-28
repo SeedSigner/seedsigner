@@ -1,4 +1,5 @@
 from typing import Callable
+from unittest.mock import patch
 import pytest
 
 # Must import test base before the Controller
@@ -8,7 +9,7 @@ from base import FlowTestInvalidButtonDataSelectionException
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import ElectrumSeed, Seed
-from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
+from seedsigner.views.view import MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
 from seedsigner.views import seed_views, scan_views, settings_views
 
 
@@ -419,6 +420,54 @@ class TestSeedFlows(FlowTest):
         )
 
 
+    @patch("seedsigner.gui.screens.seed_screens.SeedTranscribeSeedQRZoomedInScreen", autospec=True)
+    def test_transcribe_seedqr_and_verify(self, mock_zoomed_in_screen: Callable):
+        """
+        """
+        # Load a finalized Seed into the Controller
+        mnemonic = ["abandon"] * 11 + ["about"]
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        self.controller.storage.finalize_pending_seed()
+
+        def load_wrong_seed_into_decoder(view: View):
+            view.decoder.add_data("0138" * 24)
+
+        def load_completely_wrong_qr_type_into_decoder(view: View):
+            view.decoder.add_data("I like cheese")
+
+        def load_right_seed_into_decoder(view: View):
+            view.decoder.add_data("0000" * 11 + "0003")
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, screen_return_value=0),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.BACKUP),
+            FlowStep(seed_views.SeedBackupView, button_data_selection=seed_views.SeedBackupView.EXPORT_SEEDQR),
+            FlowStep(seed_views.SeedTranscribeSeedQRFormatView, button_data_selection=seed_views.SeedTranscribeSeedQRFormatView.STANDARD_12),
+            FlowStep(seed_views.SeedTranscribeSeedQRWarningView),
+            FlowStep(seed_views.SeedTranscribeSeedQRWholeQRView),
+            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are a bit weird; not sure why `is_redirect` is necessary here
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
+
+            # Intentionally "scan" the wrong SeedQR
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_wrong_seed_into_decoder),
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmWrongSeedView),
+            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are still weird
+
+            # Intentionally scan QR data that makes no sense for this flow
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_completely_wrong_qr_type_into_decoder),
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmInvalidQRView),
+            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are still weird
+
+            # Now scan the correct SeedQR
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_right_seed_into_decoder),
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmSuccessView),
+            FlowStep(seed_views.SeedOptionsView),
+        ])
+
+
 
 class TestMessageSigningFlows(FlowTest):
     MAINNET_DERIVATION_PATH = "m/84h/0h/0h/0/0"
@@ -646,7 +695,7 @@ class TestMessageSigningFlows(FlowTest):
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
             FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
             FlowStep(scan_views.ScanView, before_run=load_invalid_signmessage_qr),  # simulate read message QR; ret val is ignored
-            FlowStep(ErrorView),
+            FlowStep(scan_views.ScanInvalidQRTypeView),
             FlowStep(MainMenuView),
         ])
 

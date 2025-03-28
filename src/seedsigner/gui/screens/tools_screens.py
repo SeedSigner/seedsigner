@@ -43,8 +43,8 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
                 time.sleep(0.01)
                 continue
 
-            # Check for joystick click to take final entropy image
-            if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_PRESS):
+            # Check for ANYCLICK to take final entropy image
+            if self.hw_inputs.check_for_low(keys=HardwareButtonsConstants.KEYS__ANYCLICK):
                 # Have to manually update last input time since we're not in a wait_for loop
                 self.hw_inputs.update_last_input_time()
                 self.camera.stop_video_stream_mode()
@@ -77,7 +77,7 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
                         int(self.renderer.canvas_width/2),
                         self.renderer.canvas_height - GUIConstants.EDGE_PADDING
                     ),
-                    text="< " + _("back") + "  |  " + _("click joystick"),  # TODO: Render with UI elements instead of text
+                    text="< " + _("back") + "  |  " + _("click a button"),  # TODO: Render with UI elements instead of text
                     fill=GUIConstants.BODY_FONT_COLOR,
                     font=instructions_font,
                     stroke_width=4,
@@ -123,7 +123,8 @@ class ToolsImageEntropyFinalImageScreen(BaseScreen):
             )
             self.renderer.show_image()
 
-        input = self.hw_inputs.wait_for([HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT])
+        # LEFT = reshoot, RIGHT / ANYCLICK = accept
+        input = self.hw_inputs.wait_for([HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT] + HardwareButtonsConstants.KEYS__ANYCLICK)
         if input == HardwareButtonsConstants.KEY_LEFT:
             return RET_CODE__BACK_BUTTON
 
@@ -140,7 +141,7 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
         self.rows = 3
         self.cols = 3
         self.keyboard_font_name = GUIConstants.ICON_FONT_NAME__FONT_AWESOME
-        self.keyboard_font_size = None  # Force auto-scaling to Key height
+        self.keyboard_font_size = 36
         self.keys_charset = "".join([
             FontAwesomeIconConstants.DICE_ONE,
             FontAwesomeIconConstants.DICE_TWO,
@@ -183,8 +184,8 @@ class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
         super().__post_init__()
 
         self.components.append(TextArea(
-            # TRANSLATOR_NOTE: Number of BIP-39 seed words, and the entropy -- in bits, contained within.
-            text=_("The {}th word is built from {} more entropy bits plus auto-calculated checksum.").format(self.mnemonic_length, self.num_entropy_bits),
+            # TRANSLATOR_NOTE: Final word calc. `mnemonic_length` = 12 or 24. `num_bits` = 7 or 3 (bits of entropy in final word).
+            text=_("The {mnemonic_length}th word is built from {num_bits} more entropy bits plus auto-calculated checksum.").format(mnemonic_length=self.mnemonic_length, num_bits=self.num_entropy_bits),
             screen_y=self.top_nav.height + int(GUIConstants.COMPONENT_PADDING/2),
         ))
 
@@ -454,7 +455,7 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
             self.components.append(IconTextLine(
                 # TRANSLATOR_NOTE: a label for a BIP-380-ish Output Descriptor
                 label_text=_("Wallet descriptor"),
-                value_text=self.wallet_descriptor_display_name,
+                value_text=self.wallet_descriptor_display_name,  # TODO: English text from embit (e.g. "1 / 2 multisig"); make l10 friendly
                 is_text_centered=True,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
