@@ -28,12 +28,7 @@ class SeedsMenuView(View):
 
     def __init__(self):
         super().__init__()
-        self.seeds = []
-        for seed in self.controller.storage.seeds:
-            self.seeds.append({
-                "fingerprint": seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            })
-
+        self.seeds = self.controller.storage.seeds
 
     def run(self):
         if not self.seeds:
@@ -42,7 +37,7 @@ class SeedsMenuView(View):
 
         button_data = []
         for seed in self.seeds:
-            button_data.append(ButtonOption(seed["fingerprint"], SeedSignerIconConstants.FINGERPRINT))
+            button_data.append(ButtonOption(seed.display_name, SeedSignerIconConstants.FINGERPRINT))
         button_data.append(self.LOAD)
 
         selected_menu_num = self.run_screen(
@@ -1052,6 +1047,7 @@ class SeedWordsWarningView(View):
 class SeedWordsView(View):
     NEXT = ButtonOption("Next")
     DONE = ButtonOption("Done")
+    LOAD_SEED = ButtonOption("Load Seed")
 
     def __init__(self, seed_num: int, bip85_data: dict = None, page_index: int = 0):
         super().__init__()
@@ -1083,6 +1079,8 @@ class SeedWordsView(View):
             button_data.append(self.NEXT)
         else:
             button_data.append(self.DONE)
+            if self.bip85_data is not None:
+                button_data.append(self.LOAD_SEED)
 
         selected_menu_num = seed_screens.SeedWordsScreen(
             title=f"{title}: {self.page_index+1}/{num_pages}",
@@ -1095,25 +1093,35 @@ class SeedWordsView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        if button_data[selected_menu_num] == self.NEXT:
-            if self.seed_num is None and self.page_index == num_pages - 1:
-                return Destination(
-                    SeedWordsBackupTestPromptView,
-                    view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
-                )
-            else:
-                return Destination(
-                    SeedWordsView,
-                    view_args=dict(seed_num=self.seed_num, page_index=self.page_index + 1, bip85_data=self.bip85_data)
-                )
-
-        elif button_data[selected_menu_num] == self.DONE:
-            # Must clear history to avoid BACK button returning to private info
+        selected_button = button_data[selected_menu_num]
+        if selected_button == self.NEXT:
+            return Destination(
+                SeedWordsView,
+                view_args=dict(seed_num=self.seed_num, page_index=self.page_index + 1, bip85_data=self.bip85_data)
+            )
+        elif selected_button == self.DONE:
             return Destination(
                 SeedWordsBackupTestPromptView,
                 view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
             )
-
+        elif selected_button == self.LOAD_SEED:
+            #derive child mnemonic and create new Seed object
+            derived_mnemonic = self.seed.get_bip85_child_mnemonic(
+                self.bip85_data["child_index"],
+                self.bip85_data["num_words"]
+            )
+            derived_seed = Seed(
+                mnemonic=derived_mnemonic.split(),
+                passphrase="",
+                bip85_parent=self.seed_num,
+                bip85_index=self.bip85_data["child_index"]
+            )
+            self.controller.storage.seeds.append(derived_seed)
+            derived_seed_num = len(self.controller.storage.seeds) - 1
+            return Destination(
+                SeedWordsBackupTestPromptView,
+                view_args=dict(seed_num=derived_seed_num)
+            )
 
 
 """****************************************************************************

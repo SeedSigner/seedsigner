@@ -22,7 +22,9 @@ class Seed:
     def __init__(self,
                  mnemonic: List[str] = None,
                  passphrase: str = "",
-                 wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> None:
+                 wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+                 bip85_parent: int = None,
+                 bip85_index: int = None) -> None:
         self._wordlist_language_code = wordlist_language_code
 
         if not mnemonic:
@@ -32,8 +34,19 @@ class Seed:
         self._passphrase: str = ""
         self.set_passphrase(passphrase, regenerate_seed=False)
 
+        self.bip85_parent = bip85_parent  
+        self.bip85_index = bip85_index   
+
         self.seed_bytes: bytes = None
         self._generate_seed()
+
+    @property
+    def display_name(self) -> str:
+        """Returns a display name including child index if it's a BIP-85 child seed"""
+        fingerprint = self.get_fingerprint(SettingsConstants.MAINNET)
+        if self.bip85_parent is not None and self.bip85_index is not None:
+            return f"{fingerprint} (Child #{self.bip85_index})"
+        return fingerprint
 
 
     @staticmethod
