@@ -1093,18 +1093,26 @@ class SeedWordsView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        selected_button = button_data[selected_menu_num]
-        if selected_button == self.NEXT:
-            return Destination(
-                SeedWordsView,
-                view_args=dict(seed_num=self.seed_num, page_index=self.page_index + 1, bip85_data=self.bip85_data)
-            )
-        elif selected_button == self.DONE:
+        elif button_data[selected_menu_num] == self.NEXT:
+            if self.seed_num is None and self.page_index == num_pages - 1:
+                return Destination(
+                    SeedWordsBackupTestPromptView,
+                    view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
+                )
+            else:
+                return Destination(
+                    SeedWordsView,
+                    view_args=dict(seed_num=self.seed_num, page_index=self.page_index + 1, bip85_data=self.bip85_data)
+                )
+
+        elif button_data[selected_menu_num] == self.DONE:
+            # Must clear history to avoid BACK button returning to private info
             return Destination(
                 SeedWordsBackupTestPromptView,
                 view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
             )
-        elif selected_button == self.LOAD_SEED:
+        
+        elif button_data[selected_menu_num] == self.LOAD_SEED:
             #derive child mnemonic and create new Seed object
             derived_mnemonic = self.seed.get_bip85_child_mnemonic(
                 self.bip85_data["child_index"],
