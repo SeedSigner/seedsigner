@@ -132,6 +132,48 @@ class BaseScreen(BaseComponent):
         """
         raise Exception("Must implement in a child class")
 
+    def render_bottom_instruction_text(self, draw, text, font=None, fill_color=GUIConstants.BODY_FONT_COLOR, stroke_width=4, stroke_fill=GUIConstants.BACKGROUND_COLOR):
+        """
+        Renders standardized instruction text at the bottom of the screen.
+        
+        Args:
+            draw: ImageDraw object to render on
+            text: Text to display
+            font: Font to use (defaults to button font)
+            fill_color: Color of the text
+            stroke_width: Width of the text outline/shadow
+            stroke_fill: Color of the text outline/shadow
+        """
+        if font is None:
+            font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_button_font_size())
+            
+        # First render shadow/outline if stroke_width > 0
+        if stroke_width > 0:
+            draw.text(
+                xy=(
+                    int(self.renderer.canvas_width/2),
+                    self.renderer.canvas_height - GUIConstants.EDGE_PADDING
+                ),
+                text=text,
+                fill=stroke_fill,
+                font=font,
+                stroke_width=stroke_width,
+                stroke_fill=stroke_fill,
+                anchor="ms"
+            )
+        
+        # Then render the actual text
+        draw.text(
+            xy=(
+                int(self.renderer.canvas_width/2),
+                self.renderer.canvas_height - GUIConstants.EDGE_PADDING
+            ),
+            text=text,
+            fill=fill_color,
+            font=font,
+            anchor="ms"
+        )
+
 
 
 class LoadingScreenThread(BaseThread):

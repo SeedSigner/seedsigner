@@ -137,6 +137,75 @@ class OpeningSplashScreen(LogoScreen):
 
 
 
+@dataclass
+class ToolsImageEntropyLivePreviewScreen(BaseScreen):
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.camera = Camera.get_instance()
+        self.camera.start_video_stream_mode(resolution=(self.canvas_width, self.canvas_height), framerate=24, format="rgb")
+
+
+    def _run(self):
+        # save preview image frames to use as additional entropy below
+        preview_images = []
+        max_entropy_frames = 50
+        instructions_font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_button_font_size())
+
+        while True:
+            if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
+                # Have to manually update last input time since we're not in a wait_for loop
+                self.hw_inputs.update_last_input_time()
+                self.words = []
+                self.camera.stop_video_stream_mode()
+                return RET_CODE__BACK_BUTTON
+
+            frame = self.camera.read_video_stream(as_image=True)
+
+            if frame is None:
+                # Camera probably isn't ready yet
+                time.sleep(0.01)
+                continue
+
+            # Check for ANYCLICK to take final entropy image
+            if self.hw_inputs.check_for_low(keys=HardwareButtonsConstants.KEYS__ANYCLICK):
+                # Have to manually update last input time since we're not in a wait_for loop
+                self.hw_inputs.update_last_input_time()
+                self.camera.stop_video_stream_mode()
+
+                with self.renderer.lock:
+                    self.renderer.canvas.paste(frame)
+
+                    self.render_bottom_instruction_text(
+                        draw=self.renderer.draw,
+                        text=_("Capturing image..."),
+                        fill_color=GUIConstants.ACCENT_COLOR,
+                        font=instructions_font
+                    )
+                    self.renderer.show_image()
+
+                return preview_images
+
+            # If we're still here, it's just another preview frame loop
+            with self.renderer.lock:
+                self.renderer.canvas.paste(frame)
+
+                # Use the standardized helper method instead of manual text rendering
+                instruction_text = "< " + _("back") + "  |  " + _("click a button")  # TODO: Render with UI elements instead of text
+                self.render_bottom_instruction_text(
+                    draw=self.renderer.draw,
+                    text=instruction_text,
+                    font=instructions_font
+                )
+                self.renderer.show_image()
+
+            if len(preview_images) == max_entropy_frames:
+                # Keep a moving window of the last n preview frames; pop the oldest
+                # before we add the current frame.
+                preview_images.pop(0)
+            preview_images.append(frame)
+
+
 class ScreensaverScreen(LogoScreen):
     def __init__(self, buttons):
         from PIL import Image

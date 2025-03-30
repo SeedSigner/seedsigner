@@ -88,7 +88,7 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
 
             if len(preview_images) == max_entropy_frames:
                 # Keep a moving window of the last n preview frames; pop the oldest
-                # before we add the currest frame.
+                # before we add the current frame.
                 preview_images.pop(0)
             preview_images.append(frame)
 
@@ -109,17 +109,12 @@ class ToolsImageEntropyFinalImageScreen(BaseScreen):
 
             # TRANSLATOR_NOTE: A prompt to the user to either accept or reshoot the image
             accept = _("accept")
-            self.renderer.draw.text(
-                xy=(
-                    int(self.renderer.canvas_width/2),
-                    self.renderer.canvas_height - GUIConstants.EDGE_PADDING
-                ),
-                text=" < " + reshoot + "  |  " + accept + " > ",
-                fill=GUIConstants.BODY_FONT_COLOR,
-                font=instructions_font,
-                stroke_width=4,
-                stroke_fill=GUIConstants.BACKGROUND_COLOR,
-                anchor="ms"
+            
+            instruction_text = " < " + reshoot + "  |  " + accept + " > "
+            self.render_bottom_instruction_text(
+                draw=self.renderer.draw,
+                text=instruction_text,
+                font=instructions_font
             )
             self.renderer.show_image()
 
