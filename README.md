@@ -231,6 +231,7 @@ Now that you have confirmed that you do have the real SeedSigner Project's Publi
 ```
 shasum -a 256 --ignore-missing --check seedsigner.0.8.6.sha256.txt  
 ```
+Note: macOS versions earlier than v11 (Big Sur) do not support the `--ignore-missing` flag. You can omit it and disregard any missing file warnings.
 
 **On Windows (inside Powershell):** Run this command
 ```
