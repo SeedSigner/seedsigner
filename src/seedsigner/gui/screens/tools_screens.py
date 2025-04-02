@@ -1,7 +1,7 @@
 import time
 
 from dataclasses import dataclass
-from gettext import gettext as _
+from seedsigner.helpers.l10n import seedsigner_gettext as _
 from typing import Any
 from PIL.Image import Image
 from seedsigner.hardware.camera import Camera

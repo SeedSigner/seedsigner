@@ -1,5 +1,5 @@
 import logging
-from gettext import gettext as _
+from seedsigner.helpers.l10n import seedsigner_gettext as _
 
 from seedsigner.gui.components import SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, settings_screens)
