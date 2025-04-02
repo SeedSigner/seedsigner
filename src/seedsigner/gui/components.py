@@ -7,7 +7,7 @@ import time
 
 from dataclasses import dataclass
 from decimal import Decimal
-from gettext import gettext as _
+from seedsigner.helpers.l10n import seedsigner_gettext as _
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from typing import Any, List, Tuple
 

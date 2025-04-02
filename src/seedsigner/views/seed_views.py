@@ -3,7 +3,7 @@ import random
 import time
 
 from binascii import hexlify
-from gettext import gettext as _
+from seedsigner.helpers.l10n import seedsigner_gettext as _
 
 from embit.descriptor import Descriptor
 
