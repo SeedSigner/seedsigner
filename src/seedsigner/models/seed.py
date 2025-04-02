@@ -45,7 +45,8 @@ class Seed:
         """Returns a display name including child index if it's a BIP-85 child seed"""
         fingerprint = self.get_fingerprint(SettingsConstants.MAINNET)
         if self.bip85_parent is not None and self.bip85_index is not None:
-            return f"{fingerprint} (Child #{self.bip85_index})"
+            ##BIP-85 child seeds, show with arrow to indicate relationship
+            return f"  ↳ #{self.bip85_index}: {fingerprint}"
         return fingerprint
 
 
