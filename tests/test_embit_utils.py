@@ -74,8 +74,8 @@ def test_get_standard_derivation_path():
             # call with named params
             a_dict = {}
             if len(args) == 1: a_dict = {'network': args[0]}
-            elif len(args) == 2: a_dict = {'network': args[0], 'wallet_type': args[1]}
-            elif len(args) == 3: a_dict = {'network': args[0], 'wallet_type': args[1], 'script_type': args[2]}
+            elif len(args) == 2: a_dict = {'network': args[0], 'sig_type': args[1]}
+            elif len(args) == 3: a_dict = {'network': args[0], 'sig_type': args[1], 'script_type': args[2]}
             print(f"asserting {func.__name__}(**{a_dict}) == {repr(expected)}")
             assert func(**a_dict) == expected
 
@@ -89,8 +89,8 @@ def test_get_standard_derivation_path():
             # call with named params
             a_dict = {}
             if len(args) == 1: a_dict = {'network': args[0]}
-            elif len(args) == 2: a_dict = {'network': args[0], 'wallet_type': args[1]}
-            elif len(args) == 3: a_dict = {'network': args[0], 'wallet_type': args[1], 'script_type': args[2]}
+            elif len(args) == 2: a_dict = {'network': args[0], 'sig_type': args[1]}
+            elif len(args) == 3: a_dict = {'network': args[0], 'sig_type': args[1], 'script_type': args[2]}
             print(f"asserting {func.__name__}(**{a_dict}) raises Exception")
             with pytest.raises(expected):
                 func(**a_dict)

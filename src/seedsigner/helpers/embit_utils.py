@@ -19,43 +19,43 @@ from seedsigner.models.settings_definition import SettingsConstants
 # TODO: PR these directly into `embit`? Or replace with new/existing methods already in `embit`?
 
 
-# TODO: Refactor `wallet_type` to conform to our `sig_type` naming convention
-def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, script_type: str = SettingsConstants.NATIVE_SEGWIT) -> str:
+# Refactoring `wallet_type` to conform to our `sig_type` naming convention
+def get_standard_derivation_path(network : str = SettingsConstants.MAINNET, sig_type : str = SettingsConstants.SINGLE_SIG, script_type = SettingsConstants.NATIVE_SEGWIT ) -> str :
+
     if network == SettingsConstants.MAINNET:
         network_path = "0'"
-    elif network == SettingsConstants.TESTNET:
-        network_path = "1'"
-    elif network == SettingsConstants.REGTEST:
+    elif network in [SettingsConstants.TESTNET, SettingsConstants.REGTEST]:
         network_path = "1'"
     else:
         raise Exception("Unexpected network")
 
-    if wallet_type == SettingsConstants.SINGLE_SIG:
-        if script_type == SettingsConstants.LEGACY_P2PKH:
-            return f"m/44'/{network_path}/0'"
-        elif script_type == SettingsConstants.NESTED_SEGWIT:
-            return f"m/49'/{network_path}/0'"
-        elif script_type == SettingsConstants.NATIVE_SEGWIT:
-            return f"m/84'/{network_path}/0'"
-        elif script_type == SettingsConstants.TAPROOT:
-            return f"m/86'/{network_path}/0'"
-        else:
-            raise Exception("Unexpected script type")
+    # Validating script_type using ALL_SCRIPT_TYPES
+    valid_script_types = {st[0] for st in SettingsConstants.ALL_SCRIPT_TYPES}
+    if script_type not in valid_script_types:
+        raise Exception(f"Unexpected script type: {script_type}")
 
-    elif wallet_type == SettingsConstants.MULTISIG:
-        if script_type == SettingsConstants.LEGACY_P2PKH:
-            return f"m/45'" #BIP45
-        elif script_type == SettingsConstants.NESTED_SEGWIT:
-            return f"m/48'/{network_path}/0'/1'"
-        elif script_type == SettingsConstants.NATIVE_SEGWIT:
-            return f"m/48'/{network_path}/0'/2'"
-        elif script_type == SettingsConstants.TAPROOT:
-            raise Exception("Taproot multisig not yet supported")
-        else:
-            raise Exception("Unexpected script type")
+
+    if sig_type == SettingsConstants.SINGLE_SIG:
+        script_paths = {
+            SettingsConstants.LEGACY_P2PKH: f"m/44'/{network_path}/0'",
+            SettingsConstants.NESTED_SEGWIT: f"m/49'/{network_path}/0'",
+            SettingsConstants.NATIVE_SEGWIT: f"m/84'/{network_path}/0'",
+            SettingsConstants.TAPROOT: f"m/86'/{network_path}/0'",
+        }
+    elif sig_type == SettingsConstants.MULTISIG:
+        script_paths = {
+            SettingsConstants.LEGACY_P2PKH: "m/45'",  # BIP45
+            SettingsConstants.NESTED_SEGWIT: f"m/48'/{network_path}/0'/1'",
+            SettingsConstants.NATIVE_SEGWIT: f"m/48'/{network_path}/0'/2'",
+        }
     else:
-        raise Exception("Unexpected wallet type")    # checks that all inputs are from the same wallet
+        raise Exception("Unexpected sig type")
 
+
+    if script_type not in script_paths:
+        raise Exception(f"Unsupported script type for {sig_type}: {script_type}")
+
+    return script_paths[script_type]  
 
 
 def get_xpub(seed_bytes, derivation_path: str, embit_network: str = "main") -> HDKey:
