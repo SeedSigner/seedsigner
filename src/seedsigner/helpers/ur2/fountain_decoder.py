@@ -5,21 +5,25 @@
 # Licensed under the "BSD-2-Clause Plus Patent License"
 #
 import time
+
 from .fountain_utils import choose_fragments, contains, is_strict_subset, set_difference
-from .utils import join_lists, join_bytes, crc32_int, xor_with, take_first
+from .utils import crc32_int, join_bytes, join_lists, take_first, xor_with
+
 
 class InvalidPart(Exception):
     pass
 
+
 class InvalidChecksum(Exception):
     pass
+
 
 class FountainDecoder:
     class Part:
         def __init__(self, indexes, data):
             self.indexes = frozenset(indexes)
             self.data = data
-        
+
         @classmethod
         def from_encoder_part(cls, p):
             return cls(choose_fragments(p.seq_num, p.seq_len, p.checksum), p.data[:])
@@ -69,8 +73,7 @@ class FountainDecoder:
         return self.result
 
     def result_error(self):
-         return self.result
-
+        return self.result
 
     def estimated_percent_complete(self, weight_mixed_frames: bool = False):
         """
@@ -83,13 +86,17 @@ class FountainDecoder:
             return 1
         if self.expected_part_indexes == None:
             return 0
-        
+
         if not weight_mixed_frames:
             # Original estimation method
             estimated_input_parts = self.expected_part_count() * 1.75
             return min(0.99, self.processed_parts_count / estimated_input_parts)
         else:
-            parts = self.expected_part_count() if self.expected_part_indexes != None else 'None'
+            parts = (
+                self.expected_part_count()
+                if self.expected_part_indexes != None
+                else "None"
+            )
             mixed = []
             mixed_index_scoring = {}
             mixed_set = set()
@@ -102,7 +109,7 @@ class FountainDecoder:
                 for index in indexes:
                     if index not in mixed_index_scoring:
                         mixed_index_scoring[index] = 0.0
-                    
+
                     # sum up partial scores
                     mixed_index_scoring[index] += score
 
@@ -117,7 +124,6 @@ class FountainDecoder:
             num_complete = len(self.received_part_indexes)
             weighted_estimate = (num_complete + mixed_score) / float(parts)
             return weighted_estimate
-
 
     def receive_part(self, encoder_part):
         # Don't process the part if we're already done
@@ -146,7 +152,9 @@ class FountainDecoder:
         # self.print_part_end()
         # self.print_state()
 
-        if num_complete == len(self.received_part_indexes) and num_mixed_frames == len(self.mixed_parts):
+        if num_complete == len(self.received_part_indexes) and num_mixed_frames == len(
+            self.mixed_parts
+        ):
             # This part didn't add any new info
             # print("No new data")
             return False
@@ -171,7 +179,7 @@ class FountainDecoder:
             self.process_simple_part(part)
         else:
             self.process_mixed_part(part)
-        
+
         # print(f"Queue processing: {int((time.time() - start)*1000.0)}ms")
         # self.print_state()
 
@@ -234,7 +242,7 @@ class FountainDecoder:
 
             # Verify the message checksum and note success or failure
             checksum = crc32_int(message)
-            if(checksum == self.expected_checksum):
+            if checksum == self.expected_checksum:
                 self.result = bytes(message)
             else:
                 self.result = InvalidChecksum()
@@ -297,26 +305,35 @@ class FountainDecoder:
         i = list(indexes)
         i.sort()
         s = [str(j) for j in i]
-        return '[{}]'.format(', '.join(s))
+        return "[{}]".format(", ".join(s))
 
     def result_description(self):
         if self.result == None:
-            return 'None'
+            return "None"
 
         if self.is_success():
-            return '{} bytes'.format(len(self.result))
+            return "{} bytes".format(len(self.result))
         elif self.is_failure():
-            return 'Exception: {}'.format(self.result)
+            return "Exception: {}".format(self.result)
         else:
             assert False
 
     def print_part(self, p):
-        print('part indexes: {}'.format(self.indexes_to_string(p.indexes)))
+        print("part indexes: {}".format(self.indexes_to_string(p.indexes)))
 
     def print_part_end(self):
-        expected = self.expected_part_count() if self.expected_part_indexes != None else 'None'
+        expected = (
+            self.expected_part_count() if self.expected_part_indexes != None else "None"
+        )
         percent = int(round(self.estimated_percent_complete() * 100))
-        print("processed: {}, expected: {}, received: {}, percent: {}%".format(self.processed_parts_count, expected, len(self.received_part_indexes), percent))
+        print(
+            "processed: {}, expected: {}, received: {}, percent: {}%".format(
+                self.processed_parts_count,
+                expected,
+                len(self.received_part_indexes),
+                percent,
+            )
+        )
 
     def print_state(self):
         guesstimate = self.estimated_percent_complete(weight_mixed_frames=True)
@@ -329,13 +346,16 @@ class FountainDecoder:
                     continue
                 mixed.append(self.indexes_to_string(indexes))
                 mixed_set.update(indexes)
-            
+
             num_complete = len(self.received_part_indexes)
 
-            mixed_s = "[{}]".format(', '.join(mixed))
+            mixed_s = "[{}]".format(", ".join(mixed))
             queued = len(self.queued_parts)
-            print(f"{original_metric*100.0:5.1f}% | {guesstimate*100.0:5.1f}% | done: {num_complete:2d}, mixed: {len(mixed_set):2d}, queued: {queued}, frames: {self.processed_parts_count:2d} | {mixed_s}")
+            print(
+                f"{original_metric*100.0:5.1f}% | {guesstimate*100.0:5.1f}% | done: {num_complete:2d}, mixed: {len(mixed_set):2d}, queued: {queued}, frames: {self.processed_parts_count:2d} | {mixed_s}"
+            )
 
         except Exception as e:
             import traceback
+
             traceback.print_exc()

@@ -1,7 +1,8 @@
 import logging
-from typing import List
-import RPi.GPIO as GPIO
 import time
+from typing import List
+
+import RPi.GPIO as GPIO
 
 from seedsigner.models.singleton import Singleton
 
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class HardwareButtons(Singleton):
-    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
+    if GPIO.RPI_INFO["P1_REVISION"] == 3:  # This indicates that we have revision 3 GPIO
         logger.info("Detected 40pin GPIO (Rasbperry Pi 2 and above)")
         KEY_UP_PIN = 31
         KEY_DOWN_PIN = 35
@@ -33,43 +34,62 @@ class HardwareButtons(Singleton):
         KEY2_PIN = 12
         KEY3_PIN = 8
 
-
     @classmethod
     def get_instance(cls):
         # This is the only way to access the one and only instance
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
 
-            #init GPIO
+            # init GPIO
             GPIO.setmode(GPIO.BOARD)
-            GPIO.setup(HardwareButtons.KEY_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)    # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_DOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_LEFT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_RIGHT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_PRESS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY3_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY_DOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY_LEFT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY_RIGHT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY_PRESS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
+            GPIO.setup(
+                HardwareButtons.KEY3_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP
+            )  # Input with pull-up
 
             cls._instance.GPIO = GPIO
             cls._instance.override_ind = False
 
             # Track state over time so we can apply input delays/ignores as needed
-            cls._instance.cur_input = None           # Track which direction or button was last pressed
-            cls._instance.cur_input_started = None   # Track when that input began
-            cls._instance.last_input_time = int(time.time() * 1000)  # How long has it been since the last input?
-            cls._instance.first_repeat_threshold = 225  # Long-press time required before returning continuous input
+            cls._instance.cur_input = (
+                None  # Track which direction or button was last pressed
+            )
+            cls._instance.cur_input_started = None  # Track when that input began
+            cls._instance.last_input_time = int(
+                time.time() * 1000
+            )  # How long has it been since the last input?
+            cls._instance.first_repeat_threshold = (
+                225  # Long-press time required before returning continuous input
+            )
             cls._instance.next_repeat_threshold = 250  # Amount of time where we no longer consider input a continuous hold
 
         return cls._instance
-
 
     @classmethod
     def get_instance_no_hardware(cls):
         # This is the only way to access the one and only instance
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
-
 
     def wait_for(self, keys=[]) -> int:
         """
@@ -79,6 +99,7 @@ class HardwareButtons(Singleton):
         """
         # TODO: Refactor to keep control in the Controller and not here
         from seedsigner.controller import Controller
+
         controller = Controller.get_instance()
         self.override_ind = False
 
@@ -89,7 +110,10 @@ class HardwareButtons(Singleton):
                 return HardwareButtonsConstants.OVERRIDE
 
             cur_time = int(time.time() * 1000)
-            if cur_time - self.last_input_time > controller.screensaver_activation_ms and not controller.is_screensaver_running:
+            if (
+                cur_time - self.last_input_time > controller.screensaver_activation_ms
+                and not controller.is_screensaver_running
+            ):
                 # Start the screensaver. Will block execution until input detected.
                 controller.start_screensaver()
 
@@ -108,7 +132,9 @@ class HardwareButtons(Singleton):
                 if self.GPIO.input(key) == GPIO.LOW:
                     if self.cur_input != key:
                         self.cur_input = key
-                        self.cur_input_started = int(time.time() * 1000)  # in milliseconds
+                        self.cur_input_started = int(
+                            time.time() * 1000
+                        )  # in milliseconds
                         self.last_input_time = self.cur_input_started
                         return key
 
@@ -121,7 +147,10 @@ class HardwareButtons(Singleton):
                             self.last_input_time = cur_time
                             return key
 
-                        elif cur_time - self.cur_input_started > self.first_repeat_threshold:
+                        elif (
+                            cur_time - self.cur_input_started
+                            > self.first_repeat_threshold
+                        ):
                             # We're good to relay this immediately as continuous
                             #   input.
                             self.last_input_time = cur_time
@@ -140,20 +169,17 @@ class HardwareButtons(Singleton):
                             #   we let the repeats fly.
                             pass
 
-            time.sleep(0.01) # wait 10 ms to give CPU chance to do other things
-
+            time.sleep(0.01)  # wait 10 ms to give CPU chance to do other things
 
     def update_last_input_time(self):
         self.last_input_time = int(time.time() * 1000)
 
-
     def trigger_override(self) -> bool:
-        """ Set the override flag to break out of the current `wait_for` loop """
+        """Set the override flag to break out of the current `wait_for` loop"""
         self.override_ind = True
 
-
     def check_for_low(self, key: int = None, keys: List[int] = None) -> bool:
-        """ Returns True if one of the target keys/key is pressed """
+        """Returns True if one of the target keys/key is pressed"""
         if key:
             keys = [key]
         for key in keys:
@@ -163,9 +189,8 @@ class HardwareButtons(Singleton):
         else:
             return False
 
-
     def has_any_input(self) -> bool:
-        """ Returns True if any of the keys are pressed """
+        """Returns True if any of the keys are pressed"""
         for key in HardwareButtonsConstants.ALL_KEYS:
             if self.GPIO.input(key) == GPIO.LOW:
                 return True
@@ -174,7 +199,7 @@ class HardwareButtons(Singleton):
 
 # class used as short hand for static button/channel lookup values
 class HardwareButtonsConstants:
-    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
+    if GPIO.RPI_INFO["P1_REVISION"] == 3:  # This indicates that we have revision 3 GPIO
         KEY_UP = 31
         KEY_DOWN = 35
         KEY_LEFT = 29

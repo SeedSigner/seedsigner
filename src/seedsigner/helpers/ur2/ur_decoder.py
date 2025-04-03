@@ -5,26 +5,33 @@
 # Licensed under the "BSD-2-Clause Plus Patent License"
 #
 
-from .ur import UR
-from .fountain_encoder import FountainEncoder, Part as FountainEncoderPart
-from .fountain_decoder import FountainDecoder
 from .bytewords import *
+from .fountain_decoder import FountainDecoder
+from .fountain_encoder import FountainEncoder
+from .fountain_encoder import Part as FountainEncoderPart
+from .ur import UR
 from .utils import drop_first, is_ur_type
+
 
 class InvalidScheme(Exception):
     pass
 
+
 class InvalidType(Exception):
     pass
+
 
 class InvalidPathLength(Exception):
     pass
 
+
 class InvalidSequenceComponent(Exception):
     pass
 
+
 class InvalidFragment(Exception):
     pass
+
 
 class URDecoder:
     def __init__(self):
@@ -52,13 +59,13 @@ class URDecoder:
         lowered = str.lower()
 
         # Validate URI scheme
-        if not lowered.startswith('ur:'):
+        if not lowered.startswith("ur:"):
             raise InvalidScheme()
-        
+
         path = drop_first(lowered, 3)
 
         # Split the remainder into path components
-        components = path.split('/')
+        components = path.split("/")
 
         # Make sure there are at least two path components
         if len(components) < 2:
@@ -69,13 +76,13 @@ class URDecoder:
         if not is_ur_type(type):
             raise InvalidType()
 
-        comps = components[1:] # Don't include the ur type
+        comps = components[1:]  # Don't include the ur type
         return (type, comps)
 
     @staticmethod
     def parse_sequence_component(str):
         try:
-            comps = str.split('-')
+            comps = str.split("-")
             if len(comps) != 2:
                 raise InvalidSequenceComponent()
             seq_num = int(comps[0])
@@ -139,7 +146,7 @@ class URDecoder:
             return False
 
     def expected_type(self):
-       return self.expected_type
+        return self.expected_type
 
     def expected_part_count(self):
         return self.fountain_decoder.expected_part_count()
@@ -154,8 +161,10 @@ class URDecoder:
         return self.fountain_decoder.processed_parts_count
 
     def estimated_percent_complete(self, weight_mixed_frames: bool = False):
-        return self.fountain_decoder.estimated_percent_complete(weight_mixed_frames=weight_mixed_frames)
-        
+        return self.fountain_decoder.estimated_percent_complete(
+            weight_mixed_frames=weight_mixed_frames
+        )
+
     def is_success(self):
         result = self.result
         return result if not isinstance(result, Exception) else False
@@ -171,6 +180,4 @@ class URDecoder:
         return self.result
 
     def result_error(self):
-         return self.result
-
-    
+        return self.result

@@ -10,15 +10,15 @@ SeedSigner does not work any of the more recent versions of Debian. This is a kn
 
 Best practice is to verify the downloaded file containing the Raspberry Pi Lite OS matches the published SHA256 hash of the file; for additional reference that hash is: 3d210e61b057de4de90eadb46e28837585a9b24247c221998f5bead04f88624c. After verifying the file's data integrity, you can decompress the .tar.xz file to obtain the operating system image that it contains. You can then use Balena's Etcher tool (https://www.balena.io/etcher/) to write the Raspberry Pi Lite software image to a memory card (4 GB or larger). It's important to note that an image authoring tool must be used (the operating system image cannot be simply copied into a file storage partition on the memory card).
 
-The manual SeedSigner installation and configuration process requires an internet connection on the Pi to download the necessary libraries and code.  
+The manual SeedSigner installation and configuration process requires an internet connection on the Pi to download the necessary libraries and code.
 If your Pi does not have onboard wifi, you have two options:
 
 1. Run these steps on a separate Raspberry Pi 2/3/4 or Zero W which does have onboard Wi-Fi to connect to the internet, and then move the SD card over to the non Wi-Fi enabled Pi when complete.
 2. OR configure the non Wi-Fi enabled Pi directly by relaying through your computer's internet connection over USB. See instructions [here](usb_relay.md).
 
-If your Pi does have onboard Wi-Fi, then using the Rasberry Pi Imager software will allow you to easily configure your Pi's Wi-Fi connection, as well as simultaneously write the image file. That will make your initial SSH into the Pi much easier.   
-Use the Pi's onboard Wi-Fi only if you are setting up a local development environment, never for real funds or binary image creation. 
-  
+If your Pi does have onboard Wi-Fi, then using the Rasberry Pi Imager software will allow you to easily configure your Pi's Wi-Fi connection, as well as simultaneously write the image file. That will make your initial SSH into the Pi much easier.
+Use the Pi's onboard Wi-Fi only if you are setting up a local development environment, never for real funds or binary image creation.
+
 For the following steps you'll need to either connect a keyboard & monitor to the network-connected Raspberry Pi you are working with, or SSH into the Pi if you're familiar with that process.
 
 ### Configure the Pi
@@ -202,8 +202,8 @@ console=serial0,115200 console=tty1 root=PARTUUID=2fa4ba7e-02 rootfstype=ext4 el
 sudo nano /etc/systemd/system/seedsigner.service
 ```
 
-Add the following contents to the text file that was created:  
-If you are not using the username pi, then replace  `pi` in the service section below with your username. There are 3 lines to change.   
+Add the following contents to the text file that was created:
+If you are not using the username pi, then replace  `pi` in the service section below with your username. There are 3 lines to change.
 ```ini
 [Unit]
 Description=Seedsigner

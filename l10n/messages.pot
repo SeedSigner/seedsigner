@@ -1481,4 +1481,3 @@ msgstr ""
 #: src/seedsigner/views/view.py
 msgid "Option Disabled"
 msgstr ""
-

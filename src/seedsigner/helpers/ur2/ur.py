@@ -7,8 +7,10 @@
 
 from .utils import is_ur_type
 
+
 class InvalidType(Exception):
     pass
+
 
 class UR:
 
@@ -23,4 +25,3 @@ class UR:
         if obj == None:
             return False
         return self.type == obj.type and self.cbor == obj.cbor
-    

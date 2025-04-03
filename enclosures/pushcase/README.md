@@ -73,7 +73,7 @@ Please note that the prints must be accurate in order to fit tightly without scr
 
 - Insert the 40 pins with the help of tweezers and push them all the way down.
 - Solder the pins (please pay attention not to melt the orange support elements!).
-- Optional: Pull out the Raspberry Pi to check that the pins are holding properly after soldering. 
+- Optional: Pull out the Raspberry Pi to check that the pins are holding properly after soldering.
 
 ### 4. Attach camera
 
@@ -111,7 +111,7 @@ Please note that the prints must be accurate in order to fit tightly without scr
 </p>
 
 - Remove the soldering support.
-- Insert the 3 buttons into the front. 
+- Insert the 3 buttons into the front.
 - Press the front completely into the signer (hold the device upside down so that the buttons do not fall out).
 - Plug in the thumbstick.
 

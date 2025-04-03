@@ -111,7 +111,7 @@ Instructions to build a SeedSigner OS image (using precisely the same process th
 
 ## Downloading the Software
 
-   
+
 Download the current Version (0.8.5) software image that is compatible with your  Raspberry Pi Hardware. The Pi Zero 1.3 is the most common and recommended board.
 | Board                 | Download Image Link/Name          |
 | --------------------- | --------------------------------- |
@@ -124,30 +124,30 @@ Download the current Version (0.8.5) software image that is compatible with your
 |[Raspberry Pi 4 Model B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) |[`seedsigner_os.0.8.5.pi4.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner_os.0.8.5.pi4.img)      |
 |[Raspberry Pi 400](https://www.raspberrypi.com/products/raspberry-pi-400-unit/) |[`seedsigner_os.0.8.5.pi4.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner_os.0.8.5.pi4.img)      |
 
-Note: If you have physically removed the WiFi component from your board, you will still use the image file of the original(un-modified) hardware. (Our files are compiled/based on the *processor* architecture). Although it is better to spend a few minutes upfront to determine which specific Pi hardware/model you have, if you are still unsure which hardware you have, you can try using the pi0.img file. Making an incorrect choice here will not ruin your board, because this is software, not firmware. 
+Note: If you have physically removed the WiFi component from your board, you will still use the image file of the original(un-modified) hardware. (Our files are compiled/based on the *processor* architecture). Although it is better to spend a few minutes upfront to determine which specific Pi hardware/model you have, if you are still unsure which hardware you have, you can try using the pi0.img file. Making an incorrect choice here will not ruin your board, because this is software, not firmware.
 
-**also download** these 2 signature verification files to the same folder  
-[The Plaintext manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner.0.8.5.sha256.txt)  
+**also download** these 2 signature verification files to the same folder
+[The Plaintext manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner.0.8.5.sha256.txt)
 [The Signature of the manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner.0.8.5.sha256.txt.sig)
 
-Users familiar with older versions of the SeedSigner software might be surprised with how fast their software downloads now are, because since version 0.6.0 the software image files are now 100x smaller! Each image file is now under 42 Megabytes so your downloads and verifications will be very quick now (and might even seem *too* quick)!  
+Users familiar with older versions of the SeedSigner software might be surprised with how fast their software downloads now are, because since version 0.6.0 the software image files are now 100x smaller! Each image file is now under 42 Megabytes so your downloads and verifications will be very quick now (and might even seem *too* quick)!
 
-Once the files have all finished downloading, follow the steps below to verify the download before continuing on to write the software onto a MicroSD card. Next, insert the MicroSD into your assembled hardware and connect the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your SeedSigner! 
+Once the files have all finished downloading, follow the steps below to verify the download before continuing on to write the software onto a MicroSD card. Next, insert the MicroSD into your assembled hardware and connect the USB power. Allow about 45 seconds for our logo to appear, and then you can begin using your SeedSigner!
 
-[Our previous software versions are available here](https://github.com/SeedSigner/seedsigner/releases). Choose a specific version and then expand the *Assets* sub-heading to display the .img file binary and also the 2 associated signature files. **Note:** The prior version files will have lower numbers than the scripts and examples provided in this document, but the naming format will be the same, so you can edit them as required for signature verification etc.   
+[Our previous software versions are available here](https://github.com/SeedSigner/seedsigner/releases). Choose a specific version and then expand the *Assets* sub-heading to display the .img file binary and also the 2 associated signature files. **Note:** The prior version files will have lower numbers than the scripts and examples provided in this document, but the naming format will be the same, so you can edit them as required for signature verification etc.
 
 
 ## Verifying your download
 
 You can quickly verify that the software you just downloaded is both authentic and unaltered by following these instructions.
-We assume you are running the commands from a computer where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are already installed and that you also know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal). 
+We assume you are running the commands from a computer where both [GPG](https://gnupg.org/download/index.html) and [shasum](https://command-not-found.com/shasum) are already installed and that you also know [how to navigate on a terminal](https://terminalcheatsheet.com/guides/navigate-terminal).
 
 > You must run the following verification before opening or mounting the .img file.
 > Some operating systems modify the file on mount, causing verification to fail.
 
 ### Step 1. Verify that the signature (.sig) file is genuine:
 
-Run GPG's *fetch-keys* command to import the SeedSigner projects public key from the popular online keyserver called *Keybase.io*, into your computers *keychain*. 
+Run GPG's *fetch-keys* command to import the SeedSigner projects public key from the popular online keyserver called *Keybase.io*, into your computers *keychain*.
 
 
 ```
@@ -155,27 +155,27 @@ gpg --fetch-keys https://keybase.io/seedsigner/pgp_keys.asc
 ```
 The result should confirm that 1 key was *either* imported or updated. *Ignore* any key ID's or email addresses shown.
 
-![SS - Fetchkeys-Keybase PubKey import with Fingerprint shown (New import or update of the key)v3-100pct](https://user-images.githubusercontent.com/91296549/221334414-adc3616c-462e-490e-8492-3dfee367d13a.jpg)  
+![SS - Fetchkeys-Keybase PubKey import with Fingerprint shown (New import or update of the key)v3-100pct](https://user-images.githubusercontent.com/91296549/221334414-adc3616c-462e-490e-8492-3dfee367d13a.jpg)
 
-Next, you will run the *verify* command on the signature (.sig) file. (*Verify* must be run from inside the same folder that you downloaded the files into earlier.)   
+Next, you will run the *verify* command on the signature (.sig) file. (*Verify* must be run from inside the same folder that you downloaded the files into earlier.)
 ```
 gpg --verify seedsigner.0.8.5.sha256.txt.sig
 ```
 
 When the verify command completes successfully, it should display output like this:
 <BR>
-![SS - Verify Command - GPG on Linux - Masked_v4-100pct](https://user-images.githubusercontent.com/91296549/221334135-8ad1f1af-26d2-429a-91ce-ad41703ed38c.jpg)  
+![SS - Verify Command - GPG on Linux - Masked_v4-100pct](https://user-images.githubusercontent.com/91296549/221334135-8ad1f1af-26d2-429a-91ce-ad41703ed38c.jpg)
 The result must display "**Good signature**".  Ignore any email addresses - *only*  matching Key fingerprints count here. Stop immediately if it displays "*Bad signature*"!
-<BR> 
+<BR>
 
-On the *last* output line, look at your *rightmost* 16 characters (the 4 blocks of 4).  
+On the *last* output line, look at your *rightmost* 16 characters (the 4 blocks of 4).
 **Crucially, we must now check WHO that Primary key fingerprint /ID belongs to.** We will start by looking at Keybase.io to see if it is the *SeedSigner project* 's public key or not.
 
 <details><summary> About the warning message:</summary>
 <p>  Since you are about to match the outputted fingerprint/ID against the proofs at Keybase.io/SeedSigner, and thereby confirm who the pubkey really belongs to-, you can safely ignore this warning message:
 
 ```
-> WARNING: This key is not certified with a trusted signature!  
+> WARNING: This key is not certified with a trusted signature!
 > There is no indication that the signature belongs to the owner.
  ```
 </p>
@@ -183,35 +183,35 @@ On the *last* output line, look at your *rightmost* 16 characters (the 4 blocks 
 <br>
 
 <details><summary> More about how the verify command works:</summary>
-<p>  
-The verify command will attempt to decrypt the signature file (sha256.sig) by trying each public key already imported into your computer. If the public key we just imported (via fetch-keys), manages to: (a) successfully decrypt the .sig file , and (b), that result matches exactly to the clear-text equivalent (.sha256) of the .sig file, then its "a good signature"!   
+<p>
+The verify command will attempt to decrypt the signature file (sha256.sig) by trying each public key already imported into your computer. If the public key we just imported (via fetch-keys), manages to: (a) successfully decrypt the .sig file , and (b), that result matches exactly to the clear-text equivalent (.sha256) of the .sig file, then its "a good signature"!
 
-Crucially, we must still manually check who *exactly* owns the Key ID which gave us that "Good signature". Thats what the warning message means- Who does the matching key really belong to? We will start by looking at keybase.io to see if it is "The SeedSigner project"'s public Key or not. 
+Crucially, we must still manually check who *exactly* owns the Key ID which gave us that "Good signature". Thats what the warning message means- Who does the matching key really belong to? We will start by looking at keybase.io to see if it is "The SeedSigner project"'s public Key or not.
 Note that it is the file hashes of .sig and .sha256 that *verify* compares, not their raw contents.
 
 </p>
 </details>
 <br>
 
-Now to determine ***who*** the Public key ID belongs to: Goto [Keybase.io/SeedSigner](https://keybase.io/seedsigner)  
+Now to determine ***who*** the Public key ID belongs to: Goto [Keybase.io/SeedSigner](https://keybase.io/seedsigner)
 <BR>
 ![SS - Keybase Website PubKey visual matching1_Cropped-80pct](https://user-images.githubusercontent.com/91296549/215326193-97c84e35-5570-4e52-bf3f-e86d367c8908.jpg)
 
 
 
-**You must now *manually* compare: The 16 character fingerprint ID (as circled in red above) to, those *rightmost* 16 characters from your *verify* command.** 
+**You must now *manually* compare: The 16 character fingerprint ID (as circled in red above) to, those *rightmost* 16 characters from your *verify* command.**
 
 **If they match exactly, then you have successfully confirmed that your .sig file is authentically from the SeedSigner Project!**
 <BR>
 
 <details><summary>Learn more about how keybase.io helps you check that someone (online) is who they say they are:</summary>
 <p>
-Keybase.io allows you to independently verify that the public key saved on Keybase.io, is both authentic and that it belongs to the organization it claims to represent.  
- Keybase has already checked the three pubkey file locations  cryptographically when they were saved there. You can further verify the key publications if you would like:  
- 
- - *via Keybase*: By clicking on any of the three blue badges to see that the "proof" was published at that location. (The blue badge marked as tweet, is in the most human-readable form and it is also a bi-directional link on Twitter)    
-or, 
- - *without keybase (out-of-band)*: By using these 3 links directly: [Twitter](https://twitter.com/SeedSigner/status/1530555252373704707), [Github](https://gist.github.com/SeedSigner/5936fa1219b07e28a3672385b605b5d2) and [SeedSigner.com](https://seedsigner.com/keybase.txt). This method can be used if you would like to make an even deeper, independent inspection without relying on Keybase at all, or if the Keybase.io site is no longer valid or it is removed entirely. 
+Keybase.io allows you to independently verify that the public key saved on Keybase.io, is both authentic and that it belongs to the organization it claims to represent.
+ Keybase has already checked the three pubkey file locations  cryptographically when they were saved there. You can further verify the key publications if you would like:
+
+ - *via Keybase*: By clicking on any of the three blue badges to see that the "proof" was published at that location. (The blue badge marked as tweet, is in the most human-readable form and it is also a bi-directional link on Twitter)
+or,
+ - *without keybase (out-of-band)*: By using these 3 links directly: [Twitter](https://twitter.com/SeedSigner/status/1530555252373704707), [Github](https://gist.github.com/SeedSigner/5936fa1219b07e28a3672385b605b5d2) and [SeedSigner.com](https://seedsigner.com/keybase.txt). This method can be used if you would like to make an even deeper, independent inspection without relying on Keybase at all, or if the Keybase.io site is no longer valid or it is removed entirely.
 
 Once you have used one of these methods, you will know if the Public Key stored on Keybase, is genuinely from the SeedSinger Project or not.
 </p>
@@ -224,17 +224,17 @@ If the two ID's do *not* match, then you must stop here immediately. Do not cont
 
 ### Step 2. Verifying that the *software images/binaries* are genuine
 
-Now that you have confirmed that you do have the real SeedSigner Project's Public Key (ie the 16 characters match) - you can return to your terminal window. Running  the *shasum* command, is the final verification step and will confirm (via file hashing) that the software code/image files, were also not altered since publication, or even during your download process.  
+Now that you have confirmed that you do have the real SeedSigner Project's Public Key (ie the 16 characters match) - you can return to your terminal window. Running  the *shasum* command, is the final verification step and will confirm (via file hashing) that the software code/image files, were also not altered since publication, or even during your download process.
 (Prior to version 0.6.0  , your verify command will check the .zip file which contains the binary files.)
 
  **On Linux or OSX:** Run this command
 ```
-shasum -a 256 --ignore-missing --check seedsigner.0.8.5.sha256.txt  
+shasum -a 256 --ignore-missing --check seedsigner.0.8.5.sha256.txt
 ```
 
 **On Windows (inside Powershell):** Run this command
 ```
-CertUtil -hashfile  seedsigner_os.0.8.5.Insert_Your_Pi_Models_binary_here_For_Example_pi02w.img SHA256 
+CertUtil -hashfile  seedsigner_os.0.8.5.Insert_Your_Pi_Models_binary_here_For_Example_pi02w.img SHA256
 ```
 On Windows, you must then manually compare the resulting file hash value to the corresponding hash value shown inside the .SHA256 cleartext file.
  <BR>
@@ -243,8 +243,8 @@ Wait up to 30 seconds for the command to complete, and it should display:
 ```
 seedsigner_os.0.8.5.[Your_Pi_Model_For_Example:pi02w].img: OK
 ```
-**If you receive the "OK" message** for your **seedsigner_os.0.8.5.[Your_Pi_Model_For_Example:pi02w].img file**, as shown above, then your verification is fully complete!  
-**All of your downloaded files have now been confirmed as both authentic and unaltered!** You can proceed to create/write your MicroSD card😄😄 !!     
+**If you receive the "OK" message** for your **seedsigner_os.0.8.5.[Your_Pi_Model_For_Example:pi02w].img file**, as shown above, then your verification is fully complete!
+**All of your downloaded files have now been confirmed as both authentic and unaltered!** You can proceed to create/write your MicroSD card😄😄 !!
 
 If your file result shows "FAILED", then you must stop here immediately. Do not continue. Contact us for assistance at  the Telegram group address above.
 
@@ -257,27 +257,27 @@ Please recognize that this process can only validate the software to the extent 
 
 ## Writing the software onto your MicroSD card
 
-To write the SeedSigner software onto your MicroSD card, there are a few options available:   
+To write the SeedSigner software onto your MicroSD card, there are a few options available:
 | Application              | Description                                                                                                                                                  | Platform and official Source                                                         |
 |--------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
 | Balena Etcher            | The application is called Etcher, and the company that wrote it is called Balena.  Hence *Etcher by Balena* or *Balena Etcher*                                                  | [Available for Windows, Mac and Linux](https://www.balena.io/etcher#download-etcher) |
 | Raspberry Pi Imager      | Produced by the Raspberry Pi organization.                                                                                                                   | [Available for Windows, Mac and Linux](https://www.raspberrypi.com/software/)        |
 | DD Command Line Utility  | Built-in to Linux and MacOS, the DD (Data Duplicator) is a tool for advanced users.  If not used carefully it can accidentally format the incorrect disk!   | Built-in to Linux and MacOS                                                        |
 
-Be sure to download the software from the genuine publisher.  
-Either of the Etcher or Pi Imager software is recommended.  Some SeedSigner users have reported a better experience with one or the other. So, if the one application doesn’t work well for your particular machine, then please try the other one. 
+Be sure to download the software from the genuine publisher.
+Either of the Etcher or Pi Imager software is recommended.  Some SeedSigner users have reported a better experience with one or the other. So, if the one application doesn’t work well for your particular machine, then please try the other one.
 <BR>
-### **General Considerations:** 
-The writing and verify steps are very quick from version 0.6.0 upwards, so please pay close attention to your screen. 
-Make sure to set any write-protection physical slider on the MicroSD Card Adapter to UN-locked.  
+### **General Considerations:**
+The writing and verify steps are very quick from version 0.6.0 upwards, so please pay close attention to your screen.
+Make sure to set any write-protection physical slider on the MicroSD Card Adapter to UN-locked.
 You also don’t need to pre-format the MicroSD beforehand.  You *dont* need to unzip any .zip file beforehand.
-Current Etcher and Pi Imager software will perform a verify action (by default) to make sure the card was written successfully! Watching for that verify step to complete successfully, can save you a lot of headaches if you later need to troubleshoot issues where your SeedSigner device doesn’t boot up at power on.   
-Writing the MicroSd card is also known as flashing.  
-It will overwrite everything on the MicroSD card.  
-If the one application fails for you, then please try again using our other recommended application.  
+Current Etcher and Pi Imager software will perform a verify action (by default) to make sure the card was written successfully! Watching for that verify step to complete successfully, can save you a lot of headaches if you later need to troubleshoot issues where your SeedSigner device doesn’t boot up at power on.
+Writing the MicroSd card is also known as flashing.
+It will overwrite everything on the MicroSD card.
+If the one application fails for you, then please try again using our other recommended application.
 Advanced users may want to try the Linux/MacOS *DD* command instead of using Etcher or Pi Imager, however, a reminder is given that DD can overwrite the wrong disk if you are not careful !
 #### **Specific considerations for Windows users:**
-Use the Pi imager software as your first choice on Windows. Windows can sometimes flag the writing of a MicroSD as risky behaviour and hence it may prevent this activity. If this happens, your writing/flashing will fail, hang or wont even begin, in which case you should to try to run the Etcher/Pi-Imager app "As administrator", (right-click and choose that option). It can also be blocked by windows security in some cases, so If you have the (non-default) *Controlled Folder Access* option set to active, try turning that *off* temporarily. 
+Use the Pi imager software as your first choice on Windows. Windows can sometimes flag the writing of a MicroSD as risky behaviour and hence it may prevent this activity. If this happens, your writing/flashing will fail, hang or wont even begin, in which case you should to try to run the Etcher/Pi-Imager app "As administrator", (right-click and choose that option). It can also be blocked by windows security in some cases, so If you have the (non-default) *Controlled Folder Access* option set to active, try turning that *off* temporarily.
 
 
 
@@ -305,7 +305,7 @@ The upper and lower portions of the enclosure can be printed using a standard FD
 * [Lil Pill](https://cults3d.com/en/3d-model/gadget/lil-pill-seedsigner-case) by @_CyberNomad
 * [OrangeSurf Case](https://github.com/orangesurf/orangesurf-seedsigner-case) by @OrangeSurfBTC
 * [PS4 SeedSigner](https://www.thingiverse.com/thing:5363525) by @Silexperience
-* [OpenPill Faceplate](https://www.printables.com/en/model/179924-seedsigner-open-pill-cover-plates-digital-cross-jo) by @Revetuzo 
+* [OpenPill Faceplate](https://www.printables.com/en/model/179924-seedsigner-open-pill-cover-plates-digital-cross-jo) by @Revetuzo
 * [Waveshare CoverPlate](https://cults3d.com/en/3d-model/various/seedsigner-coverplate-for-waveshare-1-3-inch-lcd-hat-with-240x240-pixel-display) by @Adathome1
 
 ---------------

@@ -3,7 +3,9 @@ class Singleton:
 
     def __init__(self):
         # Singleton pattern must prevent normal instantiation
-        raise Exception("Cannot directly instantiate a Singleton. Access via get_instance()")
+        raise Exception(
+            "Cannot directly instantiate a Singleton. Access via get_instance()"
+        )
 
     @classmethod
     def get_instance(cls):
@@ -11,7 +13,6 @@ class Singleton:
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
         return cls._instance
-
 
 
 class ConfigurableSingleton(Singleton):
@@ -23,11 +24,10 @@ class ConfigurableSingleton(Singleton):
         else:
             raise Exception("Must call %s.configure_instance() first" % cls.__name__)
 
-
     @classmethod
     def configure_instance(cls, config: any = None):
         # Must be called before the first get_instance() call
         if cls._instance:
             raise Exception("Instance already configured")
-        
-        #TODO: Implementation classes should do something with incoming config
+
+        # TODO: Implementation classes should do something with incoming config

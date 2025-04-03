@@ -3,14 +3,16 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
 """
-This is a utility for testing / dev purposes only. 
+This is a utility for testing / dev purposes only.
 """
 
 if __name__ == "__main__":
-    import qrcode
     import sys
 
-    print("""
+    import qrcode
+
+    print(
+        """
 *******************************************************************************
 
     This is a utility for testing / dev purposes ONLY.
@@ -19,7 +21,8 @@ if __name__ == "__main__":
     this way.
 
 *******************************************************************************
-""")
+"""
+    )
 
     COMPACT = 1
     STANDARD = 2
@@ -31,14 +34,27 @@ if __name__ == "__main__":
     seed_phrase = input("\nEnter 12- or 24-word test seed phrase: ").strip().split(" ")
 
     if format == COMPACT:
-        encoder = CompactSeedQrEncoder(mnemonic=seed_phrase, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+        encoder = CompactSeedQrEncoder(
+            mnemonic=seed_phrase,
+            wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+        )
     else:
-        encoder = SeedQrEncoder(mnemonic=seed_phrase, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+        encoder = SeedQrEncoder(
+            mnemonic=seed_phrase,
+            wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+        )
 
-    qr = qrcode.QRCode( version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=5, border=3)
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=5,
+        border=3,
+    )
     qr.add_data(encoder.next_part())
     qr.make(fit=True)
-    qr.make_image(fill_color="black", back_color="white").resize((240,240)).convert('RGB').show()
+    qr.make_image(fill_color="black", back_color="white").resize((240, 240)).convert(
+        "RGB"
+    ).show()
 
     seed = Seed(seed_phrase)
     print(f"\nfingerprint: {seed.get_fingerprint()}\n")

@@ -1,17 +1,40 @@
 import pytest
 
 # Must import test base before the Controller
-from base import FlowTest, FlowStep, FlowTestMissingRedirectException, FlowTestUnexpectedRedirectException, FlowTestUnexpectedViewException, FlowTestInvalidButtonDataSelectionException, FlowTestInvalidButtonDataInstanceTypeException
+from base import (
+    FlowStep,
+    FlowTest,
+    FlowTestInvalidButtonDataInstanceTypeException,
+    FlowTestInvalidButtonDataSelectionException,
+    FlowTestMissingRedirectException,
+    FlowTestUnexpectedRedirectException,
+    FlowTestUnexpectedViewException,
+)
 
 from seedsigner.controller import Controller
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON, ButtonListScreen, ButtonOption
+from seedsigner.gui.screens.screen import (
+    RET_CODE__BACK_BUTTON,
+    RET_CODE__POWER_BUTTON,
+    ButtonListScreen,
+    ButtonOption,
+)
 from seedsigner.models.seed import Seed
 from seedsigner.views import scan_views
 from seedsigner.views.psbt_views import PSBTSelectSeedView
-from seedsigner.views.seed_views import SeedBackupView, SeedMnemonicEntryView, SeedOptionsView, SeedsMenuView
-from seedsigner.views.view import Destination, MainMenuView, PowerOptionsView, UnhandledExceptionView, View
-from seedsigner.views.tools_views import ToolsMenuView, ToolsCalcFinalWordNumWordsView
-
+from seedsigner.views.seed_views import (
+    SeedBackupView,
+    SeedMnemonicEntryView,
+    SeedOptionsView,
+    SeedsMenuView,
+)
+from seedsigner.views.tools_views import ToolsCalcFinalWordNumWordsView, ToolsMenuView
+from seedsigner.views.view import (
+    Destination,
+    MainMenuView,
+    PowerOptionsView,
+    UnhandledExceptionView,
+    View,
+)
 
 
 class TestFlowTest(FlowTest):
@@ -21,13 +44,17 @@ class TestFlowTest(FlowTest):
         Basic test to ensure the FlowTest can flow through a sequence of Views and
         terminate via the StopControllerCommand.
         """
-        self.run_sequence([
-            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
-            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.KEYBOARD),
-            FlowStep(ToolsCalcFinalWordNumWordsView, button_data_selection=ToolsCalcFinalWordNumWordsView.TWELVE),
-            FlowStep(SeedMnemonicEntryView),
-        ])
-
+        self.run_sequence(
+            [
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+                FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.KEYBOARD),
+                FlowStep(
+                    ToolsCalcFinalWordNumWordsView,
+                    button_data_selection=ToolsCalcFinalWordNumWordsView.TWELVE,
+                ),
+                FlowStep(SeedMnemonicEntryView),
+            ]
+        )
 
     def test_FlowTestUnexpectedViewException(self):
         """
@@ -35,11 +62,14 @@ class TestFlowTest(FlowTest):
         View in the sequence is not the expected View.
         """
         with pytest.raises(FlowTestUnexpectedViewException):
-            self.run_sequence([
-                FlowStep(MainMenuView, button_data_selection=RET_CODE__POWER_BUTTON),
-                FlowStep(ToolsMenuView),  # <-- Wrong target View!
-            ])
-    
+            self.run_sequence(
+                [
+                    FlowStep(
+                        MainMenuView, button_data_selection=RET_CODE__POWER_BUTTON
+                    ),
+                    FlowStep(ToolsMenuView),  # <-- Wrong target View!
+                ]
+            )
 
     def test_UnhandledExceptionView(self):
         """
@@ -51,18 +81,25 @@ class TestFlowTest(FlowTest):
         # derail the sequence (i.e. somebody wrote a bad FlowTest or something unexpected
         # is breaking). The sequence should fail with FlowTestUnexpectedViewException.
         with pytest.raises(FlowTestUnexpectedViewException):
-            self.run_sequence([
-                FlowStep(PSBTSelectSeedView),  # <-- There is no PSBT loaded. Should raise an exception that routes us to the UnhandledExceptionView.
-                FlowStep(scan_views.ScanSeedQRView),  # <-- This is not the View we'll end up at; FlowTest should raise the FlowTestUnexpectedViewException
-            ])
+            self.run_sequence(
+                [
+                    FlowStep(
+                        PSBTSelectSeedView
+                    ),  # <-- There is no PSBT loaded. Should raise an exception that routes us to the UnhandledExceptionView.
+                    FlowStep(
+                        scan_views.ScanSeedQRView
+                    ),  # <-- This is not the View we'll end up at; FlowTest should raise the FlowTestUnexpectedViewException
+                ]
+            )
 
         # This sequence *expects* an exception to route us to the UnhandledExceptionView
         # and therefore can complete successfully.
-        self.run_sequence([
-            FlowStep(PSBTSelectSeedView),  # <-- There's no PSBT loaded.
-            FlowStep(UnhandledExceptionView),
-        ])
-
+        self.run_sequence(
+            [
+                FlowStep(PSBTSelectSeedView),  # <-- There's no PSBT loaded.
+                FlowStep(UnhandledExceptionView),
+            ]
+        )
 
     def test_FlowTestInvalidButtonDataSelectionException(self):
         """
@@ -70,35 +107,49 @@ class TestFlowTest(FlowTest):
         specified button_data_selection in invalid.
         """
         with pytest.raises(FlowTestInvalidButtonDataSelectionException):
-            self.run_sequence([
-                FlowStep(MainMenuView, button_data_selection="this is not a real button option!"),
-            ])
-
+            self.run_sequence(
+                [
+                    FlowStep(
+                        MainMenuView,
+                        button_data_selection="this is not a real button option!",
+                    ),
+                ]
+            )
 
     def test_FlowTestUnexpectedRedirectException(self):
         """
         If the FlowStep doesn't specify is_redirect when the View redirects, raise FlowTestUnexpectedRedirectException
         """
         with pytest.raises(FlowTestUnexpectedRedirectException) as e:
-            self.run_sequence([
-                FlowStep(SeedsMenuView, button_data_selection=SeedsMenuView.LOAD),  # <-- No seeds loaded, so it'll redirect elsewhere
-            ])
+            self.run_sequence(
+                [
+                    FlowStep(
+                        SeedsMenuView, button_data_selection=SeedsMenuView.LOAD
+                    ),  # <-- No seeds loaded, so it'll redirect elsewhere
+                ]
+            )
 
         # This time we'll show that we know it should redirect
-        self.run_sequence([
-            FlowStep(SeedsMenuView, is_redirect=True),
-        ])
-
+        self.run_sequence(
+            [
+                FlowStep(SeedsMenuView, is_redirect=True),
+            ]
+        )
 
     def test_FlowTestMissingRedirectException(self):
         """
         If the FlowStep specifies is_redirect but the View does NOT redirect, raise FlowTestMissingRedirectException
         """
         with pytest.raises(FlowTestMissingRedirectException):
-            self.run_sequence([
-                FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS, is_redirect=True),
-            ])
-
+            self.run_sequence(
+                [
+                    FlowStep(
+                        MainMenuView,
+                        button_data_selection=MainMenuView.TOOLS,
+                        is_redirect=True,
+                    ),
+                ]
+            )
 
     def test_before_run_executes(self):
         """
@@ -107,33 +158,35 @@ class TestFlowTest(FlowTest):
         # TODO
         pass
 
-
     def test_back_button_flow(self):
         """
         Ensure that the FlowTest works correctly with the Controller and its BackStack.
         """
-        self.run_sequence([
-            FlowStep(MainMenuView, screen_return_value=RET_CODE__POWER_BUTTON),
-            FlowStep(PowerOptionsView, screen_return_value=RET_CODE__BACK_BUTTON),
-            FlowStep(MainMenuView),
-        ])
-    
+        self.run_sequence(
+            [
+                FlowStep(MainMenuView, screen_return_value=RET_CODE__POWER_BUTTON),
+                FlowStep(PowerOptionsView, screen_return_value=RET_CODE__BACK_BUTTON),
+                FlowStep(MainMenuView),
+            ]
+        )
 
     def test_initial_destination(self):
         """
         Ensure that the FlowTest can start from a View other than MainMenuView.
         """
         # Don't have to start at the MainMenuView; can jump straight in
-        self.run_sequence([
-            FlowStep(ToolsCalcFinalWordNumWordsView),
-        ])
+        self.run_sequence(
+            [
+                FlowStep(ToolsCalcFinalWordNumWordsView),
+            ]
+        )
 
         # And again, but this time with a View that requires input view_args
         self.reset_controller()
         self.controller = Controller.get_instance()
 
         # Load a seed into the Controller
-        seed = Seed(mnemonic=["abandon "* 11 + "about"])
+        seed = Seed(mnemonic=["abandon " * 11 + "about"])
         self.controller.storage.set_pending_seed(seed)
         self.controller.storage.finalize_pending_seed()
 
@@ -142,9 +195,8 @@ class TestFlowTest(FlowTest):
             sequence=[
                 FlowStep(SeedOptionsView, button_data_selection=SeedOptionsView.BACKUP),
                 FlowStep(SeedBackupView),
-            ]
+            ],
         )
-    
 
     def test_raise_exception_via_screen_return_value(self):
         """
@@ -152,43 +204,54 @@ class TestFlowTest(FlowTest):
         """
         # A generic Exception should be caught by the Controller and routed to the
         # UnhandledExceptionView.
-        self.run_sequence([
-            FlowStep(MainMenuView, screen_return_value=Exception("Test exception")),
-            FlowStep(UnhandledExceptionView),
-        ])
-    
+        self.run_sequence(
+            [
+                FlowStep(MainMenuView, screen_return_value=Exception("Test exception")),
+                FlowStep(UnhandledExceptionView),
+            ]
+        )
 
     def test_raise_exception_on_bad_button_data_type(self):
         """
         Ensure that the FlowTest raises an exception if a Screen's button_data has
         non-ButtonOption entries.
         """
+
         class MyBadButtonDataTestView(View):
             def run(self):
                 self.run_screen(
                     ButtonListScreen,
-                    button_data=[ButtonOption("this is fine"), "this is not"]
+                    button_data=[ButtonOption("this is fine"), "this is not"],
                 )
 
         class MyGoodButtonDataTestView(View):
             def run(self):
                 self.run_screen(
                     ButtonListScreen,
-                    button_data=[ButtonOption("this is fine"), ButtonOption("this is also fine")]
+                    button_data=[
+                        ButtonOption("this is fine"),
+                        ButtonOption("this is also fine"),
+                    ],
                 )
                 return Destination(MainMenuView)
 
-
         # Should catch the bad button_data
         with pytest.raises(FlowTestInvalidButtonDataInstanceTypeException):
-            self.run_sequence([
-                FlowStep(MyBadButtonDataTestView),
-                FlowStep(MainMenuView),  # Need a next Destination to force the first step to run
-            ])
+            self.run_sequence(
+                [
+                    FlowStep(MyBadButtonDataTestView),
+                    FlowStep(
+                        MainMenuView
+                    ),  # Need a next Destination to force the first step to run
+                ]
+            )
 
         # But if it's all ButtonOption instances, it should be fine
-        self.run_sequence([
-            FlowStep(MyGoodButtonDataTestView),
-            FlowStep(MainMenuView),  # Need a next Destination to force the first step to run
-        ])
-
+        self.run_sequence(
+            [
+                FlowStep(MyGoodButtonDataTestView),
+                FlowStep(
+                    MainMenuView
+                ),  # Need a next Destination to force the first step to run
+            ]
+        )

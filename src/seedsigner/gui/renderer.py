@@ -1,9 +1,9 @@
-from PIL import Image, ImageDraw
 from threading import Lock
+
+from PIL import Image, ImageDraw
 
 from seedsigner.hardware.ST7789 import ST7789
 from seedsigner.models.singleton import ConfigurableSingleton
-
 
 
 class Renderer(ConfigurableSingleton):
@@ -14,7 +14,6 @@ class Renderer(ConfigurableSingleton):
     draw: ImageDraw.ImageDraw = None
     disp = None
     lock = Lock()
-
 
     @classmethod
     def configure_instance(cls):
@@ -27,9 +26,10 @@ class Renderer(ConfigurableSingleton):
         renderer.canvas_width = renderer.disp.width
         renderer.canvas_height = renderer.disp.height
 
-        renderer.canvas = Image.new('RGB', (renderer.canvas_width, renderer.canvas_height))
+        renderer.canvas = Image.new(
+            "RGB", (renderer.canvas_width, renderer.canvas_height)
+        )
         renderer.draw = ImageDraw.Draw(renderer.canvas)
-
 
     def show_image(self, image=None, alpha_overlay=None, show_direct=False):
         if show_direct:
@@ -48,8 +48,9 @@ class Renderer(ConfigurableSingleton):
 
         self.disp.ShowImage(self.canvas, 0, 0)
 
-
-    def show_image_pan(self, image, start_x, start_y, end_x, end_y, rate, alpha_overlay=None):
+    def show_image_pan(
+        self, image, start_x, start_y, end_x, end_y, rate, alpha_overlay=None
+    ):
         cur_x = start_x
         cur_y = start_y
         rate_x = rate
@@ -72,7 +73,9 @@ class Renderer(ConfigurableSingleton):
                 cur_y -= rate_y
                 rate_y = 0
 
-            crop = image.crop((cur_x, cur_y, cur_x + self.canvas_width, cur_y + self.canvas_height))
+            crop = image.crop(
+                (cur_x, cur_y, cur_x + self.canvas_width, cur_y + self.canvas_height)
+            )
 
             if alpha_overlay:
                 crop = Image.alpha_composite(crop, alpha_overlay)
@@ -82,8 +85,8 @@ class Renderer(ConfigurableSingleton):
 
             self.disp.ShowImage(crop, 0, 0)
 
-
-
     def display_blank_screen(self):
-        self.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
+        self.draw.rectangle(
+            (0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0
+        )
         self.show_image()
