@@ -69,7 +69,7 @@ class IOTestScreen(BaseTopNavScreen):
         input_button_height = input_button_width + 2
         dpad_center_x = GUIConstants.EDGE_PADDING + input_button_width + GUIConstants.COMPONENT_PADDING
         dpad_center_y = int((self.canvas_height - input_button_height)/2)
-
+        padding = GUIConstants.COMPONENT_PADDING//2 
         self.joystick_click_button = IconButton(
             icon_name=FontAwesomeIconConstants.CIRCLE,
             icon_size=GUIConstants.ICON_INLINE_FONT_SIZE - 6,
@@ -87,7 +87,7 @@ class IOTestScreen(BaseTopNavScreen):
             width=input_button_width,
             height=input_button_height,
             screen_x=dpad_center_x,
-            screen_y=dpad_center_y - input_button_height - GUIConstants.COMPONENT_PADDING,
+            screen_y=dpad_center_y - input_button_height - padding,
             outline_color=GUIConstants.ACCENT_COLOR,
         )
         self.components.append(self.joystick_up_button)
@@ -98,7 +98,7 @@ class IOTestScreen(BaseTopNavScreen):
             width=input_button_width,
             height=input_button_height,
             screen_x=dpad_center_x,
-            screen_y=dpad_center_y + input_button_height + GUIConstants.COMPONENT_PADDING,
+            screen_y=dpad_center_y + input_button_height + padding,
             outline_color=GUIConstants.ACCENT_COLOR,
         )
         self.components.append(self.joystick_down_button)
@@ -108,7 +108,7 @@ class IOTestScreen(BaseTopNavScreen):
             icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
             width=input_button_width,
             height=input_button_height,
-            screen_x=dpad_center_x - input_button_width - GUIConstants.COMPONENT_PADDING,
+            screen_x=dpad_center_x - input_button_width - padding,
             screen_y=dpad_center_y,
             outline_color=GUIConstants.ACCENT_COLOR,
         )
@@ -119,7 +119,7 @@ class IOTestScreen(BaseTopNavScreen):
             icon_size=GUIConstants.ICON_INLINE_FONT_SIZE,
             width=input_button_width,
             height=input_button_height,
-            screen_x=dpad_center_x + input_button_width + GUIConstants.COMPONENT_PADDING,
+            screen_x=dpad_center_x + input_button_width + padding,
             screen_y=dpad_center_y,
             outline_color=GUIConstants.ACCENT_COLOR,
         )
@@ -135,13 +135,14 @@ class IOTestScreen(BaseTopNavScreen):
         key_button_width = text_width + 2*GUIConstants.COMPONENT_PADDING + GUIConstants.EDGE_PADDING
         key_button_height = icon.height + int(1.5*GUIConstants.COMPONENT_PADDING)
         key2_y = int(self.canvas_height/2) - int(key_button_height/2)
+        spacing = GUIConstants.COMPONENT_PADDING
 
         self.key2_button = Button(
             # TRANSLATOR_NOTE: Blank the screen
             text=_("Clear"),   # Initialize with text to set vertical centering
             width=key_button_width,
             height=key_button_height,
-            screen_x=self.canvas_width - key_button_width + GUIConstants.EDGE_PADDING,
+            screen_x=self.canvas_width - key_button_width - GUIConstants.EDGE_PADDING,
             screen_y=key2_y,
             outline_color=GUIConstants.ACCENT_COLOR,
             is_scrollable_text=False,  # Text has to dynamically update, can't use scrollable Button
@@ -153,8 +154,8 @@ class IOTestScreen(BaseTopNavScreen):
             icon_name=FontAwesomeIconConstants.CAMERA,
             width=key_button_width,
             height=key_button_height,
-            screen_x=self.canvas_width - key_button_width + GUIConstants.EDGE_PADDING,
-            screen_y=key2_y - 3*GUIConstants.COMPONENT_PADDING - key_button_height,
+            screen_x=self.canvas_width - key_button_width - GUIConstants.EDGE_PADDING,
+            screen_y=key2_y - spacing - key_button_height,
             outline_color=GUIConstants.ACCENT_COLOR,
         )
         self.components.append(self.key1_button)
@@ -163,8 +164,8 @@ class IOTestScreen(BaseTopNavScreen):
             text=_("Exit"),
             width=key_button_width,
             height=key_button_height,
-            screen_x=self.canvas_width - key_button_width + GUIConstants.EDGE_PADDING,
-            screen_y=key2_y + 3*GUIConstants.COMPONENT_PADDING + key_button_height,
+            screen_x=self.canvas_width - key_button_width - GUIConstants.EDGE_PADDING,
+            screen_y=key2_y + spacing + key_button_height,
             outline_color=GUIConstants.ACCENT_COLOR,
             is_scrollable_text=False,  # No help for l10n, but currently ScrollableTextLine interferes with the small button's left edge. (TODO:)
         )
@@ -181,6 +182,7 @@ class IOTestScreen(BaseTopNavScreen):
             height=msg_height,
             screen_y=int((self.canvas_height - msg_height)/ 2),
         )
+        camera = Camera.get_instance()
         while True:
             input = self.hw_inputs.wait_for(keys=HardwareButtonsConstants.ALL_KEYS)
 
@@ -206,8 +208,7 @@ class IOTestScreen(BaseTopNavScreen):
                     camera_message.render()
                     self.renderer.show_image()
 
-                # Snap a pic, render it as the background, re-render all onscreen elements
-                camera = Camera.get_instance()
+
                 try:
                     camera.start_single_frame_mode(resolution=(self.canvas_width, self.canvas_height))
 
