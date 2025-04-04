@@ -90,6 +90,14 @@ def generate_mnemonic_from_coin_flips(coin_flips: str, wordlist_language_code: s
         * binary digit stream is treated as string data.
         * hashed via SHA256.
     """
+    # Validate content (must be either 0 or 1)
+    if not all(c in "01" for c in coin_flips):
+        raise ValueError("Invalid input: coin flips must only contain '0' or '1'.")
+    
+    # Validate length (must be 128 or 256 bits)
+    if len(coin_flips) not in (128, 256):
+        raise ValueError("Coin flips must be exactly 128 or 256 bits long.")
+    
     entropy_bytes = hashlib.sha256(coin_flips.encode()).digest()
 
     if len(coin_flips) == 128:
