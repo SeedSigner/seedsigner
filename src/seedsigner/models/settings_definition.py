@@ -236,6 +236,16 @@ class SettingsConstants:
     ELECTRUM_SEED_2FA = "101"
     ELECTRUM_PBKDF2_ROUNDS=2048
 
+    # BIP-85 Application Numbers
+    BIP85_APP_NUM_BIP39 = 39
+    BIP85_APP_NUM_HD_SEED_WIF = 2 
+    BIP85_APP_NUM_XPRV = 32
+    BIP85_APP_NUM_HEX = 128169
+    BIP85_APP_NUM_PWD_BASE64 = 707764
+    BIP85_APP_NUM_PWD_BASE85 = 707785
+    BIP85_APP_NUM_RSA = 828365
+    BIP85_APP_NUM_DICE = 89101
+
     # Label strings
     LABEL__BIP39_PASSPHRASE = _mft("BIP-39 Passphrase")
     # TRANSLATOR_NOTE: Terminology used by Electrum seeds; equivalent to bip39 passphrase
