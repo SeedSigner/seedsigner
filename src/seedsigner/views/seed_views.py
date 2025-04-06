@@ -1135,7 +1135,7 @@ class SeedBIP85ApplicationModeView(View):
         super().__init__()
         self.seed_num = seed_num
         self.num_words = 0
-        self.bip85_app_num = 39     # TODO: Support other Application numbers; TODO: Define this as a constant
+        self.bip85_app_num = SettingsConstants.BIP85_APP_NUM_BIP39     # TODO: Support other Application numbers
 
 
     def run(self):
