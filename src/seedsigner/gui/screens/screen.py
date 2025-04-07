@@ -11,6 +11,7 @@ from seedsigner.gui.components import (GUIConstants,
     BaseComponent, Button, Icon, IconButton, LargeIconButton,
     SeedSignerIconConstants, TopNav, TextArea, load_image)
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
+from seedsigner.gui.toast import ToastOverlay, ToastOverlayLine
 from seedsigner.hardware.buttons import HardwareButtonsConstants, HardwareButtons
 from seedsigner.models.encode_qr import BaseQrEncoder
 from seedsigner.models.settings import SettingsConstants
@@ -725,79 +726,32 @@ class QRDisplayScreen(BaseScreen):
 
 
         def render_brightness_tip(self, image: Image.Image) -> None:
-            # TODO: Refactor ToastOverlay to support two lines of icon + text and use
-            # that instead of this more manual approach.
-
-            # Instantiate a temp Image and ImageDraw object to draw on
-            rectangle_width = image.width
-            rectangle_height = GUIConstants.COMPONENT_PADDING * 2 + GUIConstants.get_body_font_size() * 2 + GUIConstants.BODY_LINE_SPACING
-            rectangle = Image.new('RGBA', (rectangle_width, rectangle_height), (0, 0, 0, 0))
-            img_draw = ImageDraw.Draw(rectangle)
-
-            overlay_opacity = 224
-
-            # Create a semi-transparent background for the overlay, rounded edges, w/a 1-pixel gap from the edges
-            img_draw.rounded_rectangle((1, 0, rectangle_width - 2, rectangle_height - 1), radius=8, fill=(0, 0, 0, overlay_opacity))
-
-            chevron_up_icon = Icon(
-                image_draw=img_draw,
-                canvas=rectangle,
-                screen_x=GUIConstants.EDGE_PADDING*2 + 1,
-                screen_y=GUIConstants.COMPONENT_PADDING + 4,  # +4 fudge factor to account for where the chevron is drawn relative to baseline
-                icon_name=SeedSignerIconConstants.CHEVRON_UP,
-                icon_size=GUIConstants.get_body_font_size(),
-            )
-            chevron_up_icon.render()
-
-            chevron_down_icon = Icon(
-                image_draw=img_draw,
-                canvas=rectangle,
-                screen_x=chevron_up_icon.screen_x,
-                screen_y=chevron_up_icon.screen_y + chevron_up_icon.icon_size + GUIConstants.BODY_LINE_SPACING,
-                icon_name=SeedSignerIconConstants.CHEVRON_DOWN,
-                icon_size=chevron_up_icon.icon_size,
-            )
-            chevron_down_icon.render()
-
             # TRANSLATOR_NOTE: Increase QR code screen brightness
             text = _("Brighter")
-            TextArea(
-                image_draw=img_draw,
-                canvas=rectangle,
-                text=text,
-                font_size=GUIConstants.get_body_font_size(),
-                font_name=GUIConstants.get_button_font_name(),
-                background_color=(0, 0, 0, overlay_opacity),
-                edge_padding=0,
-                is_text_centered=False,
-                auto_line_break=False,
-                width=int(rectangle_width/2),
-                screen_x=chevron_up_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
-                screen_y=chevron_up_icon.screen_y - 2,  # -2 to account for Icon's positioning
-                allow_text_overflow=False
-            ).render()
+            brighter_toast_line = ToastOverlayLine(
+                icon_name=SeedSignerIconConstants.CHEVRON_UP,
+                label_text=text,
+            )
 
             # TRANSLATOR_NOTE: Decrease QR code screen brightness
             text = _("Darker")
-            TextArea(
-                image_draw=img_draw,
-                canvas=rectangle,
-                text=text,
-                font_size=GUIConstants.get_body_font_size(),
+            darker_toast_line = ToastOverlayLine(
+                icon_name=SeedSignerIconConstants.CHEVRON_DOWN,
+                label_text=text,
+            )
+
+            ToastOverlay(
+                image_draw=ImageDraw.Draw(image),
+                canvas=image,
+                toast_lines=[brighter_toast_line, darker_toast_line],
+                color=GUIConstants.BODY_FONT_COLOR,
+                font_color=GUIConstants.BODY_FONT_COLOR,
+                line_height=GUIConstants.ICON_TOAST_FONT_SIZE,
                 font_name=GUIConstants.get_button_font_name(),
-                background_color=(0, 0, 0, overlay_opacity),
-                edge_padding=0,
-                is_text_centered=False,
-                auto_line_break=False,
-                width=int(rectangle_width/2),
-                screen_x=chevron_down_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
-                screen_y=chevron_down_icon.screen_y - 2,  # -2 to account for Icon's positioning
-                allow_text_overflow=False
+                font_size=GUIConstants.get_body_font_size(),
+                icon_size=GUIConstants.get_body_font_size(),
+                outline_thickness=0,
             ).render()
-
-            # Write our temp Image onto the main image
-            image.paste(rectangle, (0, image.height - rectangle_height - 1), rectangle)
-
 
         def run(self):
             from seedsigner.models.settings import Settings
