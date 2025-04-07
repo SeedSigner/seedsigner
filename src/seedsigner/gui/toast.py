@@ -10,54 +10,80 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ToastOverlay(BaseComponent):
+class ToastOverlayLine:
     icon_name: str = None
+    label_text: str = None
+
+
+
+@dataclass
+class ToastOverlay(BaseComponent):
+    toast_lines: list[ToastOverlayLine] = None
     color: str = GUIConstants.NOTIFICATION_COLOR
     font_color: str = GUIConstants.NOTIFICATION_COLOR
-    label_text: str = None
-    height: int = GUIConstants.ICON_TOAST_FONT_SIZE + 2*GUIConstants.EDGE_PADDING
+    line_height: int = GUIConstants.ICON_TOAST_FONT_SIZE + 2*GUIConstants.EDGE_PADDING
+    font_name: str = None
     font_size: int = 19
+    icon_size: int = GUIConstants.ICON_TOAST_FONT_SIZE
     outline_thickness: int = 2  # pixels
 
     def __post_init__(self):
         super().__post_init__()
 
-        icon_delta_x = 0
-        if self.icon_name:
-            self.icon = Icon(
+        # List of tuples: (icon, label, line_height)
+        self.line_data: list[tuple[Icon, TextArea, int]] = []
+        self.height = 0
+        
+        # Prepare the icon and label components for each line
+        # and calculate the total height of the toast.
+        for line in self.toast_lines:
+            icon_delta_x = 0
+            icon = None
+            if line.icon_name:
+                icon = Icon(
+                    image_draw=self.image_draw,
+                    canvas=self.canvas,
+                    screen_x=self.outline_thickness + GUIConstants.EDGE_PADDING,  # Push the icon further from the left edge than strictly necessary
+                    icon_name=line.icon_name,
+                    icon_size=self.icon_size,
+                    icon_color=self.color
+                )
+                icon_delta_x = icon.width + icon.screen_x
+        
+            label = TextArea(
                 image_draw=self.image_draw,
                 canvas=self.canvas,
-                screen_x=self.outline_thickness + GUIConstants.EDGE_PADDING,  # Push the icon further from the left edge than strictly necessary
-                icon_name=self.icon_name,
-                icon_size=GUIConstants.ICON_TOAST_FONT_SIZE,
-                icon_color=self.color
+                text=line.label_text,
+                font_name=self.font_name,
+                font_size=self.font_size,
+                font_color=self.font_color,
+                edge_padding=0,
+                is_text_centered=False,
+                auto_line_break=True,
+                width=self.canvas_width - icon_delta_x - 2 * GUIConstants.COMPONENT_PADDING - 2 * self.outline_thickness,
+                screen_x=icon_delta_x + GUIConstants.COMPONENT_PADDING,
+                allow_text_overflow=False,
+                height_ignores_below_baseline=True,
             )
-            icon_delta_x = self.icon.width + self.icon.screen_x
-        
-        self.label = TextArea(
-            image_draw=self.image_draw,
-            canvas=self.canvas,
-            text=self.label_text,
-            font_size=self.font_size,
-            font_color=self.font_color,
-            edge_padding=0,
-            is_text_centered=False,
-            auto_line_break=True,
-            width=self.canvas_width - icon_delta_x - 2 * GUIConstants.COMPONENT_PADDING - 2 * self.outline_thickness,
-            screen_x=icon_delta_x + GUIConstants.COMPONENT_PADDING,
-            allow_text_overflow=False,
-            height_ignores_below_baseline=True,
-        )
-        
-        if self.label.height > GUIConstants.ICON_FONT_SIZE:
-            self.height = self.label.height + GUIConstants.EDGE_PADDING * 2
 
-        # Vertically center the message and icon within the toast (for single- or multi-line
-        # messages).
-        self.label.screen_y = self.canvas_height - self.height + self.outline_thickness + int((self.height - 2*self.outline_thickness - self.label.height)/2)
-        
-        if self.icon_name:
-            self.icon.screen_y = self.canvas_height - self.height + int((self.height - self.icon.height)/2)
+            line_height = self.line_height
+            if label.height > GUIConstants.ICON_FONT_SIZE:
+                line_height = label.height + GUIConstants.EDGE_PADDING * 2
+
+            self.line_data.append((icon, label, line_height))
+            self.height += line_height
+
+
+        # Set vertical positions for each line.
+        starting_y = self.canvas_height - self.height
+        current_y = starting_y
+        for icon, label, line_height in self.line_data:
+            # Vertically center the label within its line.
+            label.screen_y = current_y + self.outline_thickness + int((line_height - 2*self.outline_thickness - label.height)/2)
+            # Vertically center the icon if present.
+            if icon:
+                icon.screen_y = current_y + int((line_height - icon.height)/2)
+            current_y += line_height
 
 
     def render(self):
@@ -70,11 +96,12 @@ class ToastOverlay(BaseComponent):
             width=self.outline_thickness,
         )
 
-        # Draw the toast visual elements
-        if self.icon_name:
-            self.icon.render()
+        # Draw the toast visual elements for each line.
+        for icon, label, _ in self.line_data:
+            if icon:
+                icon.render()
 
-        self.label.render()
+            label.render()
 
         self.renderer.show_image()
 
@@ -218,10 +245,12 @@ class RemoveSDCardToastManagerThread(BaseToastOverlayManagerThread):
     def instantiate_toast(self) -> ToastOverlay:
         body_font_size = GUIConstants.get_body_font_size()
         return ToastOverlay(
-            icon_name=SeedSignerIconConstants.MICROSD,
-            label_text=_("You can remove\nthe SD card now"),
+            toast_lines=[ToastOverlayLine(
+                icon_name=SeedSignerIconConstants.MICROSD,
+                label_text=_("You can remove\nthe SD card now"),
+            )],
             font_size=body_font_size,
-            height=body_font_size * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
+            line_height=body_font_size * 2 + GUIConstants.BODY_LINE_SPACING + GUIConstants.EDGE_PADDING,
         )
 
 
@@ -247,8 +276,10 @@ class SDCardStateChangeToastManagerThread(BaseToastOverlayManagerThread):
     def instantiate_toast(self) -> ToastOverlay:
         logger.info("instantiating toast!")
         return ToastOverlay(
-            icon_name=SeedSignerIconConstants.MICROSD,
-            label_text=self.message,
+            toast_lines=[ToastOverlayLine(
+                icon_name=SeedSignerIconConstants.MICROSD,
+                label_text=self.message,
+            )],
         )
 
 
@@ -271,7 +302,7 @@ class DefaultToast(BaseToastOverlayManagerThread):
     def instantiate_toast(self) -> ToastOverlay:
         body_font_size = GUIConstants.get_body_font_size()
         return ToastOverlay(
-            label_text=self.label_text,
+            toast_lines=[ToastOverlayLine(label_text=self.label_text)],
             color=GUIConstants.BODY_FONT_COLOR,
             font_color=GUIConstants.BODY_FONT_COLOR,
             font_size=body_font_size,
@@ -283,8 +314,10 @@ class InfoToast(DefaultToast):
     def instantiate_toast(self) -> ToastOverlay:
         body_font_size = GUIConstants.get_body_font_size()
         return ToastOverlay(
-            icon_name=SeedSignerIconConstants.INFO,
-            label_text=self.label_text,
+            toast_lines=[ToastOverlayLine(
+                icon_name=SeedSignerIconConstants.INFO,
+                label_text=self.label_text,
+            )],
             color=GUIConstants.INFO_COLOR,
             font_color=GUIConstants.BODY_FONT_COLOR,
             font_size=body_font_size,
@@ -296,8 +329,10 @@ class SuccessToast(DefaultToast):
     def instantiate_toast(self) -> ToastOverlay:
         body_font_size = GUIConstants.get_body_font_size()
         return ToastOverlay(
-            icon_name=SeedSignerIconConstants.SUCCESS,
-            label_text=self.label_text,
+            toast_lines=[ToastOverlayLine(
+                icon_name=SeedSignerIconConstants.SUCCESS,
+                label_text=self.label_text,
+            )],
             color=GUIConstants.SUCCESS_COLOR,
             font_color=GUIConstants.BODY_FONT_COLOR,
             font_size=body_font_size,
@@ -309,8 +344,10 @@ class WarningToast(DefaultToast):
     def instantiate_toast(self) -> ToastOverlay:
         body_font_size = GUIConstants.get_body_font_size()
         return ToastOverlay(
-            icon_name=SeedSignerIconConstants.WARNING,
-            label_text=self.label_text,
+            toast_lines=[ToastOverlayLine(
+                icon_name=SeedSignerIconConstants.WARNING,
+                label_text=self.label_text,
+            )],
             color=GUIConstants.WARNING_COLOR,
             font_color=GUIConstants.BODY_FONT_COLOR,
             font_size=body_font_size,
@@ -322,8 +359,10 @@ class DireWarningToast(DefaultToast):
     def instantiate_toast(self) -> ToastOverlay:
         body_font_size = GUIConstants.get_body_font_size()
         return ToastOverlay(
-            icon_name=SeedSignerIconConstants.WARNING,
-            label_text=self.label_text,
+            toast_lines=[ToastOverlayLine(
+                icon_name=SeedSignerIconConstants.WARNING,
+                label_text=self.label_text,
+            )],
             color=GUIConstants.DIRE_WARNING_COLOR,
             font_color=GUIConstants.BODY_FONT_COLOR,
             font_size=body_font_size,
@@ -335,8 +374,10 @@ class ErrorToast(DefaultToast):
     def instantiate_toast(self) -> ToastOverlay:
         body_font_size = GUIConstants.get_body_font_size()
         return ToastOverlay(
-            icon_name=SeedSignerIconConstants.ERROR,
-            label_text=self.label_text,
+            toast_lines=[ToastOverlayLine(
+                icon_name=SeedSignerIconConstants.ERROR,
+                label_text=self.label_text,
+            )],
             color=GUIConstants.ERROR_COLOR,
             font_color=GUIConstants.BODY_FONT_COLOR,
             font_size=body_font_size,
