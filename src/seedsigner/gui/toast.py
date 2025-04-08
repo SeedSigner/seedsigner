@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 class ToastOverlayLine:
     icon_name: str = None
     label_text: str = None
+    icon_screen_y_offset: int = 0  # pixels
 
 
 
@@ -30,8 +31,8 @@ class ToastOverlay(BaseComponent):
     def __post_init__(self):
         super().__post_init__()
 
-        # List of tuples: (icon, label, line_height)
-        self.line_data: list[tuple[Icon, TextArea, int]] = []
+        # List of tuples: (icon, label, line_height, icon_screen_y_offset)
+        self.line_data: list[tuple[Icon, TextArea, int, int]] = []
         self.height = 0
         
         # Prepare the icon and label components for each line
@@ -70,19 +71,19 @@ class ToastOverlay(BaseComponent):
             if label.height > GUIConstants.ICON_FONT_SIZE:
                 line_height = label.height + GUIConstants.EDGE_PADDING * 2
 
-            self.line_data.append((icon, label, line_height))
+            self.line_data.append((icon, label, line_height, line.icon_screen_y_offset))
             self.height += line_height
 
 
         # Set vertical positions for each line.
         starting_y = self.canvas_height - self.height
         current_y = starting_y
-        for icon, label, line_height in self.line_data:
+        for icon, label, line_height, icon_screen_y_offset in self.line_data:
             # Vertically center the label within its line.
             label.screen_y = current_y + self.outline_thickness + int((line_height - 2*self.outline_thickness - label.height)/2)
             # Vertically center the icon if present.
             if icon:
-                icon.screen_y = current_y + int((line_height - icon.height)/2)
+                icon.screen_y = current_y + int((line_height - icon.height)/2) + icon_screen_y_offset
             current_y += line_height
 
 
@@ -97,7 +98,7 @@ class ToastOverlay(BaseComponent):
         )
 
         # Draw the toast visual elements for each line.
-        for icon, label, _ in self.line_data:
+        for icon, label, _, _ in self.line_data:
             if icon:
                 icon.render()
 
