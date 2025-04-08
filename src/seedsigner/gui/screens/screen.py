@@ -731,6 +731,7 @@ class QRDisplayScreen(BaseScreen):
             brighter_toast_line = ToastOverlayLine(
                 icon_name=SeedSignerIconConstants.CHEVRON_UP,
                 label_text=text,
+                icon_screen_y_offset=2,
             )
 
             # TRANSLATOR_NOTE: Decrease QR code screen brightness
@@ -738,6 +739,7 @@ class QRDisplayScreen(BaseScreen):
             darker_toast_line = ToastOverlayLine(
                 icon_name=SeedSignerIconConstants.CHEVRON_DOWN,
                 label_text=text,
+                icon_screen_y_offset=2,
             )
 
             ToastOverlay(
@@ -746,7 +748,7 @@ class QRDisplayScreen(BaseScreen):
                 toast_lines=[brighter_toast_line, darker_toast_line],
                 color=GUIConstants.BODY_FONT_COLOR,
                 font_color=GUIConstants.BODY_FONT_COLOR,
-                line_height=GUIConstants.ICON_TOAST_FONT_SIZE,
+                line_height=GUIConstants.ICON_TOAST_FONT_SIZE - GUIConstants.LIST_ITEM_PADDING,
                 font_name=GUIConstants.get_button_font_name(),
                 font_size=GUIConstants.get_body_font_size(),
                 icon_size=GUIConstants.get_body_font_size(),
