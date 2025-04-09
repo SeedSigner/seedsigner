@@ -1075,11 +1075,18 @@ class SeedWordsView(View):
         else:
             mnemonic = self.seed.mnemonic_display_list
             title = _("Seed Words")
-        words = mnemonic[self.page_index*words_per_page:(self.page_index + 1)*words_per_page]
+        
+        num_pages = (len(mnemonic)+words_per_page-1)//words_per_page
+        
+        if self.page_index >= num_pages:
+            self.page_index = num_pages - 1
+            
+        start_index = self.page_index*words_per_page
+        end_index = min(start_index+words_per_page,len(mnemonic))
+        words = mnemonic[start_index:end_index]
 
         button_data = []
-        num_pages = int(len(mnemonic)/words_per_page)
-        if self.page_index < num_pages - 1 or self.seed_num is None:
+        if self.page_index < num_pages - 1:
             button_data.append(self.NEXT)
         else:
             button_data.append(self.DONE)
@@ -1095,20 +1102,15 @@ class SeedWordsView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        if button_data[selected_menu_num] == self.NEXT:
-            if self.seed_num is None and self.page_index == num_pages - 1:
-                return Destination(
-                    SeedWordsBackupTestPromptView,
-                    view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
-                )
-            else:
-                return Destination(
-                    SeedWordsView,
-                    view_args=dict(seed_num=self.seed_num, page_index=self.page_index + 1, bip85_data=self.bip85_data)
-                )
-
-        elif button_data[selected_menu_num] == self.DONE:
-            # Must clear history to avoid BACK button returning to private info
+        selected_button = button_data[selected_menu_num]
+        if selected_button == self.NEXT:
+            #only increment page if we're not already at the last page
+            next_page = min(self.page_index + 1, num_pages - 1)
+            return Destination(
+                SeedWordsView,
+                view_args=dict(seed_num=self.seed_num, page_index=next_page, bip85_data=self.bip85_data)
+            )
+        elif selected_button == self.DONE:
             return Destination(
                 SeedWordsBackupTestPromptView,
                 view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
