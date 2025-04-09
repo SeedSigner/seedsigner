@@ -273,4 +273,40 @@ def test_128_coin_flips():
     actual = " ".join(mnemonic)
     assert bip39.mnemonic_is_valid(actual)
     assert actual == expected
+
     
+def test_coin_flips_invalid_input():
+    """
+        Should raise a ValueError if coin_flips contains invalid characters or has an invalid length.
+    """
+    # Test invalid characters
+    with pytest.raises(ValueError) as e:
+        invalid_coin_flips = "01012" + "0" * 123  # 128 chars with a '2'
+        mnemonic_generation.generate_mnemonic_from_coin_flips(invalid_coin_flips)
+    assert "only contain '0' or '1'" in str(e)
+
+    with pytest.raises(ValueError) as e:
+        invalid_coin_flips = "01ab" + "0" * 252  # 256 chars with 'a' and 'b'
+        mnemonic_generation.generate_mnemonic_from_coin_flips(invalid_coin_flips)
+    assert "only contain '0' or '1'" in str(e)
+
+    # Test invalid lengths
+    with pytest.raises(ValueError) as e:
+        invalid_coin_flips = "0101"  # Too short (4 chars)
+        mnemonic_generation.generate_mnemonic_from_coin_flips(invalid_coin_flips)
+    assert "128 or 256 bits" in str(e)
+
+    with pytest.raises(ValueError) as e:
+        invalid_coin_flips = "0" * 127  # Too short (127 chars)
+        mnemonic_generation.generate_mnemonic_from_coin_flips(invalid_coin_flips)
+    assert "128 or 256 bits" in str(e)
+
+    with pytest.raises(ValueError) as e:
+        invalid_coin_flips = "0" * 129  # Too long for 128, too short for 256
+        mnemonic_generation.generate_mnemonic_from_coin_flips(invalid_coin_flips)
+    assert "128 or 256 bits" in str(e)
+
+    with pytest.raises(ValueError) as e:
+        invalid_coin_flips = "0" * 255  # Too short for 256
+        mnemonic_generation.generate_mnemonic_from_coin_flips(invalid_coin_flips)
+    assert "128 or 256 bits" in str(e)
