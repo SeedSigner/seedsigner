@@ -248,7 +248,7 @@ class Controller(Singleton):
             used. Only used by the test suite.
         """
         from seedsigner.views import MainMenuView, BackStackView
-        from seedsigner.views.screensaver import OpeningSplashView
+        from seedsigner.views.view import OpeningSplashView
         from seedsigner.gui.toast import RemoveSDCardToastManagerThread
 
         OpeningSplashView().run()

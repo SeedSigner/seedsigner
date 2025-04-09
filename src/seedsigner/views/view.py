@@ -183,6 +183,21 @@ class Destination:
 # Root level Views don't have a sub-module home so they live at the top level here.
 #
 #########################################################################################
+@dataclass
+class OpeningSplashView(View):
+    is_screenshot_renderer: bool = False
+    force_partner_logos: bool|None = None
+
+    def run(self):
+        from seedsigner.views.screensaver import OpeningSplashScreen
+        self.run_screen(
+            OpeningSplashScreen,
+            is_screenshot_renderer=self.is_screenshot_renderer,
+            force_partner_logos=self.force_partner_logos
+        )
+
+
+
 class MainMenuView(View):
     SCAN = ButtonOption("Scan", SeedSignerIconConstants.SCAN)
     SEEDS = ButtonOption("Seeds", SeedSignerIconConstants.SEEDS)

@@ -6,7 +6,6 @@ from typing import Callable
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
 sys.modules['seedsigner.gui.renderer'] = MagicMock()
-sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
 sys.modules['seedsigner.gui.toast'] = MagicMock()
 sys.modules['seedsigner.views.screensaver'] = MagicMock()
 sys.modules['seedsigner.hardware.buttons'] = MagicMock()
@@ -18,7 +17,7 @@ from seedsigner.controller import Controller, FlowBasedTestException, StopFlowBa
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON, ButtonOption
 from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.settings import Settings
-from seedsigner.views.view import Destination, MainMenuView, UnhandledExceptionView, View
+from seedsigner.views.view import Destination, MainMenuView, UnhandledExceptionView, View, OpeningSplashView
 
 import logging
 logger = logging.getLogger(__name__)
@@ -183,121 +182,122 @@ class FlowTest(BaseTest):
         Run a pre-set sequence of Views w/manually-specified return values in order to test
         the Controller's flow control logic and the routing from View to View.
         """
-        with patch("seedsigner.views.view.Destination._run_view", autospec=True) as mock_run_view:
-            with patch("seedsigner.views.view.View.run_screen", autospec=True) as mock_run_screen:
-                def run_view(destination: Destination, *args, **kwargs):
-                    """ Replaces Destination._run_view() """
-                    if len(sequence) == 0:
-                        # Nothing left to do.
-                        self.stop_test()
-
-                    cur_flow_step = sequence[0]
-
-                    # Verify that the View class specified in the test sequence matches the
-                    # View class that is being run.
-                    if destination.View_cls != cur_flow_step.expected_view:
-                        raise FlowTestUnexpectedViewException(f"Expected {cur_flow_step.expected_view}, got {destination.View_cls}")
-                    
-                    if len(sequence) == 1:
-                        # This is the last step in the sequence
-                        if cur_flow_step.screen_return_value is None and cur_flow_step.button_data_selection is None:
-                            # This is the last View in the sequence and it doesn't specify any
-                            # user-mimicking interactions for the Screen. Nothing left to do.
+        with patch.object(OpeningSplashView, 'run', return_value=None):
+            with patch("seedsigner.views.view.Destination._run_view", autospec=True) as mock_run_view:
+                with patch("seedsigner.views.view.View.run_screen", autospec=True) as mock_run_screen:
+                    def run_view(destination: Destination, *args, **kwargs):
+                        """ Replaces Destination._run_view() """
+                        if len(sequence) == 0:
+                            # Nothing left to do.
                             self.stop_test()
 
-                    try:
-                        if cur_flow_step.is_redirect and destination.view.has_redirect:
-                            # Right upon instantiation, the View set its own redirect without
-                            # needing to wait for its run() method to be called.
+                        cur_flow_step = sequence[0]
 
-                            # TODO: Migrate all View redirects to use `View.set_redirect()`
-                            # in their `__init__()` rather than `run()` and then refactor
-                            # here to explicitly require `has_redirect` to be True.
-                            # For now: Support the newer `set_redirect()` routing while
-                            # still letting redirects get returned by `View.run()` further
-                            # below.
-                            return destination.view.get_redirect()
+                        # Verify that the View class specified in the test sequence matches the
+                        # View class that is being run.
+                        if destination.View_cls != cur_flow_step.expected_view:
+                            raise FlowTestUnexpectedViewException(f"Expected {cur_flow_step.expected_view}, got {destination.View_cls}")
 
-                        # Run the optional pre-run function to modify the View.
-                        if cur_flow_step.before_run:
-                            cur_flow_step.before_run(destination.view)
+                        if len(sequence) == 1:
+                            # This is the last step in the sequence
+                            if cur_flow_step.screen_return_value is None and cur_flow_step.button_data_selection is None:
+                                # This is the last View in the sequence and it doesn't specify any
+                                # user-mimicking interactions for the Screen. Nothing left to do.
+                                self.stop_test()
 
-                        # Some Views reach into their Screen's variables directly (e.g. 
-                        # Screen.buttons to preserve the scroll position), so we need to mock out the
-                        # Screen instance that is created by the View.
-                        destination.view.screen = MagicMock()
+                        try:
+                            if cur_flow_step.is_redirect and destination.view.has_redirect:
+                                # Right upon instantiation, the View set its own redirect without
+                                # needing to wait for its run() method to be called.
 
-                        prev_mock_run_screen_call_count = mock_run_screen.call_count
+                                # TODO: Migrate all View redirects to use `View.set_redirect()`
+                                # in their `__init__()` rather than `run()` and then refactor
+                                # here to explicitly require `has_redirect` to be True.
+                                # For now: Support the newer `set_redirect()` routing while
+                                # still letting redirects get returned by `View.run()` further
+                                # below.
+                                return destination.view.get_redirect()
 
-                        # Run the View (with our mocked run_screen) and get the next Destination that results
-                        destination = destination.view.run()
+                            # Run the optional pre-run function to modify the View.
+                            if cur_flow_step.before_run:
+                                cur_flow_step.before_run(destination.view)
 
-                        if mock_run_screen.call_count == prev_mock_run_screen_call_count and cur_flow_step.is_redirect is not True:
-                            # The current View redirected without calling run_screen()
-                            # but we weren't expecting it.
-                            raise FlowTestUnexpectedRedirectException(f"Unexpected redirect to {destination.View_cls}")
+                            # Some Views reach into their Screen's variables directly (e.g.
+                            # Screen.buttons to preserve the scroll position), so we need to mock out the
+                            # Screen instance that is created by the View.
+                            destination.view.screen = MagicMock()
 
-                        elif mock_run_screen.call_count > prev_mock_run_screen_call_count and cur_flow_step.is_redirect:
-                            # The View ran its Screen, but the current FlowStep was expecting it
-                            # to redirect (is_redirect=True) *instead of* running its Screen.
-                            raise FlowTestMissingRedirectException(f"FlowStep expected redirect but {cur_flow_step.expected_view} did not redirect")
+                            prev_mock_run_screen_call_count = mock_run_screen.call_count
 
-                    finally:
-                        # Regardless of the outcome, we always move our FlowTest
-                        # sequence forward.
-                        sequence.pop(0)
+                            # Run the View (with our mocked run_screen) and get the next Destination that results
+                            destination = destination.view.run()
 
-                    return destination
+                            if mock_run_screen.call_count == prev_mock_run_screen_call_count and cur_flow_step.is_redirect is not True:
+                                # The current View redirected without calling run_screen()
+                                # but we weren't expecting it.
+                                raise FlowTestUnexpectedRedirectException(f"Unexpected redirect to {destination.View_cls}")
+
+                            elif mock_run_screen.call_count > prev_mock_run_screen_call_count and cur_flow_step.is_redirect:
+                                # The View ran its Screen, but the current FlowStep was expecting it
+                                # to redirect (is_redirect=True) *instead of* running its Screen.
+                                raise FlowTestMissingRedirectException(f"FlowStep expected redirect but {cur_flow_step.expected_view} did not redirect")
+
+                        finally:
+                            # Regardless of the outcome, we always move our FlowTest
+                            # sequence forward.
+                            sequence.pop(0)
+
+                        return destination
 
 
-                def run_screen(view: View, *args, **kwargs):
-                    """
-                    Replaces View.run_screen().
+                    def run_screen(view: View, *args, **kwargs):
+                        """
+                        Replaces View.run_screen().
 
-                    Just returns the return value specified in the test sequence.
-                    """
-                    cur_flow_step = sequence[0]
+                        Just returns the return value specified in the test sequence.
+                        """
+                        cur_flow_step = sequence[0]
 
-                    if "button_data" in kwargs:
-                        # Verify that they are all proper ButtonOption instances
-                        for button_option in kwargs.get("button_data"):
-                            if not isinstance(button_option, ButtonOption):
-                                raise FlowTestInvalidButtonDataInstanceTypeException(f"button_data must be a list of ButtonOption instances, not {type(button_option)}: {button_option}")
-
-                    if cur_flow_step.button_data_selection:
-                        # We're mocking out the View.run_screen() method, so we'll get all of the
-                        # input args that are normally passed into the Screen.run() method,
-                        # including the button_data kwarg.
                         if "button_data" in kwargs:
-                            if cur_flow_step.button_data_selection not in kwargs.get("button_data") and cur_flow_step.button_data_selection not in [RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON]:
-                                raise FlowTestInvalidButtonDataSelectionException(f"'{cur_flow_step.button_data_selection}' not found in button_data: {kwargs.get('button_data')}")
-                            return kwargs.get("button_data").index(cur_flow_step.button_data_selection)
-                        else:
-                            raise Exception(f"Can't specify `FlowStep.button_data_selection` if `button_data` isn't a kwarg in {view.__class__.__name__}'s run_screen()")
+                            # Verify that they are all proper ButtonOption instances
+                            for button_option in kwargs.get("button_data"):
+                                if not isinstance(button_option, ButtonOption):
+                                    raise FlowTestInvalidButtonDataInstanceTypeException(f"button_data must be a list of ButtonOption instances, not {type(button_option)}: {button_option}")
 
-                    elif type(cur_flow_step.screen_return_value) in [StopFlowBasedTest, FlowBasedTestException]:
-                        raise cur_flow_step.screen_return_value
-                    
-                    elif isinstance(cur_flow_step.screen_return_value, Exception):
-                        # The FlowStep wants to mimic the Screen raising an exception.
-                        raise cur_flow_step.screen_return_value
+                        if cur_flow_step.button_data_selection:
+                            # We're mocking out the View.run_screen() method, so we'll get all of the
+                            # input args that are normally passed into the Screen.run() method,
+                            # including the button_data kwarg.
+                            if "button_data" in kwargs:
+                                if cur_flow_step.button_data_selection not in kwargs.get("button_data") and cur_flow_step.button_data_selection not in [RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON]:
+                                    raise FlowTestInvalidButtonDataSelectionException(f"'{cur_flow_step.button_data_selection}' not found in button_data: {kwargs.get('button_data')}")
+                                return kwargs.get("button_data").index(cur_flow_step.button_data_selection)
+                            else:
+                                raise Exception(f"Can't specify `FlowStep.button_data_selection` if `button_data` isn't a kwarg in {view.__class__.__name__}'s run_screen()")
 
-                    return cur_flow_step.screen_return_value
+                        elif type(cur_flow_step.screen_return_value) in [StopFlowBasedTest, FlowBasedTestException]:
+                            raise cur_flow_step.screen_return_value
+
+                        elif isinstance(cur_flow_step.screen_return_value, Exception):
+                            # The FlowStep wants to mimic the Screen raising an exception.
+                            raise cur_flow_step.screen_return_value
+
+                        return cur_flow_step.screen_return_value
 
 
-                # Mock out the Destination._run_view() method so we can verify the View class
-                # that is specified in the test sequence and then run the View.
-                mock_run_view.side_effect = run_view
+                    # Mock out the Destination._run_view() method so we can verify the View class
+                    # that is specified in the test sequence and then run the View.
+                    mock_run_view.side_effect = run_view
 
-                # Mock out the View.run_screen() method so we can provide the
-                # return value that is specified in the test sequence.
-                mock_run_screen.side_effect = run_screen
+                    # Mock out the View.run_screen() method so we can provide the
+                    # return value that is specified in the test sequence.
+                    mock_run_screen.side_effect = run_screen
 
-                # Start the Controller with the first View_cls specified in the test sequence
-                if sequence[0].expected_view != MainMenuView:
-                    initial_destination = Destination(sequence[0].expected_view, view_args=initial_destination_view_args)
-                else:
-                    initial_destination = None
+                    # Start the Controller with the first View_cls specified in the test sequence
+                    if sequence[0].expected_view != MainMenuView:
+                        initial_destination = Destination(sequence[0].expected_view, view_args=initial_destination_view_args)
+                    else:
+                        initial_destination = None
 
-                # Start the Controller and run the sequence
-                Controller.get_instance().start(initial_destination=initial_destination)
+                    # Start the Controller and run the sequence
+                    Controller.get_instance().start(initial_destination=initial_destination)

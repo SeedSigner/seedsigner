@@ -3,14 +3,12 @@ import os
 import random
 import time
 
-from dataclasses import dataclass
 from gettext import gettext as _
 
 from seedsigner.gui.components import Fonts, GUIConstants, load_image
 from seedsigner.gui.screens.screen import BaseScreen
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
-from seedsigner.views.view import View
 
 logger = logging.getLogger(__name__)
 
@@ -38,20 +36,6 @@ class LogoScreen(BaseScreen):
 
     def get_random_partner(self) -> str:
         return self.partners[random.randrange(len(self.partners))]
-
-
-
-@dataclass
-class OpeningSplashView(View):
-    is_screenshot_renderer: bool = False
-    force_partner_logos: bool|None = None
-
-    def run(self):
-        self.run_screen(
-            OpeningSplashScreen,
-            is_screenshot_renderer=self.is_screenshot_renderer,
-            force_partner_logos=self.force_partner_logos
-        )
 
 
 
