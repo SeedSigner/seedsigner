@@ -1,6 +1,11 @@
 import os
+
+from dataclasses import dataclass
 from PIL import Image, ImageDraw
+
 from seedsigner.gui.renderer import Renderer
+from seedsigner.gui.toast import BaseToastOverlayManagerThread
+from seedsigner.views.view import View
 
 
 
@@ -37,7 +42,7 @@ class ScreenshotRenderer(Renderer):
         self.screenshot_path = path
 
 
-    def show_image(self, image=None, alpha_overlay=None, is_background_thread: bool = False):
+    def show_image(self, image=None, alpha_overlay=None, is_background_thread: bool = False):            
         if is_background_thread:
             return
 
@@ -53,3 +58,30 @@ class ScreenshotRenderer(Renderer):
         self.canvas.save(os.path.join(self.screenshot_path, self.screenshot_filename))
         raise ScreenshotComplete()
 
+
+
+@dataclass
+class ScreenshotConfig:
+    View_cls: View
+    view_kwargs: dict = None
+    screenshot_name: str = None
+    toast_thread: BaseToastOverlayManagerThread = None
+    run_before: callable = None
+    run_after: callable = None
+
+
+    def __post_init__(self):
+        if not self.view_kwargs:
+            self.view_kwargs = {}
+        if not self.screenshot_name:
+            self.screenshot_name = self.View_cls.__name__
+
+
+    def run_callback_before(self):
+        if self.run_before:
+            self.run_before()
+    
+
+    def run_callback_after(self):
+        if self.run_after:
+            self.run_after()

@@ -8,7 +8,7 @@ from base import FlowTest, FlowStep
 
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsDefinition, SettingsConstants
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
 from seedsigner.hardware.microsd import MicroSD
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, settings_views
@@ -26,8 +26,8 @@ class TestSettingsFlows(FlowTest):
 
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SETTINGS),
-            FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_entry.display_name),
-            FlowStep(settings_views.SettingsEntryUpdateSelectionView, button_data_selection=settings_entry.get_selection_option_display_name_by_value(SettingsConstants.OPTION__ENABLED)),
+            FlowStep(settings_views.SettingsMenuView, button_data_selection=ButtonOption(settings_entry.display_name)),
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, button_data_selection=ButtonOption(settings_entry.get_selection_option_display_name_by_value(SettingsConstants.OPTION__ENABLED))),
             FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=RET_CODE__BACK_BUTTON),
             FlowStep(settings_views.SettingsMenuView),
         ])
@@ -43,7 +43,7 @@ class TestSettingsFlows(FlowTest):
 
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SETTINGS),
-            FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_entry.display_name),
+            FlowStep(settings_views.SettingsMenuView, button_data_selection=ButtonOption(settings_entry.display_name)),
             FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=0),  # select/deselect first option
             FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=1),  # select/deselect second option
             FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=1),  # select/deselect second option
