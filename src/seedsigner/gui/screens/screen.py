@@ -1,18 +1,22 @@
+import logging
 import time
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from gettext import gettext as _
 from PIL import Image, ImageDraw, ImageColor
 from typing import Any, List, Tuple
 
+from seedsigner.helpers.l10n import mark_for_translation as _mft
 from seedsigner.gui.components import (GUIConstants,
     BaseComponent, Button, Icon, IconButton, LargeIconButton,
     SeedSignerIconConstants, TopNav, TextArea, load_image)
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
-from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.buttons import HardwareButtonsConstants, HardwareButtons
 from seedsigner.models.encode_qr import BaseQrEncoder
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
+
+logger = logging.getLogger(__name__)
 
 
 # Must be huge numbers to avoid conflicting with the selected_button returned by the
@@ -43,6 +47,13 @@ class BaseScreen(BaseComponent):
 
         # Tracks position on scrollable pages, determines which elements are visible.
         self.scroll_y = 0
+    
+
+    def get_threads(self) -> List[BaseThread]:
+        threads = self.threads.copy()
+        for component in self.components:
+            threads += component.threads
+        return threads
 
 
     def display(self) -> Any:
@@ -51,16 +62,24 @@ class BaseScreen(BaseComponent):
                 self._render()
                 self.renderer.show_image()
 
-            for t in self.threads:
-                t.start()
+            for t in self.get_threads():
+                if not t.is_alive():
+                    t.start()
 
             return self._run()
         except Exception as e:
             repr(e)
             raise e
         finally:
-            for t in self.threads:
+            for t in self.get_threads():
                 t.stop()
+
+            for t in self.get_threads():
+                # Wait for each thread to stop; equivalent to `join()` but gracefully
+                # handles threads that were never run (necessary for screenshot generator
+                # compatibility, perhaps other edge cases).
+                while t.is_alive():
+                    time.sleep(0.01)
 
 
     def clear_screen(self):
@@ -99,19 +118,17 @@ class BaseScreen(BaseComponent):
 
             For example: A basic menu screen where the user can key up and down. The
             Screen can handle the UI updates to light up the currently selected menu item
-            on its own. Only when the user clicks to make a selection would run() exit
-            and returns the selected option.
+            on its own. Only when the user clicks to make a selection would _run() exit
+            and return the selected option.
 
-            But an alternate use case returns immediately after each user input so the
-            View can update its controlling logic accordingly (e.g. as the user joysticks
-            over different letters in the keyboard UI, we need to make matching changes
-            to the list of mnemonic seed words that match the new letter).
+            In general, _run() will be implemented as a continuous loop waiting for user
+            input and redrawing the screen as needed. When it redraws, it must claim
+            the `Renderer.lock` to ensure that its updates don't conflict with any other
+            threads that might be updating the screen at the same time (e.g. flashing
+            warning edges, auto-scrolling long titles or buttons, etc).
 
-            In this case, it would be called repeatedly in a loop:
-            * run() and wait for it to handle user input
-            * run() exits and returns the user input (e.g. KEY_UP)
-            * View updates its state of the world accordingly
-            * loop and call run() again
+            Just note that this loop cannot hold the lock indefinitely! Each iteration
+            through the loop should claim the lock, render, and then release it.
         """
         raise Exception("Must implement in a child class")
 
@@ -124,6 +141,7 @@ class LoadingScreenThread(BaseThread):
 
 
     def run(self):
+        from seedsigner.gui.renderer import Renderer
         renderer: Renderer = Renderer.get_instance()
 
         center_image = load_image("btc_logo_60x60.png")
@@ -147,7 +165,7 @@ class LoadingScreenThread(BaseThread):
             if self.text:
                 TextArea(
                     text=self.text,
-                    font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
+                    font_size=GUIConstants.get_top_nav_title_font_size(),
                     screen_y=int((renderer.canvas_height - bounding_box[3])/2),
                 ).render()
 
@@ -190,7 +208,7 @@ class BaseTopNavScreen(BaseScreen):
     top_nav_icon_name: str = None
     top_nav_icon_color: str = None
     title: str = "Screen Title"
-    title_font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE
+    title_font_size: int = GUIConstants.get_top_nav_title_font_size()
     show_back_button: bool = True
     show_power_button: bool = False
 
@@ -199,7 +217,7 @@ class BaseTopNavScreen(BaseScreen):
         self.top_nav = TopNav(
             icon_name=self.top_nav_icon_name,
             icon_color=self.top_nav_icon_color,
-            text=self.title,
+            text=_(self.title),  # Wrap here for just-in-time translations
             font_size=self.title_font_size,
             width=self.canvas_width,
             height=GUIConstants.TOP_NAV_HEIGHT,
@@ -218,11 +236,7 @@ class BaseTopNavScreen(BaseScreen):
                 time.sleep(0.1)
                 continue
 
-            user_input = self.hw_inputs.wait_for(
-                HardwareButtonsConstants.ALL_KEYS,
-                check_release=True,
-                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
-            )
+            user_input = self.hw_inputs.wait_for(HardwareButtonsConstants.ALL_KEYS)
 
             with self.renderer.lock:
                 if not self.top_nav.is_selected and user_input in [
@@ -252,13 +266,28 @@ class BaseTopNavScreen(BaseScreen):
 
 
 @dataclass
+class ButtonOption:
+    """
+    Note: The babel config in setup.cfg will extract the `button_label` string for translation
+    """
+    button_label: str
+    icon_name: str = None
+    icon_color: str = None
+    right_icon_name: str = None
+    button_label_color: str = None
+    return_data: Any = None
+    active_button_label: str = None  # Changes displayed button label when button is active
+
+
+
+@dataclass
 class ButtonListScreen(BaseTopNavScreen):
-    button_data: list = None                  # list can be a mix of str or tuple(label: str, icon_name: str)
+    button_data: list[ButtonOption] = None
     selected_button: int = 0
     is_button_text_centered: bool = True
     is_bottom_list: bool = False
-    button_font_name: str = GUIConstants.BUTTON_FONT_NAME
-    button_font_size: int = GUIConstants.BUTTON_FONT_SIZE
+    button_font_name: str = None
+    button_font_size: int = None
     button_selected_color: str = GUIConstants.ACCENT_COLOR
 
     # Params for version of list used for Settings
@@ -270,12 +299,17 @@ class ButtonListScreen(BaseTopNavScreen):
 
 
     def __post_init__(self):
+        if not self.button_font_name:
+            self.button_font_name = GUIConstants.get_button_font_name()
+        if not self.button_font_size:
+            self.button_font_size = GUIConstants.get_button_font_size()
         super().__post_init__()
+
         button_height = GUIConstants.BUTTON_HEIGHT
         if len(self.button_data) == 1:
             button_list_height = button_height
         else:
-            button_list_height = (len(self.button_data) * button_height) + (GUIConstants.COMPONENT_PADDING * (len(self.button_data) - 1))
+            button_list_height = (len(self.button_data) * button_height) + (GUIConstants.LIST_ITEM_PADDING * (len(self.button_data) - 1))
 
         if self.is_bottom_list:
             button_list_y = self.canvas_height - (button_list_height + GUIConstants.EDGE_PADDING)
@@ -289,29 +323,26 @@ class ButtonListScreen(BaseTopNavScreen):
             self.has_scroll_arrows = True
 
         self.buttons: List[Button] = []
-        for i, button_label in enumerate(self.button_data):
+        for i, button_option in enumerate(self.button_data):
             icon_name = None
             icon_color = None
             right_icon_name = None
             button_label_color = None
 
-            # TODO: Define an actual class for button_data?
-            if type(button_label) == tuple:
-                if len(button_label) == 2:
-                    (button_label, icon_name) = button_label
-                    icon_color = GUIConstants.BUTTON_FONT_COLOR
-
-                elif len(button_label) == 3:
-                    (button_label, icon_name, icon_color) = button_label
-
-                elif len(button_label) == 4:
-                    (button_label, icon_name, icon_color, button_label_color) = button_label
-
-                elif len(button_label) == 5:
-                    (button_label, icon_name, icon_color, button_label_color, right_icon_name) = button_label
+            if type(button_option) == ButtonOption:
+                button_label = button_option.button_label
+                icon_name = button_option.icon_name
+                icon_color = button_option.icon_color
+                right_icon_name = button_option.right_icon_name
+                button_label_color = button_option.button_label_color
+                active_button_label = button_option.active_button_label
+            
+            else:
+                raise Exception("Refactor to ButtonOption approach needed!")
 
             button_kwargs = dict(
-                text=button_label,
+                text=_(button_label),  # Wrap here for just-in-time translations
+                active_text=_(active_button_label),  # Wrap here for just-in-time translations
                 icon_name=icon_name,
                 icon_color=icon_color if icon_color else GUIConstants.BUTTON_FONT_COLOR,
                 is_icon_inline=True,
@@ -325,13 +356,14 @@ class ButtonListScreen(BaseTopNavScreen):
                 font_name=self.button_font_name,
                 font_size=self.button_font_size,
                 font_color=button_label_color if button_label_color else GUIConstants.BUTTON_FONT_COLOR,
-                selected_color=self.button_selected_color
+                selected_color=self.button_selected_color,
+                is_scrollable_text=True,  # We need to use the ScrollableText class for long button labels
             )
             if self.checked_buttons and i in self.checked_buttons:
                 button_kwargs["is_checked"] = True
             button = self.Button_cls(**button_kwargs)
             self.buttons.append(button)
-        
+
         if self.has_scroll_arrows:
             self.arrow_half_width = 10
             self.cur_scroll_y = self.scroll_y_initial_offset if self.scroll_y_initial_offset is not None else 0
@@ -352,9 +384,20 @@ class ButtonListScreen(BaseTopNavScreen):
         cur_selected_button.is_selected = True
 
 
+    def get_threads(self) -> List[BaseThread]:
+        threads = super().get_threads()
+        for button in self.buttons:
+            if button.is_scrollable_text:
+                threads += button.threads
+        return threads
+
+
     def _render(self):
         super()._render()
         self._render_visible_buttons()
+
+        # Write the screen updates
+        self.renderer.show_image()
 
 
     def _render_visible_buttons(self):
@@ -410,6 +453,7 @@ class ButtonListScreen(BaseTopNavScreen):
         while True:
             ret = self._run_callback()
             if ret is not None:
+                logging.info("Exiting ButtonListScreen due to _run_callback")
                 return ret
 
             user_input = self.hw_inputs.wait_for(
@@ -418,9 +462,7 @@ class ButtonListScreen(BaseTopNavScreen):
                     HardwareButtonsConstants.KEY_DOWN,
                     HardwareButtonsConstants.KEY_LEFT,
                     HardwareButtonsConstants.KEY_RIGHT,
-                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
-                check_release=True,
-                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK
             )
 
             with self.renderer.lock:
@@ -510,13 +552,18 @@ class ButtonListScreen(BaseTopNavScreen):
 
 @dataclass
 class LargeButtonScreen(BaseTopNavScreen):
-    button_data: list = None                  # list can be a mix of str or tuple(label: str, icon_name: str)
-    button_font_name: str = GUIConstants.BUTTON_FONT_NAME
-    button_font_size: int = 20
+    button_data: list = None
+    button_font_name: str = None
+    button_font_size: int = None
     button_selected_color: str = GUIConstants.ACCENT_COLOR
     selected_button: int = 0
 
     def __post_init__(self):
+        if not self.button_font_name:
+            self.button_font_name = GUIConstants.get_button_font_name()
+        if not self.button_font_size:
+            self.button_font_size = GUIConstants.get_button_font_size() + 2
+
         super().__post_init__()
 
         if len(self.button_data) not in [2, 4]:
@@ -533,11 +580,20 @@ class LargeButtonScreen(BaseTopNavScreen):
             button_start_y = self.top_nav.height + int((self.canvas_height - (self.top_nav.height + GUIConstants.COMPONENT_PADDING) - (2 * button_height) - GUIConstants.COMPONENT_PADDING) / 2)
 
         self.buttons = []
-        for i, button_label in enumerate(self.button_data):
-            if type(button_label) == tuple:
-                (button_label, icon_name) = button_label
+        for i, button_option in enumerate(self.button_data):
+            if type(button_option) == ButtonOption:
+                button_label = button_option.button_label
+                icon_name = button_option.icon_name
             else:
-                icon_name = None
+                raise Exception("Refactor needed!")
+
+            # elif type(button_option) == str:
+            #     button_label = button_option
+            #     icon_name = None
+            # elif type(button_option) == tuple:
+            #     (button_label, icon_name) = button_option
+            # else:
+            #     print(type(button_option))
 
             if i % 2 == 0:
                 button_start_x = GUIConstants.EDGE_PADDING
@@ -545,7 +601,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                 button_start_x = GUIConstants.EDGE_PADDING + button_width + GUIConstants.COMPONENT_PADDING
 
             button_args = {
-                "text": button_label,
+                "text": _(button_label),  # Wrap here for just-in-time translations
                 "screen_x": button_start_x,
                 "screen_y": button_start_y,
                 "width": button_width,
@@ -590,9 +646,7 @@ class LargeButtonScreen(BaseTopNavScreen):
                     HardwareButtonsConstants.KEY_DOWN,
                     HardwareButtonsConstants.KEY_LEFT,
                     HardwareButtonsConstants.KEY_RIGHT
-                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
-                check_release=True,
-                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK
             )
 
             with self.renderer.lock:
@@ -661,12 +715,12 @@ class QRDisplayScreen(BaseScreen):
     qr_encoder: BaseQrEncoder = None
 
     class QRDisplayThread(BaseThread):
-        def __init__(self, qr_encoder: BaseQrEncoder, qr_brightness: ThreadsafeCounter, renderer: Renderer,
-                     tips_start_time: ThreadsafeCounter):
+        def __init__(self, qr_encoder: BaseQrEncoder, qr_brightness: ThreadsafeCounter, tips_start_time: ThreadsafeCounter):
+            from seedsigner.gui.renderer import Renderer
             super().__init__()
             self.qr_encoder = qr_encoder
             self.qr_brightness = qr_brightness
-            self.renderer = renderer
+            self.renderer = Renderer.get_instance()
             self.tips_start_time = tips_start_time
 
 
@@ -676,7 +730,7 @@ class QRDisplayScreen(BaseScreen):
 
             # Instantiate a temp Image and ImageDraw object to draw on
             rectangle_width = image.width
-            rectangle_height = GUIConstants.COMPONENT_PADDING * 2 + GUIConstants.BODY_FONT_SIZE * 2 + GUIConstants.BODY_LINE_SPACING
+            rectangle_height = GUIConstants.COMPONENT_PADDING * 2 + GUIConstants.get_body_font_size() * 2 + GUIConstants.BODY_LINE_SPACING
             rectangle = Image.new('RGBA', (rectangle_width, rectangle_height), (0, 0, 0, 0))
             img_draw = ImageDraw.Draw(rectangle)
 
@@ -691,7 +745,7 @@ class QRDisplayScreen(BaseScreen):
                 screen_x=GUIConstants.EDGE_PADDING*2 + 1,
                 screen_y=GUIConstants.COMPONENT_PADDING + 4,  # +4 fudge factor to account for where the chevron is drawn relative to baseline
                 icon_name=SeedSignerIconConstants.CHEVRON_UP,
-                icon_size=GUIConstants.BODY_FONT_SIZE,
+                icon_size=GUIConstants.get_body_font_size(),
             )
             chevron_up_icon.render()
 
@@ -705,12 +759,14 @@ class QRDisplayScreen(BaseScreen):
             )
             chevron_down_icon.render()
 
+            # TRANSLATOR_NOTE: Increase QR code screen brightness
+            text = _("Brighter")
             TextArea(
                 image_draw=img_draw,
                 canvas=rectangle,
-                text="Brighter",
-                font_size=GUIConstants.BODY_FONT_SIZE,
-                font_name=GUIConstants.BUTTON_FONT_NAME,
+                text=text,
+                font_size=GUIConstants.get_body_font_size(),
+                font_name=GUIConstants.get_button_font_name(),
                 background_color=(0, 0, 0, overlay_opacity),
                 edge_padding=0,
                 is_text_centered=False,
@@ -721,12 +777,14 @@ class QRDisplayScreen(BaseScreen):
                 allow_text_overflow=False
             ).render()
 
+            # TRANSLATOR_NOTE: Decrease QR code screen brightness
+            text = _("Darker")
             TextArea(
                 image_draw=img_draw,
                 canvas=rectangle,
-                text="Darker",
-                font_size=GUIConstants.BODY_FONT_SIZE,
-                font_name=GUIConstants.BUTTON_FONT_NAME,
+                text=text,
+                font_size=GUIConstants.get_body_font_size(),
+                font_name=GUIConstants.get_button_font_name(),
                 background_color=(0, 0, 0, overlay_opacity),
                 edge_padding=0,
                 is_text_centered=False,
@@ -789,7 +847,6 @@ class QRDisplayScreen(BaseScreen):
         self.threads.append(QRDisplayScreen.QRDisplayThread(
             qr_encoder=self.qr_encoder,
             qr_brightness=self.qr_brightness,
-            renderer=self.renderer,
             tips_start_time=self.tips_start_time
         ))
 
@@ -804,9 +861,7 @@ class QRDisplayScreen(BaseScreen):
                     HardwareButtonsConstants.KEY_DOWN,
                     HardwareButtonsConstants.KEY_LEFT,
                     HardwareButtonsConstants.KEY_RIGHT,
-                ] + HardwareButtonsConstants.KEYS__ANYCLICK,
-                check_release=True,
-                release_keys=HardwareButtonsConstants.KEYS__ANYCLICK
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK
             )
             if user_input == HardwareButtonsConstants.KEY_DOWN:
                 # Reduce QR code background brightness
@@ -831,11 +886,11 @@ class QRDisplayScreen(BaseScreen):
 
 @dataclass
 class LargeIconStatusScreen(ButtonListScreen):
-    title: str = "Success!"
+    title: str = _mft("Success!")
     status_icon_name: str = SeedSignerIconConstants.SUCCESS
     status_icon_size: int = GUIConstants.ICON_PRIMARY_SCREEN_SIZE
     status_color: str = GUIConstants.SUCCESS_COLOR
-    status_headline: str = "Success!"  # The colored text under the large icon
+    status_headline: str = None
     text: str = ""                          # The body text of the screen
     text_edge_padding: int = GUIConstants.EDGE_PADDING
     button_data: list = None
@@ -843,9 +898,9 @@ class LargeIconStatusScreen(ButtonListScreen):
 
 
     def __post_init__(self):
-        self.is_bottom_list: bool = True
         if not self.button_data:
-            self.button_data = ["OK"]
+            self.button_data = [ButtonOption("OK")]
+        self.is_bottom_list = True
         super().__post_init__()
 
         self.status_icon = Icon(
@@ -860,23 +915,23 @@ class LargeIconStatusScreen(ButtonListScreen):
         next_y = self.status_icon.screen_y + self.status_icon.height + int(GUIConstants.COMPONENT_PADDING/2)
         if self.status_headline:
             self.warning_headline_textarea = TextArea(
-                text=self.status_headline,
+                text=_(self.status_headline),  # Wrap here for just-in-time translations
                 width=self.canvas_width,
                 screen_y=next_y,
                 font_color=self.status_color,
-                allow_text_overflow=self.allow_text_overflow,
+                auto_line_break=False,  # Force headline to be on one line
             )
             self.components.append(self.warning_headline_textarea)
             next_y = next_y + self.warning_headline_textarea.height
 
-        self.components.append(TextArea(
-            height=self.buttons[0].screen_y - next_y,
-            text=self.text,
-            width=self.canvas_width,
-            edge_padding=self.text_edge_padding,  # Don't render all the way up to the far left/right edges
-            screen_y=next_y,
-            allow_text_overflow=self.allow_text_overflow,
-        ))
+        if self.text:
+            self.components.append(TextArea(
+                height=self.buttons[0].screen_y - next_y,
+                text=_(self.text),
+                width=self.canvas_width,
+                edge_padding=self.text_edge_padding,  # Don't render all the way up to the far left/right edges
+                screen_y=next_y,
+            ))
 
 
 
@@ -958,35 +1013,47 @@ class WarningEdgesMixin:
 
 @dataclass
 class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
-    title: str = "Caution"
+    """
+    Exclamation point icon + yellow WARNING color
+    """
+    title: str = _mft("Caution")
     status_icon_name: str = SeedSignerIconConstants.WARNING
-    status_color: str = "yellow"
-    status_headline: str = "Privacy Leak!"     # The colored text under the alert icon
-
-    def __post_init__(self):
-        if not self.button_data:
-            self.button_data = ["I Understand"]
-
-        super().__post_init__()
+    status_color: str = GUIConstants.WARNING_COLOR
+    status_headline: str = _mft("Privacy Leak!")     # The colored text under the alert icon
+    button_data: list = field(default_factory=lambda: [ButtonOption("I Understand")])
 
 
 
 @dataclass
 class DireWarningScreen(WarningScreen):
-    status_headline: str = "Classified Info!"     # The colored text under the alert icon
+    """
+    Exclamation point icon + orange DIRE_WARNING color
+    """
+    status_headline: str = _mft("Classified Info!")     # The colored text under the alert icon
     status_color: str = GUIConstants.DIRE_WARNING_COLOR
+
+
+
+@dataclass
+class ErrorScreen(WarningScreen):
+    """
+    X icon + red ERROR color
+    """
+    title: str = _mft("Error")
+    status_icon_name: str = SeedSignerIconConstants.ERROR
+    status_color: str = GUIConstants.ERROR_COLOR
 
 
 
 @dataclass
 class ResetScreen(BaseTopNavScreen):
     def __post_init__(self):
-        self.title = "Restarting"
+        self.title = _("Restarting")
         self.show_back_button = False
         super().__post_init__()
 
         self.components.append(TextArea(
-            text="SeedSigner is restarting.\n\nAll in-memory data will be wiped.",
+            text=_("SeedSigner is restarting.\n\nAll in-memory data will be wiped."),
             screen_y=self.top_nav.height,
             height=self.canvas_height - self.top_nav.height,
         ))
@@ -996,12 +1063,12 @@ class ResetScreen(BaseTopNavScreen):
 @dataclass
 class PowerOffScreen(BaseTopNavScreen):
     def __post_init__(self):
-        self.title = "Powering Off"
+        self.title = _("Powering Off")
         self.show_back_button = False
         super().__post_init__()
 
         self.components.append(TextArea(
-            text="Please wait about 30 seconds before disconnecting power.",
+            text=_("Please wait about 30 seconds before disconnecting power."),
             screen_y=self.top_nav.height,
             height=self.canvas_height - self.top_nav.height,
         ))
@@ -1011,12 +1078,12 @@ class PowerOffScreen(BaseTopNavScreen):
 @dataclass
 class PowerOffNotRequiredScreen(BaseTopNavScreen):
     def __post_init__(self):
-        self.title = "Just Unplug It"
+        self.title = _("Just Unplug It")
         self.show_back_button = True
         super().__post_init__()
 
         self.components.append(TextArea(
-            text="It is safe to disconnect power at any time.",
+            text=_("It is safe to disconnect power at any time."),
             screen_y=self.top_nav.height,
             height=self.canvas_height - self.top_nav.height,
         ))
@@ -1044,7 +1111,7 @@ class KeyboardScreen(BaseTopNavScreen):
     rows: int = None
     cols: int = None
     keyboard_font_name: str = GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME
-    keyboard_font_size: int = GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2
+    keyboard_font_size: int = None
     key_height: int = None
     keys_charset: str = None
     keys_to_values: dict = None
@@ -1053,6 +1120,9 @@ class KeyboardScreen(BaseTopNavScreen):
     initial_value: str = ""
 
     def __post_init__(self):
+        if self.keyboard_font_size is None:
+            self.keyboard_font_size = GUIConstants.get_top_nav_title_font_size() + 2
+
         super().__post_init__()
 
         if self.initial_value:
@@ -1132,7 +1202,7 @@ class KeyboardScreen(BaseTopNavScreen):
         self.text_entry_display.render()
 
         self.renderer.show_image()
-    
+
 
     def _run(self):
         self.cursor_position = len(self.user_input)
@@ -1140,88 +1210,87 @@ class KeyboardScreen(BaseTopNavScreen):
         # Start the interactive update loop
         while True:
             input = self.hw_inputs.wait_for(
-                HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + [HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3],
-                check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3]
+                HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + [HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY3]
             )
-    
-            # Check possible exit conditions   
-            if self.top_nav.is_selected and input == HardwareButtonsConstants.KEY_PRESS:
-                return RET_CODE__BACK_BUTTON
-            
-            elif self.show_save_button and input == HardwareButtonsConstants.KEY3:
-                # Save!
-                if len(self.user_input) == 0:
-                    # Don't try to submit zero input
+
+            with self.renderer.lock:
+                # Check possible exit conditions   
+                if self.top_nav.is_selected and input == HardwareButtonsConstants.KEY_PRESS:
+                    return RET_CODE__BACK_BUTTON
+
+                elif self.show_save_button and input == HardwareButtonsConstants.KEY3:
+                    # Save!
+                    if len(self.user_input) == 0:
+                        # Don't try to submit zero input
+                        continue
+
+                    # First show the save button reacting to the click
+                    self.save_button.is_selected = True
+                    self.save_button.render()
+                    self.renderer.show_image()
+
+                    # Then return the input to the View
+                    return self.user_input.strip()
+
+                # Process normal input
+                if input in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN] and self.top_nav.is_selected:
+                    # We're navigating off the previous button
+                    self.top_nav.is_selected = False
+                    self.top_nav.render_buttons()
+
+                    # Override the actual input w/an ENTER signal for the Keyboard
+                    if input == HardwareButtonsConstants.KEY_DOWN:
+                        input = Keyboard.ENTER_TOP
+                    else:
+                        input = Keyboard.ENTER_BOTTOM
+                elif input in [HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT] and self.top_nav.is_selected:
+                    # ignore
                     continue
 
-                # First show the save button reacting to the click
-                self.save_button.is_selected = True
-                self.save_button.render()
-                self.renderer.show_image()
+                ret_val = self.keyboard.update_from_input(input)
 
-                # Then return the input to the View
-                return self.user_input.strip()
-    
-            # Process normal input
-            if input in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN] and self.top_nav.is_selected:
-                # We're navigating off the previous button
-                self.top_nav.is_selected = False
-                self.top_nav.render_buttons()
-    
-                # Override the actual input w/an ENTER signal for the Keyboard
-                if input == HardwareButtonsConstants.KEY_DOWN:
-                    input = Keyboard.ENTER_TOP
-                else:
-                    input = Keyboard.ENTER_BOTTOM
-            elif input in [HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT] and self.top_nav.is_selected:
-                # ignore
-                continue
-    
-            ret_val = self.keyboard.update_from_input(input)
-    
-            # Now process the result from the keyboard
-            if ret_val in Keyboard.EXIT_DIRECTIONS:
-                self.top_nav.is_selected = True
-                self.top_nav.render_buttons()
-    
-            elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
-                if ret_val == Keyboard.KEY_BACKSPACE["code"]:
-                    if len(self.user_input) > 0:
-                        self.user_input = self.user_input[:-1]
-                        self.cursor_position -= 1
-    
-            elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
-                # User has locked in the current letter
-                if self.keys_to_values:
-                    # Map the Key display char to its output value (e.g. dice icon to digit)
-                    ret_val = self.keys_to_values[ret_val]
-                self.user_input += ret_val
-                self.cursor_position += 1
-
-                if self.cursor_position == self.return_after_n_chars:
-                    return self.user_input
-
-                # Render a new TextArea over the TopNav title bar
-                if self.update_title():
-                    TextArea(
-                        text=self.title,
-                        font_name=GUIConstants.TOP_NAV_TITLE_FONT_NAME,
-                        font_size=GUIConstants.TOP_NAV_TITLE_FONT_SIZE,
-                        height=self.top_nav.height,
-                    ).render()
+                # Now process the result from the keyboard
+                if ret_val in Keyboard.EXIT_DIRECTIONS:
+                    self.top_nav.is_selected = True
                     self.top_nav.render_buttons()
-    
-            elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
-                # Live joystick movement; haven't locked this new letter in yet.
-                # Leave current spot blank for now. Only update the active keyboard keys
-                # when a selection has been locked in (KEY_PRESS) or removed ("del").
-                pass
-    
-            # Render the text entry display and cursor block
-            self.text_entry_display.render(self.user_input)
-    
-            self.renderer.show_image()
+
+                elif ret_val in Keyboard.ADDITIONAL_KEYS and input == HardwareButtonsConstants.KEY_PRESS:
+                    if ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                        if len(self.user_input) > 0:
+                            self.user_input = self.user_input[:-1]
+                            self.cursor_position -= 1
+
+                elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
+                    # User has locked in the current letter
+                    if self.keys_to_values:
+                        # Map the Key display char to its output value (e.g. dice icon to digit)
+                        ret_val = self.keys_to_values[ret_val]
+                    self.user_input += ret_val
+                    self.cursor_position += 1
+
+                    if self.cursor_position == self.return_after_n_chars:
+                        return self.user_input
+
+                    # Render a new TextArea over the TopNav title bar
+                    if self.update_title():
+                        TextArea(
+                            text=self.title,
+                            font_name=GUIConstants.get_top_nav_title_font_name(),
+                            font_size=GUIConstants.get_top_nav_title_font_size(),
+                            height=self.top_nav.height,
+                        ).render()
+                        self.top_nav.render_buttons()
+
+                elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
+                    # Live joystick movement; haven't locked this new letter in yet.
+                    # Leave current spot blank for now. Only update the active keyboard keys
+                    # when a selection has been locked in (KEY_PRESS) or removed ("del").
+                    pass
+
+                # Render the text entry display and cursor block
+                self.text_entry_display.render(self.user_input)
+
+                self.renderer.show_image()
 
 
     def update_title(self) -> bool:
@@ -1229,7 +1298,7 @@ class KeyboardScreen(BaseTopNavScreen):
             Optionally update the self.title after each completed key input.
             
             e.g. to increment the dice roll count:
-                self.title = f"Roll {self.cursor_position + 1}"
+                self.title = _("Roll {}".format(self.cursor_position + 1))
         """
         return False
 

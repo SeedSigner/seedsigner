@@ -28,14 +28,6 @@ class TestViewFlows(FlowTest):
         """
         Basic flow from MainMenuView to PowerOffView
         """
-        with patch('seedsigner.views.view.PowerOffView.PowerOffThread'):
-            self.run_sequence([
-                FlowStep(MainMenuView, screen_return_value=RET_CODE__POWER_BUTTON),
-                FlowStep(PowerOptionsView, button_data_selection=PowerOptionsView.POWER_OFF),
-                FlowStep(PowerOffView),
-            ])
-
-        # And again, but this time as if we were in the SeedSigner OS
         Settings.HOSTNAME = Settings.SEEDSIGNER_OS
         self.run_sequence([
             FlowStep(MainMenuView, screen_return_value=RET_CODE__POWER_BUTTON),

@@ -1,15 +1,15 @@
 import pytest
 
 # Must import test base before the Controller
-from base import FlowTest, FlowStep, FlowTestMissingRedirectException, FlowTestUnexpectedRedirectException, FlowTestUnexpectedViewException, FlowTestInvalidButtonDataSelectionException
+from base import FlowTest, FlowStep, FlowTestMissingRedirectException, FlowTestUnexpectedRedirectException, FlowTestUnexpectedViewException, FlowTestInvalidButtonDataSelectionException, FlowTestInvalidButtonDataInstanceTypeException
 
 from seedsigner.controller import Controller
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON, ButtonListScreen, ButtonOption
 from seedsigner.models.seed import Seed
 from seedsigner.views import scan_views
 from seedsigner.views.psbt_views import PSBTSelectSeedView
 from seedsigner.views.seed_views import SeedBackupView, SeedMnemonicEntryView, SeedOptionsView, SeedsMenuView
-from seedsigner.views.view import MainMenuView, PowerOptionsView, UnhandledExceptionView
+from seedsigner.views.view import Destination, MainMenuView, PowerOptionsView, UnhandledExceptionView, View
 from seedsigner.views.tools_views import ToolsMenuView, ToolsCalcFinalWordNumWordsView
 
 
@@ -155,5 +155,40 @@ class TestFlowTest(FlowTest):
         self.run_sequence([
             FlowStep(MainMenuView, screen_return_value=Exception("Test exception")),
             FlowStep(UnhandledExceptionView),
+        ])
+    
+
+    def test_raise_exception_on_bad_button_data_type(self):
+        """
+        Ensure that the FlowTest raises an exception if a Screen's button_data has
+        non-ButtonOption entries.
+        """
+        class MyBadButtonDataTestView(View):
+            def run(self):
+                self.run_screen(
+                    ButtonListScreen,
+                    button_data=[ButtonOption("this is fine"), "this is not"]
+                )
+
+        class MyGoodButtonDataTestView(View):
+            def run(self):
+                self.run_screen(
+                    ButtonListScreen,
+                    button_data=[ButtonOption("this is fine"), ButtonOption("this is also fine")]
+                )
+                return Destination(MainMenuView)
+
+
+        # Should catch the bad button_data
+        with pytest.raises(FlowTestInvalidButtonDataInstanceTypeException):
+            self.run_sequence([
+                FlowStep(MyBadButtonDataTestView),
+                FlowStep(MainMenuView),  # Need a next Destination to force the first step to run
+            ])
+
+        # But if it's all ButtonOption instances, it should be fine
+        self.run_sequence([
+            FlowStep(MyGoodButtonDataTestView),
+            FlowStep(MainMenuView),  # Need a next Destination to force the first step to run
         ])
 

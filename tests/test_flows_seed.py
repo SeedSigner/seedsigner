@@ -1,14 +1,15 @@
 from typing import Callable
+from unittest.mock import patch
 import pytest
 
 # Must import test base before the Controller
 from base import BaseTest, FlowTest, FlowStep
 from base import FlowTestInvalidButtonDataSelectionException
 
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import ElectrumSeed, Seed
-from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
+from seedsigner.views.view import MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
 from seedsigner.views import seed_views, scan_views, settings_views
 
 
@@ -40,10 +41,10 @@ class TestSeedFlows(FlowTest):
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
             FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
-            FlowStep(seed_views.SeedFinalizeView, button_data_selection=SettingsConstants.LABEL__BIP39_PASSPHRASE),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
             FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
             FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.DISCARD),
-            FlowStep(seed_views.SeedFinalizeView, button_data_selection=SettingsConstants.LABEL__BIP39_PASSPHRASE),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
             FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
             FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.EDIT),
             FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
@@ -183,15 +184,18 @@ class TestSeedFlows(FlowTest):
         """
             Selecting "Export XPUB" from the SeedOptionsView should enter the Export XPUB flow and end at the MainMenuView
         """
-
         def flowtest_standard_xpub(sig_tuple, script_tuple, coord_tuple):
+            if sig_tuple[0] == SettingsConstants.SINGLE_SIG:
+                sig_selection = seed_views.SeedExportXpubSigTypeView.SINGLE_SIG
+            else:
+                sig_selection = seed_views.SeedExportXpubSigTypeView.MULTISIG
             self.run_sequence(
                 initial_destination_view_args=dict(seed_num=0),
                 sequence=[
                     FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
-                    FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=sig_tuple[1]),
-                    FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=script_tuple[1]),
-                    FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=coord_tuple[1]),
+                    FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=sig_selection),
+                    FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=ButtonOption(script_tuple[1], return_data=script_tuple[0])),
+                    FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=ButtonOption(coord_tuple[1], return_data=coord_tuple[0])),
                     FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
                     FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
                     FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
@@ -303,10 +307,18 @@ class TestSeedFlows(FlowTest):
             SettingsConstants.CUSTOM_DERIVATION
         ])
 
-        # get display names to access button choices in the views (ugh: hardcoding, is there a better way?)
-        sig_type = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SIG_TYPES)[0] # single sig
-        script_type = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES)[2] # custom derivation
-        coordinator = self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[3] # specter
+        # Ensure that all coordinators are enabled
+        self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x, y in SettingsConstants.ALL_COORDINATORS])
+
+        # Set up button_data selections
+        sig_type = seed_views.SeedExportXpubSigTypeView.SINGLE_SIG
+
+        custom_derivation = SettingsConstants.CUSTOM_DERIVATION
+        script_type = ButtonOption(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES)[2], return_data=custom_derivation)
+
+        specter = SettingsConstants.COORDINATOR__SPECTER_DESKTOP
+        assert SettingsConstants.ALL_COORDINATORS[3][0] == specter
+        coordinator = ButtonOption(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[3], return_data=specter)
 
         self.run_sequence(
             initial_destination_view_args=dict(seed_num=0),
@@ -377,7 +389,7 @@ class TestSeedFlows(FlowTest):
 
                 # Skips past the script type options via redirect
                 FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
-                FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[0]),
+                FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=ButtonOption(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[0], return_data=SettingsConstants.ALL_COORDINATORS[0][0])),
                 FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
@@ -406,6 +418,54 @@ class TestSeedFlows(FlowTest):
                 FlowStep(seed_views.LoadSeedView),
             ]
         )
+
+
+    @patch("seedsigner.gui.screens.seed_screens.SeedTranscribeSeedQRZoomedInScreen", autospec=True)
+    def test_transcribe_seedqr_and_verify(self, mock_zoomed_in_screen: Callable):
+        """
+        """
+        # Load a finalized Seed into the Controller
+        mnemonic = ["abandon"] * 11 + ["about"]
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        self.controller.storage.finalize_pending_seed()
+
+        def load_wrong_seed_into_decoder(view: View):
+            view.decoder.add_data("0138" * 24)
+
+        def load_completely_wrong_qr_type_into_decoder(view: View):
+            view.decoder.add_data("I like cheese")
+
+        def load_right_seed_into_decoder(view: View):
+            view.decoder.add_data("0000" * 11 + "0003")
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, screen_return_value=0),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.BACKUP),
+            FlowStep(seed_views.SeedBackupView, button_data_selection=seed_views.SeedBackupView.EXPORT_SEEDQR),
+            FlowStep(seed_views.SeedTranscribeSeedQRFormatView, button_data_selection=seed_views.SeedTranscribeSeedQRFormatView.STANDARD_12),
+            FlowStep(seed_views.SeedTranscribeSeedQRWarningView),
+            FlowStep(seed_views.SeedTranscribeSeedQRWholeQRView),
+            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are a bit weird; not sure why `is_redirect` is necessary here
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
+
+            # Intentionally "scan" the wrong SeedQR
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_wrong_seed_into_decoder),
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmWrongSeedView),
+            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are still weird
+
+            # Intentionally scan QR data that makes no sense for this flow
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_completely_wrong_qr_type_into_decoder),
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmInvalidQRView),
+            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are still weird
+
+            # Now scan the correct SeedQR
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_right_seed_into_decoder),
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmSuccessView),
+            FlowStep(seed_views.SeedOptionsView),
+        ])
 
 
 
@@ -635,7 +695,7 @@ class TestMessageSigningFlows(FlowTest):
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
             FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
             FlowStep(scan_views.ScanView, before_run=load_invalid_signmessage_qr),  # simulate read message QR; ret val is ignored
-            FlowStep(ErrorView),
+            FlowStep(scan_views.ScanInvalidQRTypeView),
             FlowStep(MainMenuView),
         ])
 
@@ -663,4 +723,5 @@ class TestMessageSigningFlows(FlowTest):
 
         self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
         expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
+
 

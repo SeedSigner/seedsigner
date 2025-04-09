@@ -2,6 +2,8 @@
 
 <img src="images/pushcase.png">
 
+Designer: @kayth21
+
 ## Motivation
 
 The motivation for this design was to get a thin, screwless and good looking enclosure with minimal secondary hardware requirements.
@@ -116,15 +118,3 @@ Please note that the prints must be accurate in order to fit tightly without scr
 ### 7. Flash a MicroSD card
 
 - Please follow the documentation on [SeedSigner.com](https://seedsigner.com).
-
-## Contact
-
-Get in touch if you have any questions or suggestions. Success stories are also welcome. :) You can reach me on [X (@kayth21)](https://x.com/kayth21) and [Telegram (@Kayth_21)](https://t.me/kayth_21).
-
-## Donation
-
-If you like my work and want to honor it, I appreciate any small donation to my Lightning Address kayth@blink.sv. But even more important, please consider a donation to the [Seedsigner Development Fund](https://seedsigner.com/donate-now/). 
-
-## Shop
-
-You can also get a push case, or a fully assembled SeedSigner, from my store [bitcoin-store.org](https://bitcoin-store.org).

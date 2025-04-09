@@ -122,7 +122,7 @@ SeedSigner requires `zbar` at 0.23.x or higher.
 
 Download the binary:
 ```bash
-curl -L http://raspbian.raspberrypi.org/raspbian/pool/main/z/zbar/libzbar0_0.23.90-1_armhf.deb --output libzbar0_0.23.90-1_armhf.deb
+curl -L http://raspbian.raspberrypi.org/raspbian/pool/main/z/zbar/libzbar0_0.23.90-1+deb11u1_armhf.deb --output libzbar0_0.23.90-1_armhf.deb
 ```
 
 And then install it:
@@ -211,7 +211,9 @@ Description=Seedsigner
 [Service]
 User=pi
 WorkingDirectory=/home/pi/seedsigner/src/
-ExecStart=/usr/bin/python3 main.py > /dev/null 2>&1
+ExecStart=/usr/bin/python3 main.py
+StandardOutput=null
+ErrorOutput=null
 Restart=always
 
 [Install]
@@ -220,7 +222,7 @@ WantedBy=multi-user.target
 
 _Note: For local dev you'll want to edit the `Restart=always` line to `Restart=no`. This way when your dev code crashes it won't keep trying to restart itself. Note that the UI "Reset" will no longer work when auto-restarts are disabled._
 
-_Note: Debugging output is completely wiped via routing the output to `/dev/null 2>&1`. When working in local dev, you'll `kill` the `systemd` SeedSigner service and just directly run the code on demand so you can see all the debugging output live._
+_Note: Debugging output is completely wiped via routing the stdout and stderr to `/dev/null`. When working in local dev, you'll `kill` the `systemd` SeedSigner service and just directly run the code on demand so you can see all the debugging output live._
 
 Use `CTRL-X` and `y` to exit and save changes.
 

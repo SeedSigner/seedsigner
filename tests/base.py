@@ -13,7 +13,7 @@ sys.modules['seedsigner.hardware.buttons'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
 
 from seedsigner.controller import Controller, FlowBasedTestException, StopFlowBasedTest
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON, ButtonOption
 from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.settings import Settings
 from seedsigner.views.view import Destination, MainMenuView, UnhandledExceptionView, View
@@ -140,6 +140,12 @@ class FlowStep:
 
 
 
+class FlowTestInvalidButtonDataInstanceTypeException(FlowBasedTestException):
+    """ The button_data contained an item that was not a ButtonOption instance """
+    pass
+
+
+
 class FlowTestInvalidButtonDataSelectionException(FlowBasedTestException):
     """ The FlowStep's button_data_selection value was not found in the View's button_data """
     pass
@@ -249,6 +255,12 @@ class FlowTest(BaseTest):
                     Just returns the return value specified in the test sequence.
                     """
                     cur_flow_step = sequence[0]
+
+                    if "button_data" in kwargs:
+                        # Verify that they are all proper ButtonOption instances
+                        for button_option in kwargs.get("button_data"):
+                            if not isinstance(button_option, ButtonOption):
+                                raise FlowTestInvalidButtonDataInstanceTypeException(f"button_data must be a list of ButtonOption instances, not {type(button_option)}: {button_option}")
 
                     if cur_flow_step.button_data_selection:
                         # We're mocking out the View.run_screen() method, so we'll get all of the

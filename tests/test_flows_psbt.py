@@ -115,7 +115,7 @@ class TestPSBTFlows(FlowTest):
 			FlowStep(psbt_views.PSBTSigningErrorView, button_data_selection=psbt_views.PSBTSigningErrorView.SELECT_DIFF_SEED),
 			FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.SCAN_SEED),
 			FlowStep(scan_views.ScanSeedQRView, before_run=load_seed_into_decoder),
-			FlowStep(seed_views.SeedFinalizeView, button_data_selection=SettingsConstants.LABEL__BIP39_PASSPHRASE),
+			FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
 			FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="abc")),
 			FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
 			FlowStep(seed_views.SeedOptionsView, is_redirect=True),

@@ -2,6 +2,7 @@
 
 The tests are designed to be run on non-Raspi hardware.
 
+## Setup
 On your testing machine you'll have to install:
 ```bash
 # general dependencies
@@ -16,6 +17,14 @@ Then make the `seedsigner` python module visible/importable to the tests by inst
 pip3 install -e .
 ```
 
+## Running all tests, calculating overall test coverage
+tldr: just run the convenience script from the project root:
+
+```bash
+./tests/run_full_coverage.sh
+```
+
+## Running tests manually
 Run the whole test suite:
 ```
 pytest
@@ -45,18 +54,30 @@ Annoying complications:
 * Better idea: use a proper logger in the test file and use one of the above options to display logs
 
 
-### Test Coverage
+## Screenshot generator
+The screenshot generator is meant to mostly be a utility and not really part of the test suite. However,
+it is actually implemented to be run by `pytest`.
+
+see: [Screenshot generator README](screenshot_generator/README.md)
+
+
+## Generate coverage manually
 Run tests and generate test coverage
-```
+```bash
 coverage run -m pytest
 ```
 
-Show the resulting test coverage details:
+The screenshots can generate their own separate coverage report:
+```bash
+coverage run -m pytest tests/screenshot_generator/generator.py --locale es
 ```
+
+Show the resulting test coverage details:
+```bash
 coverage report
 ```
 
-Generate the html overview:
-```
+Generate the interactive html report:
+```bash
 coverage html
 ```

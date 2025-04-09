@@ -1,0 +1,9 @@
+[submodule "src/seedsigner/resources/seedsigner-translations"]
+	path = src/seedsigner/resources/seedsigner-translations
+	url = https://github.com/SeedSigner/seedsigner-translations.git
+	branch = dev
+[submodule "seedsigner-screenshots"]
+	path = seedsigner-screenshots
+	url = https://github.com/SeedSigner/seedsigner-screenshots.git
+	branch = dev
+	update = none
