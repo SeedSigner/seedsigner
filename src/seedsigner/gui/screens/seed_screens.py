@@ -14,6 +14,7 @@ from seedsigner.gui.components import (Button, FontAwesomeIconConstants, Fonts, 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
+from seedsigner.models.settings import Settings, SettingsConstants
 
 from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, ButtonOption, KeyboardScreen, LargeIconStatusScreen, WarningEdgesMixin
 
@@ -1180,13 +1181,17 @@ class SeedTranscribeSeedQRWholeQRScreen(WarningEdgesMixin, ButtonListScreen):
 
 
 @dataclass
-class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
+class SeedTranscribeSeedQRZoomedInScreen(QRDisplayScreen):
     qr_data: str = None
     num_modules: int = None
     initial_block_x: int = 0
     initial_block_y: int = 0
 
     def __post_init__(self):
+        # Initialize QR encoder for brightness control
+        from seedsigner.models.encode_qr import SeedQrEncoder
+        self.qr_encoder = SeedQrEncoder(qr_data=self.qr_data)
+        
         super().__post_init__()
 
         # Render an oversized QR code that we can view up close
@@ -1259,8 +1264,6 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
             anchor="ms"  # Middle, baSeline
         )
 
-
-
     def draw_block_labels(self):
         # Create overlay for block labels (e.g. "D-5")
         block_labels_x = ["1", "2", "3", "4", "5", "6"]
@@ -1297,6 +1300,76 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
 
         return block_labels
 
+    def render_brightness_tip(self, image: Image.Image) -> None:
+        # Instantiate a temp Image and ImageDraw object to draw on
+        rectangle_width = image.width
+        rectangle_height = GUIConstants.COMPONENT_PADDING * 2 + GUIConstants.get_body_font_size() * 2 + GUIConstants.BODY_LINE_SPACING
+        rectangle = Image.new('RGBA', (rectangle_width, rectangle_height), (0, 0, 0, 0))
+        img_draw = ImageDraw.Draw(rectangle)
+
+        overlay_opacity = 224
+
+        # Create a semi-transparent background for the overlay, rounded edges, w/a 1-pixel gap from the edges
+        img_draw.rounded_rectangle((1, 0, rectangle_width - 2, rectangle_height - 1), radius=8, fill=(0, 0, 0, overlay_opacity))
+
+        chevron_up_icon = Icon(
+            image_draw=img_draw,
+            canvas=rectangle,
+            screen_x=GUIConstants.EDGE_PADDING*2 + 1,
+            screen_y=GUIConstants.COMPONENT_PADDING + 4,  # +4 fudge factor to account for where the chevron is drawn relative to baseline
+            icon_name=SeedSignerIconConstants.CHEVRON_UP,
+            icon_size=GUIConstants.get_body_font_size(),
+        )
+        chevron_up_icon.render()
+
+        chevron_down_icon = Icon(
+            image_draw=img_draw,
+            canvas=rectangle,
+            screen_x=chevron_up_icon.screen_x,
+            screen_y=chevron_up_icon.screen_y + chevron_up_icon.icon_size + GUIConstants.BODY_LINE_SPACING,
+            icon_name=SeedSignerIconConstants.CHEVRON_DOWN,
+            icon_size=chevron_up_icon.icon_size,
+        )
+        chevron_down_icon.render()
+
+        # TRANSLATOR_NOTE: Increase QR code screen brightness
+        text = _("Brighter")
+        TextArea(
+            image_draw=img_draw,
+            canvas=rectangle,
+            text=text,
+            font_size=GUIConstants.get_body_font_size(),
+            font_name=GUIConstants.get_button_font_name(),
+            background_color=(0, 0, 0, overlay_opacity),
+            edge_padding=0,
+            is_text_centered=False,
+            auto_line_break=False,
+            width=int(rectangle_width/2),
+            screen_x=chevron_up_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
+            screen_y=chevron_up_icon.screen_y - 2,  # -2 to account for Icon's positioning
+            allow_text_overflow=False
+        ).render()
+
+        # TRANSLATOR_NOTE: Decrease QR code screen brightness
+        text = _("Darker")
+        TextArea(
+            image_draw=img_draw,
+            canvas=rectangle,
+            text=text,
+            font_size=GUIConstants.get_body_font_size(),
+            font_name=GUIConstants.get_button_font_name(),
+            background_color=(0, 0, 0, overlay_opacity),
+            edge_padding=0,
+            is_text_centered=False,
+            auto_line_break=False,
+            width=int(rectangle_width/2),
+            screen_x=chevron_down_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
+            screen_y=chevron_down_icon.screen_y - 2,  # -2 to account for Icon's positioning
+            allow_text_overflow=False
+        ).render()
+
+        # Write our temp Image onto the main image
+        image.paste(rectangle, (0, image.height - rectangle_height - 1), rectangle)
 
     def _render(self):
         # Track our current coordinates for the upper left corner of our view
@@ -1309,15 +1382,51 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
 
         block_labels = self.draw_block_labels()
 
+        # Apply current brightness to QR image
+        hex_color = (hex(self.qr_brightness.cur_count).split('x')[1]) * 3
+        qr = QR()
+        self.qr_image = qr.qrimage(
+            self.qr_data,
+            width=self.qr_width,
+            height=self.height,
+            border=self.qr_border,
+            style=QR.STYLE__ROUNDED,
+            background_color=hex_color
+        ).convert("RGBA")
+
+        # Re-render gridlines with current brightness
+        draw = ImageDraw.Draw(self.qr_image)
+        for i in range(self.qr_border, math.floor(self.qr_width/self.pixels_per_block) - self.qr_border):
+            draw.line((i * self.pixels_per_block, self.qr_border * self.pixels_per_block, i * self.pixels_per_block, self.height - self.qr_border * self.pixels_per_block), fill="#bbb")
+            draw.line((self.qr_border * self.pixels_per_block, i * self.pixels_per_block, self.qr_width - self.qr_border * self.pixels_per_block, i * self.pixels_per_block), fill="#bbb")
+
+        # Get the visible portion of the QR image
+        visible_image = self.qr_image.crop((self.cur_x, self.cur_y, self.cur_x + self.canvas_width, self.cur_y + self.canvas_height))
+
+        # Check if we should show brightness tips
+        from seedsigner.models.settings import Settings
+        settings = Settings.get_instance()
+        cur_brightness_setting = settings.get_value(SettingsConstants.SETTING__QR_BRIGHTNESS_TIPS)
+        is_brightness_tip_enabled = cur_brightness_setting == SettingsConstants.OPTION__ENABLED
+        duration = 10 ** 9 * 1.2  # 1.2 seconds
+
+        if is_brightness_tip_enabled and time.time_ns() - self.tips_start_time.cur_count < duration:
+            self.render_brightness_tip(visible_image)
+
         self.renderer.show_image(
-            self.qr_image.crop((self.cur_x, self.cur_y, self.cur_x + self.canvas_width, self.cur_y + self.canvas_height)),
+            visible_image,
             alpha_overlay=Image.alpha_composite(self.block_mask, block_labels)
         )
 
-
     def _run(self):
+        from seedsigner.models.settings import Settings
+
         while True:
-            input = self.hw_inputs.wait_for(HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + HardwareButtonsConstants.KEYS__ANYCLICK)
+            input = self.hw_inputs.wait_for(
+                HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + 
+                [HardwareButtonsConstants.KEY1, HardwareButtonsConstants.KEY2] +
+                HardwareButtonsConstants.KEYS__ANYCLICK
+            )
             if input == HardwareButtonsConstants.KEY_RIGHT:
                 self.next_x = self.cur_x + self.qr_blocks_per_zoom * self.pixels_per_block
                 self.cur_block_x += 1
@@ -1330,6 +1439,16 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
                 if self.next_x < 0:
                     self.next_x = self.cur_x
                     self.cur_block_x += 1
+            elif input == HardwareButtonsConstants.KEY1:
+                # Reduce QR code background brightness
+                self.qr_brightness.set_value(max(31, self.qr_brightness.cur_count - 31))
+                self.tips_start_time.set_value(time.time_ns())
+                self._render()  # Re-render with new brightness
+            elif input == HardwareButtonsConstants.KEY2:
+                # Increase QR code background brightness
+                self.qr_brightness.set_value(min(self.qr_brightness.cur_count + 31, 255))
+                self.tips_start_time.set_value(time.time_ns())
+                self._render()  # Re-render with new brightness
             elif input == HardwareButtonsConstants.KEY_DOWN:
                 self.next_y = self.cur_y + self.qr_blocks_per_zoom * self.pixels_per_block
                 self.cur_block_y += 1
@@ -1343,6 +1462,8 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
                     self.next_y = self.cur_y
                     self.cur_block_y += 1
             elif input in HardwareButtonsConstants.KEYS__ANYCLICK:
+                # Save the current brightness setting before exiting
+                Settings.get_instance().set_value(SettingsConstants.SETTING__QR_BRIGHTNESS, self.qr_brightness.cur_count)
                 return
 
             # Create overlay for block labels (e.g. "D-5")
@@ -1385,6 +1506,9 @@ class AddressVerificationSigTypeScreen(ButtonListScreen):
 
         self.components.append(TextArea(
             text=self.text,
+            font_size=GUIConstants.LABEL_FONT_SIZE,
+            font_color=GUIConstants.LABEL_FONT_COLOR,
+            is_text_centered=True,
             screen_y=self.top_nav.height,
         ))
 
