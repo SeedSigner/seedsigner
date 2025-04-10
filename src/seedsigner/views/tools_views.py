@@ -255,8 +255,10 @@ class ToolsDiceEntropyEntryView(View):
 ****************************************************************************"""
 class ToolsCoinEntropyMnemonicLengthView(View):
     def run(self):
-        TWELVE = ButtonOption(f"12 words ({mnemonic_generation.COIN__NUM_FLIPS__12WORD} flips)")
-        TWENTY_FOUR = ButtonOption(f"24 words ({mnemonic_generation.COIN__NUM_FLIPS__24WORD} flips)")
+        num_flips_12 = mnemonic_generation.COIN__NUM_FLIPS__12WORD
+        TWELVE = ButtonOption(f"12 words {num_flips_12} flips")
+        num_flips_24 = mnemonic_generation.COIN__NUM_FLIPS__24WORD
+        TWENTY_FOUR = ButtonOption(f"24 words {num_flips_24} flips")
 
         button_data = [TWELVE, TWENTY_FOUR]
         selected_menu_num = ButtonListScreen(

@@ -175,12 +175,13 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
 class ToolsCoinEntropyEntryScreen(KeyboardScreen):
     def __post_init__(self):
         # Override values set by the parent class
-        self.title = _(f"Coin Flip 1/{self.return_after_n_chars}")
+        # TRANSLATOR_NOTE: Inserts the number of flips required
+        self.title = _("Coin Flip 1/{}").format(self.return_after_n_chars)
 
         # Specify the keys in the keyboard
         self.rows = 2
         self.cols = 2
-        self.key_height = GUIConstants.get_top_nav_title_font_size() + 2 + 2*GUIConstants.EDGE_PADDING
+        self.key_height = GUIConstants.get_top_nav_title_font_size() + GUIConstants.EDGE_PADDING/4 + 2*GUIConstants.EDGE_PADDING
         self.keys_charset = "".join([
             "H",
             "T",
@@ -201,7 +202,7 @@ class ToolsCoinEntropyEntryScreen(KeyboardScreen):
         ))
 
     def update_title(self) -> bool:
-        self.title = _(f"Coin Flip {self.cursor_position + 1}/{self.return_after_n_chars}")
+        self.title = _("Coin Flip {}/{}").format(self.cursor_position + 1, self.return_after_n_chars )
         return True
 
 
@@ -236,7 +237,7 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
         # Specify the keys in the keyboard
         self.rows = 1
         self.cols = 4
-        self.key_height = GUIConstants.get_top_nav_title_font_size() + 2 + 2*GUIConstants.EDGE_PADDING
+        self.key_height = GUIConstants.get_top_nav_title_font_size() + GUIConstants.EDGE_PADDING/4 + 2*GUIConstants.EDGE_PADDING
         self.keys_charset = "10"
 
         # Now initialize the parent class
