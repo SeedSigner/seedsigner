@@ -175,7 +175,7 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
 class ToolsCoinEntropyEntryScreen(KeyboardScreen):
     def __post_init__(self):
         # Override values set by the parent class
-        self.title = f"Coin Flip 1/{self.return_after_n_chars}"
+        self.title = _(f"Coin Flip 1/{self.return_after_n_chars}")
 
         # Specify the keys in the keyboard
         self.rows = 2
@@ -196,12 +196,12 @@ class ToolsCoinEntropyEntryScreen(KeyboardScreen):
         super().__post_init__()
 
         self.components.append(TextArea(
-            text="(H)eads: 1   /   (T)ails: 0",
+            text=_("(H)eads: 1   /   (T)ails: 0"),
             screen_y = self.keyboard.rect[3] + 3*GUIConstants.COMPONENT_PADDING,
         ))
 
     def update_title(self) -> bool:
-        self.title = f"Coin Flip {self.cursor_position + 1}/{self.return_after_n_chars}"
+        self.title = _(f"Coin Flip {self.cursor_position + 1}/{self.return_after_n_chars}")
         return True
 
 
