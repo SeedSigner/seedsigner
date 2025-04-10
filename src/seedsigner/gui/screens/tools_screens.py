@@ -180,7 +180,7 @@ class ToolsCoinEntropyEntryScreen(KeyboardScreen):
         # Specify the keys in the keyboard
         self.rows = 2
         self.cols = 2
-        self.key_height = GUIConstants.TOP_NAV_TITLE_FONT_SIZE + 2 + 2*GUIConstants.EDGE_PADDING
+        self.key_height = GUIConstants.get_top_nav_title_font_size() + 2 + 2*GUIConstants.EDGE_PADDING
         self.keys_charset = "".join([
             "H",
             "T",
