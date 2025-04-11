@@ -74,7 +74,7 @@ class SeedSelectSeedView(View):
     SCAN_SEED = ButtonOption("Scan a seed", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-    TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_ELECTRUM = ButtonOption("Enter electrum seed", FontAwesomeIconConstants.KEYBOARD)
 
 
     def __init__(self, flow: str):
@@ -162,7 +162,7 @@ class LoadSeedView(View):
     SEED_QR = ButtonOption("Scan a SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-    TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_ELECTRUM = ButtonOption("Enter electrum seed", FontAwesomeIconConstants.KEYBOARD)
     CREATE = ButtonOption("Create a seed", SeedSignerIconConstants.PLUS)
 
     def run(self):
@@ -523,13 +523,13 @@ class SeedElectrumMnemonicStartView(View):
 ****************************************************************************"""
 class SeedOptionsView(View):
     SCAN_PSBT = ButtonOption("Scan PSBT", SeedSignerIconConstants.QRCODE)
-    VERIFY_ADDRESS = ButtonOption("Verify Addr")
-    EXPORT_XPUB = ButtonOption("Export Xpub")
-    EXPLORER = ButtonOption("Address Explorer")
-    SIGN_MESSAGE = ButtonOption("Sign Message")
-    BACKUP = ButtonOption("Backup Seed", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
-    BIP85_CHILD_SEED = ButtonOption("BIP-85 Child Seed")
-    DISCARD = ButtonOption("Discard Seed", button_label_color="red")
+    VERIFY_ADDRESS = ButtonOption("Verify addr")
+    EXPORT_XPUB = ButtonOption("Export xpub")
+    EXPLORER = ButtonOption("Address explorer")
+    SIGN_MESSAGE = ButtonOption("Sign message")
+    BACKUP = ButtonOption("Backup seed", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
+    BIP85_CHILD_SEED = ButtonOption("BIP-85 child seed")
+    DISCARD = ButtonOption("Discard seed", button_label_color="red")
 
 
     def __init__(self, seed_num: int):
@@ -635,7 +635,7 @@ class SeedOptionsView(View):
 
 
 class SeedBackupView(View):
-    VIEW_WORDS = ButtonOption("View Seed Words")
+    VIEW_WORDS = ButtonOption("View seed words")
     EXPORT_SEEDQR = ButtonOption("Export as SeedQR")
 
     def __init__(self, seed_num):
@@ -1210,7 +1210,7 @@ class SeedBIP85InvalidChildIndexView(View):
             status_icon_name=SeedSignerIconConstants.ERROR,
             status_headline=_("Invalid Child Index"),
             text=_("BIP-85 Child Index must be between 0 and 2^31-1."),
-            button_data=[ButtonOption("Try Again")]
+            button_data=[ButtonOption("Try again")]
         ).display()
 
         return Destination(
@@ -1344,8 +1344,8 @@ class SeedWordsBackupTestView(View):
 
 
 class SeedWordsBackupTestMistakeView(View):
-    REVIEW = ButtonOption("Review Seed Words")
-    RETRY = ButtonOption("Try Again")
+    REVIEW = ButtonOption("Review seed words")
+    RETRY = ButtonOption("Try again")
 
     def __init__(self, seed_num: int, bip85_data: dict = None, cur_index: int = None, wrong_word: str = None, confirmed_list: list[bool] = None):
         super().__init__()
@@ -2039,7 +2039,7 @@ class SeedAddressVerificationSuccessView(View):
 
 
 class LoadMultisigWalletDescriptorView(View):
-    SCAN = ButtonOption("Scan Descriptor", SeedSignerIconConstants.QRCODE)
+    SCAN = ButtonOption("Scan descriptor", SeedSignerIconConstants.QRCODE)
     CANCEL = ButtonOption("Cancel")
 
     def run(self):
@@ -2065,8 +2065,8 @@ class LoadMultisigWalletDescriptorView(View):
 
 class MultisigWalletDescriptorView(View):
     RETURN = ButtonOption("Return to PSBT")
-    VERIFY_ADDR = ButtonOption("Verify Addr")
-    ADDRESS_EXPLORER = ButtonOption("Address Explorer")
+    VERIFY_ADDR = ButtonOption("Verify addr")
+    ADDRESS_EXPLORER = ButtonOption("Address explorer")
     OK = ButtonOption("OK")
 
     def run(self):

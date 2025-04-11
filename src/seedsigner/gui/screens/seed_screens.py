@@ -605,7 +605,7 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
 
     def __post_init__(self):
         # Programmatically set up other args
-        self.button_data = [ButtonOption("Export Xpub")]
+        self.button_data = [ButtonOption("Export xpub")]
         self.title = _("Xpub Details")
 
         # Initialize the base class
@@ -1649,7 +1649,7 @@ class SeedSignMessageConfirmAddressScreen(ButtonListScreen):
         self.title = _("Confirm Address")
         self.is_bottom_list = True
         self.is_button_text_centered = True
-        self.button_data = [ButtonOption("Sign Message")]
+        self.button_data = [ButtonOption("Sign message")]
         super().__post_init__()
 
         derivation_path_display = IconTextLine(

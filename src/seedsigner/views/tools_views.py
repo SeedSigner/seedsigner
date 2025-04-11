@@ -455,7 +455,7 @@ class ToolsAddressExplorerSelectSourceView(View):
     SCAN_DESCRIPTOR = ButtonOption("Scan wallet descriptor", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD, return_data=12)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD, return_data=24)
-    TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_ELECTRUM = ButtonOption("Enter electrum seed", FontAwesomeIconConstants.KEYBOARD)
 
     def run(self):
         from seedsigner.controller import Controller

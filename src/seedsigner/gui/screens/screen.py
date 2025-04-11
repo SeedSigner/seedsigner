@@ -1020,7 +1020,7 @@ class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
     status_icon_name: str = SeedSignerIconConstants.WARNING
     status_color: str = GUIConstants.WARNING_COLOR
     status_headline: str = _mft("Privacy Leak!")     # The colored text under the alert icon
-    button_data: list = field(default_factory=lambda: [ButtonOption("I Understand")])
+    button_data: list = field(default_factory=lambda: [ButtonOption("I understand")])
 
 
 

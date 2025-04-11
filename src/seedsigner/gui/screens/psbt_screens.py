@@ -31,7 +31,7 @@ class PSBTOverviewScreen(ButtonListScreen):
         # Customize defaults
         self.title = _("Review PSBT")
         self.is_bottom_list = True
-        self.button_data = [ButtonOption("Review Details")]
+        self.button_data = [ButtonOption("Review details")]
 
         # This screen can take a while to load while parsing the PSBT
         self.show_loading_screen = True
@@ -479,7 +479,7 @@ class PSBTMathScreen(ButtonListScreen):
     def __post_init__(self):
         # Customize defaults
         self.title = _("PSBT Math")
-        self.button_data = [ButtonOption("Review Recipients")]
+        self.button_data = [ButtonOption("Review decipients")]
         self.is_bottom_list = True
 
         super().__post_init__()
