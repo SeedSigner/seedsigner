@@ -23,8 +23,8 @@ class ToolsMenuView(View):
     IMAGE = ButtonOption("New seed", FontAwesomeIconConstants.CAMERA)
     DICE = ButtonOption("New seed", FontAwesomeIconConstants.DICE)
     KEYBOARD = ButtonOption("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
-    ADDRESS_EXPLORER = ButtonOption("Address Explorer")
-    VERIFY_ADDRESS = ButtonOption("Verify Address")
+    ADDRESS_EXPLORER = ButtonOption("Address explorer")
+    VERIFY_ADDRESS = ButtonOption("Verify address")
 
     def run(self):
         button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
@@ -516,10 +516,10 @@ class ToolsAddressExplorerSelectSourceView(View):
 
 class ToolsAddressExplorerAddressTypeView(View):
     # TRANSLATOR_NOTE: label for addresses where others send us incoming payments
-    RECEIVE = ButtonOption("Receive Addresses")
+    RECEIVE = ButtonOption("Receive addresses")
 
     # TRANSLATOR_NOTE: label for addresses that collect the change from our own outgoing payments
-    CHANGE = ButtonOption("Change Addresses")
+    CHANGE = ButtonOption("Change addresses")
 
 
     def __init__(self, seed_num: int = None, script_type: str = None, custom_derivation: str = None):

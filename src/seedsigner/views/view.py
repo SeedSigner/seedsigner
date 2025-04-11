@@ -366,7 +366,7 @@ class UnhandledExceptionView(View):
 
 @dataclass
 class OptionDisabledView(View):
-    UPDATE_SETTING = ButtonOption("Update Setting")
+    UPDATE_SETTING = ButtonOption("Update setting")
     DONE = ButtonOption("Done")
     settings_attr: str
 

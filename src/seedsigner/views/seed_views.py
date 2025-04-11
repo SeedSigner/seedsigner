@@ -268,7 +268,7 @@ class SeedMnemonicEntryView(View):
 
 
 class SeedMnemonicInvalidView(View):
-    EDIT = ButtonOption("Review & Edit")
+    EDIT = ButtonOption("Review & edit")
     DISCARD = ButtonOption("Discard", button_label_color="red")
 
     def __init__(self):
@@ -454,7 +454,7 @@ class SeedReviewPassphraseView(View):
 
             
 class SeedDiscardView(View):
-    KEEP = ButtonOption("Keep Seed")
+    KEEP = ButtonOption("Keep seed")
     DISCARD = ButtonOption("Discard", button_label_color="red")
 
     def __init__(self, seed_num: int = None):
