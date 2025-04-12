@@ -19,8 +19,10 @@ logger = logging.getLogger(__name__)
 # TODO: This early code is now outdated vis-a-vis Screen vs View distinctions
 class LogoScreen(BaseScreen):
     def __init__(self):
+        """Initialize the logo display screen with the SeedSigner logo image path, partner logos, and active state."""
         super().__init__()
-        self.logo = load_image("logo_black_240.png")
+        self.image_path = load_image("logo_black_240.png")  # Renamed for consistency
+        self.is_active = False                             # Added state flag for UI pattern
 
         self.partners = [
             "hrf",
