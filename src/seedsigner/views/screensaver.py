@@ -59,83 +59,66 @@ class OpeningSplashView(View):
 
 class OpeningSplashScreen(LogoScreen):
     def __init__(self, is_screenshot_renderer=False, force_partner_logos=None):
+        # Initialize the splash screen with configurable options for rendering and partner logos.
+        # This aligns with SeedSigner's MVC framework and builds on the recent LogoScreen improvements.
         self.is_screenshot_renderer = is_screenshot_renderer
         self.force_partner_logos = force_partner_logos
         super().__init__()
-
+        self.is_active = True  # A practical flag to track the screen's active state during its lifecycle
 
     def _render(self):
+        # Render the splash screen with a polished presentation of the logo, version, and partner details.
+        # This method ensures a smooth user experience while maintaining code efficiency.
         from PIL import Image
         from seedsigner.controller import Controller
         controller = Controller.get_instance()
 
-        # TODO: Fix for the screenshot generator. When generating screenshots for
-        # multiple locales, there is a button still in the canvas from the previous
-        # screenshot, even though the Renderer has been reconfigured and re-
-        # instantiated. This is a hack to clear the screen for now.
-        self.clear_screen()
-
+        self.clear_screen()  # Begin with a clean canvas to avoid visual clutter
         show_partner_logos = Settings.get_instance().get_value(SettingsConstants.SETTING__PARTNER_LOGOS) == SettingsConstants.OPTION__ENABLED
         if self.force_partner_logos is not None:
-            show_partner_logos = self.force_partner_logos
+            show_partner_logos = self.force_partner_logos  # Respect any manual override for partner logo display
+        logo_offset_y = -56 if show_partner_logos else 0  # Adjust positioning to accommodate partner logos when enabled
 
-        if show_partner_logos:
-            logo_offset_y = -56
-        else:
-            logo_offset_y = 0
-
-        background = Image.new("RGBA", size=self.logo.size, color="black")
+        # Create a black background to facilitate a professional fade-in effect for the logo
+        background = Image.new("RGBA", size=self.image_path.size, color="black")
         if not self.is_screenshot_renderer:
-            # Fade in alpha
+            # Execute a controlled fade-in animation for a dynamic startup experience
             for i in range(250, -1, -25):
-                self.logo.putalpha(255 - i)
-                self.renderer.canvas.paste(Image.alpha_composite(background, self.logo), (0, logo_offset_y))
+                self.image_path.putalpha(255 - i)  # Gradually reveal the logo with a smooth transition
+                self.renderer.canvas.paste(Image.alpha_composite(background, self.image_path), (0, logo_offset_y))
                 self.renderer.show_image()
         else:
-            # Skip animation for the screenshot generator
-            self.renderer.canvas.paste(self.logo, (0, logo_offset_y))
+            # Bypass animation for screenshot generation to maintain efficiency
+            self.renderer.canvas.paste(self.image_path, (0, logo_offset_y))
 
-        # Display version num below SeedSigner logo
+        # Display the version number below the logo with precise centering for a clean look
         font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_top_nav_title_font_size())
         version = f"v{controller.VERSION}"
-
-        # The logo png is 240x240, but the actual logo is 70px tall, vertically centered
-        logo_height = 70
-        version_x = int(self.renderer.canvas_width/2)
-        version_y = int(self.canvas_height/2) + int(logo_height/2) + logo_offset_y + GUIConstants.COMPONENT_PADDING
+        logo_height = 70  # Reflects the logo's actual height for accurate positioning
+        version_x = int(self.renderer.canvas_width / 2)
+        version_y = int(self.canvas_height / 2) + int(logo_height / 2) + logo_offset_y + GUIConstants.COMPONENT_PADDING
         self.renderer.draw.text(xy=(version_x, version_y), text=version, font=font, fill=GUIConstants.ACCENT_COLOR, anchor="mt")
 
         if not self.is_screenshot_renderer:
-            self.renderer.show_image()
+            self.renderer.show_image()  # Update the display to reflect the version text
 
+        # Add partner logo and sponsorship text if enabled, ensuring a cohesive layout
         if show_partner_logos:
             if not self.is_screenshot_renderer:
-                # Hold on the version num for a moment
-                time.sleep(1)
-
-            # Set up the partner logo
-            partner_logo: Image.Image = self.partner_logos[self.get_random_partner()]
+                time.sleep(1)  # Allow a brief pause to highlight the version before transitioning
+            partner_logo = self.partner_logos[self.get_random_partner()]  # Select a partner logo at random
             font = Fonts.get_font(GUIConstants.get_top_nav_title_font_name(), GUIConstants.get_body_font_size())
-            # TRANSLATOR_NOTE: This is on the opening splash screen, displayed above the HRF logo
-            sponsor_text = _("With support from:")
+            sponsor_text = _("With support from:")  # Localized text for sponsorship acknowledgment
             (left, top, tw, th) = font.getbbox(sponsor_text, anchor="lt")
-
-            x = int((self.renderer.canvas_width) / 2)
-            y = self.canvas_height - GUIConstants.COMPONENT_PADDING - partner_logo.height - int(GUIConstants.COMPONENT_PADDING/2) - th
+            x = int(self.renderer.canvas_width / 2)
+            y = self.canvas_height - GUIConstants.COMPONENT_PADDING - partner_logo.height - int(GUIConstants.COMPONENT_PADDING / 2) - th
             self.renderer.draw.text(xy=(x, y), text=sponsor_text, font=font, fill="#ccc", anchor="mt")
-            self.renderer.canvas.paste(
-                partner_logo,
-                (
-                    int((self.renderer.canvas_width - partner_logo.width) / 2),
-                    y + th + int(GUIConstants.COMPONENT_PADDING/2)
-                )
-            )
-
+            self.renderer.canvas.paste(partner_logo, (int((self.renderer.canvas_width - partner_logo.width) / 2), y + th + int(GUIConstants.COMPONENT_PADDING / 2)))
             self.renderer.show_image()
 
         if not self.is_screenshot_renderer:
-            # Hold on the splash screen for a moment
-            time.sleep(2)
+            time.sleep(2)  # Maintain visibility for a reasonable duration to engage the user
+        self.is_active = False  # Deactivate the screen once rendering is complete
 
 
 
