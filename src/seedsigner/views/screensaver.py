@@ -86,8 +86,6 @@ class BaseLogoScreen(BaseScreen):
     def _run(self):
         pass
 
-
-
 @dataclass
 class OpeningSplashView(View):
     is_screenshot_renderer: bool = False
@@ -100,14 +98,11 @@ class OpeningSplashView(View):
             force_partner_logos=self.force_partner_logos
         )
 
-
-
 class OpeningSplashScreen(BaseLogoScreen):
     def __init__(self, is_screenshot_renderer=False, force_partner_logos=None):
         self.is_screenshot_renderer = is_screenshot_renderer
         self.force_partner_logos = force_partner_logos
         super().__init__()
-
 
     def _render(self):
         # TODO: Fix for the screenshot generator. When generating screenshots for
@@ -144,8 +139,6 @@ class OpeningSplashScreen(BaseLogoScreen):
             # Hold on the splash screen for a moment
             time.sleep(2)
 
-
-
 class ScreensaverScreen(BaseLogoScreen):
     def __init__(self, buttons):
         from PIL import Image
@@ -168,7 +161,6 @@ class ScreensaverScreen(BaseLogoScreen):
         self._is_running = False
         self.last_screen = None
 
-
     @property
     def is_running(self):
         return self._is_running
@@ -181,7 +173,6 @@ class ScreensaverScreen(BaseLogoScreen):
         if random.uniform(-1.0, 1.0) < 0.0:
             return -1.0 * increment
         return increment
-
 
     def start(self):
         if self.is_running:
@@ -247,9 +238,5 @@ class ScreensaverScreen(BaseLogoScreen):
                 # Restore the original screen
                 self.renderer.show_image(self.last_screen)
 
-
-
     def stop(self):
         self._is_running = False
-
-
