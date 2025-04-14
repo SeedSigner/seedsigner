@@ -14,7 +14,7 @@ This pull request is categorized as a:
 
 ## Checklist
 
-- [ ] I’ve run `pytest` and made sure all unit tests pass before sumbitting the PR
+- [ ] I’ve run `pytest` and made sure all unit tests pass before submitting the PR
 
 If you modified or added functionality/workflow, did you add new unit tests?
 
