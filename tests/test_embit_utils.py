@@ -95,6 +95,13 @@ def test_get_standard_derivation_path():
             with pytest.raises(expected):
                 func(**a_dict)
 
+def test_get_standard_derivation_path_unsupported_script_type():
+    with pytest.raises(Exception, match=f"Unsupported script type for {SC.MULTISIG}: {SC.CUSTOM_DERIVATION}"):
+        embit_utils.get_standard_derivation_path(
+                network = SC.MAINNET,
+                sig_type=SC.MULTISIG,
+                script_type=SC.CUSTOM_DERIVATION
+        )
 
 def test_get_xpub():
     """
