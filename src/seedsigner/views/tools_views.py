@@ -255,10 +255,13 @@ class ToolsDiceEntropyEntryView(View):
 ****************************************************************************"""
 class ToolsCoinEntropyMnemonicLengthView(View):
     def run(self):
-        num_flips_12 = mnemonic_generation.COIN__NUM_FLIPS__12WORD
-        TWELVE = ButtonOption(f"12 words {num_flips_12} flips")
-        num_flips_24 = mnemonic_generation.COIN__NUM_FLIPS__24WORD
-        TWENTY_FOUR = ButtonOption(f"24 words {num_flips_24} flips")
+        # TRANSLATOR_NOTE: Inserts the number of dice rolls needed for a 12-word mnemonic
+        twelve = _("12 words ({} flips)").format(mnemonic_generation.COIN__NUM_FLIPS__12WORD)
+        TWELVE = ButtonOption(twelve, return_data=mnemonic_generation.COIN__NUM_FLIPS__12WORD)
+
+        # TRANSLATOR_NOTE: Inserts the number of dice rolls needed for a 24-word mnemonic
+        twenty_four = _("24 words ({} flips)").format(mnemonic_generation.COIN__NUM_FLIPS__24WORD)
+        TWENTY_FOUR = ButtonOption(twenty_four, return_data=mnemonic_generation.COIN__NUM_FLIPS__24WORD)
 
         button_data = [TWELVE, TWENTY_FOUR]
         selected_menu_num = ButtonListScreen(
