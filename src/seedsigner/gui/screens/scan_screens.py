@@ -6,6 +6,7 @@ from PIL import Image, ImageDraw
 
 from seedsigner.gui import renderer
 from seedsigner.gui.components import GUIConstants, Fonts, resize_image_to_fill
+from seedsigner.gui.toast import ToastOverlay
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 
@@ -109,6 +110,7 @@ class ScanScreen(BaseScreen):
             num_frames = 0
             debug = False
             show_framerate = False  # enable for debugging / testing
+            start = time.time()
             while self.keep_running:
                 frame = self.camera.read_video_stream(as_image=True)
                 if frame is not None:
@@ -139,27 +141,11 @@ class ScanScreen(BaseScreen):
                             # Note: shadowed text (adding a 'stroke' outline) can
                             # significantly slow down the rendering.
                             # Temp solution: render a slight 1px shadow behind the text
-                            # TODO: Replace the instructions_text with a disappearing
-                            # toast/popup (see: QR Brightness UI)?
                             draw = ImageDraw.Draw(frame)
-                            draw.text(xy=(
-                                        int(self.renderer.canvas_width/2 + 2),
-                                        self.renderer.canvas_height - GUIConstants.EDGE_PADDING + 2
-                                     ),
-                                     text=scan_text,
-                                     fill="black",
-                                     font=instructions_font,
-                                     anchor="ms")
-
-                            # Render the onscreen instructions
-                            draw.text(xy=(
-                                        int(self.renderer.canvas_width/2),
-                                        self.renderer.canvas_height - GUIConstants.EDGE_PADDING
-                                     ),
-                                     text=scan_text,
-                                     fill=GUIConstants.BODY_FONT_COLOR,
-                                     font=instructions_font,
-                                     anchor="ms")
+                            if time.time() - start < 3:
+                                ToastOverlay(image_draw=draw, canvas=frame, label_text=scan_text, font_size=15,
+                                                     render_with_current_canvas=True, is_text_centered=True,
+                                                     has_background_box=False).render()
 
                         else:
                             # Render the progress bar

@@ -18,6 +18,9 @@ class ToastOverlay(BaseComponent):
     height: int = GUIConstants.ICON_TOAST_FONT_SIZE + 2*GUIConstants.EDGE_PADDING
     font_size: int = 19
     outline_thickness: int = 2  # pixels
+    render_with_current_canvas:bool = False
+    is_text_centered:bool = False
+    has_background_box:bool = True
 
     def __post_init__(self):
         super().__post_init__()
@@ -41,7 +44,7 @@ class ToastOverlay(BaseComponent):
             font_size=self.font_size,
             font_color=self.font_color,
             edge_padding=0,
-            is_text_centered=False,
+            is_text_centered=self.is_text_centered,
             auto_line_break=True,
             width=self.canvas_width - icon_delta_x - 2 * GUIConstants.COMPONENT_PADDING - 2 * self.outline_thickness,
             screen_x=icon_delta_x + GUIConstants.COMPONENT_PADDING,
@@ -62,13 +65,14 @@ class ToastOverlay(BaseComponent):
 
     def render(self):
         # Render the toast's solid background
-        self.image_draw.rounded_rectangle(
-            (0, self.canvas_height - self.height, self.canvas_width, self.canvas_height),
-            fill=GUIConstants.BACKGROUND_COLOR,
-            radius=8,
-            outline=self.color,
-            width=self.outline_thickness,
-        )
+        if self.has_background_box:
+            self.image_draw.rounded_rectangle(
+                (0, self.canvas_height - self.height, self.canvas_width, self.canvas_height),
+                fill=GUIConstants.BACKGROUND_COLOR,
+                radius=8,
+                outline=self.color,
+                width=self.outline_thickness,
+            )
 
         # Draw the toast visual elements
         if self.icon_name:
@@ -76,7 +80,10 @@ class ToastOverlay(BaseComponent):
 
         self.label.render()
 
-        self.renderer.show_image()
+        if self.render_with_current_canvas:
+            self.renderer.show_image(image=self.canvas)
+        else:
+            self.renderer.show_image()
 
 
 
