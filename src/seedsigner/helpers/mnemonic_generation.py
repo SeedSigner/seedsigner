@@ -131,3 +131,17 @@ def generate_mnemonic_from_image(image, wordlist_language_code: str = SettingsCo
 
     # Return as a list
     return bip39.mnemonic_from_bytes(hash.digest(), wordlist=Seed.get_wordlist(wordlist_language_code)).split()
+
+
+def generate_checksum_from_entropy(entropy_bits: str) -> str:
+    """ Generate SHA256 checksum for given entropy bit string """
+    entropy_bytes = int(entropy_bits, 2).to_bytes(len(entropy_bits)//8, byteorder='big')
+    digest = hashlib.sha256(entropy_bytes).digest()
+    return ''.join(f"{byte:08b}" for byte in digest)
+
+def get_bip39_word(bits: str) -> str:
+    """ Convert 11-bit string to BIP39 word """
+    index = int(bits, 2)
+
+    from seedsigner.models.seed import Seed
+    return Seed.get_wordlist()[index]
