@@ -189,7 +189,7 @@ class OpeningSplashView(View):
     force_partner_logos: bool|None = None
 
     def run(self):
-        from seedsigner.views.screensaver import OpeningSplashScreen
+        from seedsigner.gui.screens import OpeningSplashScreen
         self.run_screen(
             OpeningSplashScreen,
             is_screenshot_renderer=self.is_screenshot_renderer,

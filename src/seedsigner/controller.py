@@ -13,7 +13,7 @@ from seedsigner.models.seed_storage import SeedStorage
 from seedsigner.models.settings import Settings
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
-from seedsigner.views.screensaver import ScreensaverScreen
+from seedsigner.gui.screens import ScreensaverScreen
 from seedsigner.views.view import Destination
 
 
@@ -389,7 +389,7 @@ class Controller(Singleton):
         logger.info("Controller: Starting screensaver")
         if not self.screensaver:
             # Do a lazy/late import and instantiation to reduce Controller initial startup time
-            from seedsigner.views.screensaver import ScreensaverScreen
+            from seedsigner.gui.screens import ScreensaverScreen
             from seedsigner.hardware.buttons import HardwareButtons
             self.screensaver = ScreensaverScreen(HardwareButtons.get_instance())
         

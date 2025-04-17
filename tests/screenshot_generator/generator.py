@@ -16,7 +16,7 @@ from embit.script import Script
 # These must precede any SeedSigner imports.
 sys.modules['seedsigner.hardware.displays.st7789_mpy'] = MagicMock()
 sys.modules['seedsigner.hardware.displays.ili9341'] = MagicMock()
-sys.modules['seedsigner.views.screensaver.ScreensaverScreen'] = MagicMock()
+sys.modules['seedsigner.gui.screens.ScreensaverScreen'] = MagicMock()
 sys.modules['RPi'] = MagicMock()
 sys.modules['RPi.GPIO'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
@@ -60,7 +60,7 @@ def test_generate_all(locale, target_locale):
         # We can't generate pixel-perfect screenshots that match what gets rendered on
         # the device if we don't have libraqm.
         pytest.fail("libraqm is not installed.")
-    
+
     generate_screenshots(locale)
 
 
