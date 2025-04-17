@@ -21,10 +21,36 @@ from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, Vie
 
 logger = logging.getLogger(__name__)
 
-
+def get_seedxor_seeds(seed, other_seeds):
+    """returns list of candidate seeds for SeedXOR"""
+    print(seed, other_seeds)
+    candidate_seeds = []
+    
+    #If seed is a list of fingerprints, get the actual seed from controller.storage
+    if isinstance(seed, list):
+        #Need to get the actual seed(s) from controller.storage
+        from seedsigner.controller import Controller
+        controller = Controller.get_instance()
+        if len(controller.storage.seeds) > 0:
+            for other in other_seeds:
+                if len(other.mnemonic_list) == len(controller.storage.seeds[0].mnemonic_list) \
+                and other.mnemonic_list != controller.storage.seeds[0].mnemonic_list \
+                and len(other.passphrase) == 0:
+                    candidate_seeds.append(other)
+    else:
+        #Original logic when seed is a Seed object
+        for other in other_seeds:
+            print(other)
+            if len(other.mnemonic_list) == len(seed.mnemonic_list) \
+            and other.mnemonic_list != seed.mnemonic_list \
+            and len(other.passphrase) == 0:
+                candidate_seeds.append(other)
+    
+    return candidate_seeds
 
 class SeedsMenuView(View):
     LOAD = ButtonOption("Load a seed")
+    SEED_XOR = ButtonOption("Seed XOR")
 
     def __init__(self):
         super().__init__()
@@ -45,6 +71,10 @@ class SeedsMenuView(View):
             button_data.append(ButtonOption(seed["fingerprint"], SeedSignerIconConstants.FINGERPRINT))
         button_data.append(self.LOAD)
 
+        if self.settings.get_value(SettingsConstants.SETTING__SEED_XOR) == SettingsConstants.OPTION__ENABLED \
+            and len(get_seedxor_seeds(self.seeds, self.controller.storage.seeds)):
+                button_data.append(self.SEED_XOR)
+
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title=_("In-Memory Seeds"),
@@ -61,8 +91,106 @@ class SeedsMenuView(View):
         elif button_data[selected_menu_num] == self.LOAD:
             return Destination(LoadSeedView)
 
+        elif button_data[selected_menu_num] == self.SEED_XOR:
+            return Destination(SeedXORSelectSeedView)
 
 
+class SeedXORSelectSeedView(View):
+    def __init__(self):
+        super().__init__()
+        self.seed = None
+
+    def run(self):
+        seeds = self.controller.storage.seeds
+        
+        if len(seeds) < 2:
+            self.run_screen(
+                WarningScreen,
+                title="Seed XOR",
+                text="Need at least 2 seeds to perform XOR operation.",
+                button_data=[ButtonOption("OK")]
+            )
+            return Destination(BackStackView)
+            
+        # First, display a screen to select the first seed for XOR
+        title = "Seed XOR"
+        text = "Select first seed"
+        button_data = []
+        for seed in seeds:
+            button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+            button_data.append(ButtonOption(button_str, SeedSignerIconConstants.FINGERPRINT, icon_color="blue"))
+            
+        selected_menu_num = self.run_screen(
+            seed_screens.SeedSelectSeedScreen,
+            title=title,
+            text=text,
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+        
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+            
+        # Get the first selected seed
+        first_seed = seeds[selected_menu_num]
+        #now find candidate seeds that can be XORed with the first seed
+        candidates = []
+        for i, seed in enumerate(seeds):
+            if i != selected_menu_num and len(seed.mnemonic_list) == len(first_seed.mnemonic_list) and len(seed.passphrase) == 0:
+                candidates.append((i, seed))
+        #print(first_seed,candidates)
+        if not candidates:
+            self.run_screen(
+                WarningScreen,
+                title=title,
+                text="No valid seeds available for XOR operation. Seeds must have the same length and no passphrase.",
+                button_data=[ButtonOption("OK")]
+            )
+            return Destination(BackStackView)
+            
+        # display screen to select second seed
+        text = "Select second seed"
+        button_data = []
+        for i, seed in candidates:
+            button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+            button_data.append(ButtonOption(button_str, SeedSignerIconConstants.FINGERPRINT, icon_color="blue", return_data=i))
+            
+        selected_menu_num = self.run_screen(
+            seed_screens.SeedSelectSeedScreen,
+            title=title,
+            text=text,
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+        
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+            
+        second_seed_index = button_data[selected_menu_num].return_data
+        
+        self.controller.storage.set_pending_seed(first_seed)
+        pending_seed = self.controller.storage.get_pending_seed()
+        
+        # xor the pending seed with the second seed
+        second_seed = seeds[second_seed_index]
+        pending_seed.seed_xor(second_seed)
+        #print(second_seed,pending_seed)
+        return Destination(SeedFinalizeView, skip_current_view=True)
+
+
+
+class SeedXORApplyView(View):
+    def __init__(self, seed_num: int = None):
+        super().__init__()
+        self.seed = self.controller.storage.get_pending_seed()
+        seeds = get_seedxor_seeds(self.seed, self.controller.storage.seeds)
+        if seed_num is not None:
+            self.other = seeds[seed_num]
+
+    def run(self):
+        self.seed.seed_xor(self.other)
+        return Destination(SeedFinalizeView, skip_current_view=True)
+    
 class SeedSelectSeedView(View):
     """
     Reusable seed selection UI. Prompts the user to select amongst the already-loaded
