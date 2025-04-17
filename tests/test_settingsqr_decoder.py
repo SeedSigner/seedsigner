@@ -1,7 +1,6 @@
 from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
 
 
-
 class TestSettingsQRDecoder:
     def test_decode_settingsqr(self):
         """
@@ -20,9 +19,8 @@ class TestSettingsQRDecoder:
         data = decoder.get_settings_data()
         assert data == settings_qr_str
 
-
     def test_settingsqr_version(self):
-        """ Should fail if the "settings" header is missing """
+        """Should fail if the "settings" header is missing"""
         settings_qr_str = "name=Foo"
         decoder = DecodeQR()
         status = decoder.add_data(settings_qr_str)

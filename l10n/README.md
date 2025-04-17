@@ -142,7 +142,7 @@ class SomeView(View):
             SomeScreen,
             message=self.title
         )
-  
+
 # elsewhere...
 @dataclass
 class SomeScreen(Screen):
@@ -211,7 +211,7 @@ some_var = _("change")
     mystr = _("My dad's name is {} and my name is {}").format(dad.name, self.name)
     ```
 
-    The translators will only see: "My dad's name is {} and my name is {}" in Transifex. Often the English string literal is 
+    The translators will only see: "My dad's name is {} and my name is {}" in Transifex. Often the English string literal is
     basically incomprehensible on its own so always provide an explanation for what is being injected:
 
     ```python
@@ -228,7 +228,7 @@ some_var = _("change")
     n = 1
     print(ngettext("apple", "apples", n))
     >> apple
-    
+
     n = 5
     print(ngettext("apple", "apples", n))
     >> apples

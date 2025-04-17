@@ -12,6 +12,7 @@
 # COPYRIGHT.md file in the top-level folder of the CBOR-lite software
 # distribution.
 
+
 def bit_length(n):
     return len(bin(abs(n))) - 2
 
@@ -28,7 +29,7 @@ Tag_Major_map = 5 << 5
 Tag_Major_semantic = 6 << 5
 Tag_Major_floatingPoint = 7 << 5
 Tag_Major_simple = 7 << 5
-Tag_Major_mask = 0xe0
+Tag_Major_mask = 0xE0
 
 Tag_Minor_length1 = 24
 Tag_Minor_length2 = 25
@@ -59,15 +60,16 @@ Tag_Minor_base64 = 34
 Tag_Minor_regex = 35
 Tag_Minor_mimeMessage = 36
 Tag_Minor_selfDescribeCbor = 55799
-Tag_Minor_mask = 0x1f
+Tag_Minor_mask = 0x1F
 Tag_Undefined = Tag_Major_semantic + Tag_Minor_undefined
 
 
 def get_byte_length(value):
     if value < 24:
         return 0
-    
+
     return (bit_length(value) + 7) // 8
+
 
 class CBOREncoder:
     def __init__(self):
@@ -86,37 +88,41 @@ class CBOREncoder:
         # 5-8 bytes required, use 8 bytes
         if length >= 5 and length <= 8:
             self.encodeTagAndAdditional(tag, Tag_Minor_length8)
-            self.buf.append((value >> 56) & 0xff)
-            self.buf.append((value >> 48) & 0xff)
-            self.buf.append((value >> 40) & 0xff)
-            self.buf.append((value >> 32) & 0xff)
-            self.buf.append((value >> 24) & 0xff)
-            self.buf.append((value >> 16) & 0xff)
-            self.buf.append((value >> 8) & 0xff)
-            self.buf.append(value & 0xff)
+            self.buf.append((value >> 56) & 0xFF)
+            self.buf.append((value >> 48) & 0xFF)
+            self.buf.append((value >> 40) & 0xFF)
+            self.buf.append((value >> 32) & 0xFF)
+            self.buf.append((value >> 24) & 0xFF)
+            self.buf.append((value >> 16) & 0xFF)
+            self.buf.append((value >> 8) & 0xFF)
+            self.buf.append(value & 0xFF)
 
         # 3-4 bytes required, use 4 bytes
         elif length == 3 or length == 4:
             self.encodeTagAndAdditional(tag, Tag_Minor_length4)
-            self.buf.append((value >> 24) & 0xff)
-            self.buf.append((value >> 16) & 0xff)
-            self.buf.append((value >> 8) & 0xff)
-            self.buf.append(value & 0xff)
+            self.buf.append((value >> 24) & 0xFF)
+            self.buf.append((value >> 16) & 0xFF)
+            self.buf.append((value >> 8) & 0xFF)
+            self.buf.append(value & 0xFF)
 
         elif length == 2:
             self.encodeTagAndAdditional(tag, Tag_Minor_length2)
-            self.buf.append((value >> 8) & 0xff)
-            self.buf.append(value & 0xff)
+            self.buf.append((value >> 8) & 0xFF)
+            self.buf.append(value & 0xFF)
 
         elif length == 1:
             self.encodeTagAndAdditional(tag, Tag_Minor_length1)
-            self.buf.append(value & 0xff)
+            self.buf.append(value & 0xFF)
 
         elif length == 0:
             self.encodeTagAndAdditional(tag, value)
 
         else:
-            raise Exception("Unsupported byte length of {} for value in encodeTagAndValue()".format(length))
+            raise Exception(
+                "Unsupported byte length of {} for value in encodeTagAndValue()".format(
+                    length
+                )
+            )
 
         encoded_size = 1 + length
         return encoded_size
@@ -134,7 +140,9 @@ class CBOREncoder:
             return self.encodeNegative(value)
 
     def encodeBool(self, value):
-        return self.encodeTagAndValue(Tag_Major_simple, Tag_Minor_true if value else Tag_Minor_false)
+        return self.encodeTagAndValue(
+            Tag_Major_simple, Tag_Minor_true if value else Tag_Minor_false
+        )
 
     def encodeBytes(self, value):
         length = self.encodeTagAndValue(Tag_Major_byteString, len(value))
@@ -152,7 +160,7 @@ class CBOREncoder:
     def encodeText(self, value):
         str_len = len(value)
         length = self.encodeTagAndValue(Tag_Major_textString, str_len)
-        self.buf.append(bytes(value, 'utf8'))
+        self.buf.append(bytes(value, "utf8"))
         return length + str_len
 
     def encodeArraySize(self, value):
@@ -180,7 +188,7 @@ class CBORDecoder:
         end = len(self.buf)
 
         if self.pos == end:
-            raise Exception("Not enough input")        
+            raise Exception("Not enough input")
 
         (tag, additional, length) = self.decodeTagAndAdditional(flags)
         if additional < Tag_Minor_length1:
@@ -190,37 +198,37 @@ class CBORDecoder:
         value = 0
         if additional == Tag_Minor_length8:
             if end - self.pos < 8:
-                raise Exception("Not enough input")            
+                raise Exception("Not enough input")
             for shift in [56, 48, 40, 32, 24, 16, 8, 0]:
                 value |= self.buf[self.pos] << shift
                 self.pos += 1
-            if ((flags & Flag_Require_Minimal_Encoding) and value == 0):
+            if (flags & Flag_Require_Minimal_Encoding) and value == 0:
                 raise Exception("Encoding not minimal")
             return (tag, value, self.pos)
         elif additional == Tag_Minor_length4:
             if end - self.pos < 4:
-                raise Exception("Not enough input")            
+                raise Exception("Not enough input")
             for shift in [24, 16, 8, 0]:
                 value |= self.buf[self.pos] << shift
                 self.pos += 1
-            if ((flags & Flag_Require_Minimal_Encoding) and value == 0):
+            if (flags & Flag_Require_Minimal_Encoding) and value == 0:
                 raise Exception("Encoding not minimal")
             return (tag, value, self.pos)
         elif additional == Tag_Minor_length2:
             if end - self.pos < 2:
-                raise Exception("Not enough input")            
+                raise Exception("Not enough input")
             for shift in [8, 0]:
                 value |= self.buf[self.pos] << shift
                 self.pos += 1
-            if ((flags & Flag_Require_Minimal_Encoding) and value == 0):
+            if (flags & Flag_Require_Minimal_Encoding) and value == 0:
                 raise Exception("Encoding not minimal")
             return (tag, value, self.pos)
         elif additional == Tag_Minor_length1:
             if end - self.pos < 1:
-                raise Exception("Not enough input")            
+                raise Exception("Not enough input")
             value |= self.buf[self.pos]
             self.pos += 1
-            if ((flags & Flag_Require_Minimal_Encoding) and value == 0):
+            if (flags & Flag_Require_Minimal_Encoding) and value == 0:
                 raise Exception("Encoding not minimal")
             return (tag, value, self.pos)
 
@@ -229,13 +237,19 @@ class CBORDecoder:
     def decodeUnsigned(self, flags=Flag_None):
         (tag, value, length) = self.decodeTagAndValue(flags)
         if tag != Tag_Major_unsignedInteger:
-            raise Exception("Expected Tag_Major_unsignedInteger ({}), but found {}".format(Tag_Major_unsignedInteger, tag))
+            raise Exception(
+                "Expected Tag_Major_unsignedInteger ({}), but found {}".format(
+                    Tag_Major_unsignedInteger, tag
+                )
+            )
         return (value, length)
 
     def decodeNegative(self, flags=Flag_None):
         (tag, value, length) = self.decodeTagAndValue(flags)
         if tag != Tag_Major_negativeInteger:
-            raise Exception("Expected Tag_Major_negativeInteger, but found {}".format(tag))
+            raise Exception(
+                "Expected Tag_Major_negativeInteger, but found {}".format(tag)
+            )
         return (value, length)
 
     def decodeInteger(self, flags=Flag_None):
@@ -243,7 +257,10 @@ class CBORDecoder:
         if tag == Tag_Major_unsignedInteger:
             return (value, length)
         elif tag == Tag_Major_negativeInteger:
-            return (-1 - value, length)  # TODO: Check that this is the right way -- do we need to use struct.unpack()?
+            return (
+                -1 - value,
+                length,
+            )  # TODO: Check that this is the right way -- do we need to use struct.unpack()?
 
     def decodeBool(self, flags=Flag_None):
         (tag, value, length) = self.decodeTagAndValue(flags)

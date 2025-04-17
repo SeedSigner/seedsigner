@@ -5,6 +5,7 @@
 # Licensed under the "BSD-2-Clause Plus Patent License"
 #
 
+
 class RandomSampler:
 
     def __init__(self, probs):

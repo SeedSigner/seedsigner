@@ -4,7 +4,7 @@ It's work that's built on top of giants (@gobrrrme and @blackcoffee).
 
 The main chassis has the properties of a battle-tested enclosure called SimplePill by @blackcoffee and connected buttons are a slightly reworked design done by @gobrrrme.
 
-What distinguishes this design are the visible screws on top of the enclosure and a presspad. 
+What distinguishes this design are the visible screws on top of the enclosure and a presspad.
 
 This design requires:
 * 4x 10mm M2.5 risers

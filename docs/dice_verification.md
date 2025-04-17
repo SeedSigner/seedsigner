@@ -1,4 +1,4 @@
-# Verifying dice seed generation 
+# Verifying dice seed generation
 
 The intention of this documentation is to describe how to verify the seed generation code used in SeedSigner against other independent tools, to prove that they all generate the same results, despite them using different programming languages and code libraries.<br><br>
 As it is an important step to verify all software releases being used to ensure that the installation files downloaded have not been compromised, the same is true especially for the seed generation procedure which unknowingly might not work as expected due to bugs or even on purpose.<br><br>
@@ -235,7 +235,7 @@ python3 mnemonic.py -h
     Usage:
         # 50 dice rolls / 12-word mnemonic
         python3 mnemonic.py dice 5624433434...
-        
+
         # 99 dice rolls / 24-word mnemonic
         python3 mnemonic.py dice 6151463561...
 

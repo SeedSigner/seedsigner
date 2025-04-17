@@ -6,13 +6,16 @@
 #
 
 import math
+
 from .cbor_lite import CBORDecoder, CBOREncoder
-from .fountain_utils import choose_fragments
-from .utils import split, crc32_int, xor_into, data_to_hex
 from .constants import MAX_UINT32, MAX_UINT64
+from .fountain_utils import choose_fragments
+from .utils import crc32_int, data_to_hex, split, xor_into
+
 
 class InvalidHeader(Exception):
     pass
+
 
 class Part:
 
@@ -30,19 +33,19 @@ class Part:
             (array_size, _) = decoder.decodeArraySize()
             if array_size != 5:
                 raise InvalidHeader()
-                        
+
             (seq_num, _) = decoder.decodeUnsigned()
             if seq_num > MAX_UINT64:  # TODO: Do something better with this check
                 raise InvalidHeader()
-            
+
             (seq_len, _) = decoder.decodeUnsigned()
             if seq_len > MAX_UINT64:
                 raise InvalidHeader()
-            
+
             (message_len, _) = decoder.decodeUnsigned()
             if message_len > MAX_UINT64:
                 raise InvalidHeader()
-            
+
             (checksum, _) = decoder.decodeUnsigned()
             if checksum > MAX_UINT64:
                 raise InvalidHeader()
@@ -80,18 +83,26 @@ class Part:
 
     def description(self):
         return "seqNum:{}, seqLen:{}, messageLen:{}, checksum:{}, data:{}".format(
-            self.seq_num, self.seq_len, self.message_len, self.checksum, data_to_hex(self.data))
+            self.seq_num,
+            self.seq_len,
+            self.message_len,
+            self.checksum,
+            data_to_hex(self.data),
+        )
+
 
 class FountainEncoder:
-    def __init__(self, message, max_fragment_len, first_seq_num = 0, min_fragment_len = 10):
+    def __init__(self, message, max_fragment_len, first_seq_num=0, min_fragment_len=10):
         assert len(message) <= MAX_UINT32
         self.message_len = len(message)
         self.checksum = crc32_int(message)
-        self.fragment_len = FountainEncoder.find_nominal_fragment_length(self.message_len, min_fragment_len, max_fragment_len)
+        self.fragment_len = FountainEncoder.find_nominal_fragment_length(
+            self.message_len, min_fragment_len, max_fragment_len
+        )
         self.fragments = FountainEncoder.partition_message(message, self.fragment_len)
         self.seq_num = first_seq_num
         self.current_part: Part = None
-    
+
     @staticmethod
     def find_nominal_fragment_length(message_len, min_fragment_len, max_fragment_len):
         assert message_len > 0
@@ -107,7 +118,6 @@ class FountainEncoder:
 
         assert fragment_len != None
         return fragment_len
-
 
     @staticmethod
     def partition_message(message, fragment_len):
@@ -144,9 +154,10 @@ class FountainEncoder:
         indexes = choose_fragments(self.seq_num, self.seq_len(), self.checksum)
         mixed = self.mix(indexes)
         data = bytes(mixed)
-        self.current_part = Part(self.seq_num, self.seq_len(), self.message_len, self.checksum, data)
+        self.current_part = Part(
+            self.seq_num, self.seq_len(), self.message_len, self.checksum, data
+        )
         return self.current_part
-    
 
     def restart(self):
         """
@@ -154,7 +165,6 @@ class FountainEncoder:
         (not XOR composites).
         """
         self.seq_num = 0
-
 
     def mix(self, indexes):
         result = [0] * self.fragment_len

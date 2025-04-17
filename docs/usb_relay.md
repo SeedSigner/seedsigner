@@ -99,9 +99,9 @@ If someone savvy got access to your SeedSigner, they could sign into it and pote
 ```
 pi@raspberrypi:~ $ passwd
 Changing password for pi.
-Current password: 
-New password: 
-Retype new password: 
+Current password:
+New password:
+Retype new password:
 passwd: password updated successfully
 ```
 
@@ -119,7 +119,7 @@ Click "Advanced" and change "Configure IPv6" to "Link-local only":
 
 Click "OK" and save your changes.
 
-Now go to the "Sharing" system settings. Click on "Internet Sharing" and check the "RNDIS/Ethernet Gadget". 
+Now go to the "Sharing" system settings. Click on "Internet Sharing" and check the "RNDIS/Ethernet Gadget".
 
 <img src="img/usb_relay_mac_03.png">
 
@@ -183,7 +183,7 @@ static routers=<host_ip>
 static domain_name_servers=8.8.8.8 8.8.4.4
 ```
 
-Eject the SD card and insert it into your Pi Zero 1.3. Plug a USB cable into your computer and into the Pi's USB connector that is closer to the center. It will draw power from the USB cable and begin powering up. 
+Eject the SD card and insert it into your Pi Zero 1.3. Plug a USB cable into your computer and into the Pi's USB connector that is closer to the center. It will draw power from the USB cable and begin powering up.
 
 #### On the Host machine
 
@@ -220,7 +220,7 @@ post-up /sbin/iptables -t nat -A POSTROUTING -o <def_iface> -j MASQUERADE
 
 Reboot your computer.
 
-To see if everything is set up correctly, type `ifconfig` and look for the `seedsigner0` interface. It should have the <host_ip> assigned to it. 
+To see if everything is set up correctly, type `ifconfig` and look for the `seedsigner0` interface. It should have the <host_ip> assigned to it.
 
 ![Static IP on the seedsigner Interface](img/usb_relay_linux_02.png)
 

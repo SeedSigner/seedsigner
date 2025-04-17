@@ -1,28 +1,34 @@
 import logging
 import re
-
 from gettext import gettext as _
+
+from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.helpers.l10n import mark_for_translation as _mft
 from seedsigner.models.settings import SettingsConstants
-from seedsigner.views.view import BackStackView, ErrorView, MainMenuView, NotYetImplementedView, View, Destination
-from seedsigner.gui.screens.screen import ButtonOption
+from seedsigner.views.view import (
+    BackStackView,
+    Destination,
+    ErrorView,
+    MainMenuView,
+    NotYetImplementedView,
+    View,
+)
 
 logger = logging.getLogger(__name__)
 
 
-
 class ScanView(View):
     """
-        The catch-all generic scanning View that will accept any of our supported QR
-        formats and will route to the most sensible next step.
+    The catch-all generic scanning View that will accept any of our supported QR
+    formats and will route to the most sensible next step.
 
-        Can also be used as a base class for more specific scanning flows with
-        dedicated errors when an unexpected QR type is scanned (e.g. Scan PSBT was
-        selected but a SeedQR was scanned).
+    Can also be used as a base class for more specific scanning flows with
+    dedicated errors when an unexpected QR type is scanned (e.g. Scan PSBT was
+    selected but a SeedQR was scanned).
     """
+
     instructions_text = _mft("Scan a QR code")
     invalid_qr_type_message = _mft("QRCode not recognized or not yet supported.")
-
 
     def __init__(self):
         from seedsigner.models.decode_qr import DecodeQR
@@ -30,23 +36,23 @@ class ScanView(View):
         super().__init__()
         # Define the decoder here to make it available to child classes' is_valid_qr_type
         # checks and so we can inject data into it in the test suite's `before_run()`.
-        self.wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-        self.decoder: DecodeQR = DecodeQR(wordlist_language_code=self.wordlist_language_code)
-
+        self.wordlist_language_code = self.settings.get_value(
+            SettingsConstants.SETTING__WORDLIST_LANGUAGE
+        )
+        self.decoder: DecodeQR = DecodeQR(
+            wordlist_language_code=self.wordlist_language_code
+        )
 
     @property
     def is_valid_qr_type(self):
         return True
-
 
     def run(self):
         from seedsigner.gui.screens.scan_screens import ScanScreen
 
         # Start the live preview and background QR reading
         self.run_screen(
-            ScanScreen,
-            instructions_text=self.instructions_text,
-            decoder=self.decoder
+            ScanScreen, instructions_text=self.instructions_text, decoder=self.decoder
         )
 
         # A long scan might have exceeded the screensaver timeout; ensure screensaver
@@ -61,13 +67,19 @@ class ScanView(View):
                 # Report QR types in more human-readable text (e.g. QRType
                 # `seed__compactseedqr` as "seed: compactseedqr").
                 # TODO: cleanup l10n presentation
-                return Destination(ErrorView, view_args=dict(
-                    title="Error",
-                    status_headline=_("Wrong QR Type"),
-                    text=_(self.invalid_qr_type_message) + f""", received "{self.decoder.qr_type.replace("__", ": ").replace("_", " ")}\" format""",
-                    button_text="Back",
-                    next_destination=Destination(BackStackView, skip_current_view=True),
-                ))
+                return Destination(
+                    ErrorView,
+                    view_args=dict(
+                        title="Error",
+                        status_headline=_("Wrong QR Type"),
+                        text=_(self.invalid_qr_type_message)
+                        + f""", received "{self.decoder.qr_type.replace("__", ": ").replace("_", " ")}\" format""",
+                        button_text="Back",
+                        next_destination=Destination(
+                            BackStackView, skip_current_view=True
+                        ),
+                    ),
+                )
 
             if self.decoder.is_seed:
                 seed_mnemonic = self.decoder.get_seed_phrase()
@@ -79,18 +91,28 @@ class ScanView(View):
                     # Found a valid mnemonic seed! All new seeds should be considered
                     #   pending (might set a passphrase, SeedXOR, etc) until finalized.
                     from seedsigner.models.seed import Seed
+
                     from .seed_views import SeedFinalizeView
+
                     self.controller.storage.set_pending_seed(
-                        Seed(mnemonic=seed_mnemonic, wordlist_language_code=self.wordlist_language_code)
+                        Seed(
+                            mnemonic=seed_mnemonic,
+                            wordlist_language_code=self.wordlist_language_code,
+                        )
                     )
-                    if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
+                    if (
+                        self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE)
+                        == SettingsConstants.OPTION__REQUIRED
+                    ):
                         from seedsigner.views.seed_views import SeedAddPassphraseView
+
                         return Destination(SeedAddPassphraseView)
                     else:
                         return Destination(SeedFinalizeView)
-            
+
             elif self.decoder.is_psbt:
                 from seedsigner.views.psbt_views import PSBTSelectSeedView
+
                 psbt = self.decoder.get_psbt()
                 self.controller.psbt = psbt
                 self.controller.psbt_parser = None
@@ -98,24 +120,49 @@ class ScanView(View):
 
             elif self.decoder.is_settings:
                 from seedsigner.views.settings_views import SettingsIngestSettingsQRView
+
                 data = self.decoder.get_settings_data()
-                return Destination(SettingsIngestSettingsQRView, view_args=dict(data=data))
-            
+                return Destination(
+                    SettingsIngestSettingsQRView, view_args=dict(data=data)
+                )
+
             elif self.decoder.is_wallet_descriptor:
                 from embit.descriptor import Descriptor
+
                 from seedsigner.views.seed_views import MultisigWalletDescriptorView
+
                 descriptor_str = self.decoder.get_wallet_descriptor()
 
                 try:
                     # We need to replace `/0/*` wildcards with `/{0,1}/*` in order to use
                     # the Descriptor to verify change, too.
                     orig_descriptor_str = descriptor_str
-                    if len(re.findall (r'\[([0-9,a-f,A-F]+?)(\/[0-9,\/,h\']+?)\].*?(\/0\/\*)', descriptor_str)) > 0:
-                        p = re.compile(r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h\']+?\].*?)(\/0\/\*)')
-                        descriptor_str = p.sub(r'\1/{0,1}/*', descriptor_str)
-                    elif len(re.findall (r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])', descriptor_str)) > 0:
-                        p = re.compile(r'(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])')
-                        descriptor_str = p.sub(r'\1/{0,1}/*\2', descriptor_str)
+                    if (
+                        len(
+                            re.findall(
+                                r"\[([0-9,a-f,A-F]+?)(\/[0-9,\/,h\']+?)\].*?(\/0\/\*)",
+                                descriptor_str,
+                            )
+                        )
+                        > 0
+                    ):
+                        p = re.compile(
+                            r"(\[[0-9,a-f,A-F]+?\/[0-9,\/,h\']+?\].*?)(\/0\/\*)"
+                        )
+                        descriptor_str = p.sub(r"\1/{0,1}/*", descriptor_str)
+                    elif (
+                        len(
+                            re.findall(
+                                r"(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])",
+                                descriptor_str,
+                            )
+                        )
+                        > 0
+                    ):
+                        p = re.compile(
+                            r"(\[[0-9,a-f,A-F]+?\/[0-9,\/,h,\']+?\][a-z,A-Z,0-9]*?)([\,,\)])"
+                        )
+                        descriptor_str = p.sub(r"\1/{0,1}/*\2", descriptor_str)
                 except Exception as e:
                     logger.info(repr(e), exc_info=True)
                     descriptor_str = orig_descriptor_str
@@ -129,9 +176,10 @@ class ScanView(View):
 
                 self.controller.multisig_wallet_descriptor = descriptor
                 return Destination(MultisigWalletDescriptorView, skip_current_view=True)
-            
+
             elif self.decoder.is_address:
                 from seedsigner.views.seed_views import AddressVerificationStartView
+
                 address = self.decoder.get_address()
                 (script_type, network) = self.decoder.get_address_type()
 
@@ -142,11 +190,12 @@ class ScanView(View):
                         "address": address,
                         "script_type": script_type,
                         "network": network,
-                    }
+                    },
                 )
-            
+
             elif self.decoder.is_sign_message:
                 from seedsigner.views.seed_views import SeedSignMessageStartView
+
                 qr_data = self.decoder.get_qr_data()
 
                 return Destination(
@@ -154,9 +203,9 @@ class ScanView(View):
                     view_args=dict(
                         derivation_path=qr_data["derivation_path"],
                         message=qr_data["message"],
-                    )
+                    ),
                 )
-            
+
             else:
                 return Destination(NotYetImplementedView)
 
@@ -169,7 +218,6 @@ class ScanView(View):
         return Destination(MainMenuView)
 
 
-
 class ScanPSBTView(ScanView):
     instructions_text = _mft("Scan PSBT")
     invalid_qr_type_message = _mft("Expected a PSBT")
@@ -177,7 +225,6 @@ class ScanPSBTView(ScanView):
     @property
     def is_valid_qr_type(self):
         return self.decoder.is_psbt
-
 
 
 class ScanSeedQRView(ScanView):
@@ -189,7 +236,6 @@ class ScanSeedQRView(ScanView):
         return self.decoder.is_seed
 
 
-
 class ScanWalletDescriptorView(ScanView):
     instructions_text = _mft("Scan descriptor")
     invalid_qr_type_message = _mft("Expected a wallet descriptor QR")
@@ -199,7 +245,6 @@ class ScanWalletDescriptorView(ScanView):
         return self.decoder.is_wallet_descriptor
 
 
-
 class ScanAddressView(ScanView):
     instructions_text = _mft("Scan address QR")
     invalid_qr_type_message = _mft("Expected an address QR")
@@ -207,7 +252,6 @@ class ScanAddressView(ScanView):
     @property
     def is_valid_qr_type(self):
         return self.decoder.is_address
-
 
 
 class ScanInvalidQRTypeView(View):

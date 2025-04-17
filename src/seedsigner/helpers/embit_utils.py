@@ -1,17 +1,14 @@
-import embit
-
 from binascii import b2a_base64
 from hashlib import sha256
 
+import embit
 from embit import bip32, compact, ec
 from embit.bip32 import HDKey
 from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
 from embit.util import secp256k1
 
-
 from seedsigner.models.settings_definition import SettingsConstants
-
 
 """
     Collection of generic embit-powered util methods.
@@ -20,7 +17,11 @@ from seedsigner.models.settings_definition import SettingsConstants
 
 
 # TODO: Refactor `wallet_type` to conform to our `sig_type` naming convention
-def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, script_type: str = SettingsConstants.NATIVE_SEGWIT) -> str:
+def get_standard_derivation_path(
+    network: str = SettingsConstants.MAINNET,
+    wallet_type: str = SettingsConstants.SINGLE_SIG,
+    script_type: str = SettingsConstants.NATIVE_SEGWIT,
+) -> str:
     if network == SettingsConstants.MAINNET:
         network_path = "0'"
     elif network == SettingsConstants.TESTNET:
@@ -44,7 +45,7 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
 
     elif wallet_type == SettingsConstants.MULTISIG:
         if script_type == SettingsConstants.LEGACY_P2PKH:
-            return f"m/45'" #BIP45
+            return f"m/45'"  # BIP45
         elif script_type == SettingsConstants.NESTED_SEGWIT:
             return f"m/48'/{network_path}/0'/1'"
         elif script_type == SettingsConstants.NATIVE_SEGWIT:
@@ -54,8 +55,9 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
         else:
             raise Exception("Unexpected script type")
     else:
-        raise Exception("Unexpected wallet type")    # checks that all inputs are from the same wallet
-
+        raise Exception(
+            "Unexpected wallet type"
+        )  # checks that all inputs are from the same wallet
 
 
 def get_xpub(seed_bytes, derivation_path: str, embit_network: str = "main") -> HDKey:
@@ -65,18 +67,25 @@ def get_xpub(seed_bytes, derivation_path: str, embit_network: str = "main") -> H
     return xpub
 
 
-
-def get_single_sig_address(xpub: HDKey, script_type: str = SettingsConstants.NATIVE_SEGWIT, index: int = 0, is_change: bool = False, embit_network: str = "main") -> str:
+def get_single_sig_address(
+    xpub: HDKey,
+    script_type: str = SettingsConstants.NATIVE_SEGWIT,
+    index: int = 0,
+    is_change: bool = False,
+    embit_network: str = "main",
+) -> str:
     if is_change:
-        pubkey = xpub.derive([1,index]).key
+        pubkey = xpub.derive([1, index]).key
     else:
-        pubkey = xpub.derive([0,index]).key
+        pubkey = xpub.derive([0, index]).key
 
     if script_type == SettingsConstants.LEGACY_P2PKH:
         return embit.script.p2pkh(pubkey).address(network=NETWORKS[embit_network])
 
     elif script_type == SettingsConstants.NESTED_SEGWIT:
-        return embit.script.p2sh(embit.script.p2wpkh(pubkey)).address(network=NETWORKS[embit_network])
+        return embit.script.p2sh(embit.script.p2wpkh(pubkey)).address(
+            network=NETWORKS[embit_network]
+        )
 
     elif script_type == SettingsConstants.NATIVE_SEGWIT:
         return embit.script.p2wpkh(pubkey).address(network=NETWORKS[embit_network])
@@ -85,8 +94,12 @@ def get_single_sig_address(xpub: HDKey, script_type: str = SettingsConstants.NAT
         return embit.script.p2tr(pubkey).address(network=NETWORKS[embit_network])
 
 
-
-def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool = False, embit_network: str = "main"):
+def get_multisig_address(
+    descriptor: Descriptor,
+    index: int = 0,
+    is_change: bool = False,
+    embit_network: str = "main",
+):
     if is_change:
         branch_index = 1
     else:
@@ -94,25 +107,29 @@ def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool
 
     # Can derive p2wsh, p2sh-p2wsh, and legacy (non-segwit) p2sh
     if descriptor.is_segwit or (descriptor.is_legacy and descriptor.is_basic_multisig):
-        return descriptor.derive(index, branch_index=branch_index).script_pubkey().address(network=NETWORKS[embit_network])
+        return (
+            descriptor.derive(index, branch_index=branch_index)
+            .script_pubkey()
+            .address(network=NETWORKS[embit_network])
+        )
 
     elif descriptor.is_taproot:
         # TODO: Not yet implemented!
         raise Exception("Taproot verification not yet implemented!")
 
-    raise Exception(f"{descriptor.script_pubkey().script_type()} address verification not yet implemented!")
-
+    raise Exception(
+        f"{descriptor.script_pubkey().script_type()} address verification not yet implemented!"
+    )
 
 
 def get_embit_network_name(settings_name):
-    """ Convert SeedSigner SettingsConstants for `network` to embit's NETWORK key """
+    """Convert SeedSigner SettingsConstants for `network` to embit's NETWORK key"""
     lookup = {
         SettingsConstants.MAINNET: "main",
         SettingsConstants.TESTNET: "test",
         SettingsConstants.REGTEST: "regtest",
     }
     return lookup.get(settings_name)
-
 
 
 def parse_derivation_path(derivation_path: str) -> dict:
@@ -142,7 +159,7 @@ def parse_derivation_path(derivation_path: str) -> dict:
         "networks": {
             "0h": SettingsConstants.MAINNET,
             "1h": [SettingsConstants.TESTNET, SettingsConstants.REGTEST],
-        }
+        },
     }
 
     details = dict()
@@ -179,10 +196,15 @@ def parse_derivation_path(derivation_path: str) -> dict:
     return details
 
 
-
-def sign_message(seed_bytes: bytes, derivation: str, msg: bytes, compressed: bool = True, embit_network: str = "main") -> bytes:
+def sign_message(
+    seed_bytes: bytes,
+    derivation: str,
+    msg: bytes,
+    compressed: bool = True,
+    embit_network: str = "main",
+) -> bytes:
     """
-        from: https://github.com/cryptoadvance/specter-diy/blob/b58a819ef09b2bca880a82c7e122618944355118/src/apps/signmessage/signmessage.py
+    from: https://github.com/cryptoadvance/specter-diy/blob/b58a819ef09b2bca880a82c7e122618944355118/src/apps/signmessage/signmessage.py
     """
     """Sign message with private key"""
     msghash = sha256(

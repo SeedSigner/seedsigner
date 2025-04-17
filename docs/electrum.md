@@ -1,6 +1,6 @@
 # SeedSigner Electrum seed phrase support
 
-SeedSigner supports loading of [Electrum's Segwit seed phrases](https://electrum.readthedocs.io/en/latest/seedphrase.html#electrum-seed-version-system).  This is considered an Advanced feature that is disabled by default.  
+SeedSigner supports loading of [Electrum's Segwit seed phrases](https://electrum.readthedocs.io/en/latest/seedphrase.html#electrum-seed-version-system).  This is considered an Advanced feature that is disabled by default.
 
 To load an Electrum Segwit seed phrase, first enable Electrum seed support in Settings -> Advanced -> Electrum seed support.  After this option is enabled, the user will now be able to enter an Electrum seed phrase by selecting "Enter Electrum seed" in the Load Seed screen.
 

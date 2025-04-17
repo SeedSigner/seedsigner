@@ -1,14 +1,14 @@
-import pytest
 import random
 
+import pytest
 from embit import bip39
+
 from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.settings_definition import SettingsConstants
 
 
-
 def test_dice_rolls():
-    """ Given random dice rolls, the resulting mnemonic should be valid. """
+    """Given random dice rolls, the resulting mnemonic should be valid."""
     dice_rolls = ""
     for i in range(0, 99):
         # Do not need truly rigorous random for this test
@@ -29,16 +29,16 @@ def test_dice_rolls():
     assert bip39.mnemonic_is_valid(" ".join(mnemonic))
 
 
-
 def test_calculate_checksum_input_type():
     """
-        Given an 11-word or 23-word mnemonic, the calculated checksum should yield a
-        valid complete mnemonic.
-        
-        calculate_checksum should accept the mnemonic as:
-        * a list of strings
-        * string: "A B C", "A, B, C", "A,B,C"
+    Given an 11-word or 23-word mnemonic, the calculated checksum should yield a
+    valid complete mnemonic.
+
+    calculate_checksum should accept the mnemonic as:
+    * a list of strings
+    * string: "A B C", "A, B, C", "A,B,C"
     """
+
     # Test mnemonics from https://iancoleman.io/bip39/
     def _try_all_input_formats(partial_mnemonic: str):
         # List of strings
@@ -46,29 +46,33 @@ def test_calculate_checksum_input_type():
         assert bip39.mnemonic_is_valid(" ".join(mnemonic))
 
         # Comma-separated string
-        mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.replace(" ", ","))
+        mnemonic = mnemonic_generation.calculate_checksum(
+            partial_mnemonic.replace(" ", ",")
+        )
         assert bip39.mnemonic_is_valid(" ".join(mnemonic))
 
         # Comma-separated string w/space
-        mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic.replace(" ", ", "))
+        mnemonic = mnemonic_generation.calculate_checksum(
+            partial_mnemonic.replace(" ", ", ")
+        )
         assert bip39.mnemonic_is_valid(" ".join(mnemonic))
 
         # Space-separated string
         mnemonic = mnemonic_generation.calculate_checksum(partial_mnemonic)
         assert bip39.mnemonic_is_valid(" ".join(mnemonic))
 
-    partial_mnemonic = "crawl focus rescue cable view pledge rather dinner cousin unfair day"
+    partial_mnemonic = (
+        "crawl focus rescue cable view pledge rather dinner cousin unfair day"
+    )
     _try_all_input_formats(partial_mnemonic)
 
     partial_mnemonic = "bubble father debate ankle injury fence mesh evolve section wet coyote violin pyramid flower rent arrow round clutch myth safe base skin mobile"
     _try_all_input_formats(partial_mnemonic)
 
 
-
-
 def test_calculate_checksum_invalid_mnemonics():
     """
-        Should raise an Exception on a mnemonic that is invalid due to length or using invalid words.
+    Should raise an Exception on a mnemonic that is invalid due to length or using invalid words.
     """
     with pytest.raises(Exception) as e:
         # Mnemonic is too short: 10 words instead of 11
@@ -95,12 +99,13 @@ def test_calculate_checksum_invalid_mnemonics():
     assert "not in the dictionary" in str(e)
 
 
-
 def test_calculate_checksum_with_default_final_word():
-    """ 11-word and 23-word mnemonics use word `0000` as a temp final word to complete
-        the mnemonic.
+    """11-word and 23-word mnemonics use word `0000` as a temp final word to complete
+    the mnemonic.
     """
-    partial_mnemonic = "crawl focus rescue cable view pledge rather dinner cousin unfair day"
+    partial_mnemonic = (
+        "crawl focus rescue cable view pledge rather dinner cousin unfair day"
+    )
     mnemonic1 = mnemonic_generation.calculate_checksum(partial_mnemonic)
 
     partial_mnemonic += " abandon"
@@ -117,7 +122,7 @@ def test_calculate_checksum_with_default_final_word():
 
 def test_generate_mnemonic_from_bytes():
     """
-        Should generate a valid BIP-39 mnemonic from entropy bytes
+    Should generate a valid BIP-39 mnemonic from entropy bytes
     """
     # From iancoleman.io
     entropy = "3350f6ac9eeb07d2c6209932808aa7f6"
@@ -131,9 +136,8 @@ def test_generate_mnemonic_from_bytes():
     assert mnemonic == expected_mnemonic
 
 
-
 def test_verify_against_coldcard_sample():
-    """ https://coldcard.com/docs/verifying-dice-roll-math """
+    """https://coldcard.com/docs/verifying-dice-roll-math"""
     dice_rolls = "123456"
     expected = "mirror reject rookie talk pudding throw happy era myth already payment own sentence push head sting video explain letter bomb casual hotel rather garment"
 
@@ -143,9 +147,8 @@ def test_verify_against_coldcard_sample():
     assert actual == expected
 
 
-
 def test_known_dice_rolls():
-    """ Given 99 known dice rolls, the resulting mnemonic should be valid and match the expected. """
+    """Given 99 known dice rolls, the resulting mnemonic should be valid and match the expected."""
     dice_rolls = "522222222222222222222222222222222222222222222555555555555555555555555555555555555555555555555555555"
     expected = "resource timber firm banner horror pupil frozen main pear direct pioneer broken grid core insane begin sister pony end debate task silk empty curious"
 
@@ -171,9 +174,8 @@ def test_known_dice_rolls():
     assert actual == expected
 
 
-
 def test_50_dice_rolls():
-    """ 50 dice roll input should yield the same 12-word mnemonic as iancoleman.io/bip39 """
+    """50 dice roll input should yield the same 12-word mnemonic as iancoleman.io/bip39"""
     # Check "Show entropy details", paste in dice_rolls sequence, click "Hex", select "Mnemonic Length" as "12 Words"
     dice_rolls = "12345612345612345612345612345612345612345612345612"
     expected = "unveil nice picture region tragic fault cream strike tourist control recipe tourist"
@@ -190,7 +192,9 @@ def test_50_dice_rolls():
     assert actual == expected
 
     dice_rolls = "66666666666666666666666666666666666666666666666666"
-    expected = "senior morning song proud recycle toy search apple trigger lend vibrant arrest"
+    expected = (
+        "senior morning song proud recycle toy search apple trigger lend vibrant arrest"
+    )
     mnemonic = mnemonic_generation.generate_mnemonic_from_dice(dice_rolls)
     actual = " ".join(mnemonic)
     assert bip39.mnemonic_is_valid(actual)

@@ -262,7 +262,7 @@ If you're manually punching holes into a metal SeedQR plate, that's cutting out 
 But there are other tradeoffs to consider.
 
 ## Recoverability
-If you lose your SeedSigner or somehow the project is abandoned or banned, how will you read back your SeedQR? 
+If you lose your SeedSigner or somehow the project is abandoned or banned, how will you read back your SeedQR?
 
 With the Standard SeedQR format this is trivial--any smartphone can decode the numeric digit stream. But the CompactSeedQR's raw byte data is not decipherable in the same way. Most QR readers today assume the data is either alphanumeric or human-readable numeric data. Because of this assumption, they misinterpret the binary format data:
 

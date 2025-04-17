@@ -1,4 +1,4 @@
-# SeedSigner Screenshots 
+# SeedSigner Screenshots
 
 SeedSigner screenshots can be freely used in any tutorial, article, video, etc. As a courtesy, please link back to this repo or the SeedSigner website in your attribution.
 
