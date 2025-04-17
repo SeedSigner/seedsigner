@@ -255,11 +255,11 @@ class ToolsDiceEntropyEntryView(View):
 ****************************************************************************"""
 class ToolsCoinEntropyMnemonicLengthView(View):
     def run(self):
-        # TRANSLATOR_NOTE: Inserts the number of dice rolls needed for a 12-word mnemonic
+        # TRANSLATOR_NOTE: Inserts the number of coin flips needed for a 12-word mnemonic
         twelve = _("12 words ({} flips)").format(mnemonic_generation.COIN__NUM_FLIPS__12WORD)
         TWELVE = ButtonOption(twelve, return_data=mnemonic_generation.COIN__NUM_FLIPS__12WORD)
 
-        # TRANSLATOR_NOTE: Inserts the number of dice rolls needed for a 24-word mnemonic
+        # TRANSLATOR_NOTE: Inserts the number of coin flips needed for a 24-word mnemonic
         twenty_four = _("24 words ({} flips)").format(mnemonic_generation.COIN__NUM_FLIPS__24WORD)
         TWENTY_FOUR = ButtonOption(twenty_four, return_data=mnemonic_generation.COIN__NUM_FLIPS__24WORD)
 
@@ -275,10 +275,49 @@ class ToolsCoinEntropyMnemonicLengthView(View):
             return Destination(BackStackView)
 
         elif button_data[selected_menu_num] == TWELVE:
-            return Destination(ToolsCoinEntropyEntryView, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__12WORD))
+            return Destination(ToolsCoin_Input_Method_View, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__12WORD))
 
         elif button_data[selected_menu_num] == TWENTY_FOUR:
-            return Destination(ToolsCoinEntropyEntryView, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__24WORD))
+            return Destination(ToolsCoin_Input_Method_View, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__24WORD))
+
+
+
+class ToolsCoin_Input_Method_View(View):
+    def __init__(self, total_flips: int):
+        super().__init__()
+        self.total_flips = total_flips
+
+    def run(self):
+        if self.total_flips == 128:
+            all_flips_text = _("128 coin flips in one go")
+            setwise_text = _("Sets of 11 coin flips")
+        elif self.total_flips == 256:
+            all_flips_text = _("256 coin flips in one go")
+            setwise_text = _("Sets of 11 coin flips")
+        else:
+            raise ValueError("Unsupported flip count")
+
+        ALL_FLIPS = ButtonOption(all_flips_text, return_data="all")
+        SETWISE = ButtonOption(setwise_text, return_data="setwise")
+
+        button_data = [ALL_FLIPS, SETWISE]
+        selected_menu_num = ButtonListScreen(
+            title=_("Input Method"),
+            is_bottom_list=True,
+            is_button_text_centered=True,
+            button_data=button_data,
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(ToolsCoinEntropyMnemonicLengthView)
+
+        selected_option = button_data[selected_menu_num].return_data
+
+        if selected_option == "all":
+            return Destination(ToolsCoinEntropyEntryView, view_args={"total_flips": self.total_flips})
+
+        elif selected_option == "setwise":
+            return Destination(ToolsCoinEntropySetwiseEntryView, view_args={"total_flips": self.total_flips})
 
 
 
@@ -306,6 +345,74 @@ class ToolsCoinEntropyEntryView(View):
         return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
 
 
+
+class ToolsCoinEntropySetwiseEntryView(View):
+    def __init__(self, total_flips: int):
+        super().__init__()
+        self.total_flips = total_flips
+        self.bits_collected = ""
+        self.mnemonic = []
+        self.total_sets = 11 if total_flips == 128 else 23
+        self.last_set_bits = 7 if total_flips == 128 else 3
+
+    def run(self):
+        # Collect regular 11-bit sets
+        for set_num in range(1, self.total_sets + 1):
+            ret = ToolsCoinEntropySetwiseEntryScreen(
+                current_set=set_num,
+                total_sets=self.total_sets + 1,
+                required_bits=11
+            ).display()
+
+            if ret == RET_CODE__BACK_BUTTON:
+                return Destination(ToolsCoin_Input_Method_View, view_args={"total_flips": self.total_flips})
+
+            # Show word for this set
+            word_index = int(ret, 2)
+            word = Seed.get_wordlist(self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))[word_index]
+            self.mnemonic.append(word)
+            ButtonListScreen(
+                title=_("Set {}").format(set_num),
+                button_data=[ButtonOption(word)],
+                is_button_text_centered=True
+            ).display()
+
+            self.bits_collected += ret
+
+        # Final set
+        ret = ToolsCoinEntropySetwiseEntryScreen(
+            current_set=self.total_sets + 1,
+            total_sets=self.total_sets + 1,
+            required_bits=self.last_set_bits
+        ).display()
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(ToolsCoin_Input_Method_View, view_args={"total_flips": self.total_flips})
+
+        # Generate checksum
+        full_entropy = (self.bits_collected + ret)[:self.total_flips]
+        entropy_bytes = int(full_entropy, 2).to_bytes(len(full_entropy)//8, byteorder='big')
+        checksum = hashlib.sha256(entropy_bytes).digest()
+        checksum_bits = ''.join(f"{byte:08b}" for byte in checksum)
+
+        # Build final word
+        final_bits = ret + checksum_bits[:11 - len(ret)]
+        final_word = Seed.get_wordlist(self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))[int(final_bits, 2)]
+        self.mnemonic.append(final_word)
+
+        # Show final word
+        ButtonListScreen(
+            title=_("Final Word"),
+            button_data=[ButtonOption(final_word)],
+            is_button_text_centered=True
+        ).display()
+
+
+        seed = Seed(self.mnemonic, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+        self.controller.storage.set_pending_seed(seed)
+        
+        return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
+    
 
 """****************************************************************************
     Calc final word Views

@@ -206,6 +206,37 @@ class ToolsCoinEntropyEntryScreen(KeyboardScreen):
         return True
 
 
+@dataclass
+class ToolsCoinEntropySetwiseEntryScreen(KeyboardScreen):
+    current_set: int = 1
+    total_sets: int = 12
+    required_bits: int = 11
+
+    def __post_init__(self):
+        self.title = _(f"Set {self.current_set}/{self.total_sets}")
+        self.return_after_n_chars = self.required_bits
+        self.rows = 2
+        self.cols = 2
+        self.key_height = GUIConstants.get_top_nav_title_font_size() + 2*GUIConstants.EDGE_PADDING
+        self.keys_charset = "HT"
+        self.progress_text = None
+
+        self.keys_to_values = {
+            "H": "1",
+            "T": "0",
+        }
+
+        super().__post_init__()
+
+        self.components.append(TextArea(
+            text=_("(H)eads=1  (T)ails=0"),
+            screen_y=self.keyboard.rect[3] + 3*GUIConstants.COMPONENT_PADDING,
+        ))
+        self.components.append(TextArea(
+            text=_("Bits needed: {}").format(self.required_bits),
+            screen_y=self.components[-1].screen_y + self.components[-1].height,
+        ))
+
 
 @dataclass
 class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
