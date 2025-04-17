@@ -1,6 +1,7 @@
 import logging
 import time
 import traceback
+from typing import Optional
 
 from embit.descriptor import Descriptor
 from embit.psbt import PSBT
@@ -15,7 +16,7 @@ from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
 from seedsigner.views.screensaver import ScreensaverScreen
-from seedsigner.views.view import Destination
+from seedsigner.views.view import Destination, View
 
 
 logger = logging.getLogger(__name__)
@@ -475,3 +476,7 @@ class Controller(Singleton):
             exception_msg,
         ]
         return Destination(UnhandledExceptionView, view_args={"error": error}, clear_history=True)
+
+    @property
+    def active_view(self) -> Optional[View]:
+        return self.back_stack[-1].view if self.back_stack else None
