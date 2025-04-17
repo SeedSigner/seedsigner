@@ -68,7 +68,7 @@ class BackgroundImportThread(BaseThread):
         # Do costly initializations
         time_import('seedsigner.models.seed_storage')
         from seedsigner.models.seed_storage import SeedStorage
-        Controller.get_instance()._storage = SeedStorage()
+        Controller.get_instance()._temp_seed_storage = SeedStorage()
 
         # Get MainMenuView ready to respond quickly
         time_import('seedsigner.views.scan_views')
@@ -103,7 +103,7 @@ class Controller(Singleton):
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
-    _storage: SeedStorage = None   # TODO: Rename "storage" to something more indicative of its temp, in-memory state
+    _temp_seed_storage: SeedStorage = None   # Temporary in-memory storage for active seeds during runtime
     settings: Settings = None
 
     # TODO: Refactor these flow-related attrs that survive across multiple Screens.
@@ -204,11 +204,11 @@ class Controller(Singleton):
 
     @property
     def storage(self):
-        while not self._storage:
+        while not self._temp_seed_storage:
             # Wait for the BackgroundImportThread to finish initializing the storage.
             # This is a rare timing issue that likely only occurs in the test suite.
             time.sleep(0.001)
-        return self._storage
+        return self._temp_seed_storage
 
 
     def get_seed(self, seed_num: int) -> Seed:
