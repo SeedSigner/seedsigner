@@ -11,14 +11,11 @@ from embit import compact
 from embit.psbt import PSBT, OutputScope
 from embit.script import Script
 
-from seedsigner.gui.components import GUIConstants
-
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
 sys.modules['seedsigner.hardware.displays.st7789_mpy'] = MagicMock()
 sys.modules['seedsigner.hardware.displays.ili9341'] = MagicMock()
-sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
-sys.modules['seedsigner.views.screensaver'] = MagicMock()
+sys.modules['seedsigner.views.screensaver.ScreensaverScreen'] = MagicMock()
 sys.modules['RPi'] = MagicMock()
 sys.modules['RPi.GPIO'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
@@ -28,6 +25,7 @@ sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 patch('PIL.ImageFont.core.HAVE_RAQM', False).start()
 
 from seedsigner.controller import Controller
+from seedsigner.gui.components import GUIConstants
 from seedsigner.gui.renderer import Renderer
 from seedsigner.gui.screens.seed_screens import SeedAddPassphraseScreen
 from seedsigner.gui.toast import RemoveSDCardToastManagerThread, SDCardStateChangeToastManagerThread
@@ -180,21 +178,25 @@ def generate_screenshots(locale):
 
         # Render the nested "Hardware" submenu option at the end of "Advanced"
         num_advanced_settings = len(SettingsDefinition.get_settings_entries(visibility=SettingsConstants.VISIBILITY__ADVANCED)) - 5  # hard-coded for 240px height: the first 5 settings options are already visible
-        settings_views_list.append((
-            settings_views.SettingsMenuView,
-            dict(
-                visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                selected_attr=SettingsConstants.SETTING__PARTNER_LOGOS,
-                initial_scroll=num_advanced_settings*GUIConstants.BUTTON_HEIGHT + (num_advanced_settings-1)*GUIConstants.COMPONENT_PADDING,  # Force menu to scroll to the bottom
-            ),
-            "SettingsMenuView__Advanced_Hardware"
-        ))
+        settings_views_list.append(
+            ScreenshotConfig(
+                settings_views.SettingsMenuView,
+                dict(
+                    visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                    selected_attr=SettingsConstants.SETTING__PARTNER_LOGOS,
+                    initial_scroll=num_advanced_settings*GUIConstants.BUTTON_HEIGHT + (num_advanced_settings-1)*GUIConstants.COMPONENT_PADDING,  # Force menu to scroll to the bottom
+                ),
+                screenshot_name="SettingsMenuView__Advanced_Hardware"
+            )
+        )
 
-        settings_views_list.append((
-            settings_views.SettingsMenuView,
-            dict(visibility=SettingsConstants.VISIBILITY__HARDWARE),
-            "SettingsMenuView__Hardware"
-        ))
+        settings_views_list.append(
+            ScreenshotConfig(
+                settings_views.SettingsMenuView,
+                dict(visibility=SettingsConstants.VISIBILITY__HARDWARE),
+                screenshot_name="SettingsMenuView__Hardware"
+            )
+        )
 
         # so we get a choice for transcribe seed qr format
         controller.settings.set_value(

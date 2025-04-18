@@ -35,7 +35,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         # wordlist.
         # TODO: If we ever support other wordlist languages, adjust accordingly.
         matches_list_highlight_font_name = GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME
-        matches_list_highlight_font_size = GUIConstants.BUTTON_FONT_SIZE + 4
+        matches_list_highlight_font_size = GUIConstants.get_button_font_size() + 4
         (left, top, right, bottom) = Fonts.get_font(matches_list_highlight_font_name, matches_list_highlight_font_size).getbbox("mushroom", anchor="ls")
         matches_list_max_text_width = right - left
         matches_list_button_width = matches_list_max_text_width + 2*GUIConstants.COMPONENT_PADDING
@@ -644,7 +644,7 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
         self.components.append(self.derivation_line)
 
         font_name = GUIConstants.FIXED_WIDTH_FONT_NAME
-        font_size = GUIConstants.BODY_FONT_SIZE + 2
+        font_size = GUIConstants.get_body_font_size() + 2
         left, top, right, bottom  = Fonts.get_font(font_name, font_size).getbbox("X")
         char_width = right - left
         num_chars = int((self.canvas_width - GUIConstants.ICON_FONT_SIZE - 2*GUIConstants.COMPONENT_PADDING) / char_width) - 3  # ellipsis
