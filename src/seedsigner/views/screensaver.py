@@ -96,7 +96,7 @@ class OpeningSplashScreen(LogoScreen):
         # Display version num below SeedSigner logo
         font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_top_nav_title_font_size())
         version = f"v{controller.VERSION}"
-
+        
         # The logo png is 240x240, but the actual logo is 70px tall, vertically centered
         logo_height = 70
         version_x = int(self.renderer.canvas_width/2)
@@ -150,31 +150,39 @@ class ScreensaverScreen(LogoScreen):
 
         self.min_coords = (0, 0)
         self.max_coords = (self.logo.size[0], self.logo.size[1])
-
-        self.increment_x = self.rand_increment()
-        self.increment_y = self.rand_increment()
+        
+        # Movement vector components - includes both direction and magnitude
+        self.vector_x = self.rand_direction()
+        self.vector_y = self.rand_direction()
+        
         self.cur_x = int(self.logo.size[0] / 2)
         self.cur_y = int(self.logo.size[1] / 2)
 
         self._is_running = False
         self.last_screen = None
-        
-        # Control animation frame rate for consistent speed across different hardware
-        self.animation_speed = 0.02 
+
+        # Calculate min/max speed based on minimum screen dimension
+        min_screen_dimension = min(self.renderer.canvas_width, self.renderer.canvas_height)
+        # Min speed: cross the screen in 3 seconds, max: cross in 1 second
+        self.min_speed = min_screen_dimension / 3.0  # pixels per second
+        self.max_speed = min_screen_dimension / 1.0  # pixels per second
 
 
     @property
     def is_running(self):
         return self._is_running
     
+    def rand_speed(self):
+        """Returns a random speed in pixels per second between min_speed and max_speed"""
+        return random.uniform(self.min_speed, self.max_speed)
 
-    def rand_increment(self):
-        max_increment = 10.0
-        min_increment = 1.0
-        increment = random.uniform(min_increment, max_increment)
-        if random.uniform(-1.0, 1.0) < 0.0:
-            return -1.0 * increment
-        return increment
+    
+
+    def rand_direction(self):
+        """Returns a random direction component between -1.0 and 1.0"""
+        return random.uniform(-1.0, 1.0)
+
+
 
 
     def start(self):
@@ -186,72 +194,96 @@ class ScreensaverScreen(LogoScreen):
         # Store the current screen in order to restore it later
         self.last_screen = self.renderer.canvas.copy()
 
+        # Accumulate sub-pixel movements to avoid getting stuck at zero
+        accumulated_x = 0
+        accumulated_y = 0
+
         # Screensaver must block any attempts to use the Renderer in another thread so it
         # never gives up the lock until it returns.
         with self.renderer.lock:
             try:
                 last_update_time = time.time()
+                current_speed = self.rand_speed()
                 
                 while self._is_running:
-                    current_time = time.time()
-                    
-                    # Check for exit conditions
                     if self.buttons.has_any_input() or self.buttons.override_ind:
                         break
 
-                    # update the animation at the specified frame rate
-                    if current_time - last_update_time >= self.animation_speed:
-                        # crop the image to the exact display size
-                        crop = self.image.crop((
-                            self.cur_x, self.cur_y,
-                            self.cur_x + self.renderer.canvas_width, self.cur_y + self.renderer.canvas_height))
-                        self.renderer.disp.ShowImage(crop, 0, 0)
+                    current_time = time.time()
+                    elapsed_time = current_time - last_update_time
+                    
+                    # Calculate pixel movement based on elapsed time and target speed
+                    # Accumulate fractional movements to avoid getting stuck at zero
+                    accumulated_x += elapsed_time * current_speed * self.vector_x
+                    accumulated_y += elapsed_time * current_speed * self.vector_y
+                    
+                    # Only move when we've accumulated at least 1 pixel of movement
+                    pixels_to_move_x = int(accumulated_x)
+                    pixels_to_move_y = int(accumulated_y)
+                    
+                    # Remove the used whole pixels from accumulator
+                    accumulated_x -= pixels_to_move_x
+                    accumulated_y -= pixels_to_move_y
+                    
+                    # Apply movement
+                    if pixels_to_move_x != 0 or pixels_to_move_y != 0:
+                        self.cur_x += pixels_to_move_x
+                        self.cur_y += pixels_to_move_y
 
-                        self.cur_x += self.increment_x
-                        self.cur_y += self.increment_y
+                    # Must crop the image to the exact display size
+                    crop = self.image.crop((
+                        self.cur_x, self.cur_y,
+                        self.cur_x + self.renderer.canvas_width, self.cur_y + self.renderer.canvas_height))
+                    self.renderer.disp.ShowImage(crop, 0, 0)
 
-                        # At each edge bump, calculate a new random rate of change for that axis
-                        if self.cur_x < self.min_coords[0]:
-                            self.cur_x = self.min_coords[0]
-                            self.increment_x = self.rand_increment()
-                            if self.increment_x < 0.0:
-                                self.increment_x *= -1.0
-                        elif self.cur_x > self.max_coords[0]:
-                            self.cur_x = self.max_coords[0]
-                            self.increment_x = self.rand_increment()
-                            if self.increment_x > 0.0:
-                                self.increment_x *= -1.0
+                    # Handle boundary collisions and ensure we don't get stuck
+                    if self.cur_x <= self.min_coords[0]:
+                        self.cur_x = self.min_coords[0] + 1  # Move slightly away from edge
+                        self.vector_x = abs(self.rand_direction())  # Force positive
+                        current_speed = self.rand_speed()
+                        # Clear accumulator when changing direction
+                        accumulated_x = 0
+                    elif self.cur_x >= self.max_coords[0]:
+                        self.cur_x = self.max_coords[0] - 1  # Move slightly away from edge
+                        self.vector_x = -abs(self.rand_direction())  # Force negative
+                        current_speed = self.rand_speed()
+                        accumulated_x = 0
 
-                        if self.cur_y < self.min_coords[1]:
-                            self.cur_y = self.min_coords[1]
-                            self.increment_y = self.rand_increment()
-                            if self.increment_y < 0.0:
-                                self.increment_y *= -1.0
-                        elif self.cur_y > self.max_coords[1]:
-                            self.cur_y = self.max_coords[1]
-                            self.increment_y = self.rand_increment()
-                            if self.increment_y > 0.0:
-                                self.increment_y *= -1.0
-                                
-                        last_update_time = current_time
-                    else:
-                        # sleep to prevent CPU spinning when waiting for next frame
-                        time.sleep(0.005)
+                    if self.cur_y <= self.min_coords[1]:
+                        self.cur_y = self.min_coords[1] + 1  # Move slightly away from edge
+                        self.vector_y = abs(self.rand_direction())  # Force positive
+                        current_speed = self.rand_speed()
+                        accumulated_y = 0
+                    elif self.cur_y >= self.max_coords[1]:
+                        self.cur_y = self.max_coords[1] - 1  # Move slightly away from edge
+                        self.vector_y = -abs(self.rand_direction())  # Force negative
+                        current_speed = self.rand_speed()
+                        accumulated_y = 0
+                        
+                    last_update_time = current_time
+                    
+                    # Small sleep to prevent 100% CPU usage on faster hardware
+                    time.sleep(0.001)
 
             except KeyboardInterrupt as e:
+                # Exit triggered; close gracefully
                 logger.info("Shutting down Screensaver")
 
+                # Have to let the interrupt bubble up to exit the main app
                 raise e
 
             finally:
                 self._is_running = False
 
-                # the original screen
+                # Restore the original screen
                 self.renderer.show_image(self.last_screen)
 
 
-
     def stop(self):
+        """
+        Stops the screensaver animation cleanly.
+        """
+        logger.info("Stopping screensaver")
         self._is_running = False
 
 
