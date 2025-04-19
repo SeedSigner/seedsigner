@@ -5,7 +5,7 @@ import time
 
 from seedsigner.helpers.l10n import seedsigner_gettext as _
 
-from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
+from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants, resize_image_to_fill
 from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.helpers import mnemonic_generation
@@ -83,21 +83,25 @@ class ToolsImageEntropyFinalImageView(View):
             from seedsigner.hardware.camera import Camera
             # Take the final full-res image
             camera = Camera.get_instance()
-            camera.start_single_frame_mode(resolution=(720, 480))
+            max_dim = max(self.canvas_width, self.canvas_height)
+
+            # Final image will be at least 4x the number of pixels the screen can
+            # actually display.
+            camera.start_single_frame_mode(resolution=(2*max_dim, 2*max_dim))
+
             time.sleep(0.25)
             self.controller.image_entropy_final_image = camera.capture_frame()
             camera.stop_single_frame_mode()
 
-        # Prep a copy of the image for display. The actual image data is 720x480
-        # Present just a center crop and resize it to fit the screen and to keep some of
-        #   the data hidden.
-        display_version = autocontrast(
-            self.controller.image_entropy_final_image,
-            cutoff=2
-        ).crop(
-            (120, 0, 600, 480)
-        ).resize(
-            (self.canvas_width, self.canvas_height), Image.Resampling.BICUBIC
+        # Prep a copy of the image for display:
+        #   * Boost the contrast for better presentation (but preserve the original pixels)
+        #   * Resize it to fit the screen
+        boosted_version = autocontrast(self.controller.image_entropy_final_image, cutoff=2)
+        display_version = resize_image_to_fill(
+            boosted_version,
+            target_size_x=self.canvas_width,
+            target_size_y=self.canvas_height,
+            sampling_method=Image.Resampling.BICUBIC,
         )
         
         ret = ToolsImageEntropyFinalImageScreen(

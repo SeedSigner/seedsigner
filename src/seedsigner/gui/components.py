@@ -1986,3 +1986,47 @@ def reflow_text_into_pages(text: str,
         pages.append("\n".join(lines[i:i+lines_per_page]))
     
     return pages
+
+
+def resize_image_to_fill(img: Image, target_size_x: int, target_size_y: int, sampling_method=Image.Resampling.NEAREST) -> Image:
+    """
+        Resizes the image to fill the target size, cropping the image if necessary.
+    """
+    if img.width == target_size_x and img.height == target_size_y:
+        # No need to resize
+        return img
+
+    # if the image aspect ratio doesn't match the render area, we
+    # need to provide an aspect ratio-aware crop box.
+    render_aspect_ratio = target_size_x / target_size_y
+    source_frame_aspect_ratio = img.width / img.height
+    if render_aspect_ratio > source_frame_aspect_ratio:
+        # Render surface is wider than the source frame; preserve
+        # the width but crop the height
+        cropped_height = (img.width * target_size_y / target_size_x)
+        box = (
+            0,
+            int((img.height - cropped_height)/2),
+            img.width,
+            img.height - int((img.height - cropped_height)/2),
+        )
+
+    elif render_aspect_ratio < source_frame_aspect_ratio:
+        # Render surface is taller than the source frame; preserve
+        # the height but crop the width
+        box = (
+            int((img.width - img.height * target_size_x / target_size_y) / 2),
+            0,
+            int(img.width - (img.width - img.height * target_size_x / target_size_y) / 2),
+            img.height,
+        )
+
+    else:
+        # Render surface and source frame are the same aspect ratio
+        box = None
+
+    return img.resize(
+        (target_size_x, target_size_y),
+        resample=sampling_method,
+        box=box,
+    )

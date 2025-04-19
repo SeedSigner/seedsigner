@@ -20,7 +20,12 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
         super().__post_init__()
 
         self.camera = Camera.get_instance()
-        self.camera.start_video_stream_mode(resolution=(self.canvas_width, self.canvas_height), framerate=24, format="rgb")
+
+        # If the stream is set to 320x240, we get pillarboxed frames (black bars on the
+        # sides). But passing in square dims gives us an edge-to-edge image.
+        # TODO: Figure out why (camera expecting frame dims of multiples other than 16?)
+        max_dimension = max(self.canvas_width, self.canvas_height)
+        self.camera.start_video_stream_mode(resolution=(max_dimension, max_dimension), framerate=24, format="rgb")
 
 
     def _run(self):
@@ -37,12 +42,37 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
                 self.camera.stop_video_stream_mode()
                 return RET_CODE__BACK_BUTTON
 
-            frame = self.camera.read_video_stream(as_image=True)
+            frame: Image = self.camera.read_video_stream(as_image=True)
 
             if frame is None:
                 # Camera probably isn't ready yet
                 time.sleep(0.01)
                 continue
+
+            with self.renderer.lock:
+                # Account for the possibly different aspect ratio of the camera frame
+                # vs the display; crop any excess.
+                # TODO: This cropping may be unnecessary if the above TODO about the
+                # camera resolution is solved.
+                box = None
+                if self.canvas_width != frame.width:
+                    half_width_diff = int(abs(self.canvas_width - frame.width)/2)
+                    box = (
+                        half_width_diff,
+                        0,
+                        frame.width - half_width_diff,
+                        frame.height
+                    )
+                elif self.canvas_height != frame.height:
+                    half_height_diff = int(abs(self.canvas_height - frame.height)/2)
+                    box = (
+                        0,
+                        half_height_diff,
+                        frame.width,
+                        frame.height - half_height_diff
+                    )
+
+                self.renderer.canvas.paste(frame.crop(box=box))
 
             # Check for ANYCLICK to take final entropy image
             if self.hw_inputs.check_for_low(keys=HardwareButtonsConstants.KEYS__ANYCLICK):
@@ -51,8 +81,6 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
                 self.camera.stop_video_stream_mode()
 
                 with self.renderer.lock:
-                    self.renderer.canvas.paste(frame)
-
                     self.renderer.draw.text(
                         xy=(
                             int(self.renderer.canvas_width/2),
@@ -71,8 +99,6 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
 
             # If we're still here, it's just another preview frame loop
             with self.renderer.lock:
-                self.renderer.canvas.paste(frame)
-
                 self.renderer.draw.text(
                     xy=(
                         int(self.renderer.canvas_width/2),
