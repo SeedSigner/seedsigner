@@ -99,8 +99,11 @@ class SettingsMenuView(View):
 
 class LocaleSelectionView(View):
     def run(self):
+        cur_language_code = self.settings.get_value(SettingsConstants.SETTING__LOCALE)
+
+        selected_button = 0
         button_data: list[ButtonOption] = []
-        for language_code, display_name in SettingsConstants.get_detected_languages():
+        for i, (language_code, display_name) in enumerate(SettingsConstants.get_detected_languages()):
             button_data.append(
                 # Unique to this View: override each button's font so we can display each
                 # language name in its native script.
@@ -112,11 +115,16 @@ class LocaleSelectionView(View):
                 )
             )
 
+            if language_code == cur_language_code:
+                # Highlight the current selection
+                selected_button = i
+
         selected_menu_num = self.run_screen(
-            ButtonListScreen,
+            settings_screens.SettingsEntryUpdateSelectionScreen,
+            display_name=_(SettingsDefinition.get_settings_entry(attr_name=SettingsConstants.SETTING__LOCALE).display_name),
             button_data=button_data,
-            title=_(SettingsDefinition.get_settings_entry(attr_name=SettingsConstants.SETTING__LOCALE).display_name),
-            is_button_text_centered=False,
+            selected_button=selected_button,
+            checked_buttons=[selected_button],
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:

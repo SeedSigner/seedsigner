@@ -1,3 +1,4 @@
+import math
 import logging
 import time
 
@@ -296,7 +297,8 @@ class ButtonListScreen(BaseTopNavScreen):
     Button_cls = Button
     checked_buttons: List[int] = None
 
-    # Enables returning w/buttons rendered at the same place
+    # Enables returning w/buttons rendered at the same place; default behavior will
+    # ensure the screen is at least scrolled to reveal the `selected_button`.
     scroll_y_initial_offset: int = None
 
 
@@ -323,6 +325,15 @@ class ButtonListScreen(BaseTopNavScreen):
             # The button list is too long; force it to run off the bottom of the screen.
             button_list_y = self.top_nav.height
             self.has_scroll_arrows = True
+
+        # How many buttons fit on the screen before we need to start scrolling?
+        num_buttons_pre_scroll = math.floor((self.canvas_height - button_list_y - GUIConstants.EDGE_PADDING) / (button_height + GUIConstants.LIST_ITEM_PADDING))
+
+        # Force a scroll offset when necessary if none was provided
+        if self.selected_button + 1 > num_buttons_pre_scroll and not self.scroll_y_initial_offset:
+            # Scroll far enough to expose the selected button; +1 to account for the
+            # height of the target button itself!
+            self.scroll_y_initial_offset = (button_height + GUIConstants.LIST_ITEM_PADDING) * (self.selected_button - num_buttons_pre_scroll + 1)
 
         self.buttons: List[Button] = []
         for i, button_option in enumerate(self.button_data):

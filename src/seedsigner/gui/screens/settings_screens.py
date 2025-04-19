@@ -21,7 +21,6 @@ class SettingsEntryUpdateSelectionScreen(ButtonListScreen):
     help_text: str = None
     checked_buttons: List[int] = None
     settings_entry_type: str = SettingsConstants.TYPE__ENABLED_DISABLED
-    selected_button: int = 0
 
     def __post_init__(self):
         self.title = _("Settings")
