@@ -77,6 +77,8 @@ class OpeningSplashScreen(LogoScreen):
         if self.force_partner_logos is not None:
             show_partner_logos = self.force_partner_logos
 
+        logo_offset_x = int((self.canvas_width - self.logo.width)/2)
+
         if show_partner_logos:
             logo_offset_y = -56
         else:
@@ -87,11 +89,14 @@ class OpeningSplashScreen(LogoScreen):
             # Fade in alpha
             for i in range(250, -1, -25):
                 self.logo.putalpha(255 - i)
-                self.renderer.canvas.paste(Image.alpha_composite(background, self.logo), (0, logo_offset_y))
+                self.renderer.canvas.paste(
+                    Image.alpha_composite(background, self.logo),
+                    (logo_offset_x, logo_offset_y)
+                )
                 self.renderer.show_image()
         else:
             # Skip animation for the screenshot generator
-            self.renderer.canvas.paste(self.logo, (0, logo_offset_y))
+            self.renderer.canvas.paste(self.logo, (logo_offset_x, logo_offset_y))
 
         # Display version num below SeedSigner logo
         font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_top_nav_title_font_size())
