@@ -22,6 +22,7 @@ from seedsigner.views.view import Destination, MainMenuView, UnhandledExceptionV
 
 logger = logging.getLogger(__name__)
 
+# Mock run() to bypass OpeningSplashView, which is hardcoded in Controller.start() and conflicts with the expected start screen in flow tests.
 OpeningSplashView.run = MagicMock()
 
 

@@ -36,9 +36,8 @@ from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
-from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, NotYetImplementedView, UnhandledExceptionView, 
-    psbt_views, seed_views, settings_views, tools_views, scan_views)
-from seedsigner.views.view import OpeningSplashView
+from seedsigner.views import (OpeningSplashView, MainMenuView, PowerOptionsView, RestartView, NotYetImplementedView,
+                              UnhandledExceptionView, psbt_views, seed_views, settings_views, tools_views, scan_views)
 from seedsigner.views.view import NetworkMismatchErrorView, OptionDisabledView, PowerOffView
 
 from .utils import ScreenshotComplete, ScreenshotConfig, ScreenshotRenderer
