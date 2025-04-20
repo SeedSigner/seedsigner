@@ -1,7 +1,6 @@
 import logging
 import time
 import traceback
-from typing import Optional
 
 from embit.descriptor import Descriptor
 from embit.psbt import PSBT
@@ -480,3 +479,7 @@ class Controller(Singleton):
     @property
     def active_view(self) -> Optional[View]:
         return self.back_stack[-1].view if self.back_stack else None
+    def active_view(self) -> View:
+        from seedsigner.views import MainMenuView
+        return self.back_stack[-1].view if self.back_stack else MainMenuView()
+
