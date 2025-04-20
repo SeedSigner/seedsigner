@@ -82,13 +82,7 @@ class HardwareButtons(Singleton):
                 return HardwareButtonsConstants.OVERRIDE
 
             cur_time = int(time.time() * 1000)
-            active_view = controller.active_view
-            active_view_allows_screensaver = True
-            if active_view:
-                active_view_allows_screensaver = active_view.allow_screensaver
-
-            if (cur_time - self.last_input_time > controller.screensaver_activation_ms
-                    and not controller.is_screensaver_running and active_view_allows_screensaver):
+            if cur_time - self.last_input_time > controller.screensaver_activation_ms and controller.can_run_screensaver():
                 # Start the screensaver. Will block execution until input detected.
                 controller.start_screensaver()
 
