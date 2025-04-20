@@ -1558,16 +1558,16 @@ class SeedTranscribeSeedQRWholeQRView(View):
 
 class SeedTranscribeSeedQRZoomedInView(View):
     """
-    intial_block_x, initial_block_y: Used by the screenshot generator to shift the view
+    intial_zone_x, initial_zone_y: Used by the screenshot generator to shift the view
     to a more interesting part of the QR code template.
     """
-    def __init__(self, seed_num: int, seedqr_format: str, initial_block_x: int = 0, initial_block_y: int = 0):
+    def __init__(self, seed_num: int, seedqr_format: str, initial_zone_x: int = 0, initial_zone_y: int = 0):
         super().__init__()
         self.seed_num = seed_num
         self.seedqr_format = seedqr_format
         self.seed = self.controller.get_seed(seed_num)
-        self.initial_block_x = initial_block_x
-        self.initial_block_y = initial_block_y 
+        self.initial_zone_x = initial_zone_x
+        self.initial_zone_y = initial_zone_y 
 
 
     def run(self):
@@ -1594,8 +1594,8 @@ class SeedTranscribeSeedQRZoomedInView(View):
         seed_screens.SeedTranscribeSeedQRZoomedInScreen(
             qr_data=data,
             num_modules=num_modules,
-            initial_block_x=self.initial_block_x,
-            initial_block_y=self.initial_block_y,
+            initial_zone_x=self.initial_zone_x,
+            initial_zone_y=self.initial_zone_y,
         ).display()
 
         return Destination(SeedTranscribeSeedQRConfirmQRPromptView, view_args={"seed_num": self.seed_num})

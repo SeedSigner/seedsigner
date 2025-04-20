@@ -1195,68 +1195,80 @@ class SeedTranscribeSeedQRWholeQRScreen(WarningEdgesMixin, ButtonListScreen):
 
 @dataclass
 class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
+    """
+    QR codes are defined by the number of "modules" (squares), e.g. 21x21 modules.
+
+    Each module will be rendered as a square of pixels, e.g. 24x24 pixels.
+
+    In this Screen, a "zone" will mean a square module area, e.g. 5x5 modules, that
+    corresponds to the SeedQR templates which include zone guidelines and labels
+    (e.g. "B-3").
+    """
     qr_data: str = None
     num_modules: int = None
-    initial_block_x: int = 0
-    initial_block_y: int = 0
+    initial_zone_x: int = 0
+    initial_zone_y: int = 0
 
     def __post_init__(self):
         super().__post_init__()
 
         # Render an oversized QR code that we can view up close
-        self.pixels_per_block = 24
+        self.pixels_per_module = 24
 
         # Border must accommodate the 3 blocks outside the center 5x5 mask plus up to
         # 1 empty block inside the 5x5 mask (29x29 has a 4-block final col/row).
-        self.qr_border = 4
+        self.num_qr_border_modules = 4
         if self.num_modules == 21:
             # Optimize for 21x21
-            self.qr_blocks_per_zoom = 7
+            self.modules_per_zone = 7  # i.e. a 7x7 group of modules
         else:
-            self.qr_blocks_per_zoom = 5
+            self.modules_per_zone = 5
 
-        self.qr_width = (self.qr_border + self.num_modules + self.qr_border) * self.pixels_per_block
-        self.height = self.qr_width
+        total_qr_image_width = (self.num_qr_border_modules + self.num_modules + self.num_qr_border_modules) * self.pixels_per_module
         qr = QR()
-        self.qr_image = qr.qrimage(
+        self.qr_image: Image = qr.qrimage(
             self.qr_data,
-            width=self.qr_width,
-            height=self.height,
-            border=self.qr_border,
+            width=total_qr_image_width,
+            height=total_qr_image_width,  # QR image is always square
+            border=self.num_qr_border_modules,
             style=QR.STYLE__ROUNDED
-        ).convert("RGBA")
+        # ).convert("RGBA")
+        )
 
-        # Render gridlines but leave the 1-block border as-is
-        draw = ImageDraw.Draw(self.qr_image)
-        for i in range(self.qr_border, math.floor(self.qr_width/self.pixels_per_block) - self.qr_border):
-            draw.line((i * self.pixels_per_block, self.qr_border * self.pixels_per_block, i * self.pixels_per_block, self.height - self.qr_border * self.pixels_per_block), fill="#bbb")
-            draw.line((self.qr_border * self.pixels_per_block, i * self.pixels_per_block, self.qr_width - self.qr_border * self.pixels_per_block, i * self.pixels_per_block), fill="#bbb")
+        # Render gridlines over the QR code but don't draw on its external white border
+        qr_image_draw = ImageDraw.Draw(self.qr_image)
+        for i in range(self.num_qr_border_modules, math.floor(self.qr_image.width/self.pixels_per_module) - self.num_qr_border_modules):
+            qr_image_draw.line((i * self.pixels_per_module, self.num_qr_border_modules * self.pixels_per_module, i * self.pixels_per_module, self.qr_image.height - self.num_qr_border_modules * self.pixels_per_module), fill="#bbb")
+            qr_image_draw.line((self.num_qr_border_modules * self.pixels_per_module, i * self.pixels_per_module, self.qr_image.width - self.num_qr_border_modules * self.pixels_per_module, i * self.pixels_per_module), fill="#bbb")
 
         # Prep the semi-transparent mask overlay
-        # make a blank image for the overlay, initialized to transparent
-        self.block_mask = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
-        draw = ImageDraw.Draw(self.block_mask)
+        # make a blank image for the overlay, initialized to fully transparent
+        self.zone_mask = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
+        zone_mask_draw = ImageDraw.Draw(self.zone_mask)
 
-        self.mask_width = int((self.canvas_width - self.qr_blocks_per_zoom * self.pixels_per_block)/2)
-        self.mask_height = int((self.canvas_height - self.qr_blocks_per_zoom * self.pixels_per_block)/2)
+        # TODO: Could reverse this to initialize the mask to `mask_rgba` but then cut out
+        # the fully transparent center area w/an edge line; One draw command instead of 8.
+        # `mask_*` vars measure the space from the screen edge to the inside mask cutout
+        self.mask_width = int((self.canvas_width - self.modules_per_zone * self.pixels_per_module)/2)
+        self.mask_height = int((self.canvas_height - self.modules_per_zone * self.pixels_per_module)/2)
         mask_rgba = (0, 0, 0, 226)
-        draw.rectangle((0, 0, self.canvas_width, self.mask_height), fill=mask_rgba)
-        draw.rectangle((0, self.canvas_height - self.mask_height - 1, self.canvas_width, self.canvas_height), fill=mask_rgba)
-        draw.rectangle((0, self.mask_height, self.mask_width, self.canvas_height - self.mask_height), fill=mask_rgba)
-        draw.rectangle((self.canvas_width - self.mask_width - 1, self.mask_height, self.canvas_width, self.canvas_height - self.mask_height), fill=mask_rgba)
+        zone_mask_draw.rectangle((0, 0, self.canvas_width, self.mask_height), fill=mask_rgba)
+        zone_mask_draw.rectangle((0, self.canvas_height - self.mask_height - 1, self.canvas_width, self.canvas_height), fill=mask_rgba)
+        zone_mask_draw.rectangle((0, self.mask_height, self.mask_width, self.canvas_height - self.mask_height), fill=mask_rgba)
+        zone_mask_draw.rectangle((self.canvas_width - self.mask_width - 1, self.mask_height, self.canvas_width, self.canvas_height - self.mask_height), fill=mask_rgba)
 
         # Draw a box around the cutout portion of the mask for better visibility
-        draw.line((self.mask_width, self.mask_height, self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
-        draw.line((self.canvas_width - self.mask_width, self.mask_height, self.canvas_width - self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
-        draw.line((self.mask_width, self.mask_height, self.canvas_width - self.mask_width, self.mask_height), fill=GUIConstants.ACCENT_COLOR)
-        draw.line((self.mask_width, self.canvas_height - self.mask_height, self.canvas_width - self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
+        zone_mask_draw.line((self.mask_width, self.mask_height, self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
+        zone_mask_draw.line((self.canvas_width - self.mask_width, self.mask_height, self.canvas_width - self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
+        zone_mask_draw.line((self.mask_width, self.mask_height, self.canvas_width - self.mask_width, self.mask_height), fill=GUIConstants.ACCENT_COLOR)
+        zone_mask_draw.line((self.mask_width, self.canvas_height - self.mask_height, self.canvas_width - self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
 
         msg = _("click to exit")
         font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_body_font_size())
         (left, top, right, bottom) = font.getbbox(msg, anchor="ls")
         msg_height = -1 * top + GUIConstants.COMPONENT_PADDING
         msg_width = right + 2*GUIConstants.COMPONENT_PADDING
-        draw.rectangle(
+        zone_mask_draw.rectangle(
             (
                 int((self.canvas_width - msg_width)/2),
                 self.canvas_height - msg_height,
@@ -1265,7 +1277,7 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
             ),
             fill=GUIConstants.BACKGROUND_COLOR,
         )
-        draw.text(
+        zone_mask_draw.text(
             (int(self.canvas_width/2), self.canvas_height - int(GUIConstants.COMPONENT_PADDING/2)),
             msg,
             fill=GUIConstants.BODY_FONT_COLOR,
@@ -1275,103 +1287,103 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
 
 
 
-    def draw_block_labels(self):
-        # Create overlay for block labels (e.g. "D-5")
-        block_labels_x = ["1", "2", "3", "4", "5", "6"]
-        block_labels_y = ["A", "B", "C", "D", "E", "F"]
+    def draw_zone_labels(self):
+        # Create overlay for zone labels (e.g. "D-5")
+        # TODO: Discuss w/translators if these zone labels need to be translated; would
+        # trigger a secondary need to have translated SeedQR printable templates as well. 
+        zone_labels_x = ["1", "2", "3", "4", "5", "6"]
+        zone_labels_y = ["A", "B", "C", "D", "E", "F"]
 
-        block_labels = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
-        draw = ImageDraw.Draw(block_labels)
-        draw.rectangle((self.mask_width, 0, self.canvas_width - self.mask_width, self.pixels_per_block), fill=GUIConstants.ACCENT_COLOR)
-        draw.rectangle((0, self.mask_height, self.pixels_per_block, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
+        zone_labels = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
+        zone_labels_draw = ImageDraw.Draw(zone_labels)
+        zone_labels_draw.rectangle((self.mask_width, 0, self.canvas_width - self.mask_width, self.pixels_per_module), fill=GUIConstants.ACCENT_COLOR)
+        zone_labels_draw.rectangle((0, self.mask_height, self.pixels_per_module, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
 
         label_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 28)
-        x_label = block_labels_x[self.cur_block_x]
+        x_label = zone_labels_x[self.cur_zone_x]
         (left, top, right, bottom) = label_font.getbbox(x_label, anchor="ls")
         x_label_height = -1 * top
 
-        draw.text(
-            (int(self.canvas_width/2), self.pixels_per_block - int((self.pixels_per_block - x_label_height)/2)),
+        zone_labels_draw.text(
+            (int(self.canvas_width/2), self.pixels_per_module - int((self.pixels_per_module - x_label_height)/2)),
             text=x_label,
             fill=GUIConstants.BUTTON_SELECTED_FONT_COLOR,
             font=label_font,
             anchor="ms",  # Middle, baSeline
         )
 
-        y_label = block_labels_y[self.cur_block_y]
+        y_label = zone_labels_y[self.cur_zone_y]
         (left, top, right, bottom) = label_font.getbbox(y_label, anchor="ls")
         y_label_height = -1 * top
-        draw.text(
-            (int(self.pixels_per_block/2), int((self.canvas_height + y_label_height) / 2)),
+        zone_labels_draw.text(
+            (int(self.pixels_per_module/2), int((self.canvas_height + y_label_height) / 2)),
             text=y_label,
             fill=GUIConstants.BUTTON_SELECTED_FONT_COLOR,
             font=label_font,
             anchor="ms",  # Middle, baSeline
         )
 
-        return block_labels
+        return zone_labels
 
 
     def _render(self):
-        # Track our current coordinates for the upper left corner of our view
-        self.cur_block_x = self.initial_block_x
-        self.cur_block_y = self.initial_block_y
-        self.cur_x = (self.cur_block_x * self.qr_blocks_per_zoom * self.pixels_per_block) + self.qr_border * self.pixels_per_block - self.mask_width
-        self.cur_y = (self.cur_block_y * self.qr_blocks_per_zoom * self.pixels_per_block) + self.qr_border * self.pixels_per_block - self.mask_height
-        self.next_x = self.cur_x
-        self.next_y = self.cur_y
+        # Track our current zone-level (macro-module) position and our actual pixel
+        # coordinates as we pan around across the QR code image.
+        self.cur_zone_x = self.initial_zone_x
+        self.cur_zone_y = self.initial_zone_y
+        self.cur_pixel_x = (self.cur_zone_x * self.modules_per_zone * self.pixels_per_module) + self.num_qr_border_modules * self.pixels_per_module - self.mask_width
+        self.cur_pixel_y = (self.cur_zone_y * self.modules_per_zone * self.pixels_per_module) + self.num_qr_border_modules * self.pixels_per_module - self.mask_height
+        self.next_pixel_x = self.cur_pixel_x
+        self.next_pixel_y = self.cur_pixel_y
 
-        block_labels = self.draw_block_labels()
+        zone_labels = self.draw_zone_labels()
 
         self.renderer.show_image(
-            self.qr_image.crop((self.cur_x, self.cur_y, self.cur_x + self.canvas_width, self.cur_y + self.canvas_height)),
-            alpha_overlay=Image.alpha_composite(self.block_mask, block_labels)
+            self.qr_image.crop((self.cur_pixel_x, self.cur_pixel_y, self.cur_pixel_x + self.canvas_width, self.cur_pixel_y + self.canvas_height)),
+            alpha_overlay=Image.alpha_composite(self.zone_mask, zone_labels)
         )
 
 
     def _run(self):
         while True:
             input = self.hw_inputs.wait_for(HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN + HardwareButtonsConstants.KEYS__ANYCLICK)
-            if input == HardwareButtonsConstants.KEY_RIGHT:
-                self.next_x = self.cur_x + self.qr_blocks_per_zoom * self.pixels_per_block
-                self.cur_block_x += 1
-                if self.next_x > self.qr_width - self.canvas_width:
-                    self.next_x = self.cur_x
-                    self.cur_block_x -= 1
-            elif input == HardwareButtonsConstants.KEY_LEFT:
-                self.next_x = self.cur_x - self.qr_blocks_per_zoom * self.pixels_per_block
-                self.cur_block_x -= 1
-                if self.next_x < 0:
-                    self.next_x = self.cur_x
-                    self.cur_block_x += 1
-            elif input == HardwareButtonsConstants.KEY_DOWN:
-                self.next_y = self.cur_y + self.qr_blocks_per_zoom * self.pixels_per_block
-                self.cur_block_y += 1
-                if self.next_y > self.height - self.canvas_height:
-                    self.next_y = self.cur_y
-                    self.cur_block_y -= 1
-            elif input == HardwareButtonsConstants.KEY_UP:
-                self.next_y = self.cur_y - self.qr_blocks_per_zoom * self.pixels_per_block
-                self.cur_block_y -= 1
-                if self.next_y < 0:
-                    self.next_y = self.cur_y
-                    self.cur_block_y += 1
-            elif input in HardwareButtonsConstants.KEYS__ANYCLICK:
+
+            if input in HardwareButtonsConstants.KEYS__ANYCLICK:
+                # User clicked to exit
                 return
 
-            # Create overlay for block labels (e.g. "D-5")
-            block_labels = self.draw_block_labels()
+            elif input == HardwareButtonsConstants.KEY_RIGHT and self.cur_zone_x + 1 < math.ceil(self.num_modules/self.modules_per_zone):
+                self.next_pixel_x = self.cur_pixel_x + self.modules_per_zone * self.pixels_per_module
+                self.cur_zone_x += 1
 
-            if self.cur_x != self.next_x or self.cur_y != self.next_y:
-                with self.renderer.lock:
-                    self.renderer.show_image_pan(
-                        self.qr_image,
-                        self.cur_x, self.cur_y, self.next_x, self.next_y,
-                        rate=self.pixels_per_block,
-                        alpha_overlay=Image.alpha_composite(self.block_mask, block_labels)
-                    )
-                    self.cur_x = self.next_x
-                    self.cur_y = self.next_y
+            elif input == HardwareButtonsConstants.KEY_LEFT and self.cur_zone_x - 1 >= 0:
+                self.next_pixel_x = self.cur_pixel_x - self.modules_per_zone * self.pixels_per_module
+                self.cur_zone_x -= 1
+
+            elif input == HardwareButtonsConstants.KEY_DOWN and self.cur_zone_y + 1 < math.ceil(self.num_modules/self.modules_per_zone):
+                self.next_pixel_y = self.cur_pixel_y + self.modules_per_zone * self.pixels_per_module
+                self.cur_zone_y += 1
+
+            elif input == HardwareButtonsConstants.KEY_UP and self.cur_zone_y - 1 >= 0:
+                self.next_pixel_y = self.cur_pixel_y - self.modules_per_zone * self.pixels_per_module
+                self.cur_zone_y -= 1
+
+            else:
+                # User selected a direction that we can't advance any further
+                continue
+
+            # Create overlay for zone labels (e.g. "D-5")
+            zone_labels = self.draw_zone_labels()
+
+            with self.renderer.lock:
+                self.renderer.show_image_pan(
+                    self.qr_image,
+                    self.cur_pixel_x, self.cur_pixel_y, self.next_pixel_x, self.next_pixel_y,
+                    rate=self.pixels_per_module,
+                    alpha_overlay=Image.alpha_composite(self.zone_mask, zone_labels)
+                )
+            self.cur_pixel_x = self.next_pixel_x
+            self.cur_pixel_y = self.next_pixel_y
 
 
 
