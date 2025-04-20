@@ -8,7 +8,7 @@ from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConstants, IconTextLine, SeedSignerIconConstants, TextArea
 
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, KeyboardScreen
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, ButtonOption, KeyboardScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
@@ -496,19 +496,18 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
 class ToolsAddressExplorerAddressListScreen(ButtonListScreen):
     start_index: int = 0
     addresses: list[str] = None
-    next_button: tuple = None
 
     def __post_init__(self):
         self.button_font_name = GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME
-        self.button_font_size = GUIConstants.BUTTON_FONT_SIZE + 4
+        self.button_font_size = GUIConstants.get_button_font_size() + 4
         self.is_button_text_centered = False
         self.is_bottom_list = True
 
         left, top, right, bottom  = Fonts.get_font(self.button_font_name, self.button_font_size).getbbox("X")
         char_width = right - left
 
-        last_index = self.start_index + len(self.addresses) - 1
-        index_digits = len(str(last_index))
+        last_addr_index = self.start_index + len(self.addresses) - 1
+        index_digits = len(str(last_addr_index))
         
         # Calculate how many pixels we have available within each address button,
         # remembering to account for the index number that will be displayed.
@@ -521,8 +520,16 @@ class ToolsAddressExplorerAddressListScreen(ButtonListScreen):
         self.button_data = []
         for i, address in enumerate(self.addresses):
             cur_index = i + self.start_index
-            self.button_data.append(f"{cur_index}:{address[:displayable_half]}...{address[-1*displayable_half:]}")
+
+            # TODO: Intentionally NOT marking these for translation, but we may need to in
+            # the future.
+            button_label = f"{cur_index}:{address[:displayable_half]}...{address[-1*displayable_half:]}"
+            active_button_label = f"{cur_index}:{address}"
+
+            self.button_data.append(ButtonOption(button_label, active_button_label=active_button_label))
         
-        self.button_data.append(self.next_button)
+        # TRANSLATOR_NOTE: Insert the number of addrs displayed per screen (e.g. "Next 10")
+        button_label = _("Next {}").format(len(self.addresses))
+        self.button_data.append(ButtonOption(button_label, right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT))
 
         super().__post_init__()
