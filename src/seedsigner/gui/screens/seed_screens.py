@@ -1241,27 +1241,28 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
             qr_image_draw.line((i * self.pixels_per_module, self.num_qr_border_modules * self.pixels_per_module, i * self.pixels_per_module, self.qr_image.height - self.num_qr_border_modules * self.pixels_per_module), fill="#bbb")
             qr_image_draw.line((self.num_qr_border_modules * self.pixels_per_module, i * self.pixels_per_module, self.qr_image.width - self.num_qr_border_modules * self.pixels_per_module, i * self.pixels_per_module), fill="#bbb")
 
-        # Prep the semi-transparent mask overlay
-        # make a blank image for the overlay, initialized to fully transparent
-        self.zone_mask = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
+        # Make a blank semi-transparent image for the overlay, initially across the
+        # entire canvas.
+        mask_rgba = (0, 0, 0, 226)
+        self.zone_mask = Image.new("RGBA", (self.canvas_width, self.canvas_height), mask_rgba)
         zone_mask_draw = ImageDraw.Draw(self.zone_mask)
 
-        # TODO: Could reverse this to initialize the mask to `mask_rgba` but then cut out
-        # the fully transparent center area w/an edge line; One draw command instead of 8.
-        # `mask_*` vars measure the space from the screen edge to the inside mask cutout
-        self.mask_width = int((self.canvas_width - self.modules_per_zone * self.pixels_per_module)/2)
-        self.mask_height = int((self.canvas_height - self.modules_per_zone * self.pixels_per_module)/2)
-        mask_rgba = (0, 0, 0, 226)
-        zone_mask_draw.rectangle((0, 0, self.canvas_width, self.mask_height), fill=mask_rgba)
-        zone_mask_draw.rectangle((0, self.canvas_height - self.mask_height - 1, self.canvas_width, self.canvas_height), fill=mask_rgba)
-        zone_mask_draw.rectangle((0, self.mask_height, self.mask_width, self.canvas_height - self.mask_height), fill=mask_rgba)
-        zone_mask_draw.rectangle((self.canvas_width - self.mask_width - 1, self.mask_height, self.canvas_width, self.canvas_height - self.mask_height), fill=mask_rgba)
-
-        # Draw a box around the cutout portion of the mask for better visibility
-        zone_mask_draw.line((self.mask_width, self.mask_height, self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
-        zone_mask_draw.line((self.canvas_width - self.mask_width, self.mask_height, self.canvas_width - self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
-        zone_mask_draw.line((self.mask_width, self.mask_height, self.canvas_width - self.mask_width, self.mask_height), fill=GUIConstants.ACCENT_COLOR)
-        zone_mask_draw.line((self.mask_width, self.canvas_height - self.mask_height, self.canvas_width - self.mask_width, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
+        # Now punch a hole in the center of the mask to highlight the current zone with
+        # an accent outline.
+        # The `zone_mask_offset_*` vars are the top left xy coords of the mask.
+        self.zone_mask_offset_x = int((self.canvas_width - (self.modules_per_zone * self.pixels_per_module))/2)
+        self.zone_mask_offset_y = int((self.canvas_height - (self.modules_per_zone * self.pixels_per_module))/2)
+        zone_mask_draw.rectangle(
+            (
+                self.zone_mask_offset_x,
+                self.zone_mask_offset_y,
+                self.canvas_width - self.zone_mask_offset_x,
+                self.canvas_height - self.zone_mask_offset_y
+            ),
+            fill=(255, 255, 255, 0),  # fully transparent mask area
+            outline=GUIConstants.ACCENT_COLOR,
+            width=1
+        )
 
         msg = _("click to exit")
         font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_body_font_size())
@@ -1296,8 +1297,8 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
 
         zone_labels = Image.new("RGBA", (self.canvas_width, self.canvas_height), (255,255,255,0))
         zone_labels_draw = ImageDraw.Draw(zone_labels)
-        zone_labels_draw.rectangle((self.mask_width, 0, self.canvas_width - self.mask_width, self.pixels_per_module), fill=GUIConstants.ACCENT_COLOR)
-        zone_labels_draw.rectangle((0, self.mask_height, self.pixels_per_module, self.canvas_height - self.mask_height), fill=GUIConstants.ACCENT_COLOR)
+        zone_labels_draw.rectangle((self.zone_mask_offset_x, 0, self.canvas_width - self.zone_mask_offset_x, self.pixels_per_module), fill=GUIConstants.ACCENT_COLOR)
+        zone_labels_draw.rectangle((0, self.zone_mask_offset_y, self.pixels_per_module, self.canvas_height - self.zone_mask_offset_y), fill=GUIConstants.ACCENT_COLOR)
 
         label_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, 28)
         x_label = zone_labels_x[self.cur_zone_x]
@@ -1331,8 +1332,8 @@ class SeedTranscribeSeedQRZoomedInScreen(BaseScreen):
         # coordinates as we pan around across the QR code image.
         self.cur_zone_x = self.initial_zone_x
         self.cur_zone_y = self.initial_zone_y
-        self.cur_pixel_x = (self.cur_zone_x * self.modules_per_zone * self.pixels_per_module) + self.num_qr_border_modules * self.pixels_per_module - self.mask_width
-        self.cur_pixel_y = (self.cur_zone_y * self.modules_per_zone * self.pixels_per_module) + self.num_qr_border_modules * self.pixels_per_module - self.mask_height
+        self.cur_pixel_x = (self.cur_zone_x * self.modules_per_zone * self.pixels_per_module) + self.num_qr_border_modules * self.pixels_per_module - self.zone_mask_offset_x
+        self.cur_pixel_y = (self.cur_zone_y * self.modules_per_zone * self.pixels_per_module) + self.num_qr_border_modules * self.pixels_per_module - self.zone_mask_offset_y
         self.next_pixel_x = self.cur_pixel_x
         self.next_pixel_y = self.cur_pixel_y
 
