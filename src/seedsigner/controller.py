@@ -477,9 +477,19 @@ class Controller(Singleton):
         return Destination(UnhandledExceptionView, view_args={"error": error}, clear_history=True)
 
     @property
-    def active_view(self) -> Optional[View]:
-        return self.back_stack[-1].view if self.back_stack else None
     def active_view(self) -> View:
         from seedsigner.views import MainMenuView
         return self.back_stack[-1].view if self.back_stack else MainMenuView()
 
+    def can_run_screensaver(self) -> bool:
+        """
+        Determines whether the screensaver is allowed to run.
+
+        The screensaver can run only if:
+        - It is not currently running.
+        - The current active view allows screensaver activity.
+
+        Returns:
+            bool: True if the screensaver can run, False otherwise.
+        """
+        return not self.is_screensaver_running and self.active_view.allow_screensaver
