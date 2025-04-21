@@ -7,7 +7,7 @@ from gettext import gettext as _
 
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
-from seedsigner.gui.screens.screen import ButtonOption
+from seedsigner.gui.screens.screen import ButtonOption, LargeIconStatusScreen
 from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
@@ -25,9 +25,10 @@ class ToolsMenuView(View):
     KEYBOARD = ButtonOption("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     ADDRESS_EXPLORER = ButtonOption("Address Explorer")
     VERIFY_ADDRESS = ButtonOption("Verify Address")
+    SEED_XOR = ButtonOption("SeedXOR")
 
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
+        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS, self.SEED_XOR]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -54,6 +55,9 @@ class ToolsMenuView(View):
         elif button_data[selected_menu_num] == self.VERIFY_ADDRESS:
             from seedsigner.views.scan_views import ScanAddressView
             return Destination(ScanAddressView)
+            
+        elif button_data[selected_menu_num] == self.SEED_XOR:
+            return Destination(ToolsSeedXORView)
 
 
 
@@ -739,3 +743,231 @@ class ToolsAddressExplorerAddressView(View):
     
         # Exiting/Cancelling the QR display screen always returns to the list
         return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.is_change, start_index=self.start_index, selected_button_index=self.index - self.start_index, initial_scroll=self.parent_initial_scroll), skip_current_view=True)
+
+
+"""****************************************************************************
+    SeedXOR Views
+****************************************************************************"""
+class ToolsSeedXORView(View):
+    """Initial view to show SeedXOR options"""
+    SPLIT = ButtonOption("Split Existing")
+    RESTORE = ButtonOption("Restore SeedXOR")
+    
+    def run(self):
+        button_data = [self.SPLIT, self.RESTORE]
+        
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("SeedXOR"),
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+        
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        selected_button = button_data[selected_menu_num]
+        
+        if selected_button == self.SPLIT:
+            return Destination(ToolsSeedXORSplitView)
+        
+        elif selected_button == self.RESTORE:
+            return Destination(ToolsSeedXORRestoreView)
+
+class ToolsSeedXORSplitView(View):
+    """View to split an existing seed into multiple shares"""
+    COMBINE = ButtonOption("Combine Seeds")
+    SPLIT = ButtonOption("Split Seed")
+    
+    def run(self):
+        button_data = [self.COMBINE, self.SPLIT]
+        
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("Split Existing"),
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+        
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        selected_button = button_data[selected_menu_num]
+        
+        if selected_button == self.COMBINE:
+            # Store seeds selected for XOR operation
+            self.controller.seed_xor_candidates = []
+            
+            # If there are no seeds loaded, we need to prompt the user to load some
+            if not self.controller.storage.seeds:
+                return Destination(ToolsSeedXORLoadSeedsView)
+            
+            return Destination(ToolsSeedXORSelectSeedsView)
+        
+        elif selected_button == self.SPLIT:
+            self.run_screen(
+                LargeIconStatusScreen,
+                title=_("Split Seed"),
+                status_headline=_("Coming Soon"),
+                text=_("Seed splitting functionality will be available in a future update."),
+                button_data=[ButtonOption("OK")]
+            )
+            return Destination(ToolsSeedXORSplitView)
+
+class ToolsSeedXORRestoreView(View):
+    """View to restore a seed from its shares"""
+    def run(self):
+        self.run_screen(
+            LargeIconStatusScreen,
+            title=_("Restore SeedXOR"),
+            status_headline=_("Coming Soon"),
+            text=_("Seed restoration functionality will be available in a future update."),
+            button_data=[ButtonOption("OK")]
+        )
+        return Destination(ToolsSeedXORView)
+
+class ToolsSeedXORLoadSeedsView(View):
+    """Prompt to load seeds when none are available"""
+    def run(self):
+        self.run_screen(
+            LargeIconStatusScreen,
+            title=_("SeedXOR"),
+            status_headline=_("No Seeds Available"),
+            text=_("You need to load at least 2 seeds for SeedXOR"),
+            button_data=[ButtonOption("Load Seeds")]
+        )
+        
+        # Go to the load seed view
+        from seedsigner.views.seed_views import LoadSeedView
+        return Destination(LoadSeedView)
+
+class ToolsSeedXORSelectSeedsView(View):
+    """View to select seeds to combine with XOR"""
+    FINALIZE = ButtonOption("Combine Selected Seeds")
+    ADD_SEED = ButtonOption("Load Another Seed")
+    
+    def run(self):
+        # Initialize the candidates list if needed
+        if not hasattr(self.controller, "seed_xor_candidates"):
+            self.controller.seed_xor_candidates = []
+        
+        button_data = []
+        
+        # Add loaded seeds as options
+        for i, seed in enumerate(self.controller.storage.seeds):
+            fingerprint = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+            is_selected = i in self.controller.seed_xor_candidates
+            
+            # Show checkmark for selected seeds
+            icon = SeedSignerIconConstants.CHECK if is_selected else SeedSignerIconConstants.FINGERPRINT
+            icon_color = "green" if is_selected else "blue"
+            
+            button_data.append(ButtonOption(
+                fingerprint, 
+                icon_name=icon, 
+                icon_color=icon_color,
+                return_data=i
+            ))
+        
+        # Add finalize and add seed buttons
+        finalize = self.FINALIZE
+        # Set button color to indicate disabled state if not enough seeds are selected
+        if len(self.controller.seed_xor_candidates) < 2:
+            button_data.append(ButtonOption("Combine Selected Seeds", button_label_color=GUIConstants.INACTIVE_COLOR))
+        else:
+            button_data.append(finalize)
+            
+        button_data.append(self.ADD_SEED)
+        
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("Select Seeds for XOR"),
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+        
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        selected_button = button_data[selected_menu_num]
+        
+        if selected_button == self.FINALIZE:
+            return Destination(ToolsSeedXORConfirmView)
+        
+        elif selected_button == self.ADD_SEED:
+            from seedsigner.views.seed_views import LoadSeedView
+            return Destination(LoadSeedView)
+        
+        elif len(self.controller.seed_xor_candidates) < 2 and selected_menu_num == len(button_data) - 2:
+            # User clicked on the disabled "Combine Selected Seeds" button - ignore
+            return Destination(ToolsSeedXORSelectSeedsView)
+        
+        else:
+            # Seed selection toggle
+            seed_index = selected_button.return_data
+            if seed_index in self.controller.seed_xor_candidates:
+                self.controller.seed_xor_candidates.remove(seed_index)
+            else:
+                self.controller.seed_xor_candidates.append(seed_index)
+            
+            # Stay on this view to continue selection
+            return Destination(ToolsSeedXORSelectSeedsView)
+
+class ToolsSeedXORConfirmView(View):
+    """Confirm the SeedXOR operation"""
+    CONFIRM = ButtonOption("Confirm", button_label_color="green")
+    CANCEL = ButtonOption("Cancel", button_label_color="red")
+
+    def run(self):
+        # Get the selected seeds
+        selected_seeds = [self.controller.storage.seeds[i] for i in self.controller.seed_xor_candidates]
+        
+        # Display fingerprints of selected seeds
+        seed_fps = [seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)) for seed in selected_seeds]
+        
+        # Format the seed list with bullet points
+        seed_list = "\n".join([f"• {fp}" for fp in seed_fps])
+        
+        # Confirm operation screen with both Confirm and Cancel buttons
+        button_data = [self.CONFIRM, self.CANCEL]
+        
+        selected_menu_num = self.run_screen(
+            LargeIconStatusScreen,
+            title=_("Confirm SeedXOR"),
+            status_headline=_("Combine these Seeds?"),
+            text=_("Selected seeds:\n{}\n").format(seed_list),
+            show_back_button=True,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON or button_data[selected_menu_num] == self.CANCEL:
+            return Destination(ToolsSeedXORSelectSeedsView)
+        
+        # Perform the XOR operation
+        from seedsigner.models.seed_xor import SeedXOR
+        
+        try:
+            # Create the new combined seed
+            new_seed = SeedXOR.create_seed_from_xor(
+                selected_seeds,
+                self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+            )
+            
+            # Store it as pending seed
+            self.controller.storage.set_pending_seed(new_seed)
+            
+            # Show the seed words warning and then finalize the seed
+            return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
+            
+        except Exception as e:
+            # Show error message
+            self.run_screen(
+                LargeIconStatusScreen,
+                title=_("SeedXOR Error"),
+                status_headline=_("Error Combining Seeds"),
+                text=str(e),
+                button_data=[ButtonOption("OK")]
+            )
+            
+            # Return to selection view
+            return Destination(ToolsSeedXORSelectSeedsView)
