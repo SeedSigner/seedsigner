@@ -169,7 +169,6 @@ def generate_screenshots(locale):
                 dict(
                     visibility=SettingsConstants.VISIBILITY__ADVANCED,
                     selected_attr=SettingsConstants.SETTING__ELECTRUM_SEEDS,
-                    initial_scroll=240,  # Just guessing how many pixels to scroll down
                 ),
                 screenshot_name="SettingsMenuView__Advanced"
             )
