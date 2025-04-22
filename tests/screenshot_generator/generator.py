@@ -162,34 +162,45 @@ def generate_screenshots(locale):
             "addr_format": embit_utils.parse_derivation_path(derivation_path)
         }
 
+        # so we get a choice for transcribe seed qr format
+        controller.settings.set_value(
+            attr_name=SettingsConstants.SETTING__COMPACT_SEEDQR,
+            value=SettingsConstants.OPTION__ENABLED
+        )
+
         # Automatically populate all Settings options Views
         settings_views_list = []
+        def add_settings_entries(visibility = SettingsConstants.VISIBILITY__GENERAL):
+            for settings_entry in SettingsDefinition.settings_entries:
+                if settings_entry.visibility != visibility:
+                    continue
+
+                if settings_entry.attr_name == SettingsConstants.SETTING__LOCALE:
+                    # Locale selection has its own dedicated View
+                    settings_views_list.append(ScreenshotConfig(settings_views.LocaleSelectionView))
+                else:
+                    # Generic SettingsEntry selection View
+                    settings_views_list.append(ScreenshotConfig(settings_views.SettingsEntryUpdateSelectionView, dict(attr_name=settings_entry.attr_name), screenshot_name=f"SettingsEntryUpdateSelectionView_{settings_entry.attr_name}"))
+
+        # Add the top level "General" settings menu and entries
         settings_views_list.append(ScreenshotConfig(settings_views.SettingsMenuView))
+        add_settings_entries(SettingsConstants.VISIBILITY__GENERAL)
+
+        # Add the "Advanced" menu...
         settings_views_list.append(
             ScreenshotConfig(
                 settings_views.SettingsMenuView,
                 dict(
                     visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                    selected_attr=SettingsConstants.SETTING__ELECTRUM_SEEDS,
                 ),
                 screenshot_name="SettingsMenuView__Advanced"
             )
         )
 
-        # Render the nested "Hardware" submenu option at the end of "Advanced"
-        num_advanced_settings = len(SettingsDefinition.get_settings_entries(visibility=SettingsConstants.VISIBILITY__ADVANCED)) - 5  # hard-coded for 240px height: the first 5 settings options are already visible
-        settings_views_list.append(
-            ScreenshotConfig(
-                settings_views.SettingsMenuView,
-                dict(
-                    visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                    selected_attr=SettingsConstants.SETTING__PARTNER_LOGOS,
-                    initial_scroll=num_advanced_settings*GUIConstants.BUTTON_HEIGHT + (num_advanced_settings-1)*GUIConstants.COMPONENT_PADDING,  # Force menu to scroll to the bottom
-                ),
-                screenshot_name="SettingsMenuView__Advanced_Hardware"
-            )
-        )
+        # ...and Advanced entries
+        add_settings_entries(SettingsConstants.VISIBILITY__ADVANCED)
 
+        # Render the nested "Advanced" -> "Hardware" submenu
         settings_views_list.append(
             ScreenshotConfig(
                 settings_views.SettingsMenuView,
@@ -197,26 +208,10 @@ def generate_screenshots(locale):
                 screenshot_name="SettingsMenuView__Hardware"
             )
         )
-
-        # so we get a choice for transcribe seed qr format
-        controller.settings.set_value(
-            attr_name=SettingsConstants.SETTING__COMPACT_SEEDQR,
-            value=SettingsConstants.OPTION__ENABLED
-        )
-        for settings_entry in SettingsDefinition.settings_entries:
-            if settings_entry.visibility == SettingsConstants.VISIBILITY__HIDDEN:
-                continue
-
-            if settings_entry.attr_name == SettingsConstants.SETTING__LOCALE:
-                # Locale selection has its own dedicated View
-                settings_views_list.append(ScreenshotConfig(settings_views.LocaleSelectionView))
-            else:
-                # Generic SettingsEntry selection View
-                settings_views_list.append(ScreenshotConfig(settings_views.SettingsEntryUpdateSelectionView, dict(attr_name=settings_entry.attr_name), screenshot_name=f"SettingsEntryUpdateSelectionView_{settings_entry.attr_name}"))
+        add_settings_entries(SettingsConstants.VISIBILITY__HARDWARE)
 
         settingsqr_data_persistent = f"settings::v1 name=English_noob_mode persistent=E coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E locale={locale}"
         settingsqr_data_not_persistent = f"settings::v1 name=Mode_Ephemeral persistent=D coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E locale={locale}"
-
 
         # Set up screenshot-specific callbacks to inject data before the View is run and
         # reset data after the View is run.
