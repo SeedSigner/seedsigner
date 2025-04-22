@@ -114,7 +114,7 @@ class ST7789(object):
         self.data(0x20)
         self.data(0x23)
         
-        self.command(0x21)
+        self.command(0x21)  # inversion ON; 0x20 = inversion OFF
 
         self.command(0x11)
 
@@ -167,3 +167,7 @@ class ST7789(object):
         self.SetWindows ( 0, 0, self.width, self.height)
         GPIO.output(self._dc,GPIO.HIGH)
         self._spi.writebytes2(_buffer)
+
+    def invert(self, enabled: bool = True):
+        """Invert how the display interprets colors"""
+        self.command(0x21 if enabled else 0x20)
