@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: seedsigner 0.8.5-rc1\n"
+"Project-Id-Version: seedsigner 0.8.5\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-01-28 13:28-0600\n"
+"POT-Creation-Date: 2025-04-23 11:43-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -48,6 +48,27 @@ msgstr ""
 
 #: src/seedsigner/gui/toast.py
 msgid "SD card inserted"
+msgstr ""
+
+#: src/seedsigner/gui/screens/nostr_screens.py
+#: src/seedsigner/views/nostr_views.py src/seedsigner/views/seed_views.py
+msgid "Export Nostr Key"
+msgstr ""
+
+#. Short for "Next step"
+#: src/seedsigner/gui/screens/nostr_screens.py
+#: src/seedsigner/gui/screens/seed_screens.py
+#: src/seedsigner/views/psbt_views.py src/seedsigner/views/seed_views.py
+#: src/seedsigner/views/tools_views.py
+msgid "Next"
+msgstr ""
+
+#: src/seedsigner/gui/screens/nostr_screens.py
+msgid "Public key:"
+msgstr ""
+
+#: src/seedsigner/gui/screens/nostr_screens.py
+msgid "Private key:"
 msgstr ""
 
 #: src/seedsigner/gui/screens/psbt_screens.py
@@ -435,13 +456,6 @@ msgstr ""
 msgid "Review Message"
 msgstr ""
 
-#. Short for "Next step"
-#: src/seedsigner/gui/screens/seed_screens.py
-#: src/seedsigner/views/psbt_views.py src/seedsigner/views/seed_views.py
-#: src/seedsigner/views/tools_views.py
-msgid "Next"
-msgstr ""
-
 #: src/seedsigner/gui/screens/seed_screens.py
 msgid "Confirm Address"
 msgstr ""
@@ -763,6 +777,14 @@ msgid "BIP-85 child seeds"
 msgstr ""
 
 #: src/seedsigner/models/settings_definition.py
+msgid "Nostr NIP-06 keys"
+msgstr ""
+
+#: src/seedsigner/models/settings_definition.py
+msgid "Derive Nostr key from BIP-39 mnemonic"
+msgstr ""
+
+#: src/seedsigner/models/settings_definition.py
 msgid "Electrum seeds"
 msgstr ""
 
@@ -792,6 +814,46 @@ msgstr ""
 
 #: src/seedsigner/models/settings_definition.py
 msgid "QR background color"
+msgstr ""
+
+#: src/seedsigner/views/nostr_views.py
+msgid "Keep keys separate!"
+msgstr ""
+
+#: src/seedsigner/views/nostr_views.py
+msgid "If this key already secures bitcoin, do not use it as your nostr key!"
+msgstr ""
+
+#. Option to export a nostr public key; do not translate "npub".
+#: src/seedsigner/views/nostr_views.py
+msgid "Public key: npub"
+msgstr ""
+
+#. Option to export a nostr public key; "hex" == hexadecimal format.
+#: src/seedsigner/views/nostr_views.py
+msgid "Public key: hex"
+msgstr ""
+
+#. Option to export a nostr private key; do not translate "nsec".
+#: src/seedsigner/views/nostr_views.py
+msgid "Private key: nsec"
+msgstr ""
+
+#. Option to export a nostr private key; "hex" == hexadecimal format.
+#: src/seedsigner/views/nostr_views.py
+msgid "Private key: hex"
+msgstr ""
+
+#: src/seedsigner/views/nostr_views.py
+msgid "Nostr Private Key"
+msgstr ""
+
+#: src/seedsigner/views/nostr_views.py
+msgid "Protect your key!"
+msgstr ""
+
+#: src/seedsigner/views/nostr_views.py
+msgid "Anyone with your private key has full control of your nostr identity."
 msgstr ""
 
 #: src/seedsigner/views/psbt_views.py src/seedsigner/views/seed_views.py
@@ -1254,11 +1316,11 @@ msgid "Review SeedQR"
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
-msgid "Your transcribed SeedQR successfully scanned and yielded the same seed."
+msgid "Your transcribed SeedQR could not be read!"
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
-msgid "Your transcribed SeedQR could not be read!"
+msgid "Your transcribed SeedQR successfully scanned and yielded the same seed."
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
