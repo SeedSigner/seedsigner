@@ -1,7 +1,6 @@
 from binascii import hexlify
 from embit import bip32, bech32
 from embit import ec
-# from seedsigner.helpers import bech32
 from seedsigner.models.seed import Seed
 
 
@@ -12,11 +11,11 @@ NOSTR__PRIVKEY_HEX = "privhex"
 
 
 def derive_nostr_key(seed: Seed) -> bip32.HDKey:
-    """ Derive the NIP-06 Nostr key at m/44'/1237'/0'/0/0 """
-    """
-        Note: You could derive sibling seeds (e.g. m/44h/1237h/0h/0/1) from the same root
-        Seed, but so far Nostr use cases & best practices are limited to just a single
-        direct path from mnemonic to npub/nsec. No sibling or child Nostr keys.
+    """ Derive the NIP-06 Nostr key at m/44'/1237'/0'/0/0
+
+        Note: NIP-06 mentions the possibility of deriving sibling seeds by incrementing
+        `account` (i.e. m/44'/1237'/<account>'/0/0) from the same root Seed, but for now
+        we only support the simplest (`account == 0`) use case.
     """
     root = bip32.HDKey.from_seed(seed.seed_bytes)
     return root.derive("m/44h/1237h/0h/0/0")
@@ -53,12 +52,6 @@ def get_privkey_hex(seed: Seed) -> str:
 
 
 def get_nostr_key(seed: Seed, format: str = NOSTR__PUBKEY_NPUB) -> str:
-    """
-    Get the Nostr key in the requested format.
-    :param seed: Seed object
-    :param format: Format of the key (npub, pubhex, nsec, privhex)
-    :return: Nostr key in the requested format
-    """
     if format == NOSTR__PUBKEY_NPUB:
         return get_npub(seed)
     elif format == NOSTR__PUBKEY_HEX:
