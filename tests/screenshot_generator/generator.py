@@ -29,7 +29,7 @@ from seedsigner.gui.screens.seed_screens import SeedAddPassphraseScreen
 from seedsigner.gui.toast import RemoveSDCardToastManagerThread, SDCardStateChangeToastManagerThread
 from seedsigner.gui.toast import DefaultToast, InfoToast, SuccessToast, WarningToast, ErrorToast, DireWarningToast
 from seedsigner.hardware.microsd import MicroSD
-from seedsigner.helpers import embit_utils
+from seedsigner.helpers import embit_utils, nostr
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 from seedsigner.models.qr_type import QRType
@@ -37,7 +37,7 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, NotYetImplementedView, UnhandledExceptionView, 
-    psbt_views, seed_views, settings_views, tools_views, scan_views)
+    nostr_views, psbt_views, seed_views, settings_views, tools_views, scan_views)
 from seedsigner.views.screensaver import OpeningSplashView
 from seedsigner.views.view import NetworkMismatchErrorView, OptionDisabledView, PowerOffView
 
@@ -317,6 +317,13 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedSignMessageConfirmAddressView),
 
                 ScreenshotConfig(seed_views.SeedElectrumMnemonicStartView),
+
+                ScreenshotConfig(nostr_views.NostrExportKeyStartView, dict(seed_num=0)),
+                ScreenshotConfig(nostr_views.NostrExportKeySelectTypeView, dict(seed_num=0)),
+                ScreenshotConfig(nostr_views.NostrExportKeyPrivateKeyWarningView, dict(seed_num=0)),
+                ScreenshotConfig(nostr_views.NostrExportKeyDisplayKeyView, dict(seed_num=0, nostr_key_format=nostr.NOSTR__PUBKEY_NPUB), screenshot_name="NostrExportKeyDisplayKeyView__npub"),
+                ScreenshotConfig(nostr_views.NostrExportKeyDisplayKeyView, dict(seed_num=0, nostr_key_format=nostr.NOSTR__PRIVKEY_NSEC), screenshot_name="NostrExportKeyDisplayKeyView__nsec"),
+                ScreenshotConfig(nostr_views.NostrExportKeyDisplayKeyView, dict(seed_num=0, nostr_key_format=nostr.NOSTR__PRIVKEY_HEX), screenshot_name="NostrExportKeyDisplayKeyView__privkey_hex"),
             ],
             "PSBT Views": [
                 ScreenshotConfig(psbt_views.PSBTSelectSeedView, run_before=PSBTSelectSeedView_cb_before),

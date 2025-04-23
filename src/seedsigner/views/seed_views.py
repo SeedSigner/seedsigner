@@ -529,6 +529,7 @@ class SeedOptionsView(View):
     SIGN_MESSAGE = ButtonOption("Sign Message")
     BACKUP = ButtonOption("Backup Seed", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
     BIP85_CHILD_SEED = ButtonOption("BIP-85 Child Seed")
+    EXPORT_NOSTR_KEY = ButtonOption("Export Nostr Key")
     DISCARD = ButtonOption("Discard Seed", button_label_color="red")
 
 
@@ -589,6 +590,9 @@ class SeedOptionsView(View):
         if self.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS) == SettingsConstants.OPTION__ENABLED and self.seed.bip85_supported:
             button_data.append(self.BIP85_CHILD_SEED)
 
+        if self.settings.get_value(SettingsConstants.SETTING__NOSTR_NIP06_EXPORT) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.EXPORT_NOSTR_KEY)
+
         button_data.append(self.DISCARD)
         
         selected_menu_num = self.run_screen(
@@ -628,6 +632,10 @@ class SeedOptionsView(View):
 
         elif button_data[selected_menu_num] == self.BIP85_CHILD_SEED:
             return Destination(SeedBIP85ApplicationModeView, view_args={"seed_num": self.seed_num})
+
+        elif button_data[selected_menu_num] == self.EXPORT_NOSTR_KEY:
+            from seedsigner.views.nostr_views import NostrExportKeyStartView
+            return Destination(NostrExportKeyStartView, view_args={"seed_num": self.seed_num})
 
         elif button_data[selected_menu_num] == self.DISCARD:
             return Destination(SeedDiscardView, view_args=dict(seed_num=self.seed_num))
