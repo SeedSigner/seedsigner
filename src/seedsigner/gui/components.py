@@ -1360,8 +1360,12 @@ class Button(BaseComponent):
     text_y_offset: int = 0
     background_color: str = GUIConstants.BUTTON_BACKGROUND_COLOR
     selected_color: str = GUIConstants.ACCENT_COLOR
+
+    # Cannot define these class attrs w/the get_*_font_*() methods because the attrs will
+    # not be dynamically reinterpreted after initial class import.
     font_name: str = None
     font_size: int = None
+
     font_color: str = GUIConstants.BUTTON_FONT_COLOR
     selected_font_color: str = GUIConstants.BUTTON_SELECTED_FONT_COLOR
     outline_color: str = None
@@ -1674,8 +1678,12 @@ class TopNav(BaseComponent):
     background_color: str = GUIConstants.BACKGROUND_COLOR
     icon_name: str = None
     icon_color: str = GUIConstants.BODY_FONT_COLOR
-    font_name: str = GUIConstants.get_top_nav_title_font_name()
-    font_size: int = GUIConstants.get_top_nav_title_font_size()
+
+    # Cannot define these class attrs w/the get_*_font_*() methods because the attrs will
+    # not be dynamically reinterpreted after initial class import.
+    font_name: str = None
+    font_size: int = None
+
     font_color: str = GUIConstants.BODY_FONT_COLOR
     show_back_button: bool = True
     show_power_button: bool = False
@@ -1688,8 +1696,7 @@ class TopNav(BaseComponent):
         
         if not self.font_size:
             self.font_size = GUIConstants.get_top_nav_title_font_size()
-            print(f"self.font_size: {self.font_size}")
-
+        
         super().__post_init__()
         if not self.width:
             self.width = self.canvas_width

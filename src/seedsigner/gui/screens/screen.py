@@ -289,8 +289,12 @@ class ButtonListScreen(BaseTopNavScreen):
     selected_button: int = 0
     is_button_text_centered: bool = True
     is_bottom_list: bool = False
+
+    # Cannot define these class attrs w/the get_*_font_*() methods because the attrs will
+    # not be dynamically reinterpreted after initial class import.
     button_font_name: str = None
     button_font_size: int = None
+
     button_selected_color: str = GUIConstants.ACCENT_COLOR
 
     # Params for version of list used for Settings
@@ -554,8 +558,12 @@ class ButtonListScreen(BaseTopNavScreen):
 @dataclass
 class LargeButtonScreen(BaseTopNavScreen):
     button_data: list = None
+
+    # Cannot define these class attrs w/the get_*_font_*() methods because the attrs will
+    # not be dynamically reinterpreted after initial class import.
     button_font_name: str = None
     button_font_size: int = None
+
     button_selected_color: str = GUIConstants.ACCENT_COLOR
     selected_button: int = 0
 
@@ -563,6 +571,7 @@ class LargeButtonScreen(BaseTopNavScreen):
         if not self.button_font_name:
             self.button_font_name = GUIConstants.get_button_font_name()
         if not self.button_font_size:
+            # TODO: Define the +2 with a constant or via a formula (e.g. int(x * 1.1))
             self.button_font_size = GUIConstants.get_button_font_size() + 2
 
         super().__post_init__()
