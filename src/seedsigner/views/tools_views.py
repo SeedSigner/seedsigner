@@ -6,7 +6,7 @@ import time
 from gettext import gettext as _
 
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
-from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
+from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen, DireWarningScreen
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.seed import Seed
@@ -712,12 +712,50 @@ class ToolsAddressExplorerAddressListView(View):
         initial_scroll = self.screen.buttons[0].scroll_y
 
         index = selected_menu_num + self.start_index
-        return Destination(ToolsAddressExplorerAddressView, view_args=dict(index=index, address=addresses[selected_menu_num], is_change=self.is_change, start_index=self.start_index, parent_initial_scroll=initial_scroll), skip_current_view=True)
+
+        if self.settings.get_value(SettingsConstants.SETTING__WIF_EXPORT) == SettingsConstants.OPTION__ENABLED:
+            return Destination(ToolsAddressExplorerAddressExportTypeView, view_args=dict(index=index, address=addresses[selected_menu_num], is_change=self.is_change, start_index=self.start_index, parent_initial_scroll=initial_scroll), skip_current_view=True)
+
+        return Destination(ToolsAddressExplorerAddressView, view_args=dict(index=index, address=addresses[selected_menu_num], is_change=self.is_change, start_index=self.start_index, export_data=address, parent_initial_scroll=initial_scroll), skip_current_view=True)
 
 
 
-class ToolsAddressExplorerAddressView(View):
-    # TODO: pull address str from controller.address_explorer_data and pass addr_storage_key and addr_index instead
+class ToolsAddressExplorerAddressWarningView(View):
+    def __init__(self, index: int, address: str, is_change: bool, start_index: int, export_data: str, parent_initial_scroll: int = 0):
+        super().__init__()
+        self.index = index
+        self.address = address
+        self.is_change = is_change
+        self.start_index = start_index
+        self.export_data = export_data
+        self.parent_initial_scroll = parent_initial_scroll
+
+
+    def run(self):
+        destination = Destination(ToolsAddressExplorerAddressView, view_args=dict(index=self.index, address=self.address, is_change=self.is_change, start_index=self.start_index, export_data=self.export_data, parent_initial_scroll=self.parent_initial_scroll), skip_current_view=True)
+        
+        if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__DISABLED:
+            return destination
+
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
+            text=_("You're about to export the private key. Anyone can spend from that address with it."),
+        )
+
+        if selected_menu_num == 0:
+            # User clicked "I Understand"
+            return destination
+
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(ToolsAddressExplorerAddressExportTypeView, view_args=dict(index=self.index, address=self.address, is_change=self.is_change, start_index=self.start_index, parent_initial_scroll=self.parent_initial_scroll), skip_current_view=True)
+        
+
+
+class ToolsAddressExplorerAddressExportTypeView(View):
+    ADDRESS = ButtonOption("Export address")
+
+    WIF = ButtonOption("Export WIF")
+
     def __init__(self, index: int, address: str, is_change: bool, start_index: int, parent_initial_scroll: int = 0):
         super().__init__()
         self.index = index
@@ -728,10 +766,55 @@ class ToolsAddressExplorerAddressView(View):
 
     
     def run(self):
+        from embit import bip32
+        from embit.networks import NETWORKS
+
+        button_data = [self.ADDRESS, self.WIF]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_(self.address),
+            button_data=button_data,
+            is_button_text_centered=False,
+            is_bottom_list=True,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(ToolsAddressExplorerAddressListView, view_args=dict(is_change=self.is_change, start_index=self.start_index, selected_button_index=self.index - self.start_index, initial_scroll=self.parent_initial_scroll), skip_current_view=True)
+        
+        if button_data[selected_menu_num] == self.ADDRESS:
+            return Destination(ToolsAddressExplorerAddressView, view_args=dict(index=self.index, address=self.address, is_change=self.is_change, start_index=self.start_index, export_data=self.address, parent_initial_scroll=self.parent_initial_scroll), skip_current_view=True)
+
+        # TODO: Fix seed_num variable which is actually instance of Seed class
+        seed = self.controller.address_explorer_data["seed_num"]
+
+        network = self.controller.address_explorer_data["network"]
+        derivation_path = self.controller.address_explorer_data["derivation_path"]
+
+        root = bip32.HDKey.from_seed(seed.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
+
+        address_wif = root.derive(derivation_path).derive([1 if self.is_change else 0, self.index]).key
+
+        return Destination(ToolsAddressExplorerAddressWarningView, view_args=dict(index=self.index, address=self.address, is_change=self.is_change, start_index=self.start_index, export_data=address_wif, parent_initial_scroll=self.parent_initial_scroll), skip_current_view=True)
+
+
+
+class ToolsAddressExplorerAddressView(View):
+    # TODO: pull address str from controller.address_explorer_data and pass addr_storage_key and addr_index instead
+    def __init__(self, index: int, address: str, is_change: bool, start_index: int, export_data: str, parent_initial_scroll: int = 0):
+        super().__init__()
+        self.index = index
+        self.address = address
+        self.is_change = is_change
+        self.start_index = start_index
+        self.export_data = export_data
+        self.parent_initial_scroll = parent_initial_scroll
+
+    def run(self):
         from seedsigner.gui.screens.screen import QRDisplayScreen
         from seedsigner.models.encode_qr import GenericStaticQrEncoder
 
-        qr_encoder = GenericStaticQrEncoder(data=self.address)
+        qr_encoder = GenericStaticQrEncoder(data=self.export_data)
         self.run_screen(
             QRDisplayScreen,
             qr_encoder=qr_encoder,
