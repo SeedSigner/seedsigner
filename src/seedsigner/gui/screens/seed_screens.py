@@ -1578,15 +1578,15 @@ class MultisigWalletDescriptorScreen(ButtonListScreen):
             # TRANSLATOR_NOTE: Label for the multisig wallet's signing policy (e.g. 2-of-3)
             label_text=_("Policy"),
             value_text=self.policy,
-            font_size=20,
+            font_size=24,
             screen_y=self.top_nav.height,
             is_text_centered=True,
         ))
 
         self.components.append(IconTextLine(
-            label_text=_("Signing Keys"),
+            label_text=_("Signing Keys Fingerprints"),
             value_text=" ".join(self.fingerprints),
-            font_size=24,
+            font_size=12,
             font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
             screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
             is_text_centered=True,
