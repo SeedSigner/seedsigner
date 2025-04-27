@@ -1646,11 +1646,15 @@ class SeedTranscribeSeedQRConfirmScanView(View):
 
         # Run the live preview and QR code capture process
         # TODO: Does this belong in its own BaseThread?
-        self.run_screen(
+        scanning_done==self.run_screen(
             ScanScreen,
             decoder=self.decoder,
             instructions_text=_("Scan your SeedQR")
         )
+
+        # If the scanning was canceled because the back button was pressed, return to BackStackView (SeedTranscribeSeedQRConfirmQRPromptView).
+        if scanning_done==False:
+           return Destination(BackStackView, skip_current_view=False)
 
         if self.decoder.is_complete:
             if self.decoder.is_seed:
