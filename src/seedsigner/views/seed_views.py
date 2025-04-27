@@ -1646,7 +1646,7 @@ class SeedTranscribeSeedQRConfirmScanView(View):
 
         # Run the live preview and QR code capture process
         # TODO: Does this belong in its own BaseThread?
-        scanning_done==self.run_screen(
+        scanning_done=self.run_screen(
             ScanScreen,
             decoder=self.decoder,
             instructions_text=_("Scan your SeedQR")
