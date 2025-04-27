@@ -476,6 +476,25 @@ class TestSeedFlows(FlowTest):
             FlowStep(seed_views.SeedOptionsView),
         ])
 
+    def test_transcribe_seedqr_screensaver_startable_status(self):
+        """
+            The controller should return False for screensaver startable status when SeedTranscribeSeedQRZoomedInView
+            is active.
+        """
+        # Load a finalized Seed into the Controller
+        mnemonic = ["abandon"] * 11 + ["about"]
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        self.controller.storage.finalize_pending_seed()
+
+        self.run_sequence(
+            initial_destination_view_args={'num_modules': 21, 'seed_num': 0, 'seedqr_format': 'seed__seedqr'},
+            sequence=[
+                FlowStep(seed_views.SeedTranscribeSeedQRWholeQRView),
+                FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are a bit weird; not sure why `is_redirect` is necessary here
+        ])
+
+        assert self.controller.is_screensaver_start_allowed == False
+
 
 
 class TestMessageSigningFlows(FlowTest):
