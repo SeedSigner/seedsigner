@@ -476,6 +476,7 @@ class TestSeedFlows(FlowTest):
             FlowStep(seed_views.SeedOptionsView),
         ])
 
+    # TODO: ideally this test should be part of controller related test? move it there
     def test_transcribe_seedqr_screensaver_startable_status(self):
         """
             The controller should return False for screensaver startable status when SeedTranscribeSeedQRZoomedInView
