@@ -181,7 +181,7 @@ class ToolsCoinEntropyEntryScreen(KeyboardScreen):
         # Specify the keys in the keyboard
         self.rows = 2
         self.cols = 2
-        self.key_height = GUIConstants.get_top_nav_title_font_size() + GUIConstants.EDGE_PADDING/4 + 2*GUIConstants.EDGE_PADDING
+        self.key_height = GUIConstants.get_top_nav_title_font_size() + int(GUIConstants.EDGE_PADDING/4) + 2*GUIConstants.EDGE_PADDING
         self.keys_charset = "".join([
             "H",
             "T",
@@ -202,7 +202,13 @@ class ToolsCoinEntropyEntryScreen(KeyboardScreen):
         ))
 
     def update_title(self) -> bool:
-        self.title = _("Coin Flip {}/{}").format(self.cursor_position + 1, self.return_after_n_chars )
+        # TRANSLATOR_NOTE: Updates the title to show the current coin flip number and total flips required.
+        # {current} is the current flip number (1-based; e.g., 1, 2, 3, etc.).
+        # {total} is the total number of flips required
+        self.title = _("Coin Flip {current_flip_num}/{num_total_flips}").format(
+            current_flip_num=self.cursor_position + 1,
+            num_total_flips=self.return_after_n_chars
+        )
         return True
 
 
@@ -213,7 +219,16 @@ class ToolsCoinEntropySetwiseEntryScreen(KeyboardScreen):
     required_bits: int = 11
 
     def __post_init__(self):
-        self.title = _(f"Set {self.current_set}/{self.total_sets}")
+        current_set = self.current_set
+        total_sets = self.total_sets
+        
+        # TRANSLATOR_NOTE: 
+        # "current_set" = current set number (1-based)
+        # "total_sets" = total number of sets
+        self.title = _("Word {current_set}/{total_sets}").format(
+            current_set=current_set,
+            total_sets=total_sets
+        )
         self.return_after_n_chars = self.required_bits
         self.rows = 2
         self.cols = 2
@@ -229,6 +244,10 @@ class ToolsCoinEntropySetwiseEntryScreen(KeyboardScreen):
         super().__post_init__()
 
         self.components.append(TextArea(
+            # TRANSLATOR_NOTE: 
+            # "Heads" and "Tails" are the two sides of a coin. 
+            # (H)=1 and (T)=0 indicate keyboard inputs mapped to binary values.
+            # Preserve the "(H)" and "(T)" literals as they correspond to physical buttons.
             text=_("(H)eads=1  (T)ails=0"),
             screen_y=self.keyboard.rect[3] + 3*GUIConstants.COMPONENT_PADDING,
         ))

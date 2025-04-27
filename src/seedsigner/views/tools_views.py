@@ -10,7 +10,7 @@ from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, Se
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, WarningScreen)
 from seedsigner.gui.screens.tools_screens import (ToolsCalcFinalWordDoneScreen, ToolsCalcFinalWordFinalizePromptScreen,
     ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsCoinEntropyEntryScreen, ToolsImageEntropyFinalImageScreen,
-    ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen)
+    ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen, ToolsCoinEntropySetwiseEntryScreen)
 from seedsigner.helpers import embit_utils, mnemonic_generation
 from seedsigner.models.encode_qr import GenericStaticQrEncoder
 from seedsigner.gui.screens.screen import ButtonOption
@@ -282,7 +282,7 @@ class ToolsCoinEntropyMnemonicLengthView(View):
 
 
 
-class ToolsCoin_Input_Method_View(View):
+class ToolsCoinInputMethodView(View):
     def __init__(self, total_flips: int):
         super().__init__()
         self.total_flips = total_flips
@@ -322,6 +322,8 @@ class ToolsCoin_Input_Method_View(View):
 
 
 class ToolsCoinEntropyEntryView(View):
+    # This View handles the "all flips in one go" option for coin flip entropy input,
+    # where the user enters all required coin flips (128 or 256) in a single session.
     def __init__(self, total_flips: int):
         super().__init__()
         self.total_flips = total_flips
@@ -347,71 +349,91 @@ class ToolsCoinEntropyEntryView(View):
 
 
 class ToolsCoinEntropySetwiseEntryView(View):
-    def __init__(self, total_flips: int):
+    """ Handles set-wise coin flip entry (11-bit groups for BIP-39 words). """
+    def __init__(self, total_flips: int, current_set: int = 1, bits_collected: str = "", mnemonic: list = None):
         super().__init__()
         self.total_flips = total_flips
-        self.bits_collected = ""
-        self.mnemonic = []
+        self.current_set = current_set
+        self.bits_collected = bits_collected
+        self.mnemonic = mnemonic if mnemonic is not None else []
         self.total_sets = 11 if total_flips == 128 else 23
         self.last_set_bits = 7 if total_flips == 128 else 3
 
     def run(self):
-        # Collect regular 11-bit sets
-        for set_num in range(1, self.total_sets + 1):
-            ret = ToolsCoinEntropySetwiseEntryScreen(
-                current_set=set_num,
-                total_sets=self.total_sets + 1,
-                required_bits=11
-            ).display()
+        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+        required_bits = self.last_set_bits if self.current_set == self.total_sets + 1 else 11
 
-            if ret == RET_CODE__BACK_BUTTON:
-                return Destination(ToolsCoin_Input_Method_View, view_args={"total_flips": self.total_flips})
-
-            # Show word for this set
-            word_index = int(ret, 2)
-            word = Seed.get_wordlist(self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))[word_index]
-            self.mnemonic.append(word)
-            ButtonListScreen(
-                title=_("Set {}").format(set_num),
-                button_data=[ButtonOption(word)],
-                is_button_text_centered=True
-            ).display()
-
-            self.bits_collected += ret
-
-        # Final set
         ret = ToolsCoinEntropySetwiseEntryScreen(
-            current_set=self.total_sets + 1,
+            current_set=self.current_set,
             total_sets=self.total_sets + 1,
-            required_bits=self.last_set_bits
+            required_bits=required_bits
         ).display()
 
         if ret == RET_CODE__BACK_BUTTON:
-            return Destination(ToolsCoin_Input_Method_View, view_args={"total_flips": self.total_flips})
+            return Destination(ToolsCoinInputMethodView, view_args={"total_flips": self.total_flips})
 
-        # Generate checksum
-        full_entropy = (self.bits_collected + ret)[:self.total_flips]
-        entropy_bytes = int(full_entropy, 2).to_bytes(len(full_entropy)//8, byteorder='big')
-        checksum = hashlib.sha256(entropy_bytes).digest()
-        checksum_bits = ''.join(f"{byte:08b}" for byte in checksum)
+        self.bits_collected += ret
 
-        # Build final word
-        final_bits = ret + checksum_bits[:11 - len(ret)]
-        final_word = Seed.get_wordlist(self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))[int(final_bits, 2)]
-        self.mnemonic.append(final_word)
+        if self.current_set <= self.total_sets:
+            # Convert the 11-bit set to a BIP-39 word
+            word_index = int(ret, 2)
+            word = Seed.get_wordlist(wordlist_language_code)[word_index]
+            self.mnemonic.append(word)
 
-        # Show final word
+        # Navigate to display the word or finalize if done
+        if self.current_set <= self.total_sets:
+            return Destination(
+                ToolsCoinEntropySetwiseBip39WordView,
+                view_args={
+                    "total_flips": self.total_flips,
+                    "current_set": self.current_set,
+                    "bits_collected": self.bits_collected,
+                    "mnemonic": self.mnemonic,
+                    "word": word
+                }
+            )
+        else:
+            # Final set collected; generate the full mnemonic
+            full_entropy = self.bits_collected[:self.total_flips]
+            entropy_bytes = int(full_entropy, 2).to_bytes(16 if self.total_flips == 128 else 32, byteorder='big')
+            mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(entropy_bytes, wordlist_language_code=wordlist_language_code)
+            self.mnemonic.append(mnemonic[-1])
+
+            # Create and store seed
+            seed = Seed(self.mnemonic, wordlist_language_code=wordlist_language_code)
+            self.controller.storage.set_pending_seed(seed)
+
+            return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
+
+
+class ToolsCoinEntropySetwiseBip39WordView(View):
+    """ Displays the BIP-39 word for the current set of coin flips. """
+    def __init__(self, total_flips: int, current_set: int, bits_collected: str, mnemonic: list, word: str):
+        super().__init__()
+        self.total_flips = total_flips
+        self.current_set = current_set
+        self.bits_collected = bits_collected
+        self.mnemonic = mnemonic
+        self.word = word
+
+    def run(self):
         ButtonListScreen(
-            title=_("Final Word"),
-            button_data=[ButtonOption(final_word)],
+            title=_("Set {}").format(self.current_set),
+            button_data=[ButtonOption(self.word)],
             is_button_text_centered=True
         ).display()
 
-
-        seed = Seed(self.mnemonic, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
-        self.controller.storage.set_pending_seed(seed)
-        
-        return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
+        # Proceed to the next set or finalize
+        next_set = self.current_set + 1
+        return Destination(
+            ToolsCoinEntropySetwiseEntryView,
+            view_args={
+                "total_flips": self.total_flips,
+                "current_set": next_set,
+                "bits_collected": self.bits_collected,
+                "mnemonic": self.mnemonic
+            }
+        )
     
 
 """****************************************************************************
