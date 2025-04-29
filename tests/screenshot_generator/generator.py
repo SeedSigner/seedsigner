@@ -415,7 +415,7 @@ def generate_screenshots(locale):
             ],
             "Misc Error Views": [
                 ScreenshotConfig(NotYetImplementedView),
-                ScreenshotConfig(UnhandledExceptionView, dict(error=["IndexError", "line 1, in some_buggy_code.py", "list index out of range"])),
+                ScreenshotConfig(UnhandledExceptionView, dict(error=["CameraConnectionError", "camera.py, 44, in start_video_stream_mode", "Camera error. Check camera connection."])),
                 ScreenshotConfig(NetworkMismatchErrorView, dict(derivation_path="m/84'/1'/0'")),
                 ScreenshotConfig(OptionDisabledView, dict(settings_attr=SettingsConstants.SETTING__MESSAGE_SIGNING)),
                 ScreenshotConfig(scan_views.ScanInvalidQRTypeView)
