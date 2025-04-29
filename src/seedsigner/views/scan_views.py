@@ -223,7 +223,7 @@ class ScanInvalidQRTypeView(View):
             title=_("Error"),
             status_headline=_("Unknown QR Type"),
             text=_("QRCode is invalid or is a data format not yet supported."),
-            button_data=[ButtonOption("Done")],
+            button_data=[ButtonOption("Back to Main Menu")],
         )
 
         return Destination(MainMenuView, clear_history=True)

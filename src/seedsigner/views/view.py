@@ -367,6 +367,7 @@ class UnhandledExceptionView(View):
             title=_("System Error"),
             status_headline=self.error[0],
             text=self.error[1] + "\n" + self.error[2],
+            button_data=[ButtonOption("Back to Main Menu")],
             allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
         )
         
