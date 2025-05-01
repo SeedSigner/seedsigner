@@ -40,7 +40,6 @@ class Camera(Singleton):
             self._video_stream.start()
         except PiCameraError:
             # This error most often occurs because the camera connection is loose
-            from seedsigner.hardware.camera import CameraConnectionError
             raise CameraConnectionError()
 
 
@@ -74,7 +73,6 @@ class Camera(Singleton):
             self._picamera.start_preview()
         except PiCameraError:
             # This error most often occurs because the camera connection is loose
-            from seedsigner.hardware.camera import CameraConnectionError
             raise CameraConnectionError()
 
 
