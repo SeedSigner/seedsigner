@@ -72,14 +72,15 @@ class TestViewFlows(FlowTest):
         """
         Simulate a camera connection error and ensure that we get the
         CameraConnectionErrorView.
-        """        
-        def raise_camera_connection_error(view: View):
-            raise CameraConnectionError()
+        """
+        # Force a camera exception during `ScanView.run()`
+        with patch('seedsigner.views.scan_views.ScanView.run') as mock_run:
+            mock_run.side_effect = CameraConnectionError()
 
-        self.run_sequence([
-            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
-            FlowStep(ScanView, before_run=raise_camera_connection_error),
-            FlowStep(UnhandledExceptionView, is_redirect=True),
-            FlowStep(CameraConnectionErrorView),
-            FlowStep(MainMenuView),
-        ])
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+                FlowStep(ScanView),
+                FlowStep(UnhandledExceptionView, is_redirect=True),
+                FlowStep(CameraConnectionErrorView),
+                FlowStep(MainMenuView),
+            ])
