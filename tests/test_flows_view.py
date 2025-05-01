@@ -4,9 +4,11 @@ from unittest.mock import patch
 from base import FlowTest, FlowStep
 
 from seedsigner.gui.screens.screen import RET_CODE__POWER_BUTTON
+from seedsigner.hardware.camera import CameraConnectionError
 from seedsigner.models.settings import Settings
+from seedsigner.views.scan_views import ScanView
 from seedsigner.views.tools_views import ToolsCalcFinalWordNumWordsView, ToolsMenuView
-from seedsigner.views.view import MainMenuView, NotYetImplementedView, PowerOptionsView, PowerOffView, RestartView, UnhandledExceptionView, View
+from seedsigner.views.view import CameraConnectionErrorView, MainMenuView, NotYetImplementedView, PowerOptionsView, PowerOffView, RestartView, UnhandledExceptionView, View
 
 
 
@@ -62,5 +64,22 @@ class TestViewFlows(FlowTest):
             FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.KEYBOARD),
             FlowStep(ToolsCalcFinalWordNumWordsView, screen_return_value=Exception("Test exception")),  # <-- force an exception
             FlowStep(UnhandledExceptionView),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test__camera_connection_error__flow(self):
+        """
+        Simulate a camera connection error and ensure that we get the
+        CameraConnectionErrorView.
+        """        
+        def raise_camera_connection_error(view: View):
+            raise CameraConnectionError()
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(ScanView, before_run=raise_camera_connection_error),
+            FlowStep(UnhandledExceptionView, is_redirect=True),
+            FlowStep(CameraConnectionErrorView),
             FlowStep(MainMenuView),
         ])
