@@ -361,6 +361,20 @@ class NetworkMismatchErrorView(ErrorView):
 class UnhandledExceptionView(View):
     error: list[str]
 
+    def __post_init__(self):
+        from seedsigner.hardware.camera import CameraConnectionError
+        super().__post_init__()
+
+        # Camera errors bubble up to here. Reroute to their custom error View.
+        if self.error[0] == CameraConnectionError.__name__:
+            self.set_redirect(
+                Destination(
+                    CameraConnectionErrorView,
+                    skip_current_view=True,
+                )
+            )
+
+
     def run(self):
         self.run_screen(
             ErrorScreen,
@@ -373,6 +387,21 @@ class UnhandledExceptionView(View):
         
         return Destination(MainMenuView, clear_history=True)
 
+
+
+@dataclass
+class CameraConnectionErrorView(View):
+    def run(self):
+        self.run_screen(
+            ErrorScreen,
+            title=_("Hardware Error"),
+            status_headline=_("Cannot access camera"),
+            text=_("Disconnect power and check for a loose camera connection."),
+            button_data=[ButtonOption("Back to Main Menu")],
+            show_back_button=False,
+        )
+
+        return Destination(MainMenuView, clear_history=True)
 
 
 @dataclass
