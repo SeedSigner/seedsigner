@@ -5,7 +5,7 @@ import time
 
 from gettext import gettext as _
 
-from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
+from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants, resize_image_to_fill
 from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.helpers import mnemonic_generation
@@ -83,21 +83,25 @@ class ToolsImageEntropyFinalImageView(View):
             from seedsigner.hardware.camera import Camera
             # Take the final full-res image
             camera = Camera.get_instance()
-            camera.start_single_frame_mode(resolution=(720, 480))
+            max_dim = max(self.canvas_width, self.canvas_height)
+
+            # Final image will be at least 4x the number of pixels the screen can
+            # actually display.
+            camera.start_single_frame_mode(resolution=(2*max_dim, 2*max_dim))
+
             time.sleep(0.25)
             self.controller.image_entropy_final_image = camera.capture_frame()
             camera.stop_single_frame_mode()
 
-        # Prep a copy of the image for display. The actual image data is 720x480
-        # Present just a center crop and resize it to fit the screen and to keep some of
-        #   the data hidden.
-        display_version = autocontrast(
-            self.controller.image_entropy_final_image,
-            cutoff=2
-        ).crop(
-            (120, 0, 600, 480)
-        ).resize(
-            (self.canvas_width, self.canvas_height), Image.Resampling.BICUBIC
+        # Prep a copy of the image for display:
+        #   * Boost the contrast for better presentation (but preserve the original pixels)
+        #   * Resize it to fit the screen
+        boosted_version = autocontrast(self.controller.image_entropy_final_image, cutoff=2)
+        display_version = resize_image_to_fill(
+            boosted_version,
+            target_size_x=self.canvas_width,
+            target_size_y=self.canvas_height,
+            sampling_method=Image.Resampling.BICUBIC,
         )
         
         ret = ToolsImageEntropyFinalImageScreen(
@@ -619,6 +623,7 @@ class ToolsAddressExplorerAddressListView(View):
 
 
     def run(self):
+        from seedsigner.gui.screens.tools_screens import ToolsAddressExplorerAddressListScreen
         self.loading_screen = None
 
         addresses = []
@@ -672,31 +677,11 @@ class ToolsAddressExplorerAddressListView(View):
                 # Everything is set. Stop the loading screen
                 self.loading_screen.stop()
 
-        for i, address in enumerate(addresses):
-            cur_index = i + self.start_index
-
-            # Adjust the trailing addr display length based on available room
-            # (the index number will push it out on each order of magnitude)
-            if cur_index < 10:
-                end_digits = -6
-            elif cur_index < 100:
-                end_digits = -5
-            else:
-                end_digits = -4
-            button_data.append(ButtonOption(f"{cur_index}:{address[:8]}...{address[end_digits:]}", active_button_label=f"{cur_index}:{address}"))
-
-        # TRANSLATOR_NOTE: Insert the number of addrs displayed per screen (e.g. "Next 10")
-        button_label = _("Next {}").format(addrs_per_screen)
-        button_data.append(ButtonOption(button_label, right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT))
-
         selected_menu_num = self.run_screen(
-            ButtonListScreen,
+            ToolsAddressExplorerAddressListScreen,
             title=_("Receive Addrs") if not self.is_change else _("Change Addrs"),
-            button_data=button_data,
-            button_font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
-            button_font_size=GUIConstants.get_button_font_size() + 4,
-            is_button_text_centered=False,
-            is_bottom_list=True,
+            start_index=self.start_index,
+            addresses=addresses,
             selected_button=self.selected_button_index,
             scroll_y_initial_offset=self.initial_scroll,
         )
