@@ -1779,11 +1779,7 @@ class NumericEntryScreen(BaseTopNavScreen):
 
         # Start the interactive update loop
         while True:
-            input = self.hw_inputs.wait_for(
-                HardwareButtonsConstants.ALL_KEYS,
-                check_release=True,
-                release_keys=[HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY1, HardwareButtonsConstants.KEY2, HardwareButtonsConstants.KEY3]
-            )
+            input = self.hw_inputs.wait_for(HardwareButtonsConstants.ALL_KEYS)
 
             keyboard_swap = False
 
