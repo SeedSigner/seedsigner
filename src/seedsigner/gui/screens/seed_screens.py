@@ -1882,12 +1882,6 @@ class SeedEntryShamirThresholdScreen(NumericEntryScreen):
 
 
 @dataclass
-class SeedEntryShamirShareCountScreen(NumericEntryScreen):
-    title: str = "SLIP-39 Share Count"
-
-
-
-@dataclass
 class ShamirFinalizeScreen(ButtonListScreen):
     value_text: str = None
     is_bottom_list: bool = True

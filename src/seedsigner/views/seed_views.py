@@ -2328,38 +2328,9 @@ class SeedEntryShamirThresholdView(View):
             
         elif ret_dict["entered_number"] != "":
             if self.mode == 1:
-                return Destination(SeedEntryShamirShareCountView, view_args={"k": int(ret_dict["entered_number"]), "seed_num": self.seed_num})
+                return Destination(NotYetImplementedView)
             else: 
                 return Destination(SeedShamirShareImportSelectWordCount, view_args={"k": int(ret_dict["entered_number"])})
-
-        else:
-            return Destination(BackStackView)
-        
-
-
-class SeedEntryShamirShareCountView(View):
-    def __init__(self, k: int, seed_num: int):
-        super().__init__()
-        self.seed_num = seed_num
-        self.seed = self.controller.get_seed(self.seed_num)
-        self.k = k
-
-
-    def run(self):
-        title = _("SLIP-39 Share Count")
-        ret_dict = self.run_screen(seed_screens.SeedEntryShamirShareCountScreen, entered_number="", title=title)
-
-        # The new passphrase will be the return value; it might be empty.
-        #self.seed.set_passphrase(ret_dict["passphrase"])
-        print(ret_dict["entered_number"])
-
-        if "is_back_button" in ret_dict:
-            return Destination(BackStackView)
-            
-        elif ret_dict["entered_number"] != "":
-            # What if == 0? TODO
-            # Should take to SeedShamirShareFinalizeView
-            return Destination(NotYetImplementedView)
 
         else:
             return Destination(BackStackView)
@@ -2370,13 +2341,9 @@ class SeedShamirShareFinalizeView(View):
     FINALIZE = ButtonOption("Done")
     PASSPHRASE = ButtonOption("SLIP-39 Passphrase")
 
-    def __init__(self, k: int, n: int = 0, mode: int = 0, seed_num: int = -1):
+    def __init__(self, k: int, n: int = 0, seed_num: int = -1):
         super().__init__()
-        self.mode = mode
         self.seed_num = seed_num
-        if mode == 1:
-            self.seed = self.controller.get_seed(self.seed_num)
-            self.shamir_set_index = self.seed.shamir_share_set_count
         self.k = k
         self.n = n
 
@@ -2386,24 +2353,18 @@ class SeedShamirShareFinalizeView(View):
 
         selected_menu_num = self.run_screen(
             seed_screens.ShamirFinalizeScreen,
-            value_text=_("SLIP-39 Passphrase") if self.mode == 0 else _("Shamir Share #{}").format(self.shamir_set_index),
+            value_text=_("SLIP-39 Passphrase"),
             button_data=button_data,
         )
 
-        if self.mode == 1 and button_data[selected_menu_num] == self.FINALIZE:
-            self.seed.generate_shares(self.k, self.n)
-            #return Destination(SeedShamirShareOptionsView,  view_args={"seed_num": self.seed_num, "shamir_set_index": self.shamir_set_index})
-            return Destination(NotYetImplementedView)
-
-        elif self.mode == 1 and button_data[selected_menu_num] == self.PASSPHRASE:
-            return Destination(SeedAddSlip39PassphraseView, view_args={"seed_num": self.seed_num, "k": self.k, "n": self.n, "mode": self.mode})
-
-        if self.mode == 0 and button_data[selected_menu_num] == self.FINALIZE:
+        if button_data[selected_menu_num] == self.FINALIZE:
             self.controller.storage.convert_pending_shamir_share_set_to_pending_seed()
             return Destination(SeedFinalizeView)
 
-        elif self.mode == 0 and button_data[selected_menu_num] == self.PASSPHRASE:
+        elif button_data[selected_menu_num] == self.PASSPHRASE:
             return Destination(SeedAddSlip39PassphraseView, view_args={"k": self.k})
+        
+
 
 class SeedShamirShareImportSelectWordCount(View):
     TYPE_12WORD = ButtonOption("12 words")
@@ -2434,13 +2395,9 @@ class SeedShamirShareImportSelectWordCount(View):
 
 
 class SeedAddSlip39PassphraseView(View):
-    def __init__(self, k: int, n: int = 0, mode: int = 0, seed_num: int = -1):
+    def __init__(self, k: int, n: int = 0, seed_num: int = -1):
         super().__init__()
-        self.mode = mode
         self.seed_num = seed_num
-        if mode == 1:
-            self.seed = self.controller.get_seed(self.seed_num)
-            self.shamir_set_index = self.seed.shamir_share_set_count
         self.k = k
         self.n = n
 
@@ -2457,14 +2414,8 @@ class SeedAddSlip39PassphraseView(View):
             return Destination(BackStackView)
             
         else:
-            if self.mode == 1:
-                # TODO: export shares
-                #self.seed.generate_shares(self.k, self.n, ret_dict["passphrase"])
-                #return Destination(SeedShamirShareOptionsView,  view_args={"seed_num": self.seed_num, "shamir_set_index": self.shamir_set_index})
-                return Destination(NotYetImplementedView)
-            else:
-                self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"])
-                return Destination(SeedFinalizeView)
+            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"])
+            return Destination(SeedFinalizeView)
 
 
 class SeedShamirShareMnemonicEntryView(View):
