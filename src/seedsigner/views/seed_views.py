@@ -2369,8 +2369,8 @@ class SeedShamirShareFinalizeView(View):
 
 
 class SeedShamirShareImportSelectWordCount(View):
-    TYPE_12WORD = ButtonOption("12 words")
-    TYPE_24WORD = ButtonOption("24 words")
+    TYPE_12WORD = ButtonOption("20 words (128-bit entropy)")
+    TYPE_24WORD = ButtonOption("33 words (256-bit entropy)")
 
     def __init__(self, k: int):
         super().__init__()
@@ -2382,7 +2382,7 @@ class SeedShamirShareImportSelectWordCount(View):
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=_("Select Seed Word Count"),
+            title=_("Select SLIP-39 Word Count"),
             button_data=button_data,
         )
 
