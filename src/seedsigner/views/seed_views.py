@@ -2321,19 +2321,21 @@ class SeedEntryShamirThresholdView(View):
         title = _("SLIP-39 Threshold")
         ret_dict = self.run_screen(seed_screens.SeedEntryShamirThresholdScreen, entered_number="", title=title)
 
-        #print(ret_dict["entered_number"])
-
         if "is_back_button" in ret_dict:
             return Destination(BackStackView)
             
-        elif ret_dict["entered_number"] != "":
+        elif ret_dict["entered_number"] != "" and ret_dict["entered_number"] != "0":
             if self.mode == 1:
                 return Destination(NotYetImplementedView)
             else: 
                 return Destination(SeedShamirShareImportSelectWordCount, view_args={"k": int(ret_dict["entered_number"])})
 
         else:
-            return Destination(BackStackView)
+            if ret_dict["entered_number"] == "0":
+                from seedsigner.gui.toast import ErrorToast
+                self.controller.activate_toast(ErrorToast(_("Threshold not valid")))
+
+        return Destination(BackStackView)
         
 
 
