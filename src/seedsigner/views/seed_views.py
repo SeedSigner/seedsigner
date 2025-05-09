@@ -2385,8 +2385,11 @@ class SeedShamirShareImportSelectWordCount(View):
             title=_("Select SLIP-39 Word Count"),
             button_data=button_data,
         )
+        
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
 
-        if button_data[selected_menu_num] == self.TYPE_12WORD:
+        elif button_data[selected_menu_num] == self.TYPE_12WORD:
             self.controller.storage.init_pending_shamir_share_set(num_words=20, num_shares=self.k)
             return Destination(SeedShamirShareMnemonicEntryView)
         
