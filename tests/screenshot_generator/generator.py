@@ -345,8 +345,11 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedEntryShamirThresholdView),
                 ScreenshotConfig(seed_views.SeedShamirShareImportSelectWordCount, dict(k=2)),
                 ScreenshotConfig(seed_views.SeedShamirShareMnemonicEntryView),
-                ScreenshotConfig(seed_views.SeedShamirShareFinalizeView, dict(k=2)),
+                ScreenshotConfig(seed_views.SeedShamirShareFinalizeView),
                 ScreenshotConfig(seed_views.SeedShamirShareInvalidView),
+                ScreenshotConfig(seed_views.SeedAddSlip39PassphraseView),
+                ScreenshotConfig(seed_views.SeedAddSlip39PassphraseExitDialogView),
+                #TODO: ScreenshotConfig(seed_views.SeedReviewSlip39PassphraseView),
             ],
             "PSBT Views": [
                 ScreenshotConfig(psbt_views.PSBTSelectSeedView, run_before=PSBTSelectSeedView_cb_before),
