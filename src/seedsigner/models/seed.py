@@ -36,6 +36,7 @@ class Seed:
         self._generate_seed()
 
         self._shamir_share_sets: List[(int, int, List[str], str)] = []
+        self._slip39_passphrase: str = ""
 
 
     @staticmethod
@@ -192,6 +193,21 @@ class Seed:
         #return SettingsConstants.LABEL__BIP39_PASSPHRASE
         return "SLIP-39 Passphrase"
     
+
+    @property
+    def slip39_passphrase(self):
+        return self._slip39_passphrase
+        
+
+    @property
+    def slip39_passphrase_display(self):
+        return unicodedata.normalize("NFC", self._slip39_passphrase)
+
+
+    def set_slip39_passphrase(self, passphrase: str):
+        if passphrase:
+            self._slip39_passphrase = unicodedata.normalize("NFKD", passphrase)
+
 
     ### override operators    
     def __eq__(self, other):

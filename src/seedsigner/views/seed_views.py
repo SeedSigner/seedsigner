@@ -2308,13 +2308,8 @@ class SeedSignMessageSignedMessageQRView(View):
     Shamir's Secret Sharing Views
 ****************************************************************************"""
 class SeedEntryShamirThresholdView(View):
-    def __init__(self, mode: int = 0, seed_num: int = -1):
+    def __init__(self):
         super().__init__()
-        self.seed_num = seed_num
-        if mode == 1:
-            # TODO: Export mode
-            self.seed = self.controller.get_seed(self.seed_num)
-        self.mode = mode
 
 
     def run(self):
@@ -2325,10 +2320,7 @@ class SeedEntryShamirThresholdView(View):
             return Destination(BackStackView)
             
         elif ret_dict["entered_number"] != "" and ret_dict["entered_number"] != "0":
-            if self.mode == 1:
-                return Destination(NotYetImplementedView)
-            else: 
-                return Destination(SeedShamirShareImportSelectWordCount, view_args={"k": int(ret_dict["entered_number"])})
+            return Destination(SeedShamirShareImportSelectWordCount, view_args={"k": int(ret_dict["entered_number"])})
 
         else:
             if ret_dict["entered_number"] == "0":
@@ -2336,35 +2328,6 @@ class SeedEntryShamirThresholdView(View):
                 self.controller.activate_toast(ErrorToast(_("Threshold not valid")))
 
         return Destination(BackStackView)
-        
-
-
-class SeedShamirShareFinalizeView(View):
-    FINALIZE = ButtonOption("Done")
-    PASSPHRASE = ButtonOption("SLIP-39 Passphrase")
-
-    def __init__(self, k: int, n: int = 0, seed_num: int = -1):
-        super().__init__()
-        self.seed_num = seed_num
-        self.k = k
-        self.n = n
-
-
-    def run(self):
-        button_data = [self.FINALIZE, self.PASSPHRASE]
-
-        selected_menu_num = self.run_screen(
-            seed_screens.ShamirFinalizeScreen,
-            value_text=_("SLIP-39 Passphrase"),
-            button_data=button_data,
-        )
-
-        if button_data[selected_menu_num] == self.FINALIZE:
-            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed()
-            return Destination(SeedFinalizeView)
-
-        elif button_data[selected_menu_num] == self.PASSPHRASE:
-            return Destination(SeedAddSlip39PassphraseView, view_args={"k": self.k})
         
 
 
@@ -2399,30 +2362,6 @@ class SeedShamirShareImportSelectWordCount(View):
 
 
 
-class SeedAddSlip39PassphraseView(View):
-    def __init__(self, k: int, n: int = 0, seed_num: int = -1):
-        super().__init__()
-        self.seed_num = seed_num
-        self.k = k
-        self.n = n
-
-
-    def run(self):
-        passphrase_title = _("SLIP-39 Passphrase")
-        ret_dict = self.run_screen(seed_screens.SeedAddPassphraseScreen, passphrase="", title=passphrase_title)
-
-        # The new passphrase will be the return value; it might be empty.
-        #self.seed.set_passphrase(ret_dict["passphrase"])
-        print(ret_dict["passphrase"])
-
-        if "is_back_button" in ret_dict:
-            return Destination(BackStackView)
-            
-        else:
-            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"])
-            return Destination(SeedFinalizeView)
-
-
 class SeedShamirShareMnemonicEntryView(View):
     def __init__(self, cur_word_index: int = 0, is_calc_final_word: bool=False, cur_set_index: int = 0):
         super().__init__()
@@ -2449,20 +2388,6 @@ class SeedShamirShareMnemonicEntryView(View):
         
         # ret will be our new mnemonic word
         self.controller.storage.update_pending_mnemonic(ret, self.cur_word_index)
-
-        """"
-        if self.is_calc_final_word and self.cur_word_index == self.controller.storage.pending_mnemonic_length - 2:
-            # Time to calculate the last word. User must decide how they want to specify
-            # the last bits of entropy for the final word.
-            from seedsigner.views.tools_views import ToolsCalcFinalWordFinalizePromptView
-            return Destination(ToolsCalcFinalWordFinalizePromptView)
-
-        if self.is_calc_final_word and self.cur_word_index == self.controller.storage.pending_mnemonic_length - 1:
-            # Time to calculate the last word. User must either select a final word to
-            # contribute entropy to the checksum word OR we assume 0 ("abandon").
-            from seedsigner.views.tools_views import ToolsCalcFinalWordShowFinalWordView
-            return Destination(ToolsCalcFinalWordShowFinalWordView)
-        """
 
         if self.cur_word_index < self.controller.storage.pending_mnemonic_length - 1:
             return Destination(
@@ -2492,8 +2417,8 @@ class SeedShamirShareMnemonicEntryView(View):
                 }
             )
 
-            return Destination(SeedShamirShareFinalizeView, view_args={"k": self.controller.storage.pending_shamir_share_set_length})
-
+            return Destination(SeedShamirShareFinalizeView)
+        
 
 
 class SeedShamirShareInvalidView(View):
@@ -2522,3 +2447,143 @@ class SeedShamirShareInvalidView(View):
         elif button_data[selected_menu_num] == self.DISCARD:
             self.controller.storage.discard_pending_mnemonic()
             return Destination(MainMenuView)
+
+
+
+class SeedShamirShareFinalizeView(View):
+    FINALIZE = ButtonOption("Done")
+    PASSPHRASE = ButtonOption("SLIP-39 Passphrase")
+
+    def __init__(self):
+        super().__init__()
+        self.seed = self.controller.storage.get_pending_seed()
+        self.fingerprint = self.seed.get_fingerprint(network=self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+
+
+    def run(self):
+        button_data = [self.FINALIZE, self.PASSPHRASE]
+
+        selected_menu_num = self.run_screen(
+            seed_screens.ShamirFinalizeScreen,
+            value_text=self.fingerprint,
+            button_data=button_data,
+        )
+
+        if button_data[selected_menu_num] == self.FINALIZE:
+            self.controller.storage.discard_pending_mnemonic()
+            self.controller.storage.discard_pending_shamir_share_set()
+            seed_num = self.controller.storage.finalize_pending_seed()
+            return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
+
+        elif button_data[selected_menu_num] == self.PASSPHRASE:
+            return Destination(SeedAddSlip39PassphraseView)
+        
+
+
+class SeedAddSlip39PassphraseView(View):
+    def __init__(self, initial_keyboard: str = seed_screens.SeedAddPassphraseScreen.KEYBOARD__LOWERCASE_BUTTON_TEXT):
+        super().__init__()
+        self.initial_keyboard = initial_keyboard
+        self.seed = self.controller.storage.get_pending_seed()
+
+
+    def run(self):
+        ret_dict = self.run_screen(
+            seed_screens.SeedAddPassphraseScreen, 
+            passphrase=self.seed.slip39_passphrase, 
+            title = _("SLIP-39 Passphrase"),
+            initial_keyboard=self.initial_keyboard,
+        )
+
+        # The new passphrase will be the return value; it might be empty.
+        self.seed.set_slip39_passphrase(ret_dict["passphrase"])
+
+        if "is_back_button" in ret_dict:
+            if len(self.seed.slip39_passphrase) > 0:
+                return Destination(SeedAddSlip39PassphraseExitDialogView)
+            else:
+                return Destination(BackStackView)
+            
+        elif len(ret_dict["passphrase"]) > 0:
+            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"], clean=False)
+            return Destination(SeedReviewSlip39PassphraseView)
+        
+        else:
+            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"], clean=False)
+            return Destination(SeedShamirShareFinalizeView)
+
+
+class SeedAddSlip39PassphraseExitDialogView(View):
+    EDIT = ButtonOption("Edit passphrase")
+    DISCARD = ButtonOption("Discard passphrase", button_label_color="red")
+
+    def __init__(self):
+        super().__init__()
+        self.seed = self.controller.storage.get_pending_seed()
+
+
+    def run(self):
+        button_data = [self.EDIT, self.DISCARD]
+        
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title=_("Discard passphrase?"),
+            status_headline=None,
+            text=_("Your current passphrase entry will be erased"),
+            show_back_button=False,
+            button_data=button_data,
+        )
+
+        if button_data[selected_menu_num] == self.EDIT:
+            return Destination(SeedAddSlip39PassphraseView)
+
+        elif button_data[selected_menu_num] == self.DISCARD:
+            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase="", clean=False)
+            return Destination(SeedShamirShareFinalizeView)
+        
+
+
+class SeedReviewSlip39PassphraseView(View):
+    """
+        Display the completed passphrase back to the user.
+    """
+    EDIT = ButtonOption("Edit passphrase")
+    DONE = ButtonOption("Done")
+
+    def __init__(self):
+        super().__init__()
+        self.seed = self.controller.storage.get_pending_seed()
+
+
+    def run(self):
+        # Get the before/after fingerprints
+        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        passphrase = self.seed.slip39_passphrase
+        fingerprint_with = self.seed.get_fingerprint(network=network)
+        self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase="", clean=False)
+        self.seed = self.controller.storage.get_pending_seed()
+        fingerprint_without = self.seed.get_fingerprint(network=network)
+        self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=passphrase, clean=False)
+        self.seed = self.controller.storage.get_pending_seed()
+        
+        button_data = [self.EDIT, self.DONE]
+
+        # Because we have an explicit "Edit" button, we disable "BACK" to keep the
+        # routing options sane.
+        selected_menu_num = self.run_screen(
+            seed_screens.SeedReviewPassphraseScreen,
+            fingerprint_without=fingerprint_without,
+            fingerprint_with=fingerprint_with,
+            passphrase=self.seed.slip39_passphrase,
+            button_data=button_data,
+            show_back_button=False,
+        )
+
+        if button_data[selected_menu_num] == self.EDIT:
+            return Destination(SeedAddSlip39PassphraseView)
+        
+        elif button_data[selected_menu_num] == self.DONE:
+            self.controller.storage.discard_pending_mnemonic()
+            self.controller.storage.discard_pending_shamir_share_set()
+            seed_num = self.controller.storage.finalize_pending_seed()
+            return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
