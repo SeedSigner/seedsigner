@@ -267,12 +267,16 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
         super().__post_init__()
 
         # First what's the total bit display width and where do the checksum bits start?
-        bit_font_size = GUIConstants.get_button_font_size() + 2
+        bit_font_size = GUIConstants.get_button_font_size(locale="default") + 2  # bit font size should not vary by locale
         font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, bit_font_size)
         (left, top, bit_display_width, bit_font_height) = font.getbbox("0" * 11, anchor="lt")
         (left, top, checksum_x, bottom) = font.getbbox("0" * (11 - len(self.checksum_bits)), anchor="lt")
         bit_display_x = int((self.canvas_width - bit_display_width)/2)
         checksum_x += bit_display_x
+
+        y_spacer = GUIConstants.COMPONENT_PADDING
+        if GUIConstants.get_body_font_size() > GUIConstants.get_body_font_size("default"):
+            y_spacer -= 1
 
         # Display the user's additional entropy input
         if self.selected_final_word:
@@ -300,7 +304,7 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
         ))
 
         # ...and that entropy's associated 11 bits
-        screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        screen_y = self.components[-1].screen_y + self.components[-1].height + y_spacer
         first_bits_line = TextArea(
             text=keeper_selected_bits,
             font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
@@ -327,18 +331,19 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
             is_text_centered=False,
         ))
 
-        # Show the checksum..
+        # Show the checksum...
         self.components.append(TextArea(
             # TRANSLATOR_NOTE: A function of "x" to be used for detecting errors in "x"
             text=_("Checksum"),
             edge_padding=0,
             screen_y=first_bits_line.screen_y + first_bits_line.height + 2*GUIConstants.COMPONENT_PADDING,
+            height_ignores_below_baseline=True,  # Keep the next line (bits display) snugged up, regardless of text rendering below the baseline
         ))
 
         # ...and its actual bits. Prepend spacers to keep vertical alignment
         checksum_spacer = "_" * (11 - len(self.checksum_bits))
 
-        screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        screen_y = self.components[-1].screen_y + self.components[-1].height + y_spacer
 
         # This time we de-emphasize the prepended spacers that are irrelevant
         self.components.append(TextArea(
@@ -375,7 +380,7 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
         # Once again show the bits that came from the user's entropy...
         num_checksum_bits = len(self.checksum_bits)
         user_component = self.selected_final_bits[:11 - num_checksum_bits]
-        screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        screen_y = self.components[-1].screen_y + self.components[-1].height + y_spacer
         self.components.append(TextArea(
             text=user_component,
             font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
