@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: seedsigner 0.8.5\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-05-20 09:16-0500\n"
+"POT-Creation-Date: 2025-05-20 09:27-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -794,10 +794,13 @@ msgstr ""
 msgid "Show partner logos"
 msgstr ""
 
+#. Hardware settings option to specify the screen driver (e.g. st7789 vs
+#. ili9341)
 #: src/seedsigner/models/settings_definition.py
 msgid "Display type"
 msgstr ""
 
+#. Hardware settings option to invert how the screen driver displays colors.
 #: src/seedsigner/models/settings_definition.py
 msgid "Invert colors"
 msgstr ""
