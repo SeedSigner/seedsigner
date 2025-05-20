@@ -127,6 +127,7 @@ class SettingsConstants:
         LOCALE__DUTCH: "Nederlands",
 
         # --------- Beta languages ------------------------------------------------------
+        LOCALE__CHINESE_SIMPLIFIED: "(beta) 简体中文 (Chinese Simplified)",
         LOCALE__JAPANESE: "(beta) 日本語 (Japanese)",
         LOCALE__KOREAN: "(beta) 한국어 (Korean)",
 
@@ -137,7 +138,6 @@ class SettingsConstants:
         # LOCALE__BENGALI: "বাংলা (Bengali)",
         LOCALE__BULGARIAN: "български (Bulgarian)",  # OpenSans includes cyrillic chars
         LOCALE__CZECH: "čeština",
-        LOCALE__CHINESE_SIMPLIFIED: "简体中文 (Chinese Simplified)",  # Font already included in anticipation of translations being ready soon
         # LOCALE__CHINESE_TRADITIONAL: "繁體中文 (Chinese Traditional)",
         LOCALE__DANISH: "Dansk",
         LOCALE__ESTONIAN: "Eesti",
