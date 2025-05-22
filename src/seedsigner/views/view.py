@@ -253,6 +253,8 @@ class RestartView(View):
 
     class DoResetThread(BaseThread):
         def run(self):
+            import os
+            import sys
             import time
             from subprocess import call
 
@@ -260,12 +262,17 @@ class RestartView(View):
             # exiting.
             time.sleep(0.25)
 
-            # Kill the SeedSigner process; Running the process again.
             # `.*` is a wildcard to detect either `python`` or `python3`.
+            kill_cmd = "kill $(pidof python*)"
             if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
-                call("kill $(pidof python*) & python /opt/src/main.py", shell=True)
+                python_exec = "python" # Use system python on SeedSigner OS
+                script_path = "/opt/src/main.py" # Path to SeedSigner main script
             else:
-                call("kill $(ps aux | grep '[p]ython.*main.py' | awk '{print $2}')", shell=True)
+                python_exec = sys.executable  # Current Python interpreter path
+                script_path = os.path.abspath(sys.argv[0]) # Absolute path to current script
+
+            # Kill all running Python processes & restart the SeedSigner main script
+            call(f"{kill_cmd} & {python_exec} {script_path}", shell=True)
 
 
 
