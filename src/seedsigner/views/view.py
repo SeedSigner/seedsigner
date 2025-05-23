@@ -256,23 +256,17 @@ class RestartView(View):
             import os
             import sys
             import time
-            from subprocess import call
 
             # Give the screen just enough time to display the reset message before
             # exiting.
             time.sleep(0.25)
 
-            # `.*` is a wildcard to detect either `python`` or `python3`.
-            kill_cmd = "kill $(pidof python*)"
-            if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
-                python_exec = "python" # Use system python on SeedSigner OS
-                script_path = "/opt/src/main.py" # Path to SeedSigner main script
-            else:
-                python_exec = sys.executable  # Current Python interpreter path
-                script_path = os.path.abspath(sys.argv[0]) # Absolute path to current script
+            # Flush any buffered data.
+            sys.stdout.flush() 
+            sys.stderr.flush()
 
-            # Kill all running Python processes & restart the SeedSigner main script
-            call(f"{kill_cmd} & {python_exec} {script_path}", shell=True)
+            # Replace the current process with a new one.
+            os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
 
