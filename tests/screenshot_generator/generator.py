@@ -112,6 +112,26 @@ seed_24_w_passphrase = Seed(mnemonic=mnemonic_24, passphrase="some-PASS*phrase9"
 MULTISIG_WALLET_DESCRIPTOR = """wsh(sortedmulti(1,[22bde1a9/48h/1h/0h/2h]tpubDFfsBrmpj226ZYiRszYi2qK6iGvh2vkkghfGB2YiRUVY4rqqedHCFEgw12FwDkm7rUoVtq9wLTKc6BN2sxswvQeQgp7m8st4FP8WtP8go76/{0,1}/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*))#3jhtf6yx"""
 
 
+# Wrap QRDisplayScreen's `render_brightness_tip` in a simple View + Screen so we
+# can call it outside of its child thread and generate a screenshot.
+class SeedExportXpubQR_ScreenBrightnessView(seed_views.SeedExportXpubQRDisplayView):
+    @dataclass
+    class QRDisplayScreenBrightnessTipScreen(BaseScreen):
+        qr_encoder: BaseQrEncoder = None
+
+        def _render(self):
+            from seedsigner.gui.screens.screen import QRDisplayScreen
+            image = self.qr_encoder.part_to_image(self.qr_encoder.cur_part(), 240, 240, border=2, background_color="white")
+            QRDisplayScreen.QRDisplayThread.render_brightness_tip(None, image)
+            self.renderer.show_image(image)
+
+    def run(self):
+        self.run_screen(
+            SeedExportXpubQR_ScreenBrightnessView.QRDisplayScreenBrightnessTipScreen,
+            qr_encoder=self.qr_encoder,  # initialized by SeedExportXpubQRDisplayView
+        )
+
+
 
 def generate_screenshots(locale):
     """
@@ -263,26 +283,6 @@ def generate_screenshots(locale):
             controller.psbt_parser = PSBTParser(p=controller.psbt, seed=seed_12b)
 
 
-        # Wrap QRDisplayScreen's `render_brightness_tip` in a simple View + Screen so we
-        # can call it outside of its child thread and generate a screenshot.
-        class SeedExportXpubQR_ScreenBrightnessView(seed_views.SeedExportXpubQRDisplayView):
-            @dataclass
-            class QRDisplayScreenBrightnessTipScreen(BaseScreen):
-                qr_encoder: BaseQrEncoder = None
-
-                def _render(self):
-                    from seedsigner.gui.screens.screen import QRDisplayScreen
-                    image = self.qr_encoder.part_to_image(self.qr_encoder.cur_part(), 240, 240, border=2, background_color="white")
-                    QRDisplayScreen.QRDisplayThread.render_brightness_tip(None, image)
-                    self.renderer.show_image(image)
-
-            def run(self):
-                self.run_screen(
-                    SeedExportXpubQR_ScreenBrightnessView.QRDisplayScreenBrightnessTipScreen,
-                    qr_encoder=self.qr_encoder,  # initialized by SeedExportXpubQRDisplayView
-                )
-
-
         screenshot_sections = {
             "Main Menu Views": [
                 ScreenshotConfig(OpeningSplashView, dict(is_screenshot_renderer=True, force_partner_logos=True)),
@@ -323,7 +323,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedExportXpubCoordinatorView, dict(seed_num=0, sig_type="ss", script_type="nat")),
                 ScreenshotConfig(seed_views.SeedExportXpubWarningView, dict(seed_num=0, sig_type="msig", script_type="nes", coordinator="spd", custom_derivation="")),
                 ScreenshotConfig(seed_views.SeedExportXpubDetailsView, dict(seed_num=0, sig_type="ss", script_type="nat", coordinator="bw", custom_derivation="")),
-                ScreenshotConfig(SeedExportXpubQR_ScreenBrightnessView, dict(seed_num=0, coordinator="bw", derivation_path="m/84'/1'/0'")),
+                ScreenshotConfig(SeedExportXpubQR_ScreenBrightnessView, dict(seed_num=0, coordinator="bw", derivation_path="m/84'/0'/0'")),
 
                 ScreenshotConfig(seed_views.SeedWordsWarningView, dict(seed_num=0)),
                 ScreenshotConfig(seed_views.SeedWordsView, dict(seed_num=0)),
