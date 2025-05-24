@@ -528,7 +528,6 @@ class TestMessageSigningFlows(FlowTest):
             text=self.controller.sign_message_data["message"],
             width=240 - 2*GUIConstants.EDGE_PADDING,
             height=240 - GUIConstants.TOP_NAV_HEIGHT - 3*GUIConstants.EDGE_PADDING - GUIConstants.BUTTON_HEIGHT,
-            allow_text_overflow=True,
         )
         self.controller.sign_message_data["paged_message"] = paged
 
