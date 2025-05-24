@@ -42,7 +42,7 @@ from seedsigner.models.settings_definition import SettingsConstants, SettingsDef
 from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, NotYetImplementedView, UnhandledExceptionView, 
     psbt_views, seed_views, settings_views, tools_views, scan_views)
 from seedsigner.views.screensaver import OpeningSplashView
-from seedsigner.views.view import NetworkMismatchErrorView, OptionDisabledView, PowerOffView, View
+from seedsigner.views.view import NetworkMismatchErrorView, OptionDisabledView, PowerOffView
 
 from .utils import ScreenshotComplete, ScreenshotConfig, ScreenshotRenderer
 
@@ -263,8 +263,8 @@ def generate_screenshots(locale):
             controller.psbt_parser = PSBTParser(p=controller.psbt, seed=seed_12b)
 
 
-        # Mimic SeedExportXpubQRDisplayView calls in a light View + Screen so we can call
-        # `render_brightness_tip`.
+        # Wrap QRDisplayScreen's `render_brightness_tip` in a simple View + Screen so we
+        # can call it outside of its child thread and generate a screenshot.
         class SeedExportXpubQR_ScreenBrightnessView(seed_views.SeedExportXpubQRDisplayView):
             @dataclass
             class QRDisplayScreenBrightnessTipScreen(BaseScreen):
