@@ -242,16 +242,23 @@ class PowerOptionsView(View):
             return Destination(PowerOffView)
 
 
-
+@dataclass
 class RestartView(View):
+    is_screenshot_renderer: bool = False
+
     def run(self):
         from seedsigner.gui.screens.screen import ResetScreen
-        thread = RestartView.DoResetThread()
+        thread = RestartView.DoResetThread(is_screenshot_renderer=self.is_screenshot_renderer)
         thread.start()
         self.run_screen(ResetScreen)
 
 
     class DoResetThread(BaseThread):
+        def __init__(self, is_screenshot_renderer: bool = False):
+            self.is_screenshot_renderer = is_screenshot_renderer
+            super().__init__()
+
+
         def run(self):
             import os
             import sys
@@ -260,6 +267,9 @@ class RestartView(View):
             # Give the screen just enough time to display the reset message before
             # exiting.
             time.sleep(0.25)
+            if self.is_screenshot_renderer:
+                # For the screenshot generator, we don't actually want to restart
+                return
 
             # Flush any buffered data.
             sys.stdout.flush() 
