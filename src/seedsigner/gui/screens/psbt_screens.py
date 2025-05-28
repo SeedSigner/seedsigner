@@ -731,14 +731,24 @@ class PSBTOpReturnScreen(ButtonListScreen):
             # Contains data that can't be converted to UTF-8; probably encoded and not
             # meant to be human readable.
             font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.get_body_font_size())
-            (left, top, right, bottom) = font.getbbox("X", anchor="ls")
-            chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
             decoded_str = self.op_return_data.hex()
-            num_lines = math.ceil(len(decoded_str) / chars_per_line)
             text = ""
-            for i in range(num_lines):
-                text += (decoded_str[i*chars_per_line:(i+1)*chars_per_line]) + "\n"
-            text = text[:-1]
+            current_line = ""
+            max_width = self.canvas_width - 4 * GUIConstants.EDGE_PADDING
+
+            # Calculate average character width
+            avg_char_width = font.getbbox("0", anchor="ls")[2] - font.getbbox("0", anchor="ls")[0]
+            chars_per_line = max_width // avg_char_width
+
+            for i, char in enumerate(decoded_str):
+                current_line += char
+                if len(current_line) >= chars_per_line:
+                    text += current_line + "\n"
+                    current_line = ""
+
+            # Add the remaining text
+            if current_line:
+                text += current_line
 
             # TRANSLATOR_NOTE: Shown when displaying OP_RETURN as non-human-readable hexadecimal data
             hex_label = _("raw hex data")
