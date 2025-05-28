@@ -763,7 +763,7 @@ class PSBTOpReturnScreen(ButtonListScreen):
             self.components.append(TextArea(
                 text=text,
                 font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
-                font_size=GUIConstants.get_body_font_size(),
+                font_size=GUIConstants.BODY_FONT_SIZE["default"],
                 screen_y=label.screen_y + label.height + GUIConstants.COMPONENT_PADDING,
             ))
 
