@@ -24,9 +24,10 @@ class TestPSBTParser:
         """
         Constructs a series of test psbts that use the specified `psbt_base64` for the input(s).
 
-        * 1 external recipient + specified `change_data` for each recipient type
-        * 1 external recipient full spend (no change) for each recipient type
-        * 1 mega psbt with all external recipient types in one tx + specified `change_data`
+        * A spend to each recipient type + specified `change_data`
+        * Self-transfer back to sender via the `self_transfer_data`
+        * A full spend (no change) to each recipient type
+        * 1 mega psbt with an output to each recipient type + specified `change_data`
         """
         psbt: PSBT = PSBT.parse(a2b_base64(psbt_base64))
         input_amount = sum([inp.utxo.value for inp in psbt.inputs])
