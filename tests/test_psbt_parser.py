@@ -1,13 +1,222 @@
+import pytest
+import random
+
 from binascii import a2b_base64
-from embit import psbt
+from embit import bip32, psbt
+from embit.psbt import PSBT
 from embit.descriptor import Descriptor
 
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
+from psbt_testing_util import PSBTTestData, create_output
 
 
+
+class TestPSBTParser:
+    """
+    Exhaustively test all supported script input and output types.
+    """
+    seed = PSBTTestData.seed
+
+    def run_basic_test(self, psbt_base64: str, change_data: str, self_transfer_data: str):
+        """
+        Constructs a series of test psbts that use the specified `psbt_base64` for the input(s).
+
+        * 1 external recipient + specified `change_data` for each recipient type
+        * 1 external recipient full spend (no change) for each recipient type
+        * 1 mega psbt with all external recipient types in one tx + specified `change_data`
+        """
+        psbt: PSBT = PSBT.parse(a2b_base64(psbt_base64))
+        input_amount = sum([inp.utxo.value for inp in psbt.inputs])
+        recipient_amount = random.randint(200_000, 90_000_000)
+        fee_amount = 5_000
+        change_output = create_output(change_data, input_amount - recipient_amount - fee_amount)
+
+        # Spend the input(s) to each supported recipient type + change
+        for output in PSBTTestData.ALL_EXTERNAL_OUTPUTS:
+            psbt.outputs.clear()
+            psbt.outputs.append(create_output(output, recipient_amount))
+            psbt.outputs.append(change_output)
+
+            assert len(psbt.outputs) == 2
+            psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
+            assert psbt_parser.num_inputs == len(psbt.inputs)
+            assert psbt_parser.input_amount == input_amount
+            assert psbt_parser.num_destinations == 1
+            assert psbt_parser.num_change_outputs == 1
+            assert psbt_parser.spend_amount == recipient_amount
+            assert psbt_parser.change_amount == input_amount - recipient_amount - fee_amount
+            assert psbt_parser.fee_amount == fee_amount
+            assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+        
+        # Internally cycle the input(s) back to sender via the `self_transfer_data`
+        psbt.outputs.clear()
+        psbt.outputs.append(create_output(self_transfer_data, input_amount - fee_amount))
+
+        assert len(psbt.outputs) == 1
+        psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
+        assert psbt_parser.num_inputs == len(psbt.inputs)
+        assert psbt_parser.input_amount == input_amount
+        assert psbt_parser.num_destinations == 0    # No external recipients == no destinations
+        assert psbt_parser.num_change_outputs == 1  # PSBTParser considers self-transfers == change
+        assert psbt_parser.spend_amount == 0        # No external recipients == nothing spent (ignores fee)
+        assert psbt_parser.change_amount == input_amount - fee_amount  # PSBTParser considers self-transfers == change
+        assert psbt_parser.fee_amount == fee_amount
+        assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+
+        # Now do full spends with no change
+        fee_amount = random.randint(5_000, 100_000)
+        recipient_amount = input_amount - fee_amount
+
+        for output in PSBTTestData.ALL_EXTERNAL_OUTPUTS:
+            psbt.outputs.clear()
+            psbt.outputs.append(create_output(output, recipient_amount))
+
+            assert len(psbt.outputs) == 1
+            psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
+            assert psbt_parser.num_inputs == len(psbt.inputs)
+            assert psbt_parser.input_amount == input_amount
+            assert psbt_parser.num_destinations == 1
+            assert psbt_parser.num_change_outputs == 0
+            assert psbt_parser.spend_amount == recipient_amount
+            assert psbt_parser.change_amount == 0
+            assert psbt_parser.fee_amount == fee_amount
+            assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+
+        # Now try a single mega psbt with ALL the outputs at once
+        psbt.outputs.clear()
+        change_amount = input_amount - fee_amount
+        for output in PSBTTestData.ALL_EXTERNAL_OUTPUTS:
+            output_amount = random.randint(200_000, int(change_amount / 2))
+            psbt.outputs.append(create_output(output, output_amount))
+            change_amount -= output_amount
+
+        # Don't forget the change!        
+        psbt.outputs.append(create_output(change_data, change_amount))
+
+        assert len(psbt.outputs) == len(PSBTTestData.ALL_EXTERNAL_OUTPUTS) + 1
+        psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
+        assert psbt_parser.num_inputs == len(psbt.inputs)
+        assert psbt_parser.input_amount == input_amount
+        assert psbt_parser.num_destinations == len(PSBTTestData.ALL_EXTERNAL_OUTPUTS)
+        assert psbt_parser.num_change_outputs == 1
+        assert psbt_parser.spend_amount == input_amount - change_amount - fee_amount
+        assert psbt_parser.change_amount == change_amount
+        assert psbt_parser.fee_amount == fee_amount
+        assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+
+
+    def test_singlesig_native_segwit(self):
+        self.run_basic_test(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE, PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_SELF_TRANSFER)
+
+    def test_singlesig_nested_segwit(self):
+        self.run_basic_test(PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_CHANGE, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_SELF_TRANSFER)
+
+    def test_singlesig_taproot(self):
+        self.run_basic_test(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE, PSBTTestData.SINGLE_SIG_TAPROOT_SELF_TRANSFER)
+
+    def test_singlesig_legacy_p2pkh(self):
+        self.run_basic_test(PSBTTestData.SINGLE_SIG_LEGACY_P2PKH_1_INPUT, PSBTTestData.SINGLE_SIG_LEGACY_P2PKH_CHANGE, PSBTTestData.SINGLE_SIG_LEGACY_P2PKH_SELF_TRANSFER)
+
+    def test_multisig_native_segwit(self):
+        self.run_basic_test(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, PSBTTestData.MULTISIG_NATIVE_SEGWIT_SELF_TRANSFER)
+
+    def test_multisig_nested_segwit(self):
+        self.run_basic_test(PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE, PSBTTestData.MULTISIG_NESTED_SEGWIT_SELF_TRANSFER)
+
+    def test_multisig_legacy_p2sh(self):
+        self.run_basic_test(PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE, PSBTTestData.MULTISIG_LEGACY_P2SH_SELF_TRANSFER)
+
+
+    def test_has_matching_input_fingerprint(self):
+        """
+        PSBTParser should correctly identify when a psbt contains an input that matches a
+        given Seed's fingerprint.
+        """
+        wrong_seed = Seed(["bacon"] * 24)
+        for input in PSBTTestData.ALL_INPUTS:
+            psbt = PSBT.parse(a2b_base64(input))
+            assert PSBTParser.has_matching_input_fingerprint(psbt, PSBTTestData.seed)
+            assert PSBTParser.has_matching_input_fingerprint(psbt, wrong_seed) == False
+
+        # The other keys in the multisig inputs should also match        
+        for input in PSBTTestData.MULTISIG_INPUTS:
+            psbt = PSBT.parse(a2b_base64(input))
+            assert PSBTParser.has_matching_input_fingerprint(psbt, PSBTTestData.multisig_key_2)
+            assert PSBTParser.has_matching_input_fingerprint(psbt, PSBTTestData.multisig_key_3)
+
+
+    def test_trim_and_sig_count(self):
+        """
+        PSBTParser should correctly trim a psbt of all unnecessary data and count the number of
+        signatures in the psbt.
+        """
+        output = create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 100_000)
+        for input in PSBTTestData.ALL_INPUTS:
+            psbt: PSBT = PSBT.parse(a2b_base64(input))
+            psbt.outputs.append(output)
+            psbt.sign_with(bip32.HDKey.from_seed(self.seed.seed_bytes))
+            assert PSBTParser.sig_count(psbt) == 1
+
+            # TODO: What can we test for before/after trimming?
+            PSBTParser.trim(psbt)
+
+            if input in PSBTTestData.MULTISIG_INPUTS:
+                psbt.sign_with(bip32.HDKey.from_seed(PSBTTestData.multisig_key_2.seed_bytes))
+                assert PSBTParser.sig_count(psbt) == 2
+
+                psbt.sign_with(bip32.HDKey.from_seed(PSBTTestData.multisig_key_3.seed_bytes))
+                assert PSBTParser.sig_count(psbt) == 3
+
+
+    def test_verify_multisig_output(self):
+        """
+        PSBTParser should correctly verify multisig change and self-transfer outputs against the
+        provided descriptor or fail to verify if we provide the wrong descriptor.
+        """
+        multisig_inputs = [
+            PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT,
+            PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT,
+            PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT
+        ]
+        change_outputs =  [
+            PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE,
+            PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE,
+            PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE
+        ]
+        self_transfer_outputs = [
+            PSBTTestData.MULTISIG_NATIVE_SEGWIT_SELF_TRANSFER,
+            PSBTTestData.MULTISIG_NESTED_SEGWIT_SELF_TRANSFER,
+            PSBTTestData.MULTISIG_LEGACY_P2SH_SELF_TRANSFER
+        ]
+        descriptors = [
+            PSBTTestData.MULTISIG_NATIVE_SEGWIT_DESCRIPTOR,
+            PSBTTestData.MULTISIG_NESTED_SEGWIT_DESCRIPTOR,
+            PSBTTestData.MULTISIG_LEGACY_P2SH_DESCRIPTOR
+        ]
+
+        for i, psbt_base64 in enumerate(multisig_inputs):
+            # Construct a psbt with change & self-transfer outputs of the same type as the input
+            psbt: PSBT = PSBT.parse(a2b_base64(psbt_base64))
+            psbt.outputs.append(create_output(change_outputs[i], 100_000))
+            psbt.outputs.append(create_output(self_transfer_outputs[i], 100_000))
+            psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
+
+            # Attempt to verify the change & self-transfer outputs using the right and wrong descriptors
+            for j, descriptor_str in enumerate(descriptors):
+                descriptor = Descriptor.from_string(descriptor_str.replace("<0;1>", "{0,1}"))
+                if i == j:
+                    assert psbt_parser.verify_multisig_output(descriptor, change_num=0) == True
+                    assert psbt_parser.verify_multisig_output(descriptor, change_num=1) == True  # self-transfer is considered change
+                else:
+                    assert psbt_parser.verify_multisig_output(descriptor, change_num=0) == False
+                    assert psbt_parser.verify_multisig_output(descriptor, change_num=1) == False
+
+
+
+# TODO: Refactor all tests to be in the TestPSBTParser class(?)
 def test_p2tr_change_detection():
     """ Should successfully detect change in a p2tr to p2tr psbt spend
     
@@ -51,6 +260,7 @@ def test_p2tr_change_detection():
 
 
 
+# TODO: Test no longer necessary now that we have exhaustive tests for all types above?
 def test_p2sh_legacy_multisig():
     """
         Should correctly parse a legacy multisig p2sh (m/45') psbt.
@@ -113,6 +323,8 @@ def test_p2sh_legacy_multisig():
     assert psbt_parser.verify_multisig_output(descriptor, 1)
 
 
+
+# TODO: Test no longer necessary now that we have exhaustive tests for all types above?
 def test_p2sh_p2wpkh_nested_segwit():
     """
         Should correctly parse a nested segwit (m/49'/1'/0') psbt.
@@ -158,6 +370,10 @@ def test_p2sh_p2wpkh_nested_segwit():
 
     assert psbt_parser.get_change_data(0)['address'] == '2Mz3MthXyM4YDjLPw1V4PAacKt4pD8Cz8N3'
     assert psbt_parser.get_change_data(0)["amount"] == 55832
+
+    # We should be able to verify the change addr
+    assert psbt_parser.verify_multisig_output(descriptor, 0)
+
 
 
 def test_parse_op_return_content():
