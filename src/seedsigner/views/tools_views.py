@@ -14,7 +14,7 @@ from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import (
     SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, 
     SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView,
-    SeedXORSelectSeedView
+    SeedXORLoadComponentView
 )
 
 from .view import View, Destination, BackStackView
@@ -64,8 +64,8 @@ class ToolsMenuView(View):
             return Destination(ScanAddressView)
 
         elif button_data[selected_menu_num] == self.SEED_XOR:
-            from seedsigner.views.seed_views import SeedXORSelectSeedView
-            return Destination(SeedXORSelectSeedView)
+            from seedsigner.views.seed_views import SeedXORLoadComponentView
+            return Destination(SeedXORLoadComponentView)
 
 
 
