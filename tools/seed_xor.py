@@ -1,3 +1,15 @@
+"""
+SeedSigner XOR Seed Backup Tool
+
+Split a BIP39 seed into multiple XOR parts or combine parts back into the
+original phrase. This utility mirrors the structure of tools/mnemonic.py and
+tools/seed_phrase_to_qr.py for a consistent CLI experience.
+
+TL;DR:
+    pip3 install -e .
+    cd tools
+    python3 seed_xor.py -h
+"""
 import argparse
 import sys
 from hashlib import sha256
@@ -5,6 +17,34 @@ from binascii import a2b_hex
 from secrets import randbits
 from embit.wordlists.bip39 import WORDLIST as WORDLIST__ENGLISH
 
+# -----------------------------------------------------------------------------
+# Formatted usage examples shown with `-h`
+# -----------------------------------------------------------------------------
+usage = f"""
+Examples:
+
+    # Split into 3 deterministic parts
+    python3 seed_xor.py split "<seed phrase>" 3 --deterministic
+
+    # Split into 4 random parts
+    python3 seed_xor.py split "<seed phrase>" 4
+
+    # Combine parts back
+    python3 seed_xor.py combine "<part A>" "<part B>" "<part C>"
+"""
+
+# -----------------------------------------------------------------------------
+# Banner printed at runtime
+# -----------------------------------------------------------------------------
+BANNER = """
+*******************************************************************************
+ SeedSigner XOR Seed Backup Tool
+
+ This tool splits a seed into multiple XOR backups and can recombine them to
+ recover the original seed. It relies on the BIP39 wordlist to convert between
+ seed phrases and binary entropy. FOR TESTING / EDUCATIONAL PURPOSES ONLY!
+*******************************************************************************
+"""
 
 def get_wordnumber(word, wordlist=WORDLIST__ENGLISH):
     if word in wordlist:
@@ -91,7 +131,7 @@ def print_xor_backups(outputs, wordlist=WORDLIST__ENGLISH):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='SeedSigner XOR Seed Backup Tool',
+        description=f'SeedSigner XOR Seed Backup Tool\n\n{usage}',
         formatter_class=argparse.RawTextHelpFormatter
     )
     
@@ -129,21 +169,5 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
-    print("""
-*******************************************************************************
-
-    SeedSigner xor seed backup tool
-    
-    This tool is designed to split a seed into multiple XOR backups and
-    combine them back to recover the original seed. It uses the BIP39 wordlist
-    to convert between seed phrases and binary entropy.
-          
-    Usage:
-    1) for spliting into two seed phrase
-        python3 seed_xor.py split "brother ride syrup domain absent sock dove unfair fever use morning absorb" 2
-    2) for combining two seed phrases
-        python3 seed_xor.py combine "<copy and paste the seed phrases A>" "<copy and paste the seed phrases B>" 
-    
-*******************************************************************************
-""")
+    print(BANNER)
     main()
