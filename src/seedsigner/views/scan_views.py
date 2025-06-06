@@ -79,15 +79,21 @@ class ScanView(View):
                     # Found a valid mnemonic seed! All new seeds should be considered
                     #   pending (might set a passphrase, SeedXOR, etc) until finalized.
                     from seedsigner.models.seed import Seed
-                    from .seed_views import SeedFinalizeView
-                    self.controller.storage.set_pending_seed(
-                        Seed(mnemonic=seed_mnemonic, wordlist_language_code=self.wordlist_language_code)
-                    )
-                    if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
-                        from seedsigner.views.seed_views import SeedAddPassphraseView
-                        return Destination(SeedAddPassphraseView)
+                    from .seed_views import SeedFinalizeView, SeedXORShowFingerprintView
+                    
+                    # Create the seed object from the mnemonic
+                    new_seed = Seed(mnemonic=seed_mnemonic, wordlist_language_code=self.wordlist_language_code)
+                    
+                    if hasattr(self, "is_seedxor_component") and self.is_seedxor_component:
+                        self.controller.process_seedxor_component(new_seed)
+                        return Destination(SeedXORShowFingerprintView)
                     else:
-                        return Destination(SeedFinalizeView)
+                        self.controller.storage.set_pending_seed(new_seed)
+                        if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
+                            from seedsigner.views.seed_views import SeedAddPassphraseView
+                            return Destination(SeedAddPassphraseView)
+                        else:
+                            return Destination(SeedFinalizeView)
             
             elif self.decoder.is_psbt:
                 from seedsigner.views.psbt_views import PSBTSelectSeedView
@@ -183,7 +189,12 @@ class ScanPSBTView(ScanView):
 class ScanSeedQRView(ScanView):
     instructions_text = _mft("Scan SeedQR")
     invalid_qr_type_message = _mft("Expected a SeedQR")
-
+    
+    def __init__(self, is_initial_scan=False, is_seedxor_component=False):
+        super().__init__()
+        self.is_initial_scan = is_initial_scan
+        self.is_seedxor_component = is_seedxor_component
+        
     @property
     def is_valid_qr_type(self):
         return self.decoder.is_seed
