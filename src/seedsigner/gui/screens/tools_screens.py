@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from gettext import gettext as _
 from typing import Any
 from PIL.Image import Image
+from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConstants, IconTextLine, SeedSignerIconConstants, TextArea
 
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, KeyboardScreen
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, ButtonOption, KeyboardScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
@@ -19,7 +20,12 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
         super().__post_init__()
 
         self.camera = Camera.get_instance()
-        self.camera.start_video_stream_mode(resolution=(self.canvas_width, self.canvas_height), framerate=24, format="rgb")
+
+        # If the stream is set to 320x240, we get pillarboxed frames (black bars on the
+        # sides). But passing in square dims gives us an edge-to-edge image.
+        # TODO: Figure out why (camera expecting frame dims of multiples other than 16?)
+        max_dimension = max(self.canvas_width, self.canvas_height)
+        self.camera.start_video_stream_mode(resolution=(max_dimension, max_dimension), framerate=24, format="rgb")
 
 
     def _run(self):
@@ -36,12 +42,37 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
                 self.camera.stop_video_stream_mode()
                 return RET_CODE__BACK_BUTTON
 
-            frame = self.camera.read_video_stream(as_image=True)
+            frame: Image = self.camera.read_video_stream(as_image=True)
 
             if frame is None:
                 # Camera probably isn't ready yet
                 time.sleep(0.01)
                 continue
+
+            with self.renderer.lock:
+                # Account for the possibly different aspect ratio of the camera frame
+                # vs the display; crop any excess.
+                # TODO: This cropping may be unnecessary if the above TODO about the
+                # camera resolution is solved.
+                box = None
+                if self.canvas_width != frame.width:
+                    half_width_diff = int(abs(self.canvas_width - frame.width)/2)
+                    box = (
+                        half_width_diff,
+                        0,
+                        frame.width - half_width_diff,
+                        frame.height
+                    )
+                elif self.canvas_height != frame.height:
+                    half_height_diff = int(abs(self.canvas_height - frame.height)/2)
+                    box = (
+                        0,
+                        half_height_diff,
+                        frame.width,
+                        frame.height - half_height_diff
+                    )
+
+                self.renderer.canvas.paste(frame.crop(box=box))
 
             # Check for ANYCLICK to take final entropy image
             if self.hw_inputs.check_for_low(keys=HardwareButtonsConstants.KEYS__ANYCLICK):
@@ -50,8 +81,6 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
                 self.camera.stop_video_stream_mode()
 
                 with self.renderer.lock:
-                    self.renderer.canvas.paste(frame)
-
                     self.renderer.draw.text(
                         xy=(
                             int(self.renderer.canvas_width/2),
@@ -70,8 +99,6 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
 
             # If we're still here, it's just another preview frame loop
             with self.renderer.lock:
-                self.renderer.canvas.paste(frame)
-
                 self.renderer.draw.text(
                     xy=(
                         int(self.renderer.canvas_width/2),
@@ -183,9 +210,11 @@ class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
         self.is_button_text_centered = True
         super().__post_init__()
 
+        # TRANSLATOR_NOTE: Final word calc. `mnemonic_length` = 12 or 24. `num_bits` = 7 or 3 (bits of entropy in final word).
+        text=_("The {mnemonic_length}th word is built from {num_bits} more entropy bits plus auto-calculated checksum.").format(mnemonic_length=self.mnemonic_length, num_bits=self.num_entropy_bits)
+
         self.components.append(TextArea(
-            # TRANSLATOR_NOTE: Final word calc. `mnemonic_length` = 12 or 24. `num_bits` = 7 or 3 (bits of entropy in final word).
-            text=_("The {mnemonic_length}th word is built from {num_bits} more entropy bits plus auto-calculated checksum.").format(mnemonic_length=self.mnemonic_length, num_bits=self.num_entropy_bits),
+            text=text,
             screen_y=self.top_nav.height + int(GUIConstants.COMPONENT_PADDING/2),
         ))
 
@@ -460,3 +489,47 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
             ))
+
+
+
+@dataclass
+class ToolsAddressExplorerAddressListScreen(ButtonListScreen):
+    start_index: int = 0
+    addresses: list[str] = None
+
+    def __post_init__(self):
+        self.button_font_name = GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME
+        self.button_font_size = GUIConstants.get_button_font_size() + 4
+        self.is_button_text_centered = False
+        self.is_bottom_list = True
+
+        left, top, right, bottom  = Fonts.get_font(self.button_font_name, self.button_font_size).getbbox("X")
+        char_width = right - left
+
+        last_addr_index = self.start_index + len(self.addresses) - 1
+        index_digits = len(str(last_addr_index))
+        
+        # Calculate how many pixels we have available within each address button,
+        # remembering to account for the index number that will be displayed.
+        # Note: because we haven't called the parent's post_init yet, we don't have a
+        # self.canvas_width set; have to use the Renderer singleton to get it.
+        available_width = Renderer.get_instance().canvas_width - 2*GUIConstants.EDGE_PADDING - 2*GUIConstants.COMPONENT_PADDING - (index_digits + 1)*char_width
+        displayable_chars = int(available_width / char_width) - 3  # ellipsis
+        displayable_half = int(displayable_chars/2)
+
+        self.button_data = []
+        for i, address in enumerate(self.addresses):
+            cur_index = i + self.start_index
+
+            # TODO: Intentionally NOT marking these for translation, but we may need to in
+            # the future.
+            button_label = f"{cur_index}:{address[:displayable_half]}...{address[-1*displayable_half:]}"
+            active_button_label = f"{cur_index}:{address}"
+
+            self.button_data.append(ButtonOption(button_label, active_button_label=active_button_label))
+        
+        # TRANSLATOR_NOTE: Insert the number of addrs displayed per screen (e.g. "Next 10")
+        button_label = _("Next {}").format(len(self.addresses))
+        self.button_data.append(ButtonOption(button_label, right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT))
+
+        super().__post_init__()
