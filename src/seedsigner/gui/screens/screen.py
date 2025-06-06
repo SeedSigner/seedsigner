@@ -1,3 +1,4 @@
+import math
 import logging
 import time
 
@@ -277,6 +278,8 @@ class ButtonOption:
     button_label_color: str = None
     return_data: Any = None
     active_button_label: str = None  # Changes displayed button label when button is active
+    font_name: str = None  # Optional override
+    font_size: int = None  # Optional override
 
 
 
@@ -286,15 +289,20 @@ class ButtonListScreen(BaseTopNavScreen):
     selected_button: int = 0
     is_button_text_centered: bool = True
     is_bottom_list: bool = False
+
+    # Cannot define these class attrs w/the get_*_font_*() methods because the attrs will
+    # not be dynamically reinterpreted after initial class import.
     button_font_name: str = None
     button_font_size: int = None
+
     button_selected_color: str = GUIConstants.ACCENT_COLOR
 
     # Params for version of list used for Settings
     Button_cls = Button
     checked_buttons: List[int] = None
 
-    # Enables returning w/buttons rendered at the same place
+    # Enables returning w/buttons rendered at the same place; default behavior will
+    # ensure the screen is at least scrolled to reveal the `selected_button`.
     scroll_y_initial_offset: int = None
 
 
@@ -322,40 +330,37 @@ class ButtonListScreen(BaseTopNavScreen):
             button_list_y = self.top_nav.height
             self.has_scroll_arrows = True
 
+            # How many buttons fit on the screen before we need to start scrolling?
+            num_buttons_pre_scroll = math.floor((self.canvas_height - button_list_y - GUIConstants.EDGE_PADDING) / (button_height + GUIConstants.LIST_ITEM_PADDING))
+
+            # Force a scroll offset when necessary if none was provided
+            if self.selected_button + 1 > num_buttons_pre_scroll and not self.scroll_y_initial_offset:
+                # Scroll far enough to expose the selected button; +1 to account for the
+                # height of the target button itself!
+                self.scroll_y_initial_offset = (button_height + GUIConstants.LIST_ITEM_PADDING) * (self.selected_button - num_buttons_pre_scroll + 1)
+
         self.buttons: List[Button] = []
         for i, button_option in enumerate(self.button_data):
-            icon_name = None
-            icon_color = None
-            right_icon_name = None
-            button_label_color = None
-
-            if type(button_option) == ButtonOption:
-                button_label = button_option.button_label
-                icon_name = button_option.icon_name
-                icon_color = button_option.icon_color
-                right_icon_name = button_option.right_icon_name
-                button_label_color = button_option.button_label_color
-                active_button_label = button_option.active_button_label
-            
-            else:
+            if type(button_option) != ButtonOption:
                 raise Exception("Refactor to ButtonOption approach needed!")
 
+            # TODO: Refactor `Button` to optionally use ButtonOption directly?
             button_kwargs = dict(
-                text=_(button_label),  # Wrap here for just-in-time translations
-                active_text=_(active_button_label),  # Wrap here for just-in-time translations
-                icon_name=icon_name,
-                icon_color=icon_color if icon_color else GUIConstants.BUTTON_FONT_COLOR,
+                text=_(button_option.button_label),  # Wrap here for just-in-time translations
+                active_text=_(button_option.active_button_label),  # Wrap here for just-in-time translations
+                icon_name=button_option.icon_name,
+                icon_color=button_option.icon_color if button_option.icon_color else GUIConstants.BUTTON_FONT_COLOR,
                 is_icon_inline=True,
-                right_icon_name=right_icon_name,
+                right_icon_name=button_option.right_icon_name,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=button_list_y + i * (button_height + GUIConstants.LIST_ITEM_PADDING),
                 scroll_y=self.scroll_y_initial_offset if self.scroll_y_initial_offset is not None else 0,
                 width=self.canvas_width - (2 * GUIConstants.EDGE_PADDING),
                 height=button_height,
                 is_text_centered=self.is_button_text_centered,
-                font_name=self.button_font_name,
-                font_size=self.button_font_size,
-                font_color=button_label_color if button_label_color else GUIConstants.BUTTON_FONT_COLOR,
+                font_name=button_option.font_name if button_option.font_name else self.button_font_name,
+                font_size=button_option.font_size if button_option.font_size else self.button_font_size,
+                font_color=button_option.button_label_color if button_option.button_label_color else GUIConstants.BUTTON_FONT_COLOR,
                 selected_color=self.button_selected_color,
                 is_scrollable_text=True,  # We need to use the ScrollableText class for long button labels
             )
@@ -553,8 +558,12 @@ class ButtonListScreen(BaseTopNavScreen):
 @dataclass
 class LargeButtonScreen(BaseTopNavScreen):
     button_data: list = None
+
+    # Cannot define these class attrs w/the get_*_font_*() methods because the attrs will
+    # not be dynamically reinterpreted after initial class import.
     button_font_name: str = None
     button_font_size: int = None
+
     button_selected_color: str = GUIConstants.ACCENT_COLOR
     selected_button: int = 0
 
@@ -562,6 +571,7 @@ class LargeButtonScreen(BaseTopNavScreen):
         if not self.button_font_name:
             self.button_font_name = GUIConstants.get_button_font_name()
         if not self.button_font_size:
+            # TODO: Define the +2 with a constant or via a formula (e.g. int(x * 1.1))
             self.button_font_size = GUIConstants.get_button_font_size() + 2
 
         super().__post_init__()
@@ -569,9 +579,11 @@ class LargeButtonScreen(BaseTopNavScreen):
         if len(self.button_data) not in [2, 4]:
             raise Exception("LargeButtonScreen only supports 2 or 4 buttons")
 
-        # Maximize 2-across width; calc height with a 4:3 aspect ratio
+        # Maximize 2-across width
         button_width = int((self.canvas_width - (2 * GUIConstants.EDGE_PADDING) - GUIConstants.COMPONENT_PADDING) / 2)
-        button_height = int(button_width * (3.0 / 4.0))
+
+        # Maximize 2-row height
+        button_height = int((self.canvas_height - self.top_nav.height - (2 * GUIConstants.COMPONENT_PADDING) - GUIConstants.EDGE_PADDING) / 2)
 
         # Vertically center the buttons
         if len(self.button_data) == 2:
