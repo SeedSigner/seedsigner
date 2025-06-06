@@ -132,7 +132,11 @@ class Controller(Singleton):
     FLOW__VERIFY_SINGLESIG_ADDR = "singlesig_addr"
     FLOW__ADDRESS_EXPLORER = "address_explorer"
     FLOW__SIGN_MESSAGE = "sign_message"
+    FLOW__SEEDXOR = "seedxor"
     resume_main_flow: str = None
+    
+    seedxor_data: dict = None
+    seedxor_combined_seed: Seed = None
 
     back_stack: BackStack = None
     screensaver: ScreensaverScreen = None
@@ -223,6 +227,24 @@ class Controller(Singleton):
             del self.storage.seeds[seed_num]
         else:
             raise Exception(f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory.")
+        
+    def process_seedxor_component(self, new_component_seed: Seed):
+        if not self.seedxor_data:
+            self.seedxor_data = {}
+            
+        if "component_count" not in self.seedxor_data:
+            self.seedxor_data["component_count"] = 0
+            
+        if not self.seedxor_combined_seed:
+            self.seedxor_combined_seed = new_component_seed
+            self.seedxor_data["first_component"] = new_component_seed
+        else:
+            self.seedxor_combined_seed.seed_xor(new_component_seed)
+            
+        # Increment component count
+        self.seedxor_data["component_count"] = self.seedxor_data.get("component_count", 0) + 1
+        
+        return self.seedxor_combined_seed
 
 
     def pop_prev_from_back_stack(self):
