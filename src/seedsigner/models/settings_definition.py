@@ -347,6 +347,7 @@ class SettingsConstants:
     SETTING__COMPACT_SEEDQR = "compact_seedqr"
     SETTING__BIP85_CHILD_SEEDS = "bip85_child_seeds"
     SETTING__ELECTRUM_SEEDS = "electrum_seeds"
+    SETTING__BIP352_SILENT_PAYMENTS = "bip352_silent_payments"
     SETTING__MESSAGE_SIGNING = "message_signing"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
@@ -412,6 +413,12 @@ class SettingsConstants:
     # TRANSLATOR_NOTE: Terminology used by Electrum seeds; equivalent to BIP-39 passphrase
     custom_extension = _mft("Custom Extension")
     LABEL__CUSTOM_EXTENSION = custom_extension
+
+    BIP352_OPTIONS = [
+        # TRANSLATOR_NOTE: BIP-352 Silent Payments setting - basic enable / disable option (SP = Silent Payments)
+        (OPTION__ENABLED, _mft("Enable SP")),
+        (OPTION__DISABLED, _mft("Disable SP"))
+    ]
 
 
 
@@ -666,6 +673,15 @@ class SettingsDefinition:
                       display_name=_mft("BIP-85 child seeds"),
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__DISABLED),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__BIP352_SILENT_PAYMENTS,
+                      abbreviated_name="bip352",
+                      display_name=_mft("BIP-352 silent payments"),
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      selection_options=SettingsConstants.BIP352_OPTIONS,
+                      default_value=SettingsConstants.OPTION__ENABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__ELECTRUM_SEEDS,

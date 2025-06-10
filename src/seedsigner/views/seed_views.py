@@ -10,14 +10,14 @@ from embit.descriptor import Descriptor
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
-from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation
+from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation, BaseExportKeyDetailsScreen
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterLegacyXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
+from seedsigner.views.view import BaseQRDisplayView, NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
 
 logger = logging.getLogger(__name__)
 
@@ -530,6 +530,7 @@ class SeedOptionsView(View):
     SIGN_MESSAGE = ButtonOption("Sign message")
     BACKUP = ButtonOption("Backup seed", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
     BIP85_CHILD_SEED = ButtonOption("BIP-85 child seed")
+    BIP352_SILENT_PAYMENTS = ButtonOption("BIP-352 silent payments")
     DISCARD = ButtonOption("Discard seed", button_label_color="red")
 
 
@@ -583,6 +584,9 @@ class SeedOptionsView(View):
         if self.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS) == SettingsConstants.OPTION__ENABLED and self.seed.bip85_supported:
             button_data.append(self.BIP85_CHILD_SEED)
 
+        if self.settings.get_value(SettingsConstants.SETTING__BIP352_SILENT_PAYMENTS) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.BIP352_SILENT_PAYMENTS)
+
         button_data.append(self.DISCARD)
         
         selected_menu_num = self.run_screen(
@@ -618,6 +622,9 @@ class SeedOptionsView(View):
 
         elif button_data[selected_menu_num] == self.BIP85_CHILD_SEED:
             return Destination(SeedBIP85SelectNumWordsView, view_args={"seed_num": self.seed_num})
+        
+        elif button_data[selected_menu_num] == self.BIP352_SILENT_PAYMENTS:
+            return Destination(SeedBIP352SilentPaymentsOptionsView, view_args={"seed_num": self.seed_num})
 
         elif button_data[selected_menu_num] == self.DISCARD:
             return Destination(SeedDiscardView, view_args=dict(seed_num=self.seed_num))
@@ -942,10 +949,15 @@ class SeedExportXpubDetailsView(View):
                 self.loading_screen.stop()
 
             selected_menu_num = self.run_screen(
-                seed_screens.SeedExportXpubDetailsScreen,
+                BaseExportKeyDetailsScreen,
+                title=_("Xpub Details"),
+                key_label=_("Xpub"),
+                key_value=xpub_base58,
                 fingerprint=fingerprint,
+                has_passphrase=self.seed.has_passphrase,
                 derivation_path=derivation_path,
                 xpub=xpub_base58,
+                button_data=[ButtonOption("Export via QR code")]
             )
 
         if selected_menu_num == 0:
@@ -1150,8 +1162,14 @@ class SeedBIP85SelectChildIndexView(View):
 
 
     def run(self):
-        # TODO: Change this later to use the generic Screen input keyboard
-        ret = self.run_screen(seed_screens.SeedBIP85SelectChildIndexScreen)
+        ret = self.run_screen(
+            seed_screens.KeyboardScreen,
+            title=_("BIP-85 Index"),
+            rows=3,
+            cols=5,
+            keys_charset="0123456789",
+            show_save_button=True,
+        )
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -1203,6 +1221,145 @@ class SeedBIP85InvalidChildIndexView(View):
                 skip_current_view=True
             )
 
+
+
+"""****************************************************************************
+    BIP-352: Silent Payments
+****************************************************************************"""
+class SeedBIP352SilentPaymentsOptionsView(View):
+    # TRANSLATOR_NOTE: allows the user to generate a static reusable SP address.
+    EXPORT_SP_ADDRESS = ButtonOption("Export SP address")
+    # TRANSLATOR_NOTE: allows the user to export the sp() descriptor (scan privkey + spend pubkey).
+    EXPORT_SP_DESCRIPTOR = ButtonOption("Export SP descriptor")
+
+    def __init__(self, seed_num: int):
+        super().__init__()
+        self.seed_num = seed_num
+
+    def run(self):
+        button_data = [
+            self.EXPORT_SP_ADDRESS,
+            self.EXPORT_SP_DESCRIPTOR,
+        ]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            # TRANSLATOR_NOTE: BIP-352 Silent Payments - main menu title
+            title=_("Silent Payments"),
+            button_data=button_data,
+            is_button_text_centered=False,
+            is_bottom_list=True,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(SeedOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
+
+        elif button_data[selected_menu_num] == self.EXPORT_SP_ADDRESS:
+            return Destination(SeedBIP352GeneratePaymentAddressView, view_args={"seed_num": self.seed_num})
+
+        elif button_data[selected_menu_num] == self.EXPORT_SP_DESCRIPTOR:
+            return Destination(SeedBIP352ExportSPDescriptorDetailsView, view_args={"seed_num": self.seed_num})
+
+
+
+class SeedBIP352ExportSPDescriptorDetailsView(View):
+    def __init__(self, seed_num: int):
+        super().__init__()
+        self.seed_num = seed_num
+        self.seed = self.controller.get_seed(seed_num)
+        self.network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        self.master_fingerprint = self.seed.get_fingerprint(network=self.network)
+        self.sp_descriptor = self.seed.generate_bip352_sp_descriptor(network=self.network)
+        self.derivation_path = self.seed.get_bip352_wallet_derivation_path(network=self.network)
+
+    def run(self):
+        if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) != SettingsConstants.OPTION__DISABLED:
+            selected_warning_option = self.run_screen(
+                WarningScreen,
+                # TRANSLATOR_NOTE: BIP-352 Silent Payments - warning title when exporting SP descriptor
+                title=_("Caution!"),
+                # TRANSLATOR_NOTE: BIP-352 Silent Payments - warning headline about privacy implications of SP descriptor
+                status_headline=_("Privacy Leak!"),
+                # TRANSLATOR_NOTE: BIP-352 Silent Payments - explanation of SP descriptor risks
+                text=_("Your SP descriptor contains the scan private key, which reveals all your silent payment activity."),
+                button_data=[ButtonOption("Continue")]
+            )
+            if selected_warning_option == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+
+        selected_option = self.run_screen(
+            BaseExportKeyDetailsScreen,
+            # TRANSLATOR_NOTE: BIP-352 Silent Payments - title for screen showing SP descriptor details
+            title=_("SP Descriptor Details"),
+            # TRANSLATOR_NOTE: BIP-352 Silent Payments - label for the SP descriptor field
+            key_label=_("SP Descriptor"),
+            key_value=self.sp_descriptor,
+            fingerprint=self.master_fingerprint,
+            has_passphrase=self.seed.has_passphrase,
+            derivation_path=self.derivation_path,
+            button_data=[ButtonOption("Export via QR code")]
+        )
+
+        if selected_option == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        return Destination(SeedBIP352ExportSPDescriptorQRView, view_args={"seed_num": self.seed_num})
+
+
+
+class BaseBIP352QRView(BaseQRDisplayView):
+    def __init__(self, seed_num: int):
+        super().__init__()
+        self.seed_num = seed_num
+        self.seed = self.controller.get_seed(seed_num)
+
+
+    def get_next_destination(self):
+        return Destination(SeedBIP352SilentPaymentsOptionsView, view_args={"seed_num": self.seed_num}, clear_history=True)
+
+
+
+class SeedBIP352PaymentAddressQRView(BaseBIP352QRView):
+    def get_qr_encoder(self):
+        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        payment_address = self.seed.generate_bip352_silent_payment_address(network=network)
+        return GenericStaticQrEncoder(data=payment_address)
+
+
+
+class SeedBIP352ExportSPDescriptorQRView(BaseBIP352QRView):
+    def get_qr_encoder(self):
+        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        return GenericStaticQrEncoder(data=self.seed.generate_bip352_sp_descriptor(network=network))
+
+
+
+class SeedBIP352GeneratePaymentAddressView(View):
+    EXPORT_VIA_QR_CODE = ButtonOption("Export via QR code")
+
+    def __init__(self, seed_num: int):
+        super().__init__()
+        self.seed_num = seed_num
+        self.seed = self.controller.get_seed(self.seed_num)
+
+        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        self.payment_address = self.seed.generate_bip352_silent_payment_address(network=network)
+
+    def run(self):
+        button_data = [self.EXPORT_VIA_QR_CODE]
+
+        selected_menu_item = self.run_screen(
+            seed_screens.SeedBIP352GeneratePaymentAddressScreen,
+            payment_address=self.payment_address,
+            button_data=button_data
+        )
+
+        if selected_menu_item == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_item] == self.EXPORT_VIA_QR_CODE:
+            return Destination(SeedBIP352PaymentAddressQRView, view_args={"seed_num": self.seed_num})
+    
 
 
 """****************************************************************************

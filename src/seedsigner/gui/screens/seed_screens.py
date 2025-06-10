@@ -537,18 +537,20 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
 
 
 @dataclass
-class SeedBIP85SelectChildIndexScreen(KeyboardScreen):
+class SeedBIP352GeneratePaymentAddressScreen(ButtonListScreen):
+    payment_address: str = None
+
     def __post_init__(self):
-        self.title = _("BIP-85 Index")
-        self.user_input = ""
-
-        # Specify the keys in the keyboard
-        self.rows = 3
-        self.cols = 5
-        self.keys_charset = "0123456789"
-        self.show_save_button = True
-
+        self.title = _("Silent Payment Address")
+        self.is_bottom_list = True
         super().__post_init__()
+
+        self.components.append(FormattedAddress(
+            address=self.payment_address,
+            font_size=GUIConstants.get_body_font_size() + 4,
+            line_spacing=GUIConstants.BODY_LINE_SPACING - 2,
+            screen_y=self.top_nav.height
+        ))
 
 
 
@@ -581,65 +583,6 @@ class SeedExportXpubCustomDerivationScreen(KeyboardScreen):
         self.show_save_button = True
 
         super().__post_init__()
-
-
-
-@dataclass
-class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
-    # Customize defaults
-    is_bottom_list: bool = True
-    fingerprint: str = None
-    derivation_path: str = "m/84'/0'/0'"
-    xpub: str = "zpub6r..."
-
-    def __post_init__(self):
-        # Programmatically set up other args
-        self.button_data = [ButtonOption("Export xpub")]
-        self.title = _("Xpub Details")
-
-        # Initialize the base class
-        super().__post_init__()
-
-        # Set up the fingerprint and passphrase displays
-        self.fingerprint_line = IconTextLine(
-            icon_name=SeedSignerIconConstants.FINGERPRINT,
-            icon_color=GUIConstants.INFO_COLOR,
-            # TRANSLATOR_NOTE: Short for "BIP-32 Master Fingerprint"
-            label_text=_("Fingerprint"),
-            value_text=self.fingerprint,
-            screen_x=GUIConstants.COMPONENT_PADDING,
-            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
-        )
-        self.components.append(self.fingerprint_line)
-
-        self.derivation_line = IconTextLine(
-            icon_name=SeedSignerIconConstants.DERIVATION,
-            icon_color=GUIConstants.INFO_COLOR,
-            # TRANSLATOR_NOTE: Short for "Derivation Path"
-            label_text=_("Derivation"),
-            value_text=self.derivation_path,
-            screen_x=GUIConstants.COMPONENT_PADDING,
-            screen_y=self.components[-1].screen_y + self.components[-1].height + int(1.5*GUIConstants.COMPONENT_PADDING),
-        )
-        self.components.append(self.derivation_line)
-
-        font_name = GUIConstants.FIXED_WIDTH_FONT_NAME
-        font_size = GUIConstants.get_body_font_size() + 2
-        left, top, right, bottom  = Fonts.get_font(font_name, font_size).getbbox("X")
-        char_width = right - left
-        num_chars = int((self.canvas_width - GUIConstants.ICON_FONT_SIZE - 2*GUIConstants.COMPONENT_PADDING) / char_width) - 3  # ellipsis
-
-        self.xpub_line = IconTextLine(
-            icon_name=FontAwesomeIconConstants.X,
-            icon_color=GUIConstants.INFO_COLOR,
-            label_text=_("Xpub"),
-            value_text=f"{self.xpub[:num_chars]}...",
-            font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
-            font_size=GUIConstants.get_body_font_size() + 2,
-            screen_x=GUIConstants.COMPONENT_PADDING,
-            screen_y=self.components[-1].screen_y + self.components[-1].height + int(1.5*GUIConstants.COMPONENT_PADDING),
-        )
-        self.components.append(self.xpub_line)
 
 
 

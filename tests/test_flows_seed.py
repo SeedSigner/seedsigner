@@ -750,3 +750,74 @@ class TestMessageSigningFlows(FlowTest):
         expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
 
 
+class TestBIP352SilentPaymentsFlows(FlowTest):
+    """
+    Test BIP-352 Silent Payments functionality including:
+    - Flow with disabled option
+    - Export SP address flow
+    - Export SP descriptor flow
+    """
+
+    def setup_method(self):
+        """Set up common test seed for all BIP-352 tests"""
+        super().setup_method()  # call parent setup first
+        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        self.controller.storage.finalize_pending_seed()
+
+
+    def test_bip352_silent_payments__disabled_flow(self):
+        self.settings.set_value(SettingsConstants.SETTING__BIP352_SILENT_PAYMENTS, SettingsConstants.OPTION__DISABLED)
+
+        with pytest.raises(FlowTestInvalidButtonDataSelectionException) as e:
+            self.run_sequence(
+                initial_destination_view_args=dict(seed_num=0),
+                sequence=[
+                    FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.BIP352_SILENT_PAYMENTS),
+                ]
+            )
+
+
+    def test_bip352_generate_sp_address(self):
+        self.settings.set_value(SettingsConstants.SETTING__BIP352_SILENT_PAYMENTS, SettingsConstants.OPTION__ENABLED)
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed_num=0),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.BIP352_SILENT_PAYMENTS),
+                FlowStep(seed_views.SeedBIP352SilentPaymentsOptionsView, button_data_selection=seed_views.SeedBIP352SilentPaymentsOptionsView.EXPORT_SP_ADDRESS),
+                FlowStep(seed_views.SeedBIP352GeneratePaymentAddressView, button_data_selection=seed_views.SeedBIP352GeneratePaymentAddressView.EXPORT_VIA_QR_CODE),
+                FlowStep(seed_views.SeedBIP352PaymentAddressQRView, screen_return_value=0),
+                FlowStep(seed_views.SeedBIP352SilentPaymentsOptionsView),
+            ]
+        )
+
+
+    def test_bip352_export_sp_descriptor_flow(self):
+        self.settings.set_value(SettingsConstants.SETTING__BIP352_SILENT_PAYMENTS, SettingsConstants.OPTION__ENABLED)
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed_num=0),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.BIP352_SILENT_PAYMENTS),
+                FlowStep(seed_views.SeedBIP352SilentPaymentsOptionsView, button_data_selection=seed_views.SeedBIP352SilentPaymentsOptionsView.EXPORT_SP_DESCRIPTOR),
+                FlowStep(seed_views.SeedBIP352ExportSPDescriptorDetailsView, screen_return_value=0),
+                FlowStep(seed_views.SeedBIP352ExportSPDescriptorQRView, screen_return_value=0),
+                FlowStep(seed_views.SeedBIP352SilentPaymentsOptionsView),
+            ]
+        )
+
+
+    def test_bip352_back_navigation_flow(self):
+        self.settings.set_value(SettingsConstants.SETTING__BIP352_SILENT_PAYMENTS, SettingsConstants.OPTION__ENABLED)
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed_num=0),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.BIP352_SILENT_PAYMENTS),
+                FlowStep(seed_views.SeedBIP352SilentPaymentsOptionsView, button_data_selection=seed_views.SeedBIP352SilentPaymentsOptionsView.EXPORT_SP_ADDRESS),
+                FlowStep(seed_views.SeedBIP352GeneratePaymentAddressView, screen_return_value=RET_CODE__BACK_BUTTON),
+                FlowStep(seed_views.SeedBIP352SilentPaymentsOptionsView, screen_return_value=RET_CODE__BACK_BUTTON),
+                FlowStep(seed_views.SeedOptionsView),
+            ]
+        )

@@ -9,6 +9,7 @@ from embit.networks import NETWORKS
 from typing import List
 
 from seedsigner.models.settings import SettingsConstants
+from seedsigner.helpers import embit_utils
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +164,50 @@ class Seed:
         # TODO: Support other BIP-39 wordlist languages!
         return bip85.derive_mnemonic(root, bip85_num_words, bip85_index)
         
+
+    # ----------------- BIP-352 Silent Payments support -----------------
+    def _build_bip352_path(self, purpose: int = 352, account: int = 0, is_scan_key: bool = True, network: str = SettingsConstants.MAINNET) -> str:
+        coin_type = 0 if network == SettingsConstants.MAINNET else 1
+        key_type = 1 if is_scan_key else 0
+        return f"m/{purpose}'/{coin_type}'/{account}'/{key_type}'/0"
+
+
+    def _derive_bip352_key(self, is_scan_key: bool = True, network: str = SettingsConstants.MAINNET) -> bip32.HDKey:
+        """Derive a BIP-352 HD key (scan or spend) from the wallet seed.
+
+        see: https://github.com/bitcoin/bips/blob/master/bip-0352.mediawiki#key-derivation
+        """
+        derivation_path = self._build_bip352_path(is_scan_key=is_scan_key, network=network)
+        root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
+        return root.derive(derivation_path)
+
+
+    def get_bip352_wallet_derivation_path(self, network: str = SettingsConstants.MAINNET) -> str:
+        """Returns the wallet-level BIP-352 derivation path (purpose/coin_type/account)."""
+        coin_type = 0 if network == SettingsConstants.MAINNET else 1
+        return f"m/352'/{coin_type}'/0'"
+
+
+    def generate_bip352_silent_payment_address(self, network: str = SettingsConstants.MAINNET) -> str:
+        from embit.silent_payments.bip352 import generate_silent_payment_address
+        scan_privkey = self._derive_bip352_key(is_scan_key=True, network=network).key
+        spend_pubkey = self._derive_bip352_key(is_scan_key=False, network=network).to_public().key
+        return generate_silent_payment_address(scan_privkey, spend_pubkey, network=SettingsConstants.map_network_to_embit(network))
+
+
+    def generate_bip352_sp_descriptor(self, network: str = SettingsConstants.MAINNET) -> str:
+        from embit.descriptor.sp import SPScanKey, SilentPaymentDescriptor
+        from embit.descriptor.arguments import KeyOrigin
+        embit_network = SettingsConstants.map_network_to_embit(network)
+        coin_type = 0 if network == SettingsConstants.MAINNET else 1
+        root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[embit_network]["xprv"])
+        scan_privkey = self._derive_bip352_key(is_scan_key=True, network=network).key
+        spend_pubkey = self._derive_bip352_key(is_scan_key=False, network=network).to_public().key
+        origin = KeyOrigin(root.my_fingerprint, bip32.parse_path(f"352'/{coin_type}'/0'"))
+        sp_key = SPScanKey(scan_privkey, spend_pubkey, origin=origin, network=embit_network)
+        return str(SilentPaymentDescriptor(sp_key))
+    # ----------------- BIP-352 Silent Payments support -----------------
+
 
     ### override operators    
     def __eq__(self, other):
