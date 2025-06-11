@@ -1,5 +1,4 @@
-import spidev
-import RPi.GPIO as GPIO
+from periphery import GPIO, SPI
 import time
 import array
 
@@ -12,33 +11,27 @@ class ST7789(object):
         self.width = 240
         self.height = 240
 
-        #Initialize DC RST pin
-        self._dc = 22
-        self._rst = 13
-        self._bl = 18
+        # Initialize DC RST pin using BCM numbering
+        self._dc = GPIO("/dev/gpiochip0", 25, "out")
+        self._rst = GPIO("/dev/gpiochip0", 27, "out")
+        self._bl = GPIO("/dev/gpiochip0", 24, "out")
+        self._bl.write(True)
 
-        GPIO.setmode(GPIO.BOARD)
-        GPIO.setwarnings(False)
-        GPIO.setup(self._dc,GPIO.OUT)
-        GPIO.setup(self._rst,GPIO.OUT)
-        GPIO.setup(self._bl,GPIO.OUT)
-        GPIO.output(self._bl, GPIO.HIGH)
-
-        #Initialize SPI
-        self._spi = spidev.SpiDev(0, 0)
-        self._spi.max_speed_hz = 40000000
-
+        # Initialize SPI
+        self._spi = SPI("/dev/spidev0.0", 0, 40000000)  # mode 0, 40MHz
         self.init()
 
 
     """    Write register address and data     """
     def command(self, cmd):
-        GPIO.output(self._dc, GPIO.LOW)
-        self._spi.writebytes([cmd])
+        """Write register address"""
+        self._dc.write(False)
+        self._spi.transfer([cmd])
 
     def data(self, val):
-        GPIO.output(self._dc, GPIO.HIGH)
-        self._spi.writebytes([val])
+        """Write data"""
+        self._dc.write(True)
+        self._spi.transfer([val])
 
     def init(self):
         """Initialize dispaly"""    
@@ -122,11 +115,11 @@ class ST7789(object):
 
     def reset(self):
         """Reset the display"""
-        GPIO.output(self._rst,GPIO.HIGH)
+        self._rst.write(True)
         time.sleep(0.01)
-        GPIO.output(self._rst,GPIO.LOW)
+        self._rst.write(False)
         time.sleep(0.01)
-        GPIO.output(self._rst,GPIO.HIGH)
+        self._rst.write(True)
         time.sleep(0.01)
         
     def SetWindows(self, Xstart, Ystart, Xend, Yend):
@@ -158,16 +151,23 @@ class ST7789(object):
         arr.byteswap()
         pix = arr.tobytes()
         self.SetWindows ( 0, 0, self.width, self.height)
-        GPIO.output(self._dc,GPIO.HIGH)
-        self._spi.writebytes2(pix)	
+        self._dc.write(True)
+        self._spi.transfer(pix)
         
     def clear(self):
         """Clear contents of image buffer"""
         _buffer = [0xff]*(self.width * self.height * 2)
         self.SetWindows ( 0, 0, self.width, self.height)
-        GPIO.output(self._dc,GPIO.HIGH)
-        self._spi.writebytes2(_buffer)
+        self._dc.write(True)
+        self._spi.transfer(_buffer)
 
     def invert(self, enabled: bool = True):
         """Invert how the display interprets colors"""
         self.command(0x21 if enabled else 0x20)
+
+    def __del__(self):
+        """Cleanup when object is destroyed"""
+        self._dc.close()
+        self._rst.close()
+        self._bl.close()
+        self._spi.close()
