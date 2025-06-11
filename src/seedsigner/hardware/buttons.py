@@ -1,6 +1,6 @@
 import logging
 from typing import List
-import RPi.GPIO as GPIO
+from periphery import GPIO
 import time
 
 from seedsigner.models.singleton import Singleton
@@ -9,30 +9,17 @@ logger = logging.getLogger(__name__)
 
 
 class HardwareButtons(Singleton):
-    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
-        logger.info("Detected 40pin GPIO (Rasbperry Pi 2 and above)")
-        KEY_UP_PIN = 31
-        KEY_DOWN_PIN = 35
-        KEY_LEFT_PIN = 29
-        KEY_RIGHT_PIN = 37
-        KEY_PRESS_PIN = 33
+    # TODO: well need another way to detect the button mapping preset
+    # Using BCM numbering for periphery
+    KEY_UP_PIN = 6      # HW31 (BCM)
+    KEY_DOWN_PIN = 19   # HW35 (BCM)
+    KEY_LEFT_PIN = 5    # HW29 (BCM)
+    KEY_RIGHT_PIN = 26  # HW37 (BCM)
+    KEY_PRESS_PIN = 13  # HW33 (BCM)
 
-        KEY1_PIN = 40
-        KEY2_PIN = 38
-        KEY3_PIN = 36
-
-    else:
-        logger.info("Assuming 26 Pin GPIO (Raspberry P1 1)")
-        KEY_UP_PIN = 5
-        KEY_DOWN_PIN = 11
-        KEY_LEFT_PIN = 3
-        KEY_RIGHT_PIN = 15
-        KEY_PRESS_PIN = 7
-
-        KEY1_PIN = 16
-        KEY2_PIN = 12
-        KEY3_PIN = 8
-
+    KEY1_PIN = 21       # HW40 (BCM)
+    KEY2_PIN = 20       # HW38 (BCM)
+    KEY3_PIN = 16       # HW36 (BCM)
 
     @classmethod
     def get_instance(cls):
@@ -40,18 +27,20 @@ class HardwareButtons(Singleton):
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
 
-            #init GPIO
-            GPIO.setmode(GPIO.BOARD)
-            GPIO.setup(HardwareButtons.KEY_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)    # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_DOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_LEFT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_RIGHT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_PRESS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY3_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
+            # Initialize GPIO pins with periphery
+            cls._instance._gpio_pins = {}
+            for pin in [
+                HardwareButtons.KEY_UP_PIN,
+                HardwareButtons.KEY_DOWN_PIN,
+                HardwareButtons.KEY_LEFT_PIN,
+                HardwareButtons.KEY_RIGHT_PIN,
+                HardwareButtons.KEY_PRESS_PIN,
+                HardwareButtons.KEY1_PIN,
+                HardwareButtons.KEY2_PIN,
+                HardwareButtons.KEY3_PIN
+            ]:
+                cls._instance._gpio_pins[pin] = GPIO("/dev/gpiochip0", pin, "in", bias="pull_up")
 
-            cls._instance.GPIO = GPIO
             cls._instance.override_ind = False
 
             # Track state over time so we can apply input delays/ignores as needed
@@ -105,7 +94,7 @@ class HardwareButtons(Singleton):
 
             # Check each candidate key to see if it was pressed
             for key in keys:
-                if self.GPIO.input(key) == GPIO.LOW:
+                if not self._gpio_pins[key].read():  # False means button is pressed (active low)
                     if self.cur_input != key:
                         self.cur_input = key
                         self.cur_input_started = int(time.time() * 1000)  # in milliseconds
@@ -157,43 +146,36 @@ class HardwareButtons(Singleton):
         if key:
             keys = [key]
         for key in keys:
-            if self.GPIO.input(key) == self.GPIO.LOW:
+            if not self._gpio_pins[key].read():  # False means button is pressed (active low)
                 self.update_last_input_time()
                 return True
-        else:
-            return False
-
+        return False
 
     def has_any_input(self) -> bool:
         """ Returns True if any of the keys are pressed """
         for key in HardwareButtonsConstants.ALL_KEYS:
-            if self.GPIO.input(key) == GPIO.LOW:
+            if not self._gpio_pins[key].read():  # False means button is pressed (active low)
                 return True
         return False
+
+    def __del__(self):
+        """Cleanup GPIO pins when object is destroyed"""
+        if hasattr(self, '_gpio_pins'):
+            for pin in self._gpio_pins.values():
+                pin.close()
 
 
 # class used as short hand for static button/channel lookup values
 class HardwareButtonsConstants:
-    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
-        KEY_UP = 31
-        KEY_DOWN = 35
-        KEY_LEFT = 29
-        KEY_RIGHT = 37
-        KEY_PRESS = 33
+    KEY_UP = 6      # HW31 (BCM)
+    KEY_DOWN = 19   # HW35 (BCM)
+    KEY_LEFT = 5    # HW29 (BCM)
+    KEY_RIGHT = 26  # HW37 (BCM)
+    KEY_PRESS = 13  # HW33 (BCM)
 
-        KEY1 = 40
-        KEY2 = 38
-        KEY3 = 36
-    else:
-        KEY_UP = 5
-        KEY_DOWN = 11
-        KEY_LEFT = 3
-        KEY_RIGHT = 15
-        KEY_PRESS = 7
-
-        KEY1 = 16
-        KEY2 = 12
-        KEY3 = 8
+    KEY1 = 21       # HW40 (BCM)
+    KEY2 = 20       # HW38 (BCM)
+    KEY3 = 16       # HW36 (BCM)
 
     OVERRIDE = 1000
 
