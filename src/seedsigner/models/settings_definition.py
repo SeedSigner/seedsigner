@@ -241,23 +241,24 @@ class SettingsConstants:
     HARDWARE__RPI_40 = "RPI_40"
     HARDWARE__RPI_26 = "RPI_26"
 
+    # RPI Devices using BCM pin numbers
     HARDWARE_PIN_CONFIG__RPI_40 = {
         "display": {
-            "dc": 25,      # GPIO25 (physical pin 22)
-            "rst": 27,     # GPIO27 (physical pin 13)
-            "bl": 24,      # GPIO24 (physical pin 18)
+            "dc": 25,
+            "rst": 27,
+            "bl": 24,
             "spi_bus": 0,
             "spi_device": 0
         },
         "buttons": {
-            "KEY_UP": 6,      # GPIO17 (physical pin 11)
-            "KEY_DOWN": 19,    # GPIO27 (physical pin 13)
-            "KEY_LEFT": 5,    # GPIO22 (physical pin 15)
-            "KEY_RIGHT": 26,   # GPIO23 (physical pin 16)
-            "KEY_PRESS": 13,   # GPIO4 (physical pin 7)
-            "KEY1": 21,    # GPIO21 (physical pin 21)
-            "KEY2": 20,    # GPIO20 (physical pin 20)
-            "KEY3": 16,    # GPIO16 (physical pin 16)
+            "KEY_UP": 6,
+            "KEY_DOWN": 19,
+            "KEY_LEFT": 5,
+            "KEY_RIGHT": 26,
+            "KEY_PRESS": 13,
+            "KEY1": 21,
+            "KEY2": 20,
+            "KEY3": 16,
         },
         "camera": {
             "device": "/dev/video1",
@@ -269,21 +270,21 @@ class SettingsConstants:
 
     HARDWARE_PIN_CONFIG__RPI_26 = {
         "display": {
-            "dc": 25,      # GPIO25 (physical pin 22)
-            "rst": 27,     # GPIO27 (physical pin 13)
-            "bl": 24,      # GPIO24 (physical pin 18)
+            "dc": 25,
+            "rst": 27,
+            "bl": 24,
             "spi_bus": 0,
             "spi_device": 0
         },
         "buttons": {
-            "up": 17,      # GPIO17 (physical pin 11)
-            "down": 27,    # GPIO27 (physical pin 13)
-            "left": 22,    # GPIO22 (physical pin 15)
-            "right": 23,   # GPIO23 (physical pin 16)
-            "press": 4,   # GPIO4
-            "key1": 21,    # GPIO21 (physical pin 21)
-            "key2": 20,    # GPIO20 (physical pin 20)
-            "key3": 16,    # GPIO16 (physical pin 16)
+            "up": 17,
+            "down": 27,
+            "left": 22,
+            "right": 23,
+            "press": 4,
+            "key1": 21,
+            "key2": 20,
+            "key3": 16,
         },
         "camera": {
             "device": "/dev/video0",
@@ -293,23 +294,24 @@ class SettingsConstants:
         }
     }
 
+    # PICO MINI
     HARDWARE_PIN_CONFIG__FOX_22 = {
         "display": {
-            "dc": 25,      # GPIO25
-            "rst": 27,     # GPIO27
-            "bl": 24,      # GPIO24
+            "dc": 52,
+            "rst": 51,
+            "bl": 18,
             "spi_bus": 0,
             "spi_device": 0
         },
         "buttons": {
-            "KEY_UP": 17,      # GPIO17
-            "KEY_DOWN": 27,    # GPIO27
-            "KEY_LEFT": 22,    # GPIO22
-            "KEY_RIGHT": 23,   # GPIO23
-            "KEY_PRESS": 4,   # GPIO4
-            "KEY1": 21,    # GPIO21 (physical pin 21)
-            "KEY2": 20,    # GPIO20 (physical pin 20)
-            "KEY3": 16,    # GPIO16 (physical pin 16)
+            "KEY_UP": 57,
+            "KEY_DOWN": 59,
+            "KEY_LEFT": 56,
+            "KEY_RIGHT": 54,
+            "KEY_PRESS": 58,
+            "KEY1": 55,
+            "KEY2": 4,
+            "KEY3": 53,
         },
         "camera": {
             "device": "/dev/video12",
@@ -319,23 +321,24 @@ class SettingsConstants:
         }
     }
 
+    # PICO & PICO PRO
     HARDWARE_PIN_CONFIG__FOX_40 = {
         "display": {
-            "dc": 25,      # GPIO25
-            "rst": 27,     # GPIO27
-            "bl": 24,      # GPIO24
+            "dc": 25,
+            "rst": 27,
+            "bl": 24,
             "spi_bus": 0,
             "spi_device": 0
         },
         "buttons": {
-            "KEY_UP": 17,      # GPIO17
-            "KEY_DOWN": 27,    # GPIO27
-            "KEY_LEFT": 22,    # GPIO22
-            "KEY_RIGHT": 23,   # GPIO23
-            "KEY_PRESS": 4,   # GPIO4
-            "KEY1": 21,    # GPIO21 (physical pin 21)
-            "KEY2": 20,    # GPIO20 (physical pin 20)
-            "KEY3": 16,    # GPIO16 (physical pin 16)
+            "KEY_UP": 17,
+            "KEY_DOWN": 27,
+            "KEY_LEFT": 22,
+            "KEY_RIGHT": 23,
+            "KEY_PRESS": 4,
+            "KEY1": 21,
+            "KEY2": 20,
+            "KEY3": 16,
         },
         "camera": {
             "device": "/dev/video12",
