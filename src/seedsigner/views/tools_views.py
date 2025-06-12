@@ -275,10 +275,10 @@ class ToolsCoinEntropyMnemonicLengthView(View):
             return Destination(BackStackView)
 
         elif button_data[selected_menu_num] == TWELVE:
-            return Destination(ToolsCoin_Input_Method_View, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__12WORD))
+            return Destination(ToolsCoinInputMethodView, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__12WORD))
 
         elif button_data[selected_menu_num] == TWENTY_FOUR:
-            return Destination(ToolsCoin_Input_Method_View, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__24WORD))
+            return Destination(ToolsCoinInputMethodView, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__24WORD))
 
 
 
