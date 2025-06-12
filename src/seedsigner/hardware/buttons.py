@@ -4,22 +4,17 @@ from periphery import GPIO
 import time
 
 from seedsigner.models.singleton import Singleton
+from seedsigner.models.settings import Settings
+from seedsigner.models.settings_definition import SettingsConstants
 
 logger = logging.getLogger(__name__)
 
 
 class HardwareButtons(Singleton):
-    # TODO: well need another way to detect the button mapping preset
-    # Using BCM numbering for periphery
-    KEY_UP_PIN = 6      # HW31 (BCM)
-    KEY_DOWN_PIN = 19   # HW35 (BCM)
-    KEY_LEFT_PIN = 5    # HW29 (BCM)
-    KEY_RIGHT_PIN = 26  # HW37 (BCM)
-    KEY_PRESS_PIN = 13  # HW33 (BCM)
-
-    KEY1_PIN = 21       # HW40 (BCM)
-    KEY2_PIN = 20       # HW38 (BCM)
-    KEY3_PIN = 16       # HW36 (BCM)
+    # Pin names for lookup
+    BUTTON_NAMES = [
+        "KEY_UP", "KEY_DOWN", "KEY_LEFT", "KEY_RIGHT", "KEY_PRESS", "KEY1", "KEY2", "KEY3"
+    ]
 
     @classmethod
     def get_instance(cls):
@@ -27,19 +22,27 @@ class HardwareButtons(Singleton):
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
 
+            # Get the current hardware config
+            hardware_config = Settings.get_instance().get_value(SettingsConstants.SETTING__HARDWARE_CONFIG)
+            pins = None
+            pin_mapping = SettingsConstants.ALL_HARDWARE_PIN_CONFIGS__PIN_DEFINITIONS[hardware_config]["buttons"]
+            logger.info(f"pin_mapping: {pin_mapping}")
+                # if config_key == hardware_config:
+                #     pins = config_dict["buttons"]
+                #     break
+            # if pins is None:
+            #     logger.error(f"Unknown hardware config: {hardware_config}")
+            #     raise Exception(f"Unknown hardware config: {hardware_config}")
+
+            # Store pin numbers as attributes for compatibility
+            # for name in cls.BUTTON_NAMES:
+            #     setattr(cls, f"KEY_{name.upper()}_PIN", pins[name])
+
             # Initialize GPIO pins with periphery
             cls._instance._gpio_pins = {}
-            for pin in [
-                HardwareButtons.KEY_UP_PIN,
-                HardwareButtons.KEY_DOWN_PIN,
-                HardwareButtons.KEY_LEFT_PIN,
-                HardwareButtons.KEY_RIGHT_PIN,
-                HardwareButtons.KEY_PRESS_PIN,
-                HardwareButtons.KEY1_PIN,
-                HardwareButtons.KEY2_PIN,
-                HardwareButtons.KEY3_PIN
-            ]:
-                cls._instance._gpio_pins[pin] = GPIO("/dev/gpiochip0", pin, "in", bias="pull_up")
+            for name in cls.BUTTON_NAMES:
+                pin = pin_mapping[name]
+                cls._instance._gpio_pins[name] = GPIO("/dev/gpiochip0", pin, "in", bias="pull_up")
 
             cls._instance.override_ind = False
 
@@ -167,15 +170,15 @@ class HardwareButtons(Singleton):
 
 # class used as short hand for static button/channel lookup values
 class HardwareButtonsConstants:
-    KEY_UP = 6      # HW31 (BCM)
-    KEY_DOWN = 19   # HW35 (BCM)
-    KEY_LEFT = 5    # HW29 (BCM)
-    KEY_RIGHT = 26  # HW37 (BCM)
-    KEY_PRESS = 13  # HW33 (BCM)
+    KEY_UP = "KEY_UP"       # HW31 (BCM)
+    KEY_DOWN = "KEY_DOWN"   # HW35 (BCM)
+    KEY_LEFT = "KEY_LEFT"   # HW29 (BCM)
+    KEY_RIGHT = "KEY_RIGHT" # HW37 (BCM)
+    KEY_PRESS = "KEY_PRESS" # HW33 (BCM)
 
-    KEY1 = 21       # HW40 (BCM)
-    KEY2 = 20       # HW38 (BCM)
-    KEY3 = 16       # HW36 (BCM)
+    KEY1 = "KEY1"       # HW40 (BCM)
+    KEY2 = "KEY2"       # HW38 (BCM)
+    KEY3 = "KEY3"       # HW36 (BCM)
 
     OVERRIDE = 1000
 
