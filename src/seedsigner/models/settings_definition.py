@@ -223,6 +223,7 @@ class SettingsConstants:
         (BTC_DENOMINATION__BTCSATSHYBRID, _mft("BTC | sats hybrid")),
     ]
 
+    # Camera rotation constants
     CAMERA_ROTATION__0 = 0
     CAMERA_ROTATION__90 = 90
     CAMERA_ROTATION__180 = 180
@@ -233,6 +234,106 @@ class SettingsConstants:
         (CAMERA_ROTATION__180, _mft("180°")),
         (CAMERA_ROTATION__270, _mft("270°")),
     ]
+
+    # Hardware config settings
+    HARDWARE__LUCKFOX_22 = "FOX_22"
+    HARDWARE__LUCKFOX_40 = "FOX_40"
+    HARDWARE__RPI_40 = "RPI_40"
+    HARDWARE__RPI_26 = "RPI_26"
+
+    HARDWARE_PIN_CONFIG__RPI_40 = {
+        "display": {
+            "dc": 25,      # GPIO25 (physical pin 22)
+            "rst": 27,     # GPIO27 (physical pin 13)
+            "bl": 24,      # GPIO24 (physical pin 18)
+            "spi_bus": 0,
+            "spi_device": 0
+        },
+        "buttons": {
+            "KEY_UP": 6,      # GPIO17 (physical pin 11)
+            "KEY_DOWN": 19,    # GPIO27 (physical pin 13)
+            "KEY_LEFT": 5,    # GPIO22 (physical pin 15)
+            "KEY_RIGHT": 26,   # GPIO23 (physical pin 16)
+            "KEY_PRESS": 13,   # GPIO4 (physical pin 7)
+            "KEY1": 21,    # GPIO21 (physical pin 21)
+            "KEY2": 20,    # GPIO20 (physical pin 20)
+            "KEY3": 16,    # GPIO16 (physical pin 16)
+        }
+    }
+
+    HARDWARE_PIN_CONFIG__RPI_26 = {
+        "display": {
+            "dc": 25,      # GPIO25 (physical pin 22)
+            "rst": 27,     # GPIO27 (physical pin 13)
+            "bl": 24,      # GPIO24 (physical pin 18)
+            "spi_bus": 0,
+            "spi_device": 0
+        },
+        "buttons": {
+            "up": 17,      # GPIO17 (physical pin 11)
+            "down": 27,    # GPIO27 (physical pin 13)
+            "left": 22,    # GPIO22 (physical pin 15)
+            "right": 23,   # GPIO23 (physical pin 16)
+            "press": 4,   # GPIO4
+            "key1": 21,    # GPIO21 (physical pin 21)
+            "key2": 20,    # GPIO20 (physical pin 20)
+            "key3": 16,    # GPIO16 (physical pin 16)
+        }
+    }
+
+    HARDWARE_PIN_CONFIG__FOX_22 = {
+        "display": {
+            "dc": 25,      # GPIO25
+            "rst": 27,     # GPIO27
+            "bl": 24,      # GPIO24
+            "spi_bus": 0,
+            "spi_device": 0
+        },
+        "buttons": {
+            "KEY_UP": 17,      # GPIO17
+            "KEY_DOWN": 27,    # GPIO27
+            "KEY_LEFT": 22,    # GPIO22
+            "KEY_RIGHT": 23,   # GPIO23
+            "KEY_PRESS": 4,   # GPIO4
+            "KEY1": 21,    # GPIO21 (physical pin 21)
+            "KEY2": 20,    # GPIO20 (physical pin 20)
+            "KEY3": 16,    # GPIO16 (physical pin 16)
+        }
+    }
+
+    HARDWARE_PIN_CONFIG__FOX_40 = {
+        "display": {
+            "dc": 25,      # GPIO25
+            "rst": 27,     # GPIO27
+            "bl": 24,      # GPIO24
+            "spi_bus": 0,
+            "spi_device": 0
+        },
+        "buttons": {
+            "KEY_UP": 17,      # GPIO17
+            "KEY_DOWN": 27,    # GPIO27
+            "KEY_LEFT": 22,    # GPIO22
+            "KEY_RIGHT": 23,   # GPIO23
+            "KEY_PRESS": 4,   # GPIO4
+            "KEY1": 21,    # GPIO21 (physical pin 21)
+            "KEY2": 20,    # GPIO20 (physical pin 20)
+            "KEY3": 16,    # GPIO16 (physical pin 16)
+        }
+    }
+
+    ALL_HARDWARE_PIN_CONFIGS = [
+        (HARDWARE__RPI_40, "Raspberry Pi 40-pin"),
+        (HARDWARE__RPI_26, "Raspberry Pi 26-pin"),
+        (HARDWARE__LUCKFOX_22, "Luckfox Pico 22-pin"),
+        (HARDWARE__LUCKFOX_40, "Luckfox Pico 40-pin")
+    ]
+
+    ALL_HARDWARE_PIN_CONFIGS__PIN_DEFINITIONS = {
+        HARDWARE__RPI_40: HARDWARE_PIN_CONFIG__RPI_40,
+        HARDWARE__RPI_26: HARDWARE_PIN_CONFIG__RPI_26,
+        HARDWARE__LUCKFOX_22: HARDWARE_PIN_CONFIG__FOX_22,
+        HARDWARE__LUCKFOX_40: HARDWARE_PIN_CONFIG__FOX_40
+    }
 
     # QR code constants
     DENSITY__LOW = "L"
@@ -322,6 +423,7 @@ class SettingsConstants:
 
     SETTING__DISPLAY_CONFIGURATION = "display_config"
     SETTING__DISPLAY_COLOR_INVERTED = "color_inverted"
+    SETTING__HARDWARE_CONFIG = "hardware_config"
 
     SETTING__NETWORK = "network"
     SETTING__QR_DENSITY = "qr_density"
@@ -710,6 +812,15 @@ class SettingsDefinition:
                       visibility=SettingsConstants.VISIBILITY__HARDWARE,
                       selection_options=SettingsConstants.ALL_DISPLAY_CONFIGURATIONS,
                       default_value=SettingsConstants.DISPLAY_CONFIGURATION__ST7789__240x240),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__HARDWARE_CONFIG,
+                      abbreviated_name="hw_conf",
+                      display_name=_mft("Hardware Configuration"),
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__HARDWARE,
+                      selection_options=SettingsConstants.ALL_HARDWARE_PIN_CONFIGS,
+                      default_value=SettingsConstants.HARDWARE__RPI_40),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED,
