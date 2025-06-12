@@ -2,6 +2,8 @@ from periphery import GPIO, SPI
 import time
 import array
 
+from seedsigner.models.settings import Settings
+from seedsigner.models.settings_definition import SettingsConstants
 
 
 class ST7789(object):
@@ -11,14 +13,18 @@ class ST7789(object):
         self.width = 240
         self.height = 240
 
+        hardware_config = Settings.get_instance().get_value(SettingsConstants.SETTING__HARDWARE_CONFIG)
+        pin_mapping = SettingsConstants.ALL_HARDWARE_PIN_CONFIGS__PIN_DEFINITIONS[hardware_config]["display"]
+
         # Initialize DC RST pin using BCM numbering
-        self._dc = GPIO("/dev/gpiochip0", 25, "out")
-        self._rst = GPIO("/dev/gpiochip0", 27, "out")
-        self._bl = GPIO("/dev/gpiochip0", 24, "out")
+        # TODO: parameterize the GPIO-chip too!
+        self._dc = GPIO("/dev/gpiochip0", pin_mapping["dc"], "out")
+        self._rst = GPIO("/dev/gpiochip0", pin_mapping["rst"], "out")
+        self._bl = GPIO("/dev/gpiochip0", pin_mapping["bl"], "out")
         self._bl.write(True)
 
         # Initialize SPI
-        self._spi = SPI("/dev/spidev0.0", 0, 40000000)  # mode 0, 40MHz
+        self._spi = SPI(f"/dev/spidev{pin_mapping['spi_bus']}.{pin_mapping['spi_device']}", 0, 40000000)
         self.init()
 
 

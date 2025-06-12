@@ -55,6 +55,9 @@ from periphery import GPIO, SPI
 import time
 from math import sin, cos
 
+from seedsigner.models.settings import Settings
+from seedsigner.models.settings_definition import SettingsConstants
+
 #
 # This allows sphinx to build the docs
 #
@@ -288,6 +291,9 @@ class ST7789:
 
         if dc is None:
             raise ValueError("dc pin is required.")
+        
+        hardware_config = Settings.get_instance().get_value(SettingsConstants.SETTING__HARDWARE_CONFIG)
+        pin_mapping = SettingsConstants.ALL_HARDWARE_PIN_CONFIGS__PIN_DEFINITIONS[hardware_config]["display"]
 
         self.physical_width = self.width = width
         self.physical_height = self.height = height
@@ -295,13 +301,14 @@ class ST7789:
         self.ystart = 0
         
         # Initialize GPIO pins with periphery
-        self._dc = GPIO("/dev/gpiochip0", dc, "out")
-        self._rst = GPIO("/dev/gpiochip0", reset, "out")
-        self._bl = GPIO("/dev/gpiochip0", backlight, "out")
+        # TODO: parameterize the GPIO-chip too!
+        self._dc = GPIO("/dev/gpiochip0", pin_mapping["dc"], "out")
+        self._rst = GPIO("/dev/gpiochip0", pin_mapping["rst"], "out")
+        self._bl = GPIO("/dev/gpiochip0", pin_mapping["bl"], "out")
         self._cs = GPIO("/dev/gpiochip0", cs, "out") if cs is not None else None
         
         # Initialize SPI
-        self._spi = SPI("/dev/spidev0.0", 0, 40000000)  # mode 0, 40MHz
+        self._spi = SPI(f"/dev/spidev{pin_mapping['spi_bus']}.{pin_mapping['spi_device']}", 0, 40000000)
         
         self._rotation = rotation % 4
         self.color_order = color_order
