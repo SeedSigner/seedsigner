@@ -258,6 +258,12 @@ class SettingsConstants:
             "KEY1": 21,    # GPIO21 (physical pin 21)
             "KEY2": 20,    # GPIO20 (physical pin 20)
             "KEY3": 16,    # GPIO16 (physical pin 16)
+        },
+        "camera": {
+            "device": "/dev/video0",
+            "resolution": (2592, 1944),
+            "pixelformat": "NV12",
+            "framerate": 4
         }
     }
 
@@ -278,6 +284,12 @@ class SettingsConstants:
             "key1": 21,    # GPIO21 (physical pin 21)
             "key2": 20,    # GPIO20 (physical pin 20)
             "key3": 16,    # GPIO16 (physical pin 16)
+        },
+        "camera": {
+            "device": "/dev/video0",
+            "resolution": (2304, 1296),
+            "pixelformat": "NV12",
+            "framerate": 10
         }
     }
 
@@ -298,6 +310,12 @@ class SettingsConstants:
             "KEY1": 21,    # GPIO21 (physical pin 21)
             "KEY2": 20,    # GPIO20 (physical pin 20)
             "KEY3": 16,    # GPIO16 (physical pin 16)
+        },
+        "camera": {
+            "device": "/dev/video12",
+            "resolution": (2304, 1296),
+            "pixelformat": "NV12",
+            "framerate": 10
         }
     }
 
@@ -318,6 +336,12 @@ class SettingsConstants:
             "KEY1": 21,    # GPIO21 (physical pin 21)
             "KEY2": 20,    # GPIO20 (physical pin 20)
             "KEY3": 16,    # GPIO16 (physical pin 16)
+        },
+        "camera": {
+            "device": "/dev/video12",
+            "resolution": (2304, 1296),
+            "pixelformat": "NV12",
+            "framerate": 10
         }
     }
 

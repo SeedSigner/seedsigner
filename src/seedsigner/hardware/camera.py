@@ -1,15 +1,15 @@
 import io
-
+import os
 from PIL import Image
 from seedsigner.hardware.pivideostream import PiVideoStream
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.singleton import Singleton
 
-
+# custom adds
+import array
 
 class Camera(Singleton):
     _video_stream = None
-    _picamera = None
     _camera_rotation = None
 
     @classmethod
@@ -20,66 +20,61 @@ class Camera(Singleton):
         cls._instance._camera_rotation = int(Settings.get_instance().get_value(SettingsConstants.SETTING__CAMERA_ROTATION))
         return cls._instance
 
-
-    def start_video_stream_mode(self, resolution=(512, 384), framerate=12, format="bgr"):
-        from seedsigner.hardware.pivideostream import PiVideoStream
+    def start_video_stream_mode(self, resolution=(240, 240), framerate=12, format="bgr"):
         if self._video_stream is not None:
             self.stop_video_stream_mode()
 
-        self._video_stream = PiVideoStream(resolution=resolution,framerate=framerate, format=format)
+        # Start the video stream with the given resolution and framerate
+        self._video_stream = PiVideoStream(resolution=resolution, framerate=framerate)
         self._video_stream.start()
-
 
     def read_video_stream(self, as_image=False):
         if not self._video_stream:
             raise Exception("Must call start_video_stream first.")
+
         frame = self._video_stream.read()
-        if not as_image:
-            return frame
-        else:
-            if frame is not None:
-                return Image.fromarray(frame.astype('uint8'), 'RGB').convert('RGBA').rotate(90 + self._camera_rotation)
-        return None
+        if frame is None:
+            return None
 
+        if as_image:
+            # Check if frame is already an Image object
+            if isinstance(frame, Image.Image):
+                img = frame
+            else:
+                # Convert the raw frame to an image
+                img = Image.frombytes('RGB', (self._video_stream.width, self._video_stream.height), frame)
 
+            return img.rotate(90 + self._camera_rotation)
+
+        return frame
+    
     def stop_video_stream_mode(self):
         if self._video_stream is not None:
             self._video_stream.stop()
             self._video_stream = None
 
-
-    def start_single_frame_mode(self, resolution=(720, 480)):
-        from picamera import PiCamera
+    # 240, 135?
+    # 2304x1296
+    def start_single_frame_mode(self, resolution=(2304, 1296)): # resolution=(720, 480)
         if self._video_stream is not None:
             self.stop_video_stream_mode()
-        if self._picamera is not None:
-            self._picamera.close()
 
-        self._picamera = PiCamera(resolution=resolution, framerate=24)
-        self._picamera.start_preview()
-
+        # Start a new video stream for single-frame capture
+        self._video_stream = PiVideoStream(resolution=resolution, framerate=1)
+        self._video_stream.start()
 
     def capture_frame(self):
-        if self._picamera is None:
+        if not self._video_stream:
             raise Exception("Must call start_single_frame_mode first.")
 
-        # Set auto-exposure values
-        self._picamera.shutter_speed = self._picamera.exposure_speed
-        self._picamera.exposure_mode = 'off'
-        g = self._picamera.awb_gains
-        self._picamera.awb_mode = 'off'
-        self._picamera.awb_gains = g
+        # Capture a single frame
+        frame = self._video_stream.read()
+        if frame is None:
+            raise Exception("Failed to capture frame.")
 
-        stream = io.BytesIO()
-        self._picamera.capture(stream, format='jpeg')
-
-        # "Rewind" the stream to the beginning so we can read its content
-        stream.seek(0)
-        return Image.open(stream).rotate(90 + self._camera_rotation)
-
+        return frame
 
     def stop_single_frame_mode(self):
-        if self._picamera is not None:
-            self._picamera.close()
-            self._picamera = None
-
+        if self._video_stream is not None:
+            self._video_stream.stop()
+            self._video_stream = None
