@@ -25,7 +25,7 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
         # sides). But passing in square dims gives us an edge-to-edge image.
         # TODO: Figure out why (camera expecting frame dims of multiples other than 16?)
         max_dimension = max(self.canvas_width, self.canvas_height)
-        self.camera.start_video_stream_mode(resolution=(max_dimension, max_dimension), framerate=24, format="rgb")
+        self.camera.start_video_stream_mode()
 
 
     def _run(self):

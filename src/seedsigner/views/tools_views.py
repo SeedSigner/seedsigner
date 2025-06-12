@@ -87,7 +87,9 @@ class ToolsImageEntropyFinalImageView(View):
 
             # Final image will be at least 4x the number of pixels the screen can
             # actually display.
-            camera.start_single_frame_mode(resolution=(2*max_dim, 2*max_dim))
+            # camera.start_single_frame_mode(resolution=(2*max_dim, 2*max_dim))
+            camera.start_single_frame_mode()
+
 
             time.sleep(0.25)
             self.controller.image_entropy_final_image = camera.capture_frame()

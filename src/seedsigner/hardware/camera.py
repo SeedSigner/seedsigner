@@ -20,12 +20,12 @@ class Camera(Singleton):
         cls._instance._camera_rotation = int(Settings.get_instance().get_value(SettingsConstants.SETTING__CAMERA_ROTATION))
         return cls._instance
 
-    def start_video_stream_mode(self, resolution=(240, 240), framerate=12, format="bgr"):
+    def start_video_stream_mode(self):
         if self._video_stream is not None:
             self.stop_video_stream_mode()
 
         # Start the video stream with the given resolution and framerate
-        self._video_stream = PiVideoStream(resolution=resolution, framerate=framerate)
+        self._video_stream = PiVideoStream()
         self._video_stream.start()
 
     def read_video_stream(self, as_image=False):
@@ -53,14 +53,12 @@ class Camera(Singleton):
             self._video_stream.stop()
             self._video_stream = None
 
-    # 240, 135?
-    # 2304x1296
-    def start_single_frame_mode(self, resolution=(2304, 1296)): # resolution=(720, 480)
+    def start_single_frame_mode(self):
         if self._video_stream is not None:
             self.stop_video_stream_mode()
 
         # Start a new video stream for single-frame capture
-        self._video_stream = PiVideoStream(resolution=resolution, framerate=1)
+        self._video_stream = PiVideoStream()
         self._video_stream.start()
 
     def capture_frame(self):

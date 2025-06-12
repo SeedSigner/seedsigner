@@ -59,7 +59,7 @@ class ScanScreen(BaseScreen):
         self.instructions_text = "< " + _("back") + "  |  " + _(self.instructions_text)
 
         self.camera = Camera.get_instance()
-        self.camera.start_video_stream_mode(resolution=self.resolution, framerate=self.framerate, format="rgb")
+        self.camera.start_video_stream_mode()
 
         self.frames_decode_status = ThreadsafeCounter()
         self.frames_decoded_counter = ThreadsafeCounter()

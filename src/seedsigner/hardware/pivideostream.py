@@ -14,7 +14,7 @@ from seedsigner.models.settings_definition import SettingsConstants
 logger = logging.getLogger(__name__)
 
 class PiVideoStream:
-    def __init__(self, device='/dev/video12', resolution=(2304,1296), pixelformat='NV12', framerate=10):
+    def __init__(self):
 
 
         hardware_config = Settings.get_instance().get_value(SettingsConstants.SETTING__HARDWARE_CONFIG)
@@ -23,12 +23,16 @@ class PiVideoStream:
         self.device = pin_mapping["device"]
         self.width, self.height = pin_mapping["resolution"]
         self.pixelformat = pin_mapping["pixelformat"]
-        self.framerate = pin_mapping["framerate"]
 
-        if pixelformat == "NV12":
+        if self.pixelformat == "NV12":
             self.frame_size = self.width * self.height * 3 // 2  # NV12 format size calculation
-        else:
+        elif self.pixelformat == "YUYV":
+            self.frame_size = self.width * self.height * 2  # YUYV format size calculation
+        elif self.pixelformat == "GREY":
             self.frame_size = self.width * self.height # GreyScale format size calculation
+        else:
+            raise Exception("Invalid pixelformat")
+        
         self.frame = None
         self.should_stop = False
         self.is_stopped = True
@@ -36,8 +40,8 @@ class PiVideoStream:
         self.save_path = './saved_frames'  # Directory to save images (both pre and post conversion)
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)  # Ensure the save directory exists
-        logger.debug(f"Initialized PiVideoStream with device={device}, resolution={resolution}, "
-              f"pixelformat={pixelformat}, framerate={framerate}")
+        logger.debug(f"Initialized PiVideoStream with device={self.device}, resolution={self.width}x{self.height}, "
+              f"pixelformat={self.pixelformat}")
 
     def start(self):
         self.thread = threading.Thread(target=self.update, daemon=True)
@@ -79,10 +83,6 @@ class PiVideoStream:
                 start_processing = time.time()
 
                 with self.lock:
-                    # DEBUG: Save NV12 frame TO DISK (Optional)
-                    # WILL QUICKLY FILL UP SPACE
-                    # self.save_pre_rgb(frame_data)
-
                     # Record time for conversion
                     start_conversion = time.time()
                     if self.pixelformat == "NV12":
@@ -94,6 +94,8 @@ class PiVideoStream:
                         self.frame = self.nv12_to_rgb_opencv(frame_data, self.width, self.height)
                     elif self.pixelformat == "GREY":
                         self.frame = self.grey_to_pil(frame_data, self.width, self.height)
+                    elif self.pixelformat == "YUYV":
+                        self.frame = self.yuyv_to_rgb_opencv(frame_data, self.width, self.height)
                     else:
                         self.frame = None
                         raise Exception("Unable to read from camera")
@@ -128,6 +130,19 @@ class PiVideoStream:
         while not self.is_stopped:
             time.sleep(0.01)
 
+    def yuyv_to_rgb_opencv(self, frame_data, width, height):
+        """
+        Converts YUYV format to a PIL RGB Image using a C subprocess.
+        """
+        # Convert bytes to numpy array
+        yuyv = np.frombuffer(frame_data, dtype=np.uint8)
+        # Reshape to (height, width, 2) for YUYV
+        yuyv = yuyv.reshape((-1, width, 2))
+        # Convert to RGB using OpenCV
+        rgb_frame = cv2.cvtColor(yuyv, cv2.COLOR_YUV2RGB_YUYV)
+        # Convert to PIL Image
+        pil_image = Image.fromarray(rgb_frame)
+        return pil_image
 
     def nv12_to_rgb_opencv(self, frame_data, width, height):
         """

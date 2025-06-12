@@ -260,9 +260,9 @@ class SettingsConstants:
             "KEY3": 16,    # GPIO16 (physical pin 16)
         },
         "camera": {
-            "device": "/dev/video0",
-            "resolution": (2592, 1944),
-            "pixelformat": "NV12",
+            "device": "/dev/video1",
+            "resolution": (1280, 720),
+            "pixelformat": "YUYV",
             "framerate": 4
         }
     }
