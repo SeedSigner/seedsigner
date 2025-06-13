@@ -42,7 +42,7 @@ class HardwareButtons(Singleton):
             cls._instance._gpio_pins = {}
             for name in cls.BUTTON_NAMES:
                 pin = pin_mapping[name]
-                cls._instance._gpio_pins[name] = GPIO("/dev/gpiochip0", pin, "in", bias="pull_up")
+                cls._instance._gpio_pins[name] = GPIO(*pin, "in", bias="pull_up")
 
             cls._instance.override_ind = False
 

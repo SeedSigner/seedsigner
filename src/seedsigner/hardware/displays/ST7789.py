@@ -1,3 +1,4 @@
+import logging
 from periphery import GPIO, SPI
 import time
 import array
@@ -5,6 +6,7 @@ import array
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
 
+logger = logging.getLogger(__name__)
 
 class ST7789(object):
     """class for ST7789  240*240 1.3inch OLED displays."""
@@ -12,21 +14,32 @@ class ST7789(object):
     def __init__(self):
         self.width = 240
         self.height = 240
+        self.CHUNK_SIZE = 4096 * 12
 
         hardware_config = Settings.get_instance().get_value(SettingsConstants.SETTING__HARDWARE_CONFIG)
         pin_mapping = SettingsConstants.ALL_HARDWARE_PIN_CONFIGS__PIN_DEFINITIONS[hardware_config]["display"]
 
         # Initialize DC RST pin using BCM numbering
         # TODO: parameterize the GPIO-chip too!
-        self._dc = GPIO("/dev/gpiochip0", pin_mapping["dc"], "out")
-        self._rst = GPIO("/dev/gpiochip0", pin_mapping["rst"], "out")
-        self._bl = GPIO("/dev/gpiochip0", pin_mapping["bl"], "out")
+        self._dc = GPIO(*pin_mapping["dc"], "out")
+        self._rst = GPIO(*pin_mapping["rst"], "out")
+        self._bl = GPIO(*pin_mapping["bl"], "out")
         self._bl.write(True)
 
         # Initialize SPI
-        self._spi = SPI(f"/dev/spidev{pin_mapping['spi_bus']}.{pin_mapping['spi_device']}", 0, 40000000)
+        spi_bus = f"/dev/spidev{pin_mapping['spi_bus']}.{pin_mapping['spi_device']}"
+        logger.info(f"Initializing SPI with bus={spi_bus}")
+        self._spi = SPI(spi_bus, 0, 40000000)
         self.init()
 
+    def _chunked_transfer(self, data):
+        """Transfer data in chunks to prevent buffer overflows"""
+        if isinstance(data, list):
+            data = bytes(data)
+        
+        for i in range(0, len(data), self.CHUNK_SIZE):
+            chunk = data[i:i + self.CHUNK_SIZE]
+            self._spi.transfer(chunk)
 
     """    Write register address and data     """
     def command(self, cmd):
@@ -158,14 +171,14 @@ class ST7789(object):
         pix = arr.tobytes()
         self.SetWindows ( 0, 0, self.width, self.height)
         self._dc.write(True)
-        self._spi.transfer(pix)
+        self._chunked_transfer(pix)
         
     def clear(self):
         """Clear contents of image buffer"""
         _buffer = [0xff]*(self.width * self.height * 2)
         self.SetWindows ( 0, 0, self.width, self.height)
         self._dc.write(True)
-        self._spi.transfer(_buffer)
+        self._chunked_transfer(_buffer)
 
     def invert(self, enabled: bool = True):
         """Invert how the display interprets colors"""
