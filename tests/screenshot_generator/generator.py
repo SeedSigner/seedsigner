@@ -6,6 +6,7 @@ import random
 import sys
 import time
 from unittest.mock import Mock, patch, MagicMock
+from PIL import ImageFont
 
 from embit import compact
 from embit.psbt import PSBT, OutputScope
@@ -20,9 +21,6 @@ sys.modules['RPi'] = MagicMock()
 sys.modules['RPi.GPIO'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
 sys.modules['seedsigner.hardware.microsd'] = MagicMock()
-
-# Force the screenshots to mimic Pi Zero's output without libraqm
-patch('PIL.ImageFont.core.HAVE_RAQM', False).start()
 
 from seedsigner.controller import Controller
 from seedsigner.gui.components import GUIConstants
@@ -47,8 +45,6 @@ from .utils import ScreenshotComplete, ScreenshotConfig, ScreenshotRenderer
 
 import warnings; warnings.warn = lambda *args, **kwargs: None
 
-
-
 # Dynamically generate a pytest test run for each locale
 @pytest.mark.parametrize("locale", [x for x, y in SettingsConstants.get_detected_languages()])
 def test_generate_all(locale, target_locale):
@@ -59,6 +55,11 @@ def test_generate_all(locale, target_locale):
     """
     if target_locale and locale != target_locale:
         pytest.skip(f"Skipping {locale}")
+    
+    if not ImageFont.core.HAVE_RAQM:
+        # We can't generate pixel-perfect screenshots that match what gets rendered on
+        # the device if we don't have libraqm.
+        pytest.fail("libraqm is not installed.")
     
     generate_screenshots(locale)
 

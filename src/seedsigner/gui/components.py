@@ -432,10 +432,6 @@ class TextArea(BaseComponent):
         self.text_y = self.text_height_above_baseline
 
         self.visible_width = self.width - max(self.edge_padding, self.min_text_x) - self.edge_padding
-        if not ImageFont.core.HAVE_RAQM:
-            # Fudge factor for imprecise width calcs w/out libraqm
-            full_text_width = int(full_text_width * 1.05)
-            self.visible_width = int(self.visible_width * 1.05)
 
         if self.is_horizontal_scrolling_enabled or not self.auto_line_break:
             # Guaranteed to be a single line of text, possibly wider than self.width
@@ -588,10 +584,6 @@ class TextArea(BaseComponent):
             img = sharpened.crop((0, resample_padding, image_width, resample_padding + total_text_height))
         
         self.rendered_text_img = img
-
-        if not ImageFont.core.HAVE_RAQM:
-            # At this point we need the visible_width to be the "actual" (yet still incorrect) width
-            self.visible_width = int(self.visible_width * 0.95)
 
         self.horizontal_text_scroll_thread: TextArea.HorizontalTextScrollThread = None
         if self.is_horizontal_scrolling_enabled:
@@ -1843,10 +1835,6 @@ def reflow_text_for_width(text: str,
     # Measure from left baseline ("ls")
     (left, top, full_text_width, px_below_baseline) = font.getbbox(text, anchor="ls")
 
-    if not ImageFont.core.HAVE_RAQM:
-        # Fudge factor for imprecise width calcs w/out libraqm
-        full_text_width = int(full_text_width * 1.05)
-
     # Assume we can break Asian text on any character
     treat_chars_as_words = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE) in [
         SettingsConstants.LOCALE__CHINESE_SIMPLIFIED,
@@ -1879,10 +1867,6 @@ def reflow_text_for_width(text: str,
             # Measure rendered width from "left" anchor (anchor="l_")
             (left, top, right, px_below_baseline) = font.getbbox(word_spacer.join(words[0:index]), anchor="ls")
             line_width = right - left
-
-            if not ImageFont.core.HAVE_RAQM:
-                # Fudge factor for imprecise width calcs w/out libraqm
-                line_width = int(line_width * 1.05)
 
             if line_width >= width:
                 # Candidate line is still too long. Restrict search range down.
