@@ -1119,17 +1119,17 @@ class SeedWordsView(View):
 
 
 """****************************************************************************
-    BIP85 - Derive child mnemonic (seed) flow
+    BIP-85 - Derive child mnemonic (seed) flow
 ****************************************************************************"""
 class SeedBIP85ApplicationModeView(View):
     """
-        * Ask the user the application type as defined in the BIP0085 spec.
+        * Ask the user the application type as defined in the BIP-85 spec.
         * Currently only Word mode of 12, 24 words (Application number: 39')
         * Possible future additions are
         *  WIF (HDSEED)
-        *  XPRV (BIP32)
+        *  XPRV (BIP-32)
     """
-    # TODO: Future enhancement to display WIF (HD-SEED) and XPRV (Bip32)?
+    # TODO: Future enhancement to display WIF (HD-SEED) and XPRV (BIP-32)?
     WORDS_12 = ButtonOption("12 Words")
     WORDS_24 = ButtonOption("24 Words")
 
