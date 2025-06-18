@@ -132,11 +132,12 @@ class Controller(Singleton):
     FLOW__VERIFY_SINGLESIG_ADDR = "singlesig_addr"
     FLOW__ADDRESS_EXPLORER = "address_explorer"
     FLOW__SIGN_MESSAGE = "sign_message"
-    FLOW__SEEDXOR = "seedxor"
+    FLOW__REBUILD_SEEDXOR = "rebuild_seedxor"
     resume_main_flow: str = None
     
-    seedxor_data: dict = None
-    seedxor_combined_seed: Seed = None
+   
+    rebuild_seedxor_shards: list = []
+    rebuild_seedxor_combined_seed: Seed = None
 
     back_stack: BackStack = None
     screensaver: ScreensaverScreen = None
@@ -228,23 +229,81 @@ class Controller(Singleton):
         else:
             raise Exception(f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory.")
         
-    def process_seedxor_component(self, new_component_seed: Seed):
-        if not self.seedxor_data:
-            self.seedxor_data = {}
-            
-        if "component_count" not in self.seedxor_data:
-            self.seedxor_data["component_count"] = 0
-            
-        if not self.seedxor_combined_seed:
-            self.seedxor_combined_seed = new_component_seed
-            self.seedxor_data["first_component"] = new_component_seed
-        else:
-            self.seedxor_combined_seed.seed_xor(new_component_seed)
-            
-        # Increment component count
-        self.seedxor_data["component_count"] = self.seedxor_data.get("component_count", 0) + 1
+    def validate_rebuild_seedxor_shard(self, new_shard_seed: Seed):
+        from seedsigner.views.view import ErrorView, Destination
+        from embit import bip39
+        from seedsigner.views.seed_views import RebuildSeedXORManageView
         
-        return self.seedxor_combined_seed
+        # check for if upcoming shard has passphrase
+        if new_shard_seed.has_passphrase:
+            return Destination(ErrorView, view_args=dict(
+                title="Passphrase Not Allowed",
+                status_headline="Invalid Shard",
+                text="You may not XOR a seed that has passphrase.",
+                button_text="OK",
+                next_destination=Destination(RebuildSeedXORManageView)
+            ))
+        
+        # check mnemonic length compatibility
+        if self.rebuild_seedxor_shards and len(self.rebuild_seedxor_shards) > 0:
+            if len(self.rebuild_seedxor_shards[0].mnemonic_str.split()) != len(new_shard_seed.mnemonic_str.split()):
+                return Destination(ErrorView, view_args=dict(
+                    title="Mnemonic Length Mismatch",
+                    status_headline="Invalid Shard",
+                    text="XOR requires seeds of similar mnemonic length!",
+                    button_text="OK",
+                    next_destination=Destination(RebuildSeedXORManageView)
+                ))
+        
+        # check for duplicate shard.
+        for existing_shard in self.rebuild_seedxor_shards:
+            if existing_shard.mnemonic_str == new_shard_seed.mnemonic_str:
+                return Destination(ErrorView, view_args=dict(
+                    title="Duplicate Shard",
+                    status_headline="Duplicate Shard",
+                    text="You may not XOR a seed with itself.",
+                    button_text="OK",
+                    next_destination=Destination(RebuildSeedXORManageView)
+                ))
+        
+        # check for seed inversion
+        new_entropy = bip39.mnemonic_to_bytes(new_shard_seed.mnemonic_str)
+        for existing_shard in self.rebuild_seedxor_shards:
+            existing_entropy = bip39.mnemonic_to_bytes(existing_shard.mnemonic_str)
+            if new_entropy == bytes(i ^ 0xFF for i in existing_entropy):
+                return Destination(ErrorView, view_args=dict(
+                    title="Seed Inversion",
+                    status_headline="Invalid Shard",
+                    text="You may not XOR a seed with its inversion.",
+                    button_text="OK",
+                    next_destination=Destination(RebuildSeedXORManageView)
+                ))
+            
+        # all checks passed so return True
+        return True
+        
+    def add_rebuild_seedxor_shard(self, new_shard_seed: Seed):
+        self.rebuild_seedxor_shards.append(new_shard_seed)
+        self.rebuild_seedxor_combined_seed = None
+        
+    def process_rebuild_seedxor_shard(self, new_shard_seed: Seed):
+        # validate the shard first if validation passed then add the shard
+        validation_result = self.validate_rebuild_seedxor_shard(new_shard_seed)
+        
+        if validation_result is True:
+            self.add_rebuild_seedxor_shard(new_shard_seed)
+            
+        return validation_result
+    
+    def remove_rebuild_seedxor_shard(self, index: int):
+        if 0 <= index < len(self.rebuild_seedxor_shards):
+            self.rebuild_seedxor_shards.pop(index)
+            self.rebuild_seedxor_combined_seed = None
+        return True
+    
+    def clear_rebuild_seedxor_data(self):
+        self.rebuild_seedxor_shards = []
+        self.rebuild_seedxor_combined_seed = None
 
 
     def pop_prev_from_back_stack(self):
