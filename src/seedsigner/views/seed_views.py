@@ -261,8 +261,7 @@ class SeedMnemonicEntryView(View):
             try:
                 self.controller.storage.convert_pending_mnemonic_to_pending_seed()
             except InvalidSeedException:
-                from .view import ErrorView
-                return Destination(ErrorView, view_args=dict(title="Mnemonic Error", status_headline="Invalid mnemonic", text="The seed words you entered are not a valid mnemonic. Please verify each word and try again.", button_text="OK"))
+                return Destination(SeedMnemonicInvalidView)
             
             if self.controller.resume_main_flow == Controller.FLOW__REBUILD_SEEDXOR:
                 new_shard_seed = self.controller.storage.get_pending_seed()
@@ -754,6 +753,9 @@ class SeedExportXpubScriptTypeView(View):
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
+            # If previous view is SeedOptionsView then that should be where resume_main_flow started (otherwise it would have been skipped).
+            if len(self.controller.back_stack) >= 2 and self.controller.back_stack[-2].View_cls == SeedOptionsView:
+                self.controller.resume_main_flow = None
             return Destination(BackStackView)
 
         else:
