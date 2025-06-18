@@ -52,20 +52,6 @@ class Seed:
             logger.info(repr(e), exc_info=True)
             raise InvalidSeedException(repr(e))
 
-    def seed_xor(self, other):
-        def xor_bytes(a, b):
-            return bytes(i^j for i, j in zip(a, b))
-        self_entropy = bip39.mnemonic_to_bytes(self.mnemonic_str)
-        other_entropy = bip39.mnemonic_to_bytes(other.mnemonic_str)
-        if len(self_entropy) != len(other_entropy):
-            raise Exception("XOR requires seeds of similar mnemonic length!")
-        if self_entropy == other_entropy:
-            raise Exception("You may not XOR a seed with itself.")
-        if self_entropy == xor_bytes(other_entropy, b'\xff'*len(other_entropy)):
-            raise Exception("You may not XOR a seed with its inversion.")
-        new_entropy = xor_bytes(self_entropy, other_entropy)
-        self._mnemonic = bip39.mnemonic_from_bytes(new_entropy).split()
-        self._generate_seed()
         
     @property
     def mnemonic_str(self) -> str:
