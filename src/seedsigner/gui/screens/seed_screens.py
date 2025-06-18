@@ -1896,7 +1896,7 @@ class ShamirFinalizeScreen(ButtonListScreen):
             icon_name=SeedSignerIconConstants.FINGERPRINT,
             icon_color=GUIConstants.INFO_COLOR,
             icon_size=GUIConstants.ICON_FONT_SIZE + 12,
-            label_text=_("SLIP-39"),
+            label_text=_("fingerprint"),
             value_text=self.value_text,
             font_size=GUIConstants.get_body_font_size() + 2,
             is_text_centered=True,

@@ -162,7 +162,7 @@ class LoadSeedView(View):
     SEED_QR = ButtonOption(" Scan a SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-    TYPE_SSS = ButtonOption("Recover from SSS", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_SHAMIR = ButtonOption("Shamir Recovery", FontAwesomeIconConstants.KEYBOARD)
     TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
     CREATE = ButtonOption(" Create a seed", SeedSignerIconConstants.PLUS)
 
@@ -176,8 +176,8 @@ class LoadSeedView(View):
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
 
-        if self.settings.get_value(SettingsConstants.SETTING__SSS) == SettingsConstants.OPTION__ENABLED:
-            button_data.append(self.TYPE_SSS)
+        if self.settings.get_value(SettingsConstants.SETTING_SHAMIR) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.TYPE_SHAMIR)
         
         button_data.append(self.CREATE)
 
@@ -203,7 +203,7 @@ class LoadSeedView(View):
             self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
         
-        elif button_data[selected_menu_num] == self.TYPE_SSS:
+        elif button_data[selected_menu_num] == self.TYPE_SHAMIR:
             return Destination(SeedEntryShamirThresholdView)
 
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
@@ -2313,17 +2313,17 @@ class SeedEntryShamirThresholdView(View):
 
 
     def run(self):
-        title = _("SLIP-39 Threshold")
+        title = _("Shamir Threshold")
         ret_dict = self.run_screen(seed_screens.SeedEntryShamirThresholdScreen, entered_number="", title=title)
 
         if "is_back_button" in ret_dict:
             return Destination(BackStackView)
             
-        elif ret_dict["entered_number"] != "" and ret_dict["entered_number"] != "0":
+        elif ret_dict["entered_number"] != "" and ret_dict["entered_number"] not in ["0", "1"]:
             return Destination(SeedShamirShareImportSelectWordCount, view_args={"k": int(ret_dict["entered_number"])})
 
         else:
-            if ret_dict["entered_number"] == "0":
+            if ret_dict["entered_number"] in ["0", "1"]:
                 from seedsigner.gui.toast import ErrorToast
                 self.controller.activate_toast(ErrorToast(_("Threshold not valid")))
 
@@ -2332,8 +2332,8 @@ class SeedEntryShamirThresholdView(View):
 
 
 class SeedShamirShareImportSelectWordCount(View):
-    TYPE_12WORD = ButtonOption("20 words (128-bit entropy)")
-    TYPE_24WORD = ButtonOption("33 words (256-bit entropy)")
+    TYPE_12WORD = ButtonOption("20 words")
+    TYPE_24WORD = ButtonOption("33 words")
 
     def __init__(self, k: int):
         super().__init__()
@@ -2345,7 +2345,7 @@ class SeedShamirShareImportSelectWordCount(View):
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=_("Select SLIP-39 Word Count"),
+            title=_("Words Per Share"),
             button_data=button_data,
         )
         
@@ -2374,7 +2374,7 @@ class SeedShamirShareMnemonicEntryView(View):
     def run(self):
         ret = self.run_screen(
             seed_screens.SeedMnemonicEntryScreen,
-            title=_("Share #{} Word #{}").format(self.cur_set_index+1, self.cur_word_index+1),  # Human-readable 1-indexing!
+            title=_("Share #{}, Word #{}").format(self.cur_set_index+1, self.cur_word_index+1),  # Human-readable 1-indexing!
             initial_letters=list(self.cur_word) if self.cur_word else ["a"],
             wordlist=Seed.get_slip39_wordlist(wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)),
         )
@@ -2405,7 +2405,7 @@ class SeedShamirShareMnemonicEntryView(View):
             if self.cur_set_index == self.controller.storage.pending_shamir_share_set_length - 1:
                 # Attempt to finalize the shamir share set
                 try:
-                    self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(clean=False)
+                    self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(finalize=False)
                 except ValueError:
                     return Destination(SeedShamirShareInvalidView)
             
@@ -2505,11 +2505,11 @@ class SeedAddSlip39PassphraseView(View):
                 return Destination(BackStackView)
             
         elif len(ret_dict["passphrase"]) > 0:
-            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"], clean=False)
+            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"], finalize=False)
             return Destination(SeedReviewSlip39PassphraseView)
         
         else:
-            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"], clean=False)
+            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"], finalize=False)
             return Destination(SeedShamirShareFinalizeView)
 
 
@@ -2538,7 +2538,7 @@ class SeedAddSlip39PassphraseExitDialogView(View):
             return Destination(SeedAddSlip39PassphraseView)
 
         elif button_data[selected_menu_num] == self.DISCARD:
-            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase="", clean=False)
+            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase="", finalize=False)
             return Destination(SeedShamirShareFinalizeView)
         
 
@@ -2560,10 +2560,10 @@ class SeedReviewSlip39PassphraseView(View):
         network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
         passphrase = self.seed.slip39_passphrase
         fingerprint_with = self.seed.get_fingerprint(network=network)
-        self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase="", clean=False)
+        self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase="", finalize=False)
         self.seed = self.controller.storage.get_pending_seed()
         fingerprint_without = self.seed.get_fingerprint(network=network)
-        self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=passphrase, clean=False)
+        self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=passphrase, finalize=False)
         self.seed = self.controller.storage.get_pending_seed()
         
         button_data = [self.EDIT, self.DONE]

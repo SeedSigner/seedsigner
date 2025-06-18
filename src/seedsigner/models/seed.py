@@ -189,12 +189,6 @@ class Seed:
     
 
     @property
-    def slip39_passphrase_label(self) -> str:
-        #return SettingsConstants.LABEL__BIP39_PASSPHRASE
-        return "SLIP-39 Passphrase"
-    
-
-    @property
     def slip39_passphrase(self):
         return self._slip39_passphrase
         

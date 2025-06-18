@@ -734,7 +734,7 @@ class TestShamirShareImportFlows(FlowTest):
 
         def test_with_mnemonic(mnemonic):
             # Ensure SSS is enabled
-            self.settings.set_value(SettingsConstants.SETTING__SSS, SettingsConstants.OPTION__ENABLED)
+            self.settings.set_value(SettingsConstants.SETTING_SHAMIR, SettingsConstants.OPTION__ENABLED)
 
             if len(mnemonic) % 20 == 0:
                 threshold_k = int(len(mnemonic) / 20)
@@ -746,7 +746,7 @@ class TestShamirShareImportFlows(FlowTest):
             sequence = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
-                FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SSS),
+                FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
                 FlowStep(seed_views.SeedEntryShamirThresholdView, screen_return_value=dict(entered_number=str(threshold_k))),
                 FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_12WORD if len(mnemonic) % 20 == 0 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_24WORD),
             ]
@@ -779,7 +779,7 @@ class TestShamirShareImportFlows(FlowTest):
         
         def test_with_mnemonic_and_passphrase(mnemonic):
             # Ensure SSS is enabled
-            self.settings.set_value(SettingsConstants.SETTING__SSS, SettingsConstants.OPTION__ENABLED)
+            self.settings.set_value(SettingsConstants.SETTING_SHAMIR, SettingsConstants.OPTION__ENABLED)
 
             if len(mnemonic) % 20 == 0:
                 threshold_k = int(len(mnemonic) / 20)
@@ -791,7 +791,7 @@ class TestShamirShareImportFlows(FlowTest):
             sequence = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
-                FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SSS),
+                FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
                 FlowStep(seed_views.SeedEntryShamirThresholdView, screen_return_value=dict(entered_number=str(threshold_k))),
                 FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_12WORD if len(mnemonic) % 20 == 0 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_24WORD),
             ]
@@ -827,7 +827,7 @@ class TestShamirShareImportFlows(FlowTest):
     
     def test_invalid_mnemonic(self):
         # Ensure SSS is enabled
-        self.settings.set_value(SettingsConstants.SETTING__SSS, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING_SHAMIR, SettingsConstants.OPTION__ENABLED)
 
         # Should be able to go back and edit or discard an invalid mnemonic 
         # Test data from iancoleman.io
@@ -842,7 +842,7 @@ class TestShamirShareImportFlows(FlowTest):
         sequence = [
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
             FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
-            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SSS),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
             FlowStep(seed_views.SeedEntryShamirThresholdView, screen_return_value=dict(entered_number=str(threshold_k))),
             FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_12WORD if len(mnemonic) % 20 == 0 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_24WORD),
         ]

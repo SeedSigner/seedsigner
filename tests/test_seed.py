@@ -90,21 +90,21 @@ def test_shamir_share_import_seed():
 	share_set_formatted = [ "yield upgrade acrobat leader briefing capacity again epidemic minister frozen impulse math guilt lily install market modify envelope index become",
 							"yield upgrade beard leader ceramic total morning critical brother slap lungs medical dilemma expect olympic jacket ruin airline promise literary"]
 
-	seed_sss = Seed.recover_from_shares(share_set_formatted, slip39_passphrase="")
+	seed_shamir = Seed.recover_from_shares(share_set_formatted, slip39_passphrase="")
 
 	seed_regular = Seed(mnemonic="once diamond onion six visa social chair long solve draw stool witness".split())
 
-	assert seed_sss.seed_bytes == seed_regular.seed_bytes
+	assert seed_shamir.seed_bytes == seed_regular.seed_bytes
 
 	# 12-word mnemonic, with passphrase
 	share_set_formatted = [ "window lunch ceramic leader cover satisfy emerald obesity impact purple gravity plains gasoline example cluster deadline license golden window teaspoon",
 							"window lunch beard leader civil burden that extend husband oven forget husband identify arena furl diploma focus unwrap belong artwork"]
 
-	seed_sss = Seed.recover_from_shares(share_set_formatted, slip39_passphrase="mupassphrase")
+	seed_shamir = Seed.recover_from_shares(share_set_formatted, slip39_passphrase="mupassphrase")
 
 	seed_regular = Seed(mnemonic="cliff space wide equip pretty museum busy goddess camp embark matrix soldier".split())
 
-	assert seed_sss.seed_bytes == seed_regular.seed_bytes
+	assert seed_shamir.seed_bytes == seed_regular.seed_bytes
 
 	# 24-word mnemonic, no passphrase
 	share_set_formatted = ['slush flea agency academic angel lobe flea library writing clogs cards liberty river fiction therapy peasant uncover lend extend herald vampire seafood smug method syndrome grin moisture aunt aviation expand orange western froth', 
@@ -114,11 +114,11 @@ def test_shamir_share_import_seed():
 						'slush flea email academic arcade emission forward short adequate location disease fitness paper syndrome coding knit random order railroad emerald canyon thorn adjust ceiling knife false kidney gums mountain disease software flame famous']
 
 
-	seed_sss = Seed.recover_from_shares(share_set_formatted, slip39_passphrase="")
+	seed_shamir = Seed.recover_from_shares(share_set_formatted, slip39_passphrase="")
 
 	seed_regular = Seed(mnemonic="volume lock pulse large evoke body diet borrow food promote divide track wall february virtual brick hood diary work delay torch upon truth spray".split())
 
-	assert seed_sss.seed_bytes == seed_regular.seed_bytes
+	assert seed_shamir.seed_bytes == seed_regular.seed_bytes
 
 	# 24-word mnemonic, with passphrase
 	share_set_formatted = ['blessing leader agency academic alien valid husky inherit duckling favorite angel skin hazard response peanut process spew treat breathe boring sweater either valid dismiss herd program increase typical chest pumps legal tension acrobat', 
@@ -127,8 +127,8 @@ def test_shamir_share_import_seed():
 						'blessing leader desert academic aluminum fake iris permit sympathy genre security flavor species upgrade pajamas shaft kidney sister clogs mobile thorn gross marathon penalty dismiss guilt modern provide fatal shelter railroad require permit', 
 						'blessing leader email academic anxiety blessing diet slim military listen smith carbon artwork bike salt purchase unhappy observe burden rebuild imply dismiss slow penalty award receiver industry peanut squeeze husband armed evaluate drink']
 
-	seed_sss = Seed.recover_from_shares(share_set_formatted, slip39_passphrase="mupassphrase")
+	seed_shamir = Seed.recover_from_shares(share_set_formatted, slip39_passphrase="mupassphrase")
 
 	seed_regular = Seed(mnemonic="butter hole monkey orphan strong split predict song desk oak spirit myth bomb wise same build already vacant damp gallery found praise bread melody".split())
 
-	assert seed_sss.seed_bytes == seed_regular.seed_bytes
+	assert seed_shamir.seed_bytes == seed_regular.seed_bytes
