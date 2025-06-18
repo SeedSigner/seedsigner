@@ -52,7 +52,7 @@ class Seed:
             logger.info(repr(e), exc_info=True)
             raise InvalidSeedException(repr(e))
 
-        
+
     @property
     def mnemonic_str(self) -> str:
         return " ".join(self._mnemonic)
