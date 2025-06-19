@@ -3,6 +3,8 @@ import RPi.GPIO as GPIO
 import time
 import array
 
+from seedsigner.models.settings import Settings
+from seedsigner.models.settings_definition import SettingsConstants
 
 
 class ST7789(object):
@@ -12,20 +14,23 @@ class ST7789(object):
         self.width = 240
         self.height = 240
 
+        hardware_config = Settings.get_instance().get_value(SettingsConstants.SETTING__HARDWARE_CONFIG)
+        pin_mapping = SettingsConstants.ALL_HARDWARE_PIN_CONFIGS__PIN_DEFINITIONS[hardware_config]["display"]
+
         #Initialize DC RST pin
-        self._dc = 22
-        self._rst = 13
-        self._bl = 18
+        self._dc = pin_mapping["dc"]
+        self._rst = pin_mapping["rst"]
+        self._bl = pin_mapping["bl"]
 
         GPIO.setmode(GPIO.BOARD)
         GPIO.setwarnings(False)
-        GPIO.setup(self._dc,GPIO.OUT)
-        GPIO.setup(self._rst,GPIO.OUT)
-        GPIO.setup(self._bl,GPIO.OUT)
+        GPIO.setup(self._dc, GPIO.OUT)
+        GPIO.setup(self._rst, GPIO.OUT)
+        GPIO.setup(self._bl, GPIO.OUT)
         GPIO.output(self._bl, GPIO.HIGH)
 
         #Initialize SPI
-        self._spi = spidev.SpiDev(0, 0)
+        self._spi = spidev.SpiDev(pin_mapping["spi_bus"], pin_mapping["spi_device"])
         self._spi.max_speed_hz = 40000000
 
         self.init()

@@ -56,6 +56,9 @@ import RPi.GPIO as GPIO
 
 from math import sin, cos
 
+from seedsigner.models.settings import Settings
+from seedsigner.models.settings_definition import SettingsConstants
+
 #
 # This allows sphinx to build the docs
 #
@@ -264,27 +267,30 @@ class ST7789:
 
     def __init__(
         self,
-        # spi,
         width,
         height,
-        reset=13,
-        dc=22,
         cs=None,
-        backlight=18,
         rotation=1,
         color_order=BGR,
         custom_init=None,
         custom_rotations=None,
     ):
 
+        hardware_config = Settings.get_instance().get_value(SettingsConstants.SETTING__HARDWARE_CONFIG)
+        pin_mapping = SettingsConstants.ALL_HARDWARE_PIN_CONFIGS__PIN_DEFINITIONS[hardware_config]["display"]
         GPIO.setmode(GPIO.BOARD)
         GPIO.setwarnings(False)
-        GPIO.setup(dc,GPIO.OUT)
-        GPIO.setup(reset,GPIO.OUT)
-        GPIO.setup(backlight,GPIO.OUT)
+
+        self.dc = pin_mapping["dc"]
+        self.rst = pin_mapping["rst"]
+        self.backlight = pin_mapping["bl"]
+
+        GPIO.setup(self.dc, GPIO.OUT)
+        GPIO.setup(self.rst, GPIO.OUT)
+        GPIO.setup(self.backlight, GPIO.OUT)
 
         #Initialize SPI
-        spi = spidev.SpiDev(0, 0)
+        spi = spidev.SpiDev(pin_mapping["spi_bus"], pin_mapping["spi_device"])
         spi.max_speed_hz = 40000000
 
         """
@@ -299,7 +305,7 @@ class ST7789:
                 f"Unsupported {width}x{height} display. Supported displays: {supported_displays}"
             )
 
-        if dc is None:
+        if self.dc is None:
             raise ValueError("dc pin is required.")
 
         self.physical_width = self.width = width
@@ -307,10 +313,7 @@ class ST7789:
         self.xstart = 0
         self.ystart = 0
         self.spi = spi
-        self.reset = reset
-        self.dc = dc
         self.cs = cs
-        self.backlight = backlight
         self._rotation = rotation % 4
         self.color_order = color_order
         self.init_cmds = custom_init or _ST7789_INIT_CMDS
@@ -322,8 +325,8 @@ class ST7789:
         self.needs_swap = False
         self.fill(0x0)
 
-        if backlight is not None:
-            GPIO.output(backlight, GPIO.HIGH)
+        if self.bl is not None:
+            GPIO.output(self.bl, GPIO.HIGH)
             # backlight.value(1)
 
     @staticmethod

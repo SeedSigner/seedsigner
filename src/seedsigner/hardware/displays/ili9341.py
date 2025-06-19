@@ -35,6 +35,8 @@ from PIL import ImageDraw
 import RPi.GPIO as GPIO
 from spidev import SpiDev
 
+from seedsigner.models.settings import Settings
+from seedsigner.models.settings_definition import SettingsConstants
 
 # Constants for interacting with display registers.
 ILI9341_TFTWIDTH    = 240
@@ -132,19 +134,22 @@ def image_to_data(image):
 class ILI9341(object):
     """Representation of an ILI9341 TFT LCD."""
 
-    def __init__(self, dc=22, rst=13, led=12, width=ILI9341_TFTWIDTH,
-        height=ILI9341_TFTHEIGHT, rotation=90):
+    def __init__(self, width=ILI9341_TFTWIDTH, height=ILI9341_TFTHEIGHT, rotation=90):
         """Create an instance of the display using SPI communication.  Must
         provide the GPIO pin number for the D/C pin and the SPI driver.  Can
         optionally provide the GPIO pin number for the reset pin as the rst
         parameter.
         """
-        spi = SpiDev(0, 0)
+        hardware_config = Settings.get_instance().get_value(SettingsConstants.SETTING__HARDWARE_CONFIG)
+        pin_mapping = SettingsConstants.ALL_HARDWARE_PIN_CONFIGS__PIN_DEFINITIONS[hardware_config]["display"]
+
+        spi = SpiDev(pin_mapping["spi_bus"], pin_mapping["spi_device"])
         # spi.mode = 0b10  # [CPOL|CPHA] -> polarity 1, phase 0
         spi.max_speed_hz = 64_000_000
 
-        self._dc = dc
-        self._rst = rst
+        self._dc = pin_mapping["dc"]
+        self._rst = pin_mapping["rst"]
+        self._bl = pin_mapping["bl"]
         self._spi = spi
         self.width = width
         self.height = height
@@ -158,8 +163,8 @@ class ILI9341(object):
         GPIO.setwarnings(False)
         GPIO.setup(self._dc, GPIO.OUT)
         GPIO.output(self._dc, GPIO.HIGH)
-        GPIO.setup(led, GPIO.OUT)
-        GPIO.output(led, GPIO.HIGH)
+        GPIO.setup(self._bl, GPIO.OUT)
+        GPIO.output(self._bl, GPIO.HIGH)
         if self._rst is not None:
             GPIO.setup(self._rst, GPIO.OUT)
             GPIO.output(self._rst, GPIO.HIGH)
