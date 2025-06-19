@@ -2626,9 +2626,10 @@ class RebuildSeedXORFinalizeView(View):
         
         shard_count = len(self.controller.rebuild_seedxor_shards)
         button_data = [ButtonOption("Continue")]
-            
+        
+        from seedsigner.gui.screens.screen import LargeIconStatusScreen
         selected_menu_num = self.run_screen(
-            WarningScreen,
+            LargeIconStatusScreen,
             title=_(f"Finalize SeedXOR"),
             status_headline=_(f"Combined {shard_count} shards"),
             text=_(f"Fingerprint: {self.fingerprint}\n\nCombined seed calculated successfully."),
