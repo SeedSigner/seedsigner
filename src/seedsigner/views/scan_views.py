@@ -170,6 +170,10 @@ class ScanView(View):
             # start everything over.
             self.controller.resume_main_flow = None
             return Destination(ScanInvalidQRTypeView)
+        
+        if hasattr(self, "is_rebuild_seedxor_shard") and self.is_rebuild_seedxor_shard:
+            from seedsigner.views.seed_views import RebuildSeedXORLoadShardView
+            return Destination(RebuildSeedXORLoadShardView)
 
         return Destination(MainMenuView)
 
