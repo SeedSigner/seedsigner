@@ -2345,7 +2345,7 @@ class RebuildSeedXORLoadShardView(View):
         elif button_data[selected_menu_num] == self.SCAN_SHARD:
             from seedsigner.views.scan_views import ScanSeedQRView
             self.controller.resume_main_flow = self.controller.FLOW__REBUILD_SEEDXOR
-            return Destination(ScanSeedQRView, view_args={"is_rebuild_seedxor_shard": True})
+            return Destination(ScanSeedQRView, view_args={"back_destination": Destination(RebuildSeedXORLoadShardView, clear_history=True)})
         
         elif button_data[selected_menu_num] == self.TYPE_12WORD:
             self.controller.storage.init_pending_mnemonic(num_words=12)
