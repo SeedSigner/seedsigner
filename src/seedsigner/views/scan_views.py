@@ -24,7 +24,7 @@ class ScanView(View):
     invalid_qr_type_message = _mft("QRCode not recognized or not yet supported.")
 
 
-    def __init__(self, back_destination=None):
+    def __init__(self):
         from seedsigner.models.decode_qr import DecodeQR
 
         super().__init__()
@@ -32,7 +32,6 @@ class ScanView(View):
         # checks and so we can inject data into it in the test suite's `before_run()`.
         self.wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
         self.decoder: DecodeQR = DecodeQR(wordlist_language_code=self.wordlist_language_code)
-        self.back_destination = back_destination
 
 
     @property
@@ -85,8 +84,7 @@ class ScanView(View):
                     # Create the seed object from the mnemonic
                     new_seed = Seed(mnemonic=seed_mnemonic, wordlist_language_code=self.wordlist_language_code)
                     
-                    # Check if this is part of a RebuildSeedXOR flow
-                    if self.controller.resume_main_flow == self.controller.FLOW__REBUILD_SEEDXOR:
+                    if hasattr(self, "is_rebuild_seedxor_shard") and self.is_rebuild_seedxor_shard:
                         return Destination(RebuildSeedXORShowFingerprintView, view_args={"seed": new_seed})
                     else:
                         self.controller.storage.set_pending_seed(new_seed)
@@ -173,9 +171,10 @@ class ScanView(View):
             self.controller.resume_main_flow = None
             return Destination(ScanInvalidQRTypeView)
         
-        if self.back_destination:
-            return self.back_destination
-        
+        if hasattr(self, "is_rebuild_seedxor_shard") and self.is_rebuild_seedxor_shard:
+            from seedsigner.views.seed_views import RebuildSeedXORLoadShardView
+            return Destination(RebuildSeedXORLoadShardView)
+
         return Destination(MainMenuView)
 
 
@@ -194,8 +193,10 @@ class ScanSeedQRView(ScanView):
     instructions_text = _mft("Scan SeedQR")
     invalid_qr_type_message = _mft("Expected a SeedQR")
     
-    def __init__(self, back_destination=None):
-        super().__init__(back_destination=back_destination)
+    def __init__(self, is_initial_scan=False, is_rebuild_seedxor_shard=False):
+        super().__init__()
+        self.is_initial_scan = is_initial_scan
+        self.is_rebuild_seedxor_shard = is_rebuild_seedxor_shard
         
     @property
     def is_valid_qr_type(self):
