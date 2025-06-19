@@ -2428,7 +2428,7 @@ class RebuildSeedXORManageView(View):
         
         # Only show Finalize if at least 2 shards are loaded
         if self.num_shards >= 2:
-            button_data.append(self.FINALIZE)
+            button_data.insert(-1,self.FINALIZE)
     
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -2522,13 +2522,15 @@ class RebuildSeedXORRemoveShardsView(View):
         for i, shard in enumerate(self.shards):
             network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
             fingerprint = shard.get_fingerprint(network=network)
-            button_data.append(ButtonOption(f"Remove Shard #{i+1}: {fingerprint}", button_label_color="red"))
-            
+            button_data.append(ButtonOption(f"Shard #{i+1}: {fingerprint}"))
+        
+        from seedsigner.gui.screens.screen import GUIConstants
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title=_("Remove Shard"),
             is_button_text_centered=False,
-            button_data=button_data
+            button_data=button_data,
+            button_selected_color=GUIConstants.ERROR_COLOR
         )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:
