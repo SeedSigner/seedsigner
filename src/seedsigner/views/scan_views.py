@@ -5,7 +5,7 @@ from gettext import gettext as _
 from seedsigner.helpers.l10n import mark_for_translation as _mft
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.view import BackStackView, ErrorView, MainMenuView, NotYetImplementedView, View, Destination
-from seedsigner.gui.screens.screen import ButtonOption
+from seedsigner.gui.screens.screen import ButtonOption, RET_CODE__BACK_BUTTON
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class ScanView(View):
         from seedsigner.gui.screens.scan_screens import ScanScreen
 
         # Start the live preview and background QR reading
-        self.run_screen(
+        st = self.run_screen(
             ScanScreen,
             instructions_text=self.instructions_text,
             decoder=self.decoder
@@ -171,10 +171,8 @@ class ScanView(View):
             self.controller.resume_main_flow = None
             return Destination(ScanInvalidQRTypeView)
         
-        if hasattr(self, "is_rebuild_seedxor_shard") and self.is_rebuild_seedxor_shard:
-            from seedsigner.views.seed_views import RebuildSeedXORLoadShardView
-            return Destination(RebuildSeedXORLoadShardView)
-
+        if st == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
         return Destination(MainMenuView)
 
 
@@ -193,9 +191,8 @@ class ScanSeedQRView(ScanView):
     instructions_text = _mft("Scan SeedQR")
     invalid_qr_type_message = _mft("Expected a SeedQR")
     
-    def __init__(self, is_initial_scan=False, is_rebuild_seedxor_shard=False):
+    def __init__(self, is_rebuild_seedxor_shard=False):
         super().__init__()
-        self.is_initial_scan = is_initial_scan
         self.is_rebuild_seedxor_shard = is_rebuild_seedxor_shard
         
     @property
