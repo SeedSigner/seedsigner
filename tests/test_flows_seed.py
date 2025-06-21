@@ -733,7 +733,7 @@ class TestShamirShareImportFlows(FlowTest):
         """
 
         def test_with_mnemonic(mnemonic):
-            # Ensure SSS is enabled
+            # Ensure Shamir is enabled
             self.settings.set_value(SettingsConstants.SETTING_SHAMIR, SettingsConstants.OPTION__ENABLED)
 
             if len(mnemonic) % 20 == 0:
