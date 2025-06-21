@@ -43,7 +43,7 @@ class ScanView(View):
         from seedsigner.gui.screens.scan_screens import ScanScreen
 
         # Start the live preview and background QR reading
-        st = self.run_screen(
+        scan_results = self.run_screen(
             ScanScreen,
             instructions_text=self.instructions_text,
             decoder=self.decoder
@@ -52,6 +52,9 @@ class ScanView(View):
         # A long scan might have exceeded the screensaver timeout; ensure screensaver
         # doesn't immediately engage when we leave here.
         self.controller.reset_screensaver_timeout()
+
+        if scan_results == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
 
         # Handle the results
         if self.decoder.is_complete:
@@ -170,9 +173,7 @@ class ScanView(View):
             # start everything over.
             self.controller.resume_main_flow = None
             return Destination(ScanInvalidQRTypeView)
-        
-        if st == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
+
         return Destination(MainMenuView)
 
 
