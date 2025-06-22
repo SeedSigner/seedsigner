@@ -100,14 +100,18 @@ def generate_mnemonic_from_coin_flips(coin_flips: str, wordlist_language_code: s
     if not all(c in "01" for c in coin_flips):
         raise ValueError("Invalid input: coin flips must only contain '0' or '1'.")
 
-    entropy_bytes = hashlib.sha256(coin_flips.encode()).digest()
+    # convert bit string to bytes
+    coin_flip_bytes = bytearray()
+    for i in range(0, len(coin_flips), 8):
+        # convert 8 bits to an integer
+        index = int(coin_flips[i:i + 8], 2)
+        # convert the index to a byte
+        coin_flip_bytes.append(index)
 
-    if len(coin_flips) == 128:
-        # 12-word mnemonic; only use 128bits / 16 bytes
-        entropy_bytes = entropy_bytes[:16]
-
-    # Return as a list
-    return bip39.mnemonic_from_bytes(entropy_bytes, wordlist=Seed.get_wordlist(wordlist_language_code)).split()
+    # Convert the indices to their associated words. The final word will consist of the
+    # last bits of the provided entropy plus the checksum which will be automatically
+    # added by the method below.
+    return bip39.mnemonic_from_bytes(coin_flip_bytes, wordlist=Seed.get_wordlist(wordlist_language_code)).split()
 
 
 
