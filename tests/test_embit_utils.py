@@ -283,7 +283,7 @@ def test_get_multisig_address():
 
     from embit.descriptor import Descriptor
 
-    # jdlcdl: these vectors created with electrum & sparrow as a 2 of 3 multisig based on BIP-39 and BIP32 standard-path wallets
+    # jdlcdl: these vectors created with electrum & sparrow as a 2 of 3 multisig based on BIP-39 and BIP-32 standard-path wallets
     #    keystore1 = 0x00*16 = 73c5da0a = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
     #    keystore2 = 0x11*16 = 0be174ee = 'baby mass dust captain baby mass dust captain baby mass dust casino'
     #    keystore3 = 0x22*16 = 8d55ff0d = 'captain baby mass dust captain baby mass dust captain baby mass dutch'
