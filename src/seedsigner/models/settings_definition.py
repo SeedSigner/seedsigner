@@ -124,6 +124,7 @@ class SettingsConstants:
         LOCALE__ENGLISH: "English",
         LOCALE__SPANISH: "Español",
         LOCALE__FRENCH: "Français",
+        LOCALE__ITALIAN: "Italiano",
         LOCALE__DUTCH: "Nederlands",
 
         # --------- Beta languages ------------------------------------------------------
@@ -149,7 +150,6 @@ class SettingsConstants:
         # LOCALE__HEBREW: "עברית (Hebrew)",
         # LOCALE__HINDI: "हिन्दी (Hindi)",
         LOCALE__CROATIAN: "Hrvatski",
-        LOCALE__ITALIAN: "Italiano",
         LOCALE__INDONESIAN: "Indonesia",
         LOCALE__JAVANESE: "Jawa (Javanese)",
         # LOCALE__LAO: "ລາວ (Lao)",
