@@ -46,6 +46,11 @@ exclude_lines = [
 # Omit; need a different approach to test modules with hardware dependencies
 omit = [
   "*/__init__.py",
+  "*/seedsigner/hardware/camera.py",
+  "*/seedsigner/hardware/pivideostream.py",
+  "*/seedsigner/hardware/displays/ST7789.py",
+  "*/seedsigner/hardware/displays/st7789_mpy.py",
+  "*/seedsigner/hardware/displays/ili9341.py",
   "*/tests/*",
 ]
 skip_covered = true
