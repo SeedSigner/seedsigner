@@ -164,11 +164,17 @@ class Seed:
         return bip85.derive_mnemonic(root, bip85_num_words, bip85_index)
         
 
-    ### override operators    
+    ### override operators
     def __eq__(self, other):
-        if isinstance(other, Seed):
-            return self.seed_bytes == other.seed_bytes
-        return False
+        if not isinstance(other, Seed):
+            return False
+
+        if isinstance(self, BIP85ChildSeed) != isinstance(other, BIP85ChildSeed):
+            # A BIP-85 child seed carries parent/index provenance, so it is a distinct
+            # in-memory entry even when the underlying seed bytes match.
+            return False
+
+        return self.seed_bytes == other.seed_bytes
 
 
 
@@ -239,3 +245,27 @@ class ElectrumSeed(Seed):
     @property
     def bip85_supported(self) -> bool:
         return False
+
+
+
+class BIP85GrandchildNotAllowedException(Exception):
+    pass
+
+
+
+class BIP85ChildSeed(Seed):
+    def __init__(self, parent_seed: Seed, child_index: int, num_words: int, **kwargs):
+        self.parent_seed = parent_seed
+        self.child_index = child_index
+        self.num_words = num_words
+        super().__init__(**kwargs)
+
+
+    @property
+    def bip85_supported(self) -> bool:
+        # Do not allow further BIP-85 child derivation from a BIP-85 child seed
+        return False
+
+
+    def get_bip85_child_mnemonic(self, *args, **kwargs):
+        raise BIP85GrandchildNotAllowedException("Further BIP-85 child derivation is not allowed.")

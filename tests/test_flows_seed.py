@@ -648,7 +648,7 @@ class TestMessageSigningFlows(FlowTest):
         ])
 
         # Scenario 2: Scan the seed first, then select Sign Message
-        self.controller.discard_seed(self.controller.storage.seeds[0])
+        self.controller.storage.discard_seed(self.controller.storage.seeds[0])
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
             FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
@@ -696,7 +696,7 @@ class TestMessageSigningFlows(FlowTest):
         ])
 
         # Scenario 4: Load a long message without whitespace
-        self.controller.discard_seed(self.controller.storage.seeds[0])
+        self.controller.storage.discard_seed(self.controller.storage.seeds[0])
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
             FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
