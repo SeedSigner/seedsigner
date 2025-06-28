@@ -177,7 +177,7 @@ class TestToolsFlows(FlowTest):
 
         # Scenario 4: No seed onboard, one script type enabled, started from Tools, BACK
         # can only go to MainMenu because of mid-flow seed load.
-        controller.discard_seed(seed)
+        controller.storage.discard_seed(seed)
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
             FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
