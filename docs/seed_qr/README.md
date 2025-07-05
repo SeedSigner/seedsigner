@@ -22,6 +22,8 @@ Specifications for each follow below, as well as discussion of the pros and cons
 ## Quick Review of BIP-39 Mnemonic Seed Phrases
 The typical method for backing up a Bitcoin wallet is to store its [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) mnemonic seed phrase consisting of 12 or 24 words.
 
+**SeedQR specifically assumes and recommends using the English BIP39 wordlist.** While BIP39 supports multiple language-specific wordlists (e.g., Japanese, Spanish, French), there is no mechanism to specify or detect which language wordlist was used when creating or scanning a SeedQR. Using a non-English wordlist may result in incorrect or invalid seeds.
+
 Each word comes from a [list of 2048 words](https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt). The words themselves are meaningless; all that matters is the word's position number (aka index) in the word list.
 
 For example, "tomato" is the 1,825th word in the list.

@@ -286,3 +286,4 @@ class ScanScreen(BaseScreen):
                     self.camera.stop_video_stream_mode()
                     return RET_CODE__BACK_BUTTON
 
+

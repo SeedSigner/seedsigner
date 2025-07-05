@@ -1646,11 +1646,15 @@ class SeedTranscribeSeedQRConfirmScanView(View):
 
         # Run the live preview and QR code capture process
         # TODO: Does this belong in its own BaseThread?
-        self.run_screen(
+        scanning_done=self.run_screen(
             ScanScreen,
             decoder=self.decoder,
             instructions_text=_("Scan your SeedQR")
         )
+
+        # If the scanning was canceled because the back button was pressed, return to BackStackView (SeedTranscribeSeedQRConfirmQRPromptView).
+        if scanning_done==False:
+           return Destination(BackStackView, skip_current_view=False)
 
         if self.decoder.is_complete:
             if self.decoder.is_seed:
@@ -1661,9 +1665,8 @@ class SeedTranscribeSeedQRConfirmScanView(View):
                 else:
                     return Destination(SeedTranscribeSeedQRConfirmSuccessView, view_args={"seed_num": self.seed_num})
 
-        else:
-            # Will this case ever happen? Will trigger if a different kind of QR code is scanned
-            return Destination(SeedTranscribeSeedQRConfirmInvalidQRView, skip_current_view=True)
+        # Will trigger if a different kind of QR code is scanned (non SeedQR)
+        return Destination(SeedTranscribeSeedQRConfirmInvalidQRView, skip_current_view=True)
 
 
 
