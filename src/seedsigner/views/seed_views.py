@@ -2322,11 +2322,11 @@ class SeedEntryShamirThresholdView(View):
         if "is_back_button" in ret_dict:
             return Destination(BackStackView)
             
-        elif ret_dict["entered_number"] != "" and ret_dict["entered_number"] not in ["0", "1"]:
+        elif ret_dict["entered_number"] != "" and ret_dict["entered_number"] != "0":
             return Destination(SeedShamirShareImportSelectWordCount, view_args={"k": int(ret_dict["entered_number"])})
 
         else:
-            if ret_dict["entered_number"] in ["0", "1"]:
+            if ret_dict["entered_number"] == "0":
                 from seedsigner.gui.toast import ErrorToast
                 self.controller.activate_toast(ErrorToast(_("Threshold not valid")))
 
