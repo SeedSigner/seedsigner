@@ -284,5 +284,5 @@ class ScanScreen(BaseScreen):
                 
                 if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
                     self.camera.stop_video_stream_mode()
-                    break
+                    return False
 

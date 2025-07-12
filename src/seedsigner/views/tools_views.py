@@ -131,54 +131,65 @@ class ToolsImageEntropyMnemonicLengthView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
         mnemonic_length = button_data[selected_menu_num].return_data
 
-        preview_images = self.controller.image_entropy_preview_frames
-        seed_entropy_image = self.controller.image_entropy_final_image
+        # The entropy calculation can take time, especially with a full image buffer. 
+        # Show a loading spinner to provide feedback during this delay.
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+        self.loading_screen = LoadingScreenThread(text=_("Calculating..."))
+        self.loading_screen.start()
 
-        # Build in some hardware-level uniqueness via CPU unique Serial num
         try:
-            stream = os.popen("cat /proc/cpuinfo | grep Serial")
-            output = stream.read()
-            serial_num = output.split(":")[-1].strip().encode('utf-8')
-            serial_hash = hashlib.sha256(serial_num)
-            hash_bytes = serial_hash.digest()
-        except Exception as e:
-            logger.info(repr(e), exc_info=True)
-            hash_bytes = b'0'
+            preview_images = self.controller.image_entropy_preview_frames
+            seed_entropy_image = self.controller.image_entropy_final_image
 
-        # Build in modest entropy via millis since power on
-        millis_hash = hashlib.sha256(hash_bytes + str(time.time()).encode('utf-8'))
-        hash_bytes = millis_hash.digest()
+            # Build in some hardware-level uniqueness via CPU unique Serial num
+            try:
+                stream = os.popen("cat /proc/cpuinfo | grep Serial")
+                output = stream.read()
+                serial_num = output.split(":")[-1].strip().encode('utf-8')
+                serial_hash = hashlib.sha256(serial_num)
+                hash_bytes = serial_hash.digest()
+            except Exception as e:
+                logger.info(repr(e), exc_info=True)
+                hash_bytes = b'0'
 
-        # Build in better entropy by chaining the preview frames
-        for frame in preview_images:
-            img_hash = hashlib.sha256(hash_bytes + frame.tobytes())
-            hash_bytes = img_hash.digest()
+            # Build in modest entropy via millis since power on
+            millis_hash = hashlib.sha256(hash_bytes + str(time.time()).encode('utf-8'))
+            hash_bytes = millis_hash.digest()
 
-        # Finally build in our headline entropy via the new full-res image
-        final_hash = hashlib.sha256(hash_bytes + seed_entropy_image.tobytes()).digest()
+            # Build in better entropy by chaining the preview frames
+            for frame in preview_images:
+                img_hash = hashlib.sha256(hash_bytes + frame.tobytes())
+                hash_bytes = img_hash.digest()
 
-        if mnemonic_length == 12:
-            # 12-word mnemonic only uses the first 128 bits / 16 bytes of entropy
-            final_hash = final_hash[:16]
+            # Finally build in our headline entropy via the new full-res image
+            final_hash = hashlib.sha256(hash_bytes + seed_entropy_image.tobytes()).digest()
 
-        # Generate the mnemonic
-        mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash)
+            if mnemonic_length == 12:
+                # 12-word mnemonic only uses the first 128 bits / 16 bytes of entropy
+                final_hash = final_hash[:16]
 
-        # Image should never get saved nor stick around in memory
-        seed_entropy_image = None
-        preview_images = None
-        final_hash = None
-        hash_bytes = None
-        self.controller.image_entropy_preview_frames = None
-        self.controller.image_entropy_final_image = None
+            # Generate the mnemonic
+            mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash)
 
-        # Add the mnemonic as an in-memory Seed
-        seed = Seed(mnemonic, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
-        self.controller.storage.set_pending_seed(seed)
-        
+            # Image should never get saved nor stick around in memory
+            seed_entropy_image = None
+            preview_images = None
+            final_hash = None
+            hash_bytes = None
+            self.controller.image_entropy_preview_frames = None
+            self.controller.image_entropy_final_image = None
+
+            # Add the mnemonic as an in-memory Seed
+            seed = Seed(mnemonic, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+            self.controller.storage.set_pending_seed(seed)
+
+        finally:
+            # Stop spinner even if an error occurs
+            self.loading_screen.stop()
+
         # Cannot return BACK to this View
         return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
 

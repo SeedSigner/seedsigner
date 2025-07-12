@@ -124,9 +124,11 @@ class SettingsConstants:
         LOCALE__ENGLISH: "English",
         LOCALE__SPANISH: "Español",
         LOCALE__FRENCH: "Français",
+        LOCALE__ITALIAN: "Italiano",
         LOCALE__DUTCH: "Nederlands",
 
         # --------- Beta languages ------------------------------------------------------
+        LOCALE__CHINESE_SIMPLIFIED: "(beta) 简体中文 (Chinese Simplified)",
         LOCALE__JAPANESE: "(beta) 日本語 (Japanese)",
         LOCALE__KOREAN: "(beta) 한국어 (Korean)",
 
@@ -137,7 +139,6 @@ class SettingsConstants:
         # LOCALE__BENGALI: "বাংলা (Bengali)",
         LOCALE__BULGARIAN: "български (Bulgarian)",  # OpenSans includes cyrillic chars
         LOCALE__CZECH: "čeština",
-        LOCALE__CHINESE_SIMPLIFIED: "简体中文 (Chinese Simplified)",  # Font already included in anticipation of translations being ready soon
         # LOCALE__CHINESE_TRADITIONAL: "繁體中文 (Chinese Traditional)",
         LOCALE__DANISH: "Dansk",
         LOCALE__ESTONIAN: "Eesti",
@@ -149,7 +150,6 @@ class SettingsConstants:
         # LOCALE__HEBREW: "עברית (Hebrew)",
         # LOCALE__HINDI: "हिन्दी (Hindi)",
         LOCALE__CROATIAN: "Hrvatski",
-        LOCALE__ITALIAN: "Italiano",
         LOCALE__INDONESIAN: "Indonesia",
         LOCALE__JAVANESE: "Jawa (Javanese)",
         # LOCALE__LAO: "ລາວ (Lao)",
@@ -713,16 +713,18 @@ class SettingsDefinition:
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__DISPLAY_CONFIGURATION,
                       abbreviated_name="disp_conf",
-                      display_name="Display type",
+                      # TRANSLATOR_NOTE: Hardware settings option to specify the screen driver (e.g. st7789 vs ili9341)
+                      display_name=_mft("Display type"),
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__HARDWARE,
                       selection_options=SettingsConstants.ALL_DISPLAY_CONFIGURATIONS,
                       default_value=SettingsConstants.DISPLAY_CONFIGURATION__ST7789__240x240),
-        
+
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED,
                       abbreviated_name="rgb_inv",
-                      display_name="Invert colors",
+                      # TRANSLATOR_NOTE: Hardware settings option to invert how the screen driver displays colors.
+                      display_name=_mft("Invert colors"),
                       type=SettingsConstants.TYPE__ENABLED_DISABLED,
                       visibility=SettingsConstants.VISIBILITY__HARDWARE,
                       default_value=SettingsConstants.OPTION__DISABLED),

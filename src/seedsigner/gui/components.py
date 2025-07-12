@@ -432,10 +432,6 @@ class TextArea(BaseComponent):
         self.text_y = self.text_height_above_baseline
 
         self.visible_width = self.width - max(self.edge_padding, self.min_text_x) - self.edge_padding
-        if not ImageFont.core.HAVE_RAQM:
-            # Fudge factor for imprecise width calcs w/out libraqm
-            full_text_width = int(full_text_width * 1.05)
-            self.visible_width = int(self.visible_width * 1.05)
 
         if self.is_horizontal_scrolling_enabled or not self.auto_line_break:
             # Guaranteed to be a single line of text, possibly wider than self.width
@@ -475,9 +471,9 @@ class TextArea(BaseComponent):
             # Multiply for the number of lines plus the spacer
             total_text_height = self.text_height_above_baseline * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
 
-            if not self.height_ignores_below_baseline and re.findall(f"[gjpqy]", self.text_lines[-1]["text"]):
-                # Last line has at least one char that dips below baseline
-                total_text_height += self.text_height_below_baseline
+            if not self.height_ignores_below_baseline:
+                # Account for the last line possibly rendering below baseline
+                total_text_height += self.text_lines[-1].get("px_below_baseline", 0)
 
         self.text_offset_y = 0
         if self.height is None:
@@ -582,16 +578,12 @@ class TextArea(BaseComponent):
 
         # Crop off the top_padding and resize the result down to onscreen size
         if self.supersampling_factor > 1:
-            resized = img.resize((image_width, total_text_height + 2*resample_padding), Image.LANCZOS)
+            resized = img.resize((image_width, total_text_height + 2*resample_padding), Image.Resampling.LANCZOS)
             sharpened = resized.filter(ImageFilter.SHARPEN)
 
             img = sharpened.crop((0, resample_padding, image_width, resample_padding + total_text_height))
         
         self.rendered_text_img = img
-
-        if not ImageFont.core.HAVE_RAQM:
-            # At this point we need the visible_width to be the "actual" (yet still incorrect) width
-            self.visible_width = int(self.visible_width * 0.95)
 
         self.horizontal_text_scroll_thread: TextArea.HorizontalTextScrollThread = None
         if self.is_horizontal_scrolling_enabled:
@@ -1841,11 +1833,7 @@ def reflow_text_for_width(text: str,
     #   font.
     font = Fonts.get_font(font_name=font_name, size=font_size)
     # Measure from left baseline ("ls")
-    (left, top, full_text_width, bottom) = font.getbbox(text, anchor="ls")
-
-    if not ImageFont.core.HAVE_RAQM:
-        # Fudge factor for imprecise width calcs w/out libraqm
-        full_text_width = int(full_text_width * 1.05)
+    (left, top, full_text_width, px_below_baseline) = font.getbbox(text, anchor="ls")
 
     # Assume we can break Asian text on any character
     treat_chars_as_words = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE) in [
@@ -1860,12 +1848,12 @@ def reflow_text_for_width(text: str,
 
     # Stores each line of text and its rendering starting x-coord
     text_lines = []
-    def _add_text_line(text, text_width):
-        text_lines.append({"text": text, "text_width": text_width})
+    def _add_text_line(text, text_width, px_below_baseline):
+        text_lines.append(dict(text=text, text_width=text_width, px_below_baseline=px_below_baseline))
 
     if "\n" not in text and full_text_width < width:
         # The whole text fits on one line
-        _add_text_line(text, full_text_width)        
+        _add_text_line(text, full_text_width, px_below_baseline)        
 
     else:
         # Have to calc how to break text into multiple lines
@@ -1877,12 +1865,8 @@ def reflow_text_for_width(text: str,
                 index = 1
 
             # Measure rendered width from "left" anchor (anchor="l_")
-            (left, top, right, bottom) = font.getbbox(word_spacer.join(words[0:index]), anchor="ls")
+            (left, top, right, px_below_baseline) = font.getbbox(word_spacer.join(words[0:index]), anchor="ls")
             line_width = right - left
-
-            if not ImageFont.core.HAVE_RAQM:
-                # Fudge factor for imprecise width calcs w/out libraqm
-                line_width = int(line_width * 1.05)
 
             if line_width >= width:
                 # Candidate line is still too long. Restrict search range down.
@@ -1891,7 +1875,7 @@ def reflow_text_for_width(text: str,
                         # It's just one long, unbreakable word. There's no good
                         # solution here. Just accept it as is and let it render off
                         # the edges.
-                        return (index, line_width)
+                        return (index, line_width, px_below_baseline)
                     else:
                         # There's still room to back down the min_index in the next
                         # round.
@@ -1899,7 +1883,7 @@ def reflow_text_for_width(text: str,
                 return _binary_len_search(min_index=min_index, max_index=index, word_spacer=word_spacer)
             elif index == max_index:
                 # We have converged
-                return (index, line_width)
+                return (index, line_width, px_below_baseline)
             else:
                 # Candidate line is possibly shorter than necessary.
                 return _binary_len_search(min_index=index, max_index=max_index, word_spacer=word_spacer)
@@ -1930,11 +1914,11 @@ def reflow_text_for_width(text: str,
 
             if not words:
                 # It's a blank line
-                _add_text_line("", 0)
+                _add_text_line("", 0, 0)
             else:
                 while words:
-                    (index, tw) = _binary_len_search(0, len(words), word_spacer=word_spacer)
-                    _add_text_line(word_spacer.join(words[0:index]), tw)
+                    (index, tw, px_below_baseline) = _binary_len_search(0, len(words), word_spacer=word_spacer)
+                    _add_text_line(word_spacer.join(words[0:index]), tw, px_below_baseline)
                     words = words[index:]
 
     return text_lines

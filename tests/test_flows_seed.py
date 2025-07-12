@@ -435,6 +435,9 @@ class TestSeedFlows(FlowTest):
         def load_completely_wrong_qr_type_into_decoder(view: View):
             view.decoder.add_data("I like cheese")
 
+        def load_recognized_qr_type_isnot_seed_into_decoder(view: View):
+            view.decoder.add_data("UR:CRYPTO-PSBT/HKADHEJOJKIDJYZMADAEGMAOAEAEAEADHHGLEYKGBDSBKEMTSARLVYSGIABEDELFSKWLLUDKLYESJOFDLPJPFXSOHHWZTYWEAEAEAEAEAEZCZMZMZMADBKBZJEDEHEAEAEAECMAEBBVEPFDWDMBBGSPFZTKIMYCLKPSOBDDTRDWTWPYKGAQDKNAEAEGWADAAECLTTKAXWSWTUTSNLAAEAEAEPKCTBSHGISSSRETIVEWSGYNEPTHTESNSWMLBTARYEMHTBTBTLNWSBKJLMKYNFGHLAXJYBBTTIDHKDICHAMLEHHDSRKATGDLYSBIYHNHDNEWPJKZSZMDKVETYNSGOCXKNDNBEOLFSRSNSGHAEAELAADAEAELAAEAEAELAAEADADCTKSBZJEDEHEAEAEAECMAEBBVEPFDWDMBBGSPFZTKIMYCLKPSOBDDTRDWTWPYKGAADAXAAADAEAEAECPAMAODSFTLDTYFRECSKVWYLKNBANNKKZCRTHYJTPSHLHNHKNBPDCLCFDMSOLPDKFXLFQZCSOLFSRSNSGHAEAELAADAEAELAAEAEAELAAEAEAEAEAEAEAEAEAECPAOAODSFTLDTYFRECSKVWYLKNBANNKKZCRTHYJTPSHLHNHKNBPDCLCFDMSOLPDKFXLFQZCSOLFSRSNSGHAEAELAADAEAELAAEAEAELAAEAEAEAEAEAEAEAEAELGMKFZCW")        
+
         def load_right_seed_into_decoder(view: View):
             view.decoder.add_data("0000" * 11 + "0003")
 
@@ -460,6 +463,12 @@ class TestSeedFlows(FlowTest):
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmInvalidQRView),
             FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are still weird
 
+            # Intentionally scan QR data that makes no sense for this flow because is another QR recognized but is not a SeedQR (e.g., bitcoin address, psbt)
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_recognized_qr_type_isnot_seed_into_decoder),
+            FlowStep(seed_views.SeedTranscribeSeedQRConfirmInvalidQRView),
+            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are still weird
+            
             # Now scan the correct SeedQR
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_right_seed_into_decoder),
