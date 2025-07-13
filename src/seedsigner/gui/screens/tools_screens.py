@@ -24,7 +24,8 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
         # If the stream is set to 320x240, we get pillarboxed frames (black bars on the
         # sides). But passing in square dims gives us an edge-to-edge image.
         # TODO: Figure out why (camera expecting frame dims of multiples other than 16?)
-        max_dimension = max(self.canvas_width, self.canvas_height)
+        skew_buffer = 20
+        max_dimension = max(self.canvas_width, self.canvas_height) + skew_buffer
         self.camera.start_video_stream_mode(resolution=(max_dimension, max_dimension), framerate=24, format="rgb")
 
 
@@ -55,24 +56,23 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
                 # TODO: This cropping may be unnecessary if the above TODO about the
                 # camera resolution is solved.
                 box = None
-                if self.canvas_width != frame.width:
-                    half_width_diff = int(abs(self.canvas_width - frame.width)/2)
-                    box = (
-                        half_width_diff,
-                        0,
-                        frame.width - half_width_diff,
-                        frame.height
-                    )
-                elif self.canvas_height != frame.height:
-                    half_height_diff = int(abs(self.canvas_height - frame.height)/2)
-                    box = (
-                        0,
-                        half_height_diff,
-                        frame.width,
-                        frame.height - half_height_diff
-                    )
+                if self.canvas_width != frame.width or self.canvas_height != frame.height:
+                    # Calculate center crop with skew buffer
+                    left = (frame.width - self.canvas_width) // 2
+                    top = (frame.height - self.canvas_height) // 2
+                    right = left + self.canvas_width
+                    bottom = top + self.canvas_height
+                    
+                    # Ensure we don't go out of bounds
+                    left = max(0, left)
+                    top = max(0, top)
+                    right = min(frame.width, right)
+                    bottom = min(frame.height, bottom)
+                    
+                    box = (left, top, right, bottom)
+                    frame = frame.crop(box)
 
-                self.renderer.canvas.paste(frame.crop(box=box))
+                self.renderer.canvas.paste(frame if box is None else frame.crop(box=box))
 
             # Check for ANYCLICK to take final entropy image
             if self.hw_inputs.check_for_low(keys=HardwareButtonsConstants.KEYS__ANYCLICK):

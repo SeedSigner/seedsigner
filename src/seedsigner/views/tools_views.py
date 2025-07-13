@@ -95,14 +95,50 @@ class ToolsImageEntropyFinalImageView(View):
 
         # Prep a copy of the image for display:
         #   * Boost the contrast for better presentation (but preserve the original pixels)
+        #   * Crop out the black triangles caused by the camera’s 9-degree rotation
         #   * Resize it to fit the screen
         boosted_version = autocontrast(self.controller.image_entropy_final_image, cutoff=2)
+
+        # ---- crop to remove pillar-boxing *and* re-centre image ----
+        skew_buffer = 20          # size of the triangles
+        v_offset    = 25           # move crop rectangle *up* by 25 px
+                                   # (tweak until the result looks centred)
+
+        # 1) Enlarge so we have room to crop
+        boosted_version = resize_image_to_fill(
+            boosted_version,
+            target_size_x=self.canvas_width  + 2 * skew_buffer,
+            target_size_y=self.canvas_height + 2 * skew_buffer,
+            sampling_method=Image.Resampling.BICUBIC,
+        )
+
+        # 2) Asymmetric centre-crop: same left/right, but top is a bit smaller
+        boosted_version = boosted_version.crop((
+            skew_buffer,                          # left
+            skew_buffer + v_offset,               # top  (shift up)
+            self.canvas_width  + skew_buffer,     # right
+            self.canvas_height + skew_buffer + v_offset  # bottom
+        ))
+        # ---------------------------------------
+
+        # Final resize (harmless even if already exact size)
         display_version = resize_image_to_fill(
             boosted_version,
             target_size_x=self.canvas_width,
             target_size_y=self.canvas_height,
             sampling_method=Image.Resampling.BICUBIC,
         )
+
+        ret = ToolsImageEntropyFinalImageScreen(
+            final_image=display_version
+        ).display()
+
+        if ret == RET_CODE__BACK_BUTTON:
+            # Go back to live preview and reshoot
+            self.controller.image_entropy_final_image = None
+            return Destination(BackStackView)
+
+        return Destination(ToolsImageEntropyMnemonicLengthView)
         
         ret = ToolsImageEntropyFinalImageScreen(
             final_image=display_version
