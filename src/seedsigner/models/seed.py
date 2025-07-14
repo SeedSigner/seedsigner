@@ -290,8 +290,10 @@ class ShamirSeed(Seed):
 
  
     def mnemonic_display_str(self, share_index) -> str:
+        #TODO: show just one share. Extendable flag must be supported in embit.
         return unicodedata.normalize("NFC", self._mnemonics[share_index])
     
 
     def mnemonic_display_list(self, share_index) -> List[str]:
+        #TODO: show just one share. Extendable flag must be supported in embit.
         return unicodedata.normalize("NFC", self._mnemonics[share_index]).split()
