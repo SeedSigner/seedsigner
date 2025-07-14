@@ -13,7 +13,7 @@ from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
-from seedsigner.models.seed import Seed
+from seedsigner.models.seed import Seed, ShamirSeed
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
@@ -2335,8 +2335,8 @@ class SeedEntryShamirThresholdView(View):
 
 
 class SeedShamirShareImportSelectWordCount(View):
-    TYPE_12WORD = ButtonOption("20 words")
-    TYPE_24WORD = ButtonOption("33 words")
+    TYPE_20WORD = ButtonOption("20 words")
+    TYPE_33WORD = ButtonOption("33 words")
 
     def __init__(self, k: int):
         super().__init__()
@@ -2344,7 +2344,7 @@ class SeedShamirShareImportSelectWordCount(View):
 
 
     def run(self):
-        button_data = [self.TYPE_12WORD, self.TYPE_24WORD]
+        button_data = [self.TYPE_20WORD, self.TYPE_33WORD]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -2355,11 +2355,11 @@ class SeedShamirShareImportSelectWordCount(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        elif button_data[selected_menu_num] == self.TYPE_12WORD:
+        elif button_data[selected_menu_num] == self.TYPE_20WORD:
             self.controller.storage.init_pending_shamir_share_set(num_words=20, num_shares=self.k)
             return Destination(SeedShamirShareMnemonicEntryView)
         
-        elif button_data[selected_menu_num] == self.TYPE_24WORD:
+        elif button_data[selected_menu_num] == self.TYPE_33WORD:
             self.controller.storage.init_pending_shamir_share_set(num_words=33, num_shares=self.k)
             return Destination(SeedShamirShareMnemonicEntryView)
 
@@ -2379,7 +2379,7 @@ class SeedShamirShareMnemonicEntryView(View):
             seed_screens.SeedMnemonicEntryScreen,
             title=_("Share #{}, Word #{}").format(self.cur_set_index+1, self.cur_word_index+1),  # Human-readable 1-indexing!
             initial_letters=list(self.cur_word) if self.cur_word else ["a"],
-            wordlist=Seed.get_slip39_wordlist(wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)),
+            wordlist=ShamirSeed.get_wordlist(wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)),
         )
 
         if ret == RET_CODE__BACK_BUTTON:
@@ -2407,9 +2407,10 @@ class SeedShamirShareMnemonicEntryView(View):
 
             if self.cur_set_index == self.controller.storage.pending_shamir_share_set_length - 1:
                 # Attempt to finalize the shamir share set
+                from seedsigner.models.seed import InvalidSeedException
                 try:
                     self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(finalize=False)
-                except ValueError:
+                except InvalidSeedException:
                     return Destination(SeedShamirShareInvalidView)
             
             if self.cur_set_index < self.controller.storage.pending_shamir_share_set_length - 1:
@@ -2493,16 +2494,16 @@ class SeedAddSlip39PassphraseView(View):
     def run(self):
         ret_dict = self.run_screen(
             seed_screens.SeedAddPassphraseScreen, 
-            passphrase=self.seed.slip39_passphrase, 
+            passphrase=self.seed.passphrase, 
             title = _("SLIP-39 Passphrase"),
             initial_keyboard=self.initial_keyboard,
         )
 
         # The new passphrase will be the return value; it might be empty.
-        self.seed.set_slip39_passphrase(ret_dict["passphrase"])
+        self.seed.set_passphrase(ret_dict["passphrase"])
 
         if "is_back_button" in ret_dict:
-            if len(self.seed.slip39_passphrase) > 0:
+            if len(self.seed.passphrase) > 0:
                 return Destination(SeedAddSlip39PassphraseExitDialogView)
             else:
                 return Destination(BackStackView)
@@ -2561,7 +2562,7 @@ class SeedReviewSlip39PassphraseView(View):
     def run(self):
         # Get the before/after fingerprints
         network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-        passphrase = self.seed.slip39_passphrase
+        passphrase = self.seed.passphrase
         fingerprint_with = self.seed.get_fingerprint(network=network)
         self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase="", finalize=False)
         self.seed = self.controller.storage.get_pending_seed()
@@ -2577,7 +2578,7 @@ class SeedReviewSlip39PassphraseView(View):
             seed_screens.SeedReviewPassphraseScreen,
             fingerprint_without=fingerprint_without,
             fingerprint_with=fingerprint_with,
-            passphrase=self.seed.slip39_passphrase,
+            passphrase=self.seed.passphrase,
             button_data=button_data,
             show_back_button=False,
         )

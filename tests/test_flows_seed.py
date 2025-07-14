@@ -757,7 +757,7 @@ class TestShamirShareImportFlows(FlowTest):
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
                 FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
                 FlowStep(seed_views.SeedEntryShamirThresholdView, screen_return_value=dict(entered_number=str(threshold_k))),
-                FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_12WORD if len(mnemonic) % 20 == 0 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_24WORD),
+                FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(mnemonic) % 20 == 0 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
             ]
 
             # Now add each manual word entry step
@@ -802,7 +802,7 @@ class TestShamirShareImportFlows(FlowTest):
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
                 FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
                 FlowStep(seed_views.SeedEntryShamirThresholdView, screen_return_value=dict(entered_number=str(threshold_k))),
-                FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_12WORD if len(mnemonic) % 20 == 0 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_24WORD),
+                FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(mnemonic) % 20 == 0 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
             ]
 
             # Now add each manual word entry step
@@ -835,7 +835,7 @@ class TestShamirShareImportFlows(FlowTest):
 
     
     def test_invalid_mnemonic(self):
-        # Ensure SSS is enabled
+        # Ensure Shamir is enabled
         self.settings.set_value(SettingsConstants.SETTING_SHAMIR, SettingsConstants.OPTION__ENABLED)
 
         # Should be able to go back and edit or discard an invalid mnemonic 
@@ -853,7 +853,7 @@ class TestShamirShareImportFlows(FlowTest):
             FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
             FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
             FlowStep(seed_views.SeedEntryShamirThresholdView, screen_return_value=dict(entered_number=str(threshold_k))),
-            FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_12WORD if len(mnemonic) % 20 == 0 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_24WORD),
+            FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(mnemonic) % 20 == 0 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
         ]
         for word in mnemonic[:-1]:
             sequence.append(FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=word))
