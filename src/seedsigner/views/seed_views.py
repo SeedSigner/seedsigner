@@ -588,7 +588,7 @@ class SeedOptionsView(View):
             button_data.append(self.EXPORT_XPUB)
 
         button_data.append(self.EXPLORER)
-        
+
         if not isinstance(self.seed, ShamirSeed):
             #TODO: enable to backup just one share. Extendable flag must be supported by embit
             button_data.append(self.BACKUP)
@@ -2320,7 +2320,7 @@ class SeedEntryShamirThresholdView(View):
 
     def run(self):
         title = _("Shamir Threshold")
-        ret_dict = self.run_screen(seed_screens.SeedEntryShamirThresholdScreen, entered_number="", title=title)
+        ret_dict = self.run_screen(seed_screens.SeedEntryShamirThresholdScreen, entered_number="", title=title, keys_number = "123456789")
 
         if "is_back_button" in ret_dict:
             return Destination(BackStackView)

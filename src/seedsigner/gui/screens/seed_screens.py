@@ -1702,11 +1702,10 @@ class SeedSignMessageConfirmAddressScreen(ButtonListScreen):
 class NumericEntryScreen(BaseTopNavScreen):
     title: str = ""
     entered_number: str = ""
+    keys_number: str = "0123456789"
 
     def __post_init__(self):
         super().__post_init__()
-
-        keys_number = "0123456789"
 
         # Set up the keyboard params
         self.right_panel_buttons_width = 56
@@ -1718,7 +1717,7 @@ class NumericEntryScreen(BaseTopNavScreen):
         
         self.keyboard_digits = Keyboard(
             draw=self.renderer.draw,
-            charset=keys_number,
+            charset=self.keys_number,
             rows=3,
             cols=5,
             rect=(
@@ -1877,7 +1876,7 @@ class NumericEntryScreen(BaseTopNavScreen):
 
 @dataclass
 class SeedEntryShamirThresholdScreen(NumericEntryScreen):
-    title: str = "SLIP-39 Threshold"
+    title: str = "Shamir Threshold"
 
 
 
