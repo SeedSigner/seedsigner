@@ -35,9 +35,6 @@ class Seed:
         self.seed_bytes: bytes = None
         self._generate_seed()
 
-        self._shamir_share_sets: List[(int, int, List[str], str)] = []
-        self._slip39_passphrase: str = ""
-
 
     @staticmethod
     def get_wordlist(wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> List[str]:
@@ -167,42 +164,6 @@ class Seed:
         return bip85.derive_mnemonic(root, bip85_num_words, bip85_index)
         
 
-    # Shamir's Secret Sharing
-
-    @classmethod
-    def recover_from_shares(cls, shares: list[str], slip39_passphrase: str = ""):
-        mnemonic = slip39.ShareSet.recover_mnemonic(shares, slip39_passphrase.encode('utf-8'))
-        return cls(mnemonic.split(), wordlist_language_code = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
-    
-
-    @staticmethod
-    def get_slip39_wordlist(wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> List[str]:
-        if wordlist_language_code == SettingsConstants.WORDLIST_LANGUAGE__ENGLISH:
-            return slip39.SLIP39_WORDS
-        else:
-            raise Exception(f"Unrecognized wordlist_language_code {wordlist_language_code}")
-        
-    
-    @property
-    def slip39_wordlist(self) -> List[str]:
-        return Seed.get_slip39_wordlist(self.wordlist_language_code)
-    
-
-    @property
-    def slip39_passphrase(self):
-        return self._slip39_passphrase
-        
-
-    @property
-    def slip39_passphrase_display(self):
-        return unicodedata.normalize("NFC", self._slip39_passphrase)
-
-
-    def set_slip39_passphrase(self, passphrase: str):
-        if passphrase:
-            self._slip39_passphrase = unicodedata.normalize("NFKD", passphrase)
-
-
     ### override operators    
     def __eq__(self, other):
         if isinstance(other, Seed):
@@ -279,3 +240,58 @@ class ElectrumSeed(Seed):
     def bip85_supported(self) -> bool:
         return False
 
+
+
+class ShamirSeed(Seed):
+    def __init__(self,
+                 mnemonics: List[str] = None,
+                 passphrase: str = "",
+                 wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> None:
+        self._wordlist_language_code = wordlist_language_code
+
+        if not mnemonics:
+            raise Exception("Must initialize a ShamirSeed with a mnemonic List[str]")
+        #TODO: save just one share. Extendable flag must be supported in embit.
+        self._mnemonics: List[str] = mnemonics
+
+        self._passphrase: str = ""
+        self.set_passphrase(passphrase, regenerate_seed=False)
+
+        self.seed_bytes: bytes = None
+        self._generate_seed()
+
+
+
+    @staticmethod
+    def get_wordlist(wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> List[str]:
+        if wordlist_language_code == SettingsConstants.WORDLIST_LANGUAGE__ENGLISH:
+            return slip39.SLIP39_WORDS
+        else:
+            raise Exception(f"Unrecognized wordlist_language_code {wordlist_language_code}")  
+        
+
+    def _generate_seed(self):
+        try:
+            share_set = slip39.ShareSet([slip39.Share.parse(m) for m in self._mnemonics])
+            self.seed_bytes = share_set.recover(self._passphrase.encode('utf-8'))
+        except Exception as e:
+            logger.info(repr(e), exc_info=True)
+            raise InvalidSeedException(repr(e))
+
+
+    @property
+    def seedqr_supported(self) -> bool:
+        return False
+
+
+    @property
+    def bip85_supported(self) -> bool:
+        return False
+
+ 
+    def mnemonic_display_str(self, share_index) -> str:
+        return unicodedata.normalize("NFC", self._mnemonics[share_index])
+    
+
+    def mnemonic_display_list(self, share_index) -> List[str]:
+        return unicodedata.normalize("NFC", self._mnemonics[share_index]).split()
