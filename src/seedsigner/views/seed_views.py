@@ -588,7 +588,10 @@ class SeedOptionsView(View):
             button_data.append(self.EXPORT_XPUB)
 
         button_data.append(self.EXPLORER)
-        button_data.append(self.BACKUP)
+        
+        if not isinstance(self.seed, ShamirSeed):
+            #TODO: enable to backup just one share. Extendable flag must be supported by embit
+            button_data.append(self.BACKUP)
 
         if self.settings.get_value(SettingsConstants.SETTING__MESSAGE_SIGNING) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.SIGN_MESSAGE)
