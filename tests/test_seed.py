@@ -1,5 +1,5 @@
 import pytest
-from seedsigner.models.seed import InvalidSeedException, Seed, ElectrumSeed
+from seedsigner.models.seed import InvalidSeedException, Seed, ElectrumSeed, ShamirSeed
 
 from seedsigner.models.settings import SettingsConstants
 
@@ -86,49 +86,42 @@ def test_electrum_seed_rejects_most_bip39_mnemonics():
 
 
 def test_shamir_share_import_seed():
-	# 12-word mnemonic, no passphrase
+	# 20-word shares, no passphrase
 	share_set_formatted = [ "yield upgrade acrobat leader briefing capacity again epidemic minister frozen impulse math guilt lily install market modify envelope index become",
 							"yield upgrade beard leader ceramic total morning critical brother slap lungs medical dilemma expect olympic jacket ruin airline promise literary"]
 
-	seed_shamir = Seed.recover_from_shares(share_set_formatted, slip39_passphrase="")
+	expected_fingerprint = "dd6d846c"
+	seed = ShamirSeed(share_set_formatted, passphrase="")
+	assert seed.get_fingerprint() == expected_fingerprint
 
-	seed_regular = Seed(mnemonic="once diamond onion six visa social chair long solve draw stool witness".split())
-
-	assert seed_shamir.seed_bytes == seed_regular.seed_bytes
-
-	# 12-word mnemonic, with passphrase
+	# 20-word shares, with passphrase
 	share_set_formatted = [ "window lunch ceramic leader cover satisfy emerald obesity impact purple gravity plains gasoline example cluster deadline license golden window teaspoon",
 							"window lunch beard leader civil burden that extend husband oven forget husband identify arena furl diploma focus unwrap belong artwork"]
 
-	seed_shamir = Seed.recover_from_shares(share_set_formatted, slip39_passphrase="mupassphrase")
+	expected_fingerprint = "91b4f98b"
+	seed = ShamirSeed(share_set_formatted, passphrase="mupassphrase")
+	assert seed.get_fingerprint() == expected_fingerprint
 
-	seed_regular = Seed(mnemonic="cliff space wide equip pretty museum busy goddess camp embark matrix soldier".split())
-
-	assert seed_shamir.seed_bytes == seed_regular.seed_bytes
-
-	# 24-word mnemonic, no passphrase
+	# 33-word shares, no passphrase
 	share_set_formatted = ['slush flea agency academic angel lobe flea library writing clogs cards liberty river fiction therapy peasant uncover lend extend herald vampire seafood smug method syndrome grin moisture aunt aviation expand orange western froth', 
 						'slush flea birthday academic angry hazard vampire tendency violence club vexed ocean energy material station mixture thumb submit process strategy lungs numerous unhappy location grasp both presence member grasp picture owner darkness saver', 
 						'slush flea cleanup academic armed coal scroll fangs capture fused adorn argue military cylinder dismiss general forbid pleasure glimpse wavy award trouble belong spider fiber wisdom image fatigue surface favorite wolf spelling distance', 
 						'slush flea desert academic avoid nuclear sympathy scene remind shaft budget taste window engage easel ranked fragment scout retailer express browser music friendly pharmacy husky explain lawsuit chew smear camera unfair belong modern', 
 						'slush flea email academic arcade emission forward short adequate location disease fitness paper syndrome coding knit random order railroad emerald canyon thorn adjust ceiling knife false kidney gums mountain disease software flame famous']
 
+	expected_fingerprint = "6a26b810"
+	seed = ShamirSeed(share_set_formatted, passphrase="")
+	assert seed.get_fingerprint() == expected_fingerprint
 
-	seed_shamir = Seed.recover_from_shares(share_set_formatted, slip39_passphrase="")
-
-	seed_regular = Seed(mnemonic="volume lock pulse large evoke body diet borrow food promote divide track wall february virtual brick hood diary work delay torch upon truth spray".split())
-
-	assert seed_shamir.seed_bytes == seed_regular.seed_bytes
-
-	# 24-word mnemonic, with passphrase
+	# 33-word shares, with passphrase
 	share_set_formatted = ['blessing leader agency academic alien valid husky inherit duckling favorite angel skin hazard response peanut process spew treat breathe boring sweater either valid dismiss herd program increase typical chest pumps legal tension acrobat', 
 						'blessing leader birthday academic amount escape physics leaf dining furl being domain editor glasses finance chest argue garden satoshi wolf marathon elite salt salary clock military review ting security length trust apart system', 
 						'blessing leader cleanup academic angry depend costume work leaf believe general museum alto spew greatest favorite cowboy slow endorse beam patrol intimate source canyon actress body ceramic silent kitchen camera genre deadline iris', 
 						'blessing leader desert academic aluminum fake iris permit sympathy genre security flavor species upgrade pajamas shaft kidney sister clogs mobile thorn gross marathon penalty dismiss guilt modern provide fatal shelter railroad require permit', 
 						'blessing leader email academic anxiety blessing diet slim military listen smith carbon artwork bike salt purchase unhappy observe burden rebuild imply dismiss slow penalty award receiver industry peanut squeeze husband armed evaluate drink']
 
-	seed_shamir = Seed.recover_from_shares(share_set_formatted, slip39_passphrase="mupassphrase")
-
-	seed_regular = Seed(mnemonic="butter hole monkey orphan strong split predict song desk oak spirit myth bomb wise same build already vacant damp gallery found praise bread melody".split())
-
-	assert seed_shamir.seed_bytes == seed_regular.seed_bytes
+	expected_fingerprint = "60863147"
+	seed = ShamirSeed(share_set_formatted, passphrase="mupassphrase")
+	assert seed.get_fingerprint() == expected_fingerprint
+	
+	
