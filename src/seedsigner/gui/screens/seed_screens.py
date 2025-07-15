@@ -666,7 +666,6 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
 @dataclass
 class SeedAddPassphraseScreen(BaseTopNavScreen):
     passphrase: str = ""
-    title = _("BIP-39 Passphrase")
 
     # Only used by the screenshot generator
     initial_keyboard: str = None
@@ -679,6 +678,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
 
 
     def __post_init__(self):
+        self.title = _("BIP-39 Passphrase")
         super().__post_init__()
 
         keys_lower = "abcdefghijklmnopqrstuvwxyz"
