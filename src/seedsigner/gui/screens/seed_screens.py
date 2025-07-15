@@ -1877,6 +1877,7 @@ class NumericEntryScreen(BaseTopNavScreen):
 @dataclass
 class SeedEntryShamirThresholdScreen(NumericEntryScreen):
     title: str = "Shamir Threshold"
+    keys_number: str = "123456789"
 
 
 

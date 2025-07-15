@@ -2320,7 +2320,7 @@ class SeedEntryShamirThresholdView(View):
 
     def run(self):
         title = _("Shamir Threshold")
-        ret_dict = self.run_screen(seed_screens.SeedEntryShamirThresholdScreen, entered_number="", title=title, keys_number = "123456789")
+        ret_dict = self.run_screen(seed_screens.SeedEntryShamirThresholdScreen, entered_number="", title=title)
 
         if "is_back_button" in ret_dict:
             return Destination(BackStackView)
