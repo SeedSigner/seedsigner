@@ -343,9 +343,9 @@ def generate_screenshots(locale):
 
                 ScreenshotConfig(seed_views.SeedElectrumMnemonicStartView),
 
-                ScreenshotConfig(seed_views.SeedEntryShamirThresholdView),
-                ScreenshotConfig(seed_views.SeedShamirShareImportSelectWordCount, dict(k=2)),
+                ScreenshotConfig(seed_views.SeedShamirShareImportSelectWordCount),
                 ScreenshotConfig(seed_views.SeedShamirShareMnemonicEntryView),
+                ScreenshotConfig(seed_views.SeedShamirShareOptionsView),
                 ScreenshotConfig(seed_views.SeedShamirShareFinalizeView),
                 ScreenshotConfig(seed_views.SeedShamirShareInvalidView),
                 ScreenshotConfig(seed_views.SeedAddSlip39PassphraseView),

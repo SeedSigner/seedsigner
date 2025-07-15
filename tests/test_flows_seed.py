@@ -741,42 +741,62 @@ class TestShamirShareImportFlows(FlowTest):
             the Finalize Seed flow and end at the SeedOptionsView.
         """
 
-        def test_with_mnemonic(mnemonic):
+        def test_with_mnemonic(shares):
             # Ensure Shamir is enabled
             self.settings.set_value(SettingsConstants.SETTING_SHAMIR, SettingsConstants.OPTION__ENABLED)
-
-            if len(mnemonic) % 20 == 0:
-                threshold_k = int(len(mnemonic) / 20)
-
-            elif len(mnemonic) % 33 == 0:
-                threshold_k = int(len(mnemonic) / 33)
 
             Settings.HOSTNAME = "not seedsigner-os"
             sequence = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
-                FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
+                FlowStep(seed_views.SeedsMenuView, is_redirect=True),
                 FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
-                FlowStep(seed_views.SeedEntryShamirThresholdView, screen_return_value=dict(entered_number=str(threshold_k))),
-                FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(mnemonic) % 20 == 0 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
+                FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(shares[0]) == 20 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
             ]
-
-            # Now add each manual word entry step
-            for word in mnemonic:
-                sequence.append(
-                    FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=word)
-                )
             
-            # With the mnemonic completely entered, we land on the SeedFinalizeView
-            sequence += [
-                FlowStep(seed_views.SeedShamirShareFinalizeView, button_data_selection=seed_views.SeedShamirShareFinalizeView.FINALIZE),
-                FlowStep(seed_views.SeedOptionsView),
-            ]
-
+            # Loop through all shares
+            for share_index, share in enumerate(shares):
+                # Enter words for current share
+                for word in share:
+                    sequence.append(FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=word))
+                
+                # After entering a share, decide what to do next
+                if share_index < len(shares) - 1:
+                    # Not the last share: choose to add another
+                    sequence.append(FlowStep(seed_views.SeedShamirShareOptionsView, button_data_selection=seed_views.SeedShamirShareOptionsView.ADD_SHARE))
+                else:
+                    # Last share - choose to finalize
+                    sequence += [
+                        FlowStep(seed_views.SeedShamirShareOptionsView, button_data_selection=seed_views.SeedShamirShareOptionsView.FINALIZE),
+                        FlowStep(seed_views.SeedShamirShareFinalizeView, button_data_selection=seed_views.SeedShamirShareFinalizeView.FINALIZE),
+                        FlowStep(seed_views.SeedOptionsView),
+                    ]
+            
             self.run_sequence(sequence)
 
-        # Test data from iancoleman.io; 12- and 24-word mnemonic
-        test_with_mnemonic("yield upgrade acrobat leader briefing capacity again epidemic minister frozen impulse math guilt lily install market modify envelope index become yield upgrade beard leader ceramic total morning critical brother slap lungs medical dilemma expect olympic jacket ruin airline promise literary".split())
-        
+        shares = [
+            "yield upgrade acrobat leader briefing capacity again epidemic minister frozen impulse math guilt lily install market modify envelope index become".split(),
+            "yield upgrade beard leader ceramic total morning critical brother slap lungs medical dilemma expect olympic jacket ruin airline promise literary".split()
+        ]
+        test_with_mnemonic(shares)
+
+        BaseTest.reset_controller()
+
+        shares = [
+            "duckling enlarge academic academic agency result length solution fridge kidney coal piece deal husband erode duke ajar critical decision keyboard".split()
+        ]
+        test_with_mnemonic(shares)
+
+        BaseTest.reset_controller()
+
+        shares =  [
+            "eraser senior decision roster beard treat identify grumpy salt index fake aviation theater cubic bike cause research dragon emphasis counter".split(),
+            "eraser senior ceramic snake clay various huge numb argue hesitate auction category timber browser greatest hanger petition script leaf pickup".split(),
+            "eraser senior ceramic shaft dynamic become junior wrist silver peasant force math alto coal amazing segment yelp velvet image paces".split(),
+            "eraser senior ceramic round column hawk trust auction smug shame alive greatest sheriff living perfect corner chest sled fumes adequate".split(),
+            "eraser senior decision smug corner ruin rescue cubic angel tackle skin skunk program roster trash rumor slush angel flea amazing".split()
+        ]
+        test_with_mnemonic(shares)
+
         BaseTest.reset_controller()
 
 
@@ -786,50 +806,52 @@ class TestShamirShareImportFlows(FlowTest):
             the Finalize Seed flow and end at the SeedOptionsView.
         """
         
-        def test_with_mnemonic_and_passphrase(mnemonic):
-            # Ensure SSS is enabled
+        def test_with_mnemonic_and_passphrase(shares):
+            # Ensure Shamir is enabled
             self.settings.set_value(SettingsConstants.SETTING_SHAMIR, SettingsConstants.OPTION__ENABLED)
-
-            if len(mnemonic) % 20 == 0:
-                threshold_k = int(len(mnemonic) / 20)
-
-            elif len(mnemonic) % 33 == 0:
-                threshold_k = int(len(mnemonic) / 33)
 
             Settings.HOSTNAME = "not seedsigner-os"
             sequence = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
                 FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
-                FlowStep(seed_views.SeedEntryShamirThresholdView, screen_return_value=dict(entered_number=str(threshold_k))),
-                FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(mnemonic) % 20 == 0 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
+                FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(shares[0]) == 20 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
             ]
 
-            # Now add each manual word entry step
-            for word in mnemonic:
-                sequence.append(
-                    FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=word)
-                )
-            
-            # With the mnemonic completely entered, we land on the SeedFinalizeView
-            sequence += [
-                FlowStep(seed_views.SeedShamirShareFinalizeView, button_data_selection=seed_views.SeedShamirShareFinalizeView.PASSPHRASE),
-                FlowStep(seed_views.SeedAddSlip39PassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
-                FlowStep(seed_views.SeedAddSlip39PassphraseExitDialogView, button_data_selection=seed_views.SeedAddSlip39PassphraseExitDialogView.DISCARD),
-                FlowStep(seed_views.SeedShamirShareFinalizeView, button_data_selection=seed_views.SeedShamirShareFinalizeView.PASSPHRASE),
-                FlowStep(seed_views.SeedAddSlip39PassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
-                FlowStep(seed_views.SeedAddSlip39PassphraseExitDialogView, button_data_selection=seed_views.SeedAddSlip39PassphraseExitDialogView.EDIT),
-                FlowStep(seed_views.SeedAddSlip39PassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
-                FlowStep(seed_views.SeedReviewSlip39PassphraseView, button_data_selection=seed_views.SeedReviewSlip39PassphraseView.EDIT),
-                FlowStep(seed_views.SeedAddSlip39PassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
-                FlowStep(seed_views.SeedReviewSlip39PassphraseView, button_data_selection=seed_views.SeedReviewSlip39PassphraseView.DONE),
-                FlowStep(seed_views.SeedOptionsView),
-            ]
+            # Loop through all shares
+            for share_index, share in enumerate(shares):
+                # Enter words for current share
+                for word in share:
+                    sequence.append(FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=word))
+                
+                # After entering a share, decide what to do next
+                if share_index < len(shares) - 1:
+                    # Not the last share: choose to add another
+                    sequence.append(FlowStep(seed_views.SeedShamirShareOptionsView, button_data_selection=seed_views.SeedShamirShareOptionsView.ADD_SHARE))
+                else:
+                    # Last share: test passphrase flow
+                    sequence += [
+                        FlowStep(seed_views.SeedShamirShareOptionsView, button_data_selection=seed_views.SeedShamirShareOptionsView.FINALIZE),
+                        FlowStep(seed_views.SeedShamirShareFinalizeView, button_data_selection=seed_views.SeedShamirShareFinalizeView.PASSPHRASE),
+                        FlowStep(seed_views.SeedAddSlip39PassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
+                        FlowStep(seed_views.SeedAddSlip39PassphraseExitDialogView, button_data_selection=seed_views.SeedAddSlip39PassphraseExitDialogView.DISCARD),
+                        FlowStep(seed_views.SeedShamirShareFinalizeView, button_data_selection=seed_views.SeedShamirShareFinalizeView.PASSPHRASE),
+                        FlowStep(seed_views.SeedAddSlip39PassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
+                        FlowStep(seed_views.SeedAddSlip39PassphraseExitDialogView, button_data_selection=seed_views.SeedAddSlip39PassphraseExitDialogView.EDIT),
+                        FlowStep(seed_views.SeedAddSlip39PassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
+                        FlowStep(seed_views.SeedReviewSlip39PassphraseView, button_data_selection=seed_views.SeedReviewSlip39PassphraseView.EDIT),
+                        FlowStep(seed_views.SeedAddSlip39PassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
+                        FlowStep(seed_views.SeedReviewSlip39PassphraseView, button_data_selection=seed_views.SeedReviewSlip39PassphraseView.DONE),
+                        FlowStep(seed_views.SeedOptionsView),
+                    ]
 
             self.run_sequence(sequence)
 
-        # Test data from iancoleman.io; 12- and 24-word mnemonic
-        test_with_mnemonic_and_passphrase("yield upgrade acrobat leader briefing capacity again epidemic minister frozen impulse math guilt lily install market modify envelope index become yield upgrade beard leader ceramic total morning critical brother slap lungs medical dilemma expect olympic jacket ruin airline promise literary".split())
+        shares = [
+            "yield upgrade acrobat leader briefing capacity again epidemic minister frozen impulse math guilt lily install market modify envelope index become".split(),
+            "yield upgrade beard leader ceramic total morning critical brother slap lungs medical dilemma expect olympic jacket ruin airline promise literary".split()
+        ]
+        test_with_mnemonic_and_passphrase(shares)
         
         BaseTest.reset_controller()
 
@@ -839,39 +861,53 @@ class TestShamirShareImportFlows(FlowTest):
         self.settings.set_value(SettingsConstants.SETTING_SHAMIR, SettingsConstants.OPTION__ENABLED)
 
         # Should be able to go back and edit or discard an invalid mnemonic 
-        # Test data from iancoleman.io
-        mnemonic = "yield upgrade acrobat leader briefing capacity again epidemic minister frozen impulse math guilt lily install market modify envelope index become yield upgrade beard leader ceramic total morning critical brother slap lungs medical dilemma expect olympic jacket ruin airline promise literary".split()
+        shares = [
+            "yield upgrade acrobat leader briefing capacity again epidemic minister frozen impulse math guilt lily install market modify envelope index become".split(),
+            "yield upgrade beard leader ceramic total morning critical brother slap lungs medical dilemma expect olympic jacket ruin airline promise literary".split()
+        ]
         
-        if len(mnemonic) % 20 == 0:
-            threshold_k = int(len(mnemonic) / 20)
-                
-        elif len(mnemonic) % 33 == 0:
-            threshold_k = int(len(mnemonic) / 33)
-        
+        Settings.HOSTNAME = "not seedsigner-os"
         sequence = [
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
             FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
             FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
-            FlowStep(seed_views.SeedEntryShamirThresholdView, screen_return_value=dict(entered_number=str(threshold_k))),
-            FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(mnemonic) % 20 == 0 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
+            FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(shares[0]) == 20 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
         ]
-        for word in mnemonic[:-1]:
-            sequence.append(FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=word))
+
+        # Enter all shares except the last word of the last share
+        for share_index, share in enumerate(shares):
+            if share_index < len(shares) - 1:
+                # Complete shares before the last one
+                for word in share:
+                    sequence.append(FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=word))
+                sequence.append(FlowStep(seed_views.SeedShamirShareOptionsView, button_data_selection=seed_views.SeedShamirShareOptionsView.ADD_SHARE))
+            else:
+                # For the last share, enter all words except the last one
+                for word in share[:-1]:
+                    sequence.append(FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=word))
 
         sequence += [
             FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value="gravity"),  # But finish with an INVALID checksum word
             FlowStep(seed_views.SeedShamirShareInvalidView, button_data_selection=seed_views.SeedShamirShareInvalidView.EDIT),
         ]
 
-        # Restarts from first word
-        for word in mnemonic[:-1]:
+        # Restarts from first word of the current (invalid) share
+        for word in shares[-1][:-1]:  # All words of last share except the last one
             sequence.append(FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=word))
 
         sequence += [
             FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value="goat"),  # provide yet another invalid checksum word
             FlowStep(seed_views.SeedShamirShareInvalidView, button_data_selection=seed_views.SeedShamirShareInvalidView.DISCARD),
-            FlowStep(MainMenuView),
+            FlowStep(seed_views.SeedShamirShareOptionsView, button_data_selection=seed_views.SeedShamirShareOptionsView.ADD_SHARE), # enter the correct ones now
+        ]
+
+        for word in shares[-1]:
+            sequence.append(FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=word))
+
+        sequence += [
+            FlowStep(seed_views.SeedShamirShareOptionsView, button_data_selection=seed_views.SeedShamirShareOptionsView.FINALIZE),
+            FlowStep(seed_views.SeedShamirShareFinalizeView, button_data_selection=seed_views.SeedShamirShareFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView),
         ]
 
         self.run_sequence(sequence)
-        

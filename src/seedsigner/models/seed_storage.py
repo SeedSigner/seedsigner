@@ -11,6 +11,7 @@ class SeedStorage:
         self._pending_mnemonic: List[str] = []
         self._pending_is_electrum : bool = False
         self._pending_shamir_share_set: List[str] = []
+        self._pending_shamir_num_words: int = None  # Track word count for consistency
 
 
     def set_pending_seed(self, seed: Seed):
@@ -108,10 +109,23 @@ class SeedStorage:
     
     # Shamir shares
 
-    def init_pending_shamir_share_set(self, num_words: int = 20, num_shares: int = 2, is_electrum: bool = False):
+    def init_pending_shamir_share_set(self, num_words: int = 20, is_electrum: bool = False):
         self._pending_mnemonic = [None] * num_words
-        self._pending_shamir_share_set = [None] * num_shares
+        self._pending_shamir_share_set = []  # Start with empty list instead of fixed size
+        self._pending_shamir_num_words = num_words
         self._pending_is_electrum = is_electrum
+
+
+    def add_pending_shamir_share(self):
+        """
+        Add the current pending mnemonic as a new share in the share set.
+        """
+        if self._pending_mnemonic and None not in self._pending_mnemonic:
+            # Copy the current mnemonic as a completed share
+            self._pending_shamir_share_set.append(list(self._pending_mnemonic))
+            # Reset the pending mnemonic for the next share
+            self.discard_pending_mnemonic()
+            self.init_pending_mnemonic(self._pending_shamir_num_words)
 
 
     def update_pending_shamir_share_set(self, index: int):
@@ -121,11 +135,11 @@ class SeedStorage:
         * may specify a negative `index` (e.g. -1 is the last word).
         """
         if index >= len(self._pending_shamir_share_set):
-            raise Exception(f"index {index} is too high")
+            raise Exception(f"Share index {index} is too high")
         self._pending_shamir_share_set[index] = self._pending_mnemonic    
         if index < len(self._pending_shamir_share_set) - 1:
             self.discard_pending_mnemonic()
-            self.init_pending_mnemonic(len(self._pending_shamir_share_set[index]))
+            self.init_pending_mnemonic(self._pending_shamir_num_words)
 
 
     def get_pending_shamir_share_set_share(self, index: int) -> List[str]:
@@ -133,15 +147,17 @@ class SeedStorage:
             return self._pending_shamir_share_set[index]
         return None
     
-
     @property
     def pending_shamir_share_set_length(self) -> int:
         return len(self._pending_shamir_share_set)
 
+    @property
+    def pending_shamir_num_words(self) -> int:
+        return self._pending_shamir_num_words
 
     def discard_pending_shamir_share_set(self):
         self._pending_shamir_share_set = []
-
+        self._pending_shamir_num_words = None
 
     def convert_pending_shamir_share_set_to_pending_seed(self, passphrase: str = '', finalize: bool = True):
         share_set_formatted = [" ".join(share) for share in self._pending_shamir_share_set]
@@ -150,4 +166,3 @@ class SeedStorage:
         if finalize:
             self.discard_pending_mnemonic()
             self.discard_pending_shamir_share_set()
-        
