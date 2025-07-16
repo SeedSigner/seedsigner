@@ -1706,7 +1706,7 @@ class ShamirFinalizeScreen(ButtonListScreen):
 
     def __post_init__(self):
         self.show_back_button = False
-        self.title = _("Finalize Shamir Share")
+        self.title = _("Finalize Shamir Shares")
         super().__post_init__()
 
         self.fingerprint_icontl = IconTextLine(
