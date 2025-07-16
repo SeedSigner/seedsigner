@@ -2367,12 +2367,10 @@ class SeedShamirShareMnemonicEntryView(View):
         )
 
         if ret == RET_CODE__BACK_BUTTON:
-            if self.cur_word_index > 0:
-                return Destination(BackStackView)
-            else:
+            if self.cur_word_index < 0:
                 self.controller.storage.discard_pending_mnemonic()
                 self.controller.storage.discard_pending_shamir_share_set()
-                return Destination(MainMenuView)
+            return Destination(BackStackView)
         
         # ret will be our new mnemonic word
         self.controller.storage.update_pending_mnemonic(ret, self.cur_word_index)
