@@ -367,7 +367,7 @@ class SeedAddPassphraseView(View):
         self.seed.set_passphrase(ret_dict["passphrase"])
 
         if "is_back_button" in ret_dict:
-            if len(self.seed.passphrase) > 0:
+            if len(self.seed.passphrase) >= 0:
                 return Destination(SeedAddPassphraseExitDialogView)
             else:
                 return Destination(BackStackView)
@@ -396,7 +396,7 @@ class SeedAddPassphraseExitDialogView(View):
             WarningScreen,
             title=_("Discard passphrase?"),
             status_headline=None,
-            text=_("Your current passphrase entry will be erased"),
+            text=_("Your current passphrase entry will be erased") if self.seed.passphrase else _("You have not entered a passphrase yet"),
             show_back_button=False,
             button_data=button_data,
         )
