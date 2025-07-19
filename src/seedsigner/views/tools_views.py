@@ -272,7 +272,7 @@ class ToolsCoinEntropyMnemonicLengthView(View):
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
+            return Destination(ToolsMenuView)
 
         elif button_data[selected_menu_num] == TWELVE:
             return Destination(ToolsCoinInputMethodView, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__12WORD))
