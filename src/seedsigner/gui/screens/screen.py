@@ -1317,7 +1317,6 @@ class KeyboardScreen(BaseTopNavScreen):
         return False
 
 
-# TODO: This early code is now outdated vis-a-vis Screen vs View distinctions
 class LogoScreen(BaseScreen):
     def __init__(self):
         super().__init__()
@@ -1364,6 +1363,8 @@ class OpeningSplashScreen(LogoScreen):
         if self.force_partner_logos is not None:
             show_partner_logos = self.force_partner_logos
 
+        logo_offset_x = int((self.canvas_width - self.logo.width)/2)
+
         if show_partner_logos:
             logo_offset_y = -56
         else:
@@ -1374,11 +1375,14 @@ class OpeningSplashScreen(LogoScreen):
             # Fade in alpha
             for i in range(250, -1, -25):
                 self.logo.putalpha(255 - i)
-                self.renderer.canvas.paste(Image.alpha_composite(background, self.logo), (0, logo_offset_y))
+                self.renderer.canvas.paste(
+                    Image.alpha_composite(background, self.logo),
+                    (logo_offset_x, logo_offset_y)
+                )
                 self.renderer.show_image()
         else:
             # Skip animation for the screenshot generator
-            self.renderer.canvas.paste(self.logo, (0, logo_offset_y))
+            self.renderer.canvas.paste(self.logo, (logo_offset_x, logo_offset_y))
 
         # Display version num below SeedSigner logo
         font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_top_nav_title_font_size())
@@ -1425,28 +1429,39 @@ class OpeningSplashScreen(LogoScreen):
 
 
 class ScreensaverScreen(LogoScreen):
-    def __init__(self):
+    def __init__(self, buttons):
         from PIL import Image
         super().__init__()
 
-        # Paste the logo in a bigger image that is 2x the size of the logo
-        self.image = Image.new("RGB", (2 * self.logo.size[0], 2 * self.logo.size[1]), (0, 0, 0))
-        self.image.paste(self.logo, (int(self.logo.size[0] / 2), int(self.logo.size[1] / 2)))
+        self.buttons = buttons
+
+        # Paste the logo in a bigger image that is the canvas + the logo dims (half the
+        # logo will render off the canvas at each edge).
+        self.image = Image.new("RGB", (self.renderer.canvas_width + self.logo.width, self.renderer.canvas_height + self.logo.height), (0,0,0))
+
+        # Place the logo centered on the larger image
+        logo_x = int((self.image.width - self.logo.width) / 2)
+        logo_y = int((self.image.height - self.logo.height) / 2)
+        self.image.paste(self.logo, (logo_x, logo_y))
 
         self.min_coords = (0, 0)
-        self.max_coords = (self.logo.size[0], self.logo.size[1])
+        self.max_coords = (self.renderer.canvas_width, self.renderer.canvas_height)
+
+        # Update our first rendering position so we're centered
+        self.cur_x = int(self.logo.width / 2)
+        self.cur_y = int(self.logo.height / 2)
 
         self.increment_x = self.rand_increment()
         self.increment_y = self.rand_increment()
-        self.cur_x = int(self.logo.size[0] / 2)
-        self.cur_y = int(self.logo.size[1] / 2)
 
         self._is_running = False
         self.last_screen = None
 
+
     @property
     def is_running(self):
         return self._is_running
+
 
     def rand_increment(self):
         max_increment = 10.0
@@ -1455,6 +1470,7 @@ class ScreensaverScreen(LogoScreen):
         if random.uniform(-1.0, 1.0) < 0.0:
             return -1.0 * increment
         return increment
+
 
     def start(self):
         if self.is_running:
@@ -1472,14 +1488,14 @@ class ScreensaverScreen(LogoScreen):
         with self.renderer.lock:
             try:
                 while self._is_running:
-                    if self.hw_inputs.has_any_input() or self.hw_inputs.override_ind:
+                    if self.buttons.has_any_input() or self.buttons.override_ind:
                         break
 
                     # Must crop the image to the exact display size
                     crop = self.image.crop((
                         self.cur_x, self.cur_y,
                         self.cur_x + self.renderer.canvas_width, self.cur_y + self.renderer.canvas_height))
-                    self.renderer.disp.ShowImage(crop, 0, 0)
+                    self.renderer.disp.show_image(crop, 0, 0)
 
                     self.cur_x += self.increment_x
                     self.cur_y += self.increment_y
@@ -1519,6 +1535,8 @@ class ScreensaverScreen(LogoScreen):
 
                 # Restore the original screen
                 self.renderer.show_image(self.last_screen)
+
+
 
     def stop(self):
         self._is_running = False
