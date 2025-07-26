@@ -4,7 +4,6 @@ import time
 
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
-from seedsigner.models.settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +32,8 @@ class MicroSD(Singleton, BaseThread):
 
     @property
     def is_inserted(self):
+        from seedsigner.models.settings import Settings  # Import here to avoid circular import issues
+
         if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
             return os.path.exists(MicroSD.MOUNT_POINT)
         else:
@@ -47,6 +48,7 @@ class MicroSD(Singleton, BaseThread):
     def run(self):
         from seedsigner.controller import Controller
         from seedsigner.gui.toast import SDCardStateChangeToastManagerThread
+        from seedsigner.models.settings import Settings  # Import here to avoid circular import issues
         action = ""
         
         # explicitly only microsd add/remove detection in seedsigner-os

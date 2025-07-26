@@ -48,31 +48,32 @@ class GUIConstants:
     ICON_TOAST_FONT_SIZE = 30
     ICON_PRIMARY_SCREEN_SIZE = 50
 
-    TOP_NAV_TITLE_FONT_NAME = {
-        "default": "OpenSans-SemiBold",
-        # "ar": "multilanguage/NotoSansAR-Regular",
-        # "he": "multilanguage/NotoSansHE-Regular",
-        # "ja": "multilanguage/NotoSansJP-Regular",
-        # "kr": "multilanguage/NotoSansKR-Regular",
-        # "ru": "multilanguage/NotoSans-Regular",
+    BASE_LOCALE_FONTS = {
+        "default": "OpenSans-Regular",
+        # SettingsConstants.LOCALE__ARABIC: "NotoSansAR-Regular",
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: "NotoSansSC-Regular",
+        # SettingsConstants.LOCALE__CHINESE_TRADITIONAL: "NotoSansTC-Regular",
+        SettingsConstants.LOCALE__JAPANESE: "NotoSansJP-Regular",
+        SettingsConstants.LOCALE__KOREAN: "NotoSansKR-Regular",
     }
+
+    TOP_NAV_TITLE_FONT_NAME = BASE_LOCALE_FONTS.copy()
+    TOP_NAV_TITLE_FONT_NAME["default"] = "OpenSans-SemiBold"
     TOP_NAV_TITLE_FONT_SIZE = {
         "default": 20,
+        SettingsConstants.LOCALE__JAPANESE: 22,  # Titles won't render below 22px
+        SettingsConstants.LOCALE__KOREAN: 23,    # Titles won't render below 23px
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 23,  # Some chars won't render below 23px
     }
     TOP_NAV_HEIGHT = 48
     TOP_NAV_BUTTON_SIZE = 32
 
-    BODY_FONT_NAME = {
-        "default": "OpenSans-Regular",
-        # "ar": "multilanguage/NotoSansAR-Regular",
-        # "he": "multilanguage/NotoSansHE-Regular",
-        # "ja": "multilanguage/NotoSansJP-Regular",
-        # "kr": "multilanguage/NotoSansKR-Regular",
-        # "ru": "multilanguage/NotoSans-Regular",
-    }
+    BODY_FONT_NAME = BASE_LOCALE_FONTS.copy()
     BODY_FONT_SIZE = {
         "default": 17,
-        # "ar": 16,
+        SettingsConstants.LOCALE__JAPANESE: 18,
+        SettingsConstants.LOCALE__KOREAN: 18,
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 18,
     }
     BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE["default"]
     BODY_FONT_MIN_SIZE = 15
@@ -85,18 +86,14 @@ class GUIConstants:
     LABEL_FONT_SIZE = BODY_FONT_MIN_SIZE
     LABEL_FONT_COLOR = "#777777"
 
-    BUTTON_FONT_NAME = {
-        "default": "OpenSans-SemiBold",
-        # "ar": "multilanguage/NotoSansAR-Regular",
-        # "he": "multilanguage/NotoSansHE-Regular",
-        # "ja": "multilanguage/NotoSansJP-Regular",
-        # "kr": "multilanguage/NotoSansKR-Regular",
-        # "ru": "multilanguage/NotoSans-Regular",
-    }
+    BUTTON_FONT_NAME = BASE_LOCALE_FONTS.copy()
+    BUTTON_FONT_NAME["default"] = "OpenSans-SemiBold"
     BUTTON_FONT_SIZE = {
         "default": 18,
         # "ar": 16,
-        # "ja": 16,
+        SettingsConstants.LOCALE__JAPANESE: 20,
+        SettingsConstants.LOCALE__KOREAN: 20,
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 20,
     }
     BUTTON_FONT_COLOR = "#FCFCFC"
     BUTTON_BACKGROUND_COLOR = "#2C2C2C"
@@ -107,8 +104,9 @@ class GUIConstants:
 
 
     @staticmethod
-    def get_body_font_name():
-        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+    def get_body_font_name(locale=None):
+        if not locale:
+            locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
         if locale in GUIConstants.BODY_FONT_NAME:
             return GUIConstants.BODY_FONT_NAME[locale]
         else:
@@ -116,8 +114,9 @@ class GUIConstants:
 
 
     @staticmethod
-    def get_body_font_size():
-        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+    def get_body_font_size(locale=None):
+        if not locale:
+            locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
         if locale in GUIConstants.BODY_FONT_SIZE:
             return GUIConstants.BODY_FONT_SIZE[locale]
         else:
@@ -143,8 +142,9 @@ class GUIConstants:
 
 
     @staticmethod
-    def get_button_font_name():
-        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+    def get_button_font_name(locale=None):
+        if not locale:
+            locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
         if locale in GUIConstants.BUTTON_FONT_NAME:
             return GUIConstants.BUTTON_FONT_NAME[locale]
         else:
@@ -152,8 +152,9 @@ class GUIConstants:
 
 
     @staticmethod
-    def get_button_font_size():
-        locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
+    def get_button_font_size(locale=None):
+        if not locale:
+            locale = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE)
         if locale in GUIConstants.BUTTON_FONT_SIZE:
             return GUIConstants.BUTTON_FONT_SIZE[locale]
         else:
@@ -431,10 +432,6 @@ class TextArea(BaseComponent):
         self.text_y = self.text_height_above_baseline
 
         self.visible_width = self.width - max(self.edge_padding, self.min_text_x) - self.edge_padding
-        if not ImageFont.core.HAVE_RAQM:
-            # Fudge factor for imprecise width calcs w/out libraqm
-            full_text_width = int(full_text_width * 1.05)
-            self.visible_width = int(self.visible_width * 1.05)
 
         if self.is_horizontal_scrolling_enabled or not self.auto_line_break:
             # Guaranteed to be a single line of text, possibly wider than self.width
@@ -474,9 +471,9 @@ class TextArea(BaseComponent):
             # Multiply for the number of lines plus the spacer
             total_text_height = self.text_height_above_baseline * len(self.text_lines) + self.line_spacing * (len(self.text_lines) - 1)
 
-            if not self.height_ignores_below_baseline and re.findall(f"[gjpqy]", self.text_lines[-1]["text"]):
-                # Last line has at least one char that dips below baseline
-                total_text_height += self.text_height_below_baseline
+            if not self.height_ignores_below_baseline:
+                # Account for the last line possibly rendering below baseline
+                total_text_height += self.text_lines[-1].get("px_below_baseline", 0)
 
         self.text_offset_y = 0
         if self.height is None:
@@ -581,16 +578,12 @@ class TextArea(BaseComponent):
 
         # Crop off the top_padding and resize the result down to onscreen size
         if self.supersampling_factor > 1:
-            resized = img.resize((image_width, total_text_height + 2*resample_padding), Image.LANCZOS)
+            resized = img.resize((image_width, total_text_height + 2*resample_padding), Image.Resampling.LANCZOS)
             sharpened = resized.filter(ImageFilter.SHARPEN)
 
             img = sharpened.crop((0, resample_padding, image_width, resample_padding + total_text_height))
         
         self.rendered_text_img = img
-
-        if not ImageFont.core.HAVE_RAQM:
-            # At this point we need the visible_width to be the "actual" (yet still incorrect) width
-            self.visible_width = int(self.visible_width * 0.95)
 
         self.horizontal_text_scroll_thread: TextArea.HorizontalTextScrollThread = None
         if self.is_horizontal_scrolling_enabled:
@@ -1359,8 +1352,12 @@ class Button(BaseComponent):
     text_y_offset: int = 0
     background_color: str = GUIConstants.BUTTON_BACKGROUND_COLOR
     selected_color: str = GUIConstants.ACCENT_COLOR
+
+    # Cannot define these class attrs w/the get_*_font_*() methods because the attrs will
+    # not be dynamically reinterpreted after initial class import.
     font_name: str = None
     font_size: int = None
+
     font_color: str = GUIConstants.BUTTON_FONT_COLOR
     selected_font_color: str = GUIConstants.BUTTON_SELECTED_FONT_COLOR
     outline_color: str = None
@@ -1673,8 +1670,12 @@ class TopNav(BaseComponent):
     background_color: str = GUIConstants.BACKGROUND_COLOR
     icon_name: str = None
     icon_color: str = GUIConstants.BODY_FONT_COLOR
-    font_name: str = GUIConstants.get_top_nav_title_font_name()
-    font_size: int = GUIConstants.get_top_nav_title_font_size()
+
+    # Cannot define these class attrs w/the get_*_font_*() methods because the attrs will
+    # not be dynamically reinterpreted after initial class import.
+    font_name: str = None
+    font_size: int = None
+
     font_color: str = GUIConstants.BODY_FONT_COLOR
     show_back_button: bool = True
     show_power_button: bool = False
@@ -1687,8 +1688,7 @@ class TopNav(BaseComponent):
         
         if not self.font_size:
             self.font_size = GUIConstants.get_top_nav_title_font_size()
-            print(f"self.font_size: {self.font_size}")
-
+        
         super().__post_init__()
         if not self.width:
             self.width = self.canvas_width
@@ -1833,24 +1833,31 @@ def reflow_text_for_width(text: str,
     #   font.
     font = Fonts.get_font(font_name=font_name, size=font_size)
     # Measure from left baseline ("ls")
-    (left, top, full_text_width, bottom) = font.getbbox(text, anchor="ls")
+    (left, top, full_text_width, px_below_baseline) = font.getbbox(text, anchor="ls")
 
-    if not ImageFont.core.HAVE_RAQM:
-        # Fudge factor for imprecise width calcs w/out libraqm
-        full_text_width = int(full_text_width * 1.05)
+    # Assume we can break Asian text on any character
+    treat_chars_as_words = Settings.get_instance().get_value(SettingsConstants.SETTING__LOCALE) in [
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED,
+        SettingsConstants.LOCALE__CHINESE_TRADITIONAL,
+        SettingsConstants.LOCALE__JAPANESE,
+        SettingsConstants.LOCALE__KOREAN,
+    ]
+    if treat_chars_as_words:
+        # Relax UI constraints even if the result isn't optimal
+        allow_text_overflow = True
 
     # Stores each line of text and its rendering starting x-coord
     text_lines = []
-    def _add_text_line(text, text_width):
-        text_lines.append({"text": text, "text_width": text_width})
+    def _add_text_line(text, text_width, px_below_baseline):
+        text_lines.append(dict(text=text, text_width=text_width, px_below_baseline=px_below_baseline))
 
     if "\n" not in text and full_text_width < width:
         # The whole text fits on one line
-        _add_text_line(text, full_text_width)        
+        _add_text_line(text, full_text_width, px_below_baseline)        
 
     else:
         # Have to calc how to break text into multiple lines
-        def _binary_len_search(min_index, max_index):
+        def _binary_len_search(min_index, max_index, word_spacer):
             # Try the middle of the range
             index = math.ceil((max_index + min_index) / 2)
             if index == 0:
@@ -1858,12 +1865,8 @@ def reflow_text_for_width(text: str,
                 index = 1
 
             # Measure rendered width from "left" anchor (anchor="l_")
-            (left, top, right, bottom) = font.getbbox(" ".join(words[0:index]), anchor="ls")
+            (left, top, right, px_below_baseline) = font.getbbox(word_spacer.join(words[0:index]), anchor="ls")
             line_width = right - left
-
-            if not ImageFont.core.HAVE_RAQM:
-                # Fudge factor for imprecise width calcs w/out libraqm
-                line_width = int(line_width * 1.05)
 
             if line_width >= width:
                 # Candidate line is still too long. Restrict search range down.
@@ -1872,33 +1875,50 @@ def reflow_text_for_width(text: str,
                         # It's just one long, unbreakable word. There's no good
                         # solution here. Just accept it as is and let it render off
                         # the edges.
-                        return (index, line_width)
+                        return (index, line_width, px_below_baseline)
                     else:
                         # There's still room to back down the min_index in the next
                         # round.
                         index -= 1
-                return _binary_len_search(min_index=min_index, max_index=index)
+                return _binary_len_search(min_index=min_index, max_index=index, word_spacer=word_spacer)
             elif index == max_index:
                 # We have converged
-                return (index, line_width)
+                return (index, line_width, px_below_baseline)
             else:
                 # Candidate line is possibly shorter than necessary.
-                return _binary_len_search(min_index=index, max_index=max_index)
+                return _binary_len_search(min_index=index, max_index=max_index, word_spacer=word_spacer)
 
-        if len(text.split()) == 1 and not allow_text_overflow:
+        if len(text.split()) == 1 and not allow_text_overflow and not treat_chars_as_words:
             # No whitespace chars to split on!
             raise TextDoesNotFitException("Text cannot fit in target rect with this font+size")
 
         # Now we're ready to go line-by-line into our line break binary search!
         for line in text.split("\n"):
-            words = line.split()
+            if treat_chars_as_words:
+                # Each char in `line` will be considered a word; lets us make line breaks
+                # at any char.
+                words = line
+
+                # When re-joining words, no additional spacer is used
+                word_spacer = ""
+
+                # TODO: Don't break before 、。「」（) etc.
+                # TODO: If English terms are embedded, don't break mid-word
+
+            else:
+                # Separate words by any whitespace (spaces, line breaks, etc)
+                words = line.split()
+
+                # When re-joining words, separate with a space char
+                word_spacer = " "
+
             if not words:
                 # It's a blank line
-                _add_text_line("", 0)
+                _add_text_line("", 0, 0)
             else:
                 while words:
-                    (index, tw) = _binary_len_search(0, len(words))
-                    _add_text_line(" ".join(words[0:index]), tw)
+                    (index, tw, px_below_baseline) = _binary_len_search(0, len(words), word_spacer=word_spacer)
+                    _add_text_line(word_spacer.join(words[0:index]), tw, px_below_baseline)
                     words = words[index:]
 
     return text_lines
@@ -1950,3 +1970,47 @@ def reflow_text_into_pages(text: str,
         pages.append("\n".join(lines[i:i+lines_per_page]))
     
     return pages
+
+
+def resize_image_to_fill(img: Image, target_size_x: int, target_size_y: int, sampling_method=Image.Resampling.NEAREST) -> Image:
+    """
+        Resizes the image to fill the target size, cropping the image if necessary.
+    """
+    if img.width == target_size_x and img.height == target_size_y:
+        # No need to resize
+        return img
+
+    # if the image aspect ratio doesn't match the render area, we
+    # need to provide an aspect ratio-aware crop box.
+    render_aspect_ratio = target_size_x / target_size_y
+    source_frame_aspect_ratio = img.width / img.height
+    if render_aspect_ratio > source_frame_aspect_ratio:
+        # Render surface is wider than the source frame; preserve
+        # the width but crop the height
+        cropped_height = (img.width * target_size_y / target_size_x)
+        box = (
+            0,
+            int((img.height - cropped_height)/2),
+            img.width,
+            img.height - int((img.height - cropped_height)/2),
+        )
+
+    elif render_aspect_ratio < source_frame_aspect_ratio:
+        # Render surface is taller than the source frame; preserve
+        # the height but crop the width
+        box = (
+            int((img.width - img.height * target_size_x / target_size_y) / 2),
+            0,
+            int(img.width - (img.width - img.height * target_size_x / target_size_y) / 2),
+            img.height,
+        )
+
+    else:
+        # Render surface and source frame are the same aspect ratio
+        box = None
+
+    return img.resize(
+        (target_size_x, target_size_y),
+        resample=sampling_method,
+        box=box,
+    )
