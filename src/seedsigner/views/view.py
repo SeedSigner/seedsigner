@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from seedsigner.helpers.l10n import seedsigner_gettext as _
 from typing import Type
@@ -9,6 +10,9 @@ from seedsigner.gui.screens.screen import BaseScreen, ButtonOption, LargeButtonS
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread
+
+logger = logging.getLogger(__name__)
+
 
 
 class BackStackView:
@@ -246,19 +250,24 @@ class PowerOptionsView(View):
 class RestartView(View):
     is_screenshot_renderer: bool = False
 
+    def __post_init__(self):
+        super().__post_init__()
+        self.thread = self.DoResetThread()
+
     def run(self):
+        if self.is_screenshot_renderer:
+            # For the screenshot generator, we don't actually want to restart
+            return
+        
+        logger.info("Restarting SeedSigner")
+
         from seedsigner.gui.screens.screen import ResetScreen
-        thread = RestartView.DoResetThread(is_screenshot_renderer=self.is_screenshot_renderer)
-        thread.start()
+
+        self.thread.start()
         self.run_screen(ResetScreen)
 
 
     class DoResetThread(BaseThread):
-        def __init__(self, is_screenshot_renderer: bool = False):
-            self.is_screenshot_renderer = is_screenshot_renderer
-            super().__init__()
-
-
         def run(self):
             import os
             import sys
@@ -267,9 +276,6 @@ class RestartView(View):
             # Give the screen just enough time to display the reset message before
             # exiting.
             time.sleep(0.25)
-            if self.is_screenshot_renderer:
-                # For the screenshot generator, we don't actually want to restart
-                return
 
             # Flush any buffered data.
             sys.stdout.flush() 
