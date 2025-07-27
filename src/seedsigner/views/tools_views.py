@@ -272,7 +272,7 @@ class ToolsCoinEntropyMnemonicLengthView(View):
         ).display()
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(ToolsMenuView)
+            return Destination(ToolsMenuView, clear_history=True)
 
         elif button_data[selected_menu_num] == TWELVE:
             return Destination(ToolsCoinInputMethodView, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__12WORD))
@@ -288,14 +288,11 @@ class ToolsCoinInputMethodView(View):
         self.total_flips = total_flips
 
     def run(self):
-        if self.total_flips == 128:
-            all_flips_text = _("128 coin flips in one go")
-            setwise_text = _("Sets of 11 coin flips")
-        elif self.total_flips == 256:
-            all_flips_text = _("256 coin flips in one go")
-            setwise_text = _("Sets of 11 coin flips")
-        else:
-            raise ValueError("Unsupported flip count")
+        if self.total_flips not in (128, 256):
+            raise ValueError(f"Unsupported flip count: {self.total_flips}")
+
+        all_flips_text = _(f"{self.total_flips} coin flips in one go")
+        setwise_text = _("Sets of 11 coin flips")
 
         ALL_FLIPS = ButtonOption(all_flips_text, return_data="all")
         SETWISE = ButtonOption(setwise_text, return_data="setwise")
