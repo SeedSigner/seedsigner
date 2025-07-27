@@ -11,7 +11,7 @@ from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import ElectrumSeed, Seed
 from seedsigner.views.view import MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
 from seedsigner.views import seed_views, scan_views, settings_views
-
+from seedsigner.views.tools_views import ToolsMenuView, ToolsCoinEntropyMnemonicLengthView, ToolsCoinInputMethodView, ToolsCoinEntropyEntryView, SeedWordsWarningView
 
 def load_seed_into_decoder(view: scan_views.ScanView):
     view.decoder.add_data("0000" * 11 + "0003")
@@ -465,6 +465,49 @@ class TestSeedFlows(FlowTest):
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_right_seed_into_decoder),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmSuccessView),
             FlowStep(seed_views.SeedOptionsView),
+        ])
+
+
+    def test_coin_flip_flow(self):
+        """
+            Create a seed via coin flips.
+        """
+        
+
+        # 12-word seed
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.COIN),
+            FlowStep(ToolsCoinEntropyMnemonicLengthView, button_data_selection=0), # 12 words
+            FlowStep(ToolsCoinInputMethodView, button_data_selection=0), # all flips in one go
+            FlowStep(ToolsCoinEntropyEntryView, screen_return_value="1" * 128),
+            FlowStep(SeedWordsWarningView, button_data_selection=0), # Continue
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView),
+        ])
+
+        BaseTest.reset_controller()
+
+        # 24-word seed
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.COIN),
+            FlowStep(ToolsCoinEntropyMnemonicLengthView, button_data_selection=1), # 24 words
+            FlowStep(ToolsCoinInputMethodView, button_data_selection=0), # all flips in one go
+            FlowStep(ToolsCoinEntropyEntryView, screen_return_value="1" * 256),
+            FlowStep(SeedWordsWarningView, button_data_selection=0), # Continue
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView),
+        ])
+
+        BaseTest.reset_controller()
+
+        # Exit early
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.COIN),
+            FlowStep(ToolsCoinEntropyMnemonicLengthView, button_data_selection=RET_CODE__BACK_BUTTON),
+            FlowStep(ToolsMenuView)
         ])
 
 
