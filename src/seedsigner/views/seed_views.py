@@ -380,6 +380,7 @@ class SeedAddPassphraseView(View):
 class SeedAddPassphraseExitDialogView(View):
     EDIT = ButtonOption("Edit passphrase")
     DISCARD = ButtonOption("Discard passphrase", button_label_color="red")
+    SKIP = ButtonOption("Skip passphrase")  # NOT red since we're not throwing anything away
 
     def __init__(self):
         super().__init__()
@@ -387,13 +388,20 @@ class SeedAddPassphraseExitDialogView(View):
 
 
     def run(self):
-        button_data = [self.EDIT, self.DISCARD]
+        if self.seed.passphrase:
+            title = _("Discard passphrase?")
+            message = _("Your current passphrase entry will be erased.")
+            button_data = [self.EDIT, self.DISCARD]
+        else:
+            title = _("Skip Passphrase?")
+            message = _("You have not entered a passphrase yet.")
+            button_data = [self.EDIT, self.SKIP]
         
         selected_menu_num = self.run_screen(
             WarningScreen,
-            title=_("Discard passphrase?"),
+            title=title,
             status_headline=None,
-            text=_("Your current passphrase entry will be erased") if self.seed.passphrase else _("You have not entered a passphrase yet"),
+            text=message,
             show_back_button=False,
             button_data=button_data,
         )
@@ -401,7 +409,7 @@ class SeedAddPassphraseExitDialogView(View):
         if button_data[selected_menu_num] == self.EDIT:
             return Destination(SeedAddPassphraseView)
 
-        elif button_data[selected_menu_num] == self.DISCARD:
+        elif button_data[selected_menu_num] in [self.DISCARD, self.SKIP]:
             self.seed.set_passphrase("")
             return Destination(SeedFinalizeView)
         
