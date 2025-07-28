@@ -390,7 +390,7 @@ class SeedAddPassphraseExitDialogView(View):
             message = _("Your current passphrase entry will be erased.")
             button_data = [self.EDIT, self.DISCARD]
         else:
-            title = _("Skip Passphrase?")
+            title = _("Skip passphrase?")
             message = _("You have not entered a passphrase yet.")
             button_data = [self.EDIT, self.SKIP]
         
