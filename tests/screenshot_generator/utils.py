@@ -22,6 +22,10 @@ class ScreenshotRenderer(Renderer):
     screenshot_path: str = None
     screenshot_filename: str = None
 
+    @property
+    def is_screenshot_generator(self) -> bool:
+        return True
+
     @classmethod
     def configure_instance(cls):
         # Instantiate the one and only Renderer instance

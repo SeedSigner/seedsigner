@@ -20,6 +20,11 @@ class Renderer(ConfigurableSingleton):
     lock = Lock()
 
 
+    @property
+    def is_screenshot_generator(self) -> bool:
+        return False
+
+
     @classmethod
     def configure_instance(cls):
         # Instantiate the one and only Renderer instance
