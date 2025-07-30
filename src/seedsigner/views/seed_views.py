@@ -1553,7 +1553,7 @@ class SeedTranscribeSeedQRZoomedInView(View):
         self.seed = self.controller.get_seed(seed_num)
         self.initial_zone_x = initial_zone_x
         self.initial_zone_y = initial_zone_y
-        self.allow_screensaver = False
+        self.is_screensaver_allowed = False
 
 
     def run(self):
