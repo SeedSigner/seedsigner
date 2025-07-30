@@ -487,5 +487,6 @@ class Controller(Singleton):
             - The current active view allows screensaver activity.
         """
         from seedsigner.views import MainMenuView
+        # Confusingly, the top item in the `BackStack` is actually the *current* View
         active_view = self.back_stack[-1].view if self.back_stack else MainMenuView()
         return not self.is_screensaver_running and active_view.allow_screensaver
