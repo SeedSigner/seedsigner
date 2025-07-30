@@ -476,6 +476,7 @@ class Controller(Singleton):
         ]
         return Destination(UnhandledExceptionView, view_args={"error": error}, clear_history=True)
 
+
     @property
     def is_screensaver_start_allowed(self) -> bool:
         """
