@@ -480,14 +480,11 @@ class Controller(Singleton):
     @property
     def is_screensaver_start_allowed(self) -> bool:
         """
-        Determines whether the screensaver is allowed to run.
+            Determines whether the screensaver is allowed to start.
 
-        The screensaver can run only if:
-        - It is not currently running.
-        - The current active view allows screensaver activity.
-
-        Returns:
-            bool: True if the screensaver can run, False otherwise.
+            The screensaver can start only if:
+            - It is not currently running.
+            - The current active view allows screensaver activity.
         """
         from seedsigner.views import MainMenuView
         active_view = self.back_stack[-1].view if self.back_stack else MainMenuView()
