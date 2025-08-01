@@ -390,7 +390,6 @@ class Controller(Singleton):
         if not self.screensaver:
             # Do a lazy/late import and instantiation to reduce Controller initial startup time
             from seedsigner.gui.screens import ScreensaverScreen
-            from seedsigner.hardware.buttons import HardwareButtons
             self.screensaver = ScreensaverScreen()
         
         # Start the screensaver, but it will block until it can acquire the Renderer.lock.

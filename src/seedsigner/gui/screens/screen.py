@@ -1429,11 +1429,9 @@ class OpeningSplashScreen(LogoScreen):
 
 
 class ScreensaverScreen(LogoScreen):
-    def __init__(self, buttons):
+    def __init__(self):
         from PIL import Image
         super().__init__()
-
-        self.buttons = buttons
 
         # Paste the logo in a bigger image that is the canvas + the logo dims (half the
         # logo will render off the canvas at each edge).
@@ -1488,7 +1486,7 @@ class ScreensaverScreen(LogoScreen):
         with self.renderer.lock:
             try:
                 while self._is_running:
-                    if self.buttons.has_any_input() or self.buttons.override_ind:
+                    if self.hw_inputs.has_any_input() or self.hw_inputs.override_ind:
                         break
 
                     # Must crop the image to the exact display size
