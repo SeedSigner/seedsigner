@@ -13,7 +13,7 @@ from seedsigner.models.seed_storage import SeedStorage
 from seedsigner.models.settings import Settings
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
-from seedsigner.gui.screens import ScreensaverScreen
+from seedsigner.views.view import ScreenSaverView
 from seedsigner.views.view import Destination
 
 
@@ -135,7 +135,7 @@ class Controller(Singleton):
     resume_main_flow: str = None
 
     back_stack: BackStack = None
-    screensaver: ScreensaverScreen = None
+    screensaver: ScreenSaverView = None
     toast_notification_thread: BaseToastOverlayManagerThread = None
 
 
@@ -388,12 +388,10 @@ class Controller(Singleton):
 
         logger.info("Controller: Starting screensaver")
         if not self.screensaver:
-            # Do a lazy/late import and instantiation to reduce Controller initial startup time
-            from seedsigner.gui.screens import ScreensaverScreen
-            self.screensaver = ScreensaverScreen()
+            self.screensaver = ScreenSaverView()
         
         # Start the screensaver, but it will block until it can acquire the Renderer.lock.
-        self.screensaver.start()
+        self.screensaver.run()
         logger.info("Controller: Screensaver started")
     
 

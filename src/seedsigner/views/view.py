@@ -198,6 +198,40 @@ class OpeningSplashView(View):
 
 
 
+@dataclass
+class ScreenSaverView(View):
+    def __post_init__(self):
+        self._is_running = False
+        super().__post_init__()
+
+
+    @property
+    def is_running(self):
+        return self._is_running
+
+
+    def run(self):
+        from seedsigner.gui.screens import ScreensaverScreen
+
+        if self.is_running:
+            return
+
+        self._is_running = True
+        self.run_screen(ScreensaverScreen)
+        self._is_running = False
+
+
+    def stop(self):
+        self._is_running = False
+        self.screen.stop()
+
+
+    @property
+    def is_screensaver_running(self):
+        return self.screen.is_screensaver_running()
+
+
+
 class MainMenuView(View):
     SCAN = ButtonOption("Scan", SeedSignerIconConstants.SCAN)
     SEEDS = ButtonOption("Seeds", SeedSignerIconConstants.SEEDS)

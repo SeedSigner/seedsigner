@@ -1453,7 +1453,8 @@ class ScreensaverScreen(LogoScreen):
         self.increment_y = self.rand_increment()
 
         self._is_running = False
-        self.last_screen = None
+        # Store the current screen in order to restore it later
+        self.last_screen = self.renderer.canvas.copy()
 
 
     @property
@@ -1470,70 +1471,57 @@ class ScreensaverScreen(LogoScreen):
         return increment
 
 
-    def start(self):
-        if self.is_running:
-            return
-
+    def _run(self):
         self._is_running = True
 
-        # Store the current screen in order to restore it later
-        self.last_screen = self.renderer.canvas.copy()
+        try:
+            while self._is_running:
+                if self.hw_inputs.has_any_input() or self.hw_inputs.override_ind:
+                    break
 
-        screensaver_start = int(time.time() * 1000)
+                # Must crop the image to the exact display size
+                crop = self.image.crop((
+                    self.cur_x, self.cur_y,
+                    self.cur_x + self.renderer.canvas_width, self.cur_y + self.renderer.canvas_height))
+                self.renderer.disp.show_image(crop, 0, 0)
 
-        # Screensaver must block any attempts to use the Renderer in another thread so it
-        # never gives up the lock until it returns.
-        with self.renderer.lock:
-            try:
-                while self._is_running:
-                    if self.hw_inputs.has_any_input() or self.hw_inputs.override_ind:
-                        break
+                self.cur_x += self.increment_x
+                self.cur_y += self.increment_y
 
-                    # Must crop the image to the exact display size
-                    crop = self.image.crop((
-                        self.cur_x, self.cur_y,
-                        self.cur_x + self.renderer.canvas_width, self.cur_y + self.renderer.canvas_height))
-                    self.renderer.disp.show_image(crop, 0, 0)
+                # At each edge bump, calculate a new random rate of change for that axis
+                if self.cur_x < self.min_coords[0]:
+                    self.cur_x = self.min_coords[0]
+                    self.increment_x = self.rand_increment()
+                    if self.increment_x < 0.0:
+                        self.increment_x *= -1.0
+                elif self.cur_x > self.max_coords[0]:
+                    self.cur_x = self.max_coords[0]
+                    self.increment_x = self.rand_increment()
+                    if self.increment_x > 0.0:
+                        self.increment_x *= -1.0
 
-                    self.cur_x += self.increment_x
-                    self.cur_y += self.increment_y
+                if self.cur_y < self.min_coords[1]:
+                    self.cur_y = self.min_coords[1]
+                    self.increment_y = self.rand_increment()
+                    if self.increment_y < 0.0:
+                        self.increment_y *= -1.0
+                elif self.cur_y > self.max_coords[1]:
+                    self.cur_y = self.max_coords[1]
+                    self.increment_y = self.rand_increment()
+                    if self.increment_y > 0.0:
+                        self.increment_y *= -1.0
 
-                    # At each edge bump, calculate a new random rate of change for that axis
-                    if self.cur_x < self.min_coords[0]:
-                        self.cur_x = self.min_coords[0]
-                        self.increment_x = self.rand_increment()
-                        if self.increment_x < 0.0:
-                            self.increment_x *= -1.0
-                    elif self.cur_x > self.max_coords[0]:
-                        self.cur_x = self.max_coords[0]
-                        self.increment_x = self.rand_increment()
-                        if self.increment_x > 0.0:
-                            self.increment_x *= -1.0
+        except KeyboardInterrupt as e:
+            # Exit triggered; close gracefully
+            # Have to let the interrupt bubble up to exit the main app
+            raise e
 
-                    if self.cur_y < self.min_coords[1]:
-                        self.cur_y = self.min_coords[1]
-                        self.increment_y = self.rand_increment()
-                        if self.increment_y < 0.0:
-                            self.increment_y *= -1.0
-                    elif self.cur_y > self.max_coords[1]:
-                        self.cur_y = self.max_coords[1]
-                        self.increment_y = self.rand_increment()
-                        if self.increment_y > 0.0:
-                            self.increment_y *= -1.0
+        finally:
+            logger.info("Shutting down Screensaver")
+            self._is_running = False
 
-            except KeyboardInterrupt as e:
-                # Exit triggered; close gracefully
-                logger.info("Shutting down Screensaver")
-
-                # Have to let the interrupt bubble up to exit the main app
-                raise e
-
-            finally:
-                self._is_running = False
-
-                # Restore the original screen
-                self.renderer.show_image(self.last_screen)
-
+            # Restore the original screen
+            self.renderer.show_image(self.last_screen)
 
 
     def stop(self):
