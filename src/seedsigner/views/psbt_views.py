@@ -133,7 +133,7 @@ class PSBTOverviewView(View):
         # Everything is set. Stop the loading screen
         if self.loading_screen:
             self.loading_screen.stop()
-
+      
         # Run the overview screen
         selected_menu_num = self.run_screen(
             PSBTOverviewScreen,
@@ -160,6 +160,7 @@ class PSBTOverviewView(View):
             return Destination(PSBTNoChangeWarningView)
 
         else:
+            if psbt_parser.dnssec_proof: return Destination(PSBTDnsNameView)
             return Destination(PSBTMathView)
 
 
@@ -204,6 +205,38 @@ class PSBTNoChangeWarningView(View):
             skip_current_view=True,  # Prevent going BACK to WarningViews
         )
 
+
+
+class PSBTDnsNameView(View):
+    def run(self):
+        from seedsigner.gui.screens.screen import LargeIconStatusScreen
+        from embit.bip353 import verify_dns_proof
+        
+        psbt_parser: PSBTParser = self.controller.psbt_parser
+        if not psbt_parser:
+            # Should not be able to get here
+            return Destination(MainMenuView)
+
+        dnssec_data = psbt_parser.dnssec_proof
+        dns_name = dnssec_data[0].decode('utf-8').replace('@', '.user._bitcoin-payment.')
+        proof = dnssec_data[1]
+        
+        verified = verify_dns_proof(dns_name+'.', proof)
+        if not 'error' in verified and len(verified['verified_rrs']) > 0: # Check if there is a valid record for that name in the proof
+            selected_menu_num = LargeIconStatusScreen(
+                title = _("DNS name verification"),
+                button_data = [ButtonOption("Review math")],
+                text = _("Verification complete. Review the DNS name."),
+                status_headline = dns_name,
+            ).display()
+        else:
+            return Destination(PSBTDnsNameErrorView)
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        else:
+            return Destination(PSBTMathView)
+        
 
 
 class PSBTMathView(View):
@@ -597,3 +630,32 @@ class PSBTSigningErrorView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
+
+
+
+class PSBTDnsNameErrorView(View):
+    SELECT_DIFF_SEED = ButtonOption("Return")
+    
+    def run(self):
+        psbt_parser: PSBTParser = self.controller.psbt_parser
+        if not psbt_parser:
+            # Should not be able to get here
+            return Destination(MainMenuView)
+
+        # Just a WarningScreen here; only use DireWarningScreen for true security risks.
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title=_("DNS name Error"),
+            status_icon_name=SeedSignerIconConstants.WARNING,
+            status_headline=_("DENSSEC verification Failed"),
+            text=_("Verification not compelted. Verify the DNS name and the proof."),
+            button_data=[self.SELECT_DIFF_SEED]
+        )
+
+        if selected_menu_num == 0:
+            # clear seed selected for psbt signing since it did not add a valid signature
+            self.controller.psbt_seed = None
+            return Destination(MainMenuView, clear_history=True)
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(MainMenuView)
