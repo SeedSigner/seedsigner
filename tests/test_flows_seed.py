@@ -478,10 +478,14 @@ class TestSeedFlows(FlowTest):
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
             FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.COIN),
-            FlowStep(ToolsCoinEntropyMnemonicLengthView, button_data_selection=0), # 12 words
-            FlowStep(ToolsCoinInputMethodView, button_data_selection=0), # all flips in one go
+            FlowStep(ToolsCoinEntropyMnemonicLengthView, button_data_selection=ButtonOption("12 words (128 flips)", return_data=128)), # 12 words
+            FlowStep(ToolsCoinInputMethodView, button_data_selection=ButtonOption("128 coin flips in one go", return_data="all")), # all flips in one go
             FlowStep(ToolsCoinEntropyEntryView, screen_return_value="1" * 128),
-            FlowStep(SeedWordsWarningView, button_data_selection=0), # Continue
+            FlowStep(seed_views.SeedWordsWarningView, screen_return_value=0), # Shows warning, then redirects to SeedWordsView
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next (for 12 words, 3 pages, but seed_num is None so shows NEXT)
+            FlowStep(seed_views.SeedWordsBackupTestPromptView, button_data_selection=seed_views.SeedWordsBackupTestPromptView.SKIP), # Skip verification
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
             FlowStep(seed_views.SeedOptionsView),
         ])
@@ -492,10 +496,17 @@ class TestSeedFlows(FlowTest):
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
             FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.COIN),
-            FlowStep(ToolsCoinEntropyMnemonicLengthView, button_data_selection=1), # 24 words
-            FlowStep(ToolsCoinInputMethodView, button_data_selection=0), # all flips in one go
+            FlowStep(ToolsCoinEntropyMnemonicLengthView, button_data_selection=ButtonOption("24 words (256 flips)", return_data=256)), # 24 words
+            FlowStep(ToolsCoinInputMethodView, button_data_selection=ButtonOption("256 coin flips in one go", return_data="all")), # all flips in one go
             FlowStep(ToolsCoinEntropyEntryView, screen_return_value="1" * 256),
-            FlowStep(SeedWordsWarningView, button_data_selection=0), # Continue
+            FlowStep(seed_views.SeedWordsWarningView, screen_return_value=0), # Shows warning, then redirects to SeedWordsView
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next (for 24 words, 6 pages, but seed_num is None so shows NEXT)
+            FlowStep(seed_views.SeedWordsBackupTestPromptView, button_data_selection=seed_views.SeedWordsBackupTestPromptView.SKIP), # Skip verification
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
             FlowStep(seed_views.SeedOptionsView),
         ])
@@ -506,7 +517,7 @@ class TestSeedFlows(FlowTest):
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
             FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.COIN),
-            FlowStep(ToolsCoinEntropyMnemonicLengthView, button_data_selection=RET_CODE__BACK_BUTTON),
+            FlowStep(ToolsCoinEntropyMnemonicLengthView, screen_return_value=RET_CODE__BACK_BUTTON),
             FlowStep(ToolsMenuView)
         ])
 

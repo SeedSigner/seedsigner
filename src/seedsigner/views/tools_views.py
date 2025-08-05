@@ -264,12 +264,13 @@ class ToolsCoinEntropyMnemonicLengthView(View):
         TWENTY_FOUR = ButtonOption(twenty_four, return_data=mnemonic_generation.COIN__NUM_FLIPS__24WORD)
 
         button_data = [TWELVE, TWENTY_FOUR]
-        selected_menu_num = ButtonListScreen(
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title=_("Mnemonic Length"),
             is_bottom_list=True,
             is_button_text_centered=True,
             button_data=button_data,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(ToolsMenuView, clear_history=True)
@@ -298,12 +299,13 @@ class ToolsCoinInputMethodView(View):
         SETWISE = ButtonOption(setwise_text, return_data="setwise")
 
         button_data = [ALL_FLIPS, SETWISE]
-        selected_menu_num = ButtonListScreen(
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
             title=_("Input Method"),
             is_bottom_list=True,
             is_button_text_centered=True,
             button_data=button_data,
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(ToolsCoinEntropyMnemonicLengthView)
@@ -327,9 +329,10 @@ class ToolsCoinEntropyEntryView(View):
     
 
     def run(self):
-        ret = ToolsCoinEntropyEntryScreen(
+        ret = self.run_screen(
+            ToolsCoinEntropyEntryScreen,
             return_after_n_chars=self.total_flips,
-        ).display()
+        )
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -360,11 +363,12 @@ class ToolsCoinEntropySetwiseEntryView(View):
         wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
         required_bits = self.last_set_bits if self.current_set == self.total_sets + 1 else 11
 
-        ret = ToolsCoinEntropySetwiseEntryScreen(
+        ret = self.run_screen(
+            ToolsCoinEntropySetwiseEntryScreen,
             current_set=self.current_set,
             total_sets=self.total_sets + 1,
             required_bits=required_bits
-        ).display()
+        )
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(ToolsCoinInputMethodView, view_args={"total_flips": self.total_flips})
@@ -414,11 +418,12 @@ class ToolsCoinEntropySetwiseBip39WordView(View):
         self.word = word
 
     def run(self):
-        ButtonListScreen(
+        self.run_screen(
+            ButtonListScreen,
             title=_("Set {}").format(self.current_set),
             button_data=[ButtonOption(self.word)],
             is_button_text_centered=True
-        ).display()
+        )
 
         # Proceed to the next set or finalize
         next_set = self.current_set + 1
