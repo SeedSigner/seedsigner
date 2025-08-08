@@ -366,23 +366,18 @@ class SeedAddPassphraseView(View):
         # The new passphrase will be the return value; it might be empty.
         self.seed.set_passphrase(ret_dict["passphrase"])
 
-        if "is_back_button" in ret_dict:
-            if len(self.seed.passphrase) > 0:
-                return Destination(SeedAddPassphraseExitDialogView)
-            else:
-                return Destination(BackStackView)
-            
-        elif len(self.seed.passphrase) > 0:
-            return Destination(SeedReviewPassphraseView)
-        
+        if "is_back_button" in ret_dict or len(self.seed.passphrase) == 0:
+            return Destination(SeedAddPassphraseExitDialogView)
+                    
         else:
-            return Destination(SeedFinalizeView)
+            return Destination(SeedReviewPassphraseView)
 
 
 
 class SeedAddPassphraseExitDialogView(View):
     EDIT = ButtonOption("Edit passphrase")
     DISCARD = ButtonOption("Discard passphrase", button_label_color="red")
+    SKIP = ButtonOption("Skip passphrase")  # NOT red since we're not throwing anything away
 
     def __init__(self):
         super().__init__()
@@ -390,13 +385,20 @@ class SeedAddPassphraseExitDialogView(View):
 
 
     def run(self):
-        button_data = [self.EDIT, self.DISCARD]
+        if self.seed.passphrase:
+            title = _("Discard passphrase?")
+            message = _("Your current passphrase entry will be erased.")
+            button_data = [self.EDIT, self.DISCARD]
+        else:
+            title = _("Skip passphrase?")
+            message = _("You have not entered a passphrase yet.")
+            button_data = [self.EDIT, self.SKIP]
         
         selected_menu_num = self.run_screen(
             WarningScreen,
-            title=_("Discard passphrase?"),
+            title=title,
             status_headline=None,
-            text=_("Your current passphrase entry will be erased"),
+            text=message,
             show_back_button=False,
             button_data=button_data,
         )
@@ -404,7 +406,7 @@ class SeedAddPassphraseExitDialogView(View):
         if button_data[selected_menu_num] == self.EDIT:
             return Destination(SeedAddPassphraseView)
 
-        elif button_data[selected_menu_num] == self.DISCARD:
+        elif button_data[selected_menu_num] in [self.DISCARD, self.SKIP]:
             self.seed.set_passphrase("")
             return Destination(SeedFinalizeView)
         
@@ -1656,11 +1658,15 @@ class SeedTranscribeSeedQRConfirmScanView(View):
 
         # Run the live preview and QR code capture process
         # TODO: Does this belong in its own BaseThread?
-        self.run_screen(
+        scanning_done=self.run_screen(
             ScanScreen,
             decoder=self.decoder,
             instructions_text=_("Scan your SeedQR")
         )
+
+        # If the scanning was canceled because the back button was pressed, return to BackStackView (SeedTranscribeSeedQRConfirmQRPromptView).
+        if scanning_done==False:
+           return Destination(BackStackView, skip_current_view=False)
 
         if self.decoder.is_complete:
             if self.decoder.is_seed:
@@ -1671,9 +1677,8 @@ class SeedTranscribeSeedQRConfirmScanView(View):
                 else:
                     return Destination(SeedTranscribeSeedQRConfirmSuccessView, view_args={"seed_num": self.seed_num})
 
-        else:
-            # Will this case ever happen? Will trigger if a different kind of QR code is scanned
-            return Destination(SeedTranscribeSeedQRConfirmInvalidQRView, skip_current_view=True)
+        # Will trigger if a different kind of QR code is scanned (non SeedQR)
+        return Destination(SeedTranscribeSeedQRConfirmInvalidQRView, skip_current_view=True)
 
 
 

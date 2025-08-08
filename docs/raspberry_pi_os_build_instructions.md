@@ -77,7 +77,7 @@ You will be prompted to enter the current password ("raspberry") and then to ent
 # * libsqlite3-dev: required by `coverage`
 sudo apt update && sudo apt install -y build-essential zlib1g-dev \
     libncurses5-dev libgdbm-dev libnss3-dev openssl libssl-dev \
-    libreadline-dev libffi-dev wget libsqlite3-dev
+    libreadline-dev libffi-dev wget libsqlite3-dev libraqm-dev
 
 # Grab the python3.10 source
 wget https://www.python.org/ftp/python/3.10.10/Python-3.10.10.tgz
@@ -214,19 +214,19 @@ WorkingDirectory=/home/pi/seedsigner/src/
 ExecStart=/usr/bin/python3 main.py
 StandardOutput=null
 ErrorOutput=null
-Restart=always
+Restart=no
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-_Note: For local dev you'll want to edit the `Restart=always` line to `Restart=no`. This way when your dev code crashes it won't keep trying to restart itself. Note that the UI "Reset" will no longer work when auto-restarts are disabled._
+_Note: The line `Restart=no` ensures that when your dev code crashes it won't keep trying to restart itself._
 
 _Note: Debugging output is completely wiped via routing the stdout and stderr to `/dev/null`. When working in local dev, you'll `kill` the `systemd` SeedSigner service and just directly run the code on demand so you can see all the debugging output live._
 
 Use `CTRL-X` and `y` to exit and save changes.
 
-Configure the service to start running (this will restart the seedsigner code automatically at startup and if it crashes):
+Configure the service to start running (this will restart the seedsigner code automatically at startup):
 ```bash
 sudo systemctl enable seedsigner.service
 ```

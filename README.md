@@ -112,23 +112,23 @@ Instructions to build a SeedSigner OS image (using precisely the same process th
 ## Downloading the Software
 
    
-Download the current Version (0.8.5) software image that is compatible with your  Raspberry Pi Hardware. The Pi Zero 1.3 is the most common and recommended board.
+Download the current Version (0.8.6) software image that is compatible with your  Raspberry Pi Hardware. The Pi Zero 1.3 is the most common and recommended board.
 | Board                 | Download Image Link/Name          |
 | --------------------- | --------------------------------- |
-|**[Raspberry Pi Zero 1.3](https://www.raspberrypi.com/products/raspberry-pi-zero/)**      |[`seedsigner_os.0.8.5.pi0.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner_os.0.8.5.pi0.img)      |
-|[Raspberry Pi Zero W](https://www.raspberrypi.com/products/raspberry-pi-zero-w/)    |[`seedsigner_os.0.8.5.pi0.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner_os.0.8.5.pi0.img)      |
-|[Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)  |[`seedsigner_os.0.8.5.pi02w.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner_os.0.8.5.pi02w.img)    |
-|[Raspberry Pi 1 Model B/B+](https://www.raspberrypi.com/products/raspberry-pi-1-model-b-plus/) |[`seedsigner_os.0.8.5.pi0.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner_os.0.8.5.pi0.img)      |
-|[Raspberry Pi 2 Model B](https://www.raspberrypi.com/products/raspberry-pi-2-model-b/) |[`seedsigner_os.0.8.5.pi2.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner_os.0.8.5.pi2.img)      |
-|[Raspberry Pi 3 Model B](https://www.raspberrypi.com/products/raspberry-pi-3-model-b/) |[`seedsigner_os.0.8.5.pi02w.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner_os.0.8.5.pi02w.img)    |
-|[Raspberry Pi 4 Model B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) |[`seedsigner_os.0.8.5.pi4.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner_os.0.8.5.pi4.img)      |
-|[Raspberry Pi 400](https://www.raspberrypi.com/products/raspberry-pi-400-unit/) |[`seedsigner_os.0.8.5.pi4.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner_os.0.8.5.pi4.img)      |
+|**[Raspberry Pi Zero 1.3](https://www.raspberrypi.com/products/raspberry-pi-zero/)**      |[`seedsigner_os.0.8.6.pi0.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.6/seedsigner_os.0.8.6.pi0.img)      |
+|[Raspberry Pi Zero W](https://www.raspberrypi.com/products/raspberry-pi-zero-w/)    |[`seedsigner_os.0.8.6.pi0.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.6/seedsigner_os.0.8.6.pi0.img)      |
+|[Raspberry Pi Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)  |[`seedsigner_os.0.8.6.pi02w.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.6/seedsigner_os.0.8.6.pi02w.img)    |
+|[Raspberry Pi 1 Model B/B+](https://www.raspberrypi.com/products/raspberry-pi-1-model-b-plus/) |[`seedsigner_os.0.8.6.pi0.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.6/seedsigner_os.0.8.6.pi0.img)      |
+|[Raspberry Pi 2 Model B](https://www.raspberrypi.com/products/raspberry-pi-2-model-b/) |[`seedsigner_os.0.8.6.pi2.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.6/seedsigner_os.0.8.6.pi2.img)      |
+|[Raspberry Pi 3 Model B](https://www.raspberrypi.com/products/raspberry-pi-3-model-b/) |[`seedsigner_os.0.8.6.pi02w.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.6/seedsigner_os.0.8.6.pi02w.img)    |
+|[Raspberry Pi 4 Model B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) |[`seedsigner_os.0.8.6.pi4.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.6/seedsigner_os.0.8.6.pi4.img)      |
+|[Raspberry Pi 400](https://www.raspberrypi.com/products/raspberry-pi-400-unit/) |[`seedsigner_os.0.8.6.pi4.img`](https://github.com/SeedSigner/seedsigner/releases/download/0.8.6/seedsigner_os.0.8.6.pi4.img)      |
 
 Note: If you have physically removed the WiFi component from your board, you will still use the image file of the original(un-modified) hardware. (Our files are compiled/based on the *processor* architecture). Although it is better to spend a few minutes upfront to determine which specific Pi hardware/model you have, if you are still unsure which hardware you have, you can try using the pi0.img file. Making an incorrect choice here will not ruin your board, because this is software, not firmware. 
 
 **also download** these 2 signature verification files to the same folder  
-[The Plaintext manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner.0.8.5.sha256.txt)  
-[The Signature of the manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.8.5/seedsigner.0.8.5.sha256.txt.sig)
+[The Plaintext manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.8.6/seedsigner.0.8.6.sha256.txt)  
+[The Signature of the manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.8.6/seedsigner.0.8.6.sha256.txt.sig)
 
 Users familiar with older versions of the SeedSigner software might be surprised with how fast their software downloads now are, because since version 0.6.0 the software image files are now 100x smaller! Each image file is now under 42 Megabytes so your downloads and verifications will be very quick now (and might even seem *too* quick)!  
 
@@ -159,7 +159,7 @@ The result should confirm that 1 key was *either* imported or updated. *Ignore* 
 
 Next, you will run the *verify* command on the signature (.sig) file. (*Verify* must be run from inside the same folder that you downloaded the files into earlier.)   
 ```
-gpg --verify seedsigner.0.8.5.sha256.txt.sig
+gpg --verify seedsigner.0.8.6.sha256.txt.sig
 ```
 
 When the verify command completes successfully, it should display output like this:
@@ -229,21 +229,22 @@ Now that you have confirmed that you do have the real SeedSigner Project's Publi
 
  **On Linux or OSX:** Run this command
 ```
-shasum -a 256 --ignore-missing --check seedsigner.0.8.5.sha256.txt  
+shasum -a 256 --ignore-missing --check seedsigner.0.8.6.sha256.txt  
 ```
+Note: macOS versions earlier than v11 (Big Sur) do not support the `--ignore-missing` flag. You can omit it and disregard any missing file warnings.
 
 **On Windows (inside Powershell):** Run this command
 ```
-CertUtil -hashfile  seedsigner_os.0.8.5.Insert_Your_Pi_Models_binary_here_For_Example_pi02w.img SHA256 
+CertUtil -hashfile  seedsigner_os.0.8.6.Insert_Your_Pi_Models_binary_here_For_Example_pi02w.img SHA256 
 ```
 On Windows, you must then manually compare the resulting file hash value to the corresponding hash value shown inside the .SHA256 cleartext file.
  <BR>
 
 Wait up to 30 seconds for the command to complete, and it should display:
 ```
-seedsigner_os.0.8.5.[Your_Pi_Model_For_Example:pi02w].img: OK
+seedsigner_os.0.8.6.[Your_Pi_Model_For_Example:pi02w].img: OK
 ```
-**If you receive the "OK" message** for your **seedsigner_os.0.8.5.[Your_Pi_Model_For_Example:pi02w].img file**, as shown above, then your verification is fully complete!  
+**If you receive the "OK" message** for your **seedsigner_os.0.8.6.[Your_Pi_Model_For_Example:pi02w].img file**, as shown above, then your verification is fully complete!  
 **All of your downloaded files have now been confirmed as both authentic and unaltered!** You can proceed to create/write your MicroSD card😄😄 !!     
 
 If your file result shows "FAILED", then you must stop here immediately. Do not continue. Contact us for assistance at  the Telegram group address above.
