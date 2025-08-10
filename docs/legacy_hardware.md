@@ -17,6 +17,6 @@ Once you have re-mapped the pins, it is advised to do an I/O Test to ensure that
 **Warning: Some of the GPIO pins contain 5 volt output. Raspberry Pi GPIO pins are NOT 5V tolerant, meaning that if you accidentally connect a 5V supply pin to a GPIO input pin, you risk permanent damage.**
 
 ## Software Changes
-The Seedsigner software will automatically detect which hardware revision you are using and if the older hardware is detected, will remap the software to match the above modifications to the Waveshare hat.
+The SeedSigner software will automatically detect which hardware revision you are using and if the older hardware is detected, will remap the software to match the above modifications to the Waveshare hat.
 
-If you are using a pre-built Seedsigner image that hasn't yet had this incorporated, you can simply take the file "buttons.py" (/src/seedsigner/hardware/ in this repository) and overwrite the same file on your Seedsigner SD card. (The easiest way to do this is to copy it to the /boot/ partition of the SD card then copy it over via the command line while connected to your Pi via monitor+keyboard.)
+If you are using a pre-built SeedSigner image that hasn't yet had this incorporated, you can simply take the file "buttons.py" (/src/seedsigner/hardware/ in this repository) and overwrite the same file on your SeedSigner SD card. (The easiest way to do this is to copy it to the /boot/ partition of the SD card then copy it over via the command line while connected to your Pi via monitor+keyboard.)

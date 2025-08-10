@@ -1,17 +1,15 @@
 # Verifying dice seed generation 
 
-The intention of this documentation is to describe how to verify the seed generation code used in SeedSigner against other independent tools, to prove that they all generate the same results, despite them using different programming languages and code libraries.
-
-As it is an important step to verify all software releases being used to ensure that the installation files downloaded have not been compromised, the same is true especially for the seed generation procedure which unknowingly might not work as expected due to bugs or even on purpose.
-
-This guide describes how this can be achieved.
-
-As usual: Don't Trust, Verify!
-
-**Note:**
-**Do NOT use this with any seed you want to use later with real funds. This exercise is only for checking that the independent codebases get to the same end result!**
-**However, if you do want to check your real seed phrases you should download the Ian Coleman and/or Bitcoiner.Guide tools onto an airgapped, ephemeral computer (e.g. using Tails-OS) and perform these tests on there. Destroy/abandon the Tails-OS afterwards.**
+The intention of this documentation is to describe how to verify the seed generation code used in SeedSigner against other independent tools, to prove that they all generate the same results, despite them using different programming languages and code libraries.<br><br>
+As it is an important step to verify all software releases being used to ensure that the installation files downloaded have not been compromised, the same is true especially for the seed generation procedure which unknowingly might not work as expected due to bugs or even on purpose.<br><br>
+This guide describes how this can be achieved.<br><br>
+As usual: Don't Trust, Verify!<br>
+<br><br>
+**Note:**<br>
+**Do NOT use this with any seed you want to use later with real funds. This exercise is only for checking that the independent codebases get to the same end result!**<br>
+**However, if you do want to check your real seed phrases you should download the Ian Coleman and/or Bitcoiner.Guide tools onto an airgapped, ephemeral computer (e.g. using Tails-OS) and perform these tests on there. Destroy/abandon the Tails-OS afterwards.**<br>
 **Never input seed phrases that you intend to use to store real funds onto an internet-connected computer!!!**
+<br><br><br>
 
 ## 99 Dice Rolls / 24 Seed Words Example
 
