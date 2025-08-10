@@ -1,7 +1,12 @@
+import os
 from dataclasses import dataclass
 from typing import Any, List
 
 from seedsigner.helpers.l10n import mark_for_translation as _mft
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 
 class SettingsConstants:
@@ -46,31 +51,166 @@ class SettingsConstants:
         (COORDINATOR__KEEPER, "Keeper"),
     ]
 
+    # Over-specifying current and possible future locales to reduce/eliminate main repo
+    # changes when adding/testing new languages.
     LOCALE__ARABIC = "ar"
+    LOCALE__BENGALI = "bn"
+    LOCALE__BULGARIAN = "bg"
+    LOCALE__CATALAN = "ca"
+    LOCALE__CHINESE_SIMPLIFIED = "zh_Hans_CN"
+    LOCALE__CHINESE_TRADITIONAL = "zh_Hant_TW"
+    LOCALE__CROATIAN = "hr"
     LOCALE__CZECH = "cs"
+    LOCALE__DANISH = "da"
+    LOCALE__DUTCH = "nl"
+    LOCALE__EGYPTIAN = "ar_EG"
     LOCALE__ENGLISH = "en"
+    LOCALE__ESTONIAN = "et"
+    LOCALE__FINNISH = "fi"
     LOCALE__FRENCH = "fr"
+    LOCALE__GAELIC = "gd"
     LOCALE__GERMAN = "de"
+    LOCALE__GREEK = "el"
+    LOCALE__GUJARATI = "gu"
+    LOCALE__HAUSA = "ha"
     LOCALE__HEBREW = "he"
+    LOCALE__HINDI = "hi"
+    LOCALE__HUNGARIAN = "hu"
+    LOCALE__INDONESIAN = "id"
+    LOCALE__ITALIAN = "it"
     LOCALE__JAPANESE = "ja"
-    LOCALE__KOREAN = "kr"
-    LOCALE__PORTUGUESE = "pt"
+    LOCALE__JAVANESE = "jv"
+    LOCALE__KOREAN = "ko"
+    LOCALE__LAO = "lo"
+    LOCALE__LATVIAN = "lv"
+    LOCALE__LITHUANIAN = "lt"
+    LOCALE__MALAY = "ms"
+    LOCALE__MALTESE = "mt"
+    LOCALE__MARATHI = "mr"
+    LOCALE__NORWEGIAN = "no"
+    LOCALE__PERSIAN = "fa"
+    LOCALE__POLISH = "pl"
+    LOCALE__PORTUGUESE_BR = "pt_BR"
+    LOCALE__PORTUGUESE_PT = "pt_PT"
+    LOCALE__PUNJABI = "pa"
+    LOCALE__ROMANIAN = "ro"
     LOCALE__RUSSIAN = "ru"
+    LOCALE__SLOVAK = "sk"
+    LOCALE__SLOVENIAN = "sl"
     LOCALE__SPANISH = "es"
-    # Do not wrap for translation; always present each language in its native form
-    ALL_LOCALES = [
-        # (LOCALE__ARABIC, "Arabic"),
-        # (LOCALE__CZECH, "čeština"),
-        (LOCALE__ENGLISH, "English"),
-        # (LOCALE__FRENCH, "Français"),
-        # (LOCALE__GERMAN, "Deutsch"),
-        # (LOCALE__HEBREW, "Hebrew"),
-        # (LOCALE__JAPANESE, "Japanese"),
-        # (LOCALE__KOREAN, "Korean"),
-        # (LOCALE__PORTUGUESE, "Português"),
-        # (LOCALE__RUSSIAN, "русский"),
-        (LOCALE__SPANISH, "Español"),
-    ]
+    LOCALE__SWEDISH = "sv"
+    LOCALE__TAGALOG = "tl"
+    LOCALE__TAMIL = "ta"
+    LOCALE__TELUGU = "te"
+    LOCALE__THAI = "th"
+    LOCALE__TURKISH = "tr"
+    LOCALE__UKRANIAN = "uk"
+    LOCALE__URDU = "ur"
+    LOCALE__VIETNAMESE = "vi"
+
+    # Do not wrap for translation. Present each language in its native form (i.e. either
+    # using its native chars or how they write it in Latin chars; e.g. Spanish is listed
+    # and sorted as "Español").
+    # Sort fully-vetted languages first, then beta languages, then the "placeholders /
+    # coming soon" languages.
+    # Sort by native form when written in Latin chars, otherwise sort by English name.
+    # Include English name in parens for languages that don't use Latin chars.
+    # Include region/country in parens for specific dialects (e.g. "Português (Brasil)").
+    # Note that dicts preserve insertion order as of Python 3.7.
+    ALL_LOCALES = {
+        # --------- Fully supported languages -------------------------------------------
+        LOCALE__CATALAN: "Català",
+        LOCALE__GERMAN: "Deutsch",
+        LOCALE__ENGLISH: "English",
+        LOCALE__SPANISH: "Español",
+        LOCALE__FRENCH: "Français",
+        LOCALE__ITALIAN: "Italiano",
+        LOCALE__DUTCH: "Nederlands",
+
+        # --------- Beta languages ------------------------------------------------------
+        LOCALE__CHINESE_SIMPLIFIED: "(beta) 简体中文 (Chinese Simplified)",
+        LOCALE__JAPANESE: "(beta) 日本語 (Japanese)",
+        LOCALE__KOREAN: "(beta) 한국어 (Korean)",
+
+        # --------- Placeholders / Coming soon ------------------------------------------
+        # Commented out options require explicit additional font support.
+        # -------------------------------------------------------------------------------
+        # LOCALE__ARABIC: "العربية (Arabic)",
+        # LOCALE__BENGALI: "বাংলা (Bengali)",
+        LOCALE__BULGARIAN: "български (Bulgarian)",  # OpenSans includes cyrillic chars
+        LOCALE__CZECH: "čeština",
+        # LOCALE__CHINESE_TRADITIONAL: "繁體中文 (Chinese Traditional)",
+        LOCALE__DANISH: "Dansk",
+        LOCALE__ESTONIAN: "Eesti",
+        # LOCALE__EGYPTIAN: "مصرى (Egyptian)",
+        LOCALE__GAELIC: "Gaeilge",
+        LOCALE__GREEK: "Ελληνικά (Greek)",  # OpenSans includes Greek chars
+        # LOCALE__GUJARATI: "ગુજરાતી (Gujarati)",
+        LOCALE__HAUSA: "Hausa",
+        # LOCALE__HEBREW: "עברית (Hebrew)",
+        # LOCALE__HINDI: "हिन्दी (Hindi)",
+        LOCALE__CROATIAN: "Hrvatski",
+        LOCALE__INDONESIAN: "Indonesia",
+        LOCALE__JAVANESE: "Jawa (Javanese)",
+        # LOCALE__LAO: "ລາວ (Lao)",
+        LOCALE__LATVIAN: "Latviešu",
+        LOCALE__LITHUANIAN: "Lietuvių",
+        LOCALE__HUNGARIAN: "Magyar",
+        LOCALE__MALAY: "Melayu",
+        LOCALE__MALTESE: "Malti",
+        # LOCALE__MARATHI: "मराठी (Marathi)",
+        LOCALE__NORWEGIAN: "Norsk",
+        # LOCALE__PERSIAN: "فارسی (Persian)",
+        LOCALE__POLISH: "Polski",
+        LOCALE__PORTUGUESE_BR: "Português (Brasil)",
+        LOCALE__PORTUGUESE_PT: "Português (Portugal)",
+        # LOCALE__PUNJABI: "ਪੰਜਾਬੀ (Punjabi)",
+        LOCALE__ROMANIAN: "Română",
+        LOCALE__RUSSIAN: "русский (Russian)",  # OpenSans includes cyrillic chars
+        LOCALE__SLOVAK: "Slovenčina",
+        LOCALE__SLOVENIAN: "Slovenščina",
+        LOCALE__FINNISH: "Suomi",
+        LOCALE__SWEDISH: "Svenska",
+        LOCALE__TAGALOG: "Tagalog",
+        # LOCALE__TAMIL: "தமிழ் (Tamil)",
+        # LOCALE__TELUGU: "తెలుగు (Telugu)",
+        # LOCALE__THAI: "ไทย (Thai)",
+        LOCALE__TURKISH: "Türkçe",
+        LOCALE__UKRANIAN: "українська (Ukranian)",   # OpenSans includes cyrillic chars
+        # LOCALE__URDU: "اردو (Urdu)",
+        LOCALE__VIETNAMESE: "Tiếng Việt (Vietnamese)",
+    }
+
+    @classmethod
+    def get_detected_languages(cls) -> list[tuple[str, str]]:
+        """
+        Return a list of tuples of language codes and their native names.
+
+        Scans the filesystem to autodiscover which language codes are onboard.
+        """
+        # Will normally be the launch dir (where main.py is located)...
+        cwd = os.getcwd()
+
+        # ...except when running the tests which happens one dir higher
+        if "src" not in cwd:
+            cwd = os.path.join(cwd, "src")
+
+        # Pre-load English since there's no "en" entry in the translations folder; also
+        # it should always appear first in the list anyway.
+        detected_languages = [(cls.LOCALE__ENGLISH, cls.ALL_LOCALES[cls.LOCALE__ENGLISH])]
+
+        locales_present = set()
+        for root, dirs, files in os.walk(os.path.join(cwd, "seedsigner", "resources", "seedsigner-translations", "l10n")):
+            for file in [f for f in files if f.endswith(".mo")]:
+                # `root` will be [...]seedsigner/resources/seedsigner-translations/l10n/pt_BR/LC_MESSAGES
+                locales_present.add(root.split(f"l10n{ os.sep }")[1].split(os.sep)[0])
+
+        for locale in cls.ALL_LOCALES.keys():
+            if locale in locales_present:
+                detected_languages.append((locale, cls.ALL_LOCALES[locale]))
+
+        return detected_languages
+
 
     BTC_DENOMINATION__BTC = "btc"
     BTC_DENOMINATION__SATS = "sats"
@@ -172,7 +312,6 @@ class SettingsConstants:
         # (WORDLIST_LANGUAGE__PORTUGUESE, "Português"),
     ]
 
-    
     # Individual SettingsEntry attr_names
     # Note: attr_names are internal constants; do not wrap for translation
     SETTING__LOCALE = "locale"
@@ -180,6 +319,9 @@ class SettingsConstants:
     SETTING__PERSISTENT_SETTINGS = "persistent_settings"
     SETTING__COORDINATORS = "coordinators"
     SETTING__BTC_DENOMINATION = "denomination"
+
+    SETTING__DISPLAY_CONFIGURATION = "display_config"
+    SETTING__DISPLAY_COLOR_INVERTED = "color_inverted"
 
     SETTING__NETWORK = "network"
     SETTING__QR_DENSITY = "qr_density"
@@ -200,6 +342,20 @@ class SettingsConstants:
 
     SETTING__DEBUG = "debug"
 
+
+    # Hardware config settings
+    DISPLAY_CONFIGURATION__ST7789__240x240 = "st7789_240x240"  # default; original Waveshare 1.3" display hat
+    DISPLAY_CONFIGURATION__ST7789__320x240 = "st7789_320x240"    # natively portrait dimensions; we apply a 90° rotation
+    DISPLAY_CONFIGURATION__ILI9341__320x240 = "ili9341_320x240"  # natively portrait dimensions; we apply a 90° rotation
+    DISPLAY_CONFIGURATION__ILI9486__480x320 = "ili9486_480x320"  # natively portrait dimensions; we apply a 90° rotation
+    ALL_DISPLAY_CONFIGURATIONS = [
+        (DISPLAY_CONFIGURATION__ST7789__240x240, "st7789 240x240"),
+        (DISPLAY_CONFIGURATION__ST7789__320x240, "st7789 320x240"),
+        (DISPLAY_CONFIGURATION__ILI9341__320x240, "ili9341 320x240 (beta)"),
+        # (DISPLAY_CONFIGURATION__ILI9486__320x480, "ili9486 480x320"),  # TODO: Enable when ili9486 driver performance is improved
+    ]
+
+
     # Hidden settings
     SETTING__QR_BRIGHTNESS = "qr_background_color"
 
@@ -213,6 +369,7 @@ class SettingsConstants:
 
     VISIBILITY__GENERAL = "general"
     VISIBILITY__ADVANCED = "advanced"
+    VISIBILITY__HARDWARE = "hardware"
     VISIBILITY__DEVELOPER = "developer"
     VISIBILITY__HIDDEN = "hidden"   # For data-only (e.g. custom_derivation), not configurable by the user
 
@@ -382,7 +539,7 @@ class SettingsDefinition:
                       abbreviated_name="lang",
                       display_name=_mft("Language"),
                       type=SettingsConstants.TYPE__SELECT_1,
-                      selection_options=SettingsConstants.ALL_LOCALES,
+                      selection_options=SettingsConstants.get_detected_languages(),
                       default_value=SettingsConstants.LOCALE__ENGLISH),
 
         # TODO: Support other bip-39 wordlist languages! Until then, type == HIDDEN
@@ -541,6 +698,28 @@ class SettingsDefinition:
                       display_name=_mft("Show partner logos"),
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__ENABLED),
+
+
+        # Hardware config
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__DISPLAY_CONFIGURATION,
+                      abbreviated_name="disp_conf",
+                      # TRANSLATOR_NOTE: Hardware settings option to specify the screen driver (e.g. st7789 vs ili9341)
+                      display_name=_mft("Display type"),
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__HARDWARE,
+                      selection_options=SettingsConstants.ALL_DISPLAY_CONFIGURATIONS,
+                      default_value=SettingsConstants.DISPLAY_CONFIGURATION__ST7789__240x240),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED,
+                      abbreviated_name="rgb_inv",
+                      # TRANSLATOR_NOTE: Hardware settings option to invert how the screen driver displays colors.
+                      display_name=_mft("Invert colors"),
+                      type=SettingsConstants.TYPE__ENABLED_DISABLED,
+                      visibility=SettingsConstants.VISIBILITY__HARDWARE,
+                      default_value=SettingsConstants.OPTION__DISABLED),
+
 
         # Developer options
         # TODO: No real Developer options needed yet. Disable for now.

@@ -5,7 +5,7 @@ import time
 
 from gettext import gettext as _
 
-from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
+from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants, resize_image_to_fill
 from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.helpers import mnemonic_generation
@@ -83,21 +83,25 @@ class ToolsImageEntropyFinalImageView(View):
             from seedsigner.hardware.camera import Camera
             # Take the final full-res image
             camera = Camera.get_instance()
-            camera.start_single_frame_mode(resolution=(720, 480))
+            max_dim = max(self.canvas_width, self.canvas_height)
+
+            # Final image will be at least 4x the number of pixels the screen can
+            # actually display.
+            camera.start_single_frame_mode(resolution=(2*max_dim, 2*max_dim))
+
             time.sleep(0.25)
             self.controller.image_entropy_final_image = camera.capture_frame()
             camera.stop_single_frame_mode()
 
-        # Prep a copy of the image for display. The actual image data is 720x480
-        # Present just a center crop and resize it to fit the screen and to keep some of
-        #   the data hidden.
-        display_version = autocontrast(
-            self.controller.image_entropy_final_image,
-            cutoff=2
-        ).crop(
-            (120, 0, 600, 480)
-        ).resize(
-            (self.canvas_width, self.canvas_height), Image.Resampling.BICUBIC
+        # Prep a copy of the image for display:
+        #   * Boost the contrast for better presentation (but preserve the original pixels)
+        #   * Resize it to fit the screen
+        boosted_version = autocontrast(self.controller.image_entropy_final_image, cutoff=2)
+        display_version = resize_image_to_fill(
+            boosted_version,
+            target_size_x=self.canvas_width,
+            target_size_y=self.canvas_height,
+            sampling_method=Image.Resampling.BICUBIC,
         )
         
         ret = ToolsImageEntropyFinalImageScreen(
@@ -127,54 +131,65 @@ class ToolsImageEntropyMnemonicLengthView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
         mnemonic_length = button_data[selected_menu_num].return_data
 
-        preview_images = self.controller.image_entropy_preview_frames
-        seed_entropy_image = self.controller.image_entropy_final_image
+        # The entropy calculation can take time, especially with a full image buffer. 
+        # Show a loading spinner to provide feedback during this delay.
+        from seedsigner.gui.screens.screen import LoadingScreenThread
+        self.loading_screen = LoadingScreenThread(text=_("Calculating..."))
+        self.loading_screen.start()
 
-        # Build in some hardware-level uniqueness via CPU unique Serial num
         try:
-            stream = os.popen("cat /proc/cpuinfo | grep Serial")
-            output = stream.read()
-            serial_num = output.split(":")[-1].strip().encode('utf-8')
-            serial_hash = hashlib.sha256(serial_num)
-            hash_bytes = serial_hash.digest()
-        except Exception as e:
-            logger.info(repr(e), exc_info=True)
-            hash_bytes = b'0'
+            preview_images = self.controller.image_entropy_preview_frames
+            seed_entropy_image = self.controller.image_entropy_final_image
 
-        # Build in modest entropy via millis since power on
-        millis_hash = hashlib.sha256(hash_bytes + str(time.time()).encode('utf-8'))
-        hash_bytes = millis_hash.digest()
+            # Build in some hardware-level uniqueness via CPU unique Serial num
+            try:
+                stream = os.popen("cat /proc/cpuinfo | grep Serial")
+                output = stream.read()
+                serial_num = output.split(":")[-1].strip().encode('utf-8')
+                serial_hash = hashlib.sha256(serial_num)
+                hash_bytes = serial_hash.digest()
+            except Exception as e:
+                logger.info(repr(e), exc_info=True)
+                hash_bytes = b'0'
 
-        # Build in better entropy by chaining the preview frames
-        for frame in preview_images:
-            img_hash = hashlib.sha256(hash_bytes + frame.tobytes())
-            hash_bytes = img_hash.digest()
+            # Build in modest entropy via millis since power on
+            millis_hash = hashlib.sha256(hash_bytes + str(time.time()).encode('utf-8'))
+            hash_bytes = millis_hash.digest()
 
-        # Finally build in our headline entropy via the new full-res image
-        final_hash = hashlib.sha256(hash_bytes + seed_entropy_image.tobytes()).digest()
+            # Build in better entropy by chaining the preview frames
+            for frame in preview_images:
+                img_hash = hashlib.sha256(hash_bytes + frame.tobytes())
+                hash_bytes = img_hash.digest()
 
-        if mnemonic_length == 12:
-            # 12-word mnemonic only uses the first 128 bits / 16 bytes of entropy
-            final_hash = final_hash[:16]
+            # Finally build in our headline entropy via the new full-res image
+            final_hash = hashlib.sha256(hash_bytes + seed_entropy_image.tobytes()).digest()
 
-        # Generate the mnemonic
-        mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash)
+            if mnemonic_length == 12:
+                # 12-word mnemonic only uses the first 128 bits / 16 bytes of entropy
+                final_hash = final_hash[:16]
 
-        # Image should never get saved nor stick around in memory
-        seed_entropy_image = None
-        preview_images = None
-        final_hash = None
-        hash_bytes = None
-        self.controller.image_entropy_preview_frames = None
-        self.controller.image_entropy_final_image = None
+            # Generate the mnemonic
+            mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash)
 
-        # Add the mnemonic as an in-memory Seed
-        seed = Seed(mnemonic, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
-        self.controller.storage.set_pending_seed(seed)
-        
+            # Image should never get saved nor stick around in memory
+            seed_entropy_image = None
+            preview_images = None
+            final_hash = None
+            hash_bytes = None
+            self.controller.image_entropy_preview_frames = None
+            self.controller.image_entropy_final_image = None
+
+            # Add the mnemonic as an in-memory Seed
+            seed = Seed(mnemonic, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+            self.controller.storage.set_pending_seed(seed)
+
+        finally:
+            # Stop spinner even if an error occurs
+            self.loading_screen.stop()
+
         # Cannot return BACK to this View
         return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
 
@@ -619,6 +634,7 @@ class ToolsAddressExplorerAddressListView(View):
 
 
     def run(self):
+        from seedsigner.gui.screens.tools_screens import ToolsAddressExplorerAddressListScreen
         self.loading_screen = None
 
         addresses = []
@@ -672,31 +688,11 @@ class ToolsAddressExplorerAddressListView(View):
                 # Everything is set. Stop the loading screen
                 self.loading_screen.stop()
 
-        for i, address in enumerate(addresses):
-            cur_index = i + self.start_index
-
-            # Adjust the trailing addr display length based on available room
-            # (the index number will push it out on each order of magnitude)
-            if cur_index < 10:
-                end_digits = -6
-            elif cur_index < 100:
-                end_digits = -5
-            else:
-                end_digits = -4
-            button_data.append(ButtonOption(f"{cur_index}:{address[:8]}...{address[end_digits:]}", active_button_label=f"{cur_index}:{address}"))
-
-        # TRANSLATOR_NOTE: Insert the number of addrs displayed per screen (e.g. "Next 10")
-        button_label = _("Next {}").format(addrs_per_screen)
-        button_data.append(ButtonOption(button_label, right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT))
-
         selected_menu_num = self.run_screen(
-            ButtonListScreen,
+            ToolsAddressExplorerAddressListScreen,
             title=_("Receive Addrs") if not self.is_change else _("Change Addrs"),
-            button_data=button_data,
-            button_font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
-            button_font_size=GUIConstants.get_button_font_size() + 4,
-            is_button_text_centered=False,
-            is_bottom_list=True,
+            start_index=self.start_index,
+            addresses=addresses,
             selected_button=self.selected_button_index,
             scroll_y_initial_offset=self.initial_scroll,
         )
