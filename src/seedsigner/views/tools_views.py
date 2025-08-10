@@ -573,7 +573,7 @@ class ToolsAddressExplorerAddressTypeView(View):
                 from seedsigner.helpers import embit_utils
                 derivation_path = embit_utils.get_standard_derivation_path(
                     network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
-                    wallet_type=SettingsConstants.SINGLE_SIG,
+                    sig_type=SettingsConstants.SINGLE_SIG,
                     script_type=self.script_type,
                 )
 

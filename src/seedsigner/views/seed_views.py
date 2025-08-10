@@ -920,7 +920,7 @@ class SeedExportXpubDetailsView(View):
             from seedsigner.helpers import embit_utils
             derivation_path = embit_utils.get_standard_derivation_path(
                 network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
-                wallet_type=self.sig_type,
+                sig_type=self.sig_type,
                 script_type=self.script_type
             )
 
@@ -1783,7 +1783,7 @@ class AddressVerificationStartView(View):
 
         derivation_path = embit_utils.get_standard_derivation_path(
             network=self.controller.unverified_address["network"],
-            wallet_type=sig_type,
+            sig_type=sig_type,
             script_type=self.controller.unverified_address["script_type"]
         )
 
@@ -1829,7 +1829,7 @@ class AddressVerificationSigTypeView(View):
         self.controller.unverified_address["sig_type"] = sig_type
         derivation_path = embit_utils.get_standard_derivation_path(
             network=self.controller.unverified_address["network"],
-            wallet_type=sig_type,
+            sig_type=sig_type,
             script_type=self.controller.unverified_address["script_type"]
         )
         self.controller.unverified_address["derivation_path"] = derivation_path
