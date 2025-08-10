@@ -1272,6 +1272,16 @@ class KeyboardScreen(BaseTopNavScreen):
                             self.user_input = self.user_input[:-1]
                             self.cursor_position -= 1
 
+                        # Update the title to reflect decremented dice roll count
+                        if self.update_title():
+                            TextArea(
+                                text=self.title,
+                                font_name=GUIConstants.get_top_nav_title_font_name(),
+                                font_size=GUIConstants.get_top_nav_title_font_size(),
+                                height=self.top_nav.height,
+                            ).render()
+                            self.top_nav.render_buttons()
+                            
                 elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
                     # User has locked in the current letter
                     if self.keys_to_values:
