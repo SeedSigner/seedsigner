@@ -26,23 +26,20 @@ logger = logging.getLogger(__name__)
 class SeedsMenuView(View):
     LOAD = ButtonOption("Load a seed")
 
-    def __init__(self):
-        super().__init__()
-        self.seeds = []
-        for seed in self.controller.storage.seeds:
-            self.seeds.append({
-                "fingerprint": seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            })
-
-
     def run(self):
-        if not self.seeds:
+        seeds = self.controller.storage.seeds
+
+        if not seeds:
             # Nothing to do here unless we have a seed loaded
             return Destination(LoadSeedView, clear_history=True)
 
         button_data = []
-        for seed in self.seeds:
-            button_data.append(ButtonOption(seed["fingerprint"], SeedSignerIconConstants.FINGERPRINT))
+        for seed in seeds:
+            button_data.append(seed_screens.SeedButtonOption(
+                button_label=seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
+                child_index=seed.child_index if isinstance(seed, BIP85ChildSeed) else None,
+            ))
+
         button_data.append(self.LOAD)
 
         selected_menu_num = self.run_screen(
@@ -55,9 +52,8 @@ class SeedsMenuView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        elif len(self.seeds) > 0 and selected_menu_num < len(self.seeds):
-            selected_seed = self.controller.storage.seeds[selected_menu_num]
-            return Destination(SeedOptionsView, view_args={"seed": selected_seed})
+        elif len(seeds) > 0 and selected_menu_num < len(seeds):
+            return Destination(SeedOptionsView, view_args={"seed": seeds[selected_menu_num]})
 
         elif button_data[selected_menu_num] == self.LOAD:
             return Destination(LoadSeedView)
@@ -106,9 +102,11 @@ class SeedSelectSeedView(View):
 
         button_data = []
         for seed in seeds:
-            button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            button_data.append(ButtonOption(button_str, SeedSignerIconConstants.FINGERPRINT, icon_color="blue"))
-        
+            button_data.append(seed_screens.SeedButtonOption(
+                button_label=seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
+                child_index=seed.child_index if isinstance(seed, BIP85ChildSeed) else None,
+            ))
+
         button_data.append(self.SCAN_SEED)
         button_data.append(self.TYPE_12WORD)
         button_data.append(self.TYPE_24WORD)
@@ -334,6 +332,7 @@ class SeedFinalizeView(View):
             seed_screens.SeedFinalizeScreen,
             fingerprint=self.fingerprint,
             button_data=button_data,
+            is_bip85_child_seed=isinstance(self.seed, BIP85ChildSeed),
         )
 
         if button_data[selected_menu_num] == self.FINALIZE:
@@ -591,12 +590,14 @@ class SeedOptionsView(View):
             button_data.append(self.BIP85_CHILD_SEED)
 
         button_data.append(self.DISCARD)
-        
+
+        is_bip85_child_seed = isinstance(self.seed, BIP85ChildSeed)
         selected_menu_num = self.run_screen(
             seed_screens.SeedOptionsScreen,
             button_data=button_data,
             fingerprint=self.seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
-            is_bip85_child_seed=isinstance(self.seed, BIP85ChildSeed),
+            is_bip85_child_seed=is_bip85_child_seed,
+            bip85_index=self.seed.child_index if is_bip85_child_seed else None,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
