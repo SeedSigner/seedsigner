@@ -2,8 +2,10 @@ from gettext import gettext as _
 
 from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
     PSBTOutputOwnershipClaimError, PSBTParser, PSBTSeedCannotSignError)
+from seedsigner.models.seed import BIP85ChildSeed
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
+from seedsigner.gui.screens import seed_screens
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
 from seedsigner.views.view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
@@ -33,13 +35,17 @@ class PSBTSelectSeedView(View):
         seeds = self.controller.storage.seeds
         button_data = []
         for seed in seeds:
-            button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+            button_option = seed_screens.SeedButtonOption(
+                button_label=seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
+                child_index=seed.child_index if isinstance(seed, BIP85ChildSeed) else None,
+            )
+
             if not PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
                 # Doesn't look like this seed can sign the current PSBT
                 # TRANSLATOR_NOTE: Inserts fingerprint w/"?" to indicate that this seed can't sign the current PSBT
-                button_str = _("{} (?)").format(button_str)
+                button_option.button_label = _("{} (?)").format(button_option.button_label)
 
-            button_data.append(ButtonOption(button_str, SeedSignerIconConstants.FINGERPRINT))
+            button_data.append(button_option)
 
         button_data.append(self.SCAN_SEED)
         button_data.append(self.TYPE_12WORD)

@@ -184,7 +184,8 @@ class FontAwesomeIconConstants:
     KEYBOARD = "\uf11c"
     MAP = "\uf279"
     X = "\u0058"
-    INDEX = "\u0023"
+    HASHTAG = "\u0023"
+    ARROW_RIGHT = "\uf061"
 
 
 
