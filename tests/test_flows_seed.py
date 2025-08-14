@@ -8,7 +8,7 @@ from base import FlowTestInvalidButtonDataSelectionException
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
 from seedsigner.models.settings import Settings, SettingsConstants
-from seedsigner.models.seed import ElectrumSeed, Seed
+from seedsigner.models.seed import BIP85ChildSeed, ElectrumSeed, Seed
 from seedsigner.views.view import MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
 from seedsigner.views import seed_views, scan_views, settings_views
 
@@ -494,6 +494,87 @@ class TestSeedFlows(FlowTest):
         ])
 
         assert self.controller.is_screensaver_start_allowed == False
+
+
+    def test_bip85_load_child_flow(self):
+        """
+            Selecting "BIP-85 Child Seed" from the SeedOptionsView should enter the BIP-85 flow and
+            end at the SeedOptionsView of the Child Seed when the load child seed setting is enabled
+        """
+        # Ensure the settings is enabled with loading
+        self.settings.set_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS, SettingsConstants.BIP85__LOADABLE)
+
+        # Load a finalized Seed into the Controller
+        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        seed = self.controller.storage.finalize_pending_seed()
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.BIP85_CHILD_SEED),
+                FlowStep(seed_views.SeedBIP85SelectNumWordsView, button_data_selection=seed_views.SeedBIP85SelectNumWordsView.WORDS_12),
+                FlowStep(seed_views.SeedBIP85SelectChildIndexView, screen_return_value=0),
+                FlowStep(seed_views.SeedBIP85FinalizeView, button_data_selection=seed_views.SeedBIP85FinalizeView.LOAD),
+                FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+                FlowStep(seed_views.SeedOptionsView),
+            ]
+        )
+
+        # Discarding the parent seed should also discard the child seed
+        # Verify by going to the SeedsMenuView and seeing that no seeds are loaded
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.DISCARD),
+                FlowStep(seed_views.SeedDiscardView, button_data_selection=seed_views.SeedDiscardView.DISCARD),
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+                FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
+                FlowStep(seed_views.LoadSeedView),
+            ]
+        )
+
+
+    def test_bip85_backup_test_success_returns_to_bip85_finalize(self):
+        """
+            After a successful backup test on a pending BIP-85 child seed, the flow must
+            return to SeedBIP85FinalizeView (NOT SeedFinalizeView, which would load the
+            child seed even in view-only mode).
+        """
+        self.settings.set_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS, SettingsConstants.BIP85__VIEW_ONLY)
+
+        # Load a finalized Seed into the Controller
+        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        parent_seed = self.controller.storage.finalize_pending_seed()
+
+        # Set a derived child seed as the pending seed, as SeedBIP85SelectChildIndexView would
+        child_seed = BIP85ChildSeed(
+            parent_seed=parent_seed,
+            child_index=0,
+            num_words=12,
+            mnemonic=parent_seed.get_bip85_child_mnemonic(0, 12).split(),
+        )
+        self.controller.storage.set_pending_seed(child_seed)
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=None),
+            sequence=[
+                FlowStep(seed_views.SeedWordsBackupTestSuccessView, screen_return_value=0),
+                FlowStep(seed_views.SeedBIP85FinalizeView),
+            ]
+        )
+
+        # Sanity check: a regular pending seed still routes to SeedFinalizeView
+        self.controller.storage.clear_pending_seed()
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=None),
+            sequence=[
+                FlowStep(seed_views.SeedWordsBackupTestSuccessView, screen_return_value=0),
+                FlowStep(seed_views.SeedFinalizeView),
+            ]
+        )
 
 
 
