@@ -161,6 +161,7 @@ class PSBTOverviewView(View):
             num_change_outputs=num_change_outputs,
             destination_addresses=psbt_parser.destination_addresses,
             has_op_return=psbt_parser.op_return_data is not None,
+            is_high_fee_tx=is_high_fee_tx,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -282,6 +283,7 @@ class PSBTMathView(View):
             num_recipients=psbt_parser.num_destinations,
             fee_amount=psbt_parser.fee_amount,
             change_amount=psbt_parser.change_amount,
+            is_high_fee_tx=psbt_parser.has_high_fee(),
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
