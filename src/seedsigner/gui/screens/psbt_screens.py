@@ -25,6 +25,10 @@ class PSBTOverviewScreen(ButtonListScreen):
     num_change_outputs: int = 0
     destination_addresses: list[str] = None
     has_op_return: bool = False
+    is_high_fee_tx: bool = False
+
+    # Appended to a row that needs the user's attention, drawn in the dire warning color
+    WARNING_MARK = " (!)"
     
 
     def __post_init__(self):
@@ -147,7 +151,13 @@ class PSBTOverviewScreen(ButtonListScreen):
                 # TRANSLATOR_NOTE: Inserts the recipient number (e.g. the fifth one is: "recipient 5")
                 destination_column.append(_("recipient {}").format(len(self.destination_addresses) + self.num_self_transfer_outputs))
 
-            destination_column.append(_("fee"))
+            fee_label = _("fee")
+            if self.is_high_fee_tx:
+                # Part of the label, not something appended at render time: the column is
+                # measured from these strings, so a mark added later would be drawn
+                # outside the width that was reserved for the row.
+                fee_label += PSBTOverviewScreen.WARNING_MARK
+            destination_column.append(fee_label)
 
             if self.has_op_return:
                 # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
@@ -308,11 +318,15 @@ class PSBTOverviewScreen(ButtonListScreen):
 
         output_curves = []
         for destination in destination_column:
+            text_color = chart_font_color
+            if destination.endswith(PSBTOverviewScreen.WARNING_MARK):
+                text_color = GUIConstants.DIRE_WARNING_COLOR
+
             draw.text(
                 (recipients_text_x, destination_y),
                 text=destination,
                 font=font,
-                fill=chart_font_color,
+                fill=text_color,
                 anchor="lt"
             )
 
@@ -471,6 +485,7 @@ class PSBTMathScreen(ButtonListScreen):
     num_recipients: int = 0
     fee_amount: int = 0
     change_amount: int = 0
+    is_high_fee_tx: bool = False
 
 
     def __post_init__(self):
@@ -569,10 +584,17 @@ class PSBTMathScreen(ButtonListScreen):
             )
 
         cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
+
+        info_text = _("fee")
+        info_text_color = GUIConstants.BODY_FONT_COLOR
+        if self.is_high_fee_tx:
+            info_text += PSBTOverviewScreen.WARNING_MARK
+            info_text_color = GUIConstants.DIRE_WARNING_COLOR
         render_amount(
             cur_y,
             f"-{self.fee_amount}",
-            info_text=_("fee"),
+            info_text=info_text,
+            info_text_color=info_text_color,
         )
 
         cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
