@@ -39,7 +39,7 @@ from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.encode_qr import BaseQrEncoder
 from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 from seedsigner.models.qr_type import QRType
-from seedsigner.models.seed import Seed
+from seedsigner.models.seed import BIP85ChildSeed, Seed
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, RemoveMicroSDWarningView, NotYetImplementedView, UnhandledExceptionView, 
@@ -114,7 +114,7 @@ mnemonic_24 = "attack pizza motion avocado network gather crop fresh patrol unus
 seed_12 = Seed(mnemonic=mnemonic_12, passphrase="cap*BRACKET3stove", wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
 seed_24 = Seed(mnemonic=mnemonic_24, passphrase="some-PASS*phrase9", wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
 seed_24_w_passphrase = Seed(mnemonic=mnemonic_24, passphrase="some-PASS*phrase9", wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
-
+bip85_child_seed = BIP85ChildSeed(parent_seed=seed_24, child_index=0, num_words=12, mnemonic=seed_24.get_bip85_child_mnemonic(0, 12).split())
 MULTISIG_WALLET_DESCRIPTOR = """wsh(sortedmulti(1,[22bde1a9/48h/1h/0h/2h]tpubDFfsBrmpj226ZYiRszYi2qK6iGvh2vkkghfGB2YiRUVY4rqqedHCFEgw12FwDkm7rUoVtq9wLTKc6BN2sxswvQeQgp7m8st4FP8WtP8go76/{0,1}/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*))#3jhtf6yx"""
 
 # Grab the most recent release version info for the "release build" splash screenshots.
@@ -348,6 +348,52 @@ def generate_screenshots(locale):
                     yield
 
 
+        @contextmanager
+        def mock_bip85_child_seed_pending():
+            original_pending_seed = controller.storage.get_pending_seed()
+            controller.storage.set_pending_seed(bip85_child_seed)
+            try:
+                yield
+            finally:
+                controller.storage.set_pending_seed(original_pending_seed)
+
+
+        @contextmanager
+        def mock_bip85_setting_loadable():
+            """Temporarily enables the BIP85 loadable child seeds setting."""
+            original = controller.settings.get_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS)
+            controller.settings.set_value(
+                attr_name=SettingsConstants.SETTING__BIP85_CHILD_SEEDS,
+                value=SettingsConstants.BIP85__LOADABLE,
+            )
+            try:
+                yield
+            finally:
+                controller.settings.set_value(
+                    attr_name=SettingsConstants.SETTING__BIP85_CHILD_SEEDS,
+                    value=original,
+                )
+
+
+        @contextmanager
+        def mock_bip85_child_seed_pending_and_loadable():
+            with mock_bip85_child_seed_pending():
+                with mock_bip85_setting_loadable():
+                    yield
+
+
+        @contextmanager
+        def mock_bip85_child_seed_loaded():
+            with mock_bip85_child_seed_pending():
+                with mock_bip85_setting_loadable():
+                    seed = controller.storage.get_pending_seed()
+                    controller.storage.finalize_pending_seed()
+                    try:
+                        yield
+                    finally:
+                        controller.storage.discard_seed(seed)
+
+
         screenshot_sections = {
             "Main Menu Views": [
                 ScreenshotConfig(OpeningSplashView, dict(force_partner_logos=True), mock_context_manager=mock_version_to_most_recent_release),
@@ -395,9 +441,15 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedWordsWarningView, dict(seed=seed_12)),
                 ScreenshotConfig(seed_views.SeedWordsView, dict(seed=seed_12)),
                 ScreenshotConfig(seed_views.SeedWordsView, dict(seed=seed_12, page_index=2), screenshot_name="SeedWordsView_2"),
-                ScreenshotConfig(seed_views.SeedBIP85SelectNumWordsView,     dict(seed=seed_12)),
-                ScreenshotConfig(seed_views.SeedBIP85SelectChildIndexView,   dict(seed=seed_12, num_words=24)),
-                ScreenshotConfig(seed_views.SeedBIP85InvalidChildIndexView,  dict(seed=seed_12, num_words=12)), 
+                ScreenshotConfig(seed_views.SeedWordsView, dict(seed=bip85_child_seed), screenshot_name="SeedWordsView_bip85_child_seed"),
+                ScreenshotConfig(seed_views.SeedBIP85SelectNumWordsView,     dict(seed=seed_24)),
+                ScreenshotConfig(seed_views.SeedBIP85SelectChildIndexView,   dict(seed=seed_24, num_words=24)),
+                ScreenshotConfig(seed_views.SeedBIP85InvalidChildIndexView,  dict(seed=seed_24, num_words=12)),
+                ScreenshotConfig(seed_views.SeedBIP85FinalizeView, screenshot_name="SeedBIP85FinalizeView_view_only", mock_context_manager=mock_bip85_child_seed_pending),
+                ScreenshotConfig(seed_views.SeedBIP85FinalizeView, screenshot_name="SeedBIP85FinalizeView_loadable",  mock_context_manager=mock_bip85_child_seed_pending_and_loadable),
+                ScreenshotConfig(seed_views.SeedFinalizeView, screenshot_name="SeedFinalizeView_bip85_child_seed", mock_context_manager=mock_bip85_child_seed_pending_and_loadable),
+                ScreenshotConfig(seed_views.SeedOptionsView, dict(seed=bip85_child_seed), screenshot_name="SeedOptionsView_bip85_child_seed", mock_context_manager=mock_bip85_child_seed_loaded),
+                ScreenshotConfig(seed_views.SeedsMenuView, screenshot_name="SeedsMenuView_bip85_child_seed", mock_context_manager=mock_bip85_child_seed_loaded),
                 ScreenshotConfig(seed_views.SeedWordsBackupTestPromptView,   dict(seed=seed_12)),
                 ScreenshotConfig(seed_views.SeedWordsBackupTestView,         dict(seed=seed_12, rand_seed=6102)),
                 ScreenshotConfig(seed_views.SeedWordsBackupTestMistakeView,  dict(seed=seed_12, cur_index=7, wrong_word="satoshi")),
