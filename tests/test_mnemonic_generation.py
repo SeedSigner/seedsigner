@@ -195,3 +195,36 @@ def test_50_dice_rolls():
     actual = " ".join(mnemonic)
     assert bip39.mnemonic_is_valid(actual)
     assert actual == expected
+
+
+def test_valid_final_mnemonic_words():
+    """ Test valid final words for 12-word and 24-word seeds. """
+    partial_11_words = [
+        "abandon", "abandon", "abandon", "abandon", "abandon", "abandon",
+        "abandon", "abandon", "abandon", "abandon", "abandon"
+    ]
+    
+    valid_words_12 = mnemonic_generation.get_valid_final_mnemonic_words(partial_11_words)
+    
+    # there should be exactly 128 valid final words for a 12-word seed
+    assert len(valid_words_12) == 128, f"Expected 128 valid words for 12-word seed, got {len(valid_words_12)}"
+    
+    for word in valid_words_12:
+        test_mnemonic = partial_11_words + [word]
+        assert bip39.mnemonic_is_valid(" ".join(test_mnemonic)), f"Word '{word}' should create valid mnemonic"
+    
+    partial_23_words = [
+        "abandon", "abandon", "abandon", "abandon", "abandon", "abandon",
+        "abandon", "abandon", "abandon", "abandon", "abandon", "abandon",
+        "abandon", "abandon", "abandon", "abandon", "abandon", "abandon",
+        "abandon", "abandon", "abandon", "abandon", "abandon"
+    ]
+    
+    valid_words_24 = mnemonic_generation.get_valid_final_mnemonic_words(partial_23_words)
+    
+    # there should be exactly 8 valid final words for a 24-word seed
+    assert len(valid_words_24) == 8, f"Expected 8 valid words for 24-word seed, got {len(valid_words_24)}"
+    
+    for word in valid_words_24:  # Test all since there should be only ~8
+        test_mnemonic = partial_23_words + [word]
+        assert bip39.mnemonic_is_valid(" ".join(test_mnemonic)), f"Word '{word}' should create valid mnemonic"
