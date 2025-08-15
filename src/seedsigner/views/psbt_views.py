@@ -166,11 +166,12 @@ class PSBTOverviewView(View):
 
 class PSBTUnsupportedScriptTypeWarningView(View):
     def run(self):
-        selected_menu_num = WarningScreen(
+        selected_menu_num = self.run_screen(
+            WarningScreen,
             status_headline=_("Unsupported Script Type!"),
             text=_("PSBT has unsupported input script type, please verify your change addresses."),
             button_data=[ButtonOption("Continue")],
-        ).display()
+        )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -186,12 +187,13 @@ class PSBTUnsupportedScriptTypeWarningView(View):
 
 class PSBTNoChangeWarningView(View):
     def run(self):
-        selected_menu_num = WarningScreen(
+        selected_menu_num = self.run_screen(
+            WarningScreen,
             # TRANSLATOR_NOTE: User will receive no change back; the inputs to this transaction are fully spent
             status_headline=_("Full Spend!"),
             text=_("This PSBT spends its entire input value. No change is coming back to your wallet."),
             button_data=[ButtonOption("Continue")],
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -466,13 +468,14 @@ class PSBTAddressVerificationFailedView(View):
             # TRANSLATOR_NOTE: Variable is either "change" or "self-transfer".
             text = _("PSBT's {} address could not be generated from your seed.").format(_("change") if self.is_change else _("self-transfer"))
         
-        DireWarningScreen(
+        self.run_screen(
+            DireWarningScreen,
             title=_("Suspicious PSBT"),
             status_headline=_("Address Verification Failed"),
             text=text,
             button_data=[ButtonOption("Discard PSBT")],
             show_back_button=False,
-        ).display()
+        )
 
         # We're done with this PSBT. Route back to MainMenuView which always
         #   clears all ephemeral data (except in-memory seeds).
