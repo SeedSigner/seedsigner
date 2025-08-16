@@ -407,11 +407,11 @@ class DecodeQR:
                 _4LETTER_WORDLIST = []
 
             if all(x in wordlist for x in s.strip().split(" ")):
-                # checks if all words in list are in bip39 word list
+                # checks if all words in list are in BIP-39 word list
                 return QRType.SEED__MNEMONIC
 
             elif all(x in _4LETTER_WORDLIST for x in s.strip().split(" ")):
-                # checks if all 4 letter words are in list are in 4 letter bip39 word list
+                # checks if all 4 letter words are in list are in 4 letter BIP-39 word list
                 return QRType.SEED__FOUR_LETTER_MNEMONIC
 
             elif DecodeQR.is_base43_psbt(s):

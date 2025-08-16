@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from gettext import gettext as _
 from typing import Type
@@ -9,6 +10,9 @@ from seedsigner.gui.screens.screen import BaseScreen, ButtonOption, LargeButtonS
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread
+
+logger = logging.getLogger(__name__)
+
 
 
 class BackStackView:
@@ -242,30 +246,43 @@ class PowerOptionsView(View):
             return Destination(PowerOffView)
 
 
-
+@dataclass
 class RestartView(View):
+    is_screenshot_renderer: bool = False
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.thread = self.DoResetThread()
+
     def run(self):
+        if self.is_screenshot_renderer:
+            # For the screenshot generator, we don't actually want to restart
+            return
+        
+        logger.info("Restarting SeedSigner")
+
         from seedsigner.gui.screens.screen import ResetScreen
-        thread = RestartView.DoResetThread()
-        thread.start()
+
+        self.thread.start()
         self.run_screen(ResetScreen)
 
 
     class DoResetThread(BaseThread):
         def run(self):
+            import os
+            import sys
             import time
-            from subprocess import call
 
             # Give the screen just enough time to display the reset message before
             # exiting.
             time.sleep(0.25)
 
-            # Kill the SeedSigner process; Running the process again.
-            # `.*` is a wildcard to detect either `python`` or `python3`.
-            if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
-                call("kill $(pidof python*) & python /opt/src/main.py", shell=True)
-            else:
-                call("kill $(ps aux | grep '[p]ython.*main.py' | awk '{print $2}')", shell=True)
+            # Flush any buffered data.
+            sys.stdout.flush() 
+            sys.stderr.flush()
+
+            # Replace the current process with a new one.
+            os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
 

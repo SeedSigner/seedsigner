@@ -214,19 +214,19 @@ WorkingDirectory=/home/pi/seedsigner/src/
 ExecStart=/usr/bin/python3 main.py
 StandardOutput=null
 ErrorOutput=null
-Restart=always
+Restart=no
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-_Note: For local dev you'll want to edit the `Restart=always` line to `Restart=no`. This way when your dev code crashes it won't keep trying to restart itself. Note that the UI "Reset" will no longer work when auto-restarts are disabled._
+_Note: The line `Restart=no` ensures that when your dev code crashes it won't keep trying to restart itself._
 
 _Note: Debugging output is completely wiped via routing the stdout and stderr to `/dev/null`. When working in local dev, you'll `kill` the `systemd` SeedSigner service and just directly run the code on demand so you can see all the debugging output live._
 
 Use `CTRL-X` and `y` to exit and save changes.
 
-Configure the service to start running (this will restart the seedsigner code automatically at startup and if it crashes):
+Configure the service to start running (this will restart the seedsigner code automatically at startup):
 ```bash
 sudo systemctl enable seedsigner.service
 ```

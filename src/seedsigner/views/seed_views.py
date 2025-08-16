@@ -373,23 +373,18 @@ class SeedAddPassphraseView(View):
         # The new passphrase will be the return value; it might be empty.
         self.seed.set_passphrase(ret_dict["passphrase"])
 
-        if "is_back_button" in ret_dict:
-            if len(self.seed.passphrase) > 0:
-                return Destination(SeedAddPassphraseExitDialogView)
-            else:
-                return Destination(BackStackView)
-            
-        elif len(self.seed.passphrase) > 0:
-            return Destination(SeedReviewPassphraseView)
-        
+        if "is_back_button" in ret_dict or len(self.seed.passphrase) == 0:
+            return Destination(SeedAddPassphraseExitDialogView)
+                    
         else:
-            return Destination(SeedFinalizeView)
+            return Destination(SeedReviewPassphraseView)
 
 
 
 class SeedAddPassphraseExitDialogView(View):
     EDIT = ButtonOption("Edit passphrase")
     DISCARD = ButtonOption("Discard passphrase", button_label_color="red")
+    SKIP = ButtonOption("Skip passphrase")  # NOT red since we're not throwing anything away
 
     def __init__(self):
         super().__init__()
@@ -397,13 +392,20 @@ class SeedAddPassphraseExitDialogView(View):
 
 
     def run(self):
-        button_data = [self.EDIT, self.DISCARD]
+        if self.seed.passphrase:
+            title = _("Discard passphrase?")
+            message = _("Your current passphrase entry will be erased.")
+            button_data = [self.EDIT, self.DISCARD]
+        else:
+            title = _("Skip passphrase?")
+            message = _("You have not entered a passphrase yet.")
+            button_data = [self.EDIT, self.SKIP]
         
         selected_menu_num = self.run_screen(
             WarningScreen,
-            title=_("Discard passphrase?"),
+            title=title,
             status_headline=None,
-            text=_("Your current passphrase entry will be erased"),
+            text=message,
             show_back_button=False,
             button_data=button_data,
         )
@@ -411,7 +413,7 @@ class SeedAddPassphraseExitDialogView(View):
         if button_data[selected_menu_num] == self.EDIT:
             return Destination(SeedAddPassphraseView)
 
-        elif button_data[selected_menu_num] == self.DISCARD:
+        elif button_data[selected_menu_num] in [self.DISCARD, self.SKIP]:
             self.seed.set_passphrase("")
             return Destination(SeedFinalizeView)
         
@@ -1127,17 +1129,17 @@ class SeedWordsView(View):
 
 
 """****************************************************************************
-    BIP85 - Derive child mnemonic (seed) flow
+    BIP-85 - Derive child mnemonic (seed) flow
 ****************************************************************************"""
 class SeedBIP85ApplicationModeView(View):
     """
-        * Ask the user the application type as defined in the BIP0085 spec.
+        * Ask the user the application type as defined in the BIP-85 spec.
         * Currently only Word mode of 12, 24 words (Application number: 39')
         * Possible future additions are
         *  WIF (HDSEED)
-        *  XPRV (BIP32)
+        *  XPRV (BIP-32)
     """
-    # TODO: Future enhancement to display WIF (HD-SEED) and XPRV (Bip32)?
+    # TODO: Future enhancement to display WIF (HD-SEED) and XPRV (BIP-32)?
     WORDS_12 = ButtonOption("12 Words")
     WORDS_24 = ButtonOption("24 Words")
 

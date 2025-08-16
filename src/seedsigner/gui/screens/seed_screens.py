@@ -31,7 +31,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
 
         self.possible_alphabet = "abcdefghijklmnopqrstuvwxyz"
 
-        # Measure the width required to display the longest word in the English bip39
+        # Measure the width required to display the longest word in the English BIP-39
         # wordlist.
         # TODO: If we ever support other wordlist languages, adjust accordingly.
         matches_list_highlight_font_name = GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME
@@ -48,7 +48,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         self.arrow_up_is_active = False
         self.arrow_down_is_active = False
 
-        # TODO: support other BIP39 languages/charsets
+        # TODO: support other BIP-39 languages/charsets
         self.keyboard = Keyboard(
             draw=self.image_draw,
             charset=self.possible_alphabet,
@@ -624,7 +624,7 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
         self.fingerprint_line = IconTextLine(
             icon_name=SeedSignerIconConstants.FINGERPRINT,
             icon_color=GUIConstants.INFO_COLOR,
-            # TRANSLATOR_NOTE: Short for "BIP32 Master Fingerprint"
+            # TRANSLATOR_NOTE: Short for "BIP-32 Master Fingerprint"
             label_text=_("Fingerprint"),
             value_text=self.fingerprint,
             screen_x=GUIConstants.COMPONENT_PADDING,
