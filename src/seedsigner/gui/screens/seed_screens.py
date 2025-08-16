@@ -676,9 +676,9 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
     KEYBOARD__SYMBOLS_1_BUTTON_TEXT = "!@#"
     KEYBOARD__SYMBOLS_2_BUTTON_TEXT = "*[]"
 
+    title = _("BIP-39 Passphrase")
 
     def __post_init__(self):
-        self.title = _("BIP-39 Passphrase")
         super().__post_init__()
 
         keys_lower = "abcdefghijklmnopqrstuvwxyz"
