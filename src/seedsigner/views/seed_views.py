@@ -2451,9 +2451,10 @@ class SeedShamirShareInvalidView(View):
     def run(self):
         button_data = [self.EDIT, self.DISCARD]
         selected_menu_num = self.run_screen(
-            WarningScreen,
+            DireWarningScreen,
             title=_("Invalid Shamir Share!"),
             status_headline=None,
+            status_icon_name=SeedSignerIconConstants.ERROR,
             text=_("Checksum failure; not a valid Shamir share."),
             show_back_button=False,
             button_data=button_data,
