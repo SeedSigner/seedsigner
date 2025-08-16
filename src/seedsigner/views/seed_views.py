@@ -2369,10 +2369,12 @@ class SeedShamirShareMnemonicEntryView(View):
         )
 
         if ret == RET_CODE__BACK_BUTTON:
-            if self.cur_word_index < 0:
+            if self.cur_word_index > 0:
+                return Destination(BackStackView)
+            else:
                 self.controller.storage.discard_pending_mnemonic()
                 self.controller.storage.discard_pending_shamir_share_set()
-            return Destination(BackStackView)
+                return Destination(SeedShamirShareImportSelectWordCount, clear_history=True)
         
         # ret will be our new mnemonic word
         self.controller.storage.update_pending_mnemonic(ret, self.cur_word_index)
@@ -2433,6 +2435,7 @@ class SeedShamirShareOptionsView(View):
                 self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(finalize=False)
                 return Destination(SeedShamirShareFinalizeView)
             except InvalidSeedException:
+                # If seed does not reconstruct, more shares are needed
                 from seedsigner.gui.toast import ErrorToast
                 self.controller.activate_toast(ErrorToast(_("Need more shares to reconstruct seed")))
                 return Destination(SeedShamirShareOptionsView)
@@ -2522,25 +2525,19 @@ class SeedAddSlip39PassphraseView(View):
         # The new passphrase will be the return value; it might be empty.
         self.seed.set_passphrase(ret_dict["passphrase"])
 
-        if "is_back_button" in ret_dict:
-            if len(self.seed.passphrase) > 0:
+        if "is_back_button" in ret_dict or len(self.seed.passphrase) == 0:
                 return Destination(SeedAddSlip39PassphraseExitDialogView)
-            else:
-                return Destination(BackStackView)
-            
-        elif len(ret_dict["passphrase"]) > 0:
-            self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"], finalize=False)
-            return Destination(SeedReviewSlip39PassphraseView)
         
         else:
             self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"], finalize=False)
-            return Destination(SeedShamirShareFinalizeView)
+            return Destination(SeedReviewSlip39PassphraseView)
 
 
 
 class SeedAddSlip39PassphraseExitDialogView(View):
     EDIT = ButtonOption("Edit passphrase")
     DISCARD = ButtonOption("Discard passphrase", button_label_color="red")
+    SKIP = ButtonOption("Skip passphrase")  # NOT red since we're not throwing anything away
 
     def __init__(self):
         super().__init__()
@@ -2548,13 +2545,20 @@ class SeedAddSlip39PassphraseExitDialogView(View):
 
 
     def run(self):
-        button_data = [self.EDIT, self.DISCARD]
+        if self.seed.passphrase:
+            title = _("Discard passphrase?")
+            message = _("Your current passphrase entry will be erased.")
+            button_data = [self.EDIT, self.DISCARD]
+        else:
+            title = _("Skip passphrase?")
+            message = _("You have not entered a passphrase yet.")
+            button_data = [self.EDIT, self.SKIP]
         
         selected_menu_num = self.run_screen(
             WarningScreen,
-            title=_("Discard passphrase?"),
+            title=title,
             status_headline=None,
-            text=_("Your current passphrase entry will be erased"),
+            text=message,
             show_back_button=False,
             button_data=button_data,
         )
@@ -2562,7 +2566,7 @@ class SeedAddSlip39PassphraseExitDialogView(View):
         if button_data[selected_menu_num] == self.EDIT:
             return Destination(SeedAddSlip39PassphraseView)
 
-        elif button_data[selected_menu_num] == self.DISCARD:
+        elif button_data[selected_menu_num] in [self.DISCARD, self.SKIP]:
             self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase="", finalize=False)
             return Destination(SeedShamirShareFinalizeView)
 
