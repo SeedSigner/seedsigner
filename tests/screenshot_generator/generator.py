@@ -343,6 +343,7 @@ def generate_screenshots(locale):
 
                 ScreenshotConfig(seed_views.SeedElectrumMnemonicStartView),
 
+                ScreenshotConfig(seed_views.SeedShamirShareStartView),
                 ScreenshotConfig(seed_views.SeedShamirShareImportSelectWordCount),
                 ScreenshotConfig(seed_views.SeedShamirShareMnemonicEntryView),
                 ScreenshotConfig(seed_views.SeedShamirShareOptionsView),

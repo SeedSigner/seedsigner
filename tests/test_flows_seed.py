@@ -750,6 +750,7 @@ class TestShamirShareImportFlows(FlowTest):
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),
                 FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
+                FlowStep(seed_views.SeedShamirShareStartView),  # Warning screen; no relevant button data selection.
                 FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(shares[0]) == 20 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
                 FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=RET_CODE__BACK_BUTTON),
                 FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(shares[0]) == 20 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
@@ -817,6 +818,7 @@ class TestShamirShareImportFlows(FlowTest):
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
                 FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
+                FlowStep(seed_views.SeedShamirShareStartView), 
                 FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(shares[0]) == 20 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
             ]
 
@@ -873,6 +875,7 @@ class TestShamirShareImportFlows(FlowTest):
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
             FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
             FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
+            FlowStep(seed_views.SeedShamirShareStartView), 
             FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(shares[0]) == 20 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
         ]
 

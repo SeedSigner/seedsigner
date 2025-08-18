@@ -204,7 +204,7 @@ class LoadSeedView(View):
             return Destination(SeedMnemonicEntryView)
         
         elif button_data[selected_menu_num] == self.TYPE_SHAMIR:
-            return Destination(SeedShamirShareImportSelectWordCount)
+            return Destination(SeedShamirShareStartView)
 
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
             return Destination(SeedElectrumMnemonicStartView)
@@ -2315,6 +2315,25 @@ class SeedSignMessageSignedMessageQRView(View):
 """****************************************************************************
     Shamir's Secret Sharing Views
 ****************************************************************************"""
+class SeedShamirShareStartView(View):
+    """
+    Currently just a warning display before entering the Shamir shares.
+    
+    Could be expanded with a follow-up View to specify Shamir seed type.
+    """
+    def run(self):
+        self.run_screen(
+                WarningScreen,
+                title=_("Shamir Secret Sharing"),
+                status_headline=None,
+                text=_("Some features are disabled for Shamir seeds."),
+                show_back_button=False,
+        )
+
+        return Destination(SeedShamirShareImportSelectWordCount)
+
+
+
 class SeedShamirShareImportSelectWordCount(View):
     TYPE_20WORD = ButtonOption("20 words")
     TYPE_33WORD = ButtonOption("33 words")
@@ -2333,7 +2352,7 @@ class SeedShamirShareImportSelectWordCount(View):
         )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
+            return Destination(MainMenuView, clear_history=True)
 
         elif button_data[selected_menu_num] == self.TYPE_20WORD:
             self.controller.storage.init_pending_shamir_share_set(num_words=20)
@@ -2375,7 +2394,7 @@ class SeedShamirShareMnemonicEntryView(View):
             else:
                 self.controller.storage.discard_pending_mnemonic()
                 self.controller.storage.discard_pending_shamir_share_set()
-                return Destination(SeedShamirShareImportSelectWordCount, clear_history=True)
+                return Destination(SeedShamirShareImportSelectWordCount)
         
         # ret will be our new mnemonic word
         self.controller.storage.update_pending_mnemonic(ret, self.cur_word_index)
