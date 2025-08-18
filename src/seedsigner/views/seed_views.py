@@ -162,7 +162,7 @@ class LoadSeedView(View):
     SEED_QR = ButtonOption(" Scan a SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-    TYPE_SHAMIR = ButtonOption("Shamir Recovery", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_SHAMIR = ButtonOption("Shamir recovery", FontAwesomeIconConstants.KEYBOARD)
     TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
     CREATE = ButtonOption(" Create a seed", SeedSignerIconConstants.PLUS)
 
