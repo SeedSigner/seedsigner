@@ -2344,6 +2344,7 @@ class SeedShamirShareImportSelectWordCount(View):
             return Destination(SeedShamirShareMnemonicEntryView)
 
 
+
 class SeedShamirShareMnemonicEntryView(View):
     def __init__(self, cur_word_index: int = 0):
         super().__init__()
@@ -2400,6 +2401,7 @@ class SeedShamirShareMnemonicEntryView(View):
             # Add the completed share
             self.controller.storage.add_pending_shamir_share()
             return Destination(SeedShamirShareOptionsView)
+
 
 
 class SeedShamirShareOptionsView(View):
@@ -2475,6 +2477,7 @@ class SeedShamirShareInvalidView(View):
             
             else:
                 return Destination(SeedShamirShareOptionsView)
+
 
 
 class SeedShamirShareFinalizeView(View):
