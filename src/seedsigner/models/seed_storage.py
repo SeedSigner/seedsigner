@@ -109,11 +109,11 @@ class SeedStorage:
     
     # Shamir shares
 
-    def init_pending_shamir_share_set(self, num_words: int = 20, is_electrum: bool = False):
+    def init_pending_shamir_share_set(self, num_words: int = 20):
         self._pending_mnemonic = [None] * num_words
         self._pending_shamir_share_set = []  # Start with empty list instead of fixed size
         self._pending_shamir_num_words = num_words
-        self._pending_is_electrum = is_electrum
+        self._pending_is_electrum = False
 
 
     def add_pending_shamir_share(self):
