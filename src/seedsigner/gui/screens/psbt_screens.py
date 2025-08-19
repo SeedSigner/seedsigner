@@ -479,7 +479,7 @@ class PSBTMathScreen(ButtonListScreen):
     def __post_init__(self):
         # Customize defaults
         self.title = _("PSBT Math")
-        self.button_data = [ButtonOption("Review decipients")]
+        self.button_data = [ButtonOption("Review recipients")]
         self.is_bottom_list = True
 
         super().__post_init__()
