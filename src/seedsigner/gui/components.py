@@ -654,7 +654,7 @@ class TextArea(BaseComponent):
                         continue
 
                     img = self.rendered_text_img.crop((self.horizontal_scroll_position, 0, self.horizontal_scroll_position + self.visible_width, self.rendered_text_img.height))
-                    self.renderer.canvas.paste(img, (self.screen_x, self.screen_y - self.scroll_y))
+                    self.renderer.canvas.paste(img, (int(self.screen_x), int(self.screen_y - self.scroll_y)))
                     self.renderer.show_image()
 
                 if self.horizontal_scroll_position == 0:
@@ -717,7 +717,7 @@ class TextArea(BaseComponent):
             # Must also account for the right edge running off our visible width
             text_img = text_img.crop((0, 0, self.visible_width, text_img.height))
 
-        self.canvas.paste(text_img, (text_x, self.screen_y + self.text_y - self.text_height_above_baseline - self.scroll_y))
+        self.canvas.paste(text_img, (int(text_x), int(self.screen_y + self.text_y - self.text_height_above_baseline - self.scroll_y)))
 
 
     def set_scroll_y(self, scroll_y: int):
