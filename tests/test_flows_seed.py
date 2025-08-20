@@ -477,7 +477,7 @@ class TestSeedFlows(FlowTest):
         ])
 
 
-    def test_coin_flip_flow(self):
+    def test_coin_flip_seed_flow(self):
         """
             Create a seed via coin flips.
         """
