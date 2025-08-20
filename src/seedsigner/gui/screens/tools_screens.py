@@ -208,7 +208,7 @@ class ToolsCoinEntropyEntryScreen(KeyboardScreen):
         # Specify the keys in the keyboard
         self.rows = 2
         self.cols = 2
-        self.key_height = GUIConstants.get_top_nav_title_font_size() + int(GUIConstants.EDGE_PADDING/4) + 2*GUIConstants.EDGE_PADDING
+        self.key_height = GUIConstants.get_top_nav_title_font_size() + GUIConstants.EDGE_PADDING//4 + 2*GUIConstants.EDGE_PADDING
         self.keys_charset = "".join([
             "H",
             "T",
@@ -316,7 +316,7 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
         # Specify the keys in the keyboard
         self.rows = 1
         self.cols = 4
-        self.key_height = GUIConstants.get_top_nav_title_font_size() + GUIConstants.EDGE_PADDING/4 + 2*GUIConstants.EDGE_PADDING
+        self.key_height = GUIConstants.get_top_nav_title_font_size() + GUIConstants.EDGE_PADDING//4 + 2*GUIConstants.EDGE_PADDING
         self.keys_charset = "10"
 
         # Now initialize the parent class
