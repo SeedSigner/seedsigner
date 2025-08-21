@@ -524,7 +524,7 @@ class SeedElectrumMnemonicStartView(View):
     Views for actions on individual seeds:
 ****************************************************************************"""
 class SeedOptionsView(View):
-    SCAN_PSBT = ButtonOption("Scan PSBT", SeedSignerIconConstants.QRCODE)
+    SCAN_PSBT = ButtonOption("Scan transaction", SeedSignerIconConstants.QRCODE)
     VERIFY_ADDRESS = ButtonOption("Verify addr")
     EXPORT_XPUB = ButtonOption("Export xpub")
     EXPLORER = ButtonOption("Address explorer")
@@ -2077,7 +2077,7 @@ class LoadMultisigWalletDescriptorView(View):
 
 
 class MultisigWalletDescriptorView(View):
-    RETURN = ButtonOption("Return to PSBT")
+    RETURN = ButtonOption("Return to transaction")
     VERIFY_ADDR = ButtonOption("Verify addr")
     ADDRESS_EXPLORER = ButtonOption("Address explorer")
     OK = ButtonOption("OK")

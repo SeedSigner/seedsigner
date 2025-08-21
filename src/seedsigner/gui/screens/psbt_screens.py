@@ -29,7 +29,7 @@ class PSBTOverviewScreen(ButtonListScreen):
 
     def __post_init__(self):
         # Customize defaults
-        self.title = _("Review PSBT")
+        self.title = _("Review Transaction")
         self.is_bottom_list = True
         self.button_data = [ButtonOption("Review details")]
 
@@ -478,7 +478,7 @@ class PSBTMathScreen(ButtonListScreen):
 
     def __post_init__(self):
         # Customize defaults
-        self.title = _("PSBT Math")
+        self.title = _("Transaction Math")
         self.button_data = [ButtonOption("Review recipients")]
         self.is_bottom_list = True
 
@@ -763,7 +763,7 @@ class PSBTOpReturnScreen(ButtonListScreen):
 class PSBTFinalizeScreen(ButtonListScreen):
     def __post_init__(self):
         # Customize defaults
-        self.title = _("Sign PSBT")
+        self.title = _("Sign Transaction")
         self.is_bottom_list = True
         super().__post_init__()
 
