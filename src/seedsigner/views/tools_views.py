@@ -434,7 +434,7 @@ class ToolsCoinEntropySetwiseBip39WordView(View):
     def run(self):
         self.run_screen(
             ButtonListScreen,
-            title=_("Set {}").format(self.current_set),
+            title=_("word {}").format(self.current_set),
             button_data=[ButtonOption(self.word)],
             is_button_text_centered=True
         )
