@@ -255,15 +255,14 @@ class RestartView(View):
         self.thread = self.DoResetThread()
 
     def run(self):
-        if self.is_screenshot_renderer:
-            # For the screenshot generator, we don't actually want to restart
-            return
-        
         logger.info("Restarting SeedSigner")
 
         from seedsigner.gui.screens.screen import ResetScreen
 
-        self.thread.start()
+        if not self.is_screenshot_renderer:
+            # For the screenshot generator, we don't actually want to restart
+            self.thread.start()
+
         self.run_screen(ResetScreen)
 
 
