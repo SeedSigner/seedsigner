@@ -255,8 +255,6 @@ class RestartView(View):
         self.thread = self.DoResetThread()
 
     def run(self):
-        logger.info("Restarting SeedSigner")
-
         from seedsigner.gui.screens.screen import ResetScreen
 
         if not self.is_screenshot_renderer:
@@ -274,6 +272,7 @@ class RestartView(View):
 
             # Give the screen just enough time to display the reset message before
             # exiting.
+            logger.info("Restarting SeedSigner")
             time.sleep(0.25)
 
             # Flush any buffered data.
