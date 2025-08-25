@@ -479,13 +479,26 @@ def generate_screenshots(locale):
 
     for section_name, screenshot_list in setup_screenshots(locale).items():
         subdir = section_name.lower().replace(" ", "_")
-        screenshot_renderer.set_screenshot_path(os.path.join(screenshot_root, locale, subdir))
+        screenshot_section_path = os.path.join(screenshot_root, locale, subdir)
+        screenshot_renderer.set_screenshot_path(screenshot_section_path)
         locale_readme += "\n\n---\n\n"
         locale_readme += f"## {section_name}\n\n"
         locale_readme += """<table style="border: 0;">"""
         locale_readme += f"""<tr><td align="center">"""
         for screenshot_config in screenshot_list:
+            screenshot_filename = f"{screenshot_config.screenshot_name}.png"
+            screenshot_filepath = os.path.join(screenshot_section_path, screenshot_filename)
+
+            # Ensure a clean slate. This guarantees we're testing file creation,
+            # not just the existence of a stale file from a previous run.
+            if os.path.exists(screenshot_filepath):
+                os.remove(screenshot_filepath)
+
             screencap_view(screenshot_config)
+
+            if not os.path.exists(screenshot_filepath):
+                raise Exception(f"Failed to generate screenshot for '{screenshot_config.screenshot_name}' in section '{section_name}'.")
+
             locale_readme += """  <table align="left" style="border: 1px solid gray;">"""
             locale_readme += f"""<tr><td align="center">{screenshot_config.screenshot_name}<br/><br/><img src="{subdir}/{screenshot_config.screenshot_name}.png"></td></tr>"""
             locale_readme += """</table>\n"""
