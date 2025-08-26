@@ -430,7 +430,6 @@ def generate_screenshots(locale):
                     controller.activate_toast(toast_thread)
                     while controller.toast_notification_thread.is_alive():
                         # Give the Toast a moment to complete its work
-
                         time.sleep(0.01)
 
                 print(f"Completed {screenshot_config.screenshot_name}")
