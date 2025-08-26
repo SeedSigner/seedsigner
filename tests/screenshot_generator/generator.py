@@ -433,15 +433,8 @@ def generate_screenshots(locale):
 
                         time.sleep(0.01)
 
-                    # TODO: Necessary now that the lock is in place?
-                    # Whenever possible, clean up toast thread HERE before killing the
-                    # main thread with ScreenshotComplete.
-                    toast_thread.stop()
-                    toast_thread.join()
-                raise ScreenshotComplete()
-        except ScreenshotComplete:
-            # Slightly hacky way to exit ScreenshotRenderer as expected
-            print(f"Completed {screenshot_config.screenshot_name}")
+                print(f"Completed {screenshot_config.screenshot_name}")
+
         except Exception as e:
             # Something else went wrong
             from traceback import print_exc
