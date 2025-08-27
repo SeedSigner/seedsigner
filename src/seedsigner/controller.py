@@ -391,7 +391,7 @@ class Controller(Singleton):
             self.screensaver = ScreenSaverView()
         
         # Start the screensaver, but it will block until it can acquire the Renderer.lock.
-        self.screensaver.run()
+        self.screensaver.start()
         logger.info("Controller: Screensaver started")
     
 

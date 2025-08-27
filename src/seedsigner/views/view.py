@@ -205,9 +205,8 @@ class ScreenSaverView(View):
         super().__post_init__()
 
 
-    @property
-    def is_running(self):
-        return self._is_running
+    def start(self):
+        self.run()
 
 
     def run(self):
@@ -224,6 +223,11 @@ class ScreenSaverView(View):
     def stop(self):
         self._is_running = False
         self.screen.stop()
+
+
+    @property
+    def is_running(self):
+        return self._is_running
 
 
     @property
