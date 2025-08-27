@@ -1,5 +1,5 @@
 import pytest
-from seedsigner.models.seed import InvalidSeedException, Seed, ElectrumSeed
+from seedsigner.models.seed import BIP85ChildSeed, InvalidSeedException, Seed, ElectrumSeed
 
 from seedsigner.models.settings import SettingsConstants
 
@@ -83,3 +83,48 @@ def test_electrum_seed_rejects_most_bip39_mnemonics():
 	mnemonic = "only gain spot output unknown craft simple cram absorb suggest ridge famous".split()
 	Seed(mnemonic)
 	ElectrumSeed(mnemonic)
+
+
+def test_bip85_child_seed_is_not_equal_to_the_same_seed_loaded_directly():
+	"""
+	A BIP85ChildSeed and a plain Seed must never compare equal, even when their
+	seed_bytes match.
+
+	A BIP85ChildSeed carries parent/index provenance and participates in the parent/child
+	display and discard behavior, so it is a distinct in-memory entry. Treating them as
+	equal would let SeedStorage silently skip storing the child while still returning it
+	to the UI.
+	"""
+	parent_seed = Seed(mnemonic=["abandon"] * 11 + ["about"])
+	child_mnemonic = parent_seed.get_bip85_child_mnemonic(0, 12).split()
+
+	child_seed = BIP85ChildSeed(
+		parent_seed=parent_seed,
+		child_index=0,
+		num_words=12,
+		mnemonic=child_mnemonic,
+	)
+
+	# The same mnemonic, but loaded directly as a normal Seed
+	standalone_seed = Seed(mnemonic=child_mnemonic)
+
+	# Sanity check: these really do share the same underlying seed bytes
+	assert child_seed.seed_bytes == standalone_seed.seed_bytes
+
+	# ...but they must not be considered the same entry, in either direction
+	assert child_seed != standalone_seed
+	assert standalone_seed != child_seed
+
+	# ...including when the standalone Seed is on the left of an `in` check
+	assert standalone_seed not in [child_seed]
+	assert child_seed not in [standalone_seed]
+
+
+def test_bip85_child_seeds_with_matching_seed_bytes_are_equal():
+	"""Two BIP85ChildSeeds that derive to the same seed_bytes are still equal."""
+	parent_seed = Seed(mnemonic=["abandon"] * 11 + ["about"])
+	child_mnemonic = parent_seed.get_bip85_child_mnemonic(0, 12).split()
+
+	kwargs = dict(parent_seed=parent_seed, child_index=0, num_words=12, mnemonic=child_mnemonic)
+
+	assert BIP85ChildSeed(**kwargs) == BIP85ChildSeed(**kwargs)
