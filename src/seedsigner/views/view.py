@@ -266,9 +266,9 @@ class RestartView(View):
             import sys
             import time
 
+            logger.info("Restarting SeedSigner")
             # Give the screen just enough time to display the reset message before
             # exiting.
-            logger.info("Restarting SeedSigner")
             time.sleep(0.25)
 
             # Flush any buffered data.
