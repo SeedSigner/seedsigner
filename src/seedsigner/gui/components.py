@@ -193,6 +193,7 @@ class FontAwesomeIconConstants:
     SQUARE_CARET_UP = "\uf151"
     UNLOCK = "\uf09c"
     X = "\u0058"
+    GAMEPAD = "\uf11b"
 
 
 

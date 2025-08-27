@@ -8,7 +8,7 @@ from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.camera import Camera
 from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConstants, IconTextLine, SeedSignerIconConstants, TextArea
 
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, ButtonOption, KeyboardScreen
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, ButtonOption, KeyboardScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
@@ -538,3 +538,345 @@ class ToolsAddressExplorerAddressListScreen(ButtonListScreen):
         self.button_data.append(ButtonOption(button_label, right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT))
 
         super().__post_init__()
+
+
+
+@dataclass
+class ToolsGameEntropyMnemonicLengthScreen(ButtonListScreen):
+    """
+    Screen for selecting mnemonic length with game instructions.
+    """
+    title: str = "Entropy Snake"
+    is_bottom_list: bool = True
+    is_button_text_centered: bool = True
+    
+    def __post_init__(self):
+        super().__post_init__()
+        
+        # Add instructions text above the buttons
+        instructions_text = _("Guide the snake to eat food and generate entropy.")
+        self.components.append(TextArea(
+            text=instructions_text,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+            font_size=GUIConstants.BODY_FONT_SIZE["default"]
+        ))
+
+
+@dataclass
+class ToolsGameEntropyScreen(BaseTopNavScreen):
+    """
+    Screen for the entropy mini-game where users move a snake around to generate entropy.
+    """
+    title: str = "Entropy Snake"
+    target_entropy_bits: int = 128  # 128 or 256 bits
+    
+    def __post_init__(self):
+        super().__post_init__()
+        
+        # Game state
+        self.entropy_data = []
+        self.game_grid_size = 16  # Smaller grid cells for better gameplay
+        
+        # Random starting positions for snake and food
+        import random
+        self.snake_body = [[random.randint(2, self.game_grid_size - 3), random.randint(2, self.game_grid_size - 3)]]
+        
+        # Random initial direction (up, right, down, or left)
+        directions = [[0, -1], [1, 0], [0, 1], [-1, 0]]  # up, right, down, left
+        self.snake_direction = random.choice(directions)
+        
+        # Initialize food positions
+        self.food_count = 2
+        self.food_positions = []  # Initialize empty first
+        self._generate_food_positions()
+        
+        self.moves_count = 0
+        self.last_move_time = 0
+        self.move_interval = 200  # Move every 200ms
+        
+        # Calculate target moves (rough estimate)
+        if self.target_entropy_bits == 128:
+            self.target_moves = 200
+        else:
+            self.target_moves = 400
+            
+        # Progress tracking
+        self.progress_percent = 0.0
+        
+        # Set up the game area. Optimize for screen fit
+        available_height = self.canvas_height - self.top_nav.height - 20  # Reserve space for progress bar
+        self.grid_cell_size = min(
+            self.canvas_width // (self.game_grid_size + 2),
+            available_height // (self.game_grid_size + 2)
+        )
+        self.game_start_x = (self.canvas_width - self.game_grid_size * self.grid_cell_size) // 2
+        self.game_start_y = self.top_nav.height + 8  # Minimal top spacing
+        
+        # Progress bar (positioned below grid with minimal spacing)
+        self.progress_bar_y = self.game_start_y + self.game_grid_size * self.grid_cell_size + 2
+        self.progress_bar_height = 8  # Slightly taller for better text visibility
+
+    def _generate_food_positions(self):
+        """Generate initial food positions that don't overlap with snake or each other"""
+        import random
+        for _ in range(self.food_count):
+            while True:
+                new_pos = [
+                    random.randint(0, self.game_grid_size - 1),
+                    random.randint(0, self.game_grid_size - 1)
+                ]
+                if self._is_valid_food_position(new_pos):
+                    self.food_positions.append(new_pos)
+                    break
+
+    def _render(self):
+        super()._render()
+        
+        # Draw game grid
+        self._draw_game_grid()
+        
+        # Draw snake
+        self._draw_snake()
+        
+        # Draw food
+        self._draw_food()
+        
+        # Draw progress bar
+        self._draw_progress_bar()
+
+    def _draw_game_grid(self):
+        """Draw the game grid as a simple grid of squares"""
+        for row in range(self.game_grid_size):
+            for col in range(self.game_grid_size):
+                x = self.game_start_x + col * self.grid_cell_size
+                y = self.game_start_y + row * self.grid_cell_size
+                
+                # Draw grid cell border
+                self.renderer.draw.rectangle(
+                    [x, y, x + self.grid_cell_size - 1, y + self.grid_cell_size - 1],
+                    outline=GUIConstants.INACTIVE_COLOR,
+                    width=1
+                )
+
+    def _draw_snake(self):
+        """Draw the snake body"""
+        for i, segment in enumerate(self.snake_body):
+            x = self.game_start_x + segment[0] * self.grid_cell_size
+            y = self.game_start_y + segment[1] * self.grid_cell_size
+            
+            # Head is a different color ??
+            if i == 0:
+                color = GUIConstants.SUCCESS_COLOR
+            else:
+                color = GUIConstants.SUCCESS_COLOR
+            
+            # Draw snake segment
+            self.renderer.draw.rectangle(
+                [x + 1, y + 1, x + self.grid_cell_size - 2, y + self.grid_cell_size - 2],
+                fill=color
+            )
+    
+    def _draw_food(self):
+        """Draw all food items as circles"""
+        for food_pos in self.food_positions:
+            x = self.game_start_x + food_pos[0] * self.grid_cell_size
+            y = self.game_start_y + food_pos[1] * self.grid_cell_size
+        
+            # Draw food as a circle
+            center_x = x + self.grid_cell_size // 2
+            center_y = y + self.grid_cell_size // 2
+            radius = self.grid_cell_size // 3
+            
+            self.renderer.draw.ellipse(
+                [center_x - radius, center_y - radius, center_x + radius, center_y + radius],
+                fill=GUIConstants.BITCOIN_ORANGE
+            )
+
+    def _draw_progress_bar(self):
+        """Draw the progress bar with integrated text"""
+        bar_width = self.canvas_width - 2 * GUIConstants.EDGE_PADDING
+        progress_width = int(bar_width * self.progress_percent)
+        
+        # Background bar
+        self.renderer.draw.rectangle(
+            [GUIConstants.EDGE_PADDING, self.progress_bar_y, 
+             GUIConstants.EDGE_PADDING + bar_width, self.progress_bar_y + self.progress_bar_height],
+            fill=GUIConstants.INACTIVE_COLOR
+        )
+        
+        # Progress bar
+        if progress_width > 0:
+            self.renderer.draw.rectangle(
+                [GUIConstants.EDGE_PADDING, self.progress_bar_y,
+                 GUIConstants.EDGE_PADDING + progress_width, self.progress_bar_y + self.progress_bar_height],
+                fill=GUIConstants.SUCCESS_COLOR
+            )
+        
+        # Progress text overlay
+        progress_text = _("Moves: {}/{}").format(self.moves_count, self.target_moves)
+        text_font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.BODY_FONT_SIZE["default"] - 2)
+        
+        # Center the text on the progress bar
+        text_bbox = text_font.getbbox(progress_text)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_x = GUIConstants.EDGE_PADDING + (bar_width - text_width) // 2
+        text_y = self.progress_bar_y + (self.progress_bar_height + text_bbox[3] - text_bbox[1]) // 2
+        
+        # Draw text with background for better readability
+        self.renderer.draw.text(
+            xy=(text_x, text_y),
+            text=progress_text,
+            fill=GUIConstants.BODY_FONT_COLOR,
+            font=text_font
+        )
+
+    def _run(self):
+        """Main game loop"""
+        while True:
+            # Check for back button
+            if any(self.hw_inputs.check_for_low(key) for key in (
+                    HardwareButtonsConstants.KEY1,
+                    HardwareButtonsConstants.KEY2,
+                    HardwareButtonsConstants.KEY3
+                    )):
+                return RET_CODE__BACK_BUTTON
+            
+            # Check for movement keys (only change direction, don't move immediately)
+            if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_UP):
+                if self.snake_direction != [0, 1]:  # Don't reverse direction
+                    self.snake_direction = [0, -1]
+            elif self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_DOWN):
+                if self.snake_direction != [0, -1]:  # Don't reverse direction
+                    self.snake_direction = [0, 1]
+            elif self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
+                if self.snake_direction != [1, 0]:  # Don't reverse direction
+                    self.snake_direction = [-1, 0]
+            elif self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT):
+                if self.snake_direction != [-1, 0]:  # Don't reverse direction
+                    self.snake_direction = [1, 0]
+            
+            # Move snake automatically at regular intervals
+            current_time = int(time.time() * 1000)
+            if current_time - self.last_move_time >= self.move_interval:
+                self._move_snake()
+                self.last_move_time = current_time
+            
+            # Check if we have enough entropy
+            if self.moves_count >= self.target_moves:
+                return self._generate_final_entropy()
+            
+            # Small delay to prevent excessive CPU usage
+            time.sleep(0.05)
+
+    def _move_snake(self):
+        """Move the snake in the current direction"""
+        # Get current head position
+        head = self.snake_body[0].copy()
+        
+        # Calculate new head position
+        new_head = [
+            (head[0] + self.snake_direction[0]) % self.game_grid_size,
+            (head[1] + self.snake_direction[1]) % self.game_grid_size
+        ]
+        
+        # Check if snake ate food
+        ate_food = new_head in self.food_positions
+        
+        # Add new head
+        self.snake_body.insert(0, new_head)
+        
+        # Remove tail unless food was eaten
+        if not ate_food:
+            self.snake_body.pop()
+        else:
+            # Find which food was eaten and replace only that one
+            for i, food in enumerate(self.food_positions):
+                if food == new_head:
+                    self._replace_food_at_index(i)
+                    break
+        
+        # Record the move data for entropy
+        timestamp = int(time.time() * 1000)  # Current time in milliseconds
+        move_data = {
+            'direction': self.snake_direction.copy(),
+            'timestamp': timestamp,
+            'old_pos': head,
+            'new_pos': new_head,
+            'ate_food': ate_food
+        }
+        
+        self.entropy_data.append(move_data)
+        self.moves_count += 1
+        
+        # Update progress
+        self.progress_percent = min(1.0, self.moves_count / self.target_moves)
+        
+        # Redraw
+        with self.renderer.lock:
+            self._render()
+            self.renderer.show_image()
+    
+    def _is_valid_food_position(self, pos):
+        """Check if a position is valid for food placement"""
+        return pos not in self.snake_body and pos not in self.food_positions
+    
+    def _replace_food_at_index(self, food_index):
+        """Replace food at specific index with new random position"""
+        import random
+        while True:
+            new_pos = [
+                random.randint(0, self.game_grid_size - 1),
+                random.randint(0, self.game_grid_size - 1)
+            ]
+            if self._is_valid_food_position(new_pos):
+                self.food_positions[food_index] = new_pos
+                break
+
+    def _generate_final_entropy(self):
+        """Generate the final entropy from collected data"""
+        # Convert all collected data to a byte stream
+        # Each move contributes 9 bytes of entropy data:
+        # - Direction: 2 bytes (dx+1, dy+1) - captures movement patterns
+        # - Timestamp: 4 bytes (relative time in ms) - captures timing jitter
+        # - Position: 4 bytes (old_x, old_y, new_x, new_y) - captures spatial patterns
+        # - Food eaten: 1 byte (0/1) - captures game state changes
+        # 
+        # For 128-bit entropy: ~200 moves × 9 bytes = ~1.8KB raw data
+        # For 256-bit entropy: ~400 moves × 9 bytes = ~3.6KB raw data
+        # 
+        # The raw data is hashed with SHA-256 and truncated to target size:
+        # - 128-bit: SHA-256 hash truncated to first 16 bytes
+        # - 256-bit: Full SHA-256 hash (32 bytes)
+        entropy_bytes = b""
+        
+        for move in self.entropy_data:
+            # Add direction (dx, dy) as bytes
+            entropy_bytes += bytes([move['direction'][0] + 1, move['direction'][1] + 1])
+            
+            # Add relative timestamp (use modulo to fit in 4 bytes)
+            # Convert to relative time from start to avoid overflow
+            relative_timestamp = move['timestamp'] % (2**32)  # Ensure it fits in 4 bytes
+            timestamp_bytes = relative_timestamp.to_bytes(4, byteorder='big')
+            entropy_bytes += timestamp_bytes
+            
+            # Add position data
+            entropy_bytes += bytes([move['old_pos'][0], move['old_pos'][1], 
+                                  move['new_pos'][0], move['new_pos'][1]])
+            
+            # Add food eating information (1 byte)
+            entropy_bytes += bytes([1 if move.get('ate_food', False) else 0])
+        
+        # Hash the entropy data
+        import hashlib
+        final_hash = hashlib.sha256(entropy_bytes).digest()
+        
+        # Truncate to target entropy size
+        if self.target_entropy_bits == 128:
+            final_entropy = final_hash[:16]  # 128 bits = 16 bytes
+        else:
+            final_entropy = final_hash  # 256 bits = 32 bytes
+        
+        # Clear entropy data from memory for security
+        self.entropy_data.clear()
+        
+        return final_entropy
