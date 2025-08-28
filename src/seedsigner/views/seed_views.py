@@ -2572,8 +2572,8 @@ class RebuildSeedXORCancelView(View):
         num_shards = len(self.controller.rebuild_seedxor_shards)
         
         text = _(
-            "Clear all SeedXOR shards?\n"
-            "In Memory seeds are safe."
+            "Clear all loaded SeedXOR shards \n"
+            "and return to Tools menu?"
         )
         
         selected_menu_num = self.run_screen(
