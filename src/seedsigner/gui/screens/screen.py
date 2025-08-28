@@ -1226,6 +1226,8 @@ class KeyboardScreen(BaseTopNavScreen):
             )
 
             with self.renderer.lock:
+                # Track if we need to update the title after input changes
+                title_needs_update = False
                 # Check possible exit conditions   
                 if self.top_nav.is_selected and input == HardwareButtonsConstants.KEY_PRESS:
                     return RET_CODE__BACK_BUTTON
@@ -1271,16 +1273,7 @@ class KeyboardScreen(BaseTopNavScreen):
                         if len(self.user_input) > 0:
                             self.user_input = self.user_input[:-1]
                             self.cursor_position -= 1
-
-                        # Update the title to reflect decremented dice roll count
-                        if self.update_title():
-                            TextArea(
-                                text=self.title,
-                                font_name=GUIConstants.get_top_nav_title_font_name(),
-                                font_size=GUIConstants.get_top_nav_title_font_size(),
-                                height=self.top_nav.height,
-                            ).render()
-                            self.top_nav.render_buttons()
+                            title_needs_update = True
                             
                 elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
                     # User has locked in the current letter
@@ -1289,19 +1282,20 @@ class KeyboardScreen(BaseTopNavScreen):
                         ret_val = self.keys_to_values[ret_val]
                     self.user_input += ret_val
                     self.cursor_position += 1
+                    title_needs_update = True
 
                     if self.cursor_position == self.return_after_n_chars:
                         return self.user_input
 
-                    # Render a new TextArea over the TopNav title bar
-                    if self.update_title():
-                        TextArea(
-                            text=self.title,
-                            font_name=GUIConstants.get_top_nav_title_font_name(),
-                            font_size=GUIConstants.get_top_nav_title_font_size(),
-                            height=self.top_nav.height,
-                        ).render()
-                        self.top_nav.render_buttons()
+                # Update the title if input changed (add or delete)
+                if title_needs_update and self.update_title():
+                    TextArea(
+                        text=self.title,
+                        font_name=GUIConstants.get_top_nav_title_font_name(),
+                        font_size=GUIConstants.get_top_nav_title_font_size(),
+                        height=self.top_nav.height,
+                    ).render()
+                    self.top_nav.render_buttons()
 
                 elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
                     # Live joystick movement; haven't locked this new letter in yet.
