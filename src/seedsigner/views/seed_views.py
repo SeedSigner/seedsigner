@@ -2484,7 +2484,8 @@ class RebuildSeedXORSelectExistingSeedView(View):
         for i, seed in enumerate(self.seeds):
             network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
             fingerprint = seed.get_fingerprint(network=network)
-            button_data.append(ButtonOption(f"Seed {fingerprint}"))
+            # TRANSLATOR_NOTE: The seed's fingerprint will be inserted (e.g. "Seed abcd1234")
+            button_data.append(ButtonOption("Seed {}".format(fingerprint)))
             
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -2513,7 +2514,9 @@ class RebuildSeedXORViewShardsView(View):
         for i, shard in enumerate(self.shards):
             network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
             fingerprint = shard.get_fingerprint(network=network)
-            button_data.append(ButtonOption(f"Shard #{i+1}: {fingerprint}"))
+            shard_num = i + 1
+            # TRANSLATOR_NOTE: Will insert the shard num and its fingerprint (e.g. "Shard #3: abcd1234")
+            button_data.append(ButtonOption("Shard #{}: {}".format(shard_num, fingerprint)))
             
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -2537,7 +2540,9 @@ class RebuildSeedXORRemoveShardsView(View):
         for i, shard in enumerate(self.shards):
             network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
             fingerprint = shard.get_fingerprint(network=network)
-            button_data.append(ButtonOption(f"Shard #{i+1}: {fingerprint}"))
+            shard_num = i + 1
+            # TRANSLATOR_NOTE: Will insert the shard num and its fingerprint (e.g. "Shard #3: abcd1234")
+            button_data.append(ButtonOption("Shard #{}: {}".format(shard_num, fingerprint)))
         
         from seedsigner.gui.screens.screen import GUIConstants
         selected_menu_num = self.run_screen(
