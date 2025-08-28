@@ -121,3 +121,25 @@ def generate_mnemonic_from_image(image, wordlist_language_code: str = SettingsCo
 
     # Return as a list
     return bip39.mnemonic_from_bytes(hash.digest(), wordlist=Seed.get_wordlist(wordlist_language_code)).split()
+
+
+def combine_mnemonics_with_xor(mnemonics: list[str], wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
+    if not mnemonics:
+        raise ValueError("Mnemonic list cannot be empty")
+        
+    wordlist = Seed.get_wordlist(wordlist_language_code)
+    
+    try:
+        entropy_list = [bip39.mnemonic_to_bytes(" ".join(mnemonic) if isinstance(mnemonic, list) else mnemonic, wordlist=wordlist) 
+                       for mnemonic in mnemonics]
+    except Exception as e:
+        raise ValueError(f"Invalid mnemonic: {str(e)}")
+    
+    if len(set(len(entropy) for entropy in entropy_list)) != 1:
+        raise ValueError("All mnemonics must generate entropy of the same length")
+    
+    combined_entropy = entropy_list[0]
+    for entropy in entropy_list[1:]:
+        combined_entropy = bytes(a ^ b for a, b in zip(combined_entropy, entropy))
+    
+    return bip39.mnemonic_from_bytes(combined_entropy, wordlist=wordlist).split()

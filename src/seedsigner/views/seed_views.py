@@ -18,6 +18,7 @@ from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
+from seedsigner.helpers.mnemonic_generation import combine_mnemonics_with_xor
 
 logger = logging.getLogger(__name__)
 
@@ -2587,22 +2588,11 @@ class RebuildSeedXORFinalizeView(View):
             self.error = "no_shards"
             return
         
-        try:
-            from embit import bip39
-            from seedsigner.models.seed import Seed
+        try:        
+            mnemonic_strings = [shard.mnemonic_str for shard in self.controller.rebuild_seedxor_shards]
             
-            def xor_bytes(a, b):
-                return bytes(i^j for i, j in zip(a, b))
+            combined_mnemonic = combine_mnemonics_with_xor(mnemonic_strings)
             
-            first_shard = self.controller.rebuild_seedxor_shards[0]
-            combined_entropy = bip39.mnemonic_to_bytes(first_shard.mnemonic_str)
-            
-            for i in range(1, len(self.controller.rebuild_seedxor_shards)):
-                next_shard = self.controller.rebuild_seedxor_shards[i]
-                next_entropy = bip39.mnemonic_to_bytes(next_shard.mnemonic_str)
-                combined_entropy = xor_bytes(combined_entropy, next_entropy)
-            
-            combined_mnemonic = bip39.mnemonic_from_bytes(combined_entropy).split()
             self.controller.rebuild_seedxor_combined_seed = Seed(mnemonic=combined_mnemonic)
             self.controller.storage.set_pending_seed(self.controller.rebuild_seedxor_combined_seed)
             self.seed = self.controller.storage.get_pending_seed()
