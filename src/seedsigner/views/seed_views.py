@@ -2691,9 +2691,10 @@ class RebuildSeedXORFinalizeOptionsView(View):
             
             for shard in self.controller.rebuild_seedxor_shards:
                 for i, seed in enumerate(self.controller.storage.seeds):
-                    if seed.get_fingerprint() == shard.get_fingerprint():
-                        if seed.get_fingerprint() == combined_fingerprint:
-                            continue
+                    SeedFingerprint = seed.get_fingerprint()
+                    if SeedFingerprint == combined_fingerprint:
+                        continue
+                    if SeedFingerprint == shard.get_fingerprint():
                         self.controller.discard_seed(i)
                         if i < seed_num:
                             seed_num -= 1
@@ -2703,7 +2704,8 @@ class RebuildSeedXORFinalizeOptionsView(View):
             
             # Find the combined seed by fingerprint to be [EXTRA SAFE STEP]
             for i, seed in enumerate(self.controller.storage.seeds):
-                if seed.get_fingerprint() == combined_fingerprint:
+                SeedFingerprint = seed.get_fingerprint()
+                if SeedFingerprint == combined_fingerprint:
                     seed_num = i
                     break
             
