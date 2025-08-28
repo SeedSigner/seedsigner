@@ -2656,17 +2656,14 @@ class RebuildSeedXORFinalizeOptionsView(View):
     
     def __init__(self):
         super().__init__()
-        self.error = False
         
         if not self.controller.rebuild_seedxor_combined_seed:
-            self.error = True
+            self.set_redirect(Destination(RebuildSeedXORManageView))
+            return
         
         self.seed = self.controller.storage.get_pending_seed()
         
     def run(self):
-        if self.error:
-            return Destination(RebuildSeedXORManageView)
-            
         button_data = [self.DISCARD_SHARDS, self.KEEP_SHARDS]
         
         self.PASSPHRASE.button_label = self.seed.passphrase_label
