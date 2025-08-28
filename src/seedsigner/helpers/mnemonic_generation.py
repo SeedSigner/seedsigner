@@ -124,6 +124,23 @@ def generate_mnemonic_from_image(image, wordlist_language_code: str = SettingsCo
 
 
 def combine_mnemonics_with_xor(mnemonics: list[str], wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
+    """
+    Combine multiple BIP39 mnemonic seed phrases using XOR operation (SeedXOR).
+
+    The process works by XOR-ing the entropy (random data) of each mnemonic together.
+    When you XOR the shares back together, you get the original seed phrase.
+    
+    Args:
+        mnemonics: List of mnemonic seed phrases (as strings) to combine
+        wordlist_language_code: Language code for the BIP39 wordlist (default: English)
+    
+    Returns:
+        Combined mnemonic as a list of words
+        
+    Raises:
+        ValueError: If mnemonics list is empty, contains invalid mnemonics, 
+                   or mnemonics have different entropy lengths
+    """
     if not mnemonics:
         raise ValueError("Mnemonic list cannot be empty")
         
