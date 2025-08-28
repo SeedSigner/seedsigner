@@ -19,6 +19,7 @@ from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
 from seedsigner.helpers.mnemonic_generation import combine_mnemonics_with_xor
+from seedsigner.views.view import ErrorView
 
 logger = logging.getLogger(__name__)
 
@@ -2403,9 +2404,9 @@ class RebuildSeedXORShowFingerprintView(View):
         
         selected_menu_num = self.run_screen(
             WarningScreen,
-            title=_(f"Shard #{next_shard_num}"),
+            title=_("Shard #{}".format(next_shard_num)),
             status_headline=_("Shard Fingerprint"),
-            text=_(f"Fingerprint: {self.fingerprint}"),
+            text=_("Fingerprint: {}".format(self.fingerprint)),
             button_data=button_data,
         )
         
@@ -2447,7 +2448,7 @@ class RebuildSeedXORManageView(View):
     
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=_(f"{self.num_shards} Shards Loaded"),
+            title=_("{} Shards Loaded".format(self.num_shards)),
             is_button_text_centered=False,
             button_data=button_data,
         )
@@ -2572,14 +2573,13 @@ class RebuildSeedXORCancelView(View):
         num_shards = len(self.controller.rebuild_seedxor_shards)
         
         text = _(
-            "Clear all loaded SeedXOR shards \n"
-            "and return to Tools menu?"
+            "Clear all loaded shards and return to Menu?"
         )
         
         selected_menu_num = self.run_screen(
             WarningScreen,
             title=_("Cancel SeedXOR"),
-            status_headline=_(f"Clear {num_shards} loaded shards?"),
+            status_headline=_("Clear {} loaded shards?".format(num_shards)),
             text=text,
             button_data=button_data,
         )
@@ -2627,10 +2627,10 @@ class RebuildSeedXORFinalizeView(View):
             return Destination(RebuildSeedXORManageView)
         elif self.error:
             return Destination(RebuildSeedXORErrorView, view_args=dict(
-                title="XOR Error",
-                status_headline="Error Combining Seeds",
-                text=f"Error: {self.error}",
-                button_text="OK",
+                title=_("XOR Error"),
+                status_headline=_("Error Combining Seeds"),
+                text=_("Error: {}".format(self.error)),
+                button_text=_("OK"),
                 next_destination=Destination(RebuildSeedXORManageView)
             ))
         
@@ -2640,9 +2640,9 @@ class RebuildSeedXORFinalizeView(View):
         from seedsigner.gui.screens.screen import LargeIconStatusScreen
         selected_menu_num = self.run_screen(
             LargeIconStatusScreen,
-            title=_(f"Finalize SeedXOR"),
-            status_headline=_(f"Combined {shard_count} shards"),
-            text=_(f"Fingerprint: {self.fingerprint}\n\nCombined seed calculated successfully."),
+            title=_("Finalize SeedXOR"),
+            status_headline=_("Combined {} shards".format(shard_count)),
+            text=_("Fingerprint: {}\n\nCombined seed calculated successfully.".format(self.fingerprint)),
             button_data=button_data,
         )
         
