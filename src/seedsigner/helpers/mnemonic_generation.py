@@ -155,8 +155,8 @@ def combine_mnemonics_with_xor(mnemonics: list[str], wordlist_language_code: str
     if len(set(len(entropy) for entropy in entropy_list)) != 1:
         raise ValueError("All mnemonics must generate entropy of the same length")
     
-    combined_entropy = entropy_list[0]
-    for entropy in entropy_list[1:]:
+    combined_entropy = bytes(len(entropy_list[0]))
+    for entropy in entropy_list:
         combined_entropy = bytes(a ^ b for a, b in zip(combined_entropy, entropy))
     
     return bip39.mnemonic_from_bytes(combined_entropy, wordlist=wordlist).split()
