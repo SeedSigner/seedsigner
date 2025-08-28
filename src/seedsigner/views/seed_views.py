@@ -2362,6 +2362,20 @@ class RebuildSeedXORLoadShardView(View):
             return Destination(RebuildSeedXORSelectExistingSeedView)
 
 
+class RebuildSeedXORErrorView(ErrorView):
+    """
+    A dynamic error view that accepts all its content and navigation
+    as parameters during initialization.
+    """
+    def __init__(self, title: str, status_headline: str, text: str, button_text: str, next_destination: Destination):
+        super().__init__(
+            title=title,
+            status_headline=status_headline,
+            text=text,
+            button_text=button_text,
+            next_destination=next_destination
+        )
+
 class RebuildSeedXORShowFingerprintView(View):
     """Show the fingerprint of the shard being added to the SeedXOR."""
     
@@ -2607,8 +2621,7 @@ class RebuildSeedXORFinalizeView(View):
         if self.error == "no_shards":
             return Destination(RebuildSeedXORManageView)
         elif self.error:
-            from seedsigner.views.view import ErrorView
-            return Destination(ErrorView, view_args=dict(
+            return Destination(RebuildSeedXORErrorView, view_args=dict(
                 title="XOR Error",
                 status_headline="Error Combining Seeds",
                 text=f"Error: {self.error}",
