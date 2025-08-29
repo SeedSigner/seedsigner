@@ -1388,7 +1388,6 @@ class SeedWordsBackupTestMistakeView(View):
             status_headline=status_headline,
             button_data=button_data,
             text=text,
-
         )
 
         if button_data[selected_menu_num] == self.REVIEW:
