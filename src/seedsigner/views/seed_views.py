@@ -645,7 +645,6 @@ class SeedOptionsView(View):
 
 
 class SeedBackupView(View):
-
     VIEW_WORDS = ButtonOption("View seed words")
     EXPORT_SEEDQR = ButtonOption("Export as SeedQR")
 
@@ -1102,7 +1101,6 @@ class SeedWordsView(View):
             page_index=self.page_index,
             num_pages=num_pages,
             button_data=button_data,
-
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -1130,7 +1128,6 @@ class SeedWordsView(View):
 
 
 """****************************************************************************
-
     BIP-85 - Derive child mnemonic (seed) flow
 ****************************************************************************"""
 class SeedBIP85ApplicationModeView(View):
@@ -1154,7 +1151,6 @@ class SeedBIP85ApplicationModeView(View):
 
     def run(self):
         button_data = [self.WORDS_12, self.WORDS_24]
-
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -1220,7 +1216,6 @@ class SeedBIP85InvalidChildIndexView(View):
 
 
     def run(self):
-
         self.run_screen(
             DireWarningScreen,
             title=_("BIP-85 Index Error"),
@@ -1324,7 +1319,6 @@ class SeedWordsBackupTestView(View):
 
         # TRANSLATOR_NOTE: Inserts the word number (e.g. "Verify Word #1")
         title = _("Verify Word #{}").format(self.cur_index + 1)
-
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title=title,
@@ -1332,7 +1326,6 @@ class SeedWordsBackupTestView(View):
             button_data=button_data,
             is_bottom_list=True,
             is_button_text_centered=True,
-
         )
 
         if button_data[selected_menu_num] == real_word:
@@ -1622,7 +1615,6 @@ class SeedTranscribeSeedQRZoomedInView(View):
             num_modules=num_modules,
             initial_zone_x=self.initial_zone_x,
             initial_zone_y=self.initial_zone_y,
-
         )
 
         return Destination(SeedTranscribeSeedQRConfirmQRPromptView, view_args={"seed_num": self.seed_num})
@@ -1691,7 +1683,6 @@ class SeedTranscribeSeedQRConfirmScanView(View):
                     return Destination(SeedTranscribeSeedQRConfirmWrongSeedView, skip_current_view=True)
                 else:
                     return Destination(SeedTranscribeSeedQRConfirmSuccessView, view_args={"seed_num": self.seed_num})
-
 
         # Will trigger if a different kind of QR code is scanned (non SeedQR)
         return Destination(SeedTranscribeSeedQRConfirmInvalidQRView, skip_current_view=True)
@@ -2331,7 +2322,6 @@ class SeedSignMessageSignedMessageQRView(View):
 """****************************************************************************
     Rebuild SeedXOR Views
 ****************************************************************************"""
-
 class RebuildSeedXORLoadShardView(View):
     """View for loading a shard in the Rebuild SeedXOR flow."""
     SCAN_SHARD = ButtonOption("Scan SeedQR", SeedSignerIconConstants.QRCODE)
@@ -2388,6 +2378,7 @@ class RebuildSeedXORLoadShardView(View):
             return Destination(RebuildSeedXORSelectExistingSeedView)
 
 
+
 class RebuildSeedXORErrorView(ErrorView):
     """
     A dynamic error view that accepts all its content and navigation
@@ -2401,6 +2392,8 @@ class RebuildSeedXORErrorView(ErrorView):
             button_text=button_text,
             next_destination=next_destination
         )
+
+
 
 class RebuildSeedXORShowFingerprintView(View):
     """Show the fingerprint of the shard being added to the SeedXOR."""
@@ -2447,6 +2440,7 @@ class RebuildSeedXORShowFingerprintView(View):
         
 
         return Destination(RebuildSeedXORManageView)
+
 
 
 class RebuildSeedXORManageView(View):
@@ -2504,6 +2498,7 @@ class RebuildSeedXORManageView(View):
             return Destination(RebuildSeedXORFinalizeView)
 
 
+
 class RebuildSeedXORSelectExistingSeedView(View):
     """View for selecting an existing seed to use as a shard."""
     
@@ -2534,6 +2529,7 @@ class RebuildSeedXORSelectExistingSeedView(View):
         return Destination(RebuildSeedXORShowFingerprintView, view_args={"seed": selected_seed})
 
 
+
 class RebuildSeedXORViewShardsView(View):
     """View all loaded shards in the rebuild seedXOR flow."""
     
@@ -2558,6 +2554,7 @@ class RebuildSeedXORViewShardsView(View):
         )
         
         return Destination(RebuildSeedXORManageView)
+
 
 
 class RebuildSeedXORRemoveShardsView(View):
@@ -2592,6 +2589,7 @@ class RebuildSeedXORRemoveShardsView(View):
         return Destination(RebuildSeedXORManageView)
 
 
+
 class RebuildSeedXORCancelView(View):
     """Confirm cancellation of rebuild seedXOR flow."""
     
@@ -2622,6 +2620,7 @@ class RebuildSeedXORCancelView(View):
             self.controller.clear_rebuild_seedxor_data()
             from .tools_views import ToolsMenuView
             return Destination(ToolsMenuView, clear_history=True)
+
 
 
 class RebuildSeedXORFinalizeView(View):
@@ -2682,6 +2681,7 @@ class RebuildSeedXORFinalizeView(View):
             return Destination(RebuildSeedXORManageView)
         
         return Destination(RebuildSeedXORFinalizeOptionsView)
+
 
 
 class RebuildSeedXORFinalizeOptionsView(View):

@@ -134,6 +134,7 @@ class Controller(Singleton):
     FLOW__SIGN_MESSAGE = "sign_message"
     FLOW__REBUILD_SEEDXOR = "rebuild_seedxor"
     resume_main_flow: str = None
+    
     back_stack: BackStack = None
     screensaver: ScreensaverScreen = None
     toast_notification_thread: BaseToastOverlayManagerThread = None
