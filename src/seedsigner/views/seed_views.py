@@ -13,7 +13,7 @@ from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
-from seedsigner.models.seed import Seed
+from seedsigner.models.seed import Seed, ElectrumSeed
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
@@ -220,7 +220,7 @@ class SeedMnemonicEntryView(View):
         wordlist = Seed.get_wordlist(wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
         is_last_word_index = self.cur_word_index == self.controller.storage.pending_mnemonic_length - 1
         is_normal_seed_entry_mode = not self.is_calc_final_word
-        is_bip39_seed = self.controller.storage.pending_is_bip39
+        is_bip39_seed = self.controller.storage._pending_Seed_cls == Seed
         
         predict_final_seed_word = (
             is_last_word_index and 
@@ -534,7 +534,7 @@ class SeedElectrumMnemonicStartView(View):
                 show_back_button=False,
         )
 
-        self.controller.storage.init_pending_mnemonic(num_words=12, seed_type=self.controller.storage.PENDING_SEED_TYPE__ELECTRUM)
+        self.controller.storage.init_pending_mnemonic(num_words=12, seed_class=ElectrumSeed)
 
         return Destination(SeedMnemonicEntryView)
 

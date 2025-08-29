@@ -342,7 +342,7 @@ class TestSeedFlows(FlowTest):
             Electrum seeds should skip script type selection
         """            
         # Load a finalized Seed into the Controller
-        self.controller.storage.init_pending_mnemonic(num_words=12, seed_type=self.controller.storage.PENDING_SEED_TYPE__ELECTRUM)
+        self.controller.storage.init_pending_mnemonic(num_words=12, seed_class=ElectrumSeed)
         self.controller.storage.set_pending_seed(ElectrumSeed("regular reject rare profit once math fringe chase until ketchup century escape".split()))
         self.controller.storage.finalize_pending_seed()
 

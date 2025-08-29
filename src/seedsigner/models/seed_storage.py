@@ -1,19 +1,15 @@
 from typing import List
-from seedsigner.models.seed import Seed, ElectrumSeed, InvalidSeedException
+from seedsigner.models.seed import Seed, InvalidSeedException
 from seedsigner.models.settings_definition import SettingsConstants
 
 
 
 class SeedStorage:
-    PENDING_SEED_TYPE__BIP39 = "bip39"
-    PENDING_SEED_TYPE__ELECTRUM = "electrum"
-    # future TODO: PENDING_SEED_TYPE_SLIP39 = "slip39"
-    
     def __init__(self) -> None:
         self.seeds: List[Seed] = []
         self.pending_seed: Seed = None
         self._pending_mnemonic: List[str] = []
-        self._pending_seed_type: str = self.PENDING_SEED_TYPE__BIP39
+        self._pending_Seed_cls = None
 
 
     def set_pending_seed(self, seed: Seed):
@@ -39,15 +35,6 @@ class SeedStorage:
         self.pending_seed = None
 
 
-    def validate_mnemonic(self, mnemonic: List[str]) -> bool:
-        try:
-            Seed(mnemonic=mnemonic)
-        except InvalidSeedException as e:
-            return False
-        
-        return True
-
-
     def num_seeds(self):
         return len(self.seeds)
     
@@ -62,15 +49,10 @@ class SeedStorage:
     def pending_mnemonic_length(self) -> int:
         return len(self._pending_mnemonic)
 
-    
-    @property 
-    def pending_is_bip39(self) -> bool:
-        return self._pending_seed_type == self.PENDING_SEED_TYPE__BIP39
-    
 
-    def init_pending_mnemonic(self, num_words:int = 12, seed_type: str = PENDING_SEED_TYPE__BIP39):
+    def init_pending_mnemonic(self, num_words:int = 12, seed_class = Seed):
         self._pending_mnemonic = [None] * num_words
-        self._pending_seed_type = seed_type
+        self._pending_Seed_cls = seed_class
 
 
     def update_pending_mnemonic(self, word: str, index: int):
@@ -92,23 +74,16 @@ class SeedStorage:
 
     def get_pending_mnemonic_fingerprint(self, network: str = SettingsConstants.MAINNET) -> str:
         try:
-            if self._pending_seed_type == self.PENDING_SEED_TYPE__ELECTRUM:
-                seed = ElectrumSeed(self._pending_mnemonic)
-            else:
-                seed = Seed(self._pending_mnemonic)
+            seed = self._pending_Seed_cls(self._pending_mnemonic)
             return seed.get_fingerprint(network)
         except InvalidSeedException:
             return None
 
 
     def convert_pending_mnemonic_to_pending_seed(self):
-        if self._pending_seed_type == self.PENDING_SEED_TYPE__ELECTRUM:
-            self.pending_seed = ElectrumSeed(self._pending_mnemonic)
-        else:
-            self.pending_seed = Seed(self._pending_mnemonic)
+        self.pending_seed = self._pending_Seed_cls(self._pending_mnemonic)
         self.discard_pending_mnemonic()
     
 
     def discard_pending_mnemonic(self):
         self._pending_mnemonic = []
-        self._pending_seed_type = self.PENDING_SEED_TYPE__BIP39
