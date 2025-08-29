@@ -221,92 +221,183 @@ def test_50_dice_rolls():
 
 
 
-def test_256_coin_flips():
-    """ 256 coin flips input should yield the same 24-word mnemonic as iancoleman.io/bip39 """
-    # Check "Show entropy details", paste in coin flip sequence, click "Binary", select "Mnemonic Length" as "Use Raw Entropy (3 words per 32 bits)"
-    coin_flips = "1010101010101110110001000000001100100011000000000011000000001001110000000000000010000000000110000001110010110010000100110011001010101010101011101100010000000011001000110000000000110000000010011100000000000000100000000001100000011100101100100001001100110010"
-    expected = "primary involve absorb ecology adapt agent abandon avoid blossom tortoise luggage grab priority ginger arrive gas copy evoke ability ability limb flip error employ"
-
-    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(coin_flips)
-    actual = " ".join(mnemonic)
-    assert bip39.mnemonic_is_valid(actual)
-    assert actual == expected
-
-    coin_flips = "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-    expected = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"
-
-    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(coin_flips)
-    actual = " ".join(mnemonic)
-    assert bip39.mnemonic_is_valid(actual)
-    assert actual == expected
-
-    coin_flips = "1111000101001010101010101010010000100111100000101010000101101101111000000101110101010010101010010101010001001011010101111101001001000010111110101011111101010010011010101001010111010100000011111001010010101101001010010101010010101010100101010010100101001001"
-    expected = "vanish fetch poverty excuse claw report lift prevent power pelican sting pig cook garden endless famous staff lake clip famous enjoy enhance pioneer click"
-
-    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(coin_flips)
-    actual = " ".join(mnemonic)
-    assert bip39.mnemonic_is_valid(actual)
-    assert actual == expected
-
-
-
-def test_128_coin_flips():
-    """ 128 coin flips input should yield the same 12-word mnemonic as iancoleman.io/bip39 """
-    # Check "Show entropy details", paste in coin flip sequence, click "Binary", select "Mnemonic Length" as "Use Raw Entropy (3 words per 32 bits)"
-    coin_flips = "10101010101011101100010000000011001000110000000000110000000010011100000000000000100000000001100000011100101100100001001100110010"
-    expected = "primary involve absorb ecology adapt agent abandon avoid blossom tortoise luggage grape"
-    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(coin_flips)
-    actual = " ".join(mnemonic)
-    assert bip39.mnemonic_is_valid(actual)
-    assert actual == expected
-
-    coin_flips = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-    expected = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(coin_flips)
-    actual = " ".join(mnemonic)
-    assert bip39.mnemonic_is_valid(actual)
-    assert actual == expected
-
-    coin_flips = "10100010100101010110101011010001010011101011111010010101010010101010101010010100101010101001010101010110101011111111000001001000"
-    expected = "penalty prize reform output true pipe prevent next next rely winter museum"
-    mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(coin_flips)
-    actual = " ".join(mnemonic)
-    assert bip39.mnemonic_is_valid(actual)
-    assert actual == expected
+def test_coin_flips():
+    """Test coin flip mnemonic generation with various test vectors"""
+    
+    # Test vectors: (input, expected_output, description)
+    test_vectors = [
+        # 256-bit coin flips (24 words)
+        (
+            "1010101010101110110001000000001100100011000000000011000000001001110000000000000010000000000110000001110010110010000100110011001010101010101011101100010000000011001000110000000000110000000010011100000000000000100000000001100000011100101100100001001100110010",
+            "primary involve absorb ecology adapt agent abandon avoid blossom tortoise luggage grab priority ginger arrive gas copy evoke ability ability limb flip error employ",
+            "256-bit alternating pattern"
+        ),
+        (
+            "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art",
+            "256-bit all zeros"
+        ),
+        (
+            "1111000101001010101010101010010000100111100000101010000101101101111000000101110101010010101010010101010001001011010101111101001001000010111110101011111101010010011010101001010111010100000011111001010010101101001010010101010010101010100101010010100101001001",
+            "vanish fetch poverty excuse claw report lift prevent power pelican sting pig cook garden endless famous staff lake clip famous enjoy enhance pioneer click",
+            "256-bit complex pattern"
+        ),
+        
+        # 128-bit coin flips (12 words)
+        (
+            "10101010101011101100010000000011001000110000000000110000000010011100000000000000100000000001100000011100101100100001001100110010",
+            "primary involve absorb ecology adapt agent abandon avoid blossom tortoise luggage grape",
+            "128-bit alternating pattern"
+        ),
+        (
+            "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+            "128-bit all zeros"
+        ),
+        (
+            "10100010100101010110101011010001010011101011111010010101010010101010101010010100101010101001010101010110101011111111000001001000",
+            "penalty prize reform output true pipe prevent next next rely winter museum",
+            "128-bit complex pattern"
+        ),
+    ]
+    
+    for input_data, expected, description in test_vectors:
+        mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(input_data)
+        actual = " ".join(mnemonic)
+        assert bip39.mnemonic_is_valid(actual), f"Invalid mnemonic for {description}"
+        assert actual == expected, f"Mnemonic mismatch for {description}"
 
     
 def test_coin_flips_invalid_input():
-    """
-        Should raise a ValueError if coin_flips contains invalid characters or has an invalid length.
-    """
-    # Test invalid characters
-    with pytest.raises(ValueError) as e:
-        invalid_coin_flips = "01012" + "0" * 123  # 128 chars with a '2'
-        mnemonic_generation.generate_mnemonic_from_coin_flips(invalid_coin_flips)
-    assert "only contain '0' or '1'" in str(e)
+    """Should raise a ValueError if coin_flips contains invalid characters or has an invalid length."""
+    
+    # Test vectors: (input, expected_error_message, description)
+    test_vectors = [
+        # Invalid characters
+        (
+            "01012" + "0" * 123,  # 128 chars with a '2'
+            "only contain '0' or '1'",
+            "128-bit with invalid character '2'"
+        ),
+        (
+            "01ab" + "0" * 252,  # 256 chars with 'a' and 'b'
+            "only contain '0' or '1'",
+            "256-bit with invalid characters 'a' and 'b'"
+        ),
+        
+        # Invalid lengths
+        (
+            "0101",  # Too short (4 chars)
+            "128 or 256 bits",
+            "too short (4 chars)"
+        ),
+        (
+            "0" * 127,  # Too short (127 chars)
+            "128 or 256 bits",
+            "too short (127 chars)"
+        ),
+        (
+            "0" * 129,  # Too long for 128, too short for 256
+            "128 or 256 bits",
+            "invalid length (129 chars)"
+        ),
+        (
+            "0" * 255,  # Too short for 256
+            "128 or 256 bits",
+            "too short for 256-bit (255 chars)"
+        ),
+    ]
+    
+    for input_data, expected_error, description in test_vectors:
+        with pytest.raises(ValueError) as e:
+            mnemonic_generation.generate_mnemonic_from_coin_flips(input_data)
+        assert expected_error in str(e), f"Wrong error message for {description}"
 
-    with pytest.raises(ValueError) as e:
-        invalid_coin_flips = "01ab" + "0" * 252  # 256 chars with 'a' and 'b'
-        mnemonic_generation.generate_mnemonic_from_coin_flips(invalid_coin_flips)
-    assert "only contain '0' or '1'" in str(e)
 
-    # Test invalid lengths
-    with pytest.raises(ValueError) as e:
-        invalid_coin_flips = "0101"  # Too short (4 chars)
-        mnemonic_generation.generate_mnemonic_from_coin_flips(invalid_coin_flips)
-    assert "128 or 256 bits" in str(e)
+def test_get_bip39_word():
+    """Test get_bip39_word function with various inputs"""
+    
+    # Test vectors: (input_bits, expected_word, description)
+    test_vectors = [
+        # Test some known 11-bit values
+        (
+            "00000000000",  # 0
+            "abandon",
+            "first word (index 0)"
+        ),
+        (
+            "00000000001",  # 1
+            "ability",
+            "second word (index 1)"
+        ),
+        (
+            "00000000010",  # 2
+            "able",
+            "third word (index 2)"
+        ),
+        (
+            "11111111111",  # 2047
+            "zoo",
+            "last word (index 2047)"
+        ),
+        (
+            "00000010100",  # 20
+            "abandon",
+            "word at index 20"
+        ),
+        (
+            "10000000000",  # 1024
+            "lunch",
+            "word at index 1024"
+        ),
+    ]
+    
+    for input_bits, expected, description in test_vectors:
+        word = mnemonic_generation.get_bip39_word(input_bits)
+        assert word == expected, f"Word mismatch for {description}: expected '{expected}', got '{word}'"
 
-    with pytest.raises(ValueError) as e:
-        invalid_coin_flips = "0" * 127  # Too short (127 chars)
-        mnemonic_generation.generate_mnemonic_from_coin_flips(invalid_coin_flips)
-    assert "128 or 256 bits" in str(e)
 
-    with pytest.raises(ValueError) as e:
-        invalid_coin_flips = "0" * 129  # Too long for 128, too short for 256
-        mnemonic_generation.generate_mnemonic_from_coin_flips(invalid_coin_flips)
-    assert "128 or 256 bits" in str(e)
-
-    with pytest.raises(ValueError) as e:
-        invalid_coin_flips = "0" * 255  # Too short for 256
-        mnemonic_generation.generate_mnemonic_from_coin_flips(invalid_coin_flips)
-    assert "128 or 256 bits" in str(e)
+def test_get_bip39_word_invalid_input():
+    """Test get_bip39_word function with invalid inputs"""
+    
+    # Test vectors: (input_bits, expected_error_message, description)
+    test_vectors = [
+        # Invalid lengths
+        (
+            "0000000000",  # 10 bits
+            "exactly 11 bits long",
+            "too short (10 bits)"
+        ),
+        (
+            "000000000000",  # 12 bits
+            "exactly 11 bits long",
+            "too long (12 bits)"
+        ),
+        (
+            "",  # empty string
+            "exactly 11 bits long",
+            "empty string"
+        ),
+        
+        # Invalid characters
+        (
+            "00000000002",  # contains '2'
+            "only contain '0' or '1'",
+            "contains invalid character '2'"
+        ),
+        (
+            "0000000000a",  # contains 'a'
+            "only contain '0' or '1'",
+            "contains invalid character 'a'"
+        ),
+        (
+            "0000000000 ",  # contains space
+            "only contain '0' or '1'",
+            "contains space"
+        ),
+    ]
+    
+    for input_bits, expected_error, description in test_vectors:
+        with pytest.raises(ValueError) as e:
+            mnemonic_generation.get_bip39_word(input_bits)
+        assert expected_error in str(e), f"Wrong error message for {description}"

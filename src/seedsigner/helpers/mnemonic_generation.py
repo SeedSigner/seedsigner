@@ -88,9 +88,8 @@ def generate_mnemonic_from_coin_flips(coin_flips: str, wordlist_language_code: s
     """
         Takes a string of 128 or 256 0s and 1s and returns a 12- or 24-word mnemonic.
 
-        Uses the iancoleman.io/bip39 and bitcoiner.guide/seed "Binary" mode approach:
-        * binary digit stream is treated as string data.
-        * hashed via SHA256.
+        Converts the binary digit stream directly to bytes and uses those as entropy.
+        The final word will include checksum bits automatically added by BIP-39.
     """
     # Validate length (must be 128 or 256 bits)
     if len(coin_flips) not in (COIN__NUM_FLIPS__12WORD, COIN__NUM_FLIPS__24WORD):
@@ -115,6 +114,17 @@ def generate_mnemonic_from_coin_flips(coin_flips: str, wordlist_language_code: s
 
 
 
+def get_bip39_word(bits: str, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> str:
+    """ Convert 11-bit string to BIP-39 word """
+    if len(bits) != 11:
+        raise ValueError("Bits must be exactly 11 bits long")
+    if not all(c in "01" for c in bits):
+        raise ValueError("Bits must only contain '0' or '1'")
+    
+    index = int(bits, 2)
+    return Seed.get_wordlist(wordlist_language_code)[index]
+
+
 def get_partial_final_word(coin_flips: str, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> str:
     """ Look up the partial final word for the given coin flips.
         7 coin flips: 0101010 + **** where the final 4 bits will be replaced with the checksum
@@ -135,10 +145,4 @@ def generate_mnemonic_from_image(image, wordlist_language_code: str = SettingsCo
 
     # Return as a list
     return bip39.mnemonic_from_bytes(hash.digest(), wordlist=Seed.get_wordlist(wordlist_language_code)).split()
-
-
-
-def get_bip39_word(bits: str) -> str:
-    """ Convert 11-bit string to BIP39 word """
-    index = int(bits, 2)
-    return Seed.get_wordlist()[index]
+    

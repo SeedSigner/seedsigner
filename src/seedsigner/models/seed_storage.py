@@ -10,6 +10,7 @@ class SeedStorage:
         self.pending_seed: Seed = None
         self._pending_mnemonic: List[str] = []
         self._pending_is_electrum : bool = False
+        self._pending_coin_flip_bits: str = ""
 
 
     def set_pending_seed(self, seed: Seed):
@@ -103,3 +104,17 @@ class SeedStorage:
     def discard_pending_mnemonic(self):
         self._pending_mnemonic = []
         self._pending_is_electrum = False
+        self._pending_coin_flip_bits = ""
+
+
+    def get_pending_coin_flip_bits(self) -> str:
+        return self._pending_coin_flip_bits
+
+
+    def set_pending_coin_flip_bits(self, bits: str):
+        self._pending_coin_flip_bits = bits
+
+
+    def set_pending_mnemonic_list(self, mnemonic: List[str]):
+        """Set the entire pending mnemonic list"""
+        self._pending_mnemonic = list(mnemonic)
