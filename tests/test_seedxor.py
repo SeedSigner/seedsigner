@@ -20,6 +20,7 @@ ZERO_ENTROPY_MNEMONIC_12 = "abandon abandon abandon abandon abandon abandon aban
 ZERO_ENTROPY_MNEMONIC_24 = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"
 
 
+
 class TestCombineMnemonicsWithXOR(unittest.TestCase):
     """
     Tests the core XOR calculation logic, input validation, and error handling.
@@ -31,17 +32,20 @@ class TestCombineMnemonicsWithXOR(unittest.TestCase):
         result = combine_mnemonics_with_xor(mnemonics)
         self.assertEqual(result, RESULT_24_ABC.split())
 
+
     def test_xor_12_word_example(self):
         """Tests the 3-part 12-word XOR calculation from the provided example. """
         mnemonics = [EXAMPLE_12_A, EXAMPLE_12_B, EXAMPLE_12_C]
         result = combine_mnemonics_with_xor(mnemonics)
         self.assertEqual(result, RESULT_12_ABC.split())
 
+
     def test_xor_identity_property(self):
         """ Tests the XOR identity property (A ^ B ^ B = A). """
         mnemonics = [EXAMPLE_12_A, EXAMPLE_12_B, EXAMPLE_12_B]
         result = combine_mnemonics_with_xor(mnemonics)
         self.assertEqual(result, EXAMPLE_12_A.split())
+
 
     def test_xor_null_property(self):
         """ Tests the XOR null property (A ^ A = 0) for both 12 and 24-word mnemonics. """
@@ -52,7 +56,8 @@ class TestCombineMnemonicsWithXOR(unittest.TestCase):
         # Test 24-word case
         result_24 = combine_mnemonics_with_xor([EXAMPLE_24_A, EXAMPLE_24_A])
         self.assertEqual(result_24, ZERO_ENTROPY_MNEMONIC_24.split())
-        
+
+
     def test_handles_list_of_words_input(self):
         """Tests that the function correctly processes mnemonics formatted as a list of words. """
         mnemonics = [EXAMPLE_12_A.split(), EXAMPLE_12_B]
@@ -61,21 +66,26 @@ class TestCombineMnemonicsWithXOR(unittest.TestCase):
         expected_result = "person bitter door winner candy polar proud fringe early have bulb apple".split()
         self.assertEqual(result, expected_result)
 
+
     def test_raises_error_for_empty_list(self):
         """Ensures ValueError is raised for an empty mnemonic list. """
         with self.assertRaisesRegex(ValueError, "Mnemonic list cannot be empty"):
             combine_mnemonics_with_xor([])
-            
+
+
     def test_raises_error_for_invalid_mnemonic(self):
         """Ensures ValueError is raised for a mnemonic with a bad checksum or invalid word. """
         invalid_mnemonic = "romance wink lottery autumn shop bring dawn tongue range crater truth zebra" # 'zebra' is invalid
         with self.assertRaisesRegex(ValueError, "Invalid mnemonic"):
             combine_mnemonics_with_xor([EXAMPLE_12_A, invalid_mnemonic])
 
+
     def test_raises_error_for_mismatched_lengths(self):
         """ Ensures ValueError is raised when mnemonics have different entropy lengths. """
         with self.assertRaisesRegex(ValueError, "All mnemonics must generate entropy of the same length"):
             combine_mnemonics_with_xor([EXAMPLE_12_A, EXAMPLE_24_A])
+
+
 
 class TestSeedXORValidator(unittest.TestCase):
     """
@@ -98,38 +108,44 @@ class TestSeedXORValidator(unittest.TestCase):
         self.shard_24_A.mnemonic_str = EXAMPLE_24_A
         self.shard_24_A.mnemonic_list = EXAMPLE_24_A.split()
 
+
     def test_valid_first_shard(self):
         """ A valid shard added to an empty list should pass. """
         is_valid, error = SeedXORValidator.validate_shard(self.shard_12_A, [])
         self.assertTrue(is_valid)
         self.assertIsNone(error)
 
+
     def test_valid_second_shard(self):
         """ A second, valid, unique shard of the same length should pass. """
         is_valid, error = SeedXORValidator.validate_shard(self.shard_12_B, [self.shard_12_A])
         self.assertTrue(is_valid)
         self.assertIsNone(error)
-        
+
+
     def test_rejects_shard_with_passphrase(self):
         """ Shards with passphrases should be rejected. """
         self.shard_12_A.has_passphrase = True
         is_valid, error = SeedXORValidator.validate_shard(self.shard_12_A, [])
         self.assertFalse(is_valid)
         self.assertEqual(error["title"], "Passphrase Not Allowed")
-        
+
+
     def test_rejects_mismatched_mnemonic_length(self):
         """ Shards of different lengths should be rejected. """
         is_valid, error = SeedXORValidator.validate_shard(self.shard_24_A, [self.shard_12_A])
         self.assertFalse(is_valid)
         self.assertEqual(error["title"], "Mnemonic Length Mismatch")
-        
+
+
     def test_rejects_duplicate_shard(self):
         """ An identical shard should be rejected. """
         is_valid, error = SeedXORValidator.validate_shard(self.shard_12_A, [self.shard_12_A])
         self.assertFalse(is_valid)
         self.assertEqual(error["title"], "Duplicate Shard")
         self.assertIn("shard #1", error["message"])
-        
+
+
     def test_rejects_inverse_shard(self):
         """ A binary inverse shard (which would cancel another out) should be rejected. """
         entropy_a = bip39.mnemonic_to_bytes(EXAMPLE_12_A)
@@ -146,6 +162,3 @@ class TestSeedXORValidator(unittest.TestCase):
         self.assertEqual(error["title"], "Seed Inversion")
         self.assertIn("binary inverse of shard #1", error["message"])
 
-
-if __name__ == '__main__':
-    unittest.main()
