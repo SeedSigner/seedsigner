@@ -26,11 +26,9 @@ class ToolsMenuView(View):
     IMAGE = ButtonOption("New seed", FontAwesomeIconConstants.CAMERA)
     DICE = ButtonOption("New seed", FontAwesomeIconConstants.DICE)
     KEYBOARD = ButtonOption("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
-    ADDRESS_EXPLORER = ButtonOption("Address Explorer")
-    VERIFY_ADDRESS = ButtonOption("Verify Address")
-    REBUILD_SEED_XOR = ButtonOption("Rebuild SeedXOR")
     ADDRESS_EXPLORER = ButtonOption("Address explorer")
     VERIFY_ADDRESS = ButtonOption("Verify address")
+    REBUILD_SEED_XOR = ButtonOption("Rebuild SeedXOR")
 
     def run(self):
         button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]

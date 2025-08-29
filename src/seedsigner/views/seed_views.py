@@ -23,6 +23,8 @@ from seedsigner.views.view import ErrorView
 
 logger = logging.getLogger(__name__)
 
+
+
 class SeedsMenuView(View):
     LOAD = ButtonOption("Load a seed")
 
@@ -274,7 +276,6 @@ class SeedMnemonicEntryView(View):
 
 
 class SeedMnemonicInvalidView(View):
-
     EDIT = ButtonOption("Review & edit")
     DISCARD = ButtonOption("Discard", button_label_color="red")
 
@@ -373,7 +374,6 @@ class SeedAddPassphraseView(View):
         # The new passphrase will be the return value; it might be empty.
         self.seed.set_passphrase(ret_dict["passphrase"])
 
-
         if "is_back_button" in ret_dict or len(self.seed.passphrase) == 0:
             return Destination(SeedAddPassphraseExitDialogView)
                     
@@ -393,7 +393,6 @@ class SeedAddPassphraseExitDialogView(View):
 
 
     def run(self):
-
         if self.seed.passphrase:
             title = _("Discard passphrase?")
             message = _("Your current passphrase entry will be erased.")
@@ -414,7 +413,6 @@ class SeedAddPassphraseExitDialogView(View):
 
         if button_data[selected_menu_num] == self.EDIT:
             return Destination(SeedAddPassphraseView)
-
 
         elif button_data[selected_menu_num] in [self.DISCARD, self.SKIP]:
             self.seed.set_passphrase("")
@@ -466,7 +464,6 @@ class SeedReviewPassphraseView(View):
 
             
 class SeedDiscardView(View):
-
     KEEP = ButtonOption("Keep seed")
     DISCARD = ButtonOption("Discard", button_label_color="red")
 
@@ -536,7 +533,6 @@ class SeedElectrumMnemonicStartView(View):
 ****************************************************************************"""
 class SeedOptionsView(View):
     SCAN_PSBT = ButtonOption("Scan PSBT", SeedSignerIconConstants.QRCODE)
-
     VERIFY_ADDRESS = ButtonOption("Verify addr")
     EXPORT_XPUB = ButtonOption("Export xpub")
     EXPLORER = ButtonOption("Address explorer")
@@ -1099,7 +1095,6 @@ class SeedWordsView(View):
         else:
             button_data.append(self.DONE)
 
-
         selected_menu_num = self.run_screen(
             seed_screens.SeedWordsScreen,
             title=f"{title}: {self.page_index+1}/{num_pages}",
@@ -1192,7 +1187,6 @@ class SeedBIP85SelectChildIndexView(View):
 
     def run(self):
         # TODO: Change this later to use the generic Screen input keyboard
-
         ret = self.run_screen(seed_screens.SeedBIP85SelectChildIndexScreen)
 
         if ret == RET_CODE__BACK_BUTTON:
@@ -1263,7 +1257,6 @@ class SeedWordsBackupTestPromptView(View):
 
     def run(self):
         button_data = [self.VERIFY, self.SKIP]
-
         selected_menu_num = self.run_screen(
             seed_screens.SeedWordsBackupTestPromptScreen,
             button_data=button_data,
@@ -1394,7 +1387,6 @@ class SeedWordsBackupTestMistakeView(View):
         # TRANSLATOR_NOTE: User selected the wrong word during the mnemonic backup test (e.g. incorrectly said the 5th word was "zoo")
         status_headline = _("Wrong Word!")
 
-
         selected_menu_num = self.run_screen(
             DireWarningScreen,
             title=_("Verification Error"),
@@ -1432,7 +1424,6 @@ class SeedWordsBackupTestSuccessView(View):
 
     def run(self):
         from seedsigner.gui.screens.screen import LargeIconStatusScreen
-
         self.run_screen(
             LargeIconStatusScreen,
             title=_("Backup Verified"),
@@ -1440,7 +1431,6 @@ class SeedWordsBackupTestSuccessView(View):
             status_headline=_("Success!"),
             text=_("All mnemonic backup words were successfully verified!"),
             button_data=[ButtonOption("OK")]
-
         )
 
         if self.seed_num is not None:
@@ -1625,7 +1615,6 @@ class SeedTranscribeSeedQRZoomedInView(View):
                 num_modules = 21
             else:
                 num_modules = 25
-
 
         self.run_screen(
             seed_screens.SeedTranscribeSeedQRZoomedInScreen,
