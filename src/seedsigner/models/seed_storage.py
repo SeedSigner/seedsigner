@@ -122,3 +122,4 @@ class SeedStorage:
 
     def set_rebuild_seedxor_combined_seed(self, seed: Seed):
         self.rebuild_seedxor_combined_seed = seed
+

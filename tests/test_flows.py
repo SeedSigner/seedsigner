@@ -167,14 +167,14 @@ class TestFlowTest(FlowTest):
             def run(self):
                 self.run_screen(
                     ButtonListScreen,
-                    button_data=[ButtonOption("this is fine"), "this is not"]
+                    button_data=[ButtonOption("This is fine"), "This is not"]
                 )
 
         class MyGoodButtonDataTestView(View):
             def run(self):
                 self.run_screen(
                     ButtonListScreen,
-                    button_data=[ButtonOption("this is fine"), ButtonOption("this is also fine")]
+                    button_data=[ButtonOption("This is fine"), ButtonOption("This is also fine")]
                 )
                 return Destination(MainMenuView)
 
