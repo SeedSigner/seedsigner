@@ -225,7 +225,7 @@ class MainMenuView(View):
 
 class PowerOptionsView(View):
     RESET = ButtonOption("Restart", SeedSignerIconConstants.RESTART)
-    POWER_OFF = ButtonOption("Power Off", SeedSignerIconConstants.POWER)
+    POWER_OFF = ButtonOption("Power off", SeedSignerIconConstants.POWER)
 
     def run(self):
         button_data = [self.RESET, self.POWER_OFF]
@@ -308,7 +308,7 @@ class NotYetImplementedView(View):
             title=_("Work In Progress"),
             status_headline=_("Not Yet Implemented"),
             text=self.text,
-            button_data=[ButtonOption("Back to Main Menu")],
+            button_data=[ButtonOption("Back to main menu")],
         )
 
         return Destination(MainMenuView)
@@ -383,7 +383,7 @@ class UnhandledExceptionView(View):
 
 @dataclass
 class OptionDisabledView(View):
-    UPDATE_SETTING = ButtonOption("Update Setting")
+    UPDATE_SETTING = ButtonOption("Update setting")
     DONE = ButtonOption("Done")
     settings_attr: str
 

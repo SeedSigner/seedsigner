@@ -268,7 +268,7 @@ class SeedMnemonicEntryView(View):
 
 
 class SeedMnemonicInvalidView(View):
-    EDIT = ButtonOption("Review & Edit")
+    EDIT = ButtonOption("Review & edit")
     DISCARD = ButtonOption("Discard", button_label_color="red")
 
     def __init__(self):
@@ -456,7 +456,7 @@ class SeedReviewPassphraseView(View):
 
             
 class SeedDiscardView(View):
-    KEEP = ButtonOption("Keep Seed")
+    KEEP = ButtonOption("Keep seed")
     DISCARD = ButtonOption("Discard", button_label_color="red")
 
     def __init__(self, seed_num: int = None):
@@ -525,13 +525,13 @@ class SeedElectrumMnemonicStartView(View):
 ****************************************************************************"""
 class SeedOptionsView(View):
     SCAN_PSBT = ButtonOption("Scan PSBT", SeedSignerIconConstants.QRCODE)
-    VERIFY_ADDRESS = ButtonOption("Verify Addr")
-    EXPORT_XPUB = ButtonOption("Export Xpub")
-    EXPLORER = ButtonOption("Address Explorer")
-    SIGN_MESSAGE = ButtonOption("Sign Message")
-    BACKUP = ButtonOption("Backup Seed", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
-    BIP85_CHILD_SEED = ButtonOption("BIP-85 Child Seed")
-    DISCARD = ButtonOption("Discard Seed", button_label_color="red")
+    VERIFY_ADDRESS = ButtonOption("Verify addr")
+    EXPORT_XPUB = ButtonOption("Export xpub")
+    EXPLORER = ButtonOption("Address explorer")
+    SIGN_MESSAGE = ButtonOption("Sign message")
+    BACKUP = ButtonOption("Backup seed", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
+    BIP85_CHILD_SEED = ButtonOption("BIP-85 child seed")
+    DISCARD = ButtonOption("Discard seed", button_label_color="red")
 
 
     def __init__(self, seed_num: int):
@@ -637,7 +637,7 @@ class SeedOptionsView(View):
 
 
 class SeedBackupView(View):
-    VIEW_WORDS = ButtonOption("View Seed Words")
+    VIEW_WORDS = ButtonOption("View seed words")
     EXPORT_SEEDQR = ButtonOption("Export as SeedQR")
 
     def __init__(self, seed_num):
@@ -1120,17 +1120,17 @@ class SeedWordsView(View):
 
 
 """****************************************************************************
-    BIP85 - Derive child mnemonic (seed) flow
+    BIP-85 - Derive child mnemonic (seed) flow
 ****************************************************************************"""
 class SeedBIP85ApplicationModeView(View):
     """
-        * Ask the user the application type as defined in the BIP0085 spec.
+        * Ask the user the application type as defined in the BIP-85 spec.
         * Currently only Word mode of 12, 24 words (Application number: 39')
         * Possible future additions are
         *  WIF (HDSEED)
-        *  XPRV (BIP32)
+        *  XPRV (BIP-32)
     """
-    # TODO: Future enhancement to display WIF (HD-SEED) and XPRV (Bip32)?
+    # TODO: Future enhancement to display WIF (HD-SEED) and XPRV (BIP-32)?
     WORDS_12 = ButtonOption("12 Words")
     WORDS_24 = ButtonOption("24 Words")
 
@@ -1175,9 +1175,9 @@ class SeedBIP85SelectChildIndexView(View):
 
     def run(self):
         # TODO: Change this later to use the generic Screen input keyboard
-        ret = self.run_screen(
-            seed_screens.SeedBIP85SelectChildIndexScreen
-        )
+
+        ret = self.run_screen(seed_screens.SeedBIP85SelectChildIndexScreen)
+
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -1217,7 +1217,9 @@ class SeedBIP85InvalidChildIndexView(View):
             status_icon_name=SeedSignerIconConstants.ERROR,
             status_headline=_("Invalid Child Index"),
             text=_("BIP-85 Child Index must be between 0 and 2^31-1."),
-            button_data=[ButtonOption("Try Again")]
+
+            button_data=[ButtonOption("Try again")]
+
         )
 
         return Destination(
@@ -1353,8 +1355,8 @@ class SeedWordsBackupTestView(View):
 
 
 class SeedWordsBackupTestMistakeView(View):
-    REVIEW = ButtonOption("Review Seed Words")
-    RETRY = ButtonOption("Try Again")
+    REVIEW = ButtonOption("Review seed words")
+    RETRY = ButtonOption("Try again")
 
     def __init__(self, seed_num: int, bip85_data: dict = None, cur_index: int = None, wrong_word: str = None, confirmed_list: list[bool] = None):
         super().__init__()
@@ -2054,7 +2056,7 @@ class SeedAddressVerificationSuccessView(View):
 
 
 class LoadMultisigWalletDescriptorView(View):
-    SCAN = ButtonOption("Scan Descriptor", SeedSignerIconConstants.QRCODE)
+    SCAN = ButtonOption("Scan descriptor", SeedSignerIconConstants.QRCODE)
     CANCEL = ButtonOption("Cancel")
 
     def run(self):
@@ -2080,8 +2082,8 @@ class LoadMultisigWalletDescriptorView(View):
 
 class MultisigWalletDescriptorView(View):
     RETURN = ButtonOption("Return to PSBT")
-    VERIFY_ADDR = ButtonOption("Verify Addr")
-    ADDRESS_EXPLORER = ButtonOption("Address Explorer")
+    VERIFY_ADDR = ButtonOption("Verify addr")
+    ADDRESS_EXPLORER = ButtonOption("Address explorer")
     OK = ButtonOption("OK")
 
     def run(self):
