@@ -15,7 +15,7 @@ from seedsigner.models.encode_qr import GenericStaticQrEncoder
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
-from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
+from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedWordsView, SeedExportXpubScriptTypeView
 
 from .view import View, Destination, BackStackView
 
@@ -421,11 +421,12 @@ class ToolsCoinEntropySetwiseEntryView(View):
             full_entropy = bits_collected[:self.total_flips]
             mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(full_entropy, wordlist_language_code=wordlist_language_code)
 
-            # Create and store seed
-            seed = Seed(mnemonic, wordlist_language_code=wordlist_language_code)
-            self.controller.storage.set_pending_seed(seed)
+            # Store the complete mnemonic and convert to pending seed for review
+            self.controller.storage.set_pending_mnemonic_list(mnemonic)
+            self.controller.storage.convert_pending_mnemonic_to_pending_seed()
 
-            return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
+            # Show all words for review before finalizing
+            return Destination(SeedWordsView, view_args={"seed_num": None, "page_index": 0}, clear_history=True)
 
 
 class ToolsCoinEntropySetwiseBip39WordView(View):
@@ -636,11 +637,12 @@ class ToolsCalcFinalWordDoneView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
-        self.controller.storage.convert_pending_mnemonic_to_pending_seed()
 
         if button_data[selected_menu_num] == self.LOAD:
-            return Destination(SeedFinalizeView)
+            # Convert pending mnemonic to pending seed for review
+            self.controller.storage.convert_pending_mnemonic_to_pending_seed()
+            # Show all words for review before finalizing
+            return Destination(SeedWordsView, view_args={"seed_num": None, "page_index": 0}, clear_history=True)
         
         elif button_data[selected_menu_num] == self.DISCARD:
             return Destination(SeedDiscardView)
