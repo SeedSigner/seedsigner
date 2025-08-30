@@ -1,0 +1,27 @@
+name: l10n pre-commit
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  l10n-pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.x"
+      - name: Install l10n deps
+        run: pip install -r l10n/requirements-l10n.txt
+      - name: Install project
+        run: pip install -e .
+      - uses: pre-commit/action@v3.0.1
+        with:
+          # Pass extra arguments to the `pre-commit run` command:
+          # run_extract_messages: Run only this specific hook
+          # --all-files: Check all files, not just changed ones
+          # --verbose: Show detailed output for debugging
+          extra_args: run_extract_messages --all-files --verbose

@@ -1,1 +1,2 @@
 Babel==2.16.0
+setuptools>=80.9.0

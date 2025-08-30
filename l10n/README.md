@@ -269,8 +269,27 @@ python setup.py extract_messages
 
 This will rescan all wrapped text, picking up new strings as well as updating existings strings that have been edited.
 
-_TODO: Github Action to auto-generate messages.pot and fail a PR update if the PR has an out of date messages.pot?_
+### Pre-commit hook for `extract_messages`
 
+A pre-commit hook is configured to run this command automatically before each commit.
+
+To set it up:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+Once installed, the `run_extract_messages` hook will run every time you commit.
+If it updates `messages.pot`, the commit will be blocked so you can review and stage the updated file before trying again.
+
+To trigger the hook manually, run:
+
+```bash
+pre-commit run run_extract_messages --all-files
+```
+
+---
 
 ### Making new text available to translators
 Upload the master `messages.pot` to Transifex. It will automatically update each language with the new or changed source strings.
