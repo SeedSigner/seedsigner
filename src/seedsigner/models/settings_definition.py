@@ -131,6 +131,7 @@ class SettingsConstants:
         LOCALE__CHINESE_SIMPLIFIED: "(beta) 简体中文 (Chinese Simplified)",
         LOCALE__JAPANESE: "(beta) 日本語 (Japanese)",
         LOCALE__KOREAN: "(beta) 한국어 (Korean)",
+        LOCALE__THAI: "(beta) ไทย (Thai)",
 
         # --------- Placeholders / Coming soon ------------------------------------------
         # Commented out options require explicit additional font support.
@@ -174,7 +175,6 @@ class SettingsConstants:
         LOCALE__TAGALOG: "Tagalog",
         # LOCALE__TAMIL: "தமிழ் (Tamil)",
         # LOCALE__TELUGU: "తెలుగు (Telugu)",
-        # LOCALE__THAI: "ไทย (Thai)",
         LOCALE__TURKISH: "Türkçe",
         LOCALE__UKRANIAN: "українська (Ukranian)",   # OpenSans includes cyrillic chars
         # LOCALE__URDU: "اردو (Urdu)",
@@ -395,7 +395,7 @@ class SettingsConstants:
 
     # Label strings
     LABEL__BIP39_PASSPHRASE = _mft("BIP-39 Passphrase")
-    # TRANSLATOR_NOTE: Terminology used by Electrum seeds; equivalent to bip39 passphrase
+    # TRANSLATOR_NOTE: Terminology used by Electrum seeds; equivalent to BIP-39 passphrase
     custom_extension = _mft("Custom Extension")
     LABEL__CUSTOM_EXTENSION = custom_extension
 
@@ -542,7 +542,7 @@ class SettingsDefinition:
                       selection_options=SettingsConstants.get_detected_languages(),
                       default_value=SettingsConstants.LOCALE__ENGLISH),
 
-        # TODO: Support other bip-39 wordlist languages! Until then, type == HIDDEN
+        # TODO: Support other BIP-39 wordlist languages! Until then, type == HIDDEN
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__WORDLIST_LANGUAGE,
                       abbreviated_name="wordlist_lang",

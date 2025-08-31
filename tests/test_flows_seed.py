@@ -35,7 +35,7 @@ class TestSeedFlows(FlowTest):
 
     def test_passphrase_entry_flow(self):
         """
-        Opting to add a bip39 passphrase on the Finalize Seed screen should enter the
+        Opting to add a BIP-39 passphrase on the Finalize Seed screen should enter the
         passphrase entry / review flow and end at the SeedOptionsView. 
         """
         self.run_sequence([
@@ -449,25 +449,25 @@ class TestSeedFlows(FlowTest):
             FlowStep(seed_views.SeedTranscribeSeedQRFormatView, button_data_selection=seed_views.SeedTranscribeSeedQRFormatView.STANDARD_12),
             FlowStep(seed_views.SeedTranscribeSeedQRWarningView),
             FlowStep(seed_views.SeedTranscribeSeedQRWholeQRView),
-            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are a bit weird; not sure why `is_redirect` is necessary here
+            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
 
             # Intentionally "scan" the wrong SeedQR
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_wrong_seed_into_decoder),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmWrongSeedView),
-            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are still weird
+            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView),
 
             # Intentionally scan QR data that makes no sense for this flow
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_completely_wrong_qr_type_into_decoder),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmInvalidQRView),
-            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are still weird
+            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView),
 
             # Intentionally scan QR data that makes no sense for this flow because is another QR recognized but is not a SeedQR (e.g., bitcoin address, psbt)
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_recognized_qr_type_isnot_seed_into_decoder),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmInvalidQRView),
-            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView, is_redirect=True),  # Live interactive screens are still weird
+            FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView),
             
             # Now scan the correct SeedQR
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
