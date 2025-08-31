@@ -268,8 +268,7 @@ class SeedMnemonicEntryView(View):
                 return Destination(SeedMnemonicInvalidView)
             
             if self.controller.resume_main_flow == Controller.FLOW__REBUILD_SEEDXOR:
-                new_shard_seed = self.controller.storage.get_pending_seed()
-                return Destination(RebuildSeedXORShowFingerprintView, view_args={"seed": new_shard_seed})
+                return Destination(RebuildSeedXORShowFingerprintView)
             else:
                 return Destination(SeedFinalizeView)
 
@@ -2400,9 +2399,9 @@ class RebuildSeedXORShowFingerprintView(View):
     CONTINUE = ButtonOption("Continue")
     CANCEL = ButtonOption("Cancel", button_label_color="red")
     
-    def __init__(self, seed: Seed):
+    def __init__(self):
         super().__init__()
-        self.seed = seed
+        self.seed = self.controller.storage.get_pending_seed()
         network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
         self.fingerprint = self.seed.get_fingerprint(network=network)
         self.next_shard_num = len(self.controller.storage.rebuild_seedxor_shards) + 1
@@ -2420,11 +2419,13 @@ class RebuildSeedXORShowFingerprintView(View):
         )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON or button_data[selected_menu_num] == self.CANCEL:
+            self.controller.storage.clear_pending_seed()
             return Destination(RebuildSeedXORLoadShardView)
         
         error_dict = self.controller.process_rebuild_seedxor_shard(self.seed)
         
         if error_dict:
+            self.controller.storage.clear_pending_seed()
             return Destination(
                 RebuildSeedXORErrorView,
                 view_args=dict(
@@ -2436,8 +2437,8 @@ class RebuildSeedXORShowFingerprintView(View):
                 ),
                 skip_current_view=True
             )
-        
 
+        self.controller.storage.clear_pending_seed()
         return Destination(RebuildSeedXORManageView)
 
 
@@ -2524,8 +2525,8 @@ class RebuildSeedXORSelectExistingSeedView(View):
             return Destination(RebuildSeedXORLoadShardView)
         
         selected_seed = self.seeds[selected_menu_num]
-        
-        return Destination(RebuildSeedXORShowFingerprintView, view_args={"seed": selected_seed})
+        self.controller.storage.set_pending_seed(selected_seed)
+        return Destination(RebuildSeedXORShowFingerprintView)
 
 
 

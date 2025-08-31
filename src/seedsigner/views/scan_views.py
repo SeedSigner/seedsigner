@@ -88,7 +88,10 @@ class ScanView(View):
                     new_seed = Seed(mnemonic=seed_mnemonic, wordlist_language_code=self.wordlist_language_code)
                     
                     if hasattr(self, "is_rebuild_seedxor_shard") and self.is_rebuild_seedxor_shard:
-                        return Destination(RebuildSeedXORShowFingerprintView, view_args={"seed": new_seed})
+                        # The seed is not yet validated for the SeedXOR operation, so we just
+                        #   pass it to the next View as a pending_seed.
+                        self.controller.storage.set_pending_seed(new_seed)
+                        return Destination(RebuildSeedXORShowFingerprintView)
                     else:
                         self.controller.storage.set_pending_seed(new_seed)
                         if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
