@@ -1,7 +1,7 @@
 import logging
 from gettext import gettext as _
 
-from seedsigner.gui.components import SeedSignerIconConstants
+from seedsigner.gui.components import GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, settings_screens)
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.models.settings import Settings, SettingsConstants, SettingsDefinition
@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class SettingsMenuView(View):
+    ADVANCED = ButtonOption("Advanced", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
+    HARDWARE = ButtonOption("Hardware", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
     IO_TEST = ButtonOption("I/O test")
     DONATE = ButtonOption("Donate")
 
@@ -29,7 +31,7 @@ class SettingsMenuView(View):
         settings_entries = SettingsDefinition.get_settings_entries(
             visibility=self.visibility
         )
-        button_data=[ButtonOption(e.display_name) for e in settings_entries]
+        button_data: list[ButtonOption] = [ButtonOption(e.display_name) for e in settings_entries]
 
         selected_button = 0
         if self.selected_attr:
@@ -42,7 +44,7 @@ class SettingsMenuView(View):
             title = _("Settings")
 
             # Set up the next nested level of menuing
-            button_data.append(ButtonOption("Advanced", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT))
+            button_data.append(self.ADVANCED)
             next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
 
             button_data.append(self.IO_TEST)
@@ -51,11 +53,14 @@ class SettingsMenuView(View):
         elif self.visibility == SettingsConstants.VISIBILITY__ADVANCED:
             title = _("Advanced")
 
-            # So far there are no real Developer options; disabling for now
-            # button_data.append(("Developer Options", None, None, None, SeedSignerIconConstants.CHEVRON_RIGHT))
-            # next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__DEVELOPER})
+            # The hardware options nest below "Advanced"
+            button_data.append(self.HARDWARE)
+            next_destination = Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__HARDWARE})
+
+        elif self.visibility == SettingsConstants.VISIBILITY__HARDWARE:
+            title = "Hardware"
             next_destination = None
-        
+
         elif self.visibility == SettingsConstants.VISIBILITY__DEVELOPER:
             title = _("Dev Options")
             next_destination = None
@@ -80,17 +85,63 @@ class SettingsMenuView(View):
             else:
                 return Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
         
-        elif selected_menu_num == len(settings_entries):
+        if button_data[selected_menu_num] == self.ADVANCED:
             return next_destination
 
-        elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == self.IO_TEST:
+        elif button_data[selected_menu_num] == self.HARDWARE:
+            return next_destination
+
+        elif button_data[selected_menu_num] == self.IO_TEST:
             return Destination(IOTestView)
 
-        elif len(button_data) > selected_menu_num and button_data[selected_menu_num] == self.DONATE:
+        elif button_data[selected_menu_num] == self.DONATE:
             return Destination(DonateView)
+
+        elif settings_entries[selected_menu_num].attr_name == SettingsConstants.SETTING__LOCALE:
+            return Destination(LocaleSelectionView)
 
         else:
             return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=settings_entries[selected_menu_num].attr_name, parent_initial_scroll=initial_scroll))
+
+
+
+class LocaleSelectionView(View):
+    def run(self):
+        cur_language_code = self.settings.get_value(SettingsConstants.SETTING__LOCALE)
+
+        selected_button = 0
+        button_data: list[ButtonOption] = []
+        for i, (language_code, display_name) in enumerate(SettingsConstants.get_detected_languages()):
+            button_data.append(
+                # Unique to this View: override each button's font so we can display each
+                # language name in its native script.
+                ButtonOption(
+                    button_label=display_name,
+                    return_data=language_code,
+                    font_name=GUIConstants.get_button_font_name(language_code),
+                    font_size=GUIConstants.get_button_font_size(language_code),
+                )
+            )
+
+            if language_code == cur_language_code:
+                # Highlight the current selection
+                selected_button = i
+
+        selected_menu_num = self.run_screen(
+            settings_screens.SettingsEntryUpdateSelectionScreen,
+            display_name=_(SettingsDefinition.get_settings_entry(attr_name=SettingsConstants.SETTING__LOCALE).display_name),
+            button_data=button_data,
+            selected_button=selected_button,
+            checked_buttons=[selected_button],
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(SettingsMenuView)
+
+        # Set the new language
+        self.settings.set_value(SettingsConstants.SETTING__LOCALE, button_data[selected_menu_num].return_data)
+
+        return Destination(SettingsMenuView)
 
 
 
@@ -179,6 +230,12 @@ class SettingsEntryUpdateSelectionView(View):
             value=updated_value
         )
 
+        if self.settings_entry.attr_name == SettingsConstants.SETTING__DISPLAY_CONFIGURATION:
+            self.renderer.initialize_display()
+
+        elif self.settings_entry.attr_name == SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED:
+            self.renderer.disp.invert(enabled=updated_value == SettingsConstants.OPTION__ENABLED)
+
         if destination:
             return destination
 
@@ -197,8 +254,15 @@ class SettingsIngestSettingsQRView(View):
         # May raise an Exception which will bubble up to the Controller to display to the
         # user.
         self.config_name, settings_update_dict = Settings.parse_settingsqr(data)
+
+        changes_display_driver = (
+            SettingsConstants.SETTING__DISPLAY_CONFIGURATION in settings_update_dict and
+            self.settings.get_value(SettingsConstants.SETTING__DISPLAY_CONFIGURATION) != settings_update_dict[SettingsConstants.SETTING__DISPLAY_CONFIGURATION])
             
         self.settings.update(settings_update_dict)
+
+        if changes_display_driver:
+            self.renderer.initialize_display()
 
         if MicroSD.get_instance().is_inserted and self.settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS) == SettingsConstants.OPTION__ENABLED:
             self.status_message = _("Persistent Settings enabled. Settings saved to SD card.")
