@@ -7,20 +7,19 @@ As usual: Don't Trust, Verify!<br>
 <br><br>
 **Note:**<br>
 **Do NOT use this with any seed you want to use later with real funds. This exercise is only for checking that the independent codebases get to the same end result!**<br>
-**However, if you do want to check your real seedphrases you should download the Iancoleman and/or Bitcoiner.Guide tools onto an airgapped, ephemeral computer (e.g. using tails-OS) and perform these tests on there. Destroy/abandon the TailsOS afterwards.**<br>
+**However, if you do want to check your real seed phrases you should download the Ian Coleman and/or Bitcoiner.Guide tools onto an airgapped, ephemeral computer (e.g. using Tails-OS) and perform these tests on there. Destroy/abandon the Tails-OS afterwards.**<br>
 **Never input seed phrases that you intend to use to store real funds onto an internet-connected computer!!!**
 <br><br><br>
 
 ## 99 Dice Rolls / 24 Seed Words Example
 
-The following 99 dice roll results are used in the verification steps as an example for a 24 words seed:<br>
+The following 99 dice roll results are used in the verification steps as an example for a 24-word seed:<br>
 > 655152231316521321611331544441236164664431121534415633526456254462245546236542364246312613322234612
 
 The corresponding 24 seed words are:<br>
 > eyebrow obvious such suggest poet seven breeze blame virtual frown dynamic donor harsh pigeon express broccoli easy apology scatter force recipe shadow claim radio
 
 (Scroll down near the end to see result values for a 50 dice rolls / 12 seed words example)
-<br><br><br>
 
 ## Creating seed via Dice rolls in SeedSigner (here v0.6.0)
 
@@ -56,7 +55,7 @@ Keep the SeedSigner open and the newly created seed still loaded as we will need
 ## Create new wallet from seed in Sparrow Wallet to see xpub/zpub and addresses
 
 Go to https://www.sparrowwallet.com/download/ and download the release version supported by your operating system.<br><br>
-Open Sparrow Wallet, go to 'File' menu and select 'New Wallet'. Enter a name (e.g. test), and click 'Create Wallet'.<br><br>
+Open Sparrow Wallet, go to the 'File' menu and select 'New Wallet'. Enter a name (e.g. test), and click 'Create Wallet'.<br><br>
 Click 'Airgapped Hardware Wallet' (1) and click on the 'Scan' button in the SeedSigner entry (2) which will open the camera scan screen:<br>
 <kbd><img src="img/dicedoc/sparrow_wallet_1.png"></kbd>
 
@@ -84,7 +83,7 @@ Go to https://iancoleman.io/bip39 and check 'Show entropy details' (1):<br>
 <br>
 Make sure to check (1) 'Hex' and (2) '24 Words' as 'Mnemonic Length'.<br>
 (Do not use 'dice' format because dice 6 will be replaced by 0).<br>
-Then enter the 99 dices numbers in (3). The corresponding seed words are shown in (4):<br>
+Then enter the 99 dice numbers in (3). The corresponding seed words are shown in (4):<br>
 <kbd><img src="img/dicedoc/coleman_verify.png"></kbd>
 <br><br>
 The 24 seed words are the same in SeedSigner and the Ian Coleman tool.
@@ -144,7 +143,7 @@ Compare to zpub in Sparrow:<br>
 <kbd><img src="img/dicedoc/sparrow_zpub.png"></kbd>
 <br>
 
-Zpub is the same as shown in SeedSigner, Sparrow and Ian Colemand tool.
+Zpub is the same as shown in SeedSigner, Sparrow and Ian Coleman tool.
 <br><br>
 **Addresses:**<br>
 Scroll down a little bit where the receive addresses are shown and compare to the ones generated in Sparrow ('Addresses' tab of the wallet):<br>
@@ -163,10 +162,10 @@ Check that the change addresses all match.
 
 ## 50 Dice Rolls / 12 Seed Words Example
 
-SeedSigner supports the creation of mnenomic seeds both with 12 or 24 seed words corresponding to 50 or 99 dice rolls. Below are some example result values for using 50 dice rolls only.<br><br>
-All the steps shown can be executed the same way, just select the '12 words (50 rolls)' option in SeedSigner and change the 'Mnenomic Length' dropdown boxes in both web tools to '12 Words'.<br><br>
+SeedSigner supports the creation of mnemonic seeds both with 12 or 24 seed words corresponding to 50 or 99 dice rolls. Below are some example result values for using 50 dice rolls only.<br><br>
+All the steps shown can be executed the same way, just select the '12 words (50 rolls)' option in SeedSigner and change the 'Mnemonic Length' dropdown boxes in both web tools to '12 Words'.<br><br>
 
-50 dice roll results as an example for a 12 words seed:<br>
+50 dice roll results as an example for a 12-word seed:<br>
 > 65515223131652132161133154444123616466443112153441
 
 The corresponding 12 seed words are:<br>
@@ -246,7 +245,7 @@ python3 mnemonic.py -h
         python3 mnemonic.py coins 1111100111...
 
         # 256 coin flips / 24-word mnemonic
-        python mnemonic.py coins 0010111010...
+        python3 mnemonic.py coins 0010111010...
 
         # GENERATE 50 random dice rolls / 12-word mnemonic
         python3 mnemonic.py dice rand12

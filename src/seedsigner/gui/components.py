@@ -55,6 +55,7 @@ class GUIConstants:
         # SettingsConstants.LOCALE__CHINESE_TRADITIONAL: "NotoSansTC-Regular",
         SettingsConstants.LOCALE__JAPANESE: "NotoSansJP-Regular",
         SettingsConstants.LOCALE__KOREAN: "NotoSansKR-Regular",
+        SettingsConstants.LOCALE__THAI: "NotoSansTH-Regular",
     }
 
     TOP_NAV_TITLE_FONT_NAME = BASE_LOCALE_FONTS.copy()
