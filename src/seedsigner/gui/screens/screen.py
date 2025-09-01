@@ -1454,6 +1454,8 @@ class ScreensaverScreen(LogoScreen):
 
         self._is_running = False
         # Store the current screen in order to restore it later
+        # The run_screen() method calls clear_screen() before the _run()
+        # method executes, so capturing it later would result in a blank image.
         self.last_screen = self.renderer.canvas.copy()
 
 
