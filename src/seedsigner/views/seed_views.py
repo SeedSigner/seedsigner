@@ -3,13 +3,13 @@ import random
 import time
 
 from binascii import hexlify
-from gettext import gettext as _
+from gettext import gettext as _ , ngettext
 
 from embit.descriptor import Descriptor
-
+from seedsigner.gui.components import GUIConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    WarningScreen, DireWarningScreen, seed_screens)
+    WarningScreen, DireWarningScreen, seed_screens, LargeIconStatusScreen)
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
@@ -2318,14 +2318,14 @@ class SeedSignMessageSignedMessageQRView(View):
 
 
 """****************************************************************************
-    Rebuild SeedXOR Views
+    Rebuild Seed XOR Views
 ****************************************************************************"""
 class RebuildSeedXORLoadShardView(View):
-    """View for loading a shard in the Rebuild SeedXOR flow."""
+    """View for loading a shard in the Rebuild Seed XOR flow."""
     SCAN_SHARD = ButtonOption("Scan SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-    USE_LOADED_SEED = ButtonOption("Use Loaded Seed", SeedSignerIconConstants.SEEDS)
+    USE_LOADED_SEED = ButtonOption("Use loaded seed", SeedSignerIconConstants.SEEDS)
 
     def __init__(self):
         super().__init__()
@@ -2343,12 +2343,17 @@ class RebuildSeedXORLoadShardView(View):
             self.TYPE_24WORD,
         ]
         
+        # TRANSLATOR_NOTE: This is a screen title for loading a "shard", which is one of
+        # several mnemonic seed phrases that will be combined. The variable is the
+        # shard's number in the sequence (e.g., "Load Shard #1").
+        title = _('Load Shard #{}').format(shard_num)
+
         if len(self.controller.storage.seeds) > 0:
             button_data.append(self.USE_LOADED_SEED)
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=_(f'Load Shard #{shard_num}'),
+            title=title,
             is_button_text_centered=False,
             button_data=button_data
         )
@@ -2394,10 +2399,10 @@ class RebuildSeedXORErrorView(ErrorView):
 
 
 class RebuildSeedXORShowFingerprintView(View):
-    """Show the fingerprint of the shard being added to the SeedXOR."""
+    """Show the fingerprint of the shard being added to the Seed XOR."""
     
     CONTINUE = ButtonOption("Continue")
-    CANCEL = ButtonOption("Cancel", button_label_color="red")
+    CANCEL = ButtonOption("Discard shard", button_label_color="red")
     
     def __init__(self):
         super().__init__()
@@ -2409,12 +2414,22 @@ class RebuildSeedXORShowFingerprintView(View):
     def run(self):
         button_data = [self.CONTINUE, self.CANCEL]
         
-        selected_menu_num = self.run_screen(
-            WarningScreen,
-            title=_("Shard #{}".format(self.next_shard_num)),
+        # TRANSLATOR_NOTE: This is a screen title showing the number of a seed "shard".
+        # A shard is one of several seed phrases being combined. The "{}" will be
+        # replaced by the shard's number (e.g., "Shard #2").
+        title = _("Shard #{}").format(self.next_shard_num)
 
-            status_headline=_("Shard Fingerprint"),
-            text=_("Fingerprint: {}".format(self.fingerprint)),
+        # TRANSLATOR_NOTE: This is a headline on a screen that displays a seed's
+        # "fingerprint", which is a short, unique identifier for a seed phrase.
+        status_headline = _("Shard Fingerprint")
+
+        selected_menu_num = self.run_screen(
+            LargeIconStatusScreen,
+            title=title,
+            status_icon_name=SeedSignerIconConstants.FINGERPRINT,
+            status_color=GUIConstants.BUTTON_FONT_COLOR,
+            status_headline=status_headline,
+            text=self.fingerprint,
             button_data=button_data,
         )
         
@@ -2444,13 +2459,13 @@ class RebuildSeedXORShowFingerprintView(View):
 
 
 class RebuildSeedXORManageView(View):
-    """Main management screen for rebuild seedXOR flow."""
+    """Main management screen for rebuild Seed XOR flow."""
     
-    LOAD_NEXT_SHARD = ButtonOption("Load Next Shard", SeedSignerIconConstants.PLUS)
-    VIEW_LOADED_SHARDS = ButtonOption("Loaded Shards", SeedSignerIconConstants.SEEDS)
-    REMOVE_SHARDS = ButtonOption("Remove Shards", SeedSignerIconConstants.CLOSE)
-    CANCEL = ButtonOption("Cancel SeedXOR", button_label_color="red")
-    FINALIZE = ButtonOption("Finalize SeedXOR", SeedSignerIconConstants.CHECK)
+    LOAD_NEXT_SHARD = ButtonOption("Load Next shard", SeedSignerIconConstants.PLUS)
+    VIEW_LOADED_SHARDS = ButtonOption("Loaded shard", SeedSignerIconConstants.SEEDS)
+    REMOVE_SHARDS = ButtonOption("Remove shard", SeedSignerIconConstants.CLOSE)
+    CANCEL = ButtonOption("Cancel Seed XOR", button_label_color="red")
+    FINALIZE = ButtonOption("Combine shards", SeedSignerIconConstants.CHECK)
     
     def __init__(self):
         super().__init__()
@@ -2470,10 +2485,20 @@ class RebuildSeedXORManageView(View):
         # Only show Finalize if at least 2 shards are loaded
         if self.num_shards >= 2:
             button_data.insert(-1,self.FINALIZE)
-    
+        
+        # TRANSLATOR_NOTE: This is a screen title that displays the number of seed
+        # shards that have been loaded. The first argument is for the singular
+        # case (e.g., "1 Shard Loaded"), and the second is for the plural
+        # (e.g., "2 Shards Loaded"). The "{}" will be replaced by the number of shards.
+        title = ngettext(
+            "{} Shard Loaded",
+            "{} Shards Loaded",
+            self.num_shards
+        ).format(self.num_shards)
+
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=_("{} Shards Loaded".format(self.num_shards)),
+            title=title,
             is_button_text_centered=False,
             button_data=button_data,
         )
@@ -2511,7 +2536,9 @@ class RebuildSeedXORSelectExistingSeedView(View):
         for i, seed in enumerate(self.seeds):
             network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
             fingerprint = seed.get_fingerprint(network=network)
-            # TRANSLATOR_NOTE: The seed's fingerprint will be inserted (e.g. "Seed abcd1234")
+            # TRANSLATOR_NOTE: This is a button label for selecting a seed that is already
+            # loaded in the device's memory. The "{}" will be replaced by the seed's 
+            # "fingerprint", a unique identifier (e.g., "Seed abcd1234").
             button_data.append(ButtonOption("Seed {}".format(fingerprint)))
             
         selected_menu_num = self.run_screen(
@@ -2531,34 +2558,74 @@ class RebuildSeedXORSelectExistingSeedView(View):
 
 
 class RebuildSeedXORViewShardsView(View):
-    """View all loaded shards in the rebuild seedXOR flow."""
+    """View all loaded shards in the rebuild Seed XOR flow."""
     
     def __init__(self):
         super().__init__()
         self.shards = self.controller.storage.rebuild_seedxor_shards
         
     def run(self):
-        button_data = []
-        for i, shard in enumerate(self.shards):
-            network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
-            fingerprint = shard.get_fingerprint(network=network)
-            shard_num = i + 1
+        shards_info_list = [
             # TRANSLATOR_NOTE: Will insert the shard num and its fingerprint (e.g. "Shard #3: abcd1234")
-            button_data.append(ButtonOption("Shard #{}: {}".format(shard_num, fingerprint)))
-            
-        selected_menu_num = self.run_screen(
-            ButtonListScreen,
+            "Shard #{}: {}".format(
+                i + 1,
+                shard.get_fingerprint(network=self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+            )
+            for i, shard in enumerate(self.shards)
+        ]
+        
+        shards_text = "\n".join(shards_info_list)
+        
+        self.run_screen(
+            LargeIconStatusScreen,
             title=_("Loaded Shards"),
-            is_button_text_centered=False,
-            button_data=button_data
+            status_icon_name=SeedSignerIconConstants.SEEDS,
+            status_headline=None,
+            text=shards_text,
+            button_data=[ButtonOption(_("Done"))]
         )
         
         return Destination(RebuildSeedXORManageView)
 
 
 
+class RebuildSeedXORConfirmRemoveShardView(View):
+    CONFIRM_REMOVE = ButtonOption("Remove shard", button_label_color="red")
+    KEEP_SHARD = ButtonOption("Keep shard")
+
+    def __init__(self, shard_num: int):
+        super().__init__()
+        self.shard_num = shard_num
+        self.shard = self.controller.storage.rebuild_seedxor_shards[shard_num]
+
+    def run(self):
+        button_data = [self.KEEP_SHARD, self.CONFIRM_REMOVE]
+
+        fingerprint = self.shard.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+        
+        # TRANSLATOR_NOTE: Asks the user to confirm removing a specific shard, identified by its number and fingerprint.
+        text = _("Remove shard #{} ({}) from the Seed XOR build?").format(self.shard_num + 1, fingerprint)
+
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title=_("Remove Shard?"),
+            status_headline=None,
+            text=text,
+            show_back_button=False,
+            button_data=button_data,
+        )
+
+        if button_data[selected_menu_num] == self.CONFIRM_REMOVE:
+            self.controller.remove_rebuild_seedxor_shard(self.shard_num)
+            return Destination(RebuildSeedXORManageView, clear_history=True)
+            
+        elif button_data[selected_menu_num] == self.KEEP_SHARD:
+            return Destination(RebuildSeedXORRemoveShardsView, skip_current_view=True)
+
+
+
 class RebuildSeedXORRemoveShardsView(View):
-    """Remove shards from the rebuild seedXOR flow."""
+    """Remove shards from the rebuild Seed XOR flow."""
     
     def __init__(self):
         super().__init__()
@@ -2579,36 +2646,41 @@ class RebuildSeedXORRemoveShardsView(View):
             title=_("Remove Shard"),
             is_button_text_centered=False,
             button_data=button_data,
-            button_selected_color=GUIConstants.ERROR_COLOR
         )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(RebuildSeedXORManageView)
         
-        self.controller.remove_rebuild_seedxor_shard(selected_menu_num)
-        return Destination(RebuildSeedXORManageView)
+        # Instead of deleting, navigate to the new confirmation view
+        return Destination(RebuildSeedXORConfirmRemoveShardView, view_args={"shard_num": selected_menu_num})
 
 
 
 class RebuildSeedXORCancelView(View):
-    """Confirm cancellation of rebuild seedXOR flow."""
+    """Confirm cancellation of rebuild Seed XOR flow."""
     
-    CONFIRM = ButtonOption("Confirm Cancel", button_label_color="red")
-    CONTINUE = ButtonOption("Continue SeedXOR")
+    CONFIRM = ButtonOption("Confirm cancel", button_label_color="red")
+    CONTINUE = ButtonOption("Continue Seed XOR")
     
     def run(self):
         button_data = [self.CONTINUE, self.CONFIRM]
         
         num_shards = len(self.controller.storage.rebuild_seedxor_shards)
         
+        # TRANSLATOR_NOTE: This is a confirmation message when canceling the Seed XOR rebuild process.
         text = _(
-            "Clear all loaded shards and return to Menu?"
+            "Clear all loaded shards and return to Home?"
         )
         
+        # TRANSLATOR_NOTE: This is a confirmation message asking the user if they want 
+        # to clear the seed "shards" they have loaded. The "{}" will be replaced by 
+        # the number of shards (e.g., "Clear 2 loaded shards?").
+        status_headline = _("Clear {} loaded shards?".format(num_shards))
+        
         selected_menu_num = self.run_screen(
-            WarningScreen,
-            title=_("Cancel SeedXOR"),
-            status_headline=_("Clear {} loaded shards?".format(num_shards)),
+            DireWarningScreen,
+            title=_("Cancel Seed XOR"),
+            status_headline=status_headline,
             text=text,
             button_data=button_data,
         )
@@ -2624,7 +2696,7 @@ class RebuildSeedXORCancelView(View):
 
 
 class RebuildSeedXORFinalizeView(View):
-    """First step of final confirmation before finalizing the Rebuild SeedXOR seed."""
+    """First step of final confirmation before finalizing the Rebuild Seed XOR seed."""
     
     def __init__(self):
         super().__init__()
@@ -2632,10 +2704,6 @@ class RebuildSeedXORFinalizeView(View):
         self.error = None
         self.seed = None
         self.fingerprint = None
-        
-        if len(self.controller.storage.rebuild_seedxor_shards) == 0:
-            self.error = "no_shards"
-            return
         
         try:        
             mnemonic_strings = [shard.mnemonic_str for shard in self.controller.storage.rebuild_seedxor_shards]
@@ -2671,7 +2739,7 @@ class RebuildSeedXORFinalizeView(View):
         from seedsigner.gui.screens.screen import LargeIconStatusScreen
         selected_menu_num = self.run_screen(
             LargeIconStatusScreen,
-            title=_("Finalize SeedXOR"),
+            title=_("Finalize Seed XOR"),
             status_headline=_("Combined {} shards".format(shard_count)),
             text=_("Fingerprint: {}\n\nCombined seed calculated successfully.".format(self.fingerprint)),
             button_data=button_data,
@@ -2687,8 +2755,8 @@ class RebuildSeedXORFinalizeView(View):
 class RebuildSeedXORFinalizeOptionsView(View):
     """Second step of finalization - choose what to do with individual shards"""
     
-    DISCARD_SHARDS = ButtonOption("Discard Shards", button_label_color="red")
-    KEEP_SHARDS = ButtonOption("Keep Shards")
+    DISCARD_SHARDS = ButtonOption("Discard shards", button_label_color="red")
+    KEEP_SHARDS = ButtonOption("Keep shards")
     PASSPHRASE = ButtonOption("BIP-39 Passphrase")
     
     def __init__(self):
@@ -2708,8 +2776,10 @@ class RebuildSeedXORFinalizeOptionsView(View):
             button_data.append(self.PASSPHRASE)
             
         selected_menu_num = self.run_screen(
-            WarningScreen,
+            LargeIconStatusScreen,
             title=_("Finalize Options"),
+            status_icon_name=SeedSignerIconConstants.SEEDS,
+            status_color=GUIConstants.BUTTON_FONT_COLOR,
             status_headline=_("What about the shards?"),
             text=_("Keep or discard shards?"),
             button_data=button_data,
