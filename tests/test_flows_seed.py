@@ -449,7 +449,6 @@ class TestSeedFlows(FlowTest):
             FlowStep(seed_views.SeedTranscribeSeedQRFormatView, button_data_selection=seed_views.SeedTranscribeSeedQRFormatView.STANDARD_12),
             FlowStep(seed_views.SeedTranscribeSeedQRWarningView),
             FlowStep(seed_views.SeedTranscribeSeedQRWholeQRView),
-
             FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView),
 
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),

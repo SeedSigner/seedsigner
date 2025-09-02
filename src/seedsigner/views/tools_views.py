@@ -27,8 +27,8 @@ class ToolsMenuView(View):
     IMAGE = ButtonOption("New seed", FontAwesomeIconConstants.CAMERA)
     DICE = ButtonOption("New seed", FontAwesomeIconConstants.DICE)
     KEYBOARD = ButtonOption("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
-    ADDRESS_EXPLORER = ButtonOption("Address Explorer")
-    VERIFY_ADDRESS = ButtonOption("Verify Address")
+    ADDRESS_EXPLORER = ButtonOption("Address explorer")
+    VERIFY_ADDRESS = ButtonOption("Verify address")
     COIN = ButtonOption(" New seed", FontAwesomeIconConstants.COINS)
 
 

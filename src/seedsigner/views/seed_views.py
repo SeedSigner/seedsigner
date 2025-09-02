@@ -1175,7 +1175,6 @@ class SeedBIP85SelectChildIndexView(View):
 
     def run(self):
         # TODO: Change this later to use the generic Screen input keyboard
-
         ret = self.run_screen(seed_screens.SeedBIP85SelectChildIndexScreen)
 
 
