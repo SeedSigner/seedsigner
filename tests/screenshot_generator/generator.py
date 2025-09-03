@@ -329,7 +329,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedWordsWarningView, dict(seed_num=0)),
                 ScreenshotConfig(seed_views.SeedWordsView, dict(seed_num=0)),
                 ScreenshotConfig(seed_views.SeedWordsView, dict(seed_num=0, page_index=2), screenshot_name="SeedWordsView_2"),
-                ScreenshotConfig(seed_views.SeedBIP85ApplicationModeView, dict(seed_num=0)),
+                ScreenshotConfig(seed_views.SeedBIP85SelectNumWordsView, dict(seed_num=0)),
                 ScreenshotConfig(seed_views.SeedBIP85SelectChildIndexView, dict(seed_num=0, num_words=24)),
                 ScreenshotConfig(seed_views.SeedBIP85InvalidChildIndexView, dict(seed_num=0, num_words=12)), 
                 ScreenshotConfig(seed_views.SeedWordsBackupTestPromptView, dict(seed_num=0)),

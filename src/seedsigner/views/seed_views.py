@@ -629,7 +629,7 @@ class SeedOptionsView(View):
             return Destination(SeedBackupView, view_args=dict(seed_num=self.seed_num))
 
         elif button_data[selected_menu_num] == self.BIP85_CHILD_SEED:
-            return Destination(SeedBIP85ApplicationModeView, view_args={"seed_num": self.seed_num})
+            return Destination(SeedBIP85SelectNumWordsView, view_args={"seed_num": self.seed_num})
 
         elif button_data[selected_menu_num] == self.DISCARD:
             return Destination(SeedDiscardView, view_args=dict(seed_num=self.seed_num))
@@ -1120,17 +1120,9 @@ class SeedWordsView(View):
 
 
 """****************************************************************************
-    BIP-85 - Derive child mnemonic (seed) flow
+    BIP-85 - Derive child mnemonic (seed) flow (Application number 39')
 ****************************************************************************"""
-class SeedBIP85ApplicationModeView(View):
-    """
-        * Ask the user the application type as defined in the BIP-85 spec.
-        * Currently only Word mode of 12, 24 words (Application number: 39')
-        * Possible future additions are
-        *  WIF (HDSEED)
-        *  XPRV (BIP-32)
-    """
-    # TODO: Future enhancement to display WIF (HD-SEED) and XPRV (BIP-32)?
+class SeedBIP85SelectNumWordsView(View):
     WORDS_12 = ButtonOption("12 Words")
     WORDS_24 = ButtonOption("24 Words")
 
@@ -1138,7 +1130,6 @@ class SeedBIP85ApplicationModeView(View):
         super().__init__()
         self.seed_num = seed_num
         self.num_words = 0
-        self.bip85_app_num = 39     # TODO: Support other Application numbers; TODO: Define this as a constant
 
 
     def run(self):
