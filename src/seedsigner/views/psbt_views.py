@@ -473,7 +473,7 @@ class PSBTAddressVerificationFailedView(View):
             title=_("Suspicious Transaction"),
             status_headline=_("Address Verification Failed"),
             text=text,
-            button_data=[ButtonOption("Discard Transaction")],
+            button_data=[ButtonOption("Discard transaction")],
             show_back_button=False,
         )
 
@@ -515,7 +515,7 @@ class PSBTOpReturnView(View):
 class PSBTFinalizeView(View):
     """
     """
-    APPROVE_PSBT = ButtonOption("Approve Transaction")
+    APPROVE_PSBT = ButtonOption("Approve transaction")
 
     
     def run(self):
