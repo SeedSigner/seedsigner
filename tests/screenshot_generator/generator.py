@@ -16,7 +16,6 @@ from embit.script import Script
 # These must precede any SeedSigner imports.
 sys.modules['seedsigner.hardware.displays.st7789_mpy'] = MagicMock()
 sys.modules['seedsigner.hardware.displays.ili9341'] = MagicMock()
-sys.modules['seedsigner.views.screensaver.ScreensaverScreen'] = MagicMock()
 sys.modules['RPi'] = MagicMock()
 sys.modules['RPi.GPIO'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
@@ -36,9 +35,8 @@ from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
-from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, NotYetImplementedView, UnhandledExceptionView, 
-    psbt_views, seed_views, settings_views, tools_views, scan_views)
-from seedsigner.views.screensaver import OpeningSplashView
+from seedsigner.views import (OpeningSplashView, MainMenuView, PowerOptionsView, RestartView, NotYetImplementedView,
+                              UnhandledExceptionView, psbt_views, seed_views, settings_views, tools_views, scan_views)
 from seedsigner.views.view import NetworkMismatchErrorView, OptionDisabledView, PowerOffView
 
 from .utils import ScreenshotComplete, ScreenshotConfig, ScreenshotRenderer
@@ -60,7 +58,7 @@ def test_generate_all(locale, target_locale):
         # We can't generate pixel-perfect screenshots that match what gets rendered on
         # the device if we don't have libraqm.
         pytest.fail("libraqm is not installed.")
-    
+
     generate_screenshots(locale)
 
 

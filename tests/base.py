@@ -1,4 +1,6 @@
 import sys
+import logging
+
 from dataclasses import dataclass
 from unittest.mock import MagicMock, Mock, patch
 from typing import Callable
@@ -6,9 +8,7 @@ from typing import Callable
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
 sys.modules['seedsigner.gui.renderer'] = MagicMock()
-sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
 sys.modules['seedsigner.gui.toast'] = MagicMock()
-sys.modules['seedsigner.views.screensaver'] = MagicMock()
 sys.modules['seedsigner.hardware.buttons'] = MagicMock()
 sys.modules['seedsigner.hardware.camera'] = MagicMock()
 sys.modules['seedsigner.hardware.st7789_mpy'] = MagicMock()
@@ -18,10 +18,12 @@ from seedsigner.controller import Controller, FlowBasedTestException, StopFlowBa
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON, ButtonOption
 from seedsigner.hardware.microsd import MicroSD
 from seedsigner.models.settings import Settings
-from seedsigner.views.view import Destination, MainMenuView, UnhandledExceptionView, View
+from seedsigner.views.view import Destination, MainMenuView, UnhandledExceptionView, View, OpeningSplashView
 
-import logging
 logger = logging.getLogger(__name__)
+
+# Mock run() to bypass OpeningSplashView, which is hardcoded in Controller.start() and conflicts with the expected start screen in flow tests.
+OpeningSplashView.run = MagicMock()
 
 
 
@@ -197,7 +199,7 @@ class FlowTest(BaseTest):
                     # View class that is being run.
                     if destination.View_cls != cur_flow_step.expected_view:
                         raise FlowTestUnexpectedViewException(f"Expected {cur_flow_step.expected_view}, got {destination.View_cls}")
-                    
+
                     if len(sequence) == 1:
                         # This is the last step in the sequence
                         if cur_flow_step.screen_return_value is None and cur_flow_step.button_data_selection is None:
@@ -222,7 +224,7 @@ class FlowTest(BaseTest):
                         if cur_flow_step.before_run:
                             cur_flow_step.before_run(destination.view)
 
-                        # Some Views reach into their Screen's variables directly (e.g. 
+                        # Some Views reach into their Screen's variables directly (e.g.
                         # Screen.buttons to preserve the scroll position), so we need to mock out the
                         # Screen instance that is created by the View.
                         destination.view.screen = MagicMock()
@@ -277,7 +279,7 @@ class FlowTest(BaseTest):
 
                     elif type(cur_flow_step.screen_return_value) in [StopFlowBasedTest, FlowBasedTestException]:
                         raise cur_flow_step.screen_return_value
-                    
+
                     elif isinstance(cur_flow_step.screen_return_value, Exception):
                         # The FlowStep wants to mimic the Screen raising an exception.
                         raise cur_flow_step.screen_return_value
