@@ -50,11 +50,12 @@ class GUIConstants:
 
     BASE_LOCALE_FONTS = {
         "default": "OpenSans-Regular",
-        # SettingsConstants.LOCALE__ARABIC: "NotoSansAR-Regular",
+        SettingsConstants.LOCALE__ARABIC: "NotoSansAR-Regular",
         SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: "NotoSansSC-Regular",
         # SettingsConstants.LOCALE__CHINESE_TRADITIONAL: "NotoSansTC-Regular",
         SettingsConstants.LOCALE__JAPANESE: "NotoSansJP-Regular",
         SettingsConstants.LOCALE__KOREAN: "NotoSansKR-Regular",
+        SettingsConstants.LOCALE__PERSIAN: "NotoSansAR-Regular",  # Uses the Arabic font
         SettingsConstants.LOCALE__THAI: "NotoSansTH-Regular",
     }
 
@@ -91,7 +92,8 @@ class GUIConstants:
     BUTTON_FONT_NAME["default"] = "OpenSans-SemiBold"
     BUTTON_FONT_SIZE = {
         "default": 18,
-        # "ar": 16,
+        "ar": 18,
+        "fa": 18,
         SettingsConstants.LOCALE__JAPANESE: 20,
         SettingsConstants.LOCALE__KOREAN: 20,
         SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 20,

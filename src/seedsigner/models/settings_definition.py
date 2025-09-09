@@ -136,7 +136,7 @@ class SettingsConstants:
         # --------- Placeholders / Coming soon ------------------------------------------
         # Commented out options require explicit additional font support.
         # -------------------------------------------------------------------------------
-        # LOCALE__ARABIC: "العربية (Arabic)",
+        LOCALE__ARABIC: "العربية (Arabic)",
         # LOCALE__BENGALI: "বাংলা (Bengali)",
         LOCALE__BULGARIAN: "български (Bulgarian)",  # OpenSans includes cyrillic chars
         LOCALE__CZECH: "čeština",
@@ -161,7 +161,7 @@ class SettingsConstants:
         LOCALE__MALTESE: "Malti",
         # LOCALE__MARATHI: "मराठी (Marathi)",
         LOCALE__NORWEGIAN: "Norsk",
-        # LOCALE__PERSIAN: "فارسی (Persian)",
+        LOCALE__PERSIAN: "فارسی (Persian)",
         LOCALE__POLISH: "Polski",
         LOCALE__PORTUGUESE_BR: "Português (Brasil)",
         LOCALE__PORTUGUESE_PT: "Português (Portugal)",

@@ -413,8 +413,16 @@ def generate_screenshots(locale):
         try:
             print(f"Running {screenshot_config.screenshot_name}")
             try:
+                cur_count = screenshot_renderer.render_count
+
+                # Set up and run the target View
                 screenshot_config.run_callback_before()
                 screenshot_config.View_cls(**screenshot_config.view_kwargs).run()
+
+                if screenshot_renderer.render_count == cur_count:
+                    # The View didn't actually render anything
+                    raise Exception(f"{screenshot_config.screenshot_name} did not render a screenshot. Verify that its `run_screen()` is reachable by the screenshot generator.")
+
             except ScreenshotComplete:
                 # The target View has run and its Screen has rendered what it needs to
                 if toast_thread is not None:
@@ -422,18 +430,10 @@ def generate_screenshots(locale):
                     controller.activate_toast(toast_thread)
                     while controller.toast_notification_thread.is_alive():
                         # Give the Toast a moment to complete its work
-
                         time.sleep(0.01)
 
-                    # TODO: Necessary now that the lock is in place?
-                    # Whenever possible, clean up toast thread HERE before killing the
-                    # main thread with ScreenshotComplete.
-                    toast_thread.stop()
-                    toast_thread.join()
-                raise ScreenshotComplete()
-        except ScreenshotComplete:
-            # Slightly hacky way to exit ScreenshotRenderer as expected
-            print(f"Completed {screenshot_config.screenshot_name}")
+                print(f"Completed {screenshot_config.screenshot_name}")
+
         except Exception as e:
             # Something else went wrong
             from traceback import print_exc
@@ -507,3 +507,5 @@ def generate_screenshots(locale):
 
     with open(os.path.join(screenshot_root, "README.md"), 'w') as readme_file:
         readme_file.write(main_readme)
+
+    print(f"Screenshots rendered: {screenshot_renderer.render_count}")
