@@ -11,10 +11,7 @@ from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
-from seedsigner.views.seed_views import (
-    SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, 
-    SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView,
-)
+from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
 
 from .view import View, Destination, BackStackView
 
@@ -28,13 +25,9 @@ class ToolsMenuView(View):
     KEYBOARD = ButtonOption("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     ADDRESS_EXPLORER = ButtonOption("Address explorer")
     VERIFY_ADDRESS = ButtonOption("Verify address")
-    REBUILD_SEED_XOR = ButtonOption("Rebuild SeedXOR")
 
     def run(self):
         button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
-
-        if self.settings.get_value(SettingsConstants.SETTING__SEED_XOR) == SettingsConstants.OPTION__ENABLED:
-            button_data.append(self.REBUILD_SEED_XOR)
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -61,10 +54,6 @@ class ToolsMenuView(View):
         elif button_data[selected_menu_num] == self.VERIFY_ADDRESS:
             from seedsigner.views.scan_views import ScanAddressView
             return Destination(ScanAddressView)
-
-        elif button_data[selected_menu_num] == self.REBUILD_SEED_XOR:
-            from seedsigner.views.seed_views import RebuildSeedXORManageView
-            return Destination(RebuildSeedXORManageView)
 
 
 

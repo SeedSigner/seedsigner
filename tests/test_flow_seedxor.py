@@ -2,7 +2,8 @@ from base import FlowTest, FlowStep
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.view import MainMenuView
-from seedsigner.views import tools_views, seed_views, scan_views
+from seedsigner.views import seed_views, scan_views
+from seedsigner.views.seed_views import SeedsMenuView
 from seedsigner.helpers.mnemonic_generation import combine_mnemonics_with_xor
 
 EXAMPLE_24_A = "romance wink lottery autumn shop bring dawn tongue range crater truth ability miss spice fitness easy legal release recall obey exchange recycle dragon room"
@@ -48,8 +49,9 @@ class TestSeedXORFlows(FlowTest):
 
         # === Start Flow and Add Shard 1 (Typing) ===
         sequence = [
-            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
-            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.REBUILD_SEED_XOR),
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(SeedsMenuView, button_data_selection=SeedsMenuView.LOAD),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.REBUILD_SEED_XOR),
             FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.LOAD_NEXT_SHARD),
             FlowStep(seed_views.RebuildSeedXORLoadShardView, button_data_selection=seed_views.RebuildSeedXORLoadShardView.TYPE_24WORD),
         ]
@@ -105,8 +107,9 @@ class TestSeedXORFlows(FlowTest):
             assert view.title == "Duplicate Shard"
 
         sequence = [
-            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
-            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.REBUILD_SEED_XOR),
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.REBUILD_SEED_XOR),
             FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.LOAD_NEXT_SHARD),
             FlowStep(seed_views.RebuildSeedXORLoadShardView, button_data_selection=seed_views.RebuildSeedXORLoadShardView.TYPE_12WORD),
         ]
@@ -149,8 +152,9 @@ class TestSeedXORFlows(FlowTest):
 
         # Load a 12-word shard
         sequence = [
-            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
-            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.REBUILD_SEED_XOR),
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.REBUILD_SEED_XOR),
             FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.LOAD_NEXT_SHARD),
             FlowStep(seed_views.RebuildSeedXORLoadShardView, button_data_selection=seed_views.RebuildSeedXORLoadShardView.TYPE_12WORD),
         ]

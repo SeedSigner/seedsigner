@@ -166,6 +166,7 @@ class LoadSeedView(View):
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
     CREATE = ButtonOption("Create a seed", SeedSignerIconConstants.PLUS)
+    REBUILD_SEED_XOR = ButtonOption("Rebuild SeedXOR", SeedSignerIconConstants.PLUS)
 
     def run(self):
         button_data = [
@@ -173,6 +174,9 @@ class LoadSeedView(View):
             self.TYPE_12WORD,
             self.TYPE_24WORD,
         ]
+
+        if self.settings.get_value(SettingsConstants.SETTING__SEED_XOR) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.REBUILD_SEED_XOR)
 
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
@@ -207,6 +211,10 @@ class LoadSeedView(View):
         elif button_data[selected_menu_num] == self.CREATE:
             from .tools_views import ToolsMenuView
             return Destination(ToolsMenuView)
+
+        elif button_data[selected_menu_num] == self.REBUILD_SEED_XOR:
+            from seedsigner.views.seed_views import RebuildSeedXORManageView
+            return Destination(RebuildSeedXORManageView)
 
 
 
@@ -2504,8 +2512,7 @@ class RebuildSeedXORManageView(View):
         )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:
-            from .tools_views import ToolsMenuView
-            return Destination(ToolsMenuView, clear_history=True)
+            return Destination(LoadSeedView, clear_history=True)
             
         elif button_data[selected_menu_num] == self.LOAD_NEXT_SHARD:
             return Destination(RebuildSeedXORLoadShardView)
@@ -2690,8 +2697,7 @@ class RebuildSeedXORCancelView(View):
             
         elif button_data[selected_menu_num] == self.CONFIRM:
             self.controller.clear_rebuild_seedxor_data()
-            from .tools_views import ToolsMenuView
-            return Destination(ToolsMenuView, clear_history=True)
+            return Destination(LoadSeedView, clear_history=True)
 
 
 
