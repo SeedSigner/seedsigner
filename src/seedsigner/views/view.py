@@ -248,12 +248,11 @@ class PowerOptionsView(View):
 
 @dataclass
 class RestartView(View):
-    is_screenshot_renderer: bool = False
 
     def run(self):
         from seedsigner.gui.screens.screen import ResetScreen
 
-        if not self.is_screenshot_renderer:
+        if not self.renderer.is_screenshot_generator:
             # We don't want the screenshot generator to actually try to do the restart
             RestartView.DoResetThread().start()
 
