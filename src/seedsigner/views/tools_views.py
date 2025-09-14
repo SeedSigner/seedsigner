@@ -479,16 +479,10 @@ class ToolsCalcFinalWordDoneView(View):
 class ToolsGameEntropyMnemonicLengthView(View):
     def run(self):
         from seedsigner.gui.screens.tools_screens import ToolsGameEntropyMnemonicLengthScreen
-        
-        # TRANSLATOR_NOTE: Inserts the number of moves needed for a 12-word mnemonic
-        twelve = _("12 words ({} moves)").format(200)
-        TWELVE = ButtonOption(twelve, return_data=128)
+        TWELVE_WORDS = ButtonOption("12 words", return_data=12)
+        TWENTYFOUR_WORDS = ButtonOption("24 words", return_data=24)
 
-        # TRANSLATOR_NOTE: Inserts the number of moves needed for a 24-word mnemonic
-        twenty_four = _("24 words ({} moves)").format(400)
-        TWENTY_FOUR = ButtonOption(twenty_four, return_data=256)
-
-        button_data = [TWELVE, TWENTY_FOUR]
+        button_data = [TWELVE_WORDS, TWENTYFOUR_WORDS]
         
         selected_menu_num = ToolsGameEntropyMnemonicLengthScreen(
             button_data=button_data
@@ -497,10 +491,10 @@ class ToolsGameEntropyMnemonicLengthView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        elif button_data[selected_menu_num] == TWELVE:
+        elif button_data[selected_menu_num] == TWELVE_WORDS:
             return Destination(ToolsGameEntropyView, view_args=dict(target_entropy_bits=128))
 
-        elif button_data[selected_menu_num] == TWENTY_FOUR:
+        elif button_data[selected_menu_num] == TWENTYFOUR_WORDS:
             return Destination(ToolsGameEntropyView, view_args=dict(target_entropy_bits=256))
 
 

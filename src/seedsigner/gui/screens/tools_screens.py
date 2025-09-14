@@ -592,13 +592,8 @@ class ToolsGameEntropyScreen(BaseTopNavScreen):
         
         self.moves_count = 0
         self.last_move_time = 0
-        self.move_interval = 200  # Move every 200ms
         
-        # Calculate target moves (rough estimate)
-        if self.target_entropy_bits == 128:
-            self.target_moves = 200
-        else:
-            self.target_moves = 400
+        self.target_moves = 400
             
         # Progress tracking
         self.progress_percent = 0.0
@@ -850,8 +845,7 @@ class ToolsGameEntropyScreen(BaseTopNavScreen):
         # Convert all collected data to a byte stream
         # Each move contributes 4 bytes of entropy data: relative interaction time in ns
         # 
-        # For 128-bit entropy: ~200 moves × 4 bytes = ~0.8KB raw data
-        # For 256-bit entropy: ~400 moves × 4 bytes = ~1.6KB raw data
+        # ~400 moves × 4 bytes = ~1.6KB raw data
         # 
         # The raw data is hashed with SHA-256 and truncated to target size:
         # - 128-bit: SHA-256 hash truncated to first 16 bytes
