@@ -616,6 +616,14 @@ class ToolsGameEntropyScreen(BaseTopNavScreen):
         self.progress_bar_y = self.game_start_y + self.game_grid_size * self.grid_cell_size + 2
         self.progress_bar_height = 8  # Slightly taller for better text visibility
 
+        # Key state tracking
+        self.previous_key_states = {
+            HardwareButtonsConstants.KEY_UP: False,
+            HardwareButtonsConstants.KEY_DOWN: False,
+            HardwareButtonsConstants.KEY_LEFT: False,
+            HardwareButtonsConstants.KEY_RIGHT: False
+        }
+
     def _generate_food_positions(self):
         """Generate initial food positions that don't overlap with snake or each other"""
         import random
@@ -741,32 +749,42 @@ class ToolsGameEntropyScreen(BaseTopNavScreen):
                     )):
                 return RET_CODE__BACK_BUTTON
             
-            # Check for movement keys (only change direction, don't move immediately)
-            if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_UP):
+            # Check for movement keys (detect key release to move)
+            current_up = self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_UP)
+            current_down = self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_DOWN)
+            current_left = self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT)
+            current_right = self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT)
+                        
+            # Move snake on key release (was pressed, now not pressed)
+            if self.previous_key_states[HardwareButtonsConstants.KEY_UP] and not current_up:
                 if self.snake_direction != [0, 1]:  # Don't reverse direction
                     self.snake_direction = [0, -1]
-            elif self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_DOWN):
+                    self._move_snake()
+            elif self.previous_key_states[HardwareButtonsConstants.KEY_DOWN] and not current_down:
                 if self.snake_direction != [0, -1]:  # Don't reverse direction
                     self.snake_direction = [0, 1]
-            elif self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
+                    self._move_snake()
+            elif self.previous_key_states[HardwareButtonsConstants.KEY_LEFT] and not current_left:
                 if self.snake_direction != [1, 0]:  # Don't reverse direction
                     self.snake_direction = [-1, 0]
-            elif self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT):
+                    self._move_snake()
+            elif self.previous_key_states[HardwareButtonsConstants.KEY_RIGHT] and not current_right:
                 if self.snake_direction != [-1, 0]:  # Don't reverse direction
                     self.snake_direction = [1, 0]
+                    self._move_snake()
             
-            # Move snake automatically at regular intervals
-            current_time = int(time.time() * 1000)
-            if current_time - self.last_move_time >= self.move_interval:
-                self._move_snake()
-                self.last_move_time = current_time
-            
+            # Update previous key states for next iteration
+            self.previous_key_states[HardwareButtonsConstants.KEY_UP] = current_up
+            self.previous_key_states[HardwareButtonsConstants.KEY_DOWN] = current_down
+            self.previous_key_states[HardwareButtonsConstants.KEY_LEFT] = current_left
+            self.previous_key_states[HardwareButtonsConstants.KEY_RIGHT] = current_right
+
             # Check if we have enough entropy
             if self.moves_count >= self.target_moves:
                 return self._generate_final_entropy()
             
-            # Small delay to prevent excessive CPU usage
-            time.sleep(0.05)
+            # Small delay (1MHz)
+            time.sleep(0.000001)
 
     def _move_snake(self):
         """Move the snake in the current direction"""
@@ -796,16 +814,11 @@ class ToolsGameEntropyScreen(BaseTopNavScreen):
                     break
         
         # Record the move data for entropy
-        timestamp = int(time.time() * 1000)  # Current time in milliseconds
-        move_data = {
-            'direction': self.snake_direction.copy(),
-            'timestamp': timestamp,
-            'old_pos': head,
-            'new_pos': new_head,
-            'ate_food': ate_food
-        }
+        current_time = time.time_ns()  # Current time in nanoseconds
+        interval = current_time - self.last_move_time
+        self.last_move_time = current_time
         
-        self.entropy_data.append(move_data)
+        self.entropy_data.append(interval)
         self.moves_count += 1
         
         # Update progress
@@ -835,14 +848,10 @@ class ToolsGameEntropyScreen(BaseTopNavScreen):
     def _generate_final_entropy(self):
         """Generate the final entropy from collected data"""
         # Convert all collected data to a byte stream
-        # Each move contributes 9 bytes of entropy data:
-        # - Direction: 2 bytes (dx+1, dy+1) - captures movement patterns
-        # - Timestamp: 4 bytes (relative time in ms) - captures timing jitter
-        # - Position: 4 bytes (old_x, old_y, new_x, new_y) - captures spatial patterns
-        # - Food eaten: 1 byte (0/1) - captures game state changes
+        # Each move contributes 4 bytes of entropy data: relative interaction time in ns
         # 
-        # For 128-bit entropy: ~200 moves × 9 bytes = ~1.8KB raw data
-        # For 256-bit entropy: ~400 moves × 9 bytes = ~3.6KB raw data
+        # For 128-bit entropy: ~200 moves × 4 bytes = ~0.8KB raw data
+        # For 256-bit entropy: ~400 moves × 4 bytes = ~1.6KB raw data
         # 
         # The raw data is hashed with SHA-256 and truncated to target size:
         # - 128-bit: SHA-256 hash truncated to first 16 bytes
@@ -850,22 +859,12 @@ class ToolsGameEntropyScreen(BaseTopNavScreen):
         entropy_bytes = b""
         
         for move in self.entropy_data:
-            # Add direction (dx, dy) as bytes
-            entropy_bytes += bytes([move['direction'][0] + 1, move['direction'][1] + 1])
-            
             # Add relative timestamp (use modulo to fit in 4 bytes)
             # Convert to relative time from start to avoid overflow
-            relative_timestamp = move['timestamp'] % (2**32)  # Ensure it fits in 4 bytes
+            relative_timestamp = move % (2**32)  # Ensure it fits in 4 bytes
             timestamp_bytes = relative_timestamp.to_bytes(4, byteorder='big')
             entropy_bytes += timestamp_bytes
             
-            # Add position data
-            entropy_bytes += bytes([move['old_pos'][0], move['old_pos'][1], 
-                                  move['new_pos'][0], move['new_pos'][1]])
-            
-            # Add food eating information (1 byte)
-            entropy_bytes += bytes([1 if move.get('ate_food', False) else 0])
-        
         # Hash the entropy data
         import hashlib
         final_hash = hashlib.sha256(entropy_bytes).digest()
@@ -876,7 +875,7 @@ class ToolsGameEntropyScreen(BaseTopNavScreen):
         else:
             final_entropy = final_hash  # 256 bits = 32 bytes
         
-        # Clear entropy data from memory for security
+        # Clear entropy data from memory
         self.entropy_data.clear()
         
         return final_entropy
