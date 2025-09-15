@@ -146,16 +146,9 @@ class ToolsImageEntropyMnemonicLengthView(View):
             preview_images = self.controller.image_entropy_preview_frames
             seed_entropy_image = self.controller.image_entropy_final_image
 
-            # Build in some hardware-level uniqueness via CPU unique Serial num
-            try:
-                stream = os.popen("cat /proc/cpuinfo | grep Serial")
-                output = stream.read()
-                serial_num = output.split(":")[-1].strip().encode('utf-8')
-                serial_hash = hashlib.sha256(serial_num)
-                hash_bytes = serial_hash.digest()
-            except Exception as e:
-                logger.info(repr(e), exc_info=True)
-                hash_bytes = b'0'
+            random_bytes = os.urandom(32)  # 32 bytes for SHA256 input
+            serial_hash = hashlib.sha256(random_bytes)
+            hash_bytes = serial_hash.digest()
 
             # Build in modest entropy via millis since power on
             millis_hash = hashlib.sha256(hash_bytes + str(time.time()).encode('utf-8'))
