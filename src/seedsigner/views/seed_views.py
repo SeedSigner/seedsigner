@@ -10,7 +10,7 @@ from embit.descriptor import Descriptor
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
-from seedsigner.gui.screens.screen import ButtonOption
+from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
@@ -1301,10 +1301,10 @@ class SeedWordsBackupTestView(View):
             while self.cur_index in self.confirmed_list:
                 self.cur_index = int(random.random() * len(self.mnemonic_list))
 
-        real_word = ButtonOption(self.mnemonic_list[self.cur_index])
-        fake_word1 = ButtonOption(bip39.WORDLIST[int(random.random() * 2047)])
-        fake_word2 = ButtonOption(bip39.WORDLIST[int(random.random() * 2047)])
-        fake_word3 = ButtonOption(bip39.WORDLIST[int(random.random() * 2047)])
+        real_word = ButtonOptionWithoutTranslation(self.mnemonic_list[self.cur_index])
+        fake_word1 = ButtonOptionWithoutTranslation(bip39.WORDLIST[int(random.random() * 2047)])
+        fake_word2 = ButtonOptionWithoutTranslation(bip39.WORDLIST[int(random.random() * 2047)])
+        fake_word3 = ButtonOptionWithoutTranslation(bip39.WORDLIST[int(random.random() * 2047)])
 
         button_data = [real_word, fake_word1, fake_word2, fake_word3]
         random.shuffle(button_data)
