@@ -342,12 +342,12 @@ def test_get_bip39_word():
         ),
         (
             "00000010100",  # 20
-            "abandon",
+            "action",
             "word at index 20"
         ),
         (
             "10000000000",  # 1024
-            "lunch",
+            "length",
             "word at index 1024"
         ),
     ]
