@@ -3,9 +3,9 @@ from binascii import hexlify
 from embit import psbt, script, ec, bip32
 from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
-from embit.psbt import PSBT
+from embit.psbt import PSBT, DerivationPath, InputScope, OutputScope
 from io import BytesIO
-from typing import List
+from typing import List, Union
 
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
@@ -78,6 +78,9 @@ class PSBTParser():
             return False
 
         self._set_root()
+
+        # Try to fix zero fingerprints before parsing
+        self.fill_zero_fingerprints()
 
         rt = self._parse_inputs()
         if rt == False:
@@ -372,14 +375,36 @@ class PSBTParser():
             the current seed.
         """
         seed_fingerprint = seed.get_fingerprint(network)
-        for input in psbt.inputs:
-            for pub, derivation_path in input.bip32_derivations.items():
-                if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():
-                    return True
+        
+        def check_fingerprint_match(pub, derivation_path):
+            """Check fingerprint match with zero fingerprint fallback"""
 
-            for pub, (leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
-                if seed_fingerprint == hexlify(derivation_path.fingerprint).decode():
+            # If exact fingerprint match
+            if hexlify(derivation_path.fingerprint).decode() == seed_fingerprint:
+                return True
+            
+            # Zero fingerprint fallback
+            if derivation_path.fingerprint == b"\x00\x00\x00\x00":
+                root = bip32.HDKey.from_seed(seed.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
+                try:
+                    derived_key = root.derive(derivation_path.derivation)
+                    return derived_key.key.sec() == pub.sec() # Public keys match
+                except Exception:
+                    pass
+            return False
+        
+        # Check all derivations in all inputs
+        for input in psbt.inputs:
+            # Check regular BIP32 derivations
+            for pub, derivation_path in input.bip32_derivations.items():
+                if check_fingerprint_match(pub, derivation_path):
                     return True
+            
+            # Check Taproot derivations
+            for pub, (leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
+                if check_fingerprint_match(pub, derivation_path):
+                    return True
+        
         return False
 
 
@@ -390,3 +415,58 @@ class PSBTParser():
         is_owner = descriptor.owns(output)
         # print(f"{self.psbt.tx.vout[i].script_pubkey.address()} | {output.value} | {is_owner}")
         return is_owner
+
+
+    def fill_zero_fingerprints(self):
+        """Fix for zeros in fingerprint that happen when user imports the wallet
+        with XPUB only (without derivation path)
+        """
+        if not self.root:
+            return 0
+        
+        filled = 0
+
+        for inp in self.psbt.inputs:
+            filled += self._fill_zero_fingerprint_scope(inp)
+
+        for out in self.psbt.outputs:
+            filled += self._fill_zero_fingerprint_scope(out)
+
+        if filled > 0:
+            logger.info(f"Filled {filled} zero fingerprints with correct fingerprint")
+
+        return filled
+
+
+    def _fill_zero_fingerprint_scope(self, scope: Union[InputScope, OutputScope]):
+        """Helper function to fill zero fingerprints in a scope (input/output)"""
+        filled = 0
+        correct_fingerprint = self.root.child(0).fingerprint
+        
+        # Helper function to check and fix fingerprint
+        def fix_fingerprint(pub, derivation):
+            if derivation.fingerprint != b"\x00\x00\x00\x00":
+                return False
+            try:
+                derived_key = self.root.derive(derivation.derivation)
+                if derived_key.key.sec() == pub.sec():
+                    return DerivationPath(correct_fingerprint, derivation.derivation)
+            except Exception:
+                pass
+            return False
+        
+        # Handle regular BIP32 derivations
+        for pub, derivation in list(scope.bip32_derivations.items()):
+            new_derivation = fix_fingerprint(pub, derivation)
+            if new_derivation:
+                scope.bip32_derivations[pub] = new_derivation
+                filled += 1
+        
+        # Handle Taproot derivations  
+        for pub, (leaf_hashes, derivation) in list(scope.taproot_bip32_derivations.items()):
+            new_derivation = fix_fingerprint(pub, derivation)
+            if new_derivation:
+                scope.taproot_bip32_derivations[pub] = (leaf_hashes, new_derivation)
+                filled += 1
+
+        return filled
