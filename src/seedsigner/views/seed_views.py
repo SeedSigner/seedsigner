@@ -2519,9 +2519,10 @@ class SeedShamirShareFinalizeView(View):
         button_data = [self.FINALIZE, self.PASSPHRASE]
 
         selected_menu_num = self.run_screen(
-            seed_screens.ShamirFinalizeScreen,
-            value_text=self.fingerprint,
+            seed_screens.SeedFinalizeScreen,
+            fingerprint=self.fingerprint,
             button_data=button_data,
+            title=_("Finalize Shamir Shares"),
         )
 
         if button_data[selected_menu_num] == self.FINALIZE:

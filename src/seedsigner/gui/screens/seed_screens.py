@@ -418,10 +418,10 @@ class SeedFinalizeScreen(ButtonListScreen):
     fingerprint: str = None
     is_bottom_list: bool = True
     button_data: list = None
+    title: str = _("Finalize Seed")
 
     def __post_init__(self):
         self.show_back_button = False
-        self.title = _("Finalize Seed")
         super().__post_init__()
 
         self.fingerprint_icontl = IconTextLine(
@@ -1695,28 +1695,3 @@ class SeedSignMessageConfirmAddressScreen(ButtonListScreen):
             screen_y=derivation_path_display.screen_y + derivation_path_display.height + 2*GUIConstants.COMPONENT_PADDING,
         )
         self.components.append(address_display)
-
-
-
-@dataclass
-class ShamirFinalizeScreen(ButtonListScreen):
-    value_text: str = None
-    is_bottom_list: bool = True
-    button_data: list = None
-
-    def __post_init__(self):
-        self.show_back_button = False
-        self.title = _("Finalize Shamir Shares")
-        super().__post_init__()
-
-        self.fingerprint_icontl = IconTextLine(
-            icon_name=SeedSignerIconConstants.FINGERPRINT,
-            icon_color=GUIConstants.INFO_COLOR,
-            icon_size=GUIConstants.ICON_FONT_SIZE + 12,
-            label_text=_("fingerprint"),
-            value_text=self.value_text,
-            font_size=GUIConstants.get_body_font_size() + 2,
-            is_text_centered=True,
-            screen_y=self.top_nav.height + int((self.buttons[0].screen_y - self.top_nav.height) / 2) - 30
-        )
-        self.components.append(self.fingerprint_icontl)
