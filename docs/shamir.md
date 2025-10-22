@@ -26,3 +26,4 @@ Some SeedSigner functionality is deliberately disabled when using Shamir Secret 
 - Uses the `embit` library's SLIP-39 implementation for share validation and seed reconstruction
 - Share validation occurs during entry to prevent invalid shares from being accepted
 - Extendable flag feature is not yet supported and will be added as soon as `embit` supports it
+- For testing purposes only (do not use with real secrets), there is an online SLIP-39 tool by Ian Coleman: https://iancoleman.io/slip39/

@@ -3,9 +3,11 @@ from seedsigner.models.seed import Seed, ElectrumSeed, ShamirSeed, InvalidSeedEx
 from seedsigner.models.settings_definition import SettingsConstants
 
 
-
+# TODO: Hide type-specific "pending" logic behind a small hierarchy (PendingSeed, PendingElectrumSeed, PendingShamirSeed)
+# to encapsulate the build-and-validate process per seed type and simplify SeedStorage.
 class SeedStorage:
     def __init__(self) -> None:
+        # TODO: Consider modernizing type hints to use built-in `list[...]` (Python 3.9+)
         self.seeds: List[Seed] = []
         self.pending_seed: Seed = None
         self._pending_mnemonic: List[str] = []

@@ -743,7 +743,7 @@ class TestShamirShareImportFlows(FlowTest):
 
         def test_with_mnemonic(shares):
             # Ensure Shamir is enabled
-            self.settings.set_value(SettingsConstants.SETTING_SHAMIR, SettingsConstants.OPTION__ENABLED)
+            self.settings.set_value(SettingsConstants.SETTING__SHAMIR, SettingsConstants.OPTION__ENABLED)
 
             Settings.HOSTNAME = "not seedsigner-os"
             sequence = [
@@ -775,7 +775,8 @@ class TestShamirShareImportFlows(FlowTest):
                     ]
             
             self.run_sequence(sequence)
-
+        
+        # Test data from iancoleman.io
         shares = [
             "yield upgrade acrobat leader briefing capacity again epidemic minister frozen impulse math guilt lily install market modify envelope index become".split(),
             "yield upgrade beard leader ceramic total morning critical brother slap lungs medical dilemma expect olympic jacket ruin airline promise literary".split()
@@ -811,7 +812,7 @@ class TestShamirShareImportFlows(FlowTest):
         
         def test_with_mnemonic_and_passphrase(shares):
             # Ensure Shamir is enabled
-            self.settings.set_value(SettingsConstants.SETTING_SHAMIR, SettingsConstants.OPTION__ENABLED)
+            self.settings.set_value(SettingsConstants.SETTING__SHAMIR, SettingsConstants.OPTION__ENABLED)
 
             Settings.HOSTNAME = "not seedsigner-os"
             sequence = [
@@ -862,7 +863,7 @@ class TestShamirShareImportFlows(FlowTest):
     
     def test_invalid_mnemonic(self):
         # Ensure Shamir is enabled
-        self.settings.set_value(SettingsConstants.SETTING_SHAMIR, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING__SHAMIR, SettingsConstants.OPTION__ENABLED)
 
         # Should be able to go back and edit or discard an invalid mnemonic 
         shares = [

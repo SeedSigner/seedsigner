@@ -159,6 +159,7 @@ class SeedSelectSeedView(View):
     Loading seeds, passphrases, etc
 ****************************************************************************"""
 class LoadSeedView(View):
+    # TODO: Fix icon and text alignment in Button/ButtonListScreen instead of using leading spaces.
     SEED_QR = ButtonOption(" Scan a SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
@@ -176,7 +177,7 @@ class LoadSeedView(View):
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
 
-        if self.settings.get_value(SettingsConstants.SETTING_SHAMIR) == SettingsConstants.OPTION__ENABLED:
+        if self.settings.get_value(SettingsConstants.SETTING__SHAMIR) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_SHAMIR)
         
         button_data.append(self.CREATE)
@@ -2320,6 +2321,8 @@ class SeedShamirShareStartView(View):
     Currently just a warning display before entering the Shamir shares.
     
     Could be expanded with a follow-up View to specify Shamir seed type.
+
+    See docs/shamir.md to check which features are supported for Shamir Shares.
     """
     def run(self):
         self.run_screen(
@@ -2335,8 +2338,8 @@ class SeedShamirShareStartView(View):
 
 
 class SeedShamirShareImportSelectWordCount(View):
-    TYPE_20WORD = ButtonOption("20 words")
-    TYPE_33WORD = ButtonOption("33 words")
+    TYPE_20WORD = ButtonOption("20 words") # 128-bit seed
+    TYPE_33WORD = ButtonOption("33 words") # 256-bit seed
 
     def __init__(self):
         super().__init__()
@@ -2379,11 +2382,10 @@ class SeedShamirShareMnemonicEntryView(View):
 
 
     def run(self):
-        share_num = self.controller.storage.pending_shamir_share_set_length + 1
-        
         ret = self.run_screen(
             seed_screens.SeedMnemonicEntryScreen,
-            title=_("Share#{}, Word#{}").format(share_num, self.cur_word_index+1),  # Using spaces here "Share #{}, Word #{}" makes this screen laggish
+            # TRANSLATOR_NOTE: Inserts the word number (e.g. "Word #1")
+            title=_("Word #{}").format(self.cur_word_index+1),
             initial_letters=list(self.cur_word) if self.cur_word else ["a"],
             wordlist=ShamirSeed.get_wordlist(wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)),
         )
@@ -2424,6 +2426,7 @@ class SeedShamirShareMnemonicEntryView(View):
 
 
 class SeedShamirShareOptionsView(View):
+    # TRANSLATOR_NOTE: These options apply to SLIP-39 Shamir shares (add another share or finalize share set).
     ADD_SHARE = ButtonOption("Add another share")
     FINALIZE = ButtonOption("Finalize")
 
@@ -2435,6 +2438,7 @@ class SeedShamirShareOptionsView(View):
         button_data = [self.ADD_SHARE, self.FINALIZE]
         
         share_count = self.controller.storage.pending_shamir_share_set_length
+        # TRANSLATOR_NOTE: "Shares" here means SLIP-39 Shamir's secret shares.
         title = _("Shares Added: {}").format(share_count)
         
         selected_menu_num = self.run_screen(
@@ -2458,6 +2462,7 @@ class SeedShamirShareOptionsView(View):
             except InvalidSeedException:
                 # If seed does not reconstruct, more shares are needed
                 from seedsigner.gui.toast import ErrorToast
+                # TRANSLATOR_NOTE: "Shares" here means SLIP-39 Shamir's secret shares.
                 self.controller.activate_toast(ErrorToast(_("Need more shares to reconstruct seed")))
                 return Destination(SeedShamirShareOptionsView)
 
@@ -2500,6 +2505,7 @@ class SeedShamirShareInvalidView(View):
 
 
 class SeedShamirShareFinalizeView(View):
+    # TRANSLATOR_NOTE: These options apply to SLIP-39 Shamir shares (finalize or add SLIP-39 passphrase).
     FINALIZE = ButtonOption("Done")
     PASSPHRASE = ButtonOption("SLIP-39 Passphrase")
 
@@ -2548,7 +2554,7 @@ class SeedAddSlip39PassphraseView(View):
         self.seed.set_passphrase(ret_dict["passphrase"])
 
         if "is_back_button" in ret_dict or len(self.seed.passphrase) == 0:
-                return Destination(SeedAddSlip39PassphraseExitDialogView)
+            return Destination(SeedAddSlip39PassphraseExitDialogView)
         
         else:
             self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"], finalize=False)

@@ -86,6 +86,7 @@ def test_electrum_seed_rejects_most_bip39_mnemonics():
 
 
 def test_shamir_share_import_seed():
+	# Test data from iancoleman.io
 	# 20-word shares, no passphrase
 	share_set_formatted = [ "yield upgrade acrobat leader briefing capacity again epidemic minister frozen impulse math guilt lily install market modify envelope index become",
 							"yield upgrade beard leader ceramic total morning critical brother slap lungs medical dilemma expect olympic jacket ruin airline promise literary"]

@@ -137,11 +137,13 @@ class Seed:
 
     @property
     def seedqr_supported(self) -> bool:
+        # TODO: Add "is_" prefix to this method
         return True
 
 
     @property
     def bip85_supported(self) -> bool:
+        # TODO: Add "is_" prefix to this method
         return True
 
 
@@ -259,7 +261,6 @@ class ShamirSeed(Seed):
 
         self.seed_bytes: bytes = None
         self._generate_seed()
-
 
 
     @staticmethod
