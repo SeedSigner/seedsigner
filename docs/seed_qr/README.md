@@ -28,7 +28,7 @@ Each word comes from a [list of 2048 words](https://github.com/bitcoin/bips/blob
 
 For example, "tomato" is the 1,825th word in the list.
 
-But code always starts counting list items from zero. So the index of "tomato" is actually `1824`. The GitHub wordlist and most other resources number the words in a human-friendly manner that starts with `1`. But for SeedQR you'll have to remember to subtract one from any list that starts with `1` to get the correct index number.
+But code always starts counting list items from zero. So the index of "tomato" is actually `1824`. The GitHub wordlist and most other resources number the words in a human-friendly manner that starts counting from `1`. But for SeedQR you'll have to remember to subtract one from any such list in order to get the correct index number that SeedQR is expecting.
 
 So we can convert a 12-word seed into a series of indices:
 
@@ -48,7 +48,7 @@ So we can convert a 12-word seed into a series of indices:
 ```
 
 # "Standard" `SeedQR` Specification
-We take the indices of the mnemonic seed phrase and write them one after the next as one long stream of digits. Each index must be exactly four digits, so shorter numbers must be zero-padded (`12` becomes `0012`).
+We take the indices of the mnemonic seed phrase and write them in order, one after the next as one long stream of digits. Each index must be exactly four digits, so shorter numbers must be zero-padded (`12` becomes `0012`).
 
 Using the example above:
 
