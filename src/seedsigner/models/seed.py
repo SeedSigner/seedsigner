@@ -246,12 +246,12 @@ class ElectrumSeed(Seed):
 
 class ShamirSeed(Seed):
     def __init__(self,
-                 mnemonics: List[str] = None,
+                 mnemonic: List[List[str]] = None,
                  passphrase: str = "") -> None:
-        if not mnemonics:
-            raise Exception("Must initialize a ShamirSeed with a mnemonic List[str]")
-        #TODO: save just one share. Extendable flag must be supported in embit.
-        self._mnemonics: List[str] = mnemonics
+        if not mnemonic:
+            raise Exception("Must initialize a ShamirSeed with a mnemonic List[List[str]]")
+        #TODO: save just one share for backup. Extendable flag must be supported in embit.
+        self._mnemonic: List[List[str]] = mnemonic # Mnemonic in this case is the set of Shamir shares
 
         self._passphrase: str = ""
         self.set_passphrase(passphrase, regenerate_seed=False)
@@ -264,9 +264,14 @@ class ShamirSeed(Seed):
     def get_wordlist() -> List[str]:
         return slip39.SLIP39_WORDS
         
+
     def _generate_seed(self):
         try:
-            share_set = slip39.ShareSet([slip39.Share.parse(m) for m in self._mnemonics])
+            # embit expects each SLIP-39 share as a single whitespace-separated string.
+            # Here, self._mnemonic holds shares as List[List[str]] (a list of word lists),
+            # so join each share into the required string form (List[str]) before parsing.
+            share_set_formatted = [" ".join(share) for share in self._mnemonic]
+            share_set = slip39.ShareSet([slip39.Share.parse(share) for share in share_set_formatted])
             self.seed_bytes = share_set.recover(self._passphrase.encode('utf-8'))
         except Exception as e:
             logger.info(repr(e), exc_info=True)

@@ -163,7 +163,7 @@ class SeedStorage:
 
     def convert_pending_shamir_share_set_to_pending_seed(self, passphrase: str = '', finalize: bool = True):
         share_set_formatted = [" ".join(share) for share in self._pending_shamir_share_set]
-        self.pending_seed = ShamirSeed(share_set_formatted, passphrase)
+        self.pending_seed = ShamirSeed(self._pending_shamir_share_set, passphrase)
         self.pending_seed.set_passphrase(passphrase)
         if finalize:
             self.discard_pending_mnemonic()
