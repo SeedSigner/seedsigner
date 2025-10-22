@@ -2446,6 +2446,9 @@ class SeedShamirShareOptionsView(View):
     # TRANSLATOR_NOTE: These options apply to SLIP-39 Shamir shares (add another share or finalize share set).
     ADD_SHARE = ButtonOption("Add another share")
     FINALIZE = ButtonOption("Finalize")
+    # TRANSLATOR_NOTE: "Shares" here means SLIP-39 Shamir secret shares.
+    toast_error_message: str = _("Need more shares to reconstruct seed")
+                
 
     def run(self):
         button_data = [self.ADD_SHARE, self.FINALIZE]
@@ -2475,8 +2478,7 @@ class SeedShamirShareOptionsView(View):
             except InvalidSeedException:
                 # If seed does not reconstruct, more shares are needed
                 from seedsigner.gui.toast import ErrorToast
-                # TRANSLATOR_NOTE: "Shares" here means SLIP-39 Shamir's secret shares.
-                self.controller.activate_toast(ErrorToast(_("Need more shares to reconstruct seed")))
+                self.controller.activate_toast(ErrorToast(self.toast_error_message))
                 return Destination(SeedShamirShareOptionsView)
 
 

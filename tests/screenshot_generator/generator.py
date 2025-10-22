@@ -347,6 +347,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedShamirShareImportSelectWordCount),
                 ScreenshotConfig(seed_views.SeedShamirShareMnemonicEntryView),
                 ScreenshotConfig(seed_views.SeedShamirShareOptionsView),
+                ScreenshotConfig(seed_views.SeedShamirShareOptionsView, screenshot_name='SeedShamirShareOptionsView_ErrorToast', toast_thread=ErrorToast(seed_views.SeedShamirShareOptionsView.toast_error_message, activation_delay=0, duration=0)),
                 ScreenshotConfig(seed_views.SeedShamirShareFinalizeView),
                 ScreenshotConfig(seed_views.SeedShamirShareInvalidView),
             ],
