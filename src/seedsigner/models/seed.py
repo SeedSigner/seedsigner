@@ -247,10 +247,7 @@ class ElectrumSeed(Seed):
 class ShamirSeed(Seed):
     def __init__(self,
                  mnemonics: List[str] = None,
-                 passphrase: str = "",
-                 wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> None:
-        self._wordlist_language_code = wordlist_language_code
-
+                 passphrase: str = "") -> None:
         if not mnemonics:
             raise Exception("Must initialize a ShamirSeed with a mnemonic List[str]")
         #TODO: save just one share. Extendable flag must be supported in embit.
@@ -264,13 +261,9 @@ class ShamirSeed(Seed):
 
 
     @staticmethod
-    def get_wordlist(wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> List[str]:
-        if wordlist_language_code == SettingsConstants.WORDLIST_LANGUAGE__ENGLISH:
-            return slip39.SLIP39_WORDS
-        else:
-            raise Exception(f"Unrecognized wordlist_language_code {wordlist_language_code}")  
+    def get_wordlist() -> List[str]:
+        return slip39.SLIP39_WORDS
         
-
     def _generate_seed(self):
         try:
             share_set = slip39.ShareSet([slip39.Share.parse(m) for m in self._mnemonics])

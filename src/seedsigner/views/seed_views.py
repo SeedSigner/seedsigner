@@ -2341,10 +2341,6 @@ class SeedShamirShareImportSelectWordCount(View):
     TYPE_20WORD = ButtonOption("20 words") # 128-bit seed
     TYPE_33WORD = ButtonOption("33 words") # 256-bit seed
 
-    def __init__(self):
-        super().__init__()
-
-
     def run(self):
         button_data = [self.TYPE_20WORD, self.TYPE_33WORD]
 
@@ -2387,7 +2383,7 @@ class SeedShamirShareMnemonicEntryView(View):
             # TRANSLATOR_NOTE: Inserts the word number (e.g. "Word #1")
             title=_("Word #{}").format(self.cur_word_index+1),
             initial_letters=list(self.cur_word) if self.cur_word else ["a"],
-            wordlist=ShamirSeed.get_wordlist(wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)),
+            wordlist=ShamirSeed.get_wordlist(),
         )
 
         if ret == RET_CODE__BACK_BUTTON:
@@ -2429,10 +2425,6 @@ class SeedShamirShareOptionsView(View):
     # TRANSLATOR_NOTE: These options apply to SLIP-39 Shamir shares (add another share or finalize share set).
     ADD_SHARE = ButtonOption("Add another share")
     FINALIZE = ButtonOption("Finalize")
-
-    def __init__(self):
-        super().__init__()
-
 
     def run(self):
         button_data = [self.ADD_SHARE, self.FINALIZE]
@@ -2512,7 +2504,7 @@ class SeedShamirShareFinalizeView(View):
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
-        self.fingerprint = self.seed.get_fingerprint(network=self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+        self.fingerprint = self.seed.get_fingerprint()
 
 
     def run(self):
