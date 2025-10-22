@@ -282,6 +282,11 @@ class ShamirSeed(Seed):
         except Exception as e:
             logger.info(repr(e), exc_info=True)
             raise InvalidSeedException(repr(e))
+        
+
+    @property
+    def passphrase_label(self) -> str:
+        return SettingsConstants.LABEL__SHAMIR_PASSPHRASE
 
 
     @property

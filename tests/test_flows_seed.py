@@ -838,15 +838,15 @@ class TestShamirShareImportFlows(FlowTest):
                     sequence += [
                         FlowStep(seed_views.SeedShamirShareOptionsView, button_data_selection=seed_views.SeedShamirShareOptionsView.FINALIZE),
                         FlowStep(seed_views.SeedShamirShareFinalizeView, button_data_selection=seed_views.SeedShamirShareFinalizeView.PASSPHRASE),
-                        FlowStep(seed_views.SeedAddSlip39PassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
-                        FlowStep(seed_views.SeedAddSlip39PassphraseExitDialogView, button_data_selection=seed_views.SeedAddSlip39PassphraseExitDialogView.DISCARD),
+                        FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
+                        FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.DISCARD),
                         FlowStep(seed_views.SeedShamirShareFinalizeView, button_data_selection=seed_views.SeedShamirShareFinalizeView.PASSPHRASE),
-                        FlowStep(seed_views.SeedAddSlip39PassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
-                        FlowStep(seed_views.SeedAddSlip39PassphraseExitDialogView, button_data_selection=seed_views.SeedAddSlip39PassphraseExitDialogView.EDIT),
-                        FlowStep(seed_views.SeedAddSlip39PassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
-                        FlowStep(seed_views.SeedReviewSlip39PassphraseView, button_data_selection=seed_views.SeedReviewSlip39PassphraseView.EDIT),
-                        FlowStep(seed_views.SeedAddSlip39PassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
-                        FlowStep(seed_views.SeedReviewSlip39PassphraseView, button_data_selection=seed_views.SeedReviewSlip39PassphraseView.DONE),
+                        FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
+                        FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.EDIT),
+                        FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
+                        FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.EDIT),
+                        FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
+                        FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
                         FlowStep(seed_views.SeedOptionsView),
                     ]
 

@@ -399,6 +399,8 @@ class SettingsConstants:
     # TRANSLATOR_NOTE: Terminology used by Electrum seeds; equivalent to BIP-39 passphrase
     custom_extension = _mft("Custom Extension")
     LABEL__CUSTOM_EXTENSION = custom_extension
+    # TRANSLATOR_NOTE: Terminology used by Shamir seeds; equivalent to BIP-39 passphrase
+    LABEL__SHAMIR_PASSPHRASE = _mft("SLIP-39 Passphrase")
 
 
 
