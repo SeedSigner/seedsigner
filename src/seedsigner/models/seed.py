@@ -145,6 +145,12 @@ class Seed:
     def bip85_supported(self) -> bool:
         # TODO: Add "is_" prefix to this method
         return True
+    
+
+    @property
+    def backup_supported(self) -> bool:
+        # TODO: Add "is_" prefix to this method
+        return True
 
 
     def get_fingerprint(self, network: str = SettingsConstants.MAINNET) -> str:
@@ -250,7 +256,7 @@ class ShamirSeed(Seed):
                  passphrase: str = "") -> None:
         if not mnemonic:
             raise Exception("Must initialize a ShamirSeed with a mnemonic List[List[str]]")
-        #TODO: save just one share for backup. Extendable flag must be supported in embit.
+        
         self._mnemonic: List[List[str]] = mnemonic # Mnemonic in this case is the set of Shamir shares
 
         self._passphrase: str = ""
@@ -286,13 +292,18 @@ class ShamirSeed(Seed):
     @property
     def bip85_supported(self) -> bool:
         return False
+    
+
+    @property
+    def backup_supported(self) -> bool:
+        # TODO: Support SLIP-39 extendable backup flag. Sparrow falls back
+        # to a 1-of-1 backup for recovery. Pending embit support for this (PR embit#91).
+        return False
 
  
     def mnemonic_display_str(self, share_index) -> str:
-        #TODO: show just one share. Extendable flag must be supported in embit.
         return unicodedata.normalize("NFC", self._mnemonics[share_index])
     
 
     def mnemonic_display_list(self, share_index) -> List[str]:
-        #TODO: show just one share. Extendable flag must be supported in embit.
         return unicodedata.normalize("NFC", self._mnemonics[share_index]).split()
