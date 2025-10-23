@@ -119,14 +119,14 @@ class ScanScreen(BaseScreen):
                     scan_text = None
                     progress_percentage = self.decoder.get_percent_complete()
                     if progress_percentage == 0:
-                        # We've just started scanning, no results yet
+                        # No progress yet, show the instructions text
                         if show_framerate:
                             scan_text = f"{cur_fps:0.2f} | {self.decoder_fps}"
                         else:
                             scan_text = self.instructions_text
 
                     elif debug:
-                        # Special debugging output for animated QRs
+                        # Debugging mode, show the current FPS and decoder FPS
                         scan_text = f"{self.decoder.get_percent_complete()}% | {self.decoder.get_percent_complete(weight_mixed_frames=True)}% (new)"
                         if show_framerate:
                             scan_text += f" {cur_fps:0.2f} | {self.decoder_fps}"
@@ -136,38 +136,23 @@ class ScanScreen(BaseScreen):
                         frame = resize_image_to_fill(frame, self.render_width, self.render_height, sampling_method=Image.Resampling.NEAREST)
 
                         if scan_text:
-                            # Note: shadowed text (adding a 'stroke' outline) can
-                            # significantly slow down the rendering.
-                            # Temp solution: render a slight 1px shadow behind the text
-                            # TODO: Replace the instructions_text with a disappearing
-                            # toast/popup (see: QR Brightness UI)?
-                            draw = ImageDraw.Draw(frame)
-                            draw.text(xy=(
-                                        int(self.renderer.canvas_width/2 + 2),
-                                        self.renderer.canvas_height - GUIConstants.EDGE_PADDING + 2
-                                     ),
-                                     text=scan_text,
-                                     fill="black",
-                                     font=instructions_font,
-                                     anchor="ms")
-
-                            # Render the onscreen instructions
-                            draw.text(xy=(
-                                        int(self.renderer.canvas_width/2),
-                                        self.renderer.canvas_height - GUIConstants.EDGE_PADDING
-                                     ),
-                                     text=scan_text,
-                                     fill=GUIConstants.BODY_FONT_COLOR,
-                                     font=instructions_font,
-                                     anchor="ms")
+                            
+                            screen = ScanScreen  # Use the class itself to access the static method
+                            screen_instance = screen.__new__(screen)
+                            screen_instance.renderer = self.renderer
+                            screen_instance.render_bottom_instruction_text(
+                                draw=ImageDraw.Draw(frame),
+                                text=scan_text
+                            )
 
                         else:
-                            # Render the progress bar
+                            # Draw the instructions text
+                            # TRANSLATOR_NOTE: Inserts the animated QR scan instructions
                             rectangle = Image.new('RGBA', (self.renderer.canvas_width - 2*GUIConstants.EDGE_PADDING, GUIConstants.BUTTON_HEIGHT), (0, 0, 0, 0))
                             draw = ImageDraw.Draw(rectangle)
 
-                            # Start with a background rounded rectangle, same dims as the buttons
-                            overlay_color = (0, 0, 0, 191)  # opacity ranges from 0-255
+                            # 
+                            overlay_color = (0, 0, 0, 191)  
                             draw.rounded_rectangle(
                                 (
                                     (0, 0),
