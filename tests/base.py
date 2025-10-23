@@ -5,12 +5,14 @@ from typing import Callable
 
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
+sys.modules['numpy'] = MagicMock()  # numpy is only in the Raspi requirements; not needed for tests. But is imported in BackgroundImportThread.
 sys.modules['seedsigner.gui.renderer'] = MagicMock()
 sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
 sys.modules['seedsigner.gui.toast'] = MagicMock()
 sys.modules['seedsigner.views.screensaver'] = MagicMock()
 sys.modules['seedsigner.hardware.buttons'] = MagicMock()
 sys.modules['seedsigner.hardware.camera.Camera'] = MagicMock()
+sys.modules['seedsigner.hardware.pivideostream'] = MagicMock()
 sys.modules['seedsigner.hardware.st7789_mpy'] = MagicMock()
 sys.modules['seedsigner.hardware.ili9341'] = MagicMock()
 

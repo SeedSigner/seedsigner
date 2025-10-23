@@ -61,7 +61,7 @@ class BackgroundImportThread(BaseThread):
         def time_import(module_name):
             last = time.time()
             import_module(module_name)
-            logger.debug(f"{time.time() - last:0.4f}: {module_name}")
+            # print(f"{time.time() - last:0.4f}: {module_name}")
 
         time_import('embit')
         time_import('seedsigner.helpers.embit_utils')
@@ -76,11 +76,8 @@ class BackgroundImportThread(BaseThread):
 
         # Get MainMenuView ready to respond quickly
         time_import('seedsigner.views.scan_views')
-
         time_import('seedsigner.views.seed_views')
-
         time_import('seedsigner.views.tools_views')
-
         time_import('seedsigner.views.settings_views')
 
 
