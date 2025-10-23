@@ -61,7 +61,7 @@ class BackgroundImportThread(BaseThread):
         def time_import(module_name):
             last = time.time()
             import_module(module_name)
-            # print(time.time() - last, module_name)
+            logger.debug(f"{time.time() - last:0.4f}: {module_name}")
 
         time_import('embit')
         time_import('seedsigner.helpers.embit_utils')
@@ -70,6 +70,9 @@ class BackgroundImportThread(BaseThread):
         time_import('seedsigner.models.seed_storage')
         from seedsigner.models.seed_storage import SeedStorage
         Controller.get_instance()._storage = SeedStorage()
+
+        time_import('numpy')  # used by PiVideoStream; by far the slowest import (2.29s)
+        time_import('seedsigner.hardware.pivideostream') 
 
         # Get MainMenuView ready to respond quickly
         time_import('seedsigner.views.scan_views')
