@@ -33,23 +33,25 @@ class TestSeedFlows(FlowTest):
         ])
 
 
-    def test_passphrase_entry_flow(self):
+    def test_passphrase_entry_flow(self, passphrase):
         """
         Opting to add a BIP-39 passphrase on the Finalize Seed screen should enter the
         passphrase entry / review flow and end at the SeedOptionsView. 
+
+        Note: 'passphrase' is a fixture created in the conftest.py file that parametrizes TEST_PASSPHRASES
         """
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
             FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
-            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
+            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase=passphrase, is_back_button=True)),
             FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.DISCARD),
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.PASSPHRASE),
-            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase", is_back_button=True)),
+            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase=passphrase, is_back_button=True)),
             FlowStep(seed_views.SeedAddPassphraseExitDialogView, button_data_selection=seed_views.SeedAddPassphraseExitDialogView.EDIT),
-            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
+            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase=passphrase)),
             FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.EDIT),
-            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase="muhpassphrase")),
+            FlowStep(seed_views.SeedAddPassphraseView, screen_return_value=dict(passphrase=passphrase)),
             FlowStep(seed_views.SeedReviewPassphraseView, button_data_selection=seed_views.SeedReviewPassphraseView.DONE),
             FlowStep(seed_views.SeedOptionsView),
         ])

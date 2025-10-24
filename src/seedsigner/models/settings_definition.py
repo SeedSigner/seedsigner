@@ -312,6 +312,17 @@ class SettingsConstants:
         # (WORDLIST_LANGUAGE__PORTUGUESE, "Português"),
     ]
 
+    PASSPHRASE_SPECIAL_CHARSET = [
+        # German - https://en.wikipedia.org/wiki/German_orthography#Special_letters
+        (LOCALE__GERMAN,  ["äöüß", "ÄÖÜ"]),   # Note: Capital ẞ exists since 2017 but excluded as "very recently supported"
+        # French - https://en.wikipedia.org/wiki/French_orthography#Diacritics
+        (LOCALE__FRENCH,  ["àâæçéèêëîïôœùûüÿ", "ÀÂÆÇÉÈÊËÎÏÔŒÙÛÜŸ"]),
+        # Spanish - https://en.wikipedia.org/wiki/Spanish_orthography#Special_characters
+        (LOCALE__SPANISH, ["áéíñóúü", "ÁÉÍÑÓÚÜ"]),
+        # Italian - Based on standard Italian orthography using acute and grave accents on vowels
+        (LOCALE__ITALIAN, ["àèéìíîòóùú", "ÀÈÉÌÍÎÒÓÙÚ"]),
+    ]
+
     # Individual SettingsEntry attr_names
     # Note: attr_names are internal constants; do not wrap for translation
     SETTING__LOCALE = "locale"
@@ -330,6 +341,7 @@ class SettingsConstants:
     SETTING__SCRIPT_TYPES = "script_types"
     SETTING__XPUB_DETAILS = "xpub_details"
     SETTING__PASSPHRASE = "passphrase"
+    SETTING__PASSPHRASE_SPECIAL_CHARSET = "passphrase_special_charset"
     SETTING__CAMERA_ROTATION = "camera_rotation"
     SETTING__COMPACT_SEEDQR = "compact_seedqr"
     SETTING__BIP85_CHILD_SEEDS = "bip85_child_seeds"
@@ -635,6 +647,14 @@ class SettingsDefinition:
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SettingsConstants.OPTIONS__ENABLED_DISABLED_REQUIRED,
                       default_value=SettingsConstants.OPTION__ENABLED),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__PASSPHRASE_SPECIAL_CHARSET,
+                      display_name=_mft("Special charset for passphrase"),
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      selection_options=SettingsConstants.OPTIONS__ENABLED_DISABLED_REQUIRED,
+                      default_value=SettingsConstants.OPTION__DISABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__CAMERA_ROTATION,

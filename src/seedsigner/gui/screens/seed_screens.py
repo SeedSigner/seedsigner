@@ -14,6 +14,7 @@ from seedsigner.gui.components import (Button, FontAwesomeIconConstants, Fonts, 
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
+from seedsigner.models.settings import Settings, SettingsConstants
 
 from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, ButtonOption, KeyboardScreen, LargeIconStatusScreen, WarningEdgesMixin
 
@@ -669,13 +670,14 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
 
     # Only used by the screenshot generator
     initial_keyboard: str = None
+    has_special_charset: bool = False
+    special_charset: str = None
 
     KEYBOARD__LOWERCASE_BUTTON_TEXT = "abc"
     KEYBOARD__UPPERCASE_BUTTON_TEXT = "ABC"
     KEYBOARD__DIGITS_BUTTON_TEXT = "123"
     KEYBOARD__SYMBOLS_1_BUTTON_TEXT = "!@#"
     KEYBOARD__SYMBOLS_2_BUTTON_TEXT = "*[]"
-
 
     def __post_init__(self):
         self.title = _("BIP-39 Passphrase")
@@ -692,7 +694,6 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         # Isolate the more math-oriented or just uncommon symbols
         keys_symbol_2 = """^*[]{}_\\|<>/`~"""
 
-
         # Set up the keyboard params
         self.right_panel_buttons_width = 56
 
@@ -701,6 +702,65 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         text_entry_display_height = 30
 
         keyboard_start_y = text_entry_display_y + text_entry_display_height + GUIConstants.COMPONENT_PADDING
+        self.text_to_keyboard_1 = dict(); #for textual input keyboards
+        self.text_to_keyboard_2 = dict(); #for symbol/digit input keyboards
+
+        # Both the has_special_charset (in settings) and the special_charset should be specified
+        # For English (default), special_charset is None so this won't be executed
+        if self.has_special_charset and self.special_charset:
+            self.KEYBOARD__SPECIAL_LOWERCASE_BUTTON_TEXT = self.special_charset[0][0:3]
+            self.KEYBOARD__SPECIAL_UPPERCASE_BUTTON_TEXT = self.special_charset[1][0:3]
+
+            keys_special_lower= self.special_charset[0]
+            n_rows_lower = math.ceil(len(keys_special_lower) / max_cols)+1
+
+            keys_special_upper= self.special_charset[1]
+            n_rows_upper = math.ceil(len(keys_special_upper) / max_cols)+1
+
+            self.keyboard_special_lower = Keyboard(
+                draw=self.renderer.draw,
+                charset=keys_special_lower,
+                rows=n_rows_lower,
+                cols=max_cols,
+                rect=(
+                    GUIConstants.COMPONENT_PADDING,
+                    keyboard_start_y,
+                    self.canvas_width - GUIConstants.COMPONENT_PADDING - self.right_panel_buttons_width,
+                    self.canvas_height - GUIConstants.EDGE_PADDING
+                ),
+                additional_keys=[
+                    Keyboard.KEY_SPACE_5,
+                    Keyboard.KEY_CURSOR_LEFT,
+                    Keyboard.KEY_CURSOR_RIGHT,
+                    Keyboard.KEY_BACKSPACE
+                ],
+                auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+                render_now=False
+            )
+            self.text_to_keyboard_1[self.KEYBOARD__SPECIAL_LOWERCASE_BUTTON_TEXT] = self.keyboard_special_lower
+
+            self.keyboard_special_upper = Keyboard(
+                draw=self.renderer.draw,
+                charset=keys_special_upper,
+                rows=n_rows_upper,
+                cols=max_cols,
+                rect=(
+                    GUIConstants.COMPONENT_PADDING,
+                    keyboard_start_y,
+                    self.canvas_width - GUIConstants.COMPONENT_PADDING - self.right_panel_buttons_width,
+                    self.canvas_height - GUIConstants.EDGE_PADDING
+                ),
+                additional_keys=[
+                    Keyboard.KEY_SPACE_5,
+                    Keyboard.KEY_CURSOR_LEFT,
+                    Keyboard.KEY_CURSOR_RIGHT,
+                    Keyboard.KEY_BACKSPACE
+                ],
+                auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
+                render_now=False
+            )
+            self.text_to_keyboard_1[self.KEYBOARD__SPECIAL_UPPERCASE_BUTTON_TEXT] = self.keyboard_special_upper
+
         self.keyboard_abc = Keyboard(
             draw=self.renderer.draw,
             charset=keys_lower,
@@ -720,6 +780,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             ],
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT]
         )
+        self.text_to_keyboard_1[self.KEYBOARD__LOWERCASE_BUTTON_TEXT] = self.keyboard_abc
 
         self.keyboard_ABC = Keyboard(
             draw=self.renderer.draw,
@@ -741,6 +802,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )
+        self.text_to_keyboard_1[self.KEYBOARD__UPPERCASE_BUTTON_TEXT] = self.keyboard_ABC
 
         self.keyboard_digits = Keyboard(
             draw=self.renderer.draw,
@@ -761,6 +823,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )
+        self.text_to_keyboard_2[self.KEYBOARD__DIGITS_BUTTON_TEXT] = self.keyboard_digits
 
         self.keyboard_symbols_1 = Keyboard(
             draw=self.renderer.draw,
@@ -782,6 +845,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )
+        self.text_to_keyboard_2[self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT] = self.keyboard_symbols_1
 
         self.keyboard_symbols_2 = Keyboard(
             draw=self.renderer.draw,
@@ -803,6 +867,11 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )
+        self.text_to_keyboard_2[self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT] = self.keyboard_symbols_2
+
+        # Set the list of button texts for cycling
+        self.button1_texts = list(self.text_to_keyboard_1.keys())
+        self.button2_texts = list(self.text_to_keyboard_2.keys())
 
         self.text_entry_display = TextEntryDisplay(
             canvas=self.renderer.canvas,
@@ -857,26 +926,16 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
 
     def _render(self):
         super()._render()
-
-        # Change from the default lowercase keyboard for the screenshot generator
-        if self.initial_keyboard == self.KEYBOARD__UPPERCASE_BUTTON_TEXT:
-            cur_keyboard = self.keyboard_ABC
-            self.hw_button1.text = self.KEYBOARD__LOWERCASE_BUTTON_TEXT
-
-        elif self.initial_keyboard == self.KEYBOARD__DIGITS_BUTTON_TEXT:
-            cur_keyboard = self.keyboard_digits
-            self.hw_button2.text = self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT
-
-        elif self.initial_keyboard == self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT:
-            cur_keyboard = self.keyboard_symbols_1
-            self.hw_button2.text = self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT
-
-        elif self.initial_keyboard == self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT:
-            cur_keyboard = self.keyboard_symbols_2
-            self.hw_button2.text = self.KEYBOARD__DIGITS_BUTTON_TEXT
-        
+        # If the initial keyboard is a textual input keyboard, then cycle through hw_button1 text
+        if self.initial_keyboard in self.text_to_keyboard_1:
+            cur_keyboard = self.text_to_keyboard_1[self.initial_keyboard]
+            # Set the hw_button1 text as the keyboard of the next keyboard in the list (modulo wrap)
+            self.hw_button1.text = self.button1_texts[(self.button1_texts.index(self.initial_keyboard) + 1) % len(self.button1_texts)]
+        # Else cycle through hw_button2 text
         else:
-            cur_keyboard = self.keyboard_abc
+            cur_keyboard = self.text_to_keyboard_2[self.initial_keyboard]
+            # Similarly for hw_button2
+            self.hw_button2.text = self.button2_texts[(self.button2_texts.index(self.initial_keyboard) + 1) % len(self.button2_texts)]
 
         self.text_entry_display.render()
         self.hw_button1.render()
@@ -892,6 +951,8 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         cur_keyboard = self.keyboard_abc
         cur_button1_text = self.KEYBOARD__UPPERCASE_BUTTON_TEXT
         cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
+        keyboard_to_text_1 = {v: k for k, v in self.text_to_keyboard_1.items()}
+        keyboard_to_text_2 = {v: k for k, v in self.text_to_keyboard_2.items()}
 
         # Start the interactive update loop
         while True:
@@ -921,21 +982,14 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                     self.hw_button1.render()
 
                     # Return to the same button2 keyboard, if applicable
-                    if cur_keyboard == self.keyboard_digits:
-                        cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
-                    elif cur_keyboard == self.keyboard_symbols_1:
-                        cur_button2_text = self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT
-                    elif cur_keyboard == self.keyboard_symbols_2:
-                        cur_button2_text = self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT
+                    if cur_keyboard in keyboard_to_text_2:
+                        cur_button2_text = keyboard_to_text_2[cur_keyboard]
 
-                    if cur_button1_text == self.KEYBOARD__LOWERCASE_BUTTON_TEXT:
-                        self.keyboard_abc.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                        cur_keyboard = self.keyboard_abc
-                        cur_button1_text = self.KEYBOARD__UPPERCASE_BUTTON_TEXT
-                    else:
-                        self.keyboard_ABC.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                        cur_keyboard = self.keyboard_ABC
-                        cur_button1_text = self.KEYBOARD__LOWERCASE_BUTTON_TEXT
+                    if cur_button1_text in self.text_to_keyboard_1:
+                        self.text_to_keyboard_1[cur_button1_text].set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                        cur_keyboard = self.text_to_keyboard_1[cur_button1_text]
+                        cur_button1_text = self.button1_texts[(self.button1_texts.index(cur_button1_text) + 1) % len(self.button1_texts)]
+
                     cur_keyboard.render_keys()
 
                     # Show the changes; this loop will have two renders
@@ -954,26 +1008,15 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                     self.hw_button2.is_selected = False
 
                     # Return to the same button1 keyboard, if applicable
-                    if cur_keyboard == self.keyboard_abc:
-                        cur_button1_text = self.KEYBOARD__LOWERCASE_BUTTON_TEXT
-                    elif cur_keyboard == self.keyboard_ABC:
-                        cur_button1_text = self.KEYBOARD__UPPERCASE_BUTTON_TEXT
+                    if cur_keyboard in keyboard_to_text_1:
+                        cur_button1_text = keyboard_to_text_1[cur_keyboard]
 
-                    if cur_button2_text == self.KEYBOARD__DIGITS_BUTTON_TEXT:
-                        self.keyboard_digits.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                        cur_keyboard = self.keyboard_digits
+                    if cur_button2_text in self.text_to_keyboard_2:
+                        self.text_to_keyboard_2[cur_button2_text].set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
+                        cur_keyboard = self.text_to_keyboard_2[cur_button2_text]
                         cur_keyboard.render_keys()
-                        cur_button2_text = self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT
-                    elif cur_button2_text == self.KEYBOARD__SYMBOLS_1_BUTTON_TEXT:
-                        self.keyboard_symbols_1.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                        cur_keyboard = self.keyboard_symbols_1
-                        cur_keyboard.render_keys()
-                        cur_button2_text = self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT
-                    elif cur_button2_text == self.KEYBOARD__SYMBOLS_2_BUTTON_TEXT:
-                        self.keyboard_symbols_2.set_selected_key_indices(x=cur_keyboard.selected_key["x"], y=cur_keyboard.selected_key["y"])
-                        cur_keyboard = self.keyboard_symbols_2
-                        cur_keyboard.render_keys()
-                        cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
+                        cur_button2_text = self.button2_texts[(self.button2_texts.index(cur_button2_text) + 1) % len(self.button2_texts)]
+
                     cur_keyboard.render_keys()
 
                     # Show the changes; this loop will have two renders
@@ -1102,7 +1145,7 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
             if found_solution:
                 break
             font = Fonts.get_font(font_name=GUIConstants.FIXED_WIDTH_FONT_NAME, size=font_size)
-            left, top, right, bottom  = font.getbbox("X")
+            left, top, right, bottom  = font.getbbox("Ț")
             char_width, char_height = right - left, bottom - top
             for num_lines in range(1, max_lines+1):
                 # Break the passphrase into n lines

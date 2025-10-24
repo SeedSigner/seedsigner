@@ -1,14 +1,14 @@
-# Translations template for seedsigner.
+# Translations template for PROJECT.
 # Copyright (C) 2025 ORGANIZATION
-# This file is distributed under the same license as the seedsigner project.
+# This file is distributed under the same license as the PROJECT project.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: seedsigner 0.8.5\n"
+"Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-05-20 09:27-0500\n"
+"POT-Creation-Date: 2025-08-30 07:25+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -305,7 +305,7 @@ msgstr ""
 msgid "Xpub Details"
 msgstr ""
 
-#. Short for "BIP32 Master Fingerprint"
+#. Short for "BIP-32 Master Fingerprint"
 #. a label for the shortened Key-id of a BIP-32 master HD wallet
 #: src/seedsigner/gui/screens/seed_screens.py
 #: src/seedsigner/gui/screens/tools_screens.py
@@ -701,7 +701,7 @@ msgstr ""
 msgid "Custom Derivation"
 msgstr ""
 
-#. Terminology used by Electrum seeds; equivalent to bip39 passphrase
+#. Terminology used by Electrum seeds; equivalent to BIP-39 passphrase
 #: src/seedsigner/models/settings_definition.py
 msgid "Custom Extension"
 msgstr ""
@@ -752,6 +752,10 @@ msgstr ""
 
 #: src/seedsigner/models/settings_definition.py
 msgid "BIP-39 passphrase"
+msgstr ""
+
+#: src/seedsigner/models/settings_definition.py
+msgid "Special charset for passphrase"
 msgstr ""
 
 #: src/seedsigner/models/settings_definition.py
@@ -1079,11 +1083,23 @@ msgid "Discard passphrase"
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
+msgid "Skip passphrase"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
 msgid "Discard passphrase?"
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
-msgid "Your current passphrase entry will be erased"
+msgid "Your current passphrase entry will be erased."
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Skip passphrase?"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "You have not entered a passphrase yet."
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
@@ -1351,6 +1367,10 @@ msgstr ""
 
 #: src/seedsigner/views/tools_views.py
 msgid "Mnemonic Length?"
+msgstr ""
+
+#: src/seedsigner/views/tools_views.py
+msgid "Calculating..."
 msgstr ""
 
 #. Inserts the number of dice rolls needed for a 12-word mnemonic

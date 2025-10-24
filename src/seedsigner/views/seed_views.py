@@ -7,6 +7,8 @@ from gettext import gettext as _
 
 from embit.descriptor import Descriptor
 
+from seedsigner.helpers.bip39.passphrase import get_special_passphrase_charset
+
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
@@ -351,16 +353,24 @@ class SeedAddPassphraseView(View):
     def __init__(self, initial_keyboard: str = seed_screens.SeedAddPassphraseScreen.KEYBOARD__LOWERCASE_BUTTON_TEXT):
         super().__init__()
         self.initial_keyboard = initial_keyboard
+        self.has_special_charset = self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE_SPECIAL_CHARSET) != SettingsConstants.OPTION__DISABLED
         self.seed = self.controller.storage.get_pending_seed()
 
 
     def run(self):
         passphrase_title=self.seed.passphrase_label
+        if self.has_special_charset:
+            special_charset = get_special_passphrase_charset(self.settings.get_value(SettingsConstants.SETTING__LOCALE))
+        else:
+            special_charset = None
+
         ret_dict = self.run_screen(
             seed_screens.SeedAddPassphraseScreen,
-            passphrase=self.seed.passphrase,
+            passphrase=self.seed.passphrase_display,
             title=passphrase_title,
             initial_keyboard=self.initial_keyboard,
+            has_special_charset=self.has_special_charset,
+            special_charset=special_charset if self.has_special_charset else None,
         )
 
         # The new passphrase will be the return value; it might be empty.
@@ -441,7 +451,7 @@ class SeedReviewPassphraseView(View):
             seed_screens.SeedReviewPassphraseScreen,
             fingerprint_without=fingerprint_without,
             fingerprint_with=fingerprint_with,
-            passphrase=self.seed.passphrase,
+            passphrase=self.seed.passphrase_display,
             button_data=button_data,
             show_back_button=False,
         )
