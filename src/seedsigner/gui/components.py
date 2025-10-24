@@ -249,11 +249,19 @@ def load_image(image_name: str) -> Image.Image:
 
 
 class Fonts(Singleton):
-    font_path = os.path.join(
-        pathlib.Path(__file__).parent.resolve().parent.resolve(),
-        "resources",
-        "fonts"
-    )
+    font_paths = [
+        os.path.join(
+            pathlib.Path(__file__).parent.resolve().parent.resolve(),
+            "resources",
+            "fonts"
+        ),
+        os.path.join(
+            pathlib.Path(__file__).parent.resolve().parent.resolve(),
+            "resources",
+            "seedsigner-translations",
+            "fonts"
+        )
+    ]
     fonts = {}
 
     @classmethod
@@ -266,13 +274,23 @@ class Fonts(Singleton):
             file_extension = "otf"
 
         if size not in cls.fonts[font_name]:
-            try:
-                cls.fonts[font_name][size] = ImageFont.truetype(os.path.join(cls.font_path, f"{font_name}.{file_extension}"), size)
-            except OSError as e:
-                if "cannot open resource" in str(e):
-                    raise Exception(f"Font {font_name}.{file_extension} not found: {repr(e)}")
+
+            # loop over possible font locations and attempt to load font object
+            captured_exception = None
+            for font_path in cls.font_paths:
+                try:
+                    cls.fonts[font_name][size] = ImageFont.truetype(os.path.join(font_path, f"{font_name}.{file_extension}"), size)
+                    break
+                except OSError as e:
+                    captured_exception = e
+                    continue
+
+            # throw error at this point is font object was unable to be loaded
+            if size not in cls.fonts[font_name]:
+                if "cannot open resource" in str(captured_exception):
+                    raise Exception(f"Font {font_name}.{file_extension} not found: {repr(captured_exception)}")
                 else:
-                    raise e
+                    raise captured_exception
 
         return cls.fonts[font_name][size]
 
