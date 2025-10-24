@@ -10,6 +10,10 @@ from seedsigner.views.view import View
 
 
 class ScreenshotComplete(Exception):
+    """
+        Slightly hacky way for the ScreenshotRenderer to intentionally break out of the
+        normal Controller flow in order to return control to the screenshot generator.
+    """
     pass
 
 
@@ -17,6 +21,10 @@ class ScreenshotComplete(Exception):
 class ScreenshotRenderer(Renderer):
     screenshot_path: str = None
     screenshot_filename: str = None
+
+    @property
+    def is_screenshot_generator(self) -> bool:
+        return True
 
     @classmethod
     def configure_instance(cls):
@@ -30,6 +38,8 @@ class ScreenshotRenderer(Renderer):
 
         renderer.canvas = Image.new('RGB', (renderer.canvas_width, renderer.canvas_height))
         renderer.draw = ImageDraw.Draw(renderer.canvas)
+
+        renderer.render_count = 0
     
 
     def set_screenshot_filename(self, filename:str):
@@ -56,6 +66,9 @@ class ScreenshotRenderer(Renderer):
             self.canvas.paste(image)
 
         self.canvas.save(os.path.join(self.screenshot_path, self.screenshot_filename))
+        self.render_count += 1
+
+        # Break out of the normal Controller flow and return to the screenshot generator
         raise ScreenshotComplete()
 
 

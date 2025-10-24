@@ -172,6 +172,11 @@ class Controller(Singleton):
         controller = cls.__new__(cls)
         cls._instance = controller
 
+        # Check for libraqm support and log the status if not supported
+        from PIL import features
+        if not features.check('raqm'):
+            logger.warning("libraqm support: NOT AVAILABLE - Complex text rendering may be limited")
+
         # models
         controller.settings = Settings.get_instance()
         

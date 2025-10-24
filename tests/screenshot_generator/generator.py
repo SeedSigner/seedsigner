@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import embit
 import pathlib
 import pytest
@@ -25,12 +26,14 @@ sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 from seedsigner.controller import Controller
 from seedsigner.gui.components import GUIConstants
 from seedsigner.gui.renderer import Renderer
+from seedsigner.gui.screens.screen import BaseScreen
 from seedsigner.gui.screens.seed_screens import SeedAddPassphraseScreen
 from seedsigner.gui.toast import RemoveSDCardToastManagerThread, SDCardStateChangeToastManagerThread
 from seedsigner.gui.toast import DefaultToast, InfoToast, SuccessToast, WarningToast, ErrorToast, DireWarningToast
 from seedsigner.hardware.microsd import MicroSD
 from seedsigner.helpers import embit_utils
 from seedsigner.models.decode_qr import DecodeQR
+from seedsigner.models.encode_qr import BaseQrEncoder
 from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
@@ -107,6 +110,26 @@ seed_24 = Seed(mnemonic=mnemonic_24, passphrase="some-PASS*phrase9", wordlist_la
 seed_24_w_passphrase = Seed(mnemonic=mnemonic_24, passphrase="some-PASS*phrase9", wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
 
 MULTISIG_WALLET_DESCRIPTOR = """wsh(sortedmulti(1,[22bde1a9/48h/1h/0h/2h]tpubDFfsBrmpj226ZYiRszYi2qK6iGvh2vkkghfGB2YiRUVY4rqqedHCFEgw12FwDkm7rUoVtq9wLTKc6BN2sxswvQeQgp7m8st4FP8WtP8go76/{0,1}/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*))#3jhtf6yx"""
+
+
+# Wrap QRDisplayScreen's `render_brightness_tip` in a simple View + Screen so we
+# can call it outside of its child thread and generate a screenshot.
+class SeedExportXpubQR_ScreenBrightnessView(seed_views.SeedExportXpubQRDisplayView):
+    @dataclass
+    class QRDisplayScreenBrightnessTipScreen(BaseScreen):
+        qr_encoder: BaseQrEncoder = None
+
+        def _render(self):
+            from seedsigner.gui.screens.screen import QRDisplayScreen
+            image = self.qr_encoder.part_to_image(self.qr_encoder.cur_part(), 240, 240, border=2, background_color="white")
+            QRDisplayScreen.QRDisplayThread.render_brightness_tip(None, image)
+            self.renderer.show_image(image)
+
+    def run(self):
+        self.run_screen(
+            SeedExportXpubQR_ScreenBrightnessView.QRDisplayScreenBrightnessTipScreen,
+            qr_encoder=self.qr_encoder,  # initialized by SeedExportXpubQRDisplayView
+        )
 
 
 
@@ -262,8 +285,8 @@ def generate_screenshots(locale):
 
         screenshot_sections = {
             "Main Menu Views": [
-                ScreenshotConfig(OpeningSplashView, dict(is_screenshot_renderer=True, force_partner_logos=True)),
-                ScreenshotConfig(OpeningSplashView, dict(is_screenshot_renderer=True, force_partner_logos=False), screenshot_name="OpeningSplashView_no_partner_logos"),
+                ScreenshotConfig(OpeningSplashView, dict(force_partner_logos=True)),
+                ScreenshotConfig(OpeningSplashView, dict(force_partner_logos=False), screenshot_name="OpeningSplashView_no_partner_logos"),
                 ScreenshotConfig(MainMenuView),
                 ScreenshotConfig(MainMenuView, screenshot_name='MainMenuView_SDCardStateChangeToast_removed',  toast_thread=SDCardStateChangeToastManagerThread(action=MicroSD.ACTION__REMOVED, activation_delay=0, duration=0)),
                 ScreenshotConfig(MainMenuView, screenshot_name='MainMenuView_SDCardStateChangeToast_inserted', toast_thread=SDCardStateChangeToastManagerThread(action=MicroSD.ACTION__INSERTED, activation_delay=0, duration=0)),
@@ -275,7 +298,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(MainMenuView, screenshot_name='MainMenuView_DireWarningToast',                toast_thread=DireWarningToast("This is a dire warning toast!", activation_delay=0, duration=0)),
                 ScreenshotConfig(MainMenuView, screenshot_name='MainMenuView_ErrorToast',                      toast_thread=ErrorToast("This is an error toast!", activation_delay=0, duration=0)),
                 ScreenshotConfig(PowerOptionsView),
-                ScreenshotConfig(RestartView, dict(is_screenshot_renderer=True)),
+                ScreenshotConfig(RestartView),
                 ScreenshotConfig(PowerOffView),
             ],
             "Seed Views": [
@@ -300,7 +323,8 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedExportXpubCoordinatorView, dict(seed_num=0, sig_type="ss", script_type="nat")),
                 ScreenshotConfig(seed_views.SeedExportXpubWarningView, dict(seed_num=0, sig_type="msig", script_type="nes", coordinator="spd", custom_derivation="")),
                 ScreenshotConfig(seed_views.SeedExportXpubDetailsView, dict(seed_num=0, sig_type="ss", script_type="nat", coordinator="bw", custom_derivation="")),
-                #ScreenshotConfig(SeedExportXpubQRDisplayView),
+                ScreenshotConfig(SeedExportXpubQR_ScreenBrightnessView, dict(seed_num=0, coordinator="bw", derivation_path="m/84'/0'/0'")),
+
                 ScreenshotConfig(seed_views.SeedWordsWarningView, dict(seed_num=0)),
                 ScreenshotConfig(seed_views.SeedWordsView, dict(seed_num=0)),
                 ScreenshotConfig(seed_views.SeedWordsView, dict(seed_num=0, page_index=2), screenshot_name="SeedWordsView_2"),
@@ -421,8 +445,16 @@ def generate_screenshots(locale):
         try:
             print(f"Running {screenshot_config.screenshot_name}")
             try:
+                cur_count = screenshot_renderer.render_count
+
+                # Set up and run the target View
                 screenshot_config.run_callback_before()
                 screenshot_config.View_cls(**screenshot_config.view_kwargs).run()
+
+                if screenshot_renderer.render_count == cur_count:
+                    # The View didn't actually render anything
+                    raise Exception(f"{screenshot_config.screenshot_name} did not render a screenshot. Verify that its `run_screen()` is reachable by the screenshot generator.")
+
             except ScreenshotComplete:
                 # The target View has run and its Screen has rendered what it needs to
                 if toast_thread is not None:
@@ -430,18 +462,10 @@ def generate_screenshots(locale):
                     controller.activate_toast(toast_thread)
                     while controller.toast_notification_thread.is_alive():
                         # Give the Toast a moment to complete its work
-
                         time.sleep(0.01)
 
-                    # TODO: Necessary now that the lock is in place?
-                    # Whenever possible, clean up toast thread HERE before killing the
-                    # main thread with ScreenshotComplete.
-                    toast_thread.stop()
-                    toast_thread.join()
-                raise ScreenshotComplete()
-        except ScreenshotComplete:
-            # Slightly hacky way to exit ScreenshotRenderer as expected
-            print(f"Completed {screenshot_config.screenshot_name}")
+                print(f"Completed {screenshot_config.screenshot_name}")
+
         except Exception as e:
             # Something else went wrong
             from traceback import print_exc
@@ -515,3 +539,5 @@ def generate_screenshots(locale):
 
     with open(os.path.join(screenshot_root, "README.md"), 'w') as readme_file:
         readme_file.write(main_readme)
+
+    print(f"Screenshots rendered: {screenshot_renderer.render_count}")

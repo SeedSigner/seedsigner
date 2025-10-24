@@ -137,7 +137,6 @@ class BaseToastOverlayManagerThread(BaseThread):
     def run(self):
         logger.info(f"{self.__class__.__name__}: started")
         start = time.time()
-        time.sleep(0.2)
         while time.time() - start < self.activation_delay:
             if self.hw_inputs.has_any_input():
                 # User has pressed a button, cancel the toast
