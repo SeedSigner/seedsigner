@@ -405,6 +405,8 @@ def generate_screenshots(locale):
                 ScreenshotConfig(tools_views.ToolsAddressExplorerAddressTypeView),
                 ScreenshotConfig(tools_views.ToolsAddressExplorerAddressListView),
                 # ScreenshotConfig(tools_views.ToolsAddressExplorerAddressView),
+                ScreenshotConfig(tools_views.ToolsGameEntropyMnemonicLengthView),
+                ScreenshotConfig(tools_views.ToolsGameEntropyView),
             ],
             "Settings Views": settings_views_list + [
                 ScreenshotConfig(settings_views.IOTestView),
