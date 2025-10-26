@@ -218,8 +218,8 @@ class LoadSeedView(View):
             return Destination(ToolsMenuView)
 
 class LoadOtherFormatSeedView(View):
-    TYPE_12WORD_DECIMAL = ButtonOption("12-word decimal", FontAwesomeIconConstants.KEYBOARD)
-    TYPE_24WORD_DECIMAL = ButtonOption("24-word decimal", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_12WORD_DECIMAL = ButtonOption("12-word index numbers", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_24WORD_DECIMAL = ButtonOption("24-word index numbers", FontAwesomeIconConstants.KEYBOARD)
 
     def run(self):
         button_data = [
@@ -674,7 +674,7 @@ class SeedOptionsView(View):
 
 class SeedBackupView(View):
     VIEW_WORDS = ButtonOption("View seed words")
-    VIEW_DECIMAL = ButtonOption("View seed decimal")
+    VIEW_DECIMAL = ButtonOption("View seed index numbers")
     EXPORT_SEEDQR = ButtonOption("Export as SeedQR")
 
     def __init__(self, seed_num):
