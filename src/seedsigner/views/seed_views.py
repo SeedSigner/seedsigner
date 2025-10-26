@@ -218,15 +218,11 @@ class LoadSeedView(View):
             return Destination(ToolsMenuView)
 
 class LoadOtherFormatSeedView(View):
-    TYPE_12WORD_BINARY = ButtonOption("12-word binary", FontAwesomeIconConstants.KEYBOARD)
-    TYPE_24WORD_BINARY = ButtonOption("24-word binary", FontAwesomeIconConstants.KEYBOARD)
     TYPE_12WORD_DECIMAL = ButtonOption("12-word decimal", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD_DECIMAL = ButtonOption("24-word decimal", FontAwesomeIconConstants.KEYBOARD)
 
     def run(self):
         button_data = [
-            self.TYPE_12WORD_BINARY,
-            self.TYPE_24WORD_BINARY,
             self.TYPE_12WORD_DECIMAL,
             self.TYPE_24WORD_DECIMAL,
         ]
@@ -240,14 +236,6 @@ class LoadOtherFormatSeedView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
-        elif button_data[selected_menu_num] == self.TYPE_12WORD_BINARY:
-            self.controller.storage.init_pending_mnemonic(num_words=12)
-            return Destination(SeedMnemonicEntryView, view_args={"entry_screen_cls": seed_screens.SeedMnemonicBinaryEntryScreen})
-
-        elif button_data[selected_menu_num] == self.TYPE_24WORD_BINARY:
-            self.controller.storage.init_pending_mnemonic(num_words=24)
-            return Destination(SeedMnemonicEntryView, view_args={"entry_screen_cls": seed_screens.SeedMnemonicBinaryEntryScreen})
         
         elif button_data[selected_menu_num] == self.TYPE_12WORD_DECIMAL:
             self.controller.storage.init_pending_mnemonic(num_words=12)
@@ -686,7 +674,6 @@ class SeedOptionsView(View):
 
 class SeedBackupView(View):
     VIEW_WORDS = ButtonOption("View seed words")
-    VIEW_BINARY = ButtonOption("View seed binary")
     VIEW_DECIMAL = ButtonOption("View seed decimal")
     EXPORT_SEEDQR = ButtonOption("Export as SeedQR")
 
@@ -697,7 +684,7 @@ class SeedBackupView(View):
     
 
     def run(self):
-        button_data = [self.VIEW_WORDS, self.VIEW_BINARY, self.VIEW_DECIMAL]
+        button_data = [self.VIEW_WORDS, self.VIEW_DECIMAL]  # Removed self.VIEW_BINARY
 
         if self.seed.seedqr_supported:
             button_data.append(self.EXPORT_SEEDQR)
@@ -718,9 +705,6 @@ class SeedBackupView(View):
         elif button_data[selected_menu_num] == self.EXPORT_SEEDQR:
             return Destination(SeedTranscribeSeedQRFormatView, view_args={"seed_num": self.seed_num})
 
-        elif button_data[selected_menu_num] == self.VIEW_BINARY:
-            return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "seed_format_transformer": seed_format_transformers.convert_word_to_11_bits})
-        
         elif button_data[selected_menu_num] == self.VIEW_DECIMAL:
             return Destination(SeedWordsView, view_args={"seed_num": self.seed_num, "seed_format_transformer": seed_format_transformers.convert_word_to_decimal})
 
@@ -1111,7 +1095,7 @@ class SeedWordsView(View):
     NEXT = ButtonOption("Next")
     DONE = ButtonOption("Done")
 
-    def __init__(self, seed_num: int, bip85_data: dict = None, page_index: int = 0):
+    def __init__(self, seed_num: int, bip85_data: dict = None, page_index: int = 0, seed_format_transformer: Callable[[str], str] = lambda x: x):
         super().__init__()
         self.seed_num = seed_num
         if self.seed_num is None:
@@ -1152,8 +1136,8 @@ class SeedWordsView(View):
             page_index=self.page_index,
             num_pages=num_pages,
             button_data=button_data,
-            colorize_words=self.seed_format_transformer == seed_format_transformers.convert_word_to_11_bits
-        ).display()
+            colorize_words=False
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -1296,7 +1280,7 @@ class SeedWordsBackupTestPromptView(View):
     VERIFY = ButtonOption("Verify")
     SKIP = ButtonOption("Skip")
 
-    def __init__(self, seed_num: int, bip85_data: dict = None):
+    def __init__(self, seed_num: int, bip85_data: dict = None, seed_format_transformer: Callable[[str], str] = lambda x: x):
         super().__init__()
         self.seed_num = seed_num
         self.bip85_data = bip85_data
@@ -1325,7 +1309,7 @@ class SeedWordsBackupTestPromptView(View):
 
 
 class SeedWordsBackupTestView(View):
-    def __init__(self, seed_num: int, bip85_data: dict = None, confirmed_list: List[bool] = None, cur_index: int = None, rand_seed: int = None, seed_format_transformer: Callable[[str], str] = None):
+    def __init__(self, seed_num: int, bip85_data: dict = None, confirmed_list: List[bool] = None, cur_index: int = None, rand_seed: int = None, seed_format_transformer: Callable[[str], str] = lambda x: x):
         super().__init__()
         self.seed_num = seed_num
         if self.seed_num is None:
@@ -1364,10 +1348,15 @@ class SeedWordsBackupTestView(View):
         fake_word3 = ButtonOption(bip39.WORDLIST[int(random.random() * 2047)])
 
         if self.seed_format_transformer:
-            real_word = self.seed_format_transformer(real_word)
-            fake_word1 = self.seed_format_transformer(fake_word1)
-            fake_word2 = self.seed_format_transformer(fake_word2)
-            fake_word3 = self.seed_format_transformer(fake_word3)
+            real_word_text = real_word.button_label
+            fake_word1_text = fake_word1.button_label
+            fake_word2_text = fake_word2.button_label
+            fake_word3_text = fake_word3.button_label
+            
+            real_word = ButtonOption(self.seed_format_transformer(real_word_text))
+            fake_word1 = ButtonOption(self.seed_format_transformer(fake_word1_text))
+            fake_word2 = ButtonOption(self.seed_format_transformer(fake_word2_text))
+            fake_word3 = ButtonOption(self.seed_format_transformer(fake_word3_text))
 
         button_data = [real_word, fake_word1, fake_word2, fake_word3]
         random.shuffle(button_data)
@@ -1418,7 +1407,7 @@ class SeedWordsBackupTestMistakeView(View):
     REVIEW = ButtonOption("Review seed words")
     RETRY = ButtonOption("Try again")
 
-    def __init__(self, seed_num: int, bip85_data: dict = None, cur_index: int = None, wrong_word: str = None, confirmed_list: list[bool] = None):
+    def __init__(self, seed_num: int, bip85_data: dict = None, cur_index: int = None, wrong_word: str = None, confirmed_list: list[bool] = None, seed_format_transformer: Callable[[str], str] = lambda x: x):
         super().__init__()
         self.seed_num = seed_num
         self.bip85_data = bip85_data
