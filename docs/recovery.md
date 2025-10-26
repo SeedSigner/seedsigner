@@ -13,6 +13,10 @@ Derivation paths for standard script types for mainnet:
 		- Derivation Path: m/49'/0'/0'
 		- Script Type: P2WPKH in P2SH
 		- Public Key Encoding: 0x049d7cb2 - ypub
+	- Taproot
+		- Derivation Path: m/86'/0'/0'
+		- Script Type: P2TR
+		- Public Key Encoding: 0x0488b21e - xpub
 - Multisig
 	- Native Segwit
 		- Derivation Path: m/48'/0'/0'/2'
@@ -33,3 +37,4 @@ Related Standards:
 - [bip-0048](https://github.com/bitcoin/bips/blob/master/bip-0048.mediawiki)
 - [bip-0049](https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki)
 - [bip-0084](https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki)
+- [bip-0086](https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki)

@@ -15,7 +15,7 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
 from urtypes.crypto import PSBT as UR_PSBT
-from urtypes.crypto import Account, HDKey, Output, Keypath, PathComponent, SCRIPT_EXPRESSION_TAG_MAP
+from urtypes.crypto import Account, HDKey, Output, Keypath, PathComponent, SCRIPT_EXPRESSION_TAG_MAP, CoinInfo
 
 
 
@@ -344,11 +344,16 @@ class UrXpubQrEncoder(BaseFountainQrEncoder, BaseXpubQrEncoder):
             return Keypath(arr, self.root.my_fingerprint, len(arr))
             
         origin = derivation_to_keypath(self.derivation)
+
+        # Implemts "use_info" member on HDKey class (urtypes/crypto packages-libs folder) construct, 
+        # so if working on TESTNET, Xpub can be exported accordingly. Default case, MAINNET: None value.
+        self.use_info = None if self.network == SettingsConstants.MAINNET else CoinInfo(type=None, network=1)
         
         self.ur_hdkey = HDKey({ 'key': self.xpub.key.serialize(),
         'chain_code': self.xpub.chain_code,
         'origin': origin,
-        'parent_fingerprint': self.xpub.fingerprint})
+        'parent_fingerprint': self.xpub.fingerprint,
+        'use_info': self.use_info })
 
         ur_outputs = []
 

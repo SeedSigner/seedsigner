@@ -31,7 +31,7 @@ jobs:
         target: [ "pi0", "pi2", "pi02w", "pi4" ]
     steps:
       - name: checkout seedsigner-os
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: "seedsigner/seedsigner-os"
           # use the os-ref input parameter in case of workflow_dispatch or default to main in case of cron triggers
@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
 
       - name: checkout source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # ref defaults to repo default-branch=dev (cron) or SHA of event (workflow_dispatch)
           path: "seedsigner-os/opt/rootfs-overlay/opt"
@@ -78,7 +78,7 @@ jobs:
           ls -la src
 
       - name: restore build cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         # Caching reduces the build time to ~50% (currently: ~30 mins instead of ~1 hour,
         # while consuming ~850 MB storage space).
         with:
@@ -89,10 +89,25 @@ jobs:
           restore-keys: |
             build-cache-${{ matrix.target }}-
 
+      - name: Create build container
+        run: |
+          cd seedsigner-os
+          docker build -t seedsigner-os-build .
+
       - name: build
         run: |
-          cd seedsigner-os/opt
-          ./build.sh --${{ matrix.target }} --skip-repo --no-clean
+          mkdir -p \
+            ~/.buildroot-ccache \
+            seedsigner-os/buildroot_dl
+          docker run \
+            --rm \
+            -v "$(pwd)/seedsigner-os/opt:/opt" \
+            -v "$(pwd)/seedsigner-os/images:/images" \
+            -v "$(pwd)/seedsigner-os/buildroot_dl:/buildroot_dl" \
+            -v "${HOME}/.buildroot-ccache:/root/.buildroot-ccache" \
+            seedsigner-os-build \
+            --${{ matrix.target }} --skip-repo --no-clean
+          sudo chown -R $USER:$USER seedsigner-os/images seedsigner-os/buildroot_dl ~/.buildroot-ccache/
 
       - name: list image (before rename)
         run: |
@@ -113,9 +128,9 @@ jobs:
           ls -la seedsigner-os/images
 
       - name: upload images
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: seedsigner_os_images
+          name: seedsigner_os_images-${{ matrix.target }}
           path: "seedsigner-os/images/*.img"
           if-no-files-found: error
           # maximum 90 days retention
@@ -127,14 +142,13 @@ jobs:
     needs: build
     steps:
       - name: download images
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: seedsigner_os_images
           path: images
 
       - name: list images
         run: |
-          ls -la images
+          ls -lRa images
 
       - name: get seedsigner latest commit hash
         id: get-seedsigner-hash
@@ -145,12 +159,14 @@ jobs:
       - name: write sha256sum
         run: |
           cd images
+          # each downloaded image is in its own subfolder
+          find . -name "*.img" -exec mv {} . \;
           sha256sum *.img > seedsigner_os.${{ env.source_hash }}.sha256
 
       - name: upload checksums
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: seedsigner_os_images
+          name: seedsigner_os_images_sha256
           path: "images/*.sha256"
           if-no-files-found: error
           # maximum 90 days retention

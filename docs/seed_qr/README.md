@@ -2,7 +2,7 @@
 
 [SeedSigner](https://github.com/SeedSigner/seedsigner/) is an open source, DIY, fully-airgapped Bitcoin hardware wallet that wipes all private data from memory each time it's turned off. That means users need to re-enter their mnemonic seed phrase each time they use it.
 
-To speed up this key entry process we have defined a way to encode a BIP-39 mnemonic seed phrase as a QR code that can be instantly scanned into a SeedSigner or potentially any other Bitcoin hardware wallet that has a camera.
+To speed up this key entry process, we have defined a way to encode a BIP-39 mnemonic seed phrase as a QR code that can be instantly scanned into a SeedSigner or potentially any other Bitcoin hardware wallet that has a camera.
 
 The approach is specifically designed to encode the minimum possible amount of data in order to keep the resulting QR code small enough that it can be transcribed *by hand*. This sounds ridiculous at first, but remember that this is secret data that should never be stored in any digital medium. And even printers present some additional risk vectors.
 
@@ -22,11 +22,13 @@ Specifications for each follow below, as well as discussion of the pros and cons
 ## Quick Review of BIP-39 Mnemonic Seed Phrases
 The typical method for backing up a Bitcoin wallet is to store its [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) mnemonic seed phrase consisting of 12 or 24 words.
 
+**SeedQR specifically assumes and recommends using the English BIP39 wordlist.** While BIP39 supports multiple language-specific wordlists (e.g., Japanese, Spanish, French), there is no mechanism to specify or detect which language wordlist was used when creating or scanning a SeedQR. Using a non-English wordlist may result in incorrect or invalid seeds.
+
 Each word comes from a [list of 2048 words](https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt). The words themselves are meaningless; all that matters is the word's position number (aka index) in the word list.
 
 For example, "tomato" is the 1,825th word in the list.
 
-But code always starts counting list items with zero. So the index of "tomato" is actually `1824` (if you're looking at the github wordlist line numbers, just remember to always subtract one).
+But code always starts counting list items with zero. So the index of "tomato" is actually `1824` (if you're looking at the GitHub wordlist line numbers, just remember to always subtract one).
 
 So we can transcode a 12-word seed into a series of indices:
 
@@ -264,7 +266,7 @@ But there are other tradeoffs to consider.
 ## Recoverability
 If you lose your SeedSigner or somehow the project is abandoned or banned, how will you read back your SeedQR? 
 
-With the Standard SeedQR format this is trivial--any smartphone can decode the numeric digit stream. But the CompactSeedQR's raw byte data is not decipherable in the same way. Most QR readers today assume the data is either alphanumeric or human-readable numeric data. Because of this assumption, they misinterpret the binary format data:
+With the Standard SeedQR format, this is trivial--any smartphone can decode the numeric digit stream. But the CompactSeedQR's raw byte data is not decipherable in the same way. Most QR readers today assume the data is either alphanumeric or human-readable numeric data. Because of this assumption, they misinterpret the binary format data:
 
 <table align="center">
     <tr>
@@ -283,7 +285,7 @@ It's just the above process in reverse:
 # Separate out into 4-digit individual indices
 1924 0222 0235 1743 0631 1124 0378 1770 0641 1980 1290 1210
 
-# Look up each BIP-39 index number (index+1 if using the github list!)
+# Look up each BIP-39 index number (index+1 if using the GitHub list!)
  1. vacuum    1924
  2. bridge     222
  3. buddy      235
@@ -298,7 +300,7 @@ It's just the above process in reverse:
 12. nuclear   1210
 ```
 
-It would be much more difficult to manually recreate your seed from a CompactSeedQR. Tools like [zxing.org](https://zxing.org/w/decode.jspx) or [ZBar](https://zbar.sourceforge.net/) can help you get the binary data out as a hexidecimal string:
+It would be much more difficult to manually recreate your seed from a CompactSeedQR. Tools like [zxing.org](https://zxing.org/w/decode.jspx) or [ZBar](https://zbar.sourceforge.net/) can help you get the binary data out as a hexadecimal string:
 
 <img src="img/zxing_screenshot.png">
 
@@ -313,7 +315,7 @@ Conversely, having limited support for reading binary QR codes and the complicat
 # Some Additional Notes on QR Codes
 Our main use case is to be able to quickly initialize a SeedSigner with your mnemonic seed phrase. But using a QR code as your key loader--or even as your permanent backup etched in metal--has other advantages.
 
-QR codes are ubiquitous now so plenty of hardware and software exists to read and generate them.
+QR codes are ubiquitous now, so plenty of hardware and software exists to read and generate them.
 
 QR codes have built-in error correction. The "L" error correction mode is described as having a roughly 7% correction rate.
 

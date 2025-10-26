@@ -13,7 +13,7 @@ description = "Build an offline, airgapped Bitcoin signing device for less than 
 name = "seedsigner"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.8.0"
+version = "0.8.6"
 
 [project.urls]
 "Bug Tracker" = "https://github.com/SeedSigner/seedsigner/issues"
@@ -22,7 +22,7 @@ Repository = "https://github.com/SeedSigner/seedsigner"
 
 [tool.coverage.html]
 directory = "coverage_html_report"
-skip_covered = false
+skip_covered = true
 skip_empty = true
 
 [tool.coverage.report]
@@ -46,14 +46,19 @@ exclude_lines = [
 # Omit; need a different approach to test modules with hardware dependencies
 omit = [
   "*/__init__.py",
+  "src/seedsigner/hardware/camera.py",
+  "src/seedsigner/hardware/pivideostream.py",
+  "src/seedsigner/hardware/displays/ST7789.py",
+  "src/seedsigner/hardware/displays/st7789_mpy.py",
+  "src/seedsigner/hardware/displays/ili9341.py",
   "*/tests/*",
-  "*/pyzbar/*",
-  "*/gui/*"
 ]
 skip_covered = true
 skip_empty = true
+precision = 2
 
 [tool.coverage.run]
+source = ["src"]
 branch = true
 
 [tool.pytest.ini_options]

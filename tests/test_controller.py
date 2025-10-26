@@ -88,7 +88,7 @@ class TestController(BaseTest):
         controller = Controller.get_instance()
 
         # Settings defaults
-        assert controller.settings.get_value(SettingsConstants.SETTING__LANGUAGE) == SettingsConstants.LANGUAGE__ENGLISH
+        assert controller.settings.get_value(SettingsConstants.SETTING__LOCALE) == SettingsConstants.LOCALE__ENGLISH
         assert controller.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE) == SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
         assert controller.settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS) == SettingsConstants.OPTION__DISABLED
         assert controller.settings.get_value(SettingsConstants.SETTING__COORDINATORS) == [i for i,j in SettingsConstants.ALL_COORDINATORS if i!="kpr"]

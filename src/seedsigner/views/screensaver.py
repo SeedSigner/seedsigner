@@ -3,14 +3,17 @@ import os
 import random
 import time
 
-from PIL import Image
+from dataclasses import dataclass
+from gettext import gettext as _
 
 from seedsigner.gui.components import Fonts, GUIConstants, load_image
 from seedsigner.gui.screens.screen import BaseScreen
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
+from seedsigner.views.view import View
 
 logger = logging.getLogger(__name__)
+
 
 
 # TODO: This early code is now outdated vis-a-vis Screen vs View distinctions
@@ -29,49 +32,92 @@ class LogoScreen(BaseScreen):
             self.partner_logos[partner] = load_image(logo_url)
 
 
+    def _run(self):
+        pass
+
+
     def get_random_partner(self) -> str:
         return self.partners[random.randrange(len(self.partners))]
 
 
 
+@dataclass
+class OpeningSplashView(View):
+    force_partner_logos: bool|None = None
+
+    def run(self):
+        self.run_screen(
+            OpeningSplashScreen,
+            force_partner_logos=self.force_partner_logos
+        )
+
+
+
 class OpeningSplashScreen(LogoScreen):
-    def start(self):
+    def __init__(self, force_partner_logos=None):
+        self.force_partner_logos = force_partner_logos
+        super().__init__()
+
+
+    def _render(self):
+        from PIL import Image
         from seedsigner.controller import Controller
         controller = Controller.get_instance()
 
+        # TODO: Fix for the screenshot generator. When generating screenshots for
+        # multiple locales, there is a button still in the canvas from the previous
+        # screenshot, even though the Renderer has been reconfigured and re-
+        # instantiated. This is a hack to clear the screen for now.
+        self.clear_screen()
+
         show_partner_logos = Settings.get_instance().get_value(SettingsConstants.SETTING__PARTNER_LOGOS) == SettingsConstants.OPTION__ENABLED
+        if self.force_partner_logos is not None:
+            show_partner_logos = self.force_partner_logos
+
+        logo_offset_x = int((self.canvas_width - self.logo.width)/2)
 
         if show_partner_logos:
             logo_offset_y = -56
         else:
             logo_offset_y = 0
 
-        # Fade in alpha
-        for i in range(250, -1, -25):
-            self.logo.putalpha(255 - i)
-            background = Image.new("RGBA", size=self.logo.size, color="black")
-            self.renderer.canvas.paste(Image.alpha_composite(background, self.logo), (0, logo_offset_y))
-            self.renderer.show_image()
+        background = Image.new("RGBA", size=self.logo.size, color="black")
+        if not self.renderer.is_screenshot_generator:
+            # Fade in alpha
+            for i in range(250, -1, -25):
+                self.logo.putalpha(255 - i)
+                self.renderer.canvas.paste(
+                    Image.alpha_composite(background, self.logo),
+                    (logo_offset_x, logo_offset_y)
+                )
+                self.renderer.show_image()
+        else:
+            # Skip animation for the screenshot generator
+            self.renderer.canvas.paste(self.logo, (logo_offset_x, logo_offset_y))
 
         # Display version num below SeedSigner logo
-        font = Fonts.get_font(GUIConstants.BODY_FONT_NAME, GUIConstants.TOP_NAV_TITLE_FONT_SIZE)
+        font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_top_nav_title_font_size())
         version = f"v{controller.VERSION}"
-        (left, top, version_tw, version_th) = font.getbbox(version, anchor="lt")
 
         # The logo png is 240x240, but the actual logo is 70px tall, vertically centered
+        logo_height = 70
         version_x = int(self.renderer.canvas_width/2)
-        version_y = int(self.canvas_height/2) + 35 + logo_offset_y + GUIConstants.COMPONENT_PADDING
+        version_y = int(self.canvas_height/2) + int(logo_height/2) + logo_offset_y + GUIConstants.COMPONENT_PADDING
         self.renderer.draw.text(xy=(version_x, version_y), text=version, font=font, fill=GUIConstants.ACCENT_COLOR, anchor="mt")
-        self.renderer.show_image()
+
+        if not self.renderer.is_screenshot_generator:
+            self.renderer.show_image()
 
         if show_partner_logos:
-            # Hold on the version num for a moment
-            time.sleep(1)
+            if not self.renderer.is_screenshot_generator:
+                # Hold on the version num for a moment
+                time.sleep(1)
 
             # Set up the partner logo
             partner_logo: Image.Image = self.partner_logos[self.get_random_partner()]
-            font = Fonts.get_font(GUIConstants.TOP_NAV_TITLE_FONT_NAME, GUIConstants.BODY_FONT_SIZE)
-            sponsor_text = "With support from:"
+            font = Fonts.get_font(GUIConstants.get_top_nav_title_font_name(), GUIConstants.get_body_font_size())
+            # TRANSLATOR_NOTE: This is on the opening splash screen, displayed above the HRF logo
+            sponsor_text = _("With support from:")
             (left, top, tw, th) = font.getbbox(sponsor_text, anchor="lt")
 
             x = int((self.renderer.canvas_width) / 2)
@@ -87,27 +133,37 @@ class OpeningSplashScreen(LogoScreen):
 
             self.renderer.show_image()
 
-        time.sleep(2)
+        if not self.renderer.is_screenshot_generator:
+            # Hold on the splash screen for a moment
+            time.sleep(2)
 
 
 
 class ScreensaverScreen(LogoScreen):
     def __init__(self, buttons):
+        from PIL import Image
         super().__init__()
 
         self.buttons = buttons
 
-        # Paste the logo in a bigger image that is 2x the size of the logo
-        self.image = Image.new("RGB", (2 * self.logo.size[0], 2 * self.logo.size[1]), (0,0,0))
-        self.image.paste(self.logo, (int(self.logo.size[0] / 2), int(self.logo.size[1] / 2)))
+        # Paste the logo in a bigger image that is the canvas + the logo dims (half the
+        # logo will render off the canvas at each edge).
+        self.image = Image.new("RGB", (self.renderer.canvas_width + self.logo.width, self.renderer.canvas_height + self.logo.height), (0,0,0))
+
+        # Place the logo centered on the larger image
+        logo_x = int((self.image.width - self.logo.width) / 2)
+        logo_y = int((self.image.height - self.logo.height) / 2)
+        self.image.paste(self.logo, (logo_x, logo_y))
 
         self.min_coords = (0, 0)
-        self.max_coords = (self.logo.size[0], self.logo.size[1])
+        self.max_coords = (self.renderer.canvas_width, self.renderer.canvas_height)
+
+        # Update our first rendering position so we're centered
+        self.cur_x = int(self.logo.width / 2)
+        self.cur_y = int(self.logo.height / 2)
 
         self.increment_x = self.rand_increment()
         self.increment_y = self.rand_increment()
-        self.cur_x = int(self.logo.size[0] / 2)
-        self.cur_y = int(self.logo.size[1] / 2)
 
         self._is_running = False
         self.last_screen = None
@@ -150,7 +206,7 @@ class ScreensaverScreen(LogoScreen):
                     crop = self.image.crop((
                         self.cur_x, self.cur_y,
                         self.cur_x + self.renderer.canvas_width, self.cur_y + self.renderer.canvas_height))
-                    self.renderer.disp.ShowImage(crop, 0, 0)
+                    self.renderer.disp.show_image(crop, 0, 0)
 
                     self.cur_x += self.increment_x
                     self.cur_y += self.increment_y
