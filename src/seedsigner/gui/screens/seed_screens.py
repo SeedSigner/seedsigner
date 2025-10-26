@@ -457,7 +457,7 @@ class SeedMnemonicDecimalEntryScreen(BaseTopNavScreen):
             rect=(
                 GUIConstants.EDGE_PADDING,
                 text_entry_display_y,
-                GUIConstants.EDGE_PADDING + (GUIConstants.BUTTON_FONT_SIZE * self.decimal_seed_word_length),
+                GUIConstants.EDGE_PADDING + (GUIConstants.BUTTON_FONT_SIZE.get('default', 18) * self.decimal_seed_word_length),
                 text_entry_display_y + text_entry_display_height
             ),
             is_centered=False,

@@ -23,6 +23,8 @@ from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
 
+from typing import List
+
 logger = logging.getLogger(__name__)
 
 
@@ -163,11 +165,12 @@ class SeedSelectSeedView(View):
     Loading seeds, passphrases, etc
 ****************************************************************************"""
 class LoadSeedView(View):
-    SEED_QR = (" Scan a SeedQR", SeedSignerIconConstants.QRCODE)
-    TYPE_12WORD = ("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
-    TYPE_24WORD = ("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
-    TYPE_ELECTRUM = ("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
-    CREATE = (" Create a seed", SeedSignerIconConstants.PLUS)
+    SEED_QR = ButtonOption(" Scan a SeedQR", SeedSignerIconConstants.QRCODE)
+    TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    OTHER_FORMATS = ButtonOption("Other formats", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
+    CREATE = ButtonOption(" Create a seed", SeedSignerIconConstants.PLUS)
 
     def run(self):
         button_data = [
@@ -215,10 +218,10 @@ class LoadSeedView(View):
             return Destination(ToolsMenuView)
 
 class LoadOtherFormatSeedView(View):
-    TYPE_12WORD_BINARY = ("12-word binary", FontAwesomeIconConstants.KEYBOARD)
-    TYPE_24WORD_BINARY = ("24-word binary", FontAwesomeIconConstants.KEYBOARD)
-    TYPE_12WORD_DECIMAL = ("12-word decimal", FontAwesomeIconConstants.KEYBOARD)
-    TYPE_24WORD_DECIMAL = ("24-word decimal", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_12WORD_BINARY = ButtonOption("12-word binary", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_24WORD_BINARY = ButtonOption("24-word binary", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_12WORD_DECIMAL = ButtonOption("12-word decimal", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_24WORD_DECIMAL = ButtonOption("24-word decimal", FontAwesomeIconConstants.KEYBOARD)
 
     def run(self):
         button_data = [
@@ -264,9 +267,8 @@ class SeedMnemonicEntryView(View):
 
     def run(self):
         ret = self.run_screen(
-            seed_screens.SeedMnemonicEntryScreen,
+            self.entry_screen_cls,
             title=f"Seed Word #{self.cur_word_index + 1}",  # Human-readable 1-indexing!
-            initial_letters=list(self.cur_word) if self.cur_word else ["a"],
             current_word=self.cur_word,
             wordlist=Seed.get_wordlist(wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)),
         )
