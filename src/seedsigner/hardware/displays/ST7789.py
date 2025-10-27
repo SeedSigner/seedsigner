@@ -4,12 +4,12 @@ import time
 import array
 from dataclasses import dataclass
 
-from seedsigner.hardware.displays.display_driver import DisplayDriver
+from seedsigner.hardware.displays.display_driver import BaseDisplayDriver
 
 
 
 @dataclass
-class ST7789(DisplayDriver):
+class ST7789(BaseDisplayDriver):
     """
     The original SeedSigner display driver.
 
