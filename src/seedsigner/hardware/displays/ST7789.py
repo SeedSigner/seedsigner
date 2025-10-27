@@ -2,16 +2,23 @@ import spidev
 import RPi.GPIO as GPIO
 import time
 import array
+from dataclasses import dataclass
+
+from seedsigner.hardware.displays.display_driver import DisplayDriver
 
 
 
-class ST7789(object):
-    """class for ST7789  240*240 1.3inch OLED displays."""
+@dataclass
+class ST7789(DisplayDriver):
+    """
+    The original SeedSigner display driver.
 
-    def __init__(self):
-        self.width = 240
-        self.height = 240
+    Note that self._width and self._height are provided by the parent DisplayDriver class
+    and are set during instantiation via the DisplayDriverFactory.
 
+    class for ST7789  240*240 1.3inch OLED displays.
+    """
+    def __post_init__(self):
         #Initialize DC RST pin
         self._dc = 22
         self._rst = 13
