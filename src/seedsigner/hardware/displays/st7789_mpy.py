@@ -57,7 +57,7 @@ import RPi.GPIO as GPIO
 from dataclasses import dataclass
 from math import sin, cos
 
-from seedsigner.hardware.displays.display_driver import DisplayDriver
+from seedsigner.hardware.displays.display_driver import BaseDisplayDriver
 
 #
 # This allows sphinx to build the docs
@@ -233,7 +233,7 @@ def color565(red, green=0, blue=0):
 
 
 @dataclass
-class ST7789(DisplayDriver):
+class ST7789(BaseDisplayDriver):
     """
     ST7789 driver class
 

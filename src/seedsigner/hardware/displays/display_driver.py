@@ -10,13 +10,12 @@ ALL_DISPLAY_TYPES = [DISPLAY_TYPE__ST7789, DISPLAY_TYPE__ILI9341, DISPLAY_TYPE__
     
 
 @dataclass
-class DisplayDriver:
+class BaseDisplayDriver:
     _width: int
     _height: int
 
-
     def __str__(self):
-        return f"DisplayDriver(display_type={self.display_type}, width={self.width}, height={self.height})"
+        return f"DisplayDriver(display_type={getattr(self, 'display_type', None)}, width={self.width}, height={self.height})"
 
 
     @property
@@ -30,16 +29,26 @@ class DisplayDriver:
 
 
     def invert(self, enabled: bool = True):
-        """Invert how the display interprets colors"""
-        raise Exception("Must be implemented in child class")
+        """
+        Invert how the display interprets colors.
+        Implementation in child classes is optional.
+        """
+        pass
 
 
     def show_image(self, image, x_start: int = 0, y_start: int = 0):
-        raise Exception("Must be implemented in child class")
-    
+        """
+        The main rendering call to the display driver.
+        Must be implemented in child classes.
+        """
+        raise Exception("show_image() must be implemented in child classes")
+
 
     def cleanup(self):
-        """Cleanup resources related to the display driver."""
+        """
+        Cleanup resources used by the display driver.
+        Implementation in child classes is optional.
+        """
         pass
 
 
@@ -52,7 +61,7 @@ class DisplayDriverFactory:
     """
 
     @classmethod
-    def instantiate_display_driver(cls, display_type: str = DISPLAY_TYPE__ST7789, width: int = None, height: int = None) -> DisplayDriver:
+    def instantiate_display_driver(cls, display_type: str = DISPLAY_TYPE__ST7789, width: int = None, height: int = None) -> BaseDisplayDriver:
         if display_type not in ALL_DISPLAY_TYPES:
             raise ValueError(f"Invalid display type: {display_type}")
 
