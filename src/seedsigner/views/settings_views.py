@@ -100,6 +100,9 @@ class SettingsMenuView(View):
         elif settings_entries[selected_menu_num].attr_name == SettingsConstants.SETTING__LOCALE:
             return Destination(LocaleSelectionView)
 
+        elif settings_entries[selected_menu_num].attr_name == SettingsConstants.SETTING__DISPLAY_GAMMA_CURVE:
+            return Destination(GammaCurveSelectionView)
+
         else:
             return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=settings_entries[selected_menu_num].attr_name, parent_initial_scroll=initial_scroll))
 
@@ -142,6 +145,57 @@ class LocaleSelectionView(View):
         self.settings.set_value(SettingsConstants.SETTING__LOCALE, button_data[selected_menu_num].return_data)
 
         return Destination(SettingsMenuView)
+
+
+
+class GammaCurveSelectionView(View):
+    def run(self):
+        # Get the current display driver from the renderer
+        display_driver = self.renderer.disp
+        
+        button_data: list[ButtonOption] = []
+
+        for name, value in display_driver.available_gamma_curves:
+            button_data.append(ButtonOption(name, return_data=value))
+
+        if not button_data:
+            # Add "Default" as the one and only option.
+            # This really means: there are no options
+            button_data.append(ButtonOption("Default"))
+
+        # Get current gamma curve setting
+        cur_gamma_curve = self.settings.get_value(SettingsConstants.SETTING__DISPLAY_GAMMA_CURVE)
+        if not cur_gamma_curve:
+            cur_gamma_curve = display_driver.default_gamma_curve
+        selected_button = None
+        for i, button in enumerate(button_data):
+            if button.return_data == cur_gamma_curve:
+                # Highlight the current selection
+                selected_button = i
+                break
+
+        settings_entry = SettingsDefinition.get_settings_entry(attr_name=SettingsConstants.SETTING__DISPLAY_GAMMA_CURVE)
+        display_name = _(settings_entry.display_name)
+
+        selected_menu_num = self.run_screen(
+            settings_screens.SettingsEntryUpdateSelectionScreen,
+            display_name=display_name,
+            button_data=button_data,
+            selected_button=selected_button,
+            checked_buttons=[selected_button],
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(SettingsMenuView)
+        
+        new_curve_value = button_data[selected_menu_num].return_data
+        self.settings.set_value(SettingsConstants.SETTING__DISPLAY_GAMMA_CURVE, new_curve_value)
+
+        # Apply the gamma curve to the display driver
+        self.renderer.initialize_display()
+
+        # Omit the current view from history since we're staying in place here
+        return Destination(GammaCurveSelectionView, skip_current_view=True)
 
 
 
@@ -231,6 +285,9 @@ class SettingsEntryUpdateSelectionView(View):
         )
 
         if self.settings_entry.attr_name == SettingsConstants.SETTING__DISPLAY_CONFIGURATION:
+            # First clear out any gamma curve settings as they should not apply to the
+            # new display.
+            self.settings.set_value(SettingsConstants.SETTING__DISPLAY_GAMMA_CURVE, None)
             self.renderer.initialize_display()
 
         elif self.settings_entry.attr_name == SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED:

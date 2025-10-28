@@ -44,11 +44,13 @@ class Renderer(ConfigurableSingleton):
 
         width, height = display_config.split("_")[1].split("x")
 
+        gamma_curve = Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_GAMMA_CURVE)
+
         if self.disp:
             # Existing instances might need to close resources like pwm
             self.disp.cleanup()
 
-        self.disp = DisplayDriverFactory.instantiate_display_driver(self.display_type, width=int(width), height=int(height))
+        self.disp = DisplayDriverFactory.instantiate_display_driver(self.display_type, width=int(width), height=int(height), gamma_curve=gamma_curve)
 
         if Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED, default_if_none=True) == SettingsConstants.OPTION__ENABLED:
             self.disp.invert()

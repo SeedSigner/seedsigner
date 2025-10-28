@@ -4,12 +4,12 @@ import time
 import array
 from dataclasses import dataclass
 
-from seedsigner.hardware.displays.display_driver import BaseDisplayDriver
+from seedsigner.hardware.displays.st7789_base import BaseST7789, GAMMA_CURVES, GAMMA_CURVE__SEEDSIGNER_ORIGINAL
 
 
 
 @dataclass
-class ST7789(BaseDisplayDriver):
+class ST7789(BaseST7789):
     """
     The original SeedSigner display driver.
 
@@ -19,6 +19,8 @@ class ST7789(BaseDisplayDriver):
     class for ST7789  240*240 1.3inch OLED displays.
     """
     def __post_init__(self):
+        super().__post_init__()
+
         #Initialize DC RST pin
         self._dc = 22
         self._rst = 13
@@ -89,38 +91,8 @@ class ST7789(BaseDisplayDriver):
         self.data(0xA4)
         self.data(0xA1)
 
-        self.command(0xE0)
-        self.data(0xD0)
-        self.data(0x04)
-        self.data(0x0D)
-        self.data(0x11)
-        self.data(0x13)
-        self.data(0x2B)
-        self.data(0x3F)
-        self.data(0x54)
-        self.data(0x4C)
-        self.data(0x18)
-        self.data(0x0D)
-        self.data(0x0B)
-        self.data(0x1F)
-        self.data(0x23)
+        self.set_gamma_curve(self.initial_gamma_curve)  # Set to default gamma curve
 
-        self.command(0xE1)
-        self.data(0xD0)
-        self.data(0x04)
-        self.data(0x0C)
-        self.data(0x11)
-        self.data(0x13)
-        self.data(0x2C)
-        self.data(0x3F)
-        self.data(0x44)
-        self.data(0x51)
-        self.data(0x2F)
-        self.data(0x1F)
-        self.data(0x1F)
-        self.data(0x20)
-        self.data(0x23)
-        
         self.command(0x21)  # inversion ON; 0x20 = inversion OFF
 
         self.command(0x11)
@@ -178,3 +150,36 @@ class ST7789(BaseDisplayDriver):
     def invert(self, enabled: bool = True):
         """Invert how the display interprets colors"""
         self.command(0x21 if enabled else 0x20)
+
+
+    @property
+    def default_gamma_curve(self) -> str | None:
+        return GAMMA_CURVE__SEEDSIGNER_ORIGINAL[1]
+
+
+    def _set_gamma_values(self, positive_gamma: list[bytes], negative_gamma: list[bytes]):
+        """Apply gamma correction values to the display"""
+        # Apply positive gamma correction
+        self.command(0xE0)
+        for val in positive_gamma:
+            self.data(val)
+        
+        # Apply negative gamma correction
+        self.command(0xE1)
+        for val in negative_gamma:
+            self.data(val)
+
+
+    def _set_built_in_gamma(self, curve_num: int):
+        """ Built-in gamma curve values: 1 to 4 """
+        if curve_num < 1 or curve_num > 4:
+            raise BaseST7789.InvalidGammaCurveValue("Built-in gamma curve number must be between 1 and 4")
+
+        self.command(0x26)  # GAMSET
+        curves = [
+            0x01,  # Gamma curve 1
+            0x02,  # Gamma curve 2
+            0x04,  # Gamma curve 3
+            0x08   # Gamma curve 4
+        ]
+        self.data(curves[curve_num - 1])

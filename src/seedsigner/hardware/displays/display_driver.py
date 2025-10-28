@@ -52,6 +52,39 @@ class BaseDisplayDriver:
         pass
 
 
+    class GammaCurveSettingNotSupported(Exception):
+        pass
+
+
+    class InvalidGammaCurveValue(Exception):
+        pass
+
+
+    @property
+    def available_gamma_curves(self) -> list[tuple[str, str]]:
+        """
+        Return the list of available gamma curves for the display.
+
+        Tuple consists of: (human-readable name, settings value)
+        """
+        return []
+    
+
+    @property
+    def default_gamma_curve(self) -> str | None:
+        """
+        Return the default gamma curve Settings value for the display, or None if not applicable.
+        """
+        return None
+
+
+    def set_gamma_curve(self, curve: str) -> None | GammaCurveSettingNotSupported | InvalidGammaCurveValue:
+        """
+        Select the gamma curve for the display. Expects the Settings value.
+        """
+        raise BaseDisplayDriver.GammaCurveSettingNotSupported()
+
+
 
 class DisplayDriverFactory:
     """
@@ -61,7 +94,7 @@ class DisplayDriverFactory:
     """
 
     @classmethod
-    def instantiate_display_driver(cls, display_type: str = DISPLAY_TYPE__ST7789, width: int = None, height: int = None) -> BaseDisplayDriver:
+    def instantiate_display_driver(cls, display_type: str = DISPLAY_TYPE__ST7789, width: int = None, height: int = None, gamma_curve: str = None) -> BaseDisplayDriver:
         if display_type not in ALL_DISPLAY_TYPES:
             raise ValueError(f"Invalid display type: {display_type}")
 
@@ -74,12 +107,12 @@ class DisplayDriverFactory:
                 # The mpy version below renders incorrectly (almost like each row of pixels
                 # is one pixel short, so the entire screen exhibits a diagonal skew).
                 from seedsigner.hardware.displays.ST7789 import ST7789 as original_ST7789
-                return original_ST7789(_width=width, _height=height)
+                return original_ST7789(_width=width, _height=height, initial_gamma_curve=gamma_curve)
 
             elif width == 320:
                 from seedsigner.hardware.displays.st7789_mpy import ST7789 as mpy_ST7789
                 # Have to swap width and height; screen is natively 240x320
-                return mpy_ST7789(_width=height, _height=width)
+                return mpy_ST7789(_width=height, _height=width, initial_gamma_curve=gamma_curve)
 
         elif display_type == DISPLAY_TYPE__ILI9341:
             from seedsigner.hardware.displays.ili9341 import ILI9341
