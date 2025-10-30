@@ -5,7 +5,7 @@ from gettext import gettext as _
 from seedsigner.helpers.l10n import mark_for_translation as _mft
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.view import BackStackView, ErrorView, MainMenuView, NotYetImplementedView, View, Destination
-from seedsigner.gui.screens.screen import ButtonOption
+from seedsigner.gui.screens.screen import ButtonOption, RET_CODE__BACK_BUTTON
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class ScanView(View):
         from seedsigner.gui.screens.scan_screens import ScanScreen
 
         # Start the live preview and background QR reading
-        self.run_screen(
+        scan_results = self.run_screen(
             ScanScreen,
             instructions_text=self.instructions_text,
             decoder=self.decoder
@@ -52,6 +52,9 @@ class ScanView(View):
         # A long scan might have exceeded the screensaver timeout; ensure screensaver
         # doesn't immediately engage when we leave here.
         self.controller.reset_screensaver_timeout()
+
+        if scan_results == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
 
         # Handle the results
         if self.decoder.is_complete:
@@ -79,15 +82,23 @@ class ScanView(View):
                     # Found a valid mnemonic seed! All new seeds should be considered
                     #   pending (might set a passphrase, SeedXOR, etc) until finalized.
                     from seedsigner.models.seed import Seed
-                    from .seed_views import SeedFinalizeView
-                    self.controller.storage.set_pending_seed(
-                        Seed(mnemonic=seed_mnemonic, wordlist_language_code=self.wordlist_language_code)
-                    )
-                    if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
-                        from seedsigner.views.seed_views import SeedAddPassphraseView
-                        return Destination(SeedAddPassphraseView)
+                    from .seed_views import SeedFinalizeView, RebuildSeedXORShowFingerprintView
+                    
+                    # Create the seed object from the mnemonic
+                    new_seed = Seed(mnemonic=seed_mnemonic, wordlist_language_code=self.wordlist_language_code)
+                    
+                    if hasattr(self, "is_rebuild_seedxor_shard") and self.is_rebuild_seedxor_shard:
+                        # The seed is not yet validated for the SeedXOR operation, so we just
+                        #   pass it to the next View as a pending_seed.
+                        self.controller.storage.set_pending_seed(new_seed)
+                        return Destination(RebuildSeedXORShowFingerprintView)
                     else:
-                        return Destination(SeedFinalizeView)
+                        self.controller.storage.set_pending_seed(new_seed)
+                        if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
+                            from seedsigner.views.seed_views import SeedAddPassphraseView
+                            return Destination(SeedAddPassphraseView)
+                        else:
+                            return Destination(SeedFinalizeView)
             
             elif self.decoder.is_psbt:
                 from seedsigner.views.psbt_views import PSBTSelectSeedView
@@ -183,7 +194,11 @@ class ScanPSBTView(ScanView):
 class ScanSeedQRView(ScanView):
     instructions_text = _mft("Scan SeedQR")
     invalid_qr_type_message = _mft("Expected a SeedQR")
-
+    
+    def __init__(self, is_rebuild_seedxor_shard=False):
+        super().__init__()
+        self.is_rebuild_seedxor_shard = is_rebuild_seedxor_shard
+        
     @property
     def is_valid_qr_type(self):
         return self.decoder.is_seed

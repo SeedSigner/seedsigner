@@ -15,7 +15,7 @@ from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
 from seedsigner.views.screensaver import ScreensaverScreen
 from seedsigner.views.view import Destination
-
+from seedsigner.helpers.seed_xor_validator import SeedXORValidator
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +132,7 @@ class Controller(Singleton):
     FLOW__VERIFY_SINGLESIG_ADDR = "singlesig_addr"
     FLOW__ADDRESS_EXPLORER = "address_explorer"
     FLOW__SIGN_MESSAGE = "sign_message"
+    FLOW__REBUILD_SEEDXOR = "rebuild_seedxor"
     resume_main_flow: str = None
 
     back_stack: BackStack = None
@@ -228,6 +229,29 @@ class Controller(Singleton):
             del self.storage.seeds[seed_num]
         else:
             raise Exception(f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory.")
+        
+    def validate_rebuild_seedxor_shard(self, new_shard_seed: Seed):
+        existing_shards = self.storage.get_rebuild_seedxor_shards()
+        is_valid, error_dict = SeedXORValidator.validate_shard(new_shard_seed, existing_shards)
+        if not is_valid:
+            return error_dict
+        return None
+        
+    def process_rebuild_seedxor_shard(self, new_shard_seed: Seed):
+        error_dict = self.validate_rebuild_seedxor_shard(new_shard_seed)
+        if error_dict:
+            return error_dict
+        self.storage.add_rebuild_seedxor_shard(new_shard_seed)
+        return None
+            
+    def remove_rebuild_seedxor_shard(self, index: int):
+        shards = self.storage.get_rebuild_seedxor_shards()
+        if 0 <= index < len(shards):
+            shards.pop(index)
+            self.storage.rebuild_seedxor_combined_seed = None
+    
+    def clear_rebuild_seedxor_data(self):
+        self.storage.clear_rebuild_seedxor_data()
 
 
     def pop_prev_from_back_stack(self):
