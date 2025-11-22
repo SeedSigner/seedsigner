@@ -350,7 +350,7 @@ class PSBTChangeDetailsView(View):
             title = _("Your Change")
         else:
             title = _("Self-Transfer")
-            self.VERIFY_MULTISIG.button_label = _("Verify Multisig Addr")
+            self.VERIFY_MULTISIG.button_label = _("Verify multisig addr")
         # if psbt_parser.num_change_outputs > 1:
         #     title += f" (#{self.change_address_num + 1})"
 
