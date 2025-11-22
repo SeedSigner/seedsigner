@@ -525,7 +525,6 @@ class SeedElectrumMnemonicStartView(View):
 ****************************************************************************"""
 class SeedOptionsView(View):
     SCAN_PSBT = ButtonOption("Scan transaction", SeedSignerIconConstants.QRCODE)
-    VERIFY_ADDRESS = ButtonOption("Verify addr")
     EXPORT_XPUB = ButtonOption("Export xpub")
     EXPLORER = ButtonOption("Address explorer")
     SIGN_MESSAGE = ButtonOption("Sign message")
@@ -571,12 +570,6 @@ class SeedOptionsView(View):
 
         button_data = []
 
-        if self.controller.unverified_address:
-            # TODO: Verify that an addr verification flow can actually reach this code
-            addr = self.controller.unverified_address["address"][:7]
-            self.VERIFY_ADDRESS.button_label += f" {addr}"
-            button_data.append(self.VERIFY_ADDRESS)
-
         button_data.append(self.SCAN_PSBT)
         
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
@@ -608,9 +601,6 @@ class SeedOptionsView(View):
             from seedsigner.views.scan_views import ScanPSBTView
             self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
             return Destination(ScanPSBTView)
-
-        elif button_data[selected_menu_num] == self.VERIFY_ADDRESS:
-            return Destination(SeedAddressVerificationView, view_args=dict(seed_num=self.seed_num))
 
         elif button_data[selected_menu_num] == self.EXPORT_XPUB:
             return Destination(SeedExportXpubSigTypeView, view_args=dict(seed_num=self.seed_num))
