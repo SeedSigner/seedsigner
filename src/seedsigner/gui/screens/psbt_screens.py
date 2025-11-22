@@ -668,40 +668,47 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
         ))
 
+        screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+
+        if self.is_change_derivation_path :
+            # TRANSLATOR_NOTE: Describes the address type (change or receive)
+            addr_type = _("change address")
+        else: 
+            addr_type = _("receive address")
+
+        # TRANSLATOR_NOTE: Symbol for index number, e.g. "address #3"
+        index_num_symbol = _("#")
+
+        # note: NOT marking this for translation, hoping that the var ordering will not
+        # need to change in other languages.
+        value_text = f"{addr_type} {index_num_symbol}{self.derivation_path_addr_index}"
+        self.components.append(TextArea(
+            text=value_text,
+            font_color=GUIConstants.LABEL_FONT_COLOR,
+            font_size=GUIConstants.LABEL_FONT_SIZE,
+            is_text_centered=True,
+            screen_x=GUIConstants.EDGE_PADDING,
+            screen_y=screen_y,
+        ))
+
         self.components.append(FormattedAddress(
             screen_y=self.components[-1].screen_y + self.components[-1].height,
             address=self.address,
             max_lines=1,
         ))
 
-        screen_y = self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING
-
-        change_type = _("Multisig") if self.is_multisig else self.fingerprint
-
-        if self.is_change_derivation_path :
-            addr_type = _("Change")
-        else: 
-            # TRANSLATOR_NOTE: Abbreviation for receive address
-            addr_type = _("Addr")
-
-        value_text = "{}: {} #{}".format(change_type, addr_type, self.derivation_path_addr_index)
-        self.components.append(IconTextLine(
-            value_text=value_text,
-            icon_name=SeedSignerIconConstants.FINGERPRINT,
-            icon_color=GUIConstants.INFO_COLOR,
-            is_text_centered=False,
-            screen_x=GUIConstants.EDGE_PADDING,
-            screen_y=screen_y,
-        ))
-
         if self.is_change_addr_verified:
+            # How much empty space is left between the bottom of the addr and the first button?
+            available_y = self.buttons[0].screen_y - (self.components[-1].screen_y + self.components[-1].height)
+
             self.components.append(IconTextLine(
                 icon_name=SeedSignerIconConstants.SUCCESS,
                 icon_color=GUIConstants.SUCCESS_COLOR,
                 value_text=_("Address verified!"),
-                is_text_centered=False,
+                is_text_centered=True,
                 screen_x=GUIConstants.EDGE_PADDING,
-                screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+                screen_y=self.components[-1].screen_y + self.components[-1].height,
+                height=available_y,  # Let the component auto-center vertically
             ))
 
 
