@@ -127,7 +127,7 @@ class ToolsImageEntropyMnemonicLengthView(View):
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=_("Mnemonic Length?"),
+            title=_("Mnemonic Length"),
             button_data=button_data,
         )
 

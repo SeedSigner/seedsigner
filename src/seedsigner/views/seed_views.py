@@ -179,7 +179,7 @@ class LoadSeedView(View):
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=_("Load A Seed"),
+            title=_("Load a Seed"),
             is_button_text_centered=False,
             button_data=button_data
         )
@@ -508,7 +508,7 @@ class SeedElectrumMnemonicStartView(View):
     def run(self):
         self.run_screen(
                 WarningScreen,
-                title=_("Electrum warning"),
+                title=_("Electrum Warning"),
                 status_headline=None,
                 text=_("Some features are disabled for Electrum seeds."),
                 show_back_button=False,
