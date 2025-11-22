@@ -1868,7 +1868,8 @@ class SeedAddressVerificationView(View):
         self.seed_derivation_override = ""
         if not self.is_multisig:
             if seed_num is None:
-                raise Exception(_("Can't validate a single sig addr without specifying a seed"))
+                # Shouldn't be able to get here
+                raise Exception("Can't validate a single sig addr without specifying a seed")
             self.seed_num = seed_num
             self.seed = self.controller.get_seed(seed_num)
             self.seed_derivation_override = self.seed.derivation_override(sig_type=SettingsConstants.SINGLE_SIG)
