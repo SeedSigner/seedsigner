@@ -572,7 +572,7 @@ class PSBTSignedQRDisplayView(View):
 
 
 class PSBTSigningErrorView(View):
-    SELECT_DIFF_SEED = ButtonOption("Select diff seed")
+    SELECT_DIFF_SEED = ButtonOption("Select different seed")
     
     def run(self):
         psbt_parser: PSBTParser = self.controller.psbt_parser
