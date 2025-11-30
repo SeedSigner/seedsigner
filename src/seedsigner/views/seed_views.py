@@ -673,8 +673,8 @@ class SeedOptionsView(View):
 
 
 class SeedBackupView(View):
-    VIEW_WORDS = ButtonOption("View seed words")
-    VIEW_DECIMAL = ButtonOption("View seed index numbers")
+    VIEW_WORDS = ButtonOption("View as words")
+    VIEW_DECIMAL = ButtonOption("View as numbers")
     EXPORT_SEEDQR = ButtonOption("Export as SeedQR")
 
     def __init__(self, seed_num):
