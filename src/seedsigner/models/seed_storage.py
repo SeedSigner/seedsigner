@@ -161,8 +161,34 @@ class SeedStorage:
         self._pending_shamir_share_set = []
         self._pending_shamir_num_words = None
 
+    def get_pending_shamir_threshold(self) -> int | None:
+        """Return threshold based on the first parsed share."""
+        if not self._pending_shamir_share_set:
+            return None
+
+        try:
+            from embit import slip39
+            first_share = " ".join(self._pending_shamir_share_set[0])
+            share = slip39.Share.parse(first_share)
+        except Exception:
+            return None
+
+        return share.group_threshold
+
+
+    def can_finalize_pending_shamir_share_set(self, passphrase: str = "") -> bool:
+        """Return True if the current share set can reconstruct a Shamir seed."""
+        if not self._pending_shamir_share_set:
+            return False
+        
+        try:
+            ShamirSeed(self._pending_shamir_share_set, passphrase)
+        except InvalidSeedException:
+            return False
+
+        return True
+
     def convert_pending_shamir_share_set_to_pending_seed(self, passphrase: str = '', finalize: bool = True):
-        share_set_formatted = [" ".join(share) for share in self._pending_shamir_share_set]
         self.pending_seed = ShamirSeed(self._pending_shamir_share_set, passphrase)
         self.pending_seed.set_passphrase(passphrase)
         if finalize:
