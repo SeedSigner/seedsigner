@@ -149,25 +149,15 @@ class TestPSBTParser:
             assert PSBTParser.has_matching_input_fingerprint(psbt, PSBTTestData.multisig_key_3)
 
 
-    def test_zero_fingerprint_handling(self):
+    def test_missing_fingerprint_handling(self):
         """
-        PSBTParser should correctly handle PSBTs with zero fingerprints (created from XPUB-only imports, 
+        PSBTParser should correctly handle PSBTs with missing fingerprints (created from XPUB-only imports, 
         without derivation path) by matching public keys against the seed and filling in correct fingerprints.
         """
-        for input in PSBTTestData.ALL_INPUTS:
+        for input in PSBTTestData.SINGLE_SIG_INPUTS:
             psbt = PSBT.parse(a2b_base64(input))
             
-            # Backup original derivations
-            original_derivations = []
-            original_taproot_derivations = []
-            for inp in psbt.inputs:
-                for pub, derivation in inp.bip32_derivations.items():
-                    original_derivations.append((pub, derivation))
-
-                for pub, (leaf_hashes, derivation) in inp.taproot_bip32_derivations.items():
-                    original_taproot_derivations.append((pub, leaf_hashes, derivation))
-            
-            # Set fingerprints to zero to simulate XPUB-only import
+            # Set fingerprints to zero to simulate XPUB-only import (missing fingerprint)
             from embit.psbt import DerivationPath
             for inp in psbt.inputs:
                 for pub, derivation in inp.bip32_derivations.items():
@@ -182,39 +172,32 @@ class TestPSBTParser:
                         derivation=derivation.derivation
                     ))
             
-            # Verify that has_matching_input_fingerprint works with zero fingerprints
-            # This tests the fallback mechanism that tries to derive and match pubkeys
+            # Test that has_matching_input_fingerprint can correctly identify that an input 
+            # from the psbt does belong to the provided seed, even when the fingerprints 
+            # (in the inputs' bip32 derivations) have been zeroed out.
             assert PSBTParser.has_matching_input_fingerprint(psbt, PSBTTestData.seed, SettingsConstants.REGTEST)
             
             # Test that it correctly rejects wrong seeds
             wrong_seed = Seed(["bacon"] * 24)
-            assert PSBTParser.has_matching_input_fingerprint(psbt, wrong_seed, SettingsConstants.REGTEST) == False
+            assert not PSBTParser.has_matching_input_fingerprint(psbt, wrong_seed, SettingsConstants.REGTEST)
             
-            # Test the PSBTParser's ability to fill zero fingerprints during parsing
+            # Test the PSBTParser's ability to fill missing fingerprints during parsing
             parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
             
             # Verify fingerprints were correctly filled after parsing
             seed_fingerprint = parser.seed.get_fingerprint(SettingsConstants.REGTEST)
-            fingerprints_filled = False
             
             for inp in parser.psbt.inputs:
                 for pub, derivation in inp.bip32_derivations.items():
-                    if derivation.fingerprint != b"\x00\x00\x00\x00":
-                        fingerprints_filled = True
-                        # Should match the seed's fingerprint
-                        from binascii import hexlify
-                        assert hexlify(derivation.fingerprint).decode() == seed_fingerprint
-                
+                    # Must match the signing seed's fingerprint
+                    from binascii import hexlify
+                    assert hexlify(derivation.fingerprint).decode() == seed_fingerprint
+
                 # Also check Taproot derivations
                 for pub, (leaf_hashes, derivation) in inp.taproot_bip32_derivations.items():
-                    if derivation.fingerprint != b"\x00\x00\x00\x00":
-                        fingerprints_filled = True
-                        # Should match the seed's fingerprint
-                        from binascii import hexlify
-                        assert hexlify(derivation.fingerprint).decode() == seed_fingerprint
-            
-            # Fingerprints should have been filled
-            assert fingerprints_filled > 0
+                    # Must match the signing seed's fingerprint
+                    from binascii import hexlify
+                    assert hexlify(derivation.fingerprint).decode() == seed_fingerprint
 
 
     def test_trim_and_sig_count(self):
