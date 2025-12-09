@@ -6,7 +6,7 @@ from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath, InputScope, OutputScope
 from embit.ec import PublicKey
 from io import BytesIO
-from typing import List, Union
+from typing import List
 
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
@@ -81,13 +81,6 @@ class PSBTParser():
         self._set_root()
 
         # Try to fix missing fingerprints before parsing
-        # NOTE: Some wallets (e.g. BlueWallet) import an xpub without origin
-        # fingerprint/derivation info and write a zero fingerprint (0x00000000)
-        # into PSBTs. SeedSigner historically relied on PSBT-provided fingerprints
-        # to identify change outputs and would fail to sign these PSBTs. This call
-        # attempts a best-effort repair: derive keys from the loaded seed and
-        # replace missing fingerprints when a derived pubkey matches the PSBT pubkey.
-        # See GitHub issue: https://github.com/SeedSigner/seedsigner/issues/359 for full context.
         self._fill_missing_fingerprints()
 
         rt = self._parse_inputs()
@@ -426,15 +419,21 @@ class PSBTParser():
 
 
     def _fill_missing_fingerprints(self):
-        """Fix for when fingerprint is missing (defaults to all zeros). Happens when the user imports the wallet
-        with XPUB only (fingerprint and derivation path were omitted).
+        """
+        Fix for when fingerprint is missing (defaults to all zeros). Happens when the user
+        creates a new wallet in an external coordinator but only provides the xpub
+        (fingerprint and derivation path are omitted).
+
+        Filling the missing fingerprints allows SeedSigner to correctly identify inputs /
+        outputs that belong to the signing seed.
+
+        see: https://github.com/SeedSigner/seedsigner/issues/359
         """
         if not self.root:
             return 0
         
         def _fill_scope(scope: InputScope | OutputScope):
             """Helper function to fill missing fingerprints in a scope (input/output)"""
-            filled = 0
             signing_seed_fingerprint = self.root.child(0).fingerprint
             
             # Helper function to check and fix fingerprint
