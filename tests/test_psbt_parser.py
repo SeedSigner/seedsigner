@@ -154,7 +154,7 @@ class TestPSBTParser:
         PSBTParser should correctly handle PSBTs with missing fingerprints (created from XPUB-only imports, 
         without derivation path) by matching public keys against the seed and filling in correct fingerprints.
         """
-        for input in PSBTTestData.SINGLE_SIG_INPUTS:
+        for input in PSBTTestData.ALL_INPUTS:
             psbt = PSBT.parse(a2b_base64(input))
             
             # Set fingerprints to zero to simulate XPUB-only import (missing fingerprint)
@@ -189,15 +189,31 @@ class TestPSBTParser:
             
             for inp in parser.psbt.inputs:
                 for pub, derivation in inp.bip32_derivations.items():
-                    # Must match the signing seed's fingerprint
                     from binascii import hexlify
-                    assert hexlify(derivation.fingerprint).decode() == seed_fingerprint
+                    fingerprint_hex = hexlify(derivation.fingerprint).decode()
+                    
+                    # Check if this public key derives from the current seed
+                    derived_key = parser.root.derive(derivation.derivation)
+                    if derived_key.key.sec() == pub.sec():
+                        # This pubkey derives from current seed, should have current seed's fingerprint
+                        assert fingerprint_hex == seed_fingerprint, f"Expected {seed_fingerprint}, got {fingerprint_hex} for pubkey that derives from current seed"
+                    else:
+                        # This pubkey doesn't derive from current seed, should remain 00000000
+                        assert fingerprint_hex == "00000000"
 
                 # Also check Taproot derivations
                 for pub, (leaf_hashes, derivation) in inp.taproot_bip32_derivations.items():
-                    # Must match the signing seed's fingerprint
                     from binascii import hexlify
-                    assert hexlify(derivation.fingerprint).decode() == seed_fingerprint
+                    fingerprint_hex = hexlify(derivation.fingerprint).decode()
+                    
+                    # Check if this public key derives from the current seed
+                    derived_key = parser.root.derive(derivation.derivation)
+                    if derived_key.key.sec() == pub.sec():
+                        # This pubkey derives from current seed, should have current seed's fingerprint
+                        assert fingerprint_hex == seed_fingerprint, f"Expected {seed_fingerprint}, got {fingerprint_hex} for taproot pubkey that derives from current seed"
+                    else:
+                        # This pubkey doesn't derive from current seed, should remain 00000000
+                        assert fingerprint_hex == "00000000"
 
 
     def test_trim_and_sig_count(self):
