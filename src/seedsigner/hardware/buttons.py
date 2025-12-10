@@ -64,13 +64,6 @@ class HardwareButtons(Singleton):
         return cls._instance
 
 
-    @classmethod
-    def get_instance_no_hardware(cls):
-        # This is the only way to access the one and only instance
-        if cls._instance is None:
-            cls._instance = cls.__new__(cls)
-
-
     def wait_for(self, keys=[]) -> int:
         """
         Block execution until one of the target keys is pressed.
