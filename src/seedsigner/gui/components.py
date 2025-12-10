@@ -35,7 +35,7 @@ class GUIConstants:
     ERROR_COLOR = "#FF1B0A"
     SUCCESS_COLOR = "#30D158"
     INFO_COLOR = "#409CFF"
-    BITCOIN_ORANGE = "#FF9416"
+    # BITCOIN_ORANGE = "#FF9416"  # not used
     TESTNET_COLOR = "#00F100"
     REGTEST_COLOR = "#00CAF1"
     GREEN_INDICATOR_COLOR = "#00FF00"
@@ -167,14 +167,9 @@ class GUIConstants:
 
 class FontAwesomeIconConstants:
     ANGLE_DOWN = "\uf107"
-    ANGLE_LEFT = "\uf104"
-    ANGLE_RIGHT = "\uf105"
     ANGLE_UP = "\uf106"
     CAMERA = "\uf030"
-    CHEVRON_UP = "\uf077"
-    CHEVRON_DOWN = "\uf078"
     CIRCLE = "\uf111"
-    CIRCLE_CHEVRON_RIGHT = "\uf138"
     DICE = "\uf522"
     DICE_ONE = "\uf525"
     DICE_TWO = "\uf528"
@@ -183,15 +178,7 @@ class FontAwesomeIconConstants:
     DICE_FIVE = "\uf523"
     DICE_SIX = "\uf526"
     KEYBOARD = "\uf11c"
-    LOCK = "\uf023"
     MAP = "\uf279"
-    PAPER_PLANE = "\uf1d8"
-    PEN = "\uf304"
-    SQUARE_CARET_DOWN = "\uf150"
-    SQUARE_CARET_LEFT = "\uf191"
-    SQUARE_CARET_RIGHT = "\uf152"
-    SQUARE_CARET_UP = "\uf151"
-    UNLOCK = "\uf09c"
     X = "\u0058"
 
 
@@ -212,9 +199,9 @@ class SeedSignerIconConstants:
     CHEVRON_LEFT = "\ue909"
     CHEVRON_RIGHT = "\ue90a"
     CHEVRON_UP = "\ue90b"
-    CLOSE = "\ue90c"
-    PAGE_DOWN = "\ue90d"
-    PAGE_UP = "\ue90e"
+    # CLOSE = "\ue90c"  # Unused icons
+    # PAGE_DOWN = "\ue90d"
+    # PAGE_UP = "\ue90e"
     PLUS = "\ue90f"
     POWER = "\ue910"
     RESTART = "\ue911"
@@ -226,17 +213,17 @@ class SeedSignerIconConstants:
     ERROR = "\ue915"
 
     # Informational icons
-    ADDRESS = "\ue916"
+    # ADDRESS = "\ue916"
     CHANGE = "\ue917"
     DERIVATION = "\ue918"
-    FEE = "\ue919"
+    # FEE = "\ue919"
     FINGERPRINT = "\ue91a"
     PASSPHRASE = "\ue91b"
 
     # Misc icons
-    BITCOIN = "\ue91c"
+    # BITCOIN = "\ue91c"
     BITCOIN_ALT = "\ue91d"
-    BRIGHTNESS = "\ue91e"
+    # BRIGHTNESS = "\ue91e"
     MICROSD = "\ue91f"
     QRCODE = "\ue920"
     SIGN = "\ue921"
@@ -248,40 +235,6 @@ class SeedSignerIconConstants:
     # Must be updated whenever new icons are added. See usage in `Icon` class below.
     MIN_VALUE = SCAN
     MAX_VALUE = SPACE
-
-
-
-def calc_text_centering(font: ImageFont,
-                        text: str,
-                        is_text_centered: bool,
-                        total_width: int,
-                        total_height: int,
-                        start_x: int = 0,
-                        start_y: int = 0) -> Tuple[int, int]:
-    # see: https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html#text-anchors
-
-    # Gap between the starting coordinate and the first marking.
-    offset_x, offset_y = font.getoffset(text)
-
-    # Bounding box of the actual pixels rendered.
-    (box_left, box_top, box_right, box_bottom) = font.getbbox(text, anchor='lt')
-
-    # Ascender/descender are oversized ranges baked into the font.
-    ascent, descent = font.getmetrics()
-
-    # print(f"""----- "{text}" / {font.getname()} -----""")
-    # print(f"offset_x: {offset_x} | offset_y: {offset_y})")
-    # print(f"box_left: {box_left} |  box_top: {box_top} | box_right: {box_right} | box_bottom: {box_bottom}")
-    # print(f"ascent: {ascent} | descent: {descent})")
-
-    if is_text_centered:
-        text_x = int((total_width - (box_right - offset_x)) / 2) - offset_x
-    else:
-        text_x = GUIConstants.COMPONENT_PADDING
-
-    text_y = int((total_height - (ascent - offset_y)) / 2) - offset_y
-
-    return (start_x + text_x, start_y + text_y)
 
 
 
@@ -1083,7 +1036,6 @@ class BtcAmount(BaseComponent):
 
     def __post_init__(self):
         super().__post_init__()
-        self.sub_components: List[BaseComponent] = []
         self.paste_image: Image.Image = None
         self.paste_coords = None
         denomination = Settings.get_instance().get_value(SettingsConstants.SETTING__BTC_DENOMINATION)
