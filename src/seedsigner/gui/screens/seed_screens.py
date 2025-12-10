@@ -9,11 +9,13 @@ from typing import List
 
 from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
 from seedsigner.helpers.qr import QR
+from seedsigner.helpers.bip39.utils import get_possible_alphabet
 from seedsigner.gui.components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddress, IconButton,
     IconTextLine, SeedSignerIconConstants, TextArea, GUIConstants, reflow_text_into_pages)
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.gui.renderer import Renderer
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
+from seedsigner.models.settings import SettingsConstants
 
 from .screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, ButtonOption, KeyboardScreen, LargeIconStatusScreen, WarningEdgesMixin
 
@@ -25,13 +27,15 @@ logger = logging.getLogger(__name__)
 class SeedMnemonicEntryScreen(BaseTopNavScreen):
     initial_letters: list = None
     wordlist: list = None
+    charset: str = None
+    wordlist_language_code: str = SettingsConstants.LOCALE__ENGLISH
 
     def __post_init__(self):
         super().__post_init__()
-
-        self.possible_alphabet = "abcdefghijklmnopqrstuvwxyz"
-
-        # Measure the width required to display the longest word in the English BIP-39
+        self.possible_alphabet = self.charset
+        # We shouldn't assume that the initial_letters are being passed without accents
+        self.initial_letters = list(self.remove_accents("".join(self.initial_letters)).strip())
+        # Measure the width required to display the longest word in the English bip39
         # wordlist.
         # TODO: If we ever support other wordlist languages, adjust accordingly.
         matches_list_highlight_font_name = GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME
@@ -48,10 +52,9 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         self.arrow_up_is_active = False
         self.arrow_down_is_active = False
 
-        # TODO: support other BIP-39 languages/charsets
         self.keyboard = Keyboard(
             draw=self.image_draw,
-            charset=self.possible_alphabet,
+            charset=self.charset,
             rows=5,
             cols=6,
             rect=(
@@ -92,7 +95,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         self.highlighted_row_y = int((self.canvas_height - GUIConstants.BUTTON_HEIGHT)/2)
 
         self.matches_list_highlight_button = Button(
-            text="abcdefghijklmnopqrstuvwxyz",
+            text=self.charset,
             is_text_centered=False,
             font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
             font_size=GUIConstants.get_button_font_size() + 4,
@@ -126,10 +129,17 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
         )
 
         self.word_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, GUIConstants.get_button_font_size() + 4)
-        (left, top, right, bottom) = self.word_font.getbbox("abcdefghijklmnopqrstuvwxyz", anchor="ls")
+        (left, top, right, bottom) = self.word_font.getbbox(self.charset, anchor="ls")
         self.word_font_height = -1 * top
         self.matches_list_row_height = self.word_font_height + GUIConstants.COMPONENT_PADDING
 
+
+    def remove_accents(self, text):
+        import unicodedata
+        return ''.join(
+            c for c in unicodedata.normalize('NFKD', text)
+            if not unicodedata.combining(c) # base characters have a combining class of 0
+        )
 
     def calc_possible_alphabet(self, new_letter = False):
         if (self.letters and len(self.letters) > 1 and new_letter == False) or (len(self.letters) > 0 and new_letter == True):
@@ -140,18 +150,21 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
             letter_num = len(search_letters)
             possible_letters = []
             for word in self.possible_words:
+                word = self.remove_accents(word);
                 if len(word)-1 >= letter_num:
                     possible_letters.append(word[letter_num])
             # remove duplicates and keep order
-            self.possible_alphabet = list(dict.fromkeys(possible_letters))[:]
+            self.possible_alphabet = ''.join(dict.fromkeys(possible_letters))
         else:
-            self.possible_alphabet = "abcdefghijklmnopqrstuvwxyz"
+            self.possible_alphabet = self.charset
             self.possible_words = []
 
 
     def calc_possible_words(self):
-        self.possible_words = [i for i in self.wordlist if i.startswith("".join(self.letters).strip())]
-        self.selected_possible_words_index = 0        
+        import unicodedata
+        input_text = "".join(self.letters).strip()
+        self.possible_words = [i for i in self.wordlist if unicodedata.normalize('NFKD', self.remove_accents(i)).startswith(input_text)]
+        self.selected_possible_words_index = 0
 
 
     def render_possible_matches(self, highlight_word=None):
@@ -294,7 +307,8 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                         self.calc_possible_alphabet()
                         self.keyboard.update_active_keys(active_keys=self.possible_alphabet)
                         self.keyboard.render_keys()
-                            
+                        self.text_entry_display.render()
+
                         # Update the right-hand possible matches area
                         self.render_possible_matches()
 
@@ -1052,11 +1066,11 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                     # Leave current spot blank for now. Only update the active keyboard keys
                     # when a selection has been locked in (KEY_PRESS) or removed ("del").
                     pass
-            
+             
                 if keyboard_swap:
                     # Show the hw buttons' updated text and not active state
                     self.hw_button1.text = cur_button1_text
-                    self.hw_button2.text = cur_button2_text                
+                    self.hw_button2.text = cur_button2_text
                     self.hw_button1.is_selected = False
                     self.hw_button2.is_selected = False
                     self.hw_button1.render()
@@ -1110,7 +1124,7 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
                 passphrase = []
                 for i in range(0, len(self.passphrase), chars_per_line):
                     passphrase.append(self.passphrase[i:i+chars_per_line])
-                
+
                 # See if it fits in this configuration
                 if char_width * len(passphrase[0]) <= self.canvas_width - 2*GUIConstants.EDGE_PADDING:
                     # Width is good...
@@ -1482,7 +1496,7 @@ class SeedAddressVerificationScreen(ButtonListScreen):
             threadsafe_counter=self.threadsafe_counter,
             verified_index=self.verified_index,
         ))
-    
+
 
     def _run_callback(self):
         # Exit the screen on success via a non-None value.
@@ -1502,7 +1516,7 @@ class SeedAddressVerificationScreen(ButtonListScreen):
             self.threadsafe_counter = threadsafe_counter
             self.verified_index = verified_index
             super().__init__()
-        
+
 
         def run(self):
             while self.keep_running:

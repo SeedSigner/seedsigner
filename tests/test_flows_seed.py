@@ -13,6 +13,20 @@ from seedsigner.views.view import MainMenuView, OptionDisabledView, View, Networ
 from seedsigner.views import seed_views, scan_views, settings_views
 
 
+# Test wordlist languages and corresponding test mnemonics
+WORDLIST_LANGUAGES = [
+    SettingsConstants.LOCALE__ENGLISH,
+    SettingsConstants.LOCALE__SPANISH,
+]
+
+TEST_MNEMONICS = {
+    SettingsConstants.LOCALE__ENGLISH: "tone flat shed cool census soul paddle boy flight fantasy stem social".split(),
+    SettingsConstants.LOCALE__SPANISH: ["ábaco"] * 11 + ["abierto"],
+} 
+
+
+
+
 def load_seed_into_decoder(view: scan_views.ScanView):
     view.decoder.add_data("0000" * 11 + "0003")
 
@@ -59,9 +73,12 @@ class TestSeedFlows(FlowTest):
         """
             Manually entering a mnemonic should land at the Finalize Seed flow and end at
             the SeedOptionsView.
-        """
-        def test_with_mnemonic(mnemonic):
+        """ 
+        @pytest.mark.parametrize("wordlist_language_code", WORDLIST_LANGUAGES)
+        def test_with_mnemonic(mnemonic, wordlist_language_code):
             Settings.HOSTNAME = "not seedsigner-os"
+            settings = Settings.get_instance()
+            settings.set_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE, wordlist_language_code)
             sequence = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
@@ -69,6 +86,10 @@ class TestSeedFlows(FlowTest):
             ]
 
             # Now add each manual word entry step
+
+            if(wordlist_language_code != SettingsConstants.LOCALE__ENGLISH):
+                sequence.append(FlowStep(seed_views.SeedWordlistLanguageWarningView))
+
             for word in mnemonic:
                 sequence.append(
                     FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=word)
@@ -83,30 +104,42 @@ class TestSeedFlows(FlowTest):
             self.run_sequence(sequence)
 
         # Test data from iancoleman.io; 12- and 24-word mnemonic
-        test_with_mnemonic("tone flat shed cool census soul paddle boy flight fantasy stem social".split())
+        test_with_mnemonic("tone flat shed cool census soul paddle boy flight fantasy stem social".split(), wordlist_language_code=SettingsConstants.LOCALE__ENGLISH)
 
         BaseTest.reset_controller()
+        # Non english wordlist test
+        test_with_mnemonic("ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco abierto".split(), wordlist_language_code=SettingsConstants.LOCALE__SPANISH)
+        BaseTest.reset_controller()
 
-        test_with_mnemonic("cotton artefact spy mind wing there echo steak child oak awful host despair online bicycle divorce middle firm diamond rare execute chimney almost hollow".split())
+        test_with_mnemonic("cotton artefact spy mind wing there echo steak child oak awful host despair online bicycle divorce middle firm diamond rare execute chimney almost hollow".split(), wordlist_language_code=SettingsConstants.LOCALE__ENGLISH)
 
-
-    def test_invalid_mnemonic(self):
+    @pytest.mark.parametrize("wordlist_language_code", WORDLIST_LANGUAGES)
+    def test_invalid_mnemonic(self, wordlist_language_code):
         """ Should be able to go back and edit or discard an invalid mnemonic """
-        # Test data from iancoleman.io
-        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
+        # Set up the wordlist language
+        settings = Settings.get_instance()
+        settings.set_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE, wordlist_language_code)
+        
+        # Use test mnemonic for the specific language
+        mnemonic = TEST_MNEMONICS[wordlist_language_code]
         sequence = [
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
             FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
             FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_12WORD if len(mnemonic) == 12 else seed_views.LoadSeedView.TYPE_24WORD),
         ]
+        
+        # Add warning screen for non-English languages
+        if wordlist_language_code != SettingsConstants.LOCALE__ENGLISH:
+            sequence.append(FlowStep(seed_views.SeedWordlistLanguageWarningView))
+        
         for word in mnemonic[:-1]:
             sequence.append(FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=word))
 
+        invalid_checksum_word = "zebra" if wordlist_language_code == SettingsConstants.LOCALE__ENGLISH else "ábaco"  # Empty string for non-English languages
         sequence += [
-            FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value="zoo"),  # But finish with an INVALID checksum word
+            FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=invalid_checksum_word),  # But finish with an INVALID checksum word
             FlowStep(seed_views.SeedMnemonicInvalidView, button_data_selection=seed_views.SeedMnemonicInvalidView.EDIT),
         ]
-
         # Restarts from first word
         for word in mnemonic[:-1]:
             sequence.append(FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=word))
@@ -180,10 +213,15 @@ class TestSeedFlows(FlowTest):
         test_with_mnemonic("pioneer divide volcano art victory family grow novel mandate bicycle senior adjust".split(), expects_electrum_seed_is_valid=False)
 
 
-    def test_export_xpub_standard_flow(self):
+    @pytest.mark.parametrize("wordlist_language_code", WORDLIST_LANGUAGES)
+    def test_export_xpub_standard_flow(self, wordlist_language_code):
         """
             Selecting "Export XPUB" from the SeedOptionsView should enter the Export XPUB flow and end at the MainMenuView
         """
+        # Set up the wordlist language
+        settings = Settings.get_instance()
+        settings.set_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE, wordlist_language_code)
+        
         def flowtest_standard_xpub(sig_tuple, script_tuple, coord_tuple):
             if sig_tuple[0] == SettingsConstants.SINGLE_SIG:
                 sig_selection = seed_views.SeedExportXpubSigTypeView.SINGLE_SIG
@@ -203,9 +241,9 @@ class TestSeedFlows(FlowTest):
                 ]
         )
             
-        # Load a finalized Seed into the Controller
-        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
-        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        # Load a finalized Seed into the Controller with specified wordlist language
+        mnemonic = TEST_MNEMONICS[wordlist_language_code]
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic, wordlist_language_code=wordlist_language_code))
         self.controller.storage.finalize_pending_seed()
 
         # these are lists of (constant_value, display_name) tuples
@@ -233,13 +271,18 @@ class TestSeedFlows(FlowTest):
                         flowtest_standard_xpub(sig_tuple, script_tuple, coord_tuple)
 
 
-    def test_export_xpub_disabled_not_available_flow(self):
+    @pytest.mark.parametrize("wordlist_language_code", WORDLIST_LANGUAGES)
+    def test_export_xpub_disabled_not_available_flow(self, wordlist_language_code):
         """
             If sig_type/script_type/coordinator disabled, then these options are not available
         """
-        # Load a finalized Seed into the Controller
-        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
-        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        # Set up the wordlist language
+        settings = Settings.get_instance()
+        settings.set_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE, wordlist_language_code)
+        
+        # Load a finalized Seed into the Controller with specified wordlist language
+        mnemonic = TEST_MNEMONICS[wordlist_language_code]
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic, wordlist_language_code=wordlist_language_code))
         self.controller.storage.finalize_pending_seed()
 
         # these are lists of (constant_value, display_name) tuples
@@ -291,13 +334,18 @@ class TestSeedFlows(FlowTest):
             )
 
 
-    def test_export_xpub_custom_derivation_flow(self):
+    @pytest.mark.parametrize("wordlist_language_code", WORDLIST_LANGUAGES)
+    def test_export_xpub_custom_derivation_flow(self, wordlist_language_code):
         """
             Export XPUB flow for custom derivation finishes at MainMenuView
         """
-        # Load a finalized Seed into the Controller
-        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
-        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
+        # Set up the wordlist language
+        settings = Settings.get_instance()
+        settings.set_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE, wordlist_language_code)
+        
+        # Load a finalized Seed into the Controller with specified wordlist language
+        mnemonic = TEST_MNEMONICS[wordlist_language_code]
+        self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic, wordlist_language_code=wordlist_language_code))
         self.controller.storage.finalize_pending_seed()
 
         # enable custom derivation script_type setting (plus at least one more for a choice)

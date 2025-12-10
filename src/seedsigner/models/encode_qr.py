@@ -11,6 +11,7 @@ from embit.psbt import PSBT
 from seedsigner.helpers.ur2.ur_encoder import UREncoder
 from seedsigner.helpers.ur2.ur import UR
 from seedsigner.helpers.qr import QR
+from seedsigner.helpers.bip39.utils import get_bip39_wordlist
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 
@@ -86,11 +87,11 @@ class BaseStaticQrEncoder(BaseQrEncoder):
 @dataclass
 class SeedQrEncoder(BaseStaticQrEncoder):
     mnemonic: List[str] = None
-    wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
+    wordlist_language_code: str = SettingsConstants.LOCALE__ENGLISH
 
 
     def __post_init__(self):
-        self.wordlist = Seed.get_wordlist(self.wordlist_language_code)
+        self.wordlist = get_bip39_wordlist(self.wordlist_language_code)
         super().__post_init__()
 
         self.data = ""

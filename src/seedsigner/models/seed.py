@@ -9,6 +9,7 @@ from embit.networks import NETWORKS
 from typing import List
 
 from seedsigner.models.settings import SettingsConstants
+from seedsigner.helpers.bip39.utils import get_bip39_wordlist
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class Seed:
     def __init__(self,
                  mnemonic: List[str] = None,
                  passphrase: str = "",
-                 wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> None:
+                 wordlist_language_code: str = SettingsConstants.LOCALE__ENGLISH) -> None:
         self._wordlist_language_code = wordlist_language_code
 
         if not mnemonic:
@@ -36,13 +37,7 @@ class Seed:
         self._generate_seed()
 
 
-    @staticmethod
-    def get_wordlist(wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> List[str]:
-        # TODO: Support other BIP-39 wordlist languages!
-        if wordlist_language_code == SettingsConstants.WORDLIST_LANGUAGE__ENGLISH:
-            return bip39.WORDLIST
-        else:
-            raise Exception(f"Unrecognized wordlist_language_code {wordlist_language_code}")
+
 
 
     def _generate_seed(self):
@@ -108,12 +103,11 @@ class Seed:
 
     @property
     def wordlist(self) -> List[str]:
-        return Seed.get_wordlist(self.wordlist_language_code)
+        return get_bip39_wordlist(self.wordlist_language_code)
 
 
     def set_wordlist_language_code(self, language_code: str):
-        # TODO: Support other BIP-39 wordlist languages!
-        raise Exception("Not yet implemented!")
+        self._wordlist_language_code = language_code;
 
 
     @property
@@ -137,6 +131,8 @@ class Seed:
 
     @property
     def seedqr_supported(self) -> bool:
+        if self.wordlist_language_code is not SettingsConstants.LOCALE__ENGLISH:
+            return False
         return True
 
 
@@ -160,7 +156,6 @@ class Seed:
         """Derives the seed's nth BIP-85 child mnemonic"""
         root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
 
-        # TODO: Support other BIP-39 wordlist languages!
         return bip85.derive_mnemonic(root, bip85_num_words, bip85_index)
         
 

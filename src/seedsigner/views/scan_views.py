@@ -43,6 +43,9 @@ class ScanView(View):
         from seedsigner.gui.screens.scan_screens import ScanScreen
 
         # Start the live preview and background QR reading
+        if(self.wordlist_language_code is not SettingsConstants.LOCALE__ENGLISH):
+            return Destination(ScanUnsupportedWordlistLanguageView)
+
         self.run_screen(
             ScanScreen,
             instructions_text=self.instructions_text,
@@ -223,6 +226,19 @@ class ScanInvalidQRTypeView(View):
             title=_("Error"),
             status_headline=_("Unknown QR Type"),
             text=_("QRCode is invalid or is a data format not yet supported."),
+            button_data=[ButtonOption("Done")],
+        )
+
+        return Destination(MainMenuView, clear_history=True)
+class ScanUnsupportedWordlistLanguageView(View):
+    def run(self):
+        from seedsigner.gui.screens import WarningScreen
+
+        self.run_screen(
+            WarningScreen,
+            title=_("Error"),
+            status_headline=_("Unsupported wordlist language"),
+            text=_("Only the English wordlist language is supported for Scan QR currently."),
             button_data=[ButtonOption("Done")],
         )
 

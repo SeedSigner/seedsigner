@@ -293,23 +293,11 @@ class SettingsConstants:
         (CUSTOM_DERIVATION, _mft("Custom Derivation")),
     ]
 
-    WORDLIST_LANGUAGE__ENGLISH = "en"
-    WORDLIST_LANGUAGE__CHINESE_SIMPLIFIED = "zh_Hans_CN"
-    WORDLIST_LANGUAGE__CHINESE_TRADITIONAL = "zh_Hant_TW"
-    WORDLIST_LANGUAGE__FRENCH = "fr"
-    WORDLIST_LANGUAGE__ITALIAN = "it"
-    WORDLIST_LANGUAGE__JAPANESE = "jp"
-    WORDLIST_LANGUAGE__KOREAN = "kr"
-    WORDLIST_LANGUAGE__PORTUGUESE = "pt"
     ALL_WORDLIST_LANGUAGES = [
-        (WORDLIST_LANGUAGE__ENGLISH, "English"),
-        # (WORDLIST_LANGUAGE__CHINESE_SIMPLIFIED, "简体中文"),
-        # (WORDLIST_LANGUAGE__CHINESE_TRADITIONAL, "繁體中文"),
-        # (WORDLIST_LANGUAGE__FRENCH, "Français"),
-        # (WORDLIST_LANGUAGE__ITALIAN, "Italiano"),
-        # (WORDLIST_LANGUAGE__JAPANESE, "日本語"),
-        # (WORDLIST_LANGUAGE__KOREAN, "한국어"),
-        # (WORDLIST_LANGUAGE__PORTUGUESE, "Português"),
+        (LOCALE__ENGLISH, "English"),
+        (LOCALE__SPANISH, "Español"),
+        (LOCALE__FRENCH, "Français"),
+        (LOCALE__ITALIAN, "Italiano"),
     ]
 
     # Individual SettingsEntry attr_names
@@ -542,16 +530,6 @@ class SettingsDefinition:
                       selection_options=SettingsConstants.get_detected_languages(),
                       default_value=SettingsConstants.LOCALE__ENGLISH),
 
-        # TODO: Support other BIP-39 wordlist languages! Until then, type == HIDDEN
-        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
-                      attr_name=SettingsConstants.SETTING__WORDLIST_LANGUAGE,
-                      abbreviated_name="wordlist_lang",
-                      display_name=_mft("Mnemonic language"),
-                      type=SettingsConstants.TYPE__SELECT_1,
-                      visibility=SettingsConstants.VISIBILITY__HIDDEN,
-                      selection_options=SettingsConstants.ALL_WORDLIST_LANGUAGES,
-                      default_value=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH),
-
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__PERSISTENT_SETTINGS,
                       abbreviated_name="persistent",
@@ -636,6 +614,15 @@ class SettingsDefinition:
                       selection_options=SettingsConstants.OPTIONS__ENABLED_DISABLED_REQUIRED,
                       default_value=SettingsConstants.OPTION__ENABLED),
 
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__WORDLIST_LANGUAGE,
+                      abbreviated_name="wordlist_lang",
+                      display_name=_mft("BIP-39 wordlist"),
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      selection_options=SettingsConstants.ALL_WORDLIST_LANGUAGES,
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.LOCALE__ENGLISH),
+
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__CAMERA_ROTATION,
                       abbreviated_name="camera",
@@ -698,7 +685,6 @@ class SettingsDefinition:
                       display_name=_mft("Show partner logos"),
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__ENABLED),
-
 
         # Hardware config
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,

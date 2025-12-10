@@ -3,6 +3,7 @@ import random
 import time
 
 from binascii import hexlify
+from dataclasses import dataclass
 from gettext import gettext as _
 
 from embit.descriptor import Descriptor
@@ -11,6 +12,7 @@ from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconCo
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
 from seedsigner.gui.screens.screen import ButtonOption
+from seedsigner.helpers.bip39.utils import get_bip39_wordlist, get_possible_alphabet
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
@@ -174,7 +176,8 @@ class LoadSeedView(View):
 
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
-        
+        wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+
         button_data.append(self.CREATE)
 
         selected_menu_num = self.run_screen(
@@ -193,12 +196,18 @@ class LoadSeedView(View):
         
         elif button_data[selected_menu_num] == self.TYPE_12WORD:
             self.controller.storage.init_pending_mnemonic(num_words=12)
-            return Destination(SeedMnemonicEntryView)
+            if wordlist_language_code == SettingsConstants.LOCALE__ENGLISH:
+                return Destination(SeedMnemonicEntryView)
+            else:
+                return Destination(SeedWordlistLanguageWarningView)
 
         elif button_data[selected_menu_num] == self.TYPE_24WORD:
             self.controller.storage.init_pending_mnemonic(num_words=24)
-            return Destination(SeedMnemonicEntryView)
-
+            if wordlist_language_code == SettingsConstants.LOCALE__ENGLISH:
+                return Destination(SeedMnemonicEntryView)
+            else:
+                return Destination(SeedWordlistLanguageWarningView)
+                
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
             return Destination(SeedElectrumMnemonicStartView)
 
@@ -206,7 +215,30 @@ class LoadSeedView(View):
             from .tools_views import ToolsMenuView
             return Destination(ToolsMenuView)
 
+@dataclass
+class SeedWordlistLanguageWarningView(View):
 
+    def run(self):
+        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+        wordlist_languages_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+        language_name = wordlist_languages_entry.get_selection_option_display_name_by_value(wordlist_language_code)
+
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title=_("Non-English Wordlist"),
+            status_headline=None,
+            text=_("You have selected the a non-english wordlist ({}). Some wallets may not support this.".format(language_name)),
+            button_data=[ButtonOption("Continue")],
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # Only one exit point
+        return Destination(
+            SeedMnemonicEntryView,
+            skip_current_view=True,  # Prevent going BACK to WarningViews
+        )
 
 class SeedMnemonicEntryView(View):
     def __init__(self, cur_word_index: int = 0, is_calc_final_word: bool=False):
@@ -217,12 +249,15 @@ class SeedMnemonicEntryView(View):
 
 
     def run(self):
+        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
         ret = self.run_screen(
             seed_screens.SeedMnemonicEntryScreen,
             # TRANSLATOR_NOTE: Inserts the word number (e.g. "Seed Word #6")
             title=_("Seed Word #{}").format(self.cur_word_index + 1),  # Human-readable 1-indexing!
             initial_letters=list(self.cur_word) if self.cur_word else ["a"],
-            wordlist=Seed.get_wordlist(wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)),
+            wordlist=get_bip39_wordlist(wordlist_language_code=wordlist_language_code),
+            charset=get_possible_alphabet(wordlist_language_code),
+            wordlist_language_code=wordlist_language_code,
         )
 
         if ret == RET_CODE__BACK_BUTTON:
@@ -259,7 +294,8 @@ class SeedMnemonicEntryView(View):
             # Attempt to finalize the mnemonic
             from seedsigner.models.seed import InvalidSeedException
             try:
-                self.controller.storage.convert_pending_mnemonic_to_pending_seed()
+                wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+                self.controller.storage.convert_pending_mnemonic_to_pending_seed(wordlist_language_code)
             except InvalidSeedException:
                 return Destination(SeedMnemonicInvalidView)
 
@@ -1291,7 +1327,7 @@ class SeedWordsBackupTestView(View):
 
 
     def run(self):
-        from embit import bip39
+        wordlist = get_bip39_wordlist(self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
 
         if self.rand_seed is not None:
             random.seed(self.rand_seed + self.cur_index if self.cur_index is not None else 0)
@@ -1302,9 +1338,9 @@ class SeedWordsBackupTestView(View):
                 self.cur_index = int(random.random() * len(self.mnemonic_list))
 
         real_word = ButtonOption(self.mnemonic_list[self.cur_index])
-        fake_word1 = ButtonOption(bip39.WORDLIST[int(random.random() * 2047)])
-        fake_word2 = ButtonOption(bip39.WORDLIST[int(random.random() * 2047)])
-        fake_word3 = ButtonOption(bip39.WORDLIST[int(random.random() * 2047)])
+        fake_word1 = ButtonOption(wordlist[int(random.random() * 2047)])
+        fake_word2 = ButtonOption(wordlist[int(random.random() * 2047)])
+        fake_word3 = ButtonOption(wordlist[int(random.random() * 2047)])
 
         button_data = [real_word, fake_word1, fake_word2, fake_word3]
         random.shuffle(button_data)

@@ -17,6 +17,7 @@ from base64 import b32encode, b32decode
 from seedsigner.helpers.ur2.ur_decoder import URDecoder
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
+from seedsigner.helpers.bip39.utils import get_bip39_wordlist
 from seedsigner.models.settings import SettingsConstants
 
 
@@ -40,7 +41,7 @@ class DecodeQR:
     """
         Used to process images or string data from animated qr codes.
     """
-    def __init__(self, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH):
+    def __init__(self, wordlist_language_code: str = SettingsConstants.LOCALE__ENGLISH):
         self.wordlist_language_code = wordlist_language_code
         self.complete = False
         self.qr_type = None
@@ -400,7 +401,7 @@ class DecodeQR:
 
             # Seed
             # create 4 letter wordlist only if not PSBT (performance gain)
-            wordlist = Seed.get_wordlist(wordlist_language_code)
+            wordlist = get_bip39_wordlist(wordlist_language_code)
             try:
                 _4LETTER_WORDLIST = [word[:4].strip() for word in wordlist]
             except:
@@ -833,7 +834,7 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
         super().__init__()
         self.seed_phrase = []
         self.wordlist_language_code = wordlist_language_code
-        self.wordlist = Seed.get_wordlist(wordlist_language_code)
+        self.wordlist = get_bip39_wordlist(wordlist_language_code)
 
 
     def add(self, segment, qr_type=QRType.SEED__SEEDQR):

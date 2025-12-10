@@ -5,7 +5,7 @@ from seedsigner.gui.components import GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen, settings_screens)
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.models.settings import Settings, SettingsConstants, SettingsDefinition
-
+from seedsigner.gui.screens.screen import WarningScreen
 from .view import View, Destination, MainMenuView
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,27 @@ class SettingsMenuView(View):
             return Destination(DonateView)
 
         elif settings_entries[selected_menu_num].attr_name == SettingsConstants.SETTING__LOCALE:
-            return Destination(LocaleSelectionView)
+            return Destination(LocaleSelectionView) 
+        
+        elif settings_entries[selected_menu_num].attr_name == SettingsConstants.SETTING__WORDLIST_LANGUAGE: 
+            # This will block until the user taps “OK”
+            ret = self.run_screen(
+                WarningScreen,
+                title=_("Caution"),
+                status_headline=None,
+                text=_(
+                    "Non-English BIP-39 wordlists are not supported by most wallet software. "
+                    "Your backup will not work in "
+                    "wallets that don't support your language's wordlist."
+                ),
+                button_data=[ButtonOption("OK")],
+                show_back_button=True
+            )
+            # if the user pressed BACK, go back to the Settings menu
+            if ret == RET_CODE__BACK_BUTTON:
+                return Destination(SettingsMenuView, view_args={"visibility": SettingsConstants.VISIBILITY__ADVANCED})
+            # otherwise (OK pressed) continue into the selection view
+            return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=settings_entries[selected_menu_num].attr_name, parent_initial_scroll=initial_scroll))
 
         else:
             return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=settings_entries[selected_menu_num].attr_name, parent_initial_scroll=initial_scroll))

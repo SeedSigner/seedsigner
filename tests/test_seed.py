@@ -14,30 +14,17 @@ def test_seed():
 	assert seed.mnemonic_str == "obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash"
 	
 	assert seed.passphrase == ""
-	
-	# TODO: Not yet supported in new implementation
-	# seed.set_wordlist_language_code("es")
-	
-	# assert seed.mnemonic_str == "natural ayuda futuro nivel espejo abuelo vago bien repetir moreno relevo conga"
-	
-	# seed.set_wordlist_language_code(SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
-	
-	# seed.mnemonic_str = "height demise useless trap grow lion found off key clown transfer enroll"
-	
-	# assert seed.mnemonic_str == "height demise useless trap grow lion found off key clown transfer enroll"
-	
-	# # TODO: Not yet supported in new implementation
-	# seed.set_wordlist_language_code("es")
-	
-	# assert seed.mnemonic_str == "hebilla cría truco tigre gris llenar folio negocio laico casa tieso eludir"
-	
-	# seed.set_passphrase("test")
-	
-	# assert seed.seed_bytes == b'\xdd\r\xcb\x0b V\xb4@\xee+\x01`\xabem\xc1B\xfd\x8fba0\xab;[\xab\xc9\xf9\xba[F\x0c5,\x7fd8\xebI\x90"\xb8\x86C\x821\x01\xdb\xbe\xf3\xbc\x1cBH"%\x18\xc2{\x04\x08a]\xa5'
-	
-	# assert seed.passphrase == "test"
 
-	
+	# Testing for non-English wordlist
+	seed_es = Seed(mnemonic="hebilla cría truco tigre gris llenar folio negocio laico casa tieso eludir".split(), wordlist_language_code="es", passphrase="test")
+
+	assert seed_es.mnemonic_str == "hebilla cría truco tigre gris llenar folio negocio laico casa tieso eludir"
+
+	assert seed_es.seed_bytes == b'\xdd\r\xcb\x0b V\xb4@\xee+\x01`\xabem\xc1B\xfd\x8fba0\xab;[\xab\xc9\xf9\xba[F\x0c5,\x7fd8\xebI\x90"\xb8\x86C\x821\x01\xdb\xbe\xf3\xbc\x1cBH"%\x18\xc2{\x04\x08a]\xa5'
+
+	assert seed_es.passphrase == "test"
+
+
 def test_electrum_seed():
 	"""
 	ElectrumSeed should correctly parse a modern Electrum mnemonic.
@@ -78,6 +65,9 @@ def test_electrum_seed_rejects_most_bip39_mnemonics():
 
 	with pytest.raises(InvalidSeedException):
 		ElectrumSeed(mnemonic="enough board blossom stamp fire buffalo digital solution sadness random number stone".split())
+
+	with pytest.raises(InvalidSeedException):
+		ElectrumSeed(mnemonic="hebilla cría truco tigre gris llenar folio negocio laico casa tieso eludir".split())
 
 	# This one is valid for both formats
 	mnemonic = "only gain spot output unknown craft simple cram absorb suggest ridge famous".split()

@@ -10,6 +10,7 @@ from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.seed import Seed
+from seedsigner.helpers.bip39.utils import get_bip39_wordlist
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
 
@@ -173,8 +174,8 @@ class ToolsImageEntropyMnemonicLengthView(View):
                 # 12-word mnemonic only uses the first 128 bits / 16 bytes of entropy
                 final_hash = final_hash[:16]
 
-            # Generate the mnemonic
-            mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash)
+        # Generate the mnemonic
+            mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
 
             # Image should never get saved nor stick around in memory
             seed_entropy_image = None
@@ -248,11 +249,13 @@ class ToolsDiceEntropyEntryView(View):
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
-        dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret)
+
+        wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+
+        dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret, wordlist_language_code=wordlist_language_code)
 
         # Add the mnemonic as an in-memory Seed
-        seed = Seed(dice_seed_phrase, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+        seed = Seed(dice_seed_phrase, wordlist_language_code=wordlist_language_code)
         self.controller.storage.set_pending_seed(seed)
 
         # Cannot return BACK to this View
@@ -329,7 +332,7 @@ class ToolsCalcFinalWordFinalizePromptView(View):
             # User skipped the option to select a final word to provide last bits of
             # entropy. We'll insert all zeros and piggy-back on the coin flip attr
             wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-            self.controller.storage.update_pending_mnemonic(Seed.get_wordlist(wordlist_language_code)[0], mnemonic_length - 1)
+            self.controller.storage.update_pending_mnemonic(get_bip39_wordlist(wordlist_language_code)[0], mnemonic_length - 1)
             return Destination(ToolsCalcFinalWordShowFinalWordView, view_args=dict(coin_flips="0" * num_entropy_bits))
 
 
@@ -369,7 +372,7 @@ class ToolsCalcFinalWordShowFinalWordView(View):
         from seedsigner.helpers import mnemonic_generation
 
         wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-        wordlist = Seed.get_wordlist(wordlist_language_code)
+        wordlist = get_bip39_wordlist(wordlist_language_code)
 
         # Prep the user's selected word / coin flips and the actual final word for
         # the display.
@@ -387,7 +390,7 @@ class ToolsCalcFinalWordShowFinalWordView(View):
 
             # retrieve the matching word for the resulting index
             wordlist_index = int(binary_string, 2)
-            wordlist = Seed.get_wordlist(self.controller.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+            wordlist = get_bip39_wordlist(self.controller.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
             word = wordlist[wordlist_index]
 
             # update the pending mnemonic with our new "final" (pre-checksum) word
@@ -445,6 +448,7 @@ class ToolsCalcFinalWordDoneView(View):
         mnemonic = self.controller.storage.pending_mnemonic
         mnemonic_word_length = len(mnemonic)
         final_word = mnemonic[-1]
+        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
 
         button_data = [self.LOAD, self.DISCARD]
 
@@ -452,14 +456,14 @@ class ToolsCalcFinalWordDoneView(View):
             ToolsCalcFinalWordDoneScreen,
             final_word=final_word,
             mnemonic_word_length=mnemonic_word_length,
-            fingerprint=self.controller.storage.get_pending_mnemonic_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
+            fingerprint=self.controller.storage.get_pending_mnemonic_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK), wordlist_language_code),
             button_data=button_data,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
-        self.controller.storage.convert_pending_mnemonic_to_pending_seed()
+
+        self.controller.storage.convert_pending_mnemonic_to_pending_seed(wordlist_language_code)
 
         if button_data[selected_menu_num] == self.LOAD:
             return Destination(SeedFinalizeView)

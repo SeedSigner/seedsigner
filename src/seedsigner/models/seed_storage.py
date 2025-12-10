@@ -81,22 +81,24 @@ class SeedStorage:
         return None
     
 
-    def get_pending_mnemonic_fingerprint(self, network: str = SettingsConstants.MAINNET) -> str:
+
+
+    def get_pending_mnemonic_fingerprint(self, network: str = SettingsConstants.MAINNET, wordlist_language_code: str = SettingsConstants.LOCALE__ENGLISH) -> str:
         try:
             if self._pending_is_electrum:
                 seed = ElectrumSeed(self._pending_mnemonic)
             else:
-                seed = Seed(self._pending_mnemonic)
+                seed = Seed(self._pending_mnemonic, wordlist_language_code=wordlist_language_code)
             return seed.get_fingerprint(network)
         except InvalidSeedException:
             return None
 
 
-    def convert_pending_mnemonic_to_pending_seed(self):
+    def convert_pending_mnemonic_to_pending_seed(self, wordlist_language_code: str = SettingsConstants.LOCALE__ENGLISH):
         if self._pending_is_electrum:
             self.pending_seed = ElectrumSeed(self._pending_mnemonic)
         else:
-            self.pending_seed = Seed(self._pending_mnemonic)
+            self.pending_seed = Seed(self._pending_mnemonic, wordlist_language_code=wordlist_language_code)
         self.discard_pending_mnemonic()
     
 
