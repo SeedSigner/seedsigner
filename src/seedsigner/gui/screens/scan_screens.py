@@ -62,7 +62,6 @@ class ScanScreen(BaseScreen):
         self.camera.start_video_stream_mode(resolution=self.resolution, framerate=self.framerate, format="rgb")
 
         self.frames_decode_status = ThreadsafeCounter()
-        self.frames_decoded_counter = ThreadsafeCounter()
 
         self.threads.append(ScanScreen.LivePreviewThread(
             decoder=self.decoder,
@@ -70,12 +69,11 @@ class ScanScreen(BaseScreen):
             instructions_text=self.instructions_text,
             render_rect=self.render_rect,
             frame_decode_status=self.frames_decode_status,
-            frames_decoded_counter=self.frames_decoded_counter,
         ))
 
 
     class LivePreviewThread(BaseThread):
-        def __init__(self, decoder: DecodeQR, renderer: renderer.Renderer, instructions_text: str, render_rect: tuple[int,int,int,int], frame_decode_status: ThreadsafeCounter, frames_decoded_counter: ThreadsafeCounter):
+        def __init__(self, decoder: DecodeQR, renderer: renderer.Renderer, instructions_text: str, render_rect: tuple[int,int,int,int], frame_decode_status: ThreadsafeCounter):
             from seedsigner.hardware.camera import Camera
 
             self.camera = Camera.get_instance()
@@ -87,8 +85,6 @@ class ScanScreen(BaseScreen):
             else:
                 self.render_rect = (0, 0, self.renderer.canvas_width, self.renderer.canvas_height)
             self.frame_decode_status = frame_decode_status
-            self.frames_decoded_counter = frames_decoded_counter
-            self.last_frame_decoded_count = self.frames_decoded_counter.cur_count
             self.render_width = self.render_rect[2] - self.render_rect[0]
             self.render_height = self.render_rect[3] - self.render_rect[1]
             self.decoder_fps = "0.0"
@@ -97,39 +93,23 @@ class ScanScreen(BaseScreen):
 
 
         def run(self):
-            from timeit import default_timer as timer
-
             instructions_font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_button_font_size())
 
             # pre-calculate how big the animated QR percent display can be
-            left, top, right, bottom = instructions_font.getbbox("100%")
+            (left, top, right, bottom) = instructions_font.getbbox("100%")
             progress_text_width = right - left
 
-            start_time = time.time()
             num_frames = 0
-            debug = False
-            show_framerate = False  # enable for debugging / testing
             while self.keep_running:
                 frame = self.camera.read_video_stream(as_image=True)
                 if frame is not None:
                     num_frames += 1
-                    cur_time = time.time()
-                    cur_fps = num_frames / (cur_time - start_time)
                     
                     scan_text = None
                     progress_percentage = self.decoder.get_percent_complete()
                     if progress_percentage == 0:
                         # We've just started scanning, no results yet
-                        if show_framerate:
-                            scan_text = f"{cur_fps:0.2f} | {self.decoder_fps}"
-                        else:
-                            scan_text = self.instructions_text
-
-                    elif debug:
-                        # Special debugging output for animated QRs
-                        scan_text = f"{self.decoder.get_percent_complete()}% | {self.decoder.get_percent_complete(weight_mixed_frames=True)}% (new)"
-                        if show_framerate:
-                            scan_text += f" {cur_fps:0.2f} | {self.decoder_fps}"
+                        scan_text = self.instructions_text
 
                     with self.renderer.lock:
                         # Use nearest neighbor resizing for max speed
@@ -216,7 +196,6 @@ class ScanScreen(BaseScreen):
 
                             # Render the dot to indicate successful QR frame read
                             indicator_size = 10
-                            self.last_frame_decoded_count = self.frames_decoded_counter.cur_count
                             status_color_map = {
                                 ScanScreen.FRAME__ADDED_PART: GUIConstants.SUCCESS_COLOR,
                                 ScanScreen.FRAME__REPEATED_PART: GUIConstants.INACTIVE_COLOR,
@@ -267,7 +246,6 @@ class ScanScreen(BaseScreen):
                     self.camera.stop_video_stream_mode()
                     break
 
-                self.frames_decoded_counter.increment()
                 # Notify the live preview thread how our most recent decode went
                 if status == DecodeQRStatus.FALSE:
                     # Did not find anything to decode in the current frame
