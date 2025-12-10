@@ -33,9 +33,6 @@ class PSBTOverviewScreen(ButtonListScreen):
         self.is_bottom_list = True
         self.button_data = [ButtonOption("Review details")]
 
-        # This screen can take a while to load while parsing the PSBT
-        self.show_loading_screen = True
-
         super().__post_init__()
 
         # Prep the headline amount being spent in large callout

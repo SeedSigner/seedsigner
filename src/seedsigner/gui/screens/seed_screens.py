@@ -455,24 +455,6 @@ class SeedOptionsScreen(ButtonListScreen):
 
 
 @dataclass
-class SeedBackupScreen(ButtonListScreen):
-    has_passphrase: bool = False
-
-    def __post_init__(self):
-        self.title = _("Backup Seed")
-        self.is_bottom_list = True
-        super().__post_init__()
-
-        if self.has_passphrase:
-            self.components.append(TextArea(
-                # TRANSLATOR_NOTE: Additional explainer for the two seed backup options (mnemonic phrase and SeedQR).
-                text=_("Backups do not include your passphrase."),
-                screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
-            ))
-
-
-
-@dataclass
 class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
     words: List[str] = None
     page_index: int = 0

@@ -25,7 +25,6 @@ class SettingsEntryUpdateSelectionScreen(ButtonListScreen):
     def __post_init__(self):
         self.title = _("Settings")
         self.is_bottom_list = True
-        self.use_checked_selection_buttons = True
         if self.settings_entry_type == SettingsConstants.TYPE__MULTISELECT:
             self.Button_cls = CheckboxButton
         else:
