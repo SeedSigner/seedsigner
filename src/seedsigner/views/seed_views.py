@@ -590,7 +590,6 @@ class SeedOptionsView(View):
             seed_screens.SeedOptionsScreen,
             button_data=button_data,
             fingerprint=self.seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
-            has_passphrase=self.seed.passphrase is not None,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -948,7 +947,6 @@ class SeedExportXpubDetailsView(View):
             selected_menu_num = self.run_screen(
                 seed_screens.SeedExportXpubDetailsScreen,
                 fingerprint=fingerprint,
-                has_passphrase=self.seed.passphrase is not None,
                 derivation_path=derivation_path,
                 xpub=xpub_base58,
             )

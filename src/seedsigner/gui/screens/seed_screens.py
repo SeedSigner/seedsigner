@@ -441,7 +441,6 @@ class SeedFinalizeScreen(ButtonListScreen):
 @dataclass
 class SeedOptionsScreen(ButtonListScreen):
     fingerprint: str = None
-    has_passphrase: bool = False
 
     def __post_init__(self):
         self.top_nav_icon_name = SeedSignerIconConstants.FINGERPRINT
@@ -590,7 +589,6 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
     # Customize defaults
     is_bottom_list: bool = True
     fingerprint: str = None
-    has_passphrase: bool = False
     derivation_path: str = "m/84'/0'/0'"
     xpub: str = "zpub6r..."
 
