@@ -389,7 +389,6 @@ class ButtonListScreen(BaseTopNavScreen):
 
         if self.has_scroll_arrows:
             self.arrow_half_width = 10
-            self.cur_scroll_y = self.scroll_y_initial_offset if self.scroll_y_initial_offset is not None else 0
             self.up_arrow_img = Image.new("RGBA", size=(2 * self.arrow_half_width, 8), color="black")
             self.up_arrow_img_y = self.top_nav.height - 12
             arrow_draw = ImageDraw.Draw(self.up_arrow_img)
@@ -1081,21 +1080,6 @@ class ResetScreen(BaseTopNavScreen):
 
         self.components.append(TextArea(
             text=_("SeedSigner is restarting.\n\nAll in-memory data will be wiped."),
-            screen_y=self.top_nav.height,
-            height=self.canvas_height - self.top_nav.height,
-        ))
-
-
-
-@dataclass
-class PowerOffScreen(BaseTopNavScreen):
-    def __post_init__(self):
-        self.title = _("Powering Off")
-        self.show_back_button = False
-        super().__post_init__()
-
-        self.components.append(TextArea(
-            text=_("Please wait about 30 seconds before disconnecting power."),
             screen_y=self.top_nav.height,
             height=self.canvas_height - self.top_nav.height,
         ))
