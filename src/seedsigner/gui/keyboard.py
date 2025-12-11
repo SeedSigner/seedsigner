@@ -381,6 +381,20 @@ class Keyboard:
             if target_key is not None:
                 return (cur_x, next_y, None)
 
+            # If we didn't find a key directly below, check if there is a key to the left
+            # in this row (common in last rows with irregular keys like "DEL").
+            # We assume the row is not empty.
+            if next_y == len(self.keys) - 1:
+                # We are in the last row, which often has fewer/larger keys.
+                # Try to find the right-most key that exists.
+                # Iterate backwards from the current x position.
+                for x in range(cur_x - 1, -1, -1):
+                    target_key = self.get_key_at(x, next_y)
+                    if target_key is not None:
+                        # Found the nearest neighbor to the left
+                        # We return the new x coordinate so the selection snaps to it
+                        return (x, next_y, None)
+
             # No keys in this col in this row. Move down again and recheck.
             next_y += 1
 
@@ -646,4 +660,3 @@ class TextEntryDisplay(TextEntryDisplayConstants):
 
         # Paste the display onto the main canvas
         self.canvas.paste(image, (self.rect[0], self.rect[1]))
-
