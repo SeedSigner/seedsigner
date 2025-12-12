@@ -60,6 +60,10 @@ class HardwareButtons(Singleton):
             cls._instance.last_input_time = int(time.time() * 1000)  # How long has it been since the last input?
             cls._instance.first_repeat_threshold = 225  # Long-press time required before returning continuous input
             cls._instance.next_repeat_threshold = 250  # Amount of time where we no longer consider input a continuous hold
+            
+            # Long press logic state
+            cls._instance.long_press_threshold = 1000 # milliseconds to trigger a long press event
+            cls._instance.long_press_fired = False    # Has the long press event already fired for the current press?
 
         return cls._instance
 
@@ -71,11 +75,15 @@ class HardwareButtons(Singleton):
             cls._instance = cls.__new__(cls)
 
 
-    def wait_for(self, keys=[]) -> int:
+    def wait_for(self, keys=[], check_release=True) -> int:
         """
         Block execution until one of the target keys is pressed.
 
         Optionally override the wait by calling `trigger_override()`.
+        
+        Supports detection of KEY_PRESS_LONG if included in the 'keys' argument.
+        If KEY_PRESS_LONG is requested, the standard KEY_PRESS event for that button
+        will be deferred until release (trailing edge) to distinguish it from the hold.
         """
         # TODO: Refactor to keep control in the Controller and not here
         from seedsigner.controller import Controller
@@ -83,11 +91,13 @@ class HardwareButtons(Singleton):
         self.override_ind = False
 
         while True:
+            # 1. Handle External Overrides (e.g. from tests or other threads)
             if self.override_ind:
                 # Break out of the wait_for without waiting for user input
                 self.override_ind = False
                 return HardwareButtonsConstants.OVERRIDE
 
+            # 2. Handle Screensaver Activation
             cur_time = int(time.time() * 1000)
             if cur_time - self.last_input_time > controller.screensaver_activation_ms and not controller.is_screensaver_running:
                 # Start the screensaver. Will block execution until input detected.
@@ -103,44 +113,81 @@ class HardwareButtons(Singleton):
                 # Resume from a fresh loop
                 continue
 
-            # Check each candidate key to see if it was pressed
-            for key in keys:
-                if self.GPIO.input(key) == GPIO.LOW:
-                    if self.cur_input != key:
-                        self.cur_input = key
-                        self.cur_input_started = int(time.time() * 1000)  # in milliseconds
+            # 3. Determine which Physical Pins to scan based on requested 'keys'
+            #    This maps virtual keys (KEY_PRESS_LONG) to their physical counterparts.
+            pins_to_scan = set()
+            for k in keys:
+                if k == HardwareButtonsConstants.KEY_PRESS_LONG:
+                    pins_to_scan.add(HardwareButtonsConstants.KEY_PRESS_PIN)
+                elif k != HardwareButtonsConstants.OVERRIDE:
+                    pins_to_scan.add(k)
+
+            # 4. Scan the Physical Pins
+            for pin in pins_to_scan:
+                if self.GPIO.input(pin) == GPIO.LOW:
+                    # --- PIN IS ACTIVE (PRESSED DOWN) ---
+
+                    if self.cur_input != pin:
+                        # A. New Press Detected
+                        self.cur_input = pin
+                        self.cur_input_started = cur_time
                         self.last_input_time = self.cur_input_started
-                        return key
+                        self.long_press_fired = False
+
+                        # Decision: Return immediately or Defer?
+                        if pin == HardwareButtonsConstants.KEY_PRESS_PIN and HardwareButtonsConstants.KEY_PRESS_LONG in keys:
+                            # DEFER: We need to wait to see if this becomes a Long Press
+                            pass 
+                        elif pin in keys:
+                            # IMMEDIATE: Directional keys or standard buttons usually fire on contact
+                            return pin
 
                     else:
-                        # Still pressing the same input
-                        if cur_time - self.last_input_time > self.next_repeat_threshold:
-                            # Too much time has elapsed to consider this the same
-                            #   continuous input. Treat as a new separate press.
-                            self.cur_input_started = cur_time
-                            self.last_input_time = cur_time
-                            return key
-
-                        elif cur_time - self.cur_input_started > self.first_repeat_threshold:
-                            # We're good to relay this immediately as continuous
-                            #   input.
-                            self.last_input_time = cur_time
-                            return key
-
+                        # B. Holding the Key
+                        if pin == HardwareButtonsConstants.KEY_PRESS_PIN and HardwareButtonsConstants.KEY_PRESS_LONG in keys:
+                            # Logic for Long Press Detection
+                            if not self.long_press_fired and (cur_time - self.cur_input_started > self.long_press_threshold):
+                                # Threshold reached! Fire the Long Press event.
+                                self.long_press_fired = True
+                                self.last_input_time = cur_time # Update activity timer
+                                return HardwareButtonsConstants.KEY_PRESS_LONG
+                        
                         else:
-                            # We're not yet at the first repeat threshold; triggering
-                            #   a key now would be too soon and yields a bad user
-                            #   experience when only a single click was intended but
-                            #   a second input is processed because of race condition
-                            #   against human response time to release the button.
-                            # So there has to be a delay before we allow the first
-                            #   continuous repeat to register. So we'll ignore this
-                            #   round's input and **won't update any of our
-                            #   timekeeping vars**. But once we cross the threshold,
-                            #   we let the repeats fly.
-                            pass
+                            # Logic for Standard Repeat (Scrolling)
+                            # Used mostly for Directional Keys (Up/Down/Left/Right)
+                            if cur_time - self.last_input_time > self.next_repeat_threshold:
+                                # Too much time has elapsed to consider this the same
+                                #   continuous input. Treat as a new separate press.
+                                self.cur_input_started = cur_time
+                                self.last_input_time = cur_time
+                                if pin in keys: return pin
 
-            time.sleep(0.01) # wait 10 ms to give CPU chance to do other things
+                            elif cur_time - self.cur_input_started > self.first_repeat_threshold:
+                                # We're good to relay this immediately as continuous input.
+                                self.last_input_time = cur_time
+                                if pin in keys: return pin
+
+                else:
+                    # --- PIN IS INACTIVE (RELEASED) ---
+                    if self.cur_input == pin:
+                        # Just Released
+                        
+                        # Handle Deferred Short Press Trigger
+                        # If we were waiting for a potential Long Press, but released early, fire Short Press now.
+                        if pin == HardwareButtonsConstants.KEY_PRESS_PIN and HardwareButtonsConstants.KEY_PRESS_LONG in keys:
+                            if not self.long_press_fired:
+                                # It was a short press
+                                self.cur_input = None
+                                self.last_input_time = cur_time
+                                if HardwareButtonsConstants.KEY_PRESS_PIN in keys:
+                                    return HardwareButtonsConstants.KEY_PRESS_PIN
+                        
+                        # Reset State
+                        self.cur_input = None
+                        self.long_press_fired = False
+
+            # Free up CPU resources for main thread
+            time.sleep(0.01) 
 
 
     def update_last_input_time(self):
@@ -196,6 +243,9 @@ class HardwareButtonsConstants:
         KEY3 = 8
 
     OVERRIDE = 1000
+    KEY_PRESS_LONG = 1001
+
+    KEY_PRESS_PIN = KEY_PRESS
 
     ALL_KEYS = [
         KEY_UP,
@@ -209,4 +259,5 @@ class HardwareButtonsConstants:
     ]
 
     KEYS__LEFT_RIGHT_UP_DOWN = [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN]
-    KEYS__ANYCLICK = [KEY_PRESS, KEY1, KEY2, KEY3]
+    # Adding KEY_PRESS_LONG here allows it to be detected by default in base Screen.py
+    KEYS__ANYCLICK = [KEY_PRESS, KEY1, KEY2, KEY3, KEY_PRESS_LONG]
