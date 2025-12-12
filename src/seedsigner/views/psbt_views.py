@@ -4,7 +4,7 @@ from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, WarningScreen, DireWarningScreen, QRDisplayScreen)
-from seedsigner.views.view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
+from seedsigner.views.view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination, ErrorView
 
 
 
@@ -335,8 +335,17 @@ class PSBTChangeDetailsView(View):
         seed_fingerprint = self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
 
         if seed_fingerprint not in change_data.get("fingerprint"):
-            # TODO: Something is wrong with this psbt(?). Reroute to warning?
-            return Destination(NotYetImplementedView)
+            return Destination(
+                ErrorView,
+                view_args=dict(
+                    title=_("Error"),
+                    status_headline=_("Fingerprint Mismatch"),
+                    text=_("Change output fingerprint mismatch. This seed cannot sign for this change output."),
+                    button_text=_("Discard transaction"),
+                    next_destination=Destination(MainMenuView, clear_history=True),
+                    show_back_button=False
+                )
+            )
 
         i = change_data.get("fingerprint").index(seed_fingerprint)
         derivation_path = change_data.get("derivation_path")[i]
