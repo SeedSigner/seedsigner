@@ -43,11 +43,21 @@ class ScanView(View):
         from seedsigner.gui.screens.scan_screens import ScanScreen
 
         # Start the live preview and background QR reading
-        self.run_screen(
+        ret = self.run_screen(
             ScanScreen,
             instructions_text=self.instructions_text,
             decoder=self.decoder
         )
+
+        if ret is False:
+            # User cancelled the scan.
+            # If we are in a flow that expects data from this scan (e.g. Sign Message),
+            # we must abort that flow so the previous screen doesn't try to auto-resume it.
+            if self.controller.resume_main_flow:
+                logger.info(f"Scan cancelled. Aborting flow: {self.controller.resume_main_flow}")
+                self.controller.resume_main_flow = None
+                
+            return Destination(BackStackView)
 
         # A long scan might have exceeded the screensaver timeout; ensure screensaver
         # doesn't immediately engage when we leave here.
