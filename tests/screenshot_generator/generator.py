@@ -20,7 +20,7 @@ sys.modules['seedsigner.hardware.displays.ili9341'] = MagicMock()
 sys.modules['seedsigner.views.screensaver.ScreensaverScreen'] = MagicMock()
 sys.modules['RPi'] = MagicMock()
 sys.modules['RPi.GPIO'] = MagicMock()
-sys.modules['seedsigner.hardware.camera'] = MagicMock()
+sys.modules['seedsigner.hardware.camera.Camera'] = MagicMock()
 sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 
 from seedsigner.controller import Controller
@@ -39,10 +39,10 @@ from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
-from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, NotYetImplementedView, UnhandledExceptionView, 
+from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, RemoveMicroSDWarningView, NotYetImplementedView, UnhandledExceptionView, 
     psbt_views, seed_views, settings_views, tools_views, scan_views)
 from seedsigner.views.screensaver import OpeningSplashView
-from seedsigner.views.view import NetworkMismatchErrorView, OptionDisabledView, PowerOffView
+from seedsigner.views.view import CameraConnectionErrorView, NetworkMismatchErrorView, OptionDisabledView, PowerOffView
 
 from .utils import ScreenshotComplete, ScreenshotConfig, ScreenshotRenderer
 
@@ -291,6 +291,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(MainMenuView, screenshot_name='MainMenuView_SDCardStateChangeToast_removed',  toast_thread=SDCardStateChangeToastManagerThread(action=MicroSD.ACTION__REMOVED, activation_delay=0, duration=0)),
                 ScreenshotConfig(MainMenuView, screenshot_name='MainMenuView_SDCardStateChangeToast_inserted', toast_thread=SDCardStateChangeToastManagerThread(action=MicroSD.ACTION__INSERTED, activation_delay=0, duration=0)),
                 ScreenshotConfig(MainMenuView, screenshot_name='MainMenuView_RemoveSDCardToast',               toast_thread=RemoveSDCardToastManagerThread(activation_delay=0, duration=0)),
+                ScreenshotConfig(RemoveMicroSDWarningView),
                 ScreenshotConfig(MainMenuView, screenshot_name='MainMenuView_DefaultToast',                    toast_thread=DefaultToast("This is a default text toast!", activation_delay=0, duration=0)),
                 ScreenshotConfig(MainMenuView, screenshot_name='MainMenuView_InfoToast',                       toast_thread=InfoToast("This is an info toast!", activation_delay=0, duration=0)),
                 ScreenshotConfig(MainMenuView, screenshot_name='MainMenuView_SuccessToast',                    toast_thread=SuccessToast("This is a success toast!", activation_delay=0, duration=0)),
@@ -423,6 +424,7 @@ def generate_screenshots(locale):
             "Misc Error Views": [
                 ScreenshotConfig(NotYetImplementedView),
                 ScreenshotConfig(UnhandledExceptionView, dict(error=["IndexError", "line 1, in some_buggy_code.py", "list index out of range"])),
+                ScreenshotConfig(CameraConnectionErrorView),
                 ScreenshotConfig(NetworkMismatchErrorView, dict(derivation_path="m/84'/1'/0'")),
                 ScreenshotConfig(OptionDisabledView, dict(settings_attr=SettingsConstants.SETTING__MESSAGE_SIGNING)),
                 ScreenshotConfig(scan_views.ScanInvalidQRTypeView)

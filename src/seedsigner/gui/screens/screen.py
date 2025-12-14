@@ -284,6 +284,15 @@ class ButtonOption:
 
 
 @dataclass
+class ButtonOptionWithoutTranslation(ButtonOption):
+    """
+    Same as ButtonOption but does NOT translate button_label or active_button_label.
+    The labels are also not extracted for translation by babel.
+    """
+
+
+
+@dataclass
 class ButtonListScreen(BaseTopNavScreen):
     button_data: list[ButtonOption] = None
     selected_button: int = 0
@@ -341,13 +350,22 @@ class ButtonListScreen(BaseTopNavScreen):
 
         self.buttons: List[Button] = []
         for i, button_option in enumerate(self.button_data):
-            if type(button_option) != ButtonOption:
+            if not isinstance(button_option, ButtonOption):
                 raise Exception("Refactor to ButtonOption approach needed!")
+
+            if isinstance(button_option, ButtonOptionWithoutTranslation):
+                # Don't wrap labels in _()
+                button_label = button_option.button_label
+                active_button_label = button_option.active_button_label
+            else:
+                # Wrap labels in _() for just-in-time translations
+                button_label = _(button_option.button_label)
+                active_button_label = _(button_option.active_button_label)
 
             # TODO: Refactor `Button` to optionally use ButtonOption directly?
             button_kwargs = dict(
-                text=_(button_option.button_label),  # Wrap here for just-in-time translations
-                active_text=_(button_option.active_button_label),  # Wrap here for just-in-time translations
+                text=button_label,
+                active_text=active_button_label,
                 icon_name=button_option.icon_name,
                 icon_color=button_option.icon_color if button_option.icon_color else GUIConstants.BUTTON_FONT_COLOR,
                 is_icon_inline=True,

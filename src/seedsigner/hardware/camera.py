@@ -1,9 +1,17 @@
 import io
 
+from gettext import gettext as _
 from PIL import Image
-from seedsigner.hardware.pivideostream import PiVideoStream
+
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.singleton import Singleton
+
+
+
+class CameraConnectionError(Exception):
+    def __init__(self, *args, **kwargs):
+        message = _("Camera error. Check camera connections.")
+        super().__init__(message)
 
 
 
@@ -22,12 +30,17 @@ class Camera(Singleton):
 
 
     def start_video_stream_mode(self, resolution=(512, 384), framerate=12, format="bgr"):
+        from picamera import PiCameraError
         from seedsigner.hardware.pivideostream import PiVideoStream
         if self._video_stream is not None:
             self.stop_video_stream_mode()
 
-        self._video_stream = PiVideoStream(resolution=resolution,framerate=framerate, format=format)
-        self._video_stream.start()
+        try:
+            self._video_stream = PiVideoStream(resolution=resolution,framerate=framerate, format=format)
+            self._video_stream.start()
+        except PiCameraError:
+            # This error most often occurs because the camera connection is loose
+            raise CameraConnectionError()
 
 
     def read_video_stream(self, as_image=False):
@@ -49,14 +62,18 @@ class Camera(Singleton):
 
 
     def start_single_frame_mode(self, resolution=(720, 480)):
-        from picamera import PiCamera
+        from picamera import PiCamera, PiCameraError
         if self._video_stream is not None:
             self.stop_video_stream_mode()
         if self._picamera is not None:
             self._picamera.close()
 
-        self._picamera = PiCamera(resolution=resolution, framerate=24)
-        self._picamera.start_preview()
+        try:
+            self._picamera = PiCamera(resolution=resolution, framerate=24)
+            self._picamera.start_preview()
+        except PiCameraError:
+            # This error most often occurs because the camera connection is loose
+            raise CameraConnectionError()
 
 
     def capture_frame(self):
