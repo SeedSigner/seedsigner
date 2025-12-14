@@ -195,7 +195,7 @@ class TestSeedFlows(FlowTest):
                     FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
                     FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=sig_selection),
                     FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=ButtonOption(script_tuple[1], return_data=script_tuple[0])),
-                    FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=ButtonOption(coord_tuple[1], return_data=coord_tuple[0])),
+                    FlowStep(seed_views.SeedExportXpubQRFormatView, button_data_selection=ButtonOption(coord_tuple[1], return_data=coord_tuple[0])),
                     FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
                     FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
                     FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
@@ -211,17 +211,17 @@ class TestSeedFlows(FlowTest):
         # these are lists of (constant_value, display_name) tuples
         sig_types: list[tuple[str, str]] = SettingsConstants.ALL_SIG_TYPES
         script_types: list[tuple[str, str]] = SettingsConstants.ALL_SCRIPT_TYPES
-        coordinators: list[tuple[str, str]] = SettingsConstants.ALL_COORDINATORS
+        xpub_qr_formats: list[tuple[str, str]] = SettingsConstants.ALL_XPUB_QR_FORMATS
 
         # enable non-defaults so they're available in views
         self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [x for x,y in sig_types])
         self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [x for x,y in script_types])
-        self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x,y in coordinators])
+        self.settings.set_value(SettingsConstants.SETTING__XPUB_QR_FORMAT, [x for x,y in xpub_qr_formats])
 
-        # exhaustively test flows thru standard sig_types, script_types, and coordinators
+        # exhaustively test flows thru standard sig_types, script_types, and xpub_qr_formats
         for sig_tuple in sig_types:
             for script_tuple in script_types:
-                for coord_tuple in coordinators:
+                for coord_tuple in xpub_qr_formats:
                     # skip custom derivation
                     if script_tuple[0] == SettingsConstants.CUSTOM_DERIVATION:
                         continue 
@@ -245,17 +245,17 @@ class TestSeedFlows(FlowTest):
         # these are lists of (constant_value, display_name) tuples
         sig_types: list[tuple[str, str]] = SettingsConstants.ALL_SIG_TYPES
         script_types: list[tuple[str, str]] = SettingsConstants.ALL_SCRIPT_TYPES
-        coordinators: list[tuple[str, str]] = SettingsConstants.ALL_COORDINATORS
+        xpub_qr_formats: list[tuple[str, str]] = SettingsConstants.ALL_XPUB_QR_FORMATS
 
         # these are the disabled types that we will be testing
         disabled_sig = SettingsConstants.MULTISIG
         disabled_script = SettingsConstants.TAPROOT
-        disabled_coord = SettingsConstants.COORDINATOR__NUNCHUK
+        disabled_xpub_qr_format = SettingsConstants.XPUB_QR_FORMAT__SPECTER_LEGACY
 
         # enable all but our target disabled type
         self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [x for x,y in sig_types if x!=disabled_sig])
         self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [x for x,y in script_types if x!=disabled_script])
-        self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x,y in coordinators if x!=disabled_coord])
+        self.settings.set_value(SettingsConstants.SETTING__XPUB_QR_FORMAT, [x for x,y in xpub_qr_formats if x!=disabled_xpub_qr_format])
 
         # If multisig isn't an option, then the sig type selection is skipped altogether
         self.run_sequence(
@@ -286,7 +286,7 @@ class TestSeedFlows(FlowTest):
                     FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
                     FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
                     FlowStep(seed_views.SeedExportXpubScriptTypeView, screen_return_value=0),
-                    FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=disabled_coord),
+                    FlowStep(seed_views.SeedExportXpubQRFormatView, button_data_selection=disabled_xpub_qr_format),
                 ]
             )
 
@@ -307,8 +307,8 @@ class TestSeedFlows(FlowTest):
             SettingsConstants.CUSTOM_DERIVATION
         ])
 
-        # Ensure that all coordinators are enabled
-        self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x, y in SettingsConstants.ALL_COORDINATORS])
+        # Ensure that all xpub_qr_formats are enabled
+        self.settings.set_value(SettingsConstants.SETTING__XPUB_QR_FORMAT, [x for x, y in SettingsConstants.ALL_XPUB_QR_FORMATS])
 
         # Set up button_data selections
         sig_type = seed_views.SeedExportXpubSigTypeView.SINGLE_SIG
@@ -316,9 +316,9 @@ class TestSeedFlows(FlowTest):
         custom_derivation = SettingsConstants.CUSTOM_DERIVATION
         script_type = ButtonOption(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES)[2], return_data=custom_derivation)
 
-        specter = SettingsConstants.COORDINATOR__SPECTER_DESKTOP
-        assert SettingsConstants.ALL_COORDINATORS[3][0] == specter
-        coordinator = ButtonOption(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[3], return_data=specter)
+        specter_legacy = SettingsConstants.XPUB_QR_FORMAT__SPECTER_LEGACY
+        assert SettingsConstants.ALL_XPUB_QR_FORMATS[2][0] == specter_legacy
+        xpub_qr_format = ButtonOption(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__XPUB_QR_FORMAT)[2], return_data=specter_legacy)
 
         self.run_sequence(
             initial_destination_view_args=dict(seed_num=0),
@@ -327,7 +327,7 @@ class TestSeedFlows(FlowTest):
                 FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=sig_type),
                 FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=script_type),
                 FlowStep(seed_views.SeedExportXpubCustomDerivationView, screen_return_value="m/0'/0'"),
-                FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=coordinator),
+                FlowStep(seed_views.SeedExportXpubQRFormatView, button_data_selection=xpub_qr_format),
                 FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
@@ -338,18 +338,18 @@ class TestSeedFlows(FlowTest):
 
     def test_export_xpub_skip_non_option_flow(self):
         """
-            Export XPUB flows w/o user choices when no other options for sig_types, script_types, and/or coordinators
+            Export XPUB flows w/o user choices when no other options for sig_types, script_types, and/or xpub_qr_formats
         """
         # Load a finalized Seed into the Controller
         mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
         self.controller.storage.set_pending_seed(Seed(mnemonic=mnemonic))
         self.controller.storage.finalize_pending_seed()
 
-        # exclusively set only one choice for each of sig_types, script_types and coordinators
+        # exclusively set only one choice for each of sig_types, script_types and xpub_qr_formats
         self.settings.update({
             SettingsConstants.SETTING__SIG_TYPES: SettingsConstants.MULTISIG,
             SettingsConstants.SETTING__SCRIPT_TYPES: SettingsConstants.NESTED_SEGWIT,
-            SettingsConstants.SETTING__COORDINATORS: SettingsConstants.COORDINATOR__SPECTER_DESKTOP,
+            SettingsConstants.SETTING__XPUB_QR_FORMAT: SettingsConstants.XPUB_QR_FORMAT__UR_CRYPTO_ACCOUNT,
         })
 
         self.run_sequence(
@@ -358,7 +358,7 @@ class TestSeedFlows(FlowTest):
                 FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
                 FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
                 FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
-                FlowStep(seed_views.SeedExportXpubCoordinatorView, is_redirect=True),
+                FlowStep(seed_views.SeedExportXpubQRFormatView, is_redirect=True),
                 FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
@@ -379,7 +379,7 @@ class TestSeedFlows(FlowTest):
         # Make sure all options are enabled
         self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [x for x,y in SettingsConstants.ALL_SIG_TYPES])
         self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [x for x,y in SettingsConstants.ALL_SCRIPT_TYPES])
-        self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [x for x,y in SettingsConstants.ALL_COORDINATORS])
+        self.settings.set_value(SettingsConstants.SETTING__XPUB_QR_FORMAT, [x for x,y in SettingsConstants.ALL_XPUB_QR_FORMATS])
 
         self.run_sequence(
             initial_destination_view_args=dict(seed_num=0),
@@ -389,7 +389,7 @@ class TestSeedFlows(FlowTest):
 
                 # Skips past the script type options via redirect
                 FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
-                FlowStep(seed_views.SeedExportXpubCoordinatorView, button_data_selection=ButtonOption(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS)[0], return_data=SettingsConstants.ALL_COORDINATORS[0][0])),
+                FlowStep(seed_views.SeedExportXpubQRFormatView, button_data_selection=ButtonOption(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__XPUB_QR_FORMAT)[0], return_data=SettingsConstants.ALL_XPUB_QR_FORMATS[0][0])),
                 FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),

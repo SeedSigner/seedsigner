@@ -1,7 +1,7 @@
 import pytest
 from base import BaseTest
 from seedsigner.models.settings import InvalidSettingsQRData, Settings
-from seedsigner.models.settings_definition import SettingsConstants
+from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
 
 
@@ -14,6 +14,10 @@ class TestSettings(BaseTest):
 
     def test_reset_settings(self):
         """ BaseTest.reset_settings() should wipe out any previous Settings changes """
+        settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__PERSISTENT_SETTINGS)
+        assert settings_entry.default_value == SettingsConstants.OPTION__DISABLED
+
+        # Change the setting from its default
         settings = Settings.get_instance()
         settings.set_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS, SettingsConstants.OPTION__ENABLED)
         assert settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS) == SettingsConstants.OPTION__ENABLED
@@ -23,18 +27,26 @@ class TestSettings(BaseTest):
         assert settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS) == SettingsConstants.OPTION__DISABLED
 
 
+    def test_settings_defaults(self):
+        """ Settings should initialize to their default values """
+        BaseTest.reset_settings()
+        settings = Settings.get_instance()
+        for settings_entry in SettingsDefinition.get_settings_entries():
+            assert settings.get_value(settings_entry.attr_name) == settings_entry.default_value
+
+
     def test_parse_settingsqr_data(self):
         """
         SettingsQR parser should successfully parse a valid settingsqr input string and
         return the resulting config_name and formatted settings_update_dict.
         """
         settings_name = "Test SettingsQR"
-        settingsqr_data = f"""settings::v1 name={ settings_name.replace(" ", "_") } persistent=D coords=spa,spd denom=thr network=M qr_density=M sigs=ss,ms scripts=nat,nes,tr xpub_details=E passphrase=E camera=180 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"""
+        settingsqr_data = f"""settings::v1 name={ settings_name.replace(" ", "_") } persistent=D coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss,ms scripts=nat,nes,tr xpub_details=E passphrase=E camera=180 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"""
 
         # First explicitly set settings that differ from the settingsqr_data
         self.settings.set_value(SettingsConstants.SETTING__COMPACT_SEEDQR, SettingsConstants.OPTION__DISABLED)
         self.settings.set_value(SettingsConstants.SETTING__DIRE_WARNINGS, SettingsConstants.OPTION__DISABLED)
-        self.settings.set_value(SettingsConstants.SETTING__COORDINATORS, [SettingsConstants.COORDINATOR__BLUE_WALLET, SettingsConstants.COORDINATOR__SPARROW])
+        self.settings.set_value(SettingsConstants.SETTING__XPUB_QR_FORMAT, [SettingsConstants.XPUB_QR_FORMAT__STATIC, SettingsConstants.XPUB_QR_FORMAT__SPECTER_LEGACY])
 
         # Now parse the settingsqr_data
         config_name, settings_update_dict = Settings.parse_settingsqr(settingsqr_data)
@@ -45,10 +57,10 @@ class TestSettings(BaseTest):
         assert self.settings.get_value(SettingsConstants.SETTING__COMPACT_SEEDQR) == SettingsConstants.OPTION__ENABLED
         assert self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) == SettingsConstants.OPTION__ENABLED
 
-        coordinators = self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)
-        assert SettingsConstants.COORDINATOR__BLUE_WALLET not in coordinators
-        assert SettingsConstants.COORDINATOR__SPARROW in coordinators
-        assert SettingsConstants.COORDINATOR__SPECTER_DESKTOP in coordinators
+        xpub_qr_formats = self.settings.get_value(SettingsConstants.SETTING__XPUB_QR_FORMAT)
+        assert SettingsConstants.XPUB_QR_FORMAT__UR_CRYPTO_ACCOUNT in xpub_qr_formats
+        assert SettingsConstants.XPUB_QR_FORMAT__STATIC in xpub_qr_formats
+        assert SettingsConstants.XPUB_QR_FORMAT__SPECTER_LEGACY not in xpub_qr_formats
     
 
     def test_settingsqr_version(self):

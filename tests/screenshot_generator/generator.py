@@ -237,8 +237,8 @@ def generate_screenshots(locale):
         )
         add_settings_entries(SettingsConstants.VISIBILITY__HARDWARE)
 
-        settingsqr_data_persistent = f"settings::v1 name=English_noob_mode persistent=E coords=spa,spd denom=thr network=M qr_density=M sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E locale={locale}"
-        settingsqr_data_not_persistent = f"settings::v1 name=Mode_Ephemeral persistent=D coords=spa,spd denom=thr network=M qr_density=M sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E locale={locale}"
+        settingsqr_data_persistent = f"settings::v1 name=English_noob_mode persistent=E xpub_qr=urca,sta denom=thr network=M qr_density=M xpub_export=E sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E locale={locale}"
+        settingsqr_data_not_persistent = f"settings::v1 name=Mode_Ephemeral persistent=D xpub_qr=urca,sta denom=thr network=M qr_density=M xpub_export=E sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E locale={locale}"
 
         # Set up screenshot-specific callbacks to inject data before the View is run and
         # reset data after the View is run.
@@ -334,10 +334,10 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedExportXpubSigTypeView, dict(seed_num=0)),
                 ScreenshotConfig(seed_views.SeedExportXpubScriptTypeView, dict(seed_num=0, sig_type="msig")),
                 ScreenshotConfig(seed_views.SeedExportXpubCustomDerivationView, dict(seed_num=0, sig_type="ss", script_type="")),
-                ScreenshotConfig(seed_views.SeedExportXpubCoordinatorView, dict(seed_num=0, sig_type="ss", script_type="nat")),
-                ScreenshotConfig(seed_views.SeedExportXpubWarningView, dict(seed_num=0, sig_type="msig", script_type="nes", coordinator="spd", custom_derivation="")),
-                ScreenshotConfig(seed_views.SeedExportXpubDetailsView, dict(seed_num=0, sig_type="ss", script_type="nat", coordinator="bw", custom_derivation="")),
-                ScreenshotConfig(SeedExportXpubQR_ScreenBrightnessView, dict(seed_num=0, coordinator="bw", derivation_path="m/84'/0'/0'")),
+                ScreenshotConfig(seed_views.SeedExportXpubQRFormatView, dict(seed_num=0, sig_type="ss", script_type="nat")),
+                ScreenshotConfig(seed_views.SeedExportXpubWarningView, dict(seed_num=0, sig_type="msig", script_type="nes", xpub_qr_format="urca", custom_derivation="")),
+                ScreenshotConfig(seed_views.SeedExportXpubDetailsView, dict(seed_num=0, sig_type="ss", script_type="nat", xpub_qr_format="urca", custom_derivation="")),
+                ScreenshotConfig(SeedExportXpubQR_ScreenBrightnessView, dict(seed_num=0, xpub_qr_format="urca", derivation_path="m/84'/0'/0'")),
 
                 ScreenshotConfig(seed_views.SeedWordsWarningView, dict(seed_num=0)),
                 ScreenshotConfig(seed_views.SeedWordsView, dict(seed_num=0)),
