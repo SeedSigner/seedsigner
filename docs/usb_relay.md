@@ -26,7 +26,7 @@ type nul > ssh
 ```
 
 
-Now we have some incomprehensible configuration steps to set up the internet access relay.
+The following configuration steps are required:
 
 Edit `config.txt`:
 ```bash

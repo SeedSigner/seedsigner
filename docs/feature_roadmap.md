@@ -1,3 +1,5 @@
+> **Note:** This roadmap is historical and tracks development focus around v0.5.0. It may not reflect the current state of the project.
+
 # Feature Roadmap
 
 Current focus: v0.5.0 preview releases.
