@@ -52,7 +52,7 @@ class GUIConstants:
         "default": "OpenSans-Regular",
         SettingsConstants.LOCALE__ARABIC: "NotoSansAR-Regular",
         SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: "NotoSansSC-Regular",
-        # SettingsConstants.LOCALE__CHINESE_TRADITIONAL: "NotoSansTC-Regular",
+        SettingsConstants.LOCALE__HINDI: "NotoSansDevanagari-Regular",
         SettingsConstants.LOCALE__JAPANESE: "NotoSansJP-Regular",
         SettingsConstants.LOCALE__KOREAN: "NotoSansKR-Regular",
         SettingsConstants.LOCALE__PERSIAN: "NotoSansAR-Regular",  # Uses the Arabic font
@@ -62,9 +62,10 @@ class GUIConstants:
     TOP_NAV_TITLE_FONT_NAME["default"] = "OpenSans-SemiBold"
     TOP_NAV_TITLE_FONT_SIZE = {
         "default": 20,
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 23,  # Some chars won't render below 23px
+        SettingsConstants.LOCALE__HINDI: 22,
         SettingsConstants.LOCALE__JAPANESE: 22,  # Titles won't render below 22px
         SettingsConstants.LOCALE__KOREAN: 23,    # Titles won't render below 23px
-        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 23,  # Some chars won't render below 23px
     }
     TOP_NAV_HEIGHT = 48
     TOP_NAV_BUTTON_SIZE = 32
@@ -72,9 +73,10 @@ class GUIConstants:
     BODY_FONT_NAME = BASE_LOCALE_FONTS.copy()
     BODY_FONT_SIZE = {
         "default": 17,
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 18,
+        SettingsConstants.LOCALE__HINDI: 18,
         SettingsConstants.LOCALE__JAPANESE: 18,
         SettingsConstants.LOCALE__KOREAN: 18,
-        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 18,
     }
     BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE["default"]
     BODY_FONT_MIN_SIZE = 15
@@ -94,6 +96,7 @@ class GUIConstants:
         "default": 18,
         "ar": 18,
         "fa": 18,
+        SettingsConstants.LOCALE__HINDI: 20,
         SettingsConstants.LOCALE__JAPANESE: 20,
         SettingsConstants.LOCALE__KOREAN: 20,
         SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 20,

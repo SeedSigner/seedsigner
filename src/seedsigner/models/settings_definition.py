@@ -129,6 +129,7 @@ class SettingsConstants:
 
         # --------- Beta languages ------------------------------------------------------
         LOCALE__CHINESE_SIMPLIFIED: "(beta) 简体中文 (Chinese Simplified)",
+        LOCALE__HINDI: "(beta) हिन्दी (Hindi)",
         LOCALE__JAPANESE: "(beta) 日本語 (Japanese)",
         LOCALE__KOREAN: "(beta) 한국어 (Korean)",
         LOCALE__THAI: "(beta) ไทย (Thai)",
@@ -149,7 +150,6 @@ class SettingsConstants:
         # LOCALE__GUJARATI: "ગુજરાતી (Gujarati)",
         LOCALE__HAUSA: "Hausa",
         # LOCALE__HEBREW: "עברית (Hebrew)",
-        # LOCALE__HINDI: "हिन्दी (Hindi)",
         LOCALE__CROATIAN: "Hrvatski",
         LOCALE__INDONESIAN: "Indonesia",
         LOCALE__JAVANESE: "Jawa (Javanese)",
