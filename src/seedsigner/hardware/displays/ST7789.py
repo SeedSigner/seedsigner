@@ -48,7 +48,7 @@ class ST7789(BaseDisplayDriver):
         self._spi.writebytes([val])
 
     def init(self):
-        """Initialize dispaly"""    
+        """Initialize display"""    
         self.reset()
 
         self.command(0x36)
