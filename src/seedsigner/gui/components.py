@@ -390,7 +390,6 @@ class TextArea(BaseComponent):
     is_text_centered: bool = True
     supersampling_factor: int = 2  # 1 = disabled; 2 = default, double sample (4px square rendered for 1px)
     auto_line_break: bool = True
-    allow_text_overflow: bool = False
     is_horizontal_scrolling_enabled: bool = False
     horizontal_scroll_speed: int = 40  # px per sec
     horizontal_scroll_begin_hold_secs: float = 2.0
@@ -401,10 +400,6 @@ class TextArea(BaseComponent):
     def __post_init__(self):
         if self.is_horizontal_scrolling_enabled and self.auto_line_break:
             raise Exception("TextArea: Cannot have auto_line_break and horizontal scrolling enabled at the same time")
-
-        if self.is_horizontal_scrolling_enabled and not self.allow_text_overflow:
-            self.allow_text_overflow = True
-            logger.warning("TextArea: allow_text_overflow gets overridden to True when horizontal scrolling is enabled")
 
         if not self.font_name:
             self.font_name = GUIConstants.get_body_font_name()
@@ -458,7 +453,6 @@ class TextArea(BaseComponent):
                 width=self.width - 2*self.edge_padding,
                 font_name=self.font_name,
                 font_size=self.font_size,
-                allow_text_overflow=self.allow_text_overflow,
             )
 
             # Other components, like IconTextLine will need to know how wide the actual
@@ -485,14 +479,9 @@ class TextArea(BaseComponent):
 
         else:
             if total_text_height > self.height:
-                if not self.allow_text_overflow:
-                    # For now, early into the l10n rollout, we can't enforce strict
-                    # conformance here. Too many screens will just break if this is were
-                    # to raise an exception.
-                    logger.warning(f"Text cannot fit in target rect with this font/size\n\ttotal_text_height: {total_text_height} | self.height: {self.height}")
-                else:
-                    # Just let it render past the bottom edge
-                    pass
+                # Let it render past the bottom edge. Will be up to the dev or translator
+                # to review the screenshot and revise the text as needed.
+                logger.warning(f"Text cannot fit in target rect with this font/size\n\ttotal_text_height: {total_text_height} | self.height: {self.height}")
 
             else:
                 # Vertically center the text's starting point
@@ -741,7 +730,6 @@ class ScrollableTextLine(TextArea):
     def __post_init__(self):
         self.auto_line_break = False
         self.is_horizontal_scrolling_enabled = True
-        self.allow_text_overflow = True
         super().__post_init__()
 
 
@@ -803,7 +791,6 @@ class IconTextLine(BaseComponent):
     font_size: int = None
     is_text_centered: bool = False
     auto_line_break: bool = False
-    allow_text_overflow: bool = True
     screen_x: int = 0
     screen_y: int = 0
 
@@ -846,7 +833,6 @@ class IconTextLine(BaseComponent):
                 auto_line_break=False,
                 screen_x=text_screen_x,
                 screen_y=self.screen_y,
-                allow_text_overflow=False,
             )
         else:
             self.label_textarea = None        
@@ -866,7 +852,6 @@ class IconTextLine(BaseComponent):
             edge_padding=0,
             is_text_centered=self.is_text_centered if not self.icon_name else False,
             auto_line_break=self.auto_line_break,
-            allow_text_overflow=self.allow_text_overflow,
             screen_x=text_screen_x,
             screen_y=value_textarea_screen_y,
         )
@@ -1516,7 +1501,6 @@ class Button(BaseComponent):
             button_kwargs["text"] = self.text
             button_kwargs["font_color"] = self.font_color
             button_kwargs["background_color"] = self.background_color
-            button_kwargs["allow_text_overflow"] = True
             button_kwargs["auto_line_break"] = False
             del button_kwargs["horizontal_scroll_begin_hold_secs"]
             del button_kwargs["horizontal_scroll_end_hold_secs"]
@@ -1821,8 +1805,7 @@ def calc_bezier_curve(p1: Tuple[int,int], p2: Tuple[int,int], p3: Tuple[int,int]
 def reflow_text_for_width(text: str,
                           width: int,
                           font_name=GUIConstants.get_body_font_name(),
-                          font_size=GUIConstants.get_body_font_size(),
-                          allow_text_overflow: bool=False) -> list[dict]:
+                          font_size=GUIConstants.get_body_font_size()) -> list[dict]:
     """
     Reflows text to fit within `width` by breaking long lines up.
 
@@ -1845,9 +1828,6 @@ def reflow_text_for_width(text: str,
         SettingsConstants.LOCALE__JAPANESE,
         SettingsConstants.LOCALE__KOREAN,
     ]
-    if treat_chars_as_words:
-        # Relax UI constraints even if the result isn't optimal
-        allow_text_overflow = True
 
     # Stores each line of text and its rendering starting x-coord
     text_lines = []
@@ -1891,9 +1871,9 @@ def reflow_text_for_width(text: str,
                 # Candidate line is possibly shorter than necessary.
                 return _binary_len_search(min_index=index, max_index=max_index, word_spacer=word_spacer)
 
-        if len(text.split()) == 1 and not allow_text_overflow and not treat_chars_as_words:
-            # No whitespace chars to split on!
-            raise TextDoesNotFitException("Text cannot fit in target rect with this font+size")
+        if len(text.split()) == 1 and not treat_chars_as_words:
+            # No whitespace chars to split on! Warn but proceed anyway.
+            logger.warning("Text cannot fit in target rect with this font+size")
 
         # Now we're ready to go line-by-line into our line break binary search!
         for line in text.split("\n"):
@@ -1933,8 +1913,7 @@ def reflow_text_into_pages(text: str,
                            height: int,
                            font_name=GUIConstants.get_body_font_name(),
                            font_size=GUIConstants.get_body_font_size(),
-                           line_spacer: int = GUIConstants.BODY_LINE_SPACING,
-                           allow_text_overflow: bool=False) -> list[str]:
+                           line_spacer: int = GUIConstants.BODY_LINE_SPACING) -> list[str]:
     """
     Invokes `reflow_text_for_width` above to convert long text into width-limited
     individual text lines and then calculates how many lines will fit on a "page" and
@@ -1945,8 +1924,7 @@ def reflow_text_into_pages(text: str,
     reflowed_lines_dicts = reflow_text_for_width(text=text,
                                            width=width,
                                            font_name=font_name,
-                                           font_size=font_size,
-                                           allow_text_overflow=allow_text_overflow)
+                                           font_size=font_size)
 
     lines = []
     for line_dict in reflowed_lines_dicts:

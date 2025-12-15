@@ -45,7 +45,6 @@ class ToastOverlay(BaseComponent):
             auto_line_break=True,
             width=self.canvas_width - icon_delta_x - 2 * GUIConstants.COMPONENT_PADDING - 2 * self.outline_thickness,
             screen_x=icon_delta_x + GUIConstants.COMPONENT_PADDING,
-            allow_text_overflow=False,
             height_ignores_below_baseline=True,
         )
         

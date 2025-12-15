@@ -22,15 +22,15 @@ Specifications for each follow below, as well as discussion of the pros and cons
 ## Quick Review of BIP-39 Mnemonic Seed Phrases
 The typical method for backing up a Bitcoin wallet is to store its [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) mnemonic seed phrase consisting of 12 or 24 words.
 
-**SeedQR specifically assumes and recommends using the English BIP39 wordlist.** While BIP39 supports multiple language-specific wordlists (e.g., Japanese, Spanish, French), there is no mechanism to specify or detect which language wordlist was used when creating or scanning a SeedQR. Using a non-English wordlist may result in incorrect or invalid seeds.
+**SeedQR specifically assumes and recommends using the English BIP39 wordlist.** While BIP39 supports multiple language-specific wordlists (e.g., Japanese, Spanish, French), there is no mechanism to specify or detect which language wordlist was used when creating or scanning a SeedQR. Using a non-English wordlist will result in an incorrect or invalid seed.
 
-Each word comes from a [list of 2048 words](https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt). The words themselves are meaningless; all that matters is the word's position number (aka index) in the word list.
+Each word comes from a [list of 2048 words](https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt). The words are sorted alphabetically. This allows us to refer to a specific word by its position number (aka index) in the word list.
 
 For example, "tomato" is the 1,825th word in the list.
 
-But code always starts counting list items with zero. So the index of "tomato" is actually `1824` (if you're looking at the GitHub wordlist line numbers, just remember to always subtract one).
+But code always starts counting list items from zero. So the index of "tomato" is actually `1824`. The GitHub wordlist and most other resources number the words in a human-friendly manner that starts counting from `1`. But for SeedQR you'll have to remember to subtract one from any such list in order to get the correct index number that SeedQR is expecting.
 
-So we can transcode a 12-word seed into a series of indices:
+So we can convert a 12-word seed into a series of indices:
 
 ```
  1. vacuum    1924
@@ -48,7 +48,7 @@ So we can transcode a 12-word seed into a series of indices:
 ```
 
 # "Standard" `SeedQR` Specification
-We take the indices of the mnemonic seed phrase and concatenate them into one long stream of digits. Each index must be exactly four digits so shorter numbers must be zero-padded (`12` becomes `0012`).
+We take the indices of the mnemonic seed phrase and write them in order, one after the next as one long stream of digits. Each index must be exactly four digits, so shorter numbers must be zero-padded (`12` becomes `0012`).
 
 Using the example above:
 

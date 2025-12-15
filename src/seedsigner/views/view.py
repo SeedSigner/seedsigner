@@ -382,7 +382,6 @@ class UnhandledExceptionView(View):
             status_headline=self.error[0],
             text=self.error[1] + "\n" + self.error[2],
             button_data=[ButtonOption("Back to Main Menu")],
-            allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
         )
         
         return Destination(MainMenuView, clear_history=True)
@@ -429,7 +428,6 @@ class OptionDisabledView(View):
             text=self.error_msg,
             button_data=button_data,
             show_back_button=False,
-            allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
         )
 
         if button_data[selected_menu_num] == self.UPDATE_SETTING:

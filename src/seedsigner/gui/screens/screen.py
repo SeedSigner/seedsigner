@@ -804,7 +804,6 @@ class QRDisplayScreen(BaseScreen):
                 width=int(rectangle_width/2),
                 screen_x=chevron_up_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_y=chevron_up_icon.screen_y - 2,  # -2 to account for Icon's positioning
-                allow_text_overflow=False
             ).render()
 
             # TRANSLATOR_NOTE: Decrease QR code screen brightness
@@ -822,7 +821,6 @@ class QRDisplayScreen(BaseScreen):
                 width=int(rectangle_width/2),
                 screen_x=chevron_down_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_y=chevron_down_icon.screen_y - 2,  # -2 to account for Icon's positioning
-                allow_text_overflow=False
             ).render()
 
             # Write our temp Image onto the main image
@@ -924,7 +922,6 @@ class LargeIconStatusScreen(ButtonListScreen):
     text: str = ""                          # The body text of the screen
     text_edge_padding: int = GUIConstants.EDGE_PADDING
     button_data: list = None
-    allow_text_overflow: bool = False
 
 
     def __post_init__(self):

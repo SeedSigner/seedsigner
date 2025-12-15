@@ -1129,7 +1129,6 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
                 font_color="orange",
                 is_text_centered=True,
                 screen_y=screen_y,
-                allow_text_overflow=True
             ))
             screen_y += char_height + 2
 
@@ -1641,7 +1640,6 @@ class SeedSignMessageConfirmMessageScreen(ButtonListScreen):
                 text=self.sign_message_data["message"],
                 width=renderer.canvas_width - 2*GUIConstants.EDGE_PADDING,
                 height=message_height,
-                allow_text_overflow=True,
             )
             self.sign_message_data["paged_message"] = paged
 
@@ -1660,7 +1658,6 @@ class SeedSignMessageConfirmMessageScreen(ButtonListScreen):
         message_display = TextArea(
             text=self.sign_message_data["paged_message"][self.page_num],
             is_text_centered=False,
-            allow_text_overflow=True,
             screen_y=start_y,
         )
         self.components.append(message_display)

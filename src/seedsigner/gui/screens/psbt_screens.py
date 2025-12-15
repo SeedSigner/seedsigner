@@ -722,7 +722,6 @@ class PSBTOpReturnScreen(ButtonListScreen):
                 text=self.op_return_data.decode(errors="strict"),  # "strict" is a good enough heuristic to decide if it's human readable
                 font_size=GUIConstants.get_top_nav_title_font_size(),
                 is_text_centered=True,
-                allow_text_overflow=True,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
                 height=self.buttons[0].screen_y - self.top_nav.height - 2*GUIConstants.COMPONENT_PADDING,
             ))
