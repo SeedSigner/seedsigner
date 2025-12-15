@@ -1,7 +1,6 @@
 import sys
 from unittest.mock import MagicMock, patch
 
-# Mock hardware dependencies BEFORE importing seedsigner modules
 sys.modules['RPi'] = MagicMock()
 sys.modules['RPi.GPIO'] = MagicMock()
 sys.modules['spidev'] = MagicMock()
@@ -16,11 +15,9 @@ class TestIssue252:
     def mock_controller(self):
         with patch('seedsigner.controller.Controller') as MockController:
             controller_instance = MockController.get_instance.return_value
-            # Mock the screen and change_brightness method
             controller_instance.screen = MagicMock()
             controller_instance.screen.change_brightness = MagicMock()
             
-            # Mock storage and seed for View initialization
             controller_instance.storage.seeds = []
             controller_instance.get_seed.return_value = MagicMock()
             controller_instance.get_seed.return_value.mnemonic_list = ["abandon"] * 12
@@ -43,34 +40,23 @@ class TestIssue252:
             yield renderer_instance
 
     def test_whole_qr_brightness_control(self, mock_controller, mock_settings, mock_renderer):
-        """
-        Test that SeedTranscribeSeedQRWholeQRView handles brightness control.
-        """
         view = SeedTranscribeSeedQRWholeQRView(seed_num=0, seedqr_format=QRType.SEED__SEEDQR, num_modules=21)
         
-        # Mock run_screen to return UP, then DOWN, then BACK
-        # This simulates the user pressing UP, then DOWN, then BACK to exit
         view.run_screen = MagicMock(side_effect=[
             RET_CODE__UP_BUTTON,
             RET_CODE__DOWN_BUTTON,
             RET_CODE__BACK_BUTTON
         ])
 
-        
         view.run()
 
-                
         assert mock_controller.screen.change_brightness.call_count == 2
         mock_controller.screen.change_brightness.assert_any_call(increment=1)
         mock_controller.screen.change_brightness.assert_any_call(increment=-1)
 
     def test_zoomed_in_brightness_control(self, mock_controller, mock_settings, mock_renderer):
-        """
-        Test that SeedTranscribeSeedQRZoomedInView handles brightness control.
-        """
         view = SeedTranscribeSeedQRZoomedInView(seed_num=0, seedqr_format=QRType.SEED__SEEDQR)
         
-              
         view.run_screen = MagicMock(side_effect=[
             RET_CODE__UP_BUTTON,
             RET_CODE__DOWN_BUTTON,
