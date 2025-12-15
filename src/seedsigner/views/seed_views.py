@@ -8,7 +8,7 @@ from gettext import gettext as _
 from embit.descriptor import Descriptor
 
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
-from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
+from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, RET_CODE__UP_BUTTON, RET_CODE__DOWN_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
 from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
@@ -1545,23 +1545,32 @@ class SeedTranscribeSeedQRWholeQRView(View):
 
         data = e.next_part()
 
-        ret = self.run_screen(
-            seed_screens.SeedTranscribeSeedQRWholeQRScreen,
-            qr_data=data,
-            num_modules=self.num_modules,
-        )
-
-        if ret == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
-        
-        else:
-            return Destination(
-                SeedTranscribeSeedQRZoomedInView,
-                view_args={
-                    "seed_num": self.seed_num,
-                    "seedqr_format": self.seedqr_format
-                }
+        while True:
+            ret = self.run_screen(
+                seed_screens.SeedTranscribeSeedQRWholeQRScreen,
+                qr_data=data,
+                num_modules=self.num_modules,
             )
+
+            if ret == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+            
+            elif ret == RET_CODE__UP_BUTTON:
+                self.controller.screen.change_brightness(increment=1)
+                continue
+
+            elif ret == RET_CODE__DOWN_BUTTON:
+                self.controller.screen.change_brightness(increment=-1)
+                continue
+            
+            else:
+                return Destination(
+                    SeedTranscribeSeedQRZoomedInView,
+                    view_args={
+                        "seed_num": self.seed_num,
+                        "seedqr_format": self.seedqr_format
+                    }
+                )
 
 
 
@@ -1600,15 +1609,24 @@ class SeedTranscribeSeedQRZoomedInView(View):
             else:
                 num_modules = 25
 
-        self.run_screen(
-            seed_screens.SeedTranscribeSeedQRZoomedInScreen,
-            qr_data=data,
-            num_modules=num_modules,
-            initial_zone_x=self.initial_zone_x,
-            initial_zone_y=self.initial_zone_y,
-        )
+        while True:
+            ret = self.run_screen(
+                seed_screens.SeedTranscribeSeedQRZoomedInScreen,
+                qr_data=data,
+                num_modules=num_modules,
+                initial_zone_x=self.initial_zone_x,
+                initial_zone_y=self.initial_zone_y,
+            )
 
-        return Destination(SeedTranscribeSeedQRConfirmQRPromptView, view_args={"seed_num": self.seed_num})
+            if ret == RET_CODE__UP_BUTTON:
+                self.controller.screen.change_brightness(increment=1)
+                continue
+
+            elif ret == RET_CODE__DOWN_BUTTON:
+                self.controller.screen.change_brightness(increment=-1)
+                continue
+
+            return Destination(SeedTranscribeSeedQRConfirmQRPromptView, view_args={"seed_num": self.seed_num})
 
 
 

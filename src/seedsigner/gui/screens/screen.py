@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 #   screens with buttons.
 RET_CODE__BACK_BUTTON = 1000
 RET_CODE__POWER_BUTTON = 1001
+RET_CODE__UP_BUTTON = 1002
+RET_CODE__DOWN_BUTTON = 1003
 
 
 
