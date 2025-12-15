@@ -568,7 +568,7 @@ class TextArea(BaseComponent):
             self.horizontal_scroll_position = 0
             self.scroll_increment_sign = 1  # flip to negative to scroll text to the right
 
-            self.renderer = Renderer.get_instance()        
+            self.renderer = Renderer.get_instance()
 
 
         def stop_scrolling(self):
@@ -590,10 +590,22 @@ class TextArea(BaseComponent):
             """
             max_scroll = self.rendered_text_img.width - self.visible_width
 
+            # The scrolling holds / pauses at the start and end of the text line. These
+            # vars track when we started holding and how long we should hold.
+            hold_started_at = None
+            cur_hold_duration = None
+
             while self.keep_running:
                 if not self.scrolling_active:
                     time.sleep(0.1)
                     continue
+
+                if cur_hold_duration:
+                    hold_time_elapsed = time.time() - hold_started_at
+                    if hold_time_elapsed < cur_hold_duration:
+                        # Still holding; skip scrolling logic
+                        time.sleep(0.1)
+                        continue
 
                 with self.renderer.lock:
                     if not self.scrolling_active:
@@ -604,30 +616,40 @@ class TextArea(BaseComponent):
                     self.renderer.canvas.paste(img, (self.screen_x, self.screen_y - self.scroll_y))
                     self.renderer.show_image()
 
-                if self.horizontal_scroll_position == 0:
-                    # Pause on initial (left-justified) position...                
-                    time.sleep(self.begin_hold_secs)
+                if hold_started_at is not None:
+                    # If we're here, we've held long enough; reset the vars and resume
+                    # scrolling.
+                    hold_started_at = None
+                    cur_hold_duration = None
+
+                elif self.horizontal_scroll_position == 0:
+                    # Pause on initial (left-justified) position...
+                    hold_started_at = time.time()
+                    cur_hold_duration = self.begin_hold_secs
+
+                    # Next scroll direction will be left
+                    self.scroll_increment_sign = 1
 
                     # Don't count those pause seconds
                     last_render_time = None
-
-                    # Scroll the text left
-                    self.scroll_increment_sign = 1
+                    continue
 
                 elif self.horizontal_scroll_position == max_scroll:
                     # ...and slight pause at end of scroll
-                    time.sleep(self.end_hold_secs)
+                    hold_started_at = time.time()
+                    cur_hold_duration = self.end_hold_secs
 
                     # Don't count those pause seconds
                     last_render_time = None
 
-                    # Scroll the text right
+                    # Scroll will be to the right
                     self.scroll_increment_sign = -1
-                
+                    continue
+
                 else:
                     # No need to CPU limit when running in its own thread?
                     time.sleep(0.02)
-                
+
                 next_render_time = time.time()
 
                 if not last_render_time:
