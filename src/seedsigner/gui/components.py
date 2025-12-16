@@ -392,10 +392,10 @@ class TextArea(BaseComponent):
             self.text_lines = [{"text": self.text, "text_width": full_text_width}]
             self.text_width = full_text_width
 
-            # Technically, the math says that we should enable scrolling for as little 1px
-            # beyond the available width, but it's not worth having the text twitch back
-            # and forth by such a small amount.
-            min_scrollable_diff = 2
+            # Technically, the math says that we should enable scrolling for as little as
+            # 1px beyond the available width, but it's not worth having the text twitch
+            # back and forth by such a small amount.
+            min_scrollable_diff = 1
 
             if self.text_width > self.visible_width + min_scrollable_diff:
                 # We'll have to left justify the text and scroll it (if scrolling is enabled,
@@ -595,9 +595,10 @@ class TextArea(BaseComponent):
             readability. 45px/sec is better but still perceptually a bit stuttery.
             """
             max_scroll = self.rendered_text_img.width - self.visible_width
+            last_render_time = None
 
-            # The scrolling holds / pauses at the start and end of the text line. These
-            # vars track when we started holding and how long we should hold for.
+            # The scrolling pauses at the start and end of the text line. These vars track
+            # when we started holding and how long we should hold for.
             hold_started_at = None
             cur_hold_duration = None
 
@@ -607,55 +608,43 @@ class TextArea(BaseComponent):
                     continue
 
                 if cur_hold_duration is not None:
+                    # We're currently holding; see if we've held long enough
                     hold_time_elapsed = time.time() - hold_started_at
                     if hold_time_elapsed < cur_hold_duration:
-                        # Still holding; skip scrolling logic
+                        # Still have to hold longer; skip scrolling logic
                         time.sleep(0.1)
                         continue
-
-                with self.renderer.lock:
-                    if not self.scrolling_active:
-                        # We were stopped while waiting for the lock
-                        continue
-
-                    # Render the latest scroll update
-                    img = self.rendered_text_img.crop((self.horizontal_scroll_position, 0, self.horizontal_scroll_position + self.visible_width, self.rendered_text_img.height))
-                    self.renderer.canvas.paste(img, (self.screen_x, self.screen_y - self.scroll_y))
-                    self.renderer.show_image()
-
-                if hold_started_at is not None:
-                    # If we're here, we've held long enough; reset the vars and resume
-                    # scrolling.
-                    hold_started_at = None
-                    cur_hold_duration = None
-
-                elif self.horizontal_scroll_position == 0:
-                    # Pause on initial (left-justified) position...
-                    hold_started_at = time.time()
-                    cur_hold_duration = self.begin_hold_secs
-
-                    # Next scroll direction will be left
-                    self.scroll_increment_sign = 1
-
-                    # Don't count those pause seconds
-                    last_render_time = None
-                    continue
-
-                elif self.horizontal_scroll_position == max_scroll:
-                    # ...and slight pause at end of scroll
-                    hold_started_at = time.time()
-                    cur_hold_duration = self.end_hold_secs
-
-                    # Don't count those pause seconds
-                    last_render_time = None
-
-                    # Scroll will be to the right
-                    self.scroll_increment_sign = -1
-                    continue
+                    else:
+                        # We've held long enough; reset the vars and resume scrolling
+                        hold_started_at = None
+                        cur_hold_duration = None
 
                 else:
-                    # No need to CPU limit when running in its own thread?
-                    time.sleep(0.02)
+                    # We're not holding, but if we've reached either end, we need to start
+                    # holding.
+                    if self.horizontal_scroll_position == 0:
+                        # Pause on initial (left-justified) position...
+                        hold_started_at = time.time()
+                        cur_hold_duration = self.begin_hold_secs
+
+                        # Next scroll direction will be left
+                        self.scroll_increment_sign = 1
+
+                        # Don't count those pause seconds
+                        last_render_time = None
+                        continue
+
+                    elif self.horizontal_scroll_position == max_scroll:
+                        # ...and slight pause at end of scroll
+                        hold_started_at = time.time()
+                        cur_hold_duration = self.end_hold_secs
+
+                        # Don't count those pause seconds
+                        last_render_time = None
+
+                        # Scroll will be to the right
+                        self.scroll_increment_sign = -1
+                        continue
 
                 next_render_time = time.time()
 
@@ -664,13 +653,33 @@ class TextArea(BaseComponent):
                     # "get off zero" for the real increment calc logic to kick in.
                     scroll_position_increment = 1 * self.scroll_increment_sign
                 else:
+                    # Calculate how far to scroll based on time elapsed since last render
                     scroll_position_increment = int(self.horizontal_scroll_speed * (next_render_time - last_render_time) * self.scroll_increment_sign)
 
+                # Only render an update if we're going to move at least 1px
                 if abs(scroll_position_increment) > 0:
-                    self.horizontal_scroll_position += scroll_position_increment
-                    self.horizontal_scroll_position = max(0, min(self.horizontal_scroll_position, max_scroll))
+                    # max: Ensure we don't scroll past left edge (0)
+                    # min: Ensure we don't scroll past right edge (max_scroll)
+                    self.horizontal_scroll_position = max(
+                        0,
+                        min(self.horizontal_scroll_position + scroll_position_increment, max_scroll)
+                    )
+
+                    # Render the scroll update
+                    with self.renderer.lock:
+                        if not self.scrolling_active:
+                            # We were stopped while waiting for the lock
+                            continue
+
+                        # The pre-rendered text img slides within a cropping window
+                        img = self.rendered_text_img.crop((self.horizontal_scroll_position, 0, self.horizontal_scroll_position + self.visible_width, self.rendered_text_img.height))
+                        self.renderer.canvas.paste(img, (self.screen_x, self.screen_y - self.scroll_y))
+                        self.renderer.show_image()
 
                     last_render_time = next_render_time
+
+                    # No need to CPU limit when running in its own thread?
+                    time.sleep(0.02)
                 else:
                     # Wait to accumulate more time before scrolling
                     pass
