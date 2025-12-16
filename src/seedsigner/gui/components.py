@@ -658,8 +658,8 @@ class TextArea(BaseComponent):
 
                 # Only render an update if we're going to move at least 1px
                 if abs(scroll_position_increment) > 0:
-                    # max: Ensure we don't scroll past left edge (0)
-                    # min: Ensure we don't scroll past right edge (max_scroll)
+                    # max: Don't over-scroll when returning to the left edge (0)
+                    # min: Don't over-scroll when revealing the right edge (max_scroll)
                     self.horizontal_scroll_position = max(
                         0,
                         min(self.horizontal_scroll_position + scroll_position_increment, max_scroll)
@@ -678,13 +678,14 @@ class TextArea(BaseComponent):
 
                     last_render_time = next_render_time
 
-                    # No need to CPU limit when running in its own thread?
-                    time.sleep(0.02)
                 else:
-                    # Wait to accumulate more time before scrolling
+                    # Wait to accumulate more time so we can scroll at least 1px
                     pass
 
+                # Free up the processor for a bit each loop
+                time.sleep(0.02)
 
+ 
     def render(self):
         """
             Even if we need to animate for scrolling, all instances should explicitly render
