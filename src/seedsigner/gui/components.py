@@ -541,7 +541,6 @@ class TextArea(BaseComponent):
 
         self.horizontal_text_scroll_thread: TextArea.HorizontalTextScrollThread = None
         if self.is_horizontal_scrolling_enabled:
-            print(f"CREATING scrollable thread for \"{self.text}\"")
             self.horizontal_text_scroll_thread = TextArea.HorizontalTextScrollThread(
                 rendered_text_img=self.rendered_text_img,
                 screen_x=self.screen_x + self.min_text_x,
@@ -595,20 +594,10 @@ class TextArea(BaseComponent):
             50px/sec creates a slight ghosting / doubling effect that impedes
             readability. 45px/sec is better but still perceptually a bit stuttery.
             """
-            def _render_text():
-                img = self.rendered_text_img.crop(
-                    (
-                        self.horizontal_scroll_position, 0,  # (x,y) top left
-                        self.horizontal_scroll_position + self.visible_width, self.rendered_text_img.height  # (x,y) bottom right
-                    )
-                )
-                self.renderer.canvas.paste(img, (self.screen_x, self.screen_y - self.scroll_y))
-                self.renderer.show_image()
-
             max_scroll = self.rendered_text_img.width - self.visible_width
 
             # The scrolling holds / pauses at the start and end of the text line. These
-            # vars track when we started holding and how long we should hold.
+            # vars track when we started holding and how long we should hold for.
             hold_started_at = None
             cur_hold_duration = None
 
@@ -617,7 +606,7 @@ class TextArea(BaseComponent):
                     time.sleep(0.1)
                     continue
 
-                if cur_hold_duration:
+                if cur_hold_duration is not None:
                     hold_time_elapsed = time.time() - hold_started_at
                     if hold_time_elapsed < cur_hold_duration:
                         # Still holding; skip scrolling logic
@@ -630,7 +619,9 @@ class TextArea(BaseComponent):
                         continue
 
                     # Render the latest scroll update
-                    _render_text()
+                    img = self.rendered_text_img.crop((self.horizontal_scroll_position, 0, self.horizontal_scroll_position + self.visible_width, self.rendered_text_img.height))
+                    self.renderer.canvas.paste(img, (self.screen_x, self.screen_y - self.scroll_y))
+                    self.renderer.show_image()
 
                 if hold_started_at is not None:
                     # If we're here, we've held long enough; reset the vars and resume
