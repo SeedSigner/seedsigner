@@ -6,9 +6,9 @@ from typing import Any
 from PIL.Image import Image
 from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.camera import Camera
-from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConstants, IconTextLine, SeedSignerIconConstants, TextArea
+from seedsigner.gui.components import Button, FontAwesomeIconConstants, Fonts, GUIConstants, IconTextLine, SeedSignerIconConstants, TextArea
 
-from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, ButtonOption, KeyboardScreen
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, BaseTopNavScreen, ButtonListScreen, ButtonOption, KeyboardScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
@@ -222,36 +222,151 @@ class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
 
 @dataclass
 class ToolsCoinFlipEntryScreen(KeyboardScreen):
-    def __post_init__(self):
-        # Override values set by the parent class
-        # TRANSLATOR_NOTE: current coin-flip number vs total flips (e.g. flip 3 of 4)
-        self.title = _("Coin Flip {}/{}").format(1, self.return_after_n_chars)
+    mode: str = "all_at_once"  # "all_at_once", "setwise", "final_bits"
+    current_set: int = 1
+    total_sets: int = 12
+    # Number of coin flips needed to generate a single BIP-39 word
+    num_flips_required: int = 11
 
-        # Specify the keys in the keyboard
-        self.rows = 1
-        self.cols = 4
-        self.key_height = GUIConstants.get_top_nav_title_font_size() + 2 + 2*GUIConstants.EDGE_PADDING
-        self.keys_charset = "10"
+    def __post_init__(self):
+        # Set up mode-specific parameters
+        if self.mode == "setwise":
+            # TRANSLATOR_NOTE: 
+            # This screen is for building a mnemonic seed phrase word by word using coin flips.
+            # "Word" refers to a single word in the mnemonic phrase.
+            # "current_set" = which word we're currently building (1st, 2nd, 3rd, etc.)
+            # "total_sets" = total number of words in the phrase (12 or 24)
+            self.title = _("Word {current_set}/{total_sets}").format(
+                current_set=self.current_set,
+                total_sets=self.total_sets
+            )
+            self.return_after_n_chars = self.num_flips_required
+        elif self.mode == "final_bits":
+            # TRANSLATOR_NOTE: current coin-flip number vs total flips (e.g. flip 3 of 4)
+            self.title = _("Coin Flip {}/{}").format(1, self.return_after_n_chars)
+        else:  # all_at_once
+            # TRANSLATOR_NOTE: Inserts the number of flips required
+            self.title = _("Coin Flip 1/{}").format(self.return_after_n_chars)
+
+        # Specify the keys in the keyboard - use larger buttons with full words
+        self.rows = 2
+        self.cols = 2
+        self.key_height = GUIConstants.BUTTON_HEIGHT
+        # Use single characters for the keyboard layout, but we'll customize the display
+        self.keys_charset = "HT"
+
+        # Map Key display chars to actual output values
+        self.keys_to_values = {
+            "H": "1",
+            "T": "0",
+        }
 
         # Now initialize the parent class
         super().__post_init__()
+        
+        # Customize the keyboard to display localized words instead of single characters
+        for row in self.keyboard.keys:
+            for key in row:
+                if key.letter == "H":
+                    key.letter = _("Heads")
+                elif key.letter == "T":
+                    key.letter = _("Tails")
     
+        # Add help text components
         self.components.append(TextArea(
-            # TRANSLATOR_NOTE: How we call the "front" side result during a coin toss.
             text=_("Heads = 1"),
             screen_y = self.keyboard.rect[3] + 4*GUIConstants.COMPONENT_PADDING,
         ))
         self.components.append(TextArea(
-            # TRANSLATOR_NOTE: How we call the "back" side result during a coin toss.
             text=_("Tails = 0"),
             screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
         ))
 
+        # Add mode-specific components
+        if self.mode == "setwise":
+            self.components.append(TextArea(
+                text=_("Flips needed: {}").format(self.num_flips_required),
+                screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+            ))
+            
+            # Add dynamic progress display for current set
+            self.progress_text = TextArea(
+                # TRANSLATOR_NOTE: Shows current coin flip progress within the current set
+                # "current_flip" = current flip number (1-based)
+                # "total_flips" = total flips needed for this set
+                text=_("This set: {current_flip}/{total_flips}").format(
+                    current_flip=1,
+                    total_flips=self.num_flips_required
+                ),
+                screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+            )
+            self.components.append(self.progress_text)
 
     def update_title(self) -> bool:
-        # l10n_note already done.
-        self.title = _("Coin Flip {}/{}").format(self.cursor_position + 1, self.return_after_n_chars)
-        return True
+        if self.mode == "setwise":
+            # Update the progress display to show current coin flip count
+            if hasattr(self, 'progress_text') and self.progress_text:
+                # TRANSLATOR_NOTE: Updates the progress display to show the current coin flip number and total flips required for this set.
+                # "current_flip" = current flip number (1-based; e.g., 1, 2, 3, etc.).
+                # "total_flips" = total number of flips required for this set
+                self.progress_text.text = _("This set: {current_flip}/{total_flips}").format(
+                    current_flip=self.cursor_position + 1,
+                    total_flips=self.num_flips_required
+                )
+                # Re-render the progress text area
+                self.progress_text.render()
+            return False
+        elif self.mode == "final_bits":
+            # TRANSLATOR_NOTE: current coin-flip number vs total flips (e.g. flip 3 of 4)
+            self.title = _("Coin Flip {}/{}").format(self.cursor_position + 1, self.return_after_n_chars)
+            return True
+        else:  # all_at_once
+            # TRANSLATOR_NOTE: Updates the title to show the current coin flip number and total flips required.
+            # {current} is the current flip number (1-based; e.g., 1, 2, 3, etc.).
+            # {total} is the total number of flips required
+            self.title = _("Coin Flip {current_flip_num}/{num_total_flips}").format(
+                current_flip_num=self.cursor_position + 1,
+                num_total_flips=self.return_after_n_chars
+            )
+            return True
+
+
+@dataclass
+class ToolsCoinEntropySetwiseBip39WordScreen(ButtonListScreen):
+    """Screen to display the BIP-39 word generated from coin flips with the bits that created it."""
+    current_set: int = 1
+    total_sets: int = 12
+    word: str = ""
+    bits: str = ""
+
+    def __post_init__(self):
+        # TRANSLATOR_NOTE: Shows which word in the mnemonic phrase we're currently displaying
+        self.title = _("Word {current_set}/{total_sets}").format(
+            current_set=self.current_set,
+            total_sets=self.total_sets
+        )
+        
+        # Set up button data for the "Next" button
+        self.button_data = [ButtonOption(_("Next"))]
+        self.is_bottom_list = True
+        
+        super().__post_init__()
+
+        # Display the bits that generated this word
+        self.components.append(TextArea(
+            # TRANSLATOR_NOTE: Shows the 11 coin flips (bits) that generated the displayed word
+            text=_("Bits: {}").format(self.bits),
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+        ))
+
+        # Display the generated word prominently
+        self.components.append(TextArea(
+            # TRANSLATOR_NOTE: The BIP-39 word generated from the coin flips
+            text=self.word,
+            font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+            font_size=GUIConstants.get_button_font_size() + 4,
+            screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+        ))
 
 
 
@@ -267,7 +382,7 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
         super().__post_init__()
 
         # First what's the total bit display width and where do the checksum bits start?
-        bit_font_size = GUIConstants.get_button_font_size(locale="default") + 2  # bit font size should not vary by locale
+        bit_font_size = GUIConstants.get_button_font_size() + 2  # bit font size should not vary by locale
         font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, bit_font_size)
         (left, top, bit_display_width, bottom) = font.getbbox("0" * 11, anchor="lt")
         (left, top, checksum_x, bottom) = font.getbbox("0" * (11 - len(self.checksum_bits)), anchor="lt")
@@ -275,8 +390,6 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
         checksum_x += bit_display_x
 
         y_spacer = GUIConstants.COMPONENT_PADDING
-        if GUIConstants.get_body_font_size() > GUIConstants.get_body_font_size("default"):
-            y_spacer -= 1
 
         # Display the user's additional entropy input
         if self.selected_final_word:

@@ -1156,6 +1156,7 @@ class SeedBIP85SelectChildIndexView(View):
         # TODO: Change this later to use the generic Screen input keyboard
         ret = self.run_screen(seed_screens.SeedBIP85SelectChildIndexScreen)
 
+
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
@@ -1194,7 +1195,9 @@ class SeedBIP85InvalidChildIndexView(View):
             status_icon_name=SeedSignerIconConstants.ERROR,
             status_headline=_("Invalid Child Index"),
             text=_("BIP-85 Child Index must be between 0 and 2^31-1."),
+
             button_data=[ButtonOption("Try again")]
+
         )
 
         return Destination(

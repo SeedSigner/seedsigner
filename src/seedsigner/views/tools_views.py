@@ -5,13 +5,17 @@ import time
 
 from gettext import gettext as _
 
-from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants, resize_image_to_fill
+from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
+from seedsigner.gui.screens.tools_screens import (ToolsCalcFinalWordDoneScreen, ToolsCalcFinalWordFinalizePromptScreen,
+    ToolsCalcFinalWordScreen, ToolsCoinFlipEntryScreen, ToolsDiceEntropyEntryScreen, ToolsImageEntropyFinalImageScreen,
+    ToolsImageEntropyLivePreviewScreen, ToolsAddressExplorerAddressTypeScreen)
+from seedsigner.helpers import embit_utils, mnemonic_generation
+from seedsigner.models.encode_qr import GenericStaticQrEncoder
 from seedsigner.gui.screens.screen import ButtonOption
-from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
-from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
+from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedWordsView, SeedExportXpubScriptTypeView
 
 from .view import View, Destination, BackStackView
 
@@ -25,9 +29,11 @@ class ToolsMenuView(View):
     KEYBOARD = ButtonOption("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     ADDRESS_EXPLORER = ButtonOption("Address explorer")
     VERIFY_ADDRESS = ButtonOption("Verify address")
+    COIN = ButtonOption(" New seed", FontAwesomeIconConstants.COINS)
+
 
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
+        button_data = [self.IMAGE, self.DICE, self.COIN, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -44,6 +50,9 @@ class ToolsMenuView(View):
 
         elif button_data[selected_menu_num] == self.DICE:
             return Destination(ToolsDiceEntropyMnemonicLengthView)
+
+        elif button_data[selected_menu_num] == self.COIN:
+            return Destination(ToolsCoinEntropyMnemonicLengthView)
 
         elif button_data[selected_menu_num] == self.KEYBOARD:
             return Destination(ToolsCalcFinalWordNumWordsView)
@@ -261,6 +270,202 @@ class ToolsDiceEntropyEntryView(View):
 
 
 """****************************************************************************
+    Coin flips Views
+****************************************************************************"""
+class ToolsCoinEntropyMnemonicLengthView(View):
+    def run(self):
+        # TRANSLATOR_NOTE: Inserts the number of coin flips needed for a 12-word mnemonic
+        twelve = _("12 words ({} flips)").format(mnemonic_generation.COIN__NUM_FLIPS__12WORD)
+        TWELVE = ButtonOption(twelve, return_data=mnemonic_generation.COIN__NUM_FLIPS__12WORD)
+
+        # TRANSLATOR_NOTE: Inserts the number of coin flips needed for a 24-word mnemonic
+        twenty_four = _("24 words ({} flips)").format(mnemonic_generation.COIN__NUM_FLIPS__24WORD)
+        TWENTY_FOUR = ButtonOption(twenty_four, return_data=mnemonic_generation.COIN__NUM_FLIPS__24WORD)
+
+        button_data = [TWELVE, TWENTY_FOUR]
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("Mnemonic Length"),
+            is_bottom_list=True,
+            is_button_text_centered=True,
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(ToolsMenuView, clear_history=True)
+
+        elif button_data[selected_menu_num] == TWELVE:
+            return Destination(ToolsCoinInputMethodView, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__12WORD))
+
+        elif button_data[selected_menu_num] == TWENTY_FOUR:
+            return Destination(ToolsCoinInputMethodView, view_args=dict(total_flips=mnemonic_generation.COIN__NUM_FLIPS__24WORD))
+
+
+
+class ToolsCoinInputMethodView(View):
+    def __init__(self, total_flips: int):
+        super().__init__()
+        self.total_flips = total_flips
+
+    def run(self):
+        if self.total_flips not in (128, 256):
+            raise ValueError(f"Unsupported flip count: {self.total_flips}")
+
+        all_flips_text = _(f"{self.total_flips} coin flips in one go")
+        setwise_text = _("Sets of 11 coin flips")
+
+        ALL_FLIPS = ButtonOption(all_flips_text, return_data="all")
+        SETWISE = ButtonOption(setwise_text, return_data="setwise")
+
+        button_data = [ALL_FLIPS, SETWISE]
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("Input Method"),
+            is_bottom_list=True,
+            is_button_text_centered=True,
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(ToolsCoinEntropyMnemonicLengthView)
+
+        selected_option = button_data[selected_menu_num].return_data
+
+        if selected_option == "all":
+            return Destination(ToolsCoinEntropyEntryView, view_args={"total_flips": self.total_flips})
+
+        elif selected_option == "setwise":
+            # Initialize storage for setwise coin flip entry
+            self.controller.storage.init_pending_mnemonic(12 if self.total_flips == 128 else 24)
+            self.controller.storage.set_pending_coin_flip_bits("")
+            return Destination(ToolsCoinEntropySetwiseEntryView, view_args={"total_flips": self.total_flips})
+
+
+
+class ToolsCoinEntropyEntryView(View):
+    # This View handles the "all flips in one go" option for coin flip entropy input,
+    # where the user enters all required coin flips (128 or 256) in a single session.
+    def __init__(self, total_flips: int):
+        super().__init__()
+        self.total_flips = total_flips
+    
+
+    def run(self):
+        ret = self.run_screen(
+            ToolsCoinFlipEntryScreen,
+            return_after_n_chars=self.total_flips,
+        )
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        coin_seed_phrase = mnemonic_generation.generate_mnemonic_from_coin_flips(ret)
+
+        # Add the mnemonic as an in-memory Seed
+        seed = Seed(coin_seed_phrase, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+        self.controller.storage.set_pending_seed(seed)
+
+        # Cannot return BACK to this View
+        return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
+
+
+
+class ToolsCoinEntropySetwiseEntryView(View):
+    """ Handles set-wise coin flip entry (11-bit groups for BIP-39 words). """
+    def __init__(self, total_flips: int, current_set: int = 1):
+        super().__init__()
+        self.total_flips = total_flips
+        self.current_set = current_set
+        self.total_sets = 11 if total_flips == 128 else 23
+        self.last_set_bits = 7 if total_flips == 128 else 3
+
+    def run(self):
+        # Get current state from storage
+        bits_collected = self.controller.storage.get_pending_coin_flip_bits() or ""
+        mnemonic = self.controller.storage.pending_mnemonic or []
+        
+        required_bits = self.last_set_bits if self.current_set == self.total_sets + 1 else 11
+
+        ret = self.run_screen(
+            ToolsCoinFlipEntryScreen,
+            mode="setwise",
+            current_set=self.current_set,
+            total_sets=self.total_sets + 1,
+            num_flips_required=required_bits
+        )
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(ToolsCoinInputMethodView, view_args={"total_flips": self.total_flips})
+
+        # Update storage with new bits
+        bits_collected += ret
+        self.controller.storage.set_pending_coin_flip_bits(bits_collected)
+
+        # Get wordlist language code just before it's needed
+        wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+
+        if self.current_set <= self.total_sets:
+            # Convert the 11-bit set to a BIP-39 word
+            word = mnemonic_generation.get_bip39_word(ret, wordlist_language_code=wordlist_language_code)
+            mnemonic.append(word)
+            self.controller.storage.set_pending_mnemonic_list(mnemonic)
+
+        # Navigate to display the word or finalize if done
+        if self.current_set <= self.total_sets:
+            return Destination(
+                ToolsCoinEntropySetwiseBip39WordView,
+                view_args={
+                    "total_flips": self.total_flips,
+                    "current_set": self.current_set,
+                    "word": word,
+                    "bits": ret
+                }
+            )
+        else:
+            # Final set collected; generate the full mnemonic
+            full_entropy = bits_collected[:self.total_flips]
+            mnemonic = mnemonic_generation.generate_mnemonic_from_coin_flips(full_entropy, wordlist_language_code=wordlist_language_code)
+
+            # Store the complete mnemonic and convert to pending seed for review
+            self.controller.storage.set_pending_mnemonic_list(mnemonic)
+            self.controller.storage.convert_pending_mnemonic_to_pending_seed()
+
+            # Show all words for review before finalizing
+            return Destination(SeedWordsView, view_args={"seed_num": None, "page_index": 0}, clear_history=True)
+
+
+class ToolsCoinEntropySetwiseBip39WordView(View):
+    """ Displays the BIP-39 word for the current set of coin flips. """
+    def __init__(self, total_flips: int, current_set: int, word: str, bits: str):
+        super().__init__()
+        self.total_flips = total_flips
+        self.current_set = current_set
+        self.word = word
+        self.bits = bits
+
+    def run(self):
+        from seedsigner.gui.screens.tools_screens import ToolsCoinEntropySetwiseBip39WordScreen
+        
+        self.run_screen(
+            ToolsCoinEntropySetwiseBip39WordScreen,
+            current_set=self.current_set,
+            total_sets=11 if self.total_flips == 128 else 23,
+            word=self.word,
+            bits=self.bits
+        )
+
+        # Proceed to the next set or finalize
+        next_set = self.current_set + 1
+        return Destination(
+            ToolsCoinEntropySetwiseEntryView,
+            view_args={
+                "total_flips": self.total_flips,
+                "current_set": next_set
+            }
+        )
+    
+
+"""****************************************************************************
     Calc final word Views
 ****************************************************************************"""
 class ToolsCalcFinalWordNumWordsView(View):
@@ -288,14 +493,8 @@ class ToolsCalcFinalWordNumWordsView(View):
 
 
 class ToolsCalcFinalWordFinalizePromptView(View):
-    # TRANSLATOR_NOTE: Label to gather entropy through coin tosses
-    COIN_FLIPS = ButtonOption("Coin flip entropy")
-
-    # TRANSLATOR_NOTE: Label to gather entropy through user specified BIP-39 word
-    SELECT_WORD = ButtonOption("Word selection entropy")
-
-    # TRANSLATOR_NOTE: Label to allow user to default entropy as all-zeros
-    ZEROS = ButtonOption("Finalize with zeros")
+    # TRANSLATOR_NOTE: Label to proceed to coin flip entropy entry
+    NEXT = ButtonOption("Next")
 
     def run(self):
         from seedsigner.gui.screens.tools_screens import ToolsCalcFinalWordFinalizePromptScreen
@@ -306,9 +505,11 @@ class ToolsCalcFinalWordFinalizePromptView(View):
         else:
             num_entropy_bits = 3
 
-        button_data = [self.COIN_FLIPS, self.SELECT_WORD, self.ZEROS]
+
+        button_data = [self.NEXT]
         selected_menu_num = self.run_screen(
             ToolsCalcFinalWordFinalizePromptScreen,
+
             mnemonic_length=mnemonic_length,
             num_entropy_bits=num_entropy_bits,
             button_data=button_data,
@@ -317,20 +518,8 @@ class ToolsCalcFinalWordFinalizePromptView(View):
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        elif button_data[selected_menu_num] == self.COIN_FLIPS:
-            return Destination(ToolsCalcFinalWordCoinFlipsView)
-
-        elif button_data[selected_menu_num] == self.SELECT_WORD:
-            # Clear the final word slot, just in case we're returning via BACK button
-            self.controller.storage.update_pending_mnemonic(None, mnemonic_length - 1)
-            return Destination(SeedMnemonicEntryView, view_args=dict(is_calc_final_word=True, cur_word_index=mnemonic_length - 1))
-
-        elif button_data[selected_menu_num] == self.ZEROS:
-            # User skipped the option to select a final word to provide last bits of
-            # entropy. We'll insert all zeros and piggy-back on the coin flip attr
-            wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-            self.controller.storage.update_pending_mnemonic(Seed.get_wordlist(wordlist_language_code)[0], mnemonic_length - 1)
-            return Destination(ToolsCalcFinalWordShowFinalWordView, view_args=dict(coin_flips="0" * num_entropy_bits))
+        # Force coin flips for the final word
+        return Destination(ToolsCalcFinalWordCoinFlipsView)
 
 
 
@@ -458,11 +647,12 @@ class ToolsCalcFinalWordDoneView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
-        self.controller.storage.convert_pending_mnemonic_to_pending_seed()
 
         if button_data[selected_menu_num] == self.LOAD:
-            return Destination(SeedFinalizeView)
+            # Convert pending mnemonic to pending seed for review
+            self.controller.storage.convert_pending_mnemonic_to_pending_seed()
+            # Show all words for review before finalizing
+            return Destination(SeedWordsView, view_args={"seed_num": None, "page_index": 0}, clear_history=True)
         
         elif button_data[selected_menu_num] == self.DISCARD:
             return Destination(SeedDiscardView)

@@ -11,7 +11,7 @@ from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import ElectrumSeed, Seed
 from seedsigner.views.view import MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
 from seedsigner.views import seed_views, scan_views, settings_views
-
+from seedsigner.views.tools_views import ToolsMenuView, ToolsCoinEntropyMnemonicLengthView, ToolsCoinInputMethodView, ToolsCoinEntropyEntryView, SeedWordsWarningView
 
 def load_seed_into_decoder(view: scan_views.ScanView):
     view.decoder.add_data("0000" * 11 + "0003")
@@ -450,30 +450,91 @@ class TestSeedFlows(FlowTest):
             FlowStep(seed_views.SeedTranscribeSeedQRWarningView),
             FlowStep(seed_views.SeedTranscribeSeedQRWholeQRView),
             FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView),
+
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
 
             # Intentionally "scan" the wrong SeedQR
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_wrong_seed_into_decoder),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmWrongSeedView),
+
             FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView),
+
 
             # Intentionally scan QR data that makes no sense for this flow
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_completely_wrong_qr_type_into_decoder),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmInvalidQRView),
+
             FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView),
+
 
             # Intentionally scan QR data that makes no sense for this flow because is another QR recognized but is not a SeedQR (e.g., bitcoin address, psbt)
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_recognized_qr_type_isnot_seed_into_decoder),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmInvalidQRView),
+
             FlowStep(seed_views.SeedTranscribeSeedQRZoomedInView),
+
             
             # Now scan the correct SeedQR
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmQRPromptView, button_data_selection=seed_views.SeedTranscribeSeedQRConfirmQRPromptView.SCAN),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmScanView, before_run=load_right_seed_into_decoder),
             FlowStep(seed_views.SeedTranscribeSeedQRConfirmSuccessView),
             FlowStep(seed_views.SeedOptionsView),
+        ])
+
+
+    def test_coin_flip_seed_flow(self):
+        """
+            Create a seed via coin flips.
+        """
+        
+
+        # 12-word seed
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.COIN),
+            FlowStep(ToolsCoinEntropyMnemonicLengthView, button_data_selection=ButtonOption("12 words (128 flips)", return_data=128)), # 12 words
+            FlowStep(ToolsCoinInputMethodView, button_data_selection=ButtonOption("128 coin flips in one go", return_data="all")), # all flips in one go
+            FlowStep(ToolsCoinEntropyEntryView, screen_return_value="1" * 128),
+            FlowStep(seed_views.SeedWordsWarningView, screen_return_value=0), # Shows warning, then redirects to SeedWordsView
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next (for 12 words, 3 pages, but seed_num is None so shows NEXT)
+            FlowStep(seed_views.SeedWordsBackupTestPromptView, button_data_selection=seed_views.SeedWordsBackupTestPromptView.SKIP), # Skip verification
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView),
+        ])
+
+        BaseTest.reset_controller()
+
+        # 24-word seed
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.COIN),
+            FlowStep(ToolsCoinEntropyMnemonicLengthView, button_data_selection=ButtonOption("24 words (256 flips)", return_data=256)), # 24 words
+            FlowStep(ToolsCoinInputMethodView, button_data_selection=ButtonOption("256 coin flips in one go", return_data="all")), # all flips in one go
+            FlowStep(ToolsCoinEntropyEntryView, screen_return_value="1" * 256),
+            FlowStep(seed_views.SeedWordsWarningView, screen_return_value=0), # Shows warning, then redirects to SeedWordsView
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next page
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT), # Next (for 24 words, 6 pages, but seed_num is None so shows NEXT)
+            FlowStep(seed_views.SeedWordsBackupTestPromptView, button_data_selection=seed_views.SeedWordsBackupTestPromptView.SKIP), # Skip verification
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView),
+        ])
+
+        BaseTest.reset_controller()
+
+        # Exit early
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(ToolsMenuView, button_data_selection=ToolsMenuView.COIN),
+            FlowStep(ToolsCoinEntropyMnemonicLengthView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(ToolsMenuView)
         ])
 
 

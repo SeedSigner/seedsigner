@@ -16,6 +16,8 @@ from seedsigner.models.seed import Seed
 
 DICE__NUM_ROLLS__12WORD = 50
 DICE__NUM_ROLLS__24WORD = 99
+COIN__NUM_FLIPS__12WORD = 128
+COIN__NUM_FLIPS__24WORD = 256
 
 
 
@@ -86,19 +88,41 @@ def generate_mnemonic_from_coin_flips(coin_flips: str, wordlist_language_code: s
     """
         Takes a string of 128 or 256 0s and 1s and returns a 12- or 24-word mnemonic.
 
-        Uses the iancoleman.io/bip39 and bitcoiner.guide/seed "Binary" mode approach:
-        * binary digit stream is treated as string data.
-        * hashed via SHA256.
+        Converts the binary digit stream directly to bytes and uses those as entropy.
+        The final word will include checksum bits automatically added by BIP-39.
     """
-    entropy_bytes = hashlib.sha256(coin_flips.encode()).digest()
+    # Validate length (must be 128 or 256 bits)
+    if len(coin_flips) not in (COIN__NUM_FLIPS__12WORD, COIN__NUM_FLIPS__24WORD):
+        raise ValueError("Coin flips must be exactly 128 or 256 bits long.")
+    
+    # Validate content (must be either 0 or 1)
+    if not all(c in "01" for c in coin_flips):
+        raise ValueError("Invalid input: coin flips must only contain '0' or '1'.")
 
-    if len(coin_flips) == 128:
-        # 12-word mnemonic; only use 128bits / 16 bytes
-        entropy_bytes = entropy_bytes[:16]
+    # convert bit string to bytes
+    coin_flip_bytes = bytearray()
+    for i in range(0, len(coin_flips), 8):
+        # convert 8 bits to an integer
+        index = int(coin_flips[i:i + 8], 2)
+        # convert the index to a byte
+        coin_flip_bytes.append(index)
 
-    # Return as a list
-    return bip39.mnemonic_from_bytes(entropy_bytes, wordlist=Seed.get_wordlist(wordlist_language_code)).split()
+    # Convert the indices to their associated words. The final word will consist of the
+    # last bits of the provided entropy plus the checksum which will be automatically
+    # added by the method below.
+    return bip39.mnemonic_from_bytes(coin_flip_bytes, wordlist=Seed.get_wordlist(wordlist_language_code)).split()
 
+
+
+def get_bip39_word(bits: str, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> str:
+    """ Convert 11-bit string to BIP-39 word """
+    if len(bits) != 11:
+        raise ValueError("Bits must be exactly 11 bits long")
+    if not all(c in "01" for c in bits):
+        raise ValueError("Bits must only contain '0' or '1'")
+    
+    index = int(bits, 2)
+    return Seed.get_wordlist(wordlist_language_code)[index]
 
 
 def get_partial_final_word(coin_flips: str, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> str:
@@ -121,3 +145,4 @@ def generate_mnemonic_from_image(image, wordlist_language_code: str = SettingsCo
 
     # Return as a list
     return bip39.mnemonic_from_bytes(hash.digest(), wordlist=Seed.get_wordlist(wordlist_language_code)).split()
+    

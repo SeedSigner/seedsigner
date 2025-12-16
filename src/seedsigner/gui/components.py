@@ -178,6 +178,7 @@ class FontAwesomeIconConstants:
     DICE_FOUR = "\uf524"
     DICE_FIVE = "\uf523"
     DICE_SIX = "\uf526"
+    COINS = "\uf51e"
     KEYBOARD = "\uf11c"
     MAP = "\uf279"
     X = "\u0058"
