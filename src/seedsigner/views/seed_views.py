@@ -13,7 +13,7 @@ from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
 from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
-from seedsigner.models.seed import Seed
+from seedsigner.models.seed import Seed, ElectrumSeed
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
@@ -217,12 +217,32 @@ class SeedMnemonicEntryView(View):
 
 
     def run(self):
+        wordlist = Seed.get_wordlist(wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+        is_last_word_index = self.cur_word_index == self.controller.storage.pending_mnemonic_length - 1
+        is_normal_seed_entry_mode = not self.is_calc_final_word
+        is_bip39_seed = self.controller.storage._pending_Seed_cls == Seed
+        
+        predict_final_seed_word = (
+            is_last_word_index and 
+            is_normal_seed_entry_mode and 
+            is_bip39_seed
+        )
+        
+        # Filter wordlist for final word entry if needed
+        partial_mnemonic = None
+        if predict_final_seed_word:
+            partial_mnemonic = [word for word in self.controller.storage.pending_mnemonic if word is not None]
+            
+            from seedsigner.helpers.mnemonic_generation import get_valid_final_mnemonic_words
+            valid_final_words = get_valid_final_mnemonic_words(partial_mnemonic)
+            wordlist = valid_final_words
+        
         ret = self.run_screen(
             seed_screens.SeedMnemonicEntryScreen,
             # TRANSLATOR_NOTE: Inserts the word number (e.g. "Seed Word #6")
             title=_("Seed Word #{}").format(self.cur_word_index + 1),  # Human-readable 1-indexing!
             initial_letters=list(self.cur_word) if self.cur_word else ["a"],
-            wordlist=Seed.get_wordlist(wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)),
+            wordlist=wordlist,
         )
 
         if ret == RET_CODE__BACK_BUTTON:
@@ -514,7 +534,7 @@ class SeedElectrumMnemonicStartView(View):
                 show_back_button=False,
         )
 
-        self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
+        self.controller.storage.init_pending_mnemonic(num_words=12, seed_class=ElectrumSeed)
 
         return Destination(SeedMnemonicEntryView)
 

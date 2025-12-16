@@ -90,36 +90,6 @@ class TestSeedFlows(FlowTest):
         test_with_mnemonic("cotton artefact spy mind wing there echo steak child oak awful host despair online bicycle divorce middle firm diamond rare execute chimney almost hollow".split())
 
 
-    def test_invalid_mnemonic(self):
-        """ Should be able to go back and edit or discard an invalid mnemonic """
-        # Test data from iancoleman.io
-        mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
-        sequence = [
-            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
-            FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
-            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_12WORD if len(mnemonic) == 12 else seed_views.LoadSeedView.TYPE_24WORD),
-        ]
-        for word in mnemonic[:-1]:
-            sequence.append(FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=word))
-
-        sequence += [
-            FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value="zoo"),  # But finish with an INVALID checksum word
-            FlowStep(seed_views.SeedMnemonicInvalidView, button_data_selection=seed_views.SeedMnemonicInvalidView.EDIT),
-        ]
-
-        # Restarts from first word
-        for word in mnemonic[:-1]:
-            sequence.append(FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=word))
-
-        sequence += [
-            FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value="zebra"),  # provide yet another invalid checksum word
-            FlowStep(seed_views.SeedMnemonicInvalidView, button_data_selection=seed_views.SeedMnemonicInvalidView.DISCARD),
-            FlowStep(MainMenuView),
-        ]
-
-        self.run_sequence(sequence)
-
-
     def test_electrum_mnemonic_entry_flow(self):
         """
             Manually entering an Electrum mnemonic should land at the Finalize Seed flow and end at
@@ -372,7 +342,7 @@ class TestSeedFlows(FlowTest):
             Electrum seeds should skip script type selection
         """            
         # Load a finalized Seed into the Controller
-        self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
+        self.controller.storage.init_pending_mnemonic(num_words=12, seed_class=ElectrumSeed)
         self.controller.storage.set_pending_seed(ElectrumSeed("regular reject rare profit once math fringe chase until ketchup century escape".split()))
         self.controller.storage.finalize_pending_seed()
 

@@ -121,3 +121,52 @@ def generate_mnemonic_from_image(image, wordlist_language_code: str = SettingsCo
 
     # Return as a list
     return bip39.mnemonic_from_bytes(hash.digest(), wordlist=Seed.get_wordlist(wordlist_language_code)).split()
+
+
+
+def get_valid_final_mnemonic_words(partial_mnemonic: list, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
+    """
+    Calculate all valid final words that would produce a valid checksum for the given partial mnemonic.
+
+    For 12-word seeds (7 bit entropy + 4 bit checksum): exactly 128 valid words out of 2048
+    For 24-word seeds (3 bit entropy + 8 bit checksum): exactly 8 valid words out of 2048
+    """
+    wordlist = Seed.get_wordlist(wordlist_language_code)
+    total_bits = 128 if len(partial_mnemonic) == 11 else 256
+    entropy_bits = 0
+
+    # convert partial mnemonic words to entropy bits.
+    # left shift the current entropy_bits by 11 and combine the shifted value with word index.
+    # this helps us calculate the correct checksum
+    for word in partial_mnemonic:
+        entropy_bits = (entropy_bits << 11) | wordlist.index(word)
+
+    final_entropy_bits = total_bits - len(partial_mnemonic) * 11 # each word has 11 bits of entropy
+    valid_indices = []
+
+    # brute force all possible final entropy values
+    # 12-word seeds: 2^7 = 128 iterations
+    # 24-word seeds: 2^3 = 8 iterations
+    for i in range(1 << final_entropy_bits):
+        # combine existing entropy with candidate final entropy bits
+        full_entropy = (entropy_bits << final_entropy_bits) | i
+        
+        # convert to bytes for SHA256 (crypto functions need byte input, not integers)
+        entropy_bytes = full_entropy.to_bytes(total_bits//8, 'big')
+        
+        # BIP-39 checksum: first byte of SHA256 hash contains the checksum bits
+        checksum = hashlib.sha256(entropy_bytes).digest()[0]
+        
+        # construct final word index from entropy + checksum bits
+        if len(partial_mnemonic) == 11:
+            # 12-word seed: use top 4 bits of checksum byte (>> 4 extracts bits 7-4)
+            checksum_bits = checksum >> 4
+            final_index = (i << 4) | checksum_bits
+        else:
+            # 24-word seed: use all 8 bits of checksum byte
+            # combine 3 entropy bits (shifted left) + 8 checksum bits
+            final_index = (i << 8) | checksum
+
+        valid_indices.append(final_index)
+
+    return [wordlist[i] for i in sorted(valid_indices)]
