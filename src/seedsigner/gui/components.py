@@ -588,7 +588,23 @@ class TextArea(BaseComponent):
             50px/sec creates a slight ghosting / doubling effect that impedes
             readability. 45px/sec is better but still perceptually a bit stuttery.
             """
+            def _render_text():
+                img = self.rendered_text_img.crop((self.horizontal_scroll_position, 0, self.horizontal_scroll_position + self.visible_width, self.rendered_text_img.height))
+                self.renderer.canvas.paste(img, (self.screen_x, self.screen_y - self.scroll_y))
+                self.renderer.show_image()
+
             max_scroll = self.rendered_text_img.width - self.visible_width
+
+            # Technically, the math might say that we need to scroll for 1px, but it's
+            # not worth having the text twitch back and forth by such a small amount.
+            min_scrollable_diff = 2
+
+            if max_scroll < min_scrollable_diff:
+                # No scrolling needed. Render once and exit the thread.
+                with self.renderer.lock:
+                    _render_text()
+                    self.stop()
+                return
 
             # The scrolling holds / pauses at the start and end of the text line. These
             # vars track when we started holding and how long we should hold.
@@ -612,9 +628,8 @@ class TextArea(BaseComponent):
                         # We were stopped while waiting for the lock
                         continue
 
-                    img = self.rendered_text_img.crop((self.horizontal_scroll_position, 0, self.horizontal_scroll_position + self.visible_width, self.rendered_text_img.height))
-                    self.renderer.canvas.paste(img, (self.screen_x, self.screen_y - self.scroll_y))
-                    self.renderer.show_image()
+                    # Render the latest scroll update
+                    _render_text()
 
                 if hold_started_at is not None:
                     # If we're here, we've held long enough; reset the vars and resume
