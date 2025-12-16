@@ -391,7 +391,13 @@ class TextArea(BaseComponent):
             # Guaranteed to be a single line of text, possibly wider than self.width
             self.text_lines = [{"text": self.text, "text_width": full_text_width}]
             self.text_width = full_text_width
-            if self.text_width > self.visible_width:
+
+            # Technically, the math says that we should enable scrolling for as little 1px
+            # beyond the available width, but it's not worth having the text twitch back
+            # and forth by such a small amount.
+            min_scrollable_diff = 2
+
+            if self.text_width > self.visible_width + min_scrollable_diff:
                 # We'll have to left justify the text and scroll it (if scrolling is enabled,
                 # otherwise it'll just run off the right edge).
                 self.is_text_centered = False
@@ -535,6 +541,7 @@ class TextArea(BaseComponent):
 
         self.horizontal_text_scroll_thread: TextArea.HorizontalTextScrollThread = None
         if self.is_horizontal_scrolling_enabled:
+            print(f"CREATING scrollable thread for \"{self.text}\"")
             self.horizontal_text_scroll_thread = TextArea.HorizontalTextScrollThread(
                 rendered_text_img=self.rendered_text_img,
                 screen_x=self.screen_x + self.min_text_x,
@@ -589,22 +596,16 @@ class TextArea(BaseComponent):
             readability. 45px/sec is better but still perceptually a bit stuttery.
             """
             def _render_text():
-                img = self.rendered_text_img.crop((self.horizontal_scroll_position, 0, self.horizontal_scroll_position + self.visible_width, self.rendered_text_img.height))
+                img = self.rendered_text_img.crop(
+                    (
+                        self.horizontal_scroll_position, 0,  # (x,y) top left
+                        self.horizontal_scroll_position + self.visible_width, self.rendered_text_img.height  # (x,y) bottom right
+                    )
+                )
                 self.renderer.canvas.paste(img, (self.screen_x, self.screen_y - self.scroll_y))
                 self.renderer.show_image()
 
             max_scroll = self.rendered_text_img.width - self.visible_width
-
-            # Technically, the math might say that we need to scroll for 1px, but it's
-            # not worth having the text twitch back and forth by such a small amount.
-            min_scrollable_diff = 2
-
-            if max_scroll < min_scrollable_diff:
-                # No scrolling needed. Render once and exit the thread.
-                with self.renderer.lock:
-                    _render_text()
-                    self.stop()
-                return
 
             # The scrolling holds / pauses at the start and end of the text line. These
             # vars track when we started holding and how long we should hold.
