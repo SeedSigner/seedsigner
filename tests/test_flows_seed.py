@@ -184,7 +184,7 @@ class TestSeedFlows(FlowTest):
         """
             Selecting "Export XPUB" from the SeedOptionsView should enter the Export XPUB flow and end at the MainMenuView
         """
-        def flowtest_standard_xpub(sig_tuple, script_tuple, coord_tuple):
+        def flowtest_standard_xpub(sig_tuple, script_tuple, xpub_qr_tuple):
             if sig_tuple[0] == SettingsConstants.SINGLE_SIG:
                 sig_selection = seed_views.SeedExportXpubSigTypeView.SINGLE_SIG
             else:
@@ -195,7 +195,7 @@ class TestSeedFlows(FlowTest):
                     FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
                     FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=sig_selection),
                     FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=ButtonOption(script_tuple[1], return_data=script_tuple[0])),
-                    FlowStep(seed_views.SeedExportXpubQRFormatView, button_data_selection=ButtonOption(coord_tuple[1], return_data=coord_tuple[0])),
+                    FlowStep(seed_views.SeedExportXpubQRFormatView, button_data_selection=ButtonOption(xpub_qr_tuple[1], return_data=xpub_qr_tuple[0])),
                     FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
                     FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
                     FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
@@ -221,7 +221,7 @@ class TestSeedFlows(FlowTest):
         # exhaustively test flows thru standard sig_types, script_types, and xpub_qr_formats
         for sig_tuple in sig_types:
             for script_tuple in script_types:
-                for coord_tuple in xpub_qr_formats:
+                for xpub_qr_tuple in xpub_qr_formats:
                     # skip custom derivation
                     if script_tuple[0] == SettingsConstants.CUSTOM_DERIVATION:
                         continue 
@@ -229,13 +229,13 @@ class TestSeedFlows(FlowTest):
                     elif sig_tuple[0] == SettingsConstants.MULTISIG and script_tuple[0] == SettingsConstants.TAPROOT:
                         continue
                     else:
-                        print('\n\ntest_standard_xpubs(%s, %s, %s)' % (sig_tuple, script_tuple, coord_tuple))
-                        flowtest_standard_xpub(sig_tuple, script_tuple, coord_tuple)
+                        print('\n\ntest_standard_xpubs(%s, %s, %s)' % (sig_tuple, script_tuple, xpub_qr_tuple))
+                        flowtest_standard_xpub(sig_tuple, script_tuple, xpub_qr_tuple)
 
 
     def test_export_xpub_disabled_not_available_flow(self):
         """
-            If sig_type/script_type/coordinator disabled, then these options are not available
+            If sig_type/script_type/xpub_qr_format disabled, then these options are not available
         """
         # Load a finalized Seed into the Controller
         mnemonic = "blush twice taste dawn feed second opinion lazy thumb play neglect impact".split()
