@@ -2,7 +2,7 @@ import json
 import pytest
 from base import BaseTest
 from seedsigner.models.settings import InvalidSettingsQRData, Settings
-from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition, SettingsEntry
+from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
 
 
@@ -52,14 +52,14 @@ class TestSettings(BaseTest):
         settings_json = None
         with open(Settings.SETTINGS_FILENAME) as settings_file:
             settings_json = json.loads(settings_file.read())
-        
+
         # Now wipe out the Settings singleton
         BaseTest.reset_settings()
 
         # This also deletes settings.json, so recreate it
         with open(Settings.SETTINGS_FILENAME, "w") as settings_file:
             settings_file.write(json.dumps(settings_json))
-        
+
         # Now instantiate the Settings singleton again; it should load from disk
         settings = Settings.get_instance()
         assert settings.get_value(SettingsConstants.SETTING__QR_DENSITY) == SettingsConstants.DENSITY__HIGH
@@ -72,9 +72,7 @@ class TestSettings(BaseTest):
         settings_json[settings_entry.attr_name] = None
         with open(Settings.SETTINGS_FILENAME, "w") as settings_file:
             settings_file.write(json.dumps(settings_json))
-        
-        print(json.dumps(settings_json, indent=4))
-        
+
         # Re-instantiate and verify that the multiselect setting has loaded its defaults
         settings = Settings.get_instance()
         sig_types = settings.get_value(settings_entry.attr_name)
