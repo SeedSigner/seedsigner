@@ -204,6 +204,13 @@ class SettingsEntryUpdateSelectionView(View):
         )
 
         if ret_value == RET_CODE__BACK_BUTTON:
+            if self.settings_entry.type == SettingsConstants.TYPE__MULTISELECT:
+                # After the user finishes toggling multiselect options, initial_value will
+                # have their final selections when they hit BACK to exit. All current
+                # multiselect settings require at least one option to be selected.
+                if not initial_value:
+                    return Destination(SettingsSelectionRequiredWarningView, view_args={"attr_name": self.settings_entry.attr_name})
+
             if self.blocking_view:
                 return Destination(self.blocking_view, clear_history=True)
             return settings_menu_view_destination
@@ -258,6 +265,37 @@ class SettingsEntryUpdateSelectionView(View):
         self.selected_button = ret_value
 
         return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=self.settings_entry.attr_name, parent_initial_scroll=self.parent_initial_scroll, selected_button=self.selected_button, blocking_view=self.blocking_view, unblocking_view=self.unblocking_view), skip_current_view=True)
+
+
+
+class SettingsSelectionRequiredWarningView(View):
+    def __init__(self, attr_name: str):
+        super().__init__()
+        self.settings_entry = SettingsDefinition.get_settings_entry(attr_name)
+
+
+    def run(self):
+        from seedsigner.gui.screens.screen import WarningScreen
+
+        # TRANSLATOR_NOTE: Title of a warning dialog when configuring a setting that requires at least one option to be selected.
+        title = _("Selection Required")
+
+        # TRANSLATOR_NOTE: The name of the setting being configured (e.g. "Script types") will be inserted.
+        text = _("At least one option must be selected for \"{}\".").format(self.settings_entry.display_name)
+
+        # TRANSLATOR_NOTE: Text for the button that returns the user to the setting configuration screen.
+        button_text = _("Return to setting")
+
+        self.run_screen(
+            WarningScreen,
+            title=title,
+            status_headline=None,
+            text=text,
+            button_data=[ButtonOption(button_text)],
+            show_back_button=False,
+        )
+
+        return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=self.settings_entry.attr_name))
 
 
 

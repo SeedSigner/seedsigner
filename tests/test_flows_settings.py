@@ -37,17 +37,35 @@ class TestSettingsFlows(FlowTest):
 
 
     def test_multiselect(self):
-        """ Multiselect Settings options should stay in-place; requires BACK to exit. """
+        """
+        Multiselect Settings options should stay in-place; requires BACK to exit. If no
+        selections are made, route to the warning screen and return the user to the
+        settings entry until at least one option is selected.
+        """
         # Which option are we testing?
-        settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__XPUB_QR_FORMAT)
+        settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SIG_TYPES)
+
+        # Enable all options to start
+        self.settings.set_value(settings_entry.attr_name, [option[0] for option in settings_entry.selection_options])
+
+        # Sanity check, we only expect two options for this setting
+        assert len(settings_entry.selection_options) == 2
 
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SETTINGS),
             FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_views.SettingsMenuView.ADVANCED),
             FlowStep(settings_views.SettingsMenuView, button_data_selection=ButtonOption(settings_entry.display_name)),
-            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=0),  # select/deselect first option
-            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=1),  # select/deselect second option
-            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=1),  # select/deselect second option
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=0),  # deselect first option
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=1),  # deselect second option
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=1),  # select second option
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=1),  # deselect second option
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=RET_CODE__BACK_BUTTON),  # BACK to exit
+
+            # Both options were deselected, should route to the warning screen
+            FlowStep(settings_views.SettingsSelectionRequiredWarningView),
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=0),  # select first option
+
+            # Now we can exit
             FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=RET_CODE__BACK_BUTTON),  # BACK to exit
             FlowStep(settings_views.SettingsMenuView),
         ])
