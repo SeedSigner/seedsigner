@@ -78,11 +78,11 @@ class TestSettingsFlows(FlowTest):
         MainMenuView.
         """
         def load_persistent_settingsqr_into_decoder(view: scan_views.ScanView):
-            settingsqr_data_persistent: str = "settings::v1 name=Total_noob_mode persistent=E coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"
+            settingsqr_data_persistent: str = "settings::v1 name=Total_noob_mode persistent=E coords=spa,spd denom=thr network=M qr_density=M sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"
             view.decoder.add_data(settingsqr_data_persistent)
 
         def load_not_persistent_settingsqr_into_decoder(view: scan_views.ScanView):
-            settingsqr_data_not_persistent: str = "settings::v1 name=Ephemeral_noob_mode persistent=D coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"
+            settingsqr_data_not_persistent: str = "settings::v1 name=Ephemeral_noob_mode persistent=D coords=spa,spd denom=thr network=M qr_density=M sigs=ss scripts=nat xpub_details=E passphrase=E camera=0 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"
             view.decoder.add_data(settingsqr_data_not_persistent)
 
         def _run_test(initial_setting_state: str, load_settingsqr_into_decoder: Callable, expected_setting_state: str):

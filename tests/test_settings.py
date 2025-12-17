@@ -29,7 +29,7 @@ class TestSettings(BaseTest):
         return the resulting config_name and formatted settings_update_dict.
         """
         settings_name = "Test SettingsQR"
-        settingsqr_data = f"""settings::v1 name={ settings_name.replace(" ", "_") } persistent=D coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss,ms scripts=nat,nes,tr xpub_details=E passphrase=E camera=180 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"""
+        settingsqr_data = f"""settings::v1 name={ settings_name.replace(" ", "_") } persistent=D coords=spa,spd denom=thr network=M qr_density=M sigs=ss,ms scripts=nat,nes,tr xpub_details=E passphrase=E camera=180 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"""
 
         # First explicitly set settings that differ from the settingsqr_data
         self.settings.set_value(SettingsConstants.SETTING__COMPACT_SEEDQR, SettingsConstants.OPTION__DISABLED)
@@ -77,11 +77,10 @@ class TestSettings(BaseTest):
 
     def test_settingsqr_ignores_unrecognized_setting(self):
         """ SettingsQR parser should ignore unrecognized settings """
-        settingsqr_data = "settings::v1 name=Foo favorite_food=bacon xpub_export=D"
+        settingsqr_data = "settings::v1 name=Foo favorite_food=bacon"
         config_name, settings_update_dict = Settings.parse_settingsqr(settingsqr_data)
 
         assert "favorite_food" not in settings_update_dict
-        assert "xpub_export" in settings_update_dict
 
         # Accepts update with no Exceptions
         self.settings.update(new_settings=settings_update_dict)
@@ -89,15 +88,15 @@ class TestSettings(BaseTest):
 
     def test_settingsqr_fails_unrecognized_option(self):
         """ SettingsQR parser should fail if a settings has an unrecognized option """
-        settingsqr_data = "settings::v1 name=Foo xpub_export=Yep"
+        settingsqr_data = "settings::v1 name=Foo passphrase=Yep"
         with pytest.raises(InvalidSettingsQRData) as e:
             Settings.parse_settingsqr(settingsqr_data)
-        assert "xpub_export" in str(e.value)
+        assert "passphrase" in str(e.value)
 
 
     def test_settingsqr_parses_line_break_separators(self):
         """ SettingsQR parser should read line breaks as acceptable separators """
-        settingsqr_data = "settings::v1\nname=Foo\nsigs=ss,ms\nscripts=nat,nes,tr\nxpub_export=E\n"
+        settingsqr_data = "settings::v1\nname=Foo\nsigs=ss,ms\nscripts=nat,nes,tr\npassphrase=E\n"
         config_name, settings_update_dict = Settings.parse_settingsqr(settingsqr_data)
 
         assert len(settings_update_dict.keys()) == 3
