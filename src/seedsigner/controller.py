@@ -369,6 +369,10 @@ class Controller(Singleton):
                 else:
                     logger.info(f"NOT appending {next_destination}")
 
+        except KeyboardInterrupt:
+            # Only occurs in local dev via CTRL-C; catch to exit gracefully
+            logger.info("KeyboardInterrupt: exiting SeedSigner")
+
         finally:
             from seedsigner.gui.renderer import Renderer
             if self.is_screensaver_running:
