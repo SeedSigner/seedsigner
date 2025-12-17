@@ -81,6 +81,10 @@ class Settings(Singleton):
         for entry in data.split()[split_index:]:
             abbreviated_name, value = entry.split("=")
 
+            # Empty values ("some_setting= other_setting=E") are invalid
+            if value == "":
+                raise InvalidSettingsQRData(f"{abbreviated_name} cannot be empty")
+
             # Parse multi-value settings; integer-ize where needed
             if "," in value:
                 values_updated = []
@@ -103,6 +107,7 @@ class Settings(Singleton):
                 values = [value]
             else:
                 values = value
+
             for v in values:
                 if v not in [opt[0] for opt in settings_entry.selection_options]:
                     if settings_entry.attr_name == SettingsConstants.SETTING__PERSISTENT_SETTINGS and v == SettingsConstants.OPTION__ENABLED:

@@ -107,6 +107,14 @@ class TestSettings(BaseTest):
         assert "passphrase" in str(e.value)
 
 
+    def test_settingsqr_fails_empty_values(self):
+        """ SettingsQR parser should fail if a setting is empty """
+        settingsqr_data = "settings::v1 persistent=D sigs= camera=180"
+        with pytest.raises(InvalidSettingsQRData) as e:
+            Settings.parse_settingsqr(settingsqr_data)
+        assert "sigs" in str(e.value)
+
+
     def test_settingsqr_parses_line_break_separators(self):
         """ SettingsQR parser should read line breaks as acceptable separators """
         settingsqr_data = "settings::v1\nname=Foo\nsigs=ss,ms\nscripts=nat,nes,tr\npassphrase=E\n"
