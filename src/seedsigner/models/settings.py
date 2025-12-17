@@ -161,6 +161,9 @@ class Settings(Singleton):
                     if type(new_settings[entry.attr_name]) == str:
                         # Break comma-separated SettingsQR input into List
                         new_settings[entry.attr_name] = new_settings[entry.attr_name].split(",")
+                    elif new_settings[entry.attr_name] is None:
+                        # Multiselect cannot be None; load defaults to avoid issues
+                        new_settings[entry.attr_name] = entry.default_value
 
         for key, value in new_settings.items():
             self.set_value(key, value)

@@ -1,7 +1,8 @@
+import json
 import pytest
 from base import BaseTest
 from seedsigner.models.settings import InvalidSettingsQRData, Settings
-from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
+from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition, SettingsEntry
 
 
 
@@ -33,6 +34,51 @@ class TestSettings(BaseTest):
         settings = Settings.get_instance()
         for settings_entry in SettingsDefinition.get_settings_entries():
             assert settings.get_value(settings_entry.attr_name) == settings_entry.default_value
+
+
+    def test_load_persistent_settings(self):
+        """ Settings should load previously saved persistent settings from disk, if any
+        exist. Empty multiselect settings should load defaults. """
+        # Initial Settings will start with defaults
+        settings = Settings.get_instance()
+
+        # Enable persistent settings and make another change
+        settings.set_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS, SettingsConstants.OPTION__ENABLED)
+
+        assert settings.get_value(SettingsConstants.SETTING__QR_DENSITY) != SettingsConstants.DENSITY__HIGH
+        settings.set_value(SettingsConstants.SETTING__QR_DENSITY, SettingsConstants.DENSITY__HIGH)
+
+        # Hold on to the settings.json content
+        settings_json = None
+        with open(Settings.SETTINGS_FILENAME) as settings_file:
+            settings_json = json.loads(settings_file.read())
+        
+        # Now wipe out the Settings singleton
+        BaseTest.reset_settings()
+
+        # This also deletes settings.json, so recreate it
+        with open(Settings.SETTINGS_FILENAME, "w") as settings_file:
+            settings_file.write(json.dumps(settings_json))
+        
+        # Now instantiate the Settings singleton again; it should load from disk
+        settings = Settings.get_instance()
+        assert settings.get_value(SettingsConstants.SETTING__QR_DENSITY) == SettingsConstants.DENSITY__HIGH
+        
+        # Wipe out the Settings singleton again
+        BaseTest.reset_settings()
+
+        # Alter the settings.json to have an empty multiselect setting
+        settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SIG_TYPES)
+        settings_json[settings_entry.attr_name] = None
+        with open(Settings.SETTINGS_FILENAME, "w") as settings_file:
+            settings_file.write(json.dumps(settings_json))
+        
+        print(json.dumps(settings_json, indent=4))
+        
+        # Re-instantiate and verify that the multiselect setting has loaded its defaults
+        settings = Settings.get_instance()
+        sig_types = settings.get_value(settings_entry.attr_name)
+        assert sig_types == settings_entry.default_value
 
 
     def test_parse_settingsqr_data(self):
