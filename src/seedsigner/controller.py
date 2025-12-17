@@ -382,8 +382,8 @@ class Controller(Singleton):
                 self.toast_notification_thread.stop()
 
             # Clear the screen when exiting
-            logger.info("Clearing screen, exiting")
-            Renderer.get_instance().display_blank_screen()
+            with Renderer.get_instance().lock:
+                Renderer.get_instance().display_blank_screen()
 
 
     @property
