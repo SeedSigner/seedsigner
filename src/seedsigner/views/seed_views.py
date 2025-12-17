@@ -572,8 +572,7 @@ class SeedOptionsView(View):
 
         button_data.append(self.SCAN_PSBT)
         
-        if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
-            button_data.append(self.EXPORT_XPUB)
+        button_data.append(self.EXPORT_XPUB)
 
         button_data.append(self.EXPLORER)
         button_data.append(self.BACKUP)
