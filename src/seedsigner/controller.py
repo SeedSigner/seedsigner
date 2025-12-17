@@ -257,8 +257,6 @@ class Controller(Singleton):
         from seedsigner.views.screensaver import OpeningSplashView
         from seedsigner.gui.toast import RemoveSDCardToastManagerThread
 
-        OpeningSplashView().run()
-
         """ Class references can be stored as variables in python!
 
             This loop receives a View class to execute and stores it in the `View_cls`
@@ -285,6 +283,8 @@ class Controller(Singleton):
                 View_cls(**init_args).run()
         """
         try:
+            OpeningSplashView().run()
+
             if initial_destination:
                 next_destination = initial_destination
             else:
