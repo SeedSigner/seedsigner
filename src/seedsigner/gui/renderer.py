@@ -1,12 +1,92 @@
+import os
 from PIL import Image, ImageDraw
 from threading import Lock
 
-from seedsigner.hardware.displays.display_driver import ALL_DISPLAY_TYPES, DISPLAY_TYPE__ILI9341, DISPLAY_TYPE__ILI9486, DISPLAY_TYPE__ST7789, DisplayDriver
-# Note: ili9341 import removed - it imports RPi.GPIO at module level which crashes on ST7789 setups
+from seedsigner.hardware.displays.display_driver import ALL_DISPLAY_TYPES, DISPLAY_TYPE__DPI28, DISPLAY_TYPE__ILI9341, DISPLAY_TYPE__ILI9486, DISPLAY_TYPE__ST7789, DisplayDriver
+# Note: ili9341 import removed - was causing crash on ST7789/DPI28 due to RPi.GPIO import at module level
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.models.singleton import ConfigurableSingleton
 
+
+def _detect_display_type() -> str:
+    """
+    Auto-detect display type based on hardware.
+
+    Returns 'dpi28' if Waveshare 2.8" DPI LCD is detected.
+    Can be overridden by SEEDSIGNER_DISPLAY environment variable.
+    """
+    # Allow manual override
+    env_display = os.environ.get('SEEDSIGNER_DISPLAY')
+    if env_display:
+        return env_display
+
+    # Auto-detect DPI LCD by checking framebuffer
+    try:
+        # Check if framebuffer exists with expected size for DPI LCD (480x640)
+        if os.path.exists('/dev/fb0'):
+            with open('/sys/class/graphics/fb0/virtual_size', 'r') as f:
+                size = f.read().strip()
+                if size == '480,640':
+                    print("[Display] Auto-detected DPI28 framebuffer (480x640)")
+                    return 'dpi28'
+    except (IOError, FileNotFoundError):
+        pass
+
+    return None  # Let Settings decide
+
+
+def _detect_touch_mode() -> bool:
+    """
+    Auto-detect if touch input is available.
+
+    Returns True if capacitive touch device is found, False otherwise.
+    Can be overridden by SEEDSIGNER_TOUCH environment variable.
+    """
+    # Allow manual override
+    env_touch = os.environ.get('SEEDSIGNER_TOUCH')
+    if env_touch:
+        return env_touch == '1'
+
+    # Auto-detect touch input device
+    try:
+        import glob
+        # Look for touch input devices
+        for device_path in glob.glob('/dev/input/event*'):
+            try:
+                # Try to detect multitouch capability via evdev
+                import evdev
+                device = evdev.InputDevice(device_path)
+                caps = device.capabilities()
+                if evdev.ecodes.EV_ABS in caps:
+                    abs_caps = caps[evdev.ecodes.EV_ABS]
+                    abs_codes = [c[0] if isinstance(c, tuple) else c for c in abs_caps]
+                    if evdev.ecodes.ABS_MT_POSITION_X in abs_codes:
+                        print(f"[Touch] Auto-detected touch device: {device.name}")
+                        device.close()
+                        return True
+                device.close()
+            except:
+                continue
+    except ImportError:
+        pass  # evdev not available
+    except:
+        pass
+
+    return False
+
+
+# Auto-detect touch mode
+TOUCH_MODE = _detect_touch_mode()
+
+# Set environment variable so other modules can check it
+if TOUCH_MODE and 'SEEDSIGNER_TOUCH' not in os.environ:
+    os.environ['SEEDSIGNER_TOUCH'] = '1'
+
+# Check for auto-detected DPI28 display
+_auto_detected_display = _detect_display_type()
+if _auto_detected_display == 'dpi28' and 'SEEDSIGNER_DISPLAY' not in os.environ:
+    os.environ['SEEDSIGNER_DISPLAY'] = 'dpi28'
 
 
 class Renderer(ConfigurableSingleton):
@@ -49,7 +129,8 @@ class Renderer(ConfigurableSingleton):
         if Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED, default_if_none=True) == SettingsConstants.OPTION__ENABLED:
             self.disp.invert()
 
-        if self.display_type == DISPLAY_TYPE__ST7789:
+        if self.display_type in [DISPLAY_TYPE__ST7789, DISPLAY_TYPE__DPI28]:
+            # ST7789 and DPI28 both report 240x240 native size
             self.canvas_width = self.disp.width
             self.canvas_height = self.disp.height
 
@@ -120,3 +201,14 @@ class Renderer(ConfigurableSingleton):
     def display_blank_screen(self):
         self.draw.rectangle((0, 0, self.canvas_width, self.canvas_height), outline=0, fill=0)
         self.show_image()
+
+
+    def set_touch_bar_labels(self, labels: tuple):
+        """
+        Set the touch bar labels for DPI28 display.
+
+        Args:
+            labels: Tuple from DPI28 touch bar presets (e.g., TOUCH_BAR_DEFAULT, TOUCH_BAR_KEYBOARD)
+        """
+        if self.display_type == DISPLAY_TYPE__DPI28 and hasattr(self.disp.display, 'set_touch_bar_labels'):
+            self.disp.display.set_touch_bar_labels(labels)

@@ -1,8 +1,9 @@
 DISPLAY_TYPE__ST7789 = "st7789"
 DISPLAY_TYPE__ILI9341 = "ili9341"
 DISPLAY_TYPE__ILI9486 = "ili9486"
+DISPLAY_TYPE__DPI28 = "dpi28"
 
-ALL_DISPLAY_TYPES = [DISPLAY_TYPE__ST7789, DISPLAY_TYPE__ILI9341, DISPLAY_TYPE__ILI9486]
+ALL_DISPLAY_TYPES = [DISPLAY_TYPE__ST7789, DISPLAY_TYPE__ILI9341, DISPLAY_TYPE__ILI9486, DISPLAY_TYPE__DPI28]
 
 
 class DisplayDriver:
@@ -35,6 +36,10 @@ class DisplayDriver:
         elif self.display_type == DISPLAY_TYPE__ILI9486:
             # TODO: improve performance of ili9486 driver
             raise Exception("ILI9486 display not implemented yet")
+
+        elif self.display_type == DISPLAY_TYPE__DPI28:
+            from seedsigner.hardware.DPI28 import DPI28
+            self.display = DPI28()
     
 
     def __str__(self):

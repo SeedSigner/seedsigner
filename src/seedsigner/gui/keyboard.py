@@ -508,6 +508,33 @@ class Keyboard:
         self.get_key_at(self.selected_key["x"], self.selected_key["y"]).is_selected = True
 
 
+    def get_key_at_screen_coords(self, screen_x: int, screen_y: int):
+        """
+        Find which key (if any) is at the given screen coordinates.
+
+        Args:
+            screen_x, screen_y: Screen coordinates in native space (240x240)
+
+        Returns:
+            Key object if found, None otherwise
+        """
+        # Check if within keyboard rect
+        if not (self.rect[0] <= screen_x <= self.rect[2] and
+                self.rect[1] <= screen_y <= self.rect[3]):
+            return None
+
+        # Find the key at these coordinates
+        for row_keys in self.keys:
+            for key in row_keys:
+                key_right = key.screen_x + self.key_width * key.size
+                key_bottom = key.screen_y + self.key_height
+                if (key.screen_x <= screen_x <= key_right and
+                    key.screen_y <= screen_y <= key_bottom):
+                    return key
+
+        return None
+
+
 
 class TextEntryDisplayConstants:
     CURSOR_MODE__BAR = "bar"

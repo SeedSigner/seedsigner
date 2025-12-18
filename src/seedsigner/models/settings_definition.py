@@ -358,11 +358,13 @@ class SettingsConstants:
     DISPLAY_CONFIGURATION__ST7789__320x240 = "st7789_320x240"    # natively portrait dimensions; we apply a 90° rotation
     DISPLAY_CONFIGURATION__ILI9341__320x240 = "ili9341_320x240"  # natively portrait dimensions; we apply a 90° rotation
     DISPLAY_CONFIGURATION__ILI9486__480x320 = "ili9486_480x320"  # natively portrait dimensions; we apply a 90° rotation
+    DISPLAY_CONFIGURATION__DPI28__240x240 = "dpi28_240x240"  # Waveshare 2.8" DPI touchscreen (480x640 physical, 240x240 native)
     ALL_DISPLAY_CONFIGURATIONS = [
         (DISPLAY_CONFIGURATION__ST7789__240x240, "st7789 240x240"),
         (DISPLAY_CONFIGURATION__ST7789__320x240, "st7789 320x240"),
         (DISPLAY_CONFIGURATION__ILI9341__320x240, "ili9341 320x240 (beta)"),
         # (DISPLAY_CONFIGURATION__ILI9486__320x480, "ili9486 480x320"),  # TODO: Enable when ili9486 driver performance is improved
+        (DISPLAY_CONFIGURATION__DPI28__240x240, "dpi28 240x240 touch"),
     ]
 
 

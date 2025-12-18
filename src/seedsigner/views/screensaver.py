@@ -58,11 +58,21 @@ class OpeningSplashScreen(LogoScreen):
         self.force_partner_logos = force_partner_logos
         super().__init__()
 
+    def _set_touch_bar_hidden(self):
+        """Hide all touch bar buttons"""
+        import os
+        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
+            disp = self.renderer.disp
+            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_HIDDEN'):
+                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_HIDDEN)
 
     def _render(self):
         from PIL import Image
         from seedsigner.controller import Controller
         controller = Controller.get_instance()
+
+        # Hide touch bar during splash screen
+        self._set_touch_bar_hidden()
 
         # TODO: Fix for the screenshot generator. When generating screenshots for
         # multiple locales, there is a button still in the canvas from the previous
@@ -169,6 +179,15 @@ class ScreensaverScreen(LogoScreen):
         self.last_screen = None
 
 
+    def _set_touch_bar_hidden(self):
+        """Hide all touch bar buttons during screensaver"""
+        import os
+        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
+            disp = self.renderer.disp
+            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_HIDDEN'):
+                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_HIDDEN)
+
+
     @property
     def is_running(self):
         return self._is_running
@@ -188,6 +207,9 @@ class ScreensaverScreen(LogoScreen):
             return
 
         self._is_running = True
+
+        # Hide touch bar during screensaver
+        self._set_touch_bar_hidden()
 
         # Store the current screen in order to restore it later
         self.last_screen = self.renderer.canvas.copy()

@@ -399,8 +399,8 @@ class Controller(Singleton):
         if not self.screensaver:
             # Do a lazy/late import and instantiation to reduce Controller initial startup time
             from seedsigner.views.screensaver import ScreensaverScreen
-            from seedsigner.hardware.buttons import HardwareButtons
-            self.screensaver = ScreensaverScreen(HardwareButtons.get_instance())
+            from seedsigner.hardware.touchbuttons import get_buttons
+            self.screensaver = ScreensaverScreen(get_buttons())
         
         # Start the screensaver, but it will block until it can acquire the Renderer.lock.
         self.screensaver.start()
@@ -412,8 +412,8 @@ class Controller(Singleton):
         Reset the screensaver's timeout starting point to right now (i.e. make it think
         that zero time has elapsed since the last user interaction).
         """
-        from seedsigner.hardware.buttons import HardwareButtons
-        HardwareButtons.get_instance().update_last_input_time()
+        from seedsigner.hardware.touchbuttons import get_buttons
+        get_buttons().update_last_input_time()
 
 
     def activate_toast(self, toast_manager_thread: BaseToastOverlayManagerThread):
