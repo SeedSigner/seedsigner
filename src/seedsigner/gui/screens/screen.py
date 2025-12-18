@@ -428,11 +428,27 @@ class ButtonListScreen(BaseTopNavScreen):
 
     def _set_touch_bar_default(self):
         """Reset touch bar to default with scroll arrows"""
+        self._update_touch_bar_for_list_position()
+
+    def _update_touch_bar_for_list_position(self):
+        """Update touch bar based on current list scroll position"""
         import os
         if os.environ.get('SEEDSIGNER_TOUCH') == '1':
             disp = self.renderer.disp
             if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_DEFAULT'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_DEFAULT)
+                # Check if we're at top or bottom of list
+                at_top = self.selected_button == 0
+                at_bottom = self.selected_button == len(self.buttons) - 1
+
+                if at_top and at_bottom:
+                    # Single item list - both disabled
+                    disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_SELECT_ONLY)
+                elif at_top:
+                    disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_UP_DISABLED)
+                elif at_bottom:
+                    disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_DOWN_DISABLED)
+                else:
+                    disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_DEFAULT)
 
     def get_threads(self) -> List[BaseThread]:
         threads = super().get_threads()
@@ -573,6 +589,8 @@ class ButtonListScreen(BaseTopNavScreen):
                         else:
                             cur_selected_button.render()
                             next_selected_button.render()
+                        # Update touch bar to show which arrows are active
+                        self._update_touch_bar_for_list_position()
 
                 elif user_input in [HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY3] or (
                         self.top_nav.is_selected and user_input == HardwareButtonsConstants.KEY_RIGHT
@@ -614,6 +632,8 @@ class ButtonListScreen(BaseTopNavScreen):
                         if cur_selected_button:
                             cur_selected_button.render()
                         next_selected_button.render()
+                    # Update touch bar to show which arrows are active
+                    self._update_touch_bar_for_list_position()
 
                 elif user_input in [HardwareButtonsConstants.KEY2, HardwareButtonsConstants.KEY_PRESS]:
                     if self.top_nav.is_selected:

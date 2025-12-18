@@ -18,7 +18,7 @@ This PR adds touchscreen support for the **Waveshare 2.8" DPI LCD (480x640)**, e
 
 - **Display**: Waveshare 2.8" DPI LCD (480x640 resolution)
 - **Interface**: DPI (parallel GPIO), not SPI
-- **Touch**: Capacitive touch via raw Linux input
+- **Touch**: Capacitive touch via evdev
 
 ## Auto-Detection
 
@@ -51,14 +51,14 @@ Manual override is still available via `SEEDSIGNER_DISPLAY` and `SEEDSIGNER_TOUC
 └─────────────────────────────┘
 ```
 
-**Touch bar modes** (uses SeedSigner icon fonts - language-agnostic):
-- **List screens**: `▲ | ✓ | ▼` - scroll up/down with arrows (orange when active, grey at list boundaries)
-- **Grid screens**: `  | ✓ |  ` - checkmark only (home screen)
-- **Keyboard**: `🗑 | ⌨ | ▼` - smart color states:
-  - Delete icon grey: no content to delete
-  - Delete icon orange: content exists to delete
-  - Keyboard icon grey: no words available
-  - Keyboard icon orange: word(s) available for selection
+**Touch bar modes:**
+- **List screens**: `▲ | SELECT | ▼` - scroll up/down with arrows (orange when active, grey at list boundaries)
+- **Grid screens**: `  | SELECT |  ` - SELECT only (home screen)
+- **Keyboard**: `DEL | WORD | ▼` - smart color states:
+  - DEL grey: no content to delete
+  - DEL orange: content exists to delete
+  - WORD grey: no words available
+  - WORD orange: word(s) available for selection
   - ▼ grey: at bottom of word list
   - ▼ orange: can scroll down word list
 - **Hidden**: No buttons shown (splash, screensaver, power off screens)
@@ -70,7 +70,7 @@ Manual override is still available via `SEEDSIGNER_DISPLAY` and `SEEDSIGNER_TOUC
 | File | Purpose |
 |------|---------|
 | `src/seedsigner/hardware/DPI28.py` | Framebuffer driver for 2.8" DPI LCD |
-| `src/seedsigner/hardware/touch.py` | Capacitive touch input via raw Linux input (no external dependencies) |
+| `src/seedsigner/hardware/touch.py` | Capacitive touch input via Linux evdev |
 | `src/seedsigner/hardware/touchbuttons.py` | Touch-to-HardwareButtons adapter |
 | `src/seedsigner/emulator/run_emulator.py` | Desktop emulator using pygame |
 
@@ -139,44 +139,6 @@ The emulator provides:
 - **Existing workflows**: All preserved
 - **Touch-specific code**: Guarded by environment checks and `hasattr` guards
 
-## Code Safety & Separation
-
-This PR is designed to be **zero-risk to the existing GPIO code path**:
-
-### Untouched Files (GPIO path)
-
-| File | Status |
-|------|--------|
-| `src/seedsigner/hardware/buttons.py` | **100% unchanged** - all GPIO logic preserved |
-| `src/seedsigner/hardware/ST7789.py` | **100% unchanged** |
-
-### New Files (touch path only)
-
-| File | Purpose |
-|------|---------|
-| `hardware/DPI28.py` | DPI LCD driver - only loaded when DPI28 detected |
-| `hardware/touch.py` | Touch input - only loaded when touch detected |
-| `hardware/touchbuttons.py` | Touch adapter - only loaded via `SEEDSIGNER_TOUCH=1` |
-
-### Modified Files (all changes guarded)
-
-All touch-related code in modified files uses `hasattr()` guards:
-
-```python
-# Example guard pattern - if touch not available, nothing happens
-if hasattr(self.renderer, 'set_touch_bar_labels'):
-    self.renderer.set_touch_bar_labels(DPI28.TOUCH_BAR_KEYBOARD)
-```
-
-### Path Selection
-
-The input handler is selected at startup in `controller.py`:
-
-- `SEEDSIGNER_TOUCH=1` → `TouchButtons` (touch path)
-- Otherwise → `HardwareButtons` (GPIO path, unchanged)
-
-No touch code executes on standard ST7789 + GPIO hardware.
-
 ## Maintainability
 
 This implementation is designed to **not burden future GUI development**:
@@ -187,17 +149,6 @@ This implementation is designed to **not burden future GUI development**:
 - **Guard pattern**: All touch-specific calls use `hasattr()` checks - if display lacks touch bar, nothing happens
 
 New screens/views work automatically with touch - no modifications needed. Only keyboard-style screens benefit from explicit touch bar preset logic (and still work without it).
-
-## Framebuffer Performance
-
-The DPI28 driver uses memory-mapped framebuffer access with RGB→BGR color conversion (required by the Pi's 32-bit BGRA framebuffer format).
-
-| Method | FPS | Notes |
-|--------|-----|-------|
-| Numpy | ~7 | Uses numpy array operations |
-| Pure Python | ~1 | Fallback, no dependencies |
-
-The driver auto-detects the best available method at startup.
 
 ## Screenshots/Demo
 
@@ -238,12 +189,6 @@ git rebase seedsigner/dev
 ```bash
 pytest
 ```
-
-**Test Results:** 114 passed, 8 failed
-
-Failed tests are pre-existing issues unrelated to touchscreen changes:
-- 4 l10n tests - Translation files not loading (Spanish locale)
-- 4 seedqr tests - pyzbar version mismatch (`binary` argument not supported)
 
 ### 3. Hardware testing
 - [ ] Test on actual Waveshare 2.8" DPI LCD

@@ -41,12 +41,16 @@ class DPI28:
 
     # Touch bar label presets: (labels_tuple, colors_tuple)
     # Colors: grey=#444444, orange=#ff9416
-    TOUCH_BAR_DEFAULT = (('▲', 'SELECT', '▼'), ('#444444', '#ff9416', '#444444'))
+    TOUCH_BAR_DEFAULT = (('▲', 'SELECT', '▼'), ('#ff9416', '#ff9416', '#ff9416'))  # All active (orange)
+    TOUCH_BAR_UP_DISABLED = (('▲', 'SELECT', '▼'), ('#444444', '#ff9416', '#ff9416'))  # At top of list
+    TOUCH_BAR_DOWN_DISABLED = (('▲', 'SELECT', '▼'), ('#ff9416', '#ff9416', '#444444'))  # At bottom of list
     TOUCH_BAR_SELECT_ONLY = (('', 'SELECT', ''), ('#1a1a1a', '#ff9416', '#1a1a1a'))  # Only SELECT visible
-    TOUCH_BAR_KEYBOARD = (('BACK', 'SELECT', 'DEL'), ('#444444', '#444444', '#444444'))  # SELECT and DEL inactive (grey)
-    TOUCH_BAR_KEYBOARD_SELECT_ACTIVE = (('BACK', 'SELECT', 'DEL'), ('#444444', '#ff9416', '#444444'))  # SELECT active, DEL grey
-    TOUCH_BAR_KEYBOARD_DEL_ACTIVE = (('BACK', 'SELECT', 'DEL'), ('#444444', '#444444', '#ff9416'))  # DEL active, SELECT grey
-    TOUCH_BAR_KEYBOARD_BOTH_ACTIVE = (('BACK', 'SELECT', 'DEL'), ('#444444', '#ff9416', '#ff9416'))  # Both active (orange)
+    TOUCH_BAR_KEYBOARD = (('DEL', 'WORD', '▼'), ('#444444', '#444444', '#ff9416'))  # DEL/WORD inactive, down active
+    TOUCH_BAR_KEYBOARD_DOWN_DISABLED = (('DEL', 'WORD', '▼'), ('#444444', '#444444', '#444444'))  # All inactive (at bottom)
+    TOUCH_BAR_KEYBOARD_WORD_ACTIVE = (('DEL', 'WORD', '▼'), ('#444444', '#ff9416', '#ff9416'))  # WORD active, DEL grey
+    TOUCH_BAR_KEYBOARD_DEL_ACTIVE = (('DEL', 'WORD', '▼'), ('#ff9416', '#444444', '#ff9416'))  # DEL active, WORD grey
+    TOUCH_BAR_KEYBOARD_BOTH_ACTIVE = (('DEL', 'WORD', '▼'), ('#ff9416', '#ff9416', '#ff9416'))  # All active (orange)
+    TOUCH_BAR_KEYBOARD_BOTH_ACTIVE_DOWN_DISABLED = (('DEL', 'WORD', '▼'), ('#ff9416', '#ff9416', '#444444'))  # DEL/WORD active, down grey
     TOUCH_BAR_HIDDEN = (('', '', ''), ('#1a1a1a', '#1a1a1a', '#1a1a1a'))  # All buttons hidden
 
     def __init__(self, fb_device: str = "/dev/fb0"):
@@ -116,7 +120,8 @@ class DPI28:
                 radius=15,
                 fill=color
             )
-            # Draw label
+            # Draw label - use black text on orange buttons, white on grey
+            text_color = 'black' if color == '#ff9416' else 'white'
             try:
                 font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
             except:
@@ -127,7 +132,7 @@ class DPI28:
             text_h = bbox[3] - bbox[1]
             text_x = x + (btn_width - text_w) // 2
             text_y = btn_y + (btn_height - text_h) // 2
-            draw.text((text_x, text_y), label, fill='white', font=font)
+            draw.text((text_x, text_y), label, fill=text_color, font=font)
 
         return bar
 
