@@ -196,6 +196,80 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
         self.title = _("Dice Roll {}/{}").format(self.cursor_position + 1, self.return_after_n_chars)
         return True
 
+    def _render(self):
+        super()._render()
+        # Hide touch bar for dice screen
+        if hasattr(self.renderer, 'disp') and hasattr(self.renderer.disp, 'set_touch_bar_labels'):
+            from seedsigner.hardware.DPI28 import DPI28
+            self.renderer.disp.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
+
+    def _reset_touch_bar(self):
+        """Reset touch bar to hidden state"""
+        if hasattr(self.renderer, 'disp') and hasattr(self.renderer.disp, 'set_touch_bar_labels'):
+            from seedsigner.hardware.DPI28 import DPI28
+            self.renderer.disp.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
+
+    def _run(self):
+        # Check for touch support
+        touch_buttons = None
+        if hasattr(self, 'hw_inputs') and hasattr(self.hw_inputs, 'touch'):
+            touch_buttons = self.hw_inputs
+
+        while True:
+            self._render()
+
+            # Handle touch input for dice - single tap selection
+            if touch_buttons:
+                input_result = touch_buttons.wait_for(
+                    HardwareButtonsConstants.KEYS__ANYCLICK + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT],
+                    check_for_low=False
+                )
+
+                if input_result == HardwareButtonsConstants.KEY_LEFT:
+                    # Back button
+                    return RET_CODE__BACK_BUTTON
+
+                # Check if it was a touch and get coordinates
+                if hasattr(touch_buttons, 'last_touch_coords') and touch_buttons.last_touch_coords:
+                    x, y = touch_buttons.last_touch_coords
+                    touch_buttons.last_touch_coords = None
+
+                    # Check if tap was on a dice key - single tap selects immediately
+                    key = self.keyboard.get_key_at_screen_coords(x, y)
+                    if key:
+                        # Apply the key directly
+                        self.keyboard.set_selected_key(key)
+                        char = key.text_content
+                        value = self.keys_to_values.get(char, char)
+                        self.user_input += value
+                        self.cursor_position += 1
+                        self.update_title()
+
+                        if self.cursor_position == self.return_after_n_chars:
+                            return self.user_input
+                        continue
+
+                # D-pad navigation fallback
+                if input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
+                                    HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]:
+                    self.keyboard.update_from_input(input_result)
+                    continue
+
+                # Press on current selected key
+                if input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
+                    key = self.keyboard.get_selected_key()
+                    if key:
+                        char = key.text_content
+                        value = self.keys_to_values.get(char, char)
+                        self.user_input += value
+                        self.cursor_position += 1
+                        self.update_title()
+
+                        if self.cursor_position == self.return_after_n_chars:
+                            return self.user_input
+            else:
+                # Non-touch fallback - use parent class behavior
+                return super()._run()
 
 
 @dataclass
@@ -253,6 +327,78 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
         self.title = _("Coin Flip {}/{}").format(self.cursor_position + 1, self.return_after_n_chars)
         return True
 
+    def _render(self):
+        super()._render()
+        # Hide touch bar for coin flip screen
+        if hasattr(self.renderer, 'disp') and hasattr(self.renderer.disp, 'set_touch_bar_labels'):
+            from seedsigner.hardware.DPI28 import DPI28
+            self.renderer.disp.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
+
+    def _reset_touch_bar(self):
+        """Reset touch bar to hidden state"""
+        if hasattr(self.renderer, 'disp') and hasattr(self.renderer.disp, 'set_touch_bar_labels'):
+            from seedsigner.hardware.DPI28 import DPI28
+            self.renderer.disp.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
+
+    def _run(self):
+        # Check for touch support
+        touch_buttons = None
+        if hasattr(self, 'hw_inputs') and hasattr(self.hw_inputs, 'touch'):
+            touch_buttons = self.hw_inputs
+
+        while True:
+            self._render()
+
+            # Handle touch input for coin flip - single tap selection
+            if touch_buttons:
+                input_result = touch_buttons.wait_for(
+                    HardwareButtonsConstants.KEYS__ANYCLICK + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT],
+                    check_for_low=False
+                )
+
+                if input_result == HardwareButtonsConstants.KEY_LEFT:
+                    # Back button
+                    return RET_CODE__BACK_BUTTON
+
+                # Check if it was a touch and get coordinates
+                if hasattr(touch_buttons, 'last_touch_coords') and touch_buttons.last_touch_coords:
+                    x, y = touch_buttons.last_touch_coords
+                    touch_buttons.last_touch_coords = None
+
+                    # Check if tap was on a key - single tap selects immediately
+                    key = self.keyboard.get_key_at_screen_coords(x, y)
+                    if key:
+                        # Apply the key directly
+                        self.keyboard.set_selected_key(key)
+                        char = key.text_content
+                        self.user_input += char
+                        self.cursor_position += 1
+                        self.update_title()
+
+                        if self.cursor_position == self.return_after_n_chars:
+                            return self.user_input
+                        continue
+
+                # D-pad navigation fallback
+                if input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
+                                    HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]:
+                    self.keyboard.update_from_input(input_result)
+                    continue
+
+                # Press on current selected key
+                if input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
+                    key = self.keyboard.get_selected_key()
+                    if key:
+                        char = key.text_content
+                        self.user_input += char
+                        self.cursor_position += 1
+                        self.update_title()
+
+                        if self.cursor_position == self.return_after_n_chars:
+                            return self.user_input
+            else:
+                # Non-touch fallback - use parent class behavior
+                return super()._run()
 
 
 @dataclass
