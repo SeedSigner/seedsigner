@@ -77,10 +77,11 @@ class TestSettings(BaseTest):
 
     def test_settingsqr_ignores_unrecognized_setting(self):
         """ SettingsQR parser should ignore unrecognized settings """
-        settingsqr_data = "settings::v1 name=Foo favorite_food=bacon"
+        settingsqr_data = "settings::v1 name=Foo favorite_food=bacon passphrase=E"
         config_name, settings_update_dict = Settings.parse_settingsqr(settingsqr_data)
 
         assert "favorite_food" not in settings_update_dict
+        assert "passphrase" not in settings_update_dict
 
         # Accepts update with no Exceptions
         self.settings.update(new_settings=settings_update_dict)
