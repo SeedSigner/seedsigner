@@ -1043,6 +1043,11 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
     def _render(self):
         super()._render()
 
+        # Hide touch bar - this screen has its own side panel buttons
+        if hasattr(self.renderer, 'set_touch_bar_labels'):
+            from seedsigner.hardware.DPI28 import DPI28
+            self.renderer.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
+
         # Change from the default lowercase keyboard for the screenshot generator
         if self.initial_keyboard == self.KEYBOARD__UPPERCASE_BUTTON_TEXT:
             cur_keyboard = self.keyboard_ABC
@@ -1078,11 +1083,99 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         cur_button1_text = self.KEYBOARD__UPPERCASE_BUTTON_TEXT
         cur_button2_text = self.KEYBOARD__DIGITS_BUTTON_TEXT
 
+        # Check for touch support
+        touch_buttons = None
+        if hasattr(self.hw_inputs, 'get_last_tap_native_coords'):
+            touch_buttons = self.hw_inputs
+            # Clear any pending input
+            if hasattr(touch_buttons, 'clear_pending_input'):
+                touch_buttons.clear_pending_input()
+
         # Start the interactive update loop
         while True:
             input = self.hw_inputs.wait_for(HardwareButtonsConstants.ALL_KEYS)
 
             keyboard_swap = False
+
+            # Handle touch-specific input
+            if touch_buttons:
+                # Check for back button tap (top-left corner)
+                if hasattr(touch_buttons, 'was_back_button_tapped') and touch_buttons.was_back_button_tapped():
+                    return dict(passphrase=self.passphrase, is_back_button=True)
+
+                # Check for touch bar taps
+                if hasattr(touch_buttons, 'was_touch_bar_back_tapped') and touch_buttons.was_touch_bar_back_tapped():
+                    # Touch bar left = KEY1 = switch abc/ABC keyboard
+                    input = HardwareButtonsConstants.KEY1
+
+                # Check for direct key tap on keyboard
+                # Note: taps on edges may return KEY_LEFT/KEY_RIGHT from _coords_to_nav_key,
+                # so we check tap coordinates regardless of what input was returned
+                x, y = touch_buttons.get_last_tap_native_coords()
+                if x >= 0 and y >= 0:
+                    key = cur_keyboard.get_key_at_screen_coords(x, y)
+                    if key:
+                        # Update keyboard selection to tapped key
+                        cur_keyboard.set_selected_key_indices(key.index_x, key.index_y)
+                        cur_keyboard.render_keys()
+                        # Process the key
+                        if key.code == Keyboard.KEY_BACKSPACE["code"]:
+                            if cursor_position > 0:
+                                if cursor_position == len(self.passphrase):
+                                    self.passphrase = self.passphrase[:-1]
+                                else:
+                                    self.passphrase = self.passphrase[:cursor_position - 1] + self.passphrase[cursor_position:]
+                                cursor_position -= 1
+                                self.text_entry_display.render(self.passphrase, cursor_position)
+                            self.renderer.show_image()
+                            continue
+                        elif key.code == Keyboard.KEY_CURSOR_LEFT["code"]:
+                            cursor_position = max(0, cursor_position - 1)
+                            self.text_entry_display.render(self.passphrase, cursor_position)
+                            self.renderer.show_image()
+                            continue
+                        elif key.code == Keyboard.KEY_CURSOR_RIGHT["code"]:
+                            cursor_position = min(len(self.passphrase), cursor_position + 1)
+                            self.text_entry_display.render(self.passphrase, cursor_position)
+                            self.renderer.show_image()
+                            continue
+                        elif key.code == Keyboard.KEY_SPACE["code"]:
+                            if cursor_position == len(self.passphrase):
+                                self.passphrase += " "
+                            else:
+                                self.passphrase = self.passphrase[:cursor_position] + " " + self.passphrase[cursor_position:]
+                            cursor_position += 1
+                            self.text_entry_display.render(self.passphrase, cursor_position)
+                            self.renderer.show_image()
+                            continue
+                        else:
+                            # Regular character
+                            if cursor_position == len(self.passphrase):
+                                self.passphrase += key.letter
+                            else:
+                                self.passphrase = self.passphrase[:cursor_position] + key.letter + self.passphrase[cursor_position:]
+                            cursor_position += 1
+                            self.text_entry_display.render(self.passphrase, cursor_position)
+                            self.renderer.show_image()
+                            continue
+                    else:
+                        # Tap was not on a key - check if it hit the right panel buttons
+                        # Coords are in native 240x240 space
+                        # hw_button1: ABC/abc toggle
+                        if (self.hw_button1.screen_x <= x <= self.hw_button1.screen_x + self.hw_button1.width and
+                            self.hw_button1.screen_y <= y <= self.hw_button1.screen_y + self.hw_button1.height):
+                            input = HardwareButtonsConstants.KEY1
+                        # hw_button2: 123/!@#/*[] toggle
+                        elif (self.hw_button2.screen_x <= x <= self.hw_button2.screen_x + self.hw_button2.width and
+                              self.hw_button2.screen_y <= y <= self.hw_button2.screen_y + self.hw_button2.height):
+                            input = HardwareButtonsConstants.KEY2
+                        # hw_button3: Confirm (checkmark)
+                        elif (self.hw_button3.screen_x <= x <= self.hw_button3.screen_x + self.hw_button3.width and
+                              self.hw_button3.screen_y <= y <= self.hw_button3.screen_y + self.hw_button3.height):
+                            input = HardwareButtonsConstants.KEY3
+                        else:
+                            # Didn't tap anything valid
+                            continue
 
             with self.renderer.lock:
                 # Check our two possible exit conditions

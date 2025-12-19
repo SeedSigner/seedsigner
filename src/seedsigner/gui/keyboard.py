@@ -516,7 +516,7 @@ class Keyboard:
             screen_x, screen_y: Screen coordinates in native space (240x240)
 
         Returns:
-            Key object if found, None otherwise
+            Key object if found and active, None otherwise
         """
         # Check if within keyboard rect
         if not (self.rect[0] <= screen_x <= self.rect[2] and
@@ -530,7 +530,10 @@ class Keyboard:
                 key_bottom = key.screen_y + self.key_height
                 if (key.screen_x <= screen_x <= key_right and
                     key.screen_y <= screen_y <= key_bottom):
-                    return key
+                    # Only return active keys - greyed out keys should be ignored
+                    if key.is_active:
+                        return key
+                    return None
 
         return None
 

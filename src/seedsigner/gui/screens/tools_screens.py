@@ -196,19 +196,6 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
         self.title = _("Dice Roll {}/{}").format(self.cursor_position + 1, self.return_after_n_chars)
         return True
 
-    def _render(self):
-        super()._render()
-        # Hide touch bar for dice screen
-        if hasattr(self.renderer, 'disp') and hasattr(self.renderer.disp, 'set_touch_bar_labels'):
-            from seedsigner.hardware.DPI28 import DPI28
-            self.renderer.disp.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
-
-    def _reset_touch_bar(self):
-        """Reset touch bar to hidden state"""
-        if hasattr(self.renderer, 'disp') and hasattr(self.renderer.disp, 'set_touch_bar_labels'):
-            from seedsigner.hardware.DPI28 import DPI28
-            self.renderer.disp.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
-
     def _run(self):
         # Initialize cursor position (normally done in parent _run())
         self.cursor_position = len(self.user_input)
@@ -222,17 +209,20 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
             # Non-touch fallback - use parent class behavior
             return super()._run()
 
-        while True:
-            self._render()
+        # Clear touch bar buttons and hide touch bar - dice screen doesn't use bottom bar
+        if hasattr(touch_buttons, 'clear_buttons'):
+            touch_buttons.clear_buttons()
+        if hasattr(self.renderer, 'set_touch_bar_labels'):
+            from seedsigner.hardware.DPI28 import DPI28
+            self.renderer.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
 
-            # Handle touch input for dice - single tap selection
+        while True:
+            # Handle touch input for dice - only KEY_PRESS for direct taps, not KEY1/2/3
             input_result = touch_buttons.wait_for(
-                HardwareButtonsConstants.KEYS__ANYCLICK + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]
+                [HardwareButtonsConstants.KEY_PRESS] + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]
             )
 
-            # Check for back button (top-left tap or KEY_LEFT)
-            if input_result == HardwareButtonsConstants.KEY_LEFT:
-                return RET_CODE__BACK_BUTTON
+            # Check for back button (top-left tap)
             if hasattr(touch_buttons, 'was_back_button_tapped') and touch_buttons.was_back_button_tapped():
                 return RET_CODE__BACK_BUTTON
 
@@ -242,36 +232,65 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
                 x, y = touch_buttons.get_last_tap_native_coords()
                 if x >= 0 and y >= 0:
                     key = self.keyboard.get_key_at_screen_coords(x, y)
-                    print(f"[Dice] Tap at native ({x}, {y}), key found: {key}")
 
             # If no direct key tap, check if it was a press on selected key
-            if key is None and input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
+            if key is None and input_result == HardwareButtonsConstants.KEY_PRESS:
                 key = self.keyboard.get_selected_key()
-                print(f"[Dice] Using selected key: {key}")
 
-            # If we have a key, record it
+            # If we have a valid key, process it
             if key:
                 # Select the key visually
                 self.keyboard.set_selected_key_indices(key.index_x, key.index_y)
-                # Get the value
+
+                # Check if it's the DEL/backspace key
+                if key.code == "DEL":
+                    if len(self.user_input) > 0:
+                        self.user_input = self.user_input[:-1]
+                        self.cursor_position -= 1
+                        if self.update_title():
+                            # Render new TextArea over title (like parent class does)
+                            TextArea(
+                                text=self.title,
+                                font_name=GUIConstants.get_top_nav_title_font_name(),
+                                font_size=GUIConstants.get_top_nav_title_font_size(),
+                                height=self.top_nav.height,
+                            ).render()
+                            self.top_nav.render_buttons()
+                        self.text_entry_display.render(self.user_input)
+                        self.renderer.show_image()
+                    continue
+
+                # Get the value and record it
                 char = key.letter
                 value = self.keys_to_values.get(char, char)
                 self.user_input += value
                 self.cursor_position += 1
-                print(f"[Dice] Recorded value: {value}, total: {self.user_input}")
-
-                # Update title to show progress
-                self.update_title()
 
                 # Check if done
                 if self.cursor_position == self.return_after_n_chars:
                     return self.user_input
+
+                # Update title to show progress
+                if self.update_title():
+                    # Render new TextArea over title (like parent class does)
+                    TextArea(
+                        text=self.title,
+                        font_name=GUIConstants.get_top_nav_title_font_name(),
+                        font_size=GUIConstants.get_top_nav_title_font_size(),
+                        height=self.top_nav.height,
+                    ).render()
+                    self.top_nav.render_buttons()
+
+                # Update text entry display and show
+                self.text_entry_display.render(self.user_input)
+                self.renderer.show_image()
                 continue
 
             # D-pad navigation fallback
             if input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
                                 HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]:
                 self.keyboard.update_from_input(input_result)
+                self.renderer.show_image()
 
 
 @dataclass
@@ -329,19 +348,6 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
         self.title = _("Coin Flip {}/{}").format(self.cursor_position + 1, self.return_after_n_chars)
         return True
 
-    def _render(self):
-        super()._render()
-        # Hide touch bar for coin flip screen
-        if hasattr(self.renderer, 'disp') and hasattr(self.renderer.disp, 'set_touch_bar_labels'):
-            from seedsigner.hardware.DPI28 import DPI28
-            self.renderer.disp.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
-
-    def _reset_touch_bar(self):
-        """Reset touch bar to hidden state"""
-        if hasattr(self.renderer, 'disp') and hasattr(self.renderer.disp, 'set_touch_bar_labels'):
-            from seedsigner.hardware.DPI28 import DPI28
-            self.renderer.disp.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
-
     def _run(self):
         # Initialize cursor position (normally done in parent _run())
         self.cursor_position = len(self.user_input)
@@ -355,17 +361,20 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
             # Non-touch fallback - use parent class behavior
             return super()._run()
 
-        while True:
-            self._render()
+        # Clear touch bar buttons and hide touch bar - coin flip screen doesn't use bottom bar
+        if hasattr(touch_buttons, 'clear_buttons'):
+            touch_buttons.clear_buttons()
+        if hasattr(self.renderer, 'set_touch_bar_labels'):
+            from seedsigner.hardware.DPI28 import DPI28
+            self.renderer.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
 
-            # Handle touch input for coin flip - single tap selection
+        while True:
+            # Handle touch input for coin flip - only KEY_PRESS for direct taps, not KEY1/2/3
             input_result = touch_buttons.wait_for(
-                HardwareButtonsConstants.KEYS__ANYCLICK + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]
+                [HardwareButtonsConstants.KEY_PRESS] + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]
             )
 
-            # Check for back button (top-left tap or KEY_LEFT)
-            if input_result == HardwareButtonsConstants.KEY_LEFT:
-                return RET_CODE__BACK_BUTTON
+            # Check for back button (top-left tap)
             if hasattr(touch_buttons, 'was_back_button_tapped') and touch_buttons.was_back_button_tapped():
                 return RET_CODE__BACK_BUTTON
 
@@ -377,30 +386,62 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
                     key = self.keyboard.get_key_at_screen_coords(x, y)
 
             # If no direct key tap, check if it was a press on selected key
-            if key is None and input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
+            if key is None and input_result == HardwareButtonsConstants.KEY_PRESS:
                 key = self.keyboard.get_selected_key()
 
-            # If we have a key, record it
+            # If we have a key, process it
             if key:
                 # Select the key visually
                 self.keyboard.set_selected_key_indices(key.index_x, key.index_y)
-                # Get the value
+
+                # Check if it's the DEL/backspace key
+                if key.code == "DEL":
+                    if len(self.user_input) > 0:
+                        self.user_input = self.user_input[:-1]
+                        self.cursor_position -= 1
+                        if self.update_title():
+                            # Render new TextArea over title (like parent class does)
+                            TextArea(
+                                text=self.title,
+                                font_name=GUIConstants.get_top_nav_title_font_name(),
+                                font_size=GUIConstants.get_top_nav_title_font_size(),
+                                height=self.top_nav.height,
+                            ).render()
+                            self.top_nav.render_buttons()
+                        self.text_entry_display.render(self.user_input)
+                        self.renderer.show_image()
+                    continue
+
+                # Get the value and record it
                 char = key.letter
                 self.user_input += char
                 self.cursor_position += 1
 
-                # Update title to show progress
-                self.update_title()
-
                 # Check if done
                 if self.cursor_position == self.return_after_n_chars:
                     return self.user_input
+
+                # Update title to show progress
+                if self.update_title():
+                    # Render new TextArea over title (like parent class does)
+                    TextArea(
+                        text=self.title,
+                        font_name=GUIConstants.get_top_nav_title_font_name(),
+                        font_size=GUIConstants.get_top_nav_title_font_size(),
+                        height=self.top_nav.height,
+                    ).render()
+                    self.top_nav.render_buttons()
+
+                # Update text entry display and show
+                self.text_entry_display.render(self.user_input)
+                self.renderer.show_image()
                 continue
 
             # D-pad navigation fallback
             if input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
                                 HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]:
                 self.keyboard.update_from_input(input_result)
+                self.renderer.show_image()
 
 
 @dataclass

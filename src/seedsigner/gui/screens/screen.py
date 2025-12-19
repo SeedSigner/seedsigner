@@ -532,6 +532,10 @@ class ButtonListScreen(BaseTopNavScreen):
 
 
     def _run(self):
+        # Clear any pending touch input from previous screen
+        if hasattr(self.hw_inputs, 'clear_pending_input'):
+            self.hw_inputs.clear_pending_input()
+
         while True:
             ret = self._run_callback()
             if ret is not None:
@@ -692,8 +696,11 @@ class ButtonListScreen(BaseTopNavScreen):
 
                                 self.renderer.show_image()
                                 continue
+                        elif user_input == HardwareButtonsConstants.KEY_PRESS:
+                            # KEY_PRESS but didn't tap a button - ignore (require tapping actual button)
+                            continue
 
-                    # KEY2 (SELECT on touch bar) or KEY_PRESS returns current selection
+                    # KEY2 (SELECT on touch bar) or KEY_PRESS (non-touch) returns current selection
                     return self.selected_button
 
                 else:
@@ -816,6 +823,10 @@ class LargeButtonScreen(BaseTopNavScreen):
                 disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_HIDDEN)
 
     def _run(self):
+        # Clear any pending touch input from previous screen
+        if hasattr(self.hw_inputs, 'clear_pending_input'):
+            self.hw_inputs.clear_pending_input()
+
         def swap_selected_button(new_selected_button: int):
             self.buttons[self.selected_button].is_selected = False
             self.buttons[self.selected_button].render()
@@ -1441,6 +1452,10 @@ class KeyboardScreen(BaseTopNavScreen):
 
 
     def _run(self):
+        # Clear any pending touch input from previous screen
+        if hasattr(self.hw_inputs, 'clear_pending_input'):
+            self.hw_inputs.clear_pending_input()
+
         self.cursor_position = len(self.user_input)
 
         # Start the interactive update loop
