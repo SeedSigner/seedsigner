@@ -51,14 +51,14 @@ Manual override is still available via `SEEDSIGNER_DISPLAY` and `SEEDSIGNER_TOUC
 └─────────────────────────────┘
 ```
 
-**Touch bar modes:**
-- **List screens**: `▲ | SELECT | ▼` - scroll up/down with arrows (orange when active, grey at list boundaries)
-- **Grid screens**: `  | SELECT |  ` - SELECT only (home screen)
-- **Keyboard**: `DEL | WORD | ▼` - smart color states:
-  - DEL grey: no content to delete
-  - DEL orange: content exists to delete
-  - WORD grey: no words available
-  - WORD orange: word(s) available for selection
+**Touch bar modes** (uses SeedSigner icon fonts - language-agnostic):
+- **List screens**: `▲ | ✓ | ▼` - scroll up/down with arrows (orange when active, grey at list boundaries)
+- **Grid screens**: `  | ✓ |  ` - checkmark only (home screen)
+- **Keyboard**: `🗑 | ⌨ | ▼` - smart color states:
+  - Delete icon grey: no content to delete
+  - Delete icon orange: content exists to delete
+  - Keyboard icon grey: no words available
+  - Keyboard icon orange: word(s) available for selection
   - ▼ grey: at bottom of word list
   - ▼ orange: can scroll down word list
 - **Hidden**: No buttons shown (splash, screensaver, power off screens)

@@ -186,6 +186,17 @@ def _init_pygame():
         pygame.display.set_caption("SeedSigner Touchscreen Emulator")
 
 
+# Icon constants from SeedSigner icon fonts (language-agnostic)
+class TouchBarIcons:
+    # From seedsigner-icons.otf
+    CHEVRON_UP = "\ue90b"
+    CHEVRON_DOWN = "\ue908"
+    CHECK = "\ue905"
+    DELETE = "\ue922"
+    # From FontAwesome
+    KEYBOARD = "\uf11c"
+
+
 class EmulatedDPI28:
     """Emulates DPI28 framebuffer display using pygame"""
 
@@ -196,18 +207,25 @@ class EmulatedDPI28:
     UI_HEIGHT = 480
     TOUCH_BAR_HEIGHT = 160
 
-    # Touch bar label presets: (labels_tuple, colors_tuple) - same as DPI28
-    TOUCH_BAR_DEFAULT = (('▲', 'SELECT', '▼'), ('#ff9416', '#ff9416', '#ff9416'))  # All active (orange)
-    TOUCH_BAR_UP_DISABLED = (('▲', 'SELECT', '▼'), ('#444444', '#ff9416', '#ff9416'))  # At top of list
-    TOUCH_BAR_DOWN_DISABLED = (('▲', 'SELECT', '▼'), ('#ff9416', '#ff9416', '#444444'))  # At bottom of list
-    TOUCH_BAR_SELECT_ONLY = (('', 'SELECT', ''), ('#1a1a1a', '#ff9416', '#1a1a1a'))  # Only SELECT visible
-    TOUCH_BAR_KEYBOARD = (('DEL', 'WORD', '▼'), ('#444444', '#444444', '#ff9416'))  # DEL/WORD inactive, down active
-    TOUCH_BAR_KEYBOARD_DOWN_DISABLED = (('DEL', 'WORD', '▼'), ('#444444', '#444444', '#444444'))  # All inactive (at bottom)
-    TOUCH_BAR_KEYBOARD_WORD_ACTIVE = (('DEL', 'WORD', '▼'), ('#444444', '#ff9416', '#ff9416'))  # WORD active, DEL grey
-    TOUCH_BAR_KEYBOARD_DEL_ACTIVE = (('DEL', 'WORD', '▼'), ('#ff9416', '#444444', '#ff9416'))  # DEL active, WORD grey
-    TOUCH_BAR_KEYBOARD_BOTH_ACTIVE = (('DEL', 'WORD', '▼'), ('#ff9416', '#ff9416', '#ff9416'))  # All active (orange)
-    TOUCH_BAR_KEYBOARD_BOTH_ACTIVE_DOWN_DISABLED = (('DEL', 'WORD', '▼'), ('#ff9416', '#ff9416', '#444444'))  # DEL/WORD active, down grey
-    TOUCH_BAR_HIDDEN = (('', '', ''), ('#1a1a1a', '#1a1a1a', '#1a1a1a'))  # All buttons hidden
+    # Touch bar label presets: (icons_tuple, colors_tuple, font_types_tuple) - same as DPI28
+    # Icons are language-agnostic (no translation needed)
+    _UP = TouchBarIcons.CHEVRON_UP
+    _DOWN = TouchBarIcons.CHEVRON_DOWN
+    _SELECT = TouchBarIcons.CHECK
+    _DEL = TouchBarIcons.DELETE
+    _WORD = TouchBarIcons.KEYBOARD
+
+    TOUCH_BAR_DEFAULT = ((_UP, _SELECT, _DOWN), ('#ff9416', '#ff9416', '#ff9416'), ('seedsigner', 'seedsigner', 'seedsigner'))
+    TOUCH_BAR_UP_DISABLED = ((_UP, _SELECT, _DOWN), ('#444444', '#ff9416', '#ff9416'), ('seedsigner', 'seedsigner', 'seedsigner'))
+    TOUCH_BAR_DOWN_DISABLED = ((_UP, _SELECT, _DOWN), ('#ff9416', '#ff9416', '#444444'), ('seedsigner', 'seedsigner', 'seedsigner'))
+    TOUCH_BAR_SELECT_ONLY = (('', _SELECT, ''), ('#1a1a1a', '#ff9416', '#1a1a1a'), ('seedsigner', 'seedsigner', 'seedsigner'))
+    TOUCH_BAR_KEYBOARD = ((_DEL, _WORD, _DOWN), ('#444444', '#444444', '#ff9416'), ('seedsigner', 'fontawesome', 'seedsigner'))
+    TOUCH_BAR_KEYBOARD_DOWN_DISABLED = ((_DEL, _WORD, _DOWN), ('#444444', '#444444', '#444444'), ('seedsigner', 'fontawesome', 'seedsigner'))
+    TOUCH_BAR_KEYBOARD_WORD_ACTIVE = ((_DEL, _WORD, _DOWN), ('#444444', '#ff9416', '#ff9416'), ('seedsigner', 'fontawesome', 'seedsigner'))
+    TOUCH_BAR_KEYBOARD_DEL_ACTIVE = ((_DEL, _WORD, _DOWN), ('#ff9416', '#444444', '#ff9416'), ('seedsigner', 'fontawesome', 'seedsigner'))
+    TOUCH_BAR_KEYBOARD_BOTH_ACTIVE = ((_DEL, _WORD, _DOWN), ('#ff9416', '#ff9416', '#ff9416'), ('seedsigner', 'fontawesome', 'seedsigner'))
+    TOUCH_BAR_KEYBOARD_BOTH_ACTIVE_DOWN_DISABLED = ((_DEL, _WORD, _DOWN), ('#ff9416', '#ff9416', '#444444'), ('seedsigner', 'fontawesome', 'seedsigner'))
+    TOUCH_BAR_HIDDEN = (('', '', ''), ('#1a1a1a', '#1a1a1a', '#1a1a1a'), ('seedsigner', 'seedsigner', 'seedsigner'))
 
     def __init__(self, fb_device=None):
         self.width = self.NATIVE_WIDTH
@@ -230,12 +248,25 @@ class EmulatedDPI28:
             self._current_labels = preset
             self._touch_bar = self._get_touch_bar(preset)
 
+    def _get_font_path(self, font_type: str) -> str:
+        """Get the path to the icon font file"""
+        # Find the resources/fonts directory relative to this file
+        this_dir = os.path.dirname(os.path.abspath(__file__))
+        resources_dir = os.path.join(this_dir, '..', 'resources', 'fonts')
+
+        if font_type == 'seedsigner':
+            return os.path.join(resources_dir, 'seedsigner-icons.otf')
+        elif font_type == 'fontawesome':
+            return os.path.join(resources_dir, 'Font_Awesome_6_Free-Solid-900.otf')
+        else:
+            return None
+
     def _create_touch_bar(self, preset: tuple = None) -> Image.Image:
-        """Create the touch bar with custom labels and colors"""
+        """Create the touch bar with icons and colors"""
         if preset is None:
             preset = self.TOUCH_BAR_DEFAULT
 
-        labels, colors = preset
+        icons, colors, font_types = preset
 
         bar = Image.new('RGB', (self.DISPLAY_WIDTH, self.TOUCH_BAR_HEIGHT), '#1a1a1a')
         draw = ImageDraw.Draw(bar)
@@ -244,26 +275,40 @@ class EmulatedDPI28:
         btn_height = 100
         btn_y = (self.TOUCH_BAR_HEIGHT - btn_height) // 2
 
-        for i, (label, color) in enumerate(zip(labels, colors)):
+        # Cache fonts
+        icon_fonts = {}
+
+        for i, (icon, color, font_type) in enumerate(zip(icons, colors, font_types)):
             x = i * btn_width
             draw.rounded_rectangle(
                 [x + 10, btn_y, x + btn_width - 10, btn_y + btn_height],
                 radius=15,
                 fill=color
             )
-            # Use black text on orange buttons, white on grey
-            text_color = 'black' if color == '#ff9416' else 'white'
-            try:
-                font = ImageFont.truetype("arial.ttf", 24)
-            except:
-                font = ImageFont.load_default()
 
-            bbox = draw.textbbox((0, 0), label, font=font)
-            text_w = bbox[2] - bbox[0]
-            text_h = bbox[3] - bbox[1]
-            text_x = x + (btn_width - text_w) // 2
-            text_y = btn_y + (btn_height - text_h) // 2
-            draw.text((text_x, text_y), label, fill=text_color, font=font)
+            if not icon:
+                continue
+
+            # Draw icon - use black on orange buttons, white on grey
+            icon_color = 'black' if color == '#ff9416' else 'white'
+
+            # Get font for this icon
+            if font_type not in icon_fonts:
+                font_path = self._get_font_path(font_type)
+                try:
+                    icon_fonts[font_type] = ImageFont.truetype(font_path, 40)
+                except:
+                    # Fallback to default font
+                    icon_fonts[font_type] = ImageFont.load_default()
+
+            font = icon_fonts[font_type]
+
+            bbox = draw.textbbox((0, 0), icon, font=font)
+            icon_w = bbox[2] - bbox[0]
+            icon_h = bbox[3] - bbox[1]
+            icon_x = x + (btn_width - icon_w) // 2
+            icon_y = btn_y + (btn_height - icon_h) // 2
+            draw.text((icon_x, icon_y), icon, fill=icon_color, font=font)
 
         return bar
 
