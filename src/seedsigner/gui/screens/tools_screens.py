@@ -238,8 +238,9 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
                     # Check if tap was on a dice key - single tap selects immediately
                     key = self.keyboard.get_key_at_screen_coords(x, y)
                     if key:
-                        # Apply the key directly
-                        self.keyboard.set_selected_key(key)
+                        # Select the key visually using indices
+                        self.keyboard.set_selected_key_indices(key.index_x, key.index_y)
+                        # Get the character value
                         char = key.text_content
                         value = self.keys_to_values.get(char, char)
                         self.user_input += value
@@ -367,8 +368,9 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
                     # Check if tap was on a key - single tap selects immediately
                     key = self.keyboard.get_key_at_screen_coords(x, y)
                     if key:
-                        # Apply the key directly
-                        self.keyboard.set_selected_key(key)
+                        # Select the key visually using indices
+                        self.keyboard.set_selected_key_indices(key.index_x, key.index_y)
+                        # Get the character value
                         char = key.text_content
                         self.user_input += char
                         self.cursor_position += 1
