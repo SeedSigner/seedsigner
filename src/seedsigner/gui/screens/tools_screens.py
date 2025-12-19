@@ -230,48 +230,48 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
                 HardwareButtonsConstants.KEYS__ANYCLICK + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]
             )
 
+            # Check for back button (top-left tap or KEY_LEFT)
             if input_result == HardwareButtonsConstants.KEY_LEFT:
-                # Back button
+                return RET_CODE__BACK_BUTTON
+            if hasattr(touch_buttons, 'was_back_button_tapped') and touch_buttons.was_back_button_tapped():
                 return RET_CODE__BACK_BUTTON
 
-            # Check if it was a touch and get coordinates
+            # Check if it was a touch and get coordinates for direct key tap
+            key = None
             if hasattr(touch_buttons, 'get_last_tap_native_coords'):
                 x, y = touch_buttons.get_last_tap_native_coords()
                 if x >= 0 and y >= 0:
-                    # Check if tap was on a dice key - single tap selects immediately
                     key = self.keyboard.get_key_at_screen_coords(x, y)
-                    if key:
-                        # Select the key visually using indices
-                        self.keyboard.set_selected_key_indices(key.index_x, key.index_y)
-                        # Get the character value - use 'letter' attribute for display char
-                        char = key.letter
-                        value = self.keys_to_values.get(char, char)
-                        self.user_input += value
-                        self.cursor_position += 1
-                        self.update_title()
+                    print(f"[Dice] Tap at native ({x}, {y}), key found: {key}")
 
-                        if self.cursor_position == self.return_after_n_chars:
-                            return self.user_input
-                        continue
+            # If no direct key tap, check if it was a press on selected key
+            if key is None and input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
+                key = self.keyboard.get_selected_key()
+                print(f"[Dice] Using selected key: {key}")
+
+            # If we have a key, record it
+            if key:
+                # Select the key visually
+                self.keyboard.set_selected_key_indices(key.index_x, key.index_y)
+                # Get the value
+                char = key.letter
+                value = self.keys_to_values.get(char, char)
+                self.user_input += value
+                self.cursor_position += 1
+                print(f"[Dice] Recorded value: {value}, total: {self.user_input}")
+
+                # Update title to show progress
+                self.update_title()
+
+                # Check if done
+                if self.cursor_position == self.return_after_n_chars:
+                    return self.user_input
+                continue
 
             # D-pad navigation fallback
             if input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
                                 HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]:
                 self.keyboard.update_from_input(input_result)
-                continue
-
-            # Press on current selected key
-            if input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
-                key = self.keyboard.get_selected_key()
-                if key:
-                    char = key.letter
-                    value = self.keys_to_values.get(char, char)
-                    self.user_input += value
-                    self.cursor_position += 1
-                    self.update_title()
-
-                    if self.cursor_position == self.return_after_n_chars:
-                        return self.user_input
 
 
 @dataclass
@@ -363,46 +363,44 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
                 HardwareButtonsConstants.KEYS__ANYCLICK + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]
             )
 
+            # Check for back button (top-left tap or KEY_LEFT)
             if input_result == HardwareButtonsConstants.KEY_LEFT:
-                # Back button
+                return RET_CODE__BACK_BUTTON
+            if hasattr(touch_buttons, 'was_back_button_tapped') and touch_buttons.was_back_button_tapped():
                 return RET_CODE__BACK_BUTTON
 
-            # Check if it was a touch and get coordinates
+            # Check if it was a touch and get coordinates for direct key tap
+            key = None
             if hasattr(touch_buttons, 'get_last_tap_native_coords'):
                 x, y = touch_buttons.get_last_tap_native_coords()
                 if x >= 0 and y >= 0:
-                    # Check if tap was on a key - single tap selects immediately
                     key = self.keyboard.get_key_at_screen_coords(x, y)
-                    if key:
-                        # Select the key visually using indices
-                        self.keyboard.set_selected_key_indices(key.index_x, key.index_y)
-                        # Get the character value - use 'letter' attribute
-                        char = key.letter
-                        self.user_input += char
-                        self.cursor_position += 1
-                        self.update_title()
 
-                        if self.cursor_position == self.return_after_n_chars:
-                            return self.user_input
-                        continue
+            # If no direct key tap, check if it was a press on selected key
+            if key is None and input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
+                key = self.keyboard.get_selected_key()
+
+            # If we have a key, record it
+            if key:
+                # Select the key visually
+                self.keyboard.set_selected_key_indices(key.index_x, key.index_y)
+                # Get the value
+                char = key.letter
+                self.user_input += char
+                self.cursor_position += 1
+
+                # Update title to show progress
+                self.update_title()
+
+                # Check if done
+                if self.cursor_position == self.return_after_n_chars:
+                    return self.user_input
+                continue
 
             # D-pad navigation fallback
             if input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
                                 HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]:
                 self.keyboard.update_from_input(input_result)
-                continue
-
-            # Press on current selected key
-            if input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
-                key = self.keyboard.get_selected_key()
-                if key:
-                    char = key.letter
-                    self.user_input += char
-                    self.cursor_position += 1
-                    self.update_title()
-
-                    if self.cursor_position == self.return_after_n_chars:
-                        return self.user_input
 
 
 @dataclass
