@@ -240,8 +240,8 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
                     if key:
                         # Select the key visually using indices
                         self.keyboard.set_selected_key_indices(key.index_x, key.index_y)
-                        # Get the character value
-                        char = key.text_content
+                        # Get the character value - use 'letter' attribute for display char
+                        char = key.letter
                         value = self.keys_to_values.get(char, char)
                         self.user_input += value
                         self.cursor_position += 1
@@ -261,7 +261,7 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
             if input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
                 key = self.keyboard.get_selected_key()
                 if key:
-                    char = key.text_content
+                    char = key.letter
                     value = self.keys_to_values.get(char, char)
                     self.user_input += value
                     self.cursor_position += 1
@@ -370,8 +370,8 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
                     if key:
                         # Select the key visually using indices
                         self.keyboard.set_selected_key_indices(key.index_x, key.index_y)
-                        # Get the character value
-                        char = key.text_content
+                        # Get the character value - use 'letter' attribute
+                        char = key.letter
                         self.user_input += char
                         self.cursor_position += 1
                         self.update_title()
@@ -390,7 +390,7 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
             if input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
                 key = self.keyboard.get_selected_key()
                 if key:
-                    char = key.text_content
+                    char = key.letter
                     self.user_input += char
                     self.cursor_position += 1
                     self.update_title()
