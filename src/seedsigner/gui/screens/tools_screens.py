@@ -210,6 +210,9 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
             self.renderer.disp.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
 
     def _run(self):
+        # Initialize cursor position (normally done in parent _run())
+        self.cursor_position = len(self.user_input)
+
         # Check for touch support
         touch_buttons = None
         if hasattr(self, 'hw_inputs') and hasattr(self.hw_inputs, 'touch'):
@@ -340,6 +343,9 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
             self.renderer.disp.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
 
     def _run(self):
+        # Initialize cursor position (normally done in parent _run())
+        self.cursor_position = len(self.user_input)
+
         # Check for touch support
         touch_buttons = None
         if hasattr(self, 'hw_inputs') and hasattr(self.hw_inputs, 'touch'):
