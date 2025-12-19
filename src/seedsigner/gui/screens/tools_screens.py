@@ -215,25 +215,26 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
         if hasattr(self, 'hw_inputs') and hasattr(self.hw_inputs, 'touch'):
             touch_buttons = self.hw_inputs
 
+        if not touch_buttons:
+            # Non-touch fallback - use parent class behavior
+            return super()._run()
+
         while True:
             self._render()
 
             # Handle touch input for dice - single tap selection
-            if touch_buttons:
-                input_result = touch_buttons.wait_for(
-                    HardwareButtonsConstants.KEYS__ANYCLICK + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT],
-                    check_for_low=False
-                )
+            input_result = touch_buttons.wait_for(
+                HardwareButtonsConstants.KEYS__ANYCLICK + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]
+            )
 
-                if input_result == HardwareButtonsConstants.KEY_LEFT:
-                    # Back button
-                    return RET_CODE__BACK_BUTTON
+            if input_result == HardwareButtonsConstants.KEY_LEFT:
+                # Back button
+                return RET_CODE__BACK_BUTTON
 
-                # Check if it was a touch and get coordinates
-                if hasattr(touch_buttons, 'last_touch_coords') and touch_buttons.last_touch_coords:
-                    x, y = touch_buttons.last_touch_coords
-                    touch_buttons.last_touch_coords = None
-
+            # Check if it was a touch and get coordinates
+            if hasattr(touch_buttons, 'get_last_tap_native_coords'):
+                x, y = touch_buttons.get_last_tap_native_coords()
+                if x >= 0 and y >= 0:
                     # Check if tap was on a dice key - single tap selects immediately
                     key = self.keyboard.get_key_at_screen_coords(x, y)
                     if key:
@@ -249,27 +250,24 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
                             return self.user_input
                         continue
 
-                # D-pad navigation fallback
-                if input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
-                                    HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]:
-                    self.keyboard.update_from_input(input_result)
-                    continue
+            # D-pad navigation fallback
+            if input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
+                                HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]:
+                self.keyboard.update_from_input(input_result)
+                continue
 
-                # Press on current selected key
-                if input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
-                    key = self.keyboard.get_selected_key()
-                    if key:
-                        char = key.text_content
-                        value = self.keys_to_values.get(char, char)
-                        self.user_input += value
-                        self.cursor_position += 1
-                        self.update_title()
+            # Press on current selected key
+            if input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
+                key = self.keyboard.get_selected_key()
+                if key:
+                    char = key.text_content
+                    value = self.keys_to_values.get(char, char)
+                    self.user_input += value
+                    self.cursor_position += 1
+                    self.update_title()
 
-                        if self.cursor_position == self.return_after_n_chars:
-                            return self.user_input
-            else:
-                # Non-touch fallback - use parent class behavior
-                return super()._run()
+                    if self.cursor_position == self.return_after_n_chars:
+                        return self.user_input
 
 
 @dataclass
@@ -346,25 +344,26 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
         if hasattr(self, 'hw_inputs') and hasattr(self.hw_inputs, 'touch'):
             touch_buttons = self.hw_inputs
 
+        if not touch_buttons:
+            # Non-touch fallback - use parent class behavior
+            return super()._run()
+
         while True:
             self._render()
 
             # Handle touch input for coin flip - single tap selection
-            if touch_buttons:
-                input_result = touch_buttons.wait_for(
-                    HardwareButtonsConstants.KEYS__ANYCLICK + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT],
-                    check_for_low=False
-                )
+            input_result = touch_buttons.wait_for(
+                HardwareButtonsConstants.KEYS__ANYCLICK + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]
+            )
 
-                if input_result == HardwareButtonsConstants.KEY_LEFT:
-                    # Back button
-                    return RET_CODE__BACK_BUTTON
+            if input_result == HardwareButtonsConstants.KEY_LEFT:
+                # Back button
+                return RET_CODE__BACK_BUTTON
 
-                # Check if it was a touch and get coordinates
-                if hasattr(touch_buttons, 'last_touch_coords') and touch_buttons.last_touch_coords:
-                    x, y = touch_buttons.last_touch_coords
-                    touch_buttons.last_touch_coords = None
-
+            # Check if it was a touch and get coordinates
+            if hasattr(touch_buttons, 'get_last_tap_native_coords'):
+                x, y = touch_buttons.get_last_tap_native_coords()
+                if x >= 0 and y >= 0:
                     # Check if tap was on a key - single tap selects immediately
                     key = self.keyboard.get_key_at_screen_coords(x, y)
                     if key:
@@ -379,26 +378,23 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
                             return self.user_input
                         continue
 
-                # D-pad navigation fallback
-                if input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
-                                    HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]:
-                    self.keyboard.update_from_input(input_result)
-                    continue
+            # D-pad navigation fallback
+            if input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
+                                HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]:
+                self.keyboard.update_from_input(input_result)
+                continue
 
-                # Press on current selected key
-                if input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
-                    key = self.keyboard.get_selected_key()
-                    if key:
-                        char = key.text_content
-                        self.user_input += char
-                        self.cursor_position += 1
-                        self.update_title()
+            # Press on current selected key
+            if input_result in HardwareButtonsConstants.KEYS__ANYCLICK:
+                key = self.keyboard.get_selected_key()
+                if key:
+                    char = key.text_content
+                    self.user_input += char
+                    self.cursor_position += 1
+                    self.update_title()
 
-                        if self.cursor_position == self.return_after_n_chars:
-                            return self.user_input
-            else:
-                # Non-touch fallback - use parent class behavior
-                return super()._run()
+                    if self.cursor_position == self.return_after_n_chars:
+                        return self.user_input
 
 
 @dataclass
