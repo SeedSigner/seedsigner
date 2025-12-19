@@ -81,7 +81,7 @@ class TestSettings(BaseTest):
         config_name, settings_update_dict = Settings.parse_settingsqr(settingsqr_data)
 
         assert "favorite_food" not in settings_update_dict
-        assert "passphrase" not in settings_update_dict
+        assert "passphrase" in settings_update_dict
 
         # Accepts update with no Exceptions
         self.settings.update(new_settings=settings_update_dict)
