@@ -180,6 +180,7 @@ class DPI28:
             
         except Exception as e:
             print(f"[DPI28] Could not initialize framebuffer: {e}")
+            self.close()
             self.fb = None
 
     def _get_touch_bar(self, labels: tuple) -> Image.Image:
