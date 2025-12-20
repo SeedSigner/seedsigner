@@ -5,16 +5,50 @@ Display specs:
 - 480x640 resolution (portrait)
 - DPI interface (uses GPIO, not SPI)
 - Directly writes to /dev/fb0 framebuffer
+- 32-bit BGRA format (requires RGB→BGR swap)
 
 Layout:
 - Top 480x480: UI area (240x240 scaled 2x)
 - Bottom 480x160: Touch bar (KEY1, KEY2, KEY3)
 
+Based on mutatrum's fast-pillow-fb approach:
+https://github.com/mutatrum/fast-pillow-fb
+
 On PC/Emulator: This module is replaced by EmulatedDPI28 in run_emulator.py
 """
 
 import os
+import mmap
 from PIL import Image, ImageDraw, ImageFont
+
+# Try to import numpy for faster conversion (~7 fps vs ~1 fps pure Python)
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    print("[DPI28] numpy not available, using slow Python conversion")
+
+# Try to import Cython module for fastest conversion (~17 fps)
+HAS_CYTHON = False
+try:
+    import pyximport
+    pyximport.install()
+    # Try relative import first (when running as package)
+    try:
+        from . import RGBtoBGR
+        HAS_CYTHON = True
+    except ImportError:
+        # Try importing from same directory
+        import sys
+        import os
+        _this_dir = os.path.dirname(os.path.abspath(__file__))
+        if _this_dir not in sys.path:
+            sys.path.insert(0, _this_dir)
+        import RGBtoBGR
+        HAS_CYTHON = True
+except Exception as e:
+    print(f"[DPI28] Cython not available: {e}")
 
 
 # Icon constants from SeedSigner icon fonts (language-agnostic)
@@ -34,6 +68,9 @@ class DPI28:
 
     Accepts 240x240 images (SeedSigner native), scales to 480x480,
     and adds a 160px touch bar at the bottom.
+    
+    Uses mmap for fast framebuffer writes and handles RGB→BGR conversion
+    required by the Raspberry Pi framebuffer.
     """
 
     # Native UI size (what SeedSigner renders)
@@ -52,9 +89,6 @@ class DPI28:
     TOUCH_BAR_HEIGHT = 160
 
     # Touch bar label presets: (icons_tuple, colors_tuple, font_types_tuple)
-    # Colors: grey=#444444, orange=#ff9416
-    # Font types: 'seedsigner' for seedsigner-icons.otf, 'fontawesome' for FontAwesome
-    # Icons are language-agnostic (no translation needed)
     _UP = TouchBarIcons.CHEVRON_UP
     _DOWN = TouchBarIcons.CHEVRON_DOWN
     _SELECT = TouchBarIcons.CHECK
@@ -73,19 +107,27 @@ class DPI28:
     TOUCH_BAR_KEYBOARD_BOTH_ACTIVE_DOWN_DISABLED = ((_DEL, _WORD, _DOWN), ('#ff9416', '#ff9416', '#444444'), ('seedsigner', 'fontawesome', 'seedsigner'))
     TOUCH_BAR_HIDDEN = (('', '', ''), ('#1a1a1a', '#1a1a1a', '#1a1a1a'), ('seedsigner', 'seedsigner', 'seedsigner'))
 
-    def __init__(self, fb_device: str = "/dev/fb0"):
+    def __init__(self, device_no: int = 0):
         """
         Initialize the framebuffer display.
 
         Args:
-            fb_device: Path to framebuffer device
+            device_no: Framebuffer device number (0 for /dev/fb0)
         """
         # Report 240x240 to SeedSigner (native rendering size)
         self.width = self.NATIVE_WIDTH
         self.height = self.NATIVE_HEIGHT
 
-        self.fb_device = fb_device
+        self.device_no = device_no
+        self.fb_path = f"/dev/fb{device_no}"
+        self.config_dir = f"/sys/class/graphics/fb{device_no}/"
+        
         self.fb = None
+        self.fb_file = None
+        self.fb_size = None
+        self.bits_per_pixel = None
+        self.stride = None
+        self.length = None
 
         # Current touch bar labels
         self._current_labels = self.TOUCH_BAR_DEFAULT
@@ -94,10 +136,51 @@ class DPI28:
         self._touch_bar_cache = {}
         self._touch_bar = self._get_touch_bar(self.TOUCH_BAR_DEFAULT)
 
+        # Initialize framebuffer
+        self._init_framebuffer()
+
+    def _read_config(self, filename: str) -> list:
+        """Read framebuffer config from sysfs"""
         try:
-            self.fb = open(fb_device, 'r+b')
+            with open(filename, "r") as fp:
+                content = fp.readline()
+                tokens = content.strip().split(",")
+                return [int(t) for t in tokens if t]
         except Exception as e:
-            print(f"[DPI28] Could not open {fb_device}: {e}")
+            print(f"[DPI28] Could not read {filename}: {e}")
+            return []
+
+    def _init_framebuffer(self):
+        """Initialize framebuffer with mmap for fast access"""
+        try:
+            # Read framebuffer configuration
+            size_config = self._read_config(self.config_dir + "virtual_size")
+            if len(size_config) >= 2:
+                self.fb_size = (size_config[0], size_config[1])
+            else:
+                # Fallback to expected size
+                self.fb_size = (self.DISPLAY_WIDTH, self.DISPLAY_HEIGHT)
+            
+            bpp_config = self._read_config(self.config_dir + "bits_per_pixel")
+            self.bits_per_pixel = bpp_config[0] if bpp_config else 32
+            
+            stride_config = self._read_config(self.config_dir + "stride")
+            self.stride = stride_config[0] if stride_config else (self.bits_per_pixel // 8 * self.fb_size[0])
+            
+            # Calculate buffer length
+            self.length = self.fb_size[0] * self.fb_size[1] * (self.bits_per_pixel // 8)
+            
+            print(f"[DPI28] Framebuffer: {self.fb_path}")
+            print(f"[DPI28] Size: {self.fb_size}, BPP: {self.bits_per_pixel}, Stride: {self.stride}")
+            print(f"[DPI28] Using: {'Cython' if HAS_CYTHON else 'numpy' if HAS_NUMPY else 'Python'} conversion")
+            
+            # Open and mmap the framebuffer
+            self.fb_file = open(self.fb_path, "r+b")
+            self.fb = mmap.mmap(self.fb_file.fileno(), length=self.length, access=mmap.ACCESS_WRITE)
+            
+        except Exception as e:
+            print(f"[DPI28] Could not initialize framebuffer: {e}")
+            self.fb = None
 
     def _get_touch_bar(self, labels: tuple) -> Image.Image:
         """Get touch bar from cache or create new one"""
@@ -119,7 +202,6 @@ class DPI28:
 
     def _get_font_path(self, font_type: str) -> str:
         """Get the path to the icon font file"""
-        # Find the resources/fonts directory relative to this file
         this_dir = os.path.dirname(os.path.abspath(__file__))
         resources_dir = os.path.join(this_dir, '..', 'resources', 'fonts')
 
@@ -140,17 +222,14 @@ class DPI28:
         bar = Image.new('RGB', (self.UI_WIDTH, self.TOUCH_BAR_HEIGHT), '#1a1a1a')
         draw = ImageDraw.Draw(bar)
 
-        # Button dimensions
         btn_width = self.UI_WIDTH // 3
         btn_height = 100
         btn_y = (self.TOUCH_BAR_HEIGHT - btn_height) // 2
 
-        # Cache fonts
         icon_fonts = {}
 
         for i, (icon, color, font_type) in enumerate(zip(icons, colors, font_types)):
             x = i * btn_width
-            # Draw button background
             draw.rounded_rectangle(
                 [x + 10, btn_y, x + btn_width - 10, btn_y + btn_height],
                 radius=15,
@@ -160,16 +239,13 @@ class DPI28:
             if not icon:
                 continue
 
-            # Draw icon - use black on orange buttons, white on grey
             icon_color = 'black' if color == '#ff9416' else 'white'
 
-            # Get font for this icon
             if font_type not in icon_fonts:
                 font_path = self._get_font_path(font_type)
                 try:
                     icon_fonts[font_type] = ImageFont.truetype(font_path, 40)
                 except:
-                    # Fallback to default font
                     icon_fonts[font_type] = ImageFont.load_default()
 
             font = icon_fonts[font_type]
@@ -209,14 +285,83 @@ class DPI28:
         self._write_to_fb(display)
 
     def _write_to_fb(self, image: Image.Image):
-        """Write image to framebuffer in RGB565 format"""
+        """
+        Write image to framebuffer with RGB→BGR conversion.
+        
+        Uses fastest available method:
+        1. Cython (~17 fps)
+        2. Numpy (~7 fps)
+        3. Pure Python (~1 fps)
+        """
         if not self.fb:
             return
 
         if image.mode != 'RGB':
             image = image.convert('RGB')
 
-        # Convert RGB888 to RGB565
+        if self.bits_per_pixel == 32:
+            self._write_32bit(image)
+        elif self.bits_per_pixel == 16:
+            self._write_16bit(image)
+        else:
+            print(f"[DPI28] Unsupported bits_per_pixel: {self.bits_per_pixel}")
+
+    def _write_32bit(self, image: Image.Image):
+        """Write 32-bit BGRA to framebuffer"""
+        if HAS_CYTHON:
+            # Fastest: Cython (~17 fps)
+            rgb_data = image.tobytes()
+            num_pixels = image.width * image.height
+            RGBtoBGR.rgbtobgr(rgb_data, self.fb, num_pixels)
+        elif HAS_NUMPY:
+            # Fast: Numpy (~7 fps)
+            # Convert PIL to numpy array
+            arr = np.array(image)
+            # Swap R and B channels: RGB -> BGR
+            bgr = arr[:, :, ::-1]
+            # Add alpha channel (BGRA)
+            bgra = np.dstack((bgr, np.full((image.height, image.width), 255, dtype=np.uint8)))
+            # Write to framebuffer
+            self.fb.seek(0)
+            self.fb.write(bgra.tobytes())
+        else:
+            # Slow: Pure Python (~1 fps)
+            self._write_32bit_python(image)
+
+    def _write_32bit_python(self, image: Image.Image):
+        """Fallback pure Python 32-bit write (slow!)"""
+        pixels = image.load()
+        bgra_data = bytearray(self.length)
+        
+        idx = 0
+        for row in range(image.height):
+            for col in range(image.width):
+                r, g, b = pixels[col, row]
+                # BGRA format (swap R and B)
+                bgra_data[idx] = b
+                bgra_data[idx + 1] = g
+                bgra_data[idx + 2] = r
+                bgra_data[idx + 3] = 255  # Alpha
+                idx += 4
+        
+        self.fb.seek(0)
+        self.fb.write(bgra_data)
+
+    def _write_16bit(self, image: Image.Image):
+        """Write 16-bit RGB565 to framebuffer (if needed)"""
+        if HAS_NUMPY:
+            arr = np.array(image)
+            r = (arr[:, :, 0] >> 3).astype(np.uint16)
+            g = (arr[:, :, 1] >> 2).astype(np.uint16)
+            b = (arr[:, :, 2] >> 3).astype(np.uint16)
+            rgb565 = (r << 11) | (g << 5) | b
+            self.fb.seek(0)
+            self.fb.write(rgb565.tobytes())
+        else:
+            self._write_16bit_python(image)
+
+    def _write_16bit_python(self, image: Image.Image):
+        """Fallback pure Python 16-bit write (slow!)"""
         pixels = image.load()
         rgb565_data = bytearray(image.width * image.height * 2)
 
@@ -224,29 +369,22 @@ class DPI28:
         for row in range(image.height):
             for col in range(image.width):
                 r, g, b = pixels[col, row]
-                # RGB565: RRRRRGGGGGGBBBBB
                 rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
                 rgb565_data[idx] = rgb565 & 0xFF
                 rgb565_data[idx + 1] = (rgb565 >> 8) & 0xFF
                 idx += 2
 
-        try:
-            self.fb.seek(0)
-            self.fb.write(rgb565_data)
-            self.fb.flush()
-        except Exception as e:
-            print(f"[DPI28] Write error: {e}")
+        self.fb.seek(0)
+        self.fb.write(rgb565_data)
 
     def clear(self):
         """Clear the display to black"""
         if not self.fb:
             return
 
-        black = bytearray(self.width * self.height * 2)
         try:
             self.fb.seek(0)
-            self.fb.write(black)
-            self.fb.flush()
+            self.fb.write(bytearray(self.length))
         except Exception as e:
             print(f"[DPI28] Clear error: {e}")
 
@@ -255,6 +393,9 @@ class DPI28:
         if self.fb:
             self.fb.close()
             self.fb = None
+        if self.fb_file:
+            self.fb_file.close()
+            self.fb_file = None
 
     def __del__(self):
         self.close()
