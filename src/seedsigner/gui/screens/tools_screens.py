@@ -212,9 +212,10 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
         # Clear touch bar buttons and hide touch bar - dice screen doesn't use bottom bar
         if hasattr(touch_buttons, 'clear_buttons'):
             touch_buttons.clear_buttons()
-        if hasattr(self.renderer, 'set_touch_bar_labels'):
+        disp = self.renderer.disp
+        if hasattr(disp, 'display') and hasattr(disp.display, 'set_touch_bar_labels'):
             from seedsigner.hardware.DPI28 import DPI28
-            self.renderer.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
+            disp.display.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
 
         while True:
             # Handle touch input for dice - only KEY_PRESS for direct taps, not KEY1/2/3
@@ -364,9 +365,10 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
         # Clear touch bar buttons and hide touch bar - coin flip screen doesn't use bottom bar
         if hasattr(touch_buttons, 'clear_buttons'):
             touch_buttons.clear_buttons()
-        if hasattr(self.renderer, 'set_touch_bar_labels'):
+        disp = self.renderer.disp
+        if hasattr(disp, 'display') and hasattr(disp.display, 'set_touch_bar_labels'):
             from seedsigner.hardware.DPI28 import DPI28
-            self.renderer.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
+            disp.display.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
 
         while True:
             # Handle touch input for coin flip - only KEY_PRESS for direct taps, not KEY1/2/3

@@ -1044,9 +1044,10 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
         super()._render()
 
         # Hide touch bar - this screen has its own side panel buttons
-        if hasattr(self.renderer, 'set_touch_bar_labels'):
+        disp = self.renderer.disp
+        if hasattr(disp, 'display') and hasattr(disp.display, 'set_touch_bar_labels'):
             from seedsigner.hardware.DPI28 import DPI28
-            self.renderer.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
+            disp.display.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
 
         # Change from the default lowercase keyboard for the screenshot generator
         if self.initial_keyboard == self.KEYBOARD__UPPERCASE_BUTTON_TEXT:
