@@ -1365,6 +1365,7 @@ class SeedWordsBackupTestMistakeView(View):
             return Destination(
                 SeedWordsView,
                 view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
+                clear_history=True,
             )
 
         elif button_data[selected_menu_num] == self.RETRY:
