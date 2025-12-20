@@ -61,7 +61,6 @@ class TestSeedFlows(FlowTest):
             the SeedOptionsView.
         """
         def test_with_mnemonic(mnemonic):
-            Settings.HOSTNAME = "not seedsigner-os"
             sequence = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
@@ -128,7 +127,6 @@ class TestSeedFlows(FlowTest):
             Most BIP-39 mnemonics should generate an error if entered as Electrum seeds.
         """
         def test_with_mnemonic(mnemonic: list[str], custom_extension: str = None, expects_electrum_seed_is_valid: bool = True):
-            Settings.HOSTNAME = "not seedsigner-os"
             settings = Settings.get_instance()
             settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
 
