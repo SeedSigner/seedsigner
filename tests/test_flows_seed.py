@@ -745,7 +745,6 @@ class TestShamirShareImportFlows(FlowTest):
             # Ensure Shamir is enabled
             self.settings.set_value(SettingsConstants.SETTING__SHAMIR, SettingsConstants.OPTION__ENABLED)
 
-            Settings.HOSTNAME = "not seedsigner-os"
             sequence = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),
@@ -814,7 +813,6 @@ class TestShamirShareImportFlows(FlowTest):
             # Ensure Shamir is enabled
             self.settings.set_value(SettingsConstants.SETTING__SHAMIR, SettingsConstants.OPTION__ENABLED)
 
-            Settings.HOSTNAME = "not seedsigner-os"
             sequence = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
                 FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
@@ -870,8 +868,7 @@ class TestShamirShareImportFlows(FlowTest):
             "yield upgrade acrobat leader briefing capacity again epidemic minister frozen impulse math guilt lily install market modify envelope index become".split(),
             "yield upgrade beard leader ceramic total morning critical brother slap lungs medical dilemma expect olympic jacket ruin airline promise literary".split()
         ]
-        
-        Settings.HOSTNAME = "not seedsigner-os"
+
         sequence = [
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
             FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
@@ -929,7 +926,6 @@ class TestShamirShareImportFlows(FlowTest):
             "window lunch ceramic leader cover satisfy emerald obesity impact purple gravity plains gasoline example cluster deadline license golden window teaspoon".split()
         ]
 
-        Settings.HOSTNAME = "not seedsigner-os"
         sequence = [
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
             FlowStep(seed_views.SeedsMenuView, is_redirect=True),
