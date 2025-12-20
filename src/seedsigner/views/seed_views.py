@@ -2446,10 +2446,21 @@ class SeedShamirShareMnemonicEntryView(View):
                 return Destination(SeedShamirShareInvalidView)
             
             # Add the completed share
-            self.controller.storage.add_pending_shamir_share()
-            can_finalize = self.controller.storage.can_finalize_pending_shamir_share_set()
-            share_threshold = self.controller.storage.get_pending_shamir_threshold()
-            share_count = self.controller.storage.pending_shamir_share_set_length
+            try:
+                self.controller.storage.add_pending_shamir_share()
+                can_finalize = self.controller.storage.can_finalize_pending_shamir_share_set()
+                share_threshold = self.controller.storage.get_pending_shamir_threshold()
+                share_count = self.controller.storage.pending_shamir_share_set_length
+            except InvalidSeedException:
+                logger.exception("Unable to reconstruct seed from the provided shares.")
+                from seedsigner.views.view import ErrorView
+                return Destination(ErrorView, view_args=dict(
+                        title=_("Invalid Shamir Share Set!"),
+                        status_headline=_("Error!"),
+                        text=_("Unable to reconstruct seed from the provided shares."),
+                        button_text="Back",
+                        next_destination=Destination(MainMenuView, clear_history=True),
+                    ))
             return Destination(
                     SeedShamirShareOptionsView,
                     view_args={

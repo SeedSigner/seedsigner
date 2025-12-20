@@ -9,7 +9,7 @@ from base import FlowTestInvalidButtonDataSelectionException
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import ElectrumSeed, Seed
-from seedsigner.views.view import MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
+from seedsigner.views.view import MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView, ErrorView
 from seedsigner.views import seed_views, scan_views, settings_views
 
 
@@ -915,5 +915,46 @@ class TestShamirShareImportFlows(FlowTest):
             FlowStep(seed_views.SeedShamirShareFinalizeView, button_data_selection=seed_views.SeedShamirShareFinalizeView.FINALIZE),
             FlowStep(seed_views.SeedOptionsView),
         ]
+
+        self.run_sequence(sequence)
+
+
+    def test_invalid_share_set(self):
+        # Ensure Shamir is enabled
+        self.settings.set_value(SettingsConstants.SETTING__SHAMIR, SettingsConstants.OPTION__ENABLED)
+
+        # Choose shares from different secrets
+        shares = [
+            "yield upgrade acrobat leader briefing capacity again epidemic minister frozen impulse math guilt lily install market modify envelope index become".split(),
+            "window lunch ceramic leader cover satisfy emerald obesity impact purple gravity plains gasoline example cluster deadline license golden window teaspoon".split()
+        ]
+
+        Settings.HOSTNAME = "not seedsigner-os"
+        sequence = [
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
+            FlowStep(seed_views.SeedShamirShareStartView),  # Warning screen; no relevant button data selection.
+            FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(shares[0]) == 20 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
+            FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.SeedShamirShareImportSelectWordCount, button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD if len(shares[0]) == 20 else seed_views.SeedShamirShareImportSelectWordCount.TYPE_33WORD),
+        ]
+
+        # Loop through all shares
+        for share_index, share in enumerate(shares):
+            # Enter words for current share
+            for word in share:
+                sequence.append(FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=word))
+
+            # After entering a share, decide what to do next
+            if share_index < len(shares) - 1:
+                # Not the last share: choose to add another
+                sequence.append(FlowStep(seed_views.SeedShamirShareOptionsView, button_data_selection=seed_views.SeedShamirShareOptionsView.ADD_SHARE))
+            else:
+                # Last share: must throw an ErrorView
+                sequence += [
+                    FlowStep(ErrorView, button_data_selection=ErrorView.button_text),
+                    FlowStep(MainMenuView),
+                ]
 
         self.run_sequence(sequence)

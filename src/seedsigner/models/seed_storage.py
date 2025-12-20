@@ -1,5 +1,5 @@
 from typing import List
-from seedsigner.models.seed import Seed, ElectrumSeed, ShamirSeed, InvalidSeedException
+from seedsigner.models.seed import Seed, ElectrumSeed, ShamirSeed, InvalidSeedException, IncompleteShamirShareSetException
 from seedsigner.models.settings_definition import SettingsConstants
 
 
@@ -183,7 +183,7 @@ class SeedStorage:
         
         try:
             ShamirSeed(self._pending_shamir_share_set, passphrase)
-        except InvalidSeedException:
+        except IncompleteShamirShareSetException:
             return False
 
         return True

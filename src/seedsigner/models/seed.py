@@ -17,6 +17,10 @@ class InvalidSeedException(Exception):
     pass
 
 
+class IncompleteShamirShareSetException(Exception):
+    pass
+
+
 
 class Seed:
     def __init__(self,
@@ -279,7 +283,12 @@ class ShamirSeed(Seed):
             share_set_formatted = [" ".join(share) for share in self._mnemonic]
             share_set = slip39.ShareSet([slip39.Share.parse(share) for share in share_set_formatted])
             self.seed_bytes = share_set.recover(self._passphrase.encode('utf-8'))
-        except Exception as e:
+        except ValueError as e:
+            # Not enough shares
+            logger.info(repr(e), exc_info=True)
+            raise IncompleteShamirShareSetException(repr(e))
+        except TypeError as e:
+            # Shares are from different secrets or don't have the same exponent
             logger.info(repr(e), exc_info=True)
             raise InvalidSeedException(repr(e))
         
