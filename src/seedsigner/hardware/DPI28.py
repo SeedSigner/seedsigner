@@ -29,27 +29,8 @@ except ImportError:
     HAS_NUMPY = False
     print("[DPI28] numpy not available, using slow Python conversion")
 
-# Try to import Cython module for fastest conversion (~17 fps)
+# Cython disabled - pyximport hangs on Pi Zero
 HAS_CYTHON = False
-try:
-    import pyximport
-    pyximport.install()
-    # Try relative import first (when running as package)
-    try:
-        from . import RGBtoBGR
-        HAS_CYTHON = True
-    except ImportError:
-        # Try importing from same directory
-        import sys
-        import os
-        _this_dir = os.path.dirname(os.path.abspath(__file__))
-        if _this_dir not in sys.path:
-            sys.path.insert(0, _this_dir)
-        import RGBtoBGR
-        HAS_CYTHON = True
-except Exception as e:
-    print(f"[DPI28] Cython not available: {e}")
-
 
 # Icon constants from SeedSigner icon fonts (language-agnostic)
 class TouchBarIcons:

@@ -118,7 +118,13 @@ class Renderer(ConfigurableSingleton):
         # prevent any other screen writes while we're changing the display driver.
         self.lock.acquire()
 
-        display_config = Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_CONFIGURATION, default_if_none=True)
+        # Check for auto-detected display first
+        env_display = os.environ.get("SEEDSIGNER_DISPLAY")
+        if env_display == "dpi28":
+            display_config = "dpi28_240x240"
+            print("[Display] Using auto-detected DPI28 display")
+        else:
+            display_config = Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_CONFIGURATION, default_if_none=True)
         self.display_type = display_config.split("_")[0]
         if self.display_type not in ALL_DISPLAY_TYPES:
             raise Exception(f"Invalid display type: {self.display_type}")
