@@ -461,6 +461,24 @@ class TouchButtons(Singleton):
                 return True  # Return True on release too to wake from screensaver
         return self.touch_down
 
+    def check_for_low(self, key: int = None, keys: list = None) -> bool:
+        """
+        Check if specified key(s) are pressed.
+        For touch: checks if screen is currently being touched.
+        """
+        # For touch input, we check if there is an active touch
+        event = self.touch.poll()
+        if event:
+            event_type, x, y = event
+            if event_type == "down":
+                self.touch_down = True
+                self.update_last_input_time()
+                return True
+            elif event_type == "up":
+                self.touch_down = False
+        return self.touch_down
+
+
 
 # Factory function to get appropriate input handler
 def get_buttons():

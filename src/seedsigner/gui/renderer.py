@@ -44,37 +44,33 @@ def _detect_touch_mode() -> bool:
     Can be overridden by SEEDSIGNER_TOUCH environment variable.
     """
     # Allow manual override
-    env_touch = os.environ.get('SEEDSIGNER_TOUCH')
+    env_touch = os.environ.get("SEEDSIGNER_TOUCH")
     if env_touch:
-        return env_touch == '1'
+        return env_touch == "1"
 
-    # Auto-detect touch input device
+    # If DPI28 display is detected, assume touch is available
+    # (the DPI28 Waveshare display includes integrated touch)
+    if _detect_display_type() == "dpi28":
+        print("[Touch] DPI28 display detected - enabling touch mode")
+        return True
+
+    # Auto-detect touch input device via sysfs (no evdev needed)
     try:
-        import glob
-        # Look for touch input devices
-        for device_path in glob.glob('/dev/input/event*'):
+        for i in range(10):
+            name_path = f"/sys/class/input/event{i}/device/name"
             try:
-                # Try to detect multitouch capability via evdev
-                import evdev
-                device = evdev.InputDevice(device_path)
-                caps = device.capabilities()
-                if evdev.ecodes.EV_ABS in caps:
-                    abs_caps = caps[evdev.ecodes.EV_ABS]
-                    abs_codes = [c[0] if isinstance(c, tuple) else c for c in abs_caps]
-                    if evdev.ecodes.ABS_MT_POSITION_X in abs_codes:
-                        print(f"[Touch] Auto-detected touch device: {device.name}")
-                        device.close()
+                with open(name_path, "r") as f:
+                    name = f.read().strip()
+                    # Look for common touch device names
+                    if any(keyword in name.lower() for keyword in ["touch", "goodix", "ft5", "edt-ft5"]):
+                        print(f"[Touch] Auto-detected touch device: {name}")
                         return True
-                device.close()
-            except:
+            except (IOError, FileNotFoundError):
                 continue
-    except ImportError:
-        pass  # evdev not available
     except:
         pass
 
     return False
-
 
 # Auto-detect touch mode
 TOUCH_MODE = _detect_touch_mode()
