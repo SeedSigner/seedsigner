@@ -248,6 +248,14 @@ class TouchButtons(Singleton):
         native_x = touch_x // 2
         native_y = touch_y // 2
 
+        # Exclude scroll indicator zones - these are visual only, not tappable
+        # Up arrow indicator: y < 48 (below top_nav header area)
+        # Down arrow indicator: y > 226 (bottom 14px of 240px UI)
+        # Only exclude center area where arrows are drawn (not full width)
+        if 80 <= native_x <= 160:  # Center third of screen
+            if native_y < 48 or native_y > 226:
+                return -1  # In scroll indicator zone, don't detect button
+
         for x, y, w, h, index in self.button_rects:
             if x <= native_x <= x + w and y <= native_y <= y + h:
                 return index
