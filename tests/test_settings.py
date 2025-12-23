@@ -38,7 +38,7 @@ class TestSettings(BaseTest):
 
     def test_load_persistent_settings(self):
         """ Settings should load previously saved persistent settings from disk, if any
-        exist. Empty multiselect settings should load defaults. """
+        exist. """
         # Initial Settings will start with defaults
         settings = Settings.get_instance()
 
@@ -62,21 +62,40 @@ class TestSettings(BaseTest):
 
         # Now instantiate the Settings singleton again; it should load from disk
         settings = Settings.get_instance()
+
+        # Persistent setting change should have survived
         assert settings.get_value(SettingsConstants.SETTING__QR_DENSITY) == SettingsConstants.DENSITY__HIGH
-        
-        # Wipe out the Settings singleton again
-        BaseTest.reset_settings()
 
-        # Alter the settings.json to have an empty multiselect setting
-        settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SIG_TYPES)
-        settings_json[settings_entry.attr_name] = None
-        with open(Settings.SETTINGS_FILENAME, "w") as settings_file:
-            settings_file.write(json.dumps(settings_json))
 
-        # Re-instantiate and verify that the multiselect setting has loaded its defaults
+    def test_load_empty_multiselect_settings(self):
+        """ Empty multiselect settings should load defaults. """
+        # Initial Settings will start with defaults
         settings = Settings.get_instance()
-        sig_types = settings.get_value(settings_entry.attr_name)
-        assert sig_types == settings_entry.default_value
+
+        # Enable persistent settings to write settings.json to disk
+        settings.set_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS, SettingsConstants.OPTION__ENABLED)
+
+        # Hold on to the settings.json content
+        settings_dict = None
+        with open(Settings.SETTINGS_FILENAME) as settings_file:
+            settings_dict = json.loads(settings_file.read())
+
+        def _verify_defaults_loaded(attr_name: str):
+            # Verify that the multiselect setting has loaded its defaults
+            settings = Settings.get_instance()
+            cur_setting_value = settings.get_value(attr_name)
+            assert cur_setting_value == SettingsDefinition.get_settings_entry(attr_name).default_value
+
+        # Alter the settings to test against various empty values
+        for empty_value in ["", ",", None]:
+            settings_dict[SettingsConstants.SETTING__SIG_TYPES] = empty_value
+            settings.update(settings_dict)
+            _verify_defaults_loaded(SettingsConstants.SETTING__SIG_TYPES)
+
+        # One last test: remove the multiselect setting entirely
+        del settings_dict[SettingsConstants.SETTING__SIG_TYPES]
+        settings.update(settings_dict)
+        _verify_defaults_loaded(SettingsConstants.SETTING__SIG_TYPES)
 
 
     def test_parse_settingsqr_data(self):

@@ -159,10 +159,12 @@ class Settings(Singleton):
                 # Clean the incoming data, if necessary
                 if entry.type == SettingsConstants.TYPE__MULTISELECT:
                     if type(new_settings[entry.attr_name]) == str:
-                        # Break comma-separated SettingsQR input into List
-                        new_settings[entry.attr_name] = new_settings[entry.attr_name].split(",")
-                    elif new_settings[entry.attr_name] is None:
-                        # Multiselect cannot be None; load defaults to avoid issues
+                        # Break comma-separated multiselect options into List; avoid empty
+                        # values.
+                        new_settings[entry.attr_name] = [value for value in new_settings[entry.attr_name].split(",") if value.strip()]
+
+                    if not new_settings[entry.attr_name]:
+                        # Multiselect cannot be empty; load defaults to avoid issues
                         new_settings[entry.attr_name] = entry.default_value
 
         for key, value in new_settings.items():
