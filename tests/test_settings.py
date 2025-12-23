@@ -87,7 +87,7 @@ class TestSettings(BaseTest):
             assert cur_setting_value == SettingsDefinition.get_settings_entry(attr_name).default_value
 
         # Alter the settings to test against various empty values
-        for empty_value in ["", ",", None]:
+        for empty_value in ["", ",", [], None]:
             settings_dict[SettingsConstants.SETTING__SIG_TYPES] = empty_value
             settings.update(settings_dict)
             _verify_defaults_loaded(SettingsConstants.SETTING__SIG_TYPES)
