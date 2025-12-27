@@ -83,9 +83,10 @@ def default_mock_context_manager():
 @dataclass
 class ScreenshotConfig:
     """
-    - mock_context_manager: Sets up temporary mock/patch context for the screenshot.
-      Ensures that there are no persistent state changes left over that might affect other
-      screenshots.
+    - mock_context_manager: Option to provide mocks to set up custom data or state that
+      the screenshot might need. The mocks will only be active during this one
+      screenshot's generation. Ensures that there are no persistent state changes left
+      over that might affect other screenshots.
     """
     View_cls: View
     view_kwargs: dict = None
