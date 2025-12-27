@@ -1,5 +1,5 @@
 import os
-
+from contextlib import contextmanager
 from dataclasses import dataclass
 from PIL import Image, ImageDraw
 
@@ -40,11 +40,11 @@ class ScreenshotRenderer(Renderer):
         renderer.draw = ImageDraw.Draw(renderer.canvas)
 
         renderer.render_count = 0
-    
+
 
     def set_screenshot_filename(self, filename:str):
         self.screenshot_filename = filename
-    
+
 
     def set_screenshot_path(self, path):
         if not os.path.exists(path):
@@ -73,14 +73,25 @@ class ScreenshotRenderer(Renderer):
 
 
 
+@contextmanager
+def default_mock_context_manager():
+    # Just a no-op context manager
+    yield
+
+
+
 @dataclass
 class ScreenshotConfig:
+    """
+    - mock_context_manager: Sets up temporary mock/patch context for the screenshot.
+      Ensures that there are no persistent state changes left over that might affect other
+      screenshots.
+    """
     View_cls: View
     view_kwargs: dict = None
     screenshot_name: str = None
     toast_thread: BaseToastOverlayManagerThread = None
-    run_before: callable = None
-    run_after: callable = None
+    mock_context_manager: callable = default_mock_context_manager
 
 
     def __post_init__(self):
@@ -88,13 +99,3 @@ class ScreenshotConfig:
             self.view_kwargs = {}
         if not self.screenshot_name:
             self.screenshot_name = self.View_cls.__name__
-
-
-    def run_callback_before(self):
-        if self.run_before:
-            self.run_before()
-    
-
-    def run_callback_after(self):
-        if self.run_after:
-            self.run_after()
