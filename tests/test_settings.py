@@ -1,6 +1,8 @@
 import json
 import pytest
+
 from base import BaseTest
+
 from seedsigner.models.settings import InvalidSettingsQRData, Settings
 from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
 
@@ -98,13 +100,35 @@ class TestSettings(BaseTest):
         _verify_defaults_loaded(SettingsConstants.SETTING__SIG_TYPES)
 
 
+
+class SettingsQRBase(BaseTest):
+    """
+    Reusable base test class for testing SettingsQR data.
+    """
+    def setup_method(self):
+        super().setup_method()
+        settingsqr_dict = SettingsDefinition.get_defaults(use_abbreviated_name=True, skip_hidden=True)
+
+        # Build baseline SettingsQR config based on defaults
+        self.settingsqr_prefix = "settings::v1"
+        self.settingsqr_default_attrs_str = ""
+        for abbreviated_attr_name, value in settingsqr_dict.items():
+            if isinstance(value, list):
+                value_str = ",".join(value)
+            else:
+                value_str = str(value)
+            self.settingsqr_default_attrs_str += f" {abbreviated_attr_name}={value_str}"
+
+
+
+class TestSettingsQRParser(SettingsQRBase):
     def test_parse_settingsqr_data(self):
         """
         SettingsQR parser should successfully parse a valid settingsqr input string and
         return the resulting config_name and formatted settings_update_dict.
         """
         settings_name = "Test SettingsQR"
-        settingsqr_data = f"""settings::v1 name={ settings_name.replace(" ", "_") } persistent=D xpub_qr=urca,sta denom=thr network=M qr_density=M xpub_export=E sigs=ss,ms scripts=nat,nes,tr xpub_qr=urca,sta xpub_details=E passphrase=E camera=180 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"""
+        settingsqr_data = f"""{self.settingsqr_prefix} name={ settings_name.replace(" ", "_") } {self.settingsqr_default_attrs_str}"""
 
         # First explicitly set settings that differ from the settingsqr_data
         self.settings.set_value(SettingsConstants.SETTING__COMPACT_SEEDQR, SettingsConstants.OPTION__DISABLED)
@@ -128,35 +152,37 @@ class TestSettings(BaseTest):
 
     def test_settingsqr_version(self):
         """ SettingsQR parser should accept SettingsQR v1 and reject any others """
-        settingsqr_data = "settings::v1 name=Foo"
+        settingsqr_data = f"{self.settingsqr_prefix} {self.settingsqr_default_attrs_str}"
         config_name, settings_update_dict = Settings.parse_settingsqr(settingsqr_data)
 
         # Accepts update with no Exceptions
         self.settings.update(new_settings=settings_update_dict)
 
-        settingsqr_data = "settings::v2 name=Foo"
+        settingsqr_data = f"settings::v2 {self.settingsqr_default_attrs_str}"
         with pytest.raises(InvalidSettingsQRData) as e:
             Settings.parse_settingsqr(settingsqr_data)
         assert "Unsupported SettingsQR version" in str(e.value)
     
         # Should also fail if version omitted
-        settingsqr_data = "settings name=Foo"
+        settingsqr_data = f"settings {self.settingsqr_default_attrs_str}"
         with pytest.raises(InvalidSettingsQRData) as e:
             Settings.parse_settingsqr(settingsqr_data)
 
         # And if "settings" is omitted entirely
-        settingsqr_data = "name=Foo"
+        settingsqr_data = self.settingsqr_default_attrs_str
         with pytest.raises(InvalidSettingsQRData) as e:
             Settings.parse_settingsqr(settingsqr_data)
 
 
     def test_settingsqr_ignores_unrecognized_setting(self):
         """ SettingsQR parser should ignore unrecognized settings """
-        settingsqr_data = "settings::v1 name=Foo favorite_food=bacon passphrase=E"
+        settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__NETWORK)
+        unknown_attr = "favorite_food"
+        settingsqr_data = f"{self.settingsqr_prefix} {unknown_attr}=bacon {settings_entry.abbreviated_name}={settings_entry.default_value}"
         config_name, settings_update_dict = Settings.parse_settingsqr(settingsqr_data)
 
-        assert "favorite_food" not in settings_update_dict
-        assert "passphrase" in settings_update_dict
+        assert unknown_attr not in settings_update_dict
+        assert settings_entry.attr_name in settings_update_dict
 
         # Accepts update with no Exceptions
         self.settings.update(new_settings=settings_update_dict)
@@ -164,10 +190,11 @@ class TestSettings(BaseTest):
 
     def test_settingsqr_fails_unrecognized_option(self):
         """ SettingsQR parser should fail if a settings has an unrecognized option """
-        settingsqr_data = "settings::v1 name=Foo passphrase=Yep"
+        settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__NETWORK)
+        settingsqr_data = f"{self.settingsqr_prefix} {settings_entry.abbreviated_name}=fake_value"
         with pytest.raises(InvalidSettingsQRData) as e:
             Settings.parse_settingsqr(settingsqr_data)
-        assert "passphrase" in str(e.value)
+        assert settings_entry.attr_name in str(e.value)
 
 
     def test_settingsqr_fails_empty_values(self):
@@ -180,10 +207,11 @@ class TestSettings(BaseTest):
 
     def test_settingsqr_parses_line_break_separators(self):
         """ SettingsQR parser should read line breaks as acceptable separators """
-        settingsqr_data = "settings::v1\nname=Foo\nsigs=ss,ms\nscripts=nat,nes,tr\npassphrase=E\n"
+        attrs_with_line_breaks = self.settingsqr_default_attrs_str.replace(' ', '\n')
+        settingsqr_data = f"{self.settingsqr_prefix}\n{attrs_with_line_breaks}"
         config_name, settings_update_dict = Settings.parse_settingsqr(settingsqr_data)
 
-        assert len(settings_update_dict.keys()) == 3
+        assert len(settings_update_dict.keys()) == self.settingsqr_default_attrs_str.count('=')
 
         # Accepts update with no Exceptions
         self.settings.update(new_settings=settings_update_dict)
