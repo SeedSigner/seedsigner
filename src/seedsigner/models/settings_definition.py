@@ -1,4 +1,5 @@
 import os
+import pathlib
 from dataclasses import dataclass
 from typing import Any, List
 
@@ -182,6 +183,7 @@ class SettingsConstants:
         LOCALE__VIETNAMESE: "Tiếng Việt (Vietnamese)",
     }
 
+
     @classmethod
     def get_detected_languages(cls) -> list[tuple[str, str]]:
         """
@@ -189,22 +191,20 @@ class SettingsConstants:
 
         Scans the filesystem to autodiscover which language codes are onboard.
         """
-        # Will normally be the launch dir (where main.py is located)...
-        cwd = os.getcwd()
-
-        # ...except when running the tests which happens one dir higher
-        if "src" not in cwd:
-            cwd = os.path.join(cwd, "src")
+        # Back out from the models/ dir to reach the seedsigner root
+        models_dir = pathlib.Path(__file__).parent.resolve()
+        seedsigner_root = models_dir.parent.resolve()
 
         # Pre-load English since there's no "en" entry in the translations folder; also
         # it should always appear first in the list anyway.
         detected_languages = [(cls.LOCALE__ENGLISH, cls.ALL_LOCALES[cls.LOCALE__ENGLISH])]
 
         locales_present = set()
-        for root, dirs, files in os.walk(os.path.join(cwd, "seedsigner", "resources", "seedsigner-translations", "l10n")):
+        for root, dirs, files in os.walk(os.path.join(seedsigner_root, "resources", "seedsigner-translations", "l10n")):
             for file in [f for f in files if f.endswith(".mo")]:
                 # `root` will be [...]seedsigner/resources/seedsigner-translations/l10n/pt_BR/LC_MESSAGES
-                locales_present.add(root.split(f"l10n{ os.sep }")[1].split(os.sep)[0])
+                # Isolate the language code from the path
+                locales_present.add(root.rsplit(os.sep, 2)[-2])
 
         for locale in cls.ALL_LOCALES.keys():
             if locale in locales_present:
@@ -452,6 +452,9 @@ class SettingsEntry:
             self.default_value = [v[0] for v in self.default_value]
         elif type(self.default_value) == tuple:
             self.default_value = self.default_value[0]
+
+        if not self.abbreviated_name:
+            self.abbreviated_name = self.attr_name
 
 
     @property
@@ -776,15 +779,25 @@ class SettingsDefinition:
 
 
     @classmethod
-    def get_defaults(cls) -> dict:
+    def get_defaults(cls, use_abbreviated_name: bool = False, skip_hidden: bool = False) -> dict:
+        """
+        * use_abbreviated_name: Only used by the test suite.
+        * skip_hidden: Only used by the test suite.
+        """
         as_dict = {}
         for entry in SettingsDefinition.settings_entries:
+            if skip_hidden and entry.visibility == SettingsConstants.VISIBILITY__HIDDEN:
+                continue
+            if not use_abbreviated_name:
+                attr_name = entry.attr_name
+            else:
+                attr_name = entry.abbreviated_name
             if type(entry.default_value) == list:
                 # Must copy the default_value list, otherwise we'll inadvertently change
                 # defaults when updating these attrs
-                as_dict[entry.attr_name] = list(entry.default_value)
+                as_dict[attr_name] = list(entry.default_value)
             else:
-                as_dict[entry.attr_name] = entry.default_value
+                as_dict[attr_name] = entry.default_value
         return as_dict
 
 
@@ -797,19 +810,3 @@ class SettingsDefinition:
             output["settings_entries"].append(settings_entry.to_dict())
         
         return output
-
-
-
-if __name__ == "__main__":
-    import json
-    import os
-
-    hostname = os.uname()[1]
-  
-    if hostname == "seedsigner-os":
-        output_file = "/mnt/microsd/settings_definition.json"
-    else:
-        output_file = "settings_definition.json"
-    
-    with open(output_file, 'w') as json_file:
-        json.dump(SettingsDefinition.to_dict(), json_file, indent=4)
