@@ -1,44 +1,46 @@
-# Raspberry Pi config.txt for Waveshare 2.8" DPI LCD (480x640)
-# Copy this to /boot/config.txt on your SD card after burning SeedSignerOS
-#
-# This display uses DPI (parallel RGB) interface, not SPI like the standard
-# SeedSigner display. It includes an integrated Goodix capacitive touchscreen.
+# SeedSigner with Waveshare 2.8" DPI LCD
+# Pi Zero - Buster legacy DPI (no KMS)
 
-# Disable boot splash and console
-disable_splash=1
-boot_delay=0
+# Force LCD, disable HDMI
+ignore_lcd=0
+hdmi_ignore_hotplug=1
+disable_hdmi=1
 
-# Note: Also copy cmdline_dpi28.txt to cmdline.txt to hide console cursor
+# DPI GPIO assignments for RGB666 (18-bit color)
+gpio=0-9=a2
+gpio=12-17=a2
+gpio=20-25=a2
 
-# Enable DPI display
-dtoverlay=vc4-kms-dpi-generic
-dtparam=clock-frequency=32000000
-dtparam=hactive=480,hfp=26,hsync=16,hbp=10
-dtparam=vactive=640,vfp=25,vsync=10,vbp=16
-dtparam=backlight-gpio=18
-dtparam=rgb666-padhi
+# Enable DPI display (legacy firmware mode)
+enable_dpi_lcd=1
+display_default_lcd=1
 
-# DPI output format - CRITICAL: must be 0x7F206 for correct colors
-# 0x7F216 (wrong) = red/blue swapped
-# 0x7F206 (correct) = proper RGB order
-dpi_output_format=0x7F206
+# DPI timing mode
 dpi_group=2
 dpi_mode=87
 
-# Rotate display 0 degrees (portrait mode)
-display_rotate=0
+# RGB666 output format (18-bit)
+dpi_output_format=0x7F206
 
-# GPU memory
-gpu_mem=64
+# 480x640 @ 60Hz timing for 2.8" DPI
+hdmi_timings=480 0 26 16 10 640 0 25 10 15 0 0 0 60 0 32000000 1
 
-# Enable I2C for touchscreen
+# Use Waveshare overlays (handles backlight GPIO 18 properly)
+dtoverlay=waveshare-28dpi-3b-4b
+dtoverlay=waveshare-28dpi-3b
+dtoverlay=waveshare-touch-28dpi
+
+extra_transpose_buffer=2
+
+# I2C for touch
 dtparam=i2c_arm=on
 
-# Disable Bluetooth to free up UART (optional, saves power)
-dtoverlay=disable-bt
+# Camera
+start_x=1
+gpu_mem=128
 
-# Disable audio (not used)
+# Disable audio
 dtparam=audio=off
 
-# Camera disabled (SeedSigner uses different camera setup)
-# camera_auto_detect=0
+# USB gadget mode for SSH over USB
+dtoverlay=dwc2
