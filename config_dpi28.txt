@@ -1,0 +1,44 @@
+# Raspberry Pi config.txt for Waveshare 2.8" DPI LCD (480x640)
+# Copy this to /boot/config.txt on your SD card after burning SeedSignerOS
+#
+# This display uses DPI (parallel RGB) interface, not SPI like the standard
+# SeedSigner display. It includes an integrated Goodix capacitive touchscreen.
+
+# Disable boot splash and console
+disable_splash=1
+boot_delay=0
+
+# Note: Also copy cmdline_dpi28.txt to cmdline.txt to hide console cursor
+
+# Enable DPI display
+dtoverlay=vc4-kms-dpi-generic
+dtparam=clock-frequency=32000000
+dtparam=hactive=480,hfp=26,hsync=16,hbp=10
+dtparam=vactive=640,vfp=25,vsync=10,vbp=16
+dtparam=backlight-gpio=18
+dtparam=rgb666-padhi
+
+# DPI output format - CRITICAL: must be 0x7F206 for correct colors
+# 0x7F216 (wrong) = red/blue swapped
+# 0x7F206 (correct) = proper RGB order
+dpi_output_format=0x7F206
+dpi_group=2
+dpi_mode=87
+
+# Rotate display 0 degrees (portrait mode)
+display_rotate=0
+
+# GPU memory
+gpu_mem=64
+
+# Enable I2C for touchscreen
+dtparam=i2c_arm=on
+
+# Disable Bluetooth to free up UART (optional, saves power)
+dtoverlay=disable-bt
+
+# Disable audio (not used)
+dtparam=audio=off
+
+# Camera disabled (SeedSigner uses different camera setup)
+# camera_auto_detect=0

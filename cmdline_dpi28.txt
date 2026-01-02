@@ -1,0 +1,1 @@
+console=serial0,115200 root=PARTUUID=2d445318-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait consoleblank=0 logo.nologo vt.global_cursor_default=0 modules-load=dwc2,g_ether spidev.bufsiz=131072
