@@ -27,9 +27,17 @@ Before first boot, mount the SD card's boot partition and copy the config files:
 ```bash
 cp config_dpi28.txt /path/to/boot/config.txt
 cp cmdline_dpi28.txt /path/to/boot/cmdline.txt
+cp overlays_dpi28/*.dtbo /path/to/boot/overlays/
 ```
 
-### 3. First Boot
+### 3. Copy Overlay Files
+
+Copy the Waveshare overlay files from `overlays_dpi28/` to the SD card's `overlays/` folder:
+- `waveshare-28dpi-3b-4b.dtbo`
+- `waveshare-28dpi-3b.dtbo`
+- `waveshare-touch-28dpi.dtbo`
+
+### 4. First Boot
 
 Insert the SD card and power on. The display should show the SeedSigner interface with touch enabled.
 
@@ -66,4 +74,5 @@ dpi_mode=87
 
 - `config_dpi28.txt` - Complete config.txt for DPI28 display
 - `cmdline_dpi28.txt` - Complete cmdline.txt (hides console cursor)
+- `overlays_dpi28/` - Waveshare DPI overlay files
 - `setup_dpi28.sh` - Script to fix dpi_output_format on existing setup
