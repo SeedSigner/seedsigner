@@ -1335,6 +1335,16 @@ class PowerOffNotRequiredScreen(BaseTopNavScreen):
             height=self.canvas_height - self.top_nav.height,
         ))
 
+        # Hide touch bar on power off screen
+        self._set_touch_bar_hidden()
+
+    def _set_touch_bar_hidden(self):
+        """Hide all touch bar buttons"""
+        import os
+        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
+            disp = self.renderer.disp
+            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_HIDDEN'):
+                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_HIDDEN)
 
 
 @dataclass
