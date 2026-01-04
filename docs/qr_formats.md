@@ -13,6 +13,9 @@ Animated QR Formats:
 Static QR Formats:
 - PSBT
     - Base64 (if the PSBT byte size is too large, SS may have trouble scanning)
+- Silent Payment Address
+    - [BIP-352](https://github.com/bitcoin/bips/blob/master/bip-0352.mediawiki) Silent Payment addresses (`sp1...` mainnet, `tsp1...` testnet)
+    - Used for verifying Silent Payment transaction outputs. See [Silent Payments Guide](silent_payments.md).
 - Seed
     - [SeedSigner SeedQR](seed_qr/README.md) format
         - A 48 or 96 length string of numbers representing a BIP-39 wordlist (all wordlist languages supported). The numeric sequence is a concatenation of four-digit, zero-padded segments. Each four-digit segment represents a BIP-39 word expressed by a zero-indexed position in the wordlist. For example, "0000" is "abandon" in the English BIP-39 wordlist.

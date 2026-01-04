@@ -2,28 +2,71 @@
 BIP-352 Silent Payments - Send Verification Support
 
 This module implements verification for the sending side of BIP-352 Silent Payments.
-It provides functionality to:
-- Parse Silent Payment addresses (sp1.../tsp1...)
-- Compute the derived Taproot output pubkey for verification
 
-User Flow:
-1. User scans SP address QR (sp1... or tsp1...) - SeedSigner stores it
-2. User scans PSBT from SP-aware coordinator wallet (e.g., BlueWallet, Sparrow)
-3. SeedSigner independently re-derives the expected Taproot output
-4. SeedSigner verifies a PSBT output matches the derived address
-5. User sees "Silent Payment Verified" with the original sp1... address
-6. User approves and signs
 
-Security Model:
-The coordinator wallet (not SeedSigner) performs the actual SP derivation and
-creates the PSBT with a normal P2TR output. SeedSigner's role is VERIFICATION:
-it independently computes what the output SHOULD be and confirms the coordinator
-derived it correctly.
+WHAT HAPPENS TODAY (WITHOUT THIS UPDATE)
+========================================
+Silent Payments already work with SeedSigner - the coordinator wallet does the math:
 
-Without this verification, users would only see a bc1p... address with no way
-to confirm it corresponds to their intended sp1... recipient. A malicious or
-buggy coordinator could substitute a different address. SeedSigner catches this
-by re-deriving from the user's scanned SP address (their source of truth).
+1. BlueWallet/Sparrow derives bc1p... from the sp1... address
+2. Coordinator builds PSBT with that Taproot output
+3. User scans PSBT into SeedSigner
+4. SeedSigner shows: "Sending 0.01 BTC to bc1p7x9y2z..."
+5. User thinks: "I have no idea if that bc1p address is correct"
+6. User approves blindly, SeedSigner signs
+
+The payment works fine. But the user has NO WAY to verify the bc1p... address
+actually corresponds to their intended sp1... recipient.
+
+
+THE RISK
+========
+A malicious or buggy coordinator could substitute a different bc1p... address:
+- Compromised wallet software
+- Man-in-the-middle attack modifying the PSBT
+- Bug in the SP derivation code
+
+The user would unknowingly sign a transaction sending funds to the wrong address.
+
+
+WHAT THIS UPDATE ADDS
+=====================
+SeedSigner can now VERIFY the coordinator did the math correctly:
+
+1. User scans sp1... address QR first (their source of truth)
+2. Coordinator builds PSBT as normal
+3. User scans PSBT into SeedSigner
+4. SeedSigner independently re-derives what the output SHOULD be
+5. SeedSigner verifies the PSBT output matches
+6. SeedSigner shows: "Sending 0.01 BTC to sp1qq..." with verification checkmark
+7. User thinks: "That's the address I intended to pay"
+8. User approves with confidence, SeedSigner signs
+
+
+WHY SEEDSIGNER CAN ONLY VERIFY, NOT GENERATE SP ADDRESSES
+==========================================================
+Unlike regular Bitcoin addresses (where m/84'/0'/0'/0/0 always produces the same
+bc1q... address), Silent Payment output addresses are TRANSACTION-SPECIFIC.
+
+The derived bc1p... address depends on:
+1. The private keys of the UTXOs being spent
+2. The outpoints (txid:vout) of those specific UTXOs
+
+This means:
+- Every transaction to the same sp1... address produces a DIFFERENT bc1p... output
+- You cannot derive the output address until you know WHICH UTXOs you're spending
+- Only a wallet with UTXO set knowledge can build the transaction
+
+SeedSigner is stateless by design - it has:
+- Your seed (private keys) ✓
+- No blockchain data ✗
+- No wallet state ✗
+- No UTXO set ✗
+
+Therefore the flow MUST be:
+1. Coordinator wallet (with UTXO knowledge) selects inputs, derives SP output, builds PSBT
+2. SeedSigner (with private keys) verifies the derivation was correct, then signs
+
 
 Reference: https://github.com/bitcoin/bips/blob/master/bip-0352.mediawiki
 """
