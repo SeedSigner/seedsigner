@@ -20,10 +20,11 @@ class OPCODES:
 
 
 class PSBTParser():
-    def __init__(self, p: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET):
+    def __init__(self, p: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET, pending_sp_address: dict = None):
         self.psbt: PSBT = p
         self.seed = seed
         self.network = network
+        self.pending_sp_address = pending_sp_address
 
         self.policy = None
         self.spend_amount = 0
@@ -35,6 +36,9 @@ class PSBTParser():
         self.destination_addresses = []
         self.destination_amounts = []
         self.op_return_data: bytes = None
+
+        # BIP-352 Silent Payments: verified SP outputs
+        self.sp_outputs: list = []
 
         self.root = None
 
@@ -90,6 +94,10 @@ class PSBTParser():
         rt = self._parse_outputs()
         if rt == False:
             return False
+
+        # If we have a pending SP address, verify outputs
+        if self.pending_sp_address:
+            self._verify_sp_outputs()
 
         return True
 
@@ -471,3 +479,120 @@ class PSBTParser():
 
         for out in self.psbt.outputs:
             _fill_scope(out)
+
+
+    def _verify_sp_outputs(self):
+        """
+        Verify that PSBT outputs match the expected Silent Payment derived address.
+
+        Per BIP-352, we need to:
+        1. Collect eligible input private keys
+        2. Compute the expected SP output pubkey
+        3. Match against Taproot outputs in the PSBT
+        """
+        from seedsigner.helpers.silent_payments import (
+            compute_sp_output_pubkey,
+            is_eligible_input,
+            full_to_xonly_pubkey,
+        )
+
+        if not self.pending_sp_address:
+            return
+
+        B_scan = self.pending_sp_address["B_scan"]
+        B_spend = self.pending_sp_address["B_spend"]
+        sp_address = self.pending_sp_address["address"]
+
+        seed_fingerprint = hexlify(self.root.child(0).fingerprint).decode()
+
+        # Collect eligible input private keys and pubkeys
+        input_privkeys = []
+        input_pubkeys = []
+        outpoints = []
+
+        for i, inp in enumerate(self.psbt.inputs):
+            if not is_eligible_input(inp, seed_fingerprint):
+                logger.debug(f"Input {i} not eligible for SP computation")
+                continue
+
+            # Get derivation path and derive private key
+            derivation = None
+            is_taproot = False
+
+            if inp.taproot_bip32_derivations:
+                for pub, (leaf_hashes, der) in inp.taproot_bip32_derivations.items():
+                    if hexlify(der.fingerprint).decode() == seed_fingerprint:
+                        derivation = der.derivation
+                        is_taproot = True
+                        break
+            elif inp.bip32_derivations:
+                for pub, der in inp.bip32_derivations.items():
+                    if hexlify(der.fingerprint).decode() == seed_fingerprint:
+                        derivation = der.derivation
+                        break
+
+            if derivation is None:
+                logger.debug(f"Input {i}: no matching derivation found")
+                continue
+
+            # Derive the private key
+            derived_key = self.root.derive(derivation)
+            privkey_bytes = derived_key.key.secret
+
+            # Get public key
+            pubkey = derived_key.key.get_public_key().sec()
+
+            input_privkeys.append((privkey_bytes, is_taproot))
+            input_pubkeys.append(pubkey)
+
+            # Get outpoint (txid || vout)
+            vin = self.psbt.tx.vin[i]
+            txid = vin.txid  # already little-endian bytes
+            vout = vin.vout.to_bytes(4, 'little')
+            outpoints.append(txid + vout)
+
+        if not input_privkeys:
+            logger.warning("No eligible inputs found for SP computation")
+            return
+
+        # Find smallest outpoint
+        smallest_outpoint = min(outpoints)
+
+        # Compute expected SP output pubkey (k=0 for first output)
+        try:
+            expected_pubkey = compute_sp_output_pubkey(
+                input_privkeys,
+                input_pubkeys,
+                B_scan,
+                B_spend,
+                smallest_outpoint,
+                output_index=0
+            )
+            expected_xonly, _ = full_to_xonly_pubkey(expected_pubkey)
+        except Exception as e:
+            logger.error(f"Failed to compute SP output pubkey: {e}")
+            return
+
+        # Check each Taproot output for a match
+        for i, vout in enumerate(self.psbt.tx.vout):
+            script_pubkey = vout.script_pubkey
+            if script_pubkey.script_type() != "p2tr":
+                continue
+
+            # Extract x-only pubkey from p2tr script (OP_1 <32-byte-key>)
+            if len(script_pubkey.data) == 34 and script_pubkey.data[0] == 0x51:
+                output_xonly = script_pubkey.data[2:]
+
+                if output_xonly == expected_xonly:
+                    logger.info(f"SP output match found at index {i}")
+                    self.sp_outputs.append({
+                        "output_index": i,
+                        "address": sp_address,
+                        "amount": vout.value,
+                        "expected_pubkey": expected_xonly.hex(),
+                    })
+
+                    # Update destination to show SP address instead of derived address
+                    if i < len(self.destination_addresses):
+                        # Replace the destination address with the SP address (truncated)
+                        self.destination_addresses[i] = sp_address

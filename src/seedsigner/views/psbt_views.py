@@ -99,7 +99,8 @@ class PSBTOverviewView(View):
                 self.controller.psbt_parser = PSBTParser(
                     self.controller.psbt,
                     seed=self.controller.psbt_seed,
-                    network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+                    network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
+                    pending_sp_address=self.controller.pending_sp_address
                 )
             except Exception as e:
                 self.loading_screen.stop()
@@ -260,8 +261,14 @@ class PSBTAddressDetailsView(View):
             # Should not be able to get here
             raise Exception("Routing error")
 
+        address = psbt_parser.destination_addresses[self.address_num]
+        is_silent_payment = address.startswith("sp1") or address.startswith("tsp1")
+
         # TRANSLATOR_NOTE: Future-tense used to indicate that this transaction will send this amount, as opposed to "Send" on its own which could be misread as an instant command (e.g. "Send Now").
-        title = _("Will Send")
+        if is_silent_payment:
+            title = _("Silent Payment")
+        else:
+            title = _("Will Send")
         if psbt_parser.num_destinations > 1:
             title += f" (#{self.address_num + 1})"
 
@@ -276,8 +283,9 @@ class PSBTAddressDetailsView(View):
             PSBTAddressDetailsScreen,
             title=title,
             button_data=button_data,
-            address=psbt_parser.destination_addresses[self.address_num],
+            address=address,
             amount=psbt_parser.destination_amounts[self.address_num],
+            is_silent_payment=is_silent_payment,
         )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:

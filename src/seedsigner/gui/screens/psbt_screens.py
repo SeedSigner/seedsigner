@@ -597,6 +597,7 @@ class PSBTMathScreen(ButtonListScreen):
 class PSBTAddressDetailsScreen(ButtonListScreen):
     address: str = None
     amount: int = 0
+    is_silent_payment: bool = False
 
     def __post_init__(self):
         # Customize defaults
@@ -611,11 +612,28 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
         center_img = Image.new("RGB", (self.canvas_width, center_img_height), GUIConstants.BACKGROUND_COLOR)
         draw = ImageDraw.Draw(center_img)
 
+        current_y = int(GUIConstants.COMPONENT_PADDING/2)
+
+        # Show "Silent Payment" indicator if applicable
+        if self.is_silent_payment:
+            sp_label = TextArea(
+                image_draw=draw,
+                canvas=center_img,
+                text=_("Silent Payment Verified"),
+                font_name=GUIConstants.BODY_FONT_NAME,
+                font_size=GUIConstants.BODY_FONT_SIZE - 2,
+                font_color=GUIConstants.SUCCESS_COLOR,
+                is_text_centered=True,
+                screen_y=current_y,
+            )
+            sp_label.render()
+            current_y += sp_label.height + int(GUIConstants.COMPONENT_PADDING/2)
+
         btc_amount = BtcAmount(
             image_draw=draw,
             canvas=center_img,
             total_sats=self.amount,
-            screen_y=int(GUIConstants.COMPONENT_PADDING/2),
+            screen_y=current_y,
         )
 
         formatted_address = FormattedAddress(
@@ -623,7 +641,7 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
             canvas=center_img,
             width=self.canvas_width - 2*GUIConstants.EDGE_PADDING,
             screen_x=GUIConstants.EDGE_PADDING,
-            screen_y=btc_amount.height + GUIConstants.COMPONENT_PADDING,
+            screen_y=btc_amount.height + btc_amount.screen_y + GUIConstants.COMPONENT_PADDING,
             font_size=24,
             address=self.address,
         )

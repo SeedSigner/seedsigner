@@ -21,6 +21,7 @@ class QRType:
     XPUB__UR = "xpub__ur"
 
     BITCOIN_ADDRESS = "bitcoin_address"
+    SILENT_PAYMENT_ADDRESS = "silent_payment_address"
 
     SIGN_MESSAGE = "sign_message"
 
