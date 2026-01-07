@@ -57,6 +57,7 @@ If you have specific questions about the project, our [Telegram Group](https://t
   * Support for user-defined custom derivation paths.
   * In-depth transaction (aka PSBT) review flow before signing.
   * Verify the PSBT's single sig or multisig change outputs or self-transfer outputs.
+  * [Silent Payments (BIP-352)](docs/silent_payments.md) send verification with BIP-375/BIP-374 support.
   * Mainnet, testnet, and regtest.
 
 * Additional utilities:
