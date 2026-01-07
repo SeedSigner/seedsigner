@@ -122,6 +122,14 @@ The "scan SP address first" workflow remains valuable as:
 - Works with any SP-capable wallet today
 - An extra layer of verification even with BIP-375 support
 
+**Note on PSBTv2:** BIP-375 specifies these fields for PSBTv2 (BIP-370). SeedSigner uses the embit library which stores BIP-375 fields in its `unknown` dict regardless of PSBT version. This means:
+
+- PSBTv0 with BIP-375 fields added: **Supported**
+- PSBTv2 with embedded transaction: **Supported** (embit parses v2)
+- Pure PSBTv2 without `PSBT_GLOBAL_UNSIGNED_TX`: May have limited support depending on embit version
+
+Most coordinator wallets currently export v0-compatible PSBTs, so this should not be an issue in practice.
+
 ## Technical Reference
 
 For implementation details, see:
