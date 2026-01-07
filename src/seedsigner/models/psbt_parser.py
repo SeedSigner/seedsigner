@@ -95,9 +95,10 @@ class PSBTParser():
         if rt == False:
             return False
 
-        # If we have a pending SP address, verify outputs
-        if self.pending_sp_address:
-            self._verify_sp_outputs()
+        # Try Silent Payment verification:
+        # - BIP-375: PSBT may contain embedded SP fields (no pre-scan needed)
+        # - Fallback: User may have scanned SP address before PSBT
+        self._verify_sp_outputs()
 
         return True
 
