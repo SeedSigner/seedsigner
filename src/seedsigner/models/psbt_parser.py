@@ -485,6 +485,10 @@ class PSBTParser():
         """
         Verify that PSBT outputs match the expected Silent Payment derived address.
 
+        Verification priority:
+        1. BIP-375: If PSBT contains SP fields with DLEQ proofs, verify via DLEQ
+        2. Fallback: If user scanned SP address, re-derive and verify output
+
         Per BIP-352, we need to:
         1. Collect eligible input private keys
         2. Compute the expected SP output pubkey
@@ -494,16 +498,32 @@ class PSBTParser():
             compute_sp_output_pubkey,
             is_eligible_input,
             full_to_xonly_pubkey,
+            # BIP-375 functions
+            has_bip375_sp_fields,
+            extract_sp_info_from_output,
+            verify_sp_output_with_bip375,
         )
 
+        seed_fingerprint = hexlify(self.root.child(0).fingerprint).decode()
+
+        # =====================================================================
+        # Priority 1: Try BIP-375 verification (PSBT contains SP fields + DLEQ)
+        # =====================================================================
+        if has_bip375_sp_fields(self.psbt):
+            logger.info("BIP-375 SP fields detected in PSBT")
+            self._verify_sp_outputs_bip375(seed_fingerprint)
+            if self.sp_outputs:
+                return  # BIP-375 verification succeeded
+
+        # =====================================================================
+        # Priority 2: Fallback to user-scanned SP address verification
+        # =====================================================================
         if not self.pending_sp_address:
             return
 
         B_scan = self.pending_sp_address["B_scan"]
         B_spend = self.pending_sp_address["B_spend"]
         sp_address = self.pending_sp_address["address"]
-
-        seed_fingerprint = hexlify(self.root.child(0).fingerprint).decode()
 
         # Collect eligible input private keys and pubkeys
         input_privkeys = []
@@ -584,15 +604,88 @@ class PSBTParser():
                 output_xonly = script_pubkey.data[2:]
 
                 if output_xonly == expected_xonly:
-                    logger.info(f"SP output match found at index {i}")
+                    logger.info(f"SP output match found at index {i} (fallback verification)")
                     self.sp_outputs.append({
                         "output_index": i,
                         "address": sp_address,
                         "amount": vout.value,
                         "expected_pubkey": expected_xonly.hex(),
+                        "verification_method": "fallback",
                     })
 
                     # Update destination to show SP address instead of derived address
                     if i < len(self.destination_addresses):
                         # Replace the destination address with the SP address (truncated)
                         self.destination_addresses[i] = sp_address
+
+
+    def _verify_sp_outputs_bip375(self, seed_fingerprint: str):
+        """
+        Verify Silent Payment outputs using BIP-375 embedded PSBT fields.
+
+        This method checks for PSBT_OUT_SP_V0_INFO fields in outputs and
+        verifies them using DLEQ proofs from global or per-input fields.
+        """
+        from seedsigner.helpers.silent_payments import (
+            extract_sp_info_from_output,
+            verify_sp_output_with_bip375,
+            full_to_xonly_pubkey,
+            encode_silent_payment_address,
+        )
+
+        # Determine network for address encoding
+        network = "mainnet" if self.network == SettingsConstants.MAINNET else "testnet"
+
+        for i, out in enumerate(self.psbt.outputs):
+            # Check if this output has BIP-375 SP info
+            sp_info = extract_sp_info_from_output(out)
+            if not sp_info:
+                continue
+
+            B_scan, B_spend = sp_info
+            logger.debug(f"Output {i} has BIP-375 SP info")
+
+            # Try to verify using DLEQ proof
+            expected_xonly = verify_sp_output_with_bip375(
+                self.psbt,
+                i,
+                B_scan,
+                B_spend,
+                seed_fingerprint
+            )
+
+            if expected_xonly:
+                # Verify the output matches
+                vout = self.psbt.tx.vout[i]
+                script_pubkey = vout.script_pubkey
+
+                if script_pubkey.script_type() == "p2tr":
+                    if len(script_pubkey.data) == 34 and script_pubkey.data[0] == 0x51:
+                        output_xonly = script_pubkey.data[2:]
+
+                        if output_xonly == expected_xonly:
+                            # Encode SP address from B_scan and B_spend
+                            try:
+                                sp_address = encode_silent_payment_address(B_scan, B_spend, network)
+                            except Exception as e:
+                                logger.warning(f"Failed to encode SP address: {e}")
+                                sp_address = "sp1...(BIP-375 verified)"
+
+                            logger.info(f"BIP-375 SP output verified at index {i}")
+                            self.sp_outputs.append({
+                                "output_index": i,
+                                "address": sp_address,
+                                "amount": vout.value,
+                                "expected_pubkey": expected_xonly.hex(),
+                                "verification_method": "bip375",
+                                "B_scan": B_scan.hex(),
+                                "B_spend": B_spend.hex(),
+                            })
+
+                            # Update destination address
+                            if i < len(self.destination_addresses):
+                                self.destination_addresses[i] = sp_address
+                        else:
+                            logger.warning(f"BIP-375 output {i}: pubkey mismatch!")
+                else:
+                    logger.warning(f"BIP-375 output {i}: not a Taproot output")

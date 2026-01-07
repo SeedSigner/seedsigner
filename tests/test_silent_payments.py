@@ -304,3 +304,128 @@ class TestIsEligibleInput(BaseTest):
         # - P2PKH, P2WPKH, P2SH-P2WPKH, P2TR (key path) are eligible
         # - Multisig and P2TR script path are NOT eligible
         pass
+
+
+class TestBIP375PSBTFields(BaseTest):
+    """Test BIP-375 PSBT field parsing."""
+
+    def test_psbt_field_constants(self):
+        """Verify BIP-375 field type constants match specification."""
+        from seedsigner.helpers.silent_payments import (
+            PSBT_GLOBAL_SP_ECDH_SHARE,
+            PSBT_GLOBAL_SP_DLEQ,
+            PSBT_IN_SP_ECDH_SHARE,
+            PSBT_IN_SP_DLEQ,
+            PSBT_OUT_SP_V0_INFO,
+        )
+
+        # Per BIP-375 specification
+        assert PSBT_GLOBAL_SP_ECDH_SHARE == 0x07
+        assert PSBT_GLOBAL_SP_DLEQ == 0x08
+        assert PSBT_IN_SP_ECDH_SHARE == 0x1d
+        assert PSBT_IN_SP_DLEQ == 0x1e
+        assert PSBT_OUT_SP_V0_INFO == 0x09
+
+    def test_has_bip375_fields_empty_psbt(self):
+        """Empty PSBT should not have BIP-375 fields."""
+        from seedsigner.helpers.silent_payments import has_bip375_sp_fields
+        from embit.psbt import PSBT
+
+        psbt = PSBT()
+        assert has_bip375_sp_fields(psbt) == False
+
+    def test_extract_sp_info_none_when_missing(self):
+        """Should return None when no SP info in output."""
+        from seedsigner.helpers.silent_payments import extract_sp_info_from_output
+        from embit.psbt import OutputScope
+
+        out = OutputScope()
+        result = extract_sp_info_from_output(out)
+        assert result is None
+
+
+class TestBIP374DLEQ(BaseTest):
+    """Test BIP-374 DLEQ proof verification."""
+
+    def test_dleq_proof_structure(self):
+        """Test DLEQ proof must be 64 bytes."""
+        from seedsigner.helpers.silent_payments import verify_dleq_proof
+
+        # Valid compressed pubkeys for test
+        A = unhexlify("025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5")
+        B = unhexlify("03bd85685d03d111699b15d046319febe77f8de5286e9e512703cdee1bf3be3792")
+        C = unhexlify("025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5")
+
+        # Wrong length proof should fail
+        bad_proof = b'\x00' * 63
+        assert verify_dleq_proof(A, B, C, bad_proof) == False
+
+        bad_proof = b'\x00' * 65
+        assert verify_dleq_proof(A, B, C, bad_proof) == False
+
+    def test_dleq_invalid_s_value(self):
+        """DLEQ proof with s >= curve order should fail."""
+        from seedsigner.helpers.silent_payments import verify_dleq_proof, SECP256K1_ORDER
+
+        A = unhexlify("025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5")
+        B = unhexlify("03bd85685d03d111699b15d046319febe77f8de5286e9e512703cdee1bf3be3792")
+        C = unhexlify("025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5")
+
+        # Create proof with s = curve order (invalid)
+        e = b'\x00' * 32
+        s = SECP256K1_ORDER.to_bytes(32, 'big')
+        invalid_proof = e + s
+
+        assert verify_dleq_proof(A, B, C, invalid_proof) == False
+
+
+class TestSPAddressEncode(BaseTest):
+    """Test Silent Payment address encoding."""
+
+    def test_encode_roundtrip(self):
+        """Encoding then decoding should return original keys."""
+        from seedsigner.helpers.silent_payments import (
+            parse_silent_payment_address,
+            encode_silent_payment_address,
+        )
+
+        # Known test keys
+        B_scan = unhexlify("0220bcfac5b99e04ad1a06ddfb016ee13582609d60b6291e98d01a9bc9a16c96d4")
+        B_spend = unhexlify("025cc9856d6f8375350e123978daac200c260cb5b5ae83106cab90484dcd8fcf36")
+
+        # Encode to address
+        address = encode_silent_payment_address(B_scan, B_spend, "mainnet")
+
+        # Should start with sp1
+        assert address.startswith("sp1")
+
+        # Decode back
+        decoded_scan, decoded_spend, network = parse_silent_payment_address(address)
+
+        assert decoded_scan == B_scan
+        assert decoded_spend == B_spend
+        assert network == "mainnet"
+
+    def test_encode_testnet(self):
+        """Testnet addresses should use tsp1 prefix."""
+        from seedsigner.helpers.silent_payments import encode_silent_payment_address
+
+        B_scan = unhexlify("0220bcfac5b99e04ad1a06ddfb016ee13582609d60b6291e98d01a9bc9a16c96d4")
+        B_spend = unhexlify("025cc9856d6f8375350e123978daac200c260cb5b5ae83106cab90484dcd8fcf36")
+
+        address = encode_silent_payment_address(B_scan, B_spend, "testnet")
+        assert address.startswith("tsp1")
+
+    def test_encode_matches_known_address(self):
+        """Encoding known keys should produce known address."""
+        from seedsigner.helpers.silent_payments import encode_silent_payment_address
+
+        # From test vector
+        B_scan = unhexlify("0220bcfac5b99e04ad1a06ddfb016ee13582609d60b6291e98d01a9bc9a16c96d4")
+        B_spend = unhexlify("025cc9856d6f8375350e123978daac200c260cb5b5ae83106cab90484dcd8fcf36")
+
+        address = encode_silent_payment_address(B_scan, B_spend, "mainnet")
+
+        # Should match the known test vector address
+        expected = "sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqjuexzk6murw56suy3e0rd2cgqvycxttddwsvgxe2usfpxumr70xc9pkqwv"
+        assert address == expected

@@ -96,6 +96,36 @@ Silent Payment-capable coordinator wallets that work with SeedSigner:
 - Sparrow Wallet (with SP support)
 - Any wallet that exports PSBTs with SP-derived Taproot outputs
 
+## BIP-375 Support (Automatic Verification)
+
+SeedSigner now supports [BIP-375](https://github.com/bitcoin/bips/blob/master/bip-0375.mediawiki), which embeds SP information directly in the PSBT. When a coordinator wallet includes BIP-375 fields, SeedSigner automatically verifies the SP output using [DLEQ proofs](https://github.com/bitcoin/bips/blob/master/bip-0374.mediawiki) - no address scanning required.
+
+**Verification priority:**
+
+1. PSBT contains BIP-375 SP fields → Verify via DLEQ proof (automatic, no scanning needed)
+2. No BIP-375 fields, but user scanned SP address → Verify via re-derivation
+3. Neither → Display `bc1p...` only (no SP verification possible)
+
+**BIP-375 PSBT Fields Supported:**
+
+| Field                              | Type       | Description                         |
+| ---------------------------------- | ---------- | ----------------------------------- |
+| `PSBT_OUT_SP_V0_INFO` (0x09)       | Per-output | Contains B_scan and B_spend keys    |
+| `PSBT_GLOBAL_SP_ECDH_SHARE` (0x07) | Global     | ECDH shared point for verification  |
+| `PSBT_GLOBAL_SP_DLEQ` (0x08)       | Global     | 64-byte DLEQ proof                  |
+| `PSBT_IN_SP_ECDH_SHARE` (0x1d)     | Per-input  | Per-input ECDH share (future)       |
+| `PSBT_IN_SP_DLEQ` (0x1e)           | Per-input  | Per-input DLEQ proof (future)       |
+
+The "scan SP address first" workflow remains valuable as:
+
+- A fallback for coordinators that don't include BIP-375 fields
+- Works with any SP-capable wallet today
+- An extra layer of verification even with BIP-375 support
+
 ## Technical Reference
 
-For implementation details, see [BIP-352](https://github.com/bitcoin/bips/blob/master/bip-0352.mediawiki).
+For implementation details, see:
+
+- [BIP-352: Silent Payments](https://github.com/bitcoin/bips/blob/master/bip-0352.mediawiki)
+- [BIP-375: Sending Silent Payments with PSBTs](https://github.com/bitcoin/bips/blob/master/bip-0375.mediawiki)
+- [BIP-374: DLEQ Proofs](https://github.com/bitcoin/bips/blob/master/bip-0374.mediawiki)

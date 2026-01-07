@@ -524,3 +524,423 @@ def full_to_xonly_pubkey(full: bytes) -> Tuple[bytes, int]:
 
     parity = 0 if full[0] == 0x02 else 1
     return full[1:], parity
+
+
+# =============================================================================
+# BIP-375 PSBT Field Constants
+# =============================================================================
+
+# Global PSBT fields (PSBTv2)
+PSBT_GLOBAL_SP_ECDH_SHARE = 0x07  # Key: 33-byte scan pubkey, Value: 33-byte ECDH share
+PSBT_GLOBAL_SP_DLEQ = 0x08        # Key: 33-byte scan pubkey, Value: 64-byte DLEQ proof
+
+# Per-input PSBT fields
+PSBT_IN_SP_ECDH_SHARE = 0x1d      # Key: 33-byte scan pubkey, Value: 33-byte ECDH share
+PSBT_IN_SP_DLEQ = 0x1e            # Key: 33-byte scan pubkey, Value: 64-byte DLEQ proof
+
+# Per-output PSBT fields
+PSBT_OUT_SP_V0_INFO = 0x09        # Key: none, Value: 66 bytes (33-byte scan + 33-byte spend)
+
+
+# =============================================================================
+# BIP-374 DLEQ Proof Verification
+# =============================================================================
+
+def verify_dleq_proof(
+    A: bytes,
+    B: bytes,
+    C: bytes,
+    proof: bytes,
+    G: bytes = None
+) -> bool:
+    """
+    Verify a BIP-374 DLEQ proof.
+
+    Verifies that the same scalar 'a' was used to compute:
+    - A = a * G (public key)
+    - C = a * B (ECDH shared point)
+
+    This proves the ECDH share was computed correctly without revealing 'a'.
+
+    Args:
+        A: 33-byte compressed public key (sum of input pubkeys, or single input pubkey)
+        B: 33-byte compressed public key (recipient's B_scan)
+        C: 33-byte compressed ECDH share point
+        proof: 64-byte DLEQ proof (32-byte challenge e || 32-byte response s)
+        G: Optional generator point (uses secp256k1 generator if None)
+
+    Returns:
+        True if proof is valid, False otherwise
+    """
+    try:
+        # Parse proof components
+        if len(proof) != 64:
+            logger.debug(f"DLEQ proof wrong length: {len(proof)}")
+            return False
+
+        e = int.from_bytes(proof[:32], 'big')
+        s = int.from_bytes(proof[32:], 'big')
+
+        n = SECP256K1_ORDER
+
+        # Reject if s >= curve order
+        if s >= n:
+            logger.debug("DLEQ proof: s >= curve order")
+            return False
+
+        # Parse the input points
+        A_parsed = secp256k1.ec_pubkey_parse(A)
+        B_parsed = secp256k1.ec_pubkey_parse(B)
+        C_parsed = secp256k1.ec_pubkey_parse(C)
+
+        # Get generator G
+        if G is None:
+            # Use secp256k1 generator - derive from privkey=1
+            G_point = ec.PrivateKey(b'\x00' * 31 + b'\x01').get_public_key().sec()
+            G_parsed = secp256k1.ec_pubkey_parse(G_point)
+        else:
+            G_parsed = secp256k1.ec_pubkey_parse(G)
+            G_point = G
+
+        # R1 = s*G - e*A
+        # First compute s*G
+        sG_parsed = secp256k1.ec_pubkey_parse(G_point)
+        s_bytes = s.to_bytes(32, 'big')
+        secp256k1.ec_pubkey_tweak_mul(sG_parsed, s_bytes)
+
+        # Compute e*A (need to negate for subtraction)
+        eA_parsed = secp256k1.ec_pubkey_parse(A)
+        e_bytes = e.to_bytes(32, 'big')
+        secp256k1.ec_pubkey_tweak_mul(eA_parsed, e_bytes)
+
+        # Negate e*A to get -e*A
+        secp256k1.ec_pubkey_negate(eA_parsed)
+
+        # R1 = s*G + (-e*A)
+        R1_parsed = secp256k1.ec_pubkey_combine(sG_parsed, eA_parsed)
+        R1 = secp256k1.ec_pubkey_serialize(R1_parsed)
+
+        # R2 = s*B - e*C
+        # First compute s*B
+        sB_parsed = secp256k1.ec_pubkey_parse(B)
+        secp256k1.ec_pubkey_tweak_mul(sB_parsed, s_bytes)
+
+        # Compute e*C
+        eC_parsed = secp256k1.ec_pubkey_parse(C)
+        secp256k1.ec_pubkey_tweak_mul(eC_parsed, e_bytes)
+
+        # Negate e*C
+        secp256k1.ec_pubkey_negate(eC_parsed)
+
+        # R2 = s*B + (-e*C)
+        R2_parsed = secp256k1.ec_pubkey_combine(sB_parsed, eC_parsed)
+        R2 = secp256k1.ec_pubkey_serialize(R2_parsed)
+
+        # Compute challenge hash
+        # e' = hash_BIP0374/challenge(A || B || C || G || R1 || R2)
+        challenge_data = A + B + C + G_point + R1 + R2
+        e_computed = tagged_hash("BIP0374/challenge", challenge_data)
+        e_computed_int = int.from_bytes(e_computed, 'big')
+
+        # Verify e == e'
+        if e != e_computed_int:
+            logger.debug(f"DLEQ proof: challenge mismatch")
+            return False
+
+        logger.info("DLEQ proof verified successfully")
+        return True
+
+    except Exception as ex:
+        logger.debug(f"DLEQ verification failed: {ex}")
+        return False
+
+
+# =============================================================================
+# BIP-375 PSBT Parsing
+# =============================================================================
+
+def extract_sp_info_from_output(output_scope) -> Optional[Tuple[bytes, bytes]]:
+    """
+    Extract Silent Payment info from PSBT output's unknown fields.
+
+    Looks for PSBT_OUT_SP_V0_INFO (0x09) field containing the
+    scan and spend public keys.
+
+    Args:
+        output_scope: PSBT OutputScope object
+
+    Returns:
+        Tuple of (B_scan, B_spend) if found, None otherwise
+    """
+    if not hasattr(output_scope, 'unknown') or not output_scope.unknown:
+        return None
+
+    # Key format: type byte (0x09) with no additional key data
+    for key, value in output_scope.unknown.items():
+        # Key is bytes, first byte is type
+        if len(key) >= 1 and key[0] == PSBT_OUT_SP_V0_INFO:
+            # Value should be 66 bytes: 33-byte scan key + 33-byte spend key
+            if len(value) == 66:
+                B_scan = bytes(value[:33])
+                B_spend = bytes(value[33:66])
+
+                # Validate pubkey prefixes
+                if B_scan[0] in (0x02, 0x03) and B_spend[0] in (0x02, 0x03):
+                    logger.debug(f"Found SP info in output: B_scan={B_scan[:4].hex()}...")
+                    return (B_scan, B_spend)
+
+    return None
+
+
+def extract_global_ecdh_share(psbt, B_scan: bytes) -> Optional[Tuple[bytes, bytes]]:
+    """
+    Extract global ECDH share and DLEQ proof for a given scan key.
+
+    Args:
+        psbt: PSBT object
+        B_scan: 33-byte scan public key to look for
+
+    Returns:
+        Tuple of (ecdh_share, dleq_proof) if found, None otherwise
+    """
+    if not hasattr(psbt, 'unknown') or not psbt.unknown:
+        return None
+
+    ecdh_share = None
+    dleq_proof = None
+
+    for key, value in psbt.unknown.items():
+        if len(key) < 1:
+            continue
+
+        key_type = key[0]
+        key_data = key[1:] if len(key) > 1 else b''
+
+        # Check for ECDH share with matching B_scan
+        if key_type == PSBT_GLOBAL_SP_ECDH_SHARE:
+            if key_data == B_scan and len(value) == 33:
+                ecdh_share = bytes(value)
+                logger.debug(f"Found global ECDH share: {ecdh_share[:4].hex()}...")
+
+        # Check for DLEQ proof with matching B_scan
+        elif key_type == PSBT_GLOBAL_SP_DLEQ:
+            if key_data == B_scan and len(value) == 64:
+                dleq_proof = bytes(value)
+                logger.debug(f"Found global DLEQ proof")
+
+    if ecdh_share and dleq_proof:
+        return (ecdh_share, dleq_proof)
+
+    return None
+
+
+def extract_input_ecdh_shares(psbt, B_scan: bytes) -> List[Tuple[int, bytes, bytes]]:
+    """
+    Extract per-input ECDH shares and DLEQ proofs for a given scan key.
+
+    Args:
+        psbt: PSBT object
+        B_scan: 33-byte scan public key to look for
+
+    Returns:
+        List of (input_index, ecdh_share, dleq_proof) tuples
+    """
+    result = []
+
+    for i, inp in enumerate(psbt.inputs):
+        if not hasattr(inp, 'unknown') or not inp.unknown:
+            continue
+
+        ecdh_share = None
+        dleq_proof = None
+
+        for key, value in inp.unknown.items():
+            if len(key) < 1:
+                continue
+
+            key_type = key[0]
+            key_data = key[1:] if len(key) > 1 else b''
+
+            if key_type == PSBT_IN_SP_ECDH_SHARE:
+                if key_data == B_scan and len(value) == 33:
+                    ecdh_share = bytes(value)
+
+            elif key_type == PSBT_IN_SP_DLEQ:
+                if key_data == B_scan and len(value) == 64:
+                    dleq_proof = bytes(value)
+
+        if ecdh_share and dleq_proof:
+            result.append((i, ecdh_share, dleq_proof))
+
+    return result
+
+
+def verify_sp_output_with_bip375(
+    psbt,
+    output_index: int,
+    B_scan: bytes,
+    B_spend: bytes,
+    seed_fingerprint: str = None
+) -> Optional[bytes]:
+    """
+    Verify a Silent Payment output using BIP-375 ECDH shares and DLEQ proofs.
+
+    This verifies that the coordinator correctly computed the SP output
+    by checking the DLEQ proof against the provided ECDH share.
+
+    Args:
+        psbt: PSBT object
+        output_index: Index of the output to verify
+        B_scan: 33-byte recipient scan public key
+        B_spend: 33-byte recipient spend public key
+        seed_fingerprint: Optional fingerprint to identify owned inputs
+
+    Returns:
+        Expected x-only output pubkey if verified, None if verification fails
+    """
+    from binascii import hexlify
+
+    n = SECP256K1_ORDER
+
+    # Try global ECDH share first
+    global_share = extract_global_ecdh_share(psbt, B_scan)
+
+    if global_share:
+        ecdh_share, dleq_proof = global_share
+
+        # Get sum of all eligible input pubkeys (A_n)
+        input_pubkeys = []
+        for inp in psbt.inputs:
+            if not is_eligible_input(inp, seed_fingerprint):
+                continue
+
+            # Get pubkey from derivation
+            if inp.taproot_bip32_derivations:
+                for pub, (leaf_hashes, der) in inp.taproot_bip32_derivations.items():
+                    pubkey = pub.sec()
+                    # For Taproot, use even-Y version
+                    if pubkey[0] == 0x03:
+                        parsed = secp256k1.ec_pubkey_parse(pubkey)
+                        negated = secp256k1.ec_pubkey_negate(parsed)
+                        pubkey = secp256k1.ec_pubkey_serialize(negated)
+                    input_pubkeys.append(pubkey)
+                    break
+            elif inp.bip32_derivations:
+                for pub, der in inp.bip32_derivations.items():
+                    input_pubkeys.append(pub.sec())
+                    break
+
+        if not input_pubkeys:
+            logger.warning("No eligible input pubkeys found for BIP-375 verification")
+            return None
+
+        A_n = sum_public_keys(input_pubkeys)
+
+        # Verify DLEQ proof
+        if not verify_dleq_proof(A_n, B_scan, ecdh_share, dleq_proof):
+            logger.warning("BIP-375 global DLEQ proof verification failed")
+            return None
+
+        # Compute expected output from verified ECDH share
+        # Get smallest outpoint and input hash
+        smallest_outpoint = get_smallest_outpoint(psbt.tx)
+        input_hash = get_input_hash(smallest_outpoint, A_n)
+        input_hash_scalar = int.from_bytes(input_hash, 'big') % n
+
+        # The ECDH share is: C = a_n * B_scan
+        # We need: shared_secret = input_hash * C = input_hash * a_n * B_scan
+        C_parsed = secp256k1.ec_pubkey_parse(ecdh_share)
+        input_hash_bytes = input_hash_scalar.to_bytes(32, 'big')
+        secp256k1.ec_pubkey_tweak_mul(C_parsed, input_hash_bytes)
+        shared_secret = secp256k1.ec_pubkey_serialize(C_parsed)
+
+        # Calculate t_k
+        t_k = get_shared_secret_hash(shared_secret, output_index)
+
+        # P_k = B_spend + t_k * G
+        B_spend_parsed = secp256k1.ec_pubkey_parse(B_spend)
+        secp256k1.ec_pubkey_tweak_add(B_spend_parsed, t_k)
+        expected_pubkey = secp256k1.ec_pubkey_serialize(B_spend_parsed)
+
+        expected_xonly, _ = full_to_xonly_pubkey(expected_pubkey)
+        logger.info(f"BIP-375 verification successful for output {output_index}")
+        return expected_xonly
+
+    # TODO: Handle per-input ECDH shares (aggregate them)
+    # This is more complex - need to sum the per-input shares
+    per_input_shares = extract_input_ecdh_shares(psbt, B_scan)
+    if per_input_shares:
+        logger.warning("Per-input ECDH shares not yet implemented - falling back")
+
+    return None
+
+
+def encode_silent_payment_address(B_scan: bytes, B_spend: bytes, network: str = "mainnet") -> str:
+    """
+    Encode scan and spend public keys into a BIP-352 Silent Payment address.
+
+    Args:
+        B_scan: 33-byte compressed scan public key
+        B_spend: 33-byte compressed spend public key
+        network: "mainnet" or "testnet"
+
+    Returns:
+        Bech32m encoded SP address (sp1... or tsp1...)
+    """
+    if len(B_scan) != 33 or len(B_spend) != 33:
+        raise ValueError("Public keys must be 33 bytes")
+
+    hrp = "sp" if network == "mainnet" else "tsp"
+
+    # Payload: B_scan + B_spend (66 bytes)
+    payload = B_scan + B_spend
+
+    # Convert payload to 5-bit groups
+    data_5bit = _convertbits(list(payload), 8, 5, True)
+    if data_5bit is None:
+        raise ValueError("Failed to convert to 5-bit groups")
+
+    # Prepend version byte (0) as first 5-bit value
+    # This is the witness version, encoded separately
+    data_5bit = [0] + data_5bit
+
+    # Add checksum
+    values = _bech32_hrp_expand(hrp) + data_5bit
+    polymod = _bech32_polymod(values + [0, 0, 0, 0, 0, 0]) ^ BECH32M_CONST
+    checksum = [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
+
+    # Encode to string
+    return hrp + "1" + "".join(CHARSET[d] for d in data_5bit + checksum)
+
+
+def has_bip375_sp_fields(psbt) -> bool:
+    """
+    Check if PSBT contains any BIP-375 Silent Payment fields.
+
+    Args:
+        psbt: PSBT object
+
+    Returns:
+        True if any BIP-375 SP fields are present
+    """
+    # Check global fields
+    if hasattr(psbt, 'unknown') and psbt.unknown:
+        for key in psbt.unknown.keys():
+            if len(key) >= 1 and key[0] in (PSBT_GLOBAL_SP_ECDH_SHARE, PSBT_GLOBAL_SP_DLEQ):
+                return True
+
+    # Check output fields
+    for out in psbt.outputs:
+        if hasattr(out, 'unknown') and out.unknown:
+            for key in out.unknown.keys():
+                if len(key) >= 1 and key[0] == PSBT_OUT_SP_V0_INFO:
+                    return True
+
+    # Check input fields
+    for inp in psbt.inputs:
+        if hasattr(inp, 'unknown') and inp.unknown:
+            for key in inp.unknown.keys():
+                if len(key) >= 1 and key[0] in (PSBT_IN_SP_ECDH_SHARE, PSBT_IN_SP_DLEQ):
+                    return True
+
+    return False
