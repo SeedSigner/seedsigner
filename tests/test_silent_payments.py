@@ -429,3 +429,70 @@ class TestSPAddressEncode(BaseTest):
         # Should match the known test vector address
         expected = "sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqjuexzk6murw56suy3e0rd2cgqvycxttddwsvgxe2usfpxumr70xc9pkqwv"
         assert address == expected
+
+
+class TestPSBTv2Detection(BaseTest):
+    """Test PSBTv2 (BIP-370) detection."""
+
+    def test_get_psbt_version_v0(self):
+        """PSBTv0 (no version field) should return 0."""
+        from seedsigner.helpers.silent_payments import get_psbt_version
+
+        # Mock PSBT without version field
+        class MockPSBT:
+            unknown = {}
+
+        psbt = MockPSBT()
+        assert get_psbt_version(psbt) == 0
+
+    def test_get_psbt_version_no_unknown(self):
+        """PSBT without unknown dict should return 0."""
+        from seedsigner.helpers.silent_payments import get_psbt_version
+
+        class MockPSBT:
+            pass
+
+        psbt = MockPSBT()
+        assert get_psbt_version(psbt) == 0
+
+    def test_get_psbt_version_v2(self):
+        """PSBTv2 with version field should return 2."""
+        from seedsigner.helpers.silent_payments import get_psbt_version, PSBT_GLOBAL_VERSION
+
+        class MockPSBT:
+            unknown = {}
+
+        psbt = MockPSBT()
+        # BIP-370: PSBT_GLOBAL_VERSION is 0xFB, value is 32-bit LE unsigned int
+        psbt.unknown[bytes([PSBT_GLOBAL_VERSION])] = (2).to_bytes(4, 'little')
+
+        assert get_psbt_version(psbt) == 2
+
+    def test_is_psbt_v2(self):
+        """is_psbt_v2 should return True for v2, False for v0."""
+        from seedsigner.helpers.silent_payments import is_psbt_v2, PSBT_GLOBAL_VERSION
+
+        class MockPSBT:
+            unknown = {}
+
+        # v0
+        psbt_v0 = MockPSBT()
+        assert is_psbt_v2(psbt_v0) == False
+
+        # v2
+        psbt_v2 = MockPSBT()
+        psbt_v2.unknown = {bytes([PSBT_GLOBAL_VERSION]): (2).to_bytes(4, 'little')}
+        assert is_psbt_v2(psbt_v2) == True
+
+    def test_get_psbt_version_short_value(self):
+        """Version field with less than 4 bytes should return 0."""
+        from seedsigner.helpers.silent_payments import get_psbt_version, PSBT_GLOBAL_VERSION
+
+        class MockPSBT:
+            unknown = {}
+
+        psbt = MockPSBT()
+        # Invalid: only 3 bytes
+        psbt.unknown[bytes([PSBT_GLOBAL_VERSION])] = b'\x02\x00\x00'
+
+        assert get_psbt_version(psbt) == 0

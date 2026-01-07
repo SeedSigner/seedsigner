@@ -944,3 +944,48 @@ def has_bip375_sp_fields(psbt) -> bool:
                     return True
 
     return False
+
+
+# PSBTv2 Detection Constants
+PSBT_GLOBAL_VERSION = 0xFB  # BIP-370 PSBT version field
+
+
+def get_psbt_version(psbt) -> int:
+    """
+    Detect the PSBT version.
+
+    PSBTv0: No version field (default)
+    PSBTv2: Has PSBT_GLOBAL_VERSION (0xFB) field with value >= 2
+
+    Args:
+        psbt: PSBT object (embit)
+
+    Returns:
+        int: PSBT version (0 for v0/unknown, 2 for v2)
+    """
+    if not hasattr(psbt, 'unknown') or not psbt.unknown:
+        return 0
+
+    # Check for BIP-370 version field
+    version_key = bytes([PSBT_GLOBAL_VERSION])
+    if version_key in psbt.unknown:
+        version_value = psbt.unknown[version_key]
+        # Version is a 32-bit unsigned little-endian integer
+        if len(version_value) >= 4:
+            version = int.from_bytes(version_value[:4], 'little')
+            return version
+
+    return 0
+
+
+def is_psbt_v2(psbt) -> bool:
+    """
+    Check if PSBT is version 2 (BIP-370).
+
+    Args:
+        psbt: PSBT object (embit)
+
+    Returns:
+        True if this is a PSBTv2
+    """
+    return get_psbt_version(psbt) >= 2

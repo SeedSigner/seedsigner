@@ -502,9 +502,17 @@ class PSBTParser():
             has_bip375_sp_fields,
             extract_sp_info_from_output,
             verify_sp_output_with_bip375,
+            # PSBTv2 detection
+            get_psbt_version,
+            is_psbt_v2,
         )
 
         seed_fingerprint = hexlify(self.root.child(0).fingerprint).decode()
+
+        # Log PSBT version for diagnostics
+        psbt_version = get_psbt_version(self.psbt)
+        if psbt_version >= 2:
+            logger.info(f"PSBTv{psbt_version} detected - BIP-375 fields stored in unknown dict")
 
         # =====================================================================
         # Priority 1: Try BIP-375 verification (PSBT contains SP fields + DLEQ)
