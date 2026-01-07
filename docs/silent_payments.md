@@ -139,8 +139,11 @@ To test SeedSigner's BIP-375 verification without a full wallet setup, use the *
 This tool generates valid BIP-375 PSBTs with fake inputs for testing purposes. It includes:
 
 - GUI with side-by-side QR codes for SP address and PSBT
+- Seed QR export for loading test sender keys into SeedSigner
+- Animated UR QR codes for easy PSBT scanning
+- Camera scanning to verify signed PSBTs returned from SeedSigner
 - Proper DLEQ proof generation per BIP-374
-- Educational notes explaining Silent Payment behavior
+- Full end-to-end signing flow testing
 
 **Note:** Test PSBTs reference non-existent inputs and cannot be broadcast to the network.
 
