@@ -614,10 +614,11 @@ def verify_dleq_proof(
         secp256k1.ec_pubkey_tweak_mul(eA_parsed, e_bytes)
 
         # Negate e*A to get -e*A
-        secp256k1.ec_pubkey_negate(eA_parsed)
+        # NOTE: ec_pubkey_negate RETURNS the negated point, does NOT modify in-place
+        neg_eA = secp256k1.ec_pubkey_negate(eA_parsed)
 
         # R1 = s*G + (-e*A)
-        R1_parsed = secp256k1.ec_pubkey_combine(sG_parsed, eA_parsed)
+        R1_parsed = secp256k1.ec_pubkey_combine(sG_parsed, neg_eA)
         R1 = secp256k1.ec_pubkey_serialize(R1_parsed)
 
         # R2 = s*B - e*C
@@ -630,10 +631,11 @@ def verify_dleq_proof(
         secp256k1.ec_pubkey_tweak_mul(eC_parsed, e_bytes)
 
         # Negate e*C
-        secp256k1.ec_pubkey_negate(eC_parsed)
+        # NOTE: ec_pubkey_negate RETURNS the negated point, does NOT modify in-place
+        neg_eC = secp256k1.ec_pubkey_negate(eC_parsed)
 
         # R2 = s*B + (-e*C)
-        R2_parsed = secp256k1.ec_pubkey_combine(sB_parsed, eC_parsed)
+        R2_parsed = secp256k1.ec_pubkey_combine(sB_parsed, neg_eC)
         R2 = secp256k1.ec_pubkey_serialize(R2_parsed)
 
         # Compute challenge hash
