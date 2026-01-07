@@ -130,6 +130,20 @@ The "scan SP address first" workflow remains valuable as:
 
 Most coordinator wallets currently export v0-compatible PSBTs, so this should not be an issue in practice.
 
+## Testing BIP-375 Verification
+
+To test SeedSigner's BIP-375 verification without a full wallet setup, use the **BIP-375 Test PSBT Generator**:
+
+[github.com/FreeOnlineUser/bip375-test-tools](https://github.com/FreeOnlineUser/bip375-test-tools)
+
+This tool generates valid BIP-375 PSBTs with fake inputs for testing purposes. It includes:
+
+- GUI with side-by-side QR codes for SP address and PSBT
+- Proper DLEQ proof generation per BIP-374
+- Educational notes explaining Silent Payment behavior
+
+**Note:** Test PSBTs reference non-existent inputs and cannot be broadcast to the network.
+
 ## Technical Reference
 
 For implementation details, see:
