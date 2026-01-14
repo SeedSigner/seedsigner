@@ -148,9 +148,12 @@ class ToolsImageEntropyMnemonicLengthView(View):
 
             # Build in some hardware-level uniqueness via CPU unique Serial num
             try:
-                stream = os.popen("cat /proc/cpuinfo | grep Serial")
-                output = stream.read()
-                serial_num = output.split(":")[-1].strip().encode('utf-8')
+                serial_num = b''
+                with open("/proc/cpuinfo", "r") as f:
+                    for line in f:
+                        if "Serial" in line:
+                            serial_num = line.split(":")[-1].strip().encode('utf-8')
+                            break
                 serial_hash = hashlib.sha256(serial_num)
                 hash_bytes = serial_hash.digest()
             except Exception as e:
