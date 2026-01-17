@@ -299,7 +299,9 @@ class SettingsConstants:
     MICROSD_TOAST_TIMER_FOREVER = "inf"
     ALL_MICROSD_TOAST_TIMERS = [
         (MICROSD_TOAST_TIMER_DISABLED, _mft("Disabled")),
+        # TRANSLATOR_NOTE: MicroSD notification duration setting - Display notification for 5 seconds
         (MICROSD_TOAST_TIMER_FIVE_SECONDS, _mft("5 seconds")),
+        # TRANSLATOR_NOTE: MicroSD notification duration setting - Display notification until the SD card is removed
         (MICROSD_TOAST_TIMER_FOREVER, _mft("Until SD removed"))
     ]
 
@@ -670,7 +672,7 @@ class SettingsDefinition:
         
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__MICROSD_TOAST_TIMER,
-                      display_name=_mft("MicroSD toast timer"),
+                      display_name=_mft("MicroSD notification duration"),
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SettingsConstants.ALL_MICROSD_TOAST_TIMERS,
