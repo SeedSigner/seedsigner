@@ -350,10 +350,12 @@ class NetworkMismatchErrorView(ErrorView):
         self.next_destination = Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=SettingsConstants.SETTING__NETWORK), clear_history=True)
         super().__post_init__()
 
-        # TRANSLATOR_NOTE: Inserts mainnet/testnet/regtest and derivation path
-        self.text = _("Current network setting ({}) doesn't match {}.").format(
-            _(self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK)),
-            self.derivation_path,
+        network = _(self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK))
+
+        # TRANSLATOR_NOTE: "network" will be mainnet/testnet/regtest.
+        self.text = _("Current network setting ({network}) doesn't match {derivation_path}.").format(
+            network=network,
+            derivation_path=self.derivation_path,
         )
 
 
