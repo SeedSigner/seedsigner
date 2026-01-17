@@ -298,9 +298,9 @@ class SettingsConstants:
     MICROSD_TOAST_TIMER_FIVE_SECONDS = "E"
     MICROSD_TOAST_TIMER_FOREVER = "inf"
     ALL_MICROSD_TOAST_TIMERS = [
-        (MICROSD_TOAST_TIMER_DISABLED, "Disabled"),
-        (MICROSD_TOAST_TIMER_FIVE_SECONDS, "5 seconds"),
-        (MICROSD_TOAST_TIMER_FOREVER, "Until SD removed")
+        (MICROSD_TOAST_TIMER_DISABLED, _mft("Disabled")),
+        (MICROSD_TOAST_TIMER_FIVE_SECONDS, _mft("5 seconds")),
+        (MICROSD_TOAST_TIMER_FOREVER, _mft("Until SD removed"))
     ]
 
     WORDLIST_LANGUAGE__ENGLISH = "en"
@@ -670,7 +670,7 @@ class SettingsDefinition:
         
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__MICROSD_TOAST_TIMER,
-                      display_name="MicroSD toast timer",
+                      display_name=_mft("MicroSD toast timer"),
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SettingsConstants.ALL_MICROSD_TOAST_TIMERS,

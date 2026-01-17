@@ -352,7 +352,7 @@ class NetworkMismatchErrorView(ErrorView):
 
         # TRANSLATOR_NOTE: Inserts mainnet/testnet/regtest and derivation path
         self.text = _("Current network setting ({}) doesn't match {}.").format(
-            self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK),
+            _(self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK)),
             self.derivation_path,
         )
 
