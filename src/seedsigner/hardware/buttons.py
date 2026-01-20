@@ -4,34 +4,13 @@ import RPi.GPIO as GPIO
 import time
 
 from seedsigner.models.singleton import Singleton
+from seedsigner.models.settings import Settings
+from seedsigner.models.settings_definition import SettingsConstants
 
 logger = logging.getLogger(__name__)
 
 
 class HardwareButtons(Singleton):
-    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
-        logger.info("Detected 40pin GPIO (Rasbperry Pi 2 and above)")
-        KEY_UP_PIN = 31
-        KEY_DOWN_PIN = 35
-        KEY_LEFT_PIN = 29
-        KEY_RIGHT_PIN = 37
-        KEY_PRESS_PIN = 33
-
-        KEY1_PIN = 40
-        KEY2_PIN = 38
-        KEY3_PIN = 36
-
-    else:
-        logger.info("Assuming 26 Pin GPIO (Raspberry P1 1)")
-        KEY_UP_PIN = 5
-        KEY_DOWN_PIN = 11
-        KEY_LEFT_PIN = 3
-        KEY_RIGHT_PIN = 15
-        KEY_PRESS_PIN = 7
-
-        KEY1_PIN = 16
-        KEY2_PIN = 12
-        KEY3_PIN = 8
 
 
     @classmethod
@@ -40,16 +19,12 @@ class HardwareButtons(Singleton):
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
 
-            #init GPIO
+            # init GPIO
             GPIO.setmode(GPIO.BOARD)
-            GPIO.setup(HardwareButtons.KEY_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)    # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_DOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_LEFT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_RIGHT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY_PRESS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY2_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
-            GPIO.setup(HardwareButtons.KEY3_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)      # Input with pull-up
+
+            # Setup all buttons as inputs with pull-ups
+            for name in HardwareButtonsConstants.ALL_KEYS:
+                GPIO.setup(name, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
             cls._instance.GPIO = GPIO
             cls._instance.override_ind = False
@@ -167,26 +142,16 @@ class HardwareButtons(Singleton):
 
 # class used as short hand for static button/channel lookup values
 class HardwareButtonsConstants:
-    if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
-        KEY_UP = 31
-        KEY_DOWN = 35
-        KEY_LEFT = 29
-        KEY_RIGHT = 37
-        KEY_PRESS = 33
-
-        KEY1 = 40
-        KEY2 = 38
-        KEY3 = 36
-    else:
-        KEY_UP = 5
-        KEY_DOWN = 11
-        KEY_LEFT = 3
-        KEY_RIGHT = 15
-        KEY_PRESS = 7
-
-        KEY1 = 16
-        KEY2 = 12
-        KEY3 = 8
+    hardware_config = Settings.get_instance().get_value(SettingsConstants.SETTING__HARDWARE_CONFIG)
+    pin_mapping = SettingsConstants.ALL_HARDWARE_PIN_CONFIGS__PIN_DEFINITIONS[hardware_config]["buttons"]
+    KEY_UP = pin_mapping["KEY_UP"]
+    KEY_DOWN = pin_mapping["KEY_DOWN"]
+    KEY_LEFT = pin_mapping["KEY_LEFT"]
+    KEY_RIGHT = pin_mapping["KEY_RIGHT"]
+    KEY_PRESS = pin_mapping["KEY_PRESS"]
+    KEY1 = pin_mapping["KEY1"]
+    KEY2 = pin_mapping["KEY2"]
+    KEY3 = pin_mapping["KEY3"]
 
     OVERRIDE = 1000
 

@@ -224,6 +224,7 @@ class SettingsConstants:
         (BTC_DENOMINATION__BTCSATSHYBRID, _mft("BTC | sats hybrid")),
     ]
 
+    # Camera rotation constants
     CAMERA_ROTATION__0 = 0
     CAMERA_ROTATION__90 = 90
     CAMERA_ROTATION__180 = 180
@@ -234,6 +235,61 @@ class SettingsConstants:
         (CAMERA_ROTATION__180, _mft("180°")),
         (CAMERA_ROTATION__270, _mft("270°")),
     ]
+
+    # Hardware config settings
+    HARDWARE__RPI_40 = "RPI_40"
+    HARDWARE__RPI_26 = "RPI_26"
+
+    # RPI Devices using BCM pin numbers
+    HARDWARE_PIN_CONFIG__RPI_40 = {
+        "display": {
+            "dc": 22,
+            "rst": 13,
+            "bl": 18,
+            "spi_bus": 0,
+            "spi_device": 0
+        },
+        "buttons": {
+            "KEY_UP": 31,
+            "KEY_DOWN": 35,
+            "KEY_LEFT": 29,
+            "KEY_RIGHT": 37,
+            "KEY_PRESS": 33,
+            "KEY1": 40,
+            "KEY2": 38,
+            "KEY3": 36,
+        },
+    }
+
+    HARDWARE_PIN_CONFIG__RPI_26 = {
+        "display": {
+            "dc": 22,
+            "rst": 13,
+            "bl": 18,
+            "spi_bus": 0,
+            "spi_device": 0
+        },
+        "buttons": {
+            "KEY_UP": 5,
+            "KEY_DOWN": 11,
+            "KEY_LEFT": 3,
+            "KEY_RIGHT": 15,
+            "KEY_PRESS": 7,
+            "KEY1": 16,
+            "KEY2": 12,
+            "KEY3": 8,
+        },
+    }
+
+    ALL_HARDWARE_PIN_CONFIGS = [
+        (HARDWARE__RPI_40, "Raspberry Pi 40-pin"),
+        (HARDWARE__RPI_26, "Raspberry Pi 26-pin"),
+    ]
+
+    ALL_HARDWARE_PIN_CONFIGS__PIN_DEFINITIONS = {
+        HARDWARE__RPI_40: HARDWARE_PIN_CONFIG__RPI_40,
+        HARDWARE__RPI_26: HARDWARE_PIN_CONFIG__RPI_26,
+    }
 
     # QR code constants
     DENSITY__LOW = "L"
@@ -332,6 +388,7 @@ class SettingsConstants:
 
     SETTING__DISPLAY_CONFIGURATION = "display_config"
     SETTING__DISPLAY_COLOR_INVERTED = "color_inverted"
+    SETTING__HARDWARE_CONFIG = "hardware_config"
 
     SETTING__NETWORK = "network"
     SETTING__QR_DENSITY = "qr_density"
@@ -720,6 +777,15 @@ class SettingsDefinition:
                       visibility=SettingsConstants.VISIBILITY__HARDWARE,
                       selection_options=SettingsConstants.ALL_DISPLAY_CONFIGURATIONS,
                       default_value=SettingsConstants.DISPLAY_CONFIGURATION__ST7789__240x240),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__HARDWARE_CONFIG,
+                      abbreviated_name="hw_conf",
+                      display_name=_mft("Hardware Configuration"),
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__HARDWARE,
+                      selection_options=SettingsConstants.ALL_HARDWARE_PIN_CONFIGS,
+                      default_value=SettingsConstants.HARDWARE__RPI_40),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED,
