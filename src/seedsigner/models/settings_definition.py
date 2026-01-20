@@ -793,6 +793,11 @@ class SettingsDefinition:
                 as_dict[entry.attr_name] = list(entry.default_value)
             else:
                 as_dict[entry.attr_name] = entry.default_value
+
+        # Adjust camera rotation default for touchscreen mode (90° instead of 180°)
+        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
+            as_dict[SettingsConstants.SETTING__CAMERA_ROTATION] = SettingsConstants.CAMERA_ROTATION__90
+
         return as_dict
 
 

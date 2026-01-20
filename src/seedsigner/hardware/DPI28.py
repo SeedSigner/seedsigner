@@ -19,7 +19,13 @@ On PC/Emulator: This module is replaced by EmulatedDPI28 in run_emulator.py
 
 import os
 import mmap
+import fcntl
 from PIL import Image, ImageDraw, ImageFont
+
+# Linux console mode constants for hiding tty text on framebuffer
+KD_TEXT = 0x00
+KD_GRAPHICS = 0x01
+KDSETMODE = 0x4B3A
 
 # Try to import numpy for faster conversion (~7 fps vs ~1 fps pure Python)
 try:
@@ -109,6 +115,7 @@ class DPI28:
         self.bits_per_pixel = None
         self.stride = None
         self.length = None
+        self.tty_fd = None  # For console mode control
 
         # Current touch bar labels
         self._current_labels = self.TOUCH_BAR_DEFAULT
@@ -158,11 +165,45 @@ class DPI28:
             # Open and mmap the framebuffer
             self.fb_file = open(self.fb_path, "r+b")
             self.fb = mmap.mmap(self.fb_file.fileno(), length=self.length, access=mmap.ACCESS_WRITE)
-            
+
+            # Switch console to graphics mode to hide tty text (login prompt, etc.)
+            self._hide_console_text()
+
         except Exception as e:
             print(f"[DPI28] Could not initialize framebuffer: {e}")
             self.close()
             self.fb = None
+
+    def _hide_console_text(self):
+        """
+        Switch the console to graphics mode to hide tty text on the framebuffer.
+
+        This prevents the Linux login prompt and other console text from appearing
+        over the SeedSigner graphics. Uses KDSETMODE ioctl to switch tty0 to KD_GRAPHICS mode.
+        """
+        try:
+            self.tty_fd = os.open("/dev/tty0", os.O_RDWR)
+            fcntl.ioctl(self.tty_fd, KDSETMODE, KD_GRAPHICS)
+            print("[DPI28] Console switched to graphics mode")
+        except (OSError, IOError) as e:
+            print(f"[DPI28] Could not switch console to graphics mode: {e}")
+            if self.tty_fd is not None:
+                try:
+                    os.close(self.tty_fd)
+                except:
+                    pass
+                self.tty_fd = None
+
+    def _restore_console_text(self):
+        """Restore console to text mode (called on cleanup)."""
+        if self.tty_fd is not None:
+            try:
+                fcntl.ioctl(self.tty_fd, KDSETMODE, KD_TEXT)
+                os.close(self.tty_fd)
+                print("[DPI28] Console restored to text mode")
+            except (OSError, IOError) as e:
+                print(f"[DPI28] Could not restore console mode: {e}")
+            self.tty_fd = None
 
     def _get_touch_bar(self, labels: tuple) -> Image.Image:
         """Get touch bar from cache or create new one"""
@@ -371,7 +412,8 @@ class DPI28:
             print(f"[DPI28] Clear error: {e}")
 
     def close(self):
-        """Close the framebuffer device"""
+        """Close the framebuffer device and restore console mode"""
+        self._restore_console_text()
         if self.fb:
             self.fb.close()
             self.fb = None
