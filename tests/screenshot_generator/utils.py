@@ -27,14 +27,13 @@ class ScreenshotRenderer(Renderer):
         return True
 
     @classmethod
-    def configure_instance(cls):
+    def configure_instance(cls, width:int = 240, height:int = 240):
         # Instantiate the one and only Renderer instance
         renderer = cls.__new__(cls)
         cls._instance = renderer
 
-        # Hard-coding output values for now
-        renderer.canvas_width = 240
-        renderer.canvas_height = 240
+        renderer.canvas_width = width
+        renderer.canvas_height = height
 
         renderer.canvas = Image.new('RGB', (renderer.canvas_width, renderer.canvas_height))
         renderer.draw = ImageDraw.Draw(renderer.canvas)

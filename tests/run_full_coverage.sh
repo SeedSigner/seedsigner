@@ -7,8 +7,9 @@ coverage erase
 # (otherwise it'll be overwritten in the next step)
 coverage run --parallel -m pytest
 
-# Generate screenshots (only need to run for one locale to assess coverage)
-coverage run --parallel -m pytest tests/screenshot_generator/generator.py --locale es
+# Generate screenshots (only need to run for one locale+resolution to assess coverage)
+# TODO: No longer completely true with certain language-specific logic (e.g. TextArea line breaking for Asian languages)
+coverage run --parallel -m pytest tests/screenshot_generator/generator.py --locale es --resolution 240x240
 
 # Combine the above coverage results
 coverage combine

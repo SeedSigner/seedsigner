@@ -1,4 +1,8 @@
-from dataclasses import dataclass
+"""
+Run `pytest tests/screenshot_generator/generator.py -h` and see the "custom options"
+section for the screenshot generator options.
+"""
+import shutil
 import embit
 import pathlib
 import pytest
@@ -6,6 +10,7 @@ import os
 import random
 import sys
 import time
+from dataclasses import dataclass
 from unittest.mock import Mock, patch, MagicMock
 from PIL import ImageFont
 
@@ -24,7 +29,6 @@ sys.modules['seedsigner.hardware.camera.Camera'] = MagicMock()
 sys.modules['seedsigner.hardware.microsd'] = MagicMock()
 
 from seedsigner.controller import Controller
-from seedsigner.gui.components import GUIConstants
 from seedsigner.gui.renderer import Renderer
 from seedsigner.gui.screens.screen import BaseScreen
 from seedsigner.gui.screens.seed_screens import SeedAddPassphraseScreen
@@ -48,23 +52,142 @@ from .utils import ScreenshotComplete, ScreenshotConfig, ScreenshotRenderer
 
 import warnings; warnings.warn = lambda *args, **kwargs: None
 
-# Dynamically generate a pytest test run for each locale
-@pytest.mark.parametrize("locale", [x for x, y in SettingsConstants.get_detected_languages()])
-def test_generate_all(locale, target_locale):
-    """
-    `target_locale` is a fixture created in conftest.py via the `--locale` command line arg.
 
-    Optionally skips all other locales.
+SCREENSHOT_ROOT = os.path.join(os.getcwd(), "seedsigner-screenshots")
+
+
+
+class TestRunScreenshotGenerator:
     """
-    if target_locale and locale != target_locale:
-        pytest.skip(f"Skipping {locale}")
+        The screenshot generator is built on top of pytest functionality so we need the
+        usual "class Test*" and "def test_*" naming convention here.
+        But to be clear: this code is NOT testing the screenshot generator, it IS the
+        screenshot generator!
+    """
+    @classmethod
+    def setup_class(cls):
+        # class-level state vars to preserve info across multiple screenshot generation
+        # invocations within a given run.
+        cls.locale_combos = {}
+        cls.have_cleaned_screenshots_dir = False
     
-    if not ImageFont.core.HAVE_RAQM:
-        # We can't generate pixel-perfect screenshots that match what gets rendered on
-        # the device if we don't have libraqm.
-        pytest.fail("libraqm is not installed.")
-    
-    generate_screenshots(locale)
+
+    @classmethod
+    def add_locale_combo(cls, locale: str, width: int, height: int):
+        """
+        Add a locale + resolution combo to the class-level state. This is used to
+        generate the README.md file at the end of the test run.
+        """
+        if locale not in cls.locale_combos:
+            cls.locale_combos[locale] = []
+        cls.locale_combos[locale].append((width, height))
+
+
+    @classmethod
+    def clean_screenshots_dir(cls, no_clean: bool):
+        """
+        State management has to be at the class level in order to properly retain state
+        across instantiations throughout the run.
+        """
+        # Ensure we only clean ONCE or not at all if `no_clean`.
+        if cls.have_cleaned_screenshots_dir or no_clean:
+            return
+
+        # Wipe all subdirs and files from the screenshots directory
+        if os.path.exists(SCREENSHOT_ROOT):
+            for subdir in [f.path for f in os.scandir(SCREENSHOT_ROOT) if f.is_dir()]:
+                shutil.rmtree(subdir)
+        else:
+            os.makedirs(SCREENSHOT_ROOT)
+        cls.have_cleaned_screenshots_dir = True
+
+
+    # Dynamically generate a pytest test run for each locale
+    @pytest.mark.parametrize("locale", [x for x, y in SettingsConstants.get_detected_languages()])
+    def test_generate_screenshots(self, locale: str, target_locale: str, target_resolution: tuple[int,int], no_clean: bool):
+        """
+        Generate screenshots for the given locale. In typical usage this will be run
+        multiple times for various locales.
+
+        The following fixture options are defined in conftest.py:
+        * `target_locale: Optionally skips all other locales.
+        * `target_resolution`: Renders screenshots at the given resolution, whether that
+            resolution is normally supported or not. Note that the default 240x240 is
+            always rendered, regardless of this option.
+        * `no_clean`: If set, the test will not delete the screenshots directory before
+            generating new screenshots.
+        """
+        if target_locale and locale != target_locale:
+            pytest.skip(f"Skipping {locale}")
+
+        if not ImageFont.core.HAVE_RAQM:
+            # We can't generate pixel-perfect screenshots that match what gets rendered on
+            # the device if we don't have libraqm.
+            pytest.fail("libraqm is not installed.")
+
+        TestRunScreenshotGenerator.clean_screenshots_dir(no_clean)
+
+        # By rule, always render our baseline 240x240
+        resolutions = set([(240, 240)])
+
+        if target_resolution:
+            # We're only going to add the target resolution provided at the command line
+            resolutions.add(target_resolution)
+        else:
+            # Add all supported resolutions
+            for display_config in SettingsConstants.ALL_DISPLAY_CONFIGURATIONS:
+                resolution_str = display_config[0].split("_")[1]
+                width, height = resolution_str.split("x")
+                resolutions.add((int(width), int(height)))
+
+        # Prevent the Renderer from trying to instantiate the hardware display driver
+        Renderer.configure_instance = Mock()
+
+        for width, height in resolutions:
+            ScreenshotRenderer.configure_instance(width=width, height=height)
+            screenshot_renderer = ScreenshotRenderer.get_instance()
+
+            # Patch the Renderer so that the ScreenshotRenderer is used instead
+            with patch.object(Renderer, 'get_instance') as mock_get_instance:
+                mock_get_instance.return_value = screenshot_renderer
+                generate_screenshots(locale, width, height)
+            
+            # Keep track of which locale + resolution combos we've rendered
+            TestRunScreenshotGenerator.add_locale_combo(locale, width, height)
+
+
+    @classmethod
+    def teardown_class(cls):
+        # Write the final README that links to all the locale+resolution screenshots
+        with open(os.path.join("tests", "screenshot_generator", "template.md"), 'r') as readme_template:
+            main_readme = readme_template.read()
+
+            # Extract the locales we just generated screenshots for and sort by
+            # human-readable name; separately sort beta locales at the end.
+            locales_tuples = []
+            beta_locales_tuples = []
+            for language_code in cls.locale_combos.keys():
+                display_name = SettingsConstants.ALL_LOCALES.get(language_code, language_code)
+                if "(beta)" in display_name:
+                    beta_locales_tuples.append((language_code, display_name))
+                else:
+                    locales_tuples.append((language_code, display_name))
+
+            locales_tuples.sort(key=lambda x: x[1])
+            beta_locales_tuples.sort(key=lambda x: x[1])
+
+            for locale, locale_name in locales_tuples + beta_locales_tuples:
+                main_readme += f"* {locale_name}: "
+                # Link to each resolution generated for this locale
+                for i, (width, height) in enumerate(sorted(cls.locale_combos[locale])):
+                    resolution = f"{width}x{height}"
+                    if i > 0:
+                        main_readme += " | "
+                    main_readme += f"[{resolution}]({locale}/{resolution}/README.md)"
+                main_readme += "\n"
+
+        with open(os.path.join(SCREENSHOT_ROOT, "README.md"), 'w') as readme_file:
+            readme_file.write(main_readme)
 
 
 
@@ -136,22 +259,10 @@ class SeedExportXpubQR_ScreenBrightnessView(seed_views.SeedExportXpubQRDisplayVi
 
 
 
-def generate_screenshots(locale):
+def generate_screenshots(locale:str, width:int, height:int):
     """
-        The `Renderer` class is mocked so that calls in the normal code are ignored
-        (necessary to avoid having it trying to wire up hardware dependencies).
-
-        When the `Renderer` instance is needed, we patch in our own test-only
-        `ScreenshotRenderer`.
     """
-    # Prep the ScreenshotRenderer that will be patched over the normal Renderer
-    screenshot_root = os.path.join(os.getcwd(), "seedsigner-screenshots")
-    ScreenshotRenderer.configure_instance()
-    screenshot_renderer: ScreenshotRenderer = ScreenshotRenderer.get_instance()
-
-    # Replace the core `Singleton` calls so that only our ScreenshotRenderer is used.
-    Renderer.configure_instance = Mock()
-    Renderer.get_instance = Mock(return_value=screenshot_renderer)
+    resolution = f"{width}x{height}"
 
 
     def setup_screenshots(locale: str) -> dict[str, list[ScreenshotConfig]]:
@@ -447,7 +558,8 @@ def generate_screenshots(locale):
         # we were occasionally running into confusing race conditions where the next
         # screenshot would begin rendering over the previous one. Claiming the lock
         # guarantees that the previous screenshot has been fully rendered and saved.
-        with screenshot_renderer.lock:
+        screenshot_renderer = ScreenshotRenderer.get_instance()
+        with ScreenshotRenderer.lock:
             screenshot_renderer.set_screenshot_filename(f"{screenshot_config.screenshot_name}.png")
 
         controller = Controller.get_instance()
@@ -498,11 +610,12 @@ def generate_screenshots(locale):
     if not locale_tuple_list:
         raise Exception(f"Invalid locale: {locale}")
 
-    locale, display_name = locale_tuple_list[0]
+    locale, locale_display_name = locale_tuple_list[0]
 
     Settings.get_instance().set_value(SettingsConstants.SETTING__LOCALE, value=locale)
 
-    locale_readme = f"""# SeedSigner Screenshots: {display_name}\n"""
+    locale_readme = f"""# SeedSigner Screenshots: {locale_display_name}\n"""
+    locale_readme += f"Resolution: {resolution}\n\n"
 
     # Report the translation progress
     if locale != SettingsConstants.LOCALE__ENGLISH:
@@ -521,7 +634,7 @@ def generate_screenshots(locale):
 
     for section_name, screenshot_list in setup_screenshots(locale).items():
         subdir = section_name.lower().replace(" ", "_")
-        screenshot_renderer.set_screenshot_path(os.path.join(screenshot_root, locale, subdir))
+        ScreenshotRenderer.get_instance().set_screenshot_path(os.path.join(SCREENSHOT_ROOT, locale, resolution, subdir))
         locale_readme += "\n\n---\n\n"
         locale_readme += f"## {section_name}\n\n"
         locale_readme += """<table style="border: 0;">"""
@@ -534,20 +647,7 @@ def generate_screenshots(locale):
 
         locale_readme += "</td></tr></table>"
 
-    with open(os.path.join(screenshot_root, locale, "README.md"), 'w') as readme_file:
+    with open(os.path.join(SCREENSHOT_ROOT, locale, resolution, "README.md"), 'w') as readme_file:
         readme_file.write(locale_readme)
 
-    print(f"Done with locale: {locale}.")
-
-    # Write the main README; ensure it writes all locales, not just the one that may
-    # have been specified for this run.
-    with open(os.path.join("tests", "screenshot_generator", "template.md"), 'r') as readme_template:
-        main_readme = readme_template.read()
-
-    for locale, display_name in SettingsConstants.get_detected_languages():
-        main_readme += f"* [{display_name}]({locale}/README.md)\n"
-
-    with open(os.path.join(screenshot_root, "README.md"), 'w') as readme_file:
-        readme_file.write(main_readme)
-
-    print(f"Screenshots rendered: {screenshot_renderer.render_count}")
+    print(f"Done with locale: {locale} @ {resolution}.")

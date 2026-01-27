@@ -2,9 +2,9 @@
 
 SeedSigner screenshots can be freely used in any tutorial, article, video, etc. As a courtesy, please link back to this repo or the SeedSigner website in your attribution.
 
-![](en/main_menu_views/MainMenuView.png) ![](en/psbt_views/PSBTOverviewView.png)
+![](en/240x240/main_menu_views/MainMenuView.png) ![](en/240x240/psbt_views/PSBTOverviewView.png)
 
-![](en/seed_views/SeedOptionsView.png) ![](en/tools_views/ToolsMenuView.png)
+![](en/240x240/seed_views/SeedOptionsView.png) ![](en/240x240/tools_views/ToolsMenuView.png)
 
 
 ## Generating screenshots
