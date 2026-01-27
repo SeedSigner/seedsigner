@@ -35,6 +35,7 @@ class PSBTParser():
         self.destination_addresses = []
         self.destination_amounts = []
         self.op_return_data: bytes = None
+        self.dnssec_proof: str = None
 
         self.root = None
 
@@ -119,6 +120,8 @@ class PSBTParser():
         self.fee_amount = 0
         self.destination_addresses = []
         self.destination_amounts = []
+        self.dnssec_proof = None
+        
         for i, out in enumerate(self.psbt.outputs):
             out_policy = PSBTParser._get_policy(out, self.psbt.tx.vout[i].script_pubkey, self.psbt.xpubs)
             is_change = False
@@ -223,6 +226,9 @@ class PSBTParser():
                 self.destination_amounts.append(self.psbt.tx.vout[i].value)
                 self.spend_amount += self.psbt.tx.vout[i].value
 
+            if out.dnssec_proof:
+                self.dnssec_proof = out.dnssec_proof
+            
         self.fee_amount = self.psbt.fee()
         return True
 
