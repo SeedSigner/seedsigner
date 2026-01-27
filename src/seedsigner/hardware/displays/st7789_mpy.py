@@ -54,7 +54,10 @@ import array
 import spidev
 import RPi.GPIO as GPIO
 
+from dataclasses import dataclass
 from math import sin, cos
+
+from seedsigner.hardware.displays.st7789_base import BaseST7789, GAMMA_CURVE__BUILT_IN_3
 
 #
 # This allows sphinx to build the docs
@@ -208,10 +211,7 @@ _ST7789_INIT_CMDS = (
     ( b'\xc4', b'\x20', 0),                 # Set power control 4
     ( b'\xc6', b'\x0f', 0),                 # Set VCOM control 1
     ( b'\xd0', b'\xa4\xa1', 0),             # Set power control A
-                                            # Set gamma curve positive polarity
-    ( b'\xe0', b'\xd0\x00\x02\x07\x0a\x28\x32\x44\x42\x06\x0e\x12\x14\x17', 0),
-                                            # Set gamma curve negative polarity
-    ( b'\xe1', b'\xd0\x00\x02\x07\x0a\x28\x31\x54\x47\x0e\x1c\x17\x1b\x1e', 0),
+
     ( b'\x21', b'\x00', 0),                 # Enable display inversion
     ( b'\x29', b'\x00', 120)                # Turn on the display
 )
@@ -228,7 +228,9 @@ def color565(red, green=0, blue=0):
     return (red & 0xF8) << 8 | (green & 0xFC) << 3 | blue >> 3
 
 
-class ST7789:
+
+@dataclass
+class ST7789(BaseST7789):
     """
     ST7789 driver class
 
@@ -261,21 +263,17 @@ class ST7789:
           - ((width, height, xstart, ystart, madctl, needs_swap), ...)
 
     """
+    def __post_init__(self):
+        super().__post_init__()
 
-    def __init__(
-        self,
-        # spi,
-        width,
-        height,
-        reset=13,
-        dc=22,
-        cs=None,
-        backlight=18,
-        rotation=1,
-        color_order=BGR,
-        custom_init=None,
-        custom_rotations=None,
-    ):
+        reset=13
+        dc=22
+        cs=None
+        backlight=18
+        rotation=1
+        color_order=BGR
+        custom_init=None
+        custom_rotations=None
 
         GPIO.setmode(GPIO.BOARD)
         GPIO.setwarnings(False)
@@ -290,20 +288,20 @@ class ST7789:
         """
         Initialize display.
         """
-        self.rotations = custom_rotations or self._find_rotations(width, height)
+        self.rotations = custom_rotations or self._find_rotations(self.width, self.height)
         if not self.rotations:
             supported_displays = ", ".join(
                 [f"{display[0]}x{display[1]}" for display in _SUPPORTED_DISPLAYS]
             )
             raise ValueError(
-                f"Unsupported {width}x{height} display. Supported displays: {supported_displays}"
+                f"Unsupported {self.width}x{self.height} display. Supported displays: {supported_displays}"
             )
 
         if dc is None:
             raise ValueError("dc pin is required.")
 
-        self.physical_width = self.width = width
-        self.physical_height = self.height = height
+        self.physical_width = self.width
+        self.physical_height = self.height
         self.xstart = 0
         self.ystart = 0
         self.spi = spi
@@ -315,6 +313,7 @@ class ST7789:
         self.color_order = color_order
         self.init_cmds = custom_init or _ST7789_INIT_CMDS
         self.hard_reset()
+
         # yes, twice, once is not always enough
         self.init(self.init_cmds)
         self.init(self.init_cmds)
@@ -333,6 +332,30 @@ class ST7789:
                 return display[2]
         return None
 
+
+    @property
+    def default_gamma_curve(self) -> str | None:
+        # Opinionated best default for the SeedSigner+ displays
+        return GAMMA_CURVE__BUILT_IN_3[1]
+
+
+    def _set_gamma_values(self, positive_gamma: list[bytes], negative_gamma: list[bytes]):
+        # inputs are list of bytes but this driver needs a byte string
+        self._write(b'\xe0', bytes(positive_gamma))
+        self._write(b'\xe1', bytes(negative_gamma))
+
+
+    def _set_built_in_gamma(self, curve_num: int):
+        """ Built-in gamma curve values: 1 to 4 """
+        curves = [
+            b'\x01',  # Gamma curve 1
+            b'\x02',  # Gamma curve 2
+            b'\x04',  # Gamma curve 3
+            b'\x08'   # Gamma curve 4
+        ]
+        self._write(b'\x26', curves[curve_num-1])
+
+
     def init(self, commands):
         """
         Initialize display.
@@ -340,6 +363,9 @@ class ST7789:
         for command, data, delay in commands:
             self._write(command, data)
             sleep_ms(delay)
+
+        self.set_gamma_curve(self.initial_gamma_curve)
+
 
     def invert(self, enabled: bool = True):
         self.inversion_mode(enabled)
@@ -445,8 +471,8 @@ class ST7789:
         self._rotation = rotation
         (
             madctl,
-            self.width,
-            self.height,
+            self._width,   # have to use the settable internal vars
+            self._height,  # have to use the settable internal vars
             self.xstart,
             self.ystart,
             self.needs_swap,

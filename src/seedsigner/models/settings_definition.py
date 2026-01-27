@@ -331,6 +331,7 @@ class SettingsConstants:
     SETTING__BTC_DENOMINATION = "denomination"
 
     SETTING__DISPLAY_CONFIGURATION = "display_config"
+    SETTING__DISPLAY_GAMMA_CURVE = "display_gamma_curve"
     SETTING__DISPLAY_COLOR_INVERTED = "color_inverted"
 
     SETTING__NETWORK = "network"
@@ -720,6 +721,16 @@ class SettingsDefinition:
                       visibility=SettingsConstants.VISIBILITY__HARDWARE,
                       selection_options=SettingsConstants.ALL_DISPLAY_CONFIGURATIONS,
                       default_value=SettingsConstants.DISPLAY_CONFIGURATION__ST7789__240x240),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__DISPLAY_GAMMA_CURVE,
+                      abbreviated_name="gamma",
+                      # TRANSLATOR_NOTE: Hardware settings option to specify the screen driver (e.g. st7789 vs ili9341)
+                      display_name=_mft("Brightness curve"),
+                      type=SettingsConstants.TYPE__SELECT_1,
+                      visibility=SettingsConstants.VISIBILITY__HARDWARE,
+                      selection_options=None,  # Has to be populated dynamically based on selected display type
+                      default_value=None),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED,
