@@ -267,9 +267,9 @@ class ScreensaverScreen(LogoScreen):
             finally:
                 self._is_running = False
 
-                # Restore the original screen and touch bar
-                self.renderer.show_image(self.last_screen)
+                # Restore touch bar before showing screen so it renders correctly
                 self._restore_touch_bar()
+                self.renderer.show_image(self.last_screen)
 
 
 

@@ -59,8 +59,8 @@ class ScanScreen(BaseScreen):
         import os
         if os.environ.get('SEEDSIGNER_TOUCH') == '1':
             disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_CAMERA'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_CAMERA)
+            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_BACK'):
+                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_BACK)
 
         # TODO: Arrange this with UI elements rather than text
         self.instructions_text = "< " + _("back") + "  |  " + _(self.instructions_text)
@@ -267,7 +267,7 @@ class ScanScreen(BaseScreen):
                         # We received a valid frame, but we've already seen in
                         self.frames_decode_status.set_value(self.FRAME__REPEATED_PART)
                 
-                if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
+                if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY1):
                     self.camera.stop_video_stream_mode()
                     return False
 

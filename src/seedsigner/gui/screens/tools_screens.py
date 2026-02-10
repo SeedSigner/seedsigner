@@ -19,6 +19,13 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
     def __post_init__(self):
         super().__post_init__()
 
+        # Set touch bar for camera mode (back button on left)
+        import os
+        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
+            disp = self.renderer.disp
+            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_BACK'):
+                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_BACK)
+
         self.camera = Camera.get_instance()
 
         # If the stream is set to 320x240, we get pillarboxed frames (black bars on the
@@ -35,7 +42,7 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
         instructions_font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_button_font_size())
 
         while True:
-            if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
+            if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY1):
                 # Have to manually update last input time since we're not in a wait_for loop
                 self.hw_inputs.update_last_input_time()
                 self.words = []
@@ -190,7 +197,14 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
 
         # Now initialize the parent class
         super().__post_init__()
-    
+
+        # Set touch bar for dice mode (back button on left)
+        import os
+        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
+            disp = self.renderer.disp
+            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_BACK'):
+                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_BACK)
+
 
     def update_title(self) -> bool:
         self.title = _("Dice Roll {}/{}").format(self.cursor_position + 1, self.return_after_n_chars)
@@ -209,21 +223,19 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
             # Non-touch fallback - use parent class behavior
             return super()._run()
 
-        # Clear touch bar buttons and hide touch bar - dice screen doesn't use bottom bar
+        # Clear registered button rects (dice uses direct key tap detection)
         if hasattr(touch_buttons, 'clear_buttons'):
             touch_buttons.clear_buttons()
-        disp = self.renderer.disp
-        if hasattr(disp, 'display') and hasattr(disp.display, 'set_touch_bar_labels'):
-            from seedsigner.hardware.DPI28 import DPI28
-            disp.display.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
 
         while True:
-            # Handle touch input for dice - only KEY_PRESS for direct taps, not KEY1/2/3
+            # Handle touch input for dice - KEY_PRESS for direct taps, KEY1 for touch bar back
             input_result = touch_buttons.wait_for(
-                [HardwareButtonsConstants.KEY_PRESS] + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]
+                [HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY1] + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]
             )
 
-            # Check for back button (top-left tap)
+            # Check for back button (touch bar KEY1 or top-left tap)
+            if input_result == HardwareButtonsConstants.KEY1:
+                return RET_CODE__BACK_BUTTON
             if hasattr(touch_buttons, 'was_back_button_tapped') and touch_buttons.was_back_button_tapped():
                 return RET_CODE__BACK_BUTTON
 
@@ -331,7 +343,14 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
 
         # Now initialize the parent class
         super().__post_init__()
-    
+
+        # Set touch bar for coin flip mode (back button on left)
+        import os
+        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
+            disp = self.renderer.disp
+            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_BACK'):
+                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_BACK)
+
         self.components.append(TextArea(
             # TRANSLATOR_NOTE: How we call the "front" side result during a coin toss.
             text=_("Heads = 1"),
@@ -362,21 +381,19 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
             # Non-touch fallback - use parent class behavior
             return super()._run()
 
-        # Clear touch bar buttons and hide touch bar - coin flip screen doesn't use bottom bar
+        # Clear registered button rects (coin flip uses direct key tap detection)
         if hasattr(touch_buttons, 'clear_buttons'):
             touch_buttons.clear_buttons()
-        disp = self.renderer.disp
-        if hasattr(disp, 'display') and hasattr(disp.display, 'set_touch_bar_labels'):
-            from seedsigner.hardware.DPI28 import DPI28
-            disp.display.set_touch_bar_labels(DPI28.TOUCH_BAR_HIDDEN)
 
         while True:
-            # Handle touch input for coin flip - only KEY_PRESS for direct taps, not KEY1/2/3
+            # Handle touch input for coin flip - KEY_PRESS for direct taps, KEY1 for touch bar back
             input_result = touch_buttons.wait_for(
-                [HardwareButtonsConstants.KEY_PRESS] + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]
+                [HardwareButtonsConstants.KEY_PRESS, HardwareButtonsConstants.KEY1] + [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN, HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]
             )
 
-            # Check for back button (top-left tap)
+            # Check for back button (touch bar KEY1 or top-left tap)
+            if input_result == HardwareButtonsConstants.KEY1:
+                return RET_CODE__BACK_BUTTON
             if hasattr(touch_buttons, 'was_back_button_tapped') and touch_buttons.was_back_button_tapped():
                 return RET_CODE__BACK_BUTTON
 
