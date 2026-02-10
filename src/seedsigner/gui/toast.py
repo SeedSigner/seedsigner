@@ -113,13 +113,8 @@ class BaseToastOverlayManagerThread(BaseThread):
         self.controller = Controller.get_instance()
 
         # Get input handler (touch or hardware buttons)
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            from seedsigner.hardware.touchbuttons import TouchButtons
-            self.hw_inputs = TouchButtons.get_instance()
-        else:
-            from seedsigner.hardware.buttons import HardwareButtons
-            self.hw_inputs = HardwareButtons.get_instance()
+        from seedsigner.hardware.touchbuttons import get_buttons
+        self.hw_inputs = get_buttons()
 
         # Special case when screensaver is running
         self.hw_inputs.override_ind = True

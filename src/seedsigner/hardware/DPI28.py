@@ -46,8 +46,10 @@ class TouchBarIcons:
     # From seedsigner-icons.otf
     CHEVRON_UP = "\ue90b"
     CHEVRON_DOWN = "\ue908"
+    CHEVRON_LEFT = "\ue909"
     CHECK = "\ue905"
     DELETE = "\ue922"
+    BACK = "\ue904"
     # From FontAwesome
     KEYBOARD = "\uf11c"
 
@@ -81,6 +83,7 @@ class DPI28:
     # Touch bar label presets: (icons_tuple, colors_tuple, font_types_tuple)
     _UP = TouchBarIcons.CHEVRON_UP
     _DOWN = TouchBarIcons.CHEVRON_DOWN
+    _BACK = TouchBarIcons.BACK
     _SELECT = TouchBarIcons.CHECK
     _DEL = TouchBarIcons.DELETE
     _WORD = TouchBarIcons.KEYBOARD
@@ -96,6 +99,8 @@ class DPI28:
     TOUCH_BAR_KEYBOARD_BOTH_ACTIVE = ((_DEL, _WORD, _DOWN), ('#ff9416', '#ff9416', '#ff9416'), ('seedsigner', 'fontawesome', 'seedsigner'))
     TOUCH_BAR_KEYBOARD_BOTH_ACTIVE_DOWN_DISABLED = ((_DEL, _WORD, _DOWN), ('#ff9416', '#ff9416', '#444444'), ('seedsigner', 'fontawesome', 'seedsigner'))
     TOUCH_BAR_HIDDEN = (('', '', ''), ('#1a1a1a', '#1a1a1a', '#1a1a1a'), ('seedsigner', 'seedsigner', 'seedsigner'))
+    TOUCH_BAR_CAMERA = ((_BACK, '', ''), ('#ff9416', '#1a1a1a', '#1a1a1a'), ('seedsigner', 'seedsigner', 'seedsigner'))
+    TOUCH_BAR_QR_BRIGHTNESS = ((_UP, _SELECT, _DOWN), ('#ff9416', '#ff9416', '#ff9416'), ('seedsigner', 'seedsigner', 'seedsigner'))
 
     def __init__(self, device_no: int = 0):
         """

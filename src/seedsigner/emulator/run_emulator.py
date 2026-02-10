@@ -106,6 +106,13 @@ mock_spidev.SpiDev = MockSpiDev
 sys.modules['spidev'] = mock_spidev
 
 
+# Mock fcntl (Linux-only, used by DPI28 for framebuffer ioctl)
+if 'fcntl' not in sys.modules:
+    mock_fcntl = type(sys)('fcntl')
+    mock_fcntl.ioctl = lambda *args, **kwargs: 0
+    sys.modules['fcntl'] = mock_fcntl
+
+
 # Mock picamera
 class MockPiCamera:
     def __init__(self, resolution=None, framerate=None):
@@ -130,8 +137,12 @@ class MockPiRGBArray:
     def seek(self, pos): pass
 
 
+class PiCameraError(Exception):
+    pass
+
 mock_picamera = type(sys)('picamera')
 mock_picamera.PiCamera = MockPiCamera
+mock_picamera.PiCameraError = PiCameraError
 mock_picamera.__path__ = []
 sys.modules['picamera'] = mock_picamera
 
@@ -186,46 +197,21 @@ def _init_pygame():
         pygame.display.set_caption("SeedSigner Touchscreen Emulator")
 
 
-# Icon constants from SeedSigner icon fonts (language-agnostic)
-class TouchBarIcons:
-    # From seedsigner-icons.otf
-    CHEVRON_UP = "\ue90b"
-    CHEVRON_DOWN = "\ue908"
-    CHECK = "\ue905"
-    DELETE = "\ue922"
-    # From FontAwesome
-    KEYBOARD = "\uf11c"
+# Import constants and presets from the real DPI28 module (fcntl is mocked above)
+from seedsigner.hardware.DPI28 import DPI28 as _RealDPI28, TouchBarIcons
 
 
 class EmulatedDPI28:
     """Emulates DPI28 framebuffer display using pygame"""
 
-    NATIVE_WIDTH = 240
-    NATIVE_HEIGHT = 240
-    DISPLAY_WIDTH = 480
-    DISPLAY_HEIGHT = 640
-    UI_HEIGHT = 480
-    TOUCH_BAR_HEIGHT = 160
-
-    # Touch bar label presets: (icons_tuple, colors_tuple, font_types_tuple) - same as DPI28
-    # Icons are language-agnostic (no translation needed)
-    _UP = TouchBarIcons.CHEVRON_UP
-    _DOWN = TouchBarIcons.CHEVRON_DOWN
-    _SELECT = TouchBarIcons.CHECK
-    _DEL = TouchBarIcons.DELETE
-    _WORD = TouchBarIcons.KEYBOARD
-
-    TOUCH_BAR_DEFAULT = ((_UP, _SELECT, _DOWN), ('#ff9416', '#ff9416', '#ff9416'), ('seedsigner', 'seedsigner', 'seedsigner'))
-    TOUCH_BAR_UP_DISABLED = ((_UP, _SELECT, _DOWN), ('#444444', '#ff9416', '#ff9416'), ('seedsigner', 'seedsigner', 'seedsigner'))
-    TOUCH_BAR_DOWN_DISABLED = ((_UP, _SELECT, _DOWN), ('#ff9416', '#ff9416', '#444444'), ('seedsigner', 'seedsigner', 'seedsigner'))
-    TOUCH_BAR_SELECT_ONLY = (('', _SELECT, ''), ('#1a1a1a', '#ff9416', '#1a1a1a'), ('seedsigner', 'seedsigner', 'seedsigner'))
-    TOUCH_BAR_KEYBOARD = ((_DEL, _WORD, _DOWN), ('#444444', '#444444', '#ff9416'), ('seedsigner', 'fontawesome', 'seedsigner'))
-    TOUCH_BAR_KEYBOARD_DOWN_DISABLED = ((_DEL, _WORD, _DOWN), ('#444444', '#444444', '#444444'), ('seedsigner', 'fontawesome', 'seedsigner'))
-    TOUCH_BAR_KEYBOARD_WORD_ACTIVE = ((_DEL, _WORD, _DOWN), ('#444444', '#ff9416', '#ff9416'), ('seedsigner', 'fontawesome', 'seedsigner'))
-    TOUCH_BAR_KEYBOARD_DEL_ACTIVE = ((_DEL, _WORD, _DOWN), ('#ff9416', '#444444', '#ff9416'), ('seedsigner', 'fontawesome', 'seedsigner'))
-    TOUCH_BAR_KEYBOARD_BOTH_ACTIVE = ((_DEL, _WORD, _DOWN), ('#ff9416', '#ff9416', '#ff9416'), ('seedsigner', 'fontawesome', 'seedsigner'))
-    TOUCH_BAR_KEYBOARD_BOTH_ACTIVE_DOWN_DISABLED = ((_DEL, _WORD, _DOWN), ('#ff9416', '#ff9416', '#444444'), ('seedsigner', 'fontawesome', 'seedsigner'))
-    TOUCH_BAR_HIDDEN = (('', '', ''), ('#1a1a1a', '#1a1a1a', '#1a1a1a'), ('seedsigner', 'seedsigner', 'seedsigner'))
+    # Pull all constants and presets from the real DPI28 class
+    NATIVE_WIDTH = _RealDPI28.NATIVE_WIDTH
+    NATIVE_HEIGHT = _RealDPI28.NATIVE_HEIGHT
+    DISPLAY_WIDTH = _RealDPI28.DISPLAY_WIDTH
+    DISPLAY_HEIGHT = _RealDPI28.DISPLAY_HEIGHT
+    UI_HEIGHT = _RealDPI28.UI_HEIGHT
+    UI_WIDTH = _RealDPI28.UI_WIDTH
+    TOUCH_BAR_HEIGHT = _RealDPI28.TOUCH_BAR_HEIGHT
 
     def __init__(self, fb_device=None):
         self.width = self.NATIVE_WIDTH
@@ -355,6 +341,11 @@ class EmulatedDPI28:
             _pygame_screen.fill((0, 0, 0))
             pygame.display.flip()
 
+# Copy all TOUCH_BAR_* presets from real DPI28 so they stay in sync
+for _name in dir(_RealDPI28):
+    if _name.startswith('TOUCH_BAR_'):
+        setattr(EmulatedDPI28, _name, getattr(_RealDPI28, _name))
+
 
 class EmulatedTouchInput:
     """Emulates evdev touch input using pygame mouse"""
@@ -447,6 +438,18 @@ def patch_seedsigner():
         print("[Emulator] Patched TouchInput")
     except ImportError as e:
         print(f"[Emulator] Warning: Could not patch touch: {e}")
+
+    # Patch pyzbar.decode to accept 'binary' kwarg (SeedSigner uses a fork)
+    try:
+        import pyzbar.pyzbar as _pyzbar_module
+        _original_decode = _pyzbar_module.decode
+        def _patched_decode(*args, **kwargs):
+            kwargs.pop('binary', None)
+            return _original_decode(*args, **kwargs)
+        _pyzbar_module.decode = _patched_decode
+        print("[Emulator] Patched pyzbar.decode (binary kwarg)")
+    except Exception as e:
+        print(f"[Emulator] Warning: Could not patch pyzbar: {e}")
 
 
 # =============================================================================

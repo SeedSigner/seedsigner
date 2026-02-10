@@ -9,8 +9,3 @@ src/seedsigner/models/settings_definition.json
 
 *.po
 *.mo
-
-# Local dev files
-.claude/
-HANDOFF.md
-PR_DESCRIPTION.md

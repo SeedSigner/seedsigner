@@ -32,6 +32,24 @@ class LogoScreen(BaseScreen):
             self.partner_logos[partner] = load_image(logo_url)
 
 
+    def _set_touch_bar_hidden(self):
+        """Hide all touch bar buttons, saving current state for restore"""
+        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
+            disp = self.renderer.disp
+            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_HIDDEN'):
+                # Save current labels so we can restore after screensaver
+                self._saved_touch_bar_labels = getattr(disp.display, '_current_labels', None)
+                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_HIDDEN)
+
+    def _restore_touch_bar(self):
+        """Restore touch bar to its state before it was hidden"""
+        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
+            saved = getattr(self, '_saved_touch_bar_labels', None)
+            if saved is not None:
+                disp = self.renderer.disp
+                if hasattr(disp, 'display') and hasattr(disp.display, 'set_touch_bar_labels'):
+                    disp.display.set_touch_bar_labels(saved)
+
     def _run(self):
         pass
 
@@ -57,14 +75,6 @@ class OpeningSplashScreen(LogoScreen):
     def __init__(self, force_partner_logos=None):
         self.force_partner_logos = force_partner_logos
         super().__init__()
-
-    def _set_touch_bar_hidden(self):
-        """Hide all touch bar buttons"""
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_HIDDEN'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_HIDDEN)
 
     def _render(self):
         from PIL import Image
@@ -179,15 +189,6 @@ class ScreensaverScreen(LogoScreen):
         self.last_screen = None
 
 
-    def _set_touch_bar_hidden(self):
-        """Hide all touch bar buttons during screensaver"""
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_HIDDEN'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_HIDDEN)
-
-
     @property
     def is_running(self):
         return self._is_running
@@ -266,8 +267,9 @@ class ScreensaverScreen(LogoScreen):
             finally:
                 self._is_running = False
 
-                # Restore the original screen
+                # Restore the original screen and touch bar
                 self.renderer.show_image(self.last_screen)
+                self._restore_touch_bar()
 
 
 

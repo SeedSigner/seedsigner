@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from gettext import gettext as _
 from typing import Type
 

@@ -101,7 +101,7 @@ class QR:
 
         # if qrencode fails, fall back to only encoder
         if rv != 0:
-            return self.qrimage(data,width,height,border)
+            return self.qrimage(data, width, height, border, background_color=f"#{background_color}")
         img = Image.open("/tmp/qrcode.png").resize((width,height), Image.Resampling.NEAREST).convert("RGBA")
 
         return img

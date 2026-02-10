@@ -1082,6 +1082,13 @@ class QRDisplayScreen(BaseScreen):
     def _run(self):
         from seedsigner.models.settings import Settings
 
+        # Set touch bar for QR brightness control
+        import os
+        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
+            disp = self.renderer.disp
+            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_QR_BRIGHTNESS'):
+                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_QR_BRIGHTNESS)
+
         while True:
             user_input = self.hw_inputs.wait_for(
                 [
@@ -1091,13 +1098,20 @@ class QRDisplayScreen(BaseScreen):
                     HardwareButtonsConstants.KEY_RIGHT,
                 ] + HardwareButtonsConstants.KEYS__ANYCLICK
             )
+
+            # Touch bar: KEY1 (left) = brighter, KEY3 (right) = darker
+            if user_input == HardwareButtonsConstants.KEY1:
+                user_input = HardwareButtonsConstants.KEY_UP
+            elif user_input == HardwareButtonsConstants.KEY3:
+                user_input = HardwareButtonsConstants.KEY_DOWN
+
             if user_input == HardwareButtonsConstants.KEY_DOWN:
                 # Reduce QR code background brightness
                 self.qr_brightness.set_value(max(31, self.qr_brightness.cur_count - 31))
                 self.tips_start_time.set_value(time.time_ns())
 
             elif user_input == HardwareButtonsConstants.KEY_UP:
-                # Incrase QR code background brightness
+                # Increase QR code background brightness
                 self.qr_brightness.set_value(min(self.qr_brightness.cur_count + 31, 255))
                 self.tips_start_time.set_value(time.time_ns())
 
