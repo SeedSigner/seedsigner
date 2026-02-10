@@ -17,10 +17,13 @@ https://github.com/mutatrum/fast-pillow-fb
 On PC/Emulator: This module is replaced by EmulatedDPI28 in run_emulator.py
 """
 
+import logging
 import os
 import mmap
 import fcntl
 from PIL import Image, ImageDraw, ImageFont
+
+logger = logging.getLogger(__name__)
 
 # Linux console mode constants for hiding tty text on framebuffer
 KD_TEXT = 0x00
@@ -33,7 +36,7 @@ try:
     HAS_NUMPY = True
 except ImportError:
     HAS_NUMPY = False
-    print("[DPI28] numpy not available, using slow Python conversion")
+    logger.info("numpy not available, using slow Python conversion")
 
 # Cython disabled - pyximport hangs on Pi Zero
 HAS_CYTHON = False
@@ -135,7 +138,7 @@ class DPI28:
                 tokens = content.strip().split(",")
                 return [int(t) for t in tokens if t]
         except Exception as e:
-            print(f"[DPI28] Could not read {filename}: {e}")
+            logger.warning(f"Could not read {filename}: {e}")
             return []
 
     def _init_framebuffer(self):
@@ -158,9 +161,9 @@ class DPI28:
             # Calculate buffer length
             self.length = self.fb_size[0] * self.fb_size[1] * (self.bits_per_pixel // 8)
             
-            print(f"[DPI28] Framebuffer: {self.fb_path}")
-            print(f"[DPI28] Size: {self.fb_size}, BPP: {self.bits_per_pixel}, Stride: {self.stride}")
-            print(f"[DPI28] Using: {'Cython' if HAS_CYTHON else 'numpy' if HAS_NUMPY else 'Python'} conversion")
+            logger.info(f"Framebuffer: {self.fb_path}")
+            logger.info(f"Size: {self.fb_size}, BPP: {self.bits_per_pixel}, Stride: {self.stride}")
+            logger.info(f"Using: {'Cython' if HAS_CYTHON else 'numpy' if HAS_NUMPY else 'Python'} conversion")
             
             # Open and mmap the framebuffer
             self.fb_file = open(self.fb_path, "r+b")
@@ -170,7 +173,7 @@ class DPI28:
             self._hide_console_text()
 
         except Exception as e:
-            print(f"[DPI28] Could not initialize framebuffer: {e}")
+            logger.error(f"Could not initialize framebuffer: {e}")
             self.close()
             self.fb = None
 
@@ -184,13 +187,13 @@ class DPI28:
         try:
             self.tty_fd = os.open("/dev/tty0", os.O_RDWR)
             fcntl.ioctl(self.tty_fd, KDSETMODE, KD_GRAPHICS)
-            print("[DPI28] Console switched to graphics mode")
+            logger.info("Console switched to graphics mode")
         except (OSError, IOError) as e:
-            print(f"[DPI28] Could not switch console to graphics mode: {e}")
+            logger.warning(f"Could not switch console to graphics mode: {e}")
             if self.tty_fd is not None:
                 try:
                     os.close(self.tty_fd)
-                except:
+                except Exception:
                     pass
                 self.tty_fd = None
 
@@ -200,9 +203,9 @@ class DPI28:
             try:
                 fcntl.ioctl(self.tty_fd, KDSETMODE, KD_TEXT)
                 os.close(self.tty_fd)
-                print("[DPI28] Console restored to text mode")
+                logger.info("Console restored to text mode")
             except (OSError, IOError) as e:
-                print(f"[DPI28] Could not restore console mode: {e}")
+                logger.warning(f"Could not restore console mode: {e}")
             self.tty_fd = None
 
     def _get_touch_bar(self, labels: tuple) -> Image.Image:
@@ -268,7 +271,7 @@ class DPI28:
                 font_path = self._get_font_path(font_type)
                 try:
                     icon_fonts[font_type] = ImageFont.truetype(font_path, 40)
-                except:
+                except Exception:
                     icon_fonts[font_type] = ImageFont.load_default()
 
             font = icon_fonts[font_type]
@@ -327,7 +330,7 @@ class DPI28:
         elif self.bits_per_pixel == 16:
             self._write_16bit(image)
         else:
-            print(f"[DPI28] Unsupported bits_per_pixel: {self.bits_per_pixel}")
+            logger.error(f"Unsupported bits_per_pixel: {self.bits_per_pixel}")
 
     def _write_32bit(self, image: Image.Image):
         """Write 32-bit BGRA to framebuffer"""
@@ -409,7 +412,7 @@ class DPI28:
             self.fb.seek(0)
             self.fb.write(bytearray(self.length))
         except Exception as e:
-            print(f"[DPI28] Clear error: {e}")
+            logger.error(f"Clear error: {e}")
 
     def close(self):
         """Close the framebuffer device and restore console mode"""

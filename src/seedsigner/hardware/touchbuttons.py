@@ -5,8 +5,11 @@ Provides the same interface as HardwareButtons but uses touchscreen input.
 Supports direct tap detection on UI buttons.
 """
 
+import logging
 import time
 from typing import List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 from seedsigner.models.singleton import Singleton
 
@@ -349,7 +352,7 @@ class TouchButtons(Singleton):
             event = self.touch.poll()
             if event:
                 event_type, x, y = event
-                print(f"[Touch] {event_type} at ({x}, {y})")
+                logger.debug(f"Touch {event_type} at ({x}, {y})")
 
                 if event_type == 'down':
                     self.touch_down = True
@@ -363,7 +366,7 @@ class TouchButtons(Singleton):
 
                     # Check for back button tap (top-left corner)
                     if self._check_back_button_tap(x, y):
-                        print(f"[Touch] Back button tapped!")
+                        logger.debug("Back button tapped")
                         self._back_button_tapped = True
                         pending_key = self.KEY_PRESS
                         self.cur_input = self.KEY_PRESS
@@ -375,7 +378,7 @@ class TouchButtons(Singleton):
 
                     # Check for power button tap (top-right corner)
                     if self._check_power_button_tap(x, y):
-                        print(f"[Touch] Power button tapped!")
+                        logger.debug("Power button tapped")
                         self._power_button_tapped = True
                         pending_key = self.KEY_PRESS
                         self.cur_input = self.KEY_PRESS
@@ -388,14 +391,14 @@ class TouchButtons(Singleton):
                     # Check for direct button tap
                     if self.KEY_PRESS in keys:
                         btn_idx = self._check_button_tap(x, y)
-                        print(f"[Touch] Button check: {btn_idx}, registered: {len(self.button_rects)}")
+                        logger.debug(f"Button check: {btn_idx}, registered: {len(self.button_rects)}")
                         if btn_idx >= 0:
                             self._tapped_button_index = btn_idx
                             pending_key = self.KEY_PRESS
                             self.cur_input = self.KEY_PRESS
                             self.cur_input_started = cur_time
                             self.last_input_time = cur_time
-                            print(f"[Touch] Direct tap on button {btn_idx}, waiting for release...")
+                            logger.debug(f"Direct tap on button {btn_idx}, waiting for release")
                             # If not checking release, return immediately
                             if not check_release or self.KEY_PRESS not in release_keys:
                                 return self.KEY_PRESS
@@ -403,11 +406,11 @@ class TouchButtons(Singleton):
 
                     # Fall back to navigation key mapping
                     key = self._coords_to_nav_key(x, y)
-                    print(f"[Touch] Nav key: {key}, in keys: {key in keys}")
+                    logger.debug(f"Nav key: {key}, in keys: {key in keys}")
 
                     # Track if touch bar BACK (left button) was tapped
                     if key == self.KEY1 and y >= self.TOUCH_BAR_TOP:
-                        print(f"[Touch] Touch bar BACK tapped!")
+                        logger.debug("Touch bar BACK tapped")
                         self._touch_bar_back_tapped = True
 
                     if key in keys:
@@ -423,14 +426,14 @@ class TouchButtons(Singleton):
 
                 elif event_type == 'up':
                     self.touch_down = False
-                    print(f"[Touch] Release, pending_key: {pending_key}")
+                    logger.debug(f"Release, pending_key: {pending_key}")
                     # Return the pending key on release
                     if pending_key is not None:
                         key = pending_key
                         pending_key = None
                         self.cur_input = None
                         HardwareButtonsConstants.release_lock = True
-                        print(f"[Touch] Returning key: {key}")
+                        logger.debug(f"Returning key: {key}")
                         return key
 
             time.sleep(0.01)  # Small delay to avoid busy loop

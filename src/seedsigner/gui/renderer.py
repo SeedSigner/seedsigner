@@ -1,6 +1,9 @@
+import logging
 import os
 from PIL import Image, ImageDraw
 from threading import Lock
+
+logger = logging.getLogger(__name__)
 
 from seedsigner.hardware.displays.display_driver import ALL_DISPLAY_TYPES, DISPLAY_TYPE__DPI28, DISPLAY_TYPE__ILI9341, DISPLAY_TYPE__ILI9486, DISPLAY_TYPE__ST7789, DisplayDriver
 # Note: ili9341 import removed - was causing crash on ST7789/DPI28 due to RPi.GPIO import at module level
@@ -28,7 +31,7 @@ def _detect_display_type() -> str:
             with open('/sys/class/graphics/fb0/virtual_size', 'r') as f:
                 size = f.read().strip()
                 if size == '480,640':
-                    print("[Display] Auto-detected DPI28 framebuffer (480x640)")
+                    logger.info("Auto-detected DPI28 framebuffer (480x640)")
                     return 'dpi28'
     except (IOError, FileNotFoundError):
         pass
@@ -51,7 +54,7 @@ def _detect_touch_mode() -> bool:
     # If DPI28 display is detected, assume touch is available
     # (the DPI28 Waveshare display includes integrated touch)
     if _detect_display_type() == "dpi28":
-        print("[Touch] DPI28 display detected - enabling touch mode")
+        logger.info("DPI28 display detected - enabling touch mode")
         return True
 
     # Auto-detect touch input device via sysfs (no evdev needed)
@@ -63,11 +66,11 @@ def _detect_touch_mode() -> bool:
                     name = f.read().strip()
                     # Look for common touch device names
                     if any(keyword in name.lower() for keyword in ["touch", "goodix", "ft5", "edt-ft5"]):
-                        print(f"[Touch] Auto-detected touch device: {name}")
+                        logger.info(f"Auto-detected touch device: {name}")
                         return True
             except (IOError, FileNotFoundError):
                 continue
-    except:
+    except Exception:
         pass
 
     return False
@@ -113,38 +116,38 @@ class Renderer(ConfigurableSingleton):
         # May be called while already running with a previous display driver; must
         # prevent any other screen writes while we're changing the display driver.
         self.lock.acquire()
+        try:
+            # Check for auto-detected display first
+            env_display = os.environ.get("SEEDSIGNER_DISPLAY")
+            if env_display == "dpi28":
+                display_config = "dpi28_240x240"
+                logger.info("Using auto-detected DPI28 display")
+            else:
+                display_config = Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_CONFIGURATION, default_if_none=True)
+            self.display_type = display_config.split("_")[0]
+            if self.display_type not in ALL_DISPLAY_TYPES:
+                raise Exception(f"Invalid display type: {self.display_type}")
 
-        # Check for auto-detected display first
-        env_display = os.environ.get("SEEDSIGNER_DISPLAY")
-        if env_display == "dpi28":
-            display_config = "dpi28_240x240"
-            print("[Display] Using auto-detected DPI28 display")
-        else:
-            display_config = Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_CONFIGURATION, default_if_none=True)
-        self.display_type = display_config.split("_")[0]
-        if self.display_type not in ALL_DISPLAY_TYPES:
-            raise Exception(f"Invalid display type: {self.display_type}")
+            width, height = display_config.split("_")[1].split("x")
+            self.disp = DisplayDriver(self.display_type, width=int(width), height=int(height))
 
-        width, height = display_config.split("_")[1].split("x")
-        self.disp = DisplayDriver(self.display_type, width=int(width), height=int(height))
+            if Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED, default_if_none=True) == SettingsConstants.OPTION__ENABLED:
+                self.disp.invert()
 
-        if Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED, default_if_none=True) == SettingsConstants.OPTION__ENABLED:
-            self.disp.invert()
+            if self.display_type in [DISPLAY_TYPE__ST7789, DISPLAY_TYPE__DPI28]:
+                # ST7789 and DPI28 both report 240x240 native size
+                self.canvas_width = self.disp.width
+                self.canvas_height = self.disp.height
 
-        if self.display_type in [DISPLAY_TYPE__ST7789, DISPLAY_TYPE__DPI28]:
-            # ST7789 and DPI28 both report 240x240 native size
-            self.canvas_width = self.disp.width
-            self.canvas_height = self.disp.height
+            elif self.display_type in [DISPLAY_TYPE__ILI9341, DISPLAY_TYPE__ILI9486]:
+                # Swap for the natively portrait-oriented displays
+                self.canvas_width = self.disp.height
+                self.canvas_height = self.disp.width
 
-        elif self.display_type in [DISPLAY_TYPE__ILI9341, DISPLAY_TYPE__ILI9486]:
-            # Swap for the natively portrait-oriented displays
-            self.canvas_width = self.disp.height
-            self.canvas_height = self.disp.width
-
-        self.canvas = Image.new('RGB', (self.canvas_width, self.canvas_height))
-        self.draw = ImageDraw.Draw(self.canvas)
-
-        self.lock.release()
+            self.canvas = Image.new('RGB', (self.canvas_width, self.canvas_height))
+            self.draw = ImageDraw.Draw(self.canvas)
+        finally:
+            self.lock.release()
 
 
     def show_image(self, image=None, alpha_overlay=None, show_direct=False):

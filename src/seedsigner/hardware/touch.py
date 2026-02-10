@@ -5,10 +5,13 @@ On Raspberry Pi: Reads raw Linux input events from /dev/input/
 On PC/Emulator: Uses injected mock that translates pygame mouse events
 """
 
+import logging
 import struct
 import select
 import os
 from typing import Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 # Linux input event codes (from linux/input-event-codes.h)
@@ -55,7 +58,7 @@ class TouchInput:
                         name = f.read().strip()
                         if "Goodix" in name or "touch" in name.lower():
                             return f"/dev/input/event{i}"
-                except:
+                except Exception:
                     pass
         return None
 
@@ -66,12 +69,12 @@ class TouchInput:
         if path and os.path.exists(path):
             try:
                 self.fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
-                print(f"[Touch] Opened: {path}")
+                logger.info(f"Opened touch device: {path}")
             except Exception as e:
-                print(f"[Touch] Failed to open {path}: {e}")
+                logger.warning(f"Failed to open {path}: {e}")
                 self.fd = None
         else:
-            print("[Touch] No touch device found")
+            logger.info("No touch device found")
 
     def poll(self) -> Optional[Tuple[str, int, int]]:
         """Poll for touch events (non-blocking)."""

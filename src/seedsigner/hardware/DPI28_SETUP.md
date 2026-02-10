@@ -32,7 +32,7 @@ enable_dpi_lcd=1
 display_default_lcd=1
 dpi_group=2
 dpi_mode=87
-dpi_output_format=0x7f216
+dpi_output_format=0x7F206
 hdmi_timings=480 0 26 16 10 640 0 16 2 14 0 0 0 60 0 32000000 3
 dtparam=spi=off
 dtparam=i2c_arm=on
