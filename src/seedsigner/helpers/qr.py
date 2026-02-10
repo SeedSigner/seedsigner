@@ -101,7 +101,11 @@ class QR:
 
         # if qrencode fails, fall back to only encoder
         if rv != 0:
-            return self.qrimage(data, width, height, border, background_color=f"#{background_color}")
+            # qrimage expects '#'-prefixed hex (e.g. "#808080") while qrimage_io
+            # uses raw hex (e.g. "808080"); named colors pass through as-is
+            if all(c in '0123456789abcdefABCDEF' for c in background_color):
+                background_color = f"#{background_color}"
+            return self.qrimage(data, width, height, border, background_color=background_color)
         img = Image.open("/tmp/qrcode.png").resize((width,height), Image.Resampling.NEAREST).convert("RGBA")
 
         return img
