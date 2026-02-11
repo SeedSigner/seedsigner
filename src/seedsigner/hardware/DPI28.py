@@ -14,7 +14,6 @@ Layout:
 Based on mutatrum's fast-pillow-fb approach:
 https://github.com/mutatrum/fast-pillow-fb
 
-On PC/Emulator: This module is replaced by EmulatedDPI28 in run_emulator.py
 """
 
 import logging
