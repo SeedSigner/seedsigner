@@ -36,10 +36,9 @@ class LogoScreen(BaseScreen):
         """Hide all touch bar buttons, saving current state for restore"""
         if os.environ.get('SEEDSIGNER_TOUCH') == '1':
             disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_HIDDEN'):
-                # Save current labels so we can restore after screensaver
+            if hasattr(disp, 'display'):
                 self._saved_touch_bar_labels = getattr(disp.display, '_current_labels', None)
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_HIDDEN)
+        self._set_touch_bar('TOUCH_BAR_HIDDEN')
 
     def _restore_touch_bar(self):
         """Restore touch bar to its state before it was hidden"""

@@ -56,11 +56,7 @@ class ScanScreen(BaseScreen):
         super().__post_init__()
 
         # Set touch bar for camera mode (back button on left)
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_BACK'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_BACK)
+        self._set_touch_bar('TOUCH_BAR_BACK')
 
         # TODO: Arrange this with UI elements rather than text
         self.instructions_text = "< " + _("back") + "  |  " + _(self.instructions_text)

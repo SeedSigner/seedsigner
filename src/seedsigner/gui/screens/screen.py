@@ -1,5 +1,6 @@
 import math
 import logging
+import os
 import time
 
 from dataclasses import dataclass, field
@@ -60,7 +61,18 @@ class BaseScreen(BaseComponent):
 
         # Tracks position on scrollable pages, determines which elements are visible.
         self.scroll_y = 0
-    
+
+
+    def _set_touch_bar(self, preset_name: str):
+        """Set touch bar preset by name (e.g. 'TOUCH_BAR_BACK', 'TOUCH_BAR_HIDDEN')"""
+        if os.environ.get('SEEDSIGNER_TOUCH') != '1':
+            return
+        disp = self.renderer.disp
+        if hasattr(disp, 'display'):
+            preset = getattr(disp.display, preset_name, None)
+            if preset is not None:
+                disp.display.set_touch_bar_labels(preset)
+
 
     def get_threads(self) -> List[BaseThread]:
         threads = self.threads.copy()
@@ -432,23 +444,17 @@ class ButtonListScreen(BaseTopNavScreen):
 
     def _update_touch_bar_for_list_position(self):
         """Update touch bar based on current list scroll position"""
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_DEFAULT'):
-                # Check if we're at top or bottom of list
-                at_top = self.selected_button == 0
-                at_bottom = self.selected_button == len(self.buttons) - 1
+        at_top = self.selected_button == 0
+        at_bottom = self.selected_button == len(self.buttons) - 1
 
-                if at_top and at_bottom:
-                    # Single item list - both disabled
-                    disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_SELECT_ONLY)
-                elif at_top:
-                    disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_UP_DISABLED)
-                elif at_bottom:
-                    disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_DOWN_DISABLED)
-                else:
-                    disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_DEFAULT)
+        if at_top and at_bottom:
+            self._set_touch_bar('TOUCH_BAR_SELECT_ONLY')
+        elif at_top:
+            self._set_touch_bar('TOUCH_BAR_UP_DISABLED')
+        elif at_bottom:
+            self._set_touch_bar('TOUCH_BAR_DOWN_DISABLED')
+        else:
+            self._set_touch_bar('TOUCH_BAR_DEFAULT')
 
     def get_threads(self) -> List[BaseThread]:
         threads = super().get_threads()
@@ -723,6 +729,7 @@ class LargeButtonScreen(BaseTopNavScreen):
 
     button_selected_color: str = GUIConstants.ACCENT_COLOR
     selected_button: int = 0
+    single_tap_buttons: bool = False  # If True, all buttons activate on first tap
 
     def __post_init__(self):
         if not self.button_font_name:
@@ -800,27 +807,10 @@ class LargeButtonScreen(BaseTopNavScreen):
             self.hw_inputs.register_buttons(self.buttons)
 
         # Set touch bar based on screen type
-        # Hide touch bar for Reset/Power screen (all buttons are single-tap)
-        if self.title == "Reset / Power":
-            self._set_touch_bar_hidden()
+        if self.single_tap_buttons:
+            self._set_touch_bar('TOUCH_BAR_HIDDEN')
         else:
-            self._set_touch_bar_select_only()
-
-    def _set_touch_bar_select_only(self):
-        """Set touch bar to show only SELECT button (for grid layouts)"""
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_SELECT_ONLY'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_SELECT_ONLY)
-
-    def _set_touch_bar_hidden(self):
-        """Hide all touch bar buttons"""
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_HIDDEN'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_HIDDEN)
+            self._set_touch_bar('TOUCH_BAR_SELECT_ONLY')
 
     def _run(self):
         # Clear any pending touch input from previous screen
@@ -919,16 +909,11 @@ class LargeButtonScreen(BaseTopNavScreen):
                     if hasattr(self.hw_inputs, 'get_tapped_button_index'):
                         tapped_idx = self.hw_inputs.get_tapped_button_index()
                         if tapped_idx >= 0 and tapped_idx < len(self.buttons):
-                            # Get button label to check for single-tap buttons
-                            button_label = self.buttons[tapped_idx].text.lower() if hasattr(self.buttons[tapped_idx], 'text') else ""
-                            # Power Off and Cancel have confirmation dialogs, so single-tap
-                            is_single_tap_button = button_label in ['power off', 'cancel']
-
-                            if tapped_idx == self.selected_button or is_single_tap_button:
-                                # Tapped already-selected button OR single-tap button - confirm
+                            if tapped_idx == self.selected_button or self.single_tap_buttons:
+                                # Tapped already-selected button or single-tap mode - activate
                                 return tapped_idx
                             else:
-                                # Tapped different button - just move selection to it
+                                # Tapped different button - select it first
                                 swap_selected_button(tapped_idx)
                                 self.renderer.show_image()
                                 continue
@@ -1083,11 +1068,7 @@ class QRDisplayScreen(BaseScreen):
         from seedsigner.models.settings import Settings
 
         # Set touch bar for QR brightness control
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_QR_BRIGHTNESS'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_QR_BRIGHTNESS)
+        self._set_touch_bar('TOUCH_BAR_QR_BRIGHTNESS')
 
         while True:
             user_input = self.hw_inputs.wait_for(
@@ -1300,15 +1281,7 @@ class ResetScreen(BaseTopNavScreen):
         ))
 
         # Hide touch bar on reset screen
-        self._set_touch_bar_hidden()
-
-    def _set_touch_bar_hidden(self):
-        """Hide all touch bar buttons"""
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_HIDDEN'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_HIDDEN)
+        self._set_touch_bar('TOUCH_BAR_HIDDEN')
 
 
 @dataclass
@@ -1325,15 +1298,7 @@ class PowerOffScreen(BaseTopNavScreen):
         ))
 
         # Hide touch bar on power off screen
-        self._set_touch_bar_hidden()
-
-    def _set_touch_bar_hidden(self):
-        """Hide all touch bar buttons"""
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_HIDDEN'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_HIDDEN)
+        self._set_touch_bar('TOUCH_BAR_HIDDEN')
 
 
 @dataclass
@@ -1350,15 +1315,7 @@ class PowerOffNotRequiredScreen(BaseTopNavScreen):
         ))
 
         # Hide touch bar on power off screen
-        self._set_touch_bar_hidden()
-
-    def _set_touch_bar_hidden(self):
-        """Hide all touch bar buttons"""
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_HIDDEN'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_HIDDEN)
+        self._set_touch_bar('TOUCH_BAR_HIDDEN')
 
 
 @dataclass

@@ -20,11 +20,7 @@ class ToolsImageEntropyLivePreviewScreen(BaseScreen):
         super().__post_init__()
 
         # Set touch bar for camera mode (back button on left)
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_BACK'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_BACK)
+        self._set_touch_bar('TOUCH_BAR_BACK')
 
         self.camera = Camera.get_instance()
 
@@ -199,11 +195,7 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
         super().__post_init__()
 
         # Set touch bar for dice mode (back button on left)
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_BACK'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_BACK)
+        self._set_touch_bar('TOUCH_BAR_BACK')
 
 
     def update_title(self) -> bool:
@@ -345,11 +337,7 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
         super().__post_init__()
 
         # Set touch bar for coin flip mode (back button on left)
-        import os
-        if os.environ.get('SEEDSIGNER_TOUCH') == '1':
-            disp = self.renderer.disp
-            if hasattr(disp, 'display') and hasattr(disp.display, 'TOUCH_BAR_BACK'):
-                disp.display.set_touch_bar_labels(disp.display.TOUCH_BAR_BACK)
+        self._set_touch_bar('TOUCH_BAR_BACK')
 
         self.components.append(TextArea(
             # TRANSLATOR_NOTE: How we call the "front" side result during a coin toss.

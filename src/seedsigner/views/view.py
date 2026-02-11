@@ -233,7 +233,8 @@ class PowerOptionsView(View):
             LargeButtonScreen,
             title=_("Reset / Power"),
             show_back_button=True,
-            button_data=button_data
+            button_data=button_data,
+            single_tap_buttons=True,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
