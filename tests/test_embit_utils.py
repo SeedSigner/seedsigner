@@ -426,3 +426,47 @@ def test_parse_derivation_path():
             assert actual_result["index"] == expected_result[3]
         else:
             assert actual_result["index"] == int(derivation_path.split("/")[-1])
+
+    # BIP48 multisig derivation paths (separate dict since script_type keys
+    # overlap with single-sig paths above)
+    bip48_vectors = {
+        # m/48' native segwit (2h script type)
+        (SC.MAINNET, SC.NATIVE_SEGWIT, False): "m/48'/0'/0'/2'/0/5",
+        (SC.TESTNET, SC.NATIVE_SEGWIT, False): "m/48'/1'/0'/2'/0/5",
+        (SC.REGTEST, SC.NATIVE_SEGWIT, False): "m/48'/1'/0'/2'/0/5",
+        (SC.MAINNET, SC.NATIVE_SEGWIT, True): "m/48'/0'/0'/2'/1/5",
+        (SC.TESTNET, SC.NATIVE_SEGWIT, True): "m/48'/1'/0'/2'/1/5",
+        (SC.REGTEST, SC.NATIVE_SEGWIT, True): "m/48'/1'/0'/2'/1/5",
+
+        # m/48' nested segwit (1h script type)
+        (SC.MAINNET, SC.NESTED_SEGWIT, False): "m/48'/0'/0'/1'/0/5",
+        (SC.TESTNET, SC.NESTED_SEGWIT, False): "m/48'/1'/0'/1'/0/5",
+        (SC.REGTEST, SC.NESTED_SEGWIT, False): "m/48'/1'/0'/1'/0/5",
+        (SC.MAINNET, SC.NESTED_SEGWIT, True): "m/48'/0'/0'/1'/1/5",
+        (SC.TESTNET, SC.NESTED_SEGWIT, True): "m/48'/1'/0'/1'/1/5",
+        (SC.REGTEST, SC.NESTED_SEGWIT, True): "m/48'/1'/0'/1'/1/5",
+
+        # m/48' with unrecognised script type falls back to CUSTOM_DERIVATION
+        (SC.MAINNET, SC.CUSTOM_DERIVATION, False): "m/48'/0'/0'/3'/0/5",
+    }
+
+    for expected_result, derivation_path in bip48_vectors.items():
+        actual_result = embit_utils.parse_derivation_path(derivation_path)
+
+        if expected_result[0] == SC.MAINNET:
+            assert actual_result["network"] == expected_result[0]
+            assert actual_result["clean_match"] is True
+        elif expected_result[0] is None:
+            assert actual_result["network"] is None
+            assert actual_result["clean_match"] is False
+        else:
+            assert expected_result[0] in actual_result["network"]
+            assert actual_result["clean_match"] is True
+
+        assert actual_result["script_type"] == expected_result[1]
+        assert actual_result["is_change"] == expected_result[2]
+
+        if len(expected_result) == 4:
+            assert actual_result["index"] == expected_result[3]
+        else:
+            assert actual_result["index"] == int(derivation_path.split("/")[-1])

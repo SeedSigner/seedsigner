@@ -501,6 +501,8 @@ class TestMessageSigningFlows(FlowTest):
     MAINNET_DERIVATION_PATH = "m/84h/0h/0h/0/0"
     TESTNET_DERIVATION_PATH = "m/84h/1h/0h/0/0"
     CUSTOM_DERIVATION_PATH = "m/99h/0/0"
+    BIP48_NATIVE_SEGWIT_PATH = "m/48h/0h/0h/2h/0/0"
+    BIP48_NESTED_SEGWIT_PATH = "m/48h/0h/0h/1h/0/0"
     SHORT_MESSAGE = "I attest that I control this bitcoin address blah blah blah"
     NO_WHITESPACE_MESSAGE = """{"height":841407,"lightning_bolt12":"lno1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}"""
     MULTIPAGE_MESSAGE = """Chancellor on brink of second bailout for banks
@@ -538,6 +540,14 @@ class TestMessageSigningFlows(FlowTest):
 
     def load_custom_derivation_into_decoder(self, view: View):
         self.load_signmessage_into_decoder(view, self.CUSTOM_DERIVATION_PATH, self.SHORT_MESSAGE)
+
+
+    def load_bip48_native_segwit_into_decoder(self, view: View):
+        self.load_signmessage_into_decoder(view, self.BIP48_NATIVE_SEGWIT_PATH, self.SHORT_MESSAGE)
+
+
+    def load_bip48_nested_segwit_into_decoder(self, view: View):
+        self.load_signmessage_into_decoder(view, self.BIP48_NESTED_SEGWIT_PATH, self.SHORT_MESSAGE)
 
 
     def inject_mesage_as_paged_message(self, view: View):
@@ -727,6 +737,36 @@ class TestMessageSigningFlows(FlowTest):
         ])
 
         assert self.controller.resume_main_flow is None
+
+
+    def test_sign_message_bip48_multisig_flow(self):
+        """
+        Should scan a `signmessage` QR with a BIP48 multisig derivation path and
+        complete the signing flow for both native segwit (m/48'/0'/0'/2') and
+        nested segwit (m/48'/0'/0'/1') script types.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+
+        def expect_successful_signing(load_message: Callable):
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+                FlowStep(scan_views.ScanView, before_run=load_message),
+                FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+                FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
+                FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),
+                FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+                FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+                FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
+                FlowStep(seed_views.SeedSignMessageConfirmAddressView, screen_return_value=0),
+                FlowStep(seed_views.SeedSignMessageSignedMessageQRView, screen_return_value=0),
+                FlowStep(MainMenuView),
+            ])
+
+        # BIP48 native segwit (m/48'/0'/0'/2'/0/0)
+        expect_successful_signing(self.load_bip48_native_segwit_into_decoder)
+
+        # BIP48 nested segwit (m/48'/0'/0'/1'/0/0)
+        expect_successful_signing(self.load_bip48_nested_segwit_into_decoder)
 
 
     def test_sign_message_unsupported_derivation_flow(self):
