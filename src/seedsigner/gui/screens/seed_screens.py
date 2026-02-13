@@ -683,6 +683,8 @@ class SeedBIP85SelectChildIndexScreen(KeyboardScreen):
 
         super().__post_init__()
 
+        self._set_touch_bar('TOUCH_BAR_BACK_AND_OK')
+
 
 
 @dataclass

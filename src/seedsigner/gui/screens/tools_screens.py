@@ -244,8 +244,10 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
 
             # If we have a valid key, process it
             if key:
-                # Select the key visually
+                # Select the key visually and flash the highlight
                 self.keyboard.set_selected_key_indices(key.index_x, key.index_y)
+                self.keyboard.render_keys()
+                self.renderer.show_image()
 
                 # Check if it's the DEL/backspace key
                 if key.code == "DEL":
