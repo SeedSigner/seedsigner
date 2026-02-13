@@ -1448,7 +1448,52 @@ class KeyboardScreen(BaseTopNavScreen):
             with self.renderer.lock:
                 # Track if we need to update the title after input changes
                 title_needs_update = False
-                # Check possible exit conditions   
+
+                # Check for direct keyboard tap (touchscreen)
+                tapped_key = None
+                if hasattr(self.hw_inputs, 'get_last_tap_native_coords'):
+                    tap_x, tap_y = self.hw_inputs.get_last_tap_native_coords()
+                    if tap_x >= 0 and tap_y >= 0:
+                        tapped_key = self.keyboard.get_key_at_screen_coords(tap_x, tap_y)
+
+                if tapped_key is not None:
+                    # Direct tap on a keyboard key — select it and process as a press
+                    self.top_nav.is_selected = False
+                    self.keyboard.set_selected_key(tapped_key.code)
+                    ret_val = tapped_key.code
+
+                    if ret_val in Keyboard.ADDITIONAL_KEYS:
+                        if ret_val == Keyboard.KEY_BACKSPACE["code"]:
+                            if len(self.user_input) > 0:
+                                self.user_input = self.user_input[:-1]
+                                self.cursor_position -= 1
+                                title_needs_update = True
+                    else:
+                        if self.keys_to_values:
+                            ret_val = self.keys_to_values[ret_val]
+                        self.user_input += ret_val
+                        self.cursor_position += 1
+                        title_needs_update = True
+
+                        if self.cursor_position == self.return_after_n_chars:
+                            return self.user_input
+
+                    self.keyboard.render_keys()
+
+                    if title_needs_update and self.update_title():
+                        TextArea(
+                            text=self.title,
+                            font_name=GUIConstants.get_top_nav_title_font_name(),
+                            font_size=GUIConstants.get_top_nav_title_font_size(),
+                            height=self.top_nav.height,
+                        ).render()
+                        self.top_nav.render_buttons()
+
+                    self.text_entry_display.render(self.user_input)
+                    self.renderer.show_image()
+                    continue
+
+                # Check possible exit conditions
                 if self.top_nav.is_selected and input == HardwareButtonsConstants.KEY_PRESS:
                     return RET_CODE__BACK_BUTTON
 
@@ -1494,7 +1539,7 @@ class KeyboardScreen(BaseTopNavScreen):
                             self.user_input = self.user_input[:-1]
                             self.cursor_position -= 1
                             title_needs_update = True
-                            
+
                 elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
                     # User has locked in the current letter
                     if self.keys_to_values:
