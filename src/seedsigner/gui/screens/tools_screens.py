@@ -233,9 +233,11 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
 
             # Check if it was a touch and get coordinates for direct key tap
             key = None
+            was_tap = False
             if hasattr(touch_buttons, 'get_last_tap_native_coords'):
                 x, y = touch_buttons.get_last_tap_native_coords()
                 if x >= 0 and y >= 0:
+                    was_tap = True
                     key = self.keyboard.get_key_at_screen_coords(x, y)
 
             # If no direct key tap, check if it was a press on selected key
@@ -293,8 +295,8 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
                 self.renderer.show_image()
                 continue
 
-            # D-pad navigation fallback
-            if input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
+            # D-pad navigation fallback (only for real d-pad, not edge taps)
+            if not was_tap and input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
                                 HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]:
                 self.keyboard.update_from_input(input_result)
                 self.renderer.show_image()
@@ -389,9 +391,11 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
 
             # Check if it was a touch and get coordinates for direct key tap
             key = None
+            was_tap = False
             if hasattr(touch_buttons, 'get_last_tap_native_coords'):
                 x, y = touch_buttons.get_last_tap_native_coords()
                 if x >= 0 and y >= 0:
+                    was_tap = True
                     key = self.keyboard.get_key_at_screen_coords(x, y)
 
             # If no direct key tap, check if it was a press on selected key
@@ -446,8 +450,8 @@ class ToolsCoinFlipEntryScreen(KeyboardScreen):
                 self.renderer.show_image()
                 continue
 
-            # D-pad navigation fallback
-            if input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
+            # D-pad navigation fallback (only for real d-pad, not edge taps)
+            if not was_tap and input_result in [HardwareButtonsConstants.KEY_UP, HardwareButtonsConstants.KEY_DOWN,
                                 HardwareButtonsConstants.KEY_LEFT, HardwareButtonsConstants.KEY_RIGHT]:
                 self.keyboard.update_from_input(input_result)
                 self.renderer.show_image()
