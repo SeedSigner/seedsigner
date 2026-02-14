@@ -1,6 +1,12 @@
 import logging
 from typing import List
-import RPi.GPIO as GPIO
+
+from seedsigner.extras.dev import DEV_MODE
+if DEV_MODE:
+    from seedsigner.extras.gpio import GPIO
+else:
+    import RPi.GPIO as GPIO
+
 import time
 
 from seedsigner.models.singleton import Singleton
@@ -41,6 +47,8 @@ class HardwareButtons(Singleton):
             cls._instance = cls.__new__(cls)
 
             #init GPIO
+            if DEV_MODE:
+                GPIO.init()
             GPIO.setmode(GPIO.BOARD)
             GPIO.setup(HardwareButtons.KEY_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)    # Input with pull-up
             GPIO.setup(HardwareButtons.KEY_DOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Input with pull-up

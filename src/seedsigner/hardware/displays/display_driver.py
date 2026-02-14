@@ -1,3 +1,6 @@
+from seedsigner.extras.dev import DEV_MODE
+
+
 DISPLAY_TYPE__ST7789 = "st7789"
 DISPLAY_TYPE__ILI9341 = "ili9341"
 DISPLAY_TYPE__ILI9486 = "ili9486"
@@ -19,7 +22,10 @@ class DisplayDriver:
                 # TODO: For now the original ST7789 driver has to be used for 240x240.
                 # The mpy version below renders incorrectly (almost like each row of pixels
                 # is one pixel short, so the entire screen exhibits a diagonal skew).
-                from seedsigner.hardware.displays.ST7789 import ST7789
+                if not DEV_MODE:
+                    from seedsigner.hardware.displays.ST7789 import ST7789
+                else:
+                    from seedsigner.extras.local_display import ST7789
                 self.display = ST7789()
 
             elif width == 320:

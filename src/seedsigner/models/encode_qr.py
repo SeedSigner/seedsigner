@@ -311,7 +311,8 @@ class BaseFountainQrEncoder(BaseQrEncoder):
 
 
     def next_part(self) -> str:
-        return self.ur2_encode.next_part().upper()
+        if self.is_complete: self.restart()
+        return self.ur2_encode.next_part()
 
 
     def cur_part(self) -> str:
@@ -402,5 +403,5 @@ class UrPsbtQrEncoder(BaseFountainQrEncoder):
 
     def __post_init__(self):
         super().__post_init__()
-        qr_ur_bytes = UR("crypto-psbt", UR_PSBT(self.psbt.serialize()).to_cbor())
+        qr_ur_bytes = UR("psbt", UR_PSBT(self.psbt.serialize()).to_cbor())
         self.ur2_encode = UREncoder(ur=qr_ur_bytes, max_fragment_len=self.qr_max_fragment_size)

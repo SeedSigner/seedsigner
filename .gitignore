@@ -9,3 +9,4 @@ src/seedsigner/models/settings_definition.json
 
 *.po
 *.mo
+*.bmp
