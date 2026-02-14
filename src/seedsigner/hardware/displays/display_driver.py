@@ -29,7 +29,10 @@ class DisplayDriver:
                 self.display = ST7789()
 
             elif width == 320:
-                from seedsigner.hardware.displays.st7789_mpy import ST7789
+                if not DEV_MODE:
+                    from seedsigner.hardware.displays.st7789_mpy import ST7789
+                else:
+                    from seedsigner.extras.local_display import ST7789
                 # Have to swap width and height; screen is natively 240x320
                 self.display = ST7789(width=height, height=width)
         

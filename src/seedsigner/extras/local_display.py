@@ -6,3 +6,6 @@ class ST7789:
     def show_image(self, image, x, y):
         with open('display.bmp', 'wb') as f:
             f.write(image.tobytes())
+
+    def invert(self, enabled: bool = True):
+        pass
