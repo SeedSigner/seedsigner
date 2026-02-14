@@ -1,4 +1,4 @@
-from seedsigner.extras.dev import DEV_MODE
+from seedsigner.extras.dev import SIMULATE_MODE
 
 
 DISPLAY_TYPE__ST7789 = "st7789"
@@ -22,14 +22,14 @@ class DisplayDriver:
                 # TODO: For now the original ST7789 driver has to be used for 240x240.
                 # The mpy version below renders incorrectly (almost like each row of pixels
                 # is one pixel short, so the entire screen exhibits a diagonal skew).
-                if not DEV_MODE:
+                if not SIMULATE_MODE:
                     from seedsigner.hardware.displays.ST7789 import ST7789
                 else:
                     from seedsigner.extras.local_display import ST7789
                 self.display = ST7789()
 
             elif width == 320:
-                if not DEV_MODE:
+                if not SIMULATE_MODE:
                     from seedsigner.hardware.displays.st7789_mpy import ST7789
                 else:
                     from seedsigner.extras.local_display import ST7789

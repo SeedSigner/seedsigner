@@ -348,9 +348,6 @@ class DecodeQR:
             if re.search("^UR:CRYPTO-PSBT/", s, re.IGNORECASE):
                 return QRType.PSBT__UR2
 
-            elif re.search("^UR:PSBT/", s, re.IGNORECASE):
-                return QRType.PSBT__UR2
-
             elif re.search("^UR:CRYPTO-OUTPUT/", s, re.IGNORECASE):
                 return QRType.OUTPUT__UR
 

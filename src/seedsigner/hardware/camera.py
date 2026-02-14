@@ -3,7 +3,7 @@ import io
 from gettext import gettext as _
 from PIL import Image
 
-from seedsigner.extras.dev import DEV_MODE
+from seedsigner.extras.dev import SIMULATE_MODE
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.singleton import Singleton
 
@@ -11,7 +11,7 @@ from seedsigner.models.singleton import Singleton
 class CameraConnectionError(Exception):
     pass
 
-if DEV_MODE:
+if SIMULATE_MODE:
    import seedsigner.extras.local_camera
    Camera = seedsigner.extras.local_camera.Camera
 else:

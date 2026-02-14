@@ -1,8 +1,8 @@
 import logging
 from typing import List
 
-from seedsigner.extras.dev import DEV_MODE
-if DEV_MODE:
+from seedsigner.extras.dev import SIMULATE_MODE
+if SIMULATE_MODE:
     from seedsigner.extras.gpio import GPIO
 else:
     import RPi.GPIO as GPIO
@@ -47,7 +47,7 @@ class HardwareButtons(Singleton):
             cls._instance = cls.__new__(cls)
 
             #init GPIO
-            if DEV_MODE:
+            if SIMULATE_MODE:
                 GPIO.init()
             GPIO.setmode(GPIO.BOARD)
             GPIO.setup(HardwareButtons.KEY_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)    # Input with pull-up
