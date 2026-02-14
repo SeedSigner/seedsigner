@@ -357,5 +357,5 @@ Letter templates(8.5in * 11in):
 See the [SeedSigner OS repo](https://github.com/SeedSigner/seedsigner-os/) for instructions.
 
 # Developer Local Build Instructions
-Raspberry Pi OS is commonly used for development. See the [Raspberry Pi OS Build Instructions](docs/raspberry_pi_os_build_instructions.md)
-Desktop build for development on macos. See the [TODO]
+* Raspberry Pi OS is commonly used for development. See the [Raspberry Pi OS Build Instructions](docs/raspberry_pi_os_build_instructions.md)
+* Desktop build for development and simulation. See the [Local SeedSigner Simulator Setup](docs/local_simulator_setup_instructions.md)
