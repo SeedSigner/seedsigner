@@ -6,7 +6,6 @@ from embit.descriptor import Descriptor
 from embit.psbt import PSBT
 from PIL.Image import Image
 
-from seedsigner.extras.dev import SIMULATE_MODE
 from seedsigner.gui.toast import BaseToastOverlayManagerThread
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.seed import Seed
@@ -73,8 +72,7 @@ class BackgroundImportThread(BaseThread):
         Controller.get_instance()._storage = SeedStorage()
 
         time_import('numpy')  # used by PiVideoStream; by far the slowest import (2.29s)
-        if not SIMULATE_MODE:
-            time_import('seedsigner.hardware.pivideostream')
+        time_import('seedsigner.hardware.pivideostream') 
 
         # Get MainMenuView ready to respond quickly
         time_import('seedsigner.views.scan_views')
@@ -293,11 +291,10 @@ class Controller(Singleton):
                 next_destination = Destination(MainMenuView)
             
             # Set up our one-time toast notification tip to remove the SD card
-            if not SIMULATE_MODE:
-                if self.settings.get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER) == SettingsConstants.MICROSD_TOAST_TIMER_FIVE_SECONDS:
-                    self.activate_toast(RemoveSDCardToastManagerThread())
-                elif self.settings.get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER) == SettingsConstants.MICROSD_TOAST_TIMER_FOREVER:
-                    next_destination = Destination(RemoveMicroSDWarningView)
+            if self.settings.get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER) == SettingsConstants.MICROSD_TOAST_TIMER_FIVE_SECONDS:
+                self.activate_toast(RemoveSDCardToastManagerThread())
+            elif self.settings.get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER) == SettingsConstants.MICROSD_TOAST_TIMER_FOREVER:
+                next_destination = Destination(RemoveMicroSDWarningView)
 
             while True:
                 # Destination(None) is a special case; render the Home screen
