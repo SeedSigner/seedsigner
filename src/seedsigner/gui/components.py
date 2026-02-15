@@ -35,7 +35,7 @@ class GUIConstants:
     ERROR_COLOR = "#FF1B0A"
     SUCCESS_COLOR = "#30D158"
     INFO_COLOR = "#409CFF"
-    # BITCOIN_ORANGE = "#FF9416"  # not used
+    BITCOIN_ORANGE = "#FF9416"
     TESTNET_COLOR = "#00F100"
     REGTEST_COLOR = "#00CAF1"
     GREEN_INDICATOR_COLOR = "#00FF00"
@@ -52,7 +52,7 @@ class GUIConstants:
         "default": "OpenSans-Regular",
         SettingsConstants.LOCALE__ARABIC: "NotoSansAR-Regular",
         SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: "NotoSansSC-Regular",
-        SettingsConstants.LOCALE__HINDI: "NotoSansDevanagari-Regular",
+        # SettingsConstants.LOCALE__CHINESE_TRADITIONAL: "NotoSansTC-Regular",
         SettingsConstants.LOCALE__JAPANESE: "NotoSansJP-Regular",
         SettingsConstants.LOCALE__KOREAN: "NotoSansKR-Regular",
         SettingsConstants.LOCALE__PERSIAN: "NotoSansAR-Regular",  # Uses the Arabic font
@@ -63,10 +63,9 @@ class GUIConstants:
     TOP_NAV_TITLE_FONT_NAME["default"] = "OpenSans-SemiBold"
     TOP_NAV_TITLE_FONT_SIZE = {
         "default": 20,
-        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 23,  # Some chars won't render below 23px
-        SettingsConstants.LOCALE__HINDI: 22,
         SettingsConstants.LOCALE__JAPANESE: 22,  # Titles won't render below 22px
         SettingsConstants.LOCALE__KOREAN: 23,    # Titles won't render below 23px
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 23,  # Some chars won't render below 23px
     }
     TOP_NAV_HEIGHT = 48
     TOP_NAV_BUTTON_SIZE = 32
@@ -74,10 +73,9 @@ class GUIConstants:
     BODY_FONT_NAME = BASE_LOCALE_FONTS.copy()
     BODY_FONT_SIZE = {
         "default": 17,
-        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 18,
-        SettingsConstants.LOCALE__HINDI: 18,
         SettingsConstants.LOCALE__JAPANESE: 18,
         SettingsConstants.LOCALE__KOREAN: 18,
+        SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 18,
     }
     BODY_FONT_MAX_SIZE = TOP_NAV_TITLE_FONT_SIZE["default"]
     BODY_FONT_MIN_SIZE = 15
@@ -87,7 +85,6 @@ class GUIConstants:
     FIXED_WIDTH_FONT_NAME = "Inconsolata-Regular"
     FIXED_WIDTH_EMPHASIS_FONT_NAME = "Inconsolata-SemiBold"
 
-    # TODO: this should have a get_label_font_size() method like the others for l10n
     LABEL_FONT_SIZE = BODY_FONT_MIN_SIZE
     LABEL_FONT_COLOR = "#777777"
 
@@ -97,7 +94,6 @@ class GUIConstants:
         "default": 18,
         "ar": 18,
         "fa": 18,
-        SettingsConstants.LOCALE__HINDI: 20,
         SettingsConstants.LOCALE__JAPANESE: 20,
         SettingsConstants.LOCALE__KOREAN: 20,
         SettingsConstants.LOCALE__CHINESE_SIMPLIFIED: 20,
@@ -171,9 +167,14 @@ class GUIConstants:
 
 class FontAwesomeIconConstants:
     ANGLE_DOWN = "\uf107"
+    ANGLE_LEFT = "\uf104"
+    ANGLE_RIGHT = "\uf105"
     ANGLE_UP = "\uf106"
     CAMERA = "\uf030"
+    CHEVRON_UP = "\uf077"
+    CHEVRON_DOWN = "\uf078"
     CIRCLE = "\uf111"
+    CIRCLE_CHEVRON_RIGHT = "\uf138"
     DICE = "\uf522"
     DICE_ONE = "\uf525"
     DICE_TWO = "\uf528"
@@ -182,7 +183,15 @@ class FontAwesomeIconConstants:
     DICE_FIVE = "\uf523"
     DICE_SIX = "\uf526"
     KEYBOARD = "\uf11c"
+    LOCK = "\uf023"
     MAP = "\uf279"
+    PAPER_PLANE = "\uf1d8"
+    PEN = "\uf304"
+    SQUARE_CARET_DOWN = "\uf150"
+    SQUARE_CARET_LEFT = "\uf191"
+    SQUARE_CARET_RIGHT = "\uf152"
+    SQUARE_CARET_UP = "\uf151"
+    UNLOCK = "\uf09c"
     X = "\u0058"
 
 
@@ -203,9 +212,9 @@ class SeedSignerIconConstants:
     CHEVRON_LEFT = "\ue909"
     CHEVRON_RIGHT = "\ue90a"
     CHEVRON_UP = "\ue90b"
-    # CLOSE = "\ue90c"  # Unused icons
-    # PAGE_DOWN = "\ue90d"
-    # PAGE_UP = "\ue90e"
+    CLOSE = "\ue90c"
+    PAGE_DOWN = "\ue90d"
+    PAGE_UP = "\ue90e"
     PLUS = "\ue90f"
     POWER = "\ue910"
     RESTART = "\ue911"
@@ -217,17 +226,17 @@ class SeedSignerIconConstants:
     ERROR = "\ue915"
 
     # Informational icons
-    # ADDRESS = "\ue916"
+    ADDRESS = "\ue916"
     CHANGE = "\ue917"
     DERIVATION = "\ue918"
-    # FEE = "\ue919"
+    FEE = "\ue919"
     FINGERPRINT = "\ue91a"
     PASSPHRASE = "\ue91b"
 
     # Misc icons
-    # BITCOIN = "\ue91c"
+    BITCOIN = "\ue91c"
     BITCOIN_ALT = "\ue91d"
-    # BRIGHTNESS = "\ue91e"
+    BRIGHTNESS = "\ue91e"
     MICROSD = "\ue91f"
     QRCODE = "\ue920"
     SIGN = "\ue921"
@@ -239,6 +248,40 @@ class SeedSignerIconConstants:
     # Must be updated whenever new icons are added. See usage in `Icon` class below.
     MIN_VALUE = SCAN
     MAX_VALUE = SPACE
+
+
+
+def calc_text_centering(font: ImageFont,
+                        text: str,
+                        is_text_centered: bool,
+                        total_width: int,
+                        total_height: int,
+                        start_x: int = 0,
+                        start_y: int = 0) -> Tuple[int, int]:
+    # see: https://pillow.readthedocs.io/en/stable/handbook/text-anchors.html#text-anchors
+
+    # Gap between the starting coordinate and the first marking.
+    offset_x, offset_y = font.getoffset(text)
+
+    # Bounding box of the actual pixels rendered.
+    (box_left, box_top, box_right, box_bottom) = font.getbbox(text, anchor='lt')
+
+    # Ascender/descender are oversized ranges baked into the font.
+    ascent, descent = font.getmetrics()
+
+    # print(f"""----- "{text}" / {font.getname()} -----""")
+    # print(f"offset_x: {offset_x} | offset_y: {offset_y})")
+    # print(f"box_left: {box_left} |  box_top: {box_top} | box_right: {box_right} | box_bottom: {box_bottom}")
+    # print(f"ascent: {ascent} | descent: {descent})")
+
+    if is_text_centered:
+        text_x = int((total_width - (box_right - offset_x)) / 2) - offset_x
+    else:
+        text_x = GUIConstants.COMPONENT_PADDING
+
+    text_y = int((total_height - (ascent - offset_y)) / 2) - offset_y
+
+    return (start_x + text_x, start_y + text_y)
 
 
 
@@ -347,6 +390,7 @@ class TextArea(BaseComponent):
     is_text_centered: bool = True
     supersampling_factor: int = 2  # 1 = disabled; 2 = default, double sample (4px square rendered for 1px)
     auto_line_break: bool = True
+    allow_text_overflow: bool = False
     is_horizontal_scrolling_enabled: bool = False
     horizontal_scroll_speed: int = 40  # px per sec
     horizontal_scroll_begin_hold_secs: float = 2.0
@@ -357,6 +401,10 @@ class TextArea(BaseComponent):
     def __post_init__(self):
         if self.is_horizontal_scrolling_enabled and self.auto_line_break:
             raise Exception("TextArea: Cannot have auto_line_break and horizontal scrolling enabled at the same time")
+
+        if self.is_horizontal_scrolling_enabled and not self.allow_text_overflow:
+            self.allow_text_overflow = True
+            logger.warning("TextArea: allow_text_overflow gets overridden to True when horizontal scrolling is enabled")
 
         if not self.font_name:
             self.font_name = GUIConstants.get_body_font_name()
@@ -392,13 +440,7 @@ class TextArea(BaseComponent):
             # Guaranteed to be a single line of text, possibly wider than self.width
             self.text_lines = [{"text": self.text, "text_width": full_text_width}]
             self.text_width = full_text_width
-
-            # Technically, the math says that we should enable scrolling for as little as
-            # 1px beyond the available width, but it's not worth having the text twitch
-            # back and forth by such a small amount.
-            min_scrollable_diff = 1
-
-            if self.text_width > self.visible_width + min_scrollable_diff:
+            if self.text_width > self.visible_width:
                 # We'll have to left justify the text and scroll it (if scrolling is enabled,
                 # otherwise it'll just run off the right edge).
                 self.is_text_centered = False
@@ -416,6 +458,7 @@ class TextArea(BaseComponent):
                 width=self.width - 2*self.edge_padding,
                 font_name=self.font_name,
                 font_size=self.font_size,
+                allow_text_overflow=self.allow_text_overflow,
             )
 
             # Other components, like IconTextLine will need to know how wide the actual
@@ -442,9 +485,14 @@ class TextArea(BaseComponent):
 
         else:
             if total_text_height > self.height:
-                # Let it render past the bottom edge. Will be up to the dev or translator
-                # to review the screenshot and revise the text as needed.
-                logger.warning(f"Text cannot fit in target rect with this font/size\n\ttotal_text_height: {total_text_height} | self.height: {self.height}")
+                if not self.allow_text_overflow:
+                    # For now, early into the l10n rollout, we can't enforce strict
+                    # conformance here. Too many screens will just break if this is were
+                    # to raise an exception.
+                    logger.warning(f"Text cannot fit in target rect with this font/size\n\ttotal_text_height: {total_text_height} | self.height: {self.height}")
+                else:
+                    # Just let it render past the bottom edge
+                    pass
 
             else:
                 # Vertically center the text's starting point
@@ -575,7 +623,7 @@ class TextArea(BaseComponent):
             self.horizontal_scroll_position = 0
             self.scroll_increment_sign = 1  # flip to negative to scroll text to the right
 
-            self.renderer = Renderer.get_instance()
+            self.renderer = Renderer.get_instance()        
 
 
         def stop_scrolling(self):
@@ -596,57 +644,45 @@ class TextArea(BaseComponent):
             readability. 45px/sec is better but still perceptually a bit stuttery.
             """
             max_scroll = self.rendered_text_img.width - self.visible_width
-            last_render_time = None
-
-            # The scrolling pauses at the start and end of the text line. These vars track
-            # when we started holding and how long we should hold for.
-            hold_started_at = None
-            cur_hold_duration = None
 
             while self.keep_running:
                 if not self.scrolling_active:
                     time.sleep(0.1)
                     continue
 
-                if cur_hold_duration is not None:
-                    # We're currently holding; see if we've held long enough
-                    hold_time_elapsed = time.time() - hold_started_at
-                    if hold_time_elapsed < cur_hold_duration:
-                        # Still have to hold longer; skip scrolling logic
-                        time.sleep(0.1)
+                with self.renderer.lock:
+                    if not self.scrolling_active:
+                        # We were stopped while waiting for the lock
                         continue
-                    else:
-                        # We've held long enough; reset the vars and resume scrolling
-                        hold_started_at = None
-                        cur_hold_duration = None
 
+                    img = self.rendered_text_img.crop((self.horizontal_scroll_position, 0, self.horizontal_scroll_position + self.visible_width, self.rendered_text_img.height))
+                    self.renderer.canvas.paste(img, (self.screen_x, self.screen_y - self.scroll_y))
+                    self.renderer.show_image()
+
+                if self.horizontal_scroll_position == 0:
+                    # Pause on initial (left-justified) position...                
+                    time.sleep(self.begin_hold_secs)
+
+                    # Don't count those pause seconds
+                    last_render_time = None
+
+                    # Scroll the text left
+                    self.scroll_increment_sign = 1
+
+                elif self.horizontal_scroll_position == max_scroll:
+                    # ...and slight pause at end of scroll
+                    time.sleep(self.end_hold_secs)
+
+                    # Don't count those pause seconds
+                    last_render_time = None
+
+                    # Scroll the text right
+                    self.scroll_increment_sign = -1
+                
                 else:
-                    # We're not holding, but if we've reached either end, we need to start
-                    # holding.
-                    if self.horizontal_scroll_position == 0:
-                        # Pause on initial (left-justified) position...
-                        hold_started_at = time.time()
-                        cur_hold_duration = self.begin_hold_secs
-
-                        # Next scroll direction will be left
-                        self.scroll_increment_sign = 1
-
-                        # Don't count those pause seconds
-                        last_render_time = None
-                        continue
-
-                    elif self.horizontal_scroll_position == max_scroll:
-                        # ...and slight pause at end of scroll
-                        hold_started_at = time.time()
-                        cur_hold_duration = self.end_hold_secs
-
-                        # Don't count those pause seconds
-                        last_render_time = None
-
-                        # Scroll will be to the right
-                        self.scroll_increment_sign = -1
-                        continue
-
+                    # No need to CPU limit when running in its own thread?
+                    time.sleep(0.02)
+                
                 next_render_time = time.time()
 
                 if not last_render_time:
@@ -654,39 +690,18 @@ class TextArea(BaseComponent):
                     # "get off zero" for the real increment calc logic to kick in.
                     scroll_position_increment = 1 * self.scroll_increment_sign
                 else:
-                    # Calculate how far to scroll based on time elapsed since last render
                     scroll_position_increment = int(self.horizontal_scroll_speed * (next_render_time - last_render_time) * self.scroll_increment_sign)
 
-                # Only render an update if we're going to move at least 1px
                 if abs(scroll_position_increment) > 0:
-                    # max: Don't over-scroll when returning to the left edge (0)
-                    # min: Don't over-scroll when revealing the right edge (max_scroll)
-                    self.horizontal_scroll_position = max(
-                        0,
-                        min(self.horizontal_scroll_position + scroll_position_increment, max_scroll)
-                    )
-
-                    # Render the scroll update
-                    with self.renderer.lock:
-                        if not self.scrolling_active:
-                            # We were stopped while waiting for the lock
-                            continue
-
-                        # The pre-rendered text img slides within a cropping window
-                        img = self.rendered_text_img.crop((self.horizontal_scroll_position, 0, self.horizontal_scroll_position + self.visible_width, self.rendered_text_img.height))
-                        self.renderer.canvas.paste(img, (self.screen_x, self.screen_y - self.scroll_y))
-                        self.renderer.show_image()
+                    self.horizontal_scroll_position += scroll_position_increment
+                    self.horizontal_scroll_position = max(0, min(self.horizontal_scroll_position, max_scroll))
 
                     last_render_time = next_render_time
-
                 else:
-                    # Wait to accumulate more time so we can scroll at least 1px
+                    # Wait to accumulate more time before scrolling
                     pass
 
-                # Free up the processor for a bit each loop
-                time.sleep(0.02)
 
- 
     def render(self):
         """
             Even if we need to animate for scrolling, all instances should explicitly render
@@ -726,6 +741,7 @@ class ScrollableTextLine(TextArea):
     def __post_init__(self):
         self.auto_line_break = False
         self.is_horizontal_scrolling_enabled = True
+        self.allow_text_overflow = True
         super().__post_init__()
 
 
@@ -787,6 +803,7 @@ class IconTextLine(BaseComponent):
     font_size: int = None
     is_text_centered: bool = False
     auto_line_break: bool = False
+    allow_text_overflow: bool = True
     screen_x: int = 0
     screen_y: int = 0
 
@@ -829,6 +846,7 @@ class IconTextLine(BaseComponent):
                 auto_line_break=False,
                 screen_x=text_screen_x,
                 screen_y=self.screen_y,
+                allow_text_overflow=False,
             )
         else:
             self.label_textarea = None        
@@ -848,6 +866,7 @@ class IconTextLine(BaseComponent):
             edge_padding=0,
             is_text_centered=self.is_text_centered if not self.icon_name else False,
             auto_line_break=self.auto_line_break,
+            allow_text_overflow=self.allow_text_overflow,
             screen_x=text_screen_x,
             screen_y=value_textarea_screen_y,
         )
@@ -1079,6 +1098,7 @@ class BtcAmount(BaseComponent):
 
     def __post_init__(self):
         super().__post_init__()
+        self.sub_components: List[BaseComponent] = []
         self.paste_image: Image.Image = None
         self.paste_coords = None
         denomination = Settings.get_instance().get_value(SettingsConstants.SETTING__BTC_DENOMINATION)
@@ -1496,6 +1516,7 @@ class Button(BaseComponent):
             button_kwargs["text"] = self.text
             button_kwargs["font_color"] = self.font_color
             button_kwargs["background_color"] = self.background_color
+            button_kwargs["allow_text_overflow"] = True
             button_kwargs["auto_line_break"] = False
             del button_kwargs["horizontal_scroll_begin_hold_secs"]
             del button_kwargs["horizontal_scroll_end_hold_secs"]
@@ -1800,7 +1821,8 @@ def calc_bezier_curve(p1: Tuple[int,int], p2: Tuple[int,int], p3: Tuple[int,int]
 def reflow_text_for_width(text: str,
                           width: int,
                           font_name=GUIConstants.get_body_font_name(),
-                          font_size=GUIConstants.get_body_font_size()) -> list[dict]:
+                          font_size=GUIConstants.get_body_font_size(),
+                          allow_text_overflow: bool=False) -> list[dict]:
     """
     Reflows text to fit within `width` by breaking long lines up.
 
@@ -1823,6 +1845,9 @@ def reflow_text_for_width(text: str,
         SettingsConstants.LOCALE__JAPANESE,
         SettingsConstants.LOCALE__KOREAN,
     ]
+    if treat_chars_as_words:
+        # Relax UI constraints even if the result isn't optimal
+        allow_text_overflow = True
 
     # Stores each line of text and its rendering starting x-coord
     text_lines = []
@@ -1866,9 +1891,9 @@ def reflow_text_for_width(text: str,
                 # Candidate line is possibly shorter than necessary.
                 return _binary_len_search(min_index=index, max_index=max_index, word_spacer=word_spacer)
 
-        if len(text.split()) == 1 and not treat_chars_as_words:
-            # No whitespace chars to split on! Warn but proceed anyway.
-            logger.warning("Text cannot fit in target rect with this font+size")
+        if len(text.split()) == 1 and not allow_text_overflow and not treat_chars_as_words:
+            # No whitespace chars to split on!
+            raise TextDoesNotFitException("Text cannot fit in target rect with this font+size")
 
         # Now we're ready to go line-by-line into our line break binary search!
         for line in text.split("\n"):
@@ -1908,7 +1933,8 @@ def reflow_text_into_pages(text: str,
                            height: int,
                            font_name=GUIConstants.get_body_font_name(),
                            font_size=GUIConstants.get_body_font_size(),
-                           line_spacer: int = GUIConstants.BODY_LINE_SPACING) -> list[str]:
+                           line_spacer: int = GUIConstants.BODY_LINE_SPACING,
+                           allow_text_overflow: bool=False) -> list[str]:
     """
     Invokes `reflow_text_for_width` above to convert long text into width-limited
     individual text lines and then calculates how many lines will fit on a "page" and
@@ -1919,7 +1945,8 @@ def reflow_text_into_pages(text: str,
     reflowed_lines_dicts = reflow_text_for_width(text=text,
                                            width=width,
                                            font_name=font_name,
-                                           font_size=font_size)
+                                           font_size=font_size,
+                                           allow_text_overflow=allow_text_overflow)
 
     lines = []
     for line_dict in reflowed_lines_dicts:
