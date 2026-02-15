@@ -1,8 +1,8 @@
 # Local SeedSigner Simulator Setup
 
-This guide adds a method to setup SeedSigner testing locally through a simulator GUI for easy development.
+This guide adds a method to setup SeedSigner testing locally through a simulator GUI for easy development. You can either interact with the buttons at the window or use keyboard arrows, Enter, Numpad_1, Numpad_2, Numpad_3
 
-It was tested on macOS (26) using Homebrew and Python 3.14. With additional effort it would work on other operating systems and python version or it may still way directly I've not tested it as I don't own any other devices.
+Note: The has only been tested on macOS (26) using Homebrew and Python 3.14.
 
 <img src="img/simulator.png" width=320 />
 
@@ -16,33 +16,33 @@ It was tested on macOS (26) using Homebrew and Python 3.14. With additional effo
 
 ### Installing system dependencies
 
-SeedSigner’s simulator depends on native libraries for QR scanning and camera access.
+SeedSigner’s simulator depends on Python with `tkinter` support, native libraries for QR scanning and camera access.
+- `tkinter` is Python's built-in library for creating desktop GUI applications.
+- `pyzbar` library requires a backend to be running on the system called `zbar`.
 
+#### MacOS (Homebrew)
 ```bash
-brew install opencv zbar
+brew install python@3.14 # includes tkinter support
+brew install zbar
+```
+#### Linux
+```bash
+sudo apt-get install python3-tk
+sudo apt install libzbar0
 ```
 
-These provide:
-
-- Camera capture backend (OpenCV)
-- QR decoding backend (zbar, used by `pyzbar`)
-
-
-
 ### Setting up dev environment
-
-The GUI uses tkinter that usually bundles with python installation, but for any reason it is not present follow the guide to setup tkinter https://coderivers.org/blog/installing-tkinter-in-python
 
 ```bash
 git clone https://github.com/SeedSigner/seedsigner
 
-python3.14 -m venv env
+python3 -m venv env
 source env/bin/activate
 
 # should not fail loading tkinter
-python3.14 -m tkinter
+python3 -m tkinter
 
-pip install -r requirements.txt
+pip install -r requirements-simulator.txt
 ```
 
 #### Camera Permissions (macOS Security)
@@ -54,7 +54,7 @@ OpenCV: not authorized to capture video
 OpenCV: camera failed to properly initialize
 ```
 
-#### Grant Camera Permission
+#### Grant Camera Permission (macOS)
 
 Go to: System Settings → Privacy & Security → Camera
 
@@ -73,10 +73,8 @@ tccutil reset Camera
 
 ### Running the Simulator
 
-From the simulator directory:
-
 ```bash
-python src/gui.py
+python tools/run_emulator.py
 ```
 
 ### Notes
