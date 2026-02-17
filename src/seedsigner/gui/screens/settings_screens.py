@@ -144,7 +144,6 @@ class IOTestScreen(BaseTopNavScreen):
             outline_color=GUIConstants.ACCENT_COLOR,
             is_scrollable_text=False,  # Text has to dynamically update, can't use scrollable Button
         )
-        self.key2_button.text = " "  # but default state is empty
         self.components.append(self.key2_button)
 
         self.key1_button = IconButton(
@@ -179,6 +178,7 @@ class IOTestScreen(BaseTopNavScreen):
             height=msg_height,
             screen_y=int((self.canvas_height - msg_height)/ 2),
         )
+        self.key2_button.text = " "  # Default to blank; only show "Clear" after a camera capture
         while True:
             input = self.hw_inputs.wait_for(keys=HardwareButtonsConstants.ALL_KEYS)
 
