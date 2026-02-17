@@ -42,7 +42,7 @@ source env/bin/activate
 # should not fail loading tkinter
 python3 -m tkinter
 
-pip install -r requirements-simulator.txt
+pip install -r tools/emulator/requirements-simulator.txt
 ```
 
 #### Camera Permissions (macOS Security)
@@ -74,7 +74,7 @@ tccutil reset Camera
 ### Running the Simulator
 
 ```bash
-python tools/run_emulator.py
+python tools/emulator/run_emulator.py
 ```
 
 ### Notes
@@ -82,3 +82,8 @@ python tools/run_emulator.py
 - The simulator environment is **not security-hardened** and should never be used with real funds.
 - Camera access, QR decoding, and GUI rendering are all platform-dependent; macOS quirks differ from Raspberry Pi OS.
 - For hardware deployment, follow the official Raspberry Pi OS instructions in the main project README.
+
+### Credits
+
+- The original work is inspired by https://github.com/enteropositivo/seedsigner-emulator, which was the first working emulator POC that directly replaced files in the SeedSigner source code for the camera, buttons, and renderer using Tkinter-based implementations.
+- The modified work from https://github.com/ltcmweb/seedsigner based on @enteropositivo's work added macOS support with local emulation of the GPIO socket.
