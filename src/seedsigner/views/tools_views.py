@@ -601,7 +601,7 @@ class ToolsAddressExplorerAddressTypeView(View):
         if "wallet_descriptor" in data:
             from seedsigner.helpers.embit_utils import get_multisig_policy
             threshold, n = get_multisig_policy(data["wallet_descriptor"])
-            # TRANSLATOR_NOTE: Multisig wallet policy display (e.g. "2 / 3 multisig")
+            # TRANSLATOR_NOTE: Multisig policy. For a "2 / 3 multisig" policy, "threshold" = 2; "n" = 3
             wallet_descriptor_display_name = _("{threshold} / {n} multisig").format(
                 threshold=threshold, n=n
             )

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: seedsigner 0.8.6\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-02-19 07:41+0000\n"
+"POT-Creation-Date: 2026-02-19 19:13+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1340,7 +1340,7 @@ msgstr ""
 msgid "Verify addr"
 msgstr ""
 
-#. Multisig policy display showing signing threshold (e.g. "2 of 3")
+#. Multisig policy. For a "2 of 3" policy, "threshold" = 2; "n" = 3
 #: src/seedsigner/views/seed_views.py
 msgid "{threshold} of {n}"
 msgstr ""
@@ -1471,7 +1471,7 @@ msgstr ""
 msgid "Change addresses"
 msgstr ""
 
-#. Multisig wallet policy display (e.g. "2 / 3 multisig")
+#. Multisig policy. For a "2 / 3 multisig" policy, "threshold" = 2; "n" = 3
 #: src/seedsigner/views/tools_views.py
 msgid "{threshold} / {n} multisig"
 msgstr ""

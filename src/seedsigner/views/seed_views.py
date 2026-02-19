@@ -2070,7 +2070,7 @@ class MultisigWalletDescriptorView(View):
         
         from seedsigner.helpers.embit_utils import get_multisig_policy
         threshold, n = get_multisig_policy(descriptor)
-        # TRANSLATOR_NOTE: Multisig policy display showing signing threshold (e.g. "2 of 3")
+        # TRANSLATOR_NOTE: Multisig policy. For a "2 of 3" policy, "threshold" = 2; "n" = 3
         policy = _("{threshold} of {n}").format(threshold=threshold, n=n)
 
         button_data = [self.OK]
