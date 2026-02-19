@@ -2068,8 +2068,10 @@ class MultisigWalletDescriptorView(View):
             fingerprint = hexlify(key.fingerprint).decode()
             fingerprints.append(fingerprint)
         
-        policy = descriptor.brief_policy.split("multisig")[0].strip()
-        # policy = " / ".join(policy.split(" of ")) # i18n w/o l10n since coming from non-l10n embit
+        from seedsigner.helpers.embit_utils import get_multisig_policy
+        threshold, n = get_multisig_policy(descriptor)
+        # TRANSLATOR_NOTE: Multisig policy display showing signing threshold (e.g. "2 of 3")
+        policy = _("{threshold} of {n}").format(threshold=threshold, n=n)
 
         button_data = [self.OK]
         if self.controller.resume_main_flow:

@@ -599,8 +599,12 @@ class ToolsAddressExplorerAddressTypeView(View):
 
         wallet_descriptor_display_name = None
         if "wallet_descriptor" in data:
-            wallet_descriptor_display_name = data["wallet_descriptor"].brief_policy.replace(" (sorted)", "")
-            wallet_descriptor_display_name = " / ".join(wallet_descriptor_display_name.split(" of ")) # i18n w/o l10n since coming from non-l10n embit
+            from seedsigner.helpers.embit_utils import get_multisig_policy
+            threshold, n = get_multisig_policy(data["wallet_descriptor"])
+            # TRANSLATOR_NOTE: Multisig wallet policy display (e.g. "2 / 3 multisig")
+            wallet_descriptor_display_name = _("{threshold} / {n} multisig").format(
+                threshold=threshold, n=n
+            )
 
         script_type = data["script_type"] if "script_type" in data else None
 

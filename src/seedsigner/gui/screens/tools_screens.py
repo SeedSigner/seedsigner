@@ -489,7 +489,7 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
             self.components.append(IconTextLine(
                 # TRANSLATOR_NOTE: a label for a BIP-380-ish Output Descriptor
                 label_text=_("Wallet descriptor"),
-                value_text=self.wallet_descriptor_display_name,  # TODO: English text from embit (e.g. "1 / 2 multisig"); make l10 friendly
+                value_text=self.wallet_descriptor_display_name,
                 is_text_centered=True,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
