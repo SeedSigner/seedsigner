@@ -171,8 +171,8 @@ class ScanView(View):
 
 
 class ScanPSBTView(ScanView):
-    instructions_text = _mft("Scan PSBT")
-    invalid_qr_type_message = _mft("Expected a PSBT")
+    instructions_text = _mft("Scan Transaction")
+    invalid_qr_type_message = _mft("Expected a transaction")
 
     @property
     def is_valid_qr_type(self):
@@ -223,7 +223,7 @@ class ScanInvalidQRTypeView(View):
             title=_("Error"),
             status_headline=_("Unknown QR Type"),
             text=_("QRCode is invalid or is a data format not yet supported."),
-            button_data=[ButtonOption("Done")],
+            button_data=[ButtonOption("Back to Main Menu")],
         )
 
         return Destination(MainMenuView, clear_history=True)

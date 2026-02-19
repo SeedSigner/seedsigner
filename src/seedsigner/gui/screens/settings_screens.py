@@ -21,12 +21,10 @@ class SettingsEntryUpdateSelectionScreen(ButtonListScreen):
     help_text: str = None
     checked_buttons: List[int] = None
     settings_entry_type: str = SettingsConstants.TYPE__ENABLED_DISABLED
-    selected_button: int = 0
 
     def __post_init__(self):
         self.title = _("Settings")
         self.is_bottom_list = True
-        self.use_checked_selection_buttons = True
         if self.settings_entry_type == SettingsConstants.TYPE__MULTISELECT:
             self.Button_cls = CheckboxButton
         else:
@@ -146,7 +144,11 @@ class IOTestScreen(BaseTopNavScreen):
             outline_color=GUIConstants.ACCENT_COLOR,
             is_scrollable_text=False,  # Text has to dynamically update, can't use scrollable Button
         )
-        self.key2_button.text = " "  # but default state is empty
+        if not self.renderer.is_screenshot_generator:
+            # The button text should be empty for its initial state ("Clear" doesn't make
+            # any sense until a test image is captured). But the screenshot generator
+            # should show the text so its translation can be reviewed.
+            self.key2_button.text = " "
         self.components.append(self.key2_button)
 
         self.key1_button = IconButton(

@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from gettext import gettext as _
 from typing import Type
@@ -9,6 +10,9 @@ from seedsigner.gui.screens.screen import BaseScreen, ButtonOption, LargeButtonS
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread
+
+logger = logging.getLogger(__name__)
+
 
 
 class BackStackView:
@@ -67,6 +71,7 @@ class View:
         self.screen = None
 
         self._redirect: 'Destination' = None
+        self.is_screensaver_allowed = True
 
 
     def __init__(self):
@@ -221,7 +226,7 @@ class MainMenuView(View):
 
 class PowerOptionsView(View):
     RESET = ButtonOption("Restart", SeedSignerIconConstants.RESTART)
-    POWER_OFF = ButtonOption("Power Off", SeedSignerIconConstants.POWER)
+    POWER_OFF = ButtonOption("Power off", SeedSignerIconConstants.POWER)
 
     def run(self):
         button_data = [self.RESET, self.POWER_OFF]
@@ -242,30 +247,36 @@ class PowerOptionsView(View):
             return Destination(PowerOffView)
 
 
-
+@dataclass
 class RestartView(View):
+
     def run(self):
         from seedsigner.gui.screens.screen import ResetScreen
-        thread = RestartView.DoResetThread()
-        thread.start()
+
+        if not self.renderer.is_screenshot_generator:
+            # We don't want the screenshot generator to actually try to do the restart
+            RestartView.DoResetThread().start()
+
         self.run_screen(ResetScreen)
 
 
     class DoResetThread(BaseThread):
         def run(self):
+            import os
+            import sys
             import time
-            from subprocess import call
 
+            logger.info("Restarting SeedSigner")
             # Give the screen just enough time to display the reset message before
             # exiting.
             time.sleep(0.25)
 
-            # Kill the SeedSigner process; Running the process again.
-            # `.*` is a wildcard to detect either `python`` or `python3`.
-            if Settings.HOSTNAME == Settings.SEEDSIGNER_OS:
-                call("kill $(pidof python*) & python /opt/src/main.py", shell=True)
-            else:
-                call("kill $(ps aux | grep '[p]ython.*main.py' | awk '{print $2}')", shell=True)
+            # Flush any buffered data.
+            sys.stdout.flush() 
+            sys.stderr.flush()
+
+            # Replace the current process with a new one.
+            os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
 
@@ -291,7 +302,7 @@ class NotYetImplementedView(View):
             title=_("Work In Progress"),
             status_headline=_("Not Yet Implemented"),
             text=self.text,
-            button_data=[ButtonOption("Back to Main Menu")],
+            button_data=[ButtonOption("Back to main menu")],
         )
 
         return Destination(MainMenuView)
@@ -339,10 +350,12 @@ class NetworkMismatchErrorView(ErrorView):
         self.next_destination = Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=SettingsConstants.SETTING__NETWORK), clear_history=True)
         super().__post_init__()
 
-        # TRANSLATOR_NOTE: Inserts mainnet/testnet/regtest and derivation path
-        self.text = _("Current network setting ({}) doesn't match {}.").format(
-            self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK),
-            self.derivation_path,
+        network = _(self.settings.get_value_display_name(SettingsConstants.SETTING__NETWORK))
+
+        # TRANSLATOR_NOTE: "network" will be mainnet/testnet/regtest.
+        self.text = _("Current network setting ({network}) doesn't match {derivation_path}.").format(
+            network=network,
+            derivation_path=self.derivation_path,
         )
 
 
@@ -351,13 +364,27 @@ class NetworkMismatchErrorView(ErrorView):
 class UnhandledExceptionView(View):
     error: list[str]
 
+    def __post_init__(self):
+        from seedsigner.hardware.camera import CameraConnectionError
+        super().__post_init__()
+
+        # Camera errors bubble up to here. Reroute to their custom error View.
+        if self.error[0] == CameraConnectionError.__name__:
+            self.set_redirect(
+                Destination(
+                    CameraConnectionErrorView,
+                    skip_current_view=True,
+                )
+            )
+
+
     def run(self):
         self.run_screen(
             ErrorScreen,
             title=_("System Error"),
             status_headline=self.error[0],
             text=self.error[1] + "\n" + self.error[2],
-            allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
+            button_data=[ButtonOption("Back to Main Menu")],
         )
         
         return Destination(MainMenuView, clear_history=True)
@@ -365,9 +392,24 @@ class UnhandledExceptionView(View):
 
 
 @dataclass
+class CameraConnectionErrorView(View):
+    def run(self):
+        self.run_screen(
+            ErrorScreen,
+            title=_("Hardware Error"),
+            status_headline=_("Cannot access camera"),
+            text=_("Disconnect power and check for a loose camera connection."),
+            button_data=[ButtonOption("Back to Main Menu")],
+            show_back_button=False,
+        )
+
+        return Destination(MainMenuView, clear_history=True)
+
+
+@dataclass
 class OptionDisabledView(View):
-    UPDATE_SETTING = ButtonOption("Update Setting")
-    DONE = ButtonOption("Done")
+    UPDATE_SETTING = ButtonOption("Update setting")
+    DONE = ButtonOption("Back to Main Menu")
     settings_attr: str
 
     def __post_init__(self):
@@ -389,7 +431,6 @@ class OptionDisabledView(View):
             text=self.error_msg,
             button_data=button_data,
             show_back_button=False,
-            allow_text_overflow=True,  # Fit what we can, let the rest go off the edges
         )
 
         if button_data[selected_menu_num] == self.UPDATE_SETTING:
@@ -397,3 +438,39 @@ class OptionDisabledView(View):
             return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=self.settings_attr), clear_history=True)
         else:
             return Destination(MainMenuView, clear_history=True)
+
+
+
+class RemoveMicroSDWarningView(View):
+    CONTINUE = ButtonOption("Continue")
+    SETTINGS = ButtonOption("Settings")
+
+    def run(self):
+        button_data = [self.CONTINUE, self.SETTINGS]
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title=_("Action Required"),
+            status_icon_name=SeedSignerIconConstants.MICROSD,
+            status_headline=None,
+            text=_("You must remove the\nMicroSD card to continue."),
+            show_back_button=False,
+            button_data=button_data,
+        )
+
+        if button_data[selected_menu_num] == self.CONTINUE:
+            from seedsigner.hardware.microsd import MicroSD
+            if not MicroSD.get_instance().is_inserted:
+                return Destination(MainMenuView, clear_history=True)
+            else:
+                return Destination(RemoveMicroSDWarningView, clear_history=True)
+
+        elif button_data[selected_menu_num] == self.SETTINGS:
+            from seedsigner.views.settings_views import SettingsEntryUpdateSelectionView
+            return Destination(
+                SettingsEntryUpdateSelectionView, 
+                view_args=dict(
+                    attr_name=SettingsConstants.SETTING__MICROSD_TOAST_TIMER,
+                    blocking_view=RemoveMicroSDWarningView,
+                    unblocking_view=MainMenuView
+                )
+            )

@@ -1,15 +1,17 @@
+from test_settings import SettingsQRBase
 from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
 
 
 
-class TestSettingsQRDecoder:
+
+class TestSettingsQRDecoder(SettingsQRBase):
     def test_decode_settingsqr(self):
         """
         Assume the QR reader decodes the SettingsQR content correctly and begin this test
         with parsing the result.
         """
         settings_name = "Test SettingsQR"
-        settings_qr_str = f"""settings::v1 name={ settings_name.replace(" ", "_") } persistent=D coords=spa,spd denom=thr network=M qr_density=M xpub_export=E sigs=ss,ms scripts=nat,nes,tr xpub_details=E passphrase=E camera=180 compact_seedqr=E bip85=D priv_warn=E dire_warn=E partners=E"""
+        settings_qr_str = f"""{self.settingsqr_prefix} name={ settings_name.replace(" ", "_") } {self.settingsqr_default_attrs_str}"""
 
         # Now parse the settings_qr_str
         decoder = DecodeQR()

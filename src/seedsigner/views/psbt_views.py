@@ -22,7 +22,7 @@ class PSBTSelectSeedView(View):
         # multisig where we want to sign with more than one key on this device.
         if not self.controller.psbt:
             # Shouldn't be able to get here
-            raise Exception("No PSBT currently loaded")
+            raise Exception("No transaction currently loaded")
 
         if self.controller.psbt_seed:
              if PSBTParser.has_matching_input_fingerprint(psbt=self.controller.psbt, seed=self.controller.psbt_seed, network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)):
@@ -166,11 +166,12 @@ class PSBTOverviewView(View):
 
 class PSBTUnsupportedScriptTypeWarningView(View):
     def run(self):
-        selected_menu_num = WarningScreen(
+        selected_menu_num = self.run_screen(
+            WarningScreen,
             status_headline=_("Unsupported Script Type!"),
-            text=_("PSBT has unsupported input script type, please verify your change addresses."),
+            text=_("Transaction has unsupported input script type, please verify your change addresses."),
             button_data=[ButtonOption("Continue")],
-        ).display()
+        )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -186,12 +187,13 @@ class PSBTUnsupportedScriptTypeWarningView(View):
 
 class PSBTNoChangeWarningView(View):
     def run(self):
-        selected_menu_num = WarningScreen(
+        selected_menu_num = self.run_screen(
+            WarningScreen,
             # TRANSLATOR_NOTE: User will receive no change back; the inputs to this transaction are fully spent
             status_headline=_("Full Spend!"),
-            text=_("This PSBT spends its entire input value. No change is coming back to your wallet."),
+            text=_("This transaction spends its entire input value. No change is coming back to your wallet."),
             button_data=[ButtonOption("Continue")],
-        ).display()
+        )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -265,7 +267,7 @@ class PSBTAddressDetailsView(View):
 
         button_data = []
         if self.address_num < psbt_parser.num_destinations - 1:
-            button_data.append(ButtonOption("Next Recipient"))
+            button_data.append(ButtonOption("Next recipient"))
         else:
             # TRANSLATOR_NOTE: Short for "Next step"
             button_data.append(ButtonOption("Next"))
@@ -300,8 +302,8 @@ class PSBTAddressDetailsView(View):
 
 class PSBTChangeDetailsView(View):
     NEXT = ButtonOption("Next")
-    SKIP_VERIFICATION = ButtonOption("Skip Verification")
-    VERIFY_MULTISIG = ButtonOption("Verify Multisig Change")
+    SKIP_VERIFICATION = ButtonOption("Skip verification")
+    VERIFY_MULTISIG = ButtonOption("Verify multisig change")
 
     def __init__(self, change_address_num):
         super().__init__()
@@ -348,7 +350,7 @@ class PSBTChangeDetailsView(View):
             title = _("Your Change")
         else:
             title = _("Self-Transfer")
-            self.VERIFY_MULTISIG.button_label = _("Verify Multisig Addr")
+            self.VERIFY_MULTISIG.button_label = _("Verify multisig addr")
         # if psbt_parser.num_change_outputs > 1:
         #     title += f" (#{self.change_address_num + 1})"
 
@@ -461,18 +463,19 @@ class PSBTAddressVerificationFailedView(View):
     def run(self):
         if self.is_multisig:
             # TRANSLATOR_NOTE: Variable is either "change" or "self-transfer".
-            text = _("PSBT's {} address could not be verified from wallet descriptor.").format(_("change") if self.is_change else _("self-transfer"))
+            text = _("Transaction's {} address could not be verified from wallet descriptor.").format(_("change") if self.is_change else _("self-transfer"))
         else:
             # TRANSLATOR_NOTE: Variable is either "change" or "self-transfer".
-            text = _("PSBT's {} address could not be generated from your seed.").format(_("change") if self.is_change else _("self-transfer"))
+            text = _("Transaction's {} address could not be generated from your seed.").format(_("change") if self.is_change else _("self-transfer"))
         
-        DireWarningScreen(
-            title=_("Suspicious PSBT"),
+        self.run_screen(
+            DireWarningScreen,
+            title=_("Suspicious Transaction"),
             status_headline=_("Address Verification Failed"),
             text=text,
-            button_data=[ButtonOption("Discard PSBT")],
+            button_data=[ButtonOption("Discard transaction")],
             show_back_button=False,
-        ).display()
+        )
 
         # We're done with this PSBT. Route back to MainMenuView which always
         #   clears all ephemeral data (except in-memory seeds).
@@ -512,7 +515,7 @@ class PSBTOpReturnView(View):
 class PSBTFinalizeView(View):
     """
     """
-    APPROVE_PSBT = ButtonOption("Approve PSBT")
+    APPROVE_PSBT = ButtonOption("Approve transaction")
 
     
     def run(self):
@@ -569,7 +572,7 @@ class PSBTSignedQRDisplayView(View):
 
 
 class PSBTSigningErrorView(View):
-    SELECT_DIFF_SEED = ButtonOption("Select Diff Seed")
+    SELECT_DIFF_SEED = ButtonOption("Select different seed")
     
     def run(self):
         psbt_parser: PSBTParser = self.controller.psbt_parser
@@ -580,7 +583,7 @@ class PSBTSigningErrorView(View):
         # Just a WarningScreen here; only use DireWarningScreen for true security risks.
         selected_menu_num = self.run_screen(
             WarningScreen,
-            title=_("PSBT Error"),
+            title=_("Transaction Error"),
             status_icon_name=SeedSignerIconConstants.WARNING,
             status_headline=_("Signing Failed"),
             text=_("Signing with this seed did not add a valid signature."),

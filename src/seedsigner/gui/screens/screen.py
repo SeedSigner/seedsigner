@@ -1,3 +1,4 @@
+import math
 import logging
 import time
 
@@ -277,6 +278,17 @@ class ButtonOption:
     button_label_color: str = None
     return_data: Any = None
     active_button_label: str = None  # Changes displayed button label when button is active
+    font_name: str = None  # Optional override
+    font_size: int = None  # Optional override
+
+
+
+@dataclass
+class ButtonOptionWithoutTranslation(ButtonOption):
+    """
+    Same as ButtonOption but does NOT translate button_label or active_button_label.
+    The labels are also not extracted for translation by babel.
+    """
 
 
 
@@ -286,15 +298,20 @@ class ButtonListScreen(BaseTopNavScreen):
     selected_button: int = 0
     is_button_text_centered: bool = True
     is_bottom_list: bool = False
+
+    # Cannot define these class attrs w/the get_*_font_*() methods because the attrs will
+    # not be dynamically reinterpreted after initial class import.
     button_font_name: str = None
     button_font_size: int = None
+
     button_selected_color: str = GUIConstants.ACCENT_COLOR
 
     # Params for version of list used for Settings
     Button_cls = Button
     checked_buttons: List[int] = None
 
-    # Enables returning w/buttons rendered at the same place
+    # Enables returning w/buttons rendered at the same place; default behavior will
+    # ensure the screen is at least scrolled to reveal the `selected_button`.
     scroll_y_initial_offset: int = None
 
 
@@ -322,40 +339,46 @@ class ButtonListScreen(BaseTopNavScreen):
             button_list_y = self.top_nav.height
             self.has_scroll_arrows = True
 
+            # How many buttons fit on the screen before we need to start scrolling?
+            num_buttons_pre_scroll = math.floor((self.canvas_height - button_list_y - GUIConstants.EDGE_PADDING) / (button_height + GUIConstants.LIST_ITEM_PADDING))
+
+            # Force a scroll offset when necessary if none was provided
+            if self.selected_button + 1 > num_buttons_pre_scroll and not self.scroll_y_initial_offset:
+                # Scroll far enough to expose the selected button; +1 to account for the
+                # height of the target button itself!
+                self.scroll_y_initial_offset = (button_height + GUIConstants.LIST_ITEM_PADDING) * (self.selected_button - num_buttons_pre_scroll + 1)
+
         self.buttons: List[Button] = []
         for i, button_option in enumerate(self.button_data):
-            icon_name = None
-            icon_color = None
-            right_icon_name = None
-            button_label_color = None
-
-            if type(button_option) == ButtonOption:
-                button_label = button_option.button_label
-                icon_name = button_option.icon_name
-                icon_color = button_option.icon_color
-                right_icon_name = button_option.right_icon_name
-                button_label_color = button_option.button_label_color
-                active_button_label = button_option.active_button_label
-            
-            else:
+            if not isinstance(button_option, ButtonOption):
                 raise Exception("Refactor to ButtonOption approach needed!")
 
+            if isinstance(button_option, ButtonOptionWithoutTranslation):
+                # Don't wrap labels in _()
+                button_label = button_option.button_label
+                active_button_label = button_option.active_button_label
+            else:
+                # Wrap labels in _() for just-in-time translations
+                button_label = _(button_option.button_label)
+                active_button_label = _(button_option.active_button_label)
+
+            # TODO: Refactor `Button` to optionally use ButtonOption directly?
             button_kwargs = dict(
-                text=_(button_label),  # Wrap here for just-in-time translations
-                active_text=_(active_button_label),  # Wrap here for just-in-time translations
-                icon_name=icon_name,
-                icon_color=icon_color if icon_color else GUIConstants.BUTTON_FONT_COLOR,
+                text=button_label,
+                active_text=active_button_label,
+                icon_name=button_option.icon_name,
+                icon_color=button_option.icon_color if button_option.icon_color else GUIConstants.BUTTON_FONT_COLOR,
                 is_icon_inline=True,
-                right_icon_name=right_icon_name,
+                right_icon_name=button_option.right_icon_name,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=button_list_y + i * (button_height + GUIConstants.LIST_ITEM_PADDING),
                 scroll_y=self.scroll_y_initial_offset if self.scroll_y_initial_offset is not None else 0,
                 width=self.canvas_width - (2 * GUIConstants.EDGE_PADDING),
                 height=button_height,
                 is_text_centered=self.is_button_text_centered,
-                font_name=self.button_font_name,
-                font_size=self.button_font_size,
-                font_color=button_label_color if button_label_color else GUIConstants.BUTTON_FONT_COLOR,
+                font_name=button_option.font_name if button_option.font_name else self.button_font_name,
+                font_size=button_option.font_size if button_option.font_size else self.button_font_size,
+                font_color=button_option.button_label_color if button_option.button_label_color else GUIConstants.BUTTON_FONT_COLOR,
                 selected_color=self.button_selected_color,
                 is_scrollable_text=True,  # We need to use the ScrollableText class for long button labels
             )
@@ -366,7 +389,6 @@ class ButtonListScreen(BaseTopNavScreen):
 
         if self.has_scroll_arrows:
             self.arrow_half_width = 10
-            self.cur_scroll_y = self.scroll_y_initial_offset if self.scroll_y_initial_offset is not None else 0
             self.up_arrow_img = Image.new("RGBA", size=(2 * self.arrow_half_width, 8), color="black")
             self.up_arrow_img_y = self.top_nav.height - 12
             arrow_draw = ImageDraw.Draw(self.up_arrow_img)
@@ -553,8 +575,12 @@ class ButtonListScreen(BaseTopNavScreen):
 @dataclass
 class LargeButtonScreen(BaseTopNavScreen):
     button_data: list = None
+
+    # Cannot define these class attrs w/the get_*_font_*() methods because the attrs will
+    # not be dynamically reinterpreted after initial class import.
     button_font_name: str = None
     button_font_size: int = None
+
     button_selected_color: str = GUIConstants.ACCENT_COLOR
     selected_button: int = 0
 
@@ -562,6 +588,7 @@ class LargeButtonScreen(BaseTopNavScreen):
         if not self.button_font_name:
             self.button_font_name = GUIConstants.get_button_font_name()
         if not self.button_font_size:
+            # TODO: Define the +2 with a constant or via a formula (e.g. int(x * 1.1))
             self.button_font_size = GUIConstants.get_button_font_size() + 2
 
         super().__post_init__()
@@ -569,9 +596,11 @@ class LargeButtonScreen(BaseTopNavScreen):
         if len(self.button_data) not in [2, 4]:
             raise Exception("LargeButtonScreen only supports 2 or 4 buttons")
 
-        # Maximize 2-across width; calc height with a 4:3 aspect ratio
+        # Maximize 2-across width
         button_width = int((self.canvas_width - (2 * GUIConstants.EDGE_PADDING) - GUIConstants.COMPONENT_PADDING) / 2)
-        button_height = int(button_width * (3.0 / 4.0))
+
+        # Maximize 2-row height
+        button_height = int((self.canvas_height - self.top_nav.height - (2 * GUIConstants.COMPONENT_PADDING) - GUIConstants.EDGE_PADDING) / 2)
 
         # Vertically center the buttons
         if len(self.button_data) == 2:
@@ -774,7 +803,6 @@ class QRDisplayScreen(BaseScreen):
                 width=int(rectangle_width/2),
                 screen_x=chevron_up_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_y=chevron_up_icon.screen_y - 2,  # -2 to account for Icon's positioning
-                allow_text_overflow=False
             ).render()
 
             # TRANSLATOR_NOTE: Decrease QR code screen brightness
@@ -792,7 +820,6 @@ class QRDisplayScreen(BaseScreen):
                 width=int(rectangle_width/2),
                 screen_x=chevron_down_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_y=chevron_down_icon.screen_y - 2,  # -2 to account for Icon's positioning
-                allow_text_overflow=False
             ).render()
 
             # Write our temp Image onto the main image
@@ -894,7 +921,6 @@ class LargeIconStatusScreen(ButtonListScreen):
     text: str = ""                          # The body text of the screen
     text_edge_padding: int = GUIConstants.EDGE_PADDING
     button_data: list = None
-    allow_text_overflow: bool = False
 
 
     def __post_init__(self):
@@ -1020,7 +1046,7 @@ class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
     status_icon_name: str = SeedSignerIconConstants.WARNING
     status_color: str = GUIConstants.WARNING_COLOR
     status_headline: str = _mft("Privacy Leak!")     # The colored text under the alert icon
-    button_data: list = field(default_factory=lambda: [ButtonOption("I Understand")])
+    button_data: list = field(default_factory=lambda: [ButtonOption("I understand")])
 
 
 
@@ -1054,21 +1080,6 @@ class ResetScreen(BaseTopNavScreen):
 
         self.components.append(TextArea(
             text=_("SeedSigner is restarting.\n\nAll in-memory data will be wiped."),
-            screen_y=self.top_nav.height,
-            height=self.canvas_height - self.top_nav.height,
-        ))
-
-
-
-@dataclass
-class PowerOffScreen(BaseTopNavScreen):
-    def __post_init__(self):
-        self.title = _("Powering Off")
-        self.show_back_button = False
-        super().__post_init__()
-
-        self.components.append(TextArea(
-            text=_("Please wait about 30 seconds before disconnecting power."),
             screen_y=self.top_nav.height,
             height=self.canvas_height - self.top_nav.height,
         ))
@@ -1214,6 +1225,8 @@ class KeyboardScreen(BaseTopNavScreen):
             )
 
             with self.renderer.lock:
+                # Track if we need to update the title after input changes
+                title_needs_update = False
                 # Check possible exit conditions   
                 if self.top_nav.is_selected and input == HardwareButtonsConstants.KEY_PRESS:
                     return RET_CODE__BACK_BUTTON
@@ -1259,7 +1272,8 @@ class KeyboardScreen(BaseTopNavScreen):
                         if len(self.user_input) > 0:
                             self.user_input = self.user_input[:-1]
                             self.cursor_position -= 1
-
+                            title_needs_update = True
+                            
                 elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
                     # User has locked in the current letter
                     if self.keys_to_values:
@@ -1267,19 +1281,20 @@ class KeyboardScreen(BaseTopNavScreen):
                         ret_val = self.keys_to_values[ret_val]
                     self.user_input += ret_val
                     self.cursor_position += 1
+                    title_needs_update = True
 
                     if self.cursor_position == self.return_after_n_chars:
                         return self.user_input
 
-                    # Render a new TextArea over the TopNav title bar
-                    if self.update_title():
-                        TextArea(
-                            text=self.title,
-                            font_name=GUIConstants.get_top_nav_title_font_name(),
-                            font_size=GUIConstants.get_top_nav_title_font_size(),
-                            height=self.top_nav.height,
-                        ).render()
-                        self.top_nav.render_buttons()
+                # Update the title if input changed (add or delete)
+                if title_needs_update and self.update_title():
+                    TextArea(
+                        text=self.title,
+                        font_name=GUIConstants.get_top_nav_title_font_name(),
+                        font_size=GUIConstants.get_top_nav_title_font_size(),
+                        height=self.top_nav.height,
+                    ).render()
+                    self.top_nav.render_buttons()
 
                 elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
                     # Live joystick movement; haven't locked this new letter in yet.
