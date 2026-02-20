@@ -276,6 +276,7 @@ class Fonts(Singleton):
         if size not in cls.fonts[font_name]:
 
             # loop over possible font locations and attempt to load font object
+            # TODO: single location for all font files
             captured_exception = None
             for font_path in cls.font_paths:
                 try:
@@ -285,7 +286,7 @@ class Fonts(Singleton):
                     captured_exception = e
                     continue
 
-            # throw error at this point is font object was unable to be loaded
+            # throw error at this point if font object was unable to be loaded
             if size not in cls.fonts[font_name]:
                 if "cannot open resource" in str(captured_exception):
                     raise Exception(f"Font {font_name}.{file_extension} not found: {repr(captured_exception)}")
