@@ -3,7 +3,6 @@ import random
 import time
 
 from binascii import hexlify
-from gettext import gettext as _
 
 from embit.descriptor import Descriptor
 
