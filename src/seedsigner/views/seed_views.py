@@ -2375,3 +2375,5 @@ class SeedSignMessageSignedMessageQRView(View):
 
         # Exiting/Canceling the QR display screen always returns Home
         return Destination(MainMenuView, skip_current_view=True)
+
+# === ENCRYPTED_QR_V4 - translate import fixed - Feb 21 2026 ===
