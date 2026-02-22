@@ -88,6 +88,14 @@ class ScanView(View):
                         return Destination(SeedAddPassphraseView)
                     else:
                         return Destination(SeedFinalizeView)
+
+            elif self.decoder.is_encrypted_seed:
+                from .seed_views import EncryptedSeedPassphraseView
+                if self.settings.get_value(SettingsConstants.SETTING__ENCRYPTED_SEEDS) == SettingsConstants.OPTION__DISABLED:
+                    from .view import OptionDisabledView
+                    return Destination(OptionDisabledView, view_args=dict(settings_attr=SettingsConstants.SETTING__ENCRYPTED_SEEDS))
+                encrypted_data = self.decoder.get_encrypted_seed_data()
+                return Destination(EncryptedSeedPassphraseView, view_args=dict(encrypted_data=encrypted_data))
             
             elif self.decoder.is_psbt:
                 from seedsigner.views.psbt_views import PSBTSelectSeedView
