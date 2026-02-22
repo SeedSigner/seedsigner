@@ -11,8 +11,9 @@ class DecryptionError(Exception):
 # ---------------------------------------------------------------------------
 # Minimal pure-Python AES-256-CBC decryption (no external dependencies).
 #
-# Only decryption is implemented — encryption is not needed.  The lookup
-# tables (S-box, T-tables) are the standard AES constants.
+# Only decryption is implemented — encryption is not needed.  Lookup tables
+# are precomputed at import time to avoid per-byte GF(2^8) multiplication
+# in the hot loop (important on Pi Zero).
 # ---------------------------------------------------------------------------
 
 # AES S-box
@@ -42,10 +43,6 @@ _INV_SBOX = tuple(_SBOX.index(i) for i in range(256))
 _RCON = (0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1b,0x36)
 
 
-def _xtime(a):
-    return ((a << 1) ^ 0x11b) & 0xff if a & 0x80 else (a << 1) & 0xff
-
-
 def _gmul(a, b):
     """Galois field multiplication in GF(2^8)."""
     p = 0
@@ -58,6 +55,15 @@ def _gmul(a, b):
             a ^= 0x1b
         b >>= 1
     return p
+
+
+# Precomputed multiplication tables for InvMixColumns constants.
+# Each table maps byte value (0-255) to its product with the constant.
+# This replaces per-byte _gmul calls in the hot loop with O(1) lookups.
+_MUL9  = tuple(_gmul(i, 0x09) for i in range(256))
+_MUL11 = tuple(_gmul(i, 0x0b) for i in range(256))
+_MUL13 = tuple(_gmul(i, 0x0d) for i in range(256))
+_MUL14 = tuple(_gmul(i, 0x0e) for i in range(256))
 
 
 def _key_expansion(key: bytes) -> list:
@@ -87,7 +93,6 @@ def _key_expansion(key: bytes) -> list:
 def _inv_cipher_block(block: bytes, rk: list) -> bytes:
     """Decrypt one 16-byte AES block (AES-256, 14 rounds)."""
     nr = 14
-    # State as 4x4 column-major matrix stored as list of 16 bytes
     s = list(block)
 
     # AddRoundKey (round nr)
@@ -115,15 +120,15 @@ def _inv_cipher_block(block: bytes, rk: list) -> bytes:
             s[c * 4 + 2] ^= (w >> 8) & 0xff
             s[c * 4 + 3] ^= w & 0xff
 
-        # InvMixColumns
+        # InvMixColumns (using precomputed lookup tables)
         ns = list(s)
         for c in range(4):
             i = c * 4
             a0, a1, a2, a3 = s[i], s[i+1], s[i+2], s[i+3]
-            ns[i]   = _gmul(a0,0x0e) ^ _gmul(a1,0x0b) ^ _gmul(a2,0x0d) ^ _gmul(a3,0x09)
-            ns[i+1] = _gmul(a0,0x09) ^ _gmul(a1,0x0e) ^ _gmul(a2,0x0b) ^ _gmul(a3,0x0d)
-            ns[i+2] = _gmul(a0,0x0d) ^ _gmul(a1,0x09) ^ _gmul(a2,0x0e) ^ _gmul(a3,0x0b)
-            ns[i+3] = _gmul(a0,0x0b) ^ _gmul(a1,0x0d) ^ _gmul(a2,0x09) ^ _gmul(a3,0x0e)
+            ns[i]   = _MUL14[a0] ^ _MUL11[a1] ^ _MUL13[a2] ^ _MUL9[a3]
+            ns[i+1] = _MUL9[a0]  ^ _MUL14[a1] ^ _MUL11[a2] ^ _MUL13[a3]
+            ns[i+2] = _MUL13[a0] ^ _MUL9[a1]  ^ _MUL14[a2] ^ _MUL11[a3]
+            ns[i+3] = _MUL11[a0] ^ _MUL13[a1] ^ _MUL9[a2]  ^ _MUL14[a3]
         s = ns
 
     # Final round (no InvMixColumns)

@@ -1,19 +1,4 @@
-import sys
 from unittest.mock import MagicMock, patch
-
-# === MOCK ALL non-existent hardware + heavy imports (macOS only) ===
-sys.modules['RPi'] = MagicMock()
-sys.modules['RPi.GPIO'] = MagicMock()
-sys.modules['board'] = MagicMock()
-sys.modules['digitalio'] = MagicMock()
-sys.modules['adafruit_ssd1306'] = MagicMock()
-sys.modules['spidev'] = MagicMock()
-sys.modules['smbus'] = MagicMock()
-sys.modules['smbus2'] = MagicMock()
-sys.modules['gpiozero'] = MagicMock()
-sys.modules['numpy'] = MagicMock()          # fixes the background thread error
-
-import pytest
 
 from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
 from seedsigner.models.qr_type import QRType
