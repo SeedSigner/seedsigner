@@ -18,8 +18,8 @@ from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
 from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
 
-from seedsigner.helpers.translate import _
-from seedsigner.helpers.translate import _mft
+from gettext import gettext as _
+from seedsigner.helpers.l10n import mark_for_translation as _mft
 
 logger = logging.getLogger(__name__)
 
