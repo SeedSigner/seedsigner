@@ -180,7 +180,13 @@ def _aes256_cbc_decrypt(key: bytes, iv: bytes, ciphertext: bytes) -> bytes:
 def decrypt_openssl_aes256cbc(data_b64: str, passphrase: str) -> str:
     """
     Decrypts OpenSSL-compatible AES-256-CBC data (base64, starts with "U2FsdGVkX1").
-    Matches: openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -base64
+    Matches: openssl enc -aes-256-cbc -pbkdf2 [-iter N] -base64
+
+    The PBKDF2 iteration count is not stored in the ciphertext, so we try
+    common values: 10 000 (OpenSSL default when -iter is omitted) and
+    100 000 (commonly recommended).  The first one that yields valid
+    PKCS#7 padding and UTF-8 plaintext wins.
+
     Returns plaintext UTF-8 string (the mnemonic).
     Raises DecryptionError on any failure.
     """
@@ -199,18 +205,19 @@ def decrypt_openssl_aes256cbc(data_b64: str, passphrase: str) -> str:
         if len(ciphertext) % 16 != 0:
             raise DecryptionError("Ciphertext length not multiple of AES block size (16)")
 
-        # 4. PBKDF2 derivation (100,000 iterations, 48 bytes = 32 key + 16 IV)
-        derived = hashlib.pbkdf2_hmac(
-            'sha256', passphrase.encode('utf-8'), salt, 100000, dklen=48
-        )
-        key = derived[:32]
-        iv = derived[32:48]
+        # 4. Try PBKDF2 with common iteration counts
+        passphrase_bytes = passphrase.encode('utf-8')
+        for iterations in (10_000, 100_000):
+            try:
+                derived = hashlib.pbkdf2_hmac(
+                    'sha256', passphrase_bytes, salt, iterations, dklen=48
+                )
+                plaintext_bytes = _aes256_cbc_decrypt(derived[:32], derived[32:48], ciphertext)
+                return plaintext_bytes.decode('utf-8')
+            except (DecryptionError, UnicodeDecodeError):
+                continue
 
-        # 5. Decrypt AES-256-CBC + strip PKCS#7 padding
-        plaintext_bytes = _aes256_cbc_decrypt(key, iv, ciphertext)
-
-        # 6. Return as UTF-8
-        return plaintext_bytes.decode('utf-8')
+        raise DecryptionError("Decryption failed for all supported iteration counts")
 
     except Exception as e:
         if isinstance(e, DecryptionError):
