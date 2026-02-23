@@ -164,7 +164,108 @@ class Seed:
         return bip85.derive_mnemonic(root, bip85_num_words, bip85_index)
         
 
-    ### override operators    
+    @staticmethod
+    def _is_electrum_hmac(mnemonic_str: str) -> bool:
+        """Check if a mnemonic string has a valid Electrum segwit HMAC prefix.
+
+        Only checks for the segwit prefix ("100") since that is the only
+        Electrum seed type SeedSigner supports.  The standard prefix ("01") is
+        intentionally excluded because it is very short and causes false
+        positives when brute-forcing last-word variants during XOR
+        recombination (1-in-256 chance per candidate for 24-word seeds).
+        """
+        normalized = unicodedata.normalize("NFKD", mnemonic_str)
+        h = hmac.digest(b"Seed version", normalized.encode('utf-8'), hashlib.sha512).hex()
+        return h.startswith(SettingsConstants.ELECTRUM_SEED_SEGWIT)  # "100"
+
+
+    @staticmethod
+    def detect_mnemonic_type(mnemonic: list) -> str:
+        """
+        Detect whether a mnemonic is an Electrum seed or a standard BIP-39 seed.
+
+        After XOR recombination, the resulting mnemonic has a valid BIP-39 checksum
+        but the last word may differ from the original Electrum seed's last word
+        (since Electrum doesn't use BIP-39 checksums). To handle this, we check
+        all possible last words that share the same entropy bits — there are 16
+        possibilities for 12-word seeds (4 checksum bits) and 256 for 24-word
+        seeds (8 checksum bits).
+
+        Returns: "electrum" if any candidate matches, otherwise "bip39"
+        """
+        if isinstance(mnemonic, str):
+            mnemonic = mnemonic.split()
+
+        # First, check the mnemonic as-is
+        mnemonic_str = " ".join(mnemonic)
+        if Seed._is_electrum_hmac(mnemonic_str):
+            return "electrum"
+
+        # The BIP-39 checksum may have changed the last word. Try all possible
+        # last words that share the same entropy bits.
+        wordlist = bip39.WORDLIST
+        last_word = mnemonic[-1]
+        last_index = wordlist.index(last_word)
+
+        # For 12-word seeds: 4 checksum bits, so mask out bottom 4 bits
+        # For 24-word seeds: 8 checksum bits, so mask out bottom 8 bits
+        num_words = len(mnemonic)
+        checksum_bits = num_words // 3  # 4 for 12 words, 8 for 24 words
+        entropy_mask = ((1 << 11) - 1) ^ ((1 << checksum_bits) - 1)
+        entropy_prefix = last_index & entropy_mask
+
+        prefix_words = mnemonic[:-1]
+        for i in range(1 << checksum_bits):
+            candidate_index = entropy_prefix | i
+            if candidate_index == last_index:
+                continue  # Already checked
+            if candidate_index >= len(wordlist):
+                continue
+            candidate_word = wordlist[candidate_index]
+            candidate_str = " ".join(prefix_words + [candidate_word])
+            if Seed._is_electrum_hmac(candidate_str):
+                return "electrum"
+
+        return "bip39"
+
+
+    @staticmethod
+    def get_electrum_mnemonic(mnemonic: list) -> list:
+        """
+        Given a mnemonic from XOR recombination (with BIP-39 checksum), find
+        the exact last word that makes it a valid Electrum seed.
+
+        Returns the corrected mnemonic list, or None if not an Electrum seed.
+        """
+        if isinstance(mnemonic, str):
+            mnemonic = mnemonic.split()
+
+        wordlist = bip39.WORDLIST
+
+        # Check as-is first
+        if Seed._is_electrum_hmac(" ".join(mnemonic)):
+            return list(mnemonic)
+
+        last_index = wordlist.index(mnemonic[-1])
+        num_words = len(mnemonic)
+        checksum_bits = num_words // 3
+        entropy_mask = ((1 << 11) - 1) ^ ((1 << checksum_bits) - 1)
+        entropy_prefix = last_index & entropy_mask
+
+        prefix_words = mnemonic[:-1]
+        for i in range(1 << checksum_bits):
+            candidate_index = entropy_prefix | i
+            if candidate_index >= len(wordlist):
+                continue
+            candidate_word = wordlist[candidate_index]
+            candidate_mnemonic = prefix_words + [candidate_word]
+            if Seed._is_electrum_hmac(" ".join(candidate_mnemonic)):
+                return candidate_mnemonic
+
+        return None
+
+
+    ### override operators
     def __eq__(self, other):
         if isinstance(other, Seed):
             return self.seed_bytes == other.seed_bytes

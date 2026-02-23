@@ -345,6 +345,7 @@ class SettingsConstants:
     SETTING__COMPACT_SEEDQR = "compact_seedqr"
     SETTING__BIP85_CHILD_SEEDS = "bip85_child_seeds"
     SETTING__ELECTRUM_SEEDS = "electrum_seeds"
+    SETTING__SEED_XOR = "seed_xor"
     SETTING__ENCRYPTED_SEEDS = "encrypted_seeds"
     SETTING__MESSAGE_SIGNING = "message_signing"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
@@ -673,6 +674,12 @@ class SettingsDefinition:
                       help_text=_mft("Native Segwit only"),
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__DISABLED),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__SEED_XOR,
+                      display_name="Seed XOR",
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__ENABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__ENCRYPTED_SEEDS,
