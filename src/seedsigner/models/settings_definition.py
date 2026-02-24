@@ -678,7 +678,7 @@ class SettingsDefinition:
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__SEED_XOR,
                       abbreviated_name="xor_seeds",
-                      display_name="Seed XOR",
+                      display_name=_mft("Seed XOR"),
                       help_text=_mft("XOR two seeds"),
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__ENABLED),
