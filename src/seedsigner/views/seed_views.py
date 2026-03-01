@@ -10,8 +10,8 @@ from seedsigner.gui.components import GUIConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens, LargeIconStatusScreen)
-from seedsigner.gui.screens.screen import ButtonOption
-from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
+from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation
+from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterLegacyXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import Settings, SettingsConstants
@@ -185,7 +185,7 @@ class LoadSeedView(View):
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=_("Load A Seed"),
+            title=_("Load a Seed"),
             is_button_text_centered=False,
             button_data=button_data
         )
@@ -523,7 +523,7 @@ class SeedElectrumMnemonicStartView(View):
     def run(self):
         self.run_screen(
                 WarningScreen,
-                title=_("Electrum warning"),
+                title=_("Electrum Warning"),
                 status_headline=None,
                 text=_("Some features are disabled for Electrum seeds."),
                 show_back_button=False,
@@ -539,8 +539,7 @@ class SeedElectrumMnemonicStartView(View):
     Views for actions on individual seeds:
 ****************************************************************************"""
 class SeedOptionsView(View):
-    SCAN_PSBT = ButtonOption("Scan PSBT", SeedSignerIconConstants.QRCODE)
-    VERIFY_ADDRESS = ButtonOption("Verify addr")
+    SCAN_PSBT = ButtonOption("Scan transaction", SeedSignerIconConstants.QRCODE)
     EXPORT_XPUB = ButtonOption("Export xpub")
     EXPLORER = ButtonOption("Address explorer")
     SIGN_MESSAGE = ButtonOption("Sign message")
@@ -586,16 +585,9 @@ class SeedOptionsView(View):
 
         button_data = []
 
-        if self.controller.unverified_address:
-            # TODO: Verify that an addr verification flow can actually reach this code
-            addr = self.controller.unverified_address["address"][:7]
-            self.VERIFY_ADDRESS.button_label += f" {addr}"
-            button_data.append(self.VERIFY_ADDRESS)
-
         button_data.append(self.SCAN_PSBT)
         
-        if self.settings.get_value(SettingsConstants.SETTING__XPUB_EXPORT) == SettingsConstants.OPTION__ENABLED:
-            button_data.append(self.EXPORT_XPUB)
+        button_data.append(self.EXPORT_XPUB)
 
         button_data.append(self.EXPLORER)
         button_data.append(self.BACKUP)
@@ -612,7 +604,6 @@ class SeedOptionsView(View):
             seed_screens.SeedOptionsScreen,
             button_data=button_data,
             fingerprint=self.seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
-            has_passphrase=self.seed.passphrase is not None,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -623,9 +614,6 @@ class SeedOptionsView(View):
             from seedsigner.views.scan_views import ScanPSBTView
             self.controller.psbt_seed = self.controller.get_seed(self.seed_num)
             return Destination(ScanPSBTView)
-
-        elif button_data[selected_menu_num] == self.VERIFY_ADDRESS:
-            return Destination(SeedAddressVerificationView, view_args=dict(seed_num=self.seed_num))
 
         elif button_data[selected_menu_num] == self.EXPORT_XPUB:
             return Destination(SeedExportXpubSigTypeView, view_args=dict(seed_num=self.seed_num))
@@ -644,7 +632,7 @@ class SeedOptionsView(View):
             return Destination(SeedBackupView, view_args=dict(seed_num=self.seed_num))
 
         elif button_data[selected_menu_num] == self.BIP85_CHILD_SEED:
-            return Destination(SeedBIP85ApplicationModeView, view_args={"seed_num": self.seed_num})
+            return Destination(SeedBIP85SelectNumWordsView, view_args={"seed_num": self.seed_num})
 
         elif button_data[selected_menu_num] == self.DISCARD:
             return Destination(SeedDiscardView, view_args=dict(seed_num=self.seed_num))
@@ -746,7 +734,7 @@ class SeedExportXpubScriptTypeView(View):
                 del args["sig_type"]
                 return Destination(ToolsAddressExplorerAddressTypeView, view_args=args, skip_current_view=True)
             else:
-                return Destination(SeedExportXpubCoordinatorView, view_args=args, skip_current_view=True)
+                return Destination(SeedExportXpubQRFormatView, view_args=args, skip_current_view=True)
         
         title = _("Export Xpub")
         if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
@@ -781,7 +769,7 @@ class SeedExportXpubScriptTypeView(View):
                 del args["sig_type"]
                 return Destination(ToolsAddressExplorerAddressTypeView, view_args=args)
             else:
-                return Destination(SeedExportXpubCoordinatorView, view_args=args)
+                return Destination(SeedExportXpubQRFormatView, view_args=args)
 
 
 
@@ -812,7 +800,7 @@ class SeedExportXpubCustomDerivationView(View):
             return Destination(ToolsAddressExplorerAddressTypeView, view_args=dict(seed_num=self.seed_num, script_type=self.script_type, custom_derivation=custom_derivation))
 
         return Destination(
-            SeedExportXpubCoordinatorView,
+            SeedExportXpubQRFormatView,
             view_args={
                 "seed_num": self.seed_num,
                 "sig_type": self.sig_type,
@@ -823,7 +811,7 @@ class SeedExportXpubCustomDerivationView(View):
 
 
 
-class SeedExportXpubCoordinatorView(View):
+class SeedExportXpubQRFormatView(View):
     def __init__(self, seed_num: int, sig_type: str, script_type: str, custom_derivation: str = None):
         super().__init__()
         self.seed_num = seed_num
@@ -839,41 +827,39 @@ class SeedExportXpubCoordinatorView(View):
             "script_type": self.script_type,
             "custom_derivation": self.custom_derivation,
         }
-        if len(self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)) == 1:
+        if len(self.settings.get_value(SettingsConstants.SETTING__XPUB_QR_FORMAT)) == 1:
             # Nothing to select; skip this screen
-            args["coordinator"] = self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)[0]
+            args["xpub_qr_format"] = self.settings.get_value(SettingsConstants.SETTING__XPUB_QR_FORMAT)[0]
             return Destination(SeedExportXpubWarningView, view_args=args, skip_current_view=True)
 
         button_data = []
-        for display_name, setting_option in zip(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__COORDINATORS), self.settings.get_value(SettingsConstants.SETTING__COORDINATORS)):
+        for display_name, setting_option in zip(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__XPUB_QR_FORMAT), self.settings.get_value(SettingsConstants.SETTING__XPUB_QR_FORMAT)):
             button_data.append(ButtonOption(display_name, return_data=setting_option))
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=_("Export Xpub"),
+            title=_("Xpub QR Format"),
             is_button_text_centered=False,
             button_data=button_data,
+            is_bottom_list=True,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
 
-        # coordinators_settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__COORDINATORS)
-        # selected_display_name = button_data[selected_menu_num]
-        # args["coordinator"] = coordinators_settings_entry.get_selection_option_value_by_display_name(selected_display_name)
-        args["coordinator"] = button_data[selected_menu_num].return_data
+        args["xpub_qr_format"] = button_data[selected_menu_num].return_data
 
         return Destination(SeedExportXpubWarningView, view_args=args)
 
 
 
 class SeedExportXpubWarningView(View):
-    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, custom_derivation: str):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, xpub_qr_format: str, custom_derivation: str):
         super().__init__()
         self.seed_num = seed_num
         self.sig_type = sig_type
         self.script_type = script_type
-        self.coordinator = coordinator
+        self.xpub_qr_format = xpub_qr_format
         self.custom_derivation = custom_derivation
 
 
@@ -884,7 +870,7 @@ class SeedExportXpubWarningView(View):
                 "seed_num": self.seed_num,
                 "sig_type": self.sig_type,
                 "script_type": self.script_type,
-                "coordinator": self.coordinator,
+                "xpub_qr_format": self.xpub_qr_format,
                 "custom_derivation": self.custom_derivation,
             },
             skip_current_view=True,  # Prevent going BACK to WarningViews
@@ -914,11 +900,11 @@ class SeedExportXpubDetailsView(View):
         Collects the user input from all the previous screens leading up to this and
         finally calculates the xpub and displays the summary view to the user.
     """
-    def __init__(self, seed_num: int, sig_type: str, script_type: str, coordinator: str, custom_derivation: str):
+    def __init__(self, seed_num: int, sig_type: str, script_type: str, xpub_qr_format: str, custom_derivation: str):
         super().__init__()
         self.sig_type = sig_type
         self.script_type = script_type
-        self.coordinator = coordinator
+        self.xpub_qr_format = xpub_qr_format
         self.custom_derivation = custom_derivation
         
         self.seed_num = seed_num
@@ -973,7 +959,6 @@ class SeedExportXpubDetailsView(View):
             selected_menu_num = self.run_screen(
                 seed_screens.SeedExportXpubDetailsScreen,
                 fingerprint=fingerprint,
-                has_passphrase=self.seed.passphrase is not None,
                 derivation_path=derivation_path,
                 xpub=xpub_base58,
             )
@@ -982,7 +967,7 @@ class SeedExportXpubDetailsView(View):
             return Destination(
                 SeedExportXpubQRDisplayView,
                 dict(seed_num=self.seed_num,
-                     coordinator=self.coordinator,
+                     xpub_qr_format=self.xpub_qr_format,
                      derivation_path=derivation_path,
                      sig_type=self.sig_type
                 )
@@ -994,7 +979,7 @@ class SeedExportXpubDetailsView(View):
 
 
 class SeedExportXpubQRDisplayView(View):
-    def __init__(self, seed_num: int, coordinator: str, derivation_path: str, sig_type: str = SettingsConstants.SINGLE_SIG):
+    def __init__(self, seed_num: int, xpub_qr_format: str, derivation_path: str, sig_type: str = SettingsConstants.SINGLE_SIG):
         super().__init__()
         self.seed = self.controller.get_seed(seed_num)
 
@@ -1006,14 +991,14 @@ class SeedExportXpubQRDisplayView(View):
             sig_type=sig_type
         )
 
-        if coordinator == SettingsConstants.COORDINATOR__SPECTER_DESKTOP:
-            self.qr_encoder = SpecterXPubQrEncoder(**encoder_args)
-
-        elif coordinator in [SettingsConstants.COORDINATOR__BLUE_WALLET,
-                             SettingsConstants.COORDINATOR__KEEPER]:
+        if xpub_qr_format == SettingsConstants.XPUB_QR_FORMAT__STATIC:
             self.qr_encoder = StaticXpubQrEncoder(**encoder_args)
 
+        elif xpub_qr_format == SettingsConstants.XPUB_QR_FORMAT__SPECTER_LEGACY:
+            self.qr_encoder = SpecterLegacyXPubQrEncoder(**encoder_args)
+
         else:
+            # Default: UR crypto-address
             self.qr_encoder = UrXpubQrEncoder(**encoder_args)
 
 
@@ -1135,17 +1120,9 @@ class SeedWordsView(View):
 
 
 """****************************************************************************
-    BIP-85 - Derive child mnemonic (seed) flow
+    BIP-85 - Derive child mnemonic (seed) flow (Application number 39')
 ****************************************************************************"""
-class SeedBIP85ApplicationModeView(View):
-    """
-        * Ask the user the application type as defined in the BIP-85 spec.
-        * Currently only Word mode of 12, 24 words (Application number: 39')
-        * Possible future additions are
-        *  WIF (HDSEED)
-        *  XPRV (BIP-32)
-    """
-    # TODO: Future enhancement to display WIF (HD-SEED) and XPRV (BIP-32)?
+class SeedBIP85SelectNumWordsView(View):
     WORDS_12 = ButtonOption("12 Words")
     WORDS_24 = ButtonOption("24 Words")
 
@@ -1153,7 +1130,6 @@ class SeedBIP85ApplicationModeView(View):
         super().__init__()
         self.seed_num = seed_num
         self.num_words = 0
-        self.bip85_app_num = 39     # TODO: Support other Application numbers; TODO: Define this as a constant
 
 
     def run(self):
@@ -1316,10 +1292,10 @@ class SeedWordsBackupTestView(View):
             while self.cur_index in self.confirmed_list:
                 self.cur_index = int(random.random() * len(self.mnemonic_list))
 
-        real_word = ButtonOption(self.mnemonic_list[self.cur_index])
-        fake_word1 = ButtonOption(bip39.WORDLIST[int(random.random() * 2047)])
-        fake_word2 = ButtonOption(bip39.WORDLIST[int(random.random() * 2047)])
-        fake_word3 = ButtonOption(bip39.WORDLIST[int(random.random() * 2047)])
+        real_word = ButtonOptionWithoutTranslation(self.mnemonic_list[self.cur_index])
+        fake_word1 = ButtonOptionWithoutTranslation(bip39.WORDLIST[int(random.random() * 2047)])
+        fake_word2 = ButtonOptionWithoutTranslation(bip39.WORDLIST[int(random.random() * 2047)])
+        fake_word3 = ButtonOptionWithoutTranslation(bip39.WORDLIST[int(random.random() * 2047)])
 
         button_data = [real_word, fake_word1, fake_word2, fake_word3]
         random.shuffle(button_data)
@@ -1591,7 +1567,8 @@ class SeedTranscribeSeedQRZoomedInView(View):
         self.seedqr_format = seedqr_format
         self.seed = self.controller.get_seed(seed_num)
         self.initial_zone_x = initial_zone_x
-        self.initial_zone_y = initial_zone_y 
+        self.initial_zone_y = initial_zone_y
+        self.is_screensaver_allowed = False
 
 
     def run(self):
@@ -1883,7 +1860,8 @@ class SeedAddressVerificationView(View):
         self.seed_derivation_override = ""
         if not self.is_multisig:
             if seed_num is None:
-                raise Exception(_("Can't validate a single sig addr without specifying a seed"))
+                # Shouldn't be able to get here
+                raise Exception("Can't validate a single sig addr without specifying a seed")
             self.seed_num = seed_num
             self.seed = self.controller.get_seed(seed_num)
             self.seed_derivation_override = self.seed.derivation_override(sig_type=SettingsConstants.SINGLE_SIG)
@@ -2092,7 +2070,7 @@ class LoadMultisigWalletDescriptorView(View):
 
 
 class MultisigWalletDescriptorView(View):
-    RETURN = ButtonOption("Return to PSBT")
+    RETURN = ButtonOption("Return to transaction")
     VERIFY_ADDR = ButtonOption("Verify addr")
     ADDRESS_EXPLORER = ButtonOption("Address explorer")
     OK = ButtonOption("OK")

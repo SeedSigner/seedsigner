@@ -150,11 +150,15 @@ class SettingsEntryUpdateSelectionView(View):
         Handles changes to all selection-type settings (Multiselect, SELECT_1,
         Enabled/Disabled, etc).
     """
-    def __init__(self, attr_name: str, parent_initial_scroll: int = 0, selected_button: int = None):
+    def __init__(self, attr_name: str, parent_initial_scroll: int = 0, selected_button: int = None, blocking_view: View = None, unblocking_view: View = None):
         super().__init__()
         self.settings_entry = SettingsDefinition.get_settings_entry(attr_name)
         self.selected_button = selected_button
         self.parent_initial_scroll = parent_initial_scroll
+        # If the setting remains unchanged, navigation should return to blocking_view (if set)
+        self.blocking_view = blocking_view
+        # unblocking_view is an optional target to navigate to once the setting actually changes.
+        self.unblocking_view = unblocking_view
 
 
     def run(self):
@@ -200,6 +204,15 @@ class SettingsEntryUpdateSelectionView(View):
         )
 
         if ret_value == RET_CODE__BACK_BUTTON:
+            if self.settings_entry.type == SettingsConstants.TYPE__MULTISELECT:
+                # After the user finishes toggling multiselect options, initial_value will
+                # have their final selections when they hit BACK to exit. All current
+                # multiselect settings require at least one option to be selected.
+                if not initial_value:
+                    return Destination(SettingsSelectionRequiredWarningView, view_args={"attr_name": self.settings_entry.attr_name})
+
+            if self.blocking_view:
+                return Destination(self.blocking_view, clear_history=True)
             return settings_menu_view_destination
 
         value = self.settings_entry.get_selection_option_value(ret_value)
@@ -219,8 +232,7 @@ class SettingsEntryUpdateSelectionView(View):
 
         else:
             # All other types are single selects (e.g. Enabled/Disabled, SELECT_1)
-            if value == initial_value:
-                # No change, return to menu
+            if value == initial_value and not self.blocking_view:
                 return settings_menu_view_destination
             else:
                 updated_value = value
@@ -238,11 +250,52 @@ class SettingsEntryUpdateSelectionView(View):
 
         if destination:
             return destination
+        
+        # If this selection view was opened from a blocking flow (e.g. RemoveMicroSDWarningView),
+        # prevent navigation away until the setting actually changes. If it hasn't changed,
+        # return to the blocking view so it can re-evaluate the state.
+        if self.blocking_view:
+            current_value = self.settings.get_value(self.settings_entry.attr_name)
+            if current_value == initial_value:
+                return Destination(self.blocking_view, clear_history=True)
+            elif self.unblocking_view:
+                return Destination(self.unblocking_view, clear_history=True)
 
         # All selects stay in place; re-initialize where in the list we left off
         self.selected_button = ret_value
 
-        return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=self.settings_entry.attr_name, parent_initial_scroll=self.parent_initial_scroll, selected_button=self.selected_button), skip_current_view=True)
+        return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=self.settings_entry.attr_name, parent_initial_scroll=self.parent_initial_scroll, selected_button=self.selected_button, blocking_view=self.blocking_view, unblocking_view=self.unblocking_view), skip_current_view=True)
+
+
+
+class SettingsSelectionRequiredWarningView(View):
+    def __init__(self, attr_name: str):
+        super().__init__()
+        self.settings_entry = SettingsDefinition.get_settings_entry(attr_name)
+
+
+    def run(self):
+        from seedsigner.gui.screens.screen import WarningScreen
+
+        # TRANSLATOR_NOTE: Title of a warning dialog when configuring a setting that requires at least one option to be selected.
+        title = _("Selection Required")
+
+        # TRANSLATOR_NOTE: The name of the setting being configured (e.g. "Script types") will be inserted.
+        text = _("At least one option must be selected for \"{}\".").format(self.settings_entry.display_name)
+
+        # TRANSLATOR_NOTE: Text for the button that returns the user to the setting configuration screen.
+        button_text = _("Return to setting")
+
+        self.run_screen(
+            WarningScreen,
+            title=title,
+            status_headline=None,
+            text=text,
+            button_data=[ButtonOption(button_text)],
+            show_back_button=False,
+        )
+
+        return Destination(SettingsEntryUpdateSelectionView, view_args=dict(attr_name=self.settings_entry.attr_name))
 
 
 

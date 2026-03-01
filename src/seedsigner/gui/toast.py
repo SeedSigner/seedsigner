@@ -45,7 +45,6 @@ class ToastOverlay(BaseComponent):
             auto_line_break=True,
             width=self.canvas_width - icon_delta_x - 2 * GUIConstants.COMPONENT_PADDING - 2 * self.outline_thickness,
             screen_x=icon_delta_x + GUIConstants.COMPONENT_PADDING,
-            allow_text_overflow=False,
             height_ignores_below_baseline=True,
         )
         
@@ -137,7 +136,6 @@ class BaseToastOverlayManagerThread(BaseThread):
     def run(self):
         logger.info(f"{self.__class__.__name__}: started")
         start = time.time()
-        time.sleep(0.2)
         while time.time() - start < self.activation_delay:
             if self.hw_inputs.has_any_input():
                 # User has pressed a button, cancel the toast
@@ -202,11 +200,11 @@ class BaseToastOverlayManagerThread(BaseThread):
 
 
 class RemoveSDCardToastManagerThread(BaseToastOverlayManagerThread):
-    def __init__(self, activation_delay: int = 3, duration: int = 1e6):
+    def __init__(self, activation_delay: int = 3, duration: int = 5):
         """
             * activation_delay: configurable so the screenshot generator can get the
                 toast to immediately render.
-            * duration: default value is essentially forever. Overrideable for the
+            * duration: default value is 5 seconds. Overrideable for the
                 screenshot generator.
         """
         super().__init__(
