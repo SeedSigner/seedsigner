@@ -25,7 +25,7 @@ class TestCombineMnemonicsWithXOR(unittest.TestCase):
     """
     Tests the core XOR calculation logic, input validation, and error handling.
     """
-    
+
     def test_xor_24_word_example(self):
         """Tests the 3-part 24-word XOR calculation from the provided example. """
         mnemonics = [EXAMPLE_24_A, EXAMPLE_24_B, EXAMPLE_24_C]
@@ -52,7 +52,7 @@ class TestCombineMnemonicsWithXOR(unittest.TestCase):
         # Test 12-word case
         result_12 = combine_mnemonics_with_xor([EXAMPLE_12_A, EXAMPLE_12_A])
         self.assertEqual(result_12, ZERO_ENTROPY_MNEMONIC_12.split())
-        
+
         # Test 24-word case
         result_24 = combine_mnemonics_with_xor([EXAMPLE_24_A, EXAMPLE_24_A])
         self.assertEqual(result_24, ZERO_ENTROPY_MNEMONIC_24.split())
@@ -62,7 +62,7 @@ class TestCombineMnemonicsWithXOR(unittest.TestCase):
         """Tests that the function correctly processes mnemonics formatted as a list of words. """
         mnemonics = [EXAMPLE_12_A.split(), EXAMPLE_12_B]
         result = combine_mnemonics_with_xor(mnemonics)
-        
+
         expected_result = "person bitter door winner candy polar proud fringe early have bulb apple".split()
         self.assertEqual(result, expected_result)
 
@@ -74,8 +74,8 @@ class TestCombineMnemonicsWithXOR(unittest.TestCase):
 
 
     def test_raises_error_for_invalid_mnemonic(self):
-        """Ensures ValueError is raised for a mnemonic with an invalid word."""
-        invalid_mnemonic = "romance wink lottery autumn shop bring dawn tongue range crater truth xyzzy"  # 'xyzzy' is not in BIP-39 wordlist
+        """Ensures ValueError is raised for a mnemonic with a word not in the wordlist. """
+        invalid_mnemonic = "romance wink lottery autumn shop bring dawn tongue range crater truth notaword"
         with self.assertRaisesRegex(ValueError, "not in the dictionary"):
             combine_mnemonics_with_xor([EXAMPLE_12_A, invalid_mnemonic])
 
@@ -102,7 +102,7 @@ class TestSeedXORValidator(unittest.TestCase):
         self.shard_12_B.has_passphrase = False
         self.shard_12_B.mnemonic_str = EXAMPLE_12_B
         self.shard_12_B.mnemonic_list = EXAMPLE_12_B.split()
-        
+
         self.shard_24_A = MagicMock()
         self.shard_24_A.has_passphrase = False
         self.shard_24_A.mnemonic_str = EXAMPLE_24_A
@@ -161,4 +161,3 @@ class TestSeedXORValidator(unittest.TestCase):
         self.assertFalse(is_valid)
         self.assertEqual(error["title"], "Seed Inversion")
         self.assertIn("binary inverse of shard #1", error["message"])
-

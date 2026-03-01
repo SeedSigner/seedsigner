@@ -11,7 +11,7 @@ class SeedStorage:
         self._pending_mnemonic: List[str] = []
         self._pending_is_electrum : bool = False
         self.rebuild_seedxor_shards: List[Seed] = []
-        self.rebuild_seedxor_combined_seed: Seed = None        
+        self.rebuild_seedxor_combined_seed: Seed = None
 
 
     def set_pending_seed(self, seed: Seed):
@@ -122,4 +122,3 @@ class SeedStorage:
 
     def set_rebuild_seedxor_combined_seed(self, seed: Seed):
         self.rebuild_seedxor_combined_seed = seed
-

@@ -3,11 +3,12 @@ import random
 import time
 
 from binascii import hexlify
-from gettext import gettext as _ , ngettext
 
 from embit.descriptor import Descriptor
-from seedsigner.gui.components import GUIConstants
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
+
+from gettext import ngettext
+
+from seedsigner.gui.components import GUIConstants, FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens, LargeIconStatusScreen)
 from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation
@@ -17,9 +18,11 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
+from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, ErrorView, View, Destination, BackStackView, MainMenuView
 from seedsigner.helpers.mnemonic_generation import combine_mnemonics_with_xor
-from seedsigner.views.view import ErrorView
+
+from gettext import gettext as _
+from seedsigner.helpers.l10n import mark_for_translation as _mft
 
 logger = logging.getLogger(__name__)
 
@@ -165,8 +168,8 @@ class LoadSeedView(View):
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
-    CREATE = ButtonOption("Create a seed", SeedSignerIconConstants.PLUS)
     REBUILD_SEED_XOR = ButtonOption("Rebuild SeedXOR", SeedSignerIconConstants.PLUS)
+    CREATE = ButtonOption("Create a seed", SeedSignerIconConstants.PLUS)
 
     def run(self):
         button_data = [
@@ -180,23 +183,23 @@ class LoadSeedView(View):
 
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
-        
+
         button_data.append(self.CREATE)
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=_("Load a Seed"),
+            title=_("Load A Seed"),
             is_button_text_centered=False,
             button_data=button_data
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
         if button_data[selected_menu_num] == self.SEED_QR:
             from .scan_views import ScanSeedQRView
             return Destination(ScanSeedQRView)
-        
+
         elif button_data[selected_menu_num] == self.TYPE_12WORD:
             self.controller.storage.init_pending_mnemonic(num_words=12)
             return Destination(SeedMnemonicEntryView)
@@ -208,13 +211,12 @@ class LoadSeedView(View):
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
             return Destination(SeedElectrumMnemonicStartView)
 
+        elif button_data[selected_menu_num] == self.REBUILD_SEED_XOR:
+            return Destination(RebuildSeedXORManageView)
+
         elif button_data[selected_menu_num] == self.CREATE:
             from .tools_views import ToolsMenuView
             return Destination(ToolsMenuView)
-
-        elif button_data[selected_menu_num] == self.REBUILD_SEED_XOR:
-            from seedsigner.views.seed_views import RebuildSeedXORManageView
-            return Destination(RebuildSeedXORManageView)
 
 
 
@@ -227,7 +229,6 @@ class SeedMnemonicEntryView(View):
 
 
     def run(self):
-        from seedsigner.models.seed import Seed
         ret = self.run_screen(
             seed_screens.SeedMnemonicEntryScreen,
             # TRANSLATOR_NOTE: Inserts the word number (e.g. "Seed Word #6")
@@ -268,13 +269,13 @@ class SeedMnemonicEntryView(View):
             )
         else:
             # Attempt to finalize the mnemonic
-            from seedsigner.models.seed import InvalidSeedException, Seed
+            from seedsigner.models.seed import InvalidSeedException
             from seedsigner.controller import Controller
             try:
                 self.controller.storage.convert_pending_mnemonic_to_pending_seed()
             except InvalidSeedException:
                 return Destination(SeedMnemonicInvalidView)
-            
+
             if self.controller.resume_main_flow == Controller.FLOW__REBUILD_SEEDXOR:
                 return Destination(RebuildSeedXORShowFingerprintView)
             else:
@@ -468,7 +469,95 @@ class SeedReviewPassphraseView(View):
             seed_num = self.controller.storage.finalize_pending_seed()
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
             
+class EncryptedSeedPassphraseView(View):
+    def __init__(self, encrypted_data: str):
+        super().__init__()
+        self.encrypted_data = encrypted_data
 
+    def run(self):
+        ret_dict = self.run_screen(
+            seed_screens.SeedAddPassphraseScreen,
+            passphrase="",
+            title=_("Decryption Passphrase"),
+        )
+        if ret_dict == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        passphrase = ret_dict["passphrase"]
+        if not passphrase:
+            return Destination(EncryptedSeedPassphraseView,
+                               view_args=dict(encrypted_data=self.encrypted_data))
+
+        return Destination(EncryptedSeedDecryptView,
+                           view_args=dict(encrypted_data=self.encrypted_data, passphrase=passphrase))
+
+
+class EncryptedSeedDecryptView(View):
+    def __init__(self, encrypted_data: str, passphrase: str):
+        super().__init__()
+        self.encrypted_data = encrypted_data
+        self.passphrase = passphrase
+
+    def run(self):
+        from seedsigner.helpers.aes_decrypt import decrypt_openssl_aes256cbc, DecryptionError
+
+        try:
+            plaintext = decrypt_openssl_aes256cbc(self.encrypted_data, self.passphrase)
+        except DecryptionError:
+            return Destination(EncryptedSeedDecryptionFailedView,
+                               view_args=dict(encrypted_data=self.encrypted_data))
+
+        # Validate length
+        mnemonic_list = plaintext.strip().split()
+        if len(mnemonic_list) not in (12, 24):
+            return Destination(EncryptedSeedDecryptionFailedView,
+                               view_args=dict(encrypted_data=self.encrypted_data))
+
+        # Try BIP39 → Electrum
+        from seedsigner.models.seed import Seed, ElectrumSeed, InvalidSeedException
+        seed = None
+        try:
+            seed = Seed(mnemonic=mnemonic_list, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+        except InvalidSeedException:
+            if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+                try:
+                    seed = ElectrumSeed(mnemonic=mnemonic_list)
+                except InvalidSeedException:
+                    pass
+
+        if seed is None:
+            return Destination(EncryptedSeedDecryptionFailedView,
+                               view_args=dict(encrypted_data=self.encrypted_data))
+
+        self.controller.storage.set_pending_seed(seed)
+        if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
+            return Destination(SeedAddPassphraseView)
+        return Destination(SeedFinalizeView)
+
+
+class EncryptedSeedDecryptionFailedView(View):
+    RETRY = ButtonOption(_mft("Try Again"))
+    DISCARD = ButtonOption(_mft("Discard"))
+
+    def __init__(self, encrypted_data: str):
+        super().__init__()
+        self.encrypted_data = encrypted_data
+
+    def run(self):
+        button_data = [self.RETRY, self.DISCARD]
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
+            title=_("Decryption Failed"),
+            status_icon_name=SeedSignerIconConstants.ERROR,
+            status_headline=None,
+            text=_("Wrong passphrase or invalid seed data."),
+            show_back_button=False,
+            button_data=button_data,
+        )
+        if button_data[selected_menu_num] == self.RETRY:
+            return Destination(EncryptedSeedPassphraseView,
+                               view_args=dict(encrypted_data=self.encrypted_data))
+        return Destination(MainMenuView)
             
 class SeedDiscardView(View):
     KEEP = ButtonOption("Keep seed")
@@ -2328,7 +2417,7 @@ class RebuildSeedXORLoadShardView(View):
     def run(self):
         # Current shard number is the count + 1
         shard_num = len(self.controller.storage.rebuild_seedxor_shards) + 1
-        
+
         button_data = [
             self.SCAN_SHARD,
             self.TYPE_12WORD,
@@ -2353,18 +2442,17 @@ class RebuildSeedXORLoadShardView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(RebuildSeedXORManageView, clear_history=True)
-            
-        
+
         elif button_data[selected_menu_num] == self.SCAN_SHARD:
             from seedsigner.views.scan_views import ScanSeedQRView
             self.controller.resume_main_flow = self.controller.FLOW__REBUILD_SEEDXOR
             return Destination(ScanSeedQRView, view_args={"is_rebuild_seedxor_shard": True})
-        
+
         elif button_data[selected_menu_num] == self.TYPE_12WORD:
             self.controller.storage.init_pending_mnemonic(num_words=12)
             self.controller.resume_main_flow = self.controller.FLOW__REBUILD_SEEDXOR
             return Destination(SeedMnemonicEntryView)
-        
+
         elif button_data[selected_menu_num] == self.TYPE_24WORD:
             self.controller.storage.init_pending_mnemonic(num_words=24)
             self.controller.resume_main_flow = self.controller.FLOW__REBUILD_SEEDXOR
@@ -2402,27 +2490,21 @@ class RebuildSeedXORErrorView(ErrorView):
 
 class RebuildSeedXORShowFingerprintView(View):
     """Show the fingerprint of the shard being added to the Seed XOR."""
-    
+
     CONTINUE = ButtonOption("Continue")
     CANCEL = ButtonOption("Discard shard", button_label_color="red")
-    
+
     def __init__(self):
         super().__init__()
         self.seed = self.controller.storage.get_pending_seed()
         network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
         self.fingerprint = self.seed.get_fingerprint(network=network)
         self.next_shard_num = len(self.controller.storage.rebuild_seedxor_shards) + 1
-    
+
     def run(self):
         button_data = [self.CONTINUE, self.CANCEL]
-        
-        # TRANSLATOR_NOTE: This is a screen title showing the number of a seed "shard".
-        # A shard is one of several seed phrases being combined. The "{}" will be
-        # replaced by the shard's number (e.g., "Shard #2").
-        title = _("Shard #{}").format(self.next_shard_num)
 
-        # TRANSLATOR_NOTE: This is a headline on a screen that displays a seed's
-        # "fingerprint", which is a short, unique identifier for a seed phrase.
+        title = _("Shard #{}").format(self.next_shard_num)
         status_headline = _("Shard Fingerprint")
 
         selected_menu_num = self.run_screen(
@@ -2434,13 +2516,13 @@ class RebuildSeedXORShowFingerprintView(View):
             text=self.fingerprint,
             button_data=button_data,
         )
-        
+
         if selected_menu_num == RET_CODE__BACK_BUTTON or button_data[selected_menu_num] == self.CANCEL:
             self.controller.storage.clear_pending_seed()
             return Destination(RebuildSeedXORLoadShardView)
-        
+
         error_dict = self.controller.process_rebuild_seedxor_shard(self.seed)
-        
+
         if error_dict:
             self.controller.storage.clear_pending_seed()
             return Destination(
@@ -2462,36 +2544,32 @@ class RebuildSeedXORShowFingerprintView(View):
 
 class RebuildSeedXORManageView(View):
     """Main management screen for rebuild Seed XOR flow."""
-    
+
     LOAD_NEXT_SHARD = ButtonOption("Load Next shard", SeedSignerIconConstants.PLUS)
     VIEW_LOADED_SHARDS = ButtonOption("Loaded shard", SeedSignerIconConstants.SEEDS)
-    REMOVE_SHARDS = ButtonOption("Remove shard", SeedSignerIconConstants.CLOSE)
+    REMOVE_SHARDS = ButtonOption("Remove shard", FontAwesomeIconConstants.X)
     CANCEL = ButtonOption("Cancel Seed XOR", button_label_color="red")
     FINALIZE = ButtonOption("Combine shards", SeedSignerIconConstants.CHECK)
-    
+
     def __init__(self):
         super().__init__()
         self.num_shards = len(self.controller.storage.rebuild_seedxor_shards)
-        
+
     def run(self):
         button_data = []
-        
+
         # Always show Load Next Shard option
         button_data.append(self.LOAD_NEXT_SHARD)
-        
+
         if self.num_shards > 0:
             button_data.append(self.VIEW_LOADED_SHARDS)
             button_data.append(self.REMOVE_SHARDS)
             button_data.append(self.CANCEL)
-        
+
         # Only show Finalize if at least 2 shards are loaded
         if self.num_shards >= 2:
-            button_data.insert(-1,self.FINALIZE)
-        
-        # TRANSLATOR_NOTE: This is a screen title that displays the number of seed
-        # shards that have been loaded. The first argument is for the singular
-        # case (e.g., "1 Shard Loaded"), and the second is for the plural
-        # (e.g., "2 Shards Loaded"). The "{}" will be replaced by the number of shards.
+            button_data.insert(-1, self.FINALIZE)
+
         title = ngettext(
             "{} Shard Loaded",
             "{} Shards Loaded",
@@ -2504,22 +2582,22 @@ class RebuildSeedXORManageView(View):
             is_button_text_centered=False,
             button_data=button_data,
         )
-        
+
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(LoadSeedView, clear_history=True)
-            
+
         elif button_data[selected_menu_num] == self.LOAD_NEXT_SHARD:
             return Destination(RebuildSeedXORLoadShardView)
-            
+
         elif button_data[selected_menu_num] == self.VIEW_LOADED_SHARDS:
             return Destination(RebuildSeedXORViewShardsView)
-            
+
         elif button_data[selected_menu_num] == self.REMOVE_SHARDS:
             return Destination(RebuildSeedXORRemoveShardsView)
-            
+
         elif button_data[selected_menu_num] == self.CANCEL:
             return Destination(RebuildSeedXORCancelView)
-            
+
         elif button_data[selected_menu_num] == self.FINALIZE:
             return Destination(RebuildSeedXORFinalizeView)
 
@@ -2527,31 +2605,28 @@ class RebuildSeedXORManageView(View):
 
 class RebuildSeedXORSelectExistingSeedView(View):
     """View for selecting an existing seed to use as a shard."""
-    
+
     def __init__(self):
         super().__init__()
         self.seeds = self.controller.storage.seeds
-        
+
     def run(self):
         button_data = []
         for i, seed in enumerate(self.seeds):
             network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
             fingerprint = seed.get_fingerprint(network=network)
-            # TRANSLATOR_NOTE: This is a button label for selecting a seed that is already
-            # loaded in the device's memory. The "{}" will be replaced by the seed's 
-            # "fingerprint", a unique identifier (e.g., "Seed abcd1234").
             button_data.append(ButtonOption("Seed {}".format(fingerprint)))
-            
+
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title=_("Select Seed"),
             is_button_text_centered=False,
             button_data=button_data
         )
-        
+
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(RebuildSeedXORLoadShardView)
-        
+
         selected_seed = self.seeds[selected_menu_num]
         self.controller.storage.set_pending_seed(selected_seed)
         return Destination(RebuildSeedXORShowFingerprintView)
@@ -2560,23 +2635,22 @@ class RebuildSeedXORSelectExistingSeedView(View):
 
 class RebuildSeedXORViewShardsView(View):
     """View all loaded shards in the rebuild Seed XOR flow."""
-    
+
     def __init__(self):
         super().__init__()
         self.shards = self.controller.storage.rebuild_seedxor_shards
-        
+
     def run(self):
         shards_info_list = [
-            # TRANSLATOR_NOTE: Will insert the shard num and its fingerprint (e.g. "Shard #3: abcd1234")
             "Shard #{}: {}".format(
                 i + 1,
                 shard.get_fingerprint(network=self.settings.get_value(SettingsConstants.SETTING__NETWORK))
             )
             for i, shard in enumerate(self.shards)
         ]
-        
+
         shards_text = "\n".join(shards_info_list)
-        
+
         self.run_screen(
             LargeIconStatusScreen,
             title=_("Loaded Shards"),
@@ -2585,7 +2659,7 @@ class RebuildSeedXORViewShardsView(View):
             text=shards_text,
             button_data=[ButtonOption(_("Done"))]
         )
-        
+
         return Destination(RebuildSeedXORManageView)
 
 
@@ -2603,8 +2677,7 @@ class RebuildSeedXORConfirmRemoveShardView(View):
         button_data = [self.KEEP_SHARD, self.CONFIRM_REMOVE]
 
         fingerprint = self.shard.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-        
-        # TRANSLATOR_NOTE: Asks the user to confirm removing a specific shard, identified by its number and fingerprint.
+
         text = _("Remove shard #{} ({}) from the Seed XOR build?").format(self.shard_num + 1, fingerprint)
 
         selected_menu_num = self.run_screen(
@@ -2619,7 +2692,7 @@ class RebuildSeedXORConfirmRemoveShardView(View):
         if button_data[selected_menu_num] == self.CONFIRM_REMOVE:
             self.controller.remove_rebuild_seedxor_shard(self.shard_num)
             return Destination(RebuildSeedXORManageView, clear_history=True)
-            
+
         elif button_data[selected_menu_num] == self.KEEP_SHARD:
             return Destination(RebuildSeedXORRemoveShardsView, skip_current_view=True)
 
@@ -2627,57 +2700,50 @@ class RebuildSeedXORConfirmRemoveShardView(View):
 
 class RebuildSeedXORRemoveShardsView(View):
     """Remove shards from the rebuild Seed XOR flow."""
-    
+
     def __init__(self):
         super().__init__()
         self.shards = self.controller.storage.rebuild_seedxor_shards
-        
+
     def run(self):
         button_data = []
         for i, shard in enumerate(self.shards):
             network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
             fingerprint = shard.get_fingerprint(network=network)
             shard_num = i + 1
-            # TRANSLATOR_NOTE: Will insert the shard num and its fingerprint (e.g. "Shard #3: abcd1234")
             button_data.append(ButtonOption("Shard #{}: {}".format(shard_num, fingerprint)))
-        
-        from seedsigner.gui.screens.screen import GUIConstants
+
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title=_("Remove Shard"),
             is_button_text_centered=False,
             button_data=button_data,
         )
-        
+
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(RebuildSeedXORManageView)
-        
-        # Instead of deleting, navigate to the new confirmation view
+
         return Destination(RebuildSeedXORConfirmRemoveShardView, view_args={"shard_num": selected_menu_num})
 
 
 
 class RebuildSeedXORCancelView(View):
     """Confirm cancellation of rebuild Seed XOR flow."""
-    
+
     CONFIRM = ButtonOption("Confirm cancel", button_label_color="red")
     CONTINUE = ButtonOption("Continue Seed XOR")
-    
+
     def run(self):
         button_data = [self.CONTINUE, self.CONFIRM]
-        
+
         num_shards = len(self.controller.storage.rebuild_seedxor_shards)
-        
-        # TRANSLATOR_NOTE: This is a confirmation message when canceling the Seed XOR rebuild process.
+
         text = _(
             "Clear all loaded shards and return to Home?"
         )
-        
-        # TRANSLATOR_NOTE: This is a confirmation message asking the user if they want 
-        # to clear the seed "shards" they have loaded. The "{}" will be replaced by 
-        # the number of shards (e.g., "Clear 2 loaded shards?").
+
         status_headline = _("Clear {} loaded shards?".format(num_shards))
-        
+
         selected_menu_num = self.run_screen(
             DireWarningScreen,
             title=_("Cancel Seed XOR"),
@@ -2685,10 +2751,10 @@ class RebuildSeedXORCancelView(View):
             text=text,
             button_data=button_data,
         )
-        
+
         if selected_menu_num == RET_CODE__BACK_BUTTON or button_data[selected_menu_num] == self.CONTINUE:
             return Destination(RebuildSeedXORManageView)
-            
+
         elif button_data[selected_menu_num] == self.CONFIRM:
             self.controller.clear_rebuild_seedxor_data()
             return Destination(LoadSeedView, clear_history=True)
@@ -2802,27 +2868,27 @@ class RebuildSeedXORFinalizeView(View):
 
 class RebuildSeedXORFinalizeOptionsView(View):
     """Second step of finalization - choose what to do with individual shards"""
-    
+
     DISCARD_SHARDS = ButtonOption("Discard shards", button_label_color="red")
     KEEP_SHARDS = ButtonOption("Keep shards")
     PASSPHRASE = ButtonOption("BIP-39 Passphrase")
-    
+
     def __init__(self):
         super().__init__()
-        
+
         if not self.controller.storage.rebuild_seedxor_combined_seed:
             self.set_redirect(Destination(RebuildSeedXORManageView))
             return
-        
+
         self.seed = self.controller.storage.get_pending_seed()
-        
+
     def run(self):
         button_data = [self.DISCARD_SHARDS, self.KEEP_SHARDS]
-        
+
         self.PASSPHRASE.button_label = self.seed.passphrase_label
         if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) != SettingsConstants.OPTION__DISABLED:
             button_data.append(self.PASSPHRASE)
-            
+
         selected_menu_num = self.run_screen(
             LargeIconStatusScreen,
             title=_("Finalize Options"),
@@ -2832,42 +2898,43 @@ class RebuildSeedXORFinalizeOptionsView(View):
             text=_("Keep or discard shards?"),
             button_data=button_data,
         )
-        
+
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(RebuildSeedXORFinalizeView)
-            
+
         elif button_data[selected_menu_num] == self.DISCARD_SHARDS:
             # First finalize the seed to add it to memory
             seed_num = self.controller.storage.finalize_pending_seed()
             combined_fingerprint = self.controller.storage.seeds[seed_num].get_fingerprint()
-            
+
             for shard in self.controller.storage.rebuild_seedxor_shards:
                 for i, seed in enumerate(self.controller.storage.seeds):
-                    SeedFingerprint = seed.get_fingerprint()
-                    if SeedFingerprint == combined_fingerprint:
+                    fp = seed.get_fingerprint()
+                    if fp == combined_fingerprint:
                         continue
-                    if SeedFingerprint == shard.get_fingerprint():
+                    if fp == shard.get_fingerprint():
                         self.controller.discard_seed(i)
                         if i < seed_num:
                             seed_num -= 1
                         break
-            
+
             self.controller.clear_rebuild_seedxor_data()
-            
-            # Find the combined seed by fingerprint to be [EXTRA SAFE STEP]
+
+            # Find the combined seed by fingerprint [EXTRA SAFE STEP]
             for i, seed in enumerate(self.controller.storage.seeds):
-                SeedFingerprint = seed.get_fingerprint()
-                if SeedFingerprint == combined_fingerprint:
+                if seed.get_fingerprint() == combined_fingerprint:
                     seed_num = i
                     break
-            
+
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
-            
+
         elif button_data[selected_menu_num] == self.KEEP_SHARDS:
             seed_num = self.controller.storage.finalize_pending_seed()
             self.controller.clear_rebuild_seedxor_data()
 
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
-            
+
         elif button_data[selected_menu_num] == self.PASSPHRASE:
             return Destination(SeedAddPassphraseView)
+
+# === ENCRYPTED_QR_V4 - translate import fixed - Feb 21 2026 ===

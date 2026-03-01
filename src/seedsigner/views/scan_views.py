@@ -83,10 +83,10 @@ class ScanView(View):
                     #   pending (might set a passphrase, SeedXOR, etc) until finalized.
                     from seedsigner.models.seed import Seed
                     from .seed_views import SeedFinalizeView, RebuildSeedXORShowFingerprintView
-                    
+
                     # Create the seed object from the mnemonic
                     new_seed = Seed(mnemonic=seed_mnemonic, wordlist_language_code=self.wordlist_language_code)
-                    
+
                     if hasattr(self, "is_rebuild_seedxor_shard") and self.is_rebuild_seedxor_shard:
                         # The seed is not yet validated for the SeedXOR operation, so we just
                         #   pass it to the next View as a pending_seed.
@@ -99,6 +99,14 @@ class ScanView(View):
                             return Destination(SeedAddPassphraseView)
                         else:
                             return Destination(SeedFinalizeView)
+
+            elif self.decoder.is_encrypted_seed:
+                from .seed_views import EncryptedSeedPassphraseView
+                if self.settings.get_value(SettingsConstants.SETTING__ENCRYPTED_SEEDS) == SettingsConstants.OPTION__DISABLED:
+                    from .view import OptionDisabledView
+                    return Destination(OptionDisabledView, view_args=dict(settings_attr=SettingsConstants.SETTING__ENCRYPTED_SEEDS))
+                encrypted_data = self.decoder.get_encrypted_seed_data()
+                return Destination(EncryptedSeedPassphraseView, view_args=dict(encrypted_data=encrypted_data))
             
             elif self.decoder.is_psbt:
                 from seedsigner.views.psbt_views import PSBTSelectSeedView
@@ -194,11 +202,11 @@ class ScanPSBTView(ScanView):
 class ScanSeedQRView(ScanView):
     instructions_text = _mft("Scan SeedQR")
     invalid_qr_type_message = _mft("Expected a SeedQR")
-    
+
     def __init__(self, is_rebuild_seedxor_shard=False):
         super().__init__()
         self.is_rebuild_seedxor_shard = is_rebuild_seedxor_shard
-        
+
     @property
     def is_valid_qr_type(self):
         return self.decoder.is_seed

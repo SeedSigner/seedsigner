@@ -345,6 +345,8 @@ class SettingsConstants:
     SETTING__COMPACT_SEEDQR = "compact_seedqr"
     SETTING__BIP85_CHILD_SEEDS = "bip85_child_seeds"
     SETTING__ELECTRUM_SEEDS = "electrum_seeds"
+    SETTING__SEED_XOR = "seed_xor"
+    SETTING__ENCRYPTED_SEEDS = "encrypted_seeds"
     SETTING__MESSAGE_SIGNING = "message_signing"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
@@ -671,6 +673,22 @@ class SettingsDefinition:
                       abbreviated_name="electrum",
                       display_name=_mft("Electrum seeds"),
                       help_text=_mft("Native Segwit only"),
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__DISABLED),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__SEED_XOR,
+                      abbreviated_name="xor_seeds",
+                      display_name=_mft("Seed XOR"),
+                      help_text=_mft("XOR two seeds"),
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__ENABLED),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__ENCRYPTED_SEEDS,
+                      abbreviated_name="enc_seeds",
+                      display_name=_mft("Encrypted seeds"),
+                      help_text=_mft("Import AES-256-CBC encrypted seed QRs"),
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__DISABLED),
         

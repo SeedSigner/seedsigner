@@ -9,7 +9,6 @@ from seedsigner.helpers.mnemonic_generation import combine_mnemonics_with_xor
 EXAMPLE_24_A = "romance wink lottery autumn shop bring dawn tongue range crater truth ability miss spice fitness easy legal release recall obey exchange recycle dragon room"
 EXAMPLE_24_B = "lion misery divide hurry latin fluid camp advance illegal lab pyramid unaware eager fringe sick camera series noodle toy crowd jeans select depth lounge"
 EXAMPLE_24_C = "vault nominee cradle silk own frown throw leg cactus recall talent worry gadget surface shy planet purpose coffee drip few seven term squeeze educate"
-RESULT_24_ABC_FINGERPRINT = "55057647" # Fingerprint of the combined seed
 
 EXAMPLE_12_A = "romance wink lottery autumn shop bring dawn tongue range crater truth ability"
 
@@ -102,7 +101,7 @@ class TestSeedXORFlows(FlowTest):
         Tests that the system prevents a user from adding the same shard twice.
         """
         self.settings.set_value(SettingsConstants.SETTING__SEED_XOR, SettingsConstants.OPTION__ENABLED)
-        
+
         def check_error_title(view):
             assert view.title == "Duplicate Shard"
 
@@ -136,7 +135,7 @@ class TestSeedXORFlows(FlowTest):
             ),
             FlowStep(seed_views.RebuildSeedXORLoadShardView, is_redirect=True),
         ]
-        
+
         self.run_sequence(sequence)
         assert len(self.controller.storage.rebuild_seedxor_shards) == 1
 
@@ -181,6 +180,6 @@ class TestSeedXORFlows(FlowTest):
             ),
             FlowStep(seed_views.RebuildSeedXORLoadShardView, is_redirect=True),
         ]
-        
+
         self.run_sequence(sequence)
         assert len(self.controller.storage.rebuild_seedxor_shards) == 1

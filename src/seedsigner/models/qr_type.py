@@ -13,7 +13,7 @@ class QRType:
     SEED__UR2 = "seed__ur2"
     SEED__MNEMONIC = "seed__mnemonic"
     SEED__FOUR_LETTER_MNEMONIC = "seed__four_letter_mnemonic"
-
+    SEED__ENCRYPTED = "seed__encrypted"
     SETTINGS = "settings"
 
     XPUB = "xpub"
