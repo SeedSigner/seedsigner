@@ -55,8 +55,10 @@ class SeedXORValidator:
         # Check for inverse shards (which would cancel out)
         for i, shard in enumerate(existing_shards):
             if len(new_shard.mnemonic_list) == len(shard.mnemonic_list):
-                new_entropy = bip39.mnemonic_to_bytes(new_shard.mnemonic_str)
-                existing_entropy = bip39.mnemonic_to_bytes(shard.mnemonic_str)
+                # Use ignore_checksum=True because Electrum seeds don't have
+                # valid BIP-39 checksums (they use HMAC-SHA512 validation instead)
+                new_entropy = bip39.mnemonic_to_bytes(new_shard.mnemonic_str, ignore_checksum=True)
+                existing_entropy = bip39.mnemonic_to_bytes(shard.mnemonic_str, ignore_checksum=True)
                 
                 # XOR the entropies and check if result is all 1s (binary inverse)
                 inverse_entropy = bytes(a ^ b for a, b in zip(new_entropy, existing_entropy))
