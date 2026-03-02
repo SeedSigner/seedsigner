@@ -80,7 +80,10 @@ class DecodeQR:
                 self.decoder = BBQRPsbtQrDecoder() # BBQr Decoder
 
             elif self.qr_type in [QRType.SEED__SEEDQR, QRType.SEED__COMPACTSEEDQR, QRType.SEED__MNEMONIC, QRType.SEED__FOUR_LETTER_MNEMONIC, QRType.SEED__UR2]:
-                self.decoder = SeedQrDecoder(wordlist_language_code=self.wordlist_language_code)          
+                self.decoder = SeedQrDecoder(wordlist_language_code=self.wordlist_language_code)
+
+            elif self.qr_type == QRType.SEED__ENCRYPTED:
+                self.decoder = EncryptedSeedQrDecoder()      
 
             elif self.qr_type == QRType.SETTINGS:
                 self.decoder = SettingsQrDecoder()  # Settings config
@@ -254,7 +257,6 @@ class DecodeQR:
     def is_complete(self) -> bool:
         return self.complete
 
-
     @property
     def is_invalid(self) -> bool:
         return self.qr_type == QRType.INVALID
@@ -281,6 +283,14 @@ class DecodeQR:
             QRType.SEED__FOUR_LETTER_MNEMONIC,
         ]
     
+    @property
+    def is_encrypted_seed(self):
+        return self.qr_type == QRType.SEED__ENCRYPTED
+
+    def get_encrypted_seed_data(self):
+        if self.is_encrypted_seed:
+            return self.decoder.get_encrypted_data()
+        return None
 
     @property
     def is_json(self):
@@ -381,6 +391,10 @@ class DecodeQR:
 
             elif "sortedmulti" in s:
                 return QRType.WALLET__GENERIC
+            
+            # Encrypted seed QR (OpenSSL AES-256-CBC base64)
+            if s.startswith("U2FsdGVkX1"):
+                return QRType.SEED__ENCRYPTED
 
             # Seed
             if re.search(r'\d{48,96}', s):
@@ -925,7 +939,23 @@ class SeedQrDecoder(BaseSingleFrameQrDecoder):
             return True
         return False
 
+class EncryptedSeedQrDecoder(BaseSingleFrameQrDecoder):
+    """Decodes a single frame containing a base64-encoded OpenSSL AES-256-CBC encrypted mnemonic."""
 
+    def __init__(self):
+        super().__init__()
+        self.encrypted_data = None
+
+    def add(self, segment, qr_type=QRType.SEED__ENCRYPTED):
+        self.encrypted_data = segment.strip()
+        self.complete = True
+        self.collected_segments = 1
+        return DecodeQRStatus.COMPLETE
+
+    def get_encrypted_data(self) -> str:
+        if self.complete:
+            return self.encrypted_data
+        return None
 
 class SettingsQrDecoder(BaseSingleFrameQrDecoder):
     """

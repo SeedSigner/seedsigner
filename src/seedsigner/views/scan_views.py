@@ -5,7 +5,7 @@ from gettext import gettext as _
 from seedsigner.helpers.l10n import mark_for_translation as _mft
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.view import BackStackView, ErrorView, MainMenuView, NotYetImplementedView, View, Destination
-from seedsigner.gui.screens.screen import ButtonOption
+from seedsigner.gui.screens.screen import ButtonOption, RET_CODE__BACK_BUTTON
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class ScanView(View):
         from seedsigner.gui.screens.scan_screens import ScanScreen
 
         # Start the live preview and background QR reading
-        self.run_screen(
+        scan_results = self.run_screen(
             ScanScreen,
             instructions_text=self.instructions_text,
             decoder=self.decoder
@@ -52,6 +52,9 @@ class ScanView(View):
         # A long scan might have exceeded the screensaver timeout; ensure screensaver
         # doesn't immediately engage when we leave here.
         self.controller.reset_screensaver_timeout()
+
+        if scan_results == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
 
         # Handle the results
         if self.decoder.is_complete:
@@ -88,7 +91,15 @@ class ScanView(View):
                         return Destination(SeedAddPassphraseView)
                     else:
                         return Destination(SeedFinalizeView)
-            
+
+            elif self.decoder.is_encrypted_seed:
+                from .seed_views import EncryptedSeedPassphraseView
+                if self.settings.get_value(SettingsConstants.SETTING__ENCRYPTED_SEEDS) == SettingsConstants.OPTION__DISABLED:
+                    from .view import OptionDisabledView
+                    return Destination(OptionDisabledView, view_args=dict(settings_attr=SettingsConstants.SETTING__ENCRYPTED_SEEDS))
+                encrypted_data = self.decoder.get_encrypted_seed_data()
+                return Destination(EncryptedSeedPassphraseView, view_args=dict(encrypted_data=encrypted_data))
+
             elif self.decoder.is_psbt:
                 from seedsigner.views.psbt_views import PSBTSelectSeedView
                 psbt = self.decoder.get_psbt()
