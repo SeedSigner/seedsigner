@@ -114,12 +114,3 @@ class SeedStorage:
         self.rebuild_seedxor_shards = []
         self.rebuild_seedxor_combined_seed = None
 
-    def get_rebuild_seedxor_shards(self) -> List[Seed]:
-        return self.rebuild_seedxor_shards
-
-    def get_rebuild_seedxor_combined_seed(self) -> Seed:
-        return self.rebuild_seedxor_combined_seed
-
-    def set_rebuild_seedxor_combined_seed(self, seed: Seed):
-        self.rebuild_seedxor_combined_seed = seed
-

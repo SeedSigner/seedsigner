@@ -1,17 +1,12 @@
 from base import FlowTest, FlowStep
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
-from seedsigner.views.view import MainMenuView
+from seedsigner.views.view import MainMenuView, ErrorView
 from seedsigner.views import seed_views, scan_views
 from seedsigner.views.seed_views import SeedsMenuView
 from seedsigner.helpers.mnemonic_generation import combine_mnemonics_with_xor
 
-EXAMPLE_24_A = "romance wink lottery autumn shop bring dawn tongue range crater truth ability miss spice fitness easy legal release recall obey exchange recycle dragon room"
-EXAMPLE_24_B = "lion misery divide hurry latin fluid camp advance illegal lab pyramid unaware eager fringe sick camera series noodle toy crowd jeans select depth lounge"
-EXAMPLE_24_C = "vault nominee cradle silk own frown throw leg cactus recall talent worry gadget surface shy planet purpose coffee drip few seven term squeeze educate"
-RESULT_24_ABC_FINGERPRINT = "55057647" # Fingerprint of the combined seed
-
-EXAMPLE_12_A = "romance wink lottery autumn shop bring dawn tongue range crater truth ability"
+from seedxor_test_vectors import EXAMPLE_24_A, EXAMPLE_24_B, EXAMPLE_24_C, EXAMPLE_12_A
 
 
 
@@ -130,7 +125,7 @@ class TestSeedXORFlows(FlowTest):
         sequence += [
             FlowStep(seed_views.RebuildSeedXORShowFingerprintView, button_data_selection=seed_views.RebuildSeedXORShowFingerprintView.CONTINUE),
             FlowStep(
-                seed_views.RebuildSeedXORErrorView,
+                ErrorView,
                 before_run=check_error_title,
                 button_data_selection=0
             ),
@@ -175,7 +170,7 @@ class TestSeedXORFlows(FlowTest):
         sequence += [
             FlowStep(seed_views.RebuildSeedXORShowFingerprintView, button_data_selection=seed_views.RebuildSeedXORShowFingerprintView.CONTINUE),
             FlowStep(
-                seed_views.RebuildSeedXORErrorView,
+                ErrorView,
                 before_run=check_error_title,
                 button_data_selection=0
             ),

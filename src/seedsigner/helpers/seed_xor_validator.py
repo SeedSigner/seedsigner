@@ -4,28 +4,12 @@ from seedsigner.models.seed import Seed
 
 
 class SeedXORValidator:
-    """
-    Handles validation logic for SeedXOR operations.
-    Returns validation errors as dictionaries that can be used by Views.
-    """
+    """Validates shards for SeedXOR operations."""
 
     @classmethod
     def validate_shard(cls, new_shard: Seed, existing_shards: List[Seed]) -> Tuple[bool, Optional[Dict[str, Any]]]:
-        """
-        Validates a new shard against existing shards.
-        
-        Args:
-            new_shard: The new shard to validate
-            existing_shards: List of already added shards
-            
-        Returns:
-            Tuple of (is_valid, error_dict) where:
-            - is_valid: bool indicating if validation passed
-            - error_dict: dict with error details if validation failed, None otherwise
-        """
-        error_dict = None
-        
-        # Check for passphrase
+        """Validates a new shard against existing shards.
+        Returns (is_valid, error_dict)."""
         if new_shard.has_passphrase:
             return False, {
                 "title": "Passphrase Not Allowed",
@@ -44,29 +28,23 @@ class SeedXORValidator:
         # Check for duplicate shards
         for i, shard in enumerate(existing_shards):
             if new_shard.mnemonic_str == shard.mnemonic_str:
-                shard_num = i + 1
-                error_dict = {
+                return False, {
                     "title": "Duplicate Shard",
                     "status_headline": "Duplicate Shard",
-                    "message": "This shard is identical to shard #{}".format(shard_num),
+                    "message": "This shard is identical to shard #{}".format(i + 1),
                 }
-                return False, error_dict
                 
         # Check for inverse shards (which would cancel out)
+        new_entropy = bip39.mnemonic_to_bytes(new_shard.mnemonic_str)
         for i, shard in enumerate(existing_shards):
             if len(new_shard.mnemonic_list) == len(shard.mnemonic_list):
-                new_entropy = bip39.mnemonic_to_bytes(new_shard.mnemonic_str)
                 existing_entropy = bip39.mnemonic_to_bytes(shard.mnemonic_str)
-                
-                # XOR the entropies and check if result is all 1s (binary inverse)
-                inverse_entropy = bytes(a ^ b for a, b in zip(new_entropy, existing_entropy))
-                if all(b == 0xFF for b in inverse_entropy):
-                    shard_num = i + 1
-                    error_dict = {
+                xored = bytes(a ^ b for a, b in zip(new_entropy, existing_entropy))
+                if all(b == 0xFF for b in xored):
+                    return False, {
                         "title": "Seed Inversion",
                         "status_headline": "Invalid Shard",
-                        "message": "This shard is the binary inverse of shard #{} and would cancel it out.".format(shard_num),
+                        "message": "This shard is the binary inverse of shard #{} and would cancel it out.".format(i + 1),
                     }
-                    return False, error_dict
                
         return True, None
