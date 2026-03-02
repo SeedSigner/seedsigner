@@ -125,38 +125,85 @@ def generate_mnemonic_from_image(image, wordlist_language_code: str = SettingsCo
 
 def combine_mnemonics_with_xor(mnemonics: list[str], wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
     """
-    Combine multiple BIP39 mnemonic seed phrases using XOR operation (SeedXOR).
+    Combine multiple mnemonic seed phrases using XOR operation (SeedXOR).
 
-    The process works by XOR-ing the entropy (random data) of each mnemonic together.
-    When you XOR the shares back together, you get the original seed phrase.
-    
+    XORs the word indices (11 bits each) of each mnemonic, then converts the
+    XOR'd entropy back to a mnemonic with a valid BIP-39 checksum.
+
+    Supports both BIP-39 and Electrum seeds since both use the same 2048-word
+    BIP-39 wordlist. The XOR is its own inverse: recombining all original parts
+    will reproduce the original seed.
+
+    For the entropy bits (first 128/256 bits), XOR is straightforward and
+    reversible. The last word's checksum bits (4 bits for 12-word, 8 bits for
+    24-word) are recomputed as a valid BIP-39 checksum from the XOR'd entropy.
+    This means XOR parts are always valid BIP-39 seeds. When all parts are
+    recombined, the entropy is perfectly restored; if the original was an
+    Electrum seed, the HMAC check will pass since it depends on the entropy.
+
     Args:
-        mnemonics: List of mnemonic seed phrases (as strings) to combine
+        mnemonics: List of mnemonic seed phrases (as strings or lists of words)
         wordlist_language_code: Language code for the BIP39 wordlist (default: English)
-    
+
     Returns:
         Combined mnemonic as a list of words
-        
+
     Raises:
-        ValueError: If mnemonics list is empty, contains invalid mnemonics, 
-                   or mnemonics have different entropy lengths
+        ValueError: If mnemonics list is empty, contains invalid mnemonics,
+                   or mnemonics have different word counts
     """
     if not mnemonics:
         raise ValueError("Mnemonic list cannot be empty")
-        
+
     wordlist = Seed.get_wordlist(wordlist_language_code)
-    
+
+    # Convert mnemonics to lists of word indices
     try:
-        entropy_list = [bip39.mnemonic_to_bytes(" ".join(mnemonic) if isinstance(mnemonic, list) else mnemonic, wordlist=wordlist) 
-                       for mnemonic in mnemonics]
+        index_lists = []
+        for mnemonic in mnemonics:
+            words = mnemonic.split() if isinstance(mnemonic, str) else mnemonic
+            indices = []
+            for word in words:
+                if word not in wordlist:
+                    raise ValueError(f"Word '{word}' is not in the dictionary")
+                indices.append(wordlist.index(word))
+            index_lists.append(indices)
+    except ValueError:
+        raise
     except Exception as e:
         raise ValueError(f"Invalid mnemonic: {str(e)}")
-    
-    if len(set(len(entropy) for entropy in entropy_list)) != 1:
+
+    # Validate all mnemonics have the same word count
+    word_counts = set(len(indices) for indices in index_lists)
+    if len(word_counts) != 1:
         raise ValueError("All mnemonics must generate entropy of the same length")
-    
-    combined_entropy = bytes(len(entropy_list[0]))
-    for entropy in entropy_list:
-        combined_entropy = bytes(a ^ b for a, b in zip(combined_entropy, entropy))
-    
-    return bip39.mnemonic_from_bytes(combined_entropy, wordlist=wordlist).split()
+
+    num_words = index_lists[0].__len__()
+    if num_words not in (12, 24):
+        raise ValueError("Mnemonics must be 12 or 24 words")
+
+    # XOR all word indices together to get the combined 11-bit values
+    combined_indices = index_lists[0][:]
+    for indices in index_lists[1:]:
+        combined_indices = [a ^ b for a, b in zip(combined_indices, indices)]
+
+    # Convert combined indices to entropy bits (all 11 * num_words bits)
+    all_bits = []
+    for idx in combined_indices:
+        for bit_pos in range(10, -1, -1):
+            all_bits.append((idx >> bit_pos) & 1)
+
+    # Extract entropy bits (strip the checksum bits from the last word)
+    checksum_length = num_words // 3  # 4 for 12 words, 8 for 24 words
+    entropy_bits = all_bits[:len(all_bits) - checksum_length]
+
+    # Convert entropy bits to bytes
+    entropy_bytes = bytearray()
+    for i in range(0, len(entropy_bits), 8):
+        byte = 0
+        for bit in entropy_bits[i:i+8]:
+            byte = (byte << 1) | bit
+        entropy_bytes.append(byte)
+
+    # Use mnemonic_from_bytes to produce a mnemonic with valid BIP-39 checksum
+    return bip39.mnemonic_from_bytes(bytes(entropy_bytes), wordlist=wordlist).split()

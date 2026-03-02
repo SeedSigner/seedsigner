@@ -74,9 +74,9 @@ class TestCombineMnemonicsWithXOR(unittest.TestCase):
 
 
     def test_raises_error_for_invalid_mnemonic(self):
-        """Ensures ValueError is raised for a mnemonic with a bad checksum or invalid word. """
-        invalid_mnemonic = "romance wink lottery autumn shop bring dawn tongue range crater truth zebra" # 'zebra' is invalid
-        with self.assertRaisesRegex(ValueError, "Invalid mnemonic"):
+        """Ensures ValueError is raised for a mnemonic with an invalid word."""
+        invalid_mnemonic = "romance wink lottery autumn shop bring dawn tongue range crater truth xyzzy"  # 'xyzzy' is not in BIP-39 wordlist
+        with self.assertRaisesRegex(ValueError, "not in the dictionary"):
             combine_mnemonics_with_xor([EXAMPLE_12_A, invalid_mnemonic])
 
 

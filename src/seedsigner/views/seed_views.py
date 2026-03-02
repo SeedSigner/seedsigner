@@ -2307,10 +2307,16 @@ class SeedSignMessageSignedMessageQRView(View):
     Rebuild Seed XOR Views
 ****************************************************************************"""
 class RebuildSeedXORLoadShardView(View):
-    """View for loading a shard in the Rebuild Seed XOR flow."""
+    """View for loading a shard in the Rebuild Seed XOR flow.
+
+    When Electrum seed support is enabled, an additional option to enter an
+    Electrum seed is shown. Both BIP-39 and Electrum seeds use the same
+    2048-word BIP-39 wordlist, so XOR math works identically for both.
+    """
     SCAN_SHARD = ButtonOption("Scan SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
     USE_LOADED_SEED = ButtonOption("Use loaded seed", SeedSignerIconConstants.SEEDS)
 
     def __init__(self):
@@ -2328,10 +2334,11 @@ class RebuildSeedXORLoadShardView(View):
             self.TYPE_12WORD,
             self.TYPE_24WORD,
         ]
-        
-        # TRANSLATOR_NOTE: This is a screen title for loading a "shard", which is one of
-        # several mnemonic seed phrases that will be combined. The variable is the
-        # shard's number in the sequence (e.g., "Load Shard #1").
+
+        # Electrum seed option, gated by the existing setting
+        if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.TYPE_ELECTRUM)
+
         title = _('Load Shard #{}').format(shard_num)
 
         if len(self.controller.storage.seeds) > 0:
@@ -2362,7 +2369,16 @@ class RebuildSeedXORLoadShardView(View):
             self.controller.storage.init_pending_mnemonic(num_words=24)
             self.controller.resume_main_flow = self.controller.FLOW__REBUILD_SEEDXOR
             return Destination(SeedMnemonicEntryView)
-        
+
+        elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
+            # Electrum seeds are always 12 words. Route through the Electrum
+            # warning screen, then to the mnemonic entry flow. The
+            # FLOW__REBUILD_SEEDXOR flag ensures we return to the XOR flow
+            # after entry rather than going to the normal seed finalization.
+            self.controller.storage.init_pending_mnemonic(num_words=12, is_electrum=True)
+            self.controller.resume_main_flow = self.controller.FLOW__REBUILD_SEEDXOR
+            return Destination(SeedElectrumMnemonicStartView)
+
         elif button_data[selected_menu_num] == self.USE_LOADED_SEED:
             return Destination(RebuildSeedXORSelectExistingSeedView)
 
@@ -2680,32 +2696,79 @@ class RebuildSeedXORCancelView(View):
 
 
 class RebuildSeedXORFinalizeView(View):
-    """First step of final confirmation before finalizing the Rebuild Seed XOR seed."""
-    
+    """Finalize the XOR operation: combine shards and detect result type.
+
+    After computing the XOR of all components, detects whether the result is
+    an Electrum seed or a BIP-39 seed. This matters because:
+    - Electrum seeds use different derivation paths (m/0h, m/1h)
+    - Electrum seeds have SeedQR disabled
+    - The user needs to know which wallet software to use
+    """
+
     def __init__(self):
         super().__init__()
-        
+
         self.error = None
         self.seed = None
         self.fingerprint = None
-        
-        try:        
+        self.seed_type = "BIP-39"
+
+        try:
             mnemonic_strings = [shard.mnemonic_str for shard in self.controller.storage.rebuild_seedxor_shards]
-            
+
             combined_mnemonic = combine_mnemonics_with_xor(mnemonic_strings)
-            
-            self.controller.storage.rebuild_seedxor_combined_seed = Seed(mnemonic=combined_mnemonic)
-            self.controller.storage.set_pending_seed(self.controller.storage.rebuild_seedxor_combined_seed)
+
+            # Detect if the result is an Electrum seed
+            from seedsigner.models.seed import ElectrumSeed
+            mnemonic_type = Seed.detect_mnemonic_type(combined_mnemonic)
+
+            if mnemonic_type == "electrum":
+                # Check that Electrum support is enabled
+                if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+                    self.seed_type = "Electrum Segwit"
+                    # The XOR result has a BIP-39 checksum, but the original
+                    # Electrum seed may have had different last-word bits.
+                    # get_electrum_mnemonic finds the correct last word.
+                    electrum_mnemonic = Seed.get_electrum_mnemonic(combined_mnemonic)
+                    if electrum_mnemonic:
+                        combined_seed = ElectrumSeed(mnemonic=electrum_mnemonic)
+                    else:
+                        # Shouldn't happen if detect said "electrum", but be safe
+                        combined_seed = Seed(mnemonic=combined_mnemonic)
+                        self.seed_type = "BIP-39"
+                else:
+                    # Result is Electrum but support is disabled - warn user
+                    self.error = "electrum_disabled"
+                    return
+            else:
+                combined_seed = Seed(mnemonic=combined_mnemonic)
+
+            self.controller.storage.rebuild_seedxor_combined_seed = combined_seed
+            self.controller.storage.set_pending_seed(combined_seed)
 
             self.seed = self.controller.storage.get_pending_seed()
-            
+
             self.fingerprint = self.seed.get_fingerprint(
                 network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)
             )
         except Exception as e:
             self.error = str(e)
-    
+
     def run(self):
+        if self.error == "electrum_disabled":
+            self.run_screen(
+                WarningScreen,
+                title=_("Electrum Seed Detected"),
+                status_headline=_("Warning"),
+                text=_(
+                    "The XOR result is an Electrum seed, but Electrum "
+                    "support is disabled. Enable it in Settings to use this seed."
+                ),
+                show_back_button=False,
+                button_data=[ButtonOption(_("OK"))],
+            )
+            return Destination(RebuildSeedXORManageView)
+
         if self.error == "no_shards":
             return Destination(RebuildSeedXORManageView)
         elif self.error:
@@ -2716,22 +2779,23 @@ class RebuildSeedXORFinalizeView(View):
                 button_text=_("OK"),
                 next_destination=Destination(RebuildSeedXORManageView)
             ))
-        
+
         shard_count = len(self.controller.storage.rebuild_seedxor_shards)
         button_data = [ButtonOption("Continue")]
-        
-        from seedsigner.gui.screens.screen import LargeIconStatusScreen
+
+        status_text = _("Fingerprint: {}\nType: {}").format(self.fingerprint, self.seed_type)
+
         selected_menu_num = self.run_screen(
             LargeIconStatusScreen,
             title=_("Finalize Seed XOR"),
             status_headline=_("Combined {} shards".format(shard_count)),
-            text=_("Fingerprint: {}\n\nCombined seed calculated successfully.".format(self.fingerprint)),
+            text=status_text,
             button_data=button_data,
         )
-        
+
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(RebuildSeedXORManageView)
-        
+
         return Destination(RebuildSeedXORFinalizeOptionsView)
 
 
