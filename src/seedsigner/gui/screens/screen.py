@@ -284,6 +284,15 @@ class ButtonOption:
 
 
 @dataclass
+class ButtonOptionWithoutTranslation(ButtonOption):
+    """
+    Same as ButtonOption but does NOT translate button_label or active_button_label.
+    The labels are also not extracted for translation by babel.
+    """
+
+
+
+@dataclass
 class ButtonListScreen(BaseTopNavScreen):
     button_data: list[ButtonOption] = None
     selected_button: int = 0
@@ -341,13 +350,22 @@ class ButtonListScreen(BaseTopNavScreen):
 
         self.buttons: List[Button] = []
         for i, button_option in enumerate(self.button_data):
-            if type(button_option) != ButtonOption:
+            if not isinstance(button_option, ButtonOption):
                 raise Exception("Refactor to ButtonOption approach needed!")
+
+            if isinstance(button_option, ButtonOptionWithoutTranslation):
+                # Don't wrap labels in _()
+                button_label = button_option.button_label
+                active_button_label = button_option.active_button_label
+            else:
+                # Wrap labels in _() for just-in-time translations
+                button_label = _(button_option.button_label)
+                active_button_label = _(button_option.active_button_label)
 
             # TODO: Refactor `Button` to optionally use ButtonOption directly?
             button_kwargs = dict(
-                text=_(button_option.button_label),  # Wrap here for just-in-time translations
-                active_text=_(button_option.active_button_label),  # Wrap here for just-in-time translations
+                text=button_label,
+                active_text=active_button_label,
                 icon_name=button_option.icon_name,
                 icon_color=button_option.icon_color if button_option.icon_color else GUIConstants.BUTTON_FONT_COLOR,
                 is_icon_inline=True,
@@ -371,7 +389,6 @@ class ButtonListScreen(BaseTopNavScreen):
 
         if self.has_scroll_arrows:
             self.arrow_half_width = 10
-            self.cur_scroll_y = self.scroll_y_initial_offset if self.scroll_y_initial_offset is not None else 0
             self.up_arrow_img = Image.new("RGBA", size=(2 * self.arrow_half_width, 8), color="black")
             self.up_arrow_img_y = self.top_nav.height - 12
             arrow_draw = ImageDraw.Draw(self.up_arrow_img)
@@ -786,7 +803,6 @@ class QRDisplayScreen(BaseScreen):
                 width=int(rectangle_width/2),
                 screen_x=chevron_up_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_y=chevron_up_icon.screen_y - 2,  # -2 to account for Icon's positioning
-                allow_text_overflow=False
             ).render()
 
             # TRANSLATOR_NOTE: Decrease QR code screen brightness
@@ -804,7 +820,6 @@ class QRDisplayScreen(BaseScreen):
                 width=int(rectangle_width/2),
                 screen_x=chevron_down_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_y=chevron_down_icon.screen_y - 2,  # -2 to account for Icon's positioning
-                allow_text_overflow=False
             ).render()
 
             # Write our temp Image onto the main image
@@ -906,7 +921,6 @@ class LargeIconStatusScreen(ButtonListScreen):
     text: str = ""                          # The body text of the screen
     text_edge_padding: int = GUIConstants.EDGE_PADDING
     button_data: list = None
-    allow_text_overflow: bool = False
 
 
     def __post_init__(self):
@@ -1073,21 +1087,6 @@ class ResetScreen(BaseTopNavScreen):
 
 
 @dataclass
-class PowerOffScreen(BaseTopNavScreen):
-    def __post_init__(self):
-        self.title = _("Powering Off")
-        self.show_back_button = False
-        super().__post_init__()
-
-        self.components.append(TextArea(
-            text=_("Please wait about 30 seconds before disconnecting power."),
-            screen_y=self.top_nav.height,
-            height=self.canvas_height - self.top_nav.height,
-        ))
-
-
-
-@dataclass
 class PowerOffNotRequiredScreen(BaseTopNavScreen):
     def __post_init__(self):
         self.title = _("Just Unplug It")
@@ -1226,6 +1225,8 @@ class KeyboardScreen(BaseTopNavScreen):
             )
 
             with self.renderer.lock:
+                # Track if we need to update the title after input changes
+                title_needs_update = False
                 # Check possible exit conditions   
                 if self.top_nav.is_selected and input == HardwareButtonsConstants.KEY_PRESS:
                     return RET_CODE__BACK_BUTTON
@@ -1271,7 +1272,8 @@ class KeyboardScreen(BaseTopNavScreen):
                         if len(self.user_input) > 0:
                             self.user_input = self.user_input[:-1]
                             self.cursor_position -= 1
-
+                            title_needs_update = True
+                            
                 elif input == HardwareButtonsConstants.KEY_PRESS and ret_val not in Keyboard.ADDITIONAL_KEYS:
                     # User has locked in the current letter
                     if self.keys_to_values:
@@ -1279,19 +1281,20 @@ class KeyboardScreen(BaseTopNavScreen):
                         ret_val = self.keys_to_values[ret_val]
                     self.user_input += ret_val
                     self.cursor_position += 1
+                    title_needs_update = True
 
                     if self.cursor_position == self.return_after_n_chars:
                         return self.user_input
 
-                    # Render a new TextArea over the TopNav title bar
-                    if self.update_title():
-                        TextArea(
-                            text=self.title,
-                            font_name=GUIConstants.get_top_nav_title_font_name(),
-                            font_size=GUIConstants.get_top_nav_title_font_size(),
-                            height=self.top_nav.height,
-                        ).render()
-                        self.top_nav.render_buttons()
+                # Update the title if input changed (add or delete)
+                if title_needs_update and self.update_title():
+                    TextArea(
+                        text=self.title,
+                        font_name=GUIConstants.get_top_nav_title_font_name(),
+                        font_size=GUIConstants.get_top_nav_title_font_size(),
+                        height=self.top_nav.height,
+                    ).render()
+                    self.top_nav.render_buttons()
 
                 elif input in HardwareButtonsConstants.KEYS__LEFT_RIGHT_UP_DOWN:
                     # Live joystick movement; haven't locked this new letter in yet.

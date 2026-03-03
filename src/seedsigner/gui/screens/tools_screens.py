@@ -269,7 +269,7 @@ class ToolsCalcFinalWordScreen(ButtonListScreen):
         # First what's the total bit display width and where do the checksum bits start?
         bit_font_size = GUIConstants.get_button_font_size(locale="default") + 2  # bit font size should not vary by locale
         font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, bit_font_size)
-        (left, top, bit_display_width, bit_font_height) = font.getbbox("0" * 11, anchor="lt")
+        (left, top, bit_display_width, bottom) = font.getbbox("0" * 11, anchor="lt")
         (left, top, checksum_x, bottom) = font.getbbox("0" * (11 - len(self.checksum_bits)), anchor="lt")
         bit_display_x = int((self.canvas_width - bit_display_width)/2)
         checksum_x += bit_display_x

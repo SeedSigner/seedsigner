@@ -51,18 +51,18 @@ class Keyboard:
         "font": ICON_KEY_FONT,
         "size": 2,
     }
-    KEY_SPACE_3 = {
-        "code": "SPACE",
-        "letter": SeedSignerIconConstants.SPACE,
-        "font": ICON_KEY_FONT,
-        "size": 3,
-    }
-    KEY_SPACE_4 = {
-        "code": "SPACE",
-        "letter": SeedSignerIconConstants.SPACE,
-        "font": ICON_KEY_FONT,
-        "size": 4,
-    }
+    # KEY_SPACE_3 = {  # Unused definitions
+    #     "code": "SPACE",
+    #     "letter": SeedSignerIconConstants.SPACE,
+    #     "font": ICON_KEY_FONT,
+    #     "size": 3,
+    # }
+    # KEY_SPACE_4 = {
+    #     "code": "SPACE",
+    #     "letter": SeedSignerIconConstants.SPACE,
+    #     "font": ICON_KEY_FONT,
+    #     "size": 4,
+    # }
     KEY_SPACE_5 = {
         "code": "SPACE",
         "letter": SeedSignerIconConstants.SPACE,
@@ -198,7 +198,6 @@ class Keyboard:
         self.auto_wrap = auto_wrap
         self.background_color = GUIConstants.BUTTON_BACKGROUND_COLOR
         self.deactivated_background_color = GUIConstants.BACKGROUND_COLOR
-        self.additional_key_deactivated_background_color = GUIConstants.BACKGROUND_COLOR
         self.highlight_color = highlight_color
 
         # Does the specified layout work?
@@ -230,7 +229,6 @@ class Keyboard:
         self.y_gap = 2
         self.key_height = int((rect[3] - rect[1]) / rows) - self.y_gap
         self.height = rows * (self.key_height) + (rows - 1) * self.y_gap
-        self.additional_key_entered_from_x = None
 
         # Two-dimensional list of Key obj row data
         self.keys = []
@@ -385,15 +383,11 @@ class Keyboard:
             next_y += 1
 
 
-    def update_from_input(self, input, enter_from=None):
+    def update_from_input(self, input):
         """
             Managing code must handle its own input/update loop since other action buttons
             will be active on the same screen outside of the keyboard rect (e.g. "Ok",
             "Back", etc). Pass relevant input here to update the keyboard.
-
-            `enter_from` tells the keyboard that the external UI has caused a loop back
-            navigation.
-            (e.g. pressing up from a submit button below the keyboard = ENTER_BOTTOM)
 
             Returns the character currently highlighted or one of the EXIT_* codes if the
             user has navigated off the keyboard past an edge that is not in `auto_wrap`.
@@ -565,7 +559,6 @@ class TextEntryDisplay(TextEntryDisplayConstants):
 
         if self.cursor_mode == TextEntryDisplay.CURSOR_MODE__BLOCK:
             cursor_block_width = 18
-            cursor_block_height = 33
 
             # Draw n-1 of the selected letters
             (left, top, right, bottom) = self.font.getbbox(self.cur_text[:-1], anchor="ls")

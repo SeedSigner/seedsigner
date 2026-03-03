@@ -149,6 +149,73 @@ class TestPSBTParser:
             assert PSBTParser.has_matching_input_fingerprint(psbt, PSBTTestData.multisig_key_3)
 
 
+    def test_missing_fingerprint_handling(self):
+        """
+        PSBTParser should correctly handle PSBTs with missing fingerprints (created from XPUB-only imports, 
+        without derivation path) by matching public keys against the seed and filling in correct fingerprints.
+        """
+        for input in PSBTTestData.ALL_INPUTS:
+            psbt = PSBT.parse(a2b_base64(input))
+            
+            # Set fingerprints to zero to simulate XPUB-only import (missing fingerprint)
+            from embit.psbt import DerivationPath
+            for inp in psbt.inputs:
+                for pub, derivation in inp.bip32_derivations.items():
+                    inp.bip32_derivations[pub] = DerivationPath(
+                        fingerprint=b"\x00\x00\x00\x00",
+                        derivation=derivation.derivation
+                    )
+
+                for pub, (leaf_hashes, derivation) in inp.taproot_bip32_derivations.items():
+                    inp.taproot_bip32_derivations[pub] = (leaf_hashes, DerivationPath(
+                        fingerprint=b"\x00\x00\x00\x00",
+                        derivation=derivation.derivation
+                    ))
+            
+            # Test that has_matching_input_fingerprint can correctly identify that an input 
+            # from the psbt does belong to the provided seed, even when the fingerprints 
+            # (in the inputs' bip32 derivations) have been zeroed out.
+            assert PSBTParser.has_matching_input_fingerprint(psbt, PSBTTestData.seed, SettingsConstants.REGTEST)
+            
+            # Test that it correctly rejects wrong seeds
+            wrong_seed = Seed(["bacon"] * 24)
+            assert not PSBTParser.has_matching_input_fingerprint(psbt, wrong_seed, SettingsConstants.REGTEST)
+            
+            # Test the PSBTParser's ability to fill missing fingerprints during parsing
+            parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+            
+            # Verify fingerprints were correctly filled after parsing
+            seed_fingerprint = parser.seed.get_fingerprint(SettingsConstants.REGTEST)
+            
+            for inp in parser.psbt.inputs:
+                for pub, derivation in inp.bip32_derivations.items():
+                    from binascii import hexlify
+                    fingerprint_hex = hexlify(derivation.fingerprint).decode()
+                    
+                    # Check if this public key derives from the current seed
+                    derived_key = parser.root.derive(derivation.derivation)
+                    if derived_key.key.sec() == pub.sec():
+                        # This pubkey derives from current seed, should have current seed's fingerprint
+                        assert fingerprint_hex == seed_fingerprint, f"Expected {seed_fingerprint}, got {fingerprint_hex} for pubkey that derives from current seed"
+                    else:
+                        # This pubkey doesn't derive from current seed, should remain 00000000
+                        assert fingerprint_hex == "00000000"
+
+                # Also check Taproot derivations
+                for pub, (leaf_hashes, derivation) in inp.taproot_bip32_derivations.items():
+                    from binascii import hexlify
+                    fingerprint_hex = hexlify(derivation.fingerprint).decode()
+                    
+                    # Check if this public key derives from the current seed
+                    derived_key = parser.root.derive(derivation.derivation)
+                    if derived_key.key.sec() == pub.sec():
+                        # This pubkey derives from current seed, should have current seed's fingerprint
+                        assert fingerprint_hex == seed_fingerprint, f"Expected {seed_fingerprint}, got {fingerprint_hex} for taproot pubkey that derives from current seed"
+                    else:
+                        # This pubkey doesn't derive from current seed, should remain 00000000
+                        assert fingerprint_hex == "00000000"
+
+
     def test_trim_and_sig_count(self):
         """
         PSBTParser should correctly trim a psbt of all unnecessary data and count the number of
