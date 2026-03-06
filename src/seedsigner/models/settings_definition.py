@@ -130,7 +130,7 @@ class SettingsConstants:
         LOCALE__DUTCH: "Nederlands",
 
         # --------- Beta languages ------------------------------------------------------
-        LOCALE__CZECH: "Čeština",
+        LOCALE__CZECH: "(beta) Čeština",
         LOCALE__CHINESE_SIMPLIFIED: "(beta) 简体中文 (Chinese Simplified)",
         LOCALE__HINDI: "(beta) हिन्दी (Hindi)",
         LOCALE__INDONESIAN: "(beta) Indonesia (Indonesian)",
