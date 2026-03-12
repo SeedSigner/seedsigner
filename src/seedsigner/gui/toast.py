@@ -5,6 +5,7 @@ from gettext import gettext as _
 
 from seedsigner.gui.components import BaseComponent, GUIConstants, Icon, SeedSignerIconConstants, TextArea
 from seedsigner.models.threads import BaseThread
+from seedsigner.models.settings import Settings, SettingsConstants
 
 logger = logging.getLogger(__name__)
 
@@ -239,6 +240,21 @@ class SDCardStateChangeToastManagerThread(BaseToastOverlayManagerThread):
             raise Exception(f"Invalid MicroSD action: {action}")
         self.message = _("SD card removed") if action == MicroSD.ACTION__REMOVED else _("SD card inserted")
 
+        # Check settings for toast duration
+        toast_setting = Settings.get_instance().get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER)
+        
+        self.enabled = True
+        duration = 3
+
+        if toast_setting == SettingsConstants.MICROSD_TOAST_TIMER_DISABLED:
+            self.enabled = False
+            duration = 0
+        elif toast_setting == SettingsConstants.MICROSD_TOAST_TIMER_FIVE_SECONDS:
+            duration = 5
+        elif toast_setting == SettingsConstants.MICROSD_TOAST_TIMER_FOREVER:
+            duration = 3600
+        
+        kwargs['duration'] = duration
         super().__init__(*args, **kwargs)
 
 
@@ -248,6 +264,9 @@ class SDCardStateChangeToastManagerThread(BaseToastOverlayManagerThread):
             icon_name=SeedSignerIconConstants.MICROSD,
             label_text=self.message,
         )
+
+    def should_keep_running(self) -> bool:
+        return self.enabled
 
 
 """****************************************************************************
