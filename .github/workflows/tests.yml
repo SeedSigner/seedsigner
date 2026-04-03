@@ -14,6 +14,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  pot-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install Babel
+        run: pip install -r l10n/requirements-l10n.txt
+      - name: Verify messages.pot is up to date
+        run: |
+          cp l10n/messages.pot l10n/messages.pot.before
+          python setup.py extract_messages
+          # Strip POT-Creation-Date from both files before comparing — Babel
+          # always writes the current timestamp, which would cause a false diff.
+          sed -i '/^"POT-Creation-Date:/d' l10n/messages.pot.before l10n/messages.pot
+          diff l10n/messages.pot.before l10n/messages.pot || \
+            (echo "::error::l10n/messages.pot is out of date. Run 'python setup.py extract_messages' and commit the result." && exit 1)
+
   test:
     runs-on: ubuntu-latest
     strategy:
