@@ -1,0 +1,66 @@
+name: Screenshot Gallery
+
+on:
+  push:
+    branches:
+      - dev
+
+# Only allow one deployment at a time
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        run: |
+          sudo apt-get install libzbar0
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r tests/requirements.txt
+          pip install .
+      - name: Generate screenshots
+        run: |
+          python -m pytest tests/screenshot_generator/generator.py \
+            --color=yes \
+            -vv
+      - name: Prepare for Jekyll
+        run: |
+          # Rename README.md to index.md so Jekyll renders each directory's
+          # landing page at the directory URL.
+          for readme in $(find seedsigner-screenshots -name README.md); do
+            mv "$readme" "$(dirname $readme)/index.md"
+          done
+          # Fix internal links to point to directories instead of README.md
+          find seedsigner-screenshots -name "index.md" -exec sed -i 's|/README.md|/|g;s|README.md|./|g' {} +
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: seedsigner-screenshots
+          destination: ./_site
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
