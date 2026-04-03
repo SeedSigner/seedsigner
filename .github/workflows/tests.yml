@@ -36,6 +36,26 @@ jobs:
           diff l10n/messages.pot.before l10n/messages.pot || \
             (echo "::error::l10n/messages.pot is out of date. Run 'python setup.py extract_messages' and commit the result." && exit 1)
 
+  mo-compilation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install Babel
+        run: pip install -r l10n/requirements-l10n.txt
+      - name: Verify .mo files are up to date
+        run: |
+          python setup.py compile_catalog
+          # Warn but don't fail — ca and nl currently have stale .mo files.
+          # TODO: change to 'exit 1' once the translations submodule is fixed.
+          git -C src/seedsigner/resources/seedsigner-translations diff --exit-code || \
+            echo "::warning::Compiled .mo files are out of date. Run 'python setup.py compile_catalog' and commit the results to the seedsigner-translations submodule."
+
   test:
     runs-on: ubuntu-latest
     strategy:
