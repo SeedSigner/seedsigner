@@ -1,8 +1,10 @@
+import os
+import subprocess
+
 import qrcode
 from qrcode.image.styledpil import StyledPilImage
 from qrcode.image.styles.moduledrawers import CircleModuleDrawer, GappedSquareModuleDrawer
 from PIL import Image, ImageDraw
-import subprocess
 
 class QR:
     STYLE__DEFAULT = 1
@@ -96,12 +98,44 @@ class QR:
         else:
             border_str = "3"
 
-        cmd = f"""qrencode -m {border_str} -s 3 -l L --foreground=000000 --background={background_color} -t PNG -o "/tmp/qrcode.png" "{str(data)}" """
-        rv = subprocess.call(cmd, shell=True)
+        # Validate background_color is a 6-character hex string to prevent
+        # arbitrary argument injection via the --background flag.
+        if not (len(background_color) == 6 and all(c in "0123456789abcdefABCDEF" for c in background_color)):
+            background_color = "808080"
 
-        # if qrencode fails, fall back to only encoder
-        if rv != 0:
-            return self.qrimage(data,width,height,border)
-        img = Image.open("/tmp/qrcode.png").resize((width,height), Image.Resampling.NEAREST).convert("RGBA")
+        # Pass data via stdin instead of as a shell-interpolated argument to
+        # prevent shell injection (see issue #872). Using an argument list
+        # with shell=False ensures metacharacters are never interpreted.
+        data_bytes = data if isinstance(data, bytes) else str(data).encode("utf-8")
 
-        return img
+        tmp_path = "/tmp/qrcode.png"
+        result = subprocess.run(
+            [
+                "qrencode",
+                "-m", border_str,
+                "-s", "3",
+                "-l", "L",
+                "--foreground=000000",
+                f"--background={background_color}",
+                "-t", "PNG",
+                "-o", tmp_path,
+            ],
+            input=data_bytes,
+            capture_output=True,
+        )
+
+        # if qrencode fails, fall back to pure-Python encoder
+        if result.returncode != 0:
+            return self.qrimage(data, width, height, border)
+
+        # Read the image into memory and delete the temp file immediately.
+        # /tmp/qrcode.png may contain sensitive data (PSBTs, xpubs, seed
+        # entropy) and should not persist on disk (see issue #872).
+        try:
+            img = Image.open(tmp_path).resize((width, height), Image.Resampling.NEAREST).convert("RGBA")
+            return img
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
