@@ -495,6 +495,51 @@ class TestSeedFlows(FlowTest):
 
 
 
+class TestBackupVerificationFlows(FlowTest):
+
+    def test_review_words_after_wrong_answer_no_back_trap(self):
+        """
+        Picking the wrong word during backup verification and then selecting
+        "Review seed words" should NOT create a back-button loop. Pressing
+        BACK from the word review must return to a fresh verification attempt,
+        not to the "Wrong Word!" screen.
+
+        Regression test for issue #854.
+        """
+        def force_wrong_word(view):
+            # rand_seed=3, cur_index=2 -> after shuffle, real word lands at index 3
+            # so screen_return_value=0 picks a fake word
+            view.rand_seed = 3
+            view.cur_index = 2
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.BACKUP),
+            FlowStep(seed_views.SeedBackupView, button_data_selection=seed_views.SeedBackupView.VIEW_WORDS),
+            FlowStep(seed_views.SeedWordsWarningView, screen_return_value=0),
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT),
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT),
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.DONE),
+            FlowStep(seed_views.SeedWordsBackupTestPromptView, button_data_selection=seed_views.SeedWordsBackupTestPromptView.VERIFY),
+
+            # rand_seed=3 + cur_index=2: real word lands at index 3 after shuffle;
+            # screen_return_value=0 picks a fake word -> triggers MistakeView
+            FlowStep(seed_views.SeedWordsBackupTestView, before_run=force_wrong_word, screen_return_value=0),
+
+            # We're on the "Wrong Word!" screen — select "Review seed words"
+            FlowStep(seed_views.SeedWordsBackupTestMistakeView, button_data_selection=seed_views.SeedWordsBackupTestMistakeView.REVIEW),
+
+            # Now viewing seed words; press BACK
+            FlowStep(seed_views.SeedWordsView, screen_return_value=RET_CODE__BACK_BUTTON),
+
+            # Must land on a fresh verification attempt, NOT the mistake screen
+            FlowStep(seed_views.SeedWordsBackupTestView),
+        ])
+
+
+
 class TestMessageSigningFlows(FlowTest):
     MAINNET_DERIVATION_PATH = "m/84h/0h/0h/0/0"
     TESTNET_DERIVATION_PATH = "m/84h/1h/0h/0/0"
