@@ -132,7 +132,8 @@ class QR:
         # /tmp/qrcode.png may contain sensitive data (PSBTs, xpubs, seed
         # entropy) and should not persist on disk (see issue #872).
         try:
-            img = Image.open(tmp_path).resize((width, height), Image.Resampling.NEAREST).convert("RGBA")
+            with Image.open(tmp_path) as original_img:
+                img = original_img.resize((width, height), Image.Resampling.NEAREST).convert("RGBA")
             return img
         finally:
             try:
