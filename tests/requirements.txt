@@ -1,3 +1,5 @@
 coverage==7.6.12
 pytest==7.4.2
 pytest-cov==4.1.0
+hypothesis
+pytest-benchmark
