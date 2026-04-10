@@ -497,21 +497,21 @@ class TestSeedFlows(FlowTest):
 
 class TestBackupVerificationFlows(FlowTest):
 
+    @staticmethod
+    def force_wrong_word(view):
+        """Force deterministic random so screen_return_value=0 picks a fake word."""
+        view.rand_seed = 3
+        view.cur_index = 2
+
     def test_review_words_after_wrong_answer_no_back_trap(self):
         """
         Picking the wrong word during backup verification and then selecting
-        "Review seed words" should NOT create a back-button loop. Pressing
-        BACK from the word review must return to a fresh verification attempt,
-        not to the "Wrong Word!" screen.
+        "Review seed words" should NOT create a back-button loop. The review
+        path must go through the words and return to a fresh verification
+        prompt with no stale confirmed_list.
 
         Regression test for issue #854.
         """
-        def force_wrong_word(view):
-            # rand_seed=3, cur_index=2 -> after shuffle, real word lands at index 3
-            # so screen_return_value=0 picks a fake word
-            view.rand_seed = 3
-            view.cur_index = 2
-
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
             FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
@@ -524,18 +524,56 @@ class TestBackupVerificationFlows(FlowTest):
             FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.DONE),
             FlowStep(seed_views.SeedWordsBackupTestPromptView, button_data_selection=seed_views.SeedWordsBackupTestPromptView.VERIFY),
 
-            # rand_seed=3 + cur_index=2: real word lands at index 3 after shuffle;
-            # screen_return_value=0 picks a fake word -> triggers MistakeView
-            FlowStep(seed_views.SeedWordsBackupTestView, before_run=force_wrong_word, screen_return_value=0),
+            # Force a wrong word selection
+            FlowStep(seed_views.SeedWordsBackupTestView, before_run=self.force_wrong_word, screen_return_value=0),
 
-            # We're on the "Wrong Word!" screen — select "Review seed words"
+            # Select "Review seed words" from the mistake screen
             FlowStep(seed_views.SeedWordsBackupTestMistakeView, button_data_selection=seed_views.SeedWordsBackupTestMistakeView.REVIEW),
 
-            # Now viewing seed words; press BACK
-            FlowStep(seed_views.SeedWordsView, screen_return_value=RET_CODE__BACK_BUTTON),
+            # Review goes through the warning -> word pages -> done -> fresh prompt
+            FlowStep(seed_views.SeedWordsWarningView, screen_return_value=0),
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT),
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT),
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.DONE),
 
-            # Must land on a fresh verification attempt, NOT the mistake screen
-            FlowStep(seed_views.SeedWordsBackupTestView),
+            # Lands at a fresh verification prompt — no stale confirmed_list
+            FlowStep(seed_views.SeedWordsBackupTestPromptView),
+        ])
+
+
+    def test_review_words_after_wrong_answer_bip85(self):
+        """
+        Same back-button trap test but for BIP-85 child seed verification.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS, SettingsConstants.OPTION__ENABLED)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.BIP85_CHILD_SEED),
+            FlowStep(seed_views.SeedBIP85SelectNumWordsView, button_data_selection=seed_views.SeedBIP85SelectNumWordsView.WORDS_12),
+            FlowStep(seed_views.SeedBIP85SelectChildIndexView, screen_return_value=0),
+            FlowStep(seed_views.SeedWordsWarningView, screen_return_value=0),
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT),
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT),
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.DONE),
+            FlowStep(seed_views.SeedWordsBackupTestPromptView, button_data_selection=seed_views.SeedWordsBackupTestPromptView.VERIFY),
+
+            # Force wrong word
+            FlowStep(seed_views.SeedWordsBackupTestView, before_run=self.force_wrong_word, screen_return_value=0),
+
+            # Review words from mistake screen
+            FlowStep(seed_views.SeedWordsBackupTestMistakeView, button_data_selection=seed_views.SeedWordsBackupTestMistakeView.REVIEW),
+
+            # Goes through warning -> words -> done -> fresh prompt
+            FlowStep(seed_views.SeedWordsWarningView, screen_return_value=0),
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT),
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT),
+            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.DONE),
+
+            # Fresh verification prompt
+            FlowStep(seed_views.SeedWordsBackupTestPromptView),
         ])
 
 

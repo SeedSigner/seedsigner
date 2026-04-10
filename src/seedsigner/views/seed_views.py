@@ -1360,7 +1360,7 @@ class SeedWordsBackupTestMistakeView(View):
 
         if button_data[selected_menu_num] == self.REVIEW:
             return Destination(
-                SeedWordsView,
+                SeedWordsWarningView,
                 view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
                 skip_current_view=True,
             )
