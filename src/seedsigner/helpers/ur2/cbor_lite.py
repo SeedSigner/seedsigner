@@ -152,7 +152,7 @@ class CBOREncoder:
     def encodeText(self, value):
         str_len = len(value)
         length = self.encodeTagAndValue(Tag_Major_textString, str_len)
-        self.buf.append(bytes(value, 'utf8'))
+        self.buf.extend(bytes(value, 'utf8'))  # fix: extend() not append() for bytes
         return length + str_len
 
     def encodeArraySize(self, value):
@@ -311,6 +311,6 @@ class CBORDecoder:
 
     def decodeMapSize(self, flags=Flag_None):
         (tag, value, length) = self.decodeTagAndValue(flags)
-        if tag != Tag_Major_mask:
+        if tag != Tag_Major_map:  # fix: was Tag_Major_mask (0xe0), should be Tag_Major_map (0xa0)
             raise Exception("Expected Tag_Major_map, but found {}".format(tag))
         return (value, length)
