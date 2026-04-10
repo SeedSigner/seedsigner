@@ -24,17 +24,18 @@ class TranslationVariableMissingError(Exception):
             return f"Translation error in locale '{self.locale}': Translation missing variables {expected_vars_str}.\nOriginal: '{self.message}'\nTranslation: '{self.translated}'"
         return f"Translation error in locale '{self.locale}'"
 
-def seedsigner_gettext(message: str, **kwargs):
+def seedsigner_gettext(message: str, *args, **kwargs):
     """
     Enhanced gettext with built-in variable formatting and better error messages.
+    Supports both positional args (for {} placeholders) and keyword args (for {name} placeholders).
     """
     translated = gettext.gettext(message)
     
-    if not kwargs:
+    if not args and not kwargs:
         return translated
     
     try:
-        return translated.format(**kwargs)
+        return translated.format(*args, **kwargs)
     except (KeyError, IndexError, ValueError) as e:
         from seedsigner.models.settings import Settings
         from seedsigner.models.settings_definition import SettingsConstants
@@ -54,20 +55,21 @@ def seedsigner_gettext(message: str, **kwargs):
             locale=locale,
             message=message,
             translated=translated,
-            expected_vars=list(kwargs.keys())
+            expected_vars=list(kwargs.keys()) if kwargs else [f'arg{i}' for i in range(len(args))]
         ) from e
 
-def seedsigner_ngettext(singular: str, plural: str, n: int, **kwargs):
+def seedsigner_ngettext(singular: str, plural: str, n: int, *args, **kwargs):
     """
     Enhanced ngettext with built-in variable formatting and better error messages.
+    Supports both positional args (for {} placeholders) and keyword args (for {name} placeholders).
     """
     translated = gettext.ngettext(singular, plural, n)
     
-    if not kwargs:
+    if not args and not kwargs:
         return translated
     
     try:
-        return translated.format(**kwargs)
+        return translated.format(*args, **kwargs)
     except (KeyError, IndexError, ValueError) as e:
         from seedsigner.models.settings import Settings
         from seedsigner.models.settings_definition import SettingsConstants
@@ -81,5 +83,5 @@ def seedsigner_ngettext(singular: str, plural: str, n: int, **kwargs):
             locale=locale,
             message=singular if n == 1 else plural,
             translated=translated,
-            expected_vars=list(kwargs.keys())
+            expected_vars=list(kwargs.keys()) if kwargs else [f'arg{i}' for i in range(len(args))]
         ) from e

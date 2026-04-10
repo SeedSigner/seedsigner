@@ -111,6 +111,63 @@ class TestSeedSignerGettextSuccess:
         assert seedsigner_gettext("Hello {name}", name="World") == "Hello World"
 
 
+class TestSeedSignerGettextPositionalSuccess:
+    @patch("seedsigner.helpers.l10n.gettext.gettext")
+    def test_single_positional_arg(self, mock_gt):
+        mock_gt.return_value = "Seed Wort #{}"
+        assert seedsigner_gettext("Seed Word #{}", 5) == "Seed Wort #5"
+
+    @patch("seedsigner.helpers.l10n.gettext.gettext")
+    def test_multiple_positional_args(self, mock_gt):
+        mock_gt.return_value = "Seed Wörter: {}/{}"
+        assert seedsigner_gettext("Seed Words: {}/{}", 1, 3) == "Seed Wörter: 1/3"
+
+    @patch("seedsigner.helpers.l10n.gettext.gettext")
+    def test_no_args_no_kwargs_returns_translated(self, mock_gt):
+        """No args and no kwargs → translated string returned as-is."""
+        mock_gt.return_value = "Würfelwurf 1/50"
+        assert seedsigner_gettext("Dice Roll 1/50") == "Würfelwurf 1/50"
+
+
+class TestSeedSignerGettextPositionalFailure:
+    @patch("seedsigner.helpers.l10n.gettext.gettext")
+    def test_fewer_placeholders_does_not_raise(self, mock_gt):
+        """Translation has fewer {} than args — Python ignores extra args, no error."""
+        mock_gt.return_value = "Seite {}"
+        # .format(1, 3) with only one {} silently ignores the extra arg
+        assert seedsigner_gettext("Page {}/{}", 1, 3) == "Seite 1"
+
+    @patch("seedsigner.helpers.l10n.gettext.gettext")
+    def test_too_many_placeholders_in_translation(self, mock_gt):
+        """Translation has more {} than args provided → IndexError."""
+        mock_gt.return_value = "Seite {}/{}/{}"
+        with pytest.raises(TranslationVariableMissingError) as exc_info:
+            seedsigner_gettext("Page {}/{}", 1, 3)
+
+        exc = exc_info.value
+        assert exc.locale == "de_DE"
+        assert isinstance(exc.__cause__, IndexError)
+
+    @patch("seedsigner.helpers.l10n.gettext.gettext")
+    def test_named_placeholder_in_translation_with_positional_args(self, mock_gt):
+        """Translation uses {name} but caller passes positional args → KeyError."""
+        mock_gt.return_value = "Seite {page}/{total}"
+        with pytest.raises(TranslationVariableMissingError) as exc_info:
+            seedsigner_gettext("Page {}/{}", 1, 3)
+
+        exc = exc_info.value
+        assert isinstance(exc.__cause__, KeyError)
+
+    @patch("seedsigner.helpers.l10n.gettext.gettext")
+    def test_expected_vars_for_positional_args(self, mock_gt):
+        """On failure with *args, expected_vars should list arg0, arg1, etc."""
+        mock_gt.return_value = "Seite {}/{}/{}"
+        with pytest.raises(TranslationVariableMissingError) as exc_info:
+            seedsigner_gettext("Page {}/{}", 1, 3)
+
+        assert exc_info.value.expected_vars == ["arg0", "arg1"]
+
+
 
 class TestSeedSignerGettextFailure:
     @patch("seedsigner.helpers.l10n.gettext.gettext")
@@ -241,6 +298,18 @@ class TestSeedSignerNgettextSuccess:
     def test_plural_with_kwargs(self, mock_ng):
         mock_ng.return_value = "{count} Dateien"
         result = seedsigner_ngettext("{count} file", "{count} files", 5, count=5)
+        assert result == "5 Dateien"
+
+    @patch("seedsigner.helpers.l10n.gettext.ngettext")
+    def test_singular_with_positional_arg(self, mock_ng):
+        mock_ng.return_value = "{} Datei"
+        result = seedsigner_ngettext("{} file", "{} files", 1, 1)
+        assert result == "1 Datei"
+
+    @patch("seedsigner.helpers.l10n.gettext.ngettext")
+    def test_plural_with_positional_arg(self, mock_ng):
+        mock_ng.return_value = "{} Dateien"
+        result = seedsigner_ngettext("{} file", "{} files", 5, 5)
         assert result == "5 Dateien"
 
 

@@ -464,7 +464,7 @@ class SeedWordsScreen(WarningEdgesMixin, ButtonListScreen):
 
     def __post_init__(self):
         # TRANSLATOR_NOTE: Displays the page number and total: (e.g. page 1 of 6)
-        self.title = _("Seed Words: {}/{}").format(self.page_index + 1, self.num_pages)
+        self.title = _("Seed Words: {}/{}", self.page_index + 1, self.num_pages)
         super().__post_init__()
 
         words_per_page = len(self.words)
