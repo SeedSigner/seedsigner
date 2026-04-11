@@ -10,6 +10,7 @@ from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsDefinition, SettingsConstants
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
 from seedsigner.hardware.microsd import MicroSD
+from seedsigner.hardware.ups import UPS
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, settings_views
 
@@ -155,3 +156,24 @@ class TestSettingsFlows(FlowTest):
             load_settingsqr_into_decoder=load_persistent_settingsqr_into_decoder,
             expected_setting_state=SettingsConstants.OPTION__DISABLED
         )
+
+
+    def test_battery_indicator_toggle(self):
+        """Battery indicator setting should be toggleable when UPS HAT is detected."""
+        settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__BATTERY_INDICATOR)
+
+        # Simulate HAT detected: open up the selection options
+        Settings.handle_ups_state_change(UPS.ACTION__DETECTED)
+        assert settings_entry.selection_options == SettingsConstants.OPTIONS__ENABLED_DISABLED
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SETTINGS),
+            FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_views.SettingsMenuView.ADVANCED),
+            FlowStep(settings_views.SettingsMenuView, button_data_selection=settings_views.SettingsMenuView.HARDWARE),
+            FlowStep(settings_views.SettingsMenuView, button_data_selection=ButtonOption(settings_entry.display_name)),
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, button_data_selection=ButtonOption(settings_entry.get_selection_option_display_name_by_value(SettingsConstants.OPTION__ENABLED))),
+            FlowStep(settings_views.SettingsEntryUpdateSelectionView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(settings_views.SettingsMenuView),
+        ])
+
+        assert self.settings.get_value(SettingsConstants.SETTING__BATTERY_INDICATOR) == SettingsConstants.OPTION__ENABLED

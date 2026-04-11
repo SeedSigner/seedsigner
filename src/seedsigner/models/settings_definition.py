@@ -355,6 +355,10 @@ class SettingsConstants:
     SETTING__MICROSD_TOAST_TIMER = "microsd_toast_timer"
 
     SETTING__DEBUG = "debug"
+    SETTING__BATTERY_INDICATOR = "battery_indicator"
+
+    BATTERY_INDICATOR__DETECTED__HELP_TEXT = _mft("Show battery level in top bar")
+    BATTERY_INDICATOR__NOT_DETECTED__HELP_TEXT = _mft("No compatible UPS HAT detected")
 
 
     # Hardware config settings
@@ -735,6 +739,16 @@ class SettingsDefinition:
                       display_name=_mft("Invert colors"),
                       type=SettingsConstants.TYPE__ENABLED_DISABLED,
                       visibility=SettingsConstants.VISIBILITY__HARDWARE,
+                      default_value=SettingsConstants.OPTION__DISABLED),
+
+        # TRANSLATOR_NOTE: Settings option to show a small battery icon in the top bar.
+        # Only selectable when a compatible Waveshare UPS HAT is detected at boot.
+        SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
+                      attr_name=SettingsConstants.SETTING__BATTERY_INDICATOR,
+                      abbreviated_name="battery",
+                      display_name=_mft("Battery indicator"),
+                      visibility=SettingsConstants.VISIBILITY__HARDWARE,
+                      help_text=SettingsConstants.BATTERY_INDICATOR__DETECTED__HELP_TEXT,
                       default_value=SettingsConstants.OPTION__DISABLED),
 
 

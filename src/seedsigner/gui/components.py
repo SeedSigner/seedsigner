@@ -1751,6 +1751,18 @@ class TopNav(BaseComponent):
                 # for the life of the Component.
                 self.threads.append(self.title.scroll_thread)
 
+        self._battery_icon = None
+        from seedsigner.hardware.ups import UPS
+        if (UPS.get_instance().is_present()
+                and Settings.get_instance().get_value(SettingsConstants.SETTING__BATTERY_INDICATOR) == SettingsConstants.OPTION__ENABLED):
+            icon_w = 22
+            icon_y = (self.height - 12) // 2
+            if self.show_power_button:
+                icon_x = self.right_button.screen_x - GUIConstants.COMPONENT_PADDING - icon_w
+            else:
+                icon_x = self.width - GUIConstants.EDGE_PADDING - icon_w
+            self._battery_icon = BatteryStatusIcon(screen_x=icon_x, screen_y=icon_y)
+
 
     @property
     def selected_button(self):
@@ -1766,7 +1778,9 @@ class TopNav(BaseComponent):
     def render(self):
         self.title.render()
         self.render_buttons()
-    
+        if self._battery_icon is not None:
+            self._battery_icon.render()
+
 
     def render_buttons(self):
         if self.show_back_button:
@@ -1775,6 +1789,45 @@ class TopNav(BaseComponent):
         if self.show_power_button:
             self.right_button.is_selected = self.is_selected
             self.right_button.render()
+
+
+
+@dataclass
+class BatteryStatusIcon(BaseComponent):
+    """Small battery glyph drawn in the top-right corner of TopNav."""
+    screen_x: int = 0
+    screen_y: int = 0
+    width: int = 22   # 20 px body + 2 px nub
+    height: int = 12
+
+    def render(self):
+        from seedsigner.hardware.ups import UPS
+        pct = UPS.get_instance().read_percent()
+        if pct is None:
+            return
+        # Outer body: 20 px wide, full height
+        body_x2 = self.screen_x + 19
+        body_y2 = self.screen_y + self.height - 1
+        self.image_draw.rectangle(
+            [self.screen_x, self.screen_y, body_x2, body_y2],
+            outline=GUIConstants.BODY_FONT_COLOR,
+            fill=GUIConstants.BACKGROUND_COLOR,
+        )
+        # Nub: 2 px wide, 6 px tall, centered vertically on the right edge
+        nub_x1 = self.screen_x + 20
+        nub_y1 = self.screen_y + (self.height - 6) // 2
+        self.image_draw.rectangle(
+            [nub_x1, nub_y1, nub_x1 + 1, nub_y1 + 5],
+            fill=GUIConstants.BODY_FONT_COLOR,
+        )
+        # Fill area: 16 px usable (20 - 2 border - 2 padding)
+        fill_w = max(0, int(round(16 * pct / 100)))
+        if fill_w > 0:
+            self.image_draw.rectangle(
+                [self.screen_x + 2, self.screen_y + 2,
+                 self.screen_x + 1 + fill_w, self.screen_y + self.height - 3],
+                fill=GUIConstants.BODY_FONT_COLOR,
+            )
 
 
 

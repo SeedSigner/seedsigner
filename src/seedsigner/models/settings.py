@@ -276,6 +276,21 @@ class Settings(Singleton):
         return self._data[SettingsConstants.SETTING__DEBUG] == SettingsConstants.OPTION__ENABLED
 
 
+    def handle_ups_state_change(action: str):
+        """
+        Enables/Disables the Battery Indicator option based on UPS HAT presence at boot.
+        """
+        from seedsigner.hardware.ups import UPS
+        entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__BATTERY_INDICATOR)
+        if action == UPS.ACTION__DETECTED:
+            entry.selection_options = SettingsConstants.OPTIONS__ENABLED_DISABLED
+            entry.help_text = SettingsConstants.BATTERY_INDICATOR__DETECTED__HELP_TEXT
+        else:
+            Settings.get_instance()._data[SettingsConstants.SETTING__BATTERY_INDICATOR] = SettingsConstants.OPTION__DISABLED
+            entry.selection_options = SettingsConstants.OPTIONS__ONLY_DISABLED
+            entry.help_text = SettingsConstants.BATTERY_INDICATOR__NOT_DETECTED__HELP_TEXT
+
+
     def handle_microsd_state_change(action: str):
         """
         Enables/Disables the Persistent Settings option based on the MicroSD card state.

@@ -184,6 +184,9 @@ class Controller(Singleton):
         controller.microsd = MicroSD.get_instance()
         controller.microsd.start_detection()
 
+        from seedsigner.hardware.ups import UPS
+        UPS.configure_instance()
+
         # Store one working psbt in memory
         controller.psbt = None
         controller.psbt_parser = None

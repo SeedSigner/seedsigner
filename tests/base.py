@@ -6,6 +6,12 @@ from typing import Callable
 # Prevent importing modules w/Raspi hardware dependencies.
 # These must precede any SeedSigner imports.
 sys.modules['numpy'] = MagicMock()  # numpy is only in the Raspi requirements; not needed for tests. But is imported in BackgroundImportThread.
+sys.modules['smbus2'] = MagicMock()
+try:
+    import pyzbar  # noqa: F401
+except ImportError:
+    sys.modules['pyzbar'] = MagicMock()
+    sys.modules['pyzbar.pyzbar'] = MagicMock()
 sys.modules['seedsigner.gui.renderer'] = MagicMock()
 sys.modules['seedsigner.gui.screens.screensaver'] = MagicMock()
 sys.modules['seedsigner.gui.toast'] = MagicMock()
@@ -19,6 +25,7 @@ sys.modules['seedsigner.hardware.ili9341'] = MagicMock()
 from seedsigner.controller import Controller, FlowBasedTestException, StopFlowBasedTest
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, RET_CODE__POWER_BUTTON, ButtonOption
 from seedsigner.hardware.microsd import MicroSD
+from seedsigner.hardware.ups import UPS
 from seedsigner.models.settings import Settings
 from seedsigner.views.view import Destination, MainMenuView, View
 
@@ -39,6 +46,20 @@ class BaseTest:
         is_inserted: bool = True
 
 
+    class MockUPS(Mock):
+        """
+        A test suite-friendly replacement for `UPS` that reports no HAT present.
+        """
+        ACTION__DETECTED = "ups__detected"
+        ACTION__ABSENT   = "ups__absent"
+
+        def probe(self): return False
+        def is_present(self): return False
+        def read_voltage(self): return None
+        def read_percent(self): return None
+        def is_charging(self): return None
+
+
     @classmethod
     def setup_class(cls):
         # Ensure there are no on-disk artifacts after running tests.
@@ -53,6 +74,10 @@ class BaseTest:
 
         # And mock it over `MicroSD`'s instance
         MicroSD.get_instance = Mock(return_value=cls.mock_microsd)
+
+        # Instantiate the mocked UPS and install it
+        cls.mock_ups = BaseTest.MockUPS()
+        UPS.get_instance = Mock(return_value=cls.mock_ups)
 
 
     @classmethod
