@@ -1,6 +1,6 @@
 import pytest
 from binascii import a2b_base64
-from hypothesis import given, settings, HealthCheck
+from hypothesis import given, settings, HealthCheck, assume
 from hypothesis import strategies as st
 from embit.psbt import PSBT
 
@@ -33,10 +33,7 @@ EXTERNAL_OUTPUTS = st.sampled_from(PSBTTestData.ALL_EXTERNAL_OUTPUTS)
 @settings(suppress_health_check=[], max_examples=10)
 @given(input_b64=SINGLESIG_INPUTS)
 def test_existing_fixtures_pass_hypothesis_health_checks(input_b64):
-    """
-    Expected Outcome #1: Existing PSBT fixtures pass Hypothesis health checks
-    with zero failures. No health checks are suppressed here intentionally.
-    """
+    """Existing PSBT fixtures parse cleanly. No health checks are suppressed."""
     psbt: PSBT = PSBT.parse(a2b_base64(input_b64))
     input_amount = sum(inp.utxo.value for inp in psbt.inputs)
     assert input_amount > 0
@@ -58,8 +55,7 @@ def test_singlesig_conservation_of_value(input_b64, change_hex, recipient_hex, f
     psbt: PSBT = PSBT.parse(a2b_base64(input_b64))
     input_amount = sum(inp.utxo.value for inp in psbt.inputs)
 
-    if fee >= input_amount - 1_000:
-        return
+    assume(fee < input_amount - 1_000)
 
     recipient_amount = (input_amount - fee) // 2
     change_amount = input_amount - recipient_amount - fee
