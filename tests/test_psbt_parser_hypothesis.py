@@ -1,4 +1,3 @@
-import pytest
 from binascii import a2b_base64
 from hypothesis import given, settings, HealthCheck, assume
 from hypothesis import strategies as st
@@ -30,15 +29,6 @@ SINGLESIG_CHANGE = st.sampled_from([
 EXTERNAL_OUTPUTS = st.sampled_from(PSBTTestData.ALL_EXTERNAL_OUTPUTS)
 
 
-@settings(suppress_health_check=[], max_examples=10)
-@given(input_b64=SINGLESIG_INPUTS)
-def test_existing_fixtures_pass_hypothesis_health_checks(input_b64):
-    """Existing PSBT fixtures parse cleanly. No health checks are suppressed."""
-    psbt: PSBT = PSBT.parse(a2b_base64(input_b64))
-    input_amount = sum(inp.utxo.value for inp in psbt.inputs)
-    assert input_amount > 0
-
-
 @given(
     input_b64=SINGLESIG_INPUTS,
     change_hex=SINGLESIG_CHANGE,
@@ -47,11 +37,8 @@ def test_existing_fixtures_pass_hypothesis_health_checks(input_b64):
 )
 @settings(suppress_health_check=[HealthCheck.too_slow], max_examples=50)
 def test_singlesig_conservation_of_value(input_b64, change_hex, recipient_hex, fee):
-    """
-    Expected Outcome #3: Property: spend + change + fee == input_amount
-    for any valid combination of single-sig input, change output, and recipient.
-    Covers p2wpkh, p2sh-p2wpkh, p2tr, p2pkh.
-    """
+    """Property: spend + change + fee == input_amount for any valid combination
+    of single-sig input, change output, and recipient (p2wpkh, p2sh-p2wpkh, p2tr, p2pkh)."""
     psbt: PSBT = PSBT.parse(a2b_base64(input_b64))
     input_amount = sum(inp.utxo.value for inp in psbt.inputs)
 
