@@ -126,9 +126,10 @@ Download the current Version (0.8.6) software image that is compatible with your
 
 Note: If you have physically removed the WiFi component from your board, you will still use the image file of the original (un-modified) hardware. (Our files are compiled/based on the *processor* architecture). Although it is better to spend a few minutes upfront to determine which specific Pi hardware/model you have, if you are still unsure which hardware you have, you can try using the pi0.img file. Making an incorrect choice here will not ruin your board, because this is software, not firmware. 
 
-**also download** these 2 signature verification files to the same folder  
+**Also download** these 2 signature verification files to the same folder  
 [The Plaintext manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.8.6/seedsigner.0.8.6.sha256.txt)  
 [The Signature of the manifest file](https://github.com/SeedSigner/seedsigner/releases/download/0.8.6/seedsigner.0.8.6.sha256.txt.sig)
+
 
 Users familiar with older versions of the SeedSigner software might be surprised with how fast their software downloads now are, because since version 0.6.0 the software image files are now 100x smaller! Each image file is now under 42 Megabytes so your downloads and verifications will be very quick now (and might even seem *too* quick)!  
 
