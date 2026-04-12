@@ -1040,7 +1040,7 @@ class SeedWordsView(View):
     NEXT = ButtonOption("Next")
     DONE = ButtonOption("Done")
 
-    def __init__(self, seed_num: int, bip85_data: dict = None, page_index: int = 0):
+    def __init__(self, seed_num: int, bip85_data: dict = None, page_index: int = 0, review_mode: bool = False):
         super().__init__()
         self.seed_num = seed_num
         if self.seed_num is None:
@@ -1049,6 +1049,7 @@ class SeedWordsView(View):
             self.seed = self.controller.get_seed(self.seed_num)
         self.bip85_data = bip85_data
         self.page_index = page_index
+        self.review_mode = review_mode
 
 
     def run(self):
@@ -1081,6 +1082,11 @@ class SeedWordsView(View):
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
+            if self.page_index == 0 and self.review_mode:
+                return Destination(
+                    SeedWordsBackupTestPromptView,
+                    view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
+                )
             return Destination(BackStackView)
 
         if button_data[selected_menu_num] == self.NEXT:
@@ -1361,7 +1367,8 @@ class SeedWordsBackupTestMistakeView(View):
         if button_data[selected_menu_num] == self.REVIEW:
             return Destination(
                 SeedWordsView,
-                view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data),
+                view_args=dict(seed_num=self.seed_num, bip85_data=self.bip85_data, review_mode=True),
+                skip_current_view=True,
             )
 
         elif button_data[selected_menu_num] == self.RETRY:
