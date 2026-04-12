@@ -506,9 +506,9 @@ class TestBackupVerificationFlows(FlowTest):
     def test_review_words_after_wrong_answer_no_back_trap(self):
         """
         Picking the wrong word during backup verification and then selecting
-        "Review seed words" should NOT create a back-button loop. The review
-        path must go through the words and return to a fresh verification
-        prompt with no stale confirmed_list.
+        "Review seed words" should NOT create a back-button loop. Pressing
+        BACK from page 1 of the review must go to a fresh verification
+        prompt, not to the "Wrong Word!" screen or stale verification state.
 
         Regression test for issue #854.
         """
@@ -527,23 +527,20 @@ class TestBackupVerificationFlows(FlowTest):
             # Force a wrong word selection
             FlowStep(seed_views.SeedWordsBackupTestView, before_run=self.force_wrong_word, screen_return_value=0),
 
-            # Select "Review seed words" from the mistake screen
+            # Select "Review seed words" — enters word review in review_mode
             FlowStep(seed_views.SeedWordsBackupTestMistakeView, button_data_selection=seed_views.SeedWordsBackupTestMistakeView.REVIEW),
 
-            # Review goes through the warning -> word pages -> done -> fresh prompt
-            FlowStep(seed_views.SeedWordsWarningView, screen_return_value=0),
-            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT),
-            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT),
-            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.DONE),
+            # BACK from page 1 in review_mode goes directly to fresh prompt
+            FlowStep(seed_views.SeedWordsView, screen_return_value=RET_CODE__BACK_BUTTON),
 
-            # Lands at a fresh verification prompt — no stale confirmed_list
+            # Fresh verification prompt — no stale confirmed_list
             FlowStep(seed_views.SeedWordsBackupTestPromptView),
         ])
 
 
     def test_review_words_after_wrong_answer_bip85(self):
         """
-        Same back-button trap test but for BIP-85 child seed verification.
+        Same review-back test for BIP-85 child seed verification.
         """
         self.settings.set_value(SettingsConstants.SETTING__BIP85_CHILD_SEEDS, SettingsConstants.OPTION__ENABLED)
 
@@ -566,11 +563,8 @@ class TestBackupVerificationFlows(FlowTest):
             # Review words from mistake screen
             FlowStep(seed_views.SeedWordsBackupTestMistakeView, button_data_selection=seed_views.SeedWordsBackupTestMistakeView.REVIEW),
 
-            # Goes through warning -> words -> done -> fresh prompt
-            FlowStep(seed_views.SeedWordsWarningView, screen_return_value=0),
-            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT),
-            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.NEXT),
-            FlowStep(seed_views.SeedWordsView, button_data_selection=seed_views.SeedWordsView.DONE),
+            # BACK from page 1 in review_mode -> fresh prompt
+            FlowStep(seed_views.SeedWordsView, screen_return_value=RET_CODE__BACK_BUTTON),
 
             # Fresh verification prompt
             FlowStep(seed_views.SeedWordsBackupTestPromptView),
