@@ -571,9 +571,12 @@ class ToolsAddressExplorerAddressTypeView(View):
             self.seed = self.controller.storage.seeds[seed_num]
             data["seed_num"] = self.seed
             seed_derivation_override = self.seed.derivation_override(sig_type=SettingsConstants.SINGLE_SIG)
+            custom_derivation_details = None
 
             if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
+                from seedsigner.helpers import embit_utils
                 derivation_path = self.custom_derivation
+                custom_derivation_details = embit_utils.parse_derivation_path(derivation_path)
             elif seed_derivation_override:
                 derivation_path = seed_derivation_override
             else:
@@ -584,8 +587,16 @@ class ToolsAddressExplorerAddressTypeView(View):
                     script_type=self.script_type,
                 )
 
+            xpub_derivation_path = derivation_path
+            if custom_derivation_details and custom_derivation_details["wallet_derivation_path"]:
+                # If the user entered a full path that includes /change/index, derive
+                # from the wallet-level path so we can still enumerate addresses.
+                xpub_derivation_path = custom_derivation_details["wallet_derivation_path"]
+
             data["derivation_path"] = derivation_path
-            data["xpub"] = self.seed.get_xpub(derivation_path, network=network)
+            if custom_derivation_details:
+                data["custom_derivation_details"] = custom_derivation_details
+            data["xpub"] = self.seed.get_xpub(xpub_derivation_path, network=network)
         
         else:
             data["wallet_descriptor"] = self.controller.multisig_wallet_descriptor
@@ -675,14 +686,25 @@ class ToolsAddressExplorerAddressListView(View):
                 if "xpub" in data:
                     # Single sig explore from seed
                     if "script_type" in data and data["script_type"] != SettingsConstants.CUSTOM_DERIVATION:
-                        # Standard derivation path
-                        for i in range(self.start_index, self.start_index + addrs_per_screen):
-                            address = embit_utils.get_single_sig_address(xpub=data["xpub"], script_type=data["script_type"], index=i, is_change=self.is_change, embit_network=data["embit_network"])
-                            addresses.append(address)
-                            data[addr_storage_key].append(address)
+                        script_type = data["script_type"]
+                        index_offset = 0
+
                     else:
-                        # TODO: Custom derivation path
-                        raise Exception(_("Custom Derivation address explorer not yet implemented"))
+                        custom_derivation_details = data.get("custom_derivation_details")
+                        if not custom_derivation_details:
+                            custom_derivation_details = embit_utils.parse_derivation_path(data["derivation_path"])
+                            data["custom_derivation_details"] = custom_derivation_details
+
+                        script_type = custom_derivation_details["script_type"]
+                        if script_type == SettingsConstants.CUSTOM_DERIVATION:
+                            raise Exception(_("Address Explorer does not support non-standard custom script paths"))
+
+                        index_offset = custom_derivation_details["index"] if custom_derivation_details["index"] is not None else 0
+
+                    for i in range(self.start_index + index_offset, self.start_index + index_offset + addrs_per_screen):
+                        address = embit_utils.get_single_sig_address(xpub=data["xpub"], script_type=script_type, index=i, is_change=self.is_change, embit_network=data["embit_network"])
+                        addresses.append(address)
+                        data[addr_storage_key].append(address)
 
                 elif "wallet_descriptor" in data:
                     from embit.descriptor import Descriptor
