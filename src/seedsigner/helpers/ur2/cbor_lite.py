@@ -150,10 +150,11 @@ class CBOREncoder:
         return length + self.encodeBytes(value)
 
     def encodeText(self, value):
-        str_len = len(value)
-        length = self.encodeTagAndValue(Tag_Major_textString, str_len)
-        self.buf.extend(bytes(value, 'utf8'))  # fix: extend() not append() for bytes
-        return length + str_len
+        utf8_bytes = value.encode('utf-8')
+        byte_len = len(utf8_bytes)
+        length = self.encodeTagAndValue(Tag_Major_textString, byte_len)
+        self.buf.extend(utf8_bytes)
+        return length + byte_len
 
     def encodeArraySize(self, value):
         return self.encodeTagAndValue(Tag_Major_array, value)

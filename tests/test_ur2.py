@@ -42,6 +42,19 @@ class TestCBORRoundTrip:
         val, _ = CBORDecoder(enc.get_bytes()).decodeText()
         assert bytes(val).decode('utf8') == "bitcoin"
 
+    def test_text_non_ascii_roundtrip(self):
+        """
+        Should correctly encode non-ASCII text using UTF-8 byte length
+        (not character count) in the CBOR header.
+        e.g. 'café' is 4 characters but 5 UTF-8 bytes.
+        """
+        enc = CBOREncoder()
+        enc.encodeText("café")
+        raw = enc.get_bytes()
+        assert raw[0] == (3 << 5) | 5
+        val, _ = CBORDecoder(raw).decodeText()
+        assert bytes(val).decode('utf8') == "café"
+
     def test_map_size_roundtrip(self):
         """
         Should successfully encode and decode map sizes.
