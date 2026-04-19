@@ -145,7 +145,26 @@ def parse_derivation_path(derivation_path: str) -> dict:
         }
     }
 
+    # Electrum single-sig segwit: m/0h/change/index (no purpose or coin-type level)
+    is_electrum_path = (
+        len(sections) == 4
+        and sections[1] == "0h"
+        and sections[2] in ["0", "1"]
+        and sections[3].isdigit()
+    )
+
     details = dict()
+    if is_electrum_path:
+        details["script_type"] = SettingsConstants.NATIVE_SEGWIT
+        details["network"] = SettingsConstants.MAINNET
+        details["is_change"] = sections[2] == "1"
+        details["index"] = int(sections[3])
+        details["wallet_derivation_path"] = "m/0h"
+        details["is_electrum_path"] = True
+        details["clean_match"] = True
+        return details
+
+    details["is_electrum_path"] = False
     details["script_type"] = lookups["script_types"].get(sections[1])
     if not details["script_type"]:
         details["script_type"] = SettingsConstants.CUSTOM_DERIVATION

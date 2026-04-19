@@ -1344,6 +1344,10 @@ msgstr ""
 msgid "Signing messages for custom derivation paths not supported"
 msgstr ""
 
+#: src/seedsigner/views/seed_views.py
+msgid "Electrum derivation path requires an Electrum seed"
+msgstr ""
+
 #: src/seedsigner/views/settings_views.py
 msgid "Advanced"
 msgstr ""

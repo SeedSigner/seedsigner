@@ -2322,6 +2322,11 @@ class SeedSignMessageConfirmAddressView(View):
         if not addr_format["clean_match"] or addr_format["script_type"] == SettingsConstants.CUSTOM_DERIVATION:
             raise Exception(_("Signing messages for custom derivation paths not supported"))
 
+        if addr_format.get("is_electrum_path"):
+            from seedsigner.models.seed import ElectrumSeed
+            if not isinstance(seed, ElectrumSeed):
+                raise Exception(_("Electrum derivation path requires an Electrum seed"))
+
         if addr_format["network"] != SettingsConstants.MAINNET:
             # We're in either Testnet or Regtest or...?
             if self.settings.get_value(SettingsConstants.SETTING__NETWORK) in [SettingsConstants.TESTNET, SettingsConstants.REGTEST]:
