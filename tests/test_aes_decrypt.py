@@ -77,3 +77,10 @@ def test_decrypt_short_input():
     """Very short/invalid input raises DecryptionError"""
     with pytest.raises(DecryptionError):
         decrypt_openssl_aes256cbc("U2FsdGVkX1short", "pass")
+
+
+def test_decrypt_hardcoded_vector():
+    """Pre-computed OpenSSL vector — no openssl binary needed at test time."""
+    encrypted = "U2FsdGVkX1+5ER21G7dz8fbBzXbp4p3LiMqJuwXOJN29f+1djh0nhJovkaPluB7Vcm9yr9g5Ss65pFvt+UQTsiYiEwJSiL9D08dn5AXmI5UmPR2WJuBQD14tEMrX/eXXVNLtG3Gy7qbiJkidJepX0w=="
+    result = decrypt_openssl_aes256cbc(encrypted, "TestVector2026")
+    assert result == "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
