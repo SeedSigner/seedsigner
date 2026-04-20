@@ -572,15 +572,13 @@ class ToolsAddressExplorerAddressTypeView(View):
             data["seed_num"] = self.seed
             seed_derivation_override = self.seed.derivation_override(sig_type=SettingsConstants.SINGLE_SIG)
             custom_derivation_details = None
-
+            from seedsigner.helpers import embit_utils
             if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
-                from seedsigner.helpers import embit_utils
                 derivation_path = self.custom_derivation
                 custom_derivation_details = embit_utils.parse_derivation_path(derivation_path)
             elif seed_derivation_override:
                 derivation_path = seed_derivation_override
             else:
-                from seedsigner.helpers import embit_utils
                 derivation_path = embit_utils.get_standard_derivation_path(
                     network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
                     wallet_type=SettingsConstants.SINGLE_SIG,
@@ -591,6 +589,7 @@ class ToolsAddressExplorerAddressTypeView(View):
             if custom_derivation_details and custom_derivation_details["wallet_derivation_path"]:
                 # If the user entered a full path that includes /change/index, derive
                 # from the wallet-level path so we can still enumerate addresses.
+                # The receive/change branch is selected later via the UI toggle.
                 xpub_derivation_path = custom_derivation_details["wallet_derivation_path"]
 
             data["derivation_path"] = derivation_path
@@ -692,13 +691,15 @@ class ToolsAddressExplorerAddressListView(View):
                     else:
                         custom_derivation_details = data.get("custom_derivation_details")
                         if not custom_derivation_details:
-                            custom_derivation_details = embit_utils.parse_derivation_path(data["derivation_path"])
-                            data["custom_derivation_details"] = custom_derivation_details
+                            raise Exception(_("Routing error: missing custom derivation details"))
 
                         script_type = custom_derivation_details["script_type"]
                         if script_type == SettingsConstants.CUSTOM_DERIVATION:
                             raise Exception(_("Address Explorer does not support non-standard custom script paths"))
 
+                        # Keep the user-entered index as the pagination start offset.
+                        # Intentionally ignore parsed `is_change`: branch selection comes
+                        # from the current Receive/Change screen selection (`self.is_change`).
                         index_offset = custom_derivation_details["index"] if custom_derivation_details["index"] is not None else 0
 
                     for i in range(self.start_index + index_offset, self.start_index + index_offset + addrs_per_screen):

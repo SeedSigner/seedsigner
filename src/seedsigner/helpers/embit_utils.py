@@ -136,7 +136,12 @@ def parse_derivation_path(derivation_path: str) -> dict:
 
     sections = derivation_path.split("/")
 
-    if sections[1] == "48h":
+    # Paths shorter than m/purpose/network/... are invalid for standard matching,
+    # but we still parse leniently so callers can handle the result gracefully.
+    purpose = sections[1] if len(sections) > 1 else None
+    network = sections[2] if len(sections) > 2 else None
+
+    if purpose == "48h":
         # So far this helper is only meant for single sig message signing
         raise Exception("Not implemented")
 
@@ -154,20 +159,23 @@ def parse_derivation_path(derivation_path: str) -> dict:
     }
 
     details = dict()
-    details["script_type"] = lookups["script_types"].get(sections[1])
+    details["script_type"] = lookups["script_types"].get(purpose)
     if not details["script_type"]:
         details["script_type"] = SettingsConstants.CUSTOM_DERIVATION
-    details["network"] = lookups["networks"].get(sections[2])
+    details["network"] = lookups["networks"].get(network)
+
+    change = sections[-2] if len(sections) > 1 else None
+    index = sections[-1] if len(sections) > 0 else None
 
     # Check if there's a standard change path
-    if sections[-2] in ["0", "1"]:
-        details["is_change"] = sections[-2] == "1"
+    if change in ["0", "1"]:
+        details["is_change"] = change == "1"
     else:
         details["is_change"] = None
 
     # Check if there's a standard address index
-    if sections[-1].isdigit():
-        details["index"] = int(sections[-1])
+    if index and index.isdigit():
+        details["index"] = int(index)
     else:
         details["index"] = None
 
