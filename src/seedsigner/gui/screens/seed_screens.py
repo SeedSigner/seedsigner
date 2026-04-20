@@ -1666,9 +1666,10 @@ class SeedSignMessageConfirmAddressScreen(ButtonListScreen):
         )
         self.components.append(derivation_path_display)
 
-        address_display = FormattedAddress(
-            address=self.address,
-            max_lines=3,
-            screen_y=derivation_path_display.screen_y + derivation_path_display.height + 2*GUIConstants.COMPONENT_PADDING,
-        )
-        self.components.append(address_display)
+        if self.address is not None:
+            address_display = FormattedAddress(
+                address=self.address,
+                max_lines=3,
+                screen_y=derivation_path_display.screen_y + derivation_path_display.height + 2*GUIConstants.COMPONENT_PADDING,
+            )
+            self.components.append(address_display)
