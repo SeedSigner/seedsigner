@@ -1763,8 +1763,8 @@ class AddressVerificationStartView(View):
                 destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR), skip_current_view=True)
 
         elif self.controller.unverified_address["script_type"] == SettingsConstants.TAPROOT:
-            sig_type = SettingsConstants.SINGLE_SIG
-            destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR), skip_current_view=True)
+            # No way to differentiate single sig from multisig at scan time.
+            return Destination(AddressVerificationSigTypeView, skip_current_view=True)
 
         derivation_path = embit_utils.get_standard_derivation_path(
             network=self.controller.unverified_address["network"],
