@@ -59,6 +59,10 @@ jobs:
           cp -r ./seedsigner-screenshots ./artifacts/
       - name: Coverage report
         run: coverage report
+      - name: Check .pot file freshness
+        run: |
+          python setup.py extract_messages
+          git diff --exit-code l10n/messages.pot
       - name: Archive CI Artifacts
         uses: actions/upload-artifact@v4
         with:
