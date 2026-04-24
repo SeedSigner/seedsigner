@@ -61,6 +61,7 @@ jobs:
         run: coverage report
       - name: Check .pot file freshness
         run: |
+          python -m pip install Babel setuptools
           python setup.py extract_messages
           git diff --exit-code l10n/messages.pot
       - name: Archive CI Artifacts
