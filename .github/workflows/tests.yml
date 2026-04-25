@@ -37,6 +37,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r tests/requirements.txt
           pip install .
+      - name: Check .pot file freshness
+        if: matrix.python-version == '3.12'
+        run: |
+          python setup.py extract_messages
+          git diff \
+            -I '^"POT-Creation-Date:' \
+            -I '^"Generated-By:' \
+            --exit-code l10n/messages.pot
       - name: Test with pytest
         run: |
           mkdir artifacts
