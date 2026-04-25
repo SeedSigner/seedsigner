@@ -64,7 +64,10 @@ jobs:
           python -m pip install Babel setuptools
           python setup.py extract_messages
           if ! git diff -I'^"POT-Creation-Date: ' --exit-code l10n/messages.pot; then
-            echo "::warning title=Stale .pot file::Localizable strings have changed but l10n/messages.pot was not updated. The automated pipeline will handle this on merge, but you can run 'python setup.py extract_messages' locally to sync now."
+            echo "::warning title=Stale .pot file::Localizable strings have changed but l10n/messages.pot was not updated."
+            echo "### 🌐 Localization Drift Detected" >> $GITHUB_STEP_SUMMARY
+            echo "Localizable strings have changed but \`l10n/messages.pot\` was not updated." >> $GITHUB_STEP_SUMMARY
+            echo "The automated pipeline will handle this on merge, but you can run \`python setup.py extract_messages\` locally to sync now." >> $GITHUB_STEP_SUMMARY
           fi
       - name: Archive CI Artifacts
         uses: actions/upload-artifact@v4
