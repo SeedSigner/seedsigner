@@ -40,8 +40,10 @@ jobs:
       - name: Check .pot file freshness
         if: matrix.python-version == '3.12'
         run: |
+          python -m pip install setuptools Babel==2.14.0
           python setup.py extract_messages
           git diff \
+            -I '^"Project-Id-Version:' \
             -I '^"POT-Creation-Date:' \
             -I '^"Generated-By:' \
             --exit-code l10n/messages.pot
