@@ -1,7 +1,17 @@
 import pytest
 import random
+import sys
+import types
 
 from binascii import a2b_base64
+
+# Other test modules may insert a MagicMock into sys.modules["numpy"].
+# Hypothesis treats any present "numpy" as real and attempts to import
+# numpy.random, so remove non-module stubs before using Hypothesis.
+if "numpy" in sys.modules and not isinstance(sys.modules["numpy"], types.ModuleType):
+    del sys.modules["numpy"]
+
+from hypothesis import given, settings, strategies as st
 from embit import bip32
 from embit.psbt import PSBT
 from embit.descriptor import Descriptor
@@ -11,6 +21,20 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
 from psbt_testing_util import PSBTTestData, create_output
+
+
+KNOWN_GOOD_SINGLE_SIG_PSBT_BLOBS = (
+    PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT,
+    PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT,
+    PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT,
+    PSBTTestData.SINGLE_SIG_LEGACY_P2PKH_1_INPUT,
+)
+
+
+@pytest.fixture(autouse=True)
+def _remove_mock_numpy_module():
+    if "numpy" in sys.modules and not isinstance(sys.modules["numpy"], types.ModuleType):
+        del sys.modules["numpy"]
 
 
 
@@ -485,3 +509,18 @@ def test_parse_op_return_content():
     assert psbt_parser.change_amount == 99992296
     assert psbt_parser.destination_addresses == []
     assert psbt_parser.destination_amounts == []
+
+
+@settings(max_examples=100, deadline=None)
+@given(blob_index=st.integers(min_value=0, max_value=len(KNOWN_GOOD_SINGLE_SIG_PSBT_BLOBS) - 1))
+def test_hypothesis_known_single_sig_amount_invariant(blob_index: int):
+    """
+    Competency test:
+    Replay known-good single-sig PSBT fixtures and ensure parser amount
+    accounting always satisfies the core invariant.
+    """
+    psbt_base64 = KNOWN_GOOD_SINGLE_SIG_PSBT_BLOBS[blob_index]
+    tx = PSBT.parse(a2b_base64(psbt_base64))
+    parser = PSBTParser(p=tx, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+    assert parser.input_amount == parser.spend_amount + parser.change_amount + parser.fee_amount
