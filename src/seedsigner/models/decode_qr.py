@@ -973,7 +973,7 @@ class SignMessageQrDecoder(BaseSingleFrameQrDecoder):
         parts = segment.split()
         self.derivation_path = parts[1].replace("h", "'")
         fmt = parts[2].split(":")[0]
-        self.message = segment.split(f"{fmt}:")[1]
+        self.message = segment.split(f"{fmt}:", 1)[1]
 
         # TODO: support formats other than ascii?
         if fmt != "ascii":

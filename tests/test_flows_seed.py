@@ -727,6 +727,27 @@ class TestMessageSigningFlows(FlowTest):
         assert self.controller.resume_main_flow is None
 
 
+    def test_sign_message_decoder_preserves_ascii_substring(self):
+        """
+        A signmessage payload whose message body contains the literal substring
+        "ascii:" must be decoded intact. Regression test: str.split was called
+        without maxsplit, so any occurrence of the format token inside the
+        message body truncated the decoded content.
+        """
+        from seedsigner.models.decode_qr import DecodeQR
+
+        derivation_path = "m/84h/0h/0h/0/0"
+        message = "please sign: ascii:art is plain text too"
+
+        decoder = DecodeQR()
+        decoder.add_data(f"signmessage {derivation_path} ascii:{message}")
+
+        assert decoder.is_complete
+        qr_data = decoder.get_qr_data()
+        assert qr_data["message"] == message
+        assert qr_data["derivation_path"] == "m/84'/0'/0'/0/0"
+
+
     def test_sign_message_unsupported_derivation_flow(self):
         """
         Should redirect to NotYetImplementedView if a message's derivation path isn't yet supported
