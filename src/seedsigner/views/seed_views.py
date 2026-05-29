@@ -1186,13 +1186,17 @@ class SeedBIP85SelectChildIndexView(View):
                 skip_current_view=True
             )
 
-        return Destination(
-            SeedWordsWarningView,
-            view_args=dict(
-                seed_num=self.seed_num,
-                bip85_data=dict(child_index=int(ret), num_words=self.num_words),
+        parent_seed = self.controller.get_seed(self.seed_num)
+        child_mnemonic = parent_seed.get_bip85_child_mnemonic(int(ret), self.num_words).split()
+        self.controller.storage.set_pending_seed(
+            Seed(
+                mnemonic=child_mnemonic,
+                wordlist_language_code=self.settings.get_value(
+                   SettingsConstants.SETTING__WORDLIST_LANGUAGE
+                )
             )
         )
+        return Destination(SeedFinalizeView)
 
 
 
