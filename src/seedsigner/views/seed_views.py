@@ -7,9 +7,10 @@ from gettext import gettext as _
 
 from embit.descriptor import Descriptor
 
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
+from seedsigner.gui.components import GUIConstants, FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens)
+from seedsigner.helpers.l10n import mark_for_translation as _mft
 from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterLegacyXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
@@ -451,9 +452,99 @@ class SeedReviewPassphraseView(View):
         elif button_data[selected_menu_num] == self.DONE:
             seed_num = self.controller.storage.finalize_pending_seed()
             return Destination(SeedOptionsView, view_args={"seed_num": seed_num}, clear_history=True)
-            
 
-            
+
+class EncryptedSeedPassphraseView(View):
+    def __init__(self, encrypted_data: str):
+        super().__init__()
+        self.encrypted_data = encrypted_data
+
+    def run(self):
+        ret_dict = self.run_screen(
+            seed_screens.SeedAddPassphraseScreen,
+            passphrase="",
+            title=_("Decryption Passphrase"),
+        )
+        if ret_dict == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        passphrase = ret_dict["passphrase"]
+        if not passphrase:
+            return Destination(EncryptedSeedPassphraseView,
+                               view_args=dict(encrypted_data=self.encrypted_data))
+
+        return Destination(EncryptedSeedDecryptView,
+                           view_args=dict(encrypted_data=self.encrypted_data, passphrase=passphrase))
+
+
+class EncryptedSeedDecryptView(View):
+    def __init__(self, encrypted_data: str, passphrase: str):
+        super().__init__()
+        self.encrypted_data = encrypted_data
+        self.passphrase = passphrase
+
+    def run(self):
+        from seedsigner.helpers.aes_decrypt import decrypt_openssl_aes256cbc, DecryptionError
+
+        try:
+            plaintext = decrypt_openssl_aes256cbc(self.encrypted_data, self.passphrase)
+        except DecryptionError:
+            return Destination(EncryptedSeedDecryptionFailedView,
+                               view_args=dict(encrypted_data=self.encrypted_data))
+
+        # Validate length
+        mnemonic_list = plaintext.strip().split()
+        if len(mnemonic_list) not in (12, 24):
+            return Destination(EncryptedSeedDecryptionFailedView,
+                               view_args=dict(encrypted_data=self.encrypted_data))
+
+        # Try BIP39 → Electrum
+        from seedsigner.models.seed import Seed, ElectrumSeed, InvalidSeedException
+        seed = None
+        try:
+            seed = Seed(mnemonic=mnemonic_list, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+        except InvalidSeedException:
+            if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
+                try:
+                    seed = ElectrumSeed(mnemonic=mnemonic_list)
+                except InvalidSeedException:
+                    pass
+
+        if seed is None:
+            return Destination(EncryptedSeedDecryptionFailedView,
+                               view_args=dict(encrypted_data=self.encrypted_data))
+
+        self.controller.storage.set_pending_seed(seed)
+        if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
+            return Destination(SeedAddPassphraseView)
+        return Destination(SeedFinalizeView)
+
+
+class EncryptedSeedDecryptionFailedView(View):
+    RETRY = ButtonOption(_mft("Try Again"))
+    DISCARD = ButtonOption(_mft("Discard"))
+
+    def __init__(self, encrypted_data: str):
+        super().__init__()
+        self.encrypted_data = encrypted_data
+
+    def run(self):
+        button_data = [self.RETRY, self.DISCARD]
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
+            title=_("Decryption Failed"),
+            status_icon_name=SeedSignerIconConstants.ERROR,
+            status_headline=None,
+            text=_("Wrong passphrase or invalid seed data."),
+            show_back_button=False,
+            button_data=button_data,
+        )
+        if button_data[selected_menu_num] == self.RETRY:
+            return Destination(EncryptedSeedPassphraseView,
+                               view_args=dict(encrypted_data=self.encrypted_data))
+        return Destination(MainMenuView)
+
+
 class SeedDiscardView(View):
     KEEP = ButtonOption("Keep seed")
     DISCARD = ButtonOption("Discard", button_label_color="red")
