@@ -36,6 +36,9 @@ jobs:
           sudo apt-get install libzbar0
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r tests/requirements.txt
+          # The translations submodule ships .po sources but no pre-compiled .mo
+          # files; build them before `pip install .` so they're packaged.
+          python setup.py compile_catalog
           pip install .
       - name: Test with pytest
         run: |
