@@ -2,6 +2,7 @@
 	path = src/seedsigner/resources/seedsigner-translations
 	url = https://github.com/rleed/seedsigner-translations.git
 	branch = rld-a
+        fetch = +refs/heads/*:refs/remotes/origin/*
 [submodule "seedsigner-screenshots"]
 	path = seedsigner-screenshots
 	url = https://github.com/SeedSigner/seedsigner-screenshots.git
