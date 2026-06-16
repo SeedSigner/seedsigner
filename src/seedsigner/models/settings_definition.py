@@ -736,7 +736,7 @@ class SettingsDefinition:
                       display_name=_mft("QR background color"),
                       type=SettingsConstants.TYPE__FREE_ENTRY,
                       visibility=SettingsConstants.VISIBILITY__HIDDEN,
-                      default_value=62),
+                      default_value=255),
     ]
 
 
