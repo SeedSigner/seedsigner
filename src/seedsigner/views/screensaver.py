@@ -77,13 +77,12 @@ class OpeningSplashScreen(LogoScreen):
         if self.force_partner_logos is not None:
             show_partner_logos = self.force_partner_logos
 
-        if show_partner_logos:
-            offset_for_partner_logos = -56
-        else:
-            offset_for_partner_logos = 0
-
         logo_offset_x = int((self.canvas_width - self.logo.width)/2)
-        logo_offset_y = -9 + offset_for_partner_logos
+
+        if show_partner_logos:
+            logo_offset_y = -56
+        else:
+            logo_offset_y = 0
 
         background = Image.new("RGBA", size=self.logo.size, color="black")
         if not self.is_screenshot_renderer:
@@ -103,8 +102,8 @@ class OpeningSplashScreen(LogoScreen):
         font = Fonts.get_font(GUIConstants.get_body_font_name(), GUIConstants.get_top_nav_title_font_size())
         version = f"v{controller.VERSION}"
 
-        # The logo png is 240x240, but the actual logo is 70px tall, vertically centered
-        logo_height = 70
+        # The logo png is 240x240, but the actual logo is 90px tall, vertically centered
+        logo_height = 90
         version_x = int(self.renderer.canvas_width/2)
         version_y = int(self.canvas_height/2) + int(logo_height/2) + logo_offset_y + GUIConstants.COMPONENT_PADDING
         self.renderer.draw.text(xy=(version_x, version_y), text=version, font=font, fill=GUIConstants.ACCENT_COLOR, anchor="mt")
