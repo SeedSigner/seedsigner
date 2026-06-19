@@ -697,7 +697,7 @@ class SettingsDefinition:
                       abbreviated_name="partners",
                       display_name=_mft("Show partner logos"),
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      default_value=SettingsConstants.OPTION__DISABLED),
+                      default_value=SettingsConstants.OPTION__ENABLED),
 
 
         # Hardware config
