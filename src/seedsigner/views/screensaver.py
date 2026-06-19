@@ -23,7 +23,7 @@ class LogoScreen(BaseScreen):
         self.logo = load_image("logo_black_240.png")
 
         self.partners = [
-            "hrf",
+            "dnc",
         ]
 
         self.partner_logos: dict = {}
@@ -77,12 +77,13 @@ class OpeningSplashScreen(LogoScreen):
         if self.force_partner_logos is not None:
             show_partner_logos = self.force_partner_logos
 
-        logo_offset_x = int((self.canvas_width - self.logo.width)/2)
-
         if show_partner_logos:
-            logo_offset_y = -56
+            offset_for_partner_logos = -56
         else:
-            logo_offset_y = 0
+            offset_for_partner_logos = 0
+
+        logo_offset_x = int((self.canvas_width - self.logo.width)/2)
+        logo_offset_y = -9 + offset_for_partner_logos
 
         background = Image.new("RGBA", size=self.logo.size, color="black")
         if not self.is_screenshot_renderer:
