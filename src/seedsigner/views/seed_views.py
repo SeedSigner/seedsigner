@@ -527,7 +527,7 @@ class SeedOptionsView(View):
     EXPORT_XPUB = ButtonOption("Export Xpub")
     EXPLORER = ButtonOption("Address Explorer")
     SIGN_MESSAGE = ButtonOption("Sign Message")
-    BACKUP = ButtonOption("Backup Seed", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
+    BACKUP = ButtonOption("Backup seed", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
     BIP85_CHILD_SEED = ButtonOption("BIP-85 Child Seed")
     DISCARD = ButtonOption("Discard Seed", button_label_color="red")
 

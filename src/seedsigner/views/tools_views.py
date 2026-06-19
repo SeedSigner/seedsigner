@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 class ToolsMenuView(View):
-    IMAGE = ButtonOption("New seed", FontAwesomeIconConstants.CAMERA)
-    DICE = ButtonOption("New seed", FontAwesomeIconConstants.DICE)
+    IMAGE = ButtonOption("New seed from camera", FontAwesomeIconConstants.CAMERA)
+    DICE = ButtonOption("New seed from dice", FontAwesomeIconConstants.DICE)
     KEYBOARD = ButtonOption("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     ADDRESS_EXPLORER = ButtonOption("Address Explorer")
     VERIFY_ADDRESS = ButtonOption("Verify Address")
