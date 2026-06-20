@@ -690,7 +690,7 @@ class SettingsDefinition:
                       attr_name=SettingsConstants.SETTING__QR_BRIGHTNESS_TIPS,
                       display_name=_mft("Show QR brightness tips"),
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      default_value=SettingsConstants.OPTION__ENABLED),
+                      default_value=SettingsConstants.OPTION__DISABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__PARTNER_LOGOS,
