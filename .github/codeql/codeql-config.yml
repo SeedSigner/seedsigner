@@ -1,0 +1,6 @@
+name: CodeQL config
+
+paths-ignore:
+  - tests/**
+  - tools/**
+  - l10n/**
