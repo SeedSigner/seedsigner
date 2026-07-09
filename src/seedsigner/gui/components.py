@@ -931,6 +931,7 @@ class FormattedAddress(BaseComponent):
     screen_y: int = 0
     address: str = None
     max_lines: int = None
+    line_spacing: int = GUIConstants.BODY_LINE_SPACING
     font_name: str = GUIConstants.FIXED_WIDTH_FONT_NAME
     font_size: int = 24
     font_accent_color: str = GUIConstants.ACCENT_COLOR
@@ -1069,7 +1070,7 @@ class FormattedAddress(BaseComponent):
                     ))
 
                 remaining_display_str = remaining_display_str[max_chars_per_line:]
-                cur_y += char_height + GUIConstants.BODY_LINE_SPACING
+                cur_y += char_height + self.line_spacing
         
         self.height = cur_y
     
