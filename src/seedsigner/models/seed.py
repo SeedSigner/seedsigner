@@ -164,6 +164,46 @@ class Seed:
         return bip85.derive_mnemonic(root, bip85_num_words, bip85_index)
         
 
+    def _derive_bip352_key(self, is_scan_key: bool = True, network: str = SettingsConstants.MAINNET, root: bip32.HDKey = None) -> bip32.HDKey:
+        coin_type = 0 if network == SettingsConstants.MAINNET else 1
+        path = f"m/352'/{coin_type}'/0'/{'1' if is_scan_key else '0'}'/0"
+        if root is None:
+            root = bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[SettingsConstants.map_network_to_embit(network)]["xprv"])
+        return root.derive(path)
+
+
+    def _get_bip352_root(self, network: str = SettingsConstants.MAINNET) -> bip32.HDKey:
+        embit_network = SettingsConstants.map_network_to_embit(network)
+        return bip32.HDKey.from_seed(self.seed_bytes, version=NETWORKS[embit_network]["xprv"])
+
+
+    def get_bip352_wallet_derivation_path(self, network: str = SettingsConstants.MAINNET) -> str:
+        coin_type = 0 if network == SettingsConstants.MAINNET else 1
+        return f"m/352'/{coin_type}'/0'"
+
+
+    def generate_bip352_silent_payment_address(self, network: str = SettingsConstants.MAINNET) -> str:
+        from embit.silent_payments.bip352 import generate_silent_payment_address
+        root = self._get_bip352_root(network)
+        scan_privkey = self._derive_bip352_key(is_scan_key=True, network=network, root=root).key
+        spend_pubkey = self._derive_bip352_key(is_scan_key=False, network=network, root=root).to_public().key
+        return generate_silent_payment_address(scan_privkey, spend_pubkey, network=SettingsConstants.map_network_to_embit(network))
+
+
+    def generate_bip352_sp_descriptor(self, network: str = SettingsConstants.MAINNET) -> str:
+        from embit.descriptor.sp import SPScanKey, SilentPaymentDescriptor
+        from embit.descriptor.arguments import KeyOrigin
+        root = self._bip352_root(network)
+        scan_privkey, spend_pubkey = self.get_bip352_scan_spend_keys(network, root=root, account=account)
+        origin = KeyOrigin(root.my_fingerprint, bip32.parse_path(self.get_bip352_wallet_derivation_path(network, account)))
+        # The spscan HRP only has a mainnet and a testnet form; embit maps "regtest" to
+        # the mainnet HRP, so collapse it here the way the sp address encoder does.
+        # BIP-352 doesn't define a regtest HRP, so this is the best we can do for now.
+        sp_network = "main" if network == SettingsConstants.MAINNET else "test"
+        sp_key = SPScanKey(scan_privkey, spend_pubkey, origin=origin, network=sp_network)
+        return str(SilentPaymentDescriptor(sp_key))
+
+
     ### override operators    
     def __eq__(self, other):
         if isinstance(other, Seed):
