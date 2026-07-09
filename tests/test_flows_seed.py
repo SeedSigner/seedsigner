@@ -877,6 +877,7 @@ class TestBIP352SilentPaymentsFlows(FlowTest):
             sequence=[
                 FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.BIP352_SILENT_PAYMENTS),
                 FlowStep(seed_views.SeedBIP352SilentPaymentsOptionsView, button_data_selection=seed_views.SeedBIP352SilentPaymentsOptionsView.EXPORT_SP_DESCRIPTOR),
+                FlowStep(seed_views.SeedBIP352ExportSPDescriptorWarningView, screen_return_value=0),
                 FlowStep(seed_views.SeedBIP352ExportSPDescriptorDetailsView, screen_return_value=0),
                 FlowStep(seed_views.SeedBIP352QRView, screen_return_value=0),
                 FlowStep(seed_views.SeedBIP352SilentPaymentsOptionsView),

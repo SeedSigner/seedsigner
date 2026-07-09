@@ -175,6 +175,7 @@ class PSBTParser():
         self.num_inputs = 0
         self.destination_addresses = []
         self.destination_amounts = []
+        self.destination_is_sp = []
         self.op_return_data: bytes = None
 
         # Whether the fee is high relative to what is being sent; see has_high_fee().
@@ -216,6 +217,15 @@ class PSBTParser():
     @property
     def num_destinations(self):
         return len(self.destination_addresses)
+
+
+    @property
+    def has_sp_outputs(self):
+        return getattr(self.psbt, "has_sp_outputs", False)
+
+    @property
+    def has_sp_spend_inputs(self):
+        return getattr(self.psbt, "has_sp_spend_inputs", False)
 
 
     def _set_root(self):
@@ -398,13 +408,46 @@ class PSBTParser():
         self.fee_amount = 0
         self.destination_addresses = []
         self.destination_amounts = []
+        self.destination_is_sp = []
 
         # Asking the PSBT for its transaction rebuilds that entire transaction from
         # scratch on every single request. The outputs are consulted a dozen times
         # over the course of the loop below, so grab them once now.
         vout = self.psbt.tx.vout
 
+        sp_scan_priv = sp_spend_pub = None  # derived on demand for SP ownership checks
         for i, out in enumerate(self.psbt.outputs):
+            sp_data = getattr(out, "sp_data", None)
+            if sp_data is not None:
+                from embit.silent_payments import sp
+                sp_address = sp.encode_silent_payment_address(
+                    sp_data.scan_key, sp_data.spend_key,
+                    network=SettingsConstants.map_network_to_embit(self.network),
+                )
+
+                if sp_scan_priv is None:
+                    # parse() guarantees self.seed and self.root; derive once, reuse
+                    # per output (self.root is the same master key BIP-352 needs)
+                    sp_scan_priv, sp_spend_pub = self.seed.get_bip352_scan_spend_keys(self.network, root=self.root)
+                sp_class = PSBTParser._classify_sp_output(sp_data, out.sp_label, sp_scan_priv, sp_spend_pub)
+
+                if sp_class is not None:
+                    # It's ours (change or self-transfer) — keys match our own seed.
+                    self.change_data.append({
+                        "output_index": i,
+                        "address": sp_address,
+                        "amount": vout[i].value,
+                        "is_sp": True,
+                        "is_change": sp_class == "change",
+                    })
+                    self.change_amount += vout[i].value
+                else:
+                    self.destination_addresses.append(sp_address)
+                    self.destination_amounts.append(vout[i].value)
+                    self.destination_is_sp.append(True)
+                    self.spend_amount += vout[i].value
+                continue
+
             out_policy = PSBTParser._get_policy(out, vout[i].script_pubkey, self.psbt.xpubs, child_key_derivation_cache)
             is_presumed_change = False
 
@@ -629,6 +672,7 @@ class PSBTParser():
                 addr = vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
                 self.destination_addresses.append(addr)
                 self.destination_amounts.append(vout[i].value)
+                self.destination_is_sp.append(False)
                 self.spend_amount += vout[i].value
 
         self.fee_amount = self.psbt.fee()
@@ -636,7 +680,63 @@ class PSBTParser():
 
 
     @staticmethod
+    def sp_contribution_count(p):
+        cnt = 0
+        for inp in p.inputs:
+            if getattr(inp, "sp_tweak", None) is not None and getattr(inp, "taproot_key_sig", None) is not None:
+                cnt += 1
+            cnt += len(getattr(inp, "sp_ecdh_shares", {}) or {})
+        # A single-party signer covering every input replaces its per-input
+        # shares with the PSBT-global share/proof pair (BIP-375, smaller QR).
+        cnt += len(getattr(p, "sp_ecdh_shares", {}) or {})
+        return cnt
+
+
+    @staticmethod
+    def _classify_sp_output(sp_data, sp_label, scan_privkey, spend_pubkey):
+        if sp_data is None or sp_data.scan_key != scan_privkey.get_public_key():
+            return None
+
+        if sp_label is None:
+            return "self" if sp_data.spend_key == spend_pubkey else None
+
+        from embit.silent_payments import sp
+        expected_spend = sp.apply_label(spend_pubkey, scan_privkey, sp_label)
+        if sp_data.spend_key != expected_spend:
+            return None
+
+        return "change" if sp_label == 0 else "self"
+
+    @staticmethod
     def trim(tx):
+        if getattr(tx, "has_sp_content", False):
+            # Copy rather than mutate `tx` in place: `tx` is the same object the
+            # caller's PSBTParser still references, so trimming it directly would
+            # corrupt bip32_derivations under back-nav re-entry (re-signing would
+            # find no eligible input for the seed).
+            trimmed = type(tx).parse(tx.serialize())
+            for inp in trimmed.inputs:
+                if inp.witness_utxo is not None:
+                    inp.non_witness_utxo = None
+                inp.bip32_derivations.clear()
+                inp.taproot_bip32_derivations.clear()
+                inp.sp_spend_bip32_derivations.clear()
+                # BIP-375: the Signer hands back an UNFINALIZED PSBT so the
+                # coordinator can verify the derived SP output scripts and the
+                # global ECDH shares / DLEQ proofs before finalizing (a
+                # finalized PSBT makes Sparrow copy only the witnesses and
+                # drop everything the signer derived). Only unwind the inputs
+                # this device just signed: their signature survives in
+                # taproot_key_sig / partial_sigs, so nothing is lost. An input
+                # that arrived already finalized carries no such copy, so
+                # clearing it would destroy another signer's work; leave it and
+                # let validate_sp_export() reject the (out-of-spec) PSBT.
+                if inp.taproot_key_sig is not None or inp.partial_sigs:
+                    inp.final_scriptwitness = None
+                    inp.final_scriptsig = None
+            PSBTParser.validate_sp_export(trimmed)
+            return trimmed
+
         trimmed_psbt = psbt.PSBT(tx.tx)
         for i, inp in enumerate(tx.inputs):
             if inp.final_scriptwitness:
@@ -648,6 +748,31 @@ class PSBTParser():
                 trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
 
         return trimmed_psbt
+
+
+    @staticmethod
+    def validate_sp_export(tx):
+        """Raises SPValidationError unless `tx` is a valid BIP-375 Signer hand-off:
+        no input finalized, and every SP output carrying its derived Taproot
+        script plus a global ECDH share and DLEQ proof for its scan key."""
+        from embit.silent_payments.psbt import SPValidationError
+
+        for i, inp in enumerate(tx.inputs):
+            if inp.final_scriptwitness is not None or inp.final_scriptsig is not None:
+                raise SPValidationError(f"input {i} must not be finalized")
+
+        for i, out in enumerate(tx.outputs):
+            sp_data = getattr(out, "sp_data", None)
+            if sp_data is None:
+                continue
+            sc = out.script_pubkey
+            if sc is None or sc.script_type() != "p2tr":
+                raise SPValidationError(f"output {i} missing Taproot output script")
+            scan_key = sp_data.scan_key.sec()
+            if scan_key not in tx.sp_ecdh_shares:
+                raise SPValidationError(f"output {i} missing ECDH share")
+            if scan_key not in tx.sp_dleq_proofs:
+                raise SPValidationError(f"output {i} missing DLEQ proof")
 
 
     @staticmethod
@@ -989,6 +1114,11 @@ class PSBTParser():
                 if check_fingerprint_match(public_key, derivation_path_obj, is_taproot=True):
                     return True
 
+            # Check BIP-376 Silent Payment spend derivations (keyed by sec bytes)
+            for pubkey_sec, derivation_path_obj in getattr(input, "sp_spend_bip32_derivations", {}).items():
+                if check_fingerprint_match(PublicKey.parse(pubkey_sec), derivation_path_obj, is_taproot=False):
+                    return True
+
         return False
 
 
@@ -1082,6 +1212,10 @@ class PSBTParser():
             # TODO: Support keys in script tree leaves
             _check_claim(public_key, derivation_path_obj, is_taproot=True)
 
+        # BIP-376 Silent Payment spend derivations (inputs only, keyed by sec bytes)
+        for pubkey_sec, derivation_path_obj in getattr(scope, "sp_spend_bip32_derivations", {}).items():
+            _check_claim(PublicKey.parse(pubkey_sec), derivation_path_obj, is_taproot=False)
+
         # The derivation path maps cannot both be populated in the same scope. Checked
         # after the loops so that a false ownership claim, the more serious finding, is
         # still the one reported.
@@ -1156,6 +1290,17 @@ class PSBTParser():
         return len(derivation_path) >= 2 and derivation_path[-2] == 1
 
 
+    @staticmethod
+    def is_change_entry(change_entry: dict) -> bool:
+        """
+        Returns True if a change_data entry is change rather than a self-transfer.
+        """
+        # SP entries carry no derivation path; _parse_outputs already classified them.
+        if change_entry.get("is_sp"):
+            return change_entry["is_change"]
+        return PSBTParser.is_change_branch(change_entry["verified_derivation_path"])
+
+
     def verify_multisig_output(self, descriptor: Descriptor, change_num: int) -> bool:
         change_data = self.get_change_data(change_num)
         i = change_data["output_index"]
@@ -1210,6 +1355,13 @@ class PSBTParser():
                     scope.taproot_bip32_derivations[public_key] = (leaf_hashes, new_derivation)
                     logger.debug(f"Filled missing fingerprint for pubkey {public_key.sec().hex()} derivation {bip32.path_to_str(derivation_path_obj.derivation)}")
 
+            # Handle BIP-376 Silent Payment spend derivations (inputs only, keyed by sec bytes)
+            for pubkey_sec, derivation_path_obj in list(getattr(scope, "sp_spend_bip32_derivations", {}).items()):
+                new_derivation = _get_updated_fingerprint(PublicKey.parse(pubkey_sec), derivation_path_obj, is_taproot=False)
+                if new_derivation:
+                    scope.sp_spend_bip32_derivations[pubkey_sec] = new_derivation
+                    logger.debug(f"Filled missing fingerprint for SP spend pubkey {pubkey_sec.hex()} derivation {bip32.path_to_str(derivation_path_obj.derivation)}")
+
         for inp in self.psbt.inputs:
             _fill_scope(inp)
 
@@ -1241,7 +1393,7 @@ class PSBTParser():
         true_change = sum(
             entry["amount"]
             for entry in self.change_data
-            if PSBTParser.is_change_branch(entry["verified_derivation_path"])
+            if PSBTParser.is_change_entry(entry)
         )
         return total - true_change
 
