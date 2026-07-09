@@ -149,8 +149,9 @@ class DecodeQR:
         if self.complete:
             data = self.get_data_psbt()
             if data != None:
+                from embit.silent_payments import SilentPaymentsPSBT
                 try:
-                    return psbt.PSBT.parse(data)
+                    return SilentPaymentsPSBT.parse(data)
                 except:
                     return None
         return None

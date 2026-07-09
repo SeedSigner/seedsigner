@@ -586,9 +586,7 @@ class SeedOptionsView(View):
             button_data.append(self.BIP85_CHILD_SEED)
 
         if self.settings.get_value(SettingsConstants.SETTING__BIP352_SILENT_PAYMENTS) == SettingsConstants.OPTION__ENABLED:
-            from seedsigner.helpers import embit_utils
-            if embit_utils.is_silent_payments_available():
-                button_data.append(self.BIP352_SILENT_PAYMENTS)
+            button_data.append(self.BIP352_SILENT_PAYMENTS)
 
         button_data.append(self.DISCARD)
         
@@ -893,6 +891,8 @@ class SeedExportXpubDetailsView(View):
         Collects the user input from all the previous screens leading up to this and
         finally calculates the xpub and displays the summary view to the user.
     """
+    EXPORT_VIA_QR_CODE = ButtonOption("Export via QR code")
+
     def __init__(self, seed: Seed, sig_type: str, script_type: str, xpub_qr_format: str, custom_derivation: str):
         super().__init__()
         self.sig_type = sig_type
@@ -955,7 +955,7 @@ class SeedExportXpubDetailsView(View):
                 key_value=xpub_base58,
                 fingerprint=fingerprint,
                 derivation_path=derivation_path,
-                button_data=[ButtonOption("Export via QR code")]
+                button_data=[self.EXPORT_VIA_QR_CODE]
             )
 
         if selected_menu_num == 0:
@@ -1164,14 +1164,7 @@ class SeedBIP85SelectChildIndexView(View):
 
 
     def run(self):
-        ret = self.run_screen(
-            seed_screens.KeyboardScreen,
-            title=_("BIP-85 Index"),
-            rows=3,
-            cols=5,
-            keys_charset="0123456789",
-            show_save_button=True,
-        )
+        ret = self.run_screen(seed_screens.SeedBIP85SelectChildIndexScreen)
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -1299,6 +1292,8 @@ class SeedBIP352ExportSPDescriptorWarningView(View):
 
 
 class SeedBIP352ExportSPDescriptorDetailsView(View):
+    EXPORT_VIA_QR_CODE = ButtonOption("Export via QR code")
+
     def __init__(self, seed: Seed):
         super().__init__()
         self.seed = seed
@@ -1308,20 +1303,6 @@ class SeedBIP352ExportSPDescriptorDetailsView(View):
         self.derivation_path = self.seed.get_bip352_wallet_derivation_path(network=self.network)
 
     def run(self):
-        if self.settings.get_value(SettingsConstants.SETTING__DIRE_WARNINGS) != SettingsConstants.OPTION__DISABLED:
-            selected_warning_option = self.run_screen(
-                WarningScreen,
-                # TRANSLATOR_NOTE: BIP-352 Silent Payments - warning title when exporting SP descriptor
-                title=_("Caution!"),
-                # TRANSLATOR_NOTE: BIP-352 Silent Payments - warning headline about privacy implications of SP descriptor
-                status_headline=_("Privacy Leak!"),
-                # TRANSLATOR_NOTE: BIP-352 Silent Payments - explanation of SP descriptor risks
-                text=_("Your SP descriptor contains the scan private key, which reveals all your silent payment activity."),
-                button_data=[ButtonOption("Continue")]
-            )
-            if selected_warning_option == RET_CODE__BACK_BUTTON:
-                return Destination(BackStackView)
-
         selected_option = self.run_screen(
             BaseExportKeyDetailsScreen,
             # TRANSLATOR_NOTE: BIP-352 Silent Payments - title for screen showing SP descriptor details
@@ -1331,7 +1312,7 @@ class SeedBIP352ExportSPDescriptorDetailsView(View):
             key_value=self.sp_descriptor,
             fingerprint=self.master_fingerprint,
             derivation_path=self.derivation_path,
-            button_data=[ButtonOption("Export via QR code")]
+            button_data=[self.EXPORT_VIA_QR_CODE]
         )
 
         if selected_option == RET_CODE__BACK_BUTTON:
