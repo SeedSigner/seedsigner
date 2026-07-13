@@ -26,7 +26,6 @@ Tested with a 320x240 IPS display (https://a.co/d/2Q9wDLo)
 """
 import numbers
 import time
-# import numpy as np
 import array
 
 from dataclasses import dataclass
@@ -117,17 +116,11 @@ def color565(r, g, b):
 
 def image_to_data(image):
     """Generator function to convert a PIL image to 16-bit 565 RGB bytes."""
-    #NumPy is much faster at doing this. NumPy code provided by:
-    #Keith (https://www.blogger.com/profile/02555547344016007163)
-    # pb = np.array(image.convert('RGB')).astype('uint16')
-    # color = ((pb[:,:,0] & 0xF8) << 8) | ((pb[:,:,1] & 0xFC) << 3) | (pb[:,:,2] >> 3)
-    # return np.dstack(((color >> 8) & 0xFF, color & 0xFF)).flatten().tolist()
-
     # convert 24-bit RGB-8:8:8 to gBRG-3:5:5:3 ("BGR;16"):
     #   3 highest bits of green + 5 highest bits of blue in the first byte and
     #   5 highest bits of red + the next 3 highest bits of green (not yet expressed) in the second byte.
     # Then per-pixel byteswap to 16-bit RGB-5:6:5
-    # This approach was measured to be ~3.4x faster than the numpy code above.
+    # This approach was measured to be ~3.4x faster than a numpy-based conversion.
     arr = array.array("H", image.convert("BGR;16").tobytes())
     arr.byteswap()
     return arr.tobytes()

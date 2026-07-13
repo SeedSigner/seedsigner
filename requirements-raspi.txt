@@ -1,5 +1,7 @@
-picamera==1.13
-# numpy = transitive picamera dependency
-numpy==1.25.2
+# NOTE: the camera is driven by the `libcamera` python module, which is NOT
+# pip-installable. It is built from the libcamera source tree (pybind11
+# bindings, meson -Dpycamera=enabled) and installed into the system
+# site-packages by the OS image (seedsigner-os buildroot; `python3-libcamera`
+# on Raspberry Pi OS Bullseye+).
 RPi.GPIO==0.7.0
 spidev==3.5
