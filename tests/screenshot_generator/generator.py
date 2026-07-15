@@ -42,7 +42,7 @@ from seedsigner.models.settings_definition import SettingsConstants, SettingsDef
 from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, RemoveMicroSDWarningView, NotYetImplementedView, UnhandledExceptionView, 
     psbt_views, seed_views, settings_views, tools_views, scan_views)
 from seedsigner.views.screensaver import OpeningSplashView
-from seedsigner.views.view import CameraConnectionErrorView, NetworkMismatchErrorView, OptionDisabledView, PowerOffView
+from seedsigner.views.view import CameraConnectionErrorView, InvalidDerivationPathErrorView, NetworkMismatchErrorView, OptionDisabledView, PowerOffView
 
 from .utils import ScreenshotComplete, ScreenshotConfig, ScreenshotRenderer
 
@@ -298,6 +298,20 @@ def generate_screenshots(locale):
 
 
         @contextmanager
+        def mock_sign_message_data_bip48():
+            # The default sign_message_data uses a single sig path, which routes to the address
+            # screen. A BIP48 multisig path is what routes to the pubkey screen.
+            bip48_derivation_path = "m/48h/0h/0h/2h/0/0"
+            sign_message_data = dict(
+                controller.sign_message_data,
+                derivation_path=bip48_derivation_path,
+                addr_format=embit_utils.parse_derivation_path(bip48_derivation_path),
+            )
+            with patch.object(controller, 'sign_message_data', sign_message_data):
+                yield
+
+
+        @contextmanager
         def mock_controller_psbt_seed_empty():
             # Have to ensure this is cleared out in order to get the seed selection screen
             with patch.object(controller, 'psbt_seed', None):
@@ -398,6 +412,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedSelectSeedView, dict(flow=Controller.FLOW__SIGN_MESSAGE), screenshot_name="SeedSelectSeedView_sign_message"),
                 ScreenshotConfig(seed_views.SeedSignMessageConfirmMessageView),
                 ScreenshotConfig(seed_views.SeedSignMessageConfirmAddressView),
+                ScreenshotConfig(seed_views.SeedSignMessageConfirmPubkeyView, mock_context_manager=mock_sign_message_data_bip48),
 
                 ScreenshotConfig(seed_views.SeedElectrumMnemonicStartView),
             ],
@@ -454,6 +469,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(UnhandledExceptionView, dict(error=["IndexError", "line 1, in some_buggy_code.py", "list index out of range"])),
                 ScreenshotConfig(CameraConnectionErrorView),
                 ScreenshotConfig(NetworkMismatchErrorView, dict(derivation_path="m/84'/1'/0'")),
+                ScreenshotConfig(InvalidDerivationPathErrorView, dict(derivation_path="m/foo/bar")),
                 ScreenshotConfig(OptionDisabledView,       dict(settings_attr=SettingsConstants.SETTING__MESSAGE_SIGNING)),
                 ScreenshotConfig(scan_views.ScanInvalidQRTypeView)
             ]

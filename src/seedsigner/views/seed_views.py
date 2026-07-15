@@ -17,7 +17,7 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
+from seedsigner.views.view import OptionDisabledView, View, Destination, BackStackView, MainMenuView
 
 logger = logging.getLogger(__name__)
 
@@ -2132,15 +2132,19 @@ class SeedSignMessageStartView(View):
             self.set_redirect(Destination(OptionDisabledView, view_args=dict(settings_attr=SettingsConstants.SETTING__MESSAGE_SIGNING)))
             return
 
-        # calculate the actual receive address
-        addr_format = embit_utils.parse_derivation_path(derivation_path)
-        if not addr_format["clean_match"]:
-            self.set_redirect(Destination(NotYetImplementedView, view_args=dict(text=f"Signing messages for custom derivation paths not supported")))
+        # The derivation path arrives unvalidated from the scanned QR; reject garbage here so it
+        # can't blow up later during key derivation.
+        if not embit_utils.is_valid_derivation_path(derivation_path):
+            from seedsigner.views.view import InvalidDerivationPathErrorView
+            self.set_redirect(Destination(InvalidDerivationPathErrorView, view_args=dict(derivation_path=derivation_path)))
             self.controller.resume_main_flow = None
             return
 
-        # Note: addr_format["network"] can be MAINNET or [TESTNET, REGTEST]
-        if self.settings.get_value(SettingsConstants.SETTING__NETWORK) not in addr_format["network"]:
+        addr_format = embit_utils.parse_derivation_path(derivation_path)
+
+        # Note: addr_format["network"] can be MAINNET or [TESTNET, REGTEST]. Custom paths may not
+        # encode a network at all, in which case there's nothing to check against.
+        if addr_format["network"] and self.settings.get_value(SettingsConstants.SETTING__NETWORK) not in addr_format["network"]:
             from seedsigner.views.view import NetworkMismatchErrorView
             self.set_redirect(Destination(NetworkMismatchErrorView, view_args=dict(derivation_path=self.derivation_path)))
 
@@ -2192,8 +2196,13 @@ class SeedSignMessageConfirmMessageView(View):
 
         # User clicked "Next"
         if self.page_num == len(self.controller.sign_message_data["paged_message"]) - 1:
-            # We've reached the end of the paged message
-            return Destination(SeedSignMessageConfirmAddressView)
+            # We've reached the end of the paged message. Standard single sig paths can show the
+            # receive address they sign for; any other path (BIP48 multisig, BIP47, custom) has no
+            # meaningful single sig address, so confirm the signing pubkey instead.
+            addr_format = self.controller.sign_message_data["addr_format"]
+            if addr_format["clean_match"] and addr_format["script_type"] != SettingsConstants.CUSTOM_DERIVATION:
+                return Destination(SeedSignMessageConfirmAddressView)
+            return Destination(SeedSignMessageConfirmPubkeyView)
         else:
             return Destination(SeedSignMessageConfirmMessageView, view_args=dict(page_num=self.page_num + 1))
 
@@ -2216,8 +2225,6 @@ class SeedSignMessageConfirmAddressView(View):
         # calculate the actual receive address
         seed = self.controller.storage.seeds[seed_num]
         addr_format = embit_utils.parse_derivation_path(self.derivation_path)
-        if not addr_format["clean_match"] or addr_format["script_type"] == SettingsConstants.CUSTOM_DERIVATION:
-            raise Exception(_("Signing messages for custom derivation paths not supported"))
 
         if addr_format["network"] != SettingsConstants.MAINNET:
             # We're in either Testnet or Regtest or...?
@@ -2244,6 +2251,50 @@ class SeedSignMessageConfirmAddressView(View):
             SeedSignMessageConfirmAddressScreen,
             derivation_path=self.derivation_path,
             address=self.address,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # User clicked "Sign Message"
+        return Destination(SeedSignMessageSignedMessageQRView)
+
+
+
+class SeedSignMessageConfirmPubkeyView(View):
+    """
+    Confirmation screen for derivation paths that have no meaningful single sig address (BIP48
+    multisig, BIP47, Nostr, custom, etc). Instead of an address, the user confirms the key that
+    will actually sign: seed fingerprint + derivation path + the pubkey derived at that path.
+    """
+    def __init__(self):
+        from seedsigner.helpers import embit_utils
+        super().__init__()
+        data = self.controller.sign_message_data
+        seed_num = data.get("seed_num")
+        self.derivation_path = data.get("derivation_path")
+
+        if seed_num is None or not self.derivation_path:
+            raise Exception("Routing error: sign_message_data hasn't been set")
+
+        seed = self.controller.storage.seeds[seed_num]
+        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+
+        self.fingerprint = seed.get_fingerprint(network=network)
+        self.pubkey = embit_utils.get_pubkey_hex(
+            seed_bytes=seed.seed_bytes,
+            derivation_path=self.derivation_path,
+            embit_network=embit_utils.get_embit_network_name(network),
+        )
+
+
+    def run(self):
+        from seedsigner.gui.screens.seed_screens import SeedSignMessageConfirmPubkeyScreen
+        selected_menu_num = self.run_screen(
+            SeedSignMessageConfirmPubkeyScreen,
+            fingerprint=self.fingerprint,
+            derivation_path=self.derivation_path,
+            pubkey=self.pubkey,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:

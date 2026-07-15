@@ -361,6 +361,28 @@ class NetworkMismatchErrorView(ErrorView):
 
 
 @dataclass
+class InvalidDerivationPathErrorView(ErrorView):
+    derivation_path: str = None
+
+    def __post_init__(self):
+        # The QR scanned fine; its derivation path is just malformed. That's bad input rather than
+        # a SeedSigner failure, so use the warning icon, as NetworkMismatchErrorView does.
+        # TRANSLATOR_NOTE: A derivation path (e.g. m/84h/0h/0h/0/0) that can't be interpreted
+        self.title = _("Invalid Derivation")
+        self.status_icon_name = SeedSignerIconConstants.WARNING
+        self.show_back_button = False
+
+        self.button_text = _("Back to main menu")
+        super().__post_init__()
+
+        # TRANSLATOR_NOTE: {derivation_path} is the malformed path that was scanned
+        self.text = _("{derivation_path} is not a valid derivation path.").format(
+            derivation_path=self.derivation_path,
+        )
+
+
+
+@dataclass
 class UnhandledExceptionView(View):
     error: list[str]
 

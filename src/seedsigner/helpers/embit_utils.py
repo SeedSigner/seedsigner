@@ -66,6 +66,19 @@ def get_xpub(seed_bytes, derivation_path: str, embit_network: str = "main") -> H
 
 
 
+def get_pubkey_hex(seed_bytes, derivation_path: str, embit_network: str = "main") -> str:
+    """
+    The compressed SEC pubkey (33 bytes / 66 hex chars) at the given derivation path.
+
+    Note: the result is the same on all networks. `embit_network` only selects the xprv version
+    bytes, which aren't an input to derivation or to the SEC encoding. Testnet differs only
+    because its coin type makes it a different path (e.g. m/84h/1h/... vs m/84h/0h/...).
+    """
+    root = bip32.HDKey.from_seed(seed_bytes, version=NETWORKS[embit_network]["xprv"])
+    return root.derive(derivation_path).key.get_public_key().sec().hex()
+
+
+
 def get_single_sig_address(xpub: HDKey, script_type: str = SettingsConstants.NATIVE_SEGWIT, index: int = 0, is_change: bool = False, embit_network: str = "main") -> str:
     if is_change:
         pubkey = xpub.derive([1,index]).key
@@ -123,11 +136,29 @@ def get_embit_network_name(settings_name):
 
 
 
+def is_valid_derivation_path(derivation_path: str) -> bool:
+    """
+    Can embit actually derive this path? Guards against malformed input (e.g. a scanned QR
+    with a garbage derivation path).
+
+    Note: embit's `parse_path` accepts out-of-range indexes (negative or >= 2^32) that only
+    blow up later at derivation time, so range-check them here.
+    """
+    try:
+        indexes = bip32.parse_path(derivation_path)
+    except Exception:
+        return False
+
+    return all(0 <= index < 2**32 for index in indexes)
+
+
+
 def parse_derivation_path(derivation_path: str) -> dict:
     """
     Parses a derivation path into its related SettingsConstants equivalents.
 
-    Primarily only supports single sig derivation paths.
+    Only single sig derivation paths resolve to a script type; anything else (e.g. BIP48
+    multisig) is reported as CUSTOM_DERIVATION.
 
     May return None for fields it cannot parse.
     """
@@ -135,10 +166,6 @@ def parse_derivation_path(derivation_path: str) -> dict:
     derivation_path = derivation_path.replace("'", "h")
 
     sections = derivation_path.split("/")
-
-    if sections[1] == "48h":
-        # So far this helper is only meant for single sig message signing
-        raise Exception("Not implemented")
 
     lookups = {
         "script_types": {
@@ -154,13 +181,21 @@ def parse_derivation_path(derivation_path: str) -> dict:
     }
 
     details = dict()
-    details["script_type"] = lookups["script_types"].get(sections[1])
+
+    # Note: BIP48 (48h) is deliberately not mapped to a script type here. Its script type is a
+    # multisig one, so rendering a single sig address from it would show an address that the
+    # user's wallet will never display. It falls through to CUSTOM_DERIVATION and is confirmed
+    # by pubkey instead.
+    purpose = sections[1] if len(sections) > 1 else None
+    details["script_type"] = lookups["script_types"].get(purpose)
     if not details["script_type"]:
         details["script_type"] = SettingsConstants.CUSTOM_DERIVATION
-    details["network"] = lookups["networks"].get(sections[2])
+
+    coin_type = sections[2] if len(sections) > 2 else None
+    details["network"] = lookups["networks"].get(coin_type)
 
     # Check if there's a standard change path
-    if sections[-2] in ["0", "1"]:
+    if len(sections) > 2 and sections[-2] in ["0", "1"]:
         details["is_change"] = sections[-2] == "1"
     else:
         details["is_change"] = None
