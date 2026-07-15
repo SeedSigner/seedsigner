@@ -121,8 +121,12 @@ def create_output(output_hex: str, value: int = None) -> OutputScope:
     corresponding OutputScope that can be added to a PSBT.
 
     Optionally override the output's `value`.
+    The output snippets are serialized as PSBTv2 (BIP-370) output maps so that the
+    amount (PSBT_OUT_AMOUNT, 0x03) and script (PSBT_OUT_SCRIPT, 0x04) are carried
+    inline; embit >=0.8.0 strictly rejects these v2-only fields unless `version=2`
+    is passed.
     """
-    output = OutputScope.read_from(BytesIO(unhexlify(output_hex)))
+    output = OutputScope.read_from(BytesIO(unhexlify(output_hex)), version=2)
     if value is not None:
         output.value = value
     return output

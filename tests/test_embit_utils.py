@@ -1,5 +1,6 @@
 import pytest
 
+from binascii import unhexlify
 from seedsigner.models.settings_definition import SettingsConstants as SC
 from seedsigner.helpers import embit_utils
 
@@ -455,3 +456,5 @@ def test_parse_derivation_path():
             assert actual_result["index"] == expected_result[3]
         else:
             assert actual_result["index"] == int(derivation_path.split("/")[-1])
+
+

@@ -6,7 +6,7 @@ from typing import Type
 from seedsigner.helpers.l10n import mark_for_translation as _mft
 from seedsigner.gui.components import SeedSignerIconConstants
 from seedsigner.gui.screens import RET_CODE__POWER_BUTTON, RET_CODE__BACK_BUTTON
-from seedsigner.gui.screens.screen import BaseScreen, ButtonOption, LargeButtonScreen, WarningScreen, ErrorScreen
+from seedsigner.gui.screens.screen import BaseScreen, ButtonOption, LargeButtonScreen, WarningScreen, ErrorScreen, QRDisplayScreen
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread
@@ -474,3 +474,24 @@ class RemoveMicroSDWarningView(View):
                     unblocking_view=MainMenuView
                 )
             )
+        
+
+
+# TODO: other QR display Views should maybe be refactored to use this as well.
+class BaseQRDisplayView(View):
+    def get_qr_encoder(self):
+        raise Exception("Must implement in the child class")
+    
+    def get_next_destination(self):
+        raise Exception("Must implement in the child class")
+
+    def run(self):
+        selected_menu_button = self.run_screen(
+            QRDisplayScreen,
+            qr_encoder=self.get_qr_encoder(),
+        )
+
+        if selected_menu_button == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        
+        return self.get_next_destination()

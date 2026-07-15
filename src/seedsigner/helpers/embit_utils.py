@@ -208,3 +208,4 @@ def sign_message(seed_bytes: bytes, derivation: str, msg: bytes, compressed: boo
     flag = bytes([27 + flag + c])
     ser = flag + secp256k1.ecdsa_signature_serialize_compact(sig._sig)
     return b2a_base64(ser).strip().decode()
+
