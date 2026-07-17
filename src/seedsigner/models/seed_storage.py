@@ -10,6 +10,8 @@ class SeedStorage:
         self.pending_seed: Seed = None
         self._pending_mnemonic: List[str] = []
         self._pending_is_electrum : bool = False
+        self.rebuild_seedxor_shards: List[Seed] = []
+        self.rebuild_seedxor_combined_seed: Seed = None        
 
 
     def set_pending_seed(self, seed: Seed):
@@ -103,3 +105,21 @@ class SeedStorage:
     def discard_pending_mnemonic(self):
         self._pending_mnemonic = []
         self._pending_is_electrum = False
+
+    def add_rebuild_seedxor_shard(self, seed: Seed):
+        self.rebuild_seedxor_shards.append(seed)
+        self.rebuild_seedxor_combined_seed = None
+
+    def clear_rebuild_seedxor_data(self):
+        self.rebuild_seedxor_shards = []
+        self.rebuild_seedxor_combined_seed = None
+
+    def get_rebuild_seedxor_shards(self) -> List[Seed]:
+        return self.rebuild_seedxor_shards
+
+    def get_rebuild_seedxor_combined_seed(self) -> Seed:
+        return self.rebuild_seedxor_combined_seed
+
+    def set_rebuild_seedxor_combined_seed(self, seed: Seed):
+        self.rebuild_seedxor_combined_seed = seed
+
