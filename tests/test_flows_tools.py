@@ -34,6 +34,40 @@ class TestToolsFlows(FlowTest):
         ])
 
 
+    def test__address_explorer__custom_derivation_flow(self):
+        """
+            Address Explorer should support custom derivation paths that still map to a
+            known single sig script type.
+        """
+        controller = Controller.get_instance()
+        seed = Seed(mnemonic=["abandon "* 11 + "about"])
+        controller.storage.set_pending_seed(seed)
+        controller.storage.finalize_pending_seed()
+
+        self.settings.set_value(
+            SettingsConstants.SETTING__SCRIPT_TYPES,
+            [SettingsConstants.NATIVE_SEGWIT, SettingsConstants.CUSTOM_DERIVATION],
+        )
+
+        custom_derivation_selection = ButtonOption(
+            SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(SettingsConstants.CUSTOM_DERIVATION),
+            return_data=SettingsConstants.CUSTOM_DERIVATION,
+        )
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, screen_return_value=0),  # ret 1st onboard seed
+            FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=custom_derivation_selection),
+            FlowStep(seed_views.SeedExportXpubCustomDerivationView, screen_return_value="m/44'/1237'/0'/0/0"),
+            FlowStep(tools_views.ToolsAddressExplorerAddressTypeView, button_data_selection=tools_views.ToolsAddressExplorerAddressTypeView.RECEIVE),
+            FlowStep(tools_views.ToolsAddressExplorerAddressListView, screen_return_value=10),  # ret NEXT page of addrs
+            FlowStep(tools_views.ToolsAddressExplorerAddressListView, screen_return_value=4),  # ret a specific addr from the list
+            FlowStep(tools_views.ToolsAddressExplorerAddressView),  # runs until dismissed; no ret value
+            FlowStep(tools_views.ToolsAddressExplorerAddressListView),
+        ])
+
+
     def test__address_explorer__loadseed__sideflow(self):
         """
             Finalizing a seed during the Address Explorer flow should return to the next

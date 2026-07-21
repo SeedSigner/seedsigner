@@ -455,3 +455,10 @@ def test_parse_derivation_path():
             assert actual_result["index"] == expected_result[3]
         else:
             assert actual_result["index"] == int(derivation_path.split("/")[-1])
+
+
+def test_parse_derivation_path_short_custom_paths_do_not_crash():
+    for derivation_path in ["m", "m/9h", "m/9h/78"]:
+        parsed = embit_utils.parse_derivation_path(derivation_path)
+        assert parsed["script_type"] == SC.CUSTOM_DERIVATION
+        assert parsed["clean_match"] is False
