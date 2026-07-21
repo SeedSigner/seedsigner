@@ -424,6 +424,11 @@ def test_parse_derivation_path():
         (SC.TESTNET, SC.CUSTOM_DERIVATION, True): "m/45'/1'/0'/1/5",
         (SC.REGTEST, SC.CUSTOM_DERIVATION, True): "m/45'/1'/0'/1/5",
 
+        # Electrum single-sig segwit: m/0h/change/index (no purpose or coin-type level)
+        (SC.MAINNET, SC.NATIVE_SEGWIT, False, 2): "m/0'/0/2",
+        (SC.MAINNET, SC.NATIVE_SEGWIT, True, 0): "m/0'/1/0",
+        (SC.MAINNET, SC.NATIVE_SEGWIT, False, 0): "m/0h/0/0",
+
         # CRAZY custom derivation paths
         (None, SC.CUSTOM_DERIVATION, False, 5): "m/123'/9083270/9083270/9083270/9083270/0/5",
 
