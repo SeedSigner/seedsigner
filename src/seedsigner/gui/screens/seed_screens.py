@@ -419,10 +419,10 @@ class SeedFinalizeScreen(ButtonListScreen):
     fingerprint: str = None
     is_bottom_list: bool = True
     button_data: list = None
+    title: str = _("Finalize Seed")
 
     def __post_init__(self):
         self.show_back_button = False
-        self.title = _("Finalize Seed")
         super().__post_init__()
 
         self.fingerprint_icontl = IconTextLine(
@@ -659,9 +659,9 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
     KEYBOARD__SYMBOLS_1_BUTTON_TEXT = "!@#"
     KEYBOARD__SYMBOLS_2_BUTTON_TEXT = "*[]"
 
+    title = _("BIP-39 Passphrase")
 
     def __post_init__(self):
-        self.title = _("BIP-39 Passphrase")
         super().__post_init__()
 
         keys_lower = "abcdefghijklmnopqrstuvwxyz"

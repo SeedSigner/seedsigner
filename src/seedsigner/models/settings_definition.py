@@ -347,6 +347,7 @@ class SettingsConstants:
     SETTING__COMPACT_SEEDQR = "compact_seedqr"
     SETTING__BIP85_CHILD_SEEDS = "bip85_child_seeds"
     SETTING__ELECTRUM_SEEDS = "electrum_seeds"
+    SETTING__SHAMIR = "shamir_seeds"
     SETTING__MESSAGE_SIGNING = "message_signing"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
@@ -412,6 +413,8 @@ class SettingsConstants:
     # TRANSLATOR_NOTE: Terminology used by Electrum seeds; equivalent to BIP-39 passphrase
     custom_extension = _mft("Custom Extension")
     LABEL__CUSTOM_EXTENSION = custom_extension
+    # TRANSLATOR_NOTE: Terminology used by Shamir seeds; equivalent to BIP-39 passphrase
+    LABEL__SHAMIR_PASSPHRASE = _mft("SLIP-39 Passphrase")
 
 
 
@@ -682,6 +685,14 @@ class SettingsDefinition:
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SettingsConstants.ALL_MICROSD_TOAST_TIMERS,
                       default_value=SettingsConstants.MICROSD_TOAST_TIMER_FIVE_SECONDS),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__SHAMIR,
+                      abbreviated_name="shamir",
+                      display_name="Shamir Secret Sharing",
+                      help_text="Shares import only",
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__DISABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__MESSAGE_SIGNING,

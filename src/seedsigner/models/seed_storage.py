@@ -1,15 +1,19 @@
 from typing import List
-from seedsigner.models.seed import Seed, ElectrumSeed, InvalidSeedException
+from seedsigner.models.seed import Seed, ElectrumSeed, ShamirSeed, InvalidSeedException, IncompleteShamirShareSetException
 from seedsigner.models.settings_definition import SettingsConstants
 
 
-
+# TODO: Hide type-specific "pending" logic behind a small hierarchy (PendingSeed, PendingElectrumSeed, PendingShamirSeed)
+# to encapsulate the build-and-validate process per seed type and simplify SeedStorage.
 class SeedStorage:
     def __init__(self) -> None:
+        # TODO: Consider modernizing type hints to use built-in `list[...]` (Python 3.9+)
         self.seeds: List[Seed] = []
         self.pending_seed: Seed = None
         self._pending_mnemonic: List[str] = []
         self._pending_is_electrum : bool = False
+        self._pending_shamir_share_set: List[str] = []
+        self._pending_shamir_num_words: int = None  # Track word count for consistency
 
 
     def set_pending_seed(self, seed: Seed):
@@ -103,3 +107,90 @@ class SeedStorage:
     def discard_pending_mnemonic(self):
         self._pending_mnemonic = []
         self._pending_is_electrum = False
+
+    
+    # Shamir shares
+
+    def init_pending_shamir_share_set(self, num_words: int = 20):
+        self._pending_mnemonic = [None] * num_words
+        self._pending_shamir_share_set = []  # Start with empty list instead of fixed size
+        self._pending_shamir_num_words = num_words
+        self._pending_is_electrum = False
+
+
+    def add_pending_shamir_share(self):
+        """
+        Add the current pending mnemonic as a new share in the share set.
+        """
+        if self._pending_mnemonic and None not in self._pending_mnemonic:
+            # Copy the current mnemonic as a completed share
+            self._pending_shamir_share_set.append(list(self._pending_mnemonic))
+            # Reset the pending mnemonic for the next share
+            self.discard_pending_mnemonic()
+            self.init_pending_mnemonic(self._pending_shamir_num_words)
+
+
+    def update_pending_shamir_share_set(self, index: int):
+        """
+        Replaces the nth share in the pending shamir share.
+
+        * may specify a negative `index` (e.g. -1 is the last word).
+        """
+        if index >= len(self._pending_shamir_share_set):
+            raise Exception(f"Share index {index} is too high")
+        self._pending_shamir_share_set[index] = self._pending_mnemonic    
+        if index < len(self._pending_shamir_share_set) - 1:
+            self.discard_pending_mnemonic()
+            self.init_pending_mnemonic(self._pending_shamir_num_words)
+
+
+    def get_pending_shamir_share_set_share(self, index: int) -> List[str]:
+        if index < len(self._pending_shamir_share_set):
+            return self._pending_shamir_share_set[index]
+        return None
+    
+    @property
+    def pending_shamir_share_set_length(self) -> int:
+        return len(self._pending_shamir_share_set)
+
+    @property
+    def pending_shamir_num_words(self) -> int:
+        return self._pending_shamir_num_words
+
+    def discard_pending_shamir_share_set(self):
+        self._pending_shamir_share_set = []
+        self._pending_shamir_num_words = None
+
+    def get_pending_shamir_threshold(self) -> int | None:
+        """Return threshold based on the first parsed share."""
+        if not self._pending_shamir_share_set:
+            return None
+
+        try:
+            from embit import slip39
+            first_share = " ".join(self._pending_shamir_share_set[0])
+            share = slip39.Share.parse(first_share)
+        except Exception:
+            return None
+
+        return share.group_threshold
+
+
+    def can_finalize_pending_shamir_share_set(self, passphrase: str = "") -> bool:
+        """Return True if the current share set can reconstruct a Shamir seed."""
+        if not self._pending_shamir_share_set:
+            return False
+        
+        try:
+            ShamirSeed(self._pending_shamir_share_set, passphrase)
+        except IncompleteShamirShareSetException:
+            return False
+
+        return True
+
+    def convert_pending_shamir_share_set_to_pending_seed(self, passphrase: str = '', finalize: bool = True):
+        self.pending_seed = ShamirSeed(self._pending_shamir_share_set, passphrase)
+        self.pending_seed.set_passphrase(passphrase)
+        if finalize:
+            self.discard_pending_mnemonic()
+            self.discard_pending_shamir_share_set()

@@ -4,7 +4,7 @@ import hashlib
 import hmac
 
 from binascii import hexlify
-from embit import bip39, bip32, bip85
+from embit import bip39, bip32, bip85, slip39
 from embit.networks import NETWORKS
 from typing import List
 
@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 class InvalidSeedException(Exception):
+    pass
+
+
+class IncompleteShamirShareSetException(Exception):
     pass
 
 
@@ -137,11 +141,19 @@ class Seed:
 
     @property
     def seedqr_supported(self) -> bool:
+        # TODO: Add "is_" prefix to this method
         return True
 
 
     @property
     def bip85_supported(self) -> bool:
+        # TODO: Add "is_" prefix to this method
+        return True
+    
+
+    @property
+    def backup_supported(self) -> bool:
+        # TODO: Add "is_" prefix to this method
         return True
 
 
@@ -239,3 +251,73 @@ class ElectrumSeed(Seed):
     @property
     def bip85_supported(self) -> bool:
         return False
+
+
+
+class ShamirSeed(Seed):
+    def __init__(self,
+                 mnemonic: List[List[str]] = None,
+                 passphrase: str = "") -> None:
+        if not mnemonic:
+            raise Exception("Must initialize a ShamirSeed with a mnemonic List[List[str]]")
+        
+        self._mnemonic: List[List[str]] = mnemonic # Mnemonic in this case is the set of Shamir shares
+
+        self._passphrase: str = ""
+        self.set_passphrase(passphrase, regenerate_seed=False)
+
+        self.seed_bytes: bytes = None
+        self._generate_seed()
+
+
+    @staticmethod
+    def get_wordlist() -> List[str]:
+        return slip39.SLIP39_WORDS
+        
+
+    def _generate_seed(self):
+        try:
+            # embit expects each SLIP-39 share as a single whitespace-separated string.
+            # Here, self._mnemonic holds shares as List[List[str]] (a list of word lists),
+            # so join each share into the required string form (List[str]) before parsing.
+            share_set_formatted = [" ".join(share) for share in self._mnemonic]
+            share_set = slip39.ShareSet([slip39.Share.parse(share) for share in share_set_formatted])
+            self.seed_bytes = share_set.recover(self._passphrase.encode('utf-8'))
+        except ValueError as e:
+            # Not enough shares
+            logger.info(repr(e), exc_info=True)
+            raise IncompleteShamirShareSetException(repr(e))
+        except TypeError as e:
+            # Shares are from different secrets or don't have the same exponent
+            logger.info(repr(e), exc_info=True)
+            raise InvalidSeedException(repr(e))
+        
+
+    @property
+    def passphrase_label(self) -> str:
+        return SettingsConstants.LABEL__SHAMIR_PASSPHRASE
+
+
+    @property
+    def seedqr_supported(self) -> bool:
+        return False
+
+
+    @property
+    def bip85_supported(self) -> bool:
+        return False
+    
+
+    @property
+    def backup_supported(self) -> bool:
+        # TODO: Support SLIP-39 extendable backup flag. Sparrow falls back
+        # to a 1-of-1 backup for recovery. Pending embit support for this (PR embit#91).
+        return False
+
+ 
+    def mnemonic_display_str(self, share_index) -> str:
+        return unicodedata.normalize("NFC", self._mnemonics[share_index])
+    
+
+    def mnemonic_display_list(self, share_index) -> List[str]:
+        return unicodedata.normalize("NFC", self._mnemonics[share_index]).split()
