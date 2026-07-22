@@ -376,6 +376,7 @@ def generate_screenshots(locale):
                 
                 ScreenshotConfig(seed_views.SeedOptionsView, dict(seed_num=0)),
                 ScreenshotConfig(seed_views.SeedBackupView,  dict(seed_num=0)),
+                ScreenshotConfig(seed_views.SeedOptionsView, dict(seed_num=0), screenshot_name="SeedOptionsView_AlreadyLoadedSeed", toast_thread=InfoToast("Seed already in memory")),
                 ScreenshotConfig(seed_views.SeedExportXpubSigTypeView,          dict(seed_num=0)),
                 ScreenshotConfig(seed_views.SeedExportXpubScriptTypeView,       dict(seed_num=0, sig_type="msig")),
                 ScreenshotConfig(seed_views.SeedExportXpubCustomDerivationView, dict(seed_num=0, sig_type="ss",   script_type="")),
