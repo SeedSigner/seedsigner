@@ -52,7 +52,7 @@ import warnings; warnings.warn = lambda *args, **kwargs: None
 
 # Dynamically generate a pytest test run for each locale
 @pytest.mark.parametrize("locale", [x for x, y in SettingsConstants.get_detected_languages()])
-def test_generate_all(locale, target_locale):
+def test_generate_all(locale, target_locale, overflow_scan, overflow_json):
     """
     `target_locale` is a fixture created in conftest.py via the `--locale` command line arg.
 
@@ -60,13 +60,13 @@ def test_generate_all(locale, target_locale):
     """
     if target_locale and locale != target_locale:
         pytest.skip(f"Skipping {locale}")
-    
+
     if not ImageFont.core.HAVE_RAQM:
         # We can't generate pixel-perfect screenshots that match what gets rendered on
         # the device if we don't have libraqm.
         pytest.fail("libraqm is not installed.")
-    
-    generate_screenshots(locale)
+
+    generate_screenshots(locale, overflow_scan=overflow_scan, overflow_json=overflow_json)
 
 
 
@@ -143,7 +143,7 @@ class SeedExportXpubQR_ScreenBrightnessView(seed_views.SeedExportXpubQRDisplayVi
 
 
 
-def generate_screenshots(locale):
+def generate_screenshots(locale, overflow_scan: bool = False, overflow_json: str = None):
     """
         The `Renderer` class is mocked so that calls in the normal code are ignored
         (necessary to avoid having it trying to wire up hardware dependencies).
@@ -490,6 +490,10 @@ def generate_screenshots(locale):
 
 
     def screencap_view(screenshot_config: ScreenshotConfig):
+        """
+        Render a single screenshot. Returns the View's Screen instance (if
+        available) for post-render inspection (e.g. the overflow scan).
+        """
         # Block until we have exclusive access to the screenshot renderer. Without this
         # we were occasionally running into confusing race conditions where the next
         # screenshot would begin rendering over the previous one. Claiming the lock
@@ -499,6 +503,7 @@ def generate_screenshots(locale):
 
         controller = Controller.get_instance()
         toast_thread = screenshot_config.toast_thread
+        view = None
         try:
             print(f"Running {screenshot_config.screenshot_name}")
             try:
@@ -507,8 +512,10 @@ def generate_screenshots(locale):
                 # Activate the (optional) context manager for this screenshot to activate
                 # any specialized mocks.
                 with screenshot_config.mock_context_manager():
-                    # Set up and run the target View
-                    screenshot_config.View_cls(**screenshot_config.view_kwargs).run()
+                    # Set up and run the target View. Keep the View instance so its
+                    # fully-constructed screen can be inspected after rendering.
+                    view = screenshot_config.View_cls(**screenshot_config.view_kwargs)
+                    view.run()
 
                 if screenshot_renderer.render_count == cur_count:
                     # The View didn't actually render anything
@@ -534,6 +541,8 @@ def generate_screenshots(locale):
             if toast_thread and toast_thread.is_alive():
                 toast_thread.stop()
                 toast_thread.join()
+
+        return getattr(view, 'screen', None)
 
 
     # Parse the main `l10n/messages.pot` for overall stats
@@ -566,6 +575,13 @@ def generate_screenshots(locale):
             from traceback import print_exc
             print_exc()
 
+    # Overflow scan setup; each flagged screen also remembers its section subdir
+    # so the composite can locate the rendered .png afterward.
+    all_overflow_events = []
+    screenshot_subdirs = {}
+    if overflow_scan or overflow_json:
+        from .overflow_scanner.overflow import scan_for_overflow, write_reports
+
     for section_name, screenshot_list in setup_screenshots(locale).items():
         subdir = section_name.lower().replace(" ", "_")
         screenshot_renderer.set_screenshot_path(os.path.join(screenshot_root, locale, subdir))
@@ -574,7 +590,14 @@ def generate_screenshots(locale):
         locale_readme += """<table style="border: 0;">"""
         locale_readme += f"""<tr><td align="center">"""
         for screenshot_config in screenshot_list:
-            screencap_view(screenshot_config)
+            screen = screencap_view(screenshot_config)
+
+            if (overflow_scan or overflow_json) and screen is not None:
+                events = scan_for_overflow(screen, screenshot_config.screenshot_name, locale)
+                if events:
+                    all_overflow_events.extend(events)
+                    screenshot_subdirs[screenshot_config.screenshot_name] = subdir
+
             locale_readme += """  <table align="left" style="border: 1px solid gray;">"""
             locale_readme += f"""<tr><td align="center">{screenshot_config.screenshot_name}<br/><br/><img src="{subdir}/{screenshot_config.screenshot_name}.png"></td></tr>"""
             locale_readme += """</table>\n"""
@@ -591,10 +614,14 @@ def generate_screenshots(locale):
     with open(os.path.join("tests", "screenshot_generator", "template.md"), 'r') as readme_template:
         main_readme = readme_template.read()
 
-    for locale, display_name in SettingsConstants.get_detected_languages():
-        main_readme += f"* [{display_name}]({locale}/README.md)\n"
+    for detected_locale, display_name in SettingsConstants.get_detected_languages():
+        main_readme += f"* [{display_name}]({detected_locale}/README.md)\n"
 
     with open(os.path.join(screenshot_root, "README.md"), 'w') as readme_file:
         readme_file.write(main_readme)
 
     print(f"Screenshots rendered: {screenshot_renderer.render_count}")
+
+    if overflow_scan or overflow_json:
+        write_reports(all_overflow_events, screenshot_subdirs, screenshot_root,
+                      locale, json_path=overflow_json, human_report=overflow_scan)
