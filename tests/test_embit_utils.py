@@ -424,6 +424,16 @@ def test_parse_derivation_path():
         (SC.TESTNET, SC.CUSTOM_DERIVATION, True): "m/45'/1'/0'/1/5",
         (SC.REGTEST, SC.CUSTOM_DERIVATION, True): "m/45'/1'/0'/1/5",
 
+        # BIP48 multisig. 48' is deliberately NOT mapped to a script type; its script type is a
+        # multisig one, so it must not resolve to a single sig script type (see
+        # parse_derivation_path).
+        (SC.MAINNET, SC.CUSTOM_DERIVATION, False, 5): "m/48'/0'/0'/2'/0/5",
+        (SC.TESTNET, SC.CUSTOM_DERIVATION, False, 5): "m/48'/1'/0'/2'/0/5",
+        (SC.MAINNET, SC.CUSTOM_DERIVATION, True, 5): "m/48'/0'/0'/1'/1/5",
+
+        # Nostr keys are likewise just a custom derivation
+        (SC.MAINNET, SC.CUSTOM_DERIVATION, False, 0): "m/1017'/0'/0'/0/0",
+
         # CRAZY custom derivation paths
         (None, SC.CUSTOM_DERIVATION, False, 5): "m/123'/9083270/9083270/9083270/9083270/0/5",
 
@@ -455,3 +465,97 @@ def test_parse_derivation_path():
             assert actual_result["index"] == expected_result[3]
         else:
             assert actual_result["index"] == int(derivation_path.split("/")[-1])
+
+
+def test_parse_derivation_path_without_change_and_index():
+    """
+    Paths that stop above the change/index levels (e.g. BIP47, or signing at the account level)
+    should parse without raising; they just can't resolve a change/index.
+    """
+    for derivation_path in ["m/47'/0'/0'", "m/84'/0'/0'", "m/48'/0'/0'/2'", "m"]:
+        result = embit_utils.parse_derivation_path(derivation_path)
+        assert result["is_change"] is None
+        assert result["index"] is None
+        assert result["wallet_derivation_path"] is None
+        assert result["clean_match"] is False
+
+
+def test_is_valid_derivation_path():
+    for derivation_path in [
+        "m/84'/0'/0'/0/0",
+        "m/84h/0h/0h/0/0",
+        "m/48'/0'/0'/2'/0/0",
+        "m/1017'/0'/0'/0/0",
+        "m",  # the master key itself is a legitimate (if unusual) signing key
+    ]:
+        assert embit_utils.is_valid_derivation_path(derivation_path) is True
+
+    for derivation_path in [
+        "",
+        "m/foo/bar",
+        "not a path at all",
+        "🤡",
+        "m/84'/0'/0'/0/-1",         # negative index
+        "m/84'/0'/0'/0/999999999999999999",  # index >= 2^32; embit's parse_path accepts it but derivation blows up
+    ]:
+        assert embit_utils.is_valid_derivation_path(derivation_path) is False
+
+    # Garbage must not raise out of the parser either; it should just fail to resolve fields
+    for derivation_path in ["", "m/foo/bar", "not a path at all", "🤡", "m"]:
+        result = embit_utils.parse_derivation_path(derivation_path)
+        assert result["clean_match"] is False
+
+
+def test_get_pubkey_hex():
+    # BIP32 test vector 1: seed 000102030405060708090a0b0c0d0e0f, chain m/0h
+    seed_bytes = bytes.fromhex("000102030405060708090a0b0c0d0e0f")
+    assert embit_utils.get_pubkey_hex(seed_bytes, "m/0h") == "035a784662a4a20a65bf6aab9ae98a6c068a81c52e4b032c0fb5400c706cfccc56"
+
+    # Support either "'" or "h" notation, and the master key itself
+    assert embit_utils.get_pubkey_hex(seed_bytes, "m/0'") == embit_utils.get_pubkey_hex(seed_bytes, "m/0h")
+    assert len(embit_utils.get_pubkey_hex(seed_bytes, "m")) == 66
+
+
+def test_get_pubkey_hex_is_network_independent():
+    """
+    A pubkey at a given path is the same on every network; the network only selects the xprv
+    version bytes. Testnet differs solely because its coin type makes it a different path.
+    """
+    seed_bytes = bytes.fromhex("000102030405060708090a0b0c0d0e0f")
+    derivation_path = "m/48h/0h/0h/2h/0/0"
+
+    mainnet_pubkey = embit_utils.get_pubkey_hex(seed_bytes, derivation_path, embit_network="main")
+    assert embit_utils.get_pubkey_hex(seed_bytes, derivation_path, embit_network="test") == mainnet_pubkey
+    assert embit_utils.get_pubkey_hex(seed_bytes, derivation_path, embit_network="regtest") == mainnet_pubkey
+
+    # ...but the testnet coin type is a different path, so it's a different key
+    assert embit_utils.get_pubkey_hex(seed_bytes, "m/48h/1h/0h/2h/0/0") != mainnet_pubkey
+
+
+def test_sign_message_on_a_non_single_sig_path():
+    """
+    The signature produced for a BIP48 multisig path must be verifiable against the pubkey we
+    display on the confirmation screen; i.e. what the user confirms is what actually signed.
+    """
+    from base64 import b64decode
+    from hashlib import sha256
+
+    from embit import compact, ec
+    from embit.util import secp256k1
+
+    from seedsigner.models.seed import Seed
+
+    seed = Seed(mnemonic=["abandon"] * 11 + ["about"])
+    derivation_path = "m/48h/0h/0h/2h/0/0"
+    message = b"I attest that I control this bitcoin address blah blah blah"
+
+    signature = embit_utils.sign_message(seed_bytes=seed.seed_bytes, derivation=derivation_path, msg=message)
+
+    # Recover the signing pubkey from the signature and compare it to what we'd show the user
+    serialized = b64decode(signature)
+    recovery_id = (serialized[0] - 27) & 0x03
+    message_hash = sha256(sha256(b"\x18Bitcoin Signed Message:\n" + compact.to_bytes(len(message)) + message).digest()).digest()
+    recoverable_sig = secp256k1.ecdsa_recoverable_signature_parse_compact(serialized[1:], recovery_id)
+    recovered_pubkey = ec.PublicKey(secp256k1.ecdsa_recover(recoverable_sig, message_hash)).sec().hex()
+
+    assert recovered_pubkey == embit_utils.get_pubkey_hex(seed.seed_bytes, derivation_path)

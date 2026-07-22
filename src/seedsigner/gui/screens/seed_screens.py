@@ -1675,3 +1675,49 @@ class SeedSignMessageConfirmAddressScreen(ButtonListScreen):
             screen_y=derivation_path_display.screen_y + derivation_path_display.height + 2*GUIConstants.COMPONENT_PADDING,
         )
         self.components.append(address_display)
+
+
+
+@dataclass
+class SeedSignMessageConfirmPubkeyScreen(ButtonListScreen):
+    fingerprint: str = None
+    derivation_path: str = None
+    pubkey: str = None
+
+    def __post_init__(self):
+        # TRANSLATOR_NOTE: "Pubkey" is the public key that will sign the message; shown instead of
+        # an address for derivation paths that have no meaningful single sig address.
+        self.title = _("Confirm Pubkey")
+        self.is_bottom_list = True
+        self.is_button_text_centered = True
+        self.button_data = [ButtonOption("Sign message")]
+        super().__post_init__()
+
+        fingerprint_display = IconTextLine(
+            icon_name=SeedSignerIconConstants.FINGERPRINT,
+            icon_color=GUIConstants.INFO_COLOR,
+            label_text=_("fingerprint"),
+            value_text=self.fingerprint,
+            is_text_centered=True,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+        )
+        self.components.append(fingerprint_display)
+
+        derivation_path_display = IconTextLine(
+            icon_name=SeedSignerIconConstants.DERIVATION,
+            icon_color=GUIConstants.INFO_COLOR,
+            label_text=_("derivation path"),
+            value_text=self.derivation_path,
+            is_text_centered=True,
+            screen_y=fingerprint_display.screen_y + fingerprint_display.height + GUIConstants.COMPONENT_PADDING,
+        )
+        self.components.append(derivation_path_display)
+
+        # FormattedAddress is a generic fixed-width formatter; it truncates the 66-char pubkey to
+        # its first and last 7 chars across 2 lines.
+        pubkey_display = FormattedAddress(
+            address=self.pubkey,
+            max_lines=2,
+            screen_y=derivation_path_display.screen_y + derivation_path_display.height + GUIConstants.COMPONENT_PADDING,
+        )
+        self.components.append(pubkey_display)

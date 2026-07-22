@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: seedsigner 0.8.7\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-03-05 22:02+0000\n"
+"POT-Creation-Date: 2026-07-14 21:47-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -425,6 +425,12 @@ msgstr ""
 
 #: src/seedsigner/gui/screens/seed_screens.py
 msgid "derivation path"
+msgstr ""
+
+#. "Pubkey" is the public key that will sign the message; shown instead of
+#. an address for derivation paths that have no meaningful single sig address.
+#: src/seedsigner/gui/screens/seed_screens.py
+msgid "Confirm Pubkey"
 msgstr ""
 
 #: src/seedsigner/gui/screens/settings_screens.py
@@ -1345,10 +1351,6 @@ msgstr ""
 msgid "{threshold} of {n}"
 msgstr ""
 
-#: src/seedsigner/views/seed_views.py
-msgid "Signing messages for custom derivation paths not supported"
-msgstr ""
-
 #: src/seedsigner/views/settings_views.py
 msgid "Advanced"
 msgstr ""
@@ -1547,6 +1549,16 @@ msgstr ""
 #. "network" will be mainnet/testnet/regtest.
 #: src/seedsigner/views/view.py
 msgid "Current network setting ({network}) doesn't match {derivation_path}."
+msgstr ""
+
+#. A derivation path (e.g. m/84h/0h/0h/0/0) that can't be interpreted
+#: src/seedsigner/views/view.py
+msgid "Invalid Derivation"
+msgstr ""
+
+#. {derivation_path} is the malformed path that was scanned
+#: src/seedsigner/views/view.py
+msgid "{derivation_path} is not a valid derivation path."
 msgstr ""
 
 #: src/seedsigner/views/view.py

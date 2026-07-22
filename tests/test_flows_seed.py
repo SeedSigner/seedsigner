@@ -9,7 +9,7 @@ from base import FlowTestInvalidButtonDataSelectionException
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import ElectrumSeed, Seed
-from seedsigner.views.view import MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
+from seedsigner.views.view import InvalidDerivationPathErrorView, MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
 from seedsigner.views import seed_views, scan_views, settings_views
 
 
@@ -572,6 +572,9 @@ class TestMessageSigningFlows(FlowTest):
     MAINNET_DERIVATION_PATH = "m/84h/0h/0h/0/0"
     TESTNET_DERIVATION_PATH = "m/84h/1h/0h/0/0"
     CUSTOM_DERIVATION_PATH = "m/99h/0/0"
+    BIP48_DERIVATION_PATH = "m/48h/0h/0h/2h/0/0"
+    TESTNET_BIP48_DERIVATION_PATH = "m/48h/1h/0h/2h/0/0"
+    BIP47_DERIVATION_PATH = "m/47h/0h/0h"
     SHORT_MESSAGE = "I attest that I control this bitcoin address blah blah blah"
     NO_WHITESPACE_MESSAGE = """{"height":841407,"lightning_bolt12":"lno1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}"""
     MULTIPAGE_MESSAGE = """Chancellor on brink of second bailout for banks
@@ -609,6 +612,18 @@ class TestMessageSigningFlows(FlowTest):
 
     def load_custom_derivation_into_decoder(self, view: View):
         self.load_signmessage_into_decoder(view, self.CUSTOM_DERIVATION_PATH, self.SHORT_MESSAGE)
+
+
+    def load_bip48_message_into_decoder(self, view: View):
+        self.load_signmessage_into_decoder(view, self.BIP48_DERIVATION_PATH, self.SHORT_MESSAGE)
+
+
+    def load_testnet_bip48_message_into_decoder(self, view: View):
+        self.load_signmessage_into_decoder(view, self.TESTNET_BIP48_DERIVATION_PATH, self.SHORT_MESSAGE)
+
+
+    def load_bip47_message_into_decoder(self, view: View):
+        self.load_signmessage_into_decoder(view, self.BIP47_DERIVATION_PATH, self.SHORT_MESSAGE)
 
 
     def inject_mesage_as_paged_message(self, view: View):
@@ -739,6 +754,35 @@ class TestMessageSigningFlows(FlowTest):
         self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
         expect_network_mismatch_error(self.load_short_message_into_decoder)
 
+        # The guard must still apply to the paths that now route to the pubkey screen. BIP48
+        # encodes its coin type in the same position, so a testnet BIP48 path is still caught.
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+        expect_network_mismatch_error(self.load_testnet_bip48_message_into_decoder)
+
+
+    def test_sign_message_testnet_bip48_flow(self):
+        """
+        A testnet BIP48 path should sign on testnet. Note that the pubkey shown is not a
+        "testnet pubkey"; it differs from the mainnet one only because the testnet coin type
+        makes m/48h/1h/... a different derivation path than m/48h/0h/...
+        """
+        # Ensure message signing is enabled
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.TESTNET)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
+            FlowStep(scan_views.ScanView, before_run=self.load_testnet_bip48_message_into_decoder),  # simulate read message QR; ret val is ignored
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageConfirmPubkeyView, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageSignedMessageQRView, screen_return_value=0),
+            FlowStep(MainMenuView),
+        ])
+
 
     def test_sign_message_option_disabled(self):
         """
@@ -800,14 +844,17 @@ class TestMessageSigningFlows(FlowTest):
         assert self.controller.resume_main_flow is None
 
 
-    def test_sign_message_unsupported_derivation_flow(self):
+    def test_sign_message_non_single_sig_derivation_flow(self):
         """
-        Should redirect to NotYetImplementedView if a message's derivation path isn't yet supported
+        Derivation paths with no meaningful single sig address (BIP48 multisig, BIP47, Nostr,
+        custom) should route to SeedSignMessageConfirmPubkeyView instead of the address screen,
+        and still complete the signing flow.
         """
         # Ensure message signing is enabled
         self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
 
-        def expect_unsupported_derivation(load_message: Callable):
+        def expect_pubkey_confirmation(load_message: Callable):
             self.run_sequence([
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
                 FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
@@ -815,11 +862,72 @@ class TestMessageSigningFlows(FlowTest):
                 FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
                 FlowStep(scan_views.ScanView, before_run=load_message),  # simulate read message QR; ret val is ignored
                 FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
-                FlowStep(seed_views.NotYetImplementedView),
+                FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
+                FlowStep(seed_views.SeedSignMessageConfirmPubkeyView, screen_return_value=0),
+                FlowStep(seed_views.SeedSignMessageSignedMessageQRView, screen_return_value=0),
+                FlowStep(MainMenuView),
+            ])
+            self.controller.discard_seed(0)
+
+        expect_pubkey_confirmation(self.load_custom_derivation_into_decoder)
+        expect_pubkey_confirmation(self.load_bip48_message_into_decoder)
+        expect_pubkey_confirmation(self.load_bip47_message_into_decoder)
+
+
+    def test_sign_message_standard_single_sig_still_confirms_address(self):
+        """
+        The pubkey screen is a fallback; BIP44/49/84/86 single sig paths must still confirm the
+        receive address they're signing for.
+        """
+        # Ensure message signing is enabled
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
+            FlowStep(scan_views.ScanView, before_run=self.load_short_message_into_decoder),  # simulate read message QR; ret val is ignored
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageConfirmAddressView, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageSignedMessageQRView, screen_return_value=0),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_sign_message_invalid_derivation_flow(self):
+        """
+        A malformed derivation path is bad input from the scanned QR, not a SeedSigner failure.
+        It must land on InvalidDerivationPathErrorView rather than raising out of key derivation.
+        """
+        # Ensure message signing is enabled
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+
+        def expect_invalid_derivation(derivation_path: str):
+            def load_message(view: View):
+                self.load_signmessage_into_decoder(view, derivation_path, self.SHORT_MESSAGE)
+
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+                FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
+                FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
+                FlowStep(scan_views.ScanView, before_run=load_message),  # simulate read message QR; ret val is ignored
+                FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+                FlowStep(InvalidDerivationPathErrorView),
                 FlowStep(MainMenuView),
             ])
 
-        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
-        expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
+            assert self.controller.resume_main_flow is None
+            self.controller.discard_seed(0)
+
+        expect_invalid_derivation("m/foo/bar")
+        expect_invalid_derivation("m/84h/0h/0h/0/-1")
+
+        # embit's parse_path accepts this index, but it blows up at derivation time
+        expect_invalid_derivation("m/84h/0h/0h/0/999999999999999999")
 
 
