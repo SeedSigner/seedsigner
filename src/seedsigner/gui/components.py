@@ -184,6 +184,8 @@ class FontAwesomeIconConstants:
     KEYBOARD = "\uf11c"
     MAP = "\uf279"
     X = "\u0058"
+    NUMBER_0 = "\u0030"
+    NUMBER_1 = "\u0031"
 
 
 
