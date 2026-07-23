@@ -9,6 +9,7 @@ from typing import List
 
 from seedsigner.hardware.buttons import HardwareButtons, HardwareButtonsConstants
 from seedsigner.helpers.qr import QR
+from seedsigner.helpers.bitsquiggle import fingerprint_to_image
 from seedsigner.gui.components import (Button, FontAwesomeIconConstants, Fonts, FormattedAddress, IconButton,
     IconTextLine, SeedSignerIconConstants, TextArea, GUIConstants, reflow_text_into_pages)
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
@@ -436,6 +437,45 @@ class SeedFinalizeScreen(ButtonListScreen):
             screen_y=self.top_nav.height + int((self.buttons[0].screen_y - self.top_nav.height) / 2) - 30
         )
         self.components.append(self.fingerprint_icontl)
+
+        # BitSquiggle: a compact visual encoding of the fingerprint (see
+        # https://github.com/maggo83/BitSquiggles) so it can be quickly compared
+        # by eye against the same fingerprint shown in a companion wallet app.
+        # Placed inline to the right of the fingerprint icon/text, then the whole
+        # (icon + text + squiggle) group is re-centered as a single unit. The
+        # squiggle is the dominant visual element, so it's allowed to use the
+        # full free vertical space around the (much shorter) text line, not just
+        # the text line's own height.
+        icontl = self.fingerprint_icontl
+        icontl_text_width = max(icontl.label_textarea.text_width, icontl.value_textarea.text_width)
+        icontl_width = icontl_text_width + icontl.icon.width + icontl.icon_horizontal_spacer
+        squiggle_gap = GUIConstants.COMPONENT_PADDING
+
+        icontl_center_y = icontl.screen_y + int(icontl.height / 2)
+        available_top = self.top_nav.height + GUIConstants.COMPONENT_PADDING
+        available_bottom = self.buttons[0].screen_y - GUIConstants.COMPONENT_PADDING
+        max_half_height = min(icontl_center_y - available_top, available_bottom - icontl_center_y)
+
+        squiggle_image = fingerprint_to_image(
+            self.fingerprint,
+            max_width=self.canvas_width - 2 * GUIConstants.EDGE_PADDING - icontl_width - squiggle_gap,
+            max_height=2 * max_half_height,
+        )
+
+        # Clamp so an unusually long translated label can never push the icon/text
+        # off the left edge; in that squeeze the squiggle loses its centering
+        # instead, which degrades far more gracefully than clipped text.
+        group_width = icontl_width + squiggle_gap + squiggle_image.width
+        group_x = max(GUIConstants.EDGE_PADDING, int((self.canvas_width - group_width) / 2))
+
+        icontl.icon.screen_x = group_x
+        text_x = group_x + icontl.icon.width + icontl.icon_horizontal_spacer
+        icontl.label_textarea.screen_x = text_x
+        icontl.value_textarea.screen_x = text_x
+
+        squiggle_x = group_x + icontl_width + squiggle_gap
+        squiggle_y = icontl_center_y - int(squiggle_image.height / 2)
+        self.paste_images.append((squiggle_image, (squiggle_x, squiggle_y)))
 
 
 
