@@ -603,6 +603,42 @@ class TestSeedFlows(FlowTest):
 
         self.run_sequence(sequence, initial_destination_view_args=dict(seed=seed))
 
+    def test_keep_seed_flow(self):
+        """Verify clicking KEEP on SeedDiscardView returns to the correct view."""
+
+        from seedsigner.views import tools_views
+        mnemonic = ["abandon"] * 11 + ["about"]
+
+        # Flow 1: Pending Seed -> Keep -> SeedFinalizeView
+        # The only way to reach SeedDiscardView with a pending seed is from ToolsCalcFinalWordDoneView
+        self.controller.storage.init_pending_mnemonic(len(mnemonic))
+        for i, word in enumerate(mnemonic):
+            self.controller.storage.update_pending_mnemonic(word, i)
+
+        self.run_sequence(
+            sequence=[
+                FlowStep(tools_views.ToolsCalcFinalWordDoneView, button_data_selection=tools_views.ToolsCalcFinalWordDoneView.DISCARD),
+                FlowStep(seed_views.SeedDiscardView, button_data_selection=seed_views.SeedDiscardView.KEEP),
+                FlowStep(seed_views.SeedFinalizeView),
+            ]
+        )
+        self.setup_method()
+
+        # Flow 2: Finalized Seed -> Keep -> SeedOptionsView
+        seed = Seed(mnemonic=mnemonic)
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.DISCARD),
+                FlowStep(seed_views.SeedDiscardView, button_data_selection=seed_views.SeedDiscardView.KEEP),
+                FlowStep(seed_views.SeedOptionsView),
+            ]
+        )
+        self.setup_method()
+        
     def test_discard_seed_flow(self):
         """
             Selecting "Discard Seed" from the SeedOptionsView should enter the Discard Seed flow and 
