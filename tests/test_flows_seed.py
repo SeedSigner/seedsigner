@@ -567,6 +567,41 @@ class TestSeedEntryBackFlows(FlowTest):
         # Verify resume_main_flow is still set — user is still in the sign message flow
         assert self.controller.resume_main_flow == Controller.FLOW__SIGN_MESSAGE
 
+    def test_back_from_seed_entry_via_load_electrum_seed(self):
+        """
+        Simulates navigating into the Electrum seed entry from the Main Menu, and pressing BACK 
+        from the mnemonic keyboard to ensure it routes safely to `LoadSeedView` instead of 
+        getting trapped in the `SeedElectrumMnemonicStartView` warning screen.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, is_redirect=True),  # When no seeds are loaded it auto-redirects to LoadSeedView
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_ELECTRUM), 
+            FlowStep(seed_views.SeedElectrumMnemonicStartView, button_data_selection=0),
+            FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.LoadSeedView),
+        ])
+    
+    def test_back_from_seed_entry_via_sign_message_electrum_seed(self):
+        """
+        Simulates navigating into the Electrum seed entry from a scanned message, and pressing BACK 
+        from the mnemonic keyboard to ensure it routes safely to `SeedSelectSeedView` instead of 
+        getting trapped in the `SeedElectrumMnemonicStartView` warning screen.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_signmessage_into_decoder),  # simulate read message QR; ret val is ignored
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.TYPE_ELECTRUM),
+            FlowStep(seed_views.SeedElectrumMnemonicStartView, button_data_selection=0),
+            FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.SeedSelectSeedView),
+            ])
 
 
 
