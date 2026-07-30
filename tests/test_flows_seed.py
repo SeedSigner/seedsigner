@@ -590,12 +590,15 @@ class TestSeedEntryBackFlows(FlowTest):
         from the mnemonic keyboard to ensure it routes safely to `SeedSelectSeedView` instead of 
         getting trapped in the `SeedElectrumMnemonicStartView` warning screen.
         """
+        def load_signmessage_into_decoder(view):
+            view.decoder.add_data("signmessage m/84h/0h/0h/0/0 ascii:test message")
+
         self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
         self.settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
 
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
-            FlowStep(scan_views.ScanView, before_run=self.load_signmessage_into_decoder),  # simulate read message QR; ret val is ignored
+            FlowStep(scan_views.ScanView, before_run=load_signmessage_into_decoder),  # simulate read message QR; ret val is ignored
             FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
             FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.TYPE_ELECTRUM),
             FlowStep(seed_views.SeedElectrumMnemonicStartView, button_data_selection=0),
