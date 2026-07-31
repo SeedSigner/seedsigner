@@ -488,6 +488,26 @@ def test_parse_op_return_content():
 
 
 
+def test_input_without_utxo_data_is_rejected():
+    """
+        Should raise rather than evaluate an input against another input's scriptPubKey.
+
+        `_parse_inputs` assigns `script_pubkey` from whichever utxo field is present. An
+        input carrying neither leaves the local var holding the *previous* iteration's
+        value, so the input's policy would be derived from a different input's script.
+    """
+    psbt: PSBT = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+    psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 50_000))
+
+    # Strip the input's utxo data
+    psbt.inputs[0].witness_utxo = None
+    psbt.inputs[0].non_witness_utxo = None
+
+    with pytest.raises(RuntimeError, match="utxo"):
+        PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+
+
 def test_parse_op_return_payload_push_encodings():
     """
         Should extract the OP_RETURN payload regardless of which push encoding was used.

@@ -108,6 +108,12 @@ class PSBTParser():
                 self.input_amount += inp.utxo.value
                 script_pubkey = inp.script_pubkey
 
+            else:
+                # Without the input's utxo we can neither total its value nor determine
+                # its policy. Must not fall through and silently reuse the previous
+                # iteration's `script_pubkey`.
+                raise RuntimeError("Input is missing its utxo data")
+
             inp_policy = PSBTParser._get_policy(inp, script_pubkey, self.psbt.xpubs)
             if self.policy == None:
                 self.policy = inp_policy
