@@ -1,4 +1,3 @@
-import hashlib
 import logging
 import time
 
@@ -7,7 +6,7 @@ from gettext import gettext as _
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants, resize_image_to_fill
 from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
 from seedsigner.gui.screens.screen import ButtonOption
-from seedsigner.helpers import mnemonic_generation
+from seedsigner.helpers import camera_entropy, mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
@@ -145,35 +144,24 @@ class ToolsImageEntropyMnemonicLengthView(View):
             preview_images = self.controller.image_entropy_preview_frames
             seed_entropy_image = self.controller.image_entropy_final_image
 
-            # Build in some hardware-level uniqueness via CPU unique Serial num
             try:
-                serial_num = b''
-                with open("/proc/cpuinfo", "r") as f:
-                    for line in f:
-                        if "Serial" in line:
-                            serial_num = line.split(":")[-1].strip().encode('utf-8')
-                            break
-                serial_hash = hashlib.sha256(serial_num)
-                hash_bytes = serial_hash.digest()
-            except Exception as e:
-                logger.info(repr(e), exc_info=True)
-                hash_bytes = b'0'
-
-            # Build in modest entropy via millis since power on
-            millis_hash = hashlib.sha256(hash_bytes + str(time.time()).encode('utf-8'))
-            hash_bytes = millis_hash.digest()
-
-            # Build in better entropy by chaining the preview frames
-            for frame in preview_images:
-                img_hash = hashlib.sha256(hash_bytes + frame.tobytes())
-                hash_bytes = img_hash.digest()
-
-            # Finally build in our headline entropy via the new full-res image
-            final_hash = hashlib.sha256(hash_bytes + seed_entropy_image.tobytes()).digest()
-
-            if mnemonic_length == 12:
                 # 12-word mnemonic only uses the first 128 bits / 16 bytes of entropy
-                final_hash = final_hash[:16]
+                final_hash = camera_entropy.derive_entropy_bytes(
+                    preview_frames=preview_images,
+                    final_image=seed_entropy_image,
+                    num_bytes=16 if mnemonic_length == 12 else 32,
+                )
+            except camera_entropy.EntropyHealthError as e:
+                # An entropy source failed its health check. Abort: never fall
+                # back to a default, and never continue silently.
+                logger.warning(f"Entropy health check failed: {repr(e)}")
+                self.controller.image_entropy_preview_frames = None
+                self.controller.image_entropy_final_image = None
+                return Destination(
+                    ToolsImageEntropyHealthCheckErrorView,
+                    view_args=dict(error_text=str(e)),
+                    clear_history=True,
+                )
 
             # Generate the mnemonic
             mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash)
@@ -182,7 +170,6 @@ class ToolsImageEntropyMnemonicLengthView(View):
             seed_entropy_image = None
             preview_images = None
             final_hash = None
-            hash_bytes = None
             self.controller.image_entropy_preview_frames = None
             self.controller.image_entropy_final_image = None
 
@@ -196,6 +183,33 @@ class ToolsImageEntropyMnemonicLengthView(View):
 
         # Cannot return BACK to this View
         return Destination(SeedWordsWarningView, view_args={"seed": None}, clear_history=True)
+
+
+
+class ToolsImageEntropyHealthCheckErrorView(View):
+    """ Shown when a camera entropy source fails its health check.
+
+        Seed generation is aborted; the user is sent back to retake the photo.
+    """
+    # TRANSLATOR_NOTE: Button to retry capturing entropy from the camera
+    RETRY = ButtonOption("Retry")
+
+    def __init__(self, error_text: str = None):
+        super().__init__()
+        self.error_text = error_text
+
+    def run(self):
+        from seedsigner.gui.screens.screen import ErrorScreen
+        self.run_screen(
+            ErrorScreen,
+            title=_("Entropy Error"),
+            # TRANSLATOR_NOTE: Headline shown when the camera entropy is unusable
+            status_headline=_("Not Enough Entropy!"),
+            text=self.error_text or _("The camera did not provide usable entropy."),
+            button_data=[self.RETRY],
+            show_back_button=False,
+        )
+        return Destination(ToolsImageEntropyLivePreviewView, clear_history=True)
 
 
 
