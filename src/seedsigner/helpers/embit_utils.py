@@ -136,9 +136,29 @@ def parse_derivation_path(derivation_path: str) -> dict:
 
     sections = derivation_path.split("/")
 
+    # The derivation path can arrive from an untrusted QR (e.g. a `signmessage` request),
+    # so anything that can't be parsed has to be reported as an unclean match rather than
+    # raising into the caller.
+    if len(sections) < 3:
+        return dict(
+            script_type=None,
+            network=None,
+            is_change=None,
+            index=None,
+            wallet_derivation_path=None,
+            clean_match=False,
+        )
+
     if sections[1] == "48h":
         # So far this helper is only meant for single sig message signing
-        raise Exception("Not implemented")
+        return dict(
+            script_type=None,
+            network=None,
+            is_change=None,
+            index=None,
+            wallet_derivation_path=None,
+            clean_match=False,
+        )
 
     lookups = {
         "script_types": {
