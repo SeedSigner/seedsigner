@@ -19,8 +19,9 @@ python setup.py compile_catalog
 <details><summary>macOS instructions</summary>
 <p>
 
-The screenshot generator also needs the native `zbar` and `libraqm` libraries. These
-steps use Python 3.12, which is included in the project's CI test matrix:
+The screenshot generator also needs the native `zbar` and `libraqm` libraries.
+SeedSigner requires Python 3.10 or newer. These instructions use Python 3.12 as a
+known-good development version:
 
 ```bash
 brew install python@3.12 zbar libraqm
