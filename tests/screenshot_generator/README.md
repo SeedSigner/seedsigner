@@ -16,7 +16,8 @@ pip install -r l10n/requirements-l10n.txt
 python setup.py compile_catalog
 ```
 
-### macOS
+<details><summary>macOS instructions</summary>
+<p>
 
 The screenshot generator also needs the native `zbar` and `libraqm` libraries. These
 steps use Python 3.12, which is included in the project's CI test matrix:
@@ -50,6 +51,9 @@ python -c "from PIL import features; print(features.check('raqm'))"
 ```
 
 The command should print `True`.
+
+</p>
+</details>
 
 ## Running the generator
 
