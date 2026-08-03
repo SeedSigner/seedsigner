@@ -5,6 +5,7 @@ from binascii import a2b_base64
 from embit import bip32
 from embit.psbt import PSBT
 from embit.descriptor import Descriptor
+from embit.networks import NETWORKS
 
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.seed import Seed
@@ -485,3 +486,85 @@ def test_parse_op_return_content():
     assert psbt_parser.change_amount == 99992296
     assert psbt_parser.destination_addresses == []
     assert psbt_parser.destination_amounts == []
+
+
+"""****************************************************************************
+    Input amount verification
+****************************************************************************"""
+def _build_psbt_with_prev_tx(prev_tx_for_input, spend_value=90_000):
+    """
+    Helper: build a 1-in/1-out PSBT that spends `real_prev`'s vout 0, but attaches
+    `prev_tx_for_input` as the input's non_witness_utxo.
+    """
+    from embit import script
+    from embit.psbt import DerivationPath
+    from embit.transaction import Transaction, TransactionInput, TransactionOutput
+
+    seed = PSBTTestData.seed
+    root = bip32.HDKey.from_seed(seed.seed_bytes, version=NETWORKS["regtest"]["xprv"])
+    derivation = "m/84h/1h/0h/0/0"
+    key = root.derive(derivation)
+    script_pubkey = script.p2wpkh(key)
+
+    real_prev = Transaction(
+        vin=[TransactionInput(b"\x11" * 32, 0)],
+        vout=[TransactionOutput(100_000, script_pubkey)],
+    )
+    tx = Transaction(
+        vin=[TransactionInput(real_prev.txid(), 0)],
+        vout=[TransactionOutput(spend_value, script_pubkey)],
+    )
+    psbt = PSBT(tx)
+    if prev_tx_for_input is not None:
+        psbt.inputs[0].non_witness_utxo = prev_tx_for_input
+    else:
+        psbt.inputs[0].witness_utxo = TransactionOutput(100_000, script_pubkey)
+    psbt.inputs[0].bip32_derivations[key.to_public().key] = DerivationPath(
+        root.child(0).fingerprint, bip32.parse_path(derivation)
+    )
+    return psbt, real_prev, script_pubkey
+
+
+def test_input_amounts_are_verified_for_all_supported_script_types():
+    """All bundled test PSBTs supply a previous tx, so all inputs must verify."""
+    for psbt_base64 in PSBTTestData.ALL_INPUTS:
+        psbt = PSBT.parse(a2b_base64(psbt_base64))
+        psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+        assert psbt_parser.unverified_input_nums == []
+        assert psbt_parser.has_unverified_input_amounts is False
+
+
+def test_forged_non_witness_utxo_is_rejected():
+    """
+    An input whose non_witness_utxo does not hash to the outpoint's txid is lying about
+    its own value. Trusting it is the "miner fee attack": the understated input value
+    makes the fee look small while the real difference goes to the miner.
+    """
+    from embit.transaction import Transaction, TransactionInput, TransactionOutput
+
+    psbt, real_prev, script_pubkey = _build_psbt_with_prev_tx(None)
+
+    # Same output script, far smaller value, and therefore a different txid
+    forged_prev = Transaction(
+        vin=[TransactionInput(b"\x22" * 32, 0)],
+        vout=[TransactionOutput(1_000, script_pubkey)],
+    )
+    assert forged_prev.txid() != real_prev.txid()
+
+    psbt.inputs[0].witness_utxo = None
+    psbt.inputs[0].non_witness_utxo = forged_prev
+
+    with pytest.raises(RuntimeError, match="could not be verified"):
+        PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+
+def test_input_without_previous_tx_is_flagged_but_not_rejected():
+    """
+    BIP-174 permits a segwit input to carry only witness_utxo. Those amounts cannot be
+    verified from the PSBT alone, so they are reported rather than rejected.
+    """
+    psbt, _real_prev, _spk = _build_psbt_with_prev_tx(None)
+
+    psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+    assert psbt_parser.unverified_input_nums == [0]
+    assert psbt_parser.has_unverified_input_amounts is True
