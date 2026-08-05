@@ -279,3 +279,137 @@ class TestToolsFlows(FlowTest):
                 FlowStep(seed_views.SeedAddressVerificationView),
                 FlowStep(seed_views.SeedAddressVerificationSuccessView),
             ])
+
+    def test_back_from_address_scan_via_verify_address_flow(self):
+        """
+        Pressing BACK during Verify Address should return to ToolsMenuView.
+        """
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView),
+            FlowStep(tools_views.ToolsMenuView),
+        ])
+
+
+    def test_back_from_seed_scan_via_address_explorer_flow(self):
+        """
+        Pressing BACK during the Address Explorer seed scan should return to
+        source selection with the flow preserved. Backing out to Main Menu should
+        clear the flow state.
+        """
+        # Sequence 1: BACK from the seed scan returns to source selection.
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_SEED),
+            FlowStep(scan_views.ScanSeedQRView),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView),
+        ])
+        assert self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER
+
+        # Sequence 2: BACK to Main Menu.
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_SEED),
+            FlowStep(scan_views.ScanSeedQRView),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsMenuView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(MainMenuView),
+        ])
+        assert self.controller.resume_main_flow is None
+
+
+    def test_back_from_descriptor_scan_via_address_explorer_flow(self):
+        """
+        Pressing BACK during the Address Explorer descriptor scan should return
+        to source selection with the flow preserved, while backing out to Main Menu
+        should clear the flow state.
+        """
+        # Sequence 1: BACK from the descriptor scanner returns to source selection.
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_DESCRIPTOR),
+            FlowStep(scan_views.ScanWalletDescriptorView),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView),
+        ])
+        assert self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER
+
+        # Sequence 2: BACK to Main Menu.
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_DESCRIPTOR),
+            FlowStep(scan_views.ScanWalletDescriptorView),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsMenuView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(MainMenuView),
+        ])
+        assert self.controller.resume_main_flow is None
+
+    
+    def test_back_from_seed_scan_via_singlesig_address_verification_flow(self):
+        """
+        Pressing BACK during seed selection for singlesig address verification
+        should return to Select Seed with verification state preserved. Backing
+        out to Main Menu should clear that state.
+        """
+        
+        def load_singlesig_address_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("bcrt1q4e9q5taxnsvc6m0uxv6h75mkzvnkxeqk6l90u2")
+
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+
+        # Sequence 1: BACK from the seed scanner returns to Select Seed.
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_singlesig_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanView),
+            FlowStep(seed_views.SeedSelectSeedView),
+        ])
+        assert self.controller.unverified_address is not None
+        assert self.controller.resume_main_flow == Controller.FLOW__VERIFY_SINGLESIG_ADDR
+
+        # Sequence 2: BACK from Select Seed and Tools returns to Main Menu.
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_singlesig_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanView),
+            FlowStep(seed_views.SeedSelectSeedView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsMenuView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(MainMenuView),
+        ])
+        assert self.controller.unverified_address is None
+        assert self.controller.resume_main_flow is None
+
+
+    def test_back_from_descriptor_scan_via_multisig_address_verification_flow(self):
+        """
+        Pressing BACK during multisig descriptor loading should return to the
+        descriptor prompt with address verification state preserved.
+        """
+
+        def load_multisig_address_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("2N5eN5vUpgsLHAGzKm2VfmYyvNwXmCug5dH")
+        
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_multisig_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView),
+        ])
+        assert self.controller.unverified_address is not None
+        assert self.controller.resume_main_flow == Controller.FLOW__VERIFY_MULTISIG_ADDR
