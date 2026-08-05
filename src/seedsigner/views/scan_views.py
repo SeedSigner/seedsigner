@@ -151,6 +151,7 @@ class ScanView(View):
 
                 return Destination(
                     SeedSignMessageStartView,
+                    skip_current_view=True,
                     view_args=dict(
                         derivation_path=qr_data["derivation_path"],
                         message=qr_data["message"],

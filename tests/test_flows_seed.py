@@ -692,6 +692,26 @@ class TestMessageSigningFlows(FlowTest):
         self.controller.sign_message_data["paged_message"] = paged
 
 
+    def test_back_from_sign_message_review_returns_to_seed_options(self):
+        """
+        Pressing BACK from the message review after selecting Sign Message from
+        Seed Options should return to SeedOptionsView instead of reopening ScanView.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+
+        # Scan the seed first, then start Sign Message from Seed Options.
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
+            FlowStep(scan_views.ScanView, before_run=self.load_short_message_into_decoder),
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.SeedOptionsView)
+        ])
+
+
     def test_sign_message_flow(self):
         """
         Should scan a `signmessage` QR and complete the message review, address review,
