@@ -279,3 +279,30 @@ class TestToolsFlows(FlowTest):
                 FlowStep(seed_views.SeedAddressVerificationView),
                 FlowStep(seed_views.SeedAddressVerificationSuccessView),
             ])
+
+
+    def test__dice_entropy__warning__flow(self):
+        """
+            Selecting dice entropy should show a physical-dice warning after mnemonic
+            length selection, before roll entry.
+        """
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.DICE),
+            FlowStep(tools_views.ToolsDiceEntropyMnemonicLengthView, screen_return_value=0),  # 12 words
+            FlowStep(tools_views.ToolsDiceEntropyWarningView, screen_return_value=0),  # I understand
+            FlowStep(tools_views.ToolsDiceEntropyEntryView),
+        ])
+
+
+    def test__dice_entropy__warning__back__flow(self):
+        """
+            BACK from the dice warning should return to mnemonic length selection.
+        """
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.DICE),
+            FlowStep(tools_views.ToolsDiceEntropyMnemonicLengthView, screen_return_value=0),  # 12 words
+            FlowStep(tools_views.ToolsDiceEntropyWarningView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsDiceEntropyMnemonicLengthView),
+        ])

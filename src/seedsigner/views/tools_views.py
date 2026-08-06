@@ -6,7 +6,7 @@ from gettext import gettext as _
 
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants, resize_image_to_fill
 from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
-from seedsigner.gui.screens.screen import ButtonOption
+from seedsigner.gui.screens.screen import ButtonOption, WarningScreen
 from seedsigner.helpers import mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
@@ -228,10 +228,40 @@ class ToolsDiceEntropyMnemonicLengthView(View):
             return Destination(BackStackView)
 
         elif button_data[selected_menu_num] == TWELVE:
-            return Destination(ToolsDiceEntropyEntryView, view_args=dict(total_rolls=mnemonic_generation.DICE__NUM_ROLLS__12WORD))
+            return Destination(ToolsDiceEntropyWarningView, view_args=dict(total_rolls=mnemonic_generation.DICE__NUM_ROLLS__12WORD))
 
         elif button_data[selected_menu_num] == TWENTY_FOUR:
-            return Destination(ToolsDiceEntropyEntryView, view_args=dict(total_rolls=mnemonic_generation.DICE__NUM_ROLLS__24WORD))
+            return Destination(ToolsDiceEntropyWarningView, view_args=dict(total_rolls=mnemonic_generation.DICE__NUM_ROLLS__24WORD))
+
+
+
+class ToolsDiceEntropyWarningView(View):
+    def __init__(self, total_rolls: int):
+        super().__init__()
+        self.total_rolls = total_rolls
+
+
+    def run(self):
+        destination = Destination(
+            ToolsDiceEntropyEntryView,
+            view_args=dict(total_rolls=self.total_rolls),
+            skip_current_view=True,  # Prevent going BACK to WarningViews
+        )
+
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            # TRANSLATOR_NOTE: Inform the user that dice rolls must come from real physical dice
+            status_headline=_("Use real dice"),
+            # TRANSLATOR_NOTE: Instruct the user not to invent or guess dice roll numbers on the device
+            text=_("Roll physical dice yourself. Do not invent or guess numbers on the device."),
+        )
+
+        if selected_menu_num == 0:
+            # User clicked "I Understand"
+            return destination
+
+        elif selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
 
 
 
