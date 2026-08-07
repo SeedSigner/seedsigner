@@ -6,7 +6,7 @@ from typing import Any
 from PIL.Image import Image
 from seedsigner.gui.renderer import Renderer
 from seedsigner.hardware.camera import Camera
-from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConstants, IconTextLine, SeedSignerIconConstants, TextArea
+from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConstants, IconButton, IconTextLine, SeedSignerIconConstants, TextArea
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, ButtonOption, KeyboardScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
@@ -171,6 +171,7 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
         self.cols = 3
         self.keyboard_font_name = GUIConstants.ICON_FONT_NAME__FONT_AWESOME
         self.keyboard_font_size = 36
+        self.key_confirm_inputs = [HardwareButtonsConstants.KEY1]
         self.keys_charset = "".join([
             FontAwesomeIconConstants.DICE_ONE,
             FontAwesomeIconConstants.DICE_TWO,
@@ -192,6 +193,35 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
 
         # Now initialize the parent class
         super().__post_init__()
+
+        # Keep the full-width dice grid while making room for a visible KEY1
+        # confirmation button beside the roll history field.
+        right_panel_buttons_width = 60
+        self.text_entry_display.rect = (
+            GUIConstants.EDGE_PADDING,
+            self.top_nav.height,
+            self.canvas_width - right_panel_buttons_width,
+            self.top_nav.height + 30,
+        )
+
+        self.confirm_button = IconButton(
+            icon_name=SeedSignerIconConstants.CHECK,
+            icon_color=GUIConstants.SUCCESS_COLOR,
+            width=right_panel_buttons_width,
+            screen_x=self.canvas_width - right_panel_buttons_width + GUIConstants.COMPONENT_PADDING,
+            screen_y=self.top_nav.height,
+        )
+        self.components.append(self.confirm_button)
+
+
+    def render_key_confirmation_feedback(self):
+        self.confirm_button.is_selected = True
+        self.confirm_button.render()
+        self.renderer.show_image()
+
+        # Leave the deselected state on the canvas for the normal end-of-loop render.
+        self.confirm_button.is_selected = False
+        self.confirm_button.render()
     
 
     def update_title(self) -> bool:
