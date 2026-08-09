@@ -15,6 +15,36 @@ from seedsigner.models.settings import SettingsConstants
 
 class TestPSBTFlows(FlowTest):
 
+    def test_spend_expired_fidelity_bond(self):
+        def load_psbt_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("cHNidP8BAFICAAAAARERERERERERERERERERERERERERERERERERERERERERAAAAAAD+////AbiCAQAAAAAAFgAUwM681sPTyox13F7GLr5VMw75EOIA4QteAAEBK6CGAQAAAAAAIgAgve6VFTWfyd+RIxhSO0zSLxwLVBAjLclDvnP59PB+Oa0BAwQBAAAAAQUqBADhC16xdSECobCfkwc8Y/IFCGRAiYFBwMPG0k9poY22CCJLzxQ/oBGsIgYCobCfkwc8Y/IFCGRAiYFBwMPG0k9poY22CCJLzxQ/oBEYc8XaClQAAIAAAACAAAAAgAIAAAAAAAAAAAA=")
+
+        def load_seed_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("0000" * 11 + "0003")
+
+        def verify_signed_bond_psbt(view):
+            bond_input = self.controller.psbt.inputs[0]
+            assert len(bond_input.partial_sigs) == 1
+            assert bond_input.witness_utxo is not None
+            assert bond_input.witness_script is not None
+            assert bond_input.sighash_type == 1
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_psbt_into_decoder),
+            FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanSeedQRView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTNoChangeWarningView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTAddressDetailsView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView, before_run=verify_signed_bond_psbt, screen_return_value=0),
+            FlowStep(MainMenuView),
+        ])
+
     def test_scan_psbt_first_then_correct_seedqr_flow(self):
         """
             Selecting "Scan" from the MainMenuView and scanning a PSBT should enter the PSBTSelectSeedView flow

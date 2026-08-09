@@ -5,6 +5,7 @@ from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath, InputScope, OutputScope
 from embit.ec import PublicKey
+from embit.transaction import SIGHASH
 from io import BytesIO
 from typing import List
 
@@ -259,15 +260,21 @@ class PSBTParser():
     def _parse_inputs(self, child_key_derivation_cache: dict):
         self.input_amount = 0
         self.num_inputs = len(self.psbt.inputs)
-        for inp in self.psbt.inputs:
+        for input_index, inp in enumerate(self.psbt.inputs):
             if inp.witness_utxo:
                 self.input_amount += inp.witness_utxo.value
                 script_pubkey = inp.witness_utxo.script_pubkey
             elif inp.non_witness_utxo:
                 self.input_amount += inp.utxo.value
                 script_pubkey = inp.script_pubkey
+            else:
+                if PSBTParser._is_fidelity_bond_scope(inp):
+                    raise ValueError("Fidelity bond input requires a witness UTXO")
+                raise ValueError("PSBT input is missing UTXO data")
 
             inp_policy = PSBTParser._get_policy(inp, script_pubkey, self.psbt.xpubs, child_key_derivation_cache)
+            if inp_policy.get("fidelity_bond"):
+                self._validate_fidelity_bond_input(input_index, inp, script_pubkey)
             if self.policy == None:
                 self.policy = inp_policy
             else:
@@ -396,6 +403,12 @@ class PSBTParser():
                 trimmed_psbt.inputs[i].final_scriptwitness = inp.final_scriptwitness
             else:
                 trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
+                if PSBTParser._is_fidelity_bond_scope(inp):
+                    # JoinMarket's finalizer needs these fields to verify and build the
+                    # final P2WSH witness from the returned partial signature.
+                    trimmed_psbt.inputs[i].witness_utxo = inp.witness_utxo
+                    trimmed_psbt.inputs[i].witness_script = inp.witness_script
+                    trimmed_psbt.inputs[i].sighash_type = inp.sighash_type
 
         return trimmed_psbt
 
@@ -440,6 +453,19 @@ class PSBTParser():
                 script = scope.redeem_script
 
             if script is not None:
+                if script_type == "p2wsh":
+                    from seedsigner.helpers import fidelity_bonds
+                    try:
+                        bond = fidelity_bonds.parse_witness_script(script)
+                        policy.update({
+                            "fidelity_bond": True,
+                            "locktime": bond.locktime,
+                            "pubkey": bond.pubkey.sec().hex(),
+                        })
+                        return policy
+                    except ValueError:
+                        pass
+
                 m, n, pubkeys = PSBTParser._parse_multisig(script)
             
                 # check pubkeys are derived from cosigners
@@ -456,6 +482,49 @@ class PSBTParser():
                     policy.update({"m": m, "n": n})
         
         return policy
+
+
+    @staticmethod
+    def _is_fidelity_bond_scope(scope) -> bool:
+        if scope.witness_script is None:
+            return False
+        from seedsigner.helpers import fidelity_bonds
+        try:
+            fidelity_bonds.parse_witness_script(scope.witness_script)
+        except ValueError:
+            return False
+        return True
+
+
+    def _validate_fidelity_bond_input(self, input_index, inp, script_pubkey):
+        from seedsigner.helpers import fidelity_bonds
+
+        if len(self.psbt.inputs) != 1 or len(self.psbt.outputs) != 1:
+            raise ValueError("Fidelity bond redemption requires one input and one output")
+        if inp.witness_utxo is None:
+            raise ValueError("Fidelity bond input requires a witness UTXO")
+        if script.p2wsh(inp.witness_script) != script_pubkey:
+            raise ValueError("Fidelity bond witness script does not match the UTXO")
+        if inp.sighash_type != SIGHASH.ALL:
+            raise ValueError("Fidelity bond input requires SIGHASH_ALL")
+
+        bond = fidelity_bonds.parse_witness_script(inp.witness_script)
+        if self.psbt.tx.locktime < bond.locktime:
+            raise ValueError("Fidelity bond transaction locktime is too early")
+        if self.psbt.tx.vin[input_index].sequence == 0xFFFFFFFF:
+            raise ValueError("Fidelity bond input sequence is final")
+
+        derivation = inp.bip32_derivations.get(bond.pubkey)
+        if derivation is None or len(inp.bip32_derivations) != 1:
+            raise ValueError("Fidelity bond input requires its BIP32 derivation")
+        path = bip32.path_to_str(derivation.derivation)
+        parsed_path = fidelity_bonds.parse_derivation_path(path, self.network)
+        if parsed_path.index != bond.index:
+            raise ValueError("Fidelity bond path does not match its locktime")
+        if derivation.fingerprint != self.root.my_fingerprint:
+            raise ValueError("Fidelity bond fingerprint does not match the seed")
+        if self.root.derive(derivation.derivation).to_public().key != bond.pubkey:
+            raise ValueError("Fidelity bond pubkey does not match the seed")
 
 
     @staticmethod
