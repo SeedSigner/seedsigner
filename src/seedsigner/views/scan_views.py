@@ -156,7 +156,14 @@ class ScanView(View):
                         message=qr_data["message"],
                     )
                 )
-            
+
+            elif self.decoder.is_silent_payment_address:
+                # BIP-352 Silent Payment address scanned
+                # Store it and prompt user to scan PSBT next
+                sp_data = self.decoder.get_silent_payment_data()
+                self.controller.pending_sp_address = sp_data
+                return Destination(SilentPaymentAddressScannedView, skip_current_view=True)
+
             else:
                 return Destination(NotYetImplementedView)
 
@@ -227,3 +234,44 @@ class ScanInvalidQRTypeView(View):
         )
 
         return Destination(MainMenuView, clear_history=True)
+
+
+
+class SilentPaymentAddressScannedView(View):
+    """
+    Shown after scanning a BIP-352 Silent Payment address.
+    Prompts the user to scan a PSBT next.
+
+    Flow explanation:
+    The coordinator wallet (BlueWallet, Sparrow, etc.) creates the PSBT with the
+    derived Taproot output. SeedSigner will independently verify the derivation
+    matches this SP address. This catches malicious/buggy coordinators that might
+    substitute a different address.
+    """
+    def run(self):
+        from seedsigner.gui.screens import LargeIconStatusScreen
+
+        sp_data = self.controller.pending_sp_address
+        if not sp_data:
+            return Destination(MainMenuView, clear_history=True)
+
+        # Truncate address for display
+        address = sp_data["address"]
+        truncated = f"{address[:12]}...{address[-8:]}"
+
+        selected_menu_num = self.run_screen(
+            LargeIconStatusScreen,
+            title=_("Silent Payment"),
+            status_headline=_("Address Received"),
+            text=_("Now scan transaction (PSBT) to verify and sign.") + f"\n\n{truncated}",
+            button_data=[ButtonOption(_("Scan Transaction")), ButtonOption(_("Cancel"))],
+            show_back_button=False,
+        )
+
+        if selected_menu_num == 0:
+            # Proceed to scan PSBT
+            return Destination(ScanPSBTView)
+        else:
+            # Cancel - clear the pending SP address
+            self.controller.pending_sp_address = None
+            return Destination(MainMenuView, clear_history=True)

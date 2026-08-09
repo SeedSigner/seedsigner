@@ -88,6 +88,9 @@ class DecodeQR:
             elif self.qr_type == QRType.BITCOIN_ADDRESS:
                 self.decoder = BitcoinAddressQrDecoder() # Single Segment bitcoin address
 
+            elif self.qr_type == QRType.SILENT_PAYMENT_ADDRESS:
+                self.decoder = SilentPaymentAddressQrDecoder() # Single Segment SP address
+
             elif self.qr_type == QRType.SIGN_MESSAGE:
                 self.decoder = SignMessageQrDecoder() # Single Segment sign message request
 
@@ -290,7 +293,18 @@ class DecodeQR:
     @property
     def is_address(self):
         return self.qr_type == QRType.BITCOIN_ADDRESS
-        
+
+
+    @property
+    def is_silent_payment_address(self):
+        return self.qr_type == QRType.SILENT_PAYMENT_ADDRESS
+
+
+    def get_silent_payment_data(self):
+        if self.is_silent_payment_address:
+            return self.decoder.get_qr_data()
+        return None
+
 
     @property
     def is_sign_message(self):
@@ -389,6 +403,10 @@ class DecodeQR:
             # Bitcoin Address
             elif DecodeQR.is_bitcoin_address(s):
                 return QRType.BITCOIN_ADDRESS
+
+            # Silent Payment Address
+            elif DecodeQR.is_silent_payment_address(s):
+                return QRType.SILENT_PAYMENT_ADDRESS
 
             # message signing
             elif s.startswith("signmessage"):
@@ -520,6 +538,17 @@ class DecodeQR:
             return True
         else:
             return False
+
+
+    @staticmethod
+    def is_silent_payment_address(s):
+        """
+        Check if the string is a BIP-352 Silent Payment address.
+        SP addresses start with sp1 (mainnet) or tsp1 (testnet).
+        """
+        if re.search(r'^(sp1|tsp1)[a-z0-9]{100,120}$', s.lower()):
+            return True
+        return False
 
 
     @staticmethod
@@ -1168,7 +1197,52 @@ class GenericWalletQrDecoder(BaseSingleFrameQrDecoder):
 
 
 
-class MultiSigConfigFileQRDecoder(GenericWalletQrDecoder):    
+class MultiSigConfigFileQRDecoder(GenericWalletQrDecoder):
     def add(self, segment, qr_type=QRType.WALLET__CONFIGFILE):
         descriptor = DecodeQR.multisig_setup_file_to_descriptor(segment)
         return super().add(descriptor,qr_type=QRType.WALLET__CONFIGFILE)
+
+
+
+class SilentPaymentAddressQrDecoder(BaseSingleFrameQrDecoder):
+    """
+    Decodes a BIP-352 Silent Payment address.
+    Extracts B_scan, B_spend public keys and network.
+    """
+    def __init__(self):
+        super().__init__()
+        self.address = None
+        self.B_scan = None
+        self.B_spend = None
+        self.network = None
+
+
+    def add(self, segment, qr_type=QRType.SILENT_PAYMENT_ADDRESS):
+        from seedsigner.helpers.silent_payments import parse_silent_payment_address
+
+        try:
+            # Parse the SP address
+            B_scan, B_spend, network = parse_silent_payment_address(segment)
+
+            self.address = segment
+            self.B_scan = B_scan
+            self.B_spend = B_spend
+            self.network = network
+            self.complete = True
+            self.collected_segments = 1
+            return DecodeQRStatus.COMPLETE
+
+        except ValueError as e:
+            logger.debug(f"Invalid SP address: {e}")
+            return DecodeQRStatus.INVALID
+
+
+    def get_qr_data(self) -> dict:
+        if self.complete:
+            return {
+                "address": self.address,
+                "B_scan": self.B_scan,
+                "B_spend": self.B_spend,
+                "network": self.network,
+            }
+        return None
