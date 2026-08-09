@@ -1675,3 +1675,32 @@ class SeedSignMessageConfirmAddressScreen(ButtonListScreen):
             screen_y=derivation_path_display.screen_y + derivation_path_display.height + 2*GUIConstants.COMPONENT_PADDING,
         )
         self.components.append(address_display)
+
+
+@dataclass
+class SeedFidelityBondAddressScreen(ButtonListScreen):
+    year: int = None
+    month: int = None
+    derivation_path: str = None
+    address: str = None
+
+    def __post_init__(self):
+        self.title = _("Bond {year}-{month:02d}").format(year=self.year, month=self.month)
+        self.is_bottom_list = True
+        self.is_button_text_centered = True
+        super().__post_init__()
+
+        derivation_path_display = IconTextLine(
+            icon_name=SeedSignerIconConstants.DERIVATION,
+            icon_color=GUIConstants.INFO_COLOR,
+            label_text=_("derivation path"),
+            value_text=self.derivation_path,
+            is_text_centered=True,
+            screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
+        )
+        self.components.append(derivation_path_display)
+        self.components.append(FormattedAddress(
+            address=self.address,
+            max_lines=3,
+            screen_y=derivation_path_display.screen_y + derivation_path_display.height + 2*GUIConstants.COMPONENT_PADDING,
+        ))

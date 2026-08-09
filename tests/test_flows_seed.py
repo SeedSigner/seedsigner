@@ -9,7 +9,7 @@ from base import FlowTestInvalidButtonDataSelectionException
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import ElectrumSeed, Seed
-from seedsigner.views.view import MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
+from seedsigner.views.view import ErrorView, MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
 from seedsigner.views import seed_views, scan_views, settings_views
 
 
@@ -19,6 +19,23 @@ def load_seed_into_decoder(view: scan_views.ScanView):
 
 
 class TestSeedFlows(FlowTest):
+
+    def test_generate_fidelity_bond_address(self):
+        def verify_bond_address(view):
+            assert view.derivation_path == "m/84'/0'/0'/2/0"
+            assert view.address == "bc1qhhhf29f4nlyalyfrrpfrknxj9uwqk4qsyvkujsa7w0ulfur78xkspsqn84"
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.FIDELITY_BOND),
+            FlowStep(seed_views.SeedFidelityBondWarningView, button_data_selection=seed_views.SeedFidelityBondWarningView.CONTINUE),
+            FlowStep(seed_views.SeedFidelityBondYearView, screen_return_value=0),
+            FlowStep(seed_views.SeedFidelityBondMonthView, screen_return_value=0),
+            FlowStep(seed_views.SeedFidelityBondAddressView, before_run=verify_bond_address, button_data_selection=seed_views.SeedFidelityBondAddressView.SHOW_QR),
+            FlowStep(seed_views.SeedFidelityBondAddressQRView),
+        ])
 
     def test_scan_seedqr_flow(self):
         """
@@ -574,6 +591,8 @@ class TestMessageSigningFlows(FlowTest):
     MAINNET_DERIVATION_PATH = "m/84h/0h/0h/0/0"
     TESTNET_DERIVATION_PATH = "m/84h/1h/0h/0/0"
     CUSTOM_DERIVATION_PATH = "m/99h/0/0"
+    FIDELITY_BOND_DERIVATION_PATH = "m/84h/0h/0h/2/0"
+    FIDELITY_BOND_CERTIFICATE = "fidelity-bond-cert|0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c|375"
     SHORT_MESSAGE = "I attest that I control this bitcoin address blah blah blah"
     NO_WHITESPACE_MESSAGE = """{"height":841407,"lightning_bolt12":"lno1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}"""
     MULTIPAGE_MESSAGE = """Chancellor on brink of second bailout for banks
@@ -611,6 +630,14 @@ class TestMessageSigningFlows(FlowTest):
 
     def load_custom_derivation_into_decoder(self, view: View):
         self.load_signmessage_into_decoder(view, self.CUSTOM_DERIVATION_PATH, self.SHORT_MESSAGE)
+
+
+    def load_fidelity_bond_certificate_into_decoder(self, view: View):
+        self.load_signmessage_into_decoder(
+            view,
+            self.FIDELITY_BOND_DERIVATION_PATH,
+            self.FIDELITY_BOND_CERTIFICATE,
+        )
 
 
     def inject_mesage_as_paged_message(self, view: View):
@@ -710,6 +737,47 @@ class TestMessageSigningFlows(FlowTest):
             FlowStep(MainMenuView),
         ])
 
+
+    def test_sign_fidelity_bond_certificate_flow(self):
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+
+        def verify_bond_address(view):
+            assert view.address == "bc1qhhhf29f4nlyalyfrrpfrknxj9uwqk4qsyvkujsa7w0ulfur78xkspsqn84"
+
+        def verify_signature(view):
+            assert view.signed_message == "INOP3cB9UW7F1e1Aglj8rI9QhnyxmgWDEPt+nOMvl7hJJne7rH/KCNDYvLiqNuB9qWaWUojutjRsgPJrvyDQ+0Y="
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_fidelity_bond_certificate_into_decoder),
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageConfirmAddressView, before_run=verify_bond_address, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageSignedMessageQRView, before_run=verify_signature, screen_return_value=0),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_reject_invalid_fidelity_bond_certificate(self):
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+
+        def load_invalid_certificate(view):
+            self.load_signmessage_into_decoder(
+                view,
+                self.FIDELITY_BOND_DERIVATION_PATH,
+                self.FIDELITY_BOND_CERTIFICATE.upper(),
+            )
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_invalid_certificate),
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(ErrorView),
+        ])
 
     def test_sign_message_network_mismatch_flow(self):
         """
@@ -823,5 +891,4 @@ class TestMessageSigningFlows(FlowTest):
 
         self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
         expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
-
 

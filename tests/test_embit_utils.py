@@ -386,6 +386,12 @@ def test_parse_derivation_path():
     assert result["script_type"] == SC.NATIVE_SEGWIT
     assert result["network"] == SC.MAINNET
 
+    bond_result = embit_utils.parse_derivation_path("m/84'/0'/0'/2/240")
+    assert bond_result["clean_match"] is True
+    assert bond_result["is_fidelity_bond"] is True
+    assert bond_result["index"] == 240
+    assert bond_result["network"] == SC.MAINNET
+
     # Now exhaustively test supported permutations
     vectors_args = {
         (SC.MAINNET, SC.NATIVE_SEGWIT, False): "m/84'/0'/0'/0/5",

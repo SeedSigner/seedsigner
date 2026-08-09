@@ -136,6 +136,25 @@ def parse_derivation_path(derivation_path: str) -> dict:
 
     sections = derivation_path.split("/")
 
+    # BIP 46 uses the otherwise nonstandard branch 2 for fidelity bonds.
+    from seedsigner.helpers import fidelity_bonds
+    try:
+        bond_path = fidelity_bonds.parse_derivation_path(derivation_path)
+        network = SettingsConstants.MAINNET
+        if bond_path.coin_type == 1:
+            network = [SettingsConstants.TESTNET, SettingsConstants.REGTEST]
+        return {
+            "script_type": SettingsConstants.NATIVE_SEGWIT,
+            "network": network,
+            "is_change": False,
+            "index": bond_path.index,
+            "wallet_derivation_path": "/".join(sections[:-2]),
+            "is_fidelity_bond": True,
+            "clean_match": True,
+        }
+    except ValueError:
+        pass
+
     if sections[1] == "48h":
         # So far this helper is only meant for single sig message signing
         raise Exception("Not implemented")
@@ -154,6 +173,7 @@ def parse_derivation_path(derivation_path: str) -> dict:
     }
 
     details = dict()
+    details["is_fidelity_bond"] = False
     details["script_type"] = lookups["script_types"].get(sections[1])
     if not details["script_type"]:
         details["script_type"] = SettingsConstants.CUSTOM_DERIVATION
