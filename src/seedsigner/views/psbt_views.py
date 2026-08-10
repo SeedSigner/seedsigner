@@ -111,13 +111,13 @@ class PSBTOverviewView(View):
 
             error = None
             try:
-                eligible_inputs = get_eligible_inputs(self.controller.psbt_parser.psbt.inputs, has_sp_outputs=True)
+                eligible_inputs = get_eligible_inputs(self.controller.psbt_parser.psbt.inputs)
             except SPValidationError as e:
                 error = str(e)
             else:
                 if not eligible_inputs:
                     # TRANSLATOR_NOTE: Shown when none of a transaction's inputs can participate in a Silent Payments send.
-                    error = _("This transaction's inputs aren't compatible with Silent Payments. SP sends require P2PKH, P2WPKH, P2SH-P2WPKH, or P2TR inputs.")
+                    error = _("No Silent Payments input: needs P2PKH, P2WPKH, P2SH-P2WPKH or P2TR.")
 
             if error:
                 if self.loading_screen:
@@ -585,6 +585,8 @@ class PSBTFinalizeView(View):
             return Destination(BackStackView)
 
         else:
+            from embit.silent_payments.psbt import SPValidationError
+
             if psbt_parser.has_sp_outputs:
                 try:
                     sig_result = psbt.sign_with(psbt_parser.root)
@@ -593,14 +595,19 @@ class PSBTFinalizeView(View):
                 if sig_result == 0:
                     return Destination(PSBTSigningErrorView)
             else:
-                progress_before = PSBTParser.sig_count(psbt) + PSBTParser.sp_contribution_count(psbt)
-                psbt.sign_with(psbt_parser.root)
-                if PSBTParser.sig_count(psbt) + PSBTParser.sp_contribution_count(psbt) == progress_before:
+                progress_before = PSBTParser.sig_count(psbt)
+                try:
+                    # No SP outputs, but a BIP-376 SP-spend input can still carry a bad
+                    # sp_tweak (or no utxo); embit raises on it. That's a bad PSBT, not a
+                    # device fault.
+                    psbt.sign_with(psbt_parser.root)
+                except SPValidationError as e:
+                    return Destination(PSBTSPValidationErrorView, view_args=dict(error=str(e)))
+                if PSBTParser.sig_count(psbt) == progress_before:
                     # TODO: Reserved for Nick. Are there different failure scenarios that we can detect?
                     # Would be nice to alter the message on the next screen w/more detail.
                     return Destination(PSBTSigningErrorView)
 
-            from embit.silent_payments.psbt import SPValidationError
             try:
                 # trim() also runs the BIP-375 hand-off validation on SP PSBTs
                 self.controller.psbt = PSBTParser.trim(psbt)
@@ -670,7 +677,9 @@ class PSBTSPValidationErrorView(View):
             WarningScreen,
             title=_("SP Signing Error"),
             status_icon_name=SeedSignerIconConstants.WARNING,
-            status_headline=_("Invalid Silent Payments PSBT"),
+            # No status_headline: the error text needs every line it can get (see
+            # OptionDisabledView, which drops it for the same reason).
+            status_headline=None,
             text=self.error,
             button_data=button_data
         )

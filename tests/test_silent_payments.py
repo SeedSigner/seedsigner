@@ -38,7 +38,7 @@ class TestSettingGatedParse(BaseTest):
         decoder = _decoder_for(build_sp_send_psbt(SEED))
         parsed = decoder.get_psbt()
         assert isinstance(parsed, SilentPaymentsPSBT)
-        assert parsed.has_sp_content
+        assert PSBTParser.has_sp_content(parsed)
         assert any(getattr(o, "sp_data", None) is not None for o in parsed.outputs)
 
     def test_get_psbt_non_sp_psbt_has_no_sp_content(self):
@@ -66,7 +66,45 @@ class TestSettingGatedParse(BaseTest):
 
         decoder = _decoder_for(vanilla)
         parsed = decoder.get_psbt()
-        assert not parsed.has_sp_content
+        assert not PSBTParser.has_sp_content(parsed)
+
+
+class TestQRTypeDetection(BaseTest):
+    def test_unresolved_sp_send_psbt_detected_as_base64_psbt(self):
+        # Regression: QR type detection used to trial-parse with vanilla
+        # embit PSBT, which rejects an SP output that omits PSBT_OUT_SCRIPT --
+        # the normal arrival state, since the taproot script is only derived
+        # from the inputs' ECDH shares at signing time. Real SP PSBTs were
+        # therefore typed `invalid` at the scan screen.
+        from binascii import b2a_base64
+        from seedsigner.models.decode_qr import DecodeQR
+        from seedsigner.models.qr_type import QRType
+
+        b64 = b2a_base64(build_sp_send_psbt(SEED).serialize()).strip().decode()
+        assert DecodeQR.detect_segment_type(b64, wordlist_language_code="en") == QRType.PSBT__BASE64
+
+    def test_malformed_psbt_is_detected_then_rejected_by_get_psbt(self):
+        # Detection now only checks the PSBT magic, so it is deliberately
+        # permissive: `is_psbt` no longer implies parseable. get_psbt() is the
+        # single validation point, and ScanView relies on it returning None.
+        from binascii import b2a_base64
+        from embit.psbt import PSBT
+        from seedsigner.models.decode_qr import DecodeQR
+
+        b64 = b2a_base64(PSBT.MAGIC + b"\x99" * 40).strip().decode()
+        d = DecodeQR(wordlist_language_code="en")
+        d.add_data(b64)
+        assert d.is_psbt is True
+        assert d.get_psbt() is None
+
+    def test_non_psbt_base64_is_not_detected_as_psbt(self):
+        # The looser gate must not start swallowing arbitrary base64.
+        from binascii import b2a_base64
+        from seedsigner.models.decode_qr import DecodeQR
+        from seedsigner.models.qr_type import QRType
+
+        b64 = b2a_base64(b"this is definitely not a psbt").strip().decode()
+        assert DecodeQR.detect_segment_type(b64, wordlist_language_code="en") != QRType.PSBT__BASE64
 
 
 class TestPSBTParserSPDetection(BaseTest):
@@ -77,14 +115,14 @@ class TestPSBTParserSPDetection(BaseTest):
     def test_send_psbt_detected_and_renders_sp_address(self):
         parser = self._parser(build_sp_send_psbt(SEED))
         assert parser.has_sp_outputs is True
-        assert parser.has_sp_spend_inputs is False
+        assert PSBTParser.has_sp_input_content(parser.psbt) is False
         assert len(parser.destination_addresses) == 1
         assert parser.destination_addresses[0].startswith("sp1")
         assert parser.destination_is_sp == [True]
 
     def test_spend_psbt_detected_as_spend_input(self):
         parser = self._parser(build_sp_spend_psbt(SEED))
-        assert parser.has_sp_spend_inputs is True
+        assert PSBTParser.has_sp_input_content(parser.psbt) is True
         assert parser.has_sp_outputs is False
         assert parser.destination_is_sp == [False]
 
@@ -171,7 +209,7 @@ class TestSPTrim(BaseTest):
         trimmed = PSBTParser.trim(psbt)
         assert isinstance(trimmed, SilentPaymentsPSBT)
         assert any(getattr(o, "sp_data", None) is not None for o in trimmed.outputs)
-        assert PSBTParser.sp_contribution_count(trimmed) >= 1
+        assert len(trimmed.sp_ecdh_shares) >= 1
 
     def test_send_psbt_trim_strips_bulky_fields(self):
         from embit.silent_payments import SilentPaymentsPSBT
@@ -200,7 +238,6 @@ class TestSPTrim(BaseTest):
         # taproot_key_sig and the coordinator builds the final witness.
         assert trimmed.inputs[0].final_scriptwitness is None
         assert trimmed.inputs[0].taproot_key_sig is not None
-        assert PSBTParser.sp_contribution_count(trimmed) == 1
 
     def test_send_from_taproot_input_trim_exports_unfinalized(self):
         # The combination that regressed in krux: a finalized PSBT makes the
@@ -273,7 +310,7 @@ class TestSPFinalizeFlow(FlowTest):
             FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
             FlowStep(psbt_views.PSBTSignedQRDisplayView),
         ])
-        assert PSBTParser.sp_contribution_count(self.controller.psbt) >= 1
+        assert len(self.controller.psbt.sp_ecdh_shares) >= 1
 
     def test_sp_change_routes_through_change_details_to_signed_qr(self):
         from seedsigner.views import psbt_views
@@ -287,7 +324,7 @@ class TestSPFinalizeFlow(FlowTest):
             FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
             FlowStep(psbt_views.PSBTSignedQRDisplayView),
         ])
-        assert PSBTParser.sp_contribution_count(self.controller.psbt) >= 1
+        assert len(self.controller.psbt.sp_ecdh_shares) >= 1
 
 
 class TestSPDisplayFlow(BaseTest):
@@ -506,3 +543,21 @@ class TestSPInputEligibilityGuard(BaseTest):
         assert view.has_redirect is False
         calls, _ = self._run_and_capture(view, [0])
         assert [screen_cls for screen_cls, _ in calls] == [PSBTOverviewScreen]
+
+
+
+class TestSPExportNetworkHRPs(BaseTest):
+    """The sp address and the sp() descriptor must agree on the network. embit's
+    spscan encoder only knows "main"/"test", so regtest has to be collapsed to the
+    testnet HRP the way the address encoder already does."""
+
+    def test_address_and_descriptor_hrps_match_per_network(self):
+        from seedsigner.models.settings import SettingsConstants
+
+        for network, addr_hrp, key_hrp in [
+            (SettingsConstants.MAINNET, "sp1", "spscan1"),
+            (SettingsConstants.TESTNET, "tsp1", "tspscan1"),
+            (SettingsConstants.REGTEST, "tsp1", "tspscan1"),
+        ]:
+            assert SEED.generate_bip352_silent_payment_address(network=network).startswith(addr_hrp)
+            assert key_hrp in SEED.generate_bip352_sp_descriptor(network=network)

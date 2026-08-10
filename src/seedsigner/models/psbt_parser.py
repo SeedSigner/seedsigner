@@ -1,6 +1,6 @@
 import logging
 from binascii import hexlify
-from embit import psbt, script, ec, bip32
+from embit import script, ec, bip32
 from embit.descriptor import Descriptor
 from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath, InputScope, OutputScope
@@ -109,9 +109,16 @@ class PSBTParser():
     def has_sp_outputs(self):
         return getattr(self.psbt, "has_sp_outputs", False)
 
-    @property
-    def has_sp_spend_inputs(self):
-        return getattr(self.psbt, "has_sp_spend_inputs", False)
+    @staticmethod
+    def has_sp_input_content(tx) -> bool:
+        """Whether `tx` has any input spending a previously-received Silent
+        Payment output (BIP-376)."""
+        return any(getattr(inp, "sp_tweak", None) is not None for inp in tx.inputs)
+
+    @staticmethod
+    def has_sp_content(tx) -> bool:
+        """Whether `tx` carries any Silent Payment data at all (send or spend)."""
+        return getattr(tx, "has_sp_outputs", False) or PSBTParser.has_sp_input_content(tx)
 
 
     def _set_root(self):
@@ -339,19 +346,6 @@ class PSBTParser():
 
 
     @staticmethod
-    def sp_contribution_count(p):
-        cnt = 0
-        for inp in p.inputs:
-            if getattr(inp, "sp_tweak", None) is not None and getattr(inp, "taproot_key_sig", None) is not None:
-                cnt += 1
-            cnt += len(getattr(inp, "sp_ecdh_shares", {}) or {})
-        # A single-party signer covering every input replaces its per-input
-        # shares with the PSBT-global share/proof pair (BIP-375, smaller QR).
-        cnt += len(getattr(p, "sp_ecdh_shares", {}) or {})
-        return cnt
-
-
-    @staticmethod
     def _classify_sp_output(sp_data, sp_label, scan_privkey, spend_pubkey):
         if sp_data is None or sp_data.scan_key != scan_privkey.get_public_key():
             return None
@@ -368,7 +362,7 @@ class PSBTParser():
 
     @staticmethod
     def trim(tx):
-        if getattr(tx, "has_sp_content", False):
+        if PSBTParser.has_sp_content(tx):
             # Copy rather than mutate `tx` in place: `tx` is the same object the
             # caller's PSBTParser still references, so trimming it directly would
             # corrupt bip32_derivations under back-nav re-entry (re-signing would
@@ -396,7 +390,7 @@ class PSBTParser():
             PSBTParser.validate_sp_export(trimmed)
             return trimmed
 
-        trimmed_psbt = psbt.PSBT(tx.tx)
+        trimmed_psbt = PSBT(tx.tx)
         for i, inp in enumerate(tx.inputs):
             if inp.final_scriptwitness:
                 # Taproot sign; trim to only final_scriptwitness

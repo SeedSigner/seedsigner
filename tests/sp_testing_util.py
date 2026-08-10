@@ -40,15 +40,16 @@ def _sp_output(value: int, script_pubkey=None, sp_data=None) -> SPOutputScope:
     return out
 
 
-def build_sp_send_psbt(seed: Seed, value: int = 100_000, output_script_resolved: bool = True):
+def build_sp_send_psbt(seed: Seed, value: int = 100_000, output_script_resolved: bool = False):
     """PSBTv2: one P2WPKH input owned by `seed`, one SP output (paying to an
     sp address). Signing contributes ECDH shares + DLEQ proofs (BIP-375).
 
     A real coordinator hands the signer an *unresolved* SP output (only sp_data; no
     PSBT_OUT_SCRIPT) — the script is derived from the inputs' ECDH shares at signing
-    time. Pass ``output_script_resolved=False`` for that realistic arrival state.
-    The default keeps a placeholder p2tr script so the PSBT is parseable by vanilla
-    embit (used by the parse/QR-detection tests)."""
+    time; the default models that realistic arrival state. Pass
+    ``output_script_resolved=True`` for a placeholder p2tr script instead -- embit now
+    verifies any declared PSBT_OUT_SCRIPT against the derivation at signing time, so
+    the placeholder only parses cleanly, it does not sign cleanly."""
     root = _root(seed)
     # Simplified fixture path [0, 0]; real BIP-352 spend derivation is m/352h/0h/0h/0/0.
     # The signer follows whatever derivation the PSBT carries, so [0,0] is sufficient here.
@@ -60,12 +61,12 @@ def build_sp_send_psbt(seed: Seed, value: int = 100_000, output_script_resolved:
     inp.bip32_derivations[pub] = DerivationPath(root.my_fingerprint, [0, 0])
     psbt.add_input(inp)
 
-    # Placeholder p2tr keeps the PSBT vanilla-parseable; None models a real
-    # coordinator's unresolved SP output (script derived at signing time).
+    # None models a real coordinator's unresolved SP output (script derived at
+    # signing time); the placeholder is only for tests that need a resolved
+    # PSBT_OUT_SCRIPT without actually signing.
     placeholder = script.Script(b"\x51\x20" + bytes(32)) if output_script_resolved else None
     psbt.add_output(_sp_output(value - 1_000, placeholder, SilentPaymentData(SCAN_PUB, SPEND_PUB)))
 
-    psbt.tx_modifiable_flags = 0
     return psbt
 
 
@@ -81,7 +82,6 @@ def build_sp_send_psbt_ineligible_input(value: int = 100_000):
 
     psbt.add_output(_sp_output(value - 1_000, None, SilentPaymentData(SCAN_PUB, SPEND_PUB)))
 
-    psbt.tx_modifiable_flags = 0
     return psbt
 
 
@@ -117,7 +117,6 @@ def build_sp_send_psbt_realistic(seed: Seed, value: int = 100_000,
     change_out.bip32_derivations[change_pub] = DerivationPath(root.my_fingerprint, change_deriv)
     psbt.add_output(change_out)
 
-    psbt.tx_modifiable_flags = 0
     return psbt
 
 
@@ -147,7 +146,6 @@ def build_sp_change_psbt(seed: Seed, value: int = 100_000):
     change.sp_label = 0  # m=0 is reserved for change; classify_sp_output reads this.
     psbt.add_output(change)
 
-    psbt.tx_modifiable_flags = 0
     return psbt
 
 
@@ -168,7 +166,6 @@ def build_sp_send_psbt_taproot_input(seed: Seed, value: int = 100_000):
 
     psbt.add_output(_sp_output(value - 1_000, None, SilentPaymentData(SCAN_PUB, SPEND_PUB)))
 
-    psbt.tx_modifiable_flags = 0
     return psbt
 
 
@@ -192,5 +189,4 @@ def build_sp_spend_psbt(seed: Seed, tweak: bytes = bytes([0x11] * 32),
 
     psbt.add_output(_sp_output(value - 5_000, script.p2wpkh(EXTERNAL_PUB)))
 
-    psbt.tx_modifiable_flags = 0
     return psbt
