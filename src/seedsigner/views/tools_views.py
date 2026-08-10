@@ -7,7 +7,7 @@ from gettext import gettext as _
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants, resize_image_to_fill
 from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
 from seedsigner.gui.screens.screen import ButtonOption
-from seedsigner.helpers import mnemonic_generation
+from seedsigner.helpers import hybrid_entropy, mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
@@ -46,7 +46,7 @@ class ToolsMenuView(View):
             return Destination(ToolsDiceEntropyMnemonicLengthView)
 
         elif button_data[selected_menu_num] == self.COMBINED:
-            self.controller.clear_combined_entropy()
+            self.controller.clear_hybrid_entropy()
             return Destination(
                 ToolsImageEntropyLivePreviewView,
                 view_args=dict(is_combined=True),
@@ -134,9 +134,70 @@ class ToolsImageEntropyFinalImageView(View):
             self.controller.image_entropy_final_image = None
             return Destination(BackStackView)
         
+        if self.is_combined:
+            return Destination(ToolsHybridEntropyCameraCommitmentView)
+        return Destination(ToolsImageEntropyMnemonicLengthView)
+
+
+
+class ToolsHybridEntropyCameraCommitmentView(View):
+    """Freeze the canonical camera value and publish its commitment."""
+
+    def run(self):
+        from seedsigner.gui.screens.screen import QRDisplayScreen, WarningScreen
+        from seedsigner.models.encode_qr import GenericStaticQrEncoder
+
+        image = self.controller.image_entropy_final_image
+        if image is None:
+            raise RuntimeError("Hybrid camera image is unavailable")
+
+        try:
+            if image.mode != "RGB":
+                raise ValueError("Hybrid camera image must use RGB pixel mode")
+
+            camera_value = hybrid_entropy.camera256_from_rgb(
+                image.width,
+                image.height,
+                image.tobytes(),
+            )
+            commitment = hybrid_entropy.camera_commitment(camera_value)
+
+            self.controller.clear_hybrid_entropy()
+            self.controller.hybrid_entropy_camera_value = bytearray(camera_value)
+            self.controller.hybrid_entropy_camera_commitment = commitment
+            camera_value = None
+        finally:
+            # The hybrid protocol uses only the canonical final RGB frame. Raw
+            # preview/final image references do not survive the commitment step.
+            image = None
+            self.controller.image_entropy_preview_frames = None
+            self.controller.image_entropy_final_image = None
+
+        commitment_hex = commitment.hex()
+        commitment_id = f"{commitment_hex[:8]}...{commitment_hex[-8:]}"
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title=_("Camera + Dice"),
+            status_headline=_("Camera committed"),
+            text=_("24 words / 100 rolls\nID: {}\nSave the full QR first.").format(commitment_id),
+            button_data=[ButtonOption(_("Show QR")), ButtonOption(_("Cancel"))],
+        )
+        if selected_menu_num != 0:
+            self.controller.clear_hybrid_entropy()
+            return Destination(MainMenuView, clear_history=True)
+
+        self.run_screen(
+            QRDisplayScreen,
+            qr_encoder=GenericStaticQrEncoder(
+                data=hybrid_entropy.commitment_record(commitment),
+            ),
+        )
         return Destination(
-            ToolsImageEntropyMnemonicLengthView,
-            view_args=dict(is_combined=self.is_combined),
+            ToolsDiceEntropyEntryView,
+            view_args=dict(
+                total_rolls=hybrid_entropy.DICE_ROLLS,
+                is_combined=True,
+            ),
         )
 
 
@@ -144,11 +205,6 @@ class ToolsImageEntropyFinalImageView(View):
 class ToolsImageEntropyMnemonicLengthView(View):
     TWELVE_WORDS = ButtonOption("12 words", return_data=12)
     TWENTYFOUR_WORDS = ButtonOption("24 words", return_data=24)
-
-    def __init__(self, is_combined: bool = False):
-        super().__init__()
-        self.is_combined = is_combined
-
 
     def run(self):
         button_data = [self.TWELVE_WORDS, self.TWENTYFOUR_WORDS]
@@ -200,18 +256,12 @@ class ToolsImageEntropyMnemonicLengthView(View):
             # Finally build in our headline entropy via the new full-res image
             final_hash = hashlib.sha256(hash_bytes + seed_entropy_image.tobytes()).digest()
 
-            if self.is_combined:
-                # Retain only the 32-byte digest of the existing camera hash
-                # chain while the dice are entered; raw frames are cleared
-                # below. bytearray enables best-effort in-place wiping.
-                self.controller.combined_entropy_camera_digest = bytearray(final_hash)
-            else:
-                if mnemonic_length == 12:
-                    # 12-word mnemonic only uses the first 128 bits / 16 bytes of entropy
-                    final_hash = final_hash[:16]
+            if mnemonic_length == 12:
+                # 12-word mnemonic only uses the first 128 bits / 16 bytes of entropy
+                final_hash = final_hash[:16]
 
-                # Camera-only derivation is unchanged.
-                mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash)
+            # Camera-only derivation is unchanged.
+            mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash)
 
             # Image should never get saved nor stick around in memory
             seed_entropy_image = None
@@ -220,17 +270,6 @@ class ToolsImageEntropyMnemonicLengthView(View):
             hash_bytes = None
             self.controller.image_entropy_preview_frames = None
             self.controller.image_entropy_final_image = None
-
-            if self.is_combined:
-                total_rolls = (
-                    mnemonic_generation.DICE__NUM_ROLLS__12WORD
-                    if mnemonic_length == 12
-                    else mnemonic_generation.DICE__NUM_ROLLS__24WORD
-                )
-                return Destination(
-                    ToolsDiceEntropyEntryView,
-                    view_args=dict(total_rolls=total_rolls, is_combined=True),
-                )
 
             # Add the mnemonic as an in-memory Seed
             seed = Seed(mnemonic, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
@@ -286,6 +325,10 @@ class ToolsDiceEntropyEntryView(View):
         super().__init__()
         self.total_rolls = total_rolls
         self.is_combined = is_combined
+        if self.is_combined and self.total_rolls != hybrid_entropy.DICE_ROLLS:
+            raise ValueError(
+                f"Hybrid mode requires exactly {hybrid_entropy.DICE_ROLLS} rolls"
+            )
     
 
     def run(self):
@@ -297,24 +340,41 @@ class ToolsDiceEntropyEntryView(View):
 
         if ret == RET_CODE__BACK_BUTTON:
             if self.is_combined:
-                self.controller.clear_combined_entropy()
+                self.controller.clear_hybrid_entropy()
                 return Destination(MainMenuView, clear_history=True)
             return Destination(BackStackView)
 
         if self.is_combined:
-            if self.controller.combined_entropy_camera_digest is None:
-                raise RuntimeError("Combined camera entropy is unavailable")
+            if self.controller.hybrid_entropy_camera_value is None:
+                raise RuntimeError("Committed hybrid camera value is unavailable")
+
             try:
-                wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
-                dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_camera_and_dice(
-                    self.controller.combined_entropy_camera_digest,
-                    ret,
-                    wordlist_language_code=wordlist_language_code,
+                dice_value = hybrid_entropy.extract_uniform_dice256(ret)
+            except hybrid_entropy.DiceExtractionRejected:
+                from seedsigner.gui.screens.screen import WarningScreen
+
+                selected_menu_num = self.run_screen(
+                    WarningScreen,
+                    title=_("Camera + Dice"),
+                    status_headline=_("Dice block rejected"),
+                    text=_("Exact conversion cannot use this block. Roll a new 100-roll block."),
+                    button_data=[ButtonOption(_("Roll again")), ButtonOption(_("Cancel"))],
                 )
-                seed = Seed(dice_seed_phrase, wordlist_language_code=wordlist_language_code)
-                self.controller.storage.set_pending_seed(seed)
-            finally:
-                self.controller.clear_combined_entropy()
+                if selected_menu_num == 0:
+                    return Destination(
+                        ToolsDiceEntropyEntryView,
+                        view_args=dict(
+                            total_rolls=hybrid_entropy.DICE_ROLLS,
+                            is_combined=True,
+                        ),
+                        skip_current_view=True,
+                    )
+
+                self.controller.clear_hybrid_entropy()
+                return Destination(MainMenuView, clear_history=True)
+
+            self.controller.hybrid_entropy_dice_value = bytearray(dice_value)
+            return Destination(ToolsHybridEntropyCameraRevealView)
         else:
             # Dice-only derivation is unchanged.
             dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret)
@@ -323,6 +383,64 @@ class ToolsDiceEntropyEntryView(View):
 
         # Cannot return BACK to this View
         return Destination(SeedWordsWarningView, view_args={"seed": None}, clear_history=True)
+
+
+
+class ToolsHybridEntropyCameraRevealView(View):
+    """Reveal the frozen camera value only after an accepted dice block exists."""
+
+    def run(self):
+        from seedsigner.gui.screens.screen import DireWarningScreen, QRDisplayScreen
+        from seedsigner.models.encode_qr import GenericStaticQrEncoder
+
+        camera_value = self.controller.hybrid_entropy_camera_value
+        commitment = self.controller.hybrid_entropy_camera_commitment
+        dice_value = self.controller.hybrid_entropy_dice_value
+
+        try:
+            if camera_value is None or commitment is None or dice_value is None:
+                raise RuntimeError("Hybrid entropy reveal state is incomplete")
+            if not hybrid_entropy.verify_camera_commitment(camera_value, commitment):
+                raise RuntimeError("Hybrid camera commitment verification failed")
+
+            commitment_hex = commitment.hex()
+            commitment_id = f"{commitment_hex[:8]}...{commitment_hex[-8:]}"
+            selected_menu_num = self.run_screen(
+                DireWarningScreen,
+                title=_("Camera + Dice"),
+                status_headline=_("Private camera reveal"),
+                text=_("Commitment {} verified. This reveal QR is secret.").format(commitment_id),
+                button_data=[ButtonOption(_("Reveal private QR")), ButtonOption(_("Cancel"))],
+            )
+            if selected_menu_num != 0:
+                return Destination(MainMenuView, clear_history=True)
+
+            self.run_screen(
+                QRDisplayScreen,
+                qr_encoder=GenericStaticQrEncoder(
+                    data=hybrid_entropy.camera_reveal_record(camera_value),
+                ),
+            )
+
+            final_entropy = hybrid_entropy.xor256(camera_value, dice_value)
+            wordlist_language_code = self.settings.get_value(
+                SettingsConstants.SETTING__WORDLIST_LANGUAGE
+            )
+            mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(
+                final_entropy,
+                wordlist_language_code=wordlist_language_code,
+            )
+            seed = Seed(mnemonic, wordlist_language_code=wordlist_language_code)
+            self.controller.storage.set_pending_seed(seed)
+            final_entropy = None
+
+            return Destination(
+                SeedWordsWarningView,
+                view_args={"seed": None},
+                clear_history=True,
+            )
+        finally:
+            self.controller.clear_hybrid_entropy()
 
 
 

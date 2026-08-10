@@ -1,100 +1,200 @@
-# Camera + dice entropy
+# SeedSigner Hybrid Entropy v1 (experimental)
 
-The **Camera + dice** tool creates one BIP-39 mnemonic from two independently
-collected inputs. It is intended as a hedge against accidental weakness in
-either source: a poor camera capture still has the dice input, while imperfect
-dice still have the camera input.
+This document specifies an experimental, auditable 24-word seed ceremony that
+combines one canonical camera frame with an exactly uniform value extracted
+from physical dice. It is a prototype for review and testing, not yet a stable
+SeedSigner derivation standard.
 
-This mode does not replace or alter the existing camera-only and dice-only
-flows. It is a separate, explicitly versioned derivation and therefore produces
-a different mnemonic from either input used on its own.
+The construction is designed around this conditional claim:
 
-## User flow
+> If either 256-bit input is uniformly distributed and remains independent of
+> the other input, their XOR is uniformly distributed.
 
-1. Select **Tools > Camera + dice**.
-2. Capture camera entropy using the existing live-preview and final-image flow.
-3. Select a 12- or 24-word mnemonic.
-4. Enter 50 rolls for 12 words or 99 rolls for 24 words.
-5. Back up the resulting mnemonic normally. The original image and rolls are
-   not needed after the mnemonic has been recorded.
+The protocol uses a camera commitment before dice entry so the camera input is
+frozen first. The camera value itself remains hidden until an acceptable dice
+block has been recorded; displaying the camera value earlier would allow a
+later malicious dice chooser to cancel it algebraically.
 
-The full dice requirement is retained. Camera input is not treated as a reason
-to reduce the number of rolls.
+## Scope and threat model
 
-## Derivation
+This ceremony helps with independent source failures and enables an external
+implementation to reproduce the derivation. It cannot force compromised
+firmware to execute honestly: code running on the same SeedSigner can observe
+all internal values. A user relying on adversarial-firmware detection must
+record the transcript and verify the final mnemonic on an independent device
+before using it.
 
-The camera stage first runs SeedSigner's existing image hash chain without
-modification. In simplified notation:
+The camera PNG, dice transcript, camera reveal, and final mnemonic are
+seed-equivalent secrets when combined. They must not be published and should
+be securely destroyed or protected after verification.
+
+## Protocol
+
+Only 24-word BIP-39 mnemonics are supported. The existing camera-only and
+dice-only derivations are unchanged.
+
+### 1. Canonical camera value
+
+The accepted final camera frame must be RGB with exactly three bytes per pixel.
+Pixels are serialized row-major, top-to-bottom, in R, G, B channel order.
 
 ```text
-H0 = SHA256(device_serial)
-H1 = SHA256(H0 || capture_time)
-Hi = SHA256(Hi-1 || preview_frame_i)
-C  = SHA256(Hlast || final_image)
+canonical_camera =
+    "SeedSigner Hybrid Camera RGB v1" || 0x00
+    || uint32_be(width)
+    || uint32_be(height)
+    || uint64_be(width * height * 3)
+    || rgb_pixel_bytes
+
+camera256 = SHA256(canonical_camera)
 ```
 
-`C` is the full 32-byte camera digest. `D` is the exact ASCII dice string, with
-one byte per face (`1` through `6`). The combined digest is:
+File metadata and compression are excluded. An external verifier should use a
+lossless RGB PNG containing the exact committed pixels.
+
+### 2. Commit without revealing
+
+Before any dice entry, SeedSigner calculates:
 
 ```text
-combined = SHA256(
-    "SeedSigner camera+dice v1"
-    || uint16_be(len(C))
-    || C
-    || uint16_be(len(D))
-    || D
+camera_commitment = SHA256(
+    "SeedSigner Hybrid Camera Commitment v1" || 0x00 || camera256
 )
 ```
 
-`||` means byte concatenation and `uint16_be` is an unsigned two-byte
-big-endian length. The fixed domain label prevents this construction from
-overlapping with another SeedSigner derivation. Length framing makes the two
-variable inputs unambiguous. If the framing ever changes, the version in the
-domain label must also change.
-
-For a 12-word mnemonic, the first 16 bytes (128 bits) of `combined` are passed
-to BIP-39. For a 24-word mnemonic, all 32 bytes (256 bits) are used.
-
-### Deterministic vectors
-
-These vectors make the implementation independently reproducible. The camera
-digest is the 32 bytes `00 01 02 ... 1f`.
-
-12 words:
+The full commitment is displayed as a QR record:
 
 ```text
-dice:     12345612345612345612345612345612345612345612345612
-combined: cad1b7156998271bd5c88127068cea9f5f162abb6ced04b61b3989429e774560
-mnemonic: skull misery shed spring list mistake fire awake check crucial deny dirt
+seedsigner-hybrid-v1:camera-commitment:<64 lowercase hex characters>
 ```
 
-24 words:
+The user records this QR. `camera256` remains hidden in memory.
+
+### 3. Exact 256-bit dice extraction
+
+One candidate block contains 100 six-sided die rolls. Faces map to base-6
+digits as follows:
 
 ```text
-dice:     first 99 characters of "654321" repeated
-mnemonic: popular identify bench letter figure crisp inquiry what donate help save entry endless miracle arrow exhibit trash virtual calm silver toe couple club gaze
+face:   1 2 3 4 5 6
+digit:  0 1 2 3 4 5
 ```
 
-## Security properties and limitations
+The first roll is the most-significant digit:
 
-- The hash conditions the combined inputs but cannot create entropy. A 12-word
-  mnemonic remains limited to 128 bits and a 24-word mnemonic to 256 bits.
-- The main benefit is robustness. If one independent input remains secret and
-  unpredictable, it can protect the result when the other input is weak or
-  known.
-- Independence matters. Combining two sources affected by the same failure or
-  controlled by the same attacker does not justify adding their entropy
-  estimates.
-- Camera entropy is difficult to quantify from a single capture. This feature
-  makes no claim that a capture contains a specific number of entropy bits.
-- The mnemonic is intentionally not compatible with either existing
-  single-source derivation. Users must not expect camera-only or dice-only
-  verification tools to reproduce it.
+```text
+x = 0
+for digit in roll_order:
+    x = x * 6 + digit
+```
 
-## Temporary data handling
+Define:
 
-After the camera hash chain completes, raw preview and final-image references
-are cleared. Only the 32-byte camera digest is retained while dice are entered.
-It is stored in a mutable buffer and overwritten on completion, cancellation,
-or return to the main menu. This is best-effort memory hygiene within Python;
-it is not a guarantee that no transient copy ever existed.
+```text
+N     = 6^100
+Q     = floor(N / 2^256) = 5
+LIMIT = Q * 2^256
+```
+
+If `x >= LIMIT`, the entire block is rejected and a fresh 100-roll block is
+required. If `x < LIMIT`:
+
+```text
+dice256 = uint256_be(x mod 2^256)
+```
+
+Every possible 256-bit output has exactly five accepted preimages. The
+acceptance probability is approximately 88.6184%; rejection is approximately
+11.3816%. The rejection rule is essential—reducing every one of the `6^100`
+values modulo `2^256` would bias some outputs.
+
+Only protocol-mandated rejections should be discarded. Voluntarily abandoning
+accepted blocks allows the operator to grind through outputs and invalidates a
+claim that the first accepted result was sampled uniformly.
+
+### 4. Reveal and verify
+
+After an acceptable dice block has been frozen, SeedSigner reveals:
+
+```text
+seedsigner-hybrid-v1:camera-reveal:<camera256 as 64 lowercase hex characters>
+```
+
+The verifier hashes the reveal with the commitment domain and confirms that it
+matches the previously recorded commitment.
+
+### 5. XOR and BIP-39
+
+```text
+final256 = camera256 XOR dice256
+mnemonic = BIP39_24_WORDS(final256)
+```
+
+The XOR is byte-for-byte across the two 32-byte values. BIP-39 appends its
+eight checksum bits and maps the resulting 264 bits to 24 words.
+
+## Deterministic vector
+
+The canonical camera is a 2×2 RGB frame whose 12 pixel bytes are:
+
+```text
+00 01 02 03 04 05 06 07 08 09 0a 0b
+```
+
+The dice block is the first 100 characters of `123456` repeated:
+
+```text
+12345612345612345612345612345612345612345612345612
+34561234561234561234561234561234561234561234561234
+```
+
+Expected values:
+
+```text
+camera256:
+85e251941a9379b02578cff8a06e99707cf239c6f5f2aac9641a41aae280dd41
+
+camera commitment:
+1ad620d507d62a4148bef04889c2c7b2ecdf71868a9411fb4cf556145b64ffe0
+
+dice256:
+39bd194e3b989d612e6ed5bf485bae130d53f5f532f29585e98ecd298282a5c3
+
+final256:
+bc5f48da210be4d10b161a47e835376371a1cc33c7003f4c8d948c8360027882
+
+mnemonic:
+rough where custom dragon salad hammer clump select elevator double evidence
+shoulder borrow toward someone theme dismiss good gown boil current abuse tilt
+erupt
+```
+
+## Independent verifier
+
+After installing the project dependencies, verify a ceremony with:
+
+```bash
+python tools/hybrid_entropy_verifier.py \
+    --camera-png exact-camera.png \
+    --rolls-file private-rolls.txt
+```
+
+The rolls file may contain whitespace, but must contain exactly 100 faces after
+whitespace is removed. The verifier prints secret material, including the
+mnemonic; use it only in an appropriately private offline environment.
+
+The current on-device prototype exports the commitment and camera reveal as
+QRs, but does **not** yet export the full canonical camera frame. Consequently,
+the verifier can test the complete protocol with a supplied PNG, while a live
+SeedSigner ceremony can independently verify the combiner and commitment but
+cannot yet prove that the revealed camera value corresponds to the displayed
+physical capture. A deliberately warned, temporary microSD export or another
+lossless transport would be required to close that gap.
+
+## Memory handling
+
+Raw camera frame references are cleared after the commitment is created. The
+hidden camera and accepted dice values are held in mutable 32-byte buffers and
+overwritten on successful completion, cancellation, or return to the main
+menu. This is best-effort memory hygiene in Python, not proof that no transient
+copy ever existed.

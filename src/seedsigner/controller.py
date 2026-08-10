@@ -119,10 +119,12 @@ class Controller(Singleton):
 
     image_entropy_preview_frames: list[Image] = None
     image_entropy_final_image: Image = None
-    # Combined camera+dice mode retains only the camera hash-chain digest while
-    # the user enters dice rolls. Stored as a bytearray so it can be overwritten
-    # before the reference is released.
-    combined_entropy_camera_digest: bytearray = None
+    # Hybrid mode keeps the camera value hidden after its public commitment and
+    # retains the accepted dice value until the camera reveal. Secret values use
+    # mutable buffers for best-effort in-place wiping.
+    hybrid_entropy_camera_value: bytearray = None
+    hybrid_entropy_camera_commitment: bytes = None
+    hybrid_entropy_dice_value: bytearray = None
 
     address_explorer_data: dict = None
 
@@ -240,12 +242,19 @@ class Controller(Singleton):
         self.back_stack = BackStack()
 
 
-    def clear_combined_entropy(self):
-        """Best-effort wipe of the temporary combined-mode camera digest."""
-        if isinstance(self.combined_entropy_camera_digest, bytearray):
-            for index in range(len(self.combined_entropy_camera_digest)):
-                self.combined_entropy_camera_digest[index] = 0
-        self.combined_entropy_camera_digest = None
+    def clear_hybrid_entropy(self):
+        """Best-effort wipe of temporary hybrid-mode secret values."""
+        for secret in [
+            self.hybrid_entropy_camera_value,
+            self.hybrid_entropy_dice_value,
+        ]:
+            if isinstance(secret, bytearray):
+                for index in range(len(secret)):
+                    secret[index] = 0
+
+        self.hybrid_entropy_camera_value = None
+        self.hybrid_entropy_camera_commitment = None
+        self.hybrid_entropy_dice_value = None
 
 
     def start(self, initial_destination: Destination = None) -> None:
@@ -315,7 +324,7 @@ class Controller(Singleton):
                     self.psbt = None
                     self.psbt_parser = None
                     self.psbt_seed = None
-                    self.clear_combined_entropy()
+                    self.clear_hybrid_entropy()
                 
                 logger.info(f"\nback_stack: {self.back_stack}")
 
