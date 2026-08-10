@@ -246,6 +246,36 @@ class TestToolsFlows(FlowTest):
         ])
 
 
+    def test__verify_address__taproot_multisig__flow(self):
+        """
+            Address Explorer should be able to scan a taproot multisig address and
+            verify it against its descriptor.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # Receive addr @ index 5 from descriptor below
+            view.decoder.add_data("bcrt1pfsufc0ppyw2l4635zeqqzhrtvr59d0pgxxlh30fpqhu2vwlztjaqllqh9s")
+
+        def load_descriptor_into_decoder(view: scan_views.ScanView):
+            taproot_descriptor = "tr([73c5da0a/86h/1h/0h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*,sortedmulti_a(2,[0be174ee/86h/1h/0h]tpubDEsePyLPkbxbrDiZSTTWdsviiNtiQjrvvzZnkLtG72QYLBygEsXePRsTdXi8DeMA7taCuuvoEBjUAfFrsNZeQJqfvG9fFoujYWbFPYUn7ux/{0,1}/*,[8d55ff0d/86h/1h/0h]tpubDDxNVWk924RTUhdkVB2uLHw1hGMPNMGufpZefhkkswjbZppVZcuMdjYKQN4ewUog9vbL6RBLFPRWcgTGT7kYP79N6thyJ43ELUs4N2szXMg/{0,1}/*))"
+            view.decoder.add_data(taproot_descriptor)
+
+        settings = Controller.get_instance().settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),  # simulate read address QR
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_descriptor_into_decoder),  # simulate read descriptor QR
+            FlowStep(seed_views.MultisigWalletDescriptorView, screen_return_value=0),
+            FlowStep(seed_views.SeedAddressVerificationView),
+            FlowStep(seed_views.SeedAddressVerificationSuccessView),
+        ])
+
+
     def test__verify_address__singlesig__flow(self):
         """
             Address Explorer should be able to scan a singlesig address and
@@ -270,12 +300,20 @@ class TestToolsFlows(FlowTest):
                 # Native segwit regtest receive addr @ index 6
                 view.decoder.add_data(test_addr)
 
-            self.run_sequence([
+            flow_steps = [
                 FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
                 FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
                 FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),  # simulate read address QR
                 FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            ]
+
+            if test_addr.startswith("bcrt1p"):
+                flow_steps.append(FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.SINGLE_SIG))
+
+            flow_steps.extend([
                 FlowStep(seed_views.SeedSelectSeedView, screen_return_value=0),
                 FlowStep(seed_views.SeedAddressVerificationView),
                 FlowStep(seed_views.SeedAddressVerificationSuccessView),
             ])
+
+            self.run_sequence(flow_steps)

@@ -50,7 +50,7 @@ def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, walle
         elif script_type == SettingsConstants.NATIVE_SEGWIT:
             return f"m/48'/{network_path}/0'/2'"
         elif script_type == SettingsConstants.TAPROOT:
-            raise Exception("Taproot multisig not yet supported")
+            return f"m/48'/{network_path}/0'/3'"
         else:
             raise Exception("Unexpected script type")
     else:
@@ -92,23 +92,33 @@ def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool
     else:
         branch_index = 0
 
-    # Can derive p2wsh, p2sh-p2wsh, and legacy (non-segwit) p2sh
-    if descriptor.is_segwit or (descriptor.is_legacy and descriptor.is_basic_multisig):
+    # Can derive p2wsh, p2sh-p2wsh, legacy p2sh, and taproot descriptors.
+    if descriptor.is_taproot or descriptor.is_segwit or (descriptor.is_legacy and descriptor.is_basic_multisig):
         return descriptor.derive(index, branch_index=branch_index).script_pubkey().address(network=NETWORKS[embit_network])
-
-    elif descriptor.is_taproot:
-        # TODO: Not yet implemented!
-        raise Exception("Taproot verification not yet implemented!")
 
     raise Exception(f"{descriptor.script_pubkey().script_type()} address verification not yet implemented!")
 
 
 
 def get_multisig_policy(descriptor: Descriptor) -> tuple:
-    """Extract (threshold, n) from a basic multisig descriptor."""
-    if not descriptor.is_basic_multisig:
-        raise ValueError(f"Expected a basic multisig descriptor, got: {descriptor.brief_policy}")
-    return (str(descriptor.miniscript.args[0]), str(len(descriptor.keys)))
+    """Extract (threshold, n) from multisig descriptors supported by SeedSigner."""
+    if descriptor.is_basic_multisig:
+        return (str(descriptor.miniscript.args[0]), str(len(descriptor.keys)))
+
+    if descriptor.is_taproot and descriptor.taptree:
+        tap_tree = getattr(descriptor.taptree, "tree", descriptor.taptree)
+        miniscript = getattr(tap_tree, "miniscript", None)
+        miniscript_name = miniscript.__class__.__name__.lower() if miniscript else ""
+
+        # Taproot multisig script-path policies are represented as *_a miniscript nodes.
+        if miniscript_name in ["multia", "sortedmultia"]:
+            threshold = getattr(miniscript, "k", None)
+            if threshold is None and miniscript.args:
+                threshold = int(str(miniscript.args[0]))
+            n = len(miniscript.args) - 1
+            return (str(threshold), str(n))
+
+    raise ValueError(f"Expected a supported multisig descriptor, got: {descriptor.brief_policy}")
 
 
 
