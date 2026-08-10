@@ -119,6 +119,10 @@ class Controller(Singleton):
 
     image_entropy_preview_frames: list[Image] = None
     image_entropy_final_image: Image = None
+    # Combined camera+dice mode retains only the camera hash-chain digest while
+    # the user enters dice rolls. Stored as a bytearray so it can be overwritten
+    # before the reference is released.
+    combined_entropy_camera_digest: bytearray = None
 
     address_explorer_data: dict = None
 
@@ -236,6 +240,14 @@ class Controller(Singleton):
         self.back_stack = BackStack()
 
 
+    def clear_combined_entropy(self):
+        """Best-effort wipe of the temporary combined-mode camera digest."""
+        if isinstance(self.combined_entropy_camera_digest, bytearray):
+            for index in range(len(self.combined_entropy_camera_digest)):
+                self.combined_entropy_camera_digest[index] = 0
+        self.combined_entropy_camera_digest = None
+
+
     def start(self, initial_destination: Destination = None) -> None:
         """
             The main loop of the application.
@@ -303,6 +315,7 @@ class Controller(Singleton):
                     self.psbt = None
                     self.psbt_parser = None
                     self.psbt_seed = None
+                    self.clear_combined_entropy()
                 
                 logger.info(f"\nback_stack: {self.back_stack}")
 

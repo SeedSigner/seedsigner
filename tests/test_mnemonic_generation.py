@@ -30,6 +30,64 @@ def test_dice_rolls():
 
 
 
+def test_camera_and_dice_combined_derivation():
+    """Combined mode must be deterministic, domain-separated, and sensitive
+    to both independent inputs."""
+    camera_digest = bytes(range(32))
+    dice_rolls = "12345612345612345612345612345612345612345612345612"
+
+    combined_digest = mnemonic_generation.combine_camera_and_dice_entropy(
+        camera_digest,
+        dice_rolls,
+    )
+    assert combined_digest.hex() == "cad1b7156998271bd5c88127068cea9f5f162abb6ced04b61b3989429e774560"
+
+    mnemonic = mnemonic_generation.generate_mnemonic_from_camera_and_dice(
+        camera_digest,
+        dice_rolls,
+    )
+    assert " ".join(mnemonic) == "skull misery shed spring list mistake fire awake check crucial deny dirt"
+    assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+
+    assert mnemonic_generation.combine_camera_and_dice_entropy(
+        bytes([1]) + camera_digest[1:],
+        dice_rolls,
+    ) != combined_digest
+    assert mnemonic_generation.combine_camera_and_dice_entropy(
+        camera_digest,
+        dice_rolls[:-1] + "3",
+    ) != combined_digest
+
+
+def test_camera_and_dice_combined_derivation_24_words():
+    camera_digest = bytes(range(32))
+    dice_rolls = ("654321" * 17)[:99]
+    mnemonic = mnemonic_generation.generate_mnemonic_from_camera_and_dice(
+        camera_digest,
+        dice_rolls,
+    )
+
+    assert len(mnemonic) == 24
+    assert bip39.mnemonic_is_valid(" ".join(mnemonic))
+    assert " ".join(mnemonic) == (
+        "popular identify bench letter figure crisp inquiry what donate help save entry "
+        "endless miracle arrow exhibit trash virtual calm silver toe couple club gaze"
+    )
+
+
+def test_camera_and_dice_combined_derivation_rejects_invalid_inputs():
+    camera_digest = bytes(range(32))
+    dice_rolls = "1" * mnemonic_generation.DICE__NUM_ROLLS__12WORD
+
+    with pytest.raises(ValueError, match="exactly 32 bytes"):
+        mnemonic_generation.combine_camera_and_dice_entropy(camera_digest[:-1], dice_rolls)
+    with pytest.raises(ValueError, match="Dice input must contain"):
+        mnemonic_generation.combine_camera_and_dice_entropy(camera_digest, dice_rolls[:-1])
+    with pytest.raises(ValueError, match="invalid face"):
+        mnemonic_generation.combine_camera_and_dice_entropy(camera_digest, dice_rolls[:-1] + "7")
+
+
+
 def test_calculate_checksum_input_type():
     """
         Given an 11-word or 23-word mnemonic, the calculated checksum should yield a

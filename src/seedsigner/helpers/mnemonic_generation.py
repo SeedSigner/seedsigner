@@ -17,6 +17,11 @@ from seedsigner.models.seed import Seed
 DICE__NUM_ROLLS__12WORD = 50
 DICE__NUM_ROLLS__24WORD = 99
 
+# Explicitly separates combined-source derivation from every existing
+# SeedSigner seed-generation path. Increment the version if the framing or
+# derivation is ever changed.
+CAMERA_DICE_DOMAIN = b"SeedSigner camera+dice v1"
+
 
 
 def calculate_checksum(mnemonic: list | str, wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH) -> list[str]:
@@ -79,6 +84,54 @@ def generate_mnemonic_from_dice(roll_data: str, wordlist_language_code: str = Se
 
     # Return as a list
     return bip39.mnemonic_from_bytes(entropy_bytes, wordlist=Seed.get_wordlist(wordlist_language_code)).split()
+
+
+
+def combine_camera_and_dice_entropy(camera_entropy_digest: bytes | bytearray, roll_data: str) -> bytes:
+    """
+        Combine independently collected camera and dice entropy into one
+        domain-separated 256-bit digest.
+
+        Inputs are length-framed so the byte stream is unambiguous. The camera
+        input must be the full 32-byte digest of SeedSigner's existing camera
+        hash chain; the dice input remains the exact entered roll string.
+    """
+    if len(camera_entropy_digest) != 32:
+        raise ValueError("Camera entropy digest must be exactly 32 bytes")
+    if len(roll_data) not in [DICE__NUM_ROLLS__12WORD, DICE__NUM_ROLLS__24WORD]:
+        raise ValueError(
+            f"Dice input must contain {DICE__NUM_ROLLS__12WORD} or "
+            f"{DICE__NUM_ROLLS__24WORD} rolls"
+        )
+    if any(roll not in "123456" for roll in roll_data):
+        raise ValueError("Dice input contains an invalid face")
+
+    roll_bytes = roll_data.encode("ascii")
+    digest = hashlib.sha256()
+    digest.update(CAMERA_DICE_DOMAIN)
+    digest.update(len(camera_entropy_digest).to_bytes(2, "big"))
+    digest.update(camera_entropy_digest)
+    digest.update(len(roll_bytes).to_bytes(2, "big"))
+    digest.update(roll_bytes)
+    return digest.digest()
+
+
+
+def generate_mnemonic_from_camera_and_dice(
+    camera_entropy_digest: bytes | bytearray,
+    roll_data: str,
+    wordlist_language_code: str = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH,
+) -> list[str]:
+    """Generate a BIP-39 mnemonic from the combined camera+dice digest."""
+    entropy_bytes = combine_camera_and_dice_entropy(camera_entropy_digest, roll_data)
+
+    if len(roll_data) == DICE__NUM_ROLLS__12WORD:
+        entropy_bytes = entropy_bytes[:16]
+
+    return bip39.mnemonic_from_bytes(
+        entropy_bytes,
+        wordlist=Seed.get_wordlist(wordlist_language_code),
+    ).split()
 
 
 

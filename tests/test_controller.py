@@ -24,6 +24,17 @@ class TestController(BaseTest):
             c = Controller()
 
 
+    def test_clear_combined_entropy_wipes_digest(self):
+        controller = Controller.get_instance()
+        camera_digest = bytearray(range(32))
+        controller.combined_entropy_camera_digest = camera_digest
+
+        controller.clear_combined_entropy()
+
+        assert controller.combined_entropy_camera_digest is None
+        assert camera_digest == bytearray(32)
+
+
     def test_handle_exception(reset_controller):
         """ Handle exceptions that get caught by the controller """
 

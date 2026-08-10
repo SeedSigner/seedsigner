@@ -12,7 +12,7 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
 
-from .view import View, Destination, BackStackView
+from .view import View, Destination, BackStackView, MainMenuView
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +21,13 @@ logger = logging.getLogger(__name__)
 class ToolsMenuView(View):
     IMAGE = ButtonOption("New seed", FontAwesomeIconConstants.CAMERA)
     DICE = ButtonOption("New seed", FontAwesomeIconConstants.DICE)
+    COMBINED = ButtonOption("Camera + dice", SeedSignerIconConstants.PLUS)
     KEYBOARD = ButtonOption("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     ADDRESS_EXPLORER = ButtonOption("Address explorer")
     VERIFY_ADDRESS = ButtonOption("Verify address")
 
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
+        button_data = [self.IMAGE, self.DICE, self.COMBINED, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -44,6 +45,13 @@ class ToolsMenuView(View):
         elif button_data[selected_menu_num] == self.DICE:
             return Destination(ToolsDiceEntropyMnemonicLengthView)
 
+        elif button_data[selected_menu_num] == self.COMBINED:
+            self.controller.clear_combined_entropy()
+            return Destination(
+                ToolsImageEntropyLivePreviewView,
+                view_args=dict(is_combined=True),
+            )
+
         elif button_data[selected_menu_num] == self.KEYBOARD:
             return Destination(ToolsCalcFinalWordNumWordsView)
 
@@ -60,6 +68,11 @@ class ToolsMenuView(View):
     Image entropy Views
 ****************************************************************************"""
 class ToolsImageEntropyLivePreviewView(View):
+    def __init__(self, is_combined: bool = False):
+        super().__init__()
+        self.is_combined = is_combined
+
+
     def run(self):
         from seedsigner.gui.screens.tools_screens import ToolsImageEntropyLivePreviewScreen
         self.controller.image_entropy_preview_frames = None
@@ -69,11 +82,19 @@ class ToolsImageEntropyLivePreviewView(View):
             return Destination(BackStackView)
         
         self.controller.image_entropy_preview_frames = ret
-        return Destination(ToolsImageEntropyFinalImageView)
+        return Destination(
+            ToolsImageEntropyFinalImageView,
+            view_args=dict(is_combined=self.is_combined),
+        )
 
 
 
 class ToolsImageEntropyFinalImageView(View):
+    def __init__(self, is_combined: bool = False):
+        super().__init__()
+        self.is_combined = is_combined
+
+
     def run(self):
         from PIL import Image
         from PIL.ImageOps import autocontrast
@@ -113,13 +134,21 @@ class ToolsImageEntropyFinalImageView(View):
             self.controller.image_entropy_final_image = None
             return Destination(BackStackView)
         
-        return Destination(ToolsImageEntropyMnemonicLengthView)
+        return Destination(
+            ToolsImageEntropyMnemonicLengthView,
+            view_args=dict(is_combined=self.is_combined),
+        )
 
 
 
 class ToolsImageEntropyMnemonicLengthView(View):
     TWELVE_WORDS = ButtonOption("12 words", return_data=12)
     TWENTYFOUR_WORDS = ButtonOption("24 words", return_data=24)
+
+    def __init__(self, is_combined: bool = False):
+        super().__init__()
+        self.is_combined = is_combined
+
 
     def run(self):
         button_data = [self.TWELVE_WORDS, self.TWENTYFOUR_WORDS]
@@ -171,12 +200,18 @@ class ToolsImageEntropyMnemonicLengthView(View):
             # Finally build in our headline entropy via the new full-res image
             final_hash = hashlib.sha256(hash_bytes + seed_entropy_image.tobytes()).digest()
 
-            if mnemonic_length == 12:
-                # 12-word mnemonic only uses the first 128 bits / 16 bytes of entropy
-                final_hash = final_hash[:16]
+            if self.is_combined:
+                # Retain only the 32-byte digest of the existing camera hash
+                # chain while the dice are entered; raw frames are cleared
+                # below. bytearray enables best-effort in-place wiping.
+                self.controller.combined_entropy_camera_digest = bytearray(final_hash)
+            else:
+                if mnemonic_length == 12:
+                    # 12-word mnemonic only uses the first 128 bits / 16 bytes of entropy
+                    final_hash = final_hash[:16]
 
-            # Generate the mnemonic
-            mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash)
+                # Camera-only derivation is unchanged.
+                mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash)
 
             # Image should never get saved nor stick around in memory
             seed_entropy_image = None
@@ -185,6 +220,17 @@ class ToolsImageEntropyMnemonicLengthView(View):
             hash_bytes = None
             self.controller.image_entropy_preview_frames = None
             self.controller.image_entropy_final_image = None
+
+            if self.is_combined:
+                total_rolls = (
+                    mnemonic_generation.DICE__NUM_ROLLS__12WORD
+                    if mnemonic_length == 12
+                    else mnemonic_generation.DICE__NUM_ROLLS__24WORD
+                )
+                return Destination(
+                    ToolsDiceEntropyEntryView,
+                    view_args=dict(total_rolls=total_rolls, is_combined=True),
+                )
 
             # Add the mnemonic as an in-memory Seed
             seed = Seed(mnemonic, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
@@ -236,9 +282,10 @@ class ToolsDiceEntropyMnemonicLengthView(View):
 
 
 class ToolsDiceEntropyEntryView(View):
-    def __init__(self, total_rolls: int):
+    def __init__(self, total_rolls: int, is_combined: bool = False):
         super().__init__()
         self.total_rolls = total_rolls
+        self.is_combined = is_combined
     
 
     def run(self):
@@ -249,13 +296,30 @@ class ToolsDiceEntropyEntryView(View):
         )
 
         if ret == RET_CODE__BACK_BUTTON:
+            if self.is_combined:
+                self.controller.clear_combined_entropy()
+                return Destination(MainMenuView, clear_history=True)
             return Destination(BackStackView)
-        
-        dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret)
 
-        # Add the mnemonic as an in-memory Seed
-        seed = Seed(dice_seed_phrase, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
-        self.controller.storage.set_pending_seed(seed)
+        if self.is_combined:
+            if self.controller.combined_entropy_camera_digest is None:
+                raise RuntimeError("Combined camera entropy is unavailable")
+            try:
+                wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+                dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_camera_and_dice(
+                    self.controller.combined_entropy_camera_digest,
+                    ret,
+                    wordlist_language_code=wordlist_language_code,
+                )
+                seed = Seed(dice_seed_phrase, wordlist_language_code=wordlist_language_code)
+                self.controller.storage.set_pending_seed(seed)
+            finally:
+                self.controller.clear_combined_entropy()
+        else:
+            # Dice-only derivation is unchanged.
+            dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret)
+            seed = Seed(dice_seed_phrase, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+            self.controller.storage.set_pending_seed(seed)
 
         # Cannot return BACK to this View
         return Destination(SeedWordsWarningView, view_args={"seed": None}, clear_history=True)
