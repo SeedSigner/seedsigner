@@ -201,6 +201,48 @@ class ToolsDiceEntropyEntryScreen(KeyboardScreen):
 
 
 @dataclass
+class ToolsDiceDistributionScreen(ButtonListScreen):
+    """
+    Text-mode bar chart of how often each die face was rolled, so a biased or
+    lazily-shaken die is visible at a glance. Bars are scaled to the
+    most-rolled face.
+    """
+    rolls: str = None
+
+    def __post_init__(self):
+        self.title = _("Roll Distribution")
+        self.is_bottom_list = True
+        self.show_back_button = False
+        if not self.button_data:
+            self.button_data = [ButtonOption("Continue")]
+        super().__post_init__()
+
+        counts = [self.rolls.count(str(face)) for face in range(1, 7)]
+        max_count = max(max(counts), 1)
+        bar_max_chars = 11
+
+        # One single-line TextArea per face, stacked manually. NOTE: TextArea
+        # with auto_line_break=False renders its text as exactly one line --
+        # embedded "\n" is NOT honored -- so a single multi-line TextArea
+        # cannot be used here.
+        next_y = self.top_nav.height + int(GUIConstants.COMPONENT_PADDING / 2)
+        for face, count in enumerate(counts, start=1):
+            bar = "=" * max(1 if count else 0, round(count / max_count * bar_max_chars))
+            line_textarea = TextArea(
+                text=f"{face} {bar:<{bar_max_chars}} {count:>3d}",
+                font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
+                font_size=GUIConstants.get_body_font_size(),
+                is_text_centered=True,
+                auto_line_break=False,
+                height_ignores_below_baseline=True,
+                screen_y=next_y,
+            )
+            self.components.append(line_textarea)
+            next_y = line_textarea.screen_y + line_textarea.height + GUIConstants.BODY_LINE_SPACING
+
+
+
+@dataclass
 class ToolsCalcFinalWordFinalizePromptScreen(ButtonListScreen):
     mnemonic_length: int = None
     num_entropy_bits: int = None
