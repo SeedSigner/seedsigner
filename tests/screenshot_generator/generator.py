@@ -463,6 +463,7 @@ def generate_screenshots(locale):
                 #ScreenshotConfig(ToolsImageEntropyFinalImageView),
                 ScreenshotConfig(tools_views.ToolsImageEntropyMnemonicLengthView),
                 ScreenshotConfig(tools_views.ToolsDiceEntropyMnemonicLengthView),
+                ScreenshotConfig(tools_views.ToolsDiceEntropyWarningView, dict(total_rolls=50)),
                 ScreenshotConfig(tools_views.ToolsDiceEntropyEntryView, dict(total_rolls=50)),
                 ScreenshotConfig(tools_views.ToolsCalcFinalWordNumWordsView),
                 ScreenshotConfig(tools_views.ToolsCalcFinalWordFinalizePromptView),
