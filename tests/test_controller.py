@@ -24,6 +24,23 @@ class TestController(BaseTest):
             c = Controller()
 
 
+    def test_clear_hybrid_entropy_wipes_secret_values(self):
+        controller = Controller.get_instance()
+        camera_value = bytearray(range(32))
+        dice_value = bytearray(reversed(range(32)))
+        controller.hybrid_entropy_camera_value = camera_value
+        controller.hybrid_entropy_camera_commitment = bytes([7]) * 32
+        controller.hybrid_entropy_dice_value = dice_value
+
+        controller.clear_hybrid_entropy()
+
+        assert controller.hybrid_entropy_camera_value is None
+        assert controller.hybrid_entropy_camera_commitment is None
+        assert controller.hybrid_entropy_dice_value is None
+        assert camera_value == bytearray(32)
+        assert dice_value == bytearray(32)
+
+
     def test_handle_exception(reset_controller):
         """ Handle exceptions that get caught by the controller """
 

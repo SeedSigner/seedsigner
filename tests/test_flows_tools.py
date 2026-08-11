@@ -12,6 +12,14 @@ from seedsigner.views import scan_views, seed_views, tools_views
 
 class TestToolsFlows(FlowTest):
 
+    def test__camera_dice__menu_flow(self):
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.COMBINED),
+            FlowStep(tools_views.ToolsImageEntropyLivePreviewView),
+        ])
+
+
     def test__address_explorer__flow(self):
         """
             Test the simplest AddressExplorer flow when a seed is already loaded.

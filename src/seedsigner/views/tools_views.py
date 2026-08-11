@@ -7,12 +7,12 @@ from gettext import gettext as _
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants, resize_image_to_fill
 from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
 from seedsigner.gui.screens.screen import ButtonOption
-from seedsigner.helpers import mnemonic_generation
+from seedsigner.helpers import hybrid_entropy, mnemonic_generation
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
 
-from .view import View, Destination, BackStackView
+from .view import View, Destination, BackStackView, MainMenuView
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +21,13 @@ logger = logging.getLogger(__name__)
 class ToolsMenuView(View):
     IMAGE = ButtonOption("New seed", FontAwesomeIconConstants.CAMERA)
     DICE = ButtonOption("New seed", FontAwesomeIconConstants.DICE)
+    COMBINED = ButtonOption("Camera + dice", SeedSignerIconConstants.PLUS)
     KEYBOARD = ButtonOption("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     ADDRESS_EXPLORER = ButtonOption("Address explorer")
     VERIFY_ADDRESS = ButtonOption("Verify address")
 
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
+        button_data = [self.IMAGE, self.DICE, self.COMBINED, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -44,6 +45,13 @@ class ToolsMenuView(View):
         elif button_data[selected_menu_num] == self.DICE:
             return Destination(ToolsDiceEntropyMnemonicLengthView)
 
+        elif button_data[selected_menu_num] == self.COMBINED:
+            self.controller.clear_hybrid_entropy()
+            return Destination(
+                ToolsImageEntropyLivePreviewView,
+                view_args=dict(is_combined=True),
+            )
+
         elif button_data[selected_menu_num] == self.KEYBOARD:
             return Destination(ToolsCalcFinalWordNumWordsView)
 
@@ -60,6 +68,11 @@ class ToolsMenuView(View):
     Image entropy Views
 ****************************************************************************"""
 class ToolsImageEntropyLivePreviewView(View):
+    def __init__(self, is_combined: bool = False):
+        super().__init__()
+        self.is_combined = is_combined
+
+
     def run(self):
         from seedsigner.gui.screens.tools_screens import ToolsImageEntropyLivePreviewScreen
         self.controller.image_entropy_preview_frames = None
@@ -69,11 +82,19 @@ class ToolsImageEntropyLivePreviewView(View):
             return Destination(BackStackView)
         
         self.controller.image_entropy_preview_frames = ret
-        return Destination(ToolsImageEntropyFinalImageView)
+        return Destination(
+            ToolsImageEntropyFinalImageView,
+            view_args=dict(is_combined=self.is_combined),
+        )
 
 
 
 class ToolsImageEntropyFinalImageView(View):
+    def __init__(self, is_combined: bool = False):
+        super().__init__()
+        self.is_combined = is_combined
+
+
     def run(self):
         from PIL import Image
         from PIL.ImageOps import autocontrast
@@ -90,6 +111,11 @@ class ToolsImageEntropyFinalImageView(View):
 
             time.sleep(0.25)
             self.controller.image_entropy_final_image = camera.capture_frame()
+            if self.is_combined:
+                # Match PR #993: capture a second frame immediately while the
+                # camera settings are locked. It is measurement-only and is
+                # never included in camera256 or the final XOR seed.
+                self.controller.image_entropy_noise_frame = camera.capture_frame()
             camera.stop_single_frame_mode()
 
         # Prep a copy of the image for display:
@@ -111,9 +137,131 @@ class ToolsImageEntropyFinalImageView(View):
         if ret == RET_CODE__BACK_BUTTON:
             # Go back to live preview and reshoot
             self.controller.image_entropy_final_image = None
+            self.controller.image_entropy_noise_frame = None
             return Destination(BackStackView)
         
+        if self.is_combined:
+            return Destination(ToolsHybridEntropyCameraCommitmentView)
         return Destination(ToolsImageEntropyMnemonicLengthView)
+
+
+
+class ToolsHybridEntropyCameraCommitmentView(View):
+    """Freeze the canonical camera value and publish its commitment."""
+
+    def run(self):
+        from seedsigner.gui.screens.screen import (
+            LargeIconStatusScreen,
+            QRDisplayScreen,
+            WarningScreen,
+        )
+        from seedsigner.models.encode_qr import GenericStaticQrEncoder
+
+        image = self.controller.image_entropy_final_image
+        if image is None:
+            raise RuntimeError("Hybrid camera image is unavailable")
+        noise_frame = self.controller.image_entropy_noise_frame
+        if noise_frame is None:
+            raise RuntimeError("Hybrid camera noise frame is unavailable")
+
+        camera_result = hybrid_entropy.assess_hybrid_camera_entropy(
+            image,
+            noise_frame,
+        )
+        stats_text = _(
+            "Scene: {shannon} bits/px\n"
+            "Deviation: {deviation}\n"
+            "Sensor noise: {noise} bits/px"
+        ).format(
+            shannon=f"{camera_result.shannon_bits_per_pixel:.1f}",
+            deviation=camera_result.deviation_index,
+            noise=f"{camera_result.noise_bits_per_pixel:.2f}",
+        )
+        if camera_result.quality == hybrid_entropy.CameraEntropyQuality.GOOD:
+            self.run_screen(
+                LargeIconStatusScreen,
+                title=_("Camera entropy"),
+                show_back_button=False,
+                status_headline=_("Good entropy"),
+                text=stats_text,
+                button_data=[ButtonOption(_("Continue"))],
+            )
+        else:
+            headline = (
+                _("Poor entropy")
+                if camera_result.quality == hybrid_entropy.CameraEntropyQuality.POOR
+                else _("Insufficient entropy")
+            )
+            selected_menu_num = self.run_screen(
+                WarningScreen,
+                title=_("Camera entropy"),
+                status_headline=headline,
+                text=stats_text + "\n" + _("Proceed anyway?"),
+                button_data=[
+                    ButtonOption(_("Proceed anyway")),
+                    ButtonOption(_("Retake")),
+                ],
+            )
+            if selected_menu_num != 0:
+                self.controller.image_entropy_final_image = None
+                self.controller.image_entropy_noise_frame = None
+                return Destination(
+                    ToolsImageEntropyLivePreviewView,
+                    view_args=dict(is_combined=True),
+                    skip_current_view=True,
+                )
+
+        try:
+            if image.mode != "RGB":
+                raise ValueError("Hybrid camera image must use RGB pixel mode")
+
+            camera_value = hybrid_entropy.camera256_from_rgb(
+                image.width,
+                image.height,
+                image.tobytes(),
+            )
+            commitment = hybrid_entropy.camera_commitment(camera_value)
+
+            self.controller.clear_hybrid_entropy()
+            self.controller.hybrid_entropy_camera_value = bytearray(camera_value)
+            self.controller.hybrid_entropy_camera_commitment = commitment
+            camera_value = None
+        finally:
+            # The hybrid protocol hashes only the first canonical RGB frame.
+            # The #993-style second frame is measurement-only. No raw image
+            # references survive the commitment step.
+            image = None
+            noise_frame = None
+            self.controller.image_entropy_preview_frames = None
+            self.controller.image_entropy_final_image = None
+            self.controller.image_entropy_noise_frame = None
+
+        commitment_hex = commitment.hex()
+        commitment_id = f"{commitment_hex[:8]}...{commitment_hex[-8:]}"
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title=_("Camera + Dice"),
+            status_headline=_("Camera committed"),
+            text=_("24 words / 100 rolls\nID: {}\nSave the full QR first.").format(commitment_id),
+            button_data=[ButtonOption(_("Show QR")), ButtonOption(_("Cancel"))],
+        )
+        if selected_menu_num != 0:
+            self.controller.clear_hybrid_entropy()
+            return Destination(MainMenuView, clear_history=True)
+
+        self.run_screen(
+            QRDisplayScreen,
+            qr_encoder=GenericStaticQrEncoder(
+                data=hybrid_entropy.commitment_record(commitment),
+            ),
+        )
+        return Destination(
+            ToolsDiceEntropyEntryView,
+            view_args=dict(
+                total_rolls=hybrid_entropy.DICE_ROLLS,
+                is_combined=True,
+            ),
+        )
 
 
 
@@ -175,7 +323,7 @@ class ToolsImageEntropyMnemonicLengthView(View):
                 # 12-word mnemonic only uses the first 128 bits / 16 bytes of entropy
                 final_hash = final_hash[:16]
 
-            # Generate the mnemonic
+            # Camera-only derivation is unchanged.
             mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(final_hash)
 
             # Image should never get saved nor stick around in memory
@@ -236,9 +384,14 @@ class ToolsDiceEntropyMnemonicLengthView(View):
 
 
 class ToolsDiceEntropyEntryView(View):
-    def __init__(self, total_rolls: int):
+    def __init__(self, total_rolls: int, is_combined: bool = False):
         super().__init__()
         self.total_rolls = total_rolls
+        self.is_combined = is_combined
+        if self.is_combined and self.total_rolls != hybrid_entropy.DICE_ROLLS:
+            raise ValueError(
+                f"Hybrid mode requires exactly {hybrid_entropy.DICE_ROLLS} rolls"
+            )
     
 
     def run(self):
@@ -249,16 +402,108 @@ class ToolsDiceEntropyEntryView(View):
         )
 
         if ret == RET_CODE__BACK_BUTTON:
+            if self.is_combined:
+                self.controller.clear_hybrid_entropy()
+                return Destination(MainMenuView, clear_history=True)
             return Destination(BackStackView)
-        
-        dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret)
 
-        # Add the mnemonic as an in-memory Seed
-        seed = Seed(dice_seed_phrase, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
-        self.controller.storage.set_pending_seed(seed)
+        if self.is_combined:
+            if self.controller.hybrid_entropy_camera_value is None:
+                raise RuntimeError("Committed hybrid camera value is unavailable")
+
+            try:
+                dice_value = hybrid_entropy.extract_uniform_dice256(ret)
+            except hybrid_entropy.DiceExtractionRejected:
+                from seedsigner.gui.screens.screen import WarningScreen
+
+                selected_menu_num = self.run_screen(
+                    WarningScreen,
+                    title=_("Camera + Dice"),
+                    status_headline=_("Dice block rejected"),
+                    text=_("Exact conversion cannot use this block. Roll a new 100-roll block."),
+                    button_data=[ButtonOption(_("Roll again")), ButtonOption(_("Cancel"))],
+                )
+                if selected_menu_num == 0:
+                    return Destination(
+                        ToolsDiceEntropyEntryView,
+                        view_args=dict(
+                            total_rolls=hybrid_entropy.DICE_ROLLS,
+                            is_combined=True,
+                        ),
+                        skip_current_view=True,
+                    )
+
+                self.controller.clear_hybrid_entropy()
+                return Destination(MainMenuView, clear_history=True)
+
+            self.controller.hybrid_entropy_dice_value = bytearray(dice_value)
+            return Destination(ToolsHybridEntropyCameraRevealView)
+        else:
+            # Dice-only derivation is unchanged.
+            dice_seed_phrase = mnemonic_generation.generate_mnemonic_from_dice(ret)
+            seed = Seed(dice_seed_phrase, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+            self.controller.storage.set_pending_seed(seed)
 
         # Cannot return BACK to this View
         return Destination(SeedWordsWarningView, view_args={"seed": None}, clear_history=True)
+
+
+
+class ToolsHybridEntropyCameraRevealView(View):
+    """Reveal the frozen camera value only after an accepted dice block exists."""
+
+    def run(self):
+        from seedsigner.gui.screens.screen import DireWarningScreen, QRDisplayScreen
+        from seedsigner.models.encode_qr import GenericStaticQrEncoder
+
+        camera_value = self.controller.hybrid_entropy_camera_value
+        commitment = self.controller.hybrid_entropy_camera_commitment
+        dice_value = self.controller.hybrid_entropy_dice_value
+
+        try:
+            if camera_value is None or commitment is None or dice_value is None:
+                raise RuntimeError("Hybrid entropy reveal state is incomplete")
+            if not hybrid_entropy.verify_camera_commitment(camera_value, commitment):
+                raise RuntimeError("Hybrid camera commitment verification failed")
+
+            commitment_hex = commitment.hex()
+            commitment_id = f"{commitment_hex[:8]}...{commitment_hex[-8:]}"
+            selected_menu_num = self.run_screen(
+                DireWarningScreen,
+                title=_("Camera + Dice"),
+                status_headline=_("Private camera reveal"),
+                text=_("Commitment {} verified. This reveal QR is secret.").format(commitment_id),
+                button_data=[ButtonOption(_("Reveal private QR")), ButtonOption(_("Cancel"))],
+            )
+            if selected_menu_num != 0:
+                return Destination(MainMenuView, clear_history=True)
+
+            self.run_screen(
+                QRDisplayScreen,
+                qr_encoder=GenericStaticQrEncoder(
+                    data=hybrid_entropy.camera_reveal_record(camera_value),
+                ),
+            )
+
+            final_entropy = hybrid_entropy.xor256(camera_value, dice_value)
+            wordlist_language_code = self.settings.get_value(
+                SettingsConstants.SETTING__WORDLIST_LANGUAGE
+            )
+            mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(
+                final_entropy,
+                wordlist_language_code=wordlist_language_code,
+            )
+            seed = Seed(mnemonic, wordlist_language_code=wordlist_language_code)
+            self.controller.storage.set_pending_seed(seed)
+            final_entropy = None
+
+            return Destination(
+                SeedWordsWarningView,
+                view_args={"seed": None},
+                clear_history=True,
+            )
+        finally:
+            self.controller.clear_hybrid_entropy()
 
 
 
