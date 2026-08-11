@@ -119,6 +119,9 @@ class Controller(Singleton):
 
     image_entropy_preview_frames: list[Image] = None
     image_entropy_final_image: Image = None
+    # Back-to-back frame used only for PR #993-style temporal-noise screening.
+    # It is never hashed into either the camera-only or hybrid seed value.
+    image_entropy_noise_frame: Image = None
     # Hybrid mode keeps the camera value hidden after its public commitment and
     # retains the accepted dice value until the camera reveal. Secret values use
     # mutable buffers for best-effort in-place wiping.

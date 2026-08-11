@@ -111,6 +111,11 @@ class ToolsImageEntropyFinalImageView(View):
 
             time.sleep(0.25)
             self.controller.image_entropy_final_image = camera.capture_frame()
+            if self.is_combined:
+                # Match PR #993: capture a second frame immediately while the
+                # camera settings are locked. It is measurement-only and is
+                # never included in camera256 or the final XOR seed.
+                self.controller.image_entropy_noise_frame = camera.capture_frame()
             camera.stop_single_frame_mode()
 
         # Prep a copy of the image for display:
@@ -132,6 +137,7 @@ class ToolsImageEntropyFinalImageView(View):
         if ret == RET_CODE__BACK_BUTTON:
             # Go back to live preview and reshoot
             self.controller.image_entropy_final_image = None
+            self.controller.image_entropy_noise_frame = None
             return Destination(BackStackView)
         
         if self.is_combined:
@@ -144,12 +150,66 @@ class ToolsHybridEntropyCameraCommitmentView(View):
     """Freeze the canonical camera value and publish its commitment."""
 
     def run(self):
-        from seedsigner.gui.screens.screen import QRDisplayScreen, WarningScreen
+        from seedsigner.gui.screens.screen import (
+            LargeIconStatusScreen,
+            QRDisplayScreen,
+            WarningScreen,
+        )
         from seedsigner.models.encode_qr import GenericStaticQrEncoder
 
         image = self.controller.image_entropy_final_image
         if image is None:
             raise RuntimeError("Hybrid camera image is unavailable")
+        noise_frame = self.controller.image_entropy_noise_frame
+        if noise_frame is None:
+            raise RuntimeError("Hybrid camera noise frame is unavailable")
+
+        camera_result = hybrid_entropy.assess_hybrid_camera_entropy(
+            image,
+            noise_frame,
+        )
+        stats_text = _(
+            "Scene: {shannon} bits/px\n"
+            "Deviation: {deviation}\n"
+            "Sensor noise: {noise} bits/px"
+        ).format(
+            shannon=f"{camera_result.shannon_bits_per_pixel:.1f}",
+            deviation=camera_result.deviation_index,
+            noise=f"{camera_result.noise_bits_per_pixel:.2f}",
+        )
+        if camera_result.quality == hybrid_entropy.CameraEntropyQuality.GOOD:
+            self.run_screen(
+                LargeIconStatusScreen,
+                title=_("Camera entropy"),
+                show_back_button=False,
+                status_headline=_("Good entropy"),
+                text=stats_text,
+                button_data=[ButtonOption(_("Continue"))],
+            )
+        else:
+            headline = (
+                _("Poor entropy")
+                if camera_result.quality == hybrid_entropy.CameraEntropyQuality.POOR
+                else _("Insufficient entropy")
+            )
+            selected_menu_num = self.run_screen(
+                WarningScreen,
+                title=_("Camera entropy"),
+                status_headline=headline,
+                text=stats_text + "\n" + _("Proceed anyway?"),
+                button_data=[
+                    ButtonOption(_("Proceed anyway")),
+                    ButtonOption(_("Retake")),
+                ],
+            )
+            if selected_menu_num != 0:
+                self.controller.image_entropy_final_image = None
+                self.controller.image_entropy_noise_frame = None
+                return Destination(
+                    ToolsImageEntropyLivePreviewView,
+                    view_args=dict(is_combined=True),
+                    skip_current_view=True,
+                )
 
         try:
             if image.mode != "RGB":
@@ -167,11 +227,14 @@ class ToolsHybridEntropyCameraCommitmentView(View):
             self.controller.hybrid_entropy_camera_commitment = commitment
             camera_value = None
         finally:
-            # The hybrid protocol uses only the canonical final RGB frame. Raw
-            # preview/final image references do not survive the commitment step.
+            # The hybrid protocol hashes only the first canonical RGB frame.
+            # The #993-style second frame is measurement-only. No raw image
+            # references survive the commitment step.
             image = None
+            noise_frame = None
             self.controller.image_entropy_preview_frames = None
             self.controller.image_entropy_final_image = None
+            self.controller.image_entropy_noise_frame = None
 
         commitment_hex = commitment.hex()
         commitment_id = f"{commitment_hex[:8]}...{commitment_hex[-8:]}"

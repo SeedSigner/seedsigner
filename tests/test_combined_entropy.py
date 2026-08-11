@@ -1,5 +1,5 @@
 import random
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 from PIL import Image
@@ -40,6 +40,7 @@ class TestHybridEntropyFlow(BaseTest):
 
     def test_accepted_final_image_routes_directly_to_commitment(self):
         self.controller.image_entropy_final_image = _noise_image(1)
+        self.controller.image_entropy_noise_frame = _noise_image(101)
         view = tools_views.ToolsImageEntropyFinalImageView(is_combined=True)
         view.canvas_width = 240
         view.canvas_height = 240
@@ -48,6 +49,35 @@ class TestHybridEntropyFlow(BaseTest):
         destination = view.run()
 
         assert destination.View_cls == tools_views.ToolsHybridEntropyCameraCommitmentView
+
+
+    @patch("seedsigner.views.tools_views.time.sleep")
+    def test_combined_mode_captures_pr993_back_to_back_pair(
+        self,
+        sleep,
+    ):
+        from seedsigner.hardware.camera import Camera
+
+        first_frame = _noise_image(11)
+        second_frame = _noise_image(12)
+        camera = Mock()
+        camera.capture_frame.side_effect = [first_frame, second_frame]
+        Camera._instance = camera
+        view = tools_views.ToolsImageEntropyFinalImageView(is_combined=True)
+        view.canvas_width = 240
+        view.canvas_height = 240
+        view.run_screen = Mock(return_value=None)
+
+        destination = view.run()
+
+        assert destination.View_cls == tools_views.ToolsHybridEntropyCameraCommitmentView
+        camera.start_single_frame_mode.assert_called_once_with(
+            resolution=(480, 480)
+        )
+        assert camera.capture_frame.call_count == 2
+        camera.stop_single_frame_mode.assert_called_once_with()
+        assert self.controller.image_entropy_final_image is first_frame
+        assert self.controller.image_entropy_noise_frame is second_frame
 
 
     def test_camera_commitment_freezes_hidden_value_and_clears_images(self):
@@ -60,9 +90,10 @@ class TestHybridEntropyFlow(BaseTest):
         expected_commitment = hybrid_entropy.camera_commitment(expected_camera)
         self.controller.image_entropy_preview_frames = [_noise_image(3)]
         self.controller.image_entropy_final_image = image
+        self.controller.image_entropy_noise_frame = _noise_image(102)
 
         view = tools_views.ToolsHybridEntropyCameraCommitmentView()
-        view.run_screen = Mock(side_effect=[0, None])
+        view.run_screen = Mock(side_effect=[0, 0, None])
         destination = view.run()
 
         assert destination.View_cls == tools_views.ToolsDiceEntropyEntryView
@@ -72,8 +103,13 @@ class TestHybridEntropyFlow(BaseTest):
         assert self.controller.hybrid_entropy_dice_value is None
         assert self.controller.image_entropy_preview_frames is None
         assert self.controller.image_entropy_final_image is None
+        assert self.controller.image_entropy_noise_frame is None
 
-        qr_encoder = view.run_screen.call_args_list[1].kwargs["qr_encoder"]
+        camera_quality_screen = view.run_screen.call_args_list[0].kwargs
+        assert camera_quality_screen["status_headline"] == "Good entropy"
+        assert "Sensor noise:" in camera_quality_screen["text"]
+
+        qr_encoder = view.run_screen.call_args_list[2].kwargs["qr_encoder"]
         assert qr_encoder.next_part() == hybrid_entropy.commitment_record(
             expected_commitment
         )
@@ -82,6 +118,7 @@ class TestHybridEntropyFlow(BaseTest):
     def test_camera_commitment_cancel_wipes_hidden_value(self):
         camera_references = []
         self.controller.image_entropy_final_image = _noise_image(4)
+        self.controller.image_entropy_noise_frame = _noise_image(104)
         view = tools_views.ToolsHybridEntropyCameraCommitmentView()
 
         def cancel_after_commitment(*args, **kwargs):
@@ -90,7 +127,15 @@ class TestHybridEntropyFlow(BaseTest):
             )
             return 1
 
-        view.run_screen = Mock(side_effect=cancel_after_commitment)
+        calls = iter([0, 1])
+
+        def quality_then_cancel(*args, **kwargs):
+            result = next(calls)
+            if result == 1:
+                return cancel_after_commitment(*args, **kwargs)
+            return result
+
+        view.run_screen = Mock(side_effect=quality_then_cancel)
 
         destination = view.run()
 
@@ -98,6 +143,39 @@ class TestHybridEntropyFlow(BaseTest):
         assert destination.clear_history
         assert self.controller.hybrid_entropy_camera_value is None
         assert camera_references[0] == bytearray(32)
+
+
+    def test_identical_camera_frames_offer_retake_before_commitment(self):
+        frame = _noise_image(5)
+        self.controller.image_entropy_final_image = frame
+        self.controller.image_entropy_noise_frame = frame.copy()
+        view = tools_views.ToolsHybridEntropyCameraCommitmentView()
+        view.run_screen = Mock(return_value=1)
+
+        destination = view.run()
+
+        assert destination.View_cls == tools_views.ToolsImageEntropyLivePreviewView
+        assert destination.view_args == {"is_combined": True}
+        assert destination.skip_current_view
+        assert self.controller.image_entropy_final_image is None
+        assert self.controller.image_entropy_noise_frame is None
+        assert self.controller.hybrid_entropy_camera_value is None
+        warning = view.run_screen.call_args.kwargs
+        assert warning["status_headline"] == "Insufficient entropy"
+        assert "Sensor noise: 0.00 bits/px" in warning["text"]
+
+
+    def test_distinct_camera_frames_pass_pr993_noise_screen(self):
+        result = hybrid_entropy.assess_hybrid_camera_entropy(
+            _noise_image(7),
+            _noise_image(8),
+        )
+
+        assert result.noise_bits_per_pixel > (
+            hybrid_entropy.CAMERA_INSUFFICIENT_NOISE_BITS_PER_PIXEL
+        )
+        assert result.quality == hybrid_entropy.CameraEntropyQuality.GOOD
+        assert result.passed
 
 
     def test_accepted_dice_block_is_frozen_before_camera_reveal(self):

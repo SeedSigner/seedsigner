@@ -1,5 +1,7 @@
 import hashlib
 import hmac
+import math
+from dataclasses import dataclass
 
 
 PROTOCOL_NAME = "SeedSigner Hybrid Entropy v1"
@@ -13,6 +15,33 @@ OUTPUT_SIZE = 1 << OUTPUT_BITS
 DICE_INPUT_SIZE = 6 ** DICE_ROLLS
 DICE_PREIMAGES_PER_OUTPUT = DICE_INPUT_SIZE // OUTPUT_SIZE
 DICE_ACCEPTANCE_LIMIT = DICE_PREIMAGES_PER_OUTPUT * OUTPUT_SIZE
+
+# PR #993-compatible camera quality screening. The second frame is used only
+# for measurement; camera256 continues to commit to the first canonical frame.
+CAMERA_SHANNON_SAMPLE_MAX_DIM = 160
+CAMERA_NOISE_SAMPLE_DIM = 160
+CAMERA_INSUFFICIENT_SHANNON_BITS_PER_PIXEL = 3.0
+CAMERA_INSUFFICIENT_DEVIATION = 5
+CAMERA_POOR_DEVIATION = 10
+CAMERA_INSUFFICIENT_NOISE_BITS_PER_PIXEL = 0.05
+
+
+class CameraEntropyQuality:
+    INSUFFICIENT = 0
+    POOR = 1
+    GOOD = 2
+
+
+@dataclass(frozen=True)
+class CameraEntropyResult:
+    quality: int
+    shannon_bits_per_pixel: float
+    deviation_index: int
+    noise_bits_per_pixel: float
+
+    @property
+    def passed(self) -> bool:
+        return self.quality != CameraEntropyQuality.INSUFFICIENT
 
 
 class DiceExtractionRejected(ValueError):
@@ -56,6 +85,100 @@ def camera256_from_rgb(width: int, height: int, rgb_bytes: bytes) -> bytes:
     digest.update(_canonical_camera_header(width, height, rgb_bytes))
     digest.update(rgb_bytes)
     return digest.digest()
+
+
+def _shannon_entropy_from_counts(counts, total: int) -> float:
+    if total == 0:
+        return 0.0
+    entropy = -sum(
+        (count / total) * math.log2(count / total)
+        for count in counts
+        if count
+    )
+    # Avoid presenting identical frames as the confusing string "-0.00".
+    return 0.0 if entropy == 0.0 else entropy
+
+
+def camera_frame_noise_bits_per_pixel(frame_a, frame_b) -> float:
+    """Measure PR #993-style temporal noise using two back-to-back frames.
+
+    The calculation uses the center crop and the absolute per-channel pixel
+    difference. Channel histograms are merged bin-wise so identical RGB frames
+    score exactly 0.0 instead of gaining phantom entropy from band identity.
+    """
+    from PIL import ImageChops
+
+    if frame_a.size != frame_b.size or frame_a.mode != frame_b.mode:
+        frame_b = frame_b.convert(frame_a.mode).resize(frame_a.size)
+
+    width, height = frame_a.size
+    crop_width = min(width, CAMERA_NOISE_SAMPLE_DIM)
+    crop_height = min(height, CAMERA_NOISE_SAMPLE_DIM)
+    left = (width - crop_width) // 2
+    top = (height - crop_height) // 2
+    crop_box = (left, top, left + crop_width, top + crop_height)
+    difference = ImageChops.difference(
+        frame_a.crop(crop_box),
+        frame_b.crop(crop_box),
+    )
+
+    histogram = difference.histogram()
+    band_count = max(1, len(histogram) // 256)
+    combined = [0] * 256
+    for band in range(band_count):
+        for value in range(256):
+            combined[value] += histogram[(band * 256) + value]
+    return _shannon_entropy_from_counts(combined, sum(combined))
+
+
+def assess_hybrid_camera_entropy(frame_a, frame_b) -> CameraEntropyResult:
+    """Screen the hybrid capture using the scene and frame checks from #993.
+
+    This is measurement-only. Only ``frame_a`` is passed to
+    :func:`camera256_from_rgb`; ``frame_b`` must be cleared after assessment.
+    """
+    from PIL import ImageStat
+
+    sample = frame_a
+    width, height = sample.size
+    maximum_dimension = max(width, height)
+    if maximum_dimension > CAMERA_SHANNON_SAMPLE_MAX_DIM:
+        scale = CAMERA_SHANNON_SAMPLE_MAX_DIM / maximum_dimension
+        sample = sample.resize((
+            max(1, int(width * scale)),
+            max(1, int(height * scale)),
+        ))
+
+    pixels = list(sample.getdata())
+    pixel_counts = {}
+    for pixel in pixels:
+        pixel_counts[pixel] = pixel_counts.get(pixel, 0) + 1
+    shannon = _shannon_entropy_from_counts(pixel_counts.values(), len(pixels))
+
+    channel_deviations = ImageStat.Stat(sample).stddev
+    deviation = int(math.sqrt(
+        sum(value ** 2 for value in channel_deviations)
+        / len(channel_deviations)
+    ))
+    noise = camera_frame_noise_bits_per_pixel(frame_a, frame_b)
+
+    if (
+        shannon < CAMERA_INSUFFICIENT_SHANNON_BITS_PER_PIXEL
+        or deviation < CAMERA_INSUFFICIENT_DEVIATION
+        or noise < CAMERA_INSUFFICIENT_NOISE_BITS_PER_PIXEL
+    ):
+        quality = CameraEntropyQuality.INSUFFICIENT
+    elif deviation < CAMERA_POOR_DEVIATION:
+        quality = CameraEntropyQuality.POOR
+    else:
+        quality = CameraEntropyQuality.GOOD
+
+    return CameraEntropyResult(
+        quality=quality,
+        shannon_bits_per_pixel=shannon,
+        deviation_index=deviation,
+        noise_bits_per_pixel=noise,
+    )
 
 
 def camera_commitment(camera256: bytes | bytearray) -> bytes:

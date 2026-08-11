@@ -35,7 +35,19 @@ dice-only derivations are unchanged.
 
 ### 1. Canonical camera value
 
-The accepted final camera frame must be RGB with exactly three bytes per pixel.
+SeedSigner captures two full-resolution frames back-to-back after exposure and
+white balance are locked. Before committing, it reports scene Shannon entropy,
+pixel deviation, and temporal sensor noise calculated from the pixel-wise
+difference between the frames. An identical pair detects a frozen or replayed
+feed and is reported as insufficient. The user can retake the capture or make
+an explicit **Proceed anyway** choice.
+
+This is the same frame-differencing construction used by PR #993: the second
+frame is measurement-only and is cleared on every exit path. It is not hashed,
+committed, revealed, or XORed. Consequently the canonical camera value and the
+deterministic verifier remain based on the first frame alone.
+
+The accepted first camera frame must be RGB with exactly three bytes per pixel.
 Pixels are serialized row-major, top-to-bottom, in R, G, B channel order.
 
 ```text
