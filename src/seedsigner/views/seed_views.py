@@ -2386,6 +2386,7 @@ class RebuildSeedXORShowFingerprintView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON or button_data[selected_menu_num] == self.CANCEL:
             self.controller.storage.clear_pending_seed()
+            self.controller.resume_main_flow = None
             return Destination(RebuildSeedXORLoadPartView)
 
         error_dict = self.controller.process_rebuild_seedxor_part(self.seed)
@@ -2404,7 +2405,11 @@ class RebuildSeedXORShowFingerprintView(View):
                 skip_current_view=True
             )
 
+        # The part was accepted; the seed-loading sub-flow is complete, so clear
+        #   resume_main_flow (otherwise any later SeedMnemonicEntryView in this
+        #   session would be misrouted back into the SeedXOR flow).
         self.controller.storage.clear_pending_seed()
+        self.controller.resume_main_flow = None
         return Destination(RebuildSeedXORManageView)
 
 
@@ -2717,12 +2722,14 @@ class RebuildSeedXORFinalizeOptionsView(View):
                     self.controller.discard_seed(part)
 
             self.controller.clear_rebuild_seedxor_data()
+            self.controller.resume_main_flow = None
             return Destination(SeedOptionsView, view_args={"seed": combined_seed}, clear_history=True)
 
         elif button_data[selected_menu_num] == self.KEEP_PARTS:
             combined_seed = self.controller.storage.pending_seed
             self.controller.storage.finalize_pending_seed()
             self.controller.clear_rebuild_seedxor_data()
+            self.controller.resume_main_flow = None
 
             return Destination(SeedOptionsView, view_args={"seed": combined_seed}, clear_history=True)
 
