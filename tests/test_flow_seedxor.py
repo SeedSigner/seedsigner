@@ -6,7 +6,10 @@ from seedsigner.views import seed_views, scan_views
 from seedsigner.views.seed_views import SeedsMenuView
 from seedsigner.helpers.mnemonic_generation import combine_mnemonics_with_xor
 
-from seedxor_test_vectors import EXAMPLE_24_A, EXAMPLE_24_B, EXAMPLE_24_C, EXAMPLE_12_A
+from seedxor_test_vectors import (
+    EXAMPLE_24_A, EXAMPLE_24_B, EXAMPLE_24_C,
+    EXAMPLE_12_A, EXAMPLE_12_B,
+)
 
 
 def type_mnemonic(mnemonic: str):
@@ -175,3 +178,55 @@ class TestSeedXORFlows(FlowTest):
 
         self.run_sequence(sequence)
         assert len(self.controller.storage.rebuild_seedxor_parts) == 1
+
+    def test_resume_flow_cleared_after_finalize(self):
+        """
+        Regression test: resume_main_flow must be cleared when the SeedXOR flow
+        completes, otherwise a subsequent normal seed load (SeedMnemonicEntryView)
+        would be misrouted into the SeedXOR fingerprint view instead of
+        SeedFinalizeView.
+        """
+        from seedsigner.views.seed_views import SeedFinalizeView
+
+        self.settings.set_value(SettingsConstants.SETTING__SEED_XOR, SettingsConstants.OPTION__ENABLED)
+
+        # Complete a 2-part XOR and finalize with KEEP_PARTS (lands on SeedOptionsView,
+        #   NOT MainMenuView, so Home's resume_main_flow wipe is not what clears it).
+        sequence = [
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.REBUILD_SEED_XOR),
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.LOAD_NEXT_PART),
+            FlowStep(seed_views.RebuildSeedXORLoadPartView, button_data_selection=seed_views.RebuildSeedXORLoadPartView.TYPE_12WORD),
+        ]
+        sequence += type_mnemonic(EXAMPLE_12_A)
+        sequence += [
+            FlowStep(seed_views.RebuildSeedXORShowFingerprintView, button_data_selection=seed_views.RebuildSeedXORShowFingerprintView.CONTINUE),
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.LOAD_NEXT_PART),
+            FlowStep(seed_views.RebuildSeedXORLoadPartView, button_data_selection=seed_views.RebuildSeedXORLoadPartView.TYPE_12WORD),
+        ]
+        sequence += type_mnemonic(EXAMPLE_12_B)
+        sequence += [
+            FlowStep(seed_views.RebuildSeedXORShowFingerprintView, button_data_selection=seed_views.RebuildSeedXORShowFingerprintView.CONTINUE),
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.FINALIZE),
+            FlowStep(seed_views.RebuildSeedXORFinalizeView, button_data_selection=0),
+            FlowStep(seed_views.RebuildSeedXORFinalizeOptionsView, button_data_selection=seed_views.RebuildSeedXORFinalizeOptionsView.KEEP_PARTS),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+        ]
+        self.run_sequence(sequence)
+
+        # The flow is complete; resume_main_flow must not still point at SeedXOR.
+        assert self.controller.resume_main_flow != self.controller.FLOW__REBUILD_SEEDXOR
+
+        # Now load a NEW, unrelated seed via the normal flow in the same session.
+        #   It must finalize normally (SeedFinalizeView), NOT be captured as an XOR part.
+        sequence = [
+            FlowStep(SeedsMenuView, button_data_selection=SeedsMenuView.LOAD),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_12WORD),
+        ]
+        sequence += type_mnemonic(EXAMPLE_12_A)
+        sequence += [
+            FlowStep(SeedFinalizeView),
+        ]
+        self.run_sequence(sequence)
+        assert len(self.controller.storage.rebuild_seedxor_parts) == 0
