@@ -11,6 +11,7 @@ from PIL.Image import Image
 from seedsigner.gui.toast import BaseToastOverlayManagerThread
 from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.models.seed import Seed
+from seedsigner.helpers.seed_xor_validator import SeedXORValidator
 from seedsigner.models.seed_storage import SeedStorage
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings import SettingsConstants
@@ -133,6 +134,7 @@ class Controller(Singleton):
     FLOW__VERIFY_SINGLESIG_ADDR = "singlesig_addr"
     FLOW__ADDRESS_EXPLORER = "address_explorer"
     FLOW__SIGN_MESSAGE = "sign_message"
+    FLOW__REBUILD_SEEDXOR = "rebuild_seedxor"
     resume_main_flow: str = None
 
     back_stack: BackStack = None
@@ -221,6 +223,23 @@ class Controller(Singleton):
         self.storage.seeds.remove(seed)
 
 
+    def process_rebuild_seedxor_part(self, new_part_seed: Seed):
+        is_valid, error_dict = SeedXORValidator.validate_part(new_part_seed, self.storage.rebuild_seedxor_parts)
+        if not is_valid:
+            return error_dict
+        self.storage.add_rebuild_seedxor_part(new_part_seed)
+        return None
+
+    def remove_rebuild_seedxor_part(self, index: int):
+        parts = self.storage.rebuild_seedxor_parts
+        if 0 <= index < len(parts):
+            parts.pop(index)
+            self.storage.rebuild_seedxor_combined_seed = None
+
+    def clear_rebuild_seedxor_data(self):
+        self.storage.clear_rebuild_seedxor_data()
+
+
     def pop_prev_from_back_stack(self):
         if len(self.back_stack) > 0:
             # Pop the top View (which is the current View_cls)
@@ -303,6 +322,9 @@ class Controller(Singleton):
                     self.psbt = None
                     self.psbt_parser = None
                     self.psbt_seed = None
+                    # In-progress Seed XOR rebuild data is ephemeral; only the finalized
+                    #   combined Seed is kept (via finalize_pending_seed).
+                    self.clear_rebuild_seedxor_data()
                 
                 logger.info(f"\nback_stack: {self.back_stack}")
 
