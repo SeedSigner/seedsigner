@@ -653,12 +653,24 @@ class PSBTFinalizeView(View):
 
 class PSBTSignedQRDisplayView(View):
     def run(self):
-        from seedsigner.models.encode_qr import UrPsbtQrEncoder
+        from seedsigner.models.encode_qr import Base64PsbtQrEncoder, UrPsbtQrEncoder
 
-        qr_encoder = UrPsbtQrEncoder(
-            psbt=self.controller.psbt,
-            qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
-        )
+        if (
+            self.controller.psbt_parser
+            and self.controller.psbt_parser.policy
+            and self.controller.psbt_parser.policy.get("fidelity_bond")
+        ):
+            qr_encoder = Base64PsbtQrEncoder(psbt=self.controller.psbt)
+            if not qr_encoder.fits_in_qr:
+                qr_encoder = UrPsbtQrEncoder(
+                    psbt=self.controller.psbt,
+                    qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
+                )
+        else:
+            qr_encoder = UrPsbtQrEncoder(
+                psbt=self.controller.psbt,
+                qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
+            )
         self.run_screen(QRDisplayScreen, qr_encoder=qr_encoder)
 
         # We're done with this PSBT. Route back to MainMenuView which always

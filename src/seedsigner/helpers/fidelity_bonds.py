@@ -1,5 +1,6 @@
 """BIP 46 timelocked fidelity bond helpers."""
 
+import json
 import re
 from dataclasses import dataclass
 
@@ -53,7 +54,11 @@ def _require_index(index: int) -> None:
 def _coin_type(network: str) -> int:
     if network == SettingsConstants.MAINNET:
         return 0
-    if network in (SettingsConstants.TESTNET, SettingsConstants.REGTEST):
+    if network in (
+        SettingsConstants.TESTNET,
+        SettingsConstants.SIGNET,
+        SettingsConstants.REGTEST,
+    ):
         return 1
     raise ValueError("unsupported network")
 
@@ -226,6 +231,34 @@ def derive_address(
     return script.p2wsh(derive_witness_script(seed_bytes, index, network)).address(
         NETWORKS[embit_network]
     )
+
+
+def registration_payload(seed_bytes: bytes, index: int, network: str) -> str:
+    """Return the canonical single-QR BIP 46 registration payload."""
+    if not isinstance(seed_bytes, bytes):
+        raise ValueError("seed_bytes must be bytes")
+    embit_network = SettingsConstants.map_network_to_embit(network)
+    network_name = SettingsConstants.map_network_to_name(network)
+    if embit_network is None or network_name is None:
+        raise ValueError("unsupported network")
+
+    origin_path = f"m/84'/{_coin_type(network)}'/0'/2"
+    root = bip32.HDKey.from_seed(seed_bytes, version=NETWORKS[embit_network]["xprv"])
+    xpub = root.derive(origin_path).to_public().to_string(
+        version=NETWORKS[embit_network]["xpub"]
+    )
+    year, month = index_to_year_month(index)
+    payload = {
+        "type": "seedsigner-bip46",
+        "version": 1,
+        "network": network_name,
+        "master_fingerprint": root.my_fingerprint.hex(),
+        "origin_path": origin_path,
+        "xpub": xpub,
+        "locktime_date": f"{year:04d}-{month:02d}",
+        "address": derive_address(seed_bytes, index, network),
+    }
+    return json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
 
 
 def parse_certificate(certificate: str) -> FidelityBondCertificate:

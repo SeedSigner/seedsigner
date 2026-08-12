@@ -12,16 +12,18 @@ from seedsigner.models.settings_definition import SettingsConstants
 MNEMONIC = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 
 
-def make_bond_psbt(index=0):
+def make_bond_psbt(index=0, network=SettingsConstants.MAINNET):
     seed = Seed(MNEMONIC.split())
-    root = bip32.HDKey.from_seed(seed.seed_bytes, version=NETWORKS["main"]["xprv"])
-    path = bip32.parse_path(fidelity_bonds.derivation_path(index))
+    embit_network = SettingsConstants.map_network_to_embit(network)
+    root = bip32.HDKey.from_seed(seed.seed_bytes, version=NETWORKS[embit_network]["xprv"])
+    path = bip32.parse_path(fidelity_bonds.derivation_path(index, network))
     pubkey = root.derive(path).to_public().key
     witness_script = fidelity_bonds.witness_script(
         fidelity_bonds.index_to_locktime(index),
         pubkey,
     )
-    destination = script.p2wpkh(root.derive("m/84'/0'/0'/0/0").key)
+    coin_type = 0 if network == SettingsConstants.MAINNET else 1
+    destination = script.p2wpkh(root.derive(f"m/84'/{coin_type}'/0'/0/0").key)
     tx = transaction.Transaction(
         vin=[transaction.TransactionInput(b"\x11" * 32, 0, sequence=0xFFFFFFFE)],
         vout=[transaction.TransactionOutput(99_000, destination)],
@@ -64,6 +66,14 @@ def test_parse_sign_and_trim_fidelity_bond_psbt():
     assert trimmed_input.witness_script == bond_psbt.inputs[0].witness_script
     assert trimmed_input.sighash_type == SIGHASH.ALL
     assert trimmed_input.partial_sigs[pubkey] == signature
+
+
+def test_parse_signet_fidelity_bond_psbt():
+    seed, bond_psbt, _ = make_bond_psbt(network=SettingsConstants.SIGNET)
+    parser = PSBTParser(bond_psbt, seed, SettingsConstants.SIGNET)
+
+    assert parser.policy["fidelity_bond"] is True
+    assert parser.policy["locktime"] == 1577836800
 
 
 def test_rejects_missing_witness_utxo():

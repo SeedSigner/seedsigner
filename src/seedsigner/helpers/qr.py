@@ -96,8 +96,26 @@ class QR:
         else:
             border_str = "3"
 
-        cmd = f"""qrencode -m {border_str} -s 3 -l L --foreground=000000 --background={background_color} -t PNG -o "/tmp/qrcode.png" "{str(data)}" """
-        rv = subprocess.call(cmd, shell=True)
+        cmd = [
+            "qrencode",
+            "-m",
+            border_str,
+            "-s",
+            "3",
+            "-l",
+            "L",
+            "--foreground=000000",
+            f"--background={background_color}",
+            "-t",
+            "PNG",
+            "-o",
+            "/tmp/qrcode.png",
+            str(data),
+        ]
+        try:
+            rv = subprocess.call(cmd)
+        except OSError:
+            rv = -1
 
         # if qrencode fails, fall back to only encoder
         if rv != 0:

@@ -710,6 +710,7 @@ class SeedFidelityBondMonthView(View):
 
 class SeedFidelityBondAddressView(View):
     SHOW_QR = ButtonOption("Show QR")
+    EXPORT_REGISTRATION = ButtonOption("Export registration QR")
 
     def __init__(self, seed: Seed, year: int, month: int):
         from seedsigner.helpers import fidelity_bonds
@@ -726,7 +727,7 @@ class SeedFidelityBondAddressView(View):
     def run(self):
         selected_menu_num = self.run_screen(
             seed_screens.SeedFidelityBondAddressScreen,
-            button_data=[self.SHOW_QR],
+            button_data=[self.SHOW_QR, self.EXPORT_REGISTRATION],
             year=self.year,
             month=self.month,
             derivation_path=self.derivation_path,
@@ -734,7 +735,16 @@ class SeedFidelityBondAddressView(View):
         )
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        return Destination(SeedFidelityBondAddressQRView, view_args=dict(address=self.address))
+        if selected_menu_num == 0:
+            return Destination(SeedFidelityBondAddressQRView, view_args=dict(address=self.address))
+        return Destination(
+            SeedFidelityBondRegistrationWarningView,
+            view_args=dict(
+                seed=self.seed,
+                index=self.index,
+                network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
+            ),
+        )
 
 
 class SeedFidelityBondAddressQRView(View):
@@ -746,6 +756,47 @@ class SeedFidelityBondAddressQRView(View):
         from seedsigner.gui.screens.screen import QRDisplayScreen
 
         self.run_screen(QRDisplayScreen, qr_encoder=GenericStaticQrEncoder(data=self.address))
+        return Destination(BackStackView)
+
+
+class SeedFidelityBondRegistrationWarningView(View):
+    def __init__(self, seed: Seed, index: int, network: str):
+        super().__init__()
+        self.seed = seed
+        self.index = index
+        self.network = network
+
+    def run(self):
+        destination = Destination(
+            SeedFidelityBondRegistrationQRView,
+            view_args=dict(seed=self.seed, index=self.index, network=self.network),
+            skip_current_view=True,
+        )
+        if self.settings.get_value(SettingsConstants.SETTING__PRIVACY_WARNINGS) == SettingsConstants.OPTION__DISABLED:
+            return destination
+
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title=_("Privacy Leak!"),
+            status_headline=None,
+            text=_("This branch xpub reveals every BIP-46 bond from this dedicated seed."),
+        )
+        if selected_menu_num == 0:
+            return destination
+        return Destination(BackStackView)
+
+
+class SeedFidelityBondRegistrationQRView(View):
+    def __init__(self, seed: Seed, index: int, network: str):
+        from seedsigner.helpers import fidelity_bonds
+
+        super().__init__()
+        self.payload = fidelity_bonds.registration_payload(seed.seed_bytes, index, network)
+
+    def run(self):
+        from seedsigner.gui.screens.screen import QRDisplayScreen
+
+        self.run_screen(QRDisplayScreen, qr_encoder=GenericStaticQrEncoder(data=self.payload))
         return Destination(BackStackView)
 
 
@@ -2341,8 +2392,12 @@ class SeedSignMessageConfirmAddressView(View):
             raise Exception(_("Signing messages for custom derivation paths not supported"))
 
         if addr_format["network"] != SettingsConstants.MAINNET:
-            # We're in either Testnet or Regtest or...?
-            if self.settings.get_value(SettingsConstants.SETTING__NETWORK) in [SettingsConstants.TESTNET, SettingsConstants.REGTEST]:
+            # A coin-type-1 path can be Testnet, Signet, or Regtest.
+            if self.settings.get_value(SettingsConstants.SETTING__NETWORK) in [
+                SettingsConstants.TESTNET,
+                SettingsConstants.SIGNET,
+                SettingsConstants.REGTEST,
+            ]:
                 addr_format["network"] = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
             else:
                 from seedsigner.views.view import NetworkMismatchErrorView
@@ -2396,7 +2451,14 @@ class SeedSignMessageSignedMessageQRView(View):
         derivation_path = data["derivation_path"]
         message: str = data["message"]
 
-        self.signed_message = embit_utils.sign_message(seed_bytes=self.seed.seed_bytes, derivation=derivation_path, msg=message.encode())
+        self.signed_message = embit_utils.sign_message(
+            seed_bytes=self.seed.seed_bytes,
+            derivation=derivation_path,
+            msg=message.encode(),
+            embit_network=SettingsConstants.map_network_to_embit(
+                self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+            ),
+        )
 
 
     def run(self):

@@ -2,7 +2,7 @@ import math
 
 from embit import bip32
 from embit.networks import NETWORKS
-from binascii import hexlify
+from binascii import b2a_base64, hexlify
 from dataclasses import dataclass
 from typing import List
 from embit import bip32
@@ -142,6 +142,33 @@ class GenericStaticQrEncoder(BaseStaticQrEncoder):
 
     def next_part(self):
         return self.data
+
+
+@dataclass
+class Base64PsbtQrEncoder(GenericStaticQrEncoder):
+    psbt: PSBT = None
+
+    MAX_QR_MODULES = 65
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.data = b2a_base64(self.psbt.serialize()).rstrip(b"\n").decode("ascii")
+
+    @property
+    def fits_in_qr(self) -> bool:
+        import qrcode
+
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            border=2,
+        )
+        qr.add_data(self.data)
+        try:
+            qr.make(fit=True)
+        except qrcode.exceptions.DataOverflowError:
+            return False
+        return len(qr.get_matrix()) - 4 <= self.MAX_QR_MODULES
 
 
 

@@ -1,9 +1,50 @@
 import os
+from unittest.mock import patch
+
 from embit import bip39
+from pyzbar import pyzbar
+
+from seedsigner.helpers import fidelity_bonds
 from seedsigner.helpers.qr import QR
 from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
-from seedsigner.models.encode_qr import SeedQrEncoder, CompactSeedQrEncoder
+from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder
 from seedsigner.models.qr_type import QRType
+from seedsigner.models.seed import Seed
+from seedsigner.models.settings_definition import SettingsConstants
+
+
+def test_qrimage_io_preserves_json_payload_for_qrencode():
+    payload = '{"type":"seedsigner-bip46","xpub":"xpub123"}'
+    qr = QR()
+    fallback_image = object()
+
+    with patch("seedsigner.helpers.qr.subprocess.call", return_value=1) as mock_call:
+        with patch.object(qr, "qrimage", return_value=fallback_image):
+            image = qr.qrimage_io(payload)
+
+    command = mock_call.call_args.args[0]
+    assert isinstance(command, list)
+    assert command[-1] == payload
+    assert image is fallback_image
+
+
+def test_fidelity_bond_registration_qr_round_trip_at_device_size():
+    seed = Seed(
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon "
+        "abandon about".split()
+    )
+    for network in (
+        SettingsConstants.MAINNET,
+        SettingsConstants.TESTNET,
+        SettingsConstants.SIGNET,
+        SettingsConstants.REGTEST,
+    ):
+        payload = fidelity_bonds.registration_payload(seed.seed_bytes, 73, network)
+        image = GenericStaticQrEncoder(data=payload).next_part_image(width=240, height=240)
+
+        decoded = pyzbar.decode(image)
+        assert len(decoded) == 1
+        assert decoded[0].data.decode("ascii") == payload
 
 
 

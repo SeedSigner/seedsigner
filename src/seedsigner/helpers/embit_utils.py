@@ -23,9 +23,11 @@ from seedsigner.models.settings_definition import SettingsConstants
 def get_standard_derivation_path(network: str = SettingsConstants.MAINNET, wallet_type: str = SettingsConstants.SINGLE_SIG, script_type: str = SettingsConstants.NATIVE_SEGWIT) -> str:
     if network == SettingsConstants.MAINNET:
         network_path = "0'"
-    elif network == SettingsConstants.TESTNET:
-        network_path = "1'"
-    elif network == SettingsConstants.REGTEST:
+    elif network in (
+        SettingsConstants.TESTNET,
+        SettingsConstants.SIGNET,
+        SettingsConstants.REGTEST,
+    ):
         network_path = "1'"
     else:
         raise Exception("Unexpected network")
@@ -117,6 +119,7 @@ def get_embit_network_name(settings_name):
     lookup = {
         SettingsConstants.MAINNET: "main",
         SettingsConstants.TESTNET: "test",
+        SettingsConstants.SIGNET: "test",
         SettingsConstants.REGTEST: "regtest",
     }
     return lookup.get(settings_name)
@@ -142,7 +145,11 @@ def parse_derivation_path(derivation_path: str) -> dict:
         bond_path = fidelity_bonds.parse_derivation_path(derivation_path)
         network = SettingsConstants.MAINNET
         if bond_path.coin_type == 1:
-            network = [SettingsConstants.TESTNET, SettingsConstants.REGTEST]
+            network = [
+                SettingsConstants.TESTNET,
+                SettingsConstants.SIGNET,
+                SettingsConstants.REGTEST,
+            ]
         return {
             "script_type": SettingsConstants.NATIVE_SEGWIT,
             "network": network,
@@ -168,7 +175,11 @@ def parse_derivation_path(derivation_path: str) -> dict:
         },
         "networks": {
             "0h": SettingsConstants.MAINNET,
-            "1h": [SettingsConstants.TESTNET, SettingsConstants.REGTEST],
+            "1h": [
+                SettingsConstants.TESTNET,
+                SettingsConstants.SIGNET,
+                SettingsConstants.REGTEST,
+            ],
         }
     }
 

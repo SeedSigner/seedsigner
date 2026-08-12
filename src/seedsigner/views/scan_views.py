@@ -135,6 +135,15 @@ class ScanView(View):
                 address = self.decoder.get_address()
                 (script_type, network) = self.decoder.get_address_type()
 
+                # Testnet and Signet share address encoding. Preserve the active
+                # Signet context when the scanned address cannot distinguish them.
+                if (
+                    network == SettingsConstants.TESTNET
+                    and self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+                    == SettingsConstants.SIGNET
+                ):
+                    network = SettingsConstants.SIGNET
+
                 return Destination(
                     AddressVerificationStartView,
                     skip_current_view=True,

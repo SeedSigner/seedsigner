@@ -1113,7 +1113,7 @@ class BtcAmount(BaseComponent):
             sats_unit = _("sats")
             btc_color = GUIConstants.ACCENT_COLOR
 
-        elif network == SettingsConstants.TESTNET:
+        elif network in (SettingsConstants.TESTNET, SettingsConstants.SIGNET):
             btc_color = GUIConstants.TESTNET_COLOR
         
         elif network == SettingsConstants.REGTEST:

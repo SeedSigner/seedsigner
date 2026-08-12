@@ -37,6 +37,25 @@ class TestSeedFlows(FlowTest):
             FlowStep(seed_views.SeedFidelityBondAddressQRView),
         ])
 
+    def test_export_fidelity_bond_registration(self):
+        def verify_registration(view):
+            assert '"type":"seedsigner-bip46"' in view.payload
+            assert '"network":"mainnet"' in view.payload
+            assert '"origin_path":"m/84\'/0\'/0\'/2"' in view.payload
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.FIDELITY_BOND),
+            FlowStep(seed_views.SeedFidelityBondWarningView, button_data_selection=seed_views.SeedFidelityBondWarningView.CONTINUE),
+            FlowStep(seed_views.SeedFidelityBondYearView, screen_return_value=0),
+            FlowStep(seed_views.SeedFidelityBondMonthView, screen_return_value=0),
+            FlowStep(seed_views.SeedFidelityBondAddressView, button_data_selection=seed_views.SeedFidelityBondAddressView.EXPORT_REGISTRATION),
+            FlowStep(seed_views.SeedFidelityBondRegistrationWarningView, screen_return_value=0),
+            FlowStep(seed_views.SeedFidelityBondRegistrationQRView, before_run=verify_registration),
+        ])
+
     def test_scan_seedqr_flow(self):
         """
             Selecting "Scan" from the MainMenuView and scanning a SeedQR should enter the
@@ -762,6 +781,28 @@ class TestMessageSigningFlows(FlowTest):
         ])
 
 
+    def test_sign_signet_message_flow(self):
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.SIGNET)
+
+        def verify_signet_address(view):
+            assert view.address == "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl"
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_testnet_message_into_decoder),
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageConfirmAddressView, before_run=verify_signet_address, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageSignedMessageQRView, screen_return_value=0),
+            FlowStep(MainMenuView),
+        ])
+
+
     def test_reject_invalid_fidelity_bond_certificate(self):
         self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
 
@@ -891,4 +932,3 @@ class TestMessageSigningFlows(FlowTest):
 
         self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
         expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
-

@@ -153,6 +153,40 @@ def test_testnet_and_regtest_derivation():
     )
 
 
+def test_signet_derivation_and_registration_payload():
+    assert (
+        fidelity_bonds.derivation_path(0, SettingsConstants.SIGNET)
+        == "m/84'/1'/0'/2/0"
+    )
+    assert (
+        fidelity_bonds.derive_address(SEED_BYTES, 0, SettingsConstants.SIGNET)
+        == "tb1q7war3lusq3ez633rzzfkp75unfcgrqqcu80sgp0ellhrdvkzxh5srftzav"
+    )
+    assert fidelity_bonds.parse_derivation_path(
+        "m/84'/1'/0'/2/0", SettingsConstants.SIGNET
+    ) == fidelity_bonds.FidelityBondPath(coin_type=1, index=0)
+
+    assert fidelity_bonds.registration_payload(
+        SEED_BYTES, 240, SettingsConstants.SIGNET
+    ) == (
+        '{"type":"seedsigner-bip46","version":1,"network":"signet",'
+        '"master_fingerprint":"73c5da0a","origin_path":"m/84\'/1\'/0\'/2",'
+        '"xpub":"tpubDFd87GgwwqSRQWvuBRuqEFnoWjJDHDnDUqu7c8DXoALBU9Kbwuom5U1KrGmYEgiCQoNtSvqdjkysKgrQZVAvU7NcVfPf1j9CRMpD1hwSpwq",'
+        '"locktime_date":"2040-01",'
+        '"address":"tb1qnkuzv3jckcxd9xdnvse36x2m6ylcg4aqgam2gd4tt689k44ft6eq526xlk"}'
+    )
+
+
+def test_mainnet_registration_payload_uses_standard_xpub():
+    payload = fidelity_bonds.registration_payload(
+        SEED_BYTES, 240, SettingsConstants.MAINNET
+    )
+    assert '"network":"mainnet"' in payload
+    assert '"origin_path":"m/84\'/0\'/0\'/2"' in payload
+    assert '"xpub":"xpub' in payload
+    assert '"locktime_date":"2040-01"' in payload
+
+
 def test_parse_certificate():
     certificate = "fidelity-bond-cert|0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c|375"
     parsed = fidelity_bonds.parse_certificate(certificate)

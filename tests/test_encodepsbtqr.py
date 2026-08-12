@@ -1,4 +1,4 @@
-from seedsigner.models.encode_qr import CompactSeedQrEncoder, SeedQrEncoder, SpecterLegacyXPubQrEncoder, StaticXpubQrEncoder, UrPsbtQrEncoder, UrXpubQrEncoder
+from seedsigner.models.encode_qr import Base64PsbtQrEncoder, CompactSeedQrEncoder, SeedQrEncoder, SpecterLegacyXPubQrEncoder, StaticXpubQrEncoder, UrPsbtQrEncoder, UrXpubQrEncoder
 from embit import psbt
 from binascii import a2b_base64
 
@@ -12,6 +12,10 @@ def test_ur_psbt_qr_encode():
 
     tx = psbt.PSBT.parse(a2b_base64(base64_psbt))
 
+    static_encoder = Base64PsbtQrEncoder(psbt=tx)
+    assert static_encoder.next_part() == base64_psbt
+    assert not static_encoder.fits_in_qr
+
     e = UrPsbtQrEncoder(psbt=tx, qr_density=SettingsConstants.DENSITY__MEDIUM)
 
     cnt = 0
@@ -19,6 +23,15 @@ def test_ur_psbt_qr_encode():
         fragment = e.next_part()
         e.part_to_image(fragment, 240, 240)
         cnt += 1
+
+
+def test_base64_fidelity_bond_psbt_qr_fits():
+    base64_psbt = "cHNidP8BAFICAAAAARERERERERERERERERERERERERERERERERERERERERERAAAAAAD+////AbiCAQAAAAAAFgAUwM681sPTyox13F7GLr5VMw75EOIA4QteAAEBK6CGAQAAAAAAIgAgve6VFTWfyd+RIxhSO0zSLxwLVBAjLclDvnP59PB+Oa0BAwQBAAAAAQUqBADhC16xdSECobCfkwc8Y/IFCGRAiYFBwMPG0k9poY22CCJLzxQ/oBGsIgYCobCfkwc8Y/IFCGRAiYFBwMPG0k9poY22CCJLzxQ/oBEYc8XaClQAAIAAAACAAAAAgAIAAAAAAAAAAAA="
+    tx = psbt.PSBT.parse(a2b_base64(base64_psbt))
+
+    static_encoder = Base64PsbtQrEncoder(psbt=tx)
+    assert static_encoder.next_part() == base64_psbt
+    assert static_encoder.fits_in_qr
 
 
 
