@@ -69,6 +69,11 @@ class BaseQrEncoder:
 **************************************************************************************"""
 @dataclass
 class BaseStaticQrEncoder(BaseQrEncoder):
+    def __post_init__(self):
+        super().__post_init__()
+        self._cached_image = None
+        self._cached_image_params = None
+
     def seq_len(self):
         return 1
     
@@ -80,6 +85,21 @@ class BaseStaticQrEncoder(BaseQrEncoder):
     @property
     def is_complete(self):
         return True
+
+    def part_to_image(self, part, width, height, border: int = 3, background_color: str = "ffffff"):
+        image_params = (part, width, height, border, background_color)
+        if self._cached_image_params != image_params:
+            self._cached_image = super().part_to_image(
+                part,
+                width,
+                height,
+                border,
+                background_color=background_color,
+            )
+            self._cached_image_params = image_params
+
+        # Brightness tips are drawn directly onto the returned image.
+        return self._cached_image.copy()
 
 
 

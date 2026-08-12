@@ -56,6 +56,19 @@ class TestSeedFlows(FlowTest):
             FlowStep(seed_views.SeedFidelityBondRegistrationQRView, before_run=verify_registration),
         ])
 
+    def test_exit_fidelity_bond_summary_returns_to_seed_options(self):
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.FIDELITY_BOND),
+            FlowStep(seed_views.SeedFidelityBondWarningView, button_data_selection=seed_views.SeedFidelityBondWarningView.CONTINUE),
+            FlowStep(seed_views.SeedFidelityBondYearView, screen_return_value=0),
+            FlowStep(seed_views.SeedFidelityBondMonthView, screen_return_value=0),
+            FlowStep(seed_views.SeedFidelityBondAddressView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.SeedOptionsView),
+        ])
+
     def test_scan_seedqr_flow(self):
         """
             Selecting "Scan" from the MainMenuView and scanning a SeedQR should enter the

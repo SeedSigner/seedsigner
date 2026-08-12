@@ -643,7 +643,7 @@ class SeedFidelityBondWarningView(View):
             DireWarningScreen,
             title=_("Fidelity Bond"),
             status_headline=_("Funds will be locked"),
-            text=_("Funds cannot be spent before the selected month. Past dates are already spendable. Use one deposit and verify the address before funding."),
+            text=_("Funds stay locked until the selected month. Verify the address, then send one deposit."),
             button_data=[self.CONTINUE],
         )
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -734,7 +734,11 @@ class SeedFidelityBondAddressView(View):
             address=self.address,
         )
         if selected_menu_num == RET_CODE__BACK_BUTTON:
-            return Destination(BackStackView)
+            return Destination(
+                SeedOptionsView,
+                view_args=dict(seed=self.seed),
+                clear_history=True,
+            )
         if selected_menu_num == 0:
             return Destination(SeedFidelityBondAddressQRView, view_args=dict(address=self.address))
         return Destination(

@@ -1693,8 +1693,8 @@ class SeedFidelityBondAddressScreen(ButtonListScreen):
         derivation_path_display = IconTextLine(
             icon_name=SeedSignerIconConstants.DERIVATION,
             icon_color=GUIConstants.INFO_COLOR,
-            label_text=_("derivation path"),
             value_text=self.derivation_path,
+            font_size=GUIConstants.get_body_font_size() - 2,
             is_text_centered=True,
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
         )
@@ -1702,5 +1702,8 @@ class SeedFidelityBondAddressScreen(ButtonListScreen):
         self.components.append(FormattedAddress(
             address=self.address,
             max_lines=3,
-            screen_y=derivation_path_display.screen_y + derivation_path_display.height + 2*GUIConstants.COMPONENT_PADDING,
+            font_size=14,
+            width=self.canvas_width - 2*GUIConstants.EDGE_PADDING,
+            screen_x=GUIConstants.EDGE_PADDING,
+            screen_y=derivation_path_display.screen_y + derivation_path_display.height + GUIConstants.COMPONENT_PADDING,
         ))

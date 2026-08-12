@@ -1,8 +1,10 @@
+from io import BytesIO
+import subprocess
+
 import qrcode
 from qrcode.image.styledpil import StyledPilImage
 from qrcode.image.styles.moduledrawers import CircleModuleDrawer, GappedSquareModuleDrawer
 from PIL import Image, ImageDraw
-import subprocess
 
 class QR:
     STYLE__DEFAULT = 1
@@ -109,17 +111,18 @@ class QR:
             "-t",
             "PNG",
             "-o",
-            "/tmp/qrcode.png",
+            "-",
             str(data),
         ]
         try:
-            rv = subprocess.call(cmd)
+            result = subprocess.run(cmd, capture_output=True, check=False)
         except OSError:
-            rv = -1
+            result = None
 
         # if qrencode fails, fall back to only encoder
-        if rv != 0:
+        if result is None or result.returncode != 0:
             return self.qrimage(data,width,height,border)
-        img = Image.open("/tmp/qrcode.png").resize((width,height), Image.Resampling.NEAREST).convert("RGBA")
+        with Image.open(BytesIO(result.stdout)) as encoded_image:
+            img = encoded_image.resize((width,height), Image.Resampling.NEAREST).convert("RGBA")
 
         return img
