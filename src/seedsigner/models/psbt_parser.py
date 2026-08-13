@@ -17,6 +17,9 @@ class OPCODES:
     OP_RETURN = 106
     OP_PUSHDATA1 = 76
 
+    # Any opcode below OP_PUSHDATA1 is itself the number of bytes to push
+    OP_PUSHDATA_MAX_DIRECT = 75
+
 
 
 class PSBTParser():
@@ -105,6 +108,12 @@ class PSBTParser():
                 self.input_amount += inp.utxo.value
                 script_pubkey = inp.script_pubkey
 
+            else:
+                # Without the input's utxo we can neither total its value nor determine
+                # its policy. Must not fall through and silently reuse the previous
+                # iteration's `script_pubkey`.
+                raise RuntimeError("Input is missing its utxo data")
+
             inp_policy = PSBTParser._get_policy(inp, script_pubkey, self.psbt.xpubs)
             if self.policy == None:
                 self.policy = inp_policy
@@ -188,8 +197,7 @@ class PSBTParser():
                     is_change = True
 
             if self.psbt.tx.vout[i].script_pubkey.data[0] == OPCODES.OP_RETURN:
-                # The data is written as: OP_RETURN + OP_PUSHDATA1 + len(payload) + payload
-                self.op_return_data = self.psbt.tx.vout[i].script_pubkey.data[3:]
+                self.op_return_data = PSBTParser._parse_op_return_payload(self.psbt.tx.vout[i].script_pubkey.data)
 
             elif is_change:
                 addr = self.psbt.tx.vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
@@ -225,6 +233,38 @@ class PSBTParser():
 
         self.fee_amount = self.psbt.fee()
         return True
+
+
+    @staticmethod
+    def _parse_op_return_payload(script_data: bytes) -> bytes:
+        """
+            Extracts the pushed payload from an OP_RETURN scriptPubKey.
+
+            The payload can be pushed two different ways and both occur in the wild:
+                * OP_RETURN + <len> + payload            (payloads up to 75 bytes)
+                * OP_RETURN + OP_PUSHDATA1 + <len> + payload
+
+            Bitcoin Core emits the minimal encoding, so the vast majority of real-world
+            OP_RETURNs use the first form. Assuming OP_PUSHDATA1 is always present would
+            chop off the payload's first byte.
+        """
+        if len(script_data) < 2:
+            # OP_RETURN with no payload at all
+            return b""
+
+        push_opcode = script_data[1]
+
+        if push_opcode <= OPCODES.OP_PUSHDATA_MAX_DIRECT:
+            # The opcode is itself the payload length
+            return script_data[2:2 + push_opcode]
+
+        if push_opcode == OPCODES.OP_PUSHDATA1 and len(script_data) >= 3:
+            return script_data[3:3 + script_data[2]]
+
+        # Unrecognized push encoding (OP_PUSHDATA2/4 can't fit in a standard 80-byte
+        # OP_RETURN). Return everything after OP_RETURN so the user still sees the raw
+        # bytes rather than nothing at all.
+        return script_data[1:]
 
 
     @staticmethod
