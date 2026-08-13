@@ -683,6 +683,14 @@ class TestMessageSigningFlows(FlowTest):
         self.controller.sign_message_data["paged_message"] = paged
 
 
+    def verify_fidelity_bond_certificate_page(self, view: View):
+        self.inject_mesage_as_paged_message(view)
+        pages = self.controller.sign_message_data["paged_message"]
+        assert len(pages) == 1
+        assert pages[0].count("\n") == 3
+        assert pages[0].replace("\n", "") == self.FIDELITY_BOND_CERTIFICATE
+
+
     def test_sign_message_flow(self):
         """
         Should scan a `signmessage` QR and complete the message review, address review,
@@ -764,6 +772,7 @@ class TestMessageSigningFlows(FlowTest):
             FlowStep(scan_views.ScanView, before_run=self.load_no_whitespace_message_into_decoder),  # simulate read message QR; ret val is ignored
             FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
             FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageConfirmMessageView, screen_return_value=0),
             FlowStep(seed_views.SeedSignMessageConfirmAddressView, screen_return_value=0),
             FlowStep(seed_views.SeedSignMessageSignedMessageQRView, screen_return_value=0),
             FlowStep(MainMenuView),
@@ -787,7 +796,7 @@ class TestMessageSigningFlows(FlowTest):
             FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),
             FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
             FlowStep(seed_views.SeedOptionsView, is_redirect=True),
-            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.verify_fidelity_bond_certificate_page, screen_return_value=0),
             FlowStep(seed_views.SeedSignMessageConfirmAddressView, before_run=verify_bond_address, screen_return_value=0),
             FlowStep(seed_views.SeedSignMessageSignedMessageQRView, before_run=verify_signature, screen_return_value=0),
             FlowStep(MainMenuView),
