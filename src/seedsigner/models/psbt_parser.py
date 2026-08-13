@@ -35,6 +35,7 @@ class PSBTParser():
         self.destination_addresses = []
         self.destination_amounts = []
         self.op_return_data: bytes = None
+        self.unverified_input_nums: List[int] = []
 
         self.root = None
 
@@ -83,6 +84,9 @@ class PSBTParser():
         # Try to fix missing fingerprints before parsing
         self._fill_missing_fingerprints()
 
+        # An input's declared amount is an unverified claim until it is checked
+        self._verify_input_amounts()
+
         rt = self._parse_inputs()
         if rt == False:
             return False
@@ -92,6 +96,42 @@ class PSBTParser():
             return False
 
         return True
+
+
+    @property
+    def has_unverified_input_amounts(self) -> bool:
+        """True if any input did not supply a previous tx we could check it against"""
+        return len(self.unverified_input_nums) > 0
+
+
+    def _verify_input_amounts(self):
+        """
+            The amount a PSBT declares for an input is an attacker-controlled claim until it
+            is checked against the previous transaction it says it came from. Trusting it
+            enables the well-known "miner fee attack": a malicious coordinator understates
+            the input values, the user approves what looks like a reasonable fee, and the
+            difference is handed to the miner.
+
+            This is not specific to legacy inputs. BIP-143 commits only to the amount of the
+            input currently being signed, so with two or more inputs an attacker can obtain
+            one valid signature per signing session by telling the truth about exactly one
+            input each time, then combine the sessions.
+
+            `InputScope.verify()` re-hashes the supplied non_witness_utxo and compares it to
+            the outpoint's txid; embit provides it for exactly this purpose. Inputs that
+            supply no previous tx at all cannot be checked here, so they are recorded rather
+            than rejected -- BIP-174 permits a segwit input to carry only witness_utxo, and
+            refusing those outright would break those coordinators.
+        """
+        self.unverified_input_nums = []
+        for i, inp in enumerate(self.psbt.inputs):
+            if inp.non_witness_utxo is None and inp._txhash is None:
+                self.unverified_input_nums.append(i)
+                continue
+            try:
+                inp.verify()
+            except Exception as e:
+                raise RuntimeError(f"Input {i} amount could not be verified: {e}")
 
 
     def _parse_inputs(self):
