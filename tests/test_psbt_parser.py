@@ -485,3 +485,82 @@ def test_parse_op_return_content():
     assert psbt_parser.change_amount == 99992296
     assert psbt_parser.destination_addresses == []
     assert psbt_parser.destination_amounts == []
+
+
+
+def test_parse_op_return_payload_push_encodings():
+    """
+        Should extract the OP_RETURN payload regardless of which push encoding was used.
+
+        Payloads of up to 75 bytes are pushed with a single-byte push opcode (this is
+        the minimal encoding that Bitcoin Core emits); larger payloads require
+        OP_PUSHDATA1 + a 1-byte length.
+    """
+    from seedsigner.models.psbt_parser import OPCODES
+
+    payload = "Chancellor on the brink of third bailout".encode()
+    assert len(payload) < OPCODES.OP_PUSHDATA_MAX_DIRECT
+
+    # Minimal/direct push: OP_RETURN + <len> + payload
+    direct_push = bytes([OPCODES.OP_RETURN, len(payload)]) + payload
+    assert PSBTParser._parse_op_return_payload(direct_push) == payload
+
+    # OP_PUSHDATA1: OP_RETURN + OP_PUSHDATA1 + <len> + payload
+    pushdata1 = bytes([OPCODES.OP_RETURN, OPCODES.OP_PUSHDATA1, len(payload)]) + payload
+    assert PSBTParser._parse_op_return_payload(pushdata1) == payload
+
+    # 75 bytes is the largest payload a direct push can carry
+    payload_75 = bytes(range(75))
+    direct_push_75 = bytes([OPCODES.OP_RETURN, len(payload_75)]) + payload_75
+    assert PSBTParser._parse_op_return_payload(direct_push_75) == payload_75
+
+    # Anything larger requires OP_PUSHDATA1, up to the 80-byte standardness limit
+    payload_80 = bytes(range(80))
+    pushdata1_80 = bytes([OPCODES.OP_RETURN, OPCODES.OP_PUSHDATA1, len(payload_80)]) + payload_80
+    assert PSBTParser._parse_op_return_payload(pushdata1_80) == payload_80
+
+    # Bare OP_RETURN with no payload must not raise
+    assert PSBTParser._parse_op_return_payload(bytes([OPCODES.OP_RETURN])) == b""
+
+    # Trailing bytes beyond the declared push length are not part of the payload
+    over_long = bytes([OPCODES.OP_RETURN, 4]) + b"data" + b"junk"
+    assert PSBTParser._parse_op_return_payload(over_long) == b"data"
+
+
+
+def test_parse_op_return_content_minimal_push():
+    """
+        Should parse an OP_RETURN that uses the minimal (single-byte) push opcode.
+
+        Same PSBT as `test_parse_op_return_content` but the OP_RETURN output is
+        re-encoded the way Bitcoin Core would emit it. Assuming OP_PUSHDATA1 is always
+        present truncates the payload's first byte.
+    """
+    from embit.script import Script
+    from seedsigner.models.psbt_parser import OPCODES
+
+    psbt_base64 = "cHNidP8BAIYCAAAAATpQ10o+gKdZ8ThpKsbfHiHYn3NhvUrQ5DvW0ZWX8jKLAAAAAAD9////AujC9QUAAAAAFgAUY61+2BcXt+tsWoxV1nVw20kVb1UAAAAAAAAAACtqTChDaGFuY2VsbG9yIG9uIHRoZSBicmluayBvZiB0aGlyZCBiYWlsb3V0aQAAAE8BBDWHzwNXmUmVgAAAANRFa7R5gYD84Wbha3d1QnjgfYPOBw87on6cXS32WoyqAsPFtPxB7PRTdbujUnBPUVDh9YUBtwrl4nc0OcRNGvIyEA+4gv9UAACAAQAAgAAAAIAAAQB0AgAAAAGNFK/1X0fP5q+nu5XX7Tk2VRa0EL+jkGI9CHiJvsjZCgAAAAAA/f///wKMw/UFAAAAABYAFIpZMNnUU6cQt8Q0YpZ0pnvsSA5fAAAAAAAAAAAZakwWYml0Y29pbiBpcyBmcmVlIHNwZWVjaGgAAAABAR+Mw/UFAAAAABYAFIpZMNnUU6cQt8Q0YpZ0pnvsSA5fAQMEAQAAACIGAvxDI0eNI1oQ2AU69R7A0jf+hUdilWCgrWHgdzkqlaXMGA+4gv9UAACAAQAAgAAAAIAAAAAAAQAAAAAiAgK9qKtzGWyiRrpmupdA99NVLriz3GQy6cENbyD19sfl/hgPuIL/VAAAgAEAAIAAAACAAAAAAAIAAAAAAA=="
+    tx = PSBT.parse(a2b_base64(psbt_base64))
+
+    payload = "Chancellor on the brink of third bailout".encode()
+
+    # Re-encode the OP_RETURN output with a minimal push. Note that `PSBT.tx` is a
+    # derived property, so the scriptPubKey has to be replaced on the OutputScope.
+    op_return_index = [
+        i for i, out in enumerate(tx.outputs)
+        if out.script_pubkey.data[0] == OPCODES.OP_RETURN
+    ][0]
+    tx.outputs[op_return_index].script_pubkey = Script(
+        bytes([OPCODES.OP_RETURN, len(payload)]) + payload
+    )
+
+    # Round-trip through serialization to confirm the re-encoded output survives
+    tx = PSBT.from_string(tx.to_string())
+    assert tx.tx.vout[op_return_index].script_pubkey.data == bytes([OPCODES.OP_RETURN, len(payload)]) + payload
+
+    mnemonic = "model ensure search plunge galaxy firm exclude brain satoshi meadow cable roast".split()
+    seed = Seed(mnemonic, passphrase="")
+
+    psbt_parser = PSBTParser(p=tx, seed=seed, network=SettingsConstants.REGTEST)
+
+    assert psbt_parser.op_return_data == payload
