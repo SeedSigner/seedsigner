@@ -12,6 +12,7 @@ from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
     WarningScreen, DireWarningScreen, seed_screens, LargeIconStatusScreen)
 from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation
 from seedsigner.helpers.mnemonic_generation import combine_mnemonics_with_xor
+from seedsigner.helpers.seed_xor_validator import SeedXORValidator
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterLegacyXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
@@ -2638,6 +2639,14 @@ class RebuildSeedXORFinalizeView(View):
             mnemonic_strings = [part.mnemonic_str for part in self.controller.storage.rebuild_seedxor_parts]
             combined_mnemonic = combine_mnemonics_with_xor(mnemonic_strings)
             seed = Seed(mnemonic=combined_mnemonic)
+
+            # Check for degenerate XOR results (all-zero / all-ones entropy from
+            #   colluding parts). These pass the BIP39 checksum but are worthless.
+            is_valid, error_dict = SeedXORValidator.validate_combined_seed(seed)
+            if not is_valid:
+                self.error = error_dict.get("message")
+                return
+
             self.controller.storage.rebuild_seedxor_combined_seed = seed
             self.controller.storage.set_pending_seed(seed)
             self.fingerprint = seed.get_fingerprint(

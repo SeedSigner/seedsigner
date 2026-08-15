@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 from seedsigner.helpers.mnemonic_generation import combine_mnemonics_with_xor
 from seedsigner.helpers.seed_xor_validator import SeedXORValidator
+from seedsigner.models.seed import Seed
 
 from embit import bip39
 
@@ -86,20 +87,25 @@ class TestSeedXORValidator(unittest.TestCase):
     """
     def setUp(self):
         """ Set up mock Seed objects for testing using the provided examples. """
+        wordlist = Seed.get_wordlist()
+
         self.part_12_A = MagicMock()
         self.part_12_A.has_passphrase = False
         self.part_12_A.mnemonic_str = EXAMPLE_12_A
         self.part_12_A.mnemonic_list = EXAMPLE_12_A.split()
+        self.part_12_A.wordlist = wordlist
 
         self.part_12_B = MagicMock()
         self.part_12_B.has_passphrase = False
         self.part_12_B.mnemonic_str = EXAMPLE_12_B
         self.part_12_B.mnemonic_list = EXAMPLE_12_B.split()
+        self.part_12_B.wordlist = wordlist
         
         self.part_24_A = MagicMock()
         self.part_24_A.has_passphrase = False
         self.part_24_A.mnemonic_str = EXAMPLE_24_A
         self.part_24_A.mnemonic_list = EXAMPLE_24_A.split()
+        self.part_24_A.wordlist = wordlist
 
 
     def test_valid_first_part(self):
@@ -149,9 +155,81 @@ class TestSeedXORValidator(unittest.TestCase):
         inverse_part.has_passphrase = False
         inverse_part.mnemonic_str = inverse_mnemonic_str
         inverse_part.mnemonic_list = inverse_mnemonic_str.split()
+        inverse_part.wordlist = Seed.get_wordlist()
 
         is_valid, error = SeedXORValidator.validate_part(inverse_part, [self.part_12_A])
         self.assertFalse(is_valid)
         self.assertEqual(error["title"], "Seed Inversion")
         self.assertIn("binary inverse of part #1", error["message"])
+
+
+    def test_validate_part_uses_seed_wordlist(self):
+        """
+        validate_part must pass the Seed's wordlist to bip39.mnemonic_to_bytes
+        instead of relying on the English default.  Verifies the wordlist
+        attribute is present and forwarded correctly.
+        """
+        # The mocks from setUp already have .wordlist set; verify validate_part
+        # works with it (the inversion check reads .wordlist).
+        is_valid, error = SeedXORValidator.validate_part(self.part_12_B, [self.part_12_A])
+        self.assertTrue(is_valid)
+        self.assertIsNone(error)
+
+    def test_validate_part_handles_unparseable_mnemonic(self):
+        """
+        If bip39.mnemonic_to_bytes raises (e.g. wordlist mismatch), validate_part
+        must return a clean error dict instead of propagating the exception.
+        """
+        bad_part = MagicMock()
+        bad_part.has_passphrase = False
+        bad_part.mnemonic_str = "totally invalid mnemonic words that do not exist"
+        bad_part.mnemonic_list = "totally invalid mnemonic words that do not exist".split()
+        # Use a wordlist that won't contain these words.
+        bad_part.wordlist = Seed.get_wordlist()
+
+        is_valid, error = SeedXORValidator.validate_part(bad_part, [])
+        self.assertFalse(is_valid)
+        self.assertEqual(error["title"], "Invalid Part")
+
+
+class TestSeedXORValidatorCombinedSeed(unittest.TestCase):
+    """
+    Tests for SeedXORValidator.validate_combined_seed — catches degenerate
+    XOR results (all-zero / all-ones entropy) that pass the BIP39 checksum
+    but are known, worthless seeds.
+    """
+
+    def test_valid_combined_seed_passes(self):
+        """ A normal combined seed should pass validation. """
+        combined_mnemonic = combine_mnemonics_with_xor([EXAMPLE_12_A, EXAMPLE_12_B])
+        seed = MagicMock()
+        seed.mnemonic_str = " ".join(combined_mnemonic)
+        seed.wordlist = Seed.get_wordlist()
+
+        is_valid, error = SeedXORValidator.validate_combined_seed(seed)
+        self.assertTrue(is_valid)
+        self.assertIsNone(error)
+
+    def test_zero_entropy_combined_seed_rejected(self):
+        """ All-zero entropy (the 'abandon...about' seed) must be rejected. """
+        seed = MagicMock()
+        seed.mnemonic_str = ZERO_ENTROPY_MNEMONIC_12
+        seed.wordlist = Seed.get_wordlist()
+
+        is_valid, error = SeedXORValidator.validate_combined_seed(seed)
+        self.assertFalse(is_valid)
+        self.assertEqual(error["title"], "Zero Entropy Result")
+
+    def test_all_ones_entropy_combined_seed_rejected(self):
+        """ All-0xFF entropy (a known, worthless seed) must be rejected. """
+        all_ones_entropy = bytes([0xFF] * 16)
+        all_ones_mnemonic = bip39.mnemonic_from_bytes(all_ones_entropy)
+
+        seed = MagicMock()
+        seed.mnemonic_str = all_ones_mnemonic
+        seed.wordlist = Seed.get_wordlist()
+
+        is_valid, error = SeedXORValidator.validate_combined_seed(seed)
+        self.assertFalse(is_valid)
+        self.assertEqual(error["title"], "Known Seed Result")
 
