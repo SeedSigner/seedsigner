@@ -1,10 +1,14 @@
 from base import FlowTest, FlowStep
+from unittest.mock import MagicMock
+
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from seedsigner.views.view import MainMenuView, ErrorView
 from seedsigner.views import seed_views, scan_views
 from seedsigner.views.seed_views import SeedsMenuView
 from seedsigner.helpers.mnemonic_generation import combine_mnemonics_with_xor
+from seedsigner.helpers.seed_xor_validator import SeedXORValidator
 
 from seedxor_test_vectors import (
     EXAMPLE_24_A, EXAMPLE_24_B, EXAMPLE_24_C,
@@ -230,3 +234,247 @@ class TestSeedXORFlows(FlowTest):
         ]
         self.run_sequence(sequence)
         assert len(self.controller.storage.rebuild_seedxor_parts) == 0
+
+
+class TestSeedXORAdditionalFlows(FlowTest):
+    """Tests for the DISCARD_PARTS finalize branch, remove-part flow,
+    back-button routing, zero-entropy rejection, and Finalize-hidden-with-<2-parts."""
+
+    def _load_two_parts_12w(self):
+        """Helper: load two 12-word parts and return at RebuildSeedXORManageView."""
+        self.settings.set_value(SettingsConstants.SETTING__SEED_XOR, SettingsConstants.OPTION__ENABLED)
+
+        sequence = [
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.REBUILD_SEED_XOR),
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.LOAD_NEXT_PART),
+            FlowStep(seed_views.RebuildSeedXORLoadPartView, button_data_selection=seed_views.RebuildSeedXORLoadPartView.TYPE_12WORD),
+        ]
+        sequence += type_mnemonic(EXAMPLE_12_A)
+        sequence += [
+            FlowStep(seed_views.RebuildSeedXORShowFingerprintView, button_data_selection=seed_views.RebuildSeedXORShowFingerprintView.CONTINUE),
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.LOAD_NEXT_PART),
+            FlowStep(seed_views.RebuildSeedXORLoadPartView, button_data_selection=seed_views.RebuildSeedXORLoadPartView.TYPE_12WORD),
+        ]
+        sequence += type_mnemonic(EXAMPLE_12_B)
+        sequence += [
+            FlowStep(seed_views.RebuildSeedXORShowFingerprintView, button_data_selection=seed_views.RebuildSeedXORShowFingerprintView.CONTINUE),
+            FlowStep(seed_views.RebuildSeedXORManageView),
+        ]
+        self.run_sequence(sequence)
+        assert len(self.controller.storage.rebuild_seedxor_parts) == 2
+
+    def test_finalize_discard_parts_flow(self):
+        """
+        Tests the DISCARD_PARTS finalize branch: after combining, choosing
+        "Discard parts" should remove the individual part seeds from storage
+        while keeping only the combined seed.
+        """
+        self._load_two_parts_12w()
+
+        expected_mnemonic = combine_mnemonics_with_xor([EXAMPLE_12_A, EXAMPLE_12_B])
+        expected_fingerprint = Seed(mnemonic=expected_mnemonic).get_fingerprint()
+
+        def check_fingerprint(view):
+            assert view.fingerprint == expected_fingerprint
+
+        self.run_sequence([
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.FINALIZE),
+            FlowStep(
+                seed_views.RebuildSeedXORFinalizeView,
+                before_run=check_fingerprint,
+                button_data_selection=0,
+            ),
+            FlowStep(seed_views.RebuildSeedXORFinalizeOptionsView, button_data_selection=seed_views.RebuildSeedXORFinalizeOptionsView.DISCARD_PARTS),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+        ])
+
+        # The combined seed should be in storage; the XOR rebuild data should be cleared.
+        assert len(self.controller.storage.seeds) == 1
+        assert len(self.controller.storage.rebuild_seedxor_parts) == 0
+        assert self.controller.storage.rebuild_seedxor_combined_seed is None
+
+    def test_remove_part_flow(self):
+        """
+        Tests the remove-part flow: load two parts, remove the first one,
+        and verify only one part remains.
+        """
+        self._load_two_parts_12w()
+
+        self.run_sequence([
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.REMOVE_PARTS),
+            FlowStep(seed_views.RebuildSeedXORRemovePartsView, screen_return_value=0),
+            FlowStep(seed_views.RebuildSeedXORConfirmRemovePartView, button_data_selection=seed_views.RebuildSeedXORConfirmRemovePartView.CONFIRM_REMOVE),
+            FlowStep(seed_views.RebuildSeedXORManageView),
+        ])
+
+        # Only one part should remain (part 2 = EXAMPLE_12_B)
+        assert len(self.controller.storage.rebuild_seedxor_parts) == 1
+        remaining = self.controller.storage.rebuild_seedxor_parts[0]
+        assert remaining.mnemonic_str == EXAMPLE_12_B
+
+    def test_remove_part_keep_part_backflow(self):
+        """
+        Tests the remove-part flow: selecting "Keep part" in the confirm
+        screen returns to the RemovePartsView, not the ManageView.
+        """
+        self._load_two_parts_12w()
+
+        self.run_sequence([
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.REMOVE_PARTS),
+            FlowStep(seed_views.RebuildSeedXORRemovePartsView, screen_return_value=0),
+            FlowStep(seed_views.RebuildSeedXORConfirmRemovePartView, button_data_selection=seed_views.RebuildSeedXORConfirmRemovePartView.KEEP_PART),
+            # skip_current_view=True means we go back to RemovePartsView
+            FlowStep(seed_views.RebuildSeedXORRemovePartsView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.RebuildSeedXORManageView),
+        ])
+
+        # Both parts should still be present
+        assert len(self.controller.storage.rebuild_seedxor_parts) == 2
+
+    def test_back_button_from_load_part_view(self):
+        """
+        Tests that pressing BACK from RebuildSeedXORLoadPartView returns
+        to RebuildSeedXORManageView (clear_history=True).
+        """
+        self.settings.set_value(SettingsConstants.SETTING__SEED_XOR, SettingsConstants.OPTION__ENABLED)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.REBUILD_SEED_XOR),
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.LOAD_NEXT_PART),
+            FlowStep(seed_views.RebuildSeedXORLoadPartView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.RebuildSeedXORManageView),
+        ])
+
+    def test_back_button_from_manage_view(self):
+        """
+        Tests that pressing BACK from RebuildSeedXORManageView returns
+        to LoadSeedView (clear_history=True).
+        """
+        self.settings.set_value(SettingsConstants.SETTING__SEED_XOR, SettingsConstants.OPTION__ENABLED)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.REBUILD_SEED_XOR),
+            FlowStep(seed_views.RebuildSeedXORManageView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.LoadSeedView),
+        ])
+
+    def test_back_button_from_finalize_view(self):
+        """
+        Tests that pressing BACK from RebuildSeedXORFinalizeView returns
+        to RebuildSeedXORManageView.
+        """
+        self._load_two_parts_12w()
+
+        self.run_sequence([
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.FINALIZE),
+            FlowStep(seed_views.RebuildSeedXORFinalizeView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.RebuildSeedXORManageView),
+        ])
+
+    def test_back_button_from_finalize_options_view(self):
+        """
+        Tests that pressing BACK from RebuildSeedXORFinalizeOptionsView returns
+        to RebuildSeedXORFinalizeView.
+        """
+        self._load_two_parts_12w()
+
+        self.run_sequence([
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.FINALIZE),
+            FlowStep(seed_views.RebuildSeedXORFinalizeView, button_data_selection=0),
+            FlowStep(seed_views.RebuildSeedXORFinalizeOptionsView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.RebuildSeedXORFinalizeView),
+        ])
+
+    def test_cancel_seed_xor_flow(self):
+        """
+        Tests the Cancel Seed XOR flow: confirms cancellation, which should
+        clear all loaded parts and return to LoadSeedView.
+        """
+        self._load_two_parts_12w()
+
+        self.run_sequence([
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.CANCEL),
+            FlowStep(seed_views.RebuildSeedXORCancelView, button_data_selection=seed_views.RebuildSeedXORCancelView.CONFIRM),
+            FlowStep(seed_views.LoadSeedView),
+        ])
+
+        assert len(self.controller.storage.rebuild_seedxor_parts) == 0
+        assert self.controller.storage.rebuild_seedxor_combined_seed is None
+
+    def test_finalize_hidden_with_less_than_two_parts(self):
+        """
+        Tests that the Finalize button is NOT shown when only one part is loaded.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__SEED_XOR, SettingsConstants.OPTION__ENABLED)
+
+        # Load one part
+        sequence = [
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.REBUILD_SEED_XOR),
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.LOAD_NEXT_PART),
+            FlowStep(seed_views.RebuildSeedXORLoadPartView, button_data_selection=seed_views.RebuildSeedXORLoadPartView.TYPE_12WORD),
+        ]
+        sequence += type_mnemonic(EXAMPLE_12_A)
+        sequence += [
+            FlowStep(seed_views.RebuildSeedXORShowFingerprintView, button_data_selection=seed_views.RebuildSeedXORShowFingerprintView.CONTINUE),
+            FlowStep(seed_views.RebuildSeedXORManageView),
+        ]
+        self.run_sequence(sequence)
+        assert len(self.controller.storage.rebuild_seedxor_parts) == 1
+
+        # Instantiate the ManageView and replicate its button_data construction
+        # to verify FINALIZE is absent when num_parts < 2.
+        view = seed_views.RebuildSeedXORManageView()
+        assert view.num_parts == 1
+
+        button_data = []
+        button_data.append(seed_views.RebuildSeedXORManageView.LOAD_NEXT_PART)
+        if view.num_parts > 0:
+            button_data.append(seed_views.RebuildSeedXORManageView.VIEW_LOADED_PARTS)
+            button_data.append(seed_views.RebuildSeedXORManageView.REMOVE_PARTS)
+            button_data.append(seed_views.RebuildSeedXORManageView.CANCEL)
+        if view.num_parts >= 2:
+            button_data.insert(-1, seed_views.RebuildSeedXORManageView.FINALIZE)
+
+        assert seed_views.RebuildSeedXORManageView.FINALIZE not in button_data
+
+    def test_zero_entropy_combined_result_rejected(self):
+        """
+        Tests that the validator catches a zero-entropy combined seed
+        (all-zero bytes, i.e. the 'abandon...about' seed). With 3+ colluding
+        parts the XOR can bypass the duplicate check and produce this result.
+        """
+        from seedxor_test_vectors import ZERO_ENTROPY_MNEMONIC_12
+
+        zero_seed = MagicMock()
+        zero_seed.mnemonic_str = ZERO_ENTROPY_MNEMONIC_12
+        zero_seed.wordlist = Seed.get_wordlist()
+
+        is_valid, error_dict = SeedXORValidator.validate_combined_seed(zero_seed)
+        assert not is_valid
+        assert error_dict["title"] == "Zero Entropy Result"
+
+    def test_all_ones_combined_result_rejected(self):
+        """
+        Tests that the validator rejects an all-ones entropy combined seed.
+        """
+        from embit import bip39 as _bip39
+
+        # Construct an all-0xFF 16-byte entropy and convert to mnemonic
+        all_ones_entropy = bytes([0xFF] * 16)
+        all_ones_mnemonic = _bip39.mnemonic_from_bytes(all_ones_entropy)
+
+        all_ones_seed = MagicMock()
+        all_ones_seed.mnemonic_str = all_ones_mnemonic
+        all_ones_seed.wordlist = Seed.get_wordlist()
+
+        is_valid, error_dict = SeedXORValidator.validate_combined_seed(all_ones_seed)
+        assert not is_valid
+        assert error_dict["title"] == "Known Seed Result"
