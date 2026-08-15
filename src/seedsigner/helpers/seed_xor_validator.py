@@ -44,7 +44,7 @@ class SeedXORValidator:
                     return False, {
                         "title": "Seed Inversion",
                         "status_headline": "Invalid Part",
-                        "message": "This part is the binary inverse of part #{} and would cancel it out.".format(i + 1),
+                        "message": "This part is the binary inverse of part #{}. XORing them produces a known all-ones seed with no entropy.".format(i + 1),
                     }
 
         return True, None
