@@ -825,7 +825,7 @@ class SeedExportXpubQRFormatView(View):
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=_("Xpub QR Format"),
+            title=_("Xpub Format"),
             is_button_text_centered=False,
             button_data=button_data,
             is_bottom_list=True,
@@ -968,6 +968,9 @@ class SeedExportXpubQRDisplayView(View):
     def __init__(self, seed: Seed, xpub_qr_format: str, derivation_path: str, sig_type: str = SettingsConstants.SINGLE_SIG):
         super().__init__()
         self.seed = seed
+        self.xpub_qr_format = xpub_qr_format
+        self.xpub_text = None
+        self.qr_encoder = None
 
         encoder_args = dict(
             seed=self.seed,
@@ -977,7 +980,11 @@ class SeedExportXpubQRDisplayView(View):
             sig_type=sig_type
         )
 
-        if xpub_qr_format == SettingsConstants.XPUB_QR_FORMAT__STATIC:
+        if xpub_qr_format == SettingsConstants.XPUB_FORMAT__TEXT:
+            # Reuse the static encoder to get the standard origin-prefixed xpub string
+            self.xpub_text = StaticXpubQrEncoder(**encoder_args).xpubstring
+
+        elif xpub_qr_format == SettingsConstants.XPUB_QR_FORMAT__STATIC:
             self.qr_encoder = StaticXpubQrEncoder(**encoder_args)
 
         elif xpub_qr_format == SettingsConstants.XPUB_QR_FORMAT__SPECTER_LEGACY:
@@ -989,6 +996,15 @@ class SeedExportXpubQRDisplayView(View):
 
 
     def run(self):
+        if self.xpub_qr_format == SettingsConstants.XPUB_FORMAT__TEXT:
+            selected_menu_num = self.run_screen(
+                seed_screens.SeedExportXpubTextScreen,
+                xpub=self.xpub_text,
+            )
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+            return Destination(MainMenuView)
+
         from seedsigner.gui.screens.screen import QRDisplayScreen
         self.run_screen(
             QRDisplayScreen,
