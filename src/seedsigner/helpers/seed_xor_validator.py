@@ -35,10 +35,25 @@ class SeedXORValidator:
                 }
 
         # Check for inverse parts (which would cancel out)
-        new_entropy = bip39.mnemonic_to_bytes(new_part.mnemonic_str)
+        # Pass the Seed's wordlist explicitly — bip39.mnemonic_to_bytes defaults to
+        #   English, which would fail on a non-English-wordlist Seed.  Wrap in
+        #   try/except so a wordlist mismatch produces a clean error instead of an
+        #   unhandled exception in the fingerprint view.
+        try:
+            new_entropy = bip39.mnemonic_to_bytes(new_part.mnemonic_str, wordlist=new_part.wordlist)
+        except Exception:
+            return False, {
+                "title": "Invalid Part",
+                "status_headline": "Invalid Part",
+                "message": "Could not parse this seed's mnemonic.",
+            }
+
         for i, part in enumerate(existing_parts):
             if len(new_part.mnemonic_list) == len(part.mnemonic_list):
-                existing_entropy = bip39.mnemonic_to_bytes(part.mnemonic_str)
+                try:
+                    existing_entropy = bip39.mnemonic_to_bytes(part.mnemonic_str, wordlist=part.wordlist)
+                except Exception:
+                    continue
                 xored = bytes(a ^ b for a, b in zip(new_entropy, existing_entropy))
                 if all(b == 0xFF for b in xored):
                     return False, {
@@ -46,5 +61,38 @@ class SeedXORValidator:
                         "status_headline": "Invalid Part",
                         "message": "This part is the binary inverse of part #{}. XORing them produces a known all-ones seed with no entropy.".format(i + 1),
                     }
+
+        return True, None
+
+    @classmethod
+    def validate_combined_seed(cls, combined_seed: Seed) -> Tuple[bool, Optional[Dict[str, Any]]]:
+        """Validates the combined XOR result for degenerate cases.
+
+        With 3+ colluding parts the XOR can produce all-zero or all-one entropy,
+        which are known, worthless seeds that pass the BIP39 checksum.
+        Returns (is_valid, error_dict).
+        """
+        try:
+            entropy = bip39.mnemonic_to_bytes(combined_seed.mnemonic_str, wordlist=combined_seed.wordlist)
+        except Exception:
+            return False, {
+                "title": "XOR Error",
+                "status_headline": "Invalid Combined Seed",
+                "message": "Could not parse the combined seed's mnemonic.",
+            }
+
+        if all(b == 0x00 for b in entropy):
+            return False, {
+                "title": "Zero Entropy Result",
+                "status_headline": "Invalid Combined Seed",
+                "message": "XORing these parts produces all-zero entropy (the 'abandon...about' seed). The result is a known, worthless seed.",
+            }
+
+        if all(b == 0xFF for b in entropy):
+            return False, {
+                "title": "Known Seed Result",
+                "status_headline": "Invalid Combined Seed",
+                "message": "XORing these parts produces a known all-ones seed with no entropy.",
+            }
 
         return True, None
