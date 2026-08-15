@@ -2678,7 +2678,6 @@ class RebuildSeedXORFinalizeOptionsView(View):
 
     DISCARD_PARTS = ButtonOption("Discard parts", button_label_color="red")
     KEEP_PARTS = ButtonOption("Keep parts")
-    PASSPHRASE = ButtonOption("BIP-39 Passphrase")
 
     def __init__(self):
         super().__init__()
@@ -2690,11 +2689,9 @@ class RebuildSeedXORFinalizeOptionsView(View):
         self.seed = self.controller.storage.pending_seed
 
     def run(self):
+        # Passphrases are rejected on XOR parts (see SeedXORValidator), so the
+        # combined seed is not offered one here either.
         button_data = [self.DISCARD_PARTS, self.KEEP_PARTS]
-
-        self.PASSPHRASE.button_label = self.seed.passphrase_label
-        if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) != SettingsConstants.OPTION__DISABLED:
-            button_data.append(self.PASSPHRASE)
 
         selected_menu_num = self.run_screen(
             LargeIconStatusScreen,
@@ -2732,6 +2729,3 @@ class RebuildSeedXORFinalizeOptionsView(View):
             self.controller.resume_main_flow = None
 
             return Destination(SeedOptionsView, view_args={"seed": combined_seed}, clear_history=True)
-
-        elif button_data[selected_menu_num] == self.PASSPHRASE:
-            return Destination(SeedAddPassphraseView)
