@@ -140,7 +140,7 @@ class TestSeedXORValidator(unittest.TestCase):
 
 
     def test_rejects_inverse_part(self):
-        """ A binary inverse part (which would cancel another out) should be rejected. """
+        """ A binary inverse part should be rejected: XORing a part with its complement yields a known all-ones (zero-entropy) seed. """
         entropy_a = bip39.mnemonic_to_bytes(EXAMPLE_12_A)
         inverse_entropy = bytes(b ^ 0xFF for b in entropy_a)
         inverse_mnemonic_str = bip39.mnemonic_from_bytes(inverse_entropy)
