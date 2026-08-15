@@ -816,9 +816,12 @@ class SeedExportXpubQRFormatView(View):
             args["xpub_qr_format"] = self.settings.get_value(SettingsConstants.SETTING__XPUB_QR_FORMAT)[0]
             return Destination(SeedExportXpubWarningView, view_args=args, skip_current_view=True)
 
+        # Iterate selection_options in fixed order. Ignore the order in which they were selected.
         button_data = []
-        for display_name, setting_option in zip(self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__XPUB_QR_FORMAT), self.settings.get_value(SettingsConstants.SETTING__XPUB_QR_FORMAT)):
-            button_data.append(ButtonOption(display_name, return_data=setting_option))
+        selected_formats = self.settings.get_value(SettingsConstants.SETTING__XPUB_QR_FORMAT)
+        for setting_option, display_name in SettingsConstants.ALL_XPUB_QR_FORMATS:
+            if setting_option in selected_formats:
+                button_data.append(ButtonOption(display_name, return_data=setting_option))
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
