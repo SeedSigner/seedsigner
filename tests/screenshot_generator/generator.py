@@ -7,6 +7,7 @@ import sys
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from PIL import ImageFont
 from unittest.mock import Mock, patch, MagicMock
 
@@ -116,10 +117,17 @@ seed_24_w_passphrase = Seed(mnemonic=mnemonic_24, passphrase="some-PASS*phrase9"
 
 MULTISIG_WALLET_DESCRIPTOR = """wsh(sortedmulti(1,[22bde1a9/48h/1h/0h/2h]tpubDFfsBrmpj226ZYiRszYi2qK6iGvh2vkkghfGB2YiRUVY4rqqedHCFEgw12FwDkm7rUoVtq9wLTKc6BN2sxswvQeQgp7m8st4FP8WtP8go76/{0,1}/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*))#3jhtf6yx"""
 
-# Grab the most recent release version info
+# Grab the most recent release version info for the "release build" splash screenshots.
 (latest_release_version_name, latest_release_version_timestamp) = VersionUtils._fetch_latest_seedsigner_release_tag()
 if not latest_release_version_name or not latest_release_version_timestamp:
-    print("Could not fetch latest release version from GitHub")
+    # The fetch can fail (offline, or the unauthenticated GitHub API rate-limit that
+    # shared CI runners regularly hit). Substitute a placeholder so the "release build"
+    # screenshots still render, rather than feeding None into the Version mock (which
+    # would otherwise crash both the splash screen and the Version settings screen on
+    # None slicing / len()).
+    print("Could not fetch latest release version from GitHub; using a placeholder")
+    latest_release_version_name = latest_release_version_name or "version_not_available"
+    latest_release_version_timestamp = latest_release_version_timestamp or datetime(1970, 1, 1)
 
 
 # Wrap QRDisplayScreen's `render_brightness_tip` in a simple View + Screen so we
