@@ -2,8 +2,11 @@ import pytest
 import random
 
 from binascii import a2b_base64
+from copy import deepcopy
+from unittest.mock import patch
 from embit import bip32
-from embit.psbt import PSBT
+from embit.networks import NETWORKS
+from embit.psbt import PSBT, DerivationPath
 from embit.descriptor import Descriptor
 
 from seedsigner.models.psbt_parser import PSBTParser
@@ -485,3 +488,287 @@ def test_parse_op_return_content():
     assert psbt_parser.change_amount == 99992296
     assert psbt_parser.destination_addresses == []
     assert psbt_parser.destination_amounts == []
+
+
+
+class TestPSBTParserOptimizations:
+    """
+    Guard tests for the parse-time optimizations in PSBTParser: that each one actually
+    takes effect, and that none of them changes the result of a parse.
+    """
+    seed = PSBTTestData.seed
+
+    def _root(self, seed: Seed = None) -> bip32.HDKey:
+        if seed is None:
+            seed = self.seed
+        return bip32.HDKey.from_seed(
+            seed.seed_bytes, version=NETWORKS["main"]["xprv"])
+
+
+    def assert_same_parse_result(self, parser_a: PSBTParser, parser_b: PSBTParser):
+        """
+        Asserts that two parses produced the same result, field by field so that a failure
+        names the exact field that differs.
+
+        The fill path writes recovered fingerprints back into the psbt, so the serialized
+        psbt is compared too, not just the parser's own attributes.
+        """
+        assert parser_a.policy == parser_b.policy
+        assert parser_a.input_amount == parser_b.input_amount
+        assert parser_a.spend_amount == parser_b.spend_amount
+        assert parser_a.change_amount == parser_b.change_amount
+        assert parser_a.fee_amount == parser_b.fee_amount
+        assert parser_a.num_inputs == parser_b.num_inputs
+        assert parser_a.destination_addresses == parser_b.destination_addresses
+        assert parser_a.destination_amounts == parser_b.destination_amounts
+        assert parser_a.change_data == parser_b.change_data
+        assert parser_a.op_return_data == parser_b.op_return_data
+        assert parser_a.psbt.serialize() == parser_b.psbt.serialize()
+
+
+    def cache_size_recorder(self, cache_sizes: list):
+        """
+        Returns a stand-in for _derive_with_cache that derives exactly as the real one
+        does, but appends the cache's size to cache_sizes on the way out of every call.
+
+        The cache is a local inside parse(), so intercepting the calls it gets handed to
+        is the only way to see how large it grew.
+        """
+        real_derive_with_cache = PSBTParser._derive_with_cache
+
+        def recorded(parent_key, derivation_path, cache=None):
+            derived_key = real_derive_with_cache(parent_key, derivation_path, cache)
+            cache_sizes.append(len(cache))
+            return derived_key
+
+        return recorded
+
+
+    def test_my_fingerprint_equals_child0_fingerprint(self):
+        """
+        Reading my_fingerprint in place of child(0).fingerprint is byte-identical,
+        because HDKey.child(0) sets its .fingerprint to hash160(parent.sec())[:4],
+        which is exactly parent.my_fingerprint.
+
+        This is really a unit test / regression test against embit itself, but it is worth
+        testing here.
+        """
+        root = self._root()
+        assert root.my_fingerprint == root.child(0).fingerprint
+
+
+    def test_zero_fingerprint_fill_over_many_inputs(self, monkeypatch):
+        """
+        The inputs in this test have their fingerprints blanked (set to all zero), which
+        should then require one full derivation per input to work out whether that input
+        is ours.
+
+        The artificial inputs in this test share the same full derivation path so each
+        level should only be derived once total rather than once per input.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+        master_fingerprint = self._root().my_fingerprint
+
+        # Sanity check that this artificial psbt has no outputs. We have to make sure that
+        # the derivation counts at the end of the test were only for inputs, not outputs.
+        assert len(psbt.outputs) == 0, "fixture is expected to have no outputs"
+
+        # Artificially boost this test psbt to 10 total inputs from the same wallet
+        for _ in range(9):
+            psbt.inputs.append(deepcopy(psbt.inputs[0]))
+
+        # Zero out all of the inputs' fingerprints
+        num_zeroed = 0
+        for inp in psbt.inputs:
+            for pub, dp in list(inp.bip32_derivations.items()):
+                inp.bip32_derivations[pub] = DerivationPath(b"\x00\x00\x00\x00", dp.derivation)
+                num_zeroed += 1
+        assert num_zeroed == len(psbt.inputs), "fixture did not yield one derivation per input"
+
+        num_levels = len(list(psbt.inputs[0].bip32_derivations.values())[0].derivation)
+
+        # Attach a counter to track every level actually derived during the parse
+        num_derivations = 0
+        uncounted_child = bip32.HDKey.child
+        def counting_child(self, index, hardened=False):
+            nonlocal num_derivations  # reference the above var outside the function scope
+            num_derivations += 1
+            return uncounted_child(self, index, hardened)
+        monkeypatch.setattr(bip32.HDKey, "child", counting_child)
+
+        # Instantiating the parser with the psbt will automatically fill in the zeroed
+        # fingerprints.
+        PSBTParser(psbt, self.seed, network=SettingsConstants.MAINNET)
+
+        # All 10 inputs share the one derivation path, so each of its levels should have
+        # been derived exactly once between them, rather than once per input.
+        assert num_derivations == num_levels
+
+        # Sanity check: num_derivations could be correct when just ONE of the ten inputs
+        # was processed. Confirm that EVERY input really was processed by verifying that
+        # each input was filled in with the correct fingerprint.
+        for inp in psbt.inputs:
+            for pub, dp in inp.bip32_derivations.items():
+                assert dp.fingerprint == master_fingerprint
+
+
+    def test_derive_with_cache_does_not_cross_parent_keys(self):
+        """
+        Multisig traverses the same relative derivation path below every cosigner's
+        account xpub. Verify that the cache properly keeps the parents' cache data
+        separate despite having derivations that share the same relative path.
+        """
+        # Two cosigners' account xpubs from the multisig test fixtures
+        cosigner_a_xpub = self._root(PSBTTestData.multisig_key_2).derive("m/48h/0h/0h/2h").to_public()
+        cosigner_b_xpub = self._root(PSBTTestData.multisig_key_3).derive("m/48h/0h/0h/2h").to_public()
+
+        # The receive address at index 5 is: m/48h/0h/0h/2h/0/5. The parent xpubs already
+        # have the first 4 levels derived, so this operation is only the final two levels.
+        receive_index_5 = [0, 5]
+        cache = {}
+
+        # The cache here isn't providing any speedup (there are no derivations in the
+        # cache to take advantage of), but we're just testing that the cache doesn't
+        # confuse/combine the two cosigners' derivation data.
+        from_a = PSBTParser._derive_with_cache(cosigner_a_xpub, receive_index_5, cache)
+        from_b = PSBTParser._derive_with_cache(cosigner_b_xpub, receive_index_5, cache)
+
+        # Two levels should have been added for each cosigner
+        assert len(cache) == 4
+
+        # The resulting derived child keys should be different
+        assert from_a.key.sec() != from_b.key.sec()
+
+        # The result derived with the cache must be identical to deriving from the xpub
+        # directly.
+        assert from_a.key.sec() == cosigner_a_xpub.derive(receive_index_5).key.sec()
+        assert from_b.key.sec() == cosigner_b_xpub.derive(receive_index_5).key.sec()
+
+
+    def test_get_cosigners_identical_with_and_without_cache(self):
+        """
+        The cache is transparent to callers: _get_cosigners returns the same cosigner
+        list whether it derives every level itself or reads them back out of the cache.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        inp = psbt.inputs[0]
+        pubkeys = list(inp.bip32_derivations.keys())
+
+        # No cache at all; every level is derived directly
+        uncached = PSBTParser._get_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, None)
+
+        # An empty cache still has to derive every level, but now stores each one
+        child_key_derivation_cache = {}
+        populating_the_cache = PSBTParser._get_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, child_key_derivation_cache)
+
+        # 3 cosigners x 2 levels each
+        assert len(child_key_derivation_cache) == 6
+
+        # The same call against the now-populated cache reads those levels back instead
+        # of deriving them. Each level sits below a different cosigner's xpub, so a cache
+        # that confused parents would return the wrong cosigner here.
+        reading_from_the_cache = PSBTParser._get_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, child_key_derivation_cache)
+
+        assert populating_the_cache == uncached
+        assert reading_from_the_cache == uncached
+
+
+    def test_cache_does_not_change_parse_output(self):
+        """
+        The whole point of the cache is that it changes nothing at all. Parse the same
+        psbt twice — once normally, once with the cache discarded so that every derivation
+        falls through to embit's own HDKey.derive() — and require identical parser state
+        and identical resulting psbt bytes.
+
+        Single-sig and multisig each get a run because they reach the cache from different
+        starting points: single-sig traverses down from our own root, multisig down from
+        each cosigner's account xpub.
+        """
+        def build_psbt(input_base64: str, change_hex: str) -> PSBT:
+            # A fresh psbt for each parse: the base psbt plus its change output, twice.
+            psbt = PSBT.parse(a2b_base64(input_base64))
+            psbt.outputs.append(create_output(change_hex, 10_000))
+
+            # Add a duplicate output to ensure that the cache yields some hits; the second
+            # output will traverse the same levels the first one just cached.
+            psbt.outputs.append(create_output(change_hex, 10_000))
+            return psbt
+
+        def assert_cache_makes_no_difference(input_base64: str, change_hex: str):
+            # Store the real function before the patches below replace it. Each replacement
+            # still needs access to the real function to do the actual deriving.
+            real_derive_with_cache = PSBTParser._derive_with_cache
+
+            # This version of the replacement will derive exactly as the real cache-backed
+            # function does, but will also record the cache it was handed on each call.
+            caches_received = []
+            def recording_derive_with_cache(parent_key, derivation_path, cache=None):
+                caches_received.append(cache)
+                return real_derive_with_cache(parent_key, derivation_path, cache)
+
+            with patch.object(PSBTParser, "_derive_with_cache", staticmethod(recording_derive_with_cache)):
+                with_cache = PSBTParser(
+                    build_psbt(input_base64, change_hex), self.seed, network=SettingsConstants.REGTEST)
+
+            # Sanity check: the cache was actually available during the parse
+            assert any(cache is not None for cache in caches_received)
+
+            # And then this version discards the cache, which sends the real function down
+            # its no-cache branch.
+            def cache_free_derive(parent_key, derivation_path, cache=None):
+                return real_derive_with_cache(parent_key, derivation_path)
+
+            with patch.object(PSBTParser, "_derive_with_cache", staticmethod(cache_free_derive)):
+                without_cache = PSBTParser(
+                    build_psbt(input_base64, change_hex), self.seed, network=SettingsConstants.REGTEST)
+
+            # Regardless of whether or not the cache was available, the resulting parser
+            # state should be identical.
+            self.assert_same_parse_result(with_cache, without_cache)
+
+        assert_cache_makes_no_difference(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE)
+        assert_cache_makes_no_difference(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+
+
+    def test_maxed_out_cache_does_not_change_parse_output(self):
+        """
+        There should be no effect on the parse output when the cache is maxed out.
+
+        Parse a multisig and a single-sig psbt with the cache free to grow, then parse
+        them again with the cap low enough that both hit the cap partway through. Verify
+        that we get the identical parser state each time.
+        """
+        multisig_case = (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        singlesig_case = (PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE)
+
+        def build_psbt(case: tuple) -> PSBT:
+            # A fresh psbt for each parse: the case's base psbt plus its change output
+            input_base64, change_hex = case
+            psbt = PSBT.parse(a2b_base64(input_base64))
+            psbt.outputs.append(create_output(change_hex, 10_000))
+            return psbt
+
+        # Record how large the cache grew over the course of each parse
+        unconstrained_sizes = []
+        with patch.object(PSBTParser, "_derive_with_cache", staticmethod(self.cache_size_recorder(unconstrained_sizes))):
+            multisig_unconstrained = PSBTParser(build_psbt(multisig_case), self.seed, network=SettingsConstants.REGTEST)
+            singlesig_unconstrained = PSBTParser(build_psbt(singlesig_case), self.seed, network=SettingsConstants.REGTEST)
+
+        # Now constrain the cache enough that both psbts fill it partway through their
+        # parse.
+        cap = 3
+        capped_sizes = []
+        with patch.object(PSBTParser, "MAX_CACHED_DERIVATIONS", cap):
+            with patch.object(PSBTParser, "_derive_with_cache", staticmethod(self.cache_size_recorder(capped_sizes))):
+                multisig_capped = PSBTParser(build_psbt(multisig_case), self.seed, network=SettingsConstants.REGTEST)
+                singlesig_capped = PSBTParser(build_psbt(singlesig_case), self.seed, network=SettingsConstants.REGTEST)
+
+        self.assert_same_parse_result(multisig_unconstrained, multisig_capped)
+        self.assert_same_parse_result(singlesig_unconstrained, singlesig_capped)
+
+        # Sanity check: this test depends on the unconstrained cache actually being larger
+        # than the capped cache's max.
+        assert max(unconstrained_sizes) > cap
+        assert max(capped_sizes) == cap
+
+
