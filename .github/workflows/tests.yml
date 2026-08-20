@@ -53,7 +53,13 @@ jobs:
         run: |
           sudo apt-get install libzbar0
           python -m pip install --upgrade pip
-          pip install -r requirements.txt -r tests/requirements.txt -r l10n/requirements-l10n.txt
+          pip install -r requirements.txt -r tests/requirements.txt
+          # requirements-l10n.txt is hash-locked (SeedSigner OS installs it
+          # during image builds). It needs its own pip invocation: one hashed
+          # requirement makes pip demand hashes for everything else in the
+          # same invocation, which the unhashed files above and `-e .` below
+          # can't satisfy.
+          pip install -r l10n/requirements-l10n.txt
           pip install -e .
       - name: Compile translations
         run: python setup.py compile_catalog

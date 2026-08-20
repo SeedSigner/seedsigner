@@ -1,2 +1,19 @@
-Babel==2.16.0
-setuptools>=82.0.0
+# Dependencies for the translation workflow (setup.py extract_messages /
+# compile_catalog). Also installed during SeedSigner OS image builds to
+# compile the .mo catalogs, so entries are pinned and hash-locked: pip
+# refuses any artifact that does not match a hash below. Hashes cover every
+# published file of each release (wheel + sdist).
+#
+# To update a pin: change the version, then refresh its hashes from
+# https://pypi.org/pypi/<package>/<version>/json (or pip download + pip hash).
+#
+# NOTE: install this file in its own `pip install` invocation. Combining it
+# with unhashed requirements files (or `-e .`) in one invocation fails,
+# because any hash in an invocation makes pip require hashes for everything
+# in it.
+Babel==2.16.0 \
+    --hash=sha256:368b5b98b37c06b7daf6696391c3240c938b37767d4584413e8438c5c435fa8b \
+    --hash=sha256:d1f3554ca26605fe173f3de0c65f750f5a42f924499bf134de6423582298e316
+setuptools==84.0.0 \
+    --hash=sha256:51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670 \
+    --hash=sha256:f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73
