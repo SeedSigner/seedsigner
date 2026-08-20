@@ -3,21 +3,23 @@ import random
 import time
 
 from binascii import hexlify
-from gettext import gettext as _
+from gettext import gettext as _, ngettext
 
 from embit.descriptor import Descriptor
 
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
+from seedsigner.gui.components import GUIConstants, FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    WarningScreen, DireWarningScreen, seed_screens)
+    WarningScreen, DireWarningScreen, seed_screens, LargeIconStatusScreen)
 from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation
+from seedsigner.helpers.mnemonic_generation import combine_mnemonics_with_xor
+from seedsigner.helpers.seed_xor_validator import SeedXORValidator
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterLegacyXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
+from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView, ErrorView
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +167,7 @@ class LoadSeedView(View):
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
     CREATE = ButtonOption("Create a seed", SeedSignerIconConstants.PLUS)
+    REBUILD_SEED_XOR = ButtonOption("Rebuild SeedXOR", SeedSignerIconConstants.PLUS)
 
     def run(self):
         button_data = [
@@ -172,6 +175,9 @@ class LoadSeedView(View):
             self.TYPE_12WORD,
             self.TYPE_24WORD,
         ]
+
+        if self.settings.get_value(SettingsConstants.SETTING__SEED_XOR) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.REBUILD_SEED_XOR)
 
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
@@ -206,6 +212,9 @@ class LoadSeedView(View):
         elif button_data[selected_menu_num] == self.CREATE:
             from .tools_views import ToolsMenuView
             return Destination(ToolsMenuView)
+
+        elif button_data[selected_menu_num] == self.REBUILD_SEED_XOR:
+            return Destination(RebuildSeedXORManageView)
 
 
 
@@ -261,10 +270,15 @@ class SeedMnemonicEntryView(View):
         else:
             # Attempt to finalize the mnemonic
             from seedsigner.models.seed import InvalidSeedException
+            from seedsigner.controller import Controller
             try:
                 self.controller.storage.convert_pending_mnemonic_to_pending_seed()
             except InvalidSeedException:
                 return Destination(SeedMnemonicInvalidView)
+
+            if self.controller.resume_main_flow == Controller.FLOW__REBUILD_SEEDXOR:
+                # This mnemonic is a SeedXOR part; confirm its fingerprint next.
+                return Destination(RebuildSeedXORShowFingerprintView)
 
             return Destination(SeedFinalizeView)
 
@@ -2268,3 +2282,459 @@ class SeedSignMessageSignedMessageQRView(View):
 
         # Exiting/Canceling the QR display screen always returns Home
         return Destination(MainMenuView, skip_current_view=True)
+
+
+
+"""****************************************************************************
+    Rebuild Seed XOR Views
+****************************************************************************"""
+class RebuildSeedXORLoadPartView(View):
+    """View for loading a part in the Rebuild Seed XOR flow."""
+    SCAN_PART = ButtonOption("Scan SeedQR", SeedSignerIconConstants.QRCODE)
+    TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    USE_LOADED_SEED = ButtonOption("Use loaded seed", SeedSignerIconConstants.SEEDS)
+
+    def __init__(self):
+        super().__init__()
+        # Clear previous rebuild data when starting a new flow
+        if not self.controller.storage.rebuild_seedxor_parts:
+            self.controller.clear_rebuild_seedxor_data()
+
+    def run(self):
+        # Current part number is the count + 1
+        part_num = len(self.controller.storage.rebuild_seedxor_parts) + 1
+
+        button_data = [
+            self.SCAN_PART,
+            self.TYPE_12WORD,
+            self.TYPE_24WORD,
+        ]
+
+        # TRANSLATOR_NOTE: This is a screen title for loading a "part", which is one of
+        # several mnemonic seed phrases that will be combined. The variable is the
+        # part's number in the sequence (e.g., "Load Part #1").
+        title = _('Load Part #{}').format(part_num)
+
+        if len(self.controller.storage.seeds) > 0:
+            button_data.append(self.USE_LOADED_SEED)
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=title,
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(RebuildSeedXORManageView, clear_history=True)
+
+
+        elif button_data[selected_menu_num] == self.SCAN_PART:
+            from seedsigner.views.scan_views import ScanSeedQRView
+            self.controller.resume_main_flow = self.controller.FLOW__REBUILD_SEEDXOR
+            return Destination(ScanSeedQRView, view_args={"is_rebuild_seedxor_part": True})
+
+        elif button_data[selected_menu_num] == self.TYPE_12WORD:
+            self.controller.storage.init_pending_mnemonic(num_words=12)
+            self.controller.resume_main_flow = self.controller.FLOW__REBUILD_SEEDXOR
+            return Destination(SeedMnemonicEntryView)
+
+        elif button_data[selected_menu_num] == self.TYPE_24WORD:
+            self.controller.storage.init_pending_mnemonic(num_words=24)
+            self.controller.resume_main_flow = self.controller.FLOW__REBUILD_SEEDXOR
+            return Destination(SeedMnemonicEntryView)
+
+        elif button_data[selected_menu_num] == self.USE_LOADED_SEED:
+            return Destination(RebuildSeedXORSelectExistingSeedView)
+
+
+
+class RebuildSeedXORShowFingerprintView(View):
+    """Show the fingerprint of the part being added to the Seed XOR."""
+
+    CONTINUE = ButtonOption("Continue")
+    CANCEL = ButtonOption("Discard part", button_label_color="red")
+
+    def __init__(self):
+        super().__init__()
+        self.seed = self.controller.storage.get_pending_seed()
+        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        self.fingerprint = self.seed.get_fingerprint(network=network)
+        self.next_part_num = len(self.controller.storage.rebuild_seedxor_parts) + 1
+
+    def run(self):
+        button_data = [self.CONTINUE, self.CANCEL]
+
+        # TRANSLATOR_NOTE: This is a screen title showing the number of a seed "part".
+        # A part is one of several seed phrases being combined. The "{}" will be
+        # replaced by the part's number (e.g., "Part #2").
+        title = _("Part #{}").format(self.next_part_num)
+
+        # TRANSLATOR_NOTE: This is a headline on a screen that displays a seed's
+        # "fingerprint", which is a short, unique identifier for a seed phrase.
+        status_headline = _("Part Fingerprint")
+
+        selected_menu_num = self.run_screen(
+            LargeIconStatusScreen,
+            title=title,
+            status_icon_name=SeedSignerIconConstants.FINGERPRINT,
+            status_color=GUIConstants.BUTTON_FONT_COLOR,
+            status_headline=status_headline,
+            text=self.fingerprint,
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON or button_data[selected_menu_num] == self.CANCEL:
+            self.controller.storage.clear_pending_seed()
+            self.controller.resume_main_flow = None
+            return Destination(RebuildSeedXORLoadPartView)
+
+        error_dict = self.controller.process_rebuild_seedxor_part(self.seed)
+
+        if error_dict:
+            self.controller.storage.clear_pending_seed()
+            return Destination(
+                ErrorView,
+                view_args=dict(
+                    title=error_dict.get("title"),
+                    status_headline=error_dict.get("status_headline"),
+                    text=error_dict.get("message"),
+                    button_text=_("OK"),
+                    next_destination=Destination(RebuildSeedXORLoadPartView)
+                ),
+                skip_current_view=True
+            )
+
+        # The part was accepted; the seed-loading sub-flow is complete, so clear
+        #   resume_main_flow (otherwise any later SeedMnemonicEntryView in this
+        #   session would be misrouted back into the SeedXOR flow).
+        self.controller.storage.clear_pending_seed()
+        self.controller.resume_main_flow = None
+        return Destination(RebuildSeedXORManageView)
+
+
+class RebuildSeedXORManageView(View):
+    """Main management screen for rebuild Seed XOR flow."""
+
+    LOAD_NEXT_PART = ButtonOption("Load Next Part", SeedSignerIconConstants.PLUS)
+    VIEW_LOADED_PARTS = ButtonOption("Loaded Parts", SeedSignerIconConstants.SEEDS)
+    REMOVE_PARTS = ButtonOption("Remove Part", SeedSignerIconConstants.CLOSE)
+    CANCEL = ButtonOption("Cancel Seed XOR", button_label_color="red")
+    FINALIZE = ButtonOption("Combine Parts", SeedSignerIconConstants.CHECK)
+
+    def __init__(self):
+        super().__init__()
+        self.num_parts = len(self.controller.storage.rebuild_seedxor_parts)
+
+    def run(self):
+        button_data = []
+
+        # Always show Load Next Part option
+        button_data.append(self.LOAD_NEXT_PART)
+
+        if self.num_parts > 0:
+            button_data.append(self.VIEW_LOADED_PARTS)
+            button_data.append(self.REMOVE_PARTS)
+            button_data.append(self.CANCEL)
+
+        # Only show Finalize if at least 2 parts are loaded
+        if self.num_parts >= 2:
+            button_data.insert(-1, self.FINALIZE)
+
+        # TRANSLATOR_NOTE: This is a screen title that displays the number of seed
+        # parts that have been loaded. The first argument is for the singular
+        # case (e.g., "1 Part Loaded"), and the second is for the plural
+        # (e.g., "2 Parts Loaded"). The "{}" will be replaced by the number of parts.
+        title = ngettext(
+            "{} Part Loaded",
+            "{} Parts Loaded",
+            self.num_parts
+        ).format(self.num_parts)
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=title,
+            is_button_text_centered=False,
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(LoadSeedView, clear_history=True)
+
+        elif button_data[selected_menu_num] == self.LOAD_NEXT_PART:
+            return Destination(RebuildSeedXORLoadPartView)
+
+        elif button_data[selected_menu_num] == self.VIEW_LOADED_PARTS:
+            return Destination(RebuildSeedXORViewPartsView)
+
+        elif button_data[selected_menu_num] == self.REMOVE_PARTS:
+            return Destination(RebuildSeedXORRemovePartsView)
+
+        elif button_data[selected_menu_num] == self.CANCEL:
+            return Destination(RebuildSeedXORCancelView)
+
+        elif button_data[selected_menu_num] == self.FINALIZE:
+            return Destination(RebuildSeedXORFinalizeView)
+
+
+class RebuildSeedXORSelectExistingSeedView(View):
+    """View for selecting an existing seed to use as a part."""
+
+    def __init__(self):
+        super().__init__()
+        self.seeds = self.controller.storage.seeds
+
+    def run(self):
+        button_data = []
+        for seed in self.seeds:
+            network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+            fingerprint = seed.get_fingerprint(network=network)
+            # TRANSLATOR_NOTE: This is a button label for selecting a seed that is already
+            # loaded in the device's memory. The "{}" will be replaced by the seed's
+            # "fingerprint", a unique identifier (e.g., "Seed abcd1234").
+            button_data.append(ButtonOption("Seed {}".format(fingerprint)))
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("Select Seed"),
+            is_button_text_centered=False,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(RebuildSeedXORLoadPartView)
+
+        selected_seed = self.seeds[selected_menu_num]
+        self.controller.storage.set_pending_seed(selected_seed)
+        return Destination(RebuildSeedXORShowFingerprintView)
+
+
+class RebuildSeedXORViewPartsView(View):
+    """View all loaded parts in the rebuild Seed XOR flow."""
+
+    def run(self):
+        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        parts_text = "\n".join(
+            "Part #{}: {}".format(i + 1, part.get_fingerprint(network=network))
+            for i, part in enumerate(self.controller.storage.rebuild_seedxor_parts)
+        )
+
+        self.run_screen(
+            LargeIconStatusScreen,
+            title=_("Loaded Parts"),
+            status_icon_name=SeedSignerIconConstants.SEEDS,
+            status_headline=None,
+            text=parts_text,
+            button_data=[ButtonOption(_("Done"))]
+        )
+
+        return Destination(RebuildSeedXORManageView)
+
+
+class RebuildSeedXORConfirmRemovePartView(View):
+    CONFIRM_REMOVE = ButtonOption("Remove part", button_label_color="red")
+    KEEP_PART = ButtonOption("Keep part")
+
+    def __init__(self, part_num: int):
+        super().__init__()
+        self.part_num = part_num
+        self.part = self.controller.storage.rebuild_seedxor_parts[part_num]
+
+    def run(self):
+        button_data = [self.KEEP_PART, self.CONFIRM_REMOVE]
+
+        fingerprint = self.part.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
+
+        # TRANSLATOR_NOTE: Asks the user to confirm removing a specific part, identified by its number and fingerprint.
+        text = _("Remove part #{} ({}) from the Seed XOR build?").format(self.part_num + 1, fingerprint)
+
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title=_("Remove Part?"),
+            status_headline=None,
+            text=text,
+            show_back_button=False,
+            button_data=button_data,
+        )
+
+        if button_data[selected_menu_num] == self.CONFIRM_REMOVE:
+            self.controller.remove_rebuild_seedxor_part(self.part_num)
+            return Destination(RebuildSeedXORManageView, clear_history=True)
+
+        elif button_data[selected_menu_num] == self.KEEP_PART:
+            return Destination(RebuildSeedXORRemovePartsView, skip_current_view=True)
+
+
+class RebuildSeedXORRemovePartsView(View):
+    """Select a part to remove from the rebuild Seed XOR flow."""
+
+    def run(self):
+        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        button_data = [
+            ButtonOption("Part #{}: {}".format(i + 1, part.get_fingerprint(network=network)))
+            for i, part in enumerate(self.controller.storage.rebuild_seedxor_parts)
+        ]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("Remove Part"),
+            is_button_text_centered=False,
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(RebuildSeedXORManageView)
+
+        return Destination(RebuildSeedXORConfirmRemovePartView, view_args={"part_num": selected_menu_num})
+
+
+class RebuildSeedXORCancelView(View):
+    """Confirm cancellation of rebuild Seed XOR flow."""
+
+    CONFIRM = ButtonOption("Confirm cancel", button_label_color="red")
+    CONTINUE = ButtonOption("Continue Seed XOR")
+
+    def run(self):
+        button_data = [self.CONTINUE, self.CONFIRM]
+
+        num_parts = len(self.controller.storage.rebuild_seedxor_parts)
+
+        # TRANSLATOR_NOTE: This is a confirmation message when canceling the Seed XOR rebuild process.
+        text = _(
+            "Clear all loaded parts and return to Home?"
+        )
+
+        # TRANSLATOR_NOTE: This is a confirmation message asking the user if they want
+        # to clear the seed "parts" they have loaded. The "{}" will be replaced by
+        # the number of parts (e.g., "Clear 2 loaded parts?").
+        status_headline = _("Clear {} loaded parts?".format(num_parts))
+
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
+            title=_("Cancel Seed XOR"),
+            status_headline=status_headline,
+            text=text,
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON or button_data[selected_menu_num] == self.CONTINUE:
+            return Destination(RebuildSeedXORManageView)
+
+        elif button_data[selected_menu_num] == self.CONFIRM:
+            self.controller.clear_rebuild_seedxor_data()
+            return Destination(LoadSeedView, clear_history=True)
+
+
+class RebuildSeedXORFinalizeView(View):
+    """First step of final confirmation before finalizing the Rebuild Seed XOR seed."""
+
+    def __init__(self):
+        super().__init__()
+
+        self.error = None
+        self.fingerprint = None
+
+        try:
+            mnemonic_strings = [part.mnemonic_str for part in self.controller.storage.rebuild_seedxor_parts]
+            combined_mnemonic = combine_mnemonics_with_xor(mnemonic_strings)
+            seed = Seed(mnemonic=combined_mnemonic)
+
+            # Check for degenerate XOR results (all-zero / all-ones entropy from
+            #   colluding parts). These pass the BIP39 checksum but are worthless.
+            is_valid, error_dict = SeedXORValidator.validate_combined_seed(seed)
+            if not is_valid:
+                self.error = error_dict.get("message")
+                return
+
+            self.controller.storage.rebuild_seedxor_combined_seed = seed
+            self.controller.storage.set_pending_seed(seed)
+            self.fingerprint = seed.get_fingerprint(
+                network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+            )
+        except Exception as e:
+            self.error = str(e)
+
+    def run(self):
+        if self.error:
+            return Destination(ErrorView, view_args=dict(
+                title=_("XOR Error"),
+                status_headline=_("Error Combining Seeds"),
+                text=self.error,
+                button_text=_("OK"),
+                next_destination=Destination(RebuildSeedXORManageView)
+            ))
+
+        part_count = len(self.controller.storage.rebuild_seedxor_parts)
+        button_data = [ButtonOption("Continue")]
+
+        selected_menu_num = self.run_screen(
+            LargeIconStatusScreen,
+            title=_("Finalize Seed XOR"),
+            status_headline=_("Combined {} parts".format(part_count)),
+            text=_("Fingerprint: {}\n\nCombined seed calculated successfully.".format(self.fingerprint)),
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(RebuildSeedXORManageView)
+
+        return Destination(RebuildSeedXORFinalizeOptionsView)
+
+
+class RebuildSeedXORFinalizeOptionsView(View):
+    """Second step of finalization - choose what to do with individual parts"""
+
+    DISCARD_PARTS = ButtonOption("Discard parts", button_label_color="red")
+    KEEP_PARTS = ButtonOption("Keep parts")
+
+    def __init__(self):
+        super().__init__()
+
+        if not self.controller.storage.rebuild_seedxor_combined_seed:
+            self.set_redirect(Destination(RebuildSeedXORManageView))
+            return
+
+        self.seed = self.controller.storage.pending_seed
+
+    def run(self):
+        # Passphrases are rejected on XOR parts (see SeedXORValidator), so the
+        # combined seed is not offered one here either.
+        button_data = [self.DISCARD_PARTS, self.KEEP_PARTS]
+
+        selected_menu_num = self.run_screen(
+            LargeIconStatusScreen,
+            title=_("Finalize Options"),
+            status_icon_name=SeedSignerIconConstants.SEEDS,
+            status_color=GUIConstants.BUTTON_FONT_COLOR,
+            status_headline=_("What about the parts?"),
+            text=_("Keep or discard parts?"),
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(RebuildSeedXORFinalizeView)
+
+        elif button_data[selected_menu_num] == self.DISCARD_PARTS:
+            combined_seed = self.controller.storage.pending_seed
+            self.controller.storage.finalize_pending_seed()
+
+            # Discard the individual part seeds from storage by identity, keeping
+            #   the combined seed. A part loaded via "Use loaded seed" is the same
+            #   object in both storage.seeds and rebuild_seedxor_parts.
+            parts_to_discard = list(self.controller.storage.rebuild_seedxor_parts)
+            for part in parts_to_discard:
+                if part is not combined_seed and part in self.controller.storage.seeds:
+                    self.controller.discard_seed(part)
+
+            self.controller.clear_rebuild_seedxor_data()
+            self.controller.resume_main_flow = None
+            return Destination(SeedOptionsView, view_args={"seed": combined_seed}, clear_history=True)
+
+        elif button_data[selected_menu_num] == self.KEEP_PARTS:
+            combined_seed = self.controller.storage.pending_seed
+            self.controller.storage.finalize_pending_seed()
+            self.controller.clear_rebuild_seedxor_data()
+            self.controller.resume_main_flow = None
+
+            return Destination(SeedOptionsView, view_args={"seed": combined_seed}, clear_history=True)
