@@ -43,13 +43,13 @@ class TestToolsFlows(FlowTest):
                 FlowStep(tools_views.ToolsMenuView,button_data_selection=tools_views.ToolsMenuView.IMAGE),
 
                 # Enter live preview; mock the camera returning preview frames
-                FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=[Image.new('RGB', (10, 10))]),
+                FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=[Image.new('RGB', (10, 10))] * 50),
 
                 # Inject and View a dummy captured high-res frame, but simulate the user pressing BACK to "Reshoot"
                 FlowStep(tools_views.ToolsImageEntropyFinalImageView, before_run=self.inject_mock_camera_images,screen_return_value=RET_CODE__BACK_BUTTON),
 
                 # Re-enter live preview for the second attempt; mock the preview frames again
-                FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=[Image.new('RGB', (10, 10))]),
+                FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=[Image.new('RGB', (10, 10))] * 50),
 
                 # Accept the second captured high-res frame to proceed
                 FlowStep(tools_views.ToolsImageEntropyFinalImageView, before_run=self.inject_mock_camera_images),
