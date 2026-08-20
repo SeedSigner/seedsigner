@@ -60,6 +60,26 @@ class ToolsMenuView(View):
     Image entropy Views
 ****************************************************************************"""
 class ToolsImageEntropyLivePreviewView(View):
+    """
+    A fixed number of live preview frames are collected into a frame pool to provide an
+    additional source of entropy. These frames provide VOLUME for the final seed but are
+    not themselves individually assessed for entropy QUALITY. The quality heuristics are
+    only applied to the final image capture.
+
+    The preview pool enforces two rules:
+    1.) A frame that is a single flat color is rejected (e.g. completely black, completely
+    white, all just one shade of green).
+
+    2.) A frame identical to any previously admitted frame is rejected (de-duplicated via
+    sha256).
+
+    The final image cannot be taken until the full pool has arrived.
+
+    This mirrors the role that NIST SP 800-90B (sec. 4.2) assigns to continuous health
+    tests: detect gross noise-source failure -- a sensor stuck on one value, a stalled
+    or repeating camera -- without attempting to measure entropy.
+    """
+
     def run(self):
         from seedsigner.gui.screens.tools_screens import ToolsImageEntropyLivePreviewScreen
         self.controller.image_entropy_preview_frames = None
@@ -67,7 +87,14 @@ class ToolsImageEntropyLivePreviewView(View):
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
+        # The live preview screen must return the required number of preview pool frames.
+        # Do not proceed if there is any mismatch.
+        if ret is None or len(ret) != ToolsImageEntropyLivePreviewScreen.PREVIEW_POOL_SIZE:
+            num_frames = 0 if ret is None else len(ret)
+            # TRANSLATOR_NOTE: Shown when the camera fails to collect enough frames for a new seed. "expected" and "actual" are the number of frames.
+            raise Exception(_("Entropy collection failed. Expected {expected} preview frames, got {actual}").format(expected=ToolsImageEntropyLivePreviewScreen.PREVIEW_POOL_SIZE, actual=num_frames))
+
         self.controller.image_entropy_preview_frames = ret
         return Destination(ToolsImageEntropyFinalImageView)
 
