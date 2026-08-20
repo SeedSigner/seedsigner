@@ -1,25 +1,172 @@
 # Raspberry Pi OS Local Dev Build Instructions
 
-Since v0.6.0, official releases use our custom [SeedSigner OS](https://github.com/SeedSigner/seedsigner-os/). However, project contributors looking to do rapid development cycles typically use the older Raspberry Pi OS that we had previously built on prior to v0.6.0. If you're here to set up your SeedSigner for local development, continue reading.
+Since v0.6.0, official releases use our custom [SeedSigner OS](https://github.com/SeedSigner/seedsigner-os/). However, project contributors looking to do rapid development cycles typically use Raspberry Pi OS. If you're here to set up your SeedSigner for local development, continue reading.
 
-Begin by acquiring the latest 32-bit, Buster-based Raspberry Pi Lite operating system. This guide was tested using the version dated 2023-05-03, which can be found here:
+## Which instructions do you need?
 
-https://downloads.raspberrypi.org/raspios_oldstable_lite_armhf/images/raspios_oldstable_lite_armhf-2023-05-03/
+The camera code was migrated after v0.8.7 from the deprecated `picamera` library (legacy Broadcom/MMAL stack, Buster-only) to the **libcamera python bindings**. The `numpy` and `picamera` dependencies are gone entirely. Which OS you need depends on which version of the SeedSigner code you want to run:
 
-SeedSigner does not work with any of the more recent versions of Debian. This is a known limitation and there are open tickets to track the progress of this ([Debian 11 ticket](https://github.com/SeedSigner/seedsigner/issues/431), [Debian 12 ticket](https://github.com/SeedSigner/seedsigner/issues/430)). This guide does not work on the 64-bit versions of Buster, however pull requests to update it to be compatible are welcome.
+| SeedSigner version | Camera stack | Raspberry Pi OS to use | Instructions |
+| --- | --- | --- | --- |
+| Releases **after v0.8.7** and the current `dev` branch | `libcamera` | Raspberry Pi OS Lite (Debian 13 "Trixie" or later) | [Part 1](#part-1-libcamera-releases-after-v087-and-current-dev) |
+| **v0.8.7 and earlier** | `picamera` (legacy) | Raspberry Pi OS Lite (Debian 10 "Buster") | [Part 2](#part-2-legacy-picamera-v087-and-earlier-buster) |
 
-Best practice is to verify the downloaded file containing the Raspberry Pi Lite OS matches the published SHA256 hash of the file; for additional reference that hash is: 3d210e61b057de4de90eadb46e28837585a9b24247c221998f5bead04f88624c. After verifying the file's data integrity, you can decompress the .tar.xz file to obtain the operating system image that it contains. You can then use Balena's Etcher tool (https://www.balena.io/etcher/) to write the Raspberry Pi Lite software image to a memory card (4 GB or larger). It's important to note that an image authoring tool must be used (the operating system image cannot be simply copied into a file storage partition on the memory card).
+The code from `dev` (and any release after v0.8.7) does **not** run on Buster, because Buster does not provide the `libcamera` python module. Conversely, v0.8.7 and earlier do **not** run on Bullseye or later, because the legacy `picamera` library only works on Buster.
 
-The manual SeedSigner installation and configuration process requires an internet connection on the Pi to download the necessary libraries and code.  
+[Part 3](#part-3-common-configuration-both-os-versions) covers configuration common to both setups (systemd service, hostname, static IP, ssh conveniences).
+
+The manual SeedSigner installation and configuration process requires an internet connection on the Pi to download the necessary libraries and code.
 If your Pi does not have onboard WiFi, you have two options:
 
 1. Run these steps on a separate Raspberry Pi 2/3/4 or Zero W which does have onboard WiFi to connect to the internet, and then move the SD card over to the non WiFi enabled Pi when complete.
 2. OR configure the non WiFi enabled Pi directly by relaying through your computer's internet connection over USB. See instructions [here](usb_relay.md).
 
-If your Pi does have onboard WiFi, then using the Raspberry Pi Imager software will allow you to easily configure your Pi's WiFi connection, as well as simultaneously write the image file. That will make your initial SSH into the Pi much easier.   
-Use the Pi's onboard WiFi only if you are setting up a local development environment, never for real funds or binary image creation. 
-  
+If your Pi does have onboard WiFi, then using the [Raspberry Pi Imager](https://www.raspberrypi.com/software/) software will allow you to easily configure your Pi's WiFi connection, hostname, user account, and ssh access, as well as simultaneously write the image file. That will make your initial SSH into the Pi much easier.
+Use the Pi's onboard WiFi only if you are setting up a local development environment, never for real funds or binary image creation.
+
 For the following steps you'll need to either connect a keyboard & monitor to the network-connected Raspberry Pi you are working with, or SSH into the Pi if you're familiar with that process.
+
+---
+
+# Part 1: libcamera (releases after v0.8.7 and current `dev`)
+
+These instructions target **Raspberry Pi OS Lite based on Debian 13 ("Trixie") or later**. Use the 32-bit image for a Pi Zero 1.3 / Zero W (armv6); the 64-bit image also works on a Pi Zero 2 W or newer.
+
+Download Raspberry Pi OS Lite from:
+
+https://www.raspberrypi.com/software/operating-systems/
+
+The easiest path is to write the image with the [Raspberry Pi Imager](https://www.raspberrypi.com/software/) and use its OS customization settings to pre-configure your username (`pi` is assumed below), password, hostname, WiFi, and enable ssh. Alternatively, verify the downloaded image's SHA256 hash against the published value and write it with [Balena Etcher](https://www.balena.io/etcher/). Note that an image authoring tool must be used (the operating system image cannot be simply copied into a file storage partition on the memory card).
+
+### Configure the Pi
+First verify that you are running a Debian 13 or later release:
+```bash
+cat /etc/os-release
+```
+
+The output should show `VERSION_CODENAME=trixie` (or a later codename) and `VERSION_ID="13"` (or higher).
+
+Also confirm the OS ships Python 3.10 or newer (Trixie ships 3.13, so no source compile of Python is needed):
+```bash
+python3 --version
+```
+
+Now launch the Raspberry Pi's System Configuration tool using the command:
+```bash
+sudo raspi-config
+```
+
+Set the following:
+* `Interface Options`:
+    * `SPI`: enable
+* `Localisation Options`:
+    * `Locale`: arrow up and down through the list and select or deselect languages with the spacebar.
+        * Deselect the default language option that is selected
+        * Select `en_US.UTF-8 UTF-8` for US English
+        * Use the `TAB` button to select `Ok` and press `ENTER`
+        * On the next screen select `en_US.UTF-8` for the default locale
+* You will also need to configure the WiFi settings if you did not pre-configure them in the Raspberry Pi Imager
+
+Note: there is no camera option to enable; the libcamera stack is the default on modern Raspberry Pi OS. The default `camera_auto_detect=1` in `/boot/firmware/config.txt` will detect official camera modules automatically. Many aftermarket/clone OV5647 camera boards (common in SeedSigner builds) are **not** auto-detected; for those, edit `/boot/firmware/config.txt` and replace `camera_auto_detect=1` with an explicit overlay:
+```ini
+camera_auto_detect=0
+dtoverlay=ov5647
+```
+
+When you exit the System Configuration tool, you will be prompted to reboot the system; allow the system to reboot and continue with these instructions.
+
+Each command should be run individually, unless it's specified as a multi-line command.
+
+### Install dependencies
+Copy this entire box and run it as one command:
+```bash
+sudo apt update && sudo apt install -y git python3-pip python3-venv \
+   python3-libcamera python3-rpi-lgpio python3-spidev \
+   libzbar0t64 libjpeg-dev zlib1g-dev libopenjp2-7 libfreetype6-dev \
+   libraqm-dev qrencode
+```
+
+Notes:
+* `python3-libcamera` provides the `libcamera` python bindings that drive the camera. They are **not** pip-installable; they must come from the OS.
+* `python3-rpi-lgpio` is a drop-in replacement for `RPi.GPIO` that works on modern kernels; `python3-spidev` provides SPI access for the LCD. These replace the `requirements-raspi.txt` pip installs below.
+* `libzbar0t64` is the QR-decoding library (named `libzbar0` on releases before Trixie). Trixie's version already meets the 0.23.x minimum that used to require a manual download on Buster.
+
+### Download the SeedSigner code:
+```bash
+git clone https://github.com/SeedSigner/seedsigner
+cd seedsigner
+```
+
+### Install Python `pip` dependencies:
+Debian 12+ marks the system python as "externally managed", so the pip dependencies are installed into a virtual environment. The `--system-site-packages` flag is **required** so the venv can see the apt-installed `libcamera`, `RPi.GPIO` (lgpio shim), and `spidev` modules:
+```bash
+python3 -m venv --system-site-packages venv
+source venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+Do **not** install `requirements-raspi.txt`; its pinned `RPi.GPIO==0.7.0` does not compile against recent Python versions. The apt packages installed above (`python3-rpi-lgpio`, `python3-spidev`) fill that role instead.
+
+Note: if `pip` cannot find a prebuilt `Pillow` wheel for your OS/Python combination it will build it from source, which is slow on a Pi Zero but should succeed with the `-dev` packages installed above.
+
+Remember that anytime you open a new shell you must activate the venv before running SeedSigner:
+```bash
+source ~/seedsigner/venv/bin/activate
+```
+
+#### `pyzbar`
+Note: The `requirements.txt` installs a fork of the python `pyzbar` repo.
+
+The fork is required because the main `pyzbar` repo has been abandoned. This [github issue](https://github.com/NaturalHistoryMuseum/pyzbar/issues/124#issuecomment-971967091) discusses the changes needed in order to support reading binary data from `zbar`, which is required for our `CompactSeedQR` format which writes byte data instead of strings. The changes specifically reference the following PRs which have already been merged into Keith's fork:
+* [PR 76](https://github.com/NaturalHistoryMuseum/pyzbar/pull/76/files): enables scanning to continue even when a null byte (`x\00`) is found.
+* [PR 82](https://github.com/NaturalHistoryMuseum/pyzbar/pull/82): enable `zbar`'s new binary mode. Note that this PR has a trivial bug that was fixed in our fork.
+
+### Verify the camera
+Before running SeedSigner, confirm libcamera sees your sensor:
+```bash
+rpicam-hello --list-cameras
+```
+
+You should see your camera module (e.g. `ov5647`) listed. If not, re-check the `dtoverlay` configuration in `/boot/firmware/config.txt` and your ribbon cable connections, then reboot.
+
+### Optional: increase spidev buffer size
+This allows the LCD driver to update the display without performing multiple write operations because the default buffer size is 4096 bytes. The default can be changed via the `/boot/firmware/cmdline.txt` file. You will need to add `spidev.bufsiz=131072` to the end of this single lined file command.
+
+Example `cmdline.txt` contents:
+```
+console=serial0,115200 console=tty1 root=PARTUUID=2fa4ba7e-02 rootfstype=ext4 fsck.repair=yes rootwait spidev.bufsiz=131072
+```
+
+### Manually start the SeedSigner code
+```bash
+source ~/seedsigner/venv/bin/activate
+cd ~/seedsigner/src
+
+# You'll find the main.py file in that directory. Run it:
+python main.py
+
+# To kill the process, use CTRL-C
+```
+
+Now continue to [Part 3](#part-3-common-configuration-both-os-versions) for the systemd service and other common configuration.
+
+---
+
+# Part 2: legacy picamera (v0.8.7 and earlier, Buster)
+
+These instructions only apply if you are running **v0.8.7 or an earlier release tag**. After cloning the repo (below), check out the release you want, e.g.:
+```bash
+git checkout 0.8.7
+```
+
+Begin by acquiring the latest 32-bit, Buster-based Raspberry Pi Lite operating system. This guide was tested using the version dated 2023-05-03, which can be found here:
+
+https://downloads.raspberrypi.org/raspios_oldstable_lite_armhf/images/raspios_oldstable_lite_armhf-2023-05-03/
+
+This guide does not work on the 64-bit versions of Buster, however pull requests to update it to be compatible are welcome.
+
+Best practice is to verify the downloaded file containing the Raspberry Pi Lite OS matches the published SHA256 hash of the file; for additional reference that hash is: 3d210e61b057de4de90eadb46e28837585a9b24247c221998f5bead04f88624c. After verifying the file's data integrity, you can decompress the .tar.xz file to obtain the operating system image that it contains. You can then use Balena's Etcher tool (https://www.balena.io/etcher/) to write the Raspberry Pi Lite software image to a memory card (4 GB or larger). It's important to note that an image authoring tool must be used (the operating system image cannot be simply copied into a file storage partition on the memory card).
 
 ### Configure the Pi
 First things first, verify that you are using the correct version of the Raspberry Pi Lite operating system by typing the command:
@@ -151,6 +298,9 @@ sudo rm -rf bcm2835-1.60
 ```bash
 git clone https://github.com/SeedSigner/seedsigner
 cd seedsigner
+
+# The current dev branch does not run on Buster; check out v0.8.7 or earlier:
+git checkout 0.8.7
 ```
 
 ### Adding swap space
@@ -193,14 +343,41 @@ Example `cmdline.txt` contents:
 console=serial0,115200 console=tty1 root=PARTUUID=2fa4ba7e-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait modules-load=dwc2,g_ether spidev.bufsiz=131072
 ```
 
+### Further OS modifications
+Disable and remove the system's virtual memory / swap file with the commands:
+
+```bash
+sudo apt remove dphys-swapfile -y
+sudo apt autoremove -y
+sudo rm /var/swap
+```
+
+### Manually start the SeedSigner code
+```bash
+cd ~/seedsigner/src
+
+# You'll find the main.py file in that directory. Run it:
+python main.py
+
+# To kill the process, use CTRL-C
+```
+
+Now continue to Part 3 for the systemd service and other common configuration.
+
+---
+
+# Part 3: Common configuration (both OS versions)
+
 ### Configure `systemd` to run SeedSigner at boot:
 
 ```bash
 sudo nano /etc/systemd/system/seedsigner.service
 ```
 
-Add the following contents to the text file that was created:  
-If you are not using the username pi, then replace `pi` in the service section below with your username. There are 3 lines to change.   
+Add the following contents to the text file that was created:
+If you are not using the username pi, then replace `pi` in the service section below with your username. There are 3 lines to change.
+
+If you followed the **libcamera (Part 1)** instructions, point `ExecStart` at the venv's python:
 ```ini
 [Unit]
 Description=Seedsigner
@@ -208,13 +385,18 @@ Description=Seedsigner
 [Service]
 User=pi
 WorkingDirectory=/home/pi/seedsigner/src/
-ExecStart=/usr/bin/python3 main.py
+ExecStart=/home/pi/seedsigner/venv/bin/python main.py
 StandardOutput=null
 ErrorOutput=null
 Restart=no
 
 [Install]
 WantedBy=multi-user.target
+```
+
+If you followed the **legacy Buster (Part 2)** instructions, use the system python instead:
+```ini
+ExecStart=/usr/bin/python3 main.py
 ```
 
 _Note: The line `Restart=no` ensures that when your dev code crashes it won't keep trying to restart itself._
@@ -248,26 +430,6 @@ kill $(ps aux | grep '[m]ain.py' | awk '{print $2}')
 ```
 
 
-### Further OS modifications
-Disable and remove the system's virtual memory / swap file with the commands:
-
-```bash
-sudo apt remove dphys-swapfile -y
-sudo apt autoremove -y
-sudo rm /var/swap
-```
-
-## Manually start the SeedSigner code
-```bash
-cd ~/seedsigner/src
-
-# You'll find the main.py file in that directory. Run it:
-python main.py
-
-# To kill the process, use CTRL-C
-```
-
-
 ## Local testing and development
 
 ### Run specific branches or PRs
@@ -284,6 +446,8 @@ git checkout pr_123
 ```
 
 where `pr_123` is any name you want to give to the new branch in your local repo that will hold the PR.
+
+Remember the OS/version pairing from the top of this guide: branches based on `dev` after v0.8.7 require the libcamera setup (Part 1); tags/branches at v0.8.7 or earlier require the Buster setup (Part 2).
 
 
 ### Change the host name
@@ -312,7 +476,7 @@ sudo cat /etc/resolv.conf
 
 This is the address of your local machine that is connected to your SeedSigner via USB (or it'll be the WiFi router's address if you're using a Raspberry Pi with WiFi and are keeping it enabled for `ssh` access).
 
-Set a static IP: `sudo nano /etc/dhcpcd.conf` and add to the end:
+**On Buster (Part 2):** set a static IP with `sudo nano /etc/dhcpcd.conf` and add to the end:
 ```
 interface usb0
 static ip_address=192.168.1.200/24
@@ -326,6 +490,15 @@ static domain_name_servers=192.168.1.254
 * `static domain_name_servers` should also be the `nameserver` IP.
 
 `CTRL-X` and `y` to save changes.
+
+**On Trixie (Part 1):** networking is managed by NetworkManager instead of `dhcpcd`. Set a static IP with `nmcli` (substitute your connection name from `nmcli connection show`, and your IPs as described above):
+```bash
+sudo nmcli connection modify "preconfigured" \
+    ipv4.addresses 192.168.1.200/24 \
+    ipv4.gateway 192.168.1.254 \
+    ipv4.dns 192.168.1.254 \
+    ipv4.method manual
+```
 
 After your next reboot, access this SeedSigner using its new static IP:
 ```bash
@@ -394,7 +567,7 @@ Please note that if you are using WiFi to connect/interact with your Raspberry P
 
 You can now safely power the Raspberry Pi off from the SeedSigner main menu.
 
-If you do not plan to use your installation for testing/development, it is also a good idea to disable WiFi and Bluetooth by editing the config.txt file found in the installation's "boot" partition. You can add the following text to the end of that file with any simple text editor (Windows: Notepad, Mac: TextEdit, Linux: nano):
+If you do not plan to use your installation for testing/development, it is also a good idea to disable WiFi and Bluetooth by editing the config.txt file found in the installation's "boot" partition (`/boot/config.txt` on Buster; `/boot/firmware/config.txt` on Trixie). You can add the following text to the end of that file with any simple text editor (Windows: Notepad, Mac: TextEdit, Linux: nano):
 ```ini
 dtoverlay=disable-bt
 dtoverlay=pi3-disable-wifi

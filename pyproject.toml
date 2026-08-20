@@ -47,7 +47,7 @@ exclude_lines = [
 omit = [
   "*/__init__.py",
   "src/seedsigner/hardware/camera.py",
-  "src/seedsigner/hardware/pivideostream.py",
+  "src/seedsigner/hardware/camera_stream.py",
   "src/seedsigner/hardware/displays/ST7789.py",
   "src/seedsigner/hardware/displays/st7789_mpy.py",
   "src/seedsigner/hardware/displays/ili9341.py",

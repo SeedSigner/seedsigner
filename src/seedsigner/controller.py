@@ -73,8 +73,8 @@ class BackgroundImportThread(BaseThread):
         from seedsigner.models.seed_storage import SeedStorage
         Controller.get_instance()._storage = SeedStorage()
 
-        time_import('numpy')  # used by PiVideoStream; by far the slowest import (2.29s)
-        time_import('seedsigner.hardware.pivideostream') 
+        time_import('libcamera')  # C++ pybind11 module used by camera_stream; slow to import
+        time_import('seedsigner.hardware.camera_stream')
 
         # Get MainMenuView ready to respond quickly
         time_import('seedsigner.views.scan_views')
