@@ -279,3 +279,64 @@ class TestToolsFlows(FlowTest):
                 FlowStep(seed_views.SeedAddressVerificationView),
                 FlowStep(seed_views.SeedAddressVerificationSuccessView),
             ])
+
+
+class TestToolsImageEntropyFlows(FlowTest):
+
+    def test__image_entropy__incorrect_preview_frame_count_aborts(self):
+        """
+        If the live preview screen returns anything other than the required number of
+        entropy frames, the View must raise rather than continue on to seed creation.
+        """
+        from unittest.mock import Mock
+        from seedsigner.views.view import UnhandledExceptionView
+        from seedsigner.gui.screens.tools_screens import ToolsImageEntropyLivePreviewScreen
+
+        # Empty list (no frames)
+        self.run_sequence([
+            FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=[]),
+            FlowStep(UnhandledExceptionView),
+        ])
+
+        # Too few
+        self.run_sequence([
+            FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=[Mock()] * 10),
+            FlowStep(UnhandledExceptionView),
+        ])
+
+        # Too many
+        self.run_sequence([
+            FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=[Mock()] * (ToolsImageEntropyLivePreviewScreen.PREVIEW_POOL_SIZE + 5)),
+            FlowStep(UnhandledExceptionView),
+        ])
+
+        # Degenerate None
+        self.run_sequence([
+            FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=None),
+            FlowStep(UnhandledExceptionView),
+        ])
+
+
+
+    def test__image_entropy__screen_exception_does_not_advance(self):
+        """
+        There is no explicit handling for the live preview screen raising, but the flow
+        must never continue on to seed creation when it does.
+        """
+        from seedsigner.views.view import UnhandledExceptionView
+
+        self.run_sequence([
+            FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=Exception("Test exception")),
+            FlowStep(UnhandledExceptionView),
+        ])
+
+
+    def test__image_entropy__full_preview_frames_advances(self):
+        """ A full set of preview frames advances to the final image capture. """
+        from unittest.mock import Mock
+        from seedsigner.gui.screens.tools_screens import ToolsImageEntropyLivePreviewScreen
+
+        self.run_sequence([
+            FlowStep(tools_views.ToolsImageEntropyLivePreviewView, screen_return_value=[Mock()] * ToolsImageEntropyLivePreviewScreen.PREVIEW_POOL_SIZE),
+            FlowStep(tools_views.ToolsImageEntropyFinalImageView),
+        ])
