@@ -33,4 +33,8 @@ def crc32(buf):
 
 def crc32n(buf):
     n = crc32(buf)
-    return n.to_bytes((bit_length(n) + 7) // 8, 'big')
+    # The UR spec's Bytewords checksum is a fixed-width 4-byte big-endian CRC32.
+    # Sizing the output to the value's bit length emits 3 bytes whenever the CRC is
+    # below 2**24 (~1 in 256), which produces frames that spec-compliant decoders
+    # reject and that lax decoders truncate by one payload byte.
+    return n.to_bytes(4, 'big')
