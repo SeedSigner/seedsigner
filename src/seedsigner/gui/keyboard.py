@@ -362,65 +362,134 @@ class Keyboard:
         return None
 
 
-    def get_key_above(self, cur_x, cur_y):
-        next_y = cur_y - 1
-        # Track if we've wrapped to avoid infinite loop when skipping inactive keys
-        has_wrapped = False
-        start_y = cur_y
+    def _key_is_usable(self, key) -> bool:
+        """Active letter keys and always-on additional keys (e.g. backspace) are usable."""
+        return key is not None and (key.is_active or key.is_additional_key)
 
-        while True:
-            if next_y < 0:
-                # We started from the top row; auto_wrap or exit.
-                if Keyboard.WRAP_TOP in self.auto_wrap:
-                    # Loop it back to the bottom
-                    next_y = len(self.keys) - 1
-                    if has_wrapped:
-                        # Already wrapped once; no active key found in this column
-                        return (cur_x, cur_y, Keyboard.EXIT_TOP)
-                    has_wrapped = True
-                else:
-                    # Undo selection change and notify controlling loop that we've left
-                    #   the keyboard
-                    return (cur_x, cur_y, Keyboard.EXIT_TOP)
 
-            target_key = self.get_key_at(cur_x, next_y)
-            if target_key and (target_key.is_active or target_key.is_additional_key):
-                return (cur_x, next_y, None)
+    def _nearest_usable_key_in_row(self, row_y: int, prefer_x: int):
+        """
+        Return the usable key in row_y whose horizontal span is closest to prefer_x.
+        Distance is 0 if prefer_x falls inside the key's [index_x, index_x+size).
+        """
+        if row_y < 0 or row_y >= len(self.keys):
+            return None
+
+        best = None
+        best_dist = None
+        for key in self.keys[row_y]:
+            if not self._key_is_usable(key):
+                continue
+            start = key.index_x
+            end = key.index_x + key.size - 1
+            if prefer_x < start:
+                dist = start - prefer_x
+            elif prefer_x > end:
+                dist = prefer_x - end
             else:
-                # No match or inactive. Move up one more row.
-                next_y -= 1
-                if next_y == start_y and has_wrapped:
-                    # Full cycle with no active key
-                    return (cur_x, cur_y, Keyboard.EXIT_TOP)
+                dist = 0
+            if best is None or dist < best_dist:
+                best = key
+                best_dist = dist
+                if dist == 0:
+                    break
+        return best
+
+
+    def _ordered_keys_in_row(self, row_y: int):
+        """Keys in left-to-right visual order (already stored that way)."""
+        return list(self.keys[row_y])
+
+
+    def get_key_above(self, cur_x, cur_y):
+        """
+        Move up to the nearest usable key in a higher row (closest horizontally
+        to the current x). Skip empty/fully-inactive rows. Exit at the top edge
+        unless WRAP_TOP is enabled.
+        """
+        # Search upward row by row
+        for next_y in range(cur_y - 1, -1, -1):
+            key = self._nearest_usable_key_in_row(next_y, cur_x)
+            if key is not None:
+                return (key.index_x, next_y, None)
+
+        if Keyboard.WRAP_TOP in self.auto_wrap:
+            for next_y in range(len(self.keys) - 1, cur_y, -1):
+                key = self._nearest_usable_key_in_row(next_y, cur_x)
+                if key is not None:
+                    return (key.index_x, next_y, None)
+
+        return (cur_x, cur_y, Keyboard.EXIT_TOP)
 
 
     def get_key_below(self, cur_x, cur_y):
-        next_y = cur_y + 1
-        has_wrapped = False
-        start_y = cur_y
+        """
+        Move down to the nearest usable key in a lower row (closest horizontally
+        to the current x). Skip empty/fully-inactive rows. Exit at the bottom edge
+        unless WRAP_BOTTOM is enabled.
+        """
+        for next_y in range(cur_y + 1, len(self.keys)):
+            key = self._nearest_usable_key_in_row(next_y, cur_x)
+            if key is not None:
+                return (key.index_x, next_y, None)
 
-        while True:
-            if next_y == len(self.keys):
-                # We started from the bottom row; auto_wrap or exit.
-                if Keyboard.WRAP_BOTTOM in self.auto_wrap:
-                    # Loop it back to the top
-                    next_y = 0
-                    if has_wrapped:
-                        return (cur_x, cur_y, Keyboard.EXIT_BOTTOM)
-                    has_wrapped = True
-                else:
-                    # Undo selection change and notify controlling loop that we've left
-                    #   the keyboard
-                    return (cur_x, cur_y, Keyboard.EXIT_BOTTOM)
+        if Keyboard.WRAP_BOTTOM in self.auto_wrap:
+            for next_y in range(0, cur_y):
+                key = self._nearest_usable_key_in_row(next_y, cur_x)
+                if key is not None:
+                    return (key.index_x, next_y, None)
 
-            target_key = self.get_key_at(cur_x, next_y)
-            if target_key is not None and (target_key.is_active or target_key.is_additional_key):
-                return (cur_x, next_y, None)
+        return (cur_x, cur_y, Keyboard.EXIT_BOTTOM)
 
-            # No keys in this col in this row or inactive. Move down again and recheck.
-            next_y += 1
-            if next_y == start_y and has_wrapped:
-                return (cur_x, cur_y, Keyboard.EXIT_BOTTOM)
+
+    def _move_horizontal(self, direction: int):
+        """
+        direction: +1 = right, -1 = left.
+        Stay in the current row. Land on the next usable key in that direction.
+        Honor WRAP_LEFT / WRAP_RIGHT. If no other usable key exists in the row,
+        stay put (return None exit code path via no EXIT).
+        Returns EXIT_LEFT / EXIT_RIGHT if movement would leave the keyboard, else None.
+        """
+        row_y = self.selected_key["y"]
+        row_keys = self._ordered_keys_in_row(row_y)
+        if not row_keys:
+            return None
+
+        # Locate current key index within the row list
+        current = self.get_key_at(self.selected_key["x"], row_y)
+        try:
+            cur_i = row_keys.index(current) if current in row_keys else 0
+        except ValueError:
+            cur_i = 0
+
+        n = len(row_keys)
+        wrap = (
+            (direction > 0 and Keyboard.WRAP_RIGHT in self.auto_wrap)
+            or (direction < 0 and Keyboard.WRAP_LEFT in self.auto_wrap)
+        )
+
+        for step in range(1, n + 1):
+            i = cur_i + direction * step
+            if i < 0 or i >= n:
+                if not wrap:
+                    # Would leave the row / keyboard edge
+                    if direction > 0:
+                        return Keyboard.EXIT_RIGHT
+                    return Keyboard.EXIT_LEFT
+                i = i % n
+
+            candidate = row_keys[i]
+            if self._key_is_usable(candidate):
+                self.selected_key["x"] = candidate.index_x
+                self.selected_key["y"] = row_y
+                return None
+
+            # If we've wrapped all the way around back to current, stop
+            if i == cur_i:
+                break
+
+        # No other usable key — stay on current selection
+        return None
 
 
     def update_from_input(self, input):
@@ -441,68 +510,14 @@ class Keyboard:
         key.render_key()
 
         if input == HardwareButtonsConstants.KEY_RIGHT:
-            # Keep moving right, skipping over inactive (grayed-out) keys
-            start_x = self.selected_key["x"]
-            start_y = self.selected_key["y"]
-            while True:
-                self.selected_key["x"] = key.index_x + key.size
-                new_key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
-                if new_key is None:
-                    if Keyboard.WRAP_RIGHT in self.auto_wrap:
-                        # Loop it back to the left side
-                        self.selected_key["x"] = 0
-                        new_key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
-                    else:
-                        # Undo selection change and notify controlling loop that we've left
-                        #   the keyboard
-                        self.selected_key["x"] = start_x
-                        return Keyboard.EXIT_RIGHT
-
-                if new_key is None:
-                    # Should not happen, but safety
-                    self.selected_key["x"] = start_x
-                    return Keyboard.EXIT_RIGHT
-
-                if new_key.is_active or new_key.is_additional_key:
-                    # Found a usable key
-                    break
-
-                # Inactive key; continue from here
-                key = new_key
-                # Safety: if we wrapped all the way around without finding an active key
-                if self.selected_key["x"] == start_x and self.selected_key["y"] == start_y:
-                    # Stay on original (or could EXIT, but prefer stay)
-                    break
+            exit_code = self._move_horizontal(+1)
+            if exit_code:
+                return exit_code
 
         elif input == HardwareButtonsConstants.KEY_LEFT:
-            # Keep moving left, skipping over inactive (grayed-out) keys
-            start_x = self.selected_key["x"]
-            start_y = self.selected_key["y"]
-            while True:
-                key = self.get_selected_key()  # current before this step
-                self.selected_key["x"] = key.index_x - 1
-                if self.selected_key["x"] < 0:
-                    if Keyboard.WRAP_LEFT in self.auto_wrap:
-                        # Loop it back to the right side of the row
-                        self.selected_key["x"] = self.keys[self.selected_key["y"]][-1].index_x
-                    else:
-                        # Undo and exit
-                        self.selected_key["x"] = start_x
-                        return Keyboard.EXIT_LEFT
-
-                new_key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
-                if new_key is None:
-                    # Safety fallback
-                    self.selected_key["x"] = start_x
-                    return Keyboard.EXIT_LEFT
-
-                if new_key.is_active or new_key.is_additional_key:
-                    break
-
-                # Inactive; continue left from this key
-                key = new_key
-                if self.selected_key["x"] == start_x and self.selected_key["y"] == start_y:
-                    break
+            exit_code = self._move_horizontal(-1)
+            if exit_code:
+                return exit_code
 
         elif input == HardwareButtonsConstants.KEY_DOWN:
             new_index_x, new_index_y, keyboard_exit = self.get_key_below(self.selected_key["x"], self.selected_key["y"])
@@ -519,34 +534,63 @@ class Keyboard:
                 return keyboard_exit
 
         elif input == Keyboard.ENTER_LEFT:
-            # User has returned to the keyboard along the left edge
-            # Keep the last y position that was selected.
-            self.selected_key["x"] = 0
+            # User has returned to the keyboard along the left edge.
+            # Prefer a usable key near the left of the current row.
+            row_y = self.selected_key["y"]
+            key = self._nearest_usable_key_in_row(row_y, 0)
+            if key is not None:
+                self.selected_key["x"] = key.index_x
+            else:
+                self.selected_key["x"] = 0
 
         elif input == Keyboard.ENTER_RIGHT:
-            # User has returned to the keyboard along the right edge
-            # Keep the last y position that was selected.
-            self.selected_key["x"] = self.keys[self.selected_key["y"]][-1].index_x
+            # User has returned along the right edge — prefer usable key near the right.
+            row_y = self.selected_key["y"]
+            last_x = self.keys[row_y][-1].index_x
+            key = self._nearest_usable_key_in_row(row_y, last_x)
+            if key is not None:
+                self.selected_key["x"] = key.index_x
+            else:
+                self.selected_key["x"] = last_x
 
         elif input == Keyboard.ENTER_TOP:
-            # User has returned to the keyboard along the top edge
-            # Keep the last x position that was selected.
-            self.selected_key["y"] = 0
+            # Re-enter from top edge: topmost row with a usable key near last x.
+            prefer_x = self.selected_key["x"]
+            for y in range(0, len(self.keys)):
+                key = self._nearest_usable_key_in_row(y, prefer_x)
+                if key is not None:
+                    self.selected_key["x"] = key.index_x
+                    self.selected_key["y"] = y
+                    break
 
         elif input == Keyboard.ENTER_BOTTOM:
-            # User has returned to the keyboard along the bottom edge
-            # Keep the last x position that was selected.
-            self.selected_key["y"] = len(self.keys) - 1
-            while True:
-                key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
+            # Re-enter from bottom edge: bottommost row with a usable key near last x.
+            prefer_x = self.selected_key["x"]
+            for y in range(len(self.keys) - 1, -1, -1):
+                key = self._nearest_usable_key_in_row(y, prefer_x)
                 if key is not None:
+                    self.selected_key["x"] = key.index_x
+                    self.selected_key["y"] = y
                     break
-                else:
-                    # Can't enter here. Jump up a row
-                    self.selected_key["y"] -= 1
 
-        # Render the newly self.selected_key letter
+        # Render the newly selected key. If we somehow landed on a missing/inactive
+        # key, snap to the nearest usable key in this row (then any row).
         key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
+        if not self._key_is_usable(key):
+            key = self._nearest_usable_key_in_row(self.selected_key["y"], self.selected_key["x"])
+            if key is None:
+                for y, row in enumerate(self.keys):
+                    key = self._nearest_usable_key_in_row(y, self.selected_key["x"])
+                    if key is not None:
+                        self.selected_key["y"] = y
+                        break
+            if key is not None:
+                self.selected_key["x"] = key.index_x
+
+        if key is None:
+            # Should be unreachable if the charset has any keys
+            return None
+
         key.is_selected = True
         key.render_key()
 
