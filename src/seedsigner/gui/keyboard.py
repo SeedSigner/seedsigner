@@ -364,6 +364,9 @@ class Keyboard:
 
     def get_key_above(self, cur_x, cur_y):
         next_y = cur_y - 1
+        # Track if we've wrapped to avoid infinite loop when skipping inactive keys
+        has_wrapped = False
+        start_y = cur_y
 
         while True:
             if next_y < 0:
@@ -371,21 +374,30 @@ class Keyboard:
                 if Keyboard.WRAP_TOP in self.auto_wrap:
                     # Loop it back to the bottom
                     next_y = len(self.keys) - 1
+                    if has_wrapped:
+                        # Already wrapped once; no active key found in this column
+                        return (cur_x, cur_y, Keyboard.EXIT_TOP)
+                    has_wrapped = True
                 else:
                     # Undo selection change and notify controlling loop that we've left
                     #   the keyboard
                     return (cur_x, cur_y, Keyboard.EXIT_TOP)
 
             target_key = self.get_key_at(cur_x, next_y)
-            if target_key:
-                return(cur_x, next_y, None)
+            if target_key and (target_key.is_active or target_key.is_additional_key):
+                return (cur_x, next_y, None)
             else:
-                # No match was found. Move up one more row.
+                # No match or inactive. Move up one more row.
                 next_y -= 1
+                if next_y == start_y and has_wrapped:
+                    # Full cycle with no active key
+                    return (cur_x, cur_y, Keyboard.EXIT_TOP)
 
 
     def get_key_below(self, cur_x, cur_y):
         next_y = cur_y + 1
+        has_wrapped = False
+        start_y = cur_y
 
         while True:
             if next_y == len(self.keys):
@@ -393,18 +405,22 @@ class Keyboard:
                 if Keyboard.WRAP_BOTTOM in self.auto_wrap:
                     # Loop it back to the top
                     next_y = 0
-                    return (cur_x, next_y, None)
+                    if has_wrapped:
+                        return (cur_x, cur_y, Keyboard.EXIT_BOTTOM)
+                    has_wrapped = True
                 else:
                     # Undo selection change and notify controlling loop that we've left
                     #   the keyboard
                     return (cur_x, cur_y, Keyboard.EXIT_BOTTOM)
 
             target_key = self.get_key_at(cur_x, next_y)
-            if target_key is not None:
+            if target_key is not None and (target_key.is_active or target_key.is_additional_key):
                 return (cur_x, next_y, None)
 
-            # No keys in this col in this row. Move down again and recheck.
+            # No keys in this col in this row or inactive. Move down again and recheck.
             next_y += 1
+            if next_y == start_y and has_wrapped:
+                return (cur_x, cur_y, Keyboard.EXIT_BOTTOM)
 
 
     def update_from_input(self, input):
@@ -425,30 +441,68 @@ class Keyboard:
         key.render_key()
 
         if input == HardwareButtonsConstants.KEY_RIGHT:
-            self.selected_key["x"] = key.index_x + key.size
-            new_key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
-            if new_key is None:
-                if Keyboard.WRAP_RIGHT in self.auto_wrap:
-                    # Loop it back to the right side
-                    self.selected_key["x"] = 0
-                else:
-                    # Undo selection change and notify controlling loop that we've left
-                    #   the keyboard
-                    self.selected_key["x"] -= 1
+            # Keep moving right, skipping over inactive (grayed-out) keys
+            start_x = self.selected_key["x"]
+            start_y = self.selected_key["y"]
+            while True:
+                self.selected_key["x"] = key.index_x + key.size
+                new_key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
+                if new_key is None:
+                    if Keyboard.WRAP_RIGHT in self.auto_wrap:
+                        # Loop it back to the left side
+                        self.selected_key["x"] = 0
+                        new_key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
+                    else:
+                        # Undo selection change and notify controlling loop that we've left
+                        #   the keyboard
+                        self.selected_key["x"] = start_x
+                        return Keyboard.EXIT_RIGHT
+
+                if new_key is None:
+                    # Should not happen, but safety
+                    self.selected_key["x"] = start_x
                     return Keyboard.EXIT_RIGHT
 
+                if new_key.is_active or new_key.is_additional_key:
+                    # Found a usable key
+                    break
+
+                # Inactive key; continue from here
+                key = new_key
+                # Safety: if we wrapped all the way around without finding an active key
+                if self.selected_key["x"] == start_x and self.selected_key["y"] == start_y:
+                    # Stay on original (or could EXIT, but prefer stay)
+                    break
+
         elif input == HardwareButtonsConstants.KEY_LEFT:
-            key = self.get_selected_key()
-            self.selected_key["x"] = key.index_x - 1
-            if self.selected_key["x"] < 0:
-                if Keyboard.WRAP_LEFT in self.auto_wrap:
-                    # Loop it back to the left side
-                    self.selected_key["x"] = self.keys[self.selected_key["y"]][-1].index_x
-                else:
-                    # Undo selection change and notify controlling loop that we've left
-                    #   the keyboard
-                    self.selected_key["x"] += 1
+            # Keep moving left, skipping over inactive (grayed-out) keys
+            start_x = self.selected_key["x"]
+            start_y = self.selected_key["y"]
+            while True:
+                key = self.get_selected_key()  # current before this step
+                self.selected_key["x"] = key.index_x - 1
+                if self.selected_key["x"] < 0:
+                    if Keyboard.WRAP_LEFT in self.auto_wrap:
+                        # Loop it back to the right side of the row
+                        self.selected_key["x"] = self.keys[self.selected_key["y"]][-1].index_x
+                    else:
+                        # Undo and exit
+                        self.selected_key["x"] = start_x
+                        return Keyboard.EXIT_LEFT
+
+                new_key = self.get_key_at(self.selected_key["x"], self.selected_key["y"])
+                if new_key is None:
+                    # Safety fallback
+                    self.selected_key["x"] = start_x
                     return Keyboard.EXIT_LEFT
+
+                if new_key.is_active or new_key.is_additional_key:
+                    break
+
+                # Inactive; continue left from this key
+                key = new_key
+                if self.selected_key["x"] == start_x and self.selected_key["y"] == start_y:
+                    break
 
         elif input == HardwareButtonsConstants.KEY_DOWN:
             new_index_x, new_index_y, keyboard_exit = self.get_key_below(self.selected_key["x"], self.selected_key["y"])
