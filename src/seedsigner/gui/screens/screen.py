@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 #   screens with buttons.
 RET_CODE__BACK_BUTTON = 1000
 RET_CODE__POWER_BUTTON = 1001
+RET_CODE__SD_REMOVED = 1002
 
 
 
@@ -1047,6 +1048,52 @@ class WarningScreen(WarningEdgesMixin, LargeIconStatusScreen):
     status_color: str = GUIConstants.WARNING_COLOR
     status_headline: str = _mft("Privacy Leak!")     # The colored text under the alert icon
     button_data: list = field(default_factory=lambda: [ButtonOption("I understand")])
+
+
+
+
+@dataclass
+class RemoveMicroSDScreen(WarningScreen):
+    """
+    Boot gate: stay here until the MicroSD is removed, or the user explicitly Skips.
+
+    Polls MicroSD insertion so ejecting the card advances without a button press.
+    """
+    title: str = _mft("Action Required")
+    status_icon_name: str = SeedSignerIconConstants.MICROSD
+    status_headline: str = None
+    text: str = _mft(
+        "Remove the MicroSD card to continue.\n\n"
+        "Press Skip only if you need the card inserted (e.g. persistent settings)."
+    )
+    show_back_button: bool = False
+    button_data: list = field(default_factory=lambda: [ButtonOption("Skip")])
+
+
+    def _run(self):
+        from seedsigner.hardware.microsd import MicroSD
+
+        # Ensure the single Skip button is highlighted
+        if self.buttons:
+            self.buttons[self.selected_button].is_selected = True
+            with self.renderer.lock:
+                self.buttons[self.selected_button].render()
+                self.renderer.show_image()
+
+        while True:
+            # Auto-advance as soon as the card is gone
+            if not MicroSD.get_instance().is_inserted:
+                return RET_CODE__SD_REMOVED
+
+            # Non-blocking-ish input poll so we can keep checking the SD slot
+            if self.hw_inputs.check_for_low(keys=HardwareButtonsConstants.KEYS__ANYCLICK):
+                # Debounce: wait for release
+                while self.hw_inputs.check_for_low(keys=HardwareButtonsConstants.KEYS__ANYCLICK):
+                    time.sleep(0.05)
+                self.hw_inputs.update_last_input_time()
+                return self.selected_button
+
+            time.sleep(0.1)
 
 
 

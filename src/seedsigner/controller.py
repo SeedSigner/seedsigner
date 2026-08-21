@@ -280,11 +280,20 @@ class Controller(Singleton):
             else:
                 next_destination = Destination(MainMenuView)
             
-            # Set up our one-time toast notification tip to remove the SD card
-            if self.settings.get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER) == SettingsConstants.MICROSD_TOAST_TIMER_FIVE_SECONDS:
-                self.activate_toast(RemoveSDCardToastManagerThread())
-            elif self.settings.get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER) == SettingsConstants.MICROSD_TOAST_TIMER_FOREVER:
+            # SeedSigner OS: if the MicroSD is still inserted after boot, require
+            # eject (or an explicit Skip on that screen) before the Main Menu.
+            # Desktop / test hosts always report is_inserted=True, so only enforce
+            # this gate on the real OS image.
+            if (
+                Settings.HOSTNAME == Settings.SEEDSIGNER_OS
+                and self.microsd.is_inserted
+                and not initial_destination
+            ):
                 next_destination = Destination(RemoveMicroSDWarningView)
+            elif self.settings.get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER) == SettingsConstants.MICROSD_TOAST_TIMER_FIVE_SECONDS:
+                self.activate_toast(RemoveSDCardToastManagerThread())
+            # MICROSD_TOAST_TIMER_FOREVER is superseded by the OS gate above when the
+            # card is present; keep the setting for backward compatibility / toast path.
 
             while True:
                 # Destination(None) is a special case; render the Home screen

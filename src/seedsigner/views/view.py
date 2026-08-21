@@ -442,35 +442,25 @@ class OptionDisabledView(View):
 
 
 class RemoveMicroSDWarningView(View):
-    CONTINUE = ButtonOption("Continue")
-    SETTINGS = ButtonOption("Settings")
+    """
+    Post-boot gate: block until MicroSD is removed, or the user explicitly skips.
+
+    Skip is intentional — e.g. user needs the card in for persistent settings.
+    """
+    SKIP = ButtonOption("Skip")
 
     def run(self):
-        button_data = [self.CONTINUE, self.SETTINGS]
-        selected_menu_num = self.run_screen(
-            WarningScreen,
-            title=_("Action Required"),
-            status_icon_name=SeedSignerIconConstants.MICROSD,
-            status_headline=None,
-            text=_("You must remove the\nMicroSD card to continue."),
-            show_back_button=False,
-            button_data=button_data,
-        )
+        from seedsigner.hardware.microsd import MicroSD
+        from seedsigner.gui.screens.screen import RemoveMicroSDScreen, RET_CODE__SD_REMOVED
 
-        if button_data[selected_menu_num] == self.CONTINUE:
-            from seedsigner.hardware.microsd import MicroSD
-            if not MicroSD.get_instance().is_inserted:
-                return Destination(MainMenuView, clear_history=True)
-            else:
-                return Destination(RemoveMicroSDWarningView, clear_history=True)
+        # Already ejected (or never present) → go straight home
+        if not MicroSD.get_instance().is_inserted:
+            return Destination(MainMenuView, clear_history=True)
 
-        elif button_data[selected_menu_num] == self.SETTINGS:
-            from seedsigner.views.settings_views import SettingsEntryUpdateSelectionView
-            return Destination(
-                SettingsEntryUpdateSelectionView, 
-                view_args=dict(
-                    attr_name=SettingsConstants.SETTING__MICROSD_TOAST_TIMER,
-                    blocking_view=RemoveMicroSDWarningView,
-                    unblocking_view=MainMenuView
-                )
-            )
+        result = self.run_screen(RemoveMicroSDScreen)
+
+        if result == RET_CODE__SD_REMOVED:
+            return Destination(MainMenuView, clear_history=True)
+
+        # Skip pressed — continue with card still inserted
+        return Destination(MainMenuView, clear_history=True)
