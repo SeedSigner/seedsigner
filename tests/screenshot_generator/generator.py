@@ -45,7 +45,7 @@ from seedsigner.models.settings_definition import SettingsConstants, SettingsDef
 from seedsigner.views import (MainMenuView, PowerOptionsView, RestartView, RemoveMicroSDWarningView, NotYetImplementedView, UnhandledExceptionView, 
     psbt_views, seed_views, settings_views, tools_views, scan_views)
 from seedsigner.views.screensaver import OpeningSplashView
-from seedsigner.views.view import CameraConnectionErrorView, NetworkMismatchErrorView, OptionDisabledView, PowerOffView
+from seedsigner.views.view import CameraConnectionErrorView, ErrorView, NetworkMismatchErrorView, OptionDisabledView, PowerOffView
 
 from .utils import ScreenshotComplete, ScreenshotConfig, ScreenshotRenderer
 
@@ -321,6 +321,54 @@ def generate_screenshots(locale):
             with patch.object(controller, 'psbt_seed', None):
                 yield
 
+        # --- Seed XOR rebuild flow state helpers -------------------------------
+        # Test mnemonics shared with tests/test_flow_seedxor.py (see
+        #   tests/seedxor_test_vectors.py). The feature is gated behind the
+        #   Advanced setting SETTING__SEED_XOR (default DISABLED), so every
+        #   SeedXOR screenshot must enable it first.
+        SEEDXOR_PART_12_A = "romance wink lottery autumn shop bring dawn tongue range crater truth ability"  # EXAMPLE_12_A
+        SEEDXOR_PART_12_B = "boat unfair shell violin tree robust open ride visual forest vintage approve"  # EXAMPLE_12_B
+
+        def _seedxor_make_part(mnemonic) -> Seed:
+            mnemonic_list = mnemonic.split() if isinstance(mnemonic, str) else mnemonic
+            return Seed(mnemonic=mnemonic_list, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+
+        @contextmanager
+        def mock_seedxor_enabled():
+            prev = controller.settings.get_value(SettingsConstants.SETTING__SEED_XOR)
+            controller.settings.set_value(SettingsConstants.SETTING__SEED_XOR, SettingsConstants.OPTION__ENABLED)
+            try:
+                yield
+            finally:
+                controller.settings.set_value(SettingsConstants.SETTING__SEED_XOR, prev)
+
+        @contextmanager
+        def mock_seedxor_parts_loaded(num_parts: int = 2):
+            """Preload `num_parts` XOR parts into storage for the Rebuild Seed XOR views."""
+            part_mnemonics = [SEEDXOR_PART_12_A, SEEDXOR_PART_12_B][:num_parts]
+            parts = [_seedxor_make_part(m) for m in part_mnemonics]
+            with mock_seedxor_enabled():
+                with patch.object(controller.storage, 'rebuild_seedxor_parts', parts):
+                    yield
+
+        @contextmanager
+        def mock_seedxor_pending_part(num_parts: int = 1):
+            """Parts loaded plus a pending seed awaiting fingerprint confirmation."""
+            with mock_seedxor_parts_loaded(num_parts):
+                with patch.object(controller.storage, 'pending_seed', _seedxor_make_part(SEEDXOR_PART_12_B)):
+                    yield
+
+        @contextmanager
+        def mock_seedxor_combined_seed():
+            """Two parts loaded plus their combined seed (for finalize options)."""
+            from seedsigner.helpers.mnemonic_generation import combine_mnemonics_with_xor
+            part_mnemonics = [SEEDXOR_PART_12_A, SEEDXOR_PART_12_B]
+            combined = _seedxor_make_part(combine_mnemonics_with_xor(part_mnemonics))
+            with mock_seedxor_parts_loaded(num_parts=2):
+                with patch.object(controller.storage, 'rebuild_seedxor_combined_seed', combined):
+                    with patch.object(controller.storage, 'pending_seed', combined):
+                        yield
+
 
         @contextmanager
         def mock_psbt_with_op_return_loaded():
@@ -433,6 +481,33 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedSignMessageConfirmAddressView),
 
                 ScreenshotConfig(seed_views.SeedElectrumMnemonicStartView),
+
+                # Rebuild Seed XOR flow (issue #738); feature is gated behind the
+                #   Advanced setting SETTING__SEED_XOR (default DISABLED), so every
+                #   entry enables it via mock context managers.
+                ScreenshotConfig(seed_views.LoadSeedView, screenshot_name="LoadSeedView_seedxor_enabled", mock_context_manager=mock_seedxor_enabled),
+                ScreenshotConfig(seed_views.RebuildSeedXORManageView, screenshot_name="RebuildSeedXORManageView_no_parts", mock_context_manager=lambda: mock_seedxor_parts_loaded(num_parts=0)),
+                ScreenshotConfig(seed_views.RebuildSeedXORManageView, screenshot_name="RebuildSeedXORManageView_one_part",  mock_context_manager=lambda: mock_seedxor_parts_loaded(num_parts=1)),
+                ScreenshotConfig(seed_views.RebuildSeedXORManageView, screenshot_name="RebuildSeedXORManageView_two_parts", mock_context_manager=lambda: mock_seedxor_parts_loaded(num_parts=2)),
+                ScreenshotConfig(seed_views.RebuildSeedXORLoadPartView, mock_context_manager=lambda: mock_seedxor_parts_loaded(num_parts=1)),
+                ScreenshotConfig(seed_views.RebuildSeedXORShowFingerprintView, mock_context_manager=lambda: mock_seedxor_pending_part(num_parts=1)),
+                ScreenshotConfig(seed_views.RebuildSeedXORSelectExistingSeedView, mock_context_manager=mock_seedxor_enabled),
+                ScreenshotConfig(seed_views.RebuildSeedXORViewPartsView, mock_context_manager=lambda: mock_seedxor_parts_loaded(num_parts=2)),
+                ScreenshotConfig(seed_views.RebuildSeedXORRemovePartsView, mock_context_manager=lambda: mock_seedxor_parts_loaded(num_parts=2)),
+                ScreenshotConfig(seed_views.RebuildSeedXORConfirmRemovePartView, dict(part_num=0), mock_context_manager=lambda: mock_seedxor_parts_loaded(num_parts=2)),
+                ScreenshotConfig(seed_views.RebuildSeedXORCancelView, mock_context_manager=lambda: mock_seedxor_parts_loaded(num_parts=2)),
+                ScreenshotConfig(seed_views.RebuildSeedXORFinalizeView, mock_context_manager=lambda: mock_seedxor_parts_loaded(num_parts=2)),
+                ScreenshotConfig(seed_views.RebuildSeedXORFinalizeOptionsView, mock_context_manager=mock_seedxor_combined_seed),
+
+                # Degenerate-result warning rendered by RebuildSeedXORFinalizeView's
+                #   error branch when the XORed parts produce all-zero entropy
+                #   (mirrors the "XOR Error" ErrorView the flow routes to).
+                ScreenshotConfig(ErrorView, dict(
+                    title="XOR Error",
+                    status_headline="Error Combining Seeds",
+                    text="XORing these parts produces all-zero entropy (the 'abandon...about' seed). The result is a known, worthless seed.",
+                    button_text="OK",
+                ), screenshot_name="RebuildSeedXORFinalizeView_zero_entropy_error"),
             ],
             "PSBT Views": [
                 ScreenshotConfig(psbt_views.PSBTSelectSeedView, mock_context_manager=mock_controller_psbt_seed_empty),
