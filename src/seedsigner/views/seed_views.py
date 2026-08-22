@@ -214,6 +214,9 @@ class LoadSeedView(View):
             return Destination(ToolsMenuView)
 
         elif button_data[selected_menu_num] == self.REBUILD_SEED_XOR:
+            # Starting the SeedXOR rebuild flow; clear any stale resume flag from a
+            #   previously aborted flow so it cannot misroute this or a later flow.
+            self.controller.resume_main_flow = None
             return Destination(RebuildSeedXORManageView)
 
 
@@ -242,6 +245,11 @@ class SeedMnemonicEntryView(View):
             # 2. Backing out of the current word returns to the previous word.
             if self.cur_word_index == 0:
                 self.controller.storage.discard_pending_mnemonic()
+                from seedsigner.controller import Controller
+                if self.controller.resume_main_flow == Controller.FLOW__REBUILD_SEEDXOR:
+                    # Abandoning a SeedXOR part entry; disarm the flow flag so it
+                    #   cannot misroute a later unrelated seed load.
+                    self.controller.resume_main_flow = None
             return Destination(BackStackView)
         
         # ret will be our new mnemonic word
@@ -2394,6 +2402,10 @@ class RebuildSeedXORShowFingerprintView(View):
 
         if error_dict:
             self.controller.storage.clear_pending_seed()
+            # The seed-loading sub-flow is over (rejected); clear resume_main_flow
+            #   so a later unrelated SeedMnemonicEntryView is not misrouted back
+            #   into the SeedXOR flow.
+            self.controller.resume_main_flow = None
             return Destination(
                 ErrorView,
                 view_args=dict(
