@@ -1062,10 +1062,7 @@ class RemoveMicroSDScreen(WarningScreen):
     title: str = _mft("Action Required")
     status_icon_name: str = SeedSignerIconConstants.MICROSD
     status_headline: str = None
-    text: str = _mft(
-        "Remove the MicroSD card to continue.\n\n"
-        "Press Skip only if you need the card inserted (e.g. persistent settings)."
-    )
+    text: str = _mft("Do you want to remove the SD card before continuing?")
     show_back_button: bool = False
     button_data: list = field(default_factory=lambda: [ButtonOption("Skip")])
 
