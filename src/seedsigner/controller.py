@@ -288,6 +288,7 @@ class Controller(Singleton):
                 Settings.HOSTNAME == Settings.SEEDSIGNER_OS
                 and self.microsd.is_inserted
                 and not initial_destination
+                and self.settings.get_value(SettingsConstants.SETTING__MICROSD_BOOT_PROMPT) == SettingsConstants.OPTION__ENABLED
             ):
                 next_destination = Destination(RemoveMicroSDWarningView)
             elif self.settings.get_value(SettingsConstants.SETTING__MICROSD_TOAST_TIMER) == SettingsConstants.MICROSD_TOAST_TIMER_FIVE_SECONDS:

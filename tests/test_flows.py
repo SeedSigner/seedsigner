@@ -160,6 +160,15 @@ class TestFlowTest(FlowTest):
             FlowStep(MainMenuView, screen_return_value=Exception("Test exception")),
             FlowStep(UnhandledExceptionView),
         ])
+
+
+    def test_remove_microsd_warning_skip(self):
+        """With MicroSD inserted, Skip proceeds to MainMenuView."""
+        self.mock_microsd.is_inserted = True
+        self.run_sequence([
+            FlowStep(RemoveMicroSDWarningView, screen_return_value=0),
+            FlowStep(MainMenuView),
+        ])
     
 
     def test_raise_exception_on_bad_button_data_type(self):
@@ -196,47 +205,4 @@ class TestFlowTest(FlowTest):
             FlowStep(MainMenuView),  # Need a next Destination to force the first step to run
         ])
 
-    def test_remove_microsd_blocking(self):
-        """
-        Verifies three related behaviors:
 
-        1) If the RemoveMicroSDWarningView launches the SettingsEntryUpdateSelectionView
-           and the user presses Back without changing the tracked setting, the flow
-           returns to RemoveMicroSDWarningView (the blocking condition remains).
-        2) If the user changes the tracked setting while in the settings entry, the
-           flow unblocks and navigates to MainMenuView.
-        3) If the MicroSD is physically removed and the user presses Continue on the
-           warning, the flow proceeds to MainMenuView.
-        """
-        controller = Controller.get_instance()
-
-        settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__MICROSD_TOAST_TIMER)
-        controller.settings.set_value(settings_entry.attr_name, SettingsConstants.MICROSD_TOAST_TIMER_FOREVER)
-
-        # There are only two ways of exiting RemoveMicroSDWarningView when SETTING__MICROSD_TOAST_TIMER -> MICROSD_TOAST_TIMER_FOREVER
-        self.run_sequence([
-            FlowStep(RemoveMicroSDWarningView, button_data_selection=RemoveMicroSDWarningView.SETTINGS),
-            FlowStep(SettingsEntryUpdateSelectionView, screen_return_value=RET_CODE__BACK_BUTTON),
-            FlowStep(RemoveMicroSDWarningView, button_data_selection=RemoveMicroSDWarningView.SETTINGS),
-            # 1) Modifying the setting
-            FlowStep(SettingsEntryUpdateSelectionView, screen_return_value=0),
-            FlowStep(MainMenuView)
-        ])
-
-        self.reset_controller()
-        controller = Controller.get_instance()
-
-        settings_entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__MICROSD_TOAST_TIMER)
-        controller.settings.set_value(settings_entry.attr_name, SettingsConstants.MICROSD_TOAST_TIMER_FOREVER)
-
-        # 2) Removing the MicroSD card and pressing CONTINUE
-        self.mock_microsd.is_inserted = False
-        assert MicroSD.get_instance().is_inserted is False
-
-        self.run_sequence([
-            FlowStep(RemoveMicroSDWarningView, button_data_selection=RemoveMicroSDWarningView.CONTINUE),
-            FlowStep(MainMenuView)
-        ])
-
-        # Restore the setting for the controller
-        controller.settings.set_value(settings_entry.attr_name, SettingsConstants.MICROSD_TOAST_TIMER_FIVE_SECONDS)

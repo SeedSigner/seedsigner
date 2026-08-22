@@ -353,6 +353,7 @@ class SettingsConstants:
     SETTING__QR_BRIGHTNESS_TIPS = "qr_brightness_tips"
     SETTING__PARTNER_LOGOS = "partner_logos"
     SETTING__MICROSD_TOAST_TIMER = "microsd_toast_timer"
+    SETTING__MICROSD_BOOT_PROMPT = "microsd_boot_prompt"
 
     SETTING__DEBUG = "debug"
 
@@ -682,6 +683,15 @@ class SettingsDefinition:
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SettingsConstants.ALL_MICROSD_TOAST_TIMERS,
                       default_value=SettingsConstants.MICROSD_TOAST_TIMER_FIVE_SECONDS),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__MICROSD_BOOT_PROMPT,
+                      abbreviated_name="sd_boot",
+                      display_name=_mft("MicroSD boot prompt"),
+                      # TRANSLATOR_NOTE: When enabled, ask to remove the MicroSD after boot before the main menu
+                      help_text=_mft("Ask to remove MicroSD after boot"),
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__ENABLED),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__MESSAGE_SIGNING,

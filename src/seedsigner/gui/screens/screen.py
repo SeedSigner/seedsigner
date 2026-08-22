@@ -1059,7 +1059,7 @@ class RemoveMicroSDScreen(WarningScreen):
 
     Polls MicroSD insertion so ejecting the card advances without a button press.
     """
-    title: str = _mft("Action Required")
+    title: str = ""
     status_icon_name: str = SeedSignerIconConstants.MICROSD
     status_headline: str = None
     text: str = _mft("Do you want to remove the SD card before continuing?")
