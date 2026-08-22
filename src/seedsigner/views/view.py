@@ -468,8 +468,13 @@ class RemoveMicroSDWarningView(View):
             toast = Controller.get_instance().toast_notification_thread
             if toast is not None and toast.is_alive():
                 toast.skip_restore = True
-                toast.toggle_renderer_lock()
-            return Destination(MainMenuView, clear_history=True)
+                toast.stop()
+                # Wait briefly for toast.run() finally to release the lock
+                import time
+                for _ in range(50):
+                    if not toast.is_alive():
+                        break
+                    time.sleep(0.02)
 
         # Skip pressed — continue with card still inserted
         return Destination(MainMenuView, clear_history=True)
