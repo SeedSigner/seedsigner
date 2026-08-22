@@ -109,6 +109,9 @@ class BaseToastOverlayManagerThread(BaseThread):
         self.activation_delay: int = activation_delay
         self.duration: int = duration
         self._toggle_renderer_lock: bool = False
+        # When True, do not blit previous_screen_state on exit (e.g. navigation already
+        # drew a new screen while the toast released the lock).
+        self.skip_restore: bool = False
 
         self.renderer = Renderer.get_instance()
         self.controller = Controller.get_instance()
@@ -191,11 +194,15 @@ class BaseToastOverlayManagerThread(BaseThread):
             logger.info(f"{self.__class__.__name__}: exiting")
             if has_rendered and self.renderer.lock.locked():
                 # As far as we know, we currently hold the Renderer.lock
-                self.renderer.show_image(previous_screen_state)
-                logger.info(f"{self.__class__.__name__}: restored previous screen state")
+                if not self.skip_restore and previous_screen_state is not None:
+                    self.renderer.show_image(previous_screen_state)
+                    logger.info(f"{self.__class__.__name__}: restored previous screen state")
+                else:
+                    logger.info(f"{self.__class__.__name__}: skip_restore; leaving current screen")
 
             # We're done, release the lock
-            self.renderer.lock.release()
+            if self.renderer.lock.locked():
+                self.renderer.lock.release()
 
 
 

@@ -460,6 +460,15 @@ class RemoveMicroSDWarningView(View):
         result = self.run_screen(RemoveMicroSDScreen)
 
         if result == RET_CODE__SD_REMOVED:
+            # The SD-removed toast grabs the Renderer lock for its full duration and
+            # would otherwise block Main Menu from painting (~3s), then restore the
+            # gate screen on top. Release the lock so Main Menu can draw immediately,
+            # and skip restoring the previous (gate) framebuffer.
+            from seedsigner.controller import Controller
+            toast = Controller.get_instance().toast_notification_thread
+            if toast is not None and toast.is_alive():
+                toast.skip_restore = True
+                toast.toggle_renderer_lock()
             return Destination(MainMenuView, clear_history=True)
 
         # Skip pressed — continue with card still inserted
