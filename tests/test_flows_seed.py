@@ -8,6 +8,7 @@ from base import FlowTestInvalidButtonDataSelectionException
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
 from seedsigner.models.settings import Settings, SettingsConstants
+from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.seed import ElectrumSeed, Seed
 from seedsigner.views.view import MainMenuView, OptionDisabledView, View, NetworkMismatchErrorView
 from seedsigner.views import seed_views, scan_views, settings_views
@@ -231,6 +232,90 @@ class TestSeedFlows(FlowTest):
                         flowtest_standard_xpub(sig_tuple, script_tuple, xpub_qr_tuple)
 
 
+    def test_export_xpub_account_selection_flow(self):
+        seed = Seed(mnemonic=["abandon"] * 11 + ["about"])
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
+
+        script_selection = ButtonOption(
+            self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES)[0],
+            return_data=SettingsConstants.NATIVE_SEGWIT,
+        )
+        xpub_qr_selection = ButtonOption(
+            self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__XPUB_QR_FORMAT)[0],
+            return_data=self.settings.get_value(SettingsConstants.SETTING__XPUB_QR_FORMAT)[0],
+        )
+
+        def assert_account_one(view):
+            assert view.account == 1
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.SINGLE_SIG),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=script_selection),
+                FlowStep(seed_views.SeedAccountNumberView, screen_return_value="0001"),
+                FlowStep(seed_views.SeedExportXpubQRFormatView, before_run=assert_account_one, button_data_selection=xpub_qr_selection),
+                FlowStep(seed_views.SeedExportXpubWarningView, before_run=assert_account_one, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubDetailsView, before_run=assert_account_one, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubQRDisplayView),
+            ],
+        )
+
+
+    def test_export_xpub_account_selection_validation_and_back(self):
+        seed = Seed(mnemonic=["abandon"] * 11 + ["about"])
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
+
+        script_selection = ButtonOption(
+            self.settings.get_multiselect_value_display_names(SettingsConstants.SETTING__SCRIPT_TYPES)[0],
+            return_data=SettingsConstants.NATIVE_SEGWIT,
+        )
+
+        def assert_invalid_account_is_retained(view):
+            assert view.initial_value == str(2**31)
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.SINGLE_SIG),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=script_selection),
+                FlowStep(seed_views.SeedAccountNumberView, screen_return_value=str(2**31)),
+                FlowStep(seed_views.SeedAccountNumberErrorView, screen_return_value=0),
+                FlowStep(seed_views.SeedAccountNumberView, before_run=assert_invalid_account_is_retained, screen_return_value=RET_CODE__BACK_BUTTON),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView),
+            ],
+        )
+
+
+    def test_export_xpub_bip45_bypasses_account_selection(self):
+        seed = Seed(mnemonic=["abandon"] * 11 + ["about"])
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [SettingsConstants.LEGACY_P2PKH, SettingsConstants.NATIVE_SEGWIT])
+
+        legacy_selection = ButtonOption(
+            SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(SettingsConstants.LEGACY_P2PKH),
+            return_data=SettingsConstants.LEGACY_P2PKH,
+        )
+
+        self.run_sequence(
+            initial_destination_view_args=dict(seed=seed),
+            sequence=[
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                FlowStep(seed_views.SeedExportXpubSigTypeView, button_data_selection=seed_views.SeedExportXpubSigTypeView.MULTISIG),
+                FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=legacy_selection),
+                FlowStep(seed_views.SeedExportXpubQRFormatView),
+            ],
+        )
+
+
     def test_export_xpub_disabled_not_available_flow(self):
         """
             If sig_type/script_type/xpub_qr_format disabled, then these options are not available
@@ -297,6 +382,7 @@ class TestSeedFlows(FlowTest):
         seed = Seed(mnemonic="blush twice taste dawn feed second opinion lazy thumb play neglect impact".split())
         self.controller.storage.set_pending_seed(seed)
         self.controller.storage.finalize_pending_seed()
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
 
         # enable custom derivation script_type setting (plus at least one more for a choice)
         self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [
@@ -374,6 +460,7 @@ class TestSeedFlows(FlowTest):
         seed = ElectrumSeed(mnemonic="regular reject rare profit once math fringe chase until ketchup century escape".split())
         self.controller.storage.set_pending_seed(seed)
         self.controller.storage.finalize_pending_seed()
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
 
         # Make sure all options are enabled
         self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [x for x,y in SettingsConstants.ALL_SIG_TYPES])
@@ -823,5 +910,3 @@ class TestMessageSigningFlows(FlowTest):
 
         self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
         expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
-
-
