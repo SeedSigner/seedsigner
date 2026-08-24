@@ -597,6 +597,7 @@ class PSBTMathScreen(ButtonListScreen):
 class PSBTAddressDetailsScreen(ButtonListScreen):
     address: str = None
     amount: int = 0
+    is_sp: bool = False
 
     def __post_init__(self):
         # Customize defaults
@@ -624,7 +625,7 @@ class PSBTAddressDetailsScreen(ButtonListScreen):
             width=self.canvas_width - 2*GUIConstants.EDGE_PADDING,
             screen_x=GUIConstants.EDGE_PADDING,
             screen_y=btc_amount.height + GUIConstants.COMPONENT_PADDING,
-            font_size=24,
+            font_size=GUIConstants.SP_ADDRESS_FONT_SIZE if self.is_sp else 24,
             address=self.address,
         )
 
@@ -654,6 +655,7 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
     is_change_derivation_path: bool = True
     derivation_path_addr_index: int = 0
     is_change_addr_verified: bool = False
+    is_sp: bool = False
 
     def __post_init__(self):
         # Customize defaults
@@ -667,26 +669,28 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
 
         screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
 
-        if self.is_change_derivation_path :
-            # TRANSLATOR_NOTE: Describes the address type (change or receive)
-            addr_type = _("change address")
-        else: 
-            addr_type = _("receive address")
+        if not self.is_sp:
+            # SP has no derivation index/label — just show the address.
+            if self.is_change_derivation_path :
+                # TRANSLATOR_NOTE: Describes the address type (change or receive)
+                addr_type = _("change address")
+            else:
+                addr_type = _("receive address")
 
-        # TRANSLATOR_NOTE: Symbol for index number, e.g. "address #3"
-        index_num_symbol = _("#")
+            # TRANSLATOR_NOTE: Symbol for index number, e.g. "address #3"
+            index_num_symbol = _("#")
 
-        # note: NOT marking this for translation, hoping that the var ordering will not
-        # need to change in other languages.
-        value_text = f"{addr_type} {index_num_symbol}{self.derivation_path_addr_index}"
-        self.components.append(TextArea(
-            text=value_text,
-            font_color=GUIConstants.LABEL_FONT_COLOR,
-            font_size=GUIConstants.LABEL_FONT_SIZE,
-            is_text_centered=True,
-            screen_x=GUIConstants.EDGE_PADDING,
-            screen_y=screen_y,
-        ))
+            # note: NOT marking this for translation, hoping that the var ordering will not
+            # need to change in other languages.
+            value_text = f"{addr_type} {index_num_symbol}{self.derivation_path_addr_index}"
+            self.components.append(TextArea(
+                text=value_text,
+                font_color=GUIConstants.LABEL_FONT_COLOR,
+                font_size=GUIConstants.LABEL_FONT_SIZE,
+                is_text_centered=True,
+                screen_x=GUIConstants.EDGE_PADDING,
+                screen_y=screen_y,
+            ))
 
         self.components.append(FormattedAddress(
             screen_y=self.components[-1].screen_y + self.components[-1].height,

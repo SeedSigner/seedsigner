@@ -105,29 +105,50 @@ class PSBTOverviewView(View):
                 self.loading_screen.stop()
                 raise e
 
+        if self.controller.psbt_parser.has_sp_outputs:
+            from embit.silent_payments.sp import get_eligible_inputs
+            from embit.silent_payments.psbt import SPValidationError
+
+            error = None
+            try:
+                eligible_inputs = get_eligible_inputs(self.controller.psbt_parser.psbt.inputs)
+            except SPValidationError as e:
+                error = str(e)
+            else:
+                if not eligible_inputs:
+                    # TRANSLATOR_NOTE: Shown when none of a transaction's inputs can participate in a Silent Payments send.
+                    error = _("No Silent Payments input: needs P2PKH, P2WPKH, P2SH-P2WPKH or P2TR.")
+
+            if error:
+                if self.loading_screen:
+                    self.loading_screen.stop()
+                self.set_redirect(Destination(PSBTSPValidationErrorView, view_args=dict(error=error), skip_current_view=True))
+                return
+
 
     def run(self):
         from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen
         psbt_parser = self.controller.psbt_parser
 
+        if self.loading_screen:
+            self.loading_screen.stop()
+
         change_data = psbt_parser.change_data
         """
             change_data = [
                 {
-                    'address': 'bc1q............', 
-                    'amount': 397621401, 
+                    'address': 'bc1q............',
+                    'amount': 397621401,
+                    'is_change': True,
                     'claimed_fingerprints': ['22bde1a9', '73c5da0a'],
                     'claimed_derivation_paths': ['m/48h/1h/0h/2h/1/0', 'm/48h/1h/0h/2h/1/0']
                 }, {},
             ]
         """
-        num_change_outputs = 0
-        num_self_transfer_outputs = 0
-        for change_output in change_data:
-            if change_output["claimed_derivation_paths"][0].split("/")[-2] == "1":
-                num_change_outputs += 1
-            else:
-                num_self_transfer_outputs += 1
+        # SP change entries carry no claimed derivation path, so count by the
+        # is_change flag rather than indexing into claimed_derivation_paths.
+        num_change_outputs = sum(1 for c in change_data if c["is_change"])
+        num_self_transfer_outputs = len(change_data) - num_change_outputs
 
         # Everything is set. Stop the loading screen
         if self.loading_screen:
@@ -277,6 +298,7 @@ class PSBTAddressDetailsView(View):
             button_data=button_data,
             address=psbt_parser.destination_addresses[self.address_num],
             amount=psbt_parser.destination_amounts[self.address_num],
+            is_sp=psbt_parser.destination_is_sp[self.address_num],
         )
         
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -322,12 +344,37 @@ class PSBTChangeDetailsView(View):
         """
             change_data:
             {
-                'address': 'bc1q............', 
-                'amount': 397621401, 
+                'address': 'bc1q............',
+                'amount': 397621401,
                 'claimed_fingerprints': ['22bde1a9', '73c5da0a'],
                 'claimed_derivation_paths': ['m/48h/1h/0h/2h/1/0', 'm/48h/1h/0h/2h/1/0']
             }
         """
+
+        if change_data.get("is_sp"):
+            # SP change/self-transfer: already proven ours at parse time (keys match
+            # our seed), so nothing to verify here — it's verified by definition.
+            if change_data["is_change"]:
+                title = _("Your Change")
+            else:
+                title = _("Self-Transfer")
+
+            selected_menu_num = self.run_screen(
+                PSBTChangeDetailsScreen,
+                title=title,
+                button_data=[self.NEXT],
+                address=change_data.get("address"),
+                amount=change_data.get("amount"),
+                is_multisig=False,
+                is_sp=True,
+                is_change_derivation_path=change_data["is_change"],
+                is_change_addr_verified=True,
+            )
+
+            if selected_menu_num == RET_CODE__BACK_BUTTON:
+                return Destination(BackStackView)
+
+            return self._next_output_destination(psbt_parser)
 
         # Single-sig verification is easy. We expect to find a single fingerprint
         # and derivation path.
@@ -434,21 +481,22 @@ class PSBTChangeDetailsView(View):
             return Destination(BackStackView)
 
         elif button_data[selected_menu_num] == self.NEXT or button_data[selected_menu_num] == self.SKIP_VERIFICATION:
-            if self.change_address_num < psbt_parser.num_change_outputs - 1:
-                return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
+            return self._next_output_destination(psbt_parser)
 
-            elif psbt_parser.op_return_data:
-                return Destination(PSBTOpReturnView)
-
-            else:
-                # There's no more change to verify. Move on to sign the PSBT.
-                return Destination(PSBTFinalizeView)
-            
         elif button_data[selected_menu_num] == self.VERIFY_MULTISIG:
             from seedsigner.controller import Controller
             from seedsigner.views.seed_views import LoadMultisigWalletDescriptorView
             self.controller.resume_main_flow = Controller.FLOW__PSBT
             return Destination(LoadMultisigWalletDescriptorView)
+
+
+    def _next_output_destination(self, psbt_parser):
+        if self.change_address_num < psbt_parser.num_change_outputs - 1:
+            return Destination(PSBTChangeDetailsView, view_args={"change_address_num": self.change_address_num + 1})
+        elif psbt_parser.op_return_data:
+            return Destination(PSBTOpReturnView)
+        # There's no more change to verify. Move on to sign the PSBT.
+        return Destination(PSBTFinalizeView)
             
 
 
@@ -537,20 +585,35 @@ class PSBTFinalizeView(View):
             return Destination(BackStackView)
 
         else:
-            # Sign PSBT
-            sig_cnt = PSBTParser.sig_count(psbt)
-            psbt.sign_with(psbt_parser.root)
-            trimmed_psbt = PSBTParser.trim(psbt)
+            from embit.silent_payments.psbt import SPValidationError
 
-            if sig_cnt == PSBTParser.sig_count(trimmed_psbt):
-                # Signing failed / didn't do anything
-                # TODO: Reserved for Nick. Are there different failure scenarios that we can detect?
-                # Would be nice to alter the message on the next screen w/more detail.
-                return Destination(PSBTSigningErrorView)
-            
+            if psbt_parser.has_sp_outputs:
+                try:
+                    sig_result = psbt.sign_with(psbt_parser.root)
+                except Exception as e:
+                    return Destination(PSBTSPValidationErrorView, view_args=dict(error=str(e)))
+                if sig_result == 0:
+                    return Destination(PSBTSigningErrorView)
             else:
-                self.controller.psbt = trimmed_psbt
-                return Destination(PSBTSignedQRDisplayView)
+                progress_before = PSBTParser.sig_count(psbt)
+                try:
+                    # No SP outputs, but a BIP-376 SP-spend input can still carry a bad
+                    # sp_tweak (or no utxo); embit raises on it. That's a bad PSBT, not a
+                    # device fault.
+                    psbt.sign_with(psbt_parser.root)
+                except SPValidationError as e:
+                    return Destination(PSBTSPValidationErrorView, view_args=dict(error=str(e)))
+                if PSBTParser.sig_count(psbt) == progress_before:
+                    # TODO: Reserved for Nick. Are there different failure scenarios that we can detect?
+                    # Would be nice to alter the message on the next screen w/more detail.
+                    return Destination(PSBTSigningErrorView)
+
+            try:
+                # trim() also runs the BIP-375 hand-off validation on SP PSBTs
+                self.controller.psbt = PSBTParser.trim(psbt)
+            except SPValidationError as e:
+                return Destination(PSBTSPValidationErrorView, view_args=dict(error=str(e)))
+            return Destination(PSBTSignedQRDisplayView)
 
 
 
@@ -596,3 +659,37 @@ class PSBTSigningErrorView(View):
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
+
+
+
+class PSBTSPValidationErrorView(View):
+    SELECT_DIFF_SEED = ButtonOption("Select different seed")
+    # TRANSLATOR_NOTE: Button to abandon the current transaction and return to the main menu.
+    CANCEL = ButtonOption("Cancel")
+
+    def __init__(self, error: str = ""):
+        super().__init__()
+        self.error = error
+
+    def run(self):
+        button_data = [self.SELECT_DIFF_SEED, self.CANCEL]
+        selected_menu_num = self.run_screen(
+            WarningScreen,
+            title=_("SP Signing Error"),
+            status_icon_name=SeedSignerIconConstants.WARNING,
+            # No status_headline: the error text needs every line it can get (see
+            # OptionDisabledView, which drops it for the same reason).
+            status_headline=None,
+            text=self.error,
+            button_data=button_data
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        if button_data[selected_menu_num] == self.SELECT_DIFF_SEED:
+            self.controller.psbt_seed = None
+            return Destination(PSBTSelectSeedView, clear_history=True)
+
+        if button_data[selected_menu_num] == self.CANCEL:
+            return Destination(MainMenuView, clear_history=True)

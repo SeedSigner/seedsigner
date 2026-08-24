@@ -6,7 +6,9 @@ import zlib
 
 from binascii import a2b_base64, b2a_base64
 from enum import IntEnum
-from embit import psbt, bip39
+from embit import bip39
+from embit.psbt import PSBT
+from embit.silent_payments import SilentPaymentsPSBT
 from pyzbar import pyzbar
 from pyzbar.pyzbar import ZBarSymbol
 from urtypes.crypto import PSBT as UR_PSBT
@@ -150,8 +152,8 @@ class DecodeQR:
             data = self.get_data_psbt()
             if data != None:
                 try:
-                    return psbt.PSBT.parse(data)
-                except:
+                    return SilentPaymentsPSBT.parse(data)
+                except Exception:
                     return None
         return None
 
@@ -455,12 +457,11 @@ class DecodeQR:
             return False
 
 
-    @staticmethod   
+    @staticmethod
     def is_base64_psbt(s):
         try:
             if DecodeQR.is_base64(s):
-                psbt.PSBT.parse(a2b_base64(s))
-                return True
+                return a2b_base64(s).startswith(PSBT.MAGIC)
         except Exception:
             return False
         return False
@@ -469,8 +470,7 @@ class DecodeQR:
     @staticmethod
     def is_base43_psbt(s):
         try:
-            psbt.PSBT.parse(DecodeQR.base43_decode(s))
-            return True
+            return DecodeQR.base43_decode(s).startswith(PSBT.MAGIC)
         except Exception:
             return False
 

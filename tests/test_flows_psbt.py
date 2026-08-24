@@ -181,3 +181,29 @@ class TestPSBTFlows(FlowTest):
             FlowStep(psbt_views.PSBTSignedQRDisplayView),
             FlowStep(MainMenuView)
         ])
+
+
+    def test_sp_psbt_with_setting_disabled_routes_to_warning(self):
+        from base import FlowStep
+        from seedsigner.views import scan_views
+        from seedsigner.views.view import MainMenuView, OptionDisabledView
+        from seedsigner.models.settings_definition import SettingsConstants
+        from seedsigner.models.seed import Seed
+        from sp_testing_util import build_sp_send_psbt
+        from binascii import b2a_base64
+
+        self.settings.set_value(
+            SettingsConstants.SETTING__BIP352_SILENT_PAYMENTS, SettingsConstants.OPTION__DISABLED
+        )
+        seed = Seed("obscure bone gas open exotic abuse virus bunker shuffle nasty ship dash".split())
+        sp_b64 = b2a_base64(build_sp_send_psbt(seed).serialize()).strip().decode()
+
+        def load_sp_psbt(view: scan_views.ScanView):
+            view.decoder.add_data(sp_b64)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_sp_psbt),
+            FlowStep(OptionDisabledView, button_data_selection=OptionDisabledView.DONE),
+            FlowStep(MainMenuView),
+        ])

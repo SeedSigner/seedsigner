@@ -91,7 +91,25 @@ class ScanView(View):
             
             elif self.decoder.is_psbt:
                 from seedsigner.views.psbt_views import PSBTSelectSeedView
+                from seedsigner.views.view import OptionDisabledView
+
+                from seedsigner.models.psbt_parser import PSBTParser
+
                 psbt = self.decoder.get_psbt()
+                if psbt is None:
+                    # QR type detection only checks the PSBT magic bytes, so
+                    # `is_psbt` doesn't imply parseable. Bail cleanly instead of
+                    # crashing later.
+                    return Destination(ScanInvalidQRTypeView)
+
+                sp_setting_on = self.settings.get_value(
+                    SettingsConstants.SETTING__BIP352_SILENT_PAYMENTS
+                ) == SettingsConstants.OPTION__ENABLED
+                if not sp_setting_on and PSBTParser.has_sp_content(psbt):
+                    # Nudge the user to enable SP instead of routing an SP PSBT
+                    # through SP-unaware signing.
+                    return Destination(OptionDisabledView, view_args=dict(settings_attr=SettingsConstants.SETTING__BIP352_SILENT_PAYMENTS), skip_current_view=True)
+
                 self.controller.psbt = psbt
                 self.controller.psbt_parser = None
                 return Destination(PSBTSelectSeedView, skip_current_view=True)

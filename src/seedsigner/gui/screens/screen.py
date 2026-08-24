@@ -10,7 +10,8 @@ from typing import Any, List, Tuple
 from seedsigner.helpers.l10n import mark_for_translation as _mft
 from seedsigner.gui.components import (GUIConstants,
     BaseComponent, Button, Icon, IconButton, LargeIconButton,
-    SeedSignerIconConstants, TopNav, TextArea, load_image)
+    SeedSignerIconConstants, TopNav, TextArea, load_image,
+    FontAwesomeIconConstants, Fonts, IconTextLine)
 from seedsigner.gui.keyboard import Keyboard, TextEntryDisplay
 from seedsigner.hardware.buttons import HardwareButtonsConstants, HardwareButtons
 from seedsigner.models.encode_qr import BaseQrEncoder
@@ -1328,3 +1329,74 @@ class MainMenuScreen(LargeButtonScreen):
     title_font_size: int = 26
     show_back_button: bool = False
     show_power_button: bool = True
+
+
+
+@dataclass
+class BaseExportKeyDetailsScreen(WarningEdgesMixin, ButtonListScreen):
+    """
+    Standardized base class for displaying pubkey/privkey details.
+    
+    Args:
+        derivation_path: BIP32 derivation path
+        fingerprint: BIP32 master fingerprint
+        key_label: Label for the key ("Public Key" / "Private Key")
+        key_value: The actual key value (e.g. xpub)
+    """
+    title: str = None
+    key_label: str = None
+    key_value: str = None
+    derivation_path: str = None
+    fingerprint: str = None
+    button_data: List[ButtonOption] = None
+    icon_name: str = FontAwesomeIconConstants.X
+
+    is_bottom_list: bool = True
+    
+    def __post_init__(self):
+        super().__post_init__()
+        
+        current_y = self.top_nav.height + GUIConstants.COMPONENT_PADDING
+
+        self.fingerprint_line = IconTextLine(
+            icon_name=SeedSignerIconConstants.FINGERPRINT,
+            icon_color=GUIConstants.INFO_COLOR,
+            # TRANSLATOR_NOTE: Short for "BIP-32 Master Fingerprint"
+            label_text=_("Fingerprint"),
+            value_text=self.fingerprint,
+            screen_x=GUIConstants.COMPONENT_PADDING,
+            screen_y=current_y,
+        )
+        self.components.append(self.fingerprint_line)
+        current_y = self.fingerprint_line.screen_y + self.fingerprint_line.height + int(1.5 * GUIConstants.COMPONENT_PADDING)
+
+        if self.derivation_path is not None:
+            self.derivation_line = IconTextLine(
+                icon_name=SeedSignerIconConstants.DERIVATION,
+                icon_color=GUIConstants.INFO_COLOR,
+                # TRANSLATOR_NOTE: Short for "Derivation Path"
+                label_text=_("Derivation"),
+                value_text=self.derivation_path,
+                screen_x=GUIConstants.COMPONENT_PADDING,
+                screen_y=current_y,
+            )
+            self.components.append(self.derivation_line)
+            current_y = self.derivation_line.screen_y + self.derivation_line.height + int(1.5 * GUIConstants.COMPONENT_PADDING)
+
+        font_name = GUIConstants.FIXED_WIDTH_FONT_NAME
+        font_size = GUIConstants.get_body_font_size() + 2
+        left, top, right, bottom = Fonts.get_font(font_name, font_size).getbbox("X")
+        char_width = right - left
+        num_chars = int((self.canvas_width - GUIConstants.ICON_FONT_SIZE - 2*GUIConstants.COMPONENT_PADDING) / char_width) - 3
+        
+        key_line = IconTextLine(
+            icon_name=self.icon_name,
+            icon_color=GUIConstants.INFO_COLOR,
+            label_text=self.key_label,
+            value_text=f"{self.key_value[:num_chars]}{'...' if len(self.key_value) > num_chars else ''}",
+            font_name=font_name,
+            font_size=font_size,
+            screen_x=GUIConstants.COMPONENT_PADDING,
+            screen_y=current_y,
+        )
+        self.components.append(key_line)
