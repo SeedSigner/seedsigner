@@ -1,8 +1,10 @@
 from binascii import a2b_base64, unhexlify
 from io import BytesIO
 
+from embit import bip32
+from embit.ec import PublicKey
 from embit.networks import NETWORKS
-from embit.psbt import PSBT, OutputScope
+from embit.psbt import PSBT, DerivationPath, InputScope, OutputScope
 
 from seedsigner.models.seed import Seed
 
@@ -59,6 +61,13 @@ class PSBTTestData:
     MULTISIG_NESTED_SEGWIT_SELF_TRANSFER   = "01002200201dc4bf10ca0b4a1106650e2459e8a917a231fd24b4ecdbf1711f4ec063a34df101016952210234361c2816115f8745e95d14243651f622fded6e1f3e30b32ac480e53e3fed3b2102cfd9087055c61d1226649885397872d5f0174186fb2919a7ce0e5149224f78c92103c68ecdc19777b9179b3185a8af96a72baaf3975b7abb125733532031d3b034ab53ae220202cfd9087055c61d1226649885397872d5f0174186fb2919a7ce0e5149224f78c91c0fb882ff300000800100008000000080010000800000000001000000220203c68ecdc19777b9179b3185a8af96a72baaf3975b7abb125733532031d3b034ab1c03cd0a2b30000080010000800000008001000080000000000100000022020234361c2816115f8745e95d14243651f622fded6e1f3e30b32ac480e53e3fed3b1c0f88904430000080010000800000008001000080000000000100000001030890d0030000000000010417a9149c28aee05bdbe48728adc4155c24ab180f899fce8700"
     MULTISIG_LEGACY_P2SH_CHANGE            = "0100695221031ce6ddb7a26336264b132c1b45c3e631e8502bc155226d46fc38d73d57f9e4ff21031d9e6e094413dc3a508518f729af23a35b3943ca79bafbc55afab631595e5ccf2103c3a6cb2786d860aa1ccff81fae79c1a973bc8a79938af6ff3c75fc4f54333d7353ae220203c3a6cb2786d860aa1ccff81fae79c1a973bc8a79938af6ff3c75fc4f54333d73100fb882ff2d00008001000000000000002202031d9e6e094413dc3a508518f729af23a35b3943ca79bafbc55afab631595e5ccf1003cd0a2b2d00008001000000000000002202031ce6ddb7a26336264b132c1b45c3e631e8502bc155226d46fc38d73d57f9e4ff100f8890442d0000800100000000000000010308000ff20500000000010417a91402e6f3cb4a98d88fbedf0e43869ce9e1a01e8d9f8700"
     MULTISIG_LEGACY_P2SH_SELF_TRANSFER     = "01006952210283a03b8fa4cce258e536514416f448cf20aca8ef42492413c149a329029adb4e210346b5d12c00554bce6920e60d647893db6555e0844b8583747bc0ca1ecaba3e1c2103bfc0f7151411ace2d2eef986efca7873dabdc0f6f1bbea7bd3c863be1f2e00de53ae220203bfc0f7151411ace2d2eef986efca7873dabdc0f6f1bbea7bd3c863be1f2e00de100fb882ff2d000080000000000100000022020346b5d12c00554bce6920e60d647893db6555e0844b8583747bc0ca1ecaba3e1c1003cd0a2b2d000080000000000100000022020283a03b8fa4cce258e536514416f448cf20aca8ef42492413c149a329029adb4e100f8890442d000080000000000100000001030890d0030000000000010417a914505efc1adc72f354e827da94b49dec46d80717068700"
+
+    # Fingerprint-collision pair: two unrelated seeds whose master fingerprints collide,
+    # for tests of the honest-collision case (a genuine foreign key that names our
+    # fingerprint without any forgery involved). Any two seeds collide with probability 1
+    # in 2^32.
+    collision_seed_a = Seed("trend local ecology client torch face wink soup right craft nerve bread".split())
+    collision_seed_b = Seed("oval stadium chimney tone deny catch idea gasp absorb short vibrant tribe".split())
 
     # External receive outputs
     recipient_seed = Seed("shove album flame dad equal cook spike cheap hollow exit great forest".split())
@@ -126,3 +135,46 @@ def create_output(output_hex: str, value: int = None) -> OutputScope:
     if value is not None:
         output.value = value
     return output
+
+
+def root_for_seed(seed: Seed) -> bip32.HDKey:
+    """
+    A seed's master key, built the way PSBTParser builds it.
+
+    The network only picks the version bytes, and neither the fingerprint nor any of the
+    key material compared below depends on those, so the fixtures' regtest is used
+    throughout.
+    """
+    return bip32.HDKey.from_seed(seed.seed_bytes, version=NETWORKS["regtest"]["xprv"])
+
+
+def foreign_public_key(derivation_path: str = "m/84h/1h/0h/0/0", seed: Seed = None) -> PublicKey:
+    """
+    A genuine public key belonging to some seed other than the signing seed, for building
+    scopes that name a key the signing seed does not control.
+    """
+    if seed is None:
+        seed = PSBTTestData.recipient_seed
+    return root_for_seed(seed).derive(derivation_path).get_public_key()
+
+
+def claim_seed_owns_key(scope: InputScope | OutputScope, claimed_derivation_path: str, public_key: PublicKey, seed: Seed = None, is_taproot: bool = False):
+    """
+    Writes a derivation into the scope claiming that seed owns public_key at
+    claimed_derivation_path.
+
+    Building one of these needs no key material from the seed, because nothing in a psbt
+    ties a fingerprint to the key written beside it. The fingerprint is all it takes, and
+    that is published in every psbt the seed has ever been sent. So pass a public_key the
+    seed does not own and the result is a psbt asserting ownership that does not exist.
+    """
+    if seed is None:
+        seed = PSBTTestData.seed
+
+    derivation_path = DerivationPath(
+        root_for_seed(seed).my_fingerprint, bip32.parse_path(claimed_derivation_path))
+
+    if is_taproot:
+        scope.taproot_bip32_derivations[public_key] = ([], derivation_path)
+    else:
+        scope.bip32_derivations[public_key] = derivation_path

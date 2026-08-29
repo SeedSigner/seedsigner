@@ -4,16 +4,19 @@ import random
 from binascii import a2b_base64
 from copy import deepcopy
 from unittest.mock import patch
-from embit import bip32
+from embit import bip32, script
+from embit.ec import PublicKey
 from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath
 from embit.descriptor import Descriptor
 
-from seedsigner.models.psbt_parser import PSBTParser
+from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
+    PSBTOutputOwnershipClaimError, PSBTParser, PSBTSeedCannotSignError)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
-from psbt_testing_util import PSBTTestData, create_output
+from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_output,
+    foreign_public_key, root_for_seed)
 
 
 
@@ -209,14 +212,63 @@ class TestPSBTParser:
                     from binascii import hexlify
                     fingerprint_hex = hexlify(derivation.fingerprint).decode()
                     
-                    # Check if this public key derives from the current seed
+                    # Check if this public key derives from the current seed. A psbt
+                    # carries a taproot key as its bare 32-byte x coordinate, and embit
+                    # rebuilds a full key from it by just assuming even parity. The real
+                    # derived key can be odd-parity, so a full-key compare would wrongly
+                    # report a mismatch. Only the x coordinate is real data: compare
+                    # x-only.
                     derived_key = parser.root.derive(derivation.derivation)
-                    if derived_key.key.sec() == pub.sec():
+                    if derived_key.xonly() == pub.xonly():
                         # This pubkey derives from current seed, should have current seed's fingerprint
                         assert fingerprint_hex == seed_fingerprint, f"Expected {seed_fingerprint}, got {fingerprint_hex} for taproot pubkey that derives from current seed"
                     else:
                         # This pubkey doesn't derive from current seed, should remain 00000000
                         assert fingerprint_hex == "00000000"
+
+        # All of the above only proves the even-parity case. A psbt carries taproot keys
+        # as bare 32-byte x coordinates and embit rebuilds full keys from them by assuming
+        # even parity; that assumption happens to hold for the fixture's key at
+        # m/86h/1h/0h/0/0. Re-key the taproot input to a path whose key really derives
+        # with odd parity to prove the ownership fallback compares x-only rather than
+        # trusting embit's artificial parity.
+        root = root_for_seed(PSBTTestData.seed)
+        odd_parity_derivation_path = "m/86h/1h/0h/0/1"
+        odd_parity_public_key = root.derive(odd_parity_derivation_path).get_public_key()
+        assert odd_parity_public_key.sec()[0] == 0x03  # odd parity
+
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT))
+        taproot_input = psbt.inputs[0]
+
+        # Present the key the way embit's psbt parsing yields it: rebuilt from just the
+        # x coordinate, carrying the assumed even parity (wrong for this key)
+        x_only_public_key = PublicKey.from_xonly(odd_parity_public_key.xonly())
+        taproot_input.taproot_bip32_derivations.clear()
+        taproot_input.taproot_bip32_derivations[x_only_public_key] = ([], DerivationPath(
+            fingerprint=b"\x00\x00\x00\x00",
+            derivation=bip32.parse_path(odd_parity_derivation_path)
+        ))
+        taproot_input.taproot_internal_key = x_only_public_key
+        taproot_input.witness_utxo.script_pubkey = script.p2tr(x_only_public_key)
+
+        # The zeroed-fingerprint fallback check must recognize this input as the seed's,
+        # even though embit's internal parity byte for the pubkey is wrong. Taproot
+        # pubkeys must be compared by their x-only representation.
+        assert PSBTParser.has_matching_input_fingerprint(psbt, PSBTTestData.seed, SettingsConstants.REGTEST)
+
+        # Comparing x-only looks less strict than the full-key comparison used for
+        # non-taproot keys, but nothing is actually given up: a psbt never carries a
+        # parity byte for a taproot key, so the x coordinate is all the key material
+        # there is to compare. A completely wrong seed will still fail to match.
+        wrong_seed = Seed(["bacon"] * 24)
+        assert not PSBTParser.has_matching_input_fingerprint(psbt, wrong_seed, SettingsConstants.REGTEST)
+
+        # Parsing should successfully fill the fingerprint and verify that the input
+        # belongs to the seed.
+        parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+        (_, filled_derivation) = parser.psbt.inputs[0].taproot_bip32_derivations[x_only_public_key]
+        assert filled_derivation.fingerprint == parser.root.my_fingerprint
+        assert parser.verified_input_derivation_paths == [bip32.parse_path(odd_parity_derivation_path)]
 
 
     def test_trim_and_sig_count(self):
@@ -321,8 +373,8 @@ def test_p2tr_change_detection():
             'output_index': 0,
             'address': 'bcrt1prz4g6saush37epdwhvwpu78td3q7yfz3xxz37axlx7udck6wracq3rwq30',
             'amount': 2871443918,
-            'fingerprint': ['394aed14'],
-            'derivation_path': ['m/86h/1h/0h/1/1']}
+            'claimed_fingerprints': ['394aed14'],
+            'claimed_derivation_paths': ['m/86h/1h/0h/1/1']}
         ]
     assert pp.spend_amount == 319049328
     assert pp.change_amount == 2871443918
@@ -481,8 +533,8 @@ def test_parse_op_return_content():
             'output_index': 0,
             'address': 'bcrt1qvwkhakqhz7m7kmz6332avatsmdy32m644g86vv',
             'amount': 99992296,
-            'fingerprint': ['0fb882ff'],
-            'derivation_path': ["m/84h/1h/0h/0/2"]}
+            'claimed_fingerprints': ['0fb882ff'],
+            'claimed_derivation_paths': ["m/84h/1h/0h/0/2"]}
         ]
     assert psbt_parser.spend_amount == 0  # This is a self-spend; no value being spent, other than the tx fee
     assert psbt_parser.change_amount == 99992296
@@ -772,3 +824,417 @@ class TestPSBTParserOptimizations:
         assert max(capped_sizes) == cap
 
 
+
+class TestPSBTParserSeedOwnership:
+    """
+    The ownership scan: what the signing seed provably owns in a psbt, and the rejection
+    of any psbt whose ownership claims do not hold up.
+    """
+    seed = PSBTTestData.seed
+
+    def _root(self) -> bip32.HDKey:
+        return root_for_seed(self.seed)
+
+
+    def _psbt_with_change(self, input_base64: str = None, change_hex: str = None) -> PSBT:
+        """
+        A base psbt plus its own change output. But no external recipient output is added,
+        so all paths are owned by the seed.
+        """
+        if input_base64 is None:
+            input_base64 = PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT
+        if change_hex is None:
+            change_hex = PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE
+
+        psbt = PSBT.parse(a2b_base64(input_base64))
+        psbt.outputs.append(create_output(change_hex, 10_000))
+        return psbt
+
+
+    def _parse(self, psbt: PSBT) -> PSBTParser:
+        return PSBTParser(psbt, self.seed, network=SettingsConstants.REGTEST)
+
+
+    def test__seed_owns_pubkey__accepts_the_seeds_own_key(self):
+        """
+        seed_owns_pubkey should confirm the simple base case that a pubkey directly
+        derived from the seed is owned by the seed.
+        """
+        root = self._root()
+        derivation_path = bip32.parse_path("m/84h/1h/0h/0/0")
+        public_key = root.derive(derivation_path).get_public_key()
+
+        assert PSBTParser.seed_owns_pubkey(root, derivation_path, public_key, child_key_derivation_cache=None) is True
+
+
+    def test__seed_owns_pubkey__rejects_a_key_the_seed_does_not_control(self):
+        """
+        seed_owns_pubkey should reject a pubkey that the seed does not control.
+        """
+        root = self._root()
+        derivation_path = bip32.parse_path("m/84h/1h/0h/0/0")
+
+        assert PSBTParser.seed_owns_pubkey(root, derivation_path, foreign_public_key(), child_key_derivation_cache=None) is False
+
+
+    def test__seed_owns_pubkey__rejects_the_seeds_own_key_at_the_wrong_path(self):
+        """
+        The path is as much a part of the claim as the key is. The seed owns this key, but
+        not at the path the claim names so it is still a false claim.
+        """
+        root = self._root()
+        public_key = root.derive(bip32.parse_path("m/84h/1h/0h/0/0")).get_public_key()
+
+        assert PSBTParser.seed_owns_pubkey(root, bip32.parse_path("m/84h/1h/0h/0/1"), public_key, child_key_derivation_cache=None) is False
+
+
+    def test__seed_owns_pubkey__compares_taproot_keys_without_parity(self):
+        """
+        Taproot keys are x-only, so a key the seed genuinely owns routinely differs from
+        the derived key by the parity byte alone. Comparing the full key would read that
+        as a stranger's key and reject the seed's own output.
+        """
+        root = self._root()
+
+        # Address index 1 is the first whose derived key has odd parity, which is the
+        # case where a full comparison and an x-only comparison disagree.
+        derivation_path = bip32.parse_path("m/86h/1h/0h/0/1")
+        public_key = root.derive(derivation_path).get_public_key()
+
+        # Sanity check: the key's first byte is its parity, 0x02 for even, 0x03 for odd
+        assert public_key.sec()[0] == 0x03
+
+        # The psbt carries the key x-only, so reconstruct what it would hold: the same x
+        # coordinate, with the EVEN-parity prefix.
+        as_written_in_psbt = PublicKey.parse(b"\x02" + public_key.xonly())
+
+        # Taproot is x-only so it ignores the now-even parity byte
+        assert PSBTParser.seed_owns_pubkey(root, derivation_path, as_written_in_psbt, child_key_derivation_cache=None, is_taproot=True) is True
+
+        # Non-taproot compares the full key so it rejects the key with the wrong parity byte
+        assert PSBTParser.seed_owns_pubkey(root, derivation_path, as_written_in_psbt, child_key_derivation_cache=None) is False
+
+
+    def test__parse__populates_verified_derivation_paths(self):
+        """
+        The scan writes one verified_*_derivation_paths entry per input and per output
+        (regardless of ownership; not-owned paths are recorded as None) in the psbt's own
+        order.
+        """
+        # The psbt fixture has one input and one output, both of which are owned by the
+        # seed.
+        psbt = self._psbt_with_change()
+        psbt_parser = self._parse(psbt)
+
+        assert len(psbt_parser.verified_input_derivation_paths) == len(psbt.inputs)
+        assert len(psbt_parser.verified_output_derivation_paths) == len(psbt.outputs)
+
+        # Every recorded path is one the seed really does derive the scope's key at
+        for scopes, verified_derivation_paths in [
+            (psbt.inputs, psbt_parser.verified_input_derivation_paths),
+            (psbt.outputs, psbt_parser.verified_output_derivation_paths),
+        ]:
+            for scope, verified_derivation_path in zip(scopes, verified_derivation_paths):
+                assert verified_derivation_path is not None
+                public_key = list(scope.bip32_derivations.keys())[0]
+                assert PSBTParser.seed_owns_pubkey(psbt_parser.root, verified_derivation_path, public_key, child_key_derivation_cache=None) is True
+
+
+    def test__parse__verified_derivation_paths_none_for_not_owned_output(self):
+        """
+        An output paying someone else is not a failure; the seed simply owns nothing
+        there so the matching verified_output_derivation_paths should be None.
+        """
+        psbt = self._psbt_with_change()
+
+        # Add an external recipient at index 0
+        psbt.outputs.insert(0, create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 10_000))
+
+        psbt_parser = self._parse(psbt)
+
+        assert psbt_parser.verified_output_derivation_paths[0] is None
+        assert psbt_parser.verified_output_derivation_paths[1] is not None
+
+
+    def test__parse__verified_derivation_paths_none_for_not_owned_input(self):
+        """
+        A collaborative spend also includes an input belonging to another party, in two
+        shapes: a payjoin counterparty's input arrives finalized with no derivation info
+        at all (BIP-78 requires the sender to verify no keypaths appear anywhere), while
+        a coordinator managing every party's wallet writes each party's genuine
+        derivation entry. Neither is a failure; the seed simply owns nothing there.
+        """
+        psbt = self._psbt_with_change()
+
+        # The other party's input: their utxo, carrying no derivation info
+        foreign_input = deepcopy(psbt.inputs[0])
+        foreign_input.bip32_derivations.clear()
+        foreign_input.witness_utxo.script_pubkey = script.p2wpkh(foreign_public_key())
+        psbt.inputs.append(foreign_input)
+
+        # The payjoin shape
+        psbt_parser = self._parse(psbt)
+        assert psbt_parser.verified_input_derivation_paths[0] is not None
+        assert psbt_parser.verified_input_derivation_paths[1] is None
+
+        # The coordinated shape: the derivation entry is truthful, naming the other
+        # party's fingerprint and a key that party really controls.
+        claim_seed_owns_key(foreign_input, "m/84h/1h/0h/0/0", foreign_public_key(), seed=PSBTTestData.recipient_seed)
+        psbt_parser = self._parse(psbt)
+        assert psbt_parser.verified_input_derivation_paths[0] is not None
+        assert psbt_parser.verified_input_derivation_paths[1] is None
+
+
+    def test__parse__rejects_a_forged_claim_on_an_input(self):
+        """
+        `parse` should raise PSBTInputOwnershipClaimError when a psbt carries a false
+        claim that the seed owns an input that it does not actually control.
+        """
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.inputs[0], "m/84h/1h/0h/0/0", foreign_public_key())
+
+        with pytest.raises(PSBTInputOwnershipClaimError):
+            self._parse(psbt)
+
+
+    def test__parse__rejects_a_forged_claim_on_an_output(self):
+        """
+        `parse` should raise PSBTOutputOwnershipClaimError when a psbt carries a false
+        claim that the seed owns an output that it does not actually control. This is
+        the fake-change attack scenario that is more severe than a forged input claim.
+        """
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.outputs[0], "m/84h/1h/0h/1/0", foreign_public_key())
+
+        # The output-scope error specifically: the dire, attack-framed rejection
+        with pytest.raises(PSBTOutputOwnershipClaimError):
+            self._parse(psbt)
+
+
+    def test__parse__forged_output_claim_outranks_forged_input_claim(self):
+        """
+        The scan stops at the first false claim, so scan order decides which error the
+        psbt is reported with. A false output claim is the fake-change forgery and must
+        be the one reported even when the same psbt also carries a false input claim --
+        otherwise an attacker could plant a throwaway input claim just to be routed to
+        the milder input-scope warning.
+        """
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.inputs[0], "m/84h/1h/0h/0/0", foreign_public_key())
+        claim_seed_owns_key(psbt.outputs[0], "m/84h/1h/0h/1/0", foreign_public_key())
+
+        # The output error is the more severe issue
+        with pytest.raises(PSBTOutputOwnershipClaimError):
+            self._parse(psbt)
+
+
+    def test__parse__rejects_a_forged_taproot_claim(self):
+        """
+        A false taproot claim is rejected the same way as an ecdsa one: the input-scope
+        error on an input, the output-scope (attack) error on an output. Taproot claims
+        live in their own taproot_bip32_derivations dict, so the scan's coverage of that
+        dict is pinned on both scope types.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+        claim_seed_owns_key(psbt.inputs[0], "m/86h/1h/0h/0/0", foreign_public_key(), is_taproot=True)
+
+        with pytest.raises(PSBTInputOwnershipClaimError):
+            self._parse(psbt)
+
+        # The same forgery on a taproot output gets the attack classification
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT, PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE)
+        claim_seed_owns_key(psbt.outputs[0], "m/86h/1h/0h/1/0", foreign_public_key(), is_taproot=True)
+
+        with pytest.raises(PSBTOutputOwnershipClaimError):
+            self._parse(psbt)
+
+
+    def test__parse__rejects_a_forged_claim_on_a_multisig_scope(self):
+        """
+        Multisig scopes legitimately carry one derivation entry per cosigner, but a
+        forged claim naming this seed's fingerprint is rejected there exactly as in
+        single-sig: the input-scope error on an input, the attack-classified error on
+        an output.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        claim_seed_owns_key(psbt.inputs[0], "m/48h/1h/0h/2h/0/9", foreign_public_key())
+
+        with pytest.raises(PSBTInputOwnershipClaimError):
+            self._parse(psbt)
+
+        # The same forgery on the multisig change output gets the attack classification
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        claim_seed_owns_key(psbt.outputs[0], "m/48h/1h/0h/2h/1/9", foreign_public_key())
+
+        with pytest.raises(PSBTOutputOwnershipClaimError):
+            self._parse(psbt)
+
+
+    def test__parse__rejects_a_forged_claim_behind_a_genuine_one(self):
+        """
+        A scope can hold more than one key. Finding the one the seed owns is not a reason
+        to stop looking.
+
+        No honest coordinator writes extra derivation entries on a single-sig scope; this
+        shape arrives only from buggy or adversarial software. The scan copes with it
+        because the same scan serves multisig, where multi-entry scopes are the norm.
+        """
+        psbt = self._psbt_with_change()
+
+        # The scope's own genuine derivation stays exactly where it is...
+        assert len(psbt.inputs[0].bip32_derivations) == 1
+
+        # ...but add a false claim to the bip32_derivations dict
+        claim_seed_owns_key(psbt.inputs[0], "m/84h/1h/0h/0/9", foreign_public_key())
+        assert len(psbt.inputs[0].bip32_derivations) == 2
+        assert list(psbt.inputs[0].bip32_derivations.keys())[-1] == foreign_public_key()
+
+        with pytest.raises(PSBTInputOwnershipClaimError):
+            self._parse(psbt)
+
+
+    def test__parse__accepts_a_key_belonging_to_someone_else(self):
+        """
+        Only a claim on THIS seed's fingerprint is ever checked. A key openly belonging to
+        another wallet says nothing about this seed and must not reject the psbt.
+
+        No honest coordinator writes extra derivation entries on a single-sig scope; this
+        shape arrives only from buggy or adversarial software. The scan copes with it
+        because the same scan serves multisig, where multi-entry scopes are the norm.
+        """
+        psbt = self._psbt_with_change()
+        other_seed = PSBTTestData.recipient_seed
+        claim_seed_owns_key(psbt.inputs[0], "m/84h/1h/0h/0/0", foreign_public_key(), seed=other_seed)
+
+        # Confirm the fixture really does carry someone else's fingerprint
+        claimed_fingerprint = psbt.inputs[0].bip32_derivations[foreign_public_key()].fingerprint
+        assert claimed_fingerprint == root_for_seed(other_seed).my_fingerprint
+        assert claimed_fingerprint != self._root().my_fingerprint
+
+        psbt_parser = self._parse(psbt)
+
+        # The seed still owns its own key in that input, via the scope's genuine
+        # derivation.
+        assert psbt_parser.verified_input_derivation_paths[0] is not None
+
+
+    def test_genuine_fingerprint_collision_is_rejected_like_a_forgery(self):
+        """
+        4-byte fingerprints collide. The fixture pair were brute-force generated so that
+        they share a master fingerprint with no forgery involved, so a foreign party's
+        honest derivation entry can name our fingerprint on a key we do not control.
+
+        The parser cannot distinguish that from a forged claim -- they are byte-for-byte
+        the same situation -- and so it deliberately fails the psbt as an input-scope
+        inconsistency.
+        """
+        foreign_root = root_for_seed(PSBTTestData.collision_seed_b)
+
+        # The collision is real: same fingerprint, different key material
+        signing_root = root_for_seed(PSBTTestData.collision_seed_a)
+        assert foreign_root.my_fingerprint == signing_root.my_fingerprint
+        assert foreign_root.get_public_key() != signing_root.get_public_key()
+
+        # The foreign party's own genuine entry on their own input: their true
+        # fingerprint beside their true key, no forgery anywhere
+        psbt = self._psbt_with_change()
+        foreign_derivation_path = bip32.parse_path("m/84h/1h/0h/0/0")
+        colliding_public_key = foreign_root.derive(foreign_derivation_path).get_public_key()
+        psbt.inputs[0].bip32_derivations[colliding_public_key] = DerivationPath(foreign_root.my_fingerprint, foreign_derivation_path)
+
+        with pytest.raises(PSBTInputOwnershipClaimError):
+            PSBTParser(psbt, PSBTTestData.collision_seed_a, network=SettingsConstants.REGTEST)
+
+
+    def test_ownership_scan_derives_through_the_cache(self):
+        """
+        Ownership verification does its own deriving and the later parse phases do theirs,
+        but all of it flows through one shared cache: across the whole parse, each unique
+        path level is derived exactly once, no matter how many scopes claim it or how many
+        phases revisit it.
+
+        Note that even the initial pass benefits from the cache by skipping shared
+        levels that have already been derived.
+        """
+        psbt = self._psbt_with_change()
+
+        # Boost to 10 inputs from the same wallet, all sharing the one derivation path
+        for _ in range(9):
+            psbt.inputs.append(deepcopy(psbt.inputs[0]))
+
+        # How deep does the derivation path go?
+        num_levels = len(list(psbt.inputs[0].bip32_derivations.values())[0].derivation)
+
+        # Count every level actually derived over the course of the parse
+        num_derivations = 0
+        uncounted_child = bip32.HDKey.child
+        def counting_child(self, index, hardened=False):
+            nonlocal num_derivations
+            num_derivations += 1
+            return uncounted_child(self, index, hardened)
+
+        with patch.object(bip32.HDKey, "child", counting_child):
+            psbt_parser = self._parse(psbt)
+
+        # Sanity check: the scan really did run over all ten inputs and the change output
+        assert len(psbt_parser.verified_input_derivation_paths) == 10
+        assert all(path is not None for path in psbt_parser.verified_input_derivation_paths)
+        assert psbt_parser.verified_output_derivation_paths[0] is not None
+
+        # The inputs were cloned so they all use the same path with num_levels depth. The
+        # change output differs only in its last two levels. Verify that each of these
+        # levels was derived exactly once.
+        assert num_derivations == num_levels + 2
+
+
+    def test__parse__rejects_a_seed_that_owns_no_input(self):
+        """
+        The wrong seed for a psbt can produce no signature at all, so parsing raises
+        PSBTSeedCannotSignError rather than letting the flow discover it after the user
+        has approved.
+
+        And under the same wrong-seed conditions, embit will produce no signature anyway.
+        """
+        psbt = self._psbt_with_change()
+
+        # Intentionally use the wrong seed
+        with pytest.raises(PSBTSeedCannotSignError):
+            PSBTParser(psbt, PSBTTestData.recipient_seed, network=SettingsConstants.REGTEST)
+
+        # Try to sign with the wrong seed anyway
+        root = root_for_seed(PSBTTestData.recipient_seed)
+        assert psbt.sign_with(root) == 0
+
+
+    def test__parse__accepts_a_cosigner_seed_on_a_multisig(self):
+        """
+        Each cosigner holding a key on the device signs the same psbt in turn, so a seed
+        that owns an input must pass whether or not it is the first one used.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+
+        psbt_parser = PSBTParser(psbt, PSBTTestData.seed, network=SettingsConstants.REGTEST)
+        assert any(path is not None for path in psbt_parser.verified_input_derivation_paths)
+
+        psbt_parser = PSBTParser(psbt, PSBTTestData.multisig_key_2, network=SettingsConstants.REGTEST)
+        assert any(path is not None for path in psbt_parser.verified_input_derivation_paths)
+
+        psbt_parser = PSBTParser(psbt, PSBTTestData.multisig_key_3, network=SettingsConstants.REGTEST)
+        assert any(path is not None for path in psbt_parser.verified_input_derivation_paths)
+
+
+    def test_a_psbt_with_no_utxos_is_rejected_rather_than_crashing(self):
+        """
+        A psbt with no inputs is malformed and cannot be signed. `parse` should raise
+        PSBTSeedCannotSignError. Note that diagnosing the malformation is not this check's
+        job.
+        """
+        psbt = self._psbt_with_change()
+        for psbt_input in psbt.inputs:
+            psbt_input.witness_utxo = None
+            psbt_input.non_witness_utxo = None
+            psbt_input._utxo = None
+            psbt_input.bip32_derivations.clear()
+
+        with pytest.raises(PSBTSeedCannotSignError):
+            self._parse(psbt)
