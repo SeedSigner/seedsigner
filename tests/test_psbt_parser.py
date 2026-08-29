@@ -9,8 +9,9 @@ from embit.ec import PublicKey
 from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath
 from embit.descriptor import Descriptor
+from embit.script import Script
 
-from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
+from seedsigner.models.psbt_parser import (PSBTInputAmountVerificationError, PSBTInputOwnershipClaimError,
     PSBTOutputOwnershipClaimError, PSBTParser, PSBTSeedCannotSignError)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
@@ -251,6 +252,13 @@ class TestPSBTParser:
         taproot_input.taproot_internal_key = x_only_public_key
         taproot_input.witness_utxo.script_pubkey = script.p2tr(x_only_public_key)
 
+        # Re-keying the input invalidates the non_witness_utxo, which still pays to the
+        # original script. Editing it to match is not an option either: that changes the
+        # txid it hashes to, so it would no longer be the tx this input claims to spend.
+        # Drop it. Taproot is segwit, so a witness-only input is what a coordinator would
+        # normally send anyway.
+        taproot_input.non_witness_utxo = None
+
         # The zeroed-fingerprint fallback check must recognize this input as the seed's,
         # even though embit's internal parity byte for the pubkey is wrong. Taproot
         # pubkeys must be compared by their x-only representation.
@@ -336,6 +344,230 @@ class TestPSBTParser:
                 else:
                     assert psbt_parser.verify_multisig_output(descriptor, change_num=0) == False
                     assert psbt_parser.verify_multisig_output(descriptor, change_num=1) == False
+
+
+
+class TestPSBTInputAmountVerification:
+    """
+    A compromised coordinator can declare whatever input amounts it likes. Unless we check
+    them against each input's non_witness_utxo, the fee we display is whatever the
+    coordinator wants it to be.
+    """
+    seed = PSBTTestData.seed
+
+    # Fixtures that ship a witness_utxo alongside their non_witness_utxo
+    WITNESS_UTXO_INPUTS = [
+        PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT,
+        PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT,
+        PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT,
+        PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT,
+        PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT,
+    ]
+
+    # Legacy sighashes commit no input amount, so these must always be verifiable
+    LEGACY_INPUTS = [
+        PSBTTestData.SINGLE_SIG_LEGACY_P2PKH_1_INPUT,
+        PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT,
+    ]
+
+
+    def build_psbt(self, psbt_base64: str) -> PSBT:
+        """ Turn an input-only fixture into a complete psbt that spends to an external recipient """
+        psbt: PSBT = PSBT.parse(a2b_base64(psbt_base64))
+        input_amount = sum([inp.utxo.value for inp in psbt.inputs])
+        psbt.outputs.clear()
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, input_amount - 5_000))
+        return psbt
+
+
+    def parse(self, psbt: PSBT) -> PSBTParser:
+        return PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
+
+
+    @pytest.mark.parametrize("psbt_base64", PSBTTestData.ALL_INPUTS)
+    def test_untampered_psbts_verify(self, psbt_base64: str):
+        """
+        Every supported script type's fixture carries a verifiable non_witness_utxo.
+
+        is_verified is the assertion that carries the weight here. It is only set by embit's
+        InputScope.verify(), so it is the one flag that distinguishes "we hashed the previous
+        tx ourselves" from "we took the coordinator's word for it". input_amount alone would
+        hold with or without _verify_input_amounts(), since _parse_inputs() sums inp.utxo.value
+        either way.
+        """
+        psbt = self.build_psbt(psbt_base64)
+        assert all(inp.is_verified == False for inp in psbt.inputs)  # not verified until we do it
+
+        psbt_parser = self.parse(psbt)
+
+        assert all(inp.is_verified for inp in psbt.inputs)
+        assert psbt_parser.input_amount == sum([inp.utxo.value for inp in psbt.inputs])
+
+
+    @pytest.mark.parametrize("psbt_base64", PSBTTestData.ALL_INPUTS)
+    def test_tampered_non_witness_utxo_raises(self, psbt_base64: str):
+        """
+        Editing the non_witness_utxo changes the txid it hashes to, so it no longer matches
+        the txid the input claims to spend.
+        """
+        psbt = self.build_psbt(psbt_base64)
+        psbt.inputs[0].non_witness_utxo.vout[0].value += 100_000
+
+        with pytest.raises(PSBTInputAmountVerificationError):
+            self.parse(psbt)
+
+
+    @pytest.mark.parametrize("psbt_base64", WITNESS_UTXO_INPUTS)
+    def test_witness_utxo_value_disagreeing_with_non_witness_utxo_raises(self, psbt_base64: str):
+        """
+        The non_witness_utxo still hashes correctly here, so embit's verify() is satisfied.
+        But embit's PSBT.utxo()/fee() prefer witness_utxo, so an inflated witness_utxo would
+        still drive the fee we display. Must be caught by the cross-check.
+        """
+        psbt = self.build_psbt(psbt_base64)
+        psbt.inputs[0].witness_utxo.value += 100_000
+
+        # Confirm the premise: the non_witness_utxo is untouched and still verifies
+        assert psbt.inputs[0].verify() == True
+
+        with pytest.raises(PSBTInputAmountVerificationError):
+            self.parse(psbt)
+
+
+    @pytest.mark.parametrize("psbt_base64", WITNESS_UTXO_INPUTS)
+    def test_witness_utxo_script_pubkey_disagreeing_with_non_witness_utxo_raises(self, psbt_base64: str):
+        """
+        The other half of the cross-check: same amount, different scriptPubKey. Nothing about
+        the fee changes, but InputScope.script_pubkey resolves to the witness_utxo's, which is
+        what _parse_inputs() hands to _get_policy(). A mismatched scriptPubKey therefore means
+        we'd report the wrong script type for a coin we never actually inspected.
+        """
+        psbt = self.build_psbt(psbt_base64)
+        witness_utxo = psbt.inputs[0].witness_utxo
+        original_value = witness_utxo.value
+
+        # Same value, different scriptPubKey
+        witness_utxo.script_pubkey = Script(b"\x00\x14" + b"\x11" * 20)
+
+        # Confirm the premise: only the scriptPubKey moved, and the non_witness_utxo still verifies
+        assert witness_utxo.value == original_value
+        assert psbt.inputs[0].verify() == True
+
+        with pytest.raises(PSBTInputAmountVerificationError):
+            self.parse(psbt)
+
+
+    @pytest.mark.parametrize("psbt_base64", LEGACY_INPUTS)
+    def test_legacy_input_without_non_witness_utxo_raises(self, psbt_base64: str):
+        """
+        The concrete fund-loss case: a legacy sighash commits no input amount, so an inflated
+        witness_utxo yields a *valid* signature on a transaction that burns the difference as
+        miner fee. With no non_witness_utxo to check against, we have to refuse.
+        """
+        psbt = self.build_psbt(psbt_base64)
+        inp = psbt.inputs[0]
+        inp.witness_utxo = inp.non_witness_utxo.vout[inp.vout]
+        inp.witness_utxo.value += 100_000
+        inp.non_witness_utxo = None
+
+        with pytest.raises(PSBTInputAmountVerificationError):
+            self.parse(psbt)
+
+
+    def test_unrecognized_script_type_without_non_witness_utxo_raises(self):
+        """
+        Covers the None entry in UNCOMMITTED_AMOUNT_SCRIPT_TYPES. embit's script_type() returns
+        None for any scriptPubKey it doesn't recognize, and an unknown script type gives us no
+        basis to assume its sighash commits the input amount. So an unprovable amount on an
+        unrecognized input has to be refused rather than trusted.
+        """
+        psbt = self.build_psbt(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT)
+        inp = psbt.inputs[0]
+
+        # Bare multisig: a real scriptPubKey form that embit doesn't recognize, since it only
+        # knows the p2sh- and p2wsh-wrapped forms.
+        pubkey = list(inp.bip32_derivations.keys())[0].sec()
+        inp.witness_utxo = inp.non_witness_utxo.vout[inp.vout]
+        inp.witness_utxo.script_pubkey = Script(b"\x51\x21" + pubkey + b"\x51\xae")
+        inp.non_witness_utxo = None
+
+        # Confirm the premise: this really is an unrecognized script type
+        assert inp.witness_utxo.script_pubkey.script_type() is None
+
+        with pytest.raises(PSBTInputAmountVerificationError):
+            self.parse(psbt)
+
+
+    @pytest.mark.parametrize("psbt_base64", WITNESS_UTXO_INPUTS)
+    def test_segwit_input_without_non_witness_utxo_is_allowed(self, psbt_base64: str):
+        """
+        Coordinators routinely omit non_witness_utxo for segwit inputs. BIP143/BIP341 commit
+        the input amount to the sighash, so a lie there invalidates the signature rather than
+        burning funds. Rejecting these would break almost every normal signing.
+        """
+        psbt = self.build_psbt(psbt_base64)
+        psbt.inputs[0].non_witness_utxo = None
+
+        assert self.parse(psbt).input_amount == psbt.inputs[0].witness_utxo.value
+
+
+    def test_input_with_no_utxo_data_raises(self):
+        """
+        Nothing to verify against and nothing to sum; refuse rather than guess. Without this
+        guard _get_policy() is handed a None script_pubkey and dies with an AttributeError
+        instead of an error the caller can route on.
+
+        One fixture is enough: this is the first check in the loop, and once utxo is None the
+        input's script_pubkey is None too, so no script type can reach it differently.
+        """
+        psbt = self.build_psbt(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT)
+        psbt.inputs[0].witness_utxo = None
+        psbt.inputs[0].non_witness_utxo = None
+
+        with pytest.raises(PSBTInputAmountVerificationError):
+            self.parse(psbt)
+
+
+    def test_outpoint_index_past_end_of_non_witness_utxo_raises(self):
+        """
+        embit's verify() only compares txids and never checks that vout indexes into the
+        non_witness_utxo it just hashed, so a genuine prev tx paired with an out-of-range
+        outpoint passes verification. Unguarded, the deref raises a bare IndexError that
+        escapes parse() and crashes the view instead of routing to a warning.
+        """
+        psbt = self.build_psbt(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT)
+        inp = psbt.inputs[0]
+
+        # Confirm the premise: the prev tx really is shorter than the index we then claim
+        assert inp.vout < len(inp.non_witness_utxo.vout)
+        inp.vout = len(inp.non_witness_utxo.vout)
+
+        with pytest.raises(PSBTInputAmountVerificationError):
+            self.parse(psbt)
+
+
+    def test_every_input_is_checked_not_just_the_first(self):
+        """
+        Every fixture above has a single input, so none of them can catch a check that stops
+        after input 0. Tampering the *second* input of a 2-input psbt must fail just as loudly,
+        and the error must name the input that actually failed.
+
+        Tampering input 0 is deliberately not covered here; that is exactly what
+        test_tampered_non_witness_utxo_raises already does across all seven script types.
+        """
+        psbt: PSBT = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
+        assert len(psbt.inputs) == 2
+
+        # Untampered, both inputs verify and their amounts are summed
+        psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.two_input_seed, network=SettingsConstants.REGTEST)
+        assert psbt_parser.num_inputs == 2
+        assert psbt_parser.input_amount == 56_522_834 + 1_990_245_069
+
+        psbt.inputs[1].non_witness_utxo.vout[0].value += 100_000
+
+        with pytest.raises(PSBTInputAmountVerificationError, match="Input 1:"):
+            PSBTParser(p=psbt, seed=PSBTTestData.two_input_seed, network=SettingsConstants.REGTEST)
+
 
 
 
@@ -966,9 +1198,12 @@ class TestPSBTParserSeedOwnership:
         """
         psbt = self._psbt_with_change()
 
-        # The other party's input: their utxo, carrying no derivation info
+        # The other party's input: their utxo, carrying no derivation info. Witness-only,
+        # as a real payjoin counterparty's input is — the deepcopy's non_witness_utxo
+        # describes this seed's coin and would contradict the witness_utxo rewritten below.
         foreign_input = deepcopy(psbt.inputs[0])
         foreign_input.bip32_derivations.clear()
+        foreign_input.non_witness_utxo = None
         foreign_input.witness_utxo.script_pubkey = script.p2wpkh(foreign_public_key())
         psbt.inputs.append(foreign_input)
 
