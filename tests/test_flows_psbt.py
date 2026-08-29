@@ -1,10 +1,17 @@
 from seedsigner.views.seed_views import SeedOptionsView
 from seedsigner.gui.screens import RET_CODE__BACK_BUTTON
+from binascii import a2b_base64
+
+from embit.psbt import PSBT
+
 from base import FlowTest, FlowStep
+from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_output,
+    foreign_public_key)
 
 from seedsigner.controller import Controller
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
+from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.seed import Seed
 
@@ -268,3 +275,84 @@ class TestPSBTFlows(FlowTest):
             FlowStep(seed_views.SeedOptionsView, is_redirect=True),
             FlowStep(psbt_views.PSBTOverviewView)
         ])
+
+class TestPSBTOwnershipClaimRouting(FlowTest):
+    """
+    A psbt carrying an ownership claim that does not hold up is rejected while it is being
+    parsed, before the user is shown anything about the transaction. These cover the
+    routing that turns that rejection into a warning screen instead of a crash.
+    """
+
+    def _load_psbt_for_signing(self, psbt: PSBT, seed: Seed = None):
+        """
+        Stage the psbt in the Controller and load the signing seed into storage, as if
+        both had just been scanned. Each test's sequence then starts at seed selection;
+        the parse itself runs when PSBTOverviewView is instantiated.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+        self.controller.psbt = psbt
+        self.controller.storage.set_pending_seed(seed if seed is not None else PSBTTestData.seed)
+        self.controller.storage.finalize_pending_seed()
+
+
+    def _psbt_with_change(self):
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE, 10_000))
+        return psbt
+
+
+    def test_forged_output_claim_terminates_signing_flow(self):
+        """
+        A forged ownership claim on an output is framed as a potential attack, so it
+        routes to a warning that aborts the signing flow.
+        """
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.outputs[0], "m/84h/1h/0h/1/0", foreign_public_key())
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTOutputOwnershipClaimFailedView, button_data_selection=psbt_views.PSBTOutputOwnershipClaimFailedView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_forged_input_claim_terminates_signing_flow(self):
+        """
+        A false claim on an input is framed as inconsistent data rather than as an attack,
+        but also routes to its own information screen that aborts the signing flow.
+        """
+        psbt = self._psbt_with_change()
+        claim_seed_owns_key(psbt.inputs[0], "m/84h/1h/0h/0/0", foreign_public_key())
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTInputOwnershipClaimFailedView, button_data_selection=psbt_views.PSBTInputOwnershipClaimFailedView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_wrong_seed_routes_back_to_seed_selection_flow(self):
+        """
+        The wrong seed for a psbt redirects before any transaction detail is rendered and
+        routes back to seed selection with the signing seed cleared so another can be
+        picked.
+        """
+        self._load_psbt_for_signing(self._psbt_with_change(), seed=PSBTTestData.recipient_seed)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTSeedCannotSignView, button_data_selection=psbt_views.PSBTSeedCannotSignView.SELECT_DIFFERENT_SEED),
+            FlowStep(psbt_views.PSBTSelectSeedView),
+        ])
+
+        assert self.controller.psbt_seed is None
+        assert self.controller.psbt_parser is None
+
+        # The psbt itself is kept: the user is choosing a different seed for it, not
+        # starting over
+        assert self.controller.psbt is not None

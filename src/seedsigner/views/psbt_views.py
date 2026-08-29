@@ -1,9 +1,10 @@
 from gettext import gettext as _
 
-from seedsigner.models.psbt_parser import PSBTParser
+from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
+    PSBTOutputOwnershipClaimError, PSBTParser, PSBTSeedCannotSignError)
 from seedsigner.models.settings import SettingsConstants
-from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
-from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, WarningScreen, DireWarningScreen, QRDisplayScreen)
+from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
+from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
 from seedsigner.views.view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
 
 
@@ -101,9 +102,27 @@ class PSBTOverviewView(View):
                     seed=self.controller.psbt_seed,
                     network=self.settings.get_value(SettingsConstants.SETTING__NETWORK)
                 )
-            except Exception as e:
+
+            except PSBTInputOwnershipClaimError:
+                # Set clear_history to disable returning via BACK button
+                self.set_redirect(Destination(PSBTInputOwnershipClaimFailedView, clear_history=True))
+                return
+
+            except PSBTOutputOwnershipClaimError:
+                # Set clear_history to disable returning via BACK button
+                self.set_redirect(Destination(PSBTOutputOwnershipClaimFailedView, clear_history=True))
+                return
+
+            except PSBTSeedCannotSignError:
+                # Not a suspicious psbt, just the wrong seed for it. Send the user back to
+                # pick another rather than clearing the flow.
+                self.controller.psbt_parser = None
+                self.controller.psbt_seed = None
+                self.set_redirect(Destination(PSBTSeedCannotSignView))
+                return
+
+            finally:
                 self.loading_screen.stop()
-                raise e
 
 
     def run(self):
@@ -116,23 +135,18 @@ class PSBTOverviewView(View):
                 {
                     'address': 'bc1q............', 
                     'amount': 397621401, 
-                    'fingerprint': ['22bde1a9', '73c5da0a'], 
-                    'derivation_path': ['m/48h/1h/0h/2h/1/0', 'm/48h/1h/0h/2h/1/0']
+                    'claimed_fingerprints': ['22bde1a9', '73c5da0a'],
+                    'claimed_derivation_paths': ['m/48h/1h/0h/2h/1/0', 'm/48h/1h/0h/2h/1/0']
                 }, {},
             ]
         """
         num_change_outputs = 0
         num_self_transfer_outputs = 0
         for change_output in change_data:
-            # print(f"""{change_output["derivation_path"][0]}""")
-            if change_output["derivation_path"][0].split("/")[-2] == "1":
+            if change_output["claimed_derivation_paths"][0].split("/")[-2] == "1":
                 num_change_outputs += 1
             else:
                 num_self_transfer_outputs += 1
-
-        # Everything is set. Stop the loading screen
-        if self.loading_screen:
-            self.loading_screen.stop()
 
         # Run the overview screen
         selected_menu_num = self.run_screen(
@@ -325,8 +339,8 @@ class PSBTChangeDetailsView(View):
             {
                 'address': 'bc1q............', 
                 'amount': 397621401, 
-                'fingerprint': ['22bde1a9', '73c5da0a'], 
-                'derivation_path': ['m/48h/1h/0h/2h/1/0', 'm/48h/1h/0h/2h/1/0']
+                'claimed_fingerprints': ['22bde1a9', '73c5da0a'],
+                'claimed_derivation_paths': ['m/48h/1h/0h/2h/1/0', 'm/48h/1h/0h/2h/1/0']
             }
         """
 
@@ -334,16 +348,16 @@ class PSBTChangeDetailsView(View):
         # and derivation path.
         seed_fingerprint = self.controller.psbt_seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
 
-        if seed_fingerprint not in change_data.get("fingerprint"):
+        if seed_fingerprint not in change_data.get("claimed_fingerprints"):
             # TODO: Something is wrong with this psbt(?). Reroute to warning?
             return Destination(NotYetImplementedView)
 
-        i = change_data.get("fingerprint").index(seed_fingerprint)
-        derivation_path = change_data.get("derivation_path")[i]
+        i = change_data.get("claimed_fingerprints").index(seed_fingerprint)
+        claimed_derivation_path = change_data.get("claimed_derivation_paths")[i]
 
         # 'm/84h/1h/0h/1/0' would be a change addr while 'm/84h/1h/0h/0/0' is a self-receive
-        is_change_derivation_path = int(derivation_path.split("/")[-2]) == 1
-        derivation_path_addr_index = int(derivation_path.split("/")[-1])
+        is_change_derivation_path = int(claimed_derivation_path.split("/")[-2]) == 1
+        derivation_path_addr_index = int(claimed_derivation_path.split("/")[-1])
 
         if is_change_derivation_path:
             # TRANSLATOR_NOTE: The amount you're receiving back from the transaction
@@ -384,8 +398,8 @@ class PSBTChangeDetailsView(View):
                 script_type = pubkey.script_type()
                 
                 # extract derivation path to get wallet and change derivation
-                change_path = '/'.join(derivation_path.split("/")[-2:])
-                wallet_path = '/'.join(derivation_path.split("/")[:-2])
+                change_path = '/'.join(claimed_derivation_path.split("/")[-2:])
+                wallet_path = '/'.join(claimed_derivation_path.split("/")[:-2])
                 
                 xpub = self.controller.psbt_seed.get_xpub(
                     wallet_path=wallet_path,
@@ -425,7 +439,7 @@ class PSBTChangeDetailsView(View):
             amount=change_data.get("amount"),
             is_multisig=psbt_parser.is_multisig,
             fingerprint=seed_fingerprint,
-            derivation_path=derivation_path,
+            derivation_path=claimed_derivation_path,
             is_change_derivation_path=is_change_derivation_path,
             derivation_path_addr_index=derivation_path_addr_index,
             is_change_addr_verified=is_change_addr_verified,
@@ -450,10 +464,91 @@ class PSBTChangeDetailsView(View):
             from seedsigner.views.seed_views import LoadMultisigWalletDescriptorView
             self.controller.resume_main_flow = Controller.FLOW__PSBT
             return Destination(LoadMultisigWalletDescriptorView)
-            
+
+
+
+class PSBTSeedCannotSignView(View):
+    """
+    Reached when parsing found this seed can't sign any of the psbt's inputs (see
+    PSBTSeedCannotSignError). Routes back to seed selection so the user can pick another.
+    """
+    SELECT_DIFFERENT_SEED = ButtonOption("Select a different seed")
+
+    def run(self):
+        # This is an informational mismatch, not a warning, so it uses the neutral info
+        # icon and color rather than WarningScreen's alarming yellow edges.
+        # TODO: give this its own InfoScreen (LargeIconStatusScreen with the INFO icon and
+        # color baked in) rather than customizing the base screen at each call site.
+        self.run_screen(
+            LargeIconStatusScreen,
+            title=_("Seed Can't Sign"),
+            status_icon_name=SeedSignerIconConstants.INFO,
+            status_color=GUIConstants.INFO_COLOR,
+            text=_("None of the inputs in this transaction are controlled by this seed."),
+            button_data=[self.SELECT_DIFFERENT_SEED],
+            show_back_button=False,
+        )
+
+        # Set clear_history to disable returning via BACK button.
+        return Destination(PSBTSelectSeedView, clear_history=True)
+
+
+
+class PSBTOutputOwnershipClaimFailedView(View):
+    """
+    Reached when a false ownership claim on an output rejects the psbt (see
+    PSBTOutputOwnershipClaimError). Shows a dire warning and discards the psbt to the main
+    menu. Claims on inputs route to PSBTInputOwnershipClaimFailedView instead.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            DireWarningScreen,
+            title=_("Suspicious Transaction"),
+            status_headline=_("Likely an Attack!"),
+            text=_("The transaction's change/self-transfer outputs are not going back to your wallet."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all ephemeral
+        # data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTInputOwnershipClaimFailedView(View):
+    """
+    Reached when a false ownership claim on an input rejects the psbt (see
+    PSBTInputOwnershipClaimError). Shows a plain (not dire) warning and discards the psbt
+    to the main menu.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            text=_("This transaction incorrectly claims that its input(s) belong to this seed."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all ephemeral
+        # data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
 
 
 class PSBTAddressVerificationFailedView(View):
+    """
+    Reached when a change or self-transfer output fails address verification. Shows a dire
+    warning and discards the psbt to the main menu.
+    """
     def __init__(self, is_change: bool = True, is_multisig: bool = False):
         super().__init__()
         self.is_change = is_change
@@ -477,8 +572,9 @@ class PSBTAddressVerificationFailedView(View):
             show_back_button=False,
         )
 
-        # We're done with this PSBT. Route back to MainMenuView which always
-        #   clears all ephemeral data (except in-memory seeds).
+        # We're done with this PSBT. Route back to MainMenuView, which clears all ephemeral
+        # data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
         return Destination(MainMenuView, clear_history=True)
 
 
