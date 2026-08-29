@@ -34,10 +34,8 @@ class PSBTOutputOwnershipClaimError(PSBTVerificationError):
     """
     An output scope claims this seed's fingerprint on a key the seed does not derive.
 
-    This is not a psbt that merely fails to be ours. A fingerprint is
-    coordinator-supplied metadata, so this is a psbt asserting that a key belongs to this
-    seed when it does not. On an output that assertion is how a fake change output is
-    dressed up as the user's own, so it should be treated as an attack.
+    This is asserting that an output belongs to this seed when it does not. We treat this
+    deception as an attack.
     """
     pass
 
@@ -46,19 +44,9 @@ class PSBTInputOwnershipClaimError(PSBTVerificationError):
     """
     An input scope claims this seed's fingerprint on a key the seed does not derive.
 
-    The same false claim as PSBTOutputOwnershipClaimError, but on an input the threat
-    picture inverts. A forged input claim has no path to losing funds: it cannot produce a
-    signature (embit re-derives the real key and refuses on a mismatch), and it cannot
-    alter the amounts, the fee, or how outputs are classified. The likely causes are
-    instead a psbt assembled for a different wallet, a corrupted entry, or a collaborative
-    spend that happens to include a key whose 4-byte fingerprint collides with ours (1 in
-    2^32 chance).
-
-    The psbt still fails, deliberately, following embit's lead: sign_with raises on this
-    same condition and abandons the entire signing pass, so tolerating the entry here
-    would only defer the failure to a worse spot. Changing this behavior, if desired,
-    should happen in embit first. Until then the trade-off is accepted: a
-    collaborative-spend counterparty could grief such a transaction into unsignability.
+    The same type of false claim as the output case above, but a forged input claim simply
+    renders the psbt unsignable (embit re-derives the real key and will refuse to sign on
+    a mismatch) so there's no point in continuing.
     """
     pass
 
@@ -133,9 +121,9 @@ class PSBTParser():
         self.destination_amounts = []
         self.op_return_data: bytes = None
 
-        # Indexed alongside psbt.inputs / psbt.outputs. Each entry is the derivation path
-        # the seed genuinely owns in each scope or None where it owns nothing. Determined
-        # in _verify_claimed_derivation_paths.
+        # Contains one entry per input in psbt.inputs and per output in psbt.outputs. Each
+        # entry is either the derivation path the seed genuinely owns there, or it is set
+        # to `None`.
         self.verified_input_derivation_paths: List[List[int] | None] = []
         self.verified_output_derivation_paths: List[List[int] | None] = []
 
@@ -176,12 +164,12 @@ class PSBTParser():
         """
         Establishes, in order:
 
-          1. _fill_missing_fingerprints: backfills all-zero fingerprints, but only for
-             scopes the seed provably derives.
+          1. _fill_missing_fingerprints: backfills all-zero fingerprints, but only where
+             the seed provably derives the key.
 
-          2. _verify_claimed_derivation_paths: each input and output scope that claims to
-             be controlled by the seed is verified. Raises an Input/Output
-             OwnershipClaimError if a claimed scope fails verification.
+          2. _verify_claimed_derivation_paths: each input and output that claims to be
+             controlled by the seed declares a derivation path that must be verified.
+             Raises an Input/Output OwnershipClaimError if a claim fails verification.
 
           3. _reject_if_seed_cannot_sign: raises PSBTSeedCannotSignError if none of the
              inputs can be signed by the seed. A mismatch rather than an attack, caught
@@ -257,6 +245,10 @@ class PSBTParser():
 
 
     def _parse_inputs(self, child_key_derivation_cache: dict):
+        """
+        Totals the input amounts and determines the wallet policy. Every input must
+        resolve to the same policy, otherwise a RuntimeError is raised.
+        """
         self.input_amount = 0
         self.num_inputs = len(self.psbt.inputs)
         for inp in self.psbt.inputs:
@@ -314,7 +306,8 @@ class PSBTParser():
                 elif self.policy["type"] == "p2sh":
                     sc = script.p2sh(out.redeem_script)
 
-                # single-sig
+                # single-sig: p2pkh, p2sh-p2wpkh, and p2wpkh; taproot handled separately
+                # below.
                 elif "pkh" in self.policy["type"]:
                     my_pubkey = None
 
@@ -431,6 +424,8 @@ class PSBTParser():
         policy = {"type": script_type}
 
         # expected multisig
+        # TODO: rename this local. It shadows the embit `script` module for the rest of
+        # this function, so script.p2wsh() and the other constructors are unreachable.
         script = None
         if script_type:
             if "p2wsh" in script_type and scope.witness_script is not None:
@@ -459,19 +454,19 @@ class PSBTParser():
 
 
     @staticmethod
-    def _parse_multisig(sc):
+    def _parse_multisig(multisig_script):
         """Takes a script and extracts m,n and pubkeys from it"""
         # OP_m <len:pubkey> ... <len:pubkey> OP_n OP_CHECKMULTISIG
         # check min size
-        if len(sc.data) < 37 or sc.data[-1] != 0xAE:
+        if len(multisig_script.data) < 37 or multisig_script.data[-1] != 0xAE:
             raise ValueError("Not a multisig script")
-        m = sc.data[0] - 0x50
+        m = multisig_script.data[0] - 0x50
         if m < 1 or m > 16:
             raise ValueError("Invalid multisig script")
-        n = sc.data[-2] - 0x50
+        n = multisig_script.data[-2] - 0x50
         if n < m or n > 16:
             raise ValueError("Invalid multisig script")
-        s = BytesIO(sc.data)
+        s = BytesIO(multisig_script.data)
         # drop first byte
         s.read(1)
         # read pubkeys
@@ -482,7 +477,7 @@ class PSBTParser():
                 raise ValueError("Invlid pubkey")
             pubkeys.append(ec.PublicKey.parse(s.read(33)))
         # check that nothing left
-        if s.read() != sc.data[-2:]:
+        if s.read() != multisig_script.data[-2:]:
             raise ValueError("Invalid multisig script")
         return m, n, pubkeys
 
@@ -670,11 +665,7 @@ class PSBTParser():
         match). Returns the verified derivation path (as a list of ints) or None.
 
         Every key in the scope that claims this seed's fingerprint is re-derived and
-        checked. A claim that does not hold up raises
-        PSBT[Output|Input]OwnershipClaimError. This includes fingerprint collisions (two
-        different keys with the same 4-byte fingerprint):
-        * On the output side, a collision is considered an attack.
-        * On the input side it is merely disallowed because it is unsignable by embit.
+        checked. A false claim raises PSBT[Output|Input]OwnershipClaimError.
 
         One edge case:
         * A multisig could use this seed in more than one cosigner slot, each
