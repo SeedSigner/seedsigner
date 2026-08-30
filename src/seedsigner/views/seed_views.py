@@ -2649,8 +2649,9 @@ class RebuildSeedXORFinalizeView(View):
 
         try:
             mnemonic_strings = [part.mnemonic_str for part in self.controller.storage.rebuild_seedxor_parts]
-            combined_mnemonic = combine_mnemonics_with_xor(mnemonic_strings)
-            seed = Seed(mnemonic=combined_mnemonic)
+            wordlist_language_code = self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE)
+            combined_mnemonic = combine_mnemonics_with_xor(mnemonic_strings, wordlist_language_code=wordlist_language_code)
+            seed = Seed(mnemonic=combined_mnemonic, wordlist_language_code=wordlist_language_code)
 
             # Check for degenerate XOR results (all-zero / all-ones entropy from
             #   colluding parts). These pass the BIP39 checksum but are worthless.
