@@ -2734,10 +2734,13 @@ class RebuildSeedXORFinalizeOptionsView(View):
 
             # Discard the individual part seeds from storage by identity, keeping
             #   the combined seed. A part loaded via "Use loaded seed" is the same
-            #   object in both storage.seeds and rebuild_seedxor_parts.
+            #   object in both storage.seeds and rebuild_seedxor_parts. Typed or
+            #   scanned parts are distinct objects that never lived in
+            #   storage.seeds; they must NEVER match by value (Seed.__eq__ compares
+            #   seed_bytes), or a pre-existing user seed would be silently deleted.
             parts_to_discard = list(self.controller.storage.rebuild_seedxor_parts)
             for part in parts_to_discard:
-                if part is not combined_seed and part in self.controller.storage.seeds:
+                if part is not combined_seed and any(part is s for s in self.controller.storage.seeds):
                     self.controller.discard_seed(part)
 
             self.controller.clear_rebuild_seedxor_data()

@@ -220,7 +220,13 @@ class Controller(Singleton):
 
 
     def discard_seed(self, seed: Seed):
-        self.storage.seeds.remove(seed)
+        # Remove by identity, not equality. Seed.__eq__ compares seed_bytes, so a
+        # value-based list.remove(seed) could delete a distinct pre-existing Seed
+        # object that merely shares the same mnemonic (see SeedXOR discard path).
+        for i, s in enumerate(self.storage.seeds):
+            if s is seed:
+                self.storage.seeds.pop(i)
+                return
 
 
     def process_rebuild_seedxor_part(self, new_part_seed: Seed):
