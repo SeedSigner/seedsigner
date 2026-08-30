@@ -32,7 +32,7 @@ class PSBTVerificationError(Exception):
 
 class PSBTOutputOwnershipClaimError(PSBTVerificationError):
     """
-    An output scope claims this seed's fingerprint on a key the seed does not derive.
+    An output claims this seed's fingerprint on a key the seed does not derive.
 
     This is asserting that an output belongs to this seed when it does not. We treat this
     deception as an attack.
@@ -42,7 +42,7 @@ class PSBTOutputOwnershipClaimError(PSBTVerificationError):
 
 class PSBTInputOwnershipClaimError(PSBTVerificationError):
     """
-    An input scope claims this seed's fingerprint on a key the seed does not derive.
+    An input claims this seed's fingerprint on a key the seed does not derive.
 
     The same type of false claim as the output case above, but a forged input claim simply
     renders the psbt unsignable (embit re-derives the real key and will refuse to sign on
