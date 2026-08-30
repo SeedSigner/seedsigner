@@ -478,3 +478,100 @@ class TestSeedXORAdditionalFlows(FlowTest):
         is_valid, error_dict = SeedXORValidator.validate_combined_seed(all_ones_seed)
         assert not is_valid
         assert error_dict["title"] == "Known Seed Result"
+
+
+class TestSeedXORWordlistLanguage(FlowTest):
+    """The finalize path must honor SETTING__WORDLIST_LANGUAGE instead of
+    silently defaulting to English (ref: PR #1014 review feedback). The app is
+    English-only today, so these tests mock the wordlist boundary rather than
+    loading a real foreign wordlist."""
+
+    def _load_two_parts(self):
+        """Common prefix: enable XOR, type two 12-word parts, land on Finalize.
+
+        Note: SETTING__WORDLIST_LANGUAGE is left at English during entry, because
+        LoadSeedView also resolves the wordlist and would raise on an unrecognized
+        code before the flow ever reaches Finalize."""
+        self.settings.set_value(SettingsConstants.SETTING__SEED_XOR, SettingsConstants.OPTION__ENABLED)
+        sequence = [
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.REBUILD_SEED_XOR),
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.LOAD_NEXT_PART),
+            FlowStep(seed_views.RebuildSeedXORLoadPartView, button_data_selection=seed_views.RebuildSeedXORLoadPartView.TYPE_12WORD),
+        ]
+        sequence += type_mnemonic(EXAMPLE_12_A)
+        sequence += [
+            FlowStep(seed_views.RebuildSeedXORShowFingerprintView, button_data_selection=seed_views.RebuildSeedXORShowFingerprintView.CONTINUE),
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.LOAD_NEXT_PART),
+            FlowStep(seed_views.RebuildSeedXORLoadPartView, button_data_selection=seed_views.RebuildSeedXORLoadPartView.TYPE_12WORD),
+        ]
+        sequence += type_mnemonic(EXAMPLE_12_B)
+        sequence += [
+            FlowStep(seed_views.RebuildSeedXORShowFingerprintView, button_data_selection=seed_views.RebuildSeedXORShowFingerprintView.CONTINUE),
+            FlowStep(seed_views.RebuildSeedXORManageView, button_data_selection=seed_views.RebuildSeedXORManageView.FINALIZE),
+        ]
+        return sequence
+
+    def test_finalize_passes_wordlist_language_from_settings(self):
+        """
+        RebuildSeedXORFinalizeView must call combine_mnemonics_with_xor() and Seed()
+        with the wordlist_language_code from settings, not the English default.
+        """
+        captured = {}
+        real_combine = combine_mnemonics_with_xor
+        real_seed_init = Seed.__init__
+
+        def spy_combine(mnemonics, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH):
+            captured["combine_lang"] = wordlist_language_code
+            # Run for real with English so parsing doesn't die on the mocked code
+            return real_combine(mnemonics, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+
+        def spy_seed_init(self_seed, mnemonic=None, passphrase="", wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH):
+            captured.setdefault("seed_langs", []).append(wordlist_language_code)
+            # Force English so the mocked language doesn't break real parsing
+            return real_seed_init(self_seed, mnemonic=mnemonic, passphrase=passphrase,
+                                  wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+
+        def set_lang_xx(view):
+            self.settings.set_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE, "xx")
+
+        from unittest.mock import patch
+        with patch("seedsigner.views.seed_views.combine_mnemonics_with_xor", side_effect=spy_combine), \
+             patch.object(Seed, "__init__", spy_seed_init):
+            sequence = self._load_two_parts()
+            # Flip the (hidden) setting after parts are loaded but before Finalize runs,
+            #   mimicking a future build where a non-English wordlist is selectable.
+            sequence[-1].before_run = set_lang_xx
+            sequence += [
+                FlowStep(seed_views.RebuildSeedXORFinalizeView, button_data_selection=0),
+                FlowStep(seed_views.RebuildSeedXORFinalizeOptionsView, button_data_selection=seed_views.RebuildSeedXORFinalizeOptionsView.KEEP_PARTS),
+                FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+            ]
+            self.run_sequence(sequence)
+
+        assert captured["combine_lang"] == "xx"
+        assert "xx" in captured["seed_langs"]
+
+    def test_finalize_unrecognized_wordlist_language_fails_closed(self):
+        """
+        If the settings wordlist code is unrecognized, Seed.get_wordlist() raises,
+        and the finalize view must surface the error screen instead of producing
+        a seed from the wrong wordlist.
+        """
+        def set_lang_xx(view):
+            self.settings.set_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE, "xx")
+
+        # Run combine for real: Seed.get_wordlist("xx") raises -> view captures the
+        #   error and routes to ErrorView without calling run_screen (is_redirect).
+        sequence = self._load_two_parts()
+        sequence[-1].before_run = set_lang_xx
+        sequence += [
+            FlowStep(seed_views.RebuildSeedXORFinalizeView, is_redirect=True),
+            FlowStep(ErrorView, button_data_selection=0),
+            FlowStep(seed_views.RebuildSeedXORManageView),
+        ]
+        self.run_sequence(sequence)
+
+        # No combined seed may be stored after a failed finalize
+        assert self.controller.storage.rebuild_seedxor_combined_seed is None
