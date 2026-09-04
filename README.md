@@ -356,5 +356,7 @@ Letter templates(8.5in * 11in):
 # Build from Source
 See the [SeedSigner OS repo](https://github.com/SeedSigner/seedsigner-os/) for instructions.
 
+For an overview of how SeedSigner OS works and how this application runs on it, see [docs/seedsigner_os.md](docs/seedsigner_os.md).
+
 # Developer Local Build Instructions
 Raspberry Pi OS is commonly used for development. See the [Raspberry Pi OS Build Instructions](docs/raspberry_pi_os_build_instructions.md)
