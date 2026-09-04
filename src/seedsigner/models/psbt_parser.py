@@ -389,6 +389,7 @@ class PSBTParser():
                 trimmed_psbt.inputs[i].final_scriptwitness = inp.final_scriptwitness
             else:
                 trimmed_psbt.inputs[i].partial_sigs = inp.partial_sigs
+                trimmed_psbt.inputs[i].taproot_sigs = inp.taproot_sigs
 
         return trimmed_psbt
 
@@ -402,6 +403,7 @@ class PSBTParser():
                 cnt += 1
             else:
                 cnt += len(list(inp.partial_sigs.keys()))
+                cnt += len(list(inp.taproot_sigs.keys()))
 
         return cnt
 
