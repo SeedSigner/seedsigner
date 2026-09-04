@@ -32,6 +32,38 @@ class TestSeedFlows(FlowTest):
             FlowStep(seed_views.SeedOptionsView),
         ])
 
+    def test_invalid_qr_from_load_seed_flow(self):
+        """
+        Scanning an invalid QR while loading a seed should give the user the option
+        to go back and retry or exit the flow and return to the Main Menu.
+        """
+        
+        def load_invalid_seed_qr(view: scan_views.ScanView):
+            view.decoder.add_data("this text will not make sense to the decoder")
+
+        # Sequence 1: User clicks on "Return to Main Menu"
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.SEED_QR),
+            FlowStep(scan_views.ScanSeedQRView, before_run=load_invalid_seed_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView),
+            FlowStep(MainMenuView),
+        ])
+
+        assert self.controller.resume_main_flow is None
+
+        # Sequence 2: User clicks on BACK, returns to Scan View for a rescan
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.SEED_QR),
+            FlowStep(scan_views.ScanSeedQRView, before_run=load_invalid_seed_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(scan_views.ScanSeedQRView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView),
+        ])
 
     def test_passphrase_entry_flow(self):
         """
@@ -776,12 +808,13 @@ class TestMessageSigningFlows(FlowTest):
         )
 
 
-    def test_sign_message_invalid_qr_flow(self):
+    def test_sign_message_invalid_message_qr_flow(self):
         """
         Should clear `Controller.resume_main_flow` and redirect to ErrorView if an
-        invalid signmessage QR is scanned.
+        invalid signmessage QR is scanned. The error view should then forward to MainMenuView.
 
-        The error view should then forward to MainMenuView.
+        Alternatively, the user can press BACK from the ErrorView to rescan a valid
+        signmessage QR and successfully complete the flow.
         """
         # Ensure message signing is enabled
         self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
@@ -789,6 +822,7 @@ class TestMessageSigningFlows(FlowTest):
         def load_invalid_signmessage_qr(view: scan_views.ScanView):
             view.decoder.add_data("this text will not make sense to the decoder")
 
+        # Sequence 1: User clicks on "Return to Main Menu"
         self.run_sequence([
             FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
             FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),  # simulate read SeedQR; ret val is ignored
@@ -801,6 +835,66 @@ class TestMessageSigningFlows(FlowTest):
 
         assert self.controller.resume_main_flow is None
 
+        # Sequence 2: User clicks on BACK, returns to Scan View for a rescan
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
+            FlowStep(scan_views.ScanView, before_run=load_invalid_signmessage_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(scan_views.ScanView, before_run=self.load_short_message_into_decoder),
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageConfirmAddressView, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageSignedMessageQRView, screen_return_value=0),
+            FlowStep(MainMenuView),
+        ])
+
+    def test_sign_message_invalid_seed_qr_flow(self):
+        """
+        Should clear `Controller.resume_main_flow` and redirect to ErrorView if an
+        invalid seed QR is scanned during the signmessage flow. The error view should 
+        then forward to MainMenuView.
+
+        Alternatively, the user can press BACK from the ErrorView to rescan a valid
+        seed QR and successfully complete the signmessage flow.
+        """
+        def load_invalid_seed_qr(view: scan_views.ScanView):
+            view.decoder.add_data("this text will not make sense to the decoder")
+
+        # Ensure message signing is enabled
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+
+        # Sequence 1: User clicks on "Return to Main Menu"
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_short_message_into_decoder),
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanView, before_run=load_invalid_seed_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView),
+            FlowStep(MainMenuView)
+        ])
+
+        assert self.controller.resume_main_flow is None
+
+        # Sequence 2: User clicks on BACK, returns to Scan View for a rescan
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_short_message_into_decoder),
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanView, before_run=load_invalid_seed_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageConfirmAddressView, screen_return_value=0),
+            FlowStep(seed_views.SeedSignMessageSignedMessageQRView, screen_return_value=0),
+            FlowStep(MainMenuView),
+        ])
 
     def test_sign_message_unsupported_derivation_flow(self):
         """
