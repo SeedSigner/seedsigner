@@ -1113,7 +1113,7 @@ class BtcAmount(BaseComponent):
             sats_unit = _("sats")
             btc_color = GUIConstants.ACCENT_COLOR
 
-        elif network == SettingsConstants.TESTNET:
+        elif network in (SettingsConstants.TESTNET, SettingsConstants.SIGNET):
             btc_color = GUIConstants.TESTNET_COLOR
         
         elif network == SettingsConstants.REGTEST:
@@ -1885,9 +1885,34 @@ def reflow_text_for_width(text: str,
                 # Candidate line is possibly shorter than necessary.
                 return _binary_len_search(min_index=index, max_index=max_index, word_spacer=word_spacer)
 
-        if len(text.split()) == 1 and not treat_chars_as_words:
-            # No whitespace chars to split on! Warn but proceed anyway.
-            logger.warning("Text cannot fit in target rect with this font+size")
+        def _fit_word_prefix(word: str) -> tuple[int, int, int]:
+            """Return the longest nonempty prefix that renders within the width."""
+            min_index = 1
+            max_index = len(word)
+            best = 1
+            best_width = 0
+            best_px_below_baseline = 0
+
+            while min_index <= max_index:
+                index = (min_index + max_index) // 2
+                left, top, right, px_below_baseline = font.getbbox(
+                    word[:index], anchor="ls"
+                )
+                line_width = right - left
+                if line_width < width:
+                    best = index
+                    best_width = line_width
+                    best_px_below_baseline = px_below_baseline
+                    min_index = index + 1
+                else:
+                    max_index = index - 1
+
+            if best_width == 0:
+                left, top, right, best_px_below_baseline = font.getbbox(
+                    word[:1], anchor="ls"
+                )
+                best_width = right - left
+            return best, best_width, best_px_below_baseline
 
         # Now we're ready to go line-by-line into our line break binary search!
         for line in text.split("\n"):
@@ -1914,6 +1939,18 @@ def reflow_text_for_width(text: str,
                 _add_text_line("", 0, 0)
             else:
                 while words:
+                    if not treat_chars_as_words:
+                        left, top, right, px_below_baseline = font.getbbox(
+                            words[0], anchor="ls"
+                        )
+                        if right - left >= width:
+                            index, tw, px_below_baseline = _fit_word_prefix(words[0])
+                            _add_text_line(words[0][:index], tw, px_below_baseline)
+                            words[0] = words[0][index:]
+                            if not words[0]:
+                                words = words[1:]
+                            continue
+
                     (index, tw, px_below_baseline) = _binary_len_search(0, len(words), word_spacer=word_spacer)
                     _add_text_line(word_spacer.join(words[0:index]), tw, px_below_baseline)
                     words = words[index:]

@@ -17,7 +17,7 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
+from seedsigner.views.view import ErrorView, NotYetImplementedView, OptionDisabledView, View, Destination, BackStackView, MainMenuView
 
 logger = logging.getLogger(__name__)
 
@@ -530,6 +530,7 @@ class SeedOptionsView(View):
     EXPORT_XPUB = ButtonOption("Export xpub")
     EXPLORER = ButtonOption("Address explorer")
     SIGN_MESSAGE = ButtonOption("Sign message")
+    FIDELITY_BOND = ButtonOption("Fidelity bond")
     BACKUP = ButtonOption("Backup seed", right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT)
     BIP85_CHILD_SEED = ButtonOption("BIP-85 child seed")
     DISCARD = ButtonOption("Discard seed", button_label_color="red")
@@ -576,6 +577,7 @@ class SeedOptionsView(View):
         button_data.append(self.EXPORT_XPUB)
 
         button_data.append(self.EXPLORER)
+        button_data.append(self.FIDELITY_BOND)
         button_data.append(self.BACKUP)
 
         if self.settings.get_value(SettingsConstants.SETTING__MESSAGE_SIGNING) == SettingsConstants.OPTION__ENABLED:
@@ -608,6 +610,9 @@ class SeedOptionsView(View):
             self.controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
             return Destination(SeedExportXpubScriptTypeView, view_args=dict(seed=self.seed, sig_type=SettingsConstants.SINGLE_SIG))
 
+        elif button_data[selected_menu_num] == self.FIDELITY_BOND:
+            return Destination(SeedFidelityBondWarningView, view_args=dict(seed=self.seed))
+
         elif button_data[selected_menu_num] == self.SIGN_MESSAGE:
             from seedsigner.views.scan_views import ScanView
             self.controller.sign_message_data = dict(seed=self.seed)
@@ -623,6 +628,182 @@ class SeedOptionsView(View):
         elif button_data[selected_menu_num] == self.DISCARD:
             return Destination(SeedDiscardView, view_args=dict(seed=self.seed))
 
+
+
+
+class SeedFidelityBondWarningView(View):
+    CONTINUE = ButtonOption("Choose locktime")
+
+    def __init__(self, seed: Seed):
+        super().__init__()
+        self.seed = seed
+
+    def run(self):
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
+            title=_("Fidelity Bond"),
+            status_headline=_("Funds will be locked"),
+            text=_(
+                "Register with JoinMarket NG, complete certificate setup, perform an "
+                "unfunded signing/redemption test, only then fund JoinMarket's "
+                "independently reconstructed address."
+            ),
+            button_data=[self.CONTINUE],
+        )
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        return Destination(SeedFidelityBondYearView, view_args=dict(seed=self.seed))
+
+
+class SeedFidelityBondYearView(View):
+    def __init__(self, seed: Seed):
+        super().__init__()
+        self.seed = seed
+
+    def run(self):
+        from seedsigner.helpers import fidelity_bonds
+
+        dates = fidelity_bonds.future_year_months()
+        if not dates:
+            return Destination(
+                ErrorView,
+                view_args=dict(
+                    title=_("No Future Locktimes"),
+                    text=_("BIP 46 locktimes are only available through 2099."),
+                    button_text=_("Back to Seed Options"),
+                    next_destination=Destination(
+                        SeedOptionsView,
+                        view_args=dict(seed=self.seed),
+                        clear_history=True,
+                    ),
+                ),
+            )
+        years = list(dict.fromkeys(year for year, _ in dates))
+        button_data = [
+            ButtonOptionWithoutTranslation(str(year), return_data=year) for year in years
+        ]
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("Bond Year"),
+            button_data=button_data,
+            selected_button=0,
+        )
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        return Destination(
+            SeedFidelityBondMonthView,
+            view_args=dict(seed=self.seed, year=button_data[selected_menu_num].return_data),
+        )
+
+
+class SeedFidelityBondMonthView(View):
+    MONTHS = (
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+    )
+
+    def __init__(self, seed: Seed, year: int):
+        super().__init__()
+        self.seed = seed
+        self.year = year
+
+    def run(self):
+        from seedsigner.helpers import fidelity_bonds
+
+        months = [
+            month
+            for year, month in fidelity_bonds.future_year_months()
+            if year == self.year
+        ]
+        if not months:
+            return Destination(BackStackView)
+        button_data = [
+            ButtonOption(self.MONTHS[month - 1], return_data=month) for month in months
+        ]
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("Bond Month"),
+            button_data=button_data,
+        )
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+        return Destination(
+            SeedFidelityBondAddressView,
+            view_args=dict(
+                seed=self.seed,
+                year=self.year,
+                month=button_data[selected_menu_num].return_data,
+            ),
+        )
+
+
+class SeedFidelityBondAddressView(View):
+    SHOW_QR = ButtonOption("Show QR")
+    EXPORT_REGISTRATION = ButtonOption("Export registration QR")
+
+    def __init__(self, seed: Seed, year: int, month: int):
+        from seedsigner.helpers import fidelity_bonds
+
+        super().__init__()
+        self.seed = seed
+        self.year = year
+        self.month = month
+        self.index = fidelity_bonds.year_month_to_index(year, month)
+        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        self.derivation_path = fidelity_bonds.derivation_path(self.index, network)
+        self.address = fidelity_bonds.derive_address(seed.seed_bytes, self.index, network)
+
+    def run(self):
+        selected_menu_num = self.run_screen(
+            seed_screens.SeedFidelityBondAddressScreen,
+            button_data=[self.SHOW_QR, self.EXPORT_REGISTRATION],
+            year=self.year,
+            month=self.month,
+            derivation_path=self.derivation_path,
+            address=self.address,
+        )
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(
+                SeedOptionsView,
+                view_args=dict(seed=self.seed),
+                clear_history=True,
+            )
+        if selected_menu_num == 0:
+            return Destination(SeedFidelityBondAddressQRView, view_args=dict(address=self.address))
+        return Destination(
+            SeedFidelityBondRegistrationQRView,
+            view_args=dict(
+                seed=self.seed,
+                index=self.index,
+                network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
+            ),
+        )
+
+
+class SeedFidelityBondAddressQRView(View):
+    def __init__(self, address: str):
+        super().__init__()
+        self.address = address
+
+    def run(self):
+        from seedsigner.gui.screens.screen import QRDisplayScreen
+
+        self.run_screen(QRDisplayScreen, qr_encoder=GenericStaticQrEncoder(data=self.address))
+        return Destination(BackStackView)
+
+
+class SeedFidelityBondRegistrationQRView(View):
+    def __init__(self, seed: Seed, index: int, network: str):
+        from seedsigner.helpers import fidelity_bonds
+
+        super().__init__()
+        self.payload = fidelity_bonds.registration_payload(seed.seed_bytes, index, network)
+
+    def run(self):
+        from seedsigner.gui.screens.screen import QRDisplayScreen
+
+        self.run_screen(QRDisplayScreen, qr_encoder=GenericStaticQrEncoder(data=self.payload))
+        return Destination(BackStackView)
 
 
 class SeedBackupView(View):
@@ -2130,6 +2311,20 @@ class SeedSignMessageStartView(View):
             self.controller.resume_main_flow = None
             return
 
+        if addr_format["is_fidelity_bond"]:
+            from seedsigner.helpers import fidelity_bonds
+            if not fidelity_bonds.is_valid_certificate(message):
+                self.set_redirect(Destination(
+                    ErrorView,
+                    view_args=dict(
+                        status_headline=_("Invalid certificate"),
+                        text=_("The fidelity bond signing request is not a canonical BIP 46 certificate."),
+                        button_text=_("Back to Main Menu"),
+                    ),
+                ))
+                self.controller.resume_main_flow = None
+                return
+
         # Note: addr_format["network"] can be MAINNET or [TESTNET, REGTEST]
         if self.settings.get_value(SettingsConstants.SETTING__NETWORK) not in addr_format["network"]:
             from seedsigner.views.view import NetworkMismatchErrorView
@@ -2203,8 +2398,12 @@ class SeedSignMessageConfirmAddressView(View):
             raise Exception(_("Signing messages for custom derivation paths not supported"))
 
         if addr_format["network"] != SettingsConstants.MAINNET:
-            # We're in either Testnet or Regtest or...?
-            if self.settings.get_value(SettingsConstants.SETTING__NETWORK) in [SettingsConstants.TESTNET, SettingsConstants.REGTEST]:
+            # A coin-type-1 path can be Testnet, Signet, or Regtest.
+            if self.settings.get_value(SettingsConstants.SETTING__NETWORK) in [
+                SettingsConstants.TESTNET,
+                SettingsConstants.SIGNET,
+                SettingsConstants.REGTEST,
+            ]:
                 addr_format["network"] = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
             else:
                 from seedsigner.views.view import NetworkMismatchErrorView
@@ -2216,9 +2415,17 @@ class SeedSignMessageConfirmAddressView(View):
                 self.controller.sign_message_data = None
                 return
 
-        xpub = seed.get_xpub(wallet_path=addr_format["wallet_derivation_path"], network=addr_format["network"])
-        embit_network = embit_utils.get_embit_network_name(addr_format["network"])
-        self.address = embit_utils.get_single_sig_address(xpub=xpub, script_type=addr_format["script_type"], index=addr_format["index"], is_change=addr_format["is_change"], embit_network=embit_network)
+        if addr_format["is_fidelity_bond"]:
+            from seedsigner.helpers import fidelity_bonds
+            self.address = fidelity_bonds.derive_address(
+                seed.seed_bytes,
+                addr_format["index"],
+                addr_format["network"],
+            )
+        else:
+            xpub = seed.get_xpub(wallet_path=addr_format["wallet_derivation_path"], network=addr_format["network"])
+            embit_network = embit_utils.get_embit_network_name(addr_format["network"])
+            self.address = embit_utils.get_single_sig_address(xpub=xpub, script_type=addr_format["script_type"], index=addr_format["index"], is_change=addr_format["is_change"], embit_network=embit_network)
 
 
     def run(self):
@@ -2250,7 +2457,14 @@ class SeedSignMessageSignedMessageQRView(View):
         derivation_path = data["derivation_path"]
         message: str = data["message"]
 
-        self.signed_message = embit_utils.sign_message(seed_bytes=self.seed.seed_bytes, derivation=derivation_path, msg=message.encode())
+        self.signed_message = embit_utils.sign_message(
+            seed_bytes=self.seed.seed_bytes,
+            derivation=derivation_path,
+            msg=message.encode(),
+            embit_network=SettingsConstants.map_network_to_embit(
+                self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+            ),
+        )
 
 
     def run(self):

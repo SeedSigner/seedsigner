@@ -256,10 +256,12 @@ class SettingsConstants:
     # Seed-related constants
     MAINNET = "M"
     TESTNET = "T"
+    SIGNET = "S"
     REGTEST = "R"
     ALL_NETWORKS = [
         (MAINNET, _mft("Mainnet")),
         (TESTNET, _mft("Testnet")),
+        (SIGNET, _mft("Signet")),
         (REGTEST, _mft("Regtest"))
     ]
 
@@ -268,10 +270,20 @@ class SettingsConstants:
         # Note these are `embit` constants; do not wrap for translation
         if network == SettingsConstants.MAINNET:
             return "main"
-        elif network == SettingsConstants.TESTNET:
+        elif network in (SettingsConstants.TESTNET, SettingsConstants.SIGNET):
             return "test"
         if network == SettingsConstants.REGTEST:
             return "regtest"
+
+    @classmethod
+    def map_network_to_name(cls, network) -> str:
+        names = {
+            cls.MAINNET: "mainnet",
+            cls.TESTNET: "testnet",
+            cls.SIGNET: "signet",
+            cls.REGTEST: "regtest",
+        }
+        return names.get(network)
     
     PERSISTENT_SETTINGS__SD_INSERTED__HELP_TEXT = _mft("Store Settings on SD card")
     PERSISTENT_SETTINGS__SD_REMOVED__HELP_TEXT = _mft("Insert SD card to enable")

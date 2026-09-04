@@ -17,28 +17,34 @@ def test_get_standard_derivation_path():
 
         (SC.MAINNET, SC.SINGLE_SIG, SC.NATIVE_SEGWIT): "m/84'/0'/0'",
         (SC.TESTNET, SC.SINGLE_SIG, SC.NATIVE_SEGWIT): "m/84'/1'/0'",
+        (SC.SIGNET, SC.SINGLE_SIG, SC.NATIVE_SEGWIT): "m/84'/1'/0'",
         (SC.REGTEST, SC.SINGLE_SIG, SC.NATIVE_SEGWIT): "m/84'/1'/0'",
 
         (SC.MAINNET, SC.SINGLE_SIG, SC.NESTED_SEGWIT): "m/49'/0'/0'",
         (SC.TESTNET, SC.SINGLE_SIG, SC.NESTED_SEGWIT): "m/49'/1'/0'",
+        (SC.SIGNET, SC.SINGLE_SIG, SC.NESTED_SEGWIT): "m/49'/1'/0'",
         (SC.REGTEST, SC.SINGLE_SIG, SC.NESTED_SEGWIT): "m/49'/1'/0'",
 
         (SC.MAINNET, SC.SINGLE_SIG, SC.TAPROOT): "m/86'/0'/0'",
         (SC.TESTNET, SC.SINGLE_SIG, SC.TAPROOT): "m/86'/1'/0'",
+        (SC.SIGNET, SC.SINGLE_SIG, SC.TAPROOT): "m/86'/1'/0'",
         (SC.REGTEST, SC.SINGLE_SIG, SC.TAPROOT): "m/86'/1'/0'",
 
         (SC.MAINNET, SC.SINGLE_SIG, SC.LEGACY_P2PKH): "m/44'/0'/0'",
         (SC.TESTNET, SC.SINGLE_SIG, SC.LEGACY_P2PKH): "m/44'/1'/0'",
+        (SC.SIGNET, SC.SINGLE_SIG, SC.LEGACY_P2PKH): "m/44'/1'/0'",
         (SC.REGTEST, SC.SINGLE_SIG, SC.LEGACY_P2PKH): "m/44'/1'/0'",
 
 
         # multi sig
         (SC.MAINNET, SC.MULTISIG, SC.NATIVE_SEGWIT): "m/48'/0'/0'/2'",
         (SC.TESTNET, SC.MULTISIG, SC.NATIVE_SEGWIT): "m/48'/1'/0'/2'",
+        (SC.SIGNET, SC.MULTISIG, SC.NATIVE_SEGWIT): "m/48'/1'/0'/2'",
         (SC.REGTEST, SC.MULTISIG, SC.NATIVE_SEGWIT): "m/48'/1'/0'/2'",
 
         (SC.MAINNET, SC.MULTISIG, SC.NESTED_SEGWIT): "m/48'/0'/0'/1'",
         (SC.TESTNET, SC.MULTISIG, SC.NESTED_SEGWIT): "m/48'/1'/0'/1'",
+        (SC.SIGNET, SC.MULTISIG, SC.NESTED_SEGWIT): "m/48'/1'/0'/1'",
         (SC.REGTEST, SC.MULTISIG, SC.NESTED_SEGWIT): "m/48'/1'/0'/1'",
 
         (SC.MAINNET, SC.MULTISIG, SC.TAPROOT): Exception,
@@ -385,6 +391,15 @@ def test_parse_derivation_path():
     result = embit_utils.parse_derivation_path(derivation_path.replace("'", "h"))
     assert result["script_type"] == SC.NATIVE_SEGWIT
     assert result["network"] == SC.MAINNET
+
+    bond_result = embit_utils.parse_derivation_path("m/84'/0'/0'/2/240")
+    assert bond_result["clean_match"] is True
+    assert bond_result["is_fidelity_bond"] is True
+    assert bond_result["index"] == 240
+    assert bond_result["network"] == SC.MAINNET
+
+    signet_result = embit_utils.parse_derivation_path("m/84'/1'/0'/0/0")
+    assert SC.SIGNET in signet_result["network"]
 
     # Now exhaustively test supported permutations
     vectors_args = {

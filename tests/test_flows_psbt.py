@@ -1,4 +1,5 @@
 from binascii import a2b_base64
+from unittest.mock import Mock, patch
 
 from embit.psbt import PSBT
 
@@ -14,6 +15,70 @@ from seedsigner.models.settings import SettingsConstants
 
 
 class TestPSBTFlows(FlowTest):
+
+    def test_signed_fidelity_bond_uses_static_base64_qr(self):
+        self.controller.psbt = Mock()
+        self.controller.psbt_parser = Mock(policy={"fidelity_bond": True})
+        static_encoder = Mock(fits_in_qr=True)
+        view = psbt_views.PSBTSignedQRDisplayView()
+
+        with patch(
+            "seedsigner.models.encode_qr.Base64PsbtQrEncoder",
+            return_value=static_encoder,
+        ) as mock_static_encoder:
+            with patch.object(view, "run_screen", return_value=0) as mock_run_screen:
+                view.run()
+
+        mock_static_encoder.assert_called_once_with(psbt=self.controller.psbt)
+        assert mock_run_screen.call_args.kwargs["qr_encoder"] is static_encoder
+
+    def test_signed_ordinary_psbt_uses_ur_qr(self):
+        self.controller.psbt = Mock()
+        self.controller.psbt_parser = Mock(policy={"type": "p2wpkh"})
+        ur_encoder = Mock()
+        view = psbt_views.PSBTSignedQRDisplayView()
+
+        with patch(
+            "seedsigner.models.encode_qr.UrPsbtQrEncoder", return_value=ur_encoder
+        ) as mock_ur_encoder:
+            with patch.object(view, "run_screen", return_value=0) as mock_run_screen:
+                view.run()
+
+        mock_ur_encoder.assert_called_once_with(
+            psbt=self.controller.psbt,
+            qr_density=self.settings.get_value(SettingsConstants.SETTING__QR_DENSITY),
+        )
+        assert mock_run_screen.call_args.kwargs["qr_encoder"] is ur_encoder
+
+    def test_spend_expired_fidelity_bond(self):
+        def load_psbt_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("cHNidP8BAFICAAAAARERERERERERERERERERERERERERERERERERERERERERAAAAAAD+////AbiCAQAAAAAAFgAUwM681sPTyox13F7GLr5VMw75EOIA4QteAAEBK6CGAQAAAAAAIgAgve6VFTWfyd+RIxhSO0zSLxwLVBAjLclDvnP59PB+Oa0BAwQBAAAAAQUqBADhC16xdSECobCfkwc8Y/IFCGRAiYFBwMPG0k9poY22CCJLzxQ/oBGsIgYCobCfkwc8Y/IFCGRAiYFBwMPG0k9poY22CCJLzxQ/oBEYc8XaClQAAIAAAACAAAAAgAIAAAAAAAAAAAA=")
+
+        def load_seed_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("0000" * 11 + "0003")
+
+        def verify_signed_bond_psbt(view):
+            bond_input = self.controller.psbt.inputs[0]
+            assert len(bond_input.partial_sigs) == 1
+            assert bond_input.witness_utxo is not None
+            assert bond_input.witness_script is not None
+            assert bond_input.sighash_type == 1
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_psbt_into_decoder),
+            FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanSeedQRView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTNoChangeWarningView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTAddressDetailsView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView, before_run=verify_signed_bond_psbt, screen_return_value=0),
+            FlowStep(MainMenuView),
+        ])
 
     def test_scan_psbt_first_then_correct_seedqr_flow(self):
         """

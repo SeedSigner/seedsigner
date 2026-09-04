@@ -2,7 +2,7 @@ import math
 
 from embit import bip32
 from embit.networks import NETWORKS
-from binascii import hexlify
+from binascii import b2a_base64, hexlify
 from dataclasses import dataclass
 from typing import List
 from embit import bip32
@@ -69,6 +69,11 @@ class BaseQrEncoder:
 **************************************************************************************"""
 @dataclass
 class BaseStaticQrEncoder(BaseQrEncoder):
+    def __post_init__(self):
+        super().__post_init__()
+        self._cached_image = None
+        self._cached_image_params = None
+
     def seq_len(self):
         return 1
     
@@ -80,6 +85,21 @@ class BaseStaticQrEncoder(BaseQrEncoder):
     @property
     def is_complete(self):
         return True
+
+    def part_to_image(self, part, width, height, border: int = 3, background_color: str = "ffffff"):
+        image_params = (part, width, height, border, background_color)
+        if self._cached_image_params != image_params:
+            self._cached_image = super().part_to_image(
+                part,
+                width,
+                height,
+                border,
+                background_color=background_color,
+            )
+            self._cached_image_params = image_params
+
+        # Brightness tips are drawn directly onto the returned image.
+        return self._cached_image.copy()
 
 
 
@@ -142,6 +162,33 @@ class GenericStaticQrEncoder(BaseStaticQrEncoder):
 
     def next_part(self):
         return self.data
+
+
+@dataclass
+class Base64PsbtQrEncoder(GenericStaticQrEncoder):
+    psbt: PSBT = None
+
+    MAX_QR_MODULES = 65
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.data = b2a_base64(self.psbt.serialize()).rstrip(b"\n").decode("ascii")
+
+    @property
+    def fits_in_qr(self) -> bool:
+        import qrcode
+
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            border=2,
+        )
+        qr.add_data(self.data)
+        try:
+            qr.make(fit=True)
+        except (qrcode.exceptions.DataOverflowError, ValueError):
+            return False
+        return len(qr.get_matrix()) - 4 <= self.MAX_QR_MODULES
 
 
 

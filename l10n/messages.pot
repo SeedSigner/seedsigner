@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: seedsigner 0.8.7\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-03-05 22:02+0000\n"
+"POT-Creation-Date: 2026-09-04 07:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -427,6 +427,10 @@ msgstr ""
 msgid "derivation path"
 msgstr ""
 
+#: src/seedsigner/gui/screens/seed_screens.py
+msgid "Bond {year}-{month:02d}"
+msgstr ""
+
 #: src/seedsigner/gui/screens/settings_screens.py
 #: src/seedsigner/views/settings_views.py src/seedsigner/views/view.py
 msgid "Settings"
@@ -471,6 +475,11 @@ msgstr ""
 
 #: src/seedsigner/gui/screens/settings_screens.py
 #: src/seedsigner/views/settings_views.py
+msgid "Version"
+msgstr ""
+
+#: src/seedsigner/gui/screens/settings_screens.py
+#: src/seedsigner/views/settings_views.py
 msgid "Settings QR"
 msgstr ""
 
@@ -482,8 +491,18 @@ msgstr ""
 msgid "Home"
 msgstr ""
 
+#. Counts frames collected so far vs the total required (e.g. 12/50)
+#: src/seedsigner/gui/screens/tools_screens.py
+msgid "{}/{}"
+msgstr ""
+
 #: src/seedsigner/gui/screens/tools_screens.py
 msgid "click a button"
+msgstr ""
+
+#. Shown while the camera gathers the image frames a new seed requires
+#: src/seedsigner/gui/screens/tools_screens.py
+msgid "Collecting entropy frames"
 msgstr ""
 
 #. A prompt to the user to either accept or reshoot the image
@@ -650,6 +669,10 @@ msgstr ""
 
 #: src/seedsigner/models/settings_definition.py
 msgid "Testnet"
+msgstr ""
+
+#: src/seedsigner/models/settings_definition.py
+msgid "Signet"
 msgstr ""
 
 #: src/seedsigner/models/settings_definition.py
@@ -913,6 +936,44 @@ msgstr ""
 msgid "Verifying Self-Transfer..."
 msgstr ""
 
+#: src/seedsigner/views/psbt_views.py
+msgid "Select a different seed"
+msgstr ""
+
+#: src/seedsigner/views/psbt_views.py
+msgid "Seed Can't Sign"
+msgstr ""
+
+#: src/seedsigner/views/psbt_views.py
+msgid "None of the inputs in this transaction are controlled by this seed."
+msgstr ""
+
+#: src/seedsigner/views/psbt_views.py
+msgid "Discard transaction"
+msgstr ""
+
+#: src/seedsigner/views/psbt_views.py
+msgid "Suspicious Transaction"
+msgstr ""
+
+#: src/seedsigner/views/psbt_views.py
+msgid "Likely an Attack!"
+msgstr ""
+
+#: src/seedsigner/views/psbt_views.py
+msgid ""
+"The transaction's change/self-transfer outputs are not going back to your"
+" wallet."
+msgstr ""
+
+#: src/seedsigner/views/psbt_views.py
+msgid "Transaction Problem"
+msgstr ""
+
+#: src/seedsigner/views/psbt_views.py
+msgid "This transaction incorrectly claims that its input(s) belong to this seed."
+msgstr ""
+
 #. Variable is either "change" or "self-transfer".
 #: src/seedsigner/views/psbt_views.py
 msgid "Transaction's {} address could not be verified from wallet descriptor."
@@ -924,15 +985,7 @@ msgid "Transaction's {} address could not be generated from your seed."
 msgstr ""
 
 #: src/seedsigner/views/psbt_views.py
-msgid "Suspicious Transaction"
-msgstr ""
-
-#: src/seedsigner/views/psbt_views.py
 msgid "Address Verification Failed"
-msgstr ""
-
-#: src/seedsigner/views/psbt_views.py
-msgid "Discard transaction"
 msgstr ""
 
 #: src/seedsigner/views/psbt_views.py
@@ -1007,7 +1060,8 @@ msgstr ""
 msgid "QRCode is invalid or is a data format not yet supported."
 msgstr ""
 
-#: src/seedsigner/views/scan_views.py src/seedsigner/views/view.py
+#: src/seedsigner/views/scan_views.py src/seedsigner/views/seed_views.py
+#: src/seedsigner/views/view.py
 msgid "Back to Main Menu"
 msgstr ""
 
@@ -1139,6 +1193,10 @@ msgid "Address explorer"
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
+msgid "Fidelity bond"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
 msgid "Backup seed"
 msgstr ""
 
@@ -1148,6 +1206,53 @@ msgstr ""
 
 #: src/seedsigner/views/seed_views.py
 msgid "Discard seed"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Choose locktime"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Fidelity Bond"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Funds will be locked"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid ""
+"Register with JoinMarket NG, complete certificate setup, perform an "
+"unfunded signing/redemption test, only then fund JoinMarket's "
+"independently reconstructed address."
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "No Future Locktimes"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "BIP 46 locktimes are only available through 2099."
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Back to Seed Options"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Bond Year"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Bond Month"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Show QR"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Export registration QR"
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
@@ -1346,6 +1451,14 @@ msgid "{threshold} of {n}"
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
+msgid "Invalid certificate"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "The fidelity bond signing request is not a canonical BIP 46 certificate."
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
 msgid "Signing messages for custom derivation paths not supported"
 msgstr ""
 
@@ -1405,6 +1518,14 @@ msgstr ""
 
 #: src/seedsigner/views/tools_views.py src/seedsigner/views/view.py
 msgid "Tools"
+msgstr ""
+
+#. Shown when the camera fails to collect enough frames for a new seed.
+#. "expected" and "actual" are the number of frames.
+#: src/seedsigner/views/tools_views.py
+msgid ""
+"Entropy collection failed. Expected {expected} preview frames, got "
+"{actual}"
 msgstr ""
 
 #: src/seedsigner/views/tools_views.py
