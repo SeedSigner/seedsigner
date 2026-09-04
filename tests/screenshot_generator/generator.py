@@ -439,6 +439,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTOverviewView,   mock_context_manager=mock_multisig_psbt_loaded),
                 ScreenshotConfig(psbt_views.PSBTUnsupportedScriptTypeWarningView),
                 ScreenshotConfig(psbt_views.PSBTNoChangeWarningView),
+                ScreenshotConfig(psbt_views.PSBTHighFeeWarningView, dict(warning_threshold_percent=25)),
                 ScreenshotConfig(psbt_views.PSBTMathView, mock_context_manager=mock_multisig_psbt_loaded),
                 ScreenshotConfig(psbt_views.PSBTAddressDetailsView, dict(address_num=0), mock_context_manager=mock_multisig_psbt_loaded),
 

@@ -129,6 +129,9 @@ class PSBTParser():
 
         self.root = None
 
+        # TODO: Possibly make this configurable via settings
+        self.HIGH_FEES_WARNING_THRESHOLD = 25  # in percent
+
         if self.seed is not None:
             self.parse()
 
@@ -819,3 +822,45 @@ class PSBTParser():
 
         for out in self.psbt.outputs:
             _fill_scope(out)
+
+
+    def get_total_output_value(self, include_change: bool = False):
+        """
+            Returns the sum of all outputs (fee not included).
+            
+            If `include_change=True`, all outputs are included.
+            If `False`, subtracts *true* change outputs (from derivation path with chain index 1),
+            but keeps self-transfer amounts (from chain index 0) included in the total.
+            
+            This is used to to calculate whether the fee is relatively high
+            and show a warning screen if it is.
+        """
+        total = sum(out.value for out in self.psbt.tx.vout)
+
+        if include_change:
+            return total
+
+        # Subtract only *true* change (chain index == 1)
+        # In both single- and multi-sig, all derivation paths in an entry share the same chain index,
+        # so checking the first path is sufficient.
+        true_change = sum(
+            entry["amount"]
+            for entry in self.change_data
+            if int(entry["claimed_derivation_paths"][0].split("/")[-2]) == 1
+        )
+        return total - true_change
+
+
+    def has_high_fee(self):
+        """
+            Returns True if the fee is high.
+            i.e. fee amount > <HIGH_FEES_WARNING_THRESHOLD>% of total outputs excluding change
+        """
+        total_output_value_excluding_change = self.get_total_output_value()
+
+        # If there are no outputs other than change, then it can't be a high fee
+        if total_output_value_excluding_change <= 0:
+            return False
+
+        else:
+            return self.fee_amount > ((self.HIGH_FEES_WARNING_THRESHOLD / 100) * total_output_value_excluding_change)
