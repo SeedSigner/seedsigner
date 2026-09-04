@@ -73,6 +73,24 @@ class TestPSBTParser:
         assert psbt_parser.fee_amount == fee_amount
         assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
 
+        # Consolidation: both a change-branch output (1/*) and a receive-branch output (0/*) back to this wallet
+        psbt.outputs.clear()
+        change_output_amount = (input_amount - fee_amount) // 2
+        self_transfer_amount = input_amount - fee_amount - change_output_amount
+        psbt.outputs.append(create_output(change_data, change_output_amount))
+        psbt.outputs.append(create_output(self_transfer_data, self_transfer_amount))
+
+        assert len(psbt.outputs) == 2
+        psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
+        assert psbt_parser.num_inputs == len(psbt.inputs)
+        assert psbt_parser.input_amount == input_amount
+        assert psbt_parser.num_destinations == 0    # No external recipients
+        assert psbt_parser.num_change_outputs == 2  # Both branches classified as internal
+        assert psbt_parser.spend_amount == 0
+        assert psbt_parser.change_amount == input_amount - fee_amount
+        assert psbt_parser.fee_amount == fee_amount
+        assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+
         # Now do full spends with no change
         fee_amount = random.randint(5_000, 100_000)
         recipient_amount = input_amount - fee_amount
@@ -327,6 +345,11 @@ class TestPSBTParser:
             psbt.outputs.append(create_output(self_transfer_outputs[i], 100_000))
             psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
 
+            # Both change-branch and receive-branch outputs must be classified as internal
+            assert psbt_parser.num_destinations == 0
+            assert psbt_parser.num_change_outputs == 2
+            assert psbt_parser.spend_amount == 0
+
             # Attempt to verify the change & self-transfer outputs using the right and wrong descriptors
             for j, descriptor_str in enumerate(descriptors):
                 descriptor = Descriptor.from_string(descriptor_str.replace("<0;1>", "{0,1}"))
@@ -336,6 +359,54 @@ class TestPSBTParser:
                 else:
                     assert psbt_parser.verify_multisig_output(descriptor, change_num=0) == False
                     assert psbt_parser.verify_multisig_output(descriptor, change_num=1) == False
+
+
+
+    def test_multisig_no_descriptor_all_outputs_are_spend(self):
+        """
+        Some coordinators produce PSBTs where the output scopes contain only the bare
+        scriptPubKey — no witness_script and no redeem_script. The transaction is
+        structurally valid and the addresses are correct, but the PSBT fields that
+        PSBTParser needs to independently verify multisig ownership are absent.
+
+        Without witness_script / redeem_script, _get_policy() cannot extract m, n, or
+        cosigners, so the output policy dict never matches the input policy. Every
+        output therefore falls through to destination_addresses and is treated as a
+        spend — the conservative safe default.
+
+        Asserts: num_change_outputs == 0, spend_amount == full output value.
+        Covers all three multisig script types: P2WSH, P2SH-P2WSH, legacy P2SH.
+        """
+        cases = [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT,   PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+        ]
+
+        fee_amount = 5_000
+        for psbt_base64, change_data in cases:
+            psbt: PSBT = PSBT.parse(a2b_base64(psbt_base64))
+            input_amount = sum(inp.utxo.value for inp in psbt.inputs)
+            output_amount = input_amount - fee_amount
+
+            # Strip the multisig scripts to simulate a coordinator that only populated the scriptPubKey
+            stripped = create_output(change_data, output_amount)
+            stripped.witness_script = None
+            stripped.redeem_script = None
+            psbt.outputs.append(stripped)
+
+            psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
+
+            # Without witness_script/redeem_script the output policy cannot match; no change detected
+            assert psbt_parser.num_change_outputs == 0
+            # The unverifiable output falls through to destination_addresses
+            assert psbt_parser.num_destinations == 1
+            # Full output value is treated as a spend when the multisig script is absent
+            assert psbt_parser.spend_amount == output_amount
+            assert psbt_parser.change_amount == 0
+            assert psbt_parser.fee_amount == fee_amount
+            assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+
 
 
 
