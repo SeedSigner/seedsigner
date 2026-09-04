@@ -3,6 +3,7 @@
 import json
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from embit import bip32, ec, script
 from embit.networks import NETWORKS
@@ -76,6 +77,20 @@ def year_month_to_index(year: int, month: int) -> int:
     if type(month) is not int or not 1 <= month <= 12:
         raise ValueError("month must be between 1 and 12")
     return (year - MIN_YEAR) * 12 + month - 1
+
+
+def future_year_months(now: datetime | None = None) -> list[tuple[int, int]]:
+    """Return BIP 46 months strictly after the current UTC month."""
+    if now is None:
+        now = datetime.now(timezone.utc)
+    else:
+        now = now.astimezone(timezone.utc)
+    return [
+        (year, month)
+        for year in range(MIN_YEAR, MAX_YEAR + 1)
+        for month in range(1, 13)
+        if (year, month) > (now.year, now.month)
+    ]
 
 
 def index_to_locktime(index: int) -> int:
@@ -242,20 +257,21 @@ def registration_payload(seed_bytes: bytes, index: int, network: str) -> str:
     if embit_network is None or network_name is None:
         raise ValueError("unsupported network")
 
-    origin_path = f"m/84'/{_coin_type(network)}'/0'/2"
     root = bip32.HDKey.from_seed(seed_bytes, version=NETWORKS[embit_network]["xprv"])
-    xpub = root.derive(origin_path).to_public().to_string(
-        version=NETWORKS[embit_network]["xpub"]
-    )
     year, month = index_to_year_month(index)
+    locktime = index_to_locktime(index)
+    path = derivation_path(index, network)
+    pubkey = derive_pubkey(seed_bytes, index, network).sec().hex()
     payload = {
         "type": "seedsigner-bip46",
         "version": 1,
         "network": network_name,
         "master_fingerprint": root.my_fingerprint.hex(),
-        "origin_path": origin_path,
-        "xpub": xpub,
+        "derivation_path": path,
+        "index": index,
+        "locktime": locktime,
         "locktime_date": f"{year:04d}-{month:02d}",
+        "pubkey": pubkey,
         "address": derive_address(seed_bytes, index, network),
     }
     return json.dumps(payload, separators=(",", ":"), ensure_ascii=True)

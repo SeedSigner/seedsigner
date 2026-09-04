@@ -186,7 +186,7 @@ class Base64PsbtQrEncoder(GenericStaticQrEncoder):
         qr.add_data(self.data)
         try:
             qr.make(fit=True)
-        except qrcode.exceptions.DataOverflowError:
+        except (qrcode.exceptions.DataOverflowError, ValueError):
             return False
         return len(qr.get_matrix()) - 4 <= self.MAX_QR_MODULES
 

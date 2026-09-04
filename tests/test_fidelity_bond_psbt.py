@@ -4,7 +4,11 @@ from embit.networks import NETWORKS
 from embit.transaction import SIGHASH
 
 from seedsigner.helpers import fidelity_bonds
-from seedsigner.models.psbt_parser import PSBTParser
+from seedsigner.models.psbt_parser import (
+    PSBTInputOwnershipClaimError,
+    PSBTParser,
+    PSBTSeedCannotSignError,
+)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
@@ -118,7 +122,7 @@ def test_rejects_non_bip46_derivation():
     derivation = bond_psbt.inputs[0].bip32_derivations.pop(pubkey)
     derivation.derivation = bip32.parse_path("m/84'/0'/0'/0/0")
     bond_psbt.inputs[0].bip32_derivations[pubkey] = derivation
-    with pytest.raises(ValueError, match="canonical BIP 46"):
+    with pytest.raises(PSBTInputOwnershipClaimError):
         PSBTParser(bond_psbt, seed, SettingsConstants.MAINNET)
 
 
@@ -129,7 +133,7 @@ def test_rejects_wrong_fingerprint():
         b"\x12\x34\x56\x78",
         derivation.derivation,
     )
-    with pytest.raises(ValueError, match="fingerprint does not match"):
+    with pytest.raises(PSBTSeedCannotSignError):
         PSBTParser(bond_psbt, seed, SettingsConstants.MAINNET)
 
 

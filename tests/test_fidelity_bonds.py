@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 from embit import bip39
 
@@ -51,6 +53,26 @@ def test_index_and_year_month_conversion():
     assert fidelity_bonds.index_to_year_month(959) == (2099, 12)
     assert fidelity_bonds.year_month_to_index(2040, 1) == 240
     assert fidelity_bonds.year_month_to_index(2099, 12) == 959
+
+
+@pytest.mark.parametrize(
+    "current, expected_first",
+    [
+        (datetime(2026, 1, 1, tzinfo=timezone.utc), (2026, 2)),
+        (datetime(2026, 12, 31, 23, 59, tzinfo=timezone.utc), (2027, 1)),
+    ],
+)
+def test_future_year_months_exclude_current_and_past_months(current, expected_first):
+    months = fidelity_bonds.future_year_months(current)
+
+    assert months[0] == expected_first
+    assert (current.year, current.month) not in months
+    assert (2020, 1) not in months
+    assert months[-1] == (2099, 12)
+
+
+def test_future_year_months_handles_end_of_bip46_range():
+    assert fidelity_bonds.future_year_months(datetime(2100, 1, 1, tzinfo=timezone.utc)) == []
 
 
 @pytest.mark.parametrize("index", [-1, 960, True, "0"])
@@ -170,21 +192,25 @@ def test_signet_derivation_and_registration_payload():
         SEED_BYTES, 240, SettingsConstants.SIGNET
     ) == (
         '{"type":"seedsigner-bip46","version":1,"network":"signet",'
-        '"master_fingerprint":"73c5da0a","origin_path":"m/84\'/1\'/0\'/2",'
-        '"xpub":"tpubDFd87GgwwqSRQWvuBRuqEFnoWjJDHDnDUqu7c8DXoALBU9Kbwuom5U1KrGmYEgiCQoNtSvqdjkysKgrQZVAvU7NcVfPf1j9CRMpD1hwSpwq",'
-        '"locktime_date":"2040-01",'
+        '"master_fingerprint":"73c5da0a","derivation_path":"m/84\'/1\'/0\'/2/240",'
+        '"index":240,"locktime":2208988800,"locktime_date":"2040-01",'
+        '"pubkey":"020bb71ecf99ab2289d16dc0b8b1cb4c51699db38a215bbb212d1a2b30d07b8806",'
         '"address":"tb1qnkuzv3jckcxd9xdnvse36x2m6ylcg4aqgam2gd4tt689k44ft6eq526xlk"}'
     )
 
 
-def test_mainnet_registration_payload_uses_standard_xpub():
+def test_mainnet_registration_payload_uses_leaf_schema():
     payload = fidelity_bonds.registration_payload(
         SEED_BYTES, 240, SettingsConstants.MAINNET
     )
     assert '"network":"mainnet"' in payload
-    assert '"origin_path":"m/84\'/0\'/0\'/2"' in payload
-    assert '"xpub":"xpub' in payload
+    assert '"derivation_path":"m/84\'/0\'/0\'/2/240"' in payload
+    assert '"index":240' in payload
+    assert '"locktime":2208988800' in payload
     assert '"locktime_date":"2040-01"' in payload
+    assert '"pubkey":"03ec8067418537bbb52d5d3e64e2868e67635c33cfeadeb9a46199f89ebfaab226"' in payload
+    assert "origin_path" not in payload
+    assert "xpub" not in payload
 
 
 def test_parse_certificate():

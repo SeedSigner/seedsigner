@@ -1,3 +1,4 @@
+import json
 from typing import Callable
 from unittest.mock import patch
 import pytest
@@ -20,54 +21,112 @@ def load_seed_into_decoder(view: scan_views.ScanView):
 
 class TestSeedFlows(FlowTest):
 
+    FIDELITY_BOND_DATES = [(2040, 1)]
+    FIDELITY_BOND_MNEMONIC = (
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon "
+        "abandon about"
+    ).split()
+
+    def test_fidelity_bond_guidance_uses_safe_sequence(self):
+        view = seed_views.SeedFidelityBondWarningView(
+            seed=Seed(mnemonic=self.FIDELITY_BOND_MNEMONIC)
+        )
+        with patch.object(view, "run_screen", return_value=RET_CODE__BACK_BUTTON) as run_screen:
+            view.run()
+
+        assert run_screen.call_args.kwargs["text"] == (
+            "Register with JoinMarket NG, complete certificate setup, perform an "
+            "unfunded signing/redemption test, only then fund JoinMarket's "
+            "independently reconstructed address."
+        )
+
+    def test_fidelity_bond_month_selection_only_offers_future_months(self):
+        view = seed_views.SeedFidelityBondMonthView(
+            seed=Seed(mnemonic=self.FIDELITY_BOND_MNEMONIC), year=2040
+        )
+        with patch(
+            "seedsigner.helpers.fidelity_bonds.future_year_months",
+            return_value=[(2040, 4), (2040, 12), (2041, 1)],
+        ):
+            with patch.object(view, "run_screen", return_value=RET_CODE__BACK_BUTTON) as run_screen:
+                view.run()
+
+        button_data = run_screen.call_args.kwargs["button_data"]
+        assert [button.return_data for button in button_data] == [4, 12]
+
+    def test_fidelity_bond_year_selection_handles_no_future_months(self):
+        view = seed_views.SeedFidelityBondYearView(
+            seed=Seed(mnemonic=self.FIDELITY_BOND_MNEMONIC)
+        )
+        with patch("seedsigner.helpers.fidelity_bonds.future_year_months", return_value=[]):
+            destination = view.run()
+
+        assert destination.View_cls is ErrorView
+
     def test_generate_fidelity_bond_address(self):
         def verify_bond_address(view):
-            assert view.derivation_path == "m/84'/0'/0'/2/0"
-            assert view.address == "bc1qhhhf29f4nlyalyfrrpfrknxj9uwqk4qsyvkujsa7w0ulfur78xkspsqn84"
+            assert view.derivation_path == "m/84'/0'/0'/2/240"
+            assert view.address == "bc1qul0q45njptsadnymdtv34at7karyva3v7k2vj8qc7m2702rnvddq0z20u5"
 
-        self.run_sequence([
-            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
-            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
-            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
-            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.FIDELITY_BOND),
-            FlowStep(seed_views.SeedFidelityBondWarningView, button_data_selection=seed_views.SeedFidelityBondWarningView.CONTINUE),
-            FlowStep(seed_views.SeedFidelityBondYearView, screen_return_value=0),
-            FlowStep(seed_views.SeedFidelityBondMonthView, screen_return_value=0),
-            FlowStep(seed_views.SeedFidelityBondAddressView, before_run=verify_bond_address, button_data_selection=seed_views.SeedFidelityBondAddressView.SHOW_QR),
-            FlowStep(seed_views.SeedFidelityBondAddressQRView),
-        ])
+        with patch("seedsigner.helpers.fidelity_bonds.future_year_months", return_value=self.FIDELITY_BOND_DATES):
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+                FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
+                FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.FIDELITY_BOND),
+                FlowStep(seed_views.SeedFidelityBondWarningView, button_data_selection=seed_views.SeedFidelityBondWarningView.CONTINUE),
+                FlowStep(seed_views.SeedFidelityBondYearView, screen_return_value=0),
+                FlowStep(seed_views.SeedFidelityBondMonthView, screen_return_value=0),
+                FlowStep(seed_views.SeedFidelityBondAddressView, before_run=verify_bond_address, button_data_selection=seed_views.SeedFidelityBondAddressView.SHOW_QR),
+                FlowStep(seed_views.SeedFidelityBondAddressQRView),
+            ])
 
     def test_export_fidelity_bond_registration(self):
         def verify_registration(view):
-            assert '"type":"seedsigner-bip46"' in view.payload
-            assert '"network":"mainnet"' in view.payload
-            assert '"origin_path":"m/84\'/0\'/0\'/2"' in view.payload
+            payload = json.loads(view.payload)
+            assert list(payload) == [
+                "type", "version", "network", "master_fingerprint", "derivation_path",
+                "index", "locktime", "locktime_date", "pubkey", "address",
+            ]
+            assert payload == {
+                "type": "seedsigner-bip46",
+                "version": 1,
+                "network": "mainnet",
+                "master_fingerprint": "73c5da0a",
+                "derivation_path": "m/84'/0'/0'/2/240",
+                "index": 240,
+                "locktime": 2208988800,
+                "locktime_date": "2040-01",
+                "pubkey": "03ec8067418537bbb52d5d3e64e2868e67635c33cfeadeb9a46199f89ebfaab226",
+                "address": "bc1qul0q45njptsadnymdtv34at7karyva3v7k2vj8qc7m2702rnvddq0z20u5",
+            }
 
-        self.run_sequence([
-            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
-            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
-            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
-            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.FIDELITY_BOND),
-            FlowStep(seed_views.SeedFidelityBondWarningView, button_data_selection=seed_views.SeedFidelityBondWarningView.CONTINUE),
-            FlowStep(seed_views.SeedFidelityBondYearView, screen_return_value=0),
-            FlowStep(seed_views.SeedFidelityBondMonthView, screen_return_value=0),
-            FlowStep(seed_views.SeedFidelityBondAddressView, button_data_selection=seed_views.SeedFidelityBondAddressView.EXPORT_REGISTRATION),
-            FlowStep(seed_views.SeedFidelityBondRegistrationWarningView, screen_return_value=0),
-            FlowStep(seed_views.SeedFidelityBondRegistrationQRView, before_run=verify_registration),
-        ])
+        with patch("seedsigner.helpers.fidelity_bonds.future_year_months", return_value=self.FIDELITY_BOND_DATES):
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+                FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
+                FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.FIDELITY_BOND),
+                FlowStep(seed_views.SeedFidelityBondWarningView, button_data_selection=seed_views.SeedFidelityBondWarningView.CONTINUE),
+                FlowStep(seed_views.SeedFidelityBondYearView, screen_return_value=0),
+                FlowStep(seed_views.SeedFidelityBondMonthView, screen_return_value=0),
+                FlowStep(seed_views.SeedFidelityBondAddressView, button_data_selection=seed_views.SeedFidelityBondAddressView.EXPORT_REGISTRATION),
+                FlowStep(seed_views.SeedFidelityBondRegistrationQRView, before_run=verify_registration),
+            ])
 
     def test_exit_fidelity_bond_summary_returns_to_seed_options(self):
-        self.run_sequence([
-            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
-            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
-            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
-            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.FIDELITY_BOND),
-            FlowStep(seed_views.SeedFidelityBondWarningView, button_data_selection=seed_views.SeedFidelityBondWarningView.CONTINUE),
-            FlowStep(seed_views.SeedFidelityBondYearView, screen_return_value=0),
-            FlowStep(seed_views.SeedFidelityBondMonthView, screen_return_value=0),
-            FlowStep(seed_views.SeedFidelityBondAddressView, screen_return_value=RET_CODE__BACK_BUTTON),
-            FlowStep(seed_views.SeedOptionsView),
-        ])
+        with patch("seedsigner.helpers.fidelity_bonds.future_year_months", return_value=self.FIDELITY_BOND_DATES):
+            self.run_sequence([
+                FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+                FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
+                FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+                FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.FIDELITY_BOND),
+                FlowStep(seed_views.SeedFidelityBondWarningView, button_data_selection=seed_views.SeedFidelityBondWarningView.CONTINUE),
+                FlowStep(seed_views.SeedFidelityBondYearView, screen_return_value=0),
+                FlowStep(seed_views.SeedFidelityBondMonthView, screen_return_value=0),
+                FlowStep(seed_views.SeedFidelityBondAddressView, screen_return_value=RET_CODE__BACK_BUTTON),
+                FlowStep(seed_views.SeedOptionsView),
+            ])
 
     def test_scan_seedqr_flow(self):
         """

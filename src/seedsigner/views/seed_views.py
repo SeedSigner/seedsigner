@@ -643,7 +643,11 @@ class SeedFidelityBondWarningView(View):
             DireWarningScreen,
             title=_("Fidelity Bond"),
             status_headline=_("Funds will be locked"),
-            text=_("Funds stay locked until the selected month. Verify the address, then send one deposit."),
+            text=_(
+                "Register with JoinMarket NG, complete certificate setup, perform an "
+                "unfunded signing/redemption test, only then fund JoinMarket's "
+                "independently reconstructed address."
+            ),
             button_data=[self.CONTINUE],
         )
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -657,18 +661,32 @@ class SeedFidelityBondYearView(View):
         self.seed = seed
 
     def run(self):
-        from datetime import datetime, timezone
         from seedsigner.helpers import fidelity_bonds
 
-        years = list(range(fidelity_bonds.MIN_YEAR, fidelity_bonds.MAX_YEAR + 1))
-        button_data = [ButtonOptionWithoutTranslation(str(year), return_data=year) for year in years]
-        current_year = datetime.now(timezone.utc).year
-        selected_button = min(max(current_year, fidelity_bonds.MIN_YEAR), fidelity_bonds.MAX_YEAR) - fidelity_bonds.MIN_YEAR
+        dates = fidelity_bonds.future_year_months()
+        if not dates:
+            return Destination(
+                ErrorView,
+                view_args=dict(
+                    title=_("No Future Locktimes"),
+                    text=_("BIP 46 locktimes are only available through 2099."),
+                    button_text=_("Back to Seed Options"),
+                    next_destination=Destination(
+                        SeedOptionsView,
+                        view_args=dict(seed=self.seed),
+                        clear_history=True,
+                    ),
+                ),
+            )
+        years = list(dict.fromkeys(year for year, _ in dates))
+        button_data = [
+            ButtonOptionWithoutTranslation(str(year), return_data=year) for year in years
+        ]
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title=_("Bond Year"),
             button_data=button_data,
-            selected_button=selected_button,
+            selected_button=0,
         )
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
@@ -690,7 +708,18 @@ class SeedFidelityBondMonthView(View):
         self.year = year
 
     def run(self):
-        button_data = [ButtonOption(month, return_data=index + 1) for index, month in enumerate(self.MONTHS)]
+        from seedsigner.helpers import fidelity_bonds
+
+        months = [
+            month
+            for year, month in fidelity_bonds.future_year_months()
+            if year == self.year
+        ]
+        if not months:
+            return Destination(BackStackView)
+        button_data = [
+            ButtonOption(self.MONTHS[month - 1], return_data=month) for month in months
+        ]
         selected_menu_num = self.run_screen(
             ButtonListScreen,
             title=_("Bond Month"),
@@ -742,7 +771,7 @@ class SeedFidelityBondAddressView(View):
         if selected_menu_num == 0:
             return Destination(SeedFidelityBondAddressQRView, view_args=dict(address=self.address))
         return Destination(
-            SeedFidelityBondRegistrationWarningView,
+            SeedFidelityBondRegistrationQRView,
             view_args=dict(
                 seed=self.seed,
                 index=self.index,
@@ -760,33 +789,6 @@ class SeedFidelityBondAddressQRView(View):
         from seedsigner.gui.screens.screen import QRDisplayScreen
 
         self.run_screen(QRDisplayScreen, qr_encoder=GenericStaticQrEncoder(data=self.address))
-        return Destination(BackStackView)
-
-
-class SeedFidelityBondRegistrationWarningView(View):
-    def __init__(self, seed: Seed, index: int, network: str):
-        super().__init__()
-        self.seed = seed
-        self.index = index
-        self.network = network
-
-    def run(self):
-        destination = Destination(
-            SeedFidelityBondRegistrationQRView,
-            view_args=dict(seed=self.seed, index=self.index, network=self.network),
-            skip_current_view=True,
-        )
-        if self.settings.get_value(SettingsConstants.SETTING__PRIVACY_WARNINGS) == SettingsConstants.OPTION__DISABLED:
-            return destination
-
-        selected_menu_num = self.run_screen(
-            WarningScreen,
-            title=_("Privacy Leak!"),
-            status_headline=None,
-            text=_("This branch xpub reveals every BIP-46 bond from this dedicated seed."),
-        )
-        if selected_menu_num == 0:
-            return destination
         return Destination(BackStackView)
 
 

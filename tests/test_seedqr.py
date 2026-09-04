@@ -1,3 +1,4 @@
+import json
 import os
 from io import BytesIO
 from unittest.mock import Mock, patch
@@ -17,7 +18,7 @@ from seedsigner.models.settings_definition import SettingsConstants
 
 
 def test_qrimage_io_preserves_json_payload_for_qrencode():
-    payload = '{"type":"seedsigner-bip46","xpub":"xpub123"}'
+    payload = '{"type":"seedsigner-bip46","index":73}'
     qr = QR()
     fallback_image = object()
 
@@ -64,6 +65,13 @@ def test_fidelity_bond_registration_qr_round_trip_at_device_size():
         decoded = pyzbar.decode(image)
         assert len(decoded) == 1
         assert decoded[0].data.decode("ascii") == payload
+        registration = json.loads(payload)
+        assert list(registration) == [
+            "type", "version", "network", "master_fingerprint", "derivation_path",
+            "index", "locktime", "locktime_date", "pubkey", "address",
+        ]
+        assert "origin_path" not in registration
+        assert "xpub" not in registration
 
 
 def test_static_qr_encoder_caches_rendered_frames():
