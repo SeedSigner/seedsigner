@@ -1,4 +1,4 @@
-from gettext import gettext as _
+from seedsigner.helpers.l10n import seedsigner_gettext as _
 
 from base import BaseTest
 from seedsigner.gui.screens.screen import ButtonOption

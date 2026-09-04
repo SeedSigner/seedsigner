@@ -1,4 +1,4 @@
-from gettext import gettext as _
+from seedsigner.helpers.l10n import seedsigner_gettext as _
 
 # Must import test base before the Controller
 from base import FlowTest, FlowStep
