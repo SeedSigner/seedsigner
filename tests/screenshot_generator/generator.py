@@ -456,6 +456,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTOutputOwnershipClaimFailedView),
                 ScreenshotConfig(psbt_views.PSBTInputOwnershipClaimFailedView),
                 ScreenshotConfig(psbt_views.PSBTSeedCannotSignView),
+                ScreenshotConfig(psbt_views.PSBTInputAmountVerificationFailedView),
                 ScreenshotConfig(psbt_views.PSBTFinalizeView,     mock_context_manager=mock_multisig_psbt_loaded),
                 #ScreenshotConfig(PSBTSignedQRDisplayViewScreenshotConfig),
                 ScreenshotConfig(psbt_views.PSBTSigningErrorView, mock_context_manager=mock_multisig_psbt_loaded),

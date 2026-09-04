@@ -1,11 +1,14 @@
+import logging
+
 from gettext import gettext as _
 
-from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
-    PSBTOutputOwnershipClaimError, PSBTParser, PSBTSeedCannotSignError)
+from seedsigner.models.psbt_parser import (PSBTInputAmountVerificationError, PSBTInputOwnershipClaimError, PSBTOutputOwnershipClaimError, PSBTParser, PSBTSeedCannotSignError)
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
 from seedsigner.views.view import BackStackView, MainMenuView, NotYetImplementedView, View, Destination
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -119,6 +122,14 @@ class PSBTOverviewView(View):
                 self.controller.psbt_parser = None
                 self.controller.psbt_seed = None
                 self.set_redirect(Destination(PSBTSeedCannotSignView))
+                return
+
+            except PSBTInputAmountVerificationError as e:
+                # The declared input amounts could not be verified, so the fee we would show is unproven
+                # Set clear_history to disable returning via BACK button.
+                logger.error(f"PSBT input amount verification failed: {e}")
+                self.controller.psbt_parser = None
+                self.set_redirect(Destination(PSBTInputAmountVerificationFailedView, clear_history=True))
                 return
 
             finally:
@@ -569,6 +580,31 @@ class PSBTAddressVerificationFailedView(View):
             status_headline=_("Address Verification Failed"),
             text=text,
             button_data=[ButtonOption("Discard transaction")],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all ephemeral
+        # data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTInputAmountVerificationFailedView(View):
+    """
+    Reached when an input's declared amount could not be verified (see
+    PSBTInputAmountVerificationError). Shows a dire warning and discards the psbt to the
+    main menu.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            DireWarningScreen,
+            title=_("Suspicious Transaction"),
+            status_headline=_("Input Amounts Unverified"),
+            text=_("The PSBT input amounts cannot be confirmed. The fee shown cannot be trusted."),
+            button_data=[self.DISCARD],
             show_back_button=False,
         )
 

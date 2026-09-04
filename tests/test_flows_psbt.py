@@ -1,12 +1,14 @@
 from binascii import a2b_base64
+from unittest.mock import Mock
 
 from embit.psbt import PSBT
 
-from base import FlowTest, FlowStep
+from base import BaseTest, FlowTest, FlowStep
 from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_output,
     foreign_public_key)
 
 from seedsigner.controller import Controller
+from seedsigner.models.psbt_parser import PSBTParser
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
 from seedsigner.models.seed import Seed
@@ -41,7 +43,7 @@ class TestPSBTFlows(FlowTest):
                         - 1/9 address bcrt1q9rrg7399m43cn0yg4tz0v0ate89jgf2d6kpz7v with amount 56,399,242 sats
                     - Fee 272 sats
             """
-            view.decoder.add_data("cHNidP8BANgCAAAAAsTXZs3fz/dmGb6M80+jjvJZdYya+cw5bT/dGuhZFdSlAAAAAAD9////qo6xg/UZAvUkcbse1F+C9zbP/FeZNjThx7SCIn6eMCgBAAAAAP3///8EQOIBAAAAAAAWABSkZPM7kLcTRE2En1t33/0RCHgMjQXYnnYAAAAAFgAUKMaPRKXdY4m8iKrE9j+rycskJU1A4gEAAAAAABYAFPYc9wiHRrYKAZYLLztREAwpPBIwipVcAwAAAAAWABSiFuiJIa4NrxLUBVQNS0NIun6DDtoRAABPAQQ1h88DBcQGZIAAAAA+0J+jlNL3dpWwlnBi8Dx+Ipg4e6uvB3HdjzFPX7r9CAOOlAIxgII+/xCcj+XoEenKH7wj5s5wlu7Q7CCZWFLGLhA5Su0UVAAAgAEAAIAAAACAAAEA7QIAAAAEE6njX/fnvn7hbkKIRcxzNYFOSfbCdNeWnd7Fe/1UcQ0BAAAAAP3///8TqeNf9+e+fuFuQohFzHM1gU5J9sJ015ad3sV7/VRxDQMAAAAA/f///xOp41/3575+4W5CiEXMczWBTkn2wnTXlp3exXv9VHENBAAAAAD9////E6njX/fnvn7hbkKIRcxzNYFOSfbCdNeWnd7Fe/1UcQ0GAAAAAP3///8CUnheAwAAAAAWABRCfygPJ+Fjsx4BknYvvm3A3qKn2xJ/XQcAAAAAF6kU1I4TAst5nAj15ey7vwe5cM3OFq+HlhEAAAEBH1J4XgMAAAAAFgAUQn8oDyfhY7MeAZJ2L75twN6ip9sBAwQBAAAAIgYCo7sfm78RQY3B5n0ac/QF8VtMAzFnci+h5D1MtpgRY7oYOUrtFFQAAIABAACAAAAAgAEAAAAGAAAAAAEAcQIAAAABxY7wh0nsfJQfzWrD/9rN9BYsM+iOmPaO6I0ANFgO/PcAAAAAAP3///8CptiUAAAAAAAWABRIm4HhQY/TzOjeWSPRrbuJo9MlW826oHYAAAAAFgAU0z+0L2QSLGtyQTn8FhbCpcI7jbliAQAAAQEfzbqgdgAAAAAWABTTP7QvZBIsa3JBOfwWFsKlwjuNuQEDBAEAAAAiBgITHmebEANk81CraV4xZIpqkNjjw0tIvezl1Ism1NRH3Rg5Su0UVAAAgAEAAIAAAACAAQAAAAAAAAAAIgICuTT7WnuiUTpObjWnZFHzIeEvW9PTB+1LLVFNQJVFeIIYOUrtFFQAAIABAACAAAAAgAEAAAAHAAAAACICAk8f3hpc5C35chgSg+Pe2zZ9IhHREd4aKW2+yAMRIFeqGDlK7RRUAACAAQAAgAAAAIABAAAACQAAAAAAIgIDjt1CjvrnMMnjbmTNKUAYoKEDRbmKjNjbq+6Ppqj3bqQYOUrtFFQAAIABAACAAAAAgAEAAAAIAAAAAA==")
+            view.decoder.add_data(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS)
 
         def load_seed_into_decoder(view: scan_views.ScanView):
             view.decoder.add_data("080115060387063104071857067618681125136207731354")
@@ -75,6 +77,37 @@ class TestPSBTFlows(FlowTest):
 
         # Selecting the existing seed should have set it as the signing seed
         assert self.controller.psbt_seed is self.controller.storage.seeds[0]
+
+
+    def test_tampered_input_amounts_routes_to_input_verification_failed(self):
+        """
+            A psbt whose non_witness_utxo doesn't verify can declare any input amounts it
+            likes, which means it can display any fee it likes. It should be discarded
+            outright with no option to proceed.
+        """
+        def load_tampered_psbt_into_decoder(view: scan_views.ScanView):
+            # Editing the non_witness_utxo changes the txid it hashes to, so it no longer
+            # matches the txid the input claims to spend.
+            psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
+            psbt.inputs[0].non_witness_utxo.vout[0].value += 100_000
+            view.decoder.add_data(str(psbt))
+
+        def load_seed_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("080115060387063104071857067618681125136207731354")
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_tampered_psbt_into_decoder),
+            FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanSeedQRView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+
+            # Parsing fails, so the overview never renders; it redirects straight to the warning
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTInputAmountVerificationFailedView),
+            FlowStep(MainMenuView),
+        ])
 
 
     def test_scan_psbt_first_then_load_electrum_seed(self):
@@ -271,3 +304,43 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         # The psbt itself is kept: the user is choosing a different seed for it, not
         # starting over
         assert self.controller.psbt is not None
+
+
+
+class TestPSBTOverviewView(BaseTest):
+    """
+    View-level tests for the parts of PSBTOverviewView that a FlowTest can't reach.
+    """
+
+    def test_stale_psbt_parser_is_cleared_on_input_verification_failure(self):
+        """
+        The error handler nulls controller.psbt_parser so an unusable parser can't be left
+        behind for a later view to read a fee from.
+
+        This is defensive: ScanView already nulls psbt_parser whenever it sets a new psbt
+        (scan_views.py), so no real flow reaches PSBTOverviewView with a stale parser in
+        place. That's precisely why this is tested here and not in a flow — the state has to
+        be constructed by hand, and asserting it inside a flow would only ever be checking
+        ScanView's cleanup rather than the handler's.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
+        psbt.inputs[0].non_witness_utxo.vout[0].value += 100_000
+
+        self.controller.psbt = psbt
+        self.controller.psbt_seed = PSBTTestData.two_input_seed
+
+        # Stand in for a parser left over from a previously-viewed psbt. Its seed differs from
+        # psbt_seed, so PSBTOverviewView will re-parse rather than reuse it.
+        self.controller.psbt_parser = Mock(spec=PSBTParser, seed=PSBTTestData.seed)
+        assert self.controller.psbt_parser.seed != self.controller.psbt_seed
+
+        view = psbt_views.PSBTOverviewView()
+
+        assert self.controller.psbt_parser is None
+
+        # The view redirects away from the overview rather than rendering an unproven fee.
+        # Destination._run_view() honors this before run() is ever called.
+        assert view.has_redirect
+        assert view.get_redirect().View_cls is psbt_views.PSBTInputAmountVerificationFailedView
