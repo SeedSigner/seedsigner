@@ -14,6 +14,19 @@ class InvalidPart(Exception):
 class InvalidChecksum(Exception):
     pass
 
+# A part's `seq_len` is attacker-controlled: it comes straight off a scanned QR and the
+# UR parser only rejects values < 1 or > 2**64. Both `validate_part()` (which builds a
+# set of that many indexes) and `choose_fragments()` (whose Fisher-Yates shuffle is
+# quadratic in seq_len) scale with it, so a single frame can exhaust the device's memory
+# or hang it indefinitely.
+#
+# The shuffle itself cannot be optimized: its exact permutation is part of the UR fountain
+# code, so changing it would break interoperability. Bounding seq_len is the fix.
+#
+# 10,000 fragments is far beyond any real-world message: even at a 10-byte minimum
+# fragment length that covers a 100 KB payload.
+MAX_SEQ_LEN = 10000
+
 class FountainDecoder:
     class Part:
         def __init__(self, indexes, data):
@@ -268,6 +281,10 @@ class FountainDecoder:
             self.mixed_parts[p2.indexes] = p2
 
     def validate_part(self, p):
+        # Reject implausible part counts before allocating anything sized by them
+        if p.seq_len < 1 or p.seq_len > MAX_SEQ_LEN:
+            return False
+
         # If this is the first part we've seen
         if self.expected_part_indexes == None:
             # Record the things that all the other parts we see will have to match to be valid.
