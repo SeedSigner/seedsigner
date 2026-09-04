@@ -636,7 +636,7 @@ class PSBTFinalizeView(View):
         else:
             # Sign PSBT
             sig_cnt = PSBTParser.sig_count(psbt)
-            psbt.sign_with(psbt_parser.root)
+            psbt.sign_with(psbt_parser.root, None)
             trimmed_psbt = PSBTParser.trim(psbt)
 
             if sig_cnt == PSBTParser.sig_count(trimmed_psbt):
