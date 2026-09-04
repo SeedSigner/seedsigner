@@ -477,6 +477,8 @@ def generate_screenshots(locale):
                 ScreenshotConfig(tools_views.ToolsAddressExplorerAddressTypeView, mock_context_manager=mock_multisig_wallet_descriptor_loaded),
                 ScreenshotConfig(tools_views.ToolsAddressExplorerAddressListView),
                 # ScreenshotConfig(tools_views.ToolsAddressExplorerAddressView),
+                ScreenshotConfig(tools_views.ToolsGameEntropyMnemonicLengthView),
+                ScreenshotConfig(tools_views.ToolsGameEntropyView),
             ],
             "Settings Views": settings_views_list + [
                 ScreenshotConfig(settings_views.IOTestView),

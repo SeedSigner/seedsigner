@@ -21,12 +21,13 @@ logger = logging.getLogger(__name__)
 class ToolsMenuView(View):
     IMAGE = ButtonOption("New seed", FontAwesomeIconConstants.CAMERA)
     DICE = ButtonOption("New seed", FontAwesomeIconConstants.DICE)
+    GAME = ButtonOption("New seed", FontAwesomeIconConstants.GAMEPAD)
     KEYBOARD = ButtonOption("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
     ADDRESS_EXPLORER = ButtonOption("Address explorer")
     VERIFY_ADDRESS = ButtonOption("Verify address")
 
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
+        button_data = [self.IMAGE, self.DICE, self.GAME, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -43,6 +44,9 @@ class ToolsMenuView(View):
 
         elif button_data[selected_menu_num] == self.DICE:
             return Destination(ToolsDiceEntropyMnemonicLengthView)
+
+        elif button_data[selected_menu_num] == self.GAME:
+            return Destination(ToolsGameEntropyMnemonicLengthView)
 
         elif button_data[selected_menu_num] == self.KEYBOARD:
             return Destination(ToolsCalcFinalWordNumWordsView)
@@ -495,6 +499,62 @@ class ToolsCalcFinalWordDoneView(View):
         
         elif button_data[selected_menu_num] == self.DISCARD:
             return Destination(SeedDiscardView)
+
+
+
+"""****************************************************************************
+    Game entropy Views
+****************************************************************************"""
+class ToolsGameEntropyMnemonicLengthView(View):
+    def run(self):
+        from seedsigner.gui.screens.tools_screens import ToolsGameEntropyMnemonicLengthScreen
+        TWELVE_WORDS = ButtonOption("12 words", return_data=12)
+        TWENTYFOUR_WORDS = ButtonOption("24 words", return_data=24)
+
+        button_data = [TWELVE_WORDS, TWENTYFOUR_WORDS]
+        
+        selected_menu_num = ToolsGameEntropyMnemonicLengthScreen(
+            button_data=button_data
+        ).display()
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == TWELVE_WORDS:
+            return Destination(ToolsGameEntropyView, view_args=dict(target_entropy_bits=128))
+
+        elif button_data[selected_menu_num] == TWENTYFOUR_WORDS:
+            return Destination(ToolsGameEntropyView, view_args=dict(target_entropy_bits=256))
+
+
+
+class ToolsGameEntropyView(View):
+    def __init__(self, target_entropy_bits: int = 128):
+        super().__init__()
+        self.target_entropy_bits = target_entropy_bits
+
+    def run(self):
+        from seedsigner.gui.screens.tools_screens import ToolsGameEntropyScreen
+        ret = ToolsGameEntropyScreen(
+            target_entropy_bits=self.target_entropy_bits,
+        ).display()
+
+        if ret == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # ret contains the entropy bytes, convert to mnemonic
+        from seedsigner.helpers import mnemonic_generation
+        entropy_bytes = ret
+        
+        # Convert entropy bytes to mnemonic
+        mnemonic = mnemonic_generation.generate_mnemonic_from_bytes(entropy_bytes)
+
+        # Add the mnemonic as an in-memory Seed
+        seed = Seed(mnemonic, wordlist_language_code=self.settings.get_value(SettingsConstants.SETTING__WORDLIST_LANGUAGE))
+        self.controller.storage.set_pending_seed(seed)
+
+        # Cannot return BACK to this View
+        return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
 
 
 
