@@ -1,9 +1,10 @@
 import os
 from embit import bip39
 from seedsigner.helpers.qr import QR
-from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus
+from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus, SeedQrDecoder
 from seedsigner.models.encode_qr import SeedQrEncoder, CompactSeedQrEncoder
 from seedsigner.models.qr_type import QRType
+from seedsigner.models.settings_definition import SettingsConstants
 
 
 
@@ -128,3 +129,86 @@ def test_compact_seedqr_bytes_interpretable_as_str():
         entropy_bytes.decode()  # should not raise an exception
         mnemonic_length = 12 if len(entropy_bytes) == 16 else 24
         run_encode_decode_test(entropy_bytes, mnemonic_length=mnemonic_length, qr_type=QRType.SEED__COMPACTSEEDQR)
+
+
+
+def seedqr_str(mnemonic: list[str]) -> str:
+    """ Helper: render a mnemonic as its Standard SeedQR digit string """
+    return SeedQrEncoder(mnemonic=mnemonic).next_part()
+
+
+def make_decoder() -> SeedQrDecoder:
+    return SeedQrDecoder(wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
+
+
+
+def test_standard_seedqr_rejects_invalid_checksum():
+    """
+        Should reject a Standard SeedQR whose mnemonic fails BIP-39 checksum validation.
+
+        A hand-transcribed SeedQR can be drawn incorrectly. Accepting it here hands an
+        invalid mnemonic to the seed loading flow, which raises an InvalidSeedException
+        and dumps the user out to the generic "System Error" screen.
+    """
+    # "abandon" x12 is a valid wordlist sequence but an invalid mnemonic; the checksum
+    # requires the 12th word to be "about".
+    invalid = seedqr_str(["abandon"] * 12)
+    assert len(invalid) == 48
+
+    decoder = make_decoder()
+    assert decoder.add(invalid, QRType.SEED__SEEDQR) == DecodeQRStatus.INVALID
+    assert decoder.get_seed_phrase() == []
+
+    # The valid version of the same mnemonic must still decode
+    valid_mnemonic = ["abandon"] * 11 + ["about"]
+    decoder = make_decoder()
+    assert decoder.add(seedqr_str(valid_mnemonic), QRType.SEED__SEEDQR) == DecodeQRStatus.COMPLETE
+    assert decoder.get_seed_phrase() == valid_mnemonic
+
+    # Same for a 24-word mnemonic
+    mnemonic_24 = bip39.mnemonic_from_bytes(os.urandom(32)).split()
+    decoder = make_decoder()
+    assert decoder.add(seedqr_str(mnemonic_24), QRType.SEED__SEEDQR) == DecodeQRStatus.COMPLETE
+    assert decoder.get_seed_phrase() == mnemonic_24
+
+
+
+def test_standard_seedqr_rejects_wrong_digit_count():
+    """
+        Should reject digit strings that aren't exactly 48 (12 words) or 96 (24 words).
+
+        Decoding a prefix and discarding the remaining digits would silently load a
+        different seed than the one the QR actually encodes.
+    """
+    valid = seedqr_str(["abandon"] * 11 + ["about"])
+
+    for candidate in [
+        valid + "77",       # trailing junk digits
+        valid[:-4],         # 11 words
+        valid + valid[:4],  # 13 words
+        "",
+        "0000",
+    ]:
+        decoder = make_decoder()
+        assert decoder.add(candidate, QRType.SEED__SEEDQR) == DecodeQRStatus.INVALID, f"accepted {len(candidate)} digits"
+        assert decoder.get_seed_phrase() == []
+
+
+
+def test_seedqr_detection_requires_exact_digit_count():
+    """
+        Should only classify a QR as a SeedQR when its entire payload is 48 or 96 digits.
+
+        A loose search claims any QR that merely *contains* a long run of digits. Note
+        that the SeedQR check runs before the SettingsQR check in `detect_segment_type`.
+    """
+    english = SettingsConstants.WORDLIST_LANGUAGE__ENGLISH
+
+    valid = seedqr_str(["abandon"] * 11 + ["about"])
+    assert DecodeQR.detect_segment_type(valid, english) == QRType.SEED__SEEDQR
+
+    # A SettingsQR that happens to contain a long digit run is not a SeedQR
+    assert DecodeQR.detect_segment_type("settings::v1 " + "1" * 48, english) == QRType.SETTINGS
+
+    # Neither is arbitrary data with digits embedded in it
+    assert DecodeQR.detect_segment_type("xxxxx" + "0" * 60, english) == QRType.INVALID
