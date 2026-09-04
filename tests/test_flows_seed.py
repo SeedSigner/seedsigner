@@ -624,6 +624,32 @@ class TestMessageSigningFlows(FlowTest):
         self.controller.sign_message_data["paged_message"] = paged
 
 
+    def test_sign_message_missing_message_aborts_cleanly(self):
+        """
+        If Sign Message is armed before a message is captured, scanning a
+        non-message QR should return to the normal Seed Options menu instead of
+        opening message review with missing data.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+
+        # Load a seed to sign with, then scan another SeedQR where the message QR
+        # is expected. The second seed import returns to Seed Options with the
+        # sign-message flow still armed but without a captured message.
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
+            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.BACKUP),
+            FlowStep(seed_views.SeedBackupView),
+        ])
+
+        assert self.controller.resume_main_flow is None
+        assert self.controller.sign_message_data is None
+
+
     def test_sign_message_flow(self):
         """
         Should scan a `signmessage` QR and complete the message review, address review,
