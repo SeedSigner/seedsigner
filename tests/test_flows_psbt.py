@@ -1,3 +1,4 @@
+from seedsigner.gui.screens import RET_CODE__BACK_BUTTON
 from binascii import a2b_base64
 
 from embit.psbt import PSBT
@@ -187,6 +188,27 @@ class TestPSBTFlows(FlowTest):
             FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
             FlowStep(psbt_views.PSBTSignedQRDisplayView),
             FlowStep(MainMenuView)
+        ])
+    
+    def test_electrum_seed_entry_back_via_psbt_flow(self):
+        """
+        Simulates navigating into the Electrum seed entry from a scanned PSBT, and pressing BACK 
+        from the mnemonic keyboard to ensure it routes safely to `PSBTSelectSeedView` instead of 
+        getting trapped in the `SeedElectrumMnemonicStartView` warning screen.
+        """
+        def load_psbt_into_decoder(view: scan_views.ScanView):
+            # Single sig psbt for testing
+            view.decoder.add_data("cHNidP8BAHECAAAAAX9/d6VyI7nvVTyhLBfqu05za2AJ2Z0dKMC0cUX+S2U7AQAAAAD9////AgeHAAAAAAAAFgAUOnNPuZMD1sQudt3+7LvHBUvGhyd//gAAAAAAABYAFGO9QLvu4V9/hz6ZjbIGMrqsEiIYAjQTAAABAR+ghgEAAAAAABYAFKawrgcT62jmIVQwyHPCV0thmJWbAQDBAQAAAAABAYeHL9UQlz/jEKUuNNY3LTeQRjudjBinsP2L0ppvgRt0AAAAAAD/////AnbP3rsPAAAAIlEgtgmCioGjfKwp6f8rOoI4OPb+ZV8db581J9IizZPskl2ghgEAAAAAABYAFKawrgcT62jmIVQwyHPCV0thmJWbAUDCBlMh9VjZN2NdU9Wabi0o3Ct1q9YHTsJRLAkLfUuIHB+BE+ucR4bdGAJG5nBhCWOmCXbpRwKP1INRYvkuQ2fHAAAAACIGA2+PEYHyVy6nhYwAx5SJKBIWXjsWgjhhf/2FEWqXgxnoEKNOC3gAAACAAAAAAAAAAAAAACICA0SBeeHxfHdny6rUnQJuteAnQ7shSydexjJCkSJarn3mEKNOC3gAAACAAQAAAAEAAAAA")
+
+        self.settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
+
+        self.run_sequence(sequence = [
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_psbt_into_decoder),  # simulate read PSBT; ret val is ignored
+            FlowStep(psbt_views.PSBTSelectSeedView, button_data_selection=psbt_views.PSBTSelectSeedView.TYPE_ELECTRUM),
+            FlowStep(seed_views.SeedElectrumMnemonicStartView, button_data_selection=0),
+            FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value = RET_CODE__BACK_BUTTON),
+            FlowStep(psbt_views.PSBTSelectSeedView)
         ])
 
 

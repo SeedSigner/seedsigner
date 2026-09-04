@@ -280,6 +280,22 @@ class TestToolsFlows(FlowTest):
                 FlowStep(seed_views.SeedAddressVerificationSuccessView),
             ])
 
+    def test_electrum_seed_entry_back_from_address_explorer_flow(self):
+        """
+        Simulates navigating into the Electrum seed entry from the Address Explorer, and pressing BACK 
+        from the mnemonic keyboard to ensure it routes safely to `ToolsAddressExplorerSelectSourceView` 
+        instead of getting trapped in the `SeedElectrumMnemonicStartView` warning screen.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.TYPE_ELECTRUM),
+            FlowStep(seed_views.SeedElectrumMnemonicStartView, button_data_selection=0),
+            FlowStep(seed_views.SeedMnemonicEntryView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView),
+        ])  
 
 class TestToolsImageEntropyFlows(FlowTest):
 
