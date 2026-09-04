@@ -37,6 +37,9 @@ class Settings(Singleton):
             if os.path.exists(Settings.SETTINGS_FILENAME):
                 with open(Settings.SETTINGS_FILENAME) as settings_file:
                     settings.update(json.load(settings_file))
+            else:
+                # Load default locale setting
+                settings.load_locale()
 
             # Setup multilanguage support
             path = os.path.join(
@@ -47,9 +50,6 @@ class Settings(Singleton):
             )
             gettext.bindtextdomain('messages', localedir=path)
             gettext.textdomain('messages')
-
-            # Load default/persistent locale setting
-            settings.load_locale()
 
         return cls._instance
 
