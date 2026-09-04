@@ -369,7 +369,7 @@ class PSBTChangeDetailsView(View):
         #     title += f" (#{self.change_address_num + 1})"
 
         is_change_addr_verified = False
-        if psbt_parser.is_multisig:
+        if psbt_parser.requires_descriptor_verification:
             # if the known-good multisig descriptor is already onboard:
             if self.controller.multisig_wallet_descriptor:
                 is_change_addr_verified = psbt_parser.verify_multisig_output(self.controller.multisig_wallet_descriptor, change_num=self.change_address_num)
@@ -428,8 +428,8 @@ class PSBTChangeDetailsView(View):
             finally:
                 loading_screen.stop()
 
-        if is_change_addr_verified == False and (not psbt_parser.is_multisig or self.controller.multisig_wallet_descriptor is not None):
-            return Destination(PSBTAddressVerificationFailedView, view_args=dict(is_change=is_change_derivation_path, is_multisig=psbt_parser.is_multisig), clear_history=True)
+        if is_change_addr_verified == False and (not psbt_parser.requires_descriptor_verification or self.controller.multisig_wallet_descriptor is not None):
+            return Destination(PSBTAddressVerificationFailedView, view_args=dict(is_change=is_change_derivation_path, is_multisig=psbt_parser.requires_descriptor_verification), clear_history=True)
 
         selected_menu_num = self.run_screen(
             PSBTChangeDetailsScreen,
@@ -640,11 +640,24 @@ class PSBTFinalizeView(View):
             trimmed_psbt = PSBTParser.trim(psbt)
 
             if sig_cnt == PSBTParser.sig_count(trimmed_psbt):
-                # Signing failed / didn't do anything
-                # TODO: Reserved for Nick. Are there different failure scenarios that we can detect?
-                # Would be nice to alter the message on the next screen w/more detail.
+                # No new signature. Two very different situations produce this,
+                # and reporting both as "signing failed" is misleading.
+                #
+                # sig_count() counts entries in partial_sigs, keyed by pubkey. If
+                # this seed had already signed, embit re-signs the same pubkeys and
+                # simply overwrites those entries (its nonces are deterministic, so
+                # even the bytes are identical), leaving the count unchanged. The
+                # transaction is validly signed by this seed; nothing failed.
+                #
+                # Distinguishing them matters most for n-of-n and multisig wallets,
+                # where the user signs the same psbt repeatedly with different seeds
+                # and can easily reach for one that has already been used. Observed
+                # exactly that way on hardware with a 3-of-3 Liana wallet.
+                if PSBTParser.has_signature_from_seed(psbt, psbt_parser.root):
+                    return Destination(PSBTSigningErrorView, view_args=dict(already_signed=True))
+
                 return Destination(PSBTSigningErrorView)
-            
+
             else:
                 self.controller.psbt = trimmed_psbt
                 return Destination(PSBTSignedQRDisplayView)
@@ -669,20 +682,38 @@ class PSBTSignedQRDisplayView(View):
 
 class PSBTSigningErrorView(View):
     SELECT_DIFF_SEED = ButtonOption("Select different seed")
-    
+
+    def __init__(self, already_signed: bool = False):
+        super().__init__()
+
+        # True when no new signature was added because this seed's signature was
+        # already present. Nothing failed in that case, so it gets its own
+        # wording rather than being reported as a signing failure.
+        self.already_signed = already_signed
+
+
     def run(self):
         psbt_parser: PSBTParser = self.controller.psbt_parser
         if not psbt_parser:
             # Should not be able to get here
             return Destination(MainMenuView)
 
+        if self.already_signed:
+            # TRANSLATOR_NOTE: Headline when the selected seed had already signed this transaction
+            status_headline = _("Already Signed")
+            # TRANSLATOR_NOTE: Explains that this seed's signature is already on the transaction, and another seed is needed
+            text = _("This seed has already signed this transaction. Another seed is needed to add a signature.")
+        else:
+            status_headline = _("Signing Failed")
+            text = _("Signing with this seed did not add a valid signature.")
+
         # Just a WarningScreen here; only use DireWarningScreen for true security risks.
         selected_menu_num = self.run_screen(
             WarningScreen,
             title=_("Transaction Error"),
             status_icon_name=SeedSignerIconConstants.WARNING,
-            status_headline=_("Signing Failed"),
-            text=_("Signing with this seed did not add a valid signature."),
+            status_headline=status_headline,
+            text=text,
             button_data=[self.SELECT_DIFF_SEED]
         )
 

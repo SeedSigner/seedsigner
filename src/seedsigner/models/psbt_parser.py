@@ -152,6 +152,23 @@ class PSBTParser():
 
 
     @property
+    def requires_descriptor_verification(self):
+        """
+        Whether verifying this psbt's change addresses needs a known-good wallet
+        descriptor, as opposed to being derivable from the signing seed alone.
+
+        True for basic multisig (m/n present), and also for any wsh()/p2sh-p2wsh
+        policy where m/n is absent -- i.e. a Miniscript policy such as Liana's
+        inheritance wallets. In both cases the output's scriptpubkey commits to a
+        script this seed's key alone cannot reconstruct, so single-sig re-derivation
+        would not merely be inconvenient, it would be wrong: it can only ever fail,
+        and a failure here is surfaced to the user as a suspicious transaction.
+        The descriptor is the only thing that can actually answer the question.
+        """
+        return self.is_multisig or self.policy.get("type") in ("p2wsh", "p2sh-p2wsh")
+
+
+    @property
     def num_destinations(self):
         return len(self.destination_addresses)
 
@@ -296,14 +313,23 @@ class PSBTParser():
                 sc = script.Script(b"")
 
                 # multisig, we know witness script
-                if self.policy["type"] == "p2wsh":
+                #
+                # A degraded policy (no m/n/cosigners -- e.g. a Miniscript wsh()
+                # policy like Liana's) only tells us the output's script *type*
+                # matches ours, not that it's actually part of our wallet. An
+                # unrelated output of the same type (e.g. the destination
+                # address) can reach here with no witness_script/redeem_script
+                # populated at all, since Liana only fills those in for outputs
+                # it recognizes as its own. Treat "no script" as "not a match"
+                # rather than crashing trying to reconstruct one from None.
+                if self.policy["type"] == "p2wsh" and out.witness_script is not None:
                     sc = script.p2wsh(out.witness_script)
 
-                elif self.policy["type"] == "p2sh-p2wsh":
+                elif self.policy["type"] == "p2sh-p2wsh" and out.witness_script is not None:
                     sc = script.p2sh(script.p2wsh(out.witness_script))
-                
+
                 # Arbitrary p2sh; includes pre-segwit multisig (m/45')
-                elif self.policy["type"] == "p2sh":
+                elif self.policy["type"] == "p2sh" and out.redeem_script is not None:
                     sc = script.p2sh(out.redeem_script)
 
                 # single-sig: p2pkh, p2sh-p2wpkh, and p2wpkh; taproot handled separately
@@ -337,6 +363,32 @@ class PSBTParser():
 
                 if sc.data == vout[i].script_pubkey.data:
                     is_change = True
+
+                # Nothing above could reconstruct the scriptpubkey. For a degraded
+                # policy (no m/n -- e.g. a Miniscript wsh() policy like Liana's)
+                # that is the normal case, not an anomaly: the witness script is
+                # not bare OP_CHECKMULTISIG, and coordinators do not populate
+                # witness_script on their own change outputs at all (verified
+                # against real Liana psbts, which supply only bip32_derivations).
+                # Falling through here would count our own change as money
+                # leaving the wallet, and would deny the user any on-device
+                # confirmation that it comes back to them.
+                #
+                # _verify_claimed_derivation_paths has already established, for
+                # every output, whether this seed genuinely derives a key that the
+                # output names -- re-derived and compared as real key material,
+                # not read off the claimed fingerprint. Reuse that result rather
+                # than repeating the derivation here.
+                #
+                # Note what it does and does not settle: our key is *referenced by*
+                # the output, not that the scriptpubkey encodes our wallet's
+                # policy. A coordinator can name a key we own on an output paying
+                # elsewhere. So this marks a change *candidate*, and
+                # verify_multisig_output() against a known-good descriptor is what
+                # confirms it -- which requires_descriptor_verification forces for
+                # every policy able to reach this branch.
+                if not is_change and sc.data == b"" and self.policy["type"] in ("p2wsh", "p2sh-p2wsh"):
+                    is_change = self.verified_output_derivation_paths[i] is not None
 
             if vout[i].script_pubkey.data[0] == OPCODES.OP_RETURN:
                 # The data is written as: OP_RETURN + OP_PUSHDATA1 + len(payload) + payload
@@ -407,6 +459,55 @@ class PSBTParser():
 
 
     @staticmethod
+    def has_signature_from_seed(tx, root: bip32.HDKey) -> bool:
+        """
+        Whether any input already carries a signature for a pubkey that
+        provably derives from `root`.
+
+        Used to tell "this seed already signed" apart from "this seed cannot
+        sign this psbt", which sig_count() alone cannot: re-signing overwrites
+        the existing partial_sigs entry for the same pubkey, so the count is
+        identical in both cases.
+
+        Ownership goes through seed_owns_pubkey() rather than the psbt's claimed
+        fingerprints, which are 32 bits and coordinator-supplied. This only
+        decides which message the user sees, so a wrong answer would be cosmetic
+        rather than dangerous, but there is no reason to establish ownership any
+        way other than the canonical one.
+
+        Note this stays reachable even though _reject_if_seed_cannot_sign() now
+        turns away a seed that owns nothing: that check guarantees the seed can
+        sign *some* input, which is not the same as the signing pass having added
+        a signature. Inferring "already signed" from the absence of a rejection
+        would be a chain of assumptions about embit's behavior; asking directly
+        costs one derivation.
+        """
+        for inp in tx.inputs:
+            if not inp.partial_sigs:
+                continue
+
+            for public_key, derivation_path in inp.bip32_derivations.items():
+                if public_key not in inp.partial_sigs:
+                    continue
+
+                try:
+                    if PSBTParser.seed_owns_pubkey(
+                        root=root,
+                        claimed_derivation_path=derivation_path.derivation,
+                        public_key=public_key,
+                        child_key_derivation_cache=None,
+                    ):
+                        return True
+                except Exception as e:
+                    # A coordinator-supplied path can be nonsense; that means this
+                    # entry tells us nothing, not that the check should fail.
+                    logger.debug("Signed-by-this-seed check failed: %s", e, exc_info=True)
+                    continue
+
+        return False
+
+
+    @staticmethod
     def _get_policy(scope, scriptpubkey, xpubs, child_key_derivation_cache: dict | None):
         """Parse scope and get policy"""
         # we don't know the policy yet, let's parse it
@@ -435,20 +536,28 @@ class PSBTParser():
                 script = scope.redeem_script
 
             if script is not None:
-                m, n, pubkeys = PSBTParser._parse_multisig(script)
-            
-                # check pubkeys are derived from cosigners
                 try:
-                    cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs, child_key_derivation_cache)
-                    policy.update({"m": m, "n": n, "cosigners": cosigners})
-                except:
-                    # TODO: stop swallowing everything here. This also catches bugs in the
-                    # cosigner check itself, and cannot tell those apart from the psbt
-                    # simply not supplying xpubs to check against, which is valid and must
-                    # not be rejected outright. The fallback policy carries no cosigner
-                    # information at all, and two of those compare equal on script type
-                    # and m-of-n alone. Fix pending with the multisig verification work.
-                    policy.update({"m": m, "n": n})
+                    m, n, pubkeys = PSBTParser._parse_multisig(script)
+                except ValueError:
+                    # Not a bare OP_CHECKMULTISIG script -- e.g. a Miniscript
+                    # witness script (wsh() policies like Liana's). policy
+                    # stays at just {"type": script_type}; there's no m/n/
+                    # cosigners to report, but this isn't a parse failure.
+                    m = n = pubkeys = None
+
+                if m is not None:
+                    # check pubkeys are derived from cosigners
+                    try:
+                        cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs, child_key_derivation_cache)
+                        policy.update({"m": m, "n": n, "cosigners": cosigners})
+                    except:
+                        # TODO: stop swallowing everything here. This also catches bugs in the
+                        # cosigner check itself, and cannot tell those apart from the psbt
+                        # simply not supplying xpubs to check against, which is valid and must
+                        # not be rejected outright. The fallback policy carries no cosigner
+                        # information at all, and two of those compare equal on script type
+                        # and m-of-n alone. Fix pending with the multisig verification work.
+                        policy.update({"m": m, "n": n})
         
         return policy
 

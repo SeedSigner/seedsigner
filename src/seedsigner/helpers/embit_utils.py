@@ -1,11 +1,15 @@
 import embit
 
 from binascii import b2a_base64
+from gettext import gettext as _
 from hashlib import sha256
 
 from embit import bip32, compact, ec
 from embit.bip32 import HDKey
 from embit.descriptor import Descriptor
+from embit.descriptor.arguments import Key, KeyHash
+from embit.descriptor.miniscript import Wrapper
+from embit.descriptor.taptree import TapLeaf, TapTree
 from embit.networks import NETWORKS
 from embit.util import secp256k1
 
@@ -86,6 +90,23 @@ def get_single_sig_address(xpub: HDKey, script_type: str = SettingsConstants.NAT
 
 
 
+def can_derive_multisig_address(descriptor: Descriptor) -> bool:
+    """Whether `get_multisig_address()` can actually derive an address for this
+    descriptor: p2wsh/p2sh-p2wsh (including any wsh() Miniscript, not just basic
+    multisig), and legacy basic-multisig p2sh.
+
+    NOTE: this returns True for taproot too, because embit's `is_segwit` is True
+    for taproot descriptors -- which also makes the `elif descriptor.is_taproot:
+    raise` branch in `get_multisig_address()` below unreachable dead code.
+    Taproot addresses do in fact derive correctly through that path (verified by
+    test_get_multisig_address's taproot vector), so this is intentionally left
+    as-is rather than "fixed" to reject taproot; taproot *signing* is what's
+    still gated, over in PSBTParser.
+    """
+    return bool(descriptor.is_segwit or (descriptor.is_legacy and descriptor.is_basic_multisig))
+
+
+
 def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool = False, embit_network: str = "main"):
     if is_change:
         branch_index = 1
@@ -93,11 +114,16 @@ def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool
         branch_index = 0
 
     # Can derive p2wsh, p2sh-p2wsh, and legacy (non-segwit) p2sh
-    if descriptor.is_segwit or (descriptor.is_legacy and descriptor.is_basic_multisig):
+    if can_derive_multisig_address(descriptor):
         return descriptor.derive(index, branch_index=branch_index).script_pubkey().address(network=NETWORKS[embit_network])
 
     elif descriptor.is_taproot:
-        # TODO: Not yet implemented!
+        # Unreachable: embit's `is_segwit` is True for taproot descriptors too,
+        # so `can_derive_multisig_address()` above already returns True and
+        # taproot addresses derive correctly through that branch (see its
+        # docstring). Left in place rather than removed -- see the working
+        # plan's explicit note not to touch this without cause; it's dead code,
+        # not a bug, and touching it risks a behavior nobody's depending on.
         raise Exception("Taproot verification not yet implemented!")
 
     raise Exception(f"{descriptor.script_pubkey().script_type()} address verification not yet implemented!")
@@ -109,6 +135,527 @@ def get_multisig_policy(descriptor: Descriptor) -> tuple:
     if not descriptor.is_basic_multisig:
         raise ValueError(f"Expected a basic multisig descriptor, got: {descriptor.brief_policy}")
     return (str(descriptor.miniscript.args[0]), str(len(descriptor.keys)))
+
+
+
+def is_supported_wallet_descriptor(descriptor: Descriptor) -> bool:
+    """
+    Whether `descriptor` is one we know how to register, display, and (where
+    Address Explorer / Verify Addr are concerned) derive addresses for.
+
+    Deliberately narrower than "any valid wsh()/tr() Miniscript". An earlier
+    version of this accepted arbitrary Miniscript and rendered it through a
+    generic recursive AST-to-English summary. Reviewers correctly flagged
+    that as unsafe: a raw nested boolean expression forces the user to
+    mentally track parenthesization to know which conditions actually apply
+    together, and that gets unreadable fast on a 240x240 screen -- exactly
+    the class of footgun SeedSigner's UI otherwise goes out of its way to
+    avoid. See discussion on seedsigner#306 and PR #1026.
+
+    So Miniscript support here is template-gated, not general: only the one
+    specific shape recognized by `match_liana_recovery_policy()` --
+    "spendable now by a primary key, or by a recovery key after a relative
+    timelock" -- gets accepted, and it is displayed through curated,
+    structured fields (see `LianaRecoveryDescriptorView`/`Screen`), never as
+    raw or generically-rendered policy text. Anything else -- thresh(),
+    multi() inside wsh() Miniscript, additional OR branches, a different
+    wrapper shape -- is rejected here exactly like it always has been,
+    falling through to `NotYetImplementedView`.
+
+    Taproot is accepted only for a plain key-path-only spend (no hidden
+    script-path leaves at all -- trivially just "one key", nothing to
+    misread) or for the same curated recovery shape via its single hidden
+    leaf. Any other taproot script-path structure is rejected for the same
+    reason as above.
+
+    Basic multisig is unaffected and unrelated to this gate; it is not
+    Miniscript and was already curated (m-of-n, cosigner fingerprints) before
+    any of this.
+
+    A bare single-key descriptor (wpkh()/pkh(), no miniscript, no taproot
+    script path) is intentionally excluded -- that's a plain single-sig import,
+    a separate unimplemented case (see the TODO this replaces in ScanView).
+    """
+    if descriptor.is_basic_multisig:
+        return True
+    if descriptor.is_taproot:
+        # Key-path-only (no hidden leaves at all) is just a single key --
+        # nothing to misread, safe to accept generically.
+        if not _flatten_taptree_leaves(descriptor.taptree):
+            return True
+        return match_liana_recovery_policy(descriptor) is not None
+    if descriptor.is_segwit and descriptor.miniscript is not None:
+        return match_liana_recovery_policy(descriptor) is not None
+    return False
+
+
+
+def _describe_key(key: Key) -> str:
+    # TRANSLATOR_NOTE: identifies a signing key by its 4-byte master fingerprint, e.g. "key 73C5DA0A"
+    return _("key {fingerprint}").format(fingerprint=key.fingerprint.hex().upper())
+
+
+
+def _describe_miniscript_node(node) -> str:
+    """
+    Recursively render a parsed Miniscript fragment (or a bare Key/KeyHash leaf)
+    as plain English. Driven by each fragment's own `NAME` (embit's
+    `OPERATOR_NAMES`, i.e. the exact descriptor keyword: "older", "and_v",
+    "thresh", etc.) rather than a fixed set of isinstance checks, so this stays
+    correct if embit adds fragments we haven't special-cased below -- those
+    fall through to the raw-text fallback at the end instead of being silently
+    misdescribed or dropped.
+    """
+    if isinstance(node, (Key, KeyHash)):
+        return _describe_key(node)
+
+    if isinstance(node, Wrapper):
+        # Wrappers (a: s: c: t: d: v: j: n: l: u:) change stack/verify mechanics,
+        # not *who* can spend -- describe the wrapped fragment directly.
+        return _describe_miniscript_node(node.arg)
+
+    name = getattr(node, "NAME", None)
+
+    if name == "older":
+        # TRANSLATOR_NOTE: {n} is a number of blocks (relative timelock, OP_CHECKSEQUENCEVERIFY)
+        return _("after {n} blocks").format(n=node.arg.num)
+
+    if name == "after":
+        # TRANSLATOR_NOTE: {n} is a block height (absolute timelock, OP_CHECKLOCKTIMEVERIFY)
+        return _("after block height {n}").format(n=node.arg.num)
+
+    if name in ("sha256", "hash256", "ripemd160", "hash160"):
+        # TRANSLATOR_NOTE: {name} is a hash function name, e.g. "sha256"
+        return _("a {name} preimage").format(name=name)
+
+    if name == "andor":
+        x, y, z = node.args
+        # TRANSLATOR_NOTE: describes miniscript's andor(X,Y,Z): if X then Y, else Z
+        return _("if ({x}) then ({y}) else ({z})").format(
+            x=_describe_miniscript_node(x),
+            y=_describe_miniscript_node(y),
+            z=_describe_miniscript_node(z),
+        )
+
+    if name in ("and_v", "and_b", "and_n"):
+        x, y = node.args[0], node.args[1]
+        # TRANSLATOR_NOTE: describes an AND condition between two spending requirements
+        return _("({x}) and ({y})").format(x=_describe_miniscript_node(x), y=_describe_miniscript_node(y))
+
+    if name in ("or_b", "or_c", "or_d", "or_i"):
+        x, y = node.args[0], node.args[1]
+        # TRANSLATOR_NOTE: describes an OR condition between two spending requirements
+        return _("({x}) or ({y})").format(x=_describe_miniscript_node(x), y=_describe_miniscript_node(y))
+
+    if name == "thresh":
+        k = node.args[0].num
+        subs = [_describe_miniscript_node(a) for a in node.args[1:]]
+        # TRANSLATOR_NOTE: {k} of the following {subs} conditions must be satisfied
+        return _("{k} of: [{subs}]").format(k=k, subs="; ".join(subs))
+
+    if name in ("multi", "sortedmulti", "multi_a", "sortedmulti_a"):
+        k = node.args[0].num
+        keys = [_describe_key(a) for a in node.args[1:]]
+        # TRANSLATOR_NOTE: a k-of-n multisig; {keys} is a list of key descriptions
+        return _("{k} of {n} keys: [{keys}]").format(k=k, n=len(keys), keys=", ".join(keys))
+
+    if name in ("pk", "pk_k", "pkh", "pk_h"):
+        # arg is already a Key or KeyHash; recurse to hit the isinstance branch above
+        return _describe_miniscript_node(node.arg)
+
+    if type(node).__name__ == "JustZero":
+        # TRANSLATOR_NOTE: an unspendable/always-false miniscript fragment
+        return _("(unspendable)")
+
+    if type(node).__name__ == "JustOne":
+        # TRANSLATOR_NOTE: an always-true/no-condition miniscript fragment
+        return _("(no condition)")
+
+    # Unknown/future fragment: never silently drop or misdescribe it -- show
+    # its raw descriptor text so an unsupported case is visibly incomplete
+    # rather than confidently wrong.
+    return str(node)
+
+
+
+def _flatten_taptree_leaves(taptree: TapTree) -> list:
+    """Return every TapLeaf in a (possibly nested) TapTree, in no particular order.
+
+    A TapTree's `.tree` is None, a single TapLeaf, or a 2-tuple of TapTree
+    branches (see embit.descriptor.taptree.TapTree.read_from) -- this walks
+    that structure regardless of depth/shape.
+    """
+    if taptree is None or taptree.tree is None:
+        return []
+    if isinstance(taptree.tree, TapLeaf):
+        return [taptree.tree]
+    left, right = taptree.tree
+    return _flatten_taptree_leaves(left) + _flatten_taptree_leaves(right)
+
+
+
+class LianaRecoveryPolicy:
+    """
+    Fields extracted from a descriptor matching the curated Miniscript shape
+    this build supports. See `match_liana_recovery_policy()`.
+
+    Both spending paths are represented uniformly as a threshold over a list
+    of keys, so a single key is simply 1-of-1. Callers that want to know
+    whether a path is single-key should test `len(keys) == 1` rather than
+    branching on a separate flag.
+    """
+    __slots__ = (
+        "primary_threshold", "primary_keys",
+        "recovery_threshold", "recovery_keys",
+        "timelock_blocks",
+    )
+
+    def __init__(self, primary_threshold: int, primary_keys: list,
+                 recovery_threshold: int, recovery_keys: list,
+                 timelock_blocks: int):
+        self.primary_threshold = primary_threshold
+        self.primary_keys = primary_keys        # list of Key
+        self.recovery_threshold = recovery_threshold
+        self.recovery_keys = recovery_keys      # list of Key / KeyHash
+        self.timelock_blocks = timelock_blocks
+
+
+    @property
+    def primary_fingerprints(self) -> list:
+        return [k.fingerprint.hex() for k in self.primary_keys]
+
+
+    @property
+    def recovery_fingerprints(self) -> list:
+        return [k.fingerprint.hex() for k in self.recovery_keys]
+
+
+
+def _unwrap(node):
+    """Strip Miniscript wrapper layers (v:, s:, a:, ...) down to the fragment
+    they wrap. Wrappers change stack/verify mechanics, not the underlying
+    spending condition, so template matching should see through them."""
+    while isinstance(node, Wrapper):
+        node = node.arg
+    return node
+
+
+
+# Display-capacity limit for the curated policy screen, deliberately enforced
+# at match time so a policy this device cannot show in full is refused rather
+# than shown with half of it invisible.
+#
+# LianaRecoveryWalletScreen renders fingerprints two per line. Measured against
+# that screen at 240x240: 3 primary lines + 1 recovery line ends at 178px
+# against a button top of 200px, while one more line reaches 199-201px -- either
+# already clipped, or within a single pixel of it, leaving nothing for a longer
+# translated label. So four lines total across both paths is the honest ceiling.
+#
+# In practice this is not a real constraint on Liana wallets: it permits up to a
+# 5-key primary path alongside a 2-key recovery path (or 4 and 4), well beyond
+# the 2-of-3 and 3-of-5 setups that dominate actual use.
+MAX_POLICY_FINGERPRINT_LINES = 4
+_FINGERPRINTS_PER_LINE = 2
+
+
+
+def _flatten_and_v_keys(node):
+    """
+    Flatten a chain of `and_v` whose leaves are all plain keys into that list
+    of keys, or return None if any leaf is something else.
+
+    An n-of-n path compiles to nested and_v rather than multi(n,...) because
+    chaining is cheaper in script bytes, so
+    `and_v(v:and_v(v:pk(A),pk(B)),pk(C))` is how "all three of A, B and C must
+    sign" actually arrives. Confirmed against a real Liana 3-of-3 export.
+
+    Only and_v nodes and key leaves are accepted. A timelock, hash preimage or
+    any other condition inside the chain means this is not a pure key quorum,
+    and the caller must not describe it as one.
+    """
+    node = _unwrap(node)
+    name = getattr(node, "NAME", None)
+
+    if name in ("pk", "pkh"):
+        return [node.arg]
+
+    if name == "and_v":
+        keys = []
+        for arg in node.args:
+            sub = _flatten_and_v_keys(arg)
+            if sub is None:
+                return None
+            keys.extend(sub)
+        return keys
+
+    return None
+
+
+
+def _match_key_group(node):
+    """
+    Match a spending path that is "k of these n keys", returning
+    (threshold, [keys]) or None.
+
+    Accepts the shapes Liana emits, verified against descriptor vectors in
+    Liana's own test suite (liana-gui/src/app/state/{receive,psbt}.rs) plus a
+    real 3-of-3 export from the GUI:
+
+      pk(K) / pkh(K)                       -> (1, [K])
+      multi(k, A, B, ...)                  -> (k, [A, B, ...])
+      thresh(k, pkh(A), a:pkh(B), ...)     -> (k, [A, B, ...])
+      and_v(v:and_v(v:pk(A),pk(B)),pk(C))  -> (3, [A, B, C])   (n-of-n)
+
+    Liana uses `multi()` for a multi-key primary path but `thresh()` with
+    `a:` wrappers for a multi-key recovery path (the recovery branch sits
+    under and_v and needs different miniscript type properties), so both have
+    to be handled rather than assuming one form. An n-of-n path is different
+    again: it compiles to a nested and_v chain, since that is cheaper than
+    multi(n,...) when every key is required.
+
+    Returns None for anything else -- including `thresh()` whose arguments are
+    not all plain single keys, since a nested condition inside one leg is
+    exactly the kind of structure this curated display cannot represent
+    honestly.
+    """
+    node = _unwrap(node)
+    name = getattr(node, "NAME", None)
+
+    if name in ("pk", "pkh"):
+        return (1, [node.arg])
+
+    if name in ("multi", "sortedmulti"):
+        return (node.args[0].num, list(node.args[1:]))
+
+    if name == "thresh":
+        keys = []
+        for leg in node.args[1:]:
+            leg = _unwrap(leg)
+            if getattr(leg, "NAME", None) not in ("pk", "pkh"):
+                return None
+            keys.append(leg.arg)
+        return (node.args[0].num, keys)
+
+    if name == "and_v":
+        # n-of-n: every key in the chain is required, so threshold == count.
+        keys = _flatten_and_v_keys(node)
+        if keys is None or len(keys) < 2:
+            return None
+        return (len(keys), keys)
+
+    return None
+
+
+
+def _match_timelocked_branch(node):
+    """
+    Match `and_v(v:<key group>, older(N))` -- a spending path gated behind a
+    relative, block-based timelock. Returns ((threshold, keys), blocks), or
+    None if this isn't that shape.
+
+    The timelock is located by inspecting both arguments rather than assuming
+    which side it sits on, and the other argument must be a pure key group.
+    That last requirement is what rejects a multi-tier recovery policy: in
+    `or_i(and_v(v:pkh(A),older(N)), and_v(v:pkh(B),older(M)))` each branch
+    looks timelocked, but treating one as the "primary" path would require
+    describing a timelocked branch as spendable now, so no match is returned.
+    """
+    node = _unwrap(node)
+    if getattr(node, "NAME", None) != "and_v" or len(node.args) != 2:
+        return None
+
+    for key_side, lock_side in ((node.args[0], node.args[1]),
+                                (node.args[1], node.args[0])):
+        lock = _unwrap(lock_side)
+        if getattr(lock, "NAME", None) != "older":
+            continue
+
+        raw = lock.arg.num
+        if raw & 0x00400000:
+            # BIP68 type-flag bit set: time-based (512-second units), not blocks.
+            return None
+
+        group = _match_key_group(key_side)
+        if group is None:
+            return None
+
+        return (group, raw & 0x0000FFFF)
+
+    return None
+
+
+
+def match_liana_recovery_policy(descriptor: Descriptor):
+    """
+    Recognizes one curated Miniscript shape: spendable now by a key or
+    key-quorum, or by a recovery key or key-quorum after a relative
+    (block-based) timelock. This is Liana's inheritance wallet policy, and the
+    only Miniscript shape this build displays with curated fields rather than
+    generic policy text (see `is_supported_wallet_descriptor()`).
+
+        wsh():  or_d(<primary>, and_v(v:<recovery>, older(N)))
+                or_i(and_v(v:<recovery>, older(N)), <primary>)
+        tr():   primary is the key-path (internal) key; the single hidden
+                script-path leaf is and_v(v:<recovery>, older(N))
+
+    Both `or_d` and `or_i` appear because the miniscript compiler's choice
+    depends on the primary path. `or_d(X,Z)` requires X to be dissatisfiable,
+    which an n-of-n `and_v` chain is not, so an all-keys-required primary
+    compiles to `or_i` instead -- and with the branches in the opposite order.
+    Confirmed against a real Liana 3-of-3 export. Rather than encode that as
+    two positional cases, the branch carrying the timelock is identified by
+    inspection and the other is taken as the primary.
+
+    Either path may be a single key, a k-of-n quorum, or an n-of-n; see
+    `_match_key_group()` for the accepted forms. A 2-of-3 primary with a
+    single-key timelocked recovery is Liana's most common real-world
+    configuration, so it is supported rather than treated as an edge case.
+
+    Returns a `LianaRecoveryPolicy`, or `None` if the descriptor is anything
+    else -- including this exact shape but with a BIP68 *time-based* (rather
+    than block-based) timelock encoding. Liana has never been observed to
+    produce that encoding (every real descriptor and confirmed on-chain spend
+    used in this PR's own hardware testing used plain block counts), so it is
+    deliberately left unrecognized rather than assumed equivalent to blocks.
+
+    Structural match only -- this does not verify the keys are ours or derive
+    anything. That happens downstream (PSBTParser, verify_multisig_output())
+    exactly as it does for basic multisig.
+    """
+    if descriptor.is_basic_multisig:
+        return None
+
+    if descriptor.is_taproot:
+        leaves = _flatten_taptree_leaves(descriptor.taptree)
+        if len(leaves) != 1:
+            return None
+        if descriptor.key is None:
+            return None
+        # Taproot's key-path spend is inherently a single key.
+        primary_group = (1, [descriptor.key])
+        recovery = _match_timelocked_branch(leaves[0].miniscript)
+        if recovery is None:
+            return None
+        recovery_group, timelock_blocks = recovery
+
+    elif descriptor.is_segwit and descriptor.miniscript is not None:
+        top = _unwrap(descriptor.miniscript)
+        if getattr(top, "NAME", None) not in ("or_d", "or_i"):
+            return None
+        if len(top.args) != 2:
+            return None
+
+        # Which branch is which depends on the operator, so identify the
+        # timelocked one instead of assuming a position.
+        for primary_node, recovery_node in ((top.args[0], top.args[1]),
+                                            (top.args[1], top.args[0])):
+            recovery = _match_timelocked_branch(recovery_node)
+            if recovery is None:
+                continue
+            primary_group = _match_key_group(primary_node)
+            if primary_group is None:
+                continue
+            recovery_group, timelock_blocks = recovery
+            break
+        else:
+            return None
+
+    else:
+        return None
+
+    primary_threshold, primary_keys = primary_group
+    recovery_threshold, recovery_keys = recovery_group
+
+    # A threshold that cannot be satisfied, or one the display would describe
+    # incorrectly, means this isn't a shape we can present honestly.
+    if not 1 <= primary_threshold <= len(primary_keys):
+        return None
+    if not 1 <= recovery_threshold <= len(recovery_keys):
+        return None
+
+    # Too many keys to fit on the curated screen. Refusing here (which routes
+    # to NotYetImplementedView) is the safe outcome: the alternative is a
+    # screen whose recovery section is pushed under the buttons and silently
+    # invisible, hiding the timelocked path entirely -- strictly worse than
+    # declining to display the wallet at all.
+    def _lines(keys):
+        return -(-len(keys) // _FINGERPRINTS_PER_LINE)  # ceil division
+
+    if _lines(primary_keys) + _lines(recovery_keys) > MAX_POLICY_FINGERPRINT_LINES:
+        return None
+
+    return LianaRecoveryPolicy(
+        primary_threshold=primary_threshold,
+        primary_keys=primary_keys,
+        recovery_threshold=recovery_threshold,
+        recovery_keys=recovery_keys,
+        timelock_blocks=timelock_blocks,
+    )
+
+
+
+def get_descriptor_policy_summary(descriptor: Descriptor, max_length: int = 180) -> str:
+    """
+    Short plain-English summary of a descriptor's spending policy, for screens
+    that label a wallet in one line (e.g. Address Explorer's "Wallet
+    descriptor" field).
+
+    A descriptor matching the curated recovery template gets a fixed short
+    name rather than a rendering of its policy expression. That is the whole
+    point: a nested "(key A) or ((key B) and (after N blocks))" string does
+    not fit these one-line fields, and line-wrapping it would not help -- the
+    user would still have to parse parenthesization to understand it, which
+    is what makes it unsafe to show (seedsigner#306, PR #1026). Details of
+    the policy belong on the curated review screen
+    (LianaRecoveryWalletScreen), which presents them as labeled fields.
+
+    Handled here rather than at the call sites so that no current or future
+    caller can reintroduce the raw expression by accident.
+
+    Correctness requirement: a taproot descriptor with a hidden script-path
+    recovery leaf must never be summarized as plain single-key/single-signature.
+    This is structural, not case-by-case -- the taproot branch below always
+    enumerates every leaf found by `_flatten_taptree_leaves()` if any exist,
+    regardless of whether each leaf's contents can be perfectly described (an
+    unrecognized leaf fragment still shows up as raw text via
+    `_describe_miniscript_node()`'s fallback, it's just never omitted).
+    """
+    if match_liana_recovery_policy(descriptor) is not None:
+        # TRANSLATOR_NOTE: Short name for a wallet that can be spent now by one key, or by a recovery key after a timelock
+        return _("Recovery wallet")
+
+    if descriptor.is_basic_multisig:
+        threshold, n = get_multisig_policy(descriptor)
+        # TRANSLATOR_NOTE: Multisig policy. For a "2 of 3" policy, "threshold" = 2; "n" = 3
+        summary = _("{threshold} of {n} multisig").format(threshold=threshold, n=n)
+
+    elif descriptor.is_taproot:
+        parts = [_describe_miniscript_node(descriptor.key)]
+        leaves = _flatten_taptree_leaves(descriptor.taptree)
+        if leaves:
+            leaf_descriptions = [_describe_miniscript_node(leaf.miniscript) for leaf in leaves]
+            # TRANSLATOR_NOTE: {key} is the taproot key-path spending key; {leaves} lists hidden alternate spending paths
+            summary = _("Taproot: key-path ({key}); script-path: {leaves}").format(
+                key=parts[0], leaves="; ".join(leaf_descriptions)
+            )
+        else:
+            # TRANSLATOR_NOTE: a taproot descriptor with no hidden script paths at all -- key-path spend only
+            summary = _("Taproot: key-path only ({key})").format(key=parts[0])
+
+    elif descriptor.miniscript is not None:
+        summary = _describe_miniscript_node(descriptor.miniscript)
+
+    elif descriptor.key is not None:
+        # Bare single key (e.g. wpkh()/pkh()); describe safely rather than
+        # raising if a caller ever routes one here.
+        summary = _describe_miniscript_node(descriptor.key)
+
+    else:
+        raise ValueError(f"Unable to summarize descriptor policy: {descriptor}")
+
+    if len(summary) > max_length:
+        summary = summary[: max_length - 1].rstrip() + "…"  # ellipsis
+    return summary
 
 
 

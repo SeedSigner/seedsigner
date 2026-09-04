@@ -626,12 +626,8 @@ class ToolsAddressExplorerAddressTypeView(View):
 
         wallet_descriptor_display_name = None
         if "wallet_descriptor" in data:
-            from seedsigner.helpers.embit_utils import get_multisig_policy
-            threshold, n = get_multisig_policy(data["wallet_descriptor"])
-            # TRANSLATOR_NOTE: Multisig policy. For a "2 / 3 multisig" policy, "threshold" = 2; "n" = 3
-            wallet_descriptor_display_name = _("{threshold} / {n} multisig").format(
-                threshold=threshold, n=n
-            )
+            from seedsigner.helpers.embit_utils import get_descriptor_policy_summary
+            wallet_descriptor_display_name = get_descriptor_policy_summary(data["wallet_descriptor"])
 
         script_type = data["script_type"] if "script_type" in data else None
 
@@ -714,14 +710,20 @@ class ToolsAddressExplorerAddressListView(View):
                 elif "wallet_descriptor" in data:
                     from embit.descriptor import Descriptor
                     descriptor: Descriptor = data["wallet_descriptor"]
-                    if descriptor.is_basic_multisig:
+                    if embit_utils.can_derive_multisig_address(descriptor):
                         for i in range(self.start_index, self.start_index + addrs_per_screen):
                             address = embit_utils.get_multisig_address(descriptor=descriptor, index=i, is_change=self.is_change, embit_network=data["embit_network"])
                             addresses.append(address)
                             data[addr_storage_key].append(address)
 
                     else:
-                        raise Exception(_("Single sig descriptors not yet supported"))
+                        # Currently unreachable: every descriptor accepted by
+                        # is_supported_wallet_descriptor() (basic multisig, wsh()
+                        # Miniscript, or taproot) also satisfies
+                        # can_derive_multisig_address(). Kept as a safety net in
+                        # case a future descriptor type is registered without
+                        # address derivation support for it.
+                        raise Exception(_("Address explorer not yet supported for this descriptor type"))
             finally:
                 # Everything is set. Stop the loading screen
                 self.loading_screen.stop()

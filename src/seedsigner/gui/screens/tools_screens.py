@@ -626,6 +626,10 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
                 label_text=_("Wallet descriptor"),
                 value_text=self.wallet_descriptor_display_name,
                 is_text_centered=True,
+                # Without this, a summary longer than the screen width is
+                # silently clipped mid-word at the edge rather than wrapped,
+                # hiding the tail of the description entirely.
+                auto_line_break=True,
                 screen_x=GUIConstants.EDGE_PADDING,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
             ))

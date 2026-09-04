@@ -2057,11 +2057,9 @@ class MultisigWalletDescriptorView(View):
         for key in descriptor.keys:
             fingerprint = hexlify(key.fingerprint).decode()
             fingerprints.append(fingerprint)
-        
-        from seedsigner.helpers.embit_utils import get_multisig_policy
-        threshold, n = get_multisig_policy(descriptor)
-        # TRANSLATOR_NOTE: Multisig policy. For a "2 of 3" policy, "threshold" = 2; "n" = 3
-        policy = _("{threshold} of {n}").format(threshold=threshold, n=n)
+
+        from seedsigner.helpers.embit_utils import get_descriptor_policy_summary, match_liana_recovery_policy
+        recovery_policy = match_liana_recovery_policy(descriptor)
 
         button_data = [self.OK]
         if self.controller.resume_main_flow:
@@ -2074,12 +2072,23 @@ class MultisigWalletDescriptorView(View):
             elif self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
                 button_data = [self.ADDRESS_EXPLORER]
 
-        selected_menu_num = self.run_screen(
-            seed_screens.MultisigWalletDescriptorScreen,
-            policy=policy,
-            fingerprints=fingerprints,
-            button_data=button_data,
-        )
+        if recovery_policy is not None:
+            selected_menu_num = self.run_screen(
+                seed_screens.LianaRecoveryWalletScreen,
+                primary_threshold=recovery_policy.primary_threshold,
+                primary_fingerprints=recovery_policy.primary_fingerprints,
+                recovery_threshold=recovery_policy.recovery_threshold,
+                recovery_fingerprints=recovery_policy.recovery_fingerprints,
+                timelock_blocks=recovery_policy.timelock_blocks,
+                button_data=button_data,
+            )
+        else:
+            selected_menu_num = self.run_screen(
+                seed_screens.MultisigWalletDescriptorScreen,
+                policy=get_descriptor_policy_summary(descriptor),
+                fingerprints=fingerprints,
+                button_data=button_data,
+            )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
             self.controller.multisig_wallet_descriptor = None

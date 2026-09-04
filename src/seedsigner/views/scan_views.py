@@ -122,10 +122,26 @@ class ScanView(View):
 
                 descriptor = Descriptor.from_string(descriptor_str)
 
-                if not descriptor.is_basic_multisig:
+                from seedsigner.helpers.embit_utils import is_supported_wallet_descriptor, match_liana_recovery_policy
+                if not is_supported_wallet_descriptor(descriptor):
+                    # Bare single-key descriptor (wpkh()/pkh()); a real wallet
+                    # descriptor, just not one we have a registration flow for yet.
                     # TODO: Handle single-sig descriptors?
                     logger.info(f"Received single sig descriptor: {descriptor}")
                     return Destination(NotYetImplementedView)
+
+                # Miniscript is opt-in (Settings > Advanced > Miniscript wallets,
+                # disabled by default): unlike basic multisig, curated as this
+                # display now is, it's still a materially different and newer
+                # code path -- gating it behind an explicit setting means a user
+                # who never opted in can't be routed here by a QR they weren't
+                # expecting, e.g. one crafted by a compromised or buggy
+                # coordinator. Basic multisig and key-path-only taproot are
+                # long-established and unaffected by this gate.
+                if match_liana_recovery_policy(descriptor) is not None:
+                    if self.settings.get_value(SettingsConstants.SETTING__MINISCRIPT) == SettingsConstants.OPTION__DISABLED:
+                        from seedsigner.views.view import OptionDisabledView
+                        return Destination(OptionDisabledView, view_args=dict(settings_attr=SettingsConstants.SETTING__MINISCRIPT))
 
                 self.controller.multisig_wallet_descriptor = descriptor
                 return Destination(MultisigWalletDescriptorView, skip_current_view=True)

@@ -128,3 +128,35 @@ def test_compact_seedqr_bytes_interpretable_as_str():
         entropy_bytes.decode()  # should not raise an exception
         mnemonic_length = 12 if len(entropy_bytes) == 16 else 24
         run_encode_decode_test(entropy_bytes, mnemonic_length=mnemonic_length, qr_type=QRType.SEED__COMPACTSEEDQR)
+
+
+def test_compact_seedqr_not_misdetected_as_wallet_descriptor():
+    """
+    A variant of the #656 class of bug above, specific to wallet-descriptor QR
+    detection: detect_segment_type()'s wallet-descriptor check matches on a short
+    prefix (as little as "tr(", 3 bytes) against the same speculatively-decoded
+    string tested above. If a Compact SeedQR's raw entropy happens to both survive
+    that decode *and* start with one of those prefixes, it would be misclassified
+    as QRType.WALLET__GENERIC instead of QRType.SEED__COMPACTSEEDQR.
+
+    Unlike the #656 vectors above (chosen only to decode without raising), these are
+    deliberately crafted to also match the wallet-descriptor prefix pattern, since
+    that's the specific additional condition needed to trigger this variant.
+
+    Note: this is a constructed case, not one observed in the wild -- the odds of
+    real entropy hitting it are low. It's tested because the prefix match replaced
+    a much longer `"sortedmulti"` substring check, which made the collision
+    negligible; these prefixes do not.
+    """
+    prefixes = [b"sh(", b"wsh(", b"tr(", b"pkh(", b"wpkh(", b"combo("]
+
+    for prefix in prefixes:
+        # 24-word (32-byte) entropy
+        entropy = (prefix + bytes(32))[:32]
+        entropy.decode()  # should not raise -- confirms this exercises the real risk
+        run_encode_decode_test(entropy, mnemonic_length=24, qr_type=QRType.SEED__COMPACTSEEDQR)
+
+        # 12-word (16-byte) entropy
+        entropy = (prefix + bytes(16))[:16]
+        entropy.decode()
+        run_encode_decode_test(entropy, mnemonic_length=12, qr_type=QRType.SEED__COMPACTSEEDQR)

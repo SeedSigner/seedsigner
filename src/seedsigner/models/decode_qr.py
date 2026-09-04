@@ -379,8 +379,36 @@ class DecodeQR:
             elif "multisig setup file" in s.lower():
                 return QRType.WALLET__CONFIGFILE
 
-            elif "sortedmulti" in s:
-                return QRType.WALLET__GENERIC
+            elif re.search(r'^(sh|wsh|tr|pkh|wpkh|combo)\(', desc_str):
+                # Any output descriptor, identified by its top-level script type
+                # rather than by looking for `sortedmulti` specifically -- this
+                # also admits general Miniscript policies (e.g. Liana's
+                # `wsh(or_d(pk(...),and_v(...)))`) and `tr()` descriptors.
+                #
+                # Matching on the prefix alone would be risky: it's as short as
+                # "tr(" (3 bytes), and this function speculatively treats all
+                # scanned data as text, including binary formats that were never
+                # meant to be strings (CompactSeedQR's raw 16/32-byte entropy is
+                # checked further below, by byte length). Random entropy that
+                # happens to both survive the str conversion and begin with a
+                # matching prefix would be misclassified as a descriptor. The old
+                # `"sortedmulti" in s` check was long enough that this was
+                # negligible; these prefixes are not.
+                #
+                # GenericWalletQrDecoder validates via Descriptor.from_string()
+                # too, but that runs too late to help -- by then this function has
+                # already committed to a QR type, with no path back to the seed
+                # checks below. So validate here, checksum and all, before
+                # committing to the classification.
+                from embit.descriptor import Descriptor
+                try:
+                    Descriptor.from_string(desc_str)
+                    return QRType.WALLET__GENERIC
+                except Exception:
+                    # Falls through to the seed/other checks below, e.g. a
+                    # CompactSeedQR whose entropy just happened to look like
+                    # the start of a descriptor once mis-decoded as UTF-8.
+                    pass
 
             # Seed
             if re.search(r'\d{48,96}', s):
