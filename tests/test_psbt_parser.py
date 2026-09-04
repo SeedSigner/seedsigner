@@ -338,6 +338,70 @@ class TestPSBTParser:
                     assert psbt_parser.verify_multisig_output(descriptor, change_num=1) == False
 
 
+    def test_parse_outputs_trailing_sc_data_check(self):
+        """
+        Regression pin for the duplicate `if sc.data` check at the end of
+        _parse_outputs() in psbt_parser.py (the check that follows the
+        `elif "p2tr"` branch).
+
+        _parse_outputs() builds `sc` inside an if/elif chain, but that chain
+        contains `is_change = True` only inside the `pkh` and `p2tr` branches.
+        For multisig types — p2wsh, p2sh-p2wsh, and legacy p2sh — `sc` is set
+        inside the branch but `is_change` is never assigned there. The trailing
+        unconditional check:
+
+            if sc.data == self.psbt.tx.vout[i].script_pubkey.data:
+                is_change = True
+
+        is the sole path through which multisig outputs are ever classified as
+        change. Removing it would silently break multisig change detection for
+        all three script types.
+
+        For single-sig types (pkh, p2tr), `is_change` is already set inside
+        the elif branch. The trailing check fires again and arrives at the same
+        result — a redundant double evaluation that is benign today but
+        misleading during refactoring.
+
+        Current behaviour pinned here:
+        - multisig: num_change_outputs == 1 via the trailing check only
+        - single-sig: num_change_outputs == 1 via the inner check (trailing
+          check redundantly confirms the same result)
+
+        Correct post-fix behaviour: restructure _parse_outputs() as a unified
+        if/elif chain where every branch both sets `sc` and evaluates
+        `is_change`, then removes the trailing check entirely. This test must
+        continue to pass after such a refactor.
+        """
+        cases = [
+            # multisig — trailing check is the ONLY is_change path
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT,   PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+            # single-sig — inner branch sets is_change; trailing check fires redundantly
+            (PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.SINGLE_SIG_TAPROOT_1_INPUT,        PSBTTestData.SINGLE_SIG_TAPROOT_CHANGE),
+            (PSBTTestData.SINGLE_SIG_LEGACY_P2PKH_1_INPUT,  PSBTTestData.SINGLE_SIG_LEGACY_P2PKH_CHANGE),
+        ]
+
+        fee_amount = 5_000
+        for psbt_base64, change_hex in cases:
+            psbt: PSBT = PSBT.parse(a2b_base64(psbt_base64))
+            input_amount = sum(inp.utxo.value for inp in psbt.inputs)
+            psbt.outputs.append(create_output(change_hex, input_amount - fee_amount))
+
+            psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
+
+            # Change output must be detected for every script type
+            assert psbt_parser.num_change_outputs == 1
+            # No external recipients — the only output is back to this wallet
+            assert psbt_parser.num_destinations == 0
+            assert psbt_parser.spend_amount == 0
+            assert psbt_parser.change_amount == input_amount - fee_amount
+            assert psbt_parser.fee_amount == fee_amount
+            assert psbt_parser.input_amount == psbt_parser.change_amount + psbt_parser.fee_amount
+
+
 
 # TODO: Refactor all tests to be in the TestPSBTParser class(?)
 def test_p2tr_change_detection():
