@@ -5,10 +5,10 @@ import time
 from gettext import gettext as _
 
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants, resize_image_to_fill
-from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
+from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen, seed_screens
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.helpers import mnemonic_generation
-from seedsigner.models.seed import Seed
+from seedsigner.models.seed import BIP85ChildSeed, Seed
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
 
@@ -514,8 +514,11 @@ class ToolsAddressExplorerSelectSourceView(View):
         seeds = self.controller.storage.seeds
         button_data = []
         for seed in seeds:
-            button_str = seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK))
-            button_data.append(ButtonOption(button_str, SeedSignerIconConstants.FINGERPRINT))
+            button_data.append(seed_screens.SeedButtonOption(
+                button_label=seed.get_fingerprint(self.settings.get_value(SettingsConstants.SETTING__NETWORK)),
+                child_index=seed.child_index if isinstance(seed, BIP85ChildSeed) else None,
+            ))
+
         button_data = button_data + [self.SCAN_SEED, self.SCAN_DESCRIPTOR, self.TYPE_12WORD, self.TYPE_24WORD]
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
