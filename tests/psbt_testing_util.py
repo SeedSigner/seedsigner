@@ -1,8 +1,9 @@
 from binascii import a2b_base64, unhexlify
 from io import BytesIO
 
-from embit import bip32
+from embit import bip32, script
 from embit.ec import PublicKey
+from embit.hashes import tagged_hash
 from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath, InputScope, OutputScope
 
@@ -26,6 +27,41 @@ class PSBTTestData:
     MULTISIG_NATIVE_SEGWIT_1_INPUT   = "cHNidP8BADMCAAAAAbaPcIOkYKEWkbJpYrT/gbRQYzJ6CSFOJ5eeewflO6jJAAAAAAD9////AHAAAABPAQQ1h88EmoSnUYAAAAIQMkp0H2fIDDprJUDbKzC/+HxUkXMORn4E1dW9s6YYUQLOMo4uvEoFnOcNGcjrzHnZ64ZXsv22WoU7UMUfhSn2NxQPuIL/MAAAgAEAAIAAAACAAgAAgE8BBDWHzwRA+hbPgAAAAtCjPoabT6mduHms6sD7+rUniNXoDSlZvjkiYJpUC65FAqCWpcb6ZLoEcloJpk7vLpNRwwuOFNYyRAvzm28odTsIFAPNCiswAACAAQAAgAAAAIACAACATwEENYfPBMtS+WKAAAACIN1+5Cw5eeTBSKSY3g/NXrRBfXXDPEROQpFRHlmMlIECm0FA2Wj3AxUKxq9C1G9QJ2Ar5TvlMy3/VPUkfQS1HJ4UD4iQRDAAAIABAACAAAAAgAIAAIAAAQCJAgAAAAF1X+6fnEE2Mfa3mgKXygqWGWw2qQb3t1I4fdYJ3cIFowAAAAAA/f///wIA4fUFAAAAACIAIMpj8X3shRYalzfqac0USxW9AqloiW42GgwJjS3jLvSVWxAQJAEAAAAiUSBXg7Hc/rsd/34P6AqwBEDsuXzW+aNgcOsTxa+zGiHOXmsAAAABASsA4fUFAAAAACIAIMpj8X3shRYalzfqac0USxW9AqloiW42GgwJjS3jLvSVAQMEAQAAAAEFaVIhAlnU4yc1877LybCWrJke1kaZFO7WCoP2vDyEog2ERtyfIQKyV23E2SQWvjjaPhSNsRbfaZpPrORdY1Tr73Hm0Ub4nyEDy3sMBTuWlna6t45bdHdl/NzROoKeDVDMwLcIObQE9ZVTriIGAlnU4yc1877LybCWrJke1kaZFO7WCoP2vDyEog2ERtyfHA+4gv8wAACAAQAAgAAAAIACAACAAAAAAAAAAAAiBgKyV23E2SQWvjjaPhSNsRbfaZpPrORdY1Tr73Hm0Ub4nxwDzQorMAAAgAEAAIAAAACAAgAAgAAAAAAAAAAAIgYDy3sMBTuWlna6t45bdHdl/NzROoKeDVDMwLcIObQE9ZUcD4iQRDAAAIABAACAAAAAgAIAAIAAAAAAAAAAAAA="
     MULTISIG_NESTED_SEGWIT_1_INPUT   = "cHNidP8BADMCAAAAAbtbjTfAfTR/t88dfkGmcZBz0l/uzrLuJEyf0WMHl94vAQAAAAD9////AHEAAABPAQQ1h88EmoSnUYAAAAF+MfPe6kyaEEX91G1HKwksGaixXN6RMBTxIcHKjNYYoQJBzkFqUsm3ttoRsGfx+CMj/77pmyyjitqjWZPG4d3RrxQPuIL/MAAAgAEAAIAAAACAAQAAgE8BBDWHzwRA+hbPgAAAAcRAG6PxSUPbFp8IvKVuNlIQn4W5TK1ceLGdKkxdSfktA8QjWNuOjADhspq0onHkGp117FftE91lAYTev8snQsNRFAPNCiswAACAAQAAgAAAAIABAACATwEENYfPBMtS+WKAAAAB6inmZ+P+TS/JJhI/Fog5q8Rx2Nik9EJVEugTuPSDcI4CbvN4qeJalXMOlJpoKnL9Y64icQtz01M9NG6SOhcG8uQUD4iQRDAAAIABAACAAAAAgAEAAIAAAQBzAgAAAAHCfPUdyeETNxf9pkzBP2oOUfgSISrrZi4uj0boKN2PeQEAAAAA/f///wKwqEIGAQAAABepFOV0lUEDO1EMcpnbm8u5gOS//denhwDh9QUAAAAAF6kUURslNGksU91RDOgpxCM7IQOoQaSHAAAAAAEBIADh9QUAAAAAF6kUURslNGksU91RDOgpxCM7IQOoQaSHAQMEAQAAAAEEIgAgDHlipQ8OV+Wko64bycNh+v4LfTW5d8cTv3T1n4XDS/sBBWlSIQIsxclipQM/Gs3kdO+Mlg1gbcMRf1ukSklJhhQ8iMXpSSEDjvwJUpUWl14h2ma/DH5VeAEhM9PxTz70b6lOAgDiWrshA8FwdXOWiPDUIOtV4aCz/ZxfLr9fwrpHQLCUeAtGctJiU64iBgOO/AlSlRaXXiHaZr8MflV4ASEz0/FPPvRvqU4CAOJauxwPuIL/MAAAgAEAAIAAAACAAQAAgAAAAAAAAAAAIgYCLMXJYqUDPxrN5HTvjJYNYG3DEX9bpEpJSYYUPIjF6UkcA80KKzAAAIABAACAAAAAgAEAAIAAAAAAAAAAACIGA8FwdXOWiPDUIOtV4aCz/ZxfLr9fwrpHQLCUeAtGctJiHA+IkEQwAACAAQAAgAAAAIABAACAAAAAAAAAAAAA"
     MULTISIG_LEGACY_P2SH_1_INPUT     = "cHNidP8BADMCAAAAAarS4QMzScnPvNBT2B1I3h80UrSoNuKd9vZkjSl7j2WKAQAAAAD9////AHQAAABPAQQ1h88BD7iC/4AAAC16oZcoUbg2ksYGYWMICvKISPS51jTZLJ3tu4schhGxcAJ/o4LdLxGZHyVDceUz5n6ZtABk9X6nBk3yz/f+eXxkpQgPuIL/LQAAgE8BBDWHzwEDzQorgAAALaD15sHGuMCJCZiW09JfCCZEKGcn9WtB395d/8vj/WC7Am982IdFkEBytDXikxzoeLV5q3kpHg+bfmsmj7ncr1lgCAPNCistAACATwEENYfPAQ+IkESAAAAtcUAwLhCloJPpswRwhGdyG3KP1kY0VAetU6FdAmNrqQoDKFgD/CXYCi5ZHqx4HImYJZtoxpjx60Ki7kvK4Ean8FkID4iQRC0AAIAAAQBzAgAAAAFOE/9Gl/ZpjWR8ioftAB2GPhLXScZ3TEa2tIJ+EDwmXQAAAAAA/f///wI+TSQYAQAAABepFE+Jek+WpV0vCjnVpkLqKfoiLvPAhwDh9QUAAAAAF6kUdHD4u+bbshVEAVKkqRQxu+KR8FKHaAAAAAEDBAEAAAABBGlSIQLUf/ihLNEohwIQiCxVNGmPROLzi8t9FnV6DmfCuEhXHCEDK1QlMflvscOGZmSDWJi90FPUQvNFTQUbkkRdowbR0RghA2T1w+njATChE10XcsbguMj0J5RIzJ5TVN7sbVckbzUWU64iBgLUf/ihLNEohwIQiCxVNGmPROLzi8t9FnV6DmfCuEhXHBAPuIL/LQAAgAAAAAAAAAAAIgYDZPXD6eMBMKETXRdyxuC4yPQnlEjMnlNU3uxtVyRvNRYQA80KKy0AAIAAAAAAAAAAACIGAytUJTH5b7HDhmZkg1iYvdBT1ELzRU0FG5JEXaMG0dEYEA+IkEQtAACAAAAAAAAAAAAA"
+
+    # Unlike the fixtures above, this is a complete psbt: its outputs are intact and it
+    # has its own wallet. Use it wherever a test needs more than one input, or needs
+    # inputs and change at known, differing address indices.
+    #
+    #   PSBT Tx and Wallet Details
+    #   - Single Sig Wallet P2WPKH (Native Segwit) with no passphrase
+    #   - Regtest 394aed14 m/84'/1'/0' tpubDC4rddHCzuinGFEKhiD8A3Ku5GRcNVAz3BitfwL4wn7zKPCya4i2CZLX8uoP8oCdC8VEe4jXb5u9ePCSrRA68YRSgBQra5YzBajyxKFDz4C
+    #   - 2 Inputs
+    #       - 56,522,834 sats at 1/6
+    #       - 1,990,245,069 sats at 1/0
+    #   - 4 Outputs
+    #       - 1 Output spend to another wallet: 123,456 sats to bcrt1q7cw0wzy8g6mq5qvkpvhnk5gsps5ncy3srp0n2j
+    #       - 3 Outputs change
+    #           - 1/7 address bcrt1q53j0xwuskuf5gnvynadh0hlazyy8srydlucrhg with amount 123,456 sats
+    #           - 1/8 address bcrt1q5gtw3zfp4cx67yk5q42q6j6rfza8aqcwpyyslv with amount 56,399,242 sats
+    #           - 1/9 address bcrt1q9rrg7399m43cn0yg4tz0v0ate89jgf2d6kpz7v with amount 1,990,121,477 sats
+    #       - Fee 272 sats
+    two_input_seed = Seed("goddess rough corn exclude cream trial fee trumpet million prevent gaze power".split())
+    SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS = "cHNidP8BANgCAAAAAsTXZs3fz/dmGb6M80+jjvJZdYya+cw5bT/dGuhZFdSlAAAAAAD9////qo6xg/UZAvUkcbse1F+C9zbP/FeZNjThx7SCIn6eMCgBAAAAAP3///8EQOIBAAAAAAAWABSkZPM7kLcTRE2En1t33/0RCHgMjQXYnnYAAAAAFgAUKMaPRKXdY4m8iKrE9j+rycskJU1A4gEAAAAAABYAFPYc9wiHRrYKAZYLLztREAwpPBIwipVcAwAAAAAWABSiFuiJIa4NrxLUBVQNS0NIun6DDtoRAABPAQQ1h88DBcQGZIAAAAA+0J+jlNL3dpWwlnBi8Dx+Ipg4e6uvB3HdjzFPX7r9CAOOlAIxgII+/xCcj+XoEenKH7wj5s5wlu7Q7CCZWFLGLhA5Su0UVAAAgAEAAIAAAACAAAEA7QIAAAAEE6njX/fnvn7hbkKIRcxzNYFOSfbCdNeWnd7Fe/1UcQ0BAAAAAP3///8TqeNf9+e+fuFuQohFzHM1gU5J9sJ015ad3sV7/VRxDQMAAAAA/f///xOp41/3575+4W5CiEXMczWBTkn2wnTXlp3exXv9VHENBAAAAAD9////E6njX/fnvn7hbkKIRcxzNYFOSfbCdNeWnd7Fe/1UcQ0GAAAAAP3///8CUnheAwAAAAAWABRCfygPJ+Fjsx4BknYvvm3A3qKn2xJ/XQcAAAAAF6kU1I4TAst5nAj15ey7vwe5cM3OFq+HlhEAAAEBH1J4XgMAAAAAFgAUQn8oDyfhY7MeAZJ2L75twN6ip9sBAwQBAAAAIgYCo7sfm78RQY3B5n0ac/QF8VtMAzFnci+h5D1MtpgRY7oYOUrtFFQAAIABAACAAAAAgAEAAAAGAAAAAAEAcQIAAAABxY7wh0nsfJQfzWrD/9rN9BYsM+iOmPaO6I0ANFgO/PcAAAAAAP3///8CptiUAAAAAAAWABRIm4HhQY/TzOjeWSPRrbuJo9MlW826oHYAAAAAFgAU0z+0L2QSLGtyQTn8FhbCpcI7jbliAQAAAQEfzbqgdgAAAAAWABTTP7QvZBIsa3JBOfwWFsKlwjuNuQEDBAEAAAAiBgITHmebEANk81CraV4xZIpqkNjjw0tIvezl1Ism1NRH3Rg5Su0UVAAAgAEAAIAAAACAAQAAAAAAAAAAIgICuTT7WnuiUTpObjWnZFHzIeEvW9PTB+1LLVFNQJVFeIIYOUrtFFQAAIABAACAAAAAgAEAAAAHAAAAACICAk8f3hpc5C35chgSg+Pe2zZ9IhHREd4aKW2+yAMRIFeqGDlK7RRUAACAAQAAgAAAAIABAAAACQAAAAAAIgIDjt1CjvrnMMnjbmTNKUAYoKEDRbmKjNjbq+6Ppqj3bqQYOUrtFFQAAIABAACAAAAAgAEAAAAIAAAAAA=="
+
+    # Also complete and on the same wallet as the fixture above. Taproot records its
+    # derivation paths in a separate map from the segwit-v0 one, so this is what tests of
+    # that split need.
+    #
+    #   PSBT Tx and Wallet Details
+    #   - Single Sig Wallet P2TR (Taproot) with no passphrase
+    #   - Regtest 394aed14 m/86'/1'/0' tpubDCawGrRg7YdHdFb9p4mmD8GBaZjJegL53FPFRrMkGoLcgLATJfksUs2y1Q7dVzixAkgecazsxEsUuyj3LyDw7eVVYHQyojwrc2hfesK4wXW
+    #   - 1 Input
+    #       - 3,190,493,401 sats at 1/0
+    #   - 2 Outputs
+    #       - 1 Output change: 2,871,443,918 sats to bcrt1prz4g6saush37epdwhvwpu78td3q7yfz3xxz37axlx7udck6wracq3rwq30 at 1/1
+    #       - 1 Output spend to another wallet: 319,049,328 sats to bcrt1p6p00wazu4nnqac29fvky6vhjnnhku5u2g9njss62rvy7e0yuperq86f5ek
+    #       - Fee 155 sats
+    SINGLE_SIG_TAPROOT_WITH_CHANGE = "cHNidP8BAIkCAAAAAf8upuiIWF1VTgC/Q8ZWRrameRigaXpRcQcBe8ye+TK3AQAAAAAXCgAAAs7BJqsAAAAAIlEgGKqNQ7yF4+yFrrscHnjrbEHiJFExhR903ze43FtOH3BwTgQTAAAAACJRINBe93RcrOYO4UVLLE0y8pzvblOKQWcoQ0obCey8nA5GAAAAAE8BBDWHzwNMUx9OgAAAAJdr+WtwWfVa6IPbpKZ4KgRC0clbm11Gl155IPA27n2FAvQCrFGH6Ac2U0Gcy1IH5f5ltgUBDz2+fe8iqL6JzZdgEDlK7RRWAACAAQAAgAAAAIAAAQB9AgAAAAGAKOOUFIzw9pbRDaZ7F0DYhLImrdMn//OSm++ff5VNdAAAAAAAAQAAAAKsjLwAAAAAABYAFKEcuxvXmB3rWHSqSviP5mrKMZoL2RArvgAAAAAiUSBGU0Lg5fx/ECsB1Z4ZUqXQFSLFnlmpm0rm5R2l599h2AAAAAABASvZECu+AAAAACJRIEZTQuDl/H8QKwHVnhlSpdAVIsWeWambSublHaXn32HYAQMEAAAAACEWF7hZVn7pIDR429kAn/WDeQiWjZey1iGHztsL1H83QLMZADlK7RRWAACAAQAAgAAAAIABAAAAAAAAAAEXIBe4WVZ+6SA0eNvZAJ/1g3kIlo2XstYhh87bC9R/N0CzACEHbJdqWyMxF2eOPr6YRXUJmry04HUbgKyeM2IZeG+NI9AZADlK7RRWAACAAQAAgAAAAIABAAAAAQAAAAEFIGyXalsjMRdnjj6+mEV1CZq8tOB1G4CsnjNiGXhvjSPQAAA="
 
     SINGLE_SIG_INPUTS = [
         SINGLE_SIG_NATIVE_SEGWIT_1_INPUT,
@@ -80,6 +116,13 @@ class PSBTTestData:
     MULTISIG_NATIVE_SEGWIT_RECEIVE   = "01030890d003000000000001042200200936ff1943bbe5c037ad9e9839ca3effe24d8b22fd38cc2601c9007cc0f210a100"
     MULTISIG_NESTED_SEGWIT_RECEIVE   = "01030890d0030000000000010417a9141d3c080d4b05358b8cc439ef12534250563f34a08700"
     MULTISIG_LEGACY_P2SH_RECEIVE     = "01030890d0030000000000010417a914fa70ebb69e283b493770c5a8fa19ec76da321de68700"
+
+    # The same output as MULTISIG_NATIVE_SEGWIT_RECEIVE, but populated the way a
+    # coordinator that also holds the recipient's descriptor populates it: the 2-of-3
+    # script the output pays, plus a derivation path entry for each of its cosigners.
+    # Built from recipient_seed, recipient_multisig_key_2 and recipient_multisig_key_3,
+    # each at m/48h/1h/0h/2h/0/0.
+    MULTISIG_NATIVE_SEGWIT_RECEIVE_ANNOTATED = "0101695221027d99f92952795d306ef9b87a9d16c94bedc4b17613042a6f1b80af0e9c7839a32103208d94f8b4df19bcb76c309887904920064ccc417225520790426cb0e40fe6552103d36ac409c6198fee6eae72bf5c38424f3f2e2077a67aaf14d535fd1021b97c4953ae2202027d99f92952795d306ef9b87a9d16c94bedc4b17613042a6f1b80af0e9c7839a31c0f7d3df0300000800100008000000080020000800000000000000000220203208d94f8b4df19bcb76c309887904920064ccc417225520790426cb0e40fe6551ccd063d44300000800100008000000080020000800000000000000000220203d36ac409c6198fee6eae72bf5c38424f3f2e2077a67aaf14d535fd1021b97c491c2f54d8a930000080010000800000008002000080000000000000000001030890d003000000000001042200200936ff1943bbe5c037ad9e9839ca3effe24d8b22fd38cc2601c9007cc0f210a100"
 
     ALL_EXTERNAL_OUTPUTS = [
         SINGLE_SIG_NATIVE_SEGWIT_RECEIVE,
@@ -158,7 +201,37 @@ def foreign_public_key(derivation_path: str = "m/84h/1h/0h/0/0", seed: Seed = No
     return root_for_seed(seed).derive(derivation_path).get_public_key()
 
 
-def claim_seed_owns_key(scope: InputScope | OutputScope, claimed_derivation_path: str, public_key: PublicKey, seed: Seed = None, is_taproot: bool = False):
+def tapleaf_hash(public_key: PublicKey, leaf_version: int = 0xC0) -> bytes:
+    """
+    The BIP-341 leaf hash of the simplest tapscript (a lone key checksig), built the same
+    way embit builds it when it signs a script path spend.
+    """
+    OP_PUSHBYTES_32 = b"\x20"
+    OP_CHECKSIG = b"\xac"
+    leaf_script = script.Script(OP_PUSHBYTES_32 + public_key.xonly() + OP_CHECKSIG)
+    return tagged_hash("TapLeaf", bytes([leaf_version]) + leaf_script.serialize())
+
+
+# BIP-341's provably unspendable internal key (aka "NUMS" point: "Nothing Up My Sleeve"):
+# the SHA256 of the standard uncompressed encoding of the secp256k1 generator point,
+# lifted to a curve point. A taproot address built for script path spends only uses this
+# as its internal key, so that nobody holds a key path to it.
+NUMS_INTERNAL_KEY = PublicKey.from_xonly(unhexlify("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"))
+
+
+def p2tr_with_script_tree(internal_public_key: PublicKey, merkle_root: bytes) -> script.Script:
+    """
+    The scriptPubKey of a taproot output whose internal key is tweaked by a script tree's
+    merkle root, built the same way embit builds the empty-tree form. embit's script.p2tr
+    cannot build this one: it asks the script tree for its own tweak, and embit defines no
+    script tree type to ask.
+    """
+    OP_1 = b"\x51"  # segwit version byte
+    OP_PUSHBYTES_32 = b"\x20"
+    return script.Script(OP_1 + OP_PUSHBYTES_32 + internal_public_key.taproot_tweak(merkle_root).xonly())
+
+
+def claim_seed_owns_key(scope: InputScope | OutputScope, claimed_derivation_path: str, public_key: PublicKey, seed: Seed = None, is_taproot: bool = False, leaf_hashes: list = None):
     """
     Writes a derivation into the scope claiming that seed owns public_key at
     claimed_derivation_path.
@@ -167,6 +240,9 @@ def claim_seed_owns_key(scope: InputScope | OutputScope, claimed_derivation_path
     ties a fingerprint to the key written beside it. The fingerprint is all it takes, and
     that is published in every psbt the seed has ever been sent. So pass a public_key the
     seed does not own and the result is a psbt asserting ownership that does not exist.
+
+    For taproot, leaf_hashes names the leaf scripts the key is used in. An entry naming
+    none of them is claiming to be the output's internal key; see tapleaf_hash.
     """
     if seed is None:
         seed = PSBTTestData.seed
@@ -175,6 +251,6 @@ def claim_seed_owns_key(scope: InputScope | OutputScope, claimed_derivation_path
         root_for_seed(seed).my_fingerprint, bip32.parse_path(claimed_derivation_path))
 
     if is_taproot:
-        scope.taproot_bip32_derivations[public_key] = ([], derivation_path)
+        scope.taproot_bip32_derivations[public_key] = (leaf_hashes or [], derivation_path)
     else:
         scope.bip32_derivations[public_key] = derivation_path

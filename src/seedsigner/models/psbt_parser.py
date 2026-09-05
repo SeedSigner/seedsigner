@@ -51,6 +51,58 @@ class PSBTInputOwnershipClaimError(PSBTVerificationError):
     pass
 
 
+class PSBTSurplusDerivationPathsError(PSBTVerificationError):
+    """
+    Raised for three similar cases:
+      * single sig: output has more than one derivation path entry.
+      * multisig: an output confirmed to pay this seed claims more derivation path
+        entries than its committed script has keys.
+      * taproot: output has more than one derivation path entry claiming to be its
+        internal key (i.e. claiming no leaf hashes).
+
+    For single sig this is clearly a structural error and is not expected to be seen in
+    the real world but it's worth the sanity check.
+
+    For multisig, this could be an attempt to deceive the user, but we do not try to
+    adjudicate that.
+    """
+    pass
+
+
+class PSBTMixedDerivationPathTypesError(PSBTVerificationError):
+    """
+    An input or output declares derivation paths in both the ecdsa and the taproot key
+    maps (bip32_derivations and taproot_bip32_derivations).
+
+    This is a correctness problem (not expected to be seen in the real world) or
+    potentially a weak form of deception, but we do not try to adjudicate that.
+    """
+    pass
+
+
+class PSBTOutputOwnershipContradictionError(PSBTVerificationError):
+    """
+    The psbt's account of who an output pays contradicts which key(s) the output
+    actually commits to.
+
+    For multisig, it's one of:
+      * The output claims one of our keys, but the script the psbt supplied for it does
+        not match what the output actually commits to (the output's scriptPubKey).
+      * The output claims that one of our keys is part of the multisig that owns the
+        output, but that key is not part of the scriptPubKey commitment.
+      * Our seed owns a key that is part of the scriptPubKey commitment, but the output
+        claims a different seed in our place, by fingerprint or by listed public key.
+
+    Single sig supplies no script, so both contradictions come from the rebuild alone: the
+    output claims our key but commits to another key, or it commits to our key while
+    claiming a different fingerprint in our place.
+
+
+    We treat any of these deceptions as an attack.
+    """
+    pass
+
+
 class PSBTSeedCannotSignError(PSBTVerificationError):
     """
     The selected seed holds no key that could sign any input.
@@ -186,12 +238,18 @@ class PSBTParser():
                - multisig, cosigners unresolved: script type and m-of-n only.
                  _get_policy doesn't propagate cosigner errors, so two such policies match
                  without anything having tied them to the same keys. TODO: don't let a
-                 policy with no cosigner information pass as a match.
+                 policy with no cosigner information pass as a match between inputs.
+                 Outputs deliberately compare shape alone; see _policy_shape_matches.
 
-          5. _parse_outputs: works out which outputs come back to this seed. For
-             single-sig this proves the output script derives from the seed at the
-             claimed path. TODO: reject outputs at a path the user's wallet would never
-             scan.
+          5. _parse_outputs: organizes the output data (amounts, destination_addresses,
+             etc.) and verifies the ownership of the outputs that come back to this seed
+             via:
+             - single-sig: Rebuild the output script from the seed and match it against
+               the committed scriptPubKey.
+             - multisig: Match the seed's verified key against the pubkeys in the script
+               the output commits to.
+             Every change_data entry after this point will carry a derivation path that
+             our seed provably owns.
 
         Optimization via child_key_derivation_cache:
         Parsing traverses a derivation path down to an individual address one level at a
@@ -266,7 +324,55 @@ class PSBTParser():
                 if self.policy != inp_policy:
                     raise RuntimeError("Mixed inputs in the transaction")
 
+
     def _parse_outputs(self, child_key_derivation_cache: dict):
+        """
+        Sorts each output into change coming back to this seed, an external spend, or
+        OP_RETURN data, and totals the amounts for each. Note that self-transfer/receive
+        outputs are also considered "change".
+
+        Most of the work here is determining which, if any, outputs are verifiably being
+        paid to our seed.
+        """
+
+        """****************** How outputs are verified as change ************************
+        Many outputs are obviously NOT change. An output is only considered possible
+        change if its policy matches the inputs' policy "shape" (script type, plus m-of-n
+        for multisig; see parse()); anything else is recorded as an external spend.
+
+        The psbt will usually annotate which key(s) own a change output (see embit's
+        bip32_derivations and taproot_bip32_derivations), but this is just a claim
+        supplied by the coordinator. These annotations are not authoritative. But such
+        claims are significant; if our checks prove that the claim is false, we consider
+        the deception an attack.
+
+        -- Proving the claim --
+        The output's scriptPubKey determines where the value ACTUALLY goes. But the
+        scriptPubKey only contains a hash of the spending conditions (note: taproot uses a
+        tweaked key instead), so we can't simply inspect the scriptPubKey to determine if
+        the output is ours.
+
+        We must build our own version of the scriptPubKey via:
+          * single sig: derive a key from our seed using the claimed derivation path.
+          * multisig: hash the claimed witness_script or redeem_script.
+
+        That leaves us holding two independent answers about the same output: which key it
+        commits to (our rebuild, matched against the scriptPubKey), and which key the psbt
+        says it commits to (the claim). We evaluate the output on those two facts:
+
+                                     | claims this seed     | doesn't claim this seed
+            -------------------------+----------------------+-------------------------
+            commits to our key       | confirmed: is change | contradiction
+            commits to another key   | contradiction        | presumed external spend
+
+        If our two answers contradict each other, the psbt has been caught in a deception.
+        We raise an exception and reject the psbt.
+
+        (note one exception: no taproot mismatch is rejected. A script tree tweaks our
+        internal key, so an honest taproot change output fails to match too, and we cannot
+        yet tell that apart from an output that claims our key but pays someone else. All
+        taproot mismatches pass as EXTERNAL spends and are never considered "change".)
+        ******************************************************************************"""
         self.spend_amount = 0
         self.change_amount = 0
         self.change_data = []
@@ -283,60 +389,180 @@ class PSBTParser():
             out_policy = PSBTParser._get_policy(out, vout[i].script_pubkey, self.psbt.xpubs, child_key_derivation_cache)
             is_change = False
 
-            # if policy is the same - probably change
-            if out_policy == self.policy:
-                # double-check that it's change
-                # we already checked in get_cosigners and parse_multisig
-                # that pubkeys are generated from cosigners,
-                # and witness script is corresponding multisig
-                # so we only need to check that scriptpubkey is generated from
-                # witness script
+            # Is this output change? If this output's policy is superficially similar to
+            # the spending wallet's policy (e.g. they're both 2-of-3 p2wsh), then it's a
+            # candidate for being change.
+            if PSBTParser._policy_shape_matches(out_policy, self.policy):
+                # Begin the extensive work to fully verify whether this output is indeed
+                # change.
 
-                # empty script by default
-                sc = script.Script(b"")
+                # Each of these is a claim we build our proof from, then keep for the
+                # follow-up check its signature type needs:
+                #   * Single sig: the derivation path the seed derives a key at.
+                #   * Multisig: the witness or redeem script the coordinator supplied.
+                #     Only one of these will be needed, depending on the output type.
+                singlesig_derivation_path = None
+                multisig_script = None
+
+                # Compared against the output's real scriptPubKey below
+                rebuilt_script_pubkey = script.Script(b"")
 
                 # multisig, we know witness script
                 if self.policy["type"] == "p2wsh":
-                    sc = script.p2wsh(out.witness_script)
+                    multisig_script = out.witness_script
+                    rebuilt_script_pubkey = script.p2wsh(multisig_script)
 
                 elif self.policy["type"] == "p2sh-p2wsh":
-                    sc = script.p2sh(script.p2wsh(out.witness_script))
-                
+                    multisig_script = out.witness_script
+                    rebuilt_script_pubkey = script.p2sh(script.p2wsh(multisig_script))
+
                 # Arbitrary p2sh; includes pre-segwit multisig (m/45')
                 elif self.policy["type"] == "p2sh":
-                    sc = script.p2sh(out.redeem_script)
+                    multisig_script = out.redeem_script
+                    rebuilt_script_pubkey = script.p2sh(multisig_script)
 
                 # single-sig: p2pkh, p2sh-p2wpkh, and p2wpkh; taproot handled separately
                 # below.
                 elif "pkh" in self.policy["type"]:
-                    my_pubkey = None
+                    # Sanity check; a single sig output shouldn't have multiple derivation
+                    # paths.
+                    if len(out.bip32_derivations) > 1:
+                        raise PSBTSurplusDerivationPathsError("Single-key output claims more than one derivation path")
 
-                    # should be one or zero for single-key addresses
-                    if len(out.bip32_derivations.values()) > 0:
-                        der = list(out.bip32_derivations.values())[0].derivation
-                        my_pubkey = PSBTParser._derive_with_cache(self.root, der, child_key_derivation_cache)
-
-                    if self.policy["type"] == "p2pkh" and my_pubkey is not None:
-                        sc = script.p2pkh(my_pubkey)
-
-                    elif self.policy["type"] == "p2sh-p2wpkh" and my_pubkey is not None:
-                        sc = script.p2sh(script.p2wpkh(my_pubkey))
-
-                    elif self.policy["type"] == "p2wpkh" and my_pubkey is not None:
-                        sc = script.p2wpkh(my_pubkey)
+                    # Rebuild the scriptPubKey from the key at the claimed derivation path
+                    if len(out.bip32_derivations.values()) == 1:
+                        singlesig_derivation_path = list(out.bip32_derivations.values())[0].derivation
+                        seed_public_key = PSBTParser._derive_with_cache(self.root, singlesig_derivation_path, child_key_derivation_cache).get_public_key()
+                        rebuilt_script_pubkey = PSBTParser._build_singlesig_script(self.policy["type"], seed_public_key)
+                    else:
+                        # There's nothing for us to verify against so this output will be
+                        # considered an external spend.
+                        pass
 
                 elif "p2tr" in self.policy["type"]:
-                    my_pubkey = None
-                    # should have one or zero derivations for single-key addresses
-                    if len(out.taproot_bip32_derivations.values()) > 0:
-                        # TODO: Support keys in taptree leaves
-                        leaf_hashes, derivation = list(out.taproot_bip32_derivations.values())[0]
-                        der = derivation.derivation
-                        my_pubkey = PSBTParser._derive_with_cache(self.root, der, child_key_derivation_cache)
-                        sc = script.p2tr(my_pubkey)
+                    taproot_entries = list(out.taproot_bip32_derivations.values())
 
-                if sc.data == vout[i].script_pubkey.data:
+                    if len(taproot_entries) == 0:
+                        # There's nothing for us to verify against so this output will be
+                        # considered an external spend.
+                        pass
+                    else:
+                        # A taproot output has exactly one internal key. So an output
+                        # should not claim multiple derivation path entries for the
+                        # internal key. However, taproot outputs can have additional
+                        # entries for keys in script tree leaves. So we count just the
+                        # internal key claims:
+                        internal_key_claims = sum(1 for leaf_hashes, _ in taproot_entries if not leaf_hashes)
+                        if internal_key_claims > 1:
+                            raise PSBTSurplusDerivationPathsError("Taproot output claims more than one internal key")
+
+                        if len(taproot_entries) == 1 and internal_key_claims == 1:
+                            leaf_hashes, derivation = taproot_entries[0]
+                            singlesig_derivation_path = derivation.derivation
+                            seed_public_key = PSBTParser._derive_with_cache(self.root, singlesig_derivation_path, child_key_derivation_cache).get_public_key()
+                            rebuilt_script_pubkey = PSBTParser._build_singlesig_script(self.policy["type"], seed_public_key)
+                        else:
+                            # This output has at least one derivation path entry for a key
+                            # in a script tree leaf. But since we don't yet parse the
+                            # script tree, we can't reconstruct the output's correct
+                            # scriptPubKey. So this output will fail to match its
+                            # scriptPubKey below, at which point it will be considered an
+                            # external spend. This is the best we can do when we cannot
+                            # verify ownership.
+                            # TODO: Support keys in script tree leaves
+                            pass
+
+                verified_derivation_path = self.verified_output_derivation_paths[i]
+
+                if rebuilt_script_pubkey.data == vout[i].script_pubkey.data:
+                    # The scriptPubKey we created using our own seed matched what this
+                    # output is actually committing to.
+
+                    # Remember that "change" is ANY output coming back to our seed
                     is_change = True
+
+                    if singlesig_derivation_path is not None:
+                        if verified_derivation_path is None:
+                            # The output pays this seed but the psbt claimed a different
+                            # fingerprint here. We treat this deception as an attack.
+                            raise PSBTOutputOwnershipContradictionError(f"Output pays this seed at {bip32.path_to_str(singlesig_derivation_path)} but does not claim it there")
+
+                        if verified_derivation_path != singlesig_derivation_path:
+                            # Shouldn't be able to reach here: the surplus check above
+                            # allows only one entry, and the ownership scan refuses a
+                            # scope populating both derivation path maps, so the scan can
+                            # only have verified this same path.
+                            raise RuntimeError(f"Output {i} verified at a path it does not pay")
+
+                    elif multisig_script is not None:
+                        if verified_derivation_path is None:
+                            # No entry claimed this seed's fingerprint, but we already
+                            # have everything we need to see if our seed is actually in
+                            # the output script.
+                            for derivation_path_obj in out.bip32_derivations.values():
+                                # Each entry pairs a derivation path with the public key
+                                # the coordinator says sits there. Both are its own
+                                # claims, so we read only the path and derive the key
+                                # ourselves.
+                                seed_public_key = PSBTParser._derive_with_cache(self.root, derivation_path_obj.derivation, child_key_derivation_cache).get_public_key()
+
+                                if PSBTParser._multisig_script_contains_key(multisig_script, seed_public_key):
+                                    # The output pays a multisig this seed is part
+                                    # of, but the psbt did not claim our key there.
+                                    # We treat this deception as an attack.
+                                    raise PSBTOutputOwnershipContradictionError(f"Output's committed script holds this seed's key at {bip32.path_to_str(derivation_path_obj.derivation)} but the psbt claims another fingerprint and/or public key there")
+
+                            # Every path the psbt supplied has been checked and none puts
+                            # this seed in the committed script, so the output is an
+                            # external spend.
+                            is_change = False
+
+                        else:
+                            # This output claimed that our seed is part of the receiving
+                            # multisig, at a specific path. So now we verify that the key
+                            # at that path is in the committed script.
+                            seed_public_key = PSBTParser._derive_with_cache(self.root, verified_derivation_path, child_key_derivation_cache).get_public_key()
+                            if not PSBTParser._multisig_script_contains_key(multisig_script, seed_public_key):
+                                # The psbt said this output was coming back to our seed
+                                # at that path, but the key there is not in the committed
+                                # script. We treat this deception as an attack.
+                                raise PSBTOutputOwnershipContradictionError(f"Output claims this seed at {bip32.path_to_str(verified_derivation_path)} but its committed script does not hold that key")
+
+                            # The output should not describe more keys than are actually
+                            # used in its script. We check for the more serious deceptions
+                            # before this so they can be surfaced first.
+                            if len(out.bip32_derivations) > self.policy["n"]:
+                                # We don't try to decide if this is an attack or a
+                                # mistake. We just abort the parse.
+                                raise PSBTSurplusDerivationPathsError("Multisig output claims more derivation paths than its script has keys")
+
+                    else:
+                        # No handler claimed a matching output, which the branches above
+                        # should make impossible. Raise rather than leave is_change True;
+                        # that would record change with nothing verified behind it.
+                        raise RuntimeError(f"Output {i} matched but no verification handler applies")
+
+                elif verified_derivation_path is not None and "p2tr" not in self.policy["type"]:
+                    # The psbt claims one of this seed's keys on this output, yet the
+                    # output does NOT pay what that claim describes. We treat this
+                    # deception as an attack.
+                    #   * single sig: verified that this output is not paying our seed at
+                    #     the claimed derivation path.
+                    #   * multisig: verified that the output's claimed script is not the
+                    #     one the output commits to. Note that we haven't verified our
+                    #     seed's participation in the claimed script; it's irrelevant if
+                    #     that script isn't committed to in the scriptPubKey.
+                    # Taproot is exempt: an output paying our internal key tweaked by
+                    # a script tree fails the rebuild above even when the psbt claimed
+                    # the seed truthfully, and from here that is indistinguishable
+                    # from an output that claims our key and pays someone else.
+                    # TODO: Parse PSBT_OUT_TAP_TREE, which embit leaves unparsed in
+                    # the scope's `unknown` map. Its merkle root is what separates the
+                    # two: a tree that tweaks our key to the committed key makes the
+                    # output verifiable change, one that does not is a contradiction to
+                    # refuse here, and an output supplying no tree stays exempt, since
+                    # an omitted optional field is not a contradiction.
+                    raise PSBTOutputOwnershipContradictionError(f"Output claims this seed at {bip32.path_to_str(verified_derivation_path)} but its committed script contradicts that")
 
             if vout[i].script_pubkey.data[0] == OPCODES.OP_RETURN:
                 # The data is written as: OP_RETURN + OP_PUSHDATA1 + len(payload) + payload
@@ -344,27 +570,11 @@ class PSBTParser():
 
             elif is_change:
                 addr = vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
-                claimed_fingerprints = []
-                claimed_derivation_paths = []
-
-                # extract info from non-taproot outputs
-                if len(self.psbt.outputs[i].bip32_derivations) > 0:
-                    for d, derivation_path in self.psbt.outputs[i].bip32_derivations.items():
-                        claimed_fingerprints.append(hexlify(derivation_path.fingerprint).decode())
-                        claimed_derivation_paths.append(bip32.path_to_str(derivation_path.derivation))
-
-                # extract info from taproot outputs
-                if len(self.psbt.outputs[i].taproot_bip32_derivations) > 0:
-                    for d, (leaf_hashes, derivation) in self.psbt.outputs[i].taproot_bip32_derivations.items():
-                        claimed_fingerprints.append(hexlify(derivation.fingerprint).decode())
-                        claimed_derivation_paths.append(bip32.path_to_str(derivation.derivation))
-
                 self.change_data.append({
                     "output_index": i,
                     "address": addr,
                     "amount": vout[i].value,
-                    "claimed_fingerprints": claimed_fingerprints,
-                    "claimed_derivation_paths": claimed_derivation_paths,
+                    "verified_derivation_path": self.verified_output_derivation_paths[i],
                 })
                 self.change_amount += vout[i].value
 
@@ -436,7 +646,7 @@ class PSBTParser():
 
             if script is not None:
                 m, n, pubkeys = PSBTParser._parse_multisig(script)
-            
+
                 # check pubkeys are derived from cosigners
                 try:
                     cosigners = PSBTParser._get_cosigners(pubkeys, scope.bip32_derivations, xpubs, child_key_derivation_cache)
@@ -445,12 +655,53 @@ class PSBTParser():
                     # TODO: stop swallowing everything here. This also catches bugs in the
                     # cosigner check itself, and cannot tell those apart from the psbt
                     # simply not supplying xpubs to check against, which is valid and must
-                    # not be rejected outright. The fallback policy carries no cosigner
-                    # information at all, and two of those compare equal on script type
-                    # and m-of-n alone. Fix pending with the multisig verification work.
+                    # not be rejected outright.
                     policy.update({"m": m, "n": n})
-        
+
         return policy
+
+
+    @staticmethod
+    def _policy_shape_matches(policy_a: dict, policy_b: dict) -> bool:
+        """
+        Compares two policies on the shape of the script they describe: the script type,
+        plus m-of-n for multisig.
+
+        A policy can also carry the cosigners resolved from the coordinator's global
+        xpubs. Those are never authoritative here, and comparing them would let a psbt
+        decide which of its own outputs get verified: one misannotated fingerprint makes
+        that output's cosigners fail to resolve, and the output then stops matching the
+        inputs' policy. Shape comes from the scriptPubKey and the supplied script, and the
+        caller proves ownership rather than assuming it.
+        """
+        for field in ("type", "m", "n"):
+            if policy_a.get(field) != policy_b.get(field):
+                return False
+
+        return True
+
+
+    @staticmethod
+    def _build_singlesig_script(policy_type: str, public_key: PublicKey) -> script.Script:
+        """
+        Builds the scriptPubKey that pays public_key under the given single-sig
+        policy_type.
+        """
+        if policy_type == "p2pkh":
+            return script.p2pkh(public_key)
+
+        if policy_type == "p2sh-p2wpkh":
+            return script.p2sh(script.p2wpkh(public_key))
+
+        if policy_type == "p2wpkh":
+            return script.p2wpkh(public_key)
+
+        if policy_type == "p2tr":
+            return script.p2tr(public_key)
+
+        # Shouldn't be able to reach here. Just a guard against a future developer calling
+        # this with invalid args.
+        raise RuntimeError(f"Not a single-sig script type: {policy_type}")
 
 
     @staticmethod
@@ -480,6 +731,15 @@ class PSBTParser():
         if s.read() != multisig_script.data[-2:]:
             raise ValueError("Invalid multisig script")
         return m, n, pubkeys
+
+
+    @staticmethod
+    def _multisig_script_contains_key(multisig_script: script.Script, public_key: PublicKey) -> bool:
+        """
+        Determines whether multisig_script includes the provided public_key.
+        """
+        m, n, pubkeys = PSBTParser._parse_multisig(multisig_script)
+        return any(pubkey.sec() == public_key.sec() for pubkey in pubkeys)
 
 
     @staticmethod
@@ -576,7 +836,7 @@ class PSBTParser():
             for pub, (leaf_hashes, derivation_path) in input.taproot_bip32_derivations.items():
                 # TODO: Support spends from leaves; depends on support in embit
                 if len(leaf_hashes) > 0:
-                    raise Exception("Signing keyspends from within a taptree not yet implemented")
+                    raise Exception("Signing script path spends is not yet implemented")
                 fingerprints.add(hexlify(derivation_path.fingerprint).decode())
         return list(fingerprints)
 
@@ -593,7 +853,7 @@ class PSBTParser():
             instance.
         """
         seed_fingerprint = seed.get_fingerprint(network)
-        
+
         def check_fingerprint_match(public_key: PublicKey, derivation_path_obj: DerivationPath, is_taproot: bool):
             """Check fingerprint match with missing fingerprint fallback"""
 
@@ -621,7 +881,7 @@ class PSBTParser():
             for public_key, (leaf_hashes, derivation_path_obj) in input.taproot_bip32_derivations.items():
                 if check_fingerprint_match(public_key, derivation_path_obj, is_taproot=True):
                     return True
-        
+
         return False
 
 
@@ -667,6 +927,15 @@ class PSBTParser():
         Every key in the scope that claims this seed's fingerprint is re-derived and
         checked. A false claim raises PSBT[Output|Input]OwnershipClaimError.
 
+        A further check is then enforced: a scope carrying entries in the
+        bip32_derivations AND taproot_bip32_derivations maps raises
+        PSBTMixedDerivationPathTypesError. Taproot keys are exclusively x-only while
+        non-taproot keys always carry their parity byte; there is no script type that can
+        make use of both types of keys so it is nonsensical for a scope to provide both.
+
+        Note that neither BIP-174 nor BIP-371 forbids the combination. And embit will
+        parse and even sign such a psbt. We disallow it by opinionated choice.
+
         One edge case:
         * A multisig could use this seed in more than one cosigner slot, each
           at its own derivation path. The scope then carries several entries that all
@@ -700,17 +969,23 @@ class PSBTParser():
             _check_claim(public_key, derivation_path_obj, is_taproot=False)
 
         for public_key, (leaf_hashes, derivation_path_obj) in scope.taproot_bip32_derivations.items():
-            # TODO: Support keys in taptree leaves
+            # TODO: Support keys in script tree leaves
             _check_claim(public_key, derivation_path_obj, is_taproot=True)
+
+        # The derivation path maps cannot both be populated in the same scope. Checked
+        # after the loops so that a false ownership claim, the more serious finding, is
+        # still the one reported.
+        if scope.bip32_derivations and scope.taproot_bip32_derivations:
+            raise PSBTMixedDerivationPathTypesError("Scope declares both ecdsa and taproot derivation paths")
 
         return verified_derivation_path
 
 
     def _verify_claimed_derivation_paths(self, child_key_derivation_cache: dict):
         """
-        Verifies every claimed derivation path that names this seed's fingerprint. The
+        Verifies every derivation path entry that claims this seed's fingerprint. The
         result, stored in verified_[input|output]_derivation_paths, is either the verified
-        derivation path or None (the seed was not named) for each input/output scope.
+        derivation path or None (no entry claimed this seed) for each input/output scope.
 
         The coordinator-supplied fingerprints cannot be trusted as-is. We must derive and
         verify the ownership of each one that claims to belong to this seed.
@@ -749,7 +1024,7 @@ class PSBTParser():
         harmless: the excluded key cannot spend the input, so nothing of this seed's is
         at risk.)
         """
-        # An input names a key at a derivation path and _verify_claimed_derivation_paths
+        # An input claims a key at a derivation path and _verify_claimed_derivation_paths
         # proved the seed derives it (single-sig: one such key; multisig: one per
         # cosigner, ours among them). One verified input path is enough for the psbt to
         # be signable.
@@ -758,6 +1033,15 @@ class PSBTParser():
 
         # There's nothing for this seed to sign
         raise PSBTSeedCannotSignError()
+
+
+    @staticmethod
+    def is_change_branch(derivation_path: List[int]) -> bool:
+        """
+        Returns True if the next-to-last element of the derivation path is the change
+        branch (1).
+        """
+        return len(derivation_path) >= 2 and derivation_path[-2] == 1
 
 
     def verify_multisig_output(self, descriptor: Descriptor, change_num: int) -> bool:
