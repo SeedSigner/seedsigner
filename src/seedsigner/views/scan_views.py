@@ -79,10 +79,16 @@ class ScanView(View):
                     # Found a valid mnemonic seed! All new seeds should be considered
                     #   pending (might set a passphrase, SeedXOR, etc) until finalized.
                     from seedsigner.models.seed import Seed
-                    from .seed_views import SeedFinalizeView
-                    self.controller.storage.set_pending_seed(
-                        Seed(mnemonic=seed_mnemonic, wordlist_language_code=self.wordlist_language_code)
-                    )
+                    from .seed_views import SeedFinalizeView, RebuildSeedXORShowFingerprintView
+                    new_seed = Seed(mnemonic=seed_mnemonic, wordlist_language_code=self.wordlist_language_code)
+
+                    if getattr(self, "is_rebuild_seedxor_part", False):
+                        # The seed is not yet validated for the SeedXOR operation, so we
+                        #   just pass it to the next View as a pending_seed.
+                        self.controller.storage.set_pending_seed(new_seed)
+                        return Destination(RebuildSeedXORShowFingerprintView)
+
+                    self.controller.storage.set_pending_seed(new_seed)
                     if self.settings.get_value(SettingsConstants.SETTING__PASSPHRASE) == SettingsConstants.OPTION__REQUIRED:
                         from seedsigner.views.seed_views import SeedAddPassphraseView
                         return Destination(SeedAddPassphraseView)
@@ -183,6 +189,10 @@ class ScanPSBTView(ScanView):
 class ScanSeedQRView(ScanView):
     instructions_text = _mft("Scan SeedQR")
     invalid_qr_type_message = _mft("Expected a SeedQR")
+
+    def __init__(self, is_rebuild_seedxor_part: bool = False):
+        super().__init__()
+        self.is_rebuild_seedxor_part = is_rebuild_seedxor_part
 
     @property
     def is_valid_qr_type(self):
