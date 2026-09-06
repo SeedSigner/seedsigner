@@ -240,7 +240,7 @@ class Controller(Singleton):
         parts = self.storage.rebuild_seedxor_parts
         if 0 <= index < len(parts):
             parts.pop(index)
-            self.storage.rebuild_seedxor_combined_seed = None
+            self.storage.clear_rebuild_seedxor_combined_seed()
 
     def clear_rebuild_seedxor_data(self):
         self.storage.clear_rebuild_seedxor_data()
