@@ -4,7 +4,11 @@ Covers F1: resume_main_flow leaks that misrouted later normal seed loads
 into the SeedXOR fingerprint view.
 Covers F2: DISCARD_PARTS must delete parts by identity, never a pre-existing
 user seed that merely shares a mnemonic with a typed/scanned part.
+Covers F3: cancellation and part changes clear only the flow's pending
+combined seed, preserving unrelated pending seeds and finalized seeds.
 """
+import pytest
+
 from base import FlowTest, FlowStep
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings import SettingsConstants
@@ -194,3 +198,128 @@ class TestDiscardPartsByIdentity(FlowTest):
         assert len(self.controller.storage.seeds) == 0
         # no-op on a seed not in storage
         self.controller.discard_seed(Seed(mnemonic=EXAMPLE_12_B.split()))
+
+
+class TestCancelCombinedSeedCleanup(FlowTest):
+    """F3: canceling a rebuild must not leave its combined seed pending."""
+
+    @pytest.mark.parametrize("cleanup", ["cancel", "add", "remove"])
+    @pytest.mark.parametrize("pending_kind", ["equal_distinct", "different", "none"])
+    def test_cleanup_preserves_unrelated_pending_seed(self, cleanup, pending_kind):
+        storage = self.controller.storage
+        combined = Seed(mnemonic=EXAMPLE_12_A.split())
+        storage.add_rebuild_seedxor_part(Seed(mnemonic=EXAMPLE_12_B.split()))
+        storage.rebuild_seedxor_combined_seed = combined
+        pending = None
+        if pending_kind == "equal_distinct":
+            pending = Seed(mnemonic=EXAMPLE_12_A.split())
+            assert pending == combined and pending is not combined
+        elif pending_kind == "different":
+            pending = Seed(mnemonic=EXAMPLE_12_B.split())
+        storage.set_pending_seed(pending)
+
+        if cleanup == "cancel":
+            self.run_sequence([
+                FlowStep(seed_views.RebuildSeedXORCancelView,
+                         button_data_selection=seed_views.RebuildSeedXORCancelView.CONFIRM),
+                FlowStep(seed_views.LoadSeedView),
+            ])
+        elif cleanup == "add":
+            storage.add_rebuild_seedxor_part(Seed(mnemonic=EXAMPLE_12_A.split()))
+        else:
+            self.controller.remove_rebuild_seedxor_part(0)
+
+        assert storage.rebuild_seedxor_combined_seed is None
+        assert storage.get_pending_seed() is pending
+
+    @pytest.mark.parametrize("choice", [0, RET_CODE__BACK_BUTTON])
+    def test_declining_cancel_preserves_combined_seed(self, choice):
+        storage = self.controller.storage
+        storage.add_rebuild_seedxor_part(Seed(mnemonic=EXAMPLE_12_A.split()))
+        storage.add_rebuild_seedxor_part(Seed(mnemonic=EXAMPLE_12_B.split()))
+        finalize = seed_views.RebuildSeedXORFinalizeView()
+        assert finalize.error is None
+        combined = storage.get_pending_seed()
+        assert combined is not None
+
+        self.run_sequence([
+            FlowStep(seed_views.RebuildSeedXORCancelView, screen_return_value=choice),
+            FlowStep(seed_views.RebuildSeedXORManageView),
+        ])
+
+        assert storage.get_pending_seed() is combined
+        assert storage.rebuild_seedxor_combined_seed is combined
+        assert len(storage.rebuild_seedxor_parts) == 2
+
+    def test_cleanup_preserves_finalized_seed(self):
+        storage = self.controller.storage
+        combined = Seed(mnemonic=EXAMPLE_12_A.split())
+        storage.rebuild_seedxor_combined_seed = combined
+        storage.set_pending_seed(combined)
+        storage.finalize_pending_seed()
+
+        self.controller.clear_rebuild_seedxor_data()
+        self.controller.clear_rebuild_seedxor_data()  # Idempotent cleanup.
+
+        assert len(storage.seeds) == 1
+        assert storage.seeds[0] is combined
+        assert storage.get_pending_seed() is None
+        assert storage.rebuild_seedxor_combined_seed is None
+
+    def test_cancel_after_finalize_clears_pending_combined_seed(self):
+        self.settings.set_value(SettingsConstants.SETTING__SEED_XOR, SettingsConstants.OPTION__ENABLED)
+        storage = self.controller.storage
+        storage.add_rebuild_seedxor_part(Seed(mnemonic=EXAMPLE_12_A.split()))
+        storage.add_rebuild_seedxor_part(Seed(mnemonic=EXAMPLE_12_B.split()))
+
+        def check_combined_is_pending(view):
+            assert view.error is None
+            assert storage.rebuild_seedxor_combined_seed is not None
+            assert storage.get_pending_seed() is storage.rebuild_seedxor_combined_seed
+
+        self.run_sequence([
+            FlowStep(seed_views.RebuildSeedXORFinalizeView,
+                     before_run=check_combined_is_pending,
+                     screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.RebuildSeedXORManageView,
+                     button_data_selection=seed_views.RebuildSeedXORManageView.CANCEL),
+            FlowStep(seed_views.RebuildSeedXORCancelView,
+                     button_data_selection=seed_views.RebuildSeedXORCancelView.CONFIRM),
+            FlowStep(seed_views.LoadSeedView),
+        ])
+
+        assert storage.rebuild_seedxor_parts == []
+        assert storage.rebuild_seedxor_combined_seed is None
+        assert storage.get_pending_seed() is None
+        assert storage.seeds == []
+
+    def test_add_part_after_finalize_clears_pending_combined_seed(self):
+        storage = self.controller.storage
+        storage.add_rebuild_seedxor_part(Seed(mnemonic=EXAMPLE_12_A.split()))
+        storage.add_rebuild_seedxor_part(Seed(mnemonic=EXAMPLE_12_B.split()))
+        finalize = seed_views.RebuildSeedXORFinalizeView()
+        assert finalize.error is None
+        combined = storage.get_pending_seed()
+        assert combined is not None
+
+        # Exercise storage invalidation directly; validation belongs to controller.
+        storage.add_rebuild_seedxor_part(Seed(mnemonic=EXAMPLE_12_A.split()))
+
+        assert len(storage.rebuild_seedxor_parts) == 3
+        assert storage.rebuild_seedxor_combined_seed is None
+        assert storage.get_pending_seed() is None
+
+    def test_remove_part_after_finalize_clears_pending_combined_seed(self):
+        storage = self.controller.storage
+        storage.add_rebuild_seedxor_part(Seed(mnemonic=EXAMPLE_12_A.split()))
+        storage.add_rebuild_seedxor_part(Seed(mnemonic=EXAMPLE_12_B.split()))
+        finalize = seed_views.RebuildSeedXORFinalizeView()
+        assert finalize.error is None
+        assert storage.get_pending_seed() is storage.rebuild_seedxor_combined_seed
+        assert storage.get_pending_seed() is not None
+
+        self.controller.remove_rebuild_seedxor_part(0)
+
+        assert len(storage.rebuild_seedxor_parts) == 1
+        assert storage.rebuild_seedxor_combined_seed is None
+        assert storage.get_pending_seed() is None

@@ -37,11 +37,20 @@ class SeedStorage:
 
     def add_rebuild_seedxor_part(self, seed: Seed):
         self.rebuild_seedxor_parts.append(seed)
+        self.clear_rebuild_seedxor_combined_seed()
+
+
+    def clear_rebuild_seedxor_combined_seed(self):
+        # Finalize stores the combined seed in both fields. Clear only this
+        # flow's pending seed, never an equal-but-distinct seed from elsewhere.
+        if self.pending_seed is self.rebuild_seedxor_combined_seed:
+            self.clear_pending_seed()
         self.rebuild_seedxor_combined_seed = None
 
+
     def clear_rebuild_seedxor_data(self):
+        self.clear_rebuild_seedxor_combined_seed()
         self.rebuild_seedxor_parts = []
-        self.rebuild_seedxor_combined_seed = None
 
 
     def validate_mnemonic(self, mnemonic: List[str]) -> bool:
