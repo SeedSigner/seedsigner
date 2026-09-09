@@ -4,17 +4,16 @@ FROM python:3.10-bullseye
 RUN apt-get -qq update
 RUN apt-get -y -qq install zbar-tools
 
-# temp copy requirements files to local repo to do pip3 install
-COPY ../requirements.txt /requirements.txt
-COPY ../tests/requirements.txt /tests-requirements.txt
+COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /bin/
 
-WORKDIR /
-RUN pip3 install -r requirements.txt
-RUN pip3 install -r tests-requirements.txt
+# Keep the venv outside the repository bind mount.
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
 
-# clean up copied files
-RUN rm /requirements.txt
-RUN rm /tests-requirements.txt
+WORKDIR /build
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --frozen --group l10n --no-install-project
+RUN rm -rf /build
 
 # set working dir
 WORKDIR /seedsigner
