@@ -7,10 +7,9 @@ from embit.wordlists.bip39 import WORDLIST as WORDLIST__ENGLISH
 see: docs/dice_verification.md (the "Command Line Tool" section) for full instructions.
 
 tldr:
-    pip3 install embit
-    pip3 install -e .
+    uv sync --frozen
     cd tools
-    python3 mnemonic.py -h
+    uv run python mnemonic.py -h
 """
 
 

@@ -239,8 +239,9 @@ Transifex will ask translators to provide the singular and plural forms on a lan
 ---
 
 ## Set up localization dependencies
+`Babel` lives in the `l10n` dependency group, which is not synced by default:
 ```bash
-pip install -r l10n/requirements-l10n.txt
+uv sync --frozen --group l10n
 ```
 
 Make sure that your local repo has fetched the `seedsigner-translations` submodule. It's configured to add it in src/seedsigner/resources.
@@ -253,18 +254,16 @@ git submodule update --remote
 ### Pre-configured `babel` commands
 The `setup.cfg` file in the project root specifies params for the various `babel` commands discussed below.
 
-You should have already added the local code as an editable project in pip:
-```bash
-# From the repo root
-pip install -e .
-```
+`uv sync` already installed the local code as an editable project. The `poe`
+tasks below run the `babel` commands inside that environment and pull in the
+`l10n` group for you, so no venv activation is needed.
 
 
 ### Rescanning for text that needs translations
 Re-generate the `messages.pot` file:
 
 ```bash
-python setup.py extract_messages
+uv run poe translations-extract
 ```
 
 This will rescan all wrapped text, picking up new strings as well as updating existings strings that have been edited.
@@ -288,10 +287,10 @@ This updated `messages.po` should be added to the seedsigner-translations repo i
 The `messages.po` files must be compiled into `*.mo` files:
 
 ```bash
-python setup.py compile_catalog
+uv run poe translations-compile
 
 # Or target a specific language code:
-python setup.py compile_catalog -l es
+uv run poe translations-compile -l es
 ```
 
 ### Unused babel commands
@@ -309,8 +308,8 @@ _TODO: Github Actions automation to regenerate / verify that the *.mo files have
 Simply run the screenshot generator:
 
 ```bash
-pytest tests/screenshot_generator/generator.py
+uv run poe screenshots
 
 # Or target a specific language code:
-pytest tests/screenshot_generator/generator.py --locale es
+uv run poe screenshots --locale es
 ```

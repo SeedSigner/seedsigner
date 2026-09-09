@@ -41,23 +41,20 @@ jobs:
         with:
           # Needs to also pull the seedsigner-translations repo
           submodules: recursive
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: |
-            requirements.txt
-            tests/requirements.txt
+          enable-cache: true
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
           sudo apt-get install libzbar0
-          python -m pip install --upgrade pip
-          # hash-locked requirements files
-          pip install -r requirements.txt -r tests/requirements.txt -r l10n/requirements-l10n.txt
-          # An editable install can't satisfy hash-checking, so `-e .` can't
-          # share an invocation with the hash-locked files above.
-          pip install -e .
+          # `--frozen` installs exactly what uv.lock pins, without re-resolving.
+          # The `l10n` group is not synced by default; the next step needs it.
+          uv sync --frozen --group l10n --python ${{ matrix.python-version }}
+          # Put the synced venv on PATH so the steps below stay plain commands.
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
       - name: Compile translations
         run: python setup.py compile_catalog
       - name: Test with pytest
