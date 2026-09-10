@@ -1,4 +1,4 @@
 #!/bin/bash
 
-pip3 install -e .
+uv sync --frozen --group l10n
 tail -f /dev/null

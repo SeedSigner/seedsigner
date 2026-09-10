@@ -9,10 +9,17 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent"
 ]
+dependencies = [
+  "embit==0.8.0",
+  "Pillow==10.3.0",
+  "qrcode==8.0",
+  "pyzbar @ https://github.com/seedsigner/pyzbar/archive/c3c237821c6a20b17953efe59b90df0b514a1c03.tar.gz",
+  "urtypes @ https://github.com/selfcustody/urtypes/archive/7fb280eab3b3563dfc57d2733b0bf5cbc0a96a6a.tar.gz"
+]
 description = "Build an offline, airgapped Bitcoin signing device for less than $50!"
 name = "seedsigner"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"
 version = "0.8.7"
 
 [project.urls]
@@ -20,30 +27,60 @@ version = "0.8.7"
 Homepage = "https://seedsigner.com/"
 Repository = "https://github.com/SeedSigner/seedsigner"
 
+[dependency-groups]
+dev = [
+  "coverage[toml]==7.6.12",
+  "pytest==7.4.2",
+  "pytest-cov==4.1.0"
+]
+l10n = [
+  "Babel==2.16.0",
+  "setuptools==84.0.0"
+]
+tasks = [
+  "poethepoet==0.48.0"
+]
+
+[tool.uv]
+default-groups = ["dev", "tasks"]
+
+[tool.poe.tasks.test]
+help = "Run the test suite"
+cmd = "pytest"
+
+[tool.poe.tasks.coverage]
+help = "Run tests + screenshots and report combined coverage"
+cmd = "./tests/run_full_coverage.sh"
+
+[tool.poe.tasks.screenshots]
+help = "Generate screenshots (add --locale es for one language)"
+cmd = "pytest tests/screenshot_generator/generator.py"
+
+[tool.poe.tasks.translations-extract]
+help = "Rescan the source for translatable strings into l10n/messages.pot"
+cmd = "uv run --group l10n python setup.py extract_messages"
+
+[tool.poe.tasks.translations-compile]
+help = "Compile the .po catalogs into the .mo files the app loads"
+cmd = "uv run --group l10n python setup.py compile_catalog"
+
 [tool.coverage.html]
 directory = "coverage_html_report"
 skip_covered = true
 skip_empty = true
 
 [tool.coverage.report]
-# Regexes for lines to exclude from consideration
 exclude_lines = [
-  # Have to re-enable the standard pragma
   "pragma: no cover",
-  # Don't complain about missing debug-only code:
   "def __repr__",
   "def __str__",
   "if self\\.debug",
-  # Don't complain if tests don't hit defensive assertion code:
   "raise AssertionError",
   "raise NotImplementedError",
-  # Don't complain if non-runnable code isn't run:
   "if 0:",
   "if __name__ == .__main__.:",
-  # Don't complain about abstract methods, they aren't run:
   "@(abc\\.)?abstractmethod"
 ]
-# Omit; need a different approach to test modules with hardware dependencies
 omit = [
   "*/__init__.py",
   "src/seedsigner/hardware/camera.py",
