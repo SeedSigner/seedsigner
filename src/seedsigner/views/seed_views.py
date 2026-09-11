@@ -9,7 +9,7 @@ from embit.descriptor import Descriptor
 
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    WarningScreen, DireWarningScreen, seed_screens)
+    WarningScreen, DireWarningScreen, seed_screens, AdviceScreen)
 from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterLegacyXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
@@ -81,9 +81,15 @@ class SeedSelectSeedView(View):
     def __init__(self, flow: str):
         super().__init__()
         self.flow = flow
+        self.seed = seed
 
 
     def run(self):
+        # If a seed was already provided (e.g. coming from xpub export), skip selection UI
+        if self.seed is not None:
+            if self.flow == Controller.FLOW__VERIFY_SINGLESIG_ADDR:
+                return Destination(SeedAddressVerificationView, view_args={"seed": self.seed})
+    
         from seedsigner.controller import Controller
         seeds = self.controller.storage.seeds
 
@@ -965,6 +971,7 @@ class SeedExportXpubQRDisplayView(View):
     def __init__(self, seed: Seed, xpub_qr_format: str, derivation_path: str, sig_type: str = SettingsConstants.SINGLE_SIG):
         super().__init__()
         self.seed = seed
+        self.sig_type = sig_type
 
         encoder_args = dict(
             seed=self.seed,
@@ -992,7 +999,45 @@ class SeedExportXpubQRDisplayView(View):
             qr_encoder=self.qr_encoder
         )
 
-        return Destination(MainMenuView)
+        if self.sig_type == SettingsConstants.SINGLE_SIG:
+            return Destination(SeedExportXpubQRAskVerifyAddView, view_args={"seed": self.seed})
+        else:
+            return Destination(MainMenuView)
+
+
+
+class SeedExportXpubQRAskVerifyAddView(View):
+    """
+    After exporting a single-sig xpub, ask the user if they want to verify a wallet
+    address against the exported xpub.
+    """
+    VERIFY = ButtonOption("Scan an address", SeedSignerIconConstants.QRCODE)
+    DONE = ButtonOption("Done")
+
+    def __init__(self, seed: Seed):
+        super().__init__()
+        self.seed = seed
+
+
+    def run(self):
+        from seedsigner.views.scan_views import ScanAddressView
+        button_data = [self.VERIFY, self.DONE]
+
+        selected_menu_num = self.run_screen(
+            AdviceScreen,
+            title="Wallet Verification",
+            status_headline="",
+            text=_("Scan a wallet address to verify the exported xpub?"),
+            is_button_text_centered=True,
+            show_back_button=False,
+            button_data=button_data
+        )
+
+        if button_data[selected_menu_num] == self.VERIFY:
+            return Destination(ScanAddressView, view_args={"seed": self.seed}, clear_history=True)
+
+        elif button_data[selected_menu_num] == self.DONE:
+            return Destination(MainMenuView)
 
 
 
@@ -1726,13 +1771,14 @@ class SeedTranscribeSeedQRConfirmSuccessView(View):
     Address verification
 ****************************************************************************"""
 class AddressVerificationStartView(View):
-    def __init__(self, address: str, script_type: str, network: str):
+    def __init__(self, address: str, script_type: str, network: str, seed: Seed = None):
         super().__init__()
         self.controller.unverified_address = dict(
             address=address,
             script_type=script_type,
             network=network
         )
+        self.seed = seed
 
 
     def run(self):
@@ -1742,11 +1788,11 @@ class AddressVerificationStartView(View):
         if self.controller.unverified_address["script_type"] == SettingsConstants.LEGACY_P2PKH:
             # Legacy P2PKH addresses are always singlesig
             sig_type = SettingsConstants.SINGLE_SIG
-            destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR), skip_current_view=True)
+            destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR, seed=self.seed), skip_current_view=True)
 
         if self.controller.unverified_address["script_type"] == SettingsConstants.NESTED_SEGWIT:
             # No way to differentiate single sig from multisig
-            return Destination(AddressVerificationSigTypeView, skip_current_view=True)
+            return Destination(AddressVerificationSigTypeView, view_args={"seed": self.seed}, skip_current_view=True)
 
         if self.controller.unverified_address["script_type"] == SettingsConstants.NATIVE_SEGWIT:
             if len(self.controller.unverified_address["address"]) >= 62:
@@ -1761,11 +1807,11 @@ class AddressVerificationStartView(View):
 
             else:
                 sig_type = SettingsConstants.SINGLE_SIG
-                destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR), skip_current_view=True)
+                destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR, seed=self.seed), skip_current_view=True)
 
         elif self.controller.unverified_address["script_type"] == SettingsConstants.TAPROOT:
             sig_type = SettingsConstants.SINGLE_SIG
-            destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR), skip_current_view=True)
+            destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR, seed=self.seed), skip_current_view=True)
 
         derivation_path = embit_utils.get_standard_derivation_path(
             network=self.controller.unverified_address["network"],
@@ -1783,6 +1829,11 @@ class AddressVerificationStartView(View):
 class AddressVerificationSigTypeView(View):
     SINGLE_SIG = ButtonOption("Single Sig")
     MULTISIG = ButtonOption("Multisig")
+
+    def __init__(self, seed: Seed = None):
+        super().__init__()
+        self.seed = seed
+      
 
     def run(self):
         from seedsigner.helpers import embit_utils
@@ -1802,7 +1853,7 @@ class AddressVerificationSigTypeView(View):
         
         elif button_data[selected_menu_num] == self.SINGLE_SIG:
             sig_type = SettingsConstants.SINGLE_SIG
-            destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR))
+            destination = Destination(SeedSelectSeedView, view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR, seed=self.seed))
 
         elif button_data[selected_menu_num] == self.MULTISIG:
             sig_type = SettingsConstants.MULTISIG
