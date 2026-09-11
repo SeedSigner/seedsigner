@@ -78,7 +78,7 @@ class SeedSelectSeedView(View):
     TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
 
 
-    def __init__(self, flow: str):
+    def __init__(self, flow: str, seed: Seed = None):
         super().__init__()
         self.flow = flow
         self.seed = seed
