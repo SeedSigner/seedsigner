@@ -478,9 +478,6 @@ class PSBTParser():
                     # The scriptPubKey we created using our own seed matched what this
                     # output is actually committing to.
 
-                    # Remember that "change" is ANY output coming back to our seed
-                    is_change = True
-
                     if singlesig_derivation_path is not None:
                         if verified_derivation_path is None:
                             # The output pays this seed but the psbt claimed a different
@@ -493,6 +490,11 @@ class PSBTParser():
                             # scope populating both derivation path maps, so the scan can
                             # only have verified this same path.
                             raise RuntimeError(f"Output {i} verified at a path it does not pay")
+
+                        # We've now verified that the key we derived from our seed at the
+                        # claimed path is the key this output pays. This output is
+                        # provably ours.
+                        is_change = True
 
                     elif multisig_script is not None:
                         if verified_derivation_path is None:
@@ -512,10 +514,11 @@ class PSBTParser():
                                     # We treat this deception as an attack.
                                     raise PSBTOutputOwnershipContradictionError(f"Output's committed script holds this seed's key at {bip32.path_to_str(derivation_path_obj.derivation)} but the psbt claims another fingerprint and/or public key there")
 
-                            # Every path the psbt supplied has been checked and none puts
-                            # this seed in the committed script, so the output is an
-                            # external spend.
-                            is_change = False
+                            # We have derived a key from our seed for every derivation
+                            # path this output supplies, but none of our keys match any
+                            # of the keys in this output's script. So we consider this
+                            # output an external spend.
+                            pass
 
                         else:
                             # This output claimed that our seed is part of the receiving
@@ -535,6 +538,15 @@ class PSBTParser():
                                 # We don't try to decide if this is an attack or a
                                 # mistake. We just abort the parse.
                                 raise PSBTSurplusDerivationPathsError("Multisig output claims more derivation paths than its script has keys")
+
+                            # We now know that our key is in the committed script; this
+                            # output does pay to a multisig that our seed is part of. But
+                            # note that we do not know yet if this is truly change coming
+                            # back to our wallet or if it is paying out to a different
+                            # multisig that happens to include our seed. Final change
+                            # verification can only happen if and when the user loads
+                            # their "known-good" multisig descriptor.
+                            is_change = True
 
                     else:
                         # No handler claimed a matching output, which the branches above
@@ -569,6 +581,10 @@ class PSBTParser():
                 self.op_return_data = vout[i].script_pubkey.data[3:]
 
             elif is_change:
+                # Remember that "change" in this function is ANY output coming back to our
+                # seed, receive addresses included. It is up to the View layer to use the
+                # derivation path to determine if it should be displayed as change or
+                # receive.
                 addr = vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
                 self.change_data.append({
                     "output_index": i,
