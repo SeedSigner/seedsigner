@@ -1888,3 +1888,31 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
             with pytest.raises(PSBTOutputOwnershipContradictionError):
                 self._parse(psbt)
 
+
+    def test__parse__refuses_an_unsupported_script_type(self):
+        """
+        Parsing should be aborted if a psbt has inputs and outputs that use a script type
+        that embit doesn't recognize. embit reports unhandled types as None. In this case
+        the output's policy shape would match the input's (`None` == `None`) and so the
+        parse would consider it as possible change. Rather than continue, we expect the
+        catch-all safety check to spot the unsupported script type and raise RuntimeError.
+        """
+        root = self._root()
+
+        # embit does not support p2pk so its script type will be `None`
+        def p2pk(public_key: PublicKey) -> script.Script:
+            OP_PUSHBYTES_33 = b"\x21"
+            OP_CHECKSIG = b"\xac"
+            return script.Script(OP_PUSHBYTES_33 + public_key.sec() + OP_CHECKSIG)
+
+        psbt = self._psbt_with_change()
+        psbt.inputs[0].witness_utxo.script_pubkey = p2pk(root.derive("m/84h/1h/0h/0/3").get_public_key())
+        psbt.outputs[0].script_pubkey = p2pk(root.derive("m/84h/1h/0h/1/0").get_public_key())
+
+        # The policy shape check really does let this output through to the scriptPubKey
+        # rebuild step.
+        assert psbt.inputs[0].witness_utxo.script_pubkey.script_type() is None
+        assert psbt.outputs[0].script_pubkey.script_type() is None
+
+        with pytest.raises(RuntimeError, match="Unsupported policy type"):
+            self._parse(psbt)

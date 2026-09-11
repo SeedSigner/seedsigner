@@ -421,9 +421,8 @@ class PSBTParser():
                     multisig_script = out.redeem_script
                     rebuilt_script_pubkey = script.p2sh(multisig_script)
 
-                # single-sig: p2pkh, p2sh-p2wpkh, and p2wpkh; taproot handled separately
-                # below.
-                elif "pkh" in self.policy["type"]:
+                # single-sig; taproot handled separately below.
+                elif self.policy["type"] in ("p2pkh", "p2sh-p2wpkh", "p2wpkh"):
                     # Sanity check; a single sig output shouldn't have multiple derivation
                     # paths.
                     if len(out.bip32_derivations) > 1:
@@ -439,7 +438,7 @@ class PSBTParser():
                         # considered an external spend.
                         pass
 
-                elif "p2tr" in self.policy["type"]:
+                elif self.policy["type"] == "p2tr":
                     taproot_entries = list(out.taproot_bip32_derivations.values())
 
                     if len(taproot_entries) == 0:
@@ -471,6 +470,12 @@ class PSBTParser():
                             # verify ownership.
                             # TODO: Support keys in script tree leaves
                             pass
+
+                else:
+                    # Safety catch-all: any new script types will need explicit handling
+                    # above. Note that embit reports unrecognized script types as `None`,
+                    # which is also caught here.
+                    raise RuntimeError(f"Unsupported policy type: {self.policy['type']}")
 
                 verified_derivation_path = self.verified_output_derivation_paths[i]
 
@@ -548,13 +553,7 @@ class PSBTParser():
                             # their "known-good" multisig descriptor.
                             is_change = True
 
-                    else:
-                        # No handler claimed a matching output, which the branches above
-                        # should make impossible. Raise rather than leave is_change True;
-                        # that would record change with nothing verified behind it.
-                        raise RuntimeError(f"Output {i} matched but no verification handler applies")
-
-                elif verified_derivation_path is not None and "p2tr" not in self.policy["type"]:
+                elif verified_derivation_path is not None and self.policy["type"] != "p2tr":
                     # The psbt claims one of this seed's keys on this output, yet the
                     # output does NOT pay what that claim describes. We treat this
                     # deception as an attack.
