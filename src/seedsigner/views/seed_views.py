@@ -85,12 +85,12 @@ class SeedSelectSeedView(View):
 
 
     def run(self):
+        from seedsigner.controller import Controller
         # If a seed was already provided (e.g. coming from xpub export), skip selection UI
         if self.seed is not None:
             if self.flow == Controller.FLOW__VERIFY_SINGLESIG_ADDR:
                 return Destination(SeedAddressVerificationView, view_args={"seed": self.seed})
     
-        from seedsigner.controller import Controller
         seeds = self.controller.storage.seeds
 
         if self.flow == Controller.FLOW__VERIFY_SINGLESIG_ADDR:
