@@ -331,16 +331,17 @@ class PSBTParser():
         OP_RETURN data, and totals the amounts for each. Note that self-transfer/receive
         outputs are also considered "change".
 
-        Most of the work here is determining which, if any, outputs are verifiably being
-        paid to our seed.
+        Most of the work here is sorting through the psbt's claims about which, if any,
+        outputs are paying a key that can be derived from our seed, and then doing all
+        possible independent verifications for the given output data.
         """
 
-        """****************** How outputs are verified as change ************************
-        Many outputs are obviously NOT change. An output is only considered possible
+        """********************* How output ownership is determined *********************
+        Many outputs are obviously NOT ours. An output is only considered possible
         change if its policy matches the inputs' policy "shape" (script type, plus m-of-n
         for multisig; see parse()); anything else is recorded as an external spend.
 
-        The psbt will usually annotate which key(s) own a change output (see embit's
+        The psbt will usually annotate which key(s) a change output pays (see embit's
         bip32_derivations and taproot_bip32_derivations), but this is just a claim
         supplied by the coordinator. These annotations are not authoritative. But such
         claims are significant; if our checks prove that the claim is false, we consider
@@ -354,7 +355,8 @@ class PSBTParser():
 
         We must build our own version of the scriptPubKey via:
           * single sig: derive a key from our seed using the claimed derivation path.
-          * multisig: hash the claimed witness_script or redeem_script.
+          * multisig: hash the claimed witness_script or redeem_script, then check that a
+            key derived from our seed is among that script's keys.
 
         That leaves us holding two independent answers about the same output: which key it
         commits to (our rebuild, matched against the scriptPubKey), and which key the psbt
@@ -362,11 +364,15 @@ class PSBTParser():
 
                                      | claims this seed     | doesn't claim this seed
             -------------------------+----------------------+-------------------------
-            commits to our key       | confirmed: is change | contradiction
+            commits to our key       | presumed change      | contradiction
             commits to another key   | contradiction        | presumed external spend
 
         If our two answers contradict each other, the psbt has been caught in a deception.
         We raise an exception and reject the psbt.
+
+        Multisig change can't be fully verified until later in the process, so we use
+        "presumed" to avoid conveying a false impression of certainty. Single sig carries
+        its own note later in this function about its guarantees.
 
         (note one exception: no taproot mismatch is rejected. A script tree tweaks our
         internal key, so an honest taproot change output fails to match too, and we cannot
@@ -387,7 +393,7 @@ class PSBTParser():
 
         for i, out in enumerate(self.psbt.outputs):
             out_policy = PSBTParser._get_policy(out, vout[i].script_pubkey, self.psbt.xpubs, child_key_derivation_cache)
-            is_change = False
+            is_presumed_change = False
 
             # Is this output change? If this output's policy is superficially similar to
             # the spending wallet's policy (e.g. they're both 2-of-3 p2wsh), then it's a
@@ -497,9 +503,9 @@ class PSBTParser():
                             raise RuntimeError(f"Output {i} verified at a path it does not pay")
 
                         # We've now verified that the key we derived from our seed at the
-                        # claimed path is the key this output pays. This output is
-                        # provably ours.
-                        is_change = True
+                        # claimed path is the key this output pays. Despite the "presumed"
+                        # variable name, the output IS provably ours.
+                        is_presumed_change = True
 
                     elif multisig_script is not None:
                         if verified_derivation_path is None:
@@ -551,7 +557,7 @@ class PSBTParser():
                             # multisig that happens to include our seed. Final change
                             # verification can only happen if and when the user loads
                             # their "known-good" multisig descriptor.
-                            is_change = True
+                            is_presumed_change = True
 
                 elif verified_derivation_path is not None and self.policy["type"] != "p2tr":
                     # The psbt claims one of this seed's keys on this output, yet the
@@ -579,7 +585,7 @@ class PSBTParser():
                 # The data is written as: OP_RETURN + OP_PUSHDATA1 + len(payload) + payload
                 self.op_return_data = vout[i].script_pubkey.data[3:]
 
-            elif is_change:
+            elif is_presumed_change:
                 # Remember that "change" in this function is ANY output coming back to our
                 # seed, receive addresses included. It is up to the View layer to use the
                 # derivation path to determine if it should be displayed as change or
