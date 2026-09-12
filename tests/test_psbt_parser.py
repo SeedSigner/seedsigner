@@ -1889,6 +1889,185 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
                 self._parse(psbt)
 
 
+    def test_get_cosigners_returns_a_sorted_list(self):
+        """
+        Two multisig scripts can list the same wallet's keys in different orders, so the
+        cosigners resolved for one script and the cosigners resolved for another have to
+        be sorted before they can be compared. Regression test against _get_cosigners
+        ever dropping the sort logic.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        inp = psbt.inputs[0]
+        pubkeys = list(inp.bip32_derivations.keys())
+
+        cosigners = PSBTParser._get_cosigners(pubkeys, inp.bip32_derivations, psbt.xpubs, None)
+
+        assert cosigners == sorted(cosigners)
+
+        # Sanity check: the fixture's three cosigners are three different xpubs.
+        assert len(set(cosigners)) == 3
+
+        # The same keys, handed over in the opposite order
+        reordered = PSBTParser._get_cosigners(list(reversed(pubkeys)), inp.bip32_derivations, psbt.xpubs, None)
+
+        assert reordered == cosigners
+
+
+    def _repoint_at_a_different_quorum(self, psbt: PSBT):
+        """
+        Helper function to rebuild the change output's script so it pays a 2-of-3 that
+        still holds this seed's key, but with one cosigner swapped for a different seed.
+        That swap makes the output's 2-of-3 a different wallet from the one the inputs
+        spend from.
+        """
+        # Callers pass a psbt whose change output comes first
+        out = psbt.outputs[0]
+
+        seed_fingerprint = root_for_seed(self.seed).my_fingerprint
+
+        # The replacement cosigner will use the same account-level derivation path as the
+        # first xpub.
+        account_derivation_path = list(psbt.xpubs.values())[0].derivation
+
+        # Pick the first entry that isn't the current seed's.
+        for public_key, derivation_path_obj in out.bip32_derivations.items():
+            if derivation_path_obj.fingerprint != seed_fingerprint:
+                displaced_public_key = public_key
+                address_derivation_path = derivation_path_obj.derivation
+                break
+
+        # Build the outsider from a different seed: its account xpub at the shared
+        # account path, then the child key two levels down at the displaced entry's
+        # change/index.
+        outsider_root = root_for_seed(PSBTTestData.recipient_seed)
+        outsider_account = outsider_root.derive(account_derivation_path)
+        outsider_public_key = outsider_account.derive(address_derivation_path[-2:]).get_public_key()
+
+        # Add the outsider's account xpub to the psbt's global xpubs, which now hold
+        # four: the inputs' three cosigners plus the outsider.
+        psbt.xpubs[outsider_account.to_public()] = DerivationPath(outsider_root.my_fingerprint, account_derivation_path)
+
+        # Rebuild the multisig script with the outsider's key in the displaced key's
+        # slot.
+        original_script = out.witness_script if out.witness_script is not None else out.redeem_script
+        m, n, public_keys = PSBTParser._parse_multisig(original_script)
+        new_pubkey_list = []
+        for public_key in public_keys:
+            if public_key == displaced_public_key:
+                new_pubkey_list.append(outsider_public_key)
+            else:
+                new_pubkey_list.append(public_key)
+        rebuilt_script = script.multisig(m, new_pubkey_list)
+
+        # Swap the displaced cosigner's derivation path entry for the outsider's, so
+        # the psbt describes the rebuilt script truthfully.
+        del out.bip32_derivations[displaced_public_key]
+        out.bip32_derivations[outsider_public_key] = DerivationPath(outsider_root.my_fingerprint, address_derivation_path)
+
+        # Recommit the output to the rebuilt script, through the wrapping the fixture
+        # uses: p2wsh, p2sh-p2wsh, or bare p2sh.
+        if out.witness_script is not None:
+            out.witness_script = rebuilt_script
+            inner_script = script.p2wsh(rebuilt_script)
+        else:
+            inner_script = rebuilt_script
+
+        if out.redeem_script is not None:
+            out.redeem_script = inner_script
+            out.script_pubkey = script.p2sh(inner_script)
+        else:
+            out.script_pubkey = inner_script
+
+
+    def test__parse__counts_a_different_quorum_as_a_spend(self):
+        """
+        An output paying a 2-of-3 that this seed is genuinely part of, but whose third
+        cosigner is a different seed. That makes the output's 2-of-3 a different wallet
+        from the one the inputs spend from.
+
+        Every ownership check passes: the output commits to a script holding this seed's
+        key and the psbt claims this seed there truthfully.
+
+        The psbt supplies global xpubs (the three from the input plus the outsider's that
+        is part of the output) and it fully annotates this output's derivation paths,
+        allowing for the parser to determine the output's cosigners accurately.
+
+        End result of this setup: The output's cosigner list differs from the inputs'
+        list. So the output is counted as a spend.
+
+        This sort of cosigner mismatch is a scenario that no known coordinator would
+        produce; normally an output to a different wallet would not be annotated nor have
+        its xpubs added to the global xpubs data.
+        """
+        for input_base64, change_hex in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+        ]:
+            # The wallet's own change output, for comparison
+            psbt_parser = self._parse(self._psbt_with_change(input_base64, change_hex))
+            assert psbt_parser.change_amount == 10_000
+            assert psbt_parser.spend_amount == 0
+
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_at_a_different_quorum(psbt)
+
+            # The parse accepts the psbt: it described this output accurately.
+            psbt_parser = self._parse(psbt)
+
+            # This seed's key really is in the committed script and the psbt's claim of
+            # this seed verified.
+            assert psbt_parser.verified_output_derivation_paths[0] is not None
+
+            # But the output pays a different quorum than the inputs spend from, so it
+            # is counted as a spend.
+            assert psbt_parser.change_data == []
+            assert psbt_parser.change_amount == 0
+            assert psbt_parser.spend_amount == 10_000
+
+
+    def test__parse__counts_a_different_quorum_as_change_if_no_global_xpubs(self):
+        """
+        Same setup as the previous test, but this time the psbt omits its global xpubs.
+
+        The global xpubs are needed in order to resolve cosigners. So without them, the
+        inputs' cosigner list and the output's cosigner list comparison is skipped. The
+        user's seed is part of the output wallet and the output's policy "shape"
+        superficially matches the input's (2-of-3, same script type), so the output is
+        counted as presumed change.
+
+        BIP-174 makes the global xpubs optional and honest coordinators do omit them. The
+        previous test notes that no known coordinator annotates external spend outputs so
+        this test scenario is unlikely to be seen in the real world. But this version of
+        the test has one notable exception: Bitcoin Core.
+
+        Core can hold the descriptors of several spending wallets. It will annotate an
+        output that belongs to ANY of its descriptors, regardless of whether it differs
+        from the input wallet. But Core does not write global xpubs at all, so it wasn't a
+        factor in the previous test (which required the global xpubs).
+
+        But a Core-built psbt can exactly match this test's shape: a fully annotated
+        foreign output and no global xpubs to compare against.
+        """
+        # Test each multisig script type
+        for input_base64, change_hex in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+        ]:
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_at_a_different_quorum(psbt)
+
+            # The global xpubs must be omitted for this scenario
+            psbt.xpubs.clear()
+
+            psbt_parser = self._parse(psbt)
+
+            # Parser categorizes the output as presumed change.
+            assert psbt_parser.change_amount == 10_000
+            assert psbt_parser.spend_amount == 0
+
+
     def test__parse__refuses_an_unsupported_script_type(self):
         """
         Parsing should be aborted if a psbt has inputs and outputs that use a script type

@@ -559,6 +559,19 @@ class PSBTParser():
                             # their "known-good" multisig descriptor.
                             is_presumed_change = True
 
+                            # One thing we can rule out now: if the psbt supplied global
+                            # xpubs (see _get_cosigners) AND it fully annotated this
+                            # output, we can see if this output's cosigners differ from
+                            # the inputs' cosigners. If so, then we can be sure this
+                            # output is NOT our change. This sort of mismatch is a
+                            # scenario that no known coordinator would produce, but
+                            # there's no harm in checking this edge case.
+                            input_cosigners = self.policy.get("cosigners")
+                            output_cosigners = out_policy.get("cosigners")
+                            cosigners_resolved = input_cosigners is not None and output_cosigners is not None
+                            if cosigners_resolved and input_cosigners != output_cosigners:
+                                is_presumed_change = False
+
                 elif verified_derivation_path is not None and self.policy["type"] != "p2tr":
                     # The psbt claims one of this seed's keys on this output, yet the
                     # output does NOT pay what that claim describes. We treat this
@@ -816,25 +829,71 @@ class PSBTParser():
 
     @staticmethod
     def _get_cosigners(pubkeys, derivations, xpubs, child_key_derivation_cache: dict | None):
-        """Returns xpubs used to derive pubkeys using global xpub field from psbt"""
+        """
+        Traces every key in a multisig script back to the global xpub it was derived
+        from, then returns the xpubs it found as a sorted list of base58 strings.
+
+        Args:
+          * pubkeys: The keys that actually appear in the script (the witness script for
+            segwit; the redeem script for legacy p2sh). Extracted by _get_policy(). One
+            per cosigner.
+
+          * derivations: (embit's bip32_derivations) Each pubkey's associated fingerprint
+            and full derivation path (e.g. m/48'/0'/0'/2'/1/5). A dict keyed on each
+            pubkey.
+
+          * xpubs: aka "global xpubs". The account-level xpub, with its associated
+            fingerprint and derivation path, but only down to the account level (e.g.
+            m/48'/0'/0'/2'). A dict keyed on each xpub.
+
+        The derivations and xpubs are unproven claims provided by the coordinator. So for
+        each pubkey we check whether the xpub the psbt points us to really derives it.
+
+        The resulting cosigners list consists of each xpub that provably derives each of
+        the script's keys. But that is ALL it proves. We have no way to verify who those
+        xpubs actually belong to; the coordinator can list any xpubs it likes.
+
+        The list is sorted so that two scripts holding the same wallet's keys in a
+        different order resolve to the same cosigners.
+
+        Note that the bip32_derivations and the global xpubs are both optional psbt
+        fields. If either is omitted or incomplete, this function raises rather than
+        return a partial list.
+        """
+        # TODO: Improve error handling by providing custom exceptions.
+
+        # Early-out if the optional data is omitted. Not actually an error: raising is
+        # how this function reports that a complete cosigner list can't be built.
+        if not xpubs:
+            raise ValueError("No global xpubs supplied")
+        if not derivations:
+            raise ValueError("No derivation paths supplied")
+
         cosigners = []
         for i, pubkey in enumerate(pubkeys):
+            # For each pubkey, get the claimed fingerprint and full derivation path
             if pubkey not in derivations:
                 raise ValueError("Missing derivation")
             der = derivations[pubkey]
+
+            # Scan the xpubs for one whose fingerprint and derivation path match the
+            # claim (xpub path comparisons have to stop at the account level).
             for xpub in xpubs:
                 origin_der = xpubs[xpub]
-                # check fingerprint
                 if origin_der.fingerprint == der.fingerprint:
-                    # check derivation - last two indexes give pub from xpub
                     if origin_der.derivation == der.derivation[:-2]:
-                        # check that it derives to pubkey actually
-                        derived_key = PSBTParser._derive_with_cache(
-                            xpub, der.derivation[-2:], child_key_derivation_cache)
+                        # Then derive the actual child key (its full derivation path is
+                        # two indices deeper than the xpub's stated derivation path)
+                        derived_key = PSBTParser._derive_with_cache(xpub, der.derivation[-2:], child_key_derivation_cache)
+
+                        # Finally, compare that key with the target pubkey
                         if derived_key.key == pubkey:
                             # append strings so they can be sorted and compared
                             cosigners.append(xpub.to_base58())
                             break
+
+        # Every key in the script has to trace back to an xpub for the result to mean
+        # anything.
         if len(cosigners) != len(pubkeys):
             raise RuntimeError("Can't get all cosigners")
         return sorted(cosigners)
