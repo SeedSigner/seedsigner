@@ -5,6 +5,8 @@ from embit import bip32
 from embit.ec import PublicKey
 from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath, InputScope, OutputScope
+from embit.script import Script
+from embit.transaction import TransactionOutput
 
 from seedsigner.models.seed import Seed
 
@@ -178,3 +180,21 @@ def claim_seed_owns_key(scope: InputScope | OutputScope, claimed_derivation_path
         scope.taproot_bip32_derivations[public_key] = ([], derivation_path)
     else:
         scope.bip32_derivations[public_key] = derivation_path
+
+
+def create_op_return_psbt(script_pubkey: Script, op_return_value: int = 0, fee_amount: int = 5_000) -> PSBT:
+    """
+    Create a psbt with a single-sig native segwit input, a change output, and the
+    given OP_RETURN `script_pubkey` as a second output.
+
+    Optionally give the OP_RETURN output a non-zero `op_return_value`.
+    """
+    psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+    input_amount = sum([inp.utxo.value for inp in psbt.inputs])
+    psbt.outputs.clear()
+    psbt.outputs.append(create_output(
+        PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE,
+        input_amount - op_return_value - fee_amount,
+    ))
+    psbt.outputs.append(OutputScope(vout=TransactionOutput(op_return_value, script_pubkey)))
+    return psbt

@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 class OPCODES:
     OP_RETURN = 106
     OP_PUSHDATA1 = 76
+    OP_PUSHDATA2 = 77
+    OP_PUSHDATA4 = 78
 
 
 
@@ -273,6 +275,7 @@ class PSBTParser():
         self.fee_amount = 0
         self.destination_addresses = []
         self.destination_amounts = []
+        self.op_return_data = None
 
         # Asking the PSBT for its transaction rebuilds that entire transaction from
         # scratch on every single request. The outputs are consulted a dozen times
@@ -338,9 +341,9 @@ class PSBTParser():
                 if sc.data == vout[i].script_pubkey.data:
                     is_change = True
 
-            if vout[i].script_pubkey.data[0] == OPCODES.OP_RETURN:
-                # The data is written as: OP_RETURN + OP_PUSHDATA1 + len(payload) + payload
-                self.op_return_data = vout[i].script_pubkey.data[3:]
+            if vout[i].script_pubkey.data[:1] == bytes([OPCODES.OP_RETURN]):
+                if self.op_return_data is None:
+                    self.op_return_data = PSBTParser._parse_op_return_payload(vout[i].script_pubkey.data)
 
             elif is_change:
                 addr = vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
@@ -404,6 +407,43 @@ class PSBTParser():
                 cnt += len(list(inp.partial_sigs.keys()))
 
         return cnt
+
+
+    @staticmethod
+    def _parse_op_return_payload(script_pubkey_data: bytes) -> bytes:
+        """
+        Extract the pushed payload from an OP_RETURN scriptPubKey.
+
+        The payload can be pushed directly (opcodes 0x01-0x4b) or via
+        OP_PUSHDATA1/2/4. Bitcoin Core uses a direct push for payloads of 75 bytes
+        or fewer, which covers most OP_RETURNs in practice, so the push opcode has
+        to be read rather than assumed.
+        """
+        # Everything after OP_RETURN
+        data = script_pubkey_data[1:]
+        if not data:
+            # Bare OP_RETURN, no payload
+            return b""
+
+        opcode = data[0]
+        if 0x01 <= opcode <= 0x4B:
+            offset = 1
+            length = opcode
+        elif opcode == OPCODES.OP_PUSHDATA1:
+            offset = 2
+            length = int.from_bytes(data[1:2], "little")
+        elif opcode == OPCODES.OP_PUSHDATA2:
+            offset = 3
+            length = int.from_bytes(data[1:3], "little")
+        elif opcode == OPCODES.OP_PUSHDATA4:
+            offset = 5
+            length = int.from_bytes(data[1:5], "little")
+        else:
+            # Not a data push (e.g. OP_0 or a numeric opcode); no payload to show
+            return b""
+
+        # Slicing keeps this safe if the script claims more data than it carries
+        return data[offset:offset + length]
 
 
     @staticmethod

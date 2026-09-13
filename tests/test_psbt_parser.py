@@ -9,14 +9,15 @@ from embit.ec import PublicKey
 from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath
 from embit.descriptor import Descriptor
+from embit.script import Script
 
-from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
+from seedsigner.models.psbt_parser import (OPCODES, PSBTInputOwnershipClaimError,
     PSBTOutputOwnershipClaimError, PSBTParser, PSBTSeedCannotSignError)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
-from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_output,
-    foreign_public_key, root_for_seed)
+from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_op_return_psbt,
+    create_output, foreign_public_key, root_for_seed)
 
 
 
@@ -1238,3 +1239,74 @@ class TestPSBTParserSeedOwnership:
 
         with pytest.raises(PSBTSeedCannotSignError):
             self._parse(psbt)
+
+
+
+def test_parse_op_return_payload_encodings():
+    """
+        Should extract the payload no matter which push opcode carries it.
+
+        Bitcoin Core pushes payloads of 75 bytes or fewer directly and only reaches
+        for OP_PUSHDATA1 above that, so the push opcode has to be read rather than
+        assumed.
+    """
+    op_return = bytes([OPCODES.OP_RETURN])
+
+    # Direct push, the encoding Bitcoin Core produces for payloads <= 75 bytes
+    for length in [1, 2, 40, 75]:
+        payload = b"A" * length
+        assert PSBTParser._parse_op_return_payload(op_return + bytes([length]) + payload) == payload
+
+    for length in [76, 80, 255]:
+        payload = b"B" * length
+        script = op_return + bytes([OPCODES.OP_PUSHDATA1, length]) + payload
+        assert PSBTParser._parse_op_return_payload(script) == payload
+
+    payload = b"C" * 300
+    script = op_return + bytes([OPCODES.OP_PUSHDATA2]) + len(payload).to_bytes(2, "little") + payload
+    assert PSBTParser._parse_op_return_payload(script) == payload
+
+    payload = b"D" * 300
+    script = op_return + bytes([OPCODES.OP_PUSHDATA4]) + len(payload).to_bytes(4, "little") + payload
+    assert PSBTParser._parse_op_return_payload(script) == payload
+
+    # Bare OP_RETURN, nothing pushed
+    assert PSBTParser._parse_op_return_payload(op_return) == b""
+
+    # Empty scriptPubKey; must not index past the end
+    assert PSBTParser._parse_op_return_payload(b"") == b""
+
+    # Script claims more data than it carries; must not raise
+    assert PSBTParser._parse_op_return_payload(op_return + bytes([10]) + b"abc") == b"abc"
+
+    # Leading opcode isn't a data push, so there's no payload to show
+    assert PSBTParser._parse_op_return_payload(op_return + bytes([0x00])) == b""
+
+
+
+def test_parse_op_return_content_direct_push():
+    """
+        The OP_RETURN payload shown to the user must be the payload the transaction
+        actually commits to, for the encoding Bitcoin Core produces.
+    """
+    message = "Chancellor on the brink of third bailout".encode()
+
+    # Exactly what `bitcoin-tx -create outdata=<hex>` emits: OP_RETURN + direct push
+    script_pubkey = Script(bytes([OPCODES.OP_RETURN, len(message)]) + message)
+
+    psbt = create_op_return_psbt(script_pubkey)
+    psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+    assert psbt_parser.op_return_data == message
+
+
+
+def test_parse_op_return_content_pushdata1():
+    """Payloads over 75 bytes use OP_PUSHDATA1 and must still parse."""
+    message = b"E" * 80
+    script_pubkey = Script(bytes([OPCODES.OP_RETURN, OPCODES.OP_PUSHDATA1, len(message)]) + message)
+
+    psbt = create_op_return_psbt(script_pubkey)
+    psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+    assert psbt_parser.op_return_data == message
