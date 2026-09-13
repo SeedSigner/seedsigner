@@ -26,14 +26,18 @@ env:
   # but the default SHA env var reflects a new commit into the target repo.
   SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
+  # Fail instead of re-resolving if uv.lock is out of date with pyproject.toml. Applies
+  # to every uv invocation, including the nested `uv run` that `poe` performs.
+  UV_LOCKED: "1"
+
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       matrix:
-        # 3.10: currently used by Seedsigner
-        # 3.12: latest stable Python as upper test bound
+        # 3.10: minimum supported version (requires-python in pyproject.toml)
+        # 3.12: what SeedSigner OS ships (CPython 3.12.10)
         python-version: ["3.10", "3.12"]
 
     steps:
@@ -41,26 +45,25 @@ jobs:
         with:
           # Needs to also pull the seedsigner-translations repo
           submodules: recursive
-      - name: Install uv
-        uses: astral-sh/setup-uv@v9.0.0
+      - name: Install uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
+          version: "0.12.13"
+          python-version: ${{ matrix.python-version }}
           enable-cache: true
-      - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
           sudo apt-get install libzbar0
-          # `--frozen` installs exactly what uv.lock pins, without re-resolving.
-          # The `l10n` group is not synced by default; the next step needs it.
-          uv sync --frozen --group l10n --python ${{ matrix.python-version }}
-          # Put the synced venv on PATH so the steps below stay plain commands.
-          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          # Installs exactly the artifacts recorded in uv.lock (sha256-verified): the
+          # runtime deps, the default `dev` group (test + l10n tools) and the project
+          # itself in editable mode.
+          uv sync --locked
       - name: Compile translations
-        run: python setup.py compile_catalog
+        run: uv run poe translations-compile
       - name: Test with pytest
         run: |
           mkdir -p artifacts
-          python -m pytest \
+          uv run poe test \
             --color=yes \
             --cov=seedsigner \
             --cov-branch \
@@ -68,7 +71,7 @@ jobs:
             -vv
       - name: Generate screenshots
         run: |
-          python -m pytest tests/screenshot_generator/generator.py \
+          uv run poe screenshots \
             --color=yes \
             --cov=seedsigner \
             --cov-append \
@@ -77,7 +80,7 @@ jobs:
             -vv
           cp -r ./seedsigner-screenshots ./artifacts/
       - name: Coverage report
-        run: coverage report
+        run: uv run coverage report
       - name: Archive CI Artifacts
         uses: actions/upload-artifact@v4
         with:
