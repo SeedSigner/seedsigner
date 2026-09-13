@@ -1,4 +1,4 @@
 #!/bin/bash
 
-uv sync --frozen --group l10n
+uv sync --frozen
 tail -f /dev/null

@@ -169,16 +169,15 @@ sudo swapon /swapfile
 ```
 
 ### Install Python `pip` dependencies:
+The dependency pins live in `pyproject.toml`; the `raspi` extra adds the
+hardware-only libraries (`picamera`, `numpy`, `RPi.GPIO`, `spidev`).
 ```bash
-# Takes 1hr 15min on a Pi Zero 1.3
-python3 -m pip install -r requirements.txt
-
-# Only takes ~100 seconds
-python3 -m pip install -r requirements-raspi.txt
+# Takes ~1hr 15min on a Pi Zero 1.3 (Pillow and numpy compile from source)
+python3 -m pip install ".[raspi]"
 ```
 
 #### `pyzbar`
-Note: The `requirements.txt` installs a fork of the python `pyzbar` repo.
+Note: `pyproject.toml` pins a fork of the python `pyzbar` repo (by git commit).
 
 The fork is required because the main `pyzbar` repo has been abandoned. This [github issue](https://github.com/NaturalHistoryMuseum/pyzbar/issues/124#issuecomment-971967091) discusses the changes needed in order to support reading binary data from `zbar`, which is required for our `CompactSeedQR` format which writes byte data instead of strings. The changes specifically reference the following PRs which have already been merged into Keith's fork:
 * [PR 76](https://github.com/NaturalHistoryMuseum/pyzbar/pull/76/files): enables scanning to continue even when a null byte (`x\00`) is found.

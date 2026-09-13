@@ -7,7 +7,7 @@ from embit.wordlists.bip39 import WORDLIST as WORDLIST__ENGLISH
 see: docs/dice_verification.md (the "Command Line Tool" section) for full instructions.
 
 tldr:
-    uv sync --frozen
+    uv sync
     cd tools
     uv run python mnemonic.py -h
 """

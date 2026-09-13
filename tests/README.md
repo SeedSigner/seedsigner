@@ -3,47 +3,27 @@
 The tests are designed to be run on non-Raspi hardware.
 
 ## Setup
-Follow the [development setup](../README.md#development-environment), including
-fetching the submodules and compiling translations before running tests.
-
-On macOS, install zbar with `brew install zbar`. If pyzbar cannot find it, set
-`export DYLD_LIBRARY_PATH="$(brew --prefix zbar)/lib"`. If QR decoding crashes
-on Apple Silicon, use the Linux Docker environment below.
-
-## Running the tests in Docker
-From the repo root, after fetching the submodules:
-
+On your testing machine you'll have to install [uv](https://docs.astral.sh/uv/getting-started/installation/) and the `zbar` system library (`sudo apt-get install libzbar0` on Debian/Ubuntu, `brew install zbar` on macOS). Then, from the project root:
 ```bash
-docker build -f docker/Dockerfile -t seedsigner-dev .
-docker run --rm -v "$(pwd)":/seedsigner seedsigner-dev bash -c "
-  uv sync --frozen --group l10n &&
-  uv run poe translations-compile &&
-  uv run poe test
-"
+uv sync
 ```
 
-For an interactive shell, run:
+This installs the pinned dependencies from `uv.lock` (including the test suite dependencies) and makes the `seedsigner` python module visible/importable to the tests (editable install).
 
+The l10n tests need the compiled translation catalogs:
 ```bash
-docker compose run --rm seedsigner-dev bash
+uv run poe translations-compile
 ```
-
-Run the sync and translation commands above before testing in that shell.
 
 ## Running all tests, calculating overall test coverage
-tldr: just run the convenience script from the project root:
+tldr: just run the `coverage` task from the project root:
 
 ```bash
 uv run poe coverage
 ```
 
 ## Running tests manually
-`uv run` executes a command inside the project environment, so you never have to
-activate the venv yourself. `uv run poe` lists the project's named tasks;
-`uv run poe test` is the test suite, and any extra arguments are passed through
-to `pytest`.
-
-Run the whole test suite:
+Run the whole test suite (any extra arguments are passed through to `pytest`):
 ```
 uv run poe test
 ```

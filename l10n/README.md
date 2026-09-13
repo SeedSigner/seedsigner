@@ -239,9 +239,9 @@ Transifex will ask translators to provide the singular and plural forms on a lan
 ---
 
 ## Set up localization dependencies
-`Babel` lives in the `l10n` dependency group, which is not synced by default:
+`Babel` is part of the default `uv sync` environment:
 ```bash
-uv sync --frozen --group l10n
+uv sync
 ```
 
 Make sure that your local repo has fetched the `seedsigner-translations` submodule. It's configured to add it in src/seedsigner/resources.
@@ -254,9 +254,7 @@ git submodule update --remote
 ### Pre-configured `babel` commands
 The `setup.cfg` file in the project root specifies params for the various `babel` commands discussed below.
 
-`uv sync` already installed the local code as an editable project. The `poe`
-tasks below run the `babel` commands inside that environment and pull in the
-`l10n` group for you, so no venv activation is needed.
+`uv sync` (above) already installed the local code as an editable project, and the `poe` tasks below run the `babel` commands inside that environment.
 
 
 ### Rescanning for text that needs translations
