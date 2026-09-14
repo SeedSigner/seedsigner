@@ -279,12 +279,17 @@ class PSBTParser():
         # over the course of the loop below, so grab them once now.
         vout = self.psbt.tx.vout
 
+        # embit's script_type() is None for scripts it does not recognize. Policy then
+        # stores {"type": None}; membership tests like `"pkh" in type` would TypeError.
+        policy_type = self.policy.get("type") if isinstance(self.policy, dict) else None
+
         for i, out in enumerate(self.psbt.outputs):
             out_policy = PSBTParser._get_policy(out, vout[i].script_pubkey, self.psbt.xpubs, child_key_derivation_cache)
             is_change = False
 
-            # if policy is the same - probably change
-            if out_policy == self.policy:
+            # if policy is the same - probably change. Unknown/None script types are
+            # treated as external spends, never as change.
+            if out_policy == self.policy and isinstance(policy_type, str) and policy_type:
                 # double-check that it's change
                 # we already checked in get_cosigners and parse_multisig
                 # that pubkeys are generated from cosigners,
@@ -296,19 +301,19 @@ class PSBTParser():
                 sc = script.Script(b"")
 
                 # multisig, we know witness script
-                if self.policy["type"] == "p2wsh":
+                if policy_type == "p2wsh":
                     sc = script.p2wsh(out.witness_script)
 
-                elif self.policy["type"] == "p2sh-p2wsh":
+                elif policy_type == "p2sh-p2wsh":
                     sc = script.p2sh(script.p2wsh(out.witness_script))
                 
                 # Arbitrary p2sh; includes pre-segwit multisig (m/45')
-                elif self.policy["type"] == "p2sh":
+                elif policy_type == "p2sh":
                     sc = script.p2sh(out.redeem_script)
 
                 # single-sig: p2pkh, p2sh-p2wpkh, and p2wpkh; taproot handled separately
                 # below.
-                elif "pkh" in self.policy["type"]:
+                elif "pkh" in policy_type:
                     my_pubkey = None
 
                     # should be one or zero for single-key addresses
@@ -316,16 +321,16 @@ class PSBTParser():
                         der = list(out.bip32_derivations.values())[0].derivation
                         my_pubkey = PSBTParser._derive_with_cache(self.root, der, child_key_derivation_cache)
 
-                    if self.policy["type"] == "p2pkh" and my_pubkey is not None:
+                    if policy_type == "p2pkh" and my_pubkey is not None:
                         sc = script.p2pkh(my_pubkey)
 
-                    elif self.policy["type"] == "p2sh-p2wpkh" and my_pubkey is not None:
+                    elif policy_type == "p2sh-p2wpkh" and my_pubkey is not None:
                         sc = script.p2sh(script.p2wpkh(my_pubkey))
 
-                    elif self.policy["type"] == "p2wpkh" and my_pubkey is not None:
+                    elif policy_type == "p2wpkh" and my_pubkey is not None:
                         sc = script.p2wpkh(my_pubkey)
 
-                elif "p2tr" in self.policy["type"]:
+                elif "p2tr" in policy_type:
                     my_pubkey = None
                     # should have one or zero derivations for single-key addresses
                     if len(out.taproot_bip32_derivations.values()) > 0:
@@ -338,9 +343,10 @@ class PSBTParser():
                 if sc.data == vout[i].script_pubkey.data:
                     is_change = True
 
-            if vout[i].script_pubkey.data[0] == OPCODES.OP_RETURN:
+            script_data = vout[i].script_pubkey.data
+            if script_data and script_data[0] == OPCODES.OP_RETURN:
                 # The data is written as: OP_RETURN + OP_PUSHDATA1 + len(payload) + payload
-                self.op_return_data = vout[i].script_pubkey.data[3:]
+                self.op_return_data = script_data[3:] if len(script_data) > 3 else b""
 
             elif is_change:
                 addr = vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
@@ -369,7 +375,13 @@ class PSBTParser():
                 self.change_amount += vout[i].value
 
             else:
-                addr = vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
+                try:
+                    addr = vout[i].script_pubkey.address(NETWORKS[SettingsConstants.map_network_to_embit(self.network)])
+                except ValueError as e:
+                    # embit cannot render an address for unrecognized scripts.
+                    # Fail closed rather than TypeError on `"pkh" in None` or a
+                    # later crash when the overview tries to display the spend.
+                    raise RuntimeError("Unsupported output script") from e
                 self.destination_addresses.append(addr)
                 self.destination_amounts.append(vout[i].value)
                 self.spend_amount += vout[i].value
