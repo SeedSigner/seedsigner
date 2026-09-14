@@ -1,4 +1,6 @@
 #!/bin/bash
 
+set -euo pipefail
+
 uv sync --frozen
-tail -f /dev/null
+exec tail -f /dev/null
