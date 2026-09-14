@@ -197,7 +197,7 @@ class TestSeedFlows(FlowTest):
                     FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
                     FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
                     FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
-                    *( [FlowStep(seed_views.SeedExportXpubQRAskVerifyAddView, screen_return_value=0), FlowStep(scan_views.ScanAddressView, screen_return_value=0) ] if sig_selection == seed_views.SeedExportXpubSigTypeView.SINGLE_SIG else [] ),
+                    *( [FlowStep(seed_views.SeedExportXpubQRAskVerifyAddressView, screen_return_value=0), FlowStep(scan_views.ScanAddressView, screen_return_value=0) ] if sig_selection == seed_views.SeedExportXpubSigTypeView.SINGLE_SIG else [] ),
                     FlowStep(MainMenuView),
                 ]
         )
@@ -330,7 +330,7 @@ class TestSeedFlows(FlowTest):
                 FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
-                FlowStep(seed_views.SeedExportXpubQRAskVerifyAddView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubQRAskVerifyAddressView, screen_return_value=0),
                 FlowStep(scan_views.ScanAddressView, screen_return_value=0),
                 FlowStep(MainMenuView),
             ]
@@ -395,7 +395,7 @@ class TestSeedFlows(FlowTest):
                 FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
                 FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
-                FlowStep(seed_views.SeedExportXpubQRAskVerifyAddView, screen_return_value=0),
+                FlowStep(seed_views.SeedExportXpubQRAskVerifyAddressView, screen_return_value=0),
                 FlowStep(scan_views.ScanAddressView, screen_return_value=0),
                 FlowStep(MainMenuView),
             ]
