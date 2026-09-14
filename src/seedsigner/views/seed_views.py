@@ -1000,13 +1000,13 @@ class SeedExportXpubQRDisplayView(View):
         )
 
         if self.sig_type == SettingsConstants.SINGLE_SIG:
-            return Destination(SeedExportXpubQRAskVerifyAddView, view_args={"seed": self.seed})
+            return Destination(SeedExportXpubQRAskVerifyAddressView, view_args={"seed": self.seed})
         else:
             return Destination(MainMenuView)
 
 
 
-class SeedExportXpubQRAskVerifyAddView(View):
+class SeedExportXpubQRAskVerifyAddressView(View):
     """
     After exporting a single-sig xpub, ask the user if they want to verify a wallet
     address against the exported xpub.
