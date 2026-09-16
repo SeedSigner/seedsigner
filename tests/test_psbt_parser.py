@@ -1919,6 +1919,10 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
         still holds this seed's key, but with one cosigner swapped for a different seed.
         That swap makes the output's 2-of-3 a different wallet from the one the inputs
         spend from.
+
+        The psbt's global xpubs are left as the fixture wrote them: the inputs' three
+        cosigners (the expected behavior for all known coordinators). The outsider's xpub
+        is not added to the global xpubs.
         """
         # Callers pass a psbt whose change output comes first
         out = psbt.outputs[0]
@@ -1942,10 +1946,6 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
         outsider_root = root_for_seed(PSBTTestData.recipient_seed)
         outsider_account = outsider_root.derive(account_derivation_path)
         outsider_public_key = outsider_account.derive(address_derivation_path[-2:]).get_public_key()
-
-        # Add the outsider's account xpub to the psbt's global xpubs, which now hold
-        # four: the inputs' three cosigners plus the outsider.
-        psbt.xpubs[outsider_account.to_public()] = DerivationPath(outsider_root.my_fingerprint, account_derivation_path)
 
         # Rebuild the multisig script with the outsider's key in the displaced key's
         # slot.
@@ -1988,16 +1988,23 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
         Every ownership check passes: the output commits to a script holding this seed's
         key and the psbt claims this seed there truthfully.
 
-        The psbt supplies global xpubs (the three from the input plus the outsider's that
-        is part of the output) and it fully annotates this output's derivation paths,
-        allowing for the parser to determine the output's cosigners accurately.
+        The psbt supplies the global xpubs of the wallet the inputs spend from. The output
+        is fully annotated so the parser tries to trace each of the output's three keys
+        back to one of those xpubs. The two keys it shares with the inputs resolve, but no
+        xpub derives the outsider's key. So the output is counted as a spend.
 
-        End result of this setup: The output's cosigner list differs from the inputs'
-        list. So the output is counted as a spend.
+        tldr: different output quorum + global xpubs + annotated external output
 
-        This sort of cosigner mismatch is a scenario that no known coordinator would
-        produce; normally an output to a different wallet would not be annotated nor have
-        its xpubs added to the global xpubs data.
+        No known coordinator provides the global xpubs AND annotates an output paying a
+        different wallet.
+          * Every coordinator that writes global xpubs: annotates only its own wallet's
+            outputs.
+          * Bitcoin Core: annotates an output paying any wallet in its wallet file, but
+            writes no global xpubs.
+          * Note: a coordinator may exclude both global xpubs and all output annotations.
+            Such coordinators are irrelevant for this test.
+
+        So the check exists to catch buggy software or a maliciously edited psbt.
         """
         for input_base64, change_hex in [
             (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
@@ -2026,27 +2033,77 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
             assert psbt_parser.spend_amount == 10_000
 
 
+    def test__parse__counts_a_different_quorum_as_a_spend_when_its_xpubs_are_supplied(self):
+        """
+        Same setup as the previous test, but this time the psbt's global xpubs also hold
+        the outsider's account xpub. So the parser traces every key in the output back to
+        an xpub, but the output's cosigners resolve to a list that differs from the
+        inputs' cosigners. The output is counted as a spend.
+
+        tldr: different output quorum + external xpub IN global xpubs + annotated external
+        output
+
+        No known coordinator adds an external wallet's xpub to the global xpubs, so this
+        is not expected to be seen in the real world unless someone manually edits a psbt
+        to include it.
+        """
+        for input_base64, change_hex in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+        ]:
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._repoint_at_a_different_quorum(psbt)
+
+            # Add the outsider's account xpub to the psbt's global xpubs, at the same
+            # account-level derivation path the helper used. The global xpubs now hold
+            # four: the inputs' three cosigners plus the outsider.
+            account_derivation_path = list(psbt.xpubs.values())[0].derivation
+            outsider_root = root_for_seed(PSBTTestData.recipient_seed)
+            outsider_account = outsider_root.derive(account_derivation_path)
+            psbt.xpubs[outsider_account.to_public()] = DerivationPath(outsider_root.my_fingerprint, account_derivation_path)
+            assert len(psbt.xpubs) == 4
+
+            psbt_parser = self._parse(psbt)
+
+            # Sanity check the setup: the output's cosigners resolve and differ from the
+            # inputs' cosigners. The parser keeps only the inputs' policy, so the output's
+            # is rebuilt here the same way the parser does it.
+            out = psbt.outputs[0]
+            out_policy = PSBTParser._get_policy(out, out.script_pubkey, psbt.xpubs, None)
+            input_cosigners = psbt_parser.policy["cosigners"]
+            output_cosigners = out_policy["cosigners"]
+            assert len(input_cosigners) == 3
+            assert len(output_cosigners) == 3
+            assert input_cosigners != output_cosigners
+
+            # The output should be counted as a spend.
+            assert psbt_parser.change_data == []
+            assert psbt_parser.change_amount == 0
+            assert psbt_parser.spend_amount == 10_000
+
+
     def test__parse__counts_a_different_quorum_as_change_if_no_global_xpubs(self):
         """
-        Same setup as the previous test, but this time the psbt omits its global xpubs.
+        Another test variation: output is once again paying a different quorum (one new
+        external xpub replacing one of the inputs' cosigners), but this time the psbt
+        omits its global xpubs.
 
         The global xpubs are needed in order to resolve cosigners. So without them, the
         inputs' cosigner list and the output's cosigner list comparison is skipped. The
-        user's seed is part of the output wallet and the output's policy "shape"
+        user's seed IS part of the output wallet and the output's policy "shape"
         superficially matches the input's (2-of-3, same script type), so the output is
         counted as presumed change.
 
-        BIP-174 makes the global xpubs optional and honest coordinators do omit them. The
-        previous test notes that no known coordinator annotates external spend outputs so
-        this test scenario is unlikely to be seen in the real world. But this version of
-        the test has one notable exception: Bitcoin Core.
+        tldr: different output quorum + NO global xpubs + annotated external output
 
-        Core can hold the descriptors of several spending wallets. It will annotate an
-        output that belongs to ANY of its descriptors, regardless of whether it differs
-        from the input wallet. But Core does not write global xpubs at all, so it wasn't a
-        factor in the previous test (which required the global xpubs).
+        BIP-174 makes the global xpubs optional and honest coordinators do omit them.
 
-        But a Core-built psbt can exactly match this test's shape: a fully annotated
+        Bitcoin Core can hold the descriptors of several spending wallets and will
+        annotate an output that belongs to ANY of its descriptors, regardless of whether
+        it differs from the input wallet. And Core never provides the global xpubs.
+
+        So a Core-built psbt can exactly match this test's shape: a fully annotated
         foreign output and no global xpubs to compare against.
         """
         # Test each multisig script type

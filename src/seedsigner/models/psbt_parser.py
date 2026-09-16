@@ -560,16 +560,14 @@ class PSBTParser():
                             is_presumed_change = True
 
                             # One thing we can rule out now: if the psbt supplied global
-                            # xpubs (see _get_cosigners) AND it fully annotated this
-                            # output, we can see if this output's cosigners differ from
-                            # the inputs' cosigners. If so, then we can be sure this
-                            # output is NOT our change. This sort of mismatch is a
-                            # scenario that no known coordinator would produce, but
-                            # there's no harm in checking this edge case.
+                            # xpubs (see _get_cosigners), we can compare this output's
+                            # cosigners to the inputs' cosigners. Real change should have
+                            # the same cosigners; if this output's cosigners differ or
+                            # fail to resolve at all, we classify this output as NOT
+                            # change.
                             input_cosigners = self.policy.get("cosigners")
                             output_cosigners = out_policy.get("cosigners")
-                            cosigners_resolved = input_cosigners is not None and output_cosigners is not None
-                            if cosigners_resolved and input_cosigners != output_cosigners:
+                            if input_cosigners is not None and input_cosigners != output_cosigners:
                                 is_presumed_change = False
 
                 elif verified_derivation_path is not None and self.policy["type"] != "p2tr":
@@ -846,8 +844,9 @@ class PSBTParser():
             fingerprint and derivation path, but only down to the account level (e.g.
             m/48'/0'/0'/2'). A dict keyed on each xpub.
 
-        The derivations and xpubs are unproven claims provided by the coordinator. So for
-        each pubkey we check whether the xpub the psbt points us to really derives it.
+        The derivations and xpubs are unproven claims provided by the coordinator. So we
+        take each pubkey's claimed derivation path and check whether one of the xpubs
+        really derives that pubkey.
 
         The resulting cosigners list consists of each xpub that provably derives each of
         the script's keys. But that is ALL it proves. We have no way to verify who those
@@ -876,21 +875,21 @@ class PSBTParser():
                 raise ValueError("Missing derivation")
             der = derivations[pubkey]
 
-            # Scan the xpubs for one whose fingerprint and derivation path match the
-            # claim (xpub path comparisons have to stop at the account level).
+            # Scan the xpubs for one whose derivation path matches the claim.
             for xpub in xpubs:
                 origin_der = xpubs[xpub]
-                if origin_der.fingerprint == der.fingerprint:
-                    if origin_der.derivation == der.derivation[:-2]:
-                        # Then derive the actual child key (its full derivation path is
-                        # two indices deeper than the xpub's stated derivation path)
-                        derived_key = PSBTParser._derive_with_cache(xpub, der.derivation[-2:], child_key_derivation_cache)
+                # The full derivation path goes two indices deeper than the xpub's so we
+                # omit those last two when comparing.
+                if origin_der.derivation == der.derivation[:-2]:
+                    # Derive the child key that sits two indices below the xpub (i.e. at
+                    # the full derivation path).
+                    derived_key = PSBTParser._derive_with_cache(xpub, der.derivation[-2:], child_key_derivation_cache)
 
-                        # Finally, compare that key with the target pubkey
-                        if derived_key.key == pubkey:
-                            # append strings so they can be sorted and compared
-                            cosigners.append(xpub.to_base58())
-                            break
+                    # Finally, compare that key with the target pubkey
+                    if derived_key.key == pubkey:
+                        # Append as strings so they can be sorted and compared
+                        cosigners.append(xpub.to_base58())
+                        break
 
         # Every key in the script has to trace back to an xpub for the result to mean
         # anything.
