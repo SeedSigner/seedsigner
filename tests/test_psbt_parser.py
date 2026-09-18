@@ -11,7 +11,7 @@ from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath, OutputScope
 from embit.descriptor import Descriptor
 
-from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
+from seedsigner.models.psbt_parser import (OPCODES, PSBTInputOwnershipClaimError,
     PSBTMixedDerivationPathTypesError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
     PSBTSurplusDerivationPathsError)
@@ -19,7 +19,8 @@ from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
 from psbt_testing_util import (NUMS_INTERNAL_KEY, PSBTTestData, claim_seed_owns_key,
-    create_output, foreign_public_key, p2tr_with_script_tree, root_for_seed, tapleaf_hash)
+    create_op_return_output, create_op_return_psbt, create_output, foreign_public_key,
+    op_return_script, p2tr_with_script_tree, root_for_seed, tapleaf_hash)
 
 
 
@@ -2268,3 +2269,123 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
 
         with pytest.raises(RuntimeError, match="Unsupported policy type"):
             self._parse(psbt)
+def test_parse_op_return_payload_push_encodings():
+    """
+        Should extract the payload whichever push opcode carries it.
+
+        Opcodes 0x01-0x4b are themselves the byte count; OP_PUSHDATA1, 2, and 4 are
+        followed by a 1, 2, or 4 byte little-endian length. Bitcoin Core emits the
+        minimal encoding, so a payload of 75 bytes or fewer arrives as a direct push and
+        the push opcode has to be read rather than assumed. 75/76 is the boundary between
+        the two.
+    """
+    # Pin the constants: every assertion below is written in terms of them, so a typo
+    # in one would otherwise make this test agree with the bug it is meant to catch.
+    assert (OPCODES.OP_RETURN, OPCODES.OP_PUSHDATA_MAX_DIRECT) == (0x6a, 0x4b)
+    assert (OPCODES.OP_PUSHDATA1, OPCODES.OP_PUSHDATA2, OPCODES.OP_PUSHDATA4) == (0x4c, 0x4d, 0x4e)
+
+    op_return = bytes([OPCODES.OP_RETURN])
+
+    # Direct push: the encoding Bitcoin Core produces for payloads up to 75 bytes
+    for length in [1, 2, 40, OPCODES.OP_PUSHDATA_MAX_DIRECT]:
+        payload = b"A" * length
+        assert PSBTParser._parse_op_return_payload(op_return + bytes([length]) + payload) == payload
+
+    # OP_PUSHDATA1 carries a 1-byte length; 76 is the first payload that needs it
+    for length in [76, 80, 0xff]:
+        payload = b"B" * length
+        script_data = op_return + bytes([OPCODES.OP_PUSHDATA1, length]) + payload
+        assert PSBTParser._parse_op_return_payload(script_data) == payload
+
+    # OP_PUSHDATA2 carries a 2-byte length. Now that Bitcoin Core v30 defaults
+    # `-datacarriersize` to 100,000 bytes this is an ordinary encoding, not an exotic one.
+    payload = b"C" * 300
+    script_data = op_return + bytes([OPCODES.OP_PUSHDATA2]) + len(payload).to_bytes(2, "little") + payload
+    assert PSBTParser._parse_op_return_payload(script_data) == payload
+
+    # OP_PUSHDATA4 carries a 4-byte length
+    payload = b"D" * 300
+    script_data = op_return + bytes([OPCODES.OP_PUSHDATA4]) + len(payload).to_bytes(4, "little") + payload
+    assert PSBTParser._parse_op_return_payload(script_data) == payload
+
+    # A non-minimal encoding is unusual but a coordinator is free to produce one
+    payload = b"E" * 10
+    script_data = op_return + bytes([OPCODES.OP_PUSHDATA2]) + len(payload).to_bytes(2, "little") + payload
+    assert PSBTParser._parse_op_return_payload(script_data) == payload
+
+    # Several pushes in one script are legal; they are concatenated
+    script_data = op_return + bytes([4]) + b"data" + bytes([4]) + b"more"
+    assert PSBTParser._parse_op_return_payload(script_data) == b"datamore"
+
+    # Bare OP_RETURN, nothing pushed
+    assert PSBTParser._parse_op_return_payload(op_return) == b""
+
+    # An empty scriptPubKey must not index past the end
+    assert PSBTParser._parse_op_return_payload(b"") == b""
+
+    # A push claiming more data than the script carries yields what is actually there,
+    # rather than raising or returning nothing
+    assert PSBTParser._parse_op_return_payload(op_return + bytes([10]) + b"abc") == b"abc"
+
+    # A truncated OP_PUSHDATA2 length field, same rule
+    assert PSBTParser._parse_op_return_payload(op_return + bytes([OPCODES.OP_PUSHDATA2, 0x01])) == bytes([OPCODES.OP_PUSHDATA2, 0x01])
+
+    # A leading opcode that is not a data push. The remaining bytes are still surfaced;
+    # the user has to be able to see everything the transaction commits to.
+    assert PSBTParser._parse_op_return_payload(op_return + bytes([0x00, 0x51])) == bytes([0x00, 0x51])
+
+
+
+def test_parse_op_return_content_direct_push():
+    """
+        Should parse an OP_RETURN whose payload uses a direct push.
+
+        This is the canonical encoding: `bitcoin-tx outdata=<hex>` and any Bitcoin Core
+        wallet produce it for payloads of 75 bytes or fewer. Reading the payload at a
+        fixed 3-byte offset drops its first byte, and the review screen then shows the
+        user content the transaction does not actually commit to.
+    """
+    message = "Chancellor on the brink of third bailout".encode()
+    assert len(message) <= OPCODES.OP_PUSHDATA_MAX_DIRECT
+
+    script_pubkey = op_return_script(message)
+    assert script_pubkey.data[:2] == bytes([OPCODES.OP_RETURN, len(message)])
+
+    psbt = create_op_return_psbt([create_op_return_output(message)])
+    psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+    assert psbt_parser.op_return_data == message
+
+
+
+def test_parse_op_return_content_pushdata2():
+    """
+        Should parse an OP_RETURN payload large enough to require OP_PUSHDATA2.
+
+        Bitcoin Core v30 raised the default `-datacarriersize` to 100,000 bytes, so
+        payloads past the 255 bytes OP_PUSHDATA1 can describe now arrive from honest
+        coordinators. Consensus has never limited OP_RETURN data at all, so no payload
+        size can be assumed either way.
+    """
+    message = b"F" * 300
+
+    script_pubkey = op_return_script(message)
+    assert script_pubkey.data[:2] == bytes([OPCODES.OP_RETURN, OPCODES.OP_PUSHDATA2])
+
+    psbt = create_op_return_psbt([create_op_return_output(message)])
+    psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+    assert psbt_parser.op_return_data == message
+
+
+
+def test_parse_op_return_with_no_payload():
+    """
+        A bare OP_RETURN output carries no data and must parse to empty, not crash.
+    """
+    psbt = create_op_return_psbt([
+        create_op_return_output(b"", script_pubkey=script.Script(bytes([OPCODES.OP_RETURN])))
+    ])
+    psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+    assert psbt_parser.op_return_data == b""
