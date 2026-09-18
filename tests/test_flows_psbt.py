@@ -177,9 +177,10 @@ class TestPSBTFlows(FlowTest):
 
 class TestPSBTOwnershipClaimRouting(FlowTest):
     """
-    A psbt whose own description of itself does not hold up is refused during parsing,
-    before the user is shown anything about the transaction. These cover what the user
-    meets when that happens: a warning screen that ends the flow, not a crash.
+    A psbt whose own description of itself does not hold up, or whose arithmetic is
+    impossible, is refused during parsing, before the user is shown anything about the
+    transaction. These cover what the user meets when that happens: a warning screen that
+    ends the flow, not a crash.
     """
 
     def _load_psbt_for_signing(self, psbt: PSBT, seed: Seed = None):
@@ -341,3 +342,21 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         # The psbt itself is kept: the user is choosing a different seed for it, not
         # starting over
         assert self.controller.psbt is not None
+
+
+    def test_negative_fee_terminates_signing_flow(self):
+        """
+        A psbt whose outputs spend more than its inputs bring in is malformed rather than
+        hostile, but it is still rejected during the parse and routes to a warning that
+        aborts the signing flow.
+        """
+        psbt = self._psbt_with_change()
+        psbt.outputs[0].value = sum(inp.utxo.value for inp in psbt.inputs) + 1
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTNegativeFeeView, button_data_selection=psbt_views.PSBTNegativeFeeView.DISCARD),
+            FlowStep(MainMenuView),
+        ])

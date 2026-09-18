@@ -12,7 +12,7 @@ from embit.psbt import PSBT, DerivationPath, OutputScope
 from embit.descriptor import Descriptor
 
 from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
-    PSBTMixedDerivationPathTypesError, PSBTOutputOwnershipClaimError,
+    PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
     PSBTSurplusDerivationPathsError)
 from seedsigner.models.seed import Seed
@@ -2268,3 +2268,32 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
 
         with pytest.raises(RuntimeError, match="Unsupported policy type"):
             self._parse(psbt)
+    def test__parse__rejects_outputs_that_exceed_inputs(self):
+        """
+        Outputs that spend more than the inputs bring in produce a negative fee. `parse`
+        should raise PSBTNegativeFeeError rather than carry that impossible figure into
+        the review screens.
+
+        Note that `psbt.tx` is rebuilt from the output scopes on every access, so the
+        amount has to be changed on the scope itself.
+        """
+        psbt = self._psbt_with_change()
+        input_total = sum(inp.utxo.value for inp in psbt.inputs)
+
+        # One satoshi more than the inputs fund, i.e. the smallest negative fee there is
+        psbt.outputs[0].value = input_total + 1
+
+        with pytest.raises(PSBTNegativeFeeError):
+            self._parse(psbt)
+
+
+    def test__parse__accepts_a_zero_fee(self):
+        """
+        A transaction that pays no fee is pointless but not malformed (and can still be
+        relayed as part of a package), so only a strictly negative fee is rejected. This
+        pins the boundary the check is written against.
+        """
+        psbt = self._psbt_with_change()
+        psbt.outputs[0].value = sum(inp.utxo.value for inp in psbt.inputs)
+
+        assert self._parse(psbt).fee_amount == 0
