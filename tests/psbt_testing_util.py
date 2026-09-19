@@ -258,22 +258,30 @@ def claim_seed_owns_key(scope: InputScope | OutputScope, claimed_derivation_path
         scope.bip32_derivations[public_key] = derivation_path
 
 
-def op_return_script(payload: bytes) -> Script:
+def op_return_script(*payloads: bytes) -> Script:
     """
-    Build an OP_RETURN scriptPubKey carrying `payload`, using the minimal push encoding
-    that Bitcoin Core emits: a direct push for 75 bytes or fewer, OP_PUSHDATA1 up to 255,
-    OP_PUSHDATA2 up to 65535, and OP_PUSHDATA4 above that.
-    """
-    if len(payload) <= OPCODES.OP_PUSHDATA_MAX_DIRECT:
-        push = bytes([len(payload)])
-    elif len(payload) <= 0xff:
-        push = bytes([OPCODES.OP_PUSHDATA1, len(payload)])
-    elif len(payload) <= 0xffff:
-        push = bytes([OPCODES.OP_PUSHDATA2]) + len(payload).to_bytes(2, "little")
-    else:
-        push = bytes([OPCODES.OP_PUSHDATA4]) + len(payload).to_bytes(4, "little")
+    Build an OP_RETURN scriptPubKey carrying one push per payload, using the minimal push
+    encoding that Bitcoin Core emits: a direct push for 75 bytes or fewer, OP_PUSHDATA1 up
+    to 255, OP_PUSHDATA2 up to 65535, and OP_PUSHDATA4 above that.
 
-    return Script(bytes([OPCODES.OP_RETURN]) + push + payload)
+    More than one payload builds a script with more than one push, which is unusual but
+    legal, and which the parser concatenates.
+    """
+    data = bytes([OPCODES.OP_RETURN])
+
+    for payload in payloads:
+        if len(payload) <= OPCODES.OP_PUSHDATA_MAX_DIRECT:
+            push = bytes([len(payload)])
+        elif len(payload) <= 0xff:
+            push = bytes([OPCODES.OP_PUSHDATA1, len(payload)])
+        elif len(payload) <= 0xffff:
+            push = bytes([OPCODES.OP_PUSHDATA2]) + len(payload).to_bytes(2, "little")
+        else:
+            push = bytes([OPCODES.OP_PUSHDATA4]) + len(payload).to_bytes(4, "little")
+
+        data += push + payload
+
+    return Script(data)
 
 
 def create_op_return_output(payload: bytes, value: int = 0, script_pubkey: Script = None) -> OutputScope:
