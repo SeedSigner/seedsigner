@@ -1,10 +1,11 @@
 from binascii import a2b_base64
 
-from embit.psbt import PSBT
+from embit import bip32, script
+from embit.psbt import PSBT, DerivationPath
 
 from base import FlowTest, FlowStep
 from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_output,
-    foreign_public_key)
+    foreign_public_key, root_for_seed)
 
 from seedsigner.controller import Controller
 from seedsigner.views.view import MainMenuView
@@ -24,24 +25,7 @@ class TestPSBTFlows(FlowTest):
             since the PSBT is not a self transfer it should enter the PSBTAddressDetailsView flow
         """
         def load_psbt_into_decoder(view: scan_views.ScanView):
-            """
-                PSBT Tx and Wallet Details
-                - Single Sig Wallet P2WPKH (Native Segwit) with no passphrase
-                - Regtest c751dc07 m/84'/1'/0' tpubDDZBrnxMxbVzqt8EoEiABPxeKzFWma5pra5UEbg3Wst1hrwr6feuvcy7Sov7cpuYx94ypuy1PQ9NDNoQagFs37wGALzLb5Ei3FvyJWPPPKZ
-                - 2 Inputs
-                    - 56,522,834 sats
-                    - 1,990,245,069 sats
-                - 4 Outputs
-                    - 1 Output to another wallet (bcrt1q7cw0wzy8g6mq5qvkpvhnk5gsps5ncy3srp0n2j) of 123,456 sats
-                    - 3 Outputs change
-                        - 3 outputs to emulate a fake mix to increase privacy
-                        - Change addresses are index 1/7, 1/8, 1/9
-                        - 1/7 address bcrt1q53j0xwuskuf5gnvynadh0hlazyy8srydlucrhg with amount 123,456 sats
-                        - 1/8 address bcrt1q5gtw3zfp4cx67yk5q42q6j6rfza8aqcwpyyslv with amount 1,990,121,477 sats
-                        - 1/9 address bcrt1q9rrg7399m43cn0yg4tz0v0ate89jgf2d6kpz7v with amount 56,399,242 sats
-                    - Fee 272 sats
-            """
-            view.decoder.add_data("cHNidP8BANgCAAAAAsTXZs3fz/dmGb6M80+jjvJZdYya+cw5bT/dGuhZFdSlAAAAAAD9////qo6xg/UZAvUkcbse1F+C9zbP/FeZNjThx7SCIn6eMCgBAAAAAP3///8EQOIBAAAAAAAWABSkZPM7kLcTRE2En1t33/0RCHgMjQXYnnYAAAAAFgAUKMaPRKXdY4m8iKrE9j+rycskJU1A4gEAAAAAABYAFPYc9wiHRrYKAZYLLztREAwpPBIwipVcAwAAAAAWABSiFuiJIa4NrxLUBVQNS0NIun6DDtoRAABPAQQ1h88DBcQGZIAAAAA+0J+jlNL3dpWwlnBi8Dx+Ipg4e6uvB3HdjzFPX7r9CAOOlAIxgII+/xCcj+XoEenKH7wj5s5wlu7Q7CCZWFLGLhA5Su0UVAAAgAEAAIAAAACAAAEA7QIAAAAEE6njX/fnvn7hbkKIRcxzNYFOSfbCdNeWnd7Fe/1UcQ0BAAAAAP3///8TqeNf9+e+fuFuQohFzHM1gU5J9sJ015ad3sV7/VRxDQMAAAAA/f///xOp41/3575+4W5CiEXMczWBTkn2wnTXlp3exXv9VHENBAAAAAD9////E6njX/fnvn7hbkKIRcxzNYFOSfbCdNeWnd7Fe/1UcQ0GAAAAAP3///8CUnheAwAAAAAWABRCfygPJ+Fjsx4BknYvvm3A3qKn2xJ/XQcAAAAAF6kU1I4TAst5nAj15ey7vwe5cM3OFq+HlhEAAAEBH1J4XgMAAAAAFgAUQn8oDyfhY7MeAZJ2L75twN6ip9sBAwQBAAAAIgYCo7sfm78RQY3B5n0ac/QF8VtMAzFnci+h5D1MtpgRY7oYOUrtFFQAAIABAACAAAAAgAEAAAAGAAAAAAEAcQIAAAABxY7wh0nsfJQfzWrD/9rN9BYsM+iOmPaO6I0ANFgO/PcAAAAAAP3///8CptiUAAAAAAAWABRIm4HhQY/TzOjeWSPRrbuJo9MlW826oHYAAAAAFgAU0z+0L2QSLGtyQTn8FhbCpcI7jbliAQAAAQEfzbqgdgAAAAAWABTTP7QvZBIsa3JBOfwWFsKlwjuNuQEDBAEAAAAiBgITHmebEANk81CraV4xZIpqkNjjw0tIvezl1Ism1NRH3Rg5Su0UVAAAgAEAAIAAAACAAQAAAAAAAAAAIgICuTT7WnuiUTpObjWnZFHzIeEvW9PTB+1LLVFNQJVFeIIYOUrtFFQAAIABAACAAAAAgAEAAAAHAAAAACICAk8f3hpc5C35chgSg+Pe2zZ9IhHREd4aKW2+yAMRIFeqGDlK7RRUAACAAQAAgAAAAIABAAAACQAAAAAAIgIDjt1CjvrnMMnjbmTNKUAYoKEDRbmKjNjbq+6Ppqj3bqQYOUrtFFQAAIABAACAAAAAgAEAAAAIAAAAAA==")
+            view.decoder.add_data(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS)
 
         def load_seed_into_decoder(view: scan_views.ScanView):
             view.decoder.add_data("080115060387063104071857067618681125136207731354")
@@ -193,9 +177,9 @@ class TestPSBTFlows(FlowTest):
 
 class TestPSBTOwnershipClaimRouting(FlowTest):
     """
-    A psbt carrying an ownership claim that does not hold up is rejected while it is being
-    parsed, before the user is shown anything about the transaction. These cover the
-    routing that turns that rejection into a warning screen instead of a crash.
+    A psbt whose own description of itself does not hold up is refused during parsing,
+    before the user is shown anything about the transaction. These cover what the user
+    meets when that happens: a warning screen that ends the flow, not a crash.
     """
 
     def _load_psbt_for_signing(self, psbt: PSBT, seed: Seed = None):
@@ -246,6 +230,92 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
             FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
             FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
             FlowStep(psbt_views.PSBTInputOwnershipClaimFailedView, button_data_selection=psbt_views.PSBTInputOwnershipClaimFailedView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_surplus_derivation_paths_terminate_signing_flow(self):
+        """
+        When an output names more derivation paths than its script can use, nothing in
+        the psbt says which key it actually pays, so parsing refuses it.
+
+        The parser tests cover why that shape is refusable. This one covers what the user
+        gets: a warning that ends the flow, rather than a crash, and without first being
+        walked through the details of a transaction about to be discarded.
+        """
+        other_root = root_for_seed(PSBTTestData.recipient_seed)
+
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
+
+        # Output 2 pays a stranger and carries no derivation path entries of its own.
+        # Give it two, so nothing in the psbt says which key it pays.
+        for i in range(2):
+            derivation_path = bip32.parse_path(f"m/84h/1h/0h/0/{i}")
+            psbt.outputs[2].bip32_derivations[other_root.derive(derivation_path).get_public_key()] = \
+                DerivationPath(other_root.my_fingerprint, derivation_path)
+
+        self._load_psbt_for_signing(psbt, seed=PSBTTestData.two_input_seed)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTSurplusDerivationPathsView, button_data_selection=psbt_views.PSBTSurplusDerivationPathsView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_output_ownership_contradiction_terminates_signing_flow(self):
+        """
+        When a psbt marks an output as paying us while its script pays a stranger, the
+        two cannot both be true, so parsing refuses it.
+
+        The parser tests cover which shapes qualify. This one covers what the user gets:
+        a warning that ends the flow, before any transaction detail is rendered.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
+
+        # Output 0 is the wallet's own change. Repoint its script at a stranger but leave
+        # its derivation path entry in place, so the psbt still names a key this seed
+        # owns on an output that no longer pays it. Note that psbt.tx is rebuilt on every
+        # access, so the scriptPubKey has to be set on the output scope itself.
+        psbt.outputs[0].script_pubkey = script.p2wpkh(foreign_public_key())
+
+        self._load_psbt_for_signing(psbt, seed=PSBTTestData.two_input_seed)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTOutputOwnershipContradictionView, button_data_selection=psbt_views.PSBTOutputOwnershipContradictionView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_mixed_derivation_path_types_terminate_signing_flow(self):
+        """
+        An input or output filling both derivation path maps at once is refused on that
+        shape alone. The check lives in the ownership scan, which runs over inputs as well
+        as outputs, so this one plants the shape on an input, the side the parser tests do
+        not cover.
+
+        It ends the flow at its own warning before any transaction detail is rendered.
+        """
+        other_root = root_for_seed(PSBTTestData.recipient_seed)
+
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
+
+        # Input 0 already carries a segwit-v0 entry. Add a taproot one beside it, on a
+        # stranger's key so nothing here claims this seed: the refusal is on the shape
+        # alone, not on an ownership claim.
+        derivation_path = bip32.parse_path("m/86h/1h/0h/0/0")
+        psbt.inputs[0].taproot_bip32_derivations[foreign_public_key()] = (
+            [], DerivationPath(other_root.my_fingerprint, derivation_path))
+
+        self._load_psbt_for_signing(psbt, seed=PSBTTestData.two_input_seed)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMixedDerivationPathTypesView, button_data_selection=psbt_views.PSBTMixedDerivationPathTypesView.DISCARD),
             FlowStep(MainMenuView),
         ])
 
