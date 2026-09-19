@@ -632,7 +632,7 @@ def test_parse_op_return_content():
     psbt_parser = PSBTParser(p=tx, seed=seed, network=SettingsConstants.REGTEST)
 
     # Remember to do the comparison as bytes
-    assert psbt_parser.op_return_data == "Chancellor on the brink of third bailout".encode()
+    assert psbt_parser.op_return_data == ["Chancellor on the brink of third bailout".encode()]
 
     # PSBT is an internal self-spend to the its own receive addr, but the parser categorizes it as "change"
     assert psbt_parser.change_data == [
@@ -2519,7 +2519,7 @@ def test_parse_op_return_content_direct_push():
     psbt = create_op_return_psbt([create_op_return_output(message)])
     psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
 
-    assert psbt_parser.op_return_data == message
+    assert psbt_parser.op_return_data == [message]
 
 
 
@@ -2540,7 +2540,7 @@ def test_parse_op_return_content_pushdata2():
     psbt = create_op_return_psbt([create_op_return_output(message)])
     psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
 
-    assert psbt_parser.op_return_data == message
+    assert psbt_parser.op_return_data == [message]
 
 
 
@@ -2553,4 +2553,4 @@ def test_parse_op_return_with_no_payload():
     ])
     psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
 
-    assert psbt_parser.op_return_data == b""
+    assert psbt_parser.op_return_data == [b""]
