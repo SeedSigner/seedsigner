@@ -24,12 +24,42 @@ class PSBTOverviewScreen(ButtonListScreen):
     num_self_transfer_outputs: int = 0
     num_change_outputs: int = 0
     destination_addresses: list[str] = None
-    has_op_return: bool = False
+    op_return_amounts: list[int] = None
     is_high_fee_tx: bool = False
 
     # Appended to a row that needs the user's attention, drawn in the dire warning color
     WARNING_MARK = " (!)"
     
+
+    @staticmethod
+    def op_return_rows(op_return_amounts: list) -> list:
+        """
+            One row per OP_RETURN output for the flow diagram. Past three, collapse to the
+            first and last with an ellipsis between, the same way recipients are; the
+            chart has no minimum row height, so too many rows would squash it.
+
+            An output that burns sats gets a "(!)" mark. Each output is marked on its own,
+            not the whole group, so the mark points at the right one. When the middle rows
+            are collapsed, the ellipsis carries the mark if any of them burn. The mark is
+            baked into the label so the column is measured wide enough to fit it.
+        """
+        amounts = op_return_amounts or []
+
+        def row(text: str, burns: bool) -> str:
+            return text + PSBTOverviewScreen.WARNING_MARK if burns else text
+
+        if len(amounts) <= 3:
+            # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
+            return [row(_("OP_RETURN"), amount > 0) for amount in amounts]
+
+        return [
+            # TRANSLATOR_NOTE: "num" is the OP_RETURN output's position in the transaction (e.g. "OP_RETURN 1")
+            row(_("OP_RETURN {num}").format(num=1), amounts[0] > 0),
+            # TRANSLATOR_NOTE: Indicates that items have been omitted from a series: e.g. "1, 2, 3, [...], 8"
+            row(_("[ ... ]"), any(amount > 0 for amount in amounts[1:-1])),
+            row(_("OP_RETURN {num}").format(num=len(amounts)), amounts[-1] > 0),
+        ]
+
 
     def __post_init__(self):
         # Customize defaults
@@ -137,12 +167,17 @@ class PSBTOverviewScreen(ButtonListScreen):
             
             destination_column = []
 
+            # The rows `truncate_at` can actually shrink. The rest are fixed labels.
+            truncatable_column = []
+
             if len(self.destination_addresses) + self.num_self_transfer_outputs <= 3:
                 for addr in self.destination_addresses:
-                    destination_column.append(truncate_destination_addr(addr))
+                    truncatable_column.append(truncate_destination_addr(addr))
 
                 for i in range(0, self.num_self_transfer_outputs):
-                    destination_column.append(truncate_destination_addr(_("self-transfer")))
+                    truncatable_column.append(truncate_destination_addr(_("self-transfer")))
+
+                destination_column.extend(truncatable_column)
             else:
                 # destination_column.append(f"{len(self.destination_addresses)} recipients")
                 destination_column.append(_("recipient 1"))
@@ -159,33 +194,37 @@ class PSBTOverviewScreen(ButtonListScreen):
                 fee_label += PSBTOverviewScreen.WARNING_MARK
             destination_column.append(fee_label)
 
-            if self.has_op_return:
-                # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
-                destination_column.append(_("OP_RETURN"))
+            destination_column.extend(PSBTOverviewScreen.op_return_rows(self.op_return_amounts))
 
             if self.num_change_outputs > 0:
                 for i in range(0, self.num_change_outputs):
                     # TRANSLATOR_NOTE: Label for a change output in the PSBT Overview flow diagram
                     destination_column.append(_("change"))
 
-            max_destination_text_width = 0
-            for destination in destination_column:
-                left, top, right, bottom  = font.getbbox(destination)
-                tw, th = right - left, bottom - top
-                max_destination_text_width = max(tw, max_destination_text_width)
-            
-            return (max_destination_text_width, destination_column)
+            def widest(column):
+                max_text_width = 0
+                for destination in column:
+                    left, top, right, bottom  = font.getbbox(destination)
+                    tw, th = right - left, bottom - top
+                    max_text_width = max(tw, max_text_width)
+                return max_text_width
+
+            return (widest(destination_column), widest(truncatable_column), destination_column)
         
         if len(self.destination_addresses) + self.num_self_transfer_outputs > 3:
             # We're not going to display any destination addrs so truncation doesn't matter
-            (destination_text_width, destination_column) = calculate_destination_col_width()
+            (destination_text_width, _unused, destination_column) = calculate_destination_col_width()
         else:
             destination_text_width = None
             destination_column = None
-            # Steadliy widen out the destination column until we run out of space
+            # Steadliy widen out the destination column until we run out of space.
+            # Measured on the addresses alone: a fixed label that is wider than they are
+            # (an OP_RETURN row carrying the "(!)" mark, say) sets the column width on its
+            # own, and truncating the addresses below it would only lose characters
+            # without narrowing anything.
             for i in range(6, 14):
-                (new_width, new_col_text) = calculate_destination_col_width(truncate_at=i)
-                if new_width > max_destination_col_width:
+                (new_width, new_truncatable_width, new_col_text) = calculate_destination_col_width(truncate_at=i)
+                if new_truncatable_width > max_destination_col_width:
                     if not destination_text_width:
                         destination_text_width = new_width
                     if not destination_column:
@@ -485,6 +524,7 @@ class PSBTMathScreen(ButtonListScreen):
     num_recipients: int = 0
     fee_amount: int = 0
     change_amount: int = 0
+    op_return_amount: int = 0
     is_high_fee_tx: bool = False
 
 
@@ -496,14 +536,21 @@ class PSBTMathScreen(ButtonListScreen):
 
         super().__post_init__()
 
+        # Only show the "burned" line when something was actually burned; most OP_RETURNs
+        # carry no value and a "0 burned" row would just be noise. Decide now, before the
+        # amount is reformatted into a string below.
+        shows_burned_amount = self.op_return_amount > 0
+
         if self.input_amount > 1e6:
             denomination = _("btc")
             self.input_amount /= 1e8
             self.spend_amount /= 1e8
             self.change_amount /= 1e8
+            self.op_return_amount /= 1e8
             self.input_amount = f"{self.input_amount:,.8f}"
             self.spend_amount = f"{self.spend_amount:,.8f}"
             self.change_amount = f"{self.change_amount:,.8f}"
+            self.op_return_amount = f"{self.op_return_amount:,.8f}"
 
             # Note: We keep the fee denominated in sats; just left pad it so it still
             # lines up properly.
@@ -514,8 +561,9 @@ class PSBTMathScreen(ButtonListScreen):
             self.spend_amount = f"{self.spend_amount:,}"
             self.fee_amount = f"{self.fee_amount:,}"
             self.change_amount = f"{self.change_amount:,}"
+            self.op_return_amount = f"{self.op_return_amount:,}"
 
-        longest_amount = max(len(self.input_amount), len(self.spend_amount), len(self.fee_amount), len(self.change_amount))
+        longest_amount = max(len(self.input_amount), len(self.spend_amount), len(self.fee_amount), len(self.change_amount), len(self.op_return_amount))
         if len(self.input_amount) < longest_amount:
             self.input_amount = " " * (longest_amount - len(self.input_amount)) + self.input_amount
 
@@ -527,6 +575,9 @@ class PSBTMathScreen(ButtonListScreen):
 
         if len(self.change_amount) < longest_amount:
             self.change_amount = " " * (longest_amount - len(self.change_amount)) + self.change_amount
+
+        if len(self.op_return_amount) < longest_amount:
+            self.op_return_amount = " " * (longest_amount - len(self.op_return_amount)) + self.op_return_amount
 
         # Render the info to temp Image
         # TODO: Test rendering the numeric amounts without the supersampling
@@ -581,6 +632,18 @@ class PSBTMathScreen(ButtonListScreen):
                 cur_y,
                 f"-{self.spend_amount}",
                 info_text=ngettext("recipient", "recipients", self.num_recipients),
+            )
+
+        # Burned sats get their own line so the numbers on screen still add up to the
+        # inputs. They are neither spend nor change, so they can't be folded into either.
+        if shows_burned_amount:
+            cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
+            render_amount(
+                cur_y,
+                f"-{self.op_return_amount}",
+                # TRANSLATOR_NOTE: Sats destroyed by an OP_RETURN output; sits alongside "recipients", "fee", and "change" in the transaction's arithmetic
+                info_text=_("burned") + " (!)",
+                info_text_color=GUIConstants.DIRE_WARNING_COLOR,
             )
 
         cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
@@ -734,7 +797,22 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
 
 @dataclass
 class PSBTOpReturnScreen(ButtonListScreen):
-    op_return_data: bytes = None
+    """
+        Shows one page of one OP_RETURN output's payload.
+
+        Payloads can be any size, so PSBTOpReturnView splits them into pages and tells
+        this screen which page to draw, along with the payload's real size and whether
+        any of it had to be left out. When something isn't being shown, the screen says
+        so, so a cut-short payload never passes for the whole thing.
+    """
+    page_text: str = ""
+    is_hex: bool = False
+    total_bytes: int = 0
+    amount: int = 0
+    page_num: int = 0
+    num_pages: int = 1
+    bytes_shown: int = 0
+    is_truncated: bool = False
 
     def __post_init__(self):
         # Customize defaults
@@ -742,46 +820,103 @@ class PSBTOpReturnScreen(ButtonListScreen):
 
         super().__post_init__()
 
-        try:
-            # Simple case: display human-readable text
+        screen_y = self.top_nav.height
+
+        # The label says what the user can't tell from the page itself: that it's hex,
+        # the full size, that it was cut short, which page this is. Readable text that
+        # fits on one screen has nothing to say and gets no label, as before.
+        qualifiers = []
+        is_last_page = self.page_num == self.num_pages - 1
+
+        if self.is_truncated and is_last_page:
+            # This is the page where the data runs out. Without this line, the last page
+            # of a cut-short payload would look just like the last page of a complete one.
+            # TRANSLATOR_NOTE: How much of an OP_RETURN payload could not be displayed. "not_shown" and "total" are byte counts (e.g. "3,456 of 4,096 bytes not shown")
+            qualifiers.append(_("{not_shown} of {total} bytes not shown").format(
+                not_shown=f"{self.total_bytes - self.bytes_shown:,}", total=f"{self.total_bytes:,}"))
+
+        elif self.num_pages > 1 or self.is_truncated:
+            # TRANSLATOR_NOTE: Size of an OP_RETURN payload. "num_bytes" is the byte count (e.g. "300 bytes")
+            qualifiers.append(_("{num_bytes} bytes").format(num_bytes=f"{self.total_bytes:,}"))
+
+        if self.is_hex:
+            # TRANSLATOR_NOTE: Shown when displaying OP_RETURN as non-human-readable hexadecimal data
+            qualifiers.append(_("raw hex data"))
+
+        if self.is_truncated and not is_last_page:
+            # TRANSLATOR_NOTE: The OP_RETURN payload is too large to show all of
+            qualifiers.append(_("truncated"))
+
+        if qualifiers:
+            size_text = ", ".join(qualifiers)
+            if self.num_pages > 1 and not (self.is_truncated and is_last_page):
+                # TRANSLATOR_NOTE: Which page of an OP_RETURN payload is on screen. "page" is the current page, "num_pages" the total (e.g. "2 of 5")
+                size_text += "  " + _("{page} of {num_pages}").format(page=self.page_num + 1, num_pages=self.num_pages)
+
             self.components.append(TextArea(
-                text=self.op_return_data.decode(errors="strict"),  # "strict" is a good enough heuristic to decide if it's human readable
-                font_size=GUIConstants.get_top_nav_title_font_size(),
-                is_text_centered=True,
-                screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
-                height=self.buttons[0].screen_y - self.top_nav.height - 2*GUIConstants.COMPONENT_PADDING,
+                text=size_text,
+                # Hidden data gets the warning color; the dire color is kept for burned sats.
+                font_color=(GUIConstants.WARNING_COLOR if self.is_truncated
+                    else GUIConstants.LABEL_FONT_COLOR),
+                font_size=GUIConstants.LABEL_FONT_SIZE,
+                screen_y=screen_y,
+            ))
+            screen_y = self.components[-1].screen_y + self.components[-1].height
+
+        # Say that the sats are burned here too, not just on the totals screens. No "(!)"
+        # on this one: that mark is for picking out a row on the screens that list every
+        # output, and this screen is only ever about one.
+        if self.amount > 0:
+            self.components.append(TextArea(
+                # TRANSLATOR_NOTE: An OP_RETURN output destroys any value sent to it. "amount" is in sats (e.g. "burns 10,000 sats")
+                text=_("burns {amount} sats").format(amount=f"{self.amount:,}"),
+                font_color=GUIConstants.DIRE_WARNING_COLOR,
+                font_size=GUIConstants.LABEL_FONT_SIZE,
+                screen_y=screen_y,
+            ))
+            screen_y = self.components[-1].screen_y + self.components[-1].height
+
+        screen_y += GUIConstants.COMPONENT_PADDING
+
+        if self.total_bytes == 0:
+            # A bare OP_RETURN carries no data. Say so rather than leave the screen blank,
+            # which would look like a rendering bug.
+            self.components.append(TextArea(
+                text=_("(no data)"),
+                font_color=GUIConstants.LABEL_FONT_COLOR,
+                screen_y=screen_y,
+                height=self.buttons[0].screen_y - screen_y - GUIConstants.COMPONENT_PADDING,
             ))
             return
-        except UnicodeDecodeError:
-            # Contains data that can't be converted to UTF-8; probably encoded and not
-            # meant to be human readable.
-            font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.get_body_font_size())
-            (left, top, right, bottom) = font.getbbox("X", anchor="ls")
-            chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
-            decoded_str = self.op_return_data.hex()
-            num_lines = math.ceil(len(decoded_str) / chars_per_line)
-            text = ""
-            for i in range(num_lines):
-                text += (decoded_str[i*chars_per_line:(i+1)*chars_per_line]) + "\n"
-            text = text[:-1]
 
-            # TRANSLATOR_NOTE: Shown when displaying OP_RETURN as non-human-readable hexadecimal data
-            hex_label = _("raw hex data")
-            label = TextArea(
-                text=hex_label,
-                font_color=GUIConstants.LABEL_FONT_COLOR,
-                font_size=GUIConstants.LABEL_FONT_SIZE,
-                screen_y=self.top_nav.height,
-            )
-            self.components.append(label)
-
+        if not self.is_hex:
+            # Simple case: display human-readable text
             self.components.append(TextArea(
-                text=text,
-                font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
-                font_size=GUIConstants.get_body_font_size(),
-                screen_y=label.screen_y + label.height + GUIConstants.COMPONENT_PADDING,
+                text=self.page_text,
+                font_size=GUIConstants.get_top_nav_title_font_size(),
+                is_text_centered=True,
+                screen_y=screen_y,
+                height=self.buttons[0].screen_y - screen_y - GUIConstants.COMPONENT_PADDING,
             ))
+            return
 
+        # Contains data that can't be converted to UTF-8; probably encoded and not
+        # meant to be human readable.
+        font = Fonts.get_font(GUIConstants.FIXED_WIDTH_FONT_NAME, size=GUIConstants.get_body_font_size())
+        (left, top, right, bottom) = font.getbbox("X", anchor="ls")
+        chars_per_line = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / (right - left))
+        num_lines = math.ceil(len(self.page_text) / chars_per_line)
+        text = ""
+        for i in range(num_lines):
+            text += (self.page_text[i*chars_per_line:(i+1)*chars_per_line]) + "\n"
+        text = text[:-1]
+
+        self.components.append(TextArea(
+            text=text,
+            font_name=GUIConstants.FIXED_WIDTH_FONT_NAME,
+            font_size=GUIConstants.get_body_font_size(),
+            screen_y=screen_y,
+        ))
 
 
 @dataclass

@@ -127,7 +127,7 @@ class PSBTParser():
     Reads a psbt on behalf of one seed and works out everything the signing flow shows the
     user before they approve: the wallet policy (script type, plus m-of-n and the
     cosigners for multisig), the amount coming in, what is being spent, what comes back as
-    change, the fee, where the spend is going, and any OP_RETURN payload.
+    change, the fee, where the spend is going, and any OP_RETURN payloads.
 
     Constructing it with a seed parses immediately; see parse() for what that establishes
     in what order and which psbts it turns away.
@@ -182,7 +182,21 @@ class PSBTParser():
         self.num_inputs = 0
         self.destination_addresses = []
         self.destination_amounts = []
-        self.op_return_data: bytes = None
+
+        # One entry per OP_RETURN output, in output order. A transaction can have more
+        # than one: consensus never limited them, and Bitcoin Core v30 dropped the
+        # one-per-transaction relay rule, so multiples now show up in practice.
+        self.op_return_data: List[bytes] = []
+
+        # The value on each OP_RETURN output (same order as op_return_data, the way
+        # destination_amounts pairs with destination_addresses) and their total.
+        #
+        # Any sats sent to an OP_RETURN are burned. They are tracked on their own, not in
+        # spend_amount or change_amount, since they neither go to a recipient nor come
+        # back to this seed. Without this total the amounts on screen wouldn't add up to
+        # the inputs.
+        self.op_return_amounts: List[int] = []
+        self.op_return_amount: int = 0
 
         # Whether the fee is high relative to what is being sent; see has_high_fee().
         # Computed once at the end of parse() so the views can read it without each
@@ -222,6 +236,11 @@ class PSBTParser():
     @property
     def num_destinations(self):
         return len(self.destination_addresses)
+
+
+    @property
+    def num_op_returns(self):
+        return len(self.op_return_data)
 
 
     def _set_root(self):
@@ -404,7 +423,9 @@ class PSBTParser():
         self.fee_amount = 0
         self.destination_addresses = []
         self.destination_amounts = []
-        self.op_return_data = None
+        self.op_return_data = []
+        self.op_return_amounts = []
+        self.op_return_amount = 0
 
         # Asking the PSBT for its transaction rebuilds that entire transaction from
         # scratch on every single request. The outputs are consulted a dozen times
@@ -614,7 +635,9 @@ class PSBTParser():
 
             script_data = vout[i].script_pubkey.data
             if script_data[:1] == bytes([OPCODES.OP_RETURN]):
-                self.op_return_data = PSBTParser._parse_op_return_payload(script_data)
+                self.op_return_data.append(PSBTParser._parse_op_return_payload(script_data))
+                self.op_return_amounts.append(vout[i].value)
+                self.op_return_amount += vout[i].value
 
             elif is_presumed_change:
                 # Remember that "change" in this function is ANY output coming back to our
