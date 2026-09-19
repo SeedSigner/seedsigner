@@ -258,9 +258,9 @@ def claim_seed_owns_key(scope: InputScope | OutputScope, claimed_derivation_path
         scope.bip32_derivations[public_key] = derivation_path
 
 
-def op_return_script(payload: bytes, push_opcode: int = None) -> Script:
+def op_return_script(*payloads: bytes, push_opcode: int = None) -> Script:
     """
-    Build an OP_RETURN scriptPubKey carrying `payload`.
+    Build an OP_RETURN scriptPubKey carrying one push per payload.
 
     Defaults to the minimal push encoding, which is what Bitcoin Core emits: a direct
     push for 75 bytes or fewer, OP_PUSHDATA1 up to 255, OP_PUSHDATA2 up to 65535, and
@@ -268,21 +268,29 @@ def op_return_script(payload: bytes, push_opcode: int = None) -> Script:
 
     `push_opcode` forces a specific OP_PUSHDATA* instead, so a test can build the
     non-minimal encodings that a coordinator is still free to produce.
-    """
-    if push_opcode is None:
-        if len(payload) <= OPCODES.OP_PUSHDATA_MAX_DIRECT:
-            push = bytes([len(payload)])
-        elif len(payload) <= 0xff:
-            push = bytes([OPCODES.OP_PUSHDATA1, len(payload)])
-        elif len(payload) <= 0xffff:
-            push = bytes([OPCODES.OP_PUSHDATA2]) + len(payload).to_bytes(2, "little")
-        else:
-            push = bytes([OPCODES.OP_PUSHDATA4]) + len(payload).to_bytes(4, "little")
-    else:
-        length_size = {OPCODES.OP_PUSHDATA1: 1, OPCODES.OP_PUSHDATA2: 2, OPCODES.OP_PUSHDATA4: 4}[push_opcode]
-        push = bytes([push_opcode]) + len(payload).to_bytes(length_size, "little")
 
-    return Script(bytes([OPCODES.OP_RETURN]) + push + payload)
+    More than one payload builds a script with more than one push, which is unusual but
+    legal, and which the parser concatenates.
+    """
+    data = bytes([OPCODES.OP_RETURN])
+
+    for payload in payloads:
+        if push_opcode is None:
+            if len(payload) <= OPCODES.OP_PUSHDATA_MAX_DIRECT:
+                push = bytes([len(payload)])
+            elif len(payload) <= 0xff:
+                push = bytes([OPCODES.OP_PUSHDATA1, len(payload)])
+            elif len(payload) <= 0xffff:
+                push = bytes([OPCODES.OP_PUSHDATA2]) + len(payload).to_bytes(2, "little")
+            else:
+                push = bytes([OPCODES.OP_PUSHDATA4]) + len(payload).to_bytes(4, "little")
+        else:
+            length_size = {OPCODES.OP_PUSHDATA1: 1, OPCODES.OP_PUSHDATA2: 2, OPCODES.OP_PUSHDATA4: 4}[push_opcode]
+            push = bytes([push_opcode]) + len(payload).to_bytes(length_size, "little")
+
+        data += push + payload
+
+    return Script(data)
 
 
 def create_op_return_output(payload: bytes, value: int = 0, script_pubkey: Script = None) -> OutputScope:
