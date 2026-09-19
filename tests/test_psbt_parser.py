@@ -569,13 +569,14 @@ class TestPSBTParserOptimizations:
 
     def cache_size_recorder(self, cache_sizes: list):
         """
-        Returns a stand-in for _derive_with_cache that derives exactly as the real one
-        does, but appends the cache's size to cache_sizes on the way out of every call.
+        Returns a stand-in for _derive_with_cache_via_indices that derives exactly as the
+        real one does, but appends the cache's size to cache_sizes on the way out of every
+        call.
 
         The cache is a local inside parse(), so intercepting the calls it gets handed to
         is the only way to see how large it grew.
         """
-        real_derive_with_cache = PSBTParser._derive_with_cache
+        real_derive_with_cache = PSBTParser._derive_with_cache_via_indices
 
         def recorded(parent_key, derivation_path, cache=None):
             derived_key = real_derive_with_cache(parent_key, derivation_path, cache)
@@ -671,8 +672,8 @@ class TestPSBTParserOptimizations:
         # The cache here isn't providing any speedup (there are no derivations in the
         # cache to take advantage of), but we're just testing that the cache doesn't
         # confuse/combine the two cosigners' derivation data.
-        from_a = PSBTParser._derive_with_cache(cosigner_a_xpub, receive_index_5, cache)
-        from_b = PSBTParser._derive_with_cache(cosigner_b_xpub, receive_index_5, cache)
+        from_a = PSBTParser._derive_with_cache_via_indices(cosigner_a_xpub, receive_index_5, cache)
+        from_b = PSBTParser._derive_with_cache_via_indices(cosigner_b_xpub, receive_index_5, cache)
 
         # Two levels should have been added for each cosigner
         assert len(cache) == 4
@@ -738,7 +739,7 @@ class TestPSBTParserOptimizations:
         def assert_cache_makes_no_difference(input_base64: str, change_hex: str):
             # Store the real function before the patches below replace it. Each replacement
             # still needs access to the real function to do the actual deriving.
-            real_derive_with_cache = PSBTParser._derive_with_cache
+            real_derive_with_cache = PSBTParser._derive_with_cache_via_indices
 
             # This version of the replacement will derive exactly as the real cache-backed
             # function does, but will also record the cache it was handed on each call.
@@ -747,7 +748,7 @@ class TestPSBTParserOptimizations:
                 caches_received.append(cache)
                 return real_derive_with_cache(parent_key, derivation_path, cache)
 
-            with patch.object(PSBTParser, "_derive_with_cache", staticmethod(recording_derive_with_cache)):
+            with patch.object(PSBTParser, "_derive_with_cache_via_indices", staticmethod(recording_derive_with_cache)):
                 with_cache = PSBTParser(
                     build_psbt(input_base64, change_hex), self.seed, network=SettingsConstants.REGTEST)
 
@@ -759,7 +760,7 @@ class TestPSBTParserOptimizations:
             def cache_free_derive(parent_key, derivation_path, cache=None):
                 return real_derive_with_cache(parent_key, derivation_path)
 
-            with patch.object(PSBTParser, "_derive_with_cache", staticmethod(cache_free_derive)):
+            with patch.object(PSBTParser, "_derive_with_cache_via_indices", staticmethod(cache_free_derive)):
                 without_cache = PSBTParser(
                     build_psbt(input_base64, change_hex), self.seed, network=SettingsConstants.REGTEST)
 
@@ -791,7 +792,7 @@ class TestPSBTParserOptimizations:
 
         # Record how large the cache grew over the course of each parse
         unconstrained_sizes = []
-        with patch.object(PSBTParser, "_derive_with_cache", staticmethod(self.cache_size_recorder(unconstrained_sizes))):
+        with patch.object(PSBTParser, "_derive_with_cache_via_indices", staticmethod(self.cache_size_recorder(unconstrained_sizes))):
             multisig_unconstrained = PSBTParser(build_psbt(multisig_case), self.seed, network=SettingsConstants.REGTEST)
             singlesig_unconstrained = PSBTParser(build_psbt(singlesig_case), self.seed, network=SettingsConstants.REGTEST)
 
@@ -800,7 +801,7 @@ class TestPSBTParserOptimizations:
         cap = 3
         capped_sizes = []
         with patch.object(PSBTParser, "MAX_CACHED_DERIVATIONS", cap):
-            with patch.object(PSBTParser, "_derive_with_cache", staticmethod(self.cache_size_recorder(capped_sizes))):
+            with patch.object(PSBTParser, "_derive_with_cache_via_indices", staticmethod(self.cache_size_recorder(capped_sizes))):
                 multisig_capped = PSBTParser(build_psbt(multisig_case), self.seed, network=SettingsConstants.REGTEST)
                 singlesig_capped = PSBTParser(build_psbt(singlesig_case), self.seed, network=SettingsConstants.REGTEST)
 

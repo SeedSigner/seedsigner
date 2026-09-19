@@ -267,7 +267,7 @@ class PSBTParser():
         levels, differing only in the address at the end.
 
         So every level derived during this parse is kept in a cache and reused. See
-        _derive_with_cache.
+        _derive_with_cache_via_indices.
 
         Note that the cache is only useful within a single parse so it is not preserved.
         """
@@ -437,7 +437,7 @@ class PSBTParser():
                     # Rebuild the scriptPubKey from the key at the claimed derivation path
                     if len(out.bip32_derivations.values()) == 1:
                         singlesig_derivation_path = list(out.bip32_derivations.values())[0].derivation
-                        seed_public_key = PSBTParser._derive_with_cache(self.root, singlesig_derivation_path, child_key_derivation_cache).get_public_key()
+                        seed_public_key = PSBTParser._derive_with_cache_via_indices(self.root, singlesig_derivation_path, child_key_derivation_cache).get_public_key()
                         rebuilt_script_pubkey = PSBTParser._build_singlesig_script(self.policy["type"], seed_public_key)
                     else:
                         # There's nothing for us to verify against so this output will be
@@ -464,7 +464,7 @@ class PSBTParser():
                         if len(taproot_entries) == 1 and internal_key_claims == 1:
                             leaf_hashes, derivation = taproot_entries[0]
                             singlesig_derivation_path = derivation.derivation
-                            seed_public_key = PSBTParser._derive_with_cache(self.root, singlesig_derivation_path, child_key_derivation_cache).get_public_key()
+                            seed_public_key = PSBTParser._derive_with_cache_via_indices(self.root, singlesig_derivation_path, child_key_derivation_cache).get_public_key()
                             rebuilt_script_pubkey = PSBTParser._build_singlesig_script(self.policy["type"], seed_public_key)
                         else:
                             # This output has at least one derivation path entry for a key
@@ -517,7 +517,7 @@ class PSBTParser():
                                 # the coordinator says sits there. Both are its own
                                 # claims, so we read only the path and derive the key
                                 # ourselves.
-                                seed_public_key = PSBTParser._derive_with_cache(self.root, derivation_path_obj.derivation, child_key_derivation_cache).get_public_key()
+                                seed_public_key = PSBTParser._derive_with_cache_via_indices(self.root, derivation_path_obj.derivation, child_key_derivation_cache).get_public_key()
 
                                 if PSBTParser._multisig_script_contains_key(multisig_script, seed_public_key):
                                     # The output pays a multisig this seed is part
@@ -535,7 +535,7 @@ class PSBTParser():
                             # This output claimed that our seed is part of the receiving
                             # multisig, at a specific path. So now we verify that the key
                             # at that path is in the committed script.
-                            seed_public_key = PSBTParser._derive_with_cache(self.root, verified_derivation_path, child_key_derivation_cache).get_public_key()
+                            seed_public_key = PSBTParser._derive_with_cache_via_indices(self.root, verified_derivation_path, child_key_derivation_cache).get_public_key()
                             if not PSBTParser._multisig_script_contains_key(multisig_script, seed_public_key):
                                 # The psbt said this output was coming back to our seed
                                 # at that path, but the key there is not in the committed
@@ -775,7 +775,7 @@ class PSBTParser():
 
 
     @staticmethod
-    def _derive_with_cache(parent_key: bip32.HDKey, derivation_path: List[int], child_key_derivation_cache: dict | None = None) -> bip32.HDKey:
+    def _derive_with_cache_via_indices(parent_key: bip32.HDKey, derivation_path: List[int], child_key_derivation_cache: dict | None = None) -> bip32.HDKey:
         """
         Derives the key that sits at the given derivation path below parent_key, reusing
         any levels along the way that have already been derived during this parse.
@@ -883,7 +883,7 @@ class PSBTParser():
                 if origin_der.derivation == der.derivation[:-2]:
                     # Derive the child key that sits two indices below the xpub (i.e. at
                     # the full derivation path).
-                    derived_key = PSBTParser._derive_with_cache(xpub, der.derivation[-2:], child_key_derivation_cache)
+                    derived_key = PSBTParser._derive_with_cache_via_indices(xpub, der.derivation[-2:], child_key_derivation_cache)
 
                     # Finally, compare that key with the target pubkey
                     if derived_key.key == pubkey:
@@ -975,7 +975,7 @@ class PSBTParser():
         say anything. Ownership is established here and only here, by deriving the key
         again from the seed and comparing the actual key material.
         """
-        derived_public_key = PSBTParser._derive_with_cache(root, claimed_derivation_path, child_key_derivation_cache).get_public_key()
+        derived_public_key = PSBTParser._derive_with_cache_via_indices(root, claimed_derivation_path, child_key_derivation_cache).get_public_key()
 
         if is_taproot:
             # A psbt carries a taproot key as its bare 32-byte x coordinate, but embit
