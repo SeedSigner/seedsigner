@@ -10,7 +10,7 @@ from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath, OutputScope
 from embit.descriptor import Descriptor
 
-from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
+from seedsigner.models.psbt_parser import (PSBTInconsistentFingerprintError, PSBTInputOwnershipClaimError,
     PSBTMixedDerivationPathTypesError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
     PSBTSurplusDerivationPathsError)
@@ -2178,6 +2178,61 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
             psbt_parser = self._parse(psbt)
 
             # Parser categorizes the output as presumed change.
+            assert psbt_parser.change_amount == 10_000
+            assert psbt_parser.spend_amount == 0
+
+
+    def _mislabel_a_cosigner_fingerprint(self, psbt: PSBT, fingerprint: bytes):
+        """
+        Helper function to rewrite the fingerprint on the change output's first cosigner
+        entry that isn't this seed's, leaving the key and its derivation path as they are.
+        """
+        out = psbt.outputs[0]
+        seed_fingerprint = root_for_seed(self.seed).my_fingerprint
+        for public_key, derivation_path_obj in out.bip32_derivations.items():
+            if derivation_path_obj.fingerprint != seed_fingerprint:
+                out.bip32_derivations[public_key] = DerivationPath(fingerprint, derivation_path_obj.derivation)
+                return
+        raise AssertionError("fixture has no cosigner entry besides this seed's")
+
+
+    def test__parse__rejects_a_cosigner_fingerprint_that_disagrees_with_its_xpub(self):
+        """
+        A legitimate psbt, except that one cosigner's fingerprint on the change output
+        does not match the fingerprint on that cosigner's global xpub.
+
+        The parse is aborted with PSBTInconsistentFingerprintError.
+        """
+        for input_base64, change_hex in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+        ]:
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._mislabel_a_cosigner_fingerprint(psbt, b"\xde\xad\xbe\xef")
+
+            with pytest.raises(PSBTInconsistentFingerprintError):
+                self._parse(psbt)
+
+
+    def test__parse__accepts_a_cosigner_entry_with_a_missing_fingerprint(self):
+        """
+        Same as the previous test, but instead of a wrong fingerprint, the cosigner's
+        entry on the change output is set to the all-zero fingerprint (what a coordinator
+        writes when it doesn't know that key's fingerprint). The fingerprint check ignores
+        all-zero entries, and the key itself still resolves against its xpub, so the parse
+        accepts the psbt and the output is still correctly counted as change.
+        """
+        for input_base64, change_hex in [
+            (PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE),
+            (PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE),
+        ]:
+            psbt = self._psbt_with_change(input_base64, change_hex)
+            self._mislabel_a_cosigner_fingerprint(psbt, PSBTParser.MISSING_FINGERPRINT)
+
+            psbt_parser = self._parse(psbt)
+
             assert psbt_parser.change_amount == 10_000
             assert psbt_parser.spend_amount == 0
 

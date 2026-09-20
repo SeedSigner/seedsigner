@@ -80,6 +80,18 @@ class PSBTMixedDerivationPathTypesError(PSBTVerificationError):
     pass
 
 
+class PSBTInconsistentFingerprintError(PSBTVerificationError):
+    """
+    A key's derivation path entry and the global xpub that derives that key claim
+    different fingerprints.
+
+    The key's entry and the xpub's record both say where that key comes from, so one of
+    them is wrong. This is a correctness problem (not expected to be seen in the real
+    world) or potentially a weak form of deception, but we do not try to adjudicate that.
+    """
+    pass
+
+
 class PSBTOutputOwnershipContradictionError(PSBTVerificationError):
     """
     The psbt's account of who an output pays contradicts which key(s) the output
@@ -156,6 +168,9 @@ class PSBTParser():
     # just stops getting cache hits once the cache is full.
     MAX_CACHED_DERIVATIONS = 1000
 
+
+    # A coordinator that does not know a key's fingerprint writes all zeros
+    MISSING_FINGERPRINT = b"\x00\x00\x00\x00"
 
     def __init__(self, p: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET):
         self.psbt: PSBT = p
@@ -299,6 +314,11 @@ class PSBTParser():
         rt = self._parse_outputs(child_key_derivation_cache)
         if rt == False:
             return False
+
+        # Sanity check; fingerprint is expected to be a consistent link between a key's
+        # derivation path entry and its xpub. Runs last so that a more serious finding
+        # (e.g. deception about our own keys) is raised first.
+        self._reject_inconsistent_fingerprints(child_key_derivation_cache)
 
         return True
 
@@ -1135,6 +1155,69 @@ class PSBTParser():
         raise PSBTSeedCannotSignError()
 
 
+    def _reject_inconsistent_fingerprints(self, child_key_derivation_cache: dict):
+        """
+        A psbt may provide two related claims for its inputs/outputs:
+          * The fingerprint claimed for a key.
+          * The fingerprint claimed for a global xpub that in turn claims to produce that
+            key.
+
+        If the xpub really does derive the key, we expect the two fingerprints to agree.
+        The purpose of this function is to explicitly reject a psbt that has any such
+        discrepancies. Raises PSBTInconsistentFingerprintError on the first disagreement.
+
+        Notes:
+          * An all-zero fingerprint is possible, but more often means that the coordinator
+            does not know the fingerprint (see _fill_missing_fingerprints), so these are
+            ignored.
+          * Single sig parsing never compares a key's fingerprint against an xpub's, so
+            single sig gets an immediate exit here.
+          * _get_cosigners has already derived every key compared here and stored it in
+            the derivation cache, so this re-walk is basically free.
+
+        TODO: Fold this check into _get_cosigners, where the two claims meet. That needs
+        _get_cosigners and _get_policy to become instance methods so a mismatch can be
+        recorded on the instance and raised by parse() AFTER the outputs are read. That
+        way any of the more important inconsistencies or deceptions are reported first.
+        """
+        if "n" not in self.policy:
+            return
+
+        # Check every input and output
+        for scope in list(self.psbt.inputs) + list(self.psbt.outputs):
+            # Check every key on the current scope
+            for public_key, derivation_path_obj in scope.bip32_derivations.items():
+                # Skip the all-zero fingerprint
+                if derivation_path_obj.fingerprint == PSBTParser.MISSING_FINGERPRINT:
+                    continue
+
+                # Check public_key against every global xpub
+                for xpub, origin_derivation_path_obj in self.psbt.xpubs.items():
+                    # All-zero fingerprint global xpubs get skipped, too
+                    if origin_derivation_path_obj.fingerprint == PSBTParser.MISSING_FINGERPRINT:
+                        continue
+
+                    # The full derivation path goes two indices deeper than the xpub's so
+                    # we omit those last two when comparing.
+                    if origin_derivation_path_obj.derivation != derivation_path_obj.derivation[:-2]:
+                        continue
+
+                    # Derive the child key that sits two indices below the xpub (i.e. at
+                    # the full derivation path).
+                    derived_key = PSBTParser._derive_with_cache_via_indices(xpub, derivation_path_obj.derivation[-2:], child_key_derivation_cache)
+
+                    if derived_key.key != public_key:
+                        # This xpub is NOT public_key's parent. Move on.
+                        continue
+
+                    # This xpub IS public_key's parent, so each should be annotated with
+                    # the same fingerprint.
+                    if origin_derivation_path_obj.fingerprint != derivation_path_obj.fingerprint:
+                        # A mismatch is either an attack or a mistake. Either way, we
+                        # abort the parse.
+                        raise PSBTInconsistentFingerprintError(f"Key at {bip32.path_to_str(derivation_path_obj.derivation)} claims fingerprint {hexlify(derivation_path_obj.fingerprint).decode()} but the xpub that derives it claims {hexlify(origin_derivation_path_obj.fingerprint).decode()}")
+
+
     @staticmethod
     def is_change_branch(derivation_path: List[int]) -> bool:
         """
@@ -1172,7 +1255,7 @@ class PSBTParser():
 
             # Helper function to check and fix fingerprint
             def _get_updated_fingerprint(public_key: PublicKey, derivation_path_obj: DerivationPath, is_taproot: bool) -> DerivationPath | None:
-                if derivation_path_obj.fingerprint != b"\x00\x00\x00\x00":
+                if derivation_path_obj.fingerprint != PSBTParser.MISSING_FINGERPRINT:
                     return None
 
                 # If the signing seed really derives the psbt-provided public key at the
