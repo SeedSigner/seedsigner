@@ -607,6 +607,10 @@ class TestPSBTParserOptimizations:
 
         The artificial inputs in this test share the same full derivation path so each
         level should only be derived once total rather than once per input.
+
+        The fingerprint consistency check at the end of the parse derives the input key a
+        second way, two levels down from the global xpub, and the xpub's levels are cached
+        the same way.
         """
         psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
         master_fingerprint = self._root().my_fingerprint
@@ -644,7 +648,13 @@ class TestPSBTParserOptimizations:
 
         # All 10 inputs share the one derivation path, so each of its levels should have
         # been derived exactly once between them, rather than once per input.
-        assert num_derivations == num_levels
+
+        # The fingerprint consistency check then derives the input key a second way, two
+        # levels down from the global xpub.
+        fingerprint_check_levels = 2
+
+        # Verify that each of the expected levels was derived exactly once.
+        assert num_derivations == num_levels + fingerprint_check_levels
 
         # Sanity check: num_derivations could be correct when just ONE of the ten inputs
         # was processed. Confirm that EVERY input really was processed by verifying that
@@ -1204,9 +1214,15 @@ class TestPSBTParserSeedOwnership(PSBTParserOwnershipTestBase):
         assert psbt_parser.verified_output_derivation_paths[0] != []
 
         # The inputs were cloned so they all use the same path with num_levels depth. The
-        # change output differs only in its last two levels. Verify that each of these
-        # levels was derived exactly once.
-        assert num_derivations == num_levels + 2
+        # change output differs only in its last two levels.
+        change_levels = 2
+
+        # The fingerprint consistency check then derives the input key and the change key
+        # a second way, two levels down from the global xpub each.
+        fingerprint_check_levels = 2 * 2
+
+        # Verify that each of the expected levels were derived exactly once.
+        assert num_derivations == num_levels + change_levels + fingerprint_check_levels
 
 
     def test__parse__rejects_a_seed_that_owns_no_input(self):
@@ -2201,6 +2217,9 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
         A legitimate psbt, except that one cosigner's fingerprint on the change output
         does not match the fingerprint on that cosigner's global xpub.
 
+        Such a mismatch is not expected to be seen in the real world nor is it treated as
+        evidence of malicious activity.
+
         The parse is aborted with PSBTInconsistentFingerprintError.
         """
         for input_base64, change_hex in [
@@ -2235,6 +2254,34 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
 
             assert psbt_parser.change_amount == 10_000
             assert psbt_parser.spend_amount == 0
+
+
+    def test__parse__rejects_a_single_sig_xpub_fingerprint_that_disagrees_with_its_key(self):
+        """
+        A legitimate single sig psbt, except that the fingerprint on its one global xpub
+        does not match the fingerprint on the key entries that xpub derives. The key
+        entries themselves are correct, so every ownership check passes and only the
+        fingerprint consistency check has anything to report.
+
+        Such a mismatch is not expected to be seen in the real world nor is it treated as
+        evidence of malicious activity.
+
+        The parse is aborted with PSBTInconsistentFingerprintError.
+        """
+        for input_base64 in [
+            PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT,
+            PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT,
+            PSBTTestData.SINGLE_SIG_LEGACY_P2PKH_1_INPUT,
+        ]:
+            psbt = PSBT.parse(a2b_base64(input_base64))
+
+            # Sanity check: the fixture supplies exactly one global xpub to mislabel
+            assert len(psbt.xpubs) == 1
+            xpub, derivation_path_obj = list(psbt.xpubs.items())[0]
+            psbt.xpubs[xpub] = DerivationPath(b"\xde\xad\xbe\xef", derivation_path_obj.derivation)
+
+            with pytest.raises(PSBTInconsistentFingerprintError):
+                self._parse(psbt)
 
 
     def test__parse__refuses_an_unsupported_script_type(self):

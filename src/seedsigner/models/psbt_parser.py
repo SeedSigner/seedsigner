@@ -1170,19 +1170,16 @@ class PSBTParser():
           * An all-zero fingerprint is possible, but more often means that the coordinator
             does not know the fingerprint (see _fill_missing_fingerprints), so these are
             ignored.
-          * Single sig parsing never compares a key's fingerprint against an xpub's, so
-            single sig gets an immediate exit here.
-          * _get_cosigners has already derived every key compared here and stored it in
-            the derivation cache, so this re-walk is basically free.
+          * Single sig never reads the global xpubs elsewhere, so its derivations are new,
+            two per key.
+          * For multisig, _get_cosigners has already derived every key compared here and
+            stored it in the derivation cache, so this re-walk is basically free.
 
         TODO: Fold this check into _get_cosigners, where the two claims meet. That needs
         _get_cosigners and _get_policy to become instance methods so a mismatch can be
         recorded on the instance and raised by parse() AFTER the outputs are read. That
         way any of the more important inconsistencies or deceptions are reported first.
         """
-        if "n" not in self.policy:
-            return
-
         # Check every input and output
         for scope in list(self.psbt.inputs) + list(self.psbt.outputs):
             # Check every key on the current scope
