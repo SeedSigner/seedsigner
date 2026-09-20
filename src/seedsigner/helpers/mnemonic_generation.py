@@ -12,6 +12,14 @@ from seedsigner.models.seed import Seed
     verification of SeedSigner's results for a given input entropy.
 
     see: docs/dice_verification.md (the "Command Line Tool" section).
+
+    TODO: warn the user when a newly generated seed's fingerprint is 00000000 (one seed in
+    2^32). Coordinators write all zeros for a fingerprint they do not know. SeedSigner
+    handles all-zero fingerprints gracefully for single sig. Multisig has a bad rare edge
+    case: a coordinator that lists all-zero fingerprints for at least two cosigners but
+    the user's actual fingerprint is correctly all zeros. Other software or signing
+    devices may have other issues when dealing with an all-zero fingerprint seed. Warn the
+    user and recommend that they generate a different new seed.
 """
 
 DICE__NUM_ROLLS__12WORD = 50

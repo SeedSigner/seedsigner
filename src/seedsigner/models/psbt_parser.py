@@ -80,6 +80,18 @@ class PSBTMixedDerivationPathTypesError(PSBTVerificationError):
     pass
 
 
+class PSBTInconsistentFingerprintError(PSBTVerificationError):
+    """
+    A key's derivation path entry and the global xpub that derives that key claim
+    different fingerprints.
+
+    The key's entry and the xpub's record both say where that key comes from, so one of
+    them is wrong. This is a correctness problem (not expected to be seen in the real
+    world) or potentially a weak form of deception, but we do not try to adjudicate that.
+    """
+    pass
+
+
 class PSBTOutputOwnershipContradictionError(PSBTVerificationError):
     """
     The psbt's account of who an output pays contradicts which key(s) the output
@@ -157,6 +169,9 @@ class PSBTParser():
     MAX_CACHED_DERIVATIONS = 1000
 
 
+    # A coordinator that does not know a key's fingerprint writes all zeros
+    MISSING_FINGERPRINT = b"\x00\x00\x00\x00"
+
     def __init__(self, p: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET):
         self.psbt: PSBT = p
         self.seed = seed
@@ -174,10 +189,11 @@ class PSBTParser():
         self.op_return_data: bytes = None
 
         # Contains one entry per input in psbt.inputs and per output in psbt.outputs. Each
-        # entry is either the derivation path the seed genuinely owns there, or it is set
-        # to `None`.
-        self.verified_input_derivation_paths: List[List[int] | None] = []
-        self.verified_output_derivation_paths: List[List[int] | None] = []
+        # entry lists every derivation path the seed genuinely owns there, in the order
+        # the psbt lists them. An input or output that does not claim any of our keys
+        # gets an empty list.
+        self.verified_input_derivation_paths: List[List[DerivationPath]] = []
+        self.verified_output_derivation_paths: List[List[DerivationPath]] = []
 
         self.root = None
 
@@ -246,8 +262,8 @@ class PSBTParser():
              via:
              - single-sig: Rebuild the output script from the seed and match it against
                the committed scriptPubKey.
-             - multisig: Match the seed's verified key against the pubkeys in the script
-               the output commits to.
+             - multisig: Match each of the seed's verified keys against the pubkeys in
+               the script the output commits to.
              Every change_data entry after this point will carry a derivation path that
              our seed provably owns.
 
@@ -267,7 +283,7 @@ class PSBTParser():
         levels, differing only in the address at the end.
 
         So every level derived during this parse is kept in a cache and reused. See
-        _derive_with_cache.
+        _derive_with_cache_via_indices.
 
         Note that the cache is only useful within a single parse so it is not preserved.
         """
@@ -298,6 +314,11 @@ class PSBTParser():
         rt = self._parse_outputs(child_key_derivation_cache)
         if rt == False:
             return False
+
+        # Sanity check; fingerprint is expected to be a consistent link between a key's
+        # derivation path entry and its xpub. Runs last so that a more serious finding
+        # (e.g. deception about our own keys) is raised first.
+        self._reject_inconsistent_fingerprints(child_key_derivation_cache)
 
         return True
 
@@ -436,8 +457,8 @@ class PSBTParser():
 
                     # Rebuild the scriptPubKey from the key at the claimed derivation path
                     if len(out.bip32_derivations.values()) == 1:
-                        singlesig_derivation_path = list(out.bip32_derivations.values())[0].derivation
-                        seed_public_key = PSBTParser._derive_with_cache(self.root, singlesig_derivation_path, child_key_derivation_cache).get_public_key()
+                        singlesig_derivation_path = list(out.bip32_derivations.values())[0]
+                        seed_public_key = PSBTParser._derive_with_cache_via_derivation_path(self.root, singlesig_derivation_path, child_key_derivation_cache).get_public_key()
                         rebuilt_script_pubkey = PSBTParser._build_singlesig_script(self.policy["type"], seed_public_key)
                     else:
                         # There's nothing for us to verify against so this output will be
@@ -462,9 +483,8 @@ class PSBTParser():
                             raise PSBTSurplusDerivationPathsError("Taproot output claims more than one internal key")
 
                         if len(taproot_entries) == 1 and internal_key_claims == 1:
-                            leaf_hashes, derivation = taproot_entries[0]
-                            singlesig_derivation_path = derivation.derivation
-                            seed_public_key = PSBTParser._derive_with_cache(self.root, singlesig_derivation_path, child_key_derivation_cache).get_public_key()
+                            leaf_hashes, singlesig_derivation_path = taproot_entries[0]
+                            seed_public_key = PSBTParser._derive_with_cache_via_derivation_path(self.root, singlesig_derivation_path, child_key_derivation_cache).get_public_key()
                             rebuilt_script_pubkey = PSBTParser._build_singlesig_script(self.policy["type"], seed_public_key)
                         else:
                             # This output has at least one derivation path entry for a key
@@ -483,19 +503,19 @@ class PSBTParser():
                     # which is also caught here.
                     raise RuntimeError(f"Unsupported policy type: {self.policy['type']}")
 
-                verified_derivation_path = self.verified_output_derivation_paths[i]
+                verified_derivation_paths = self.verified_output_derivation_paths[i]
 
                 if rebuilt_script_pubkey.data == vout[i].script_pubkey.data:
                     # The scriptPubKey we created using our own seed matched what this
                     # output is actually committing to.
 
                     if singlesig_derivation_path is not None:
-                        if verified_derivation_path is None:
+                        if verified_derivation_paths == []:
                             # The output pays this seed but the psbt claimed a different
                             # fingerprint here. We treat this deception as an attack.
-                            raise PSBTOutputOwnershipContradictionError(f"Output pays this seed at {bip32.path_to_str(singlesig_derivation_path)} but does not claim it there")
+                            raise PSBTOutputOwnershipContradictionError(f"Output pays this seed at {bip32.path_to_str(singlesig_derivation_path.derivation)} but does not claim it there")
 
-                        if verified_derivation_path != singlesig_derivation_path:
+                        if verified_derivation_paths != [singlesig_derivation_path]:
                             # Shouldn't be able to reach here: the surplus check above
                             # allows only one entry, and the ownership scan refuses a
                             # scope populating both derivation path maps, so the scan can
@@ -508,7 +528,7 @@ class PSBTParser():
                         is_presumed_change = True
 
                     elif multisig_script is not None:
-                        if verified_derivation_path is None:
+                        if verified_derivation_paths == []:
                             # No entry claimed this seed's fingerprint, but we already
                             # have everything we need to see if our seed is actually in
                             # the output script.
@@ -517,7 +537,7 @@ class PSBTParser():
                                 # the coordinator says sits there. Both are its own
                                 # claims, so we read only the path and derive the key
                                 # ourselves.
-                                seed_public_key = PSBTParser._derive_with_cache(self.root, derivation_path_obj.derivation, child_key_derivation_cache).get_public_key()
+                                seed_public_key = PSBTParser._derive_with_cache_via_derivation_path(self.root, derivation_path_obj, child_key_derivation_cache).get_public_key()
 
                                 if PSBTParser._multisig_script_contains_key(multisig_script, seed_public_key):
                                     # The output pays a multisig this seed is part
@@ -533,14 +553,17 @@ class PSBTParser():
 
                         else:
                             # This output claimed that our seed is part of the receiving
-                            # multisig, at a specific path. So now we verify that the key
-                            # at that path is in the committed script.
-                            seed_public_key = PSBTParser._derive_with_cache(self.root, verified_derivation_path, child_key_derivation_cache).get_public_key()
-                            if not PSBTParser._multisig_script_contains_key(multisig_script, seed_public_key):
-                                # The psbt said this output was coming back to our seed
-                                # at that path, but the key there is not in the committed
-                                # script. We treat this deception as an attack.
-                                raise PSBTOutputOwnershipContradictionError(f"Output claims this seed at {bip32.path_to_str(verified_derivation_path)} but its committed script does not hold that key")
+                            # multisig, at one or more specific paths. So now we verify
+                            # that the key at every claimed path is in the committed
+                            # script.
+                            for verified_derivation_path in verified_derivation_paths:
+                                seed_public_key = PSBTParser._derive_with_cache_via_derivation_path(self.root, verified_derivation_path, child_key_derivation_cache).get_public_key()
+                                if not PSBTParser._multisig_script_contains_key(multisig_script, seed_public_key):
+                                    # The psbt said this output was coming back to our
+                                    # seed at that path, but the key there is not in the
+                                    # committed script. We treat this deception as an
+                                    # attack.
+                                    raise PSBTOutputOwnershipContradictionError(f"Output claims this seed at {bip32.path_to_str(verified_derivation_path.derivation)} but its committed script does not hold that key")
 
                             # The output should not describe more keys than are actually
                             # used in its script. We check for the more serious deceptions
@@ -570,7 +593,7 @@ class PSBTParser():
                             if input_cosigners is not None and input_cosigners != output_cosigners:
                                 is_presumed_change = False
 
-                elif verified_derivation_path is not None and self.policy["type"] != "p2tr":
+                elif verified_derivation_paths != [] and self.policy["type"] != "p2tr":
                     # The psbt claims one of this seed's keys on this output, yet the
                     # output does NOT pay what that claim describes. We treat this
                     # deception as an attack.
@@ -590,7 +613,7 @@ class PSBTParser():
                     # output verifiable change, one that does not is a contradiction to
                     # refuse here, and an output supplying no tree stays exempt, since
                     # an omitted optional field is not a contradiction.
-                    raise PSBTOutputOwnershipContradictionError(f"Output claims this seed at {bip32.path_to_str(verified_derivation_path)} but its committed script contradicts that")
+                    raise PSBTOutputOwnershipContradictionError(f"Output claims this seed at {bip32.path_to_str(verified_derivation_paths[0].derivation)} but its committed script contradicts that")
 
             if vout[i].script_pubkey.data[0] == OPCODES.OP_RETURN:
                 # The data is written as: OP_RETURN + OP_PUSHDATA1 + len(payload) + payload
@@ -606,7 +629,7 @@ class PSBTParser():
                     "output_index": i,
                     "address": addr,
                     "amount": vout[i].value,
-                    "verified_derivation_path": self.verified_output_derivation_paths[i],
+                    "verified_derivation_path": self.verified_output_derivation_paths[i][0].derivation,
                 })
                 self.change_amount += vout[i].value
 
@@ -775,7 +798,7 @@ class PSBTParser():
 
 
     @staticmethod
-    def _derive_with_cache(parent_key: bip32.HDKey, derivation_path: List[int], child_key_derivation_cache: dict | None = None) -> bip32.HDKey:
+    def _derive_with_cache_via_indices(parent_key: bip32.HDKey, derivation_path: List[int], child_key_derivation_cache: dict | None = None) -> bip32.HDKey:
         """
         Derives the key that sits at the given derivation path below parent_key, reusing
         any levels along the way that have already been derived during this parse.
@@ -823,6 +846,19 @@ class PSBTParser():
                 cached_parent, already_derived = cached_entry
             derived_key = already_derived
         return derived_key
+
+
+    @staticmethod
+    def _derive_with_cache_via_derivation_path(parent_key: bip32.HDKey, derivation_path: DerivationPath, child_key_derivation_cache: dict | None = None) -> bip32.HDKey:
+        """
+        _derive_with_cache_via_indices for a psbt entry: derives at the entry's full
+        derivation path below parent_key.
+
+        The DerivationPath.fingerprint is completely ignored; this function allows for
+        deriving a key even when it's known that the fingerprint doesn't match (e.g. to
+        catch a false claim).
+        """
+        return PSBTParser._derive_with_cache_via_indices(parent_key, derivation_path.derivation, child_key_derivation_cache)
 
 
     @staticmethod
@@ -883,7 +919,7 @@ class PSBTParser():
                 if origin_der.derivation == der.derivation[:-2]:
                     # Derive the child key that sits two indices below the xpub (i.e. at
                     # the full derivation path).
-                    derived_key = PSBTParser._derive_with_cache(xpub, der.derivation[-2:], child_key_derivation_cache)
+                    derived_key = PSBTParser._derive_with_cache_via_indices(xpub, der.derivation[-2:], child_key_derivation_cache)
 
                     # Finally, compare that key with the target pubkey
                     if derived_key.key == pubkey:
@@ -975,7 +1011,7 @@ class PSBTParser():
         say anything. Ownership is established here and only here, by deriving the key
         again from the seed and comparing the actual key material.
         """
-        derived_public_key = PSBTParser._derive_with_cache(root, claimed_derivation_path, child_key_derivation_cache).get_public_key()
+        derived_public_key = PSBTParser._derive_with_cache_via_indices(root, claimed_derivation_path, child_key_derivation_cache).get_public_key()
 
         if is_taproot:
             # A psbt carries a taproot key as its bare 32-byte x coordinate, but embit
@@ -996,12 +1032,13 @@ class PSBTParser():
 
 
     @staticmethod
-    def _get_seed_derivation_path(scope: InputScope | OutputScope, root: bip32.HDKey, child_key_derivation_cache: dict) -> List[int] | None:
+    def _get_seed_derivation_paths(scope: InputScope | OutputScope, root: bip32.HDKey, child_key_derivation_cache: dict) -> List[DerivationPath]:
         """
         Scans the derivation path(s) in the provided input or output scope to determine
         which, if any, are provably derived from the signing seed (for multisig a path is
         provided per key; if the seed is part of the multisig, one of the n paths will
-        match). Returns the verified derivation path (as a list of ints) or None.
+        match). Returns every verified DerivationPath entry, in the order the psbt lists
+        them. An input or output that does not claim any of our keys yields an empty list.
 
         Every key in the scope that claims this seed's fingerprint is re-derived and
         checked. A false claim raises PSBT[Output|Input]OwnershipClaimError.
@@ -1015,22 +1052,26 @@ class PSBTParser():
         Note that neither BIP-174 nor BIP-371 forbids the combination. And embit will
         parse and even sign such a psbt. We disallow it by opinionated choice.
 
-        One edge case:
-        * A multisig could use this seed in more than one cosigner slot, each
-          at its own derivation path. The scope then carries several entries that all
-          verify against this seed; we return the first but still check the rest.
+        One edge case: A scope may carry more than one entry that verifies against this
+        seed.
+          * Foolish as it may be, a multisig could honestly use this seed in two cosigner
+            slots, each at its own derivation path.
+          * More importantly: a malicious psbt could list a second claim of ours as a
+            decoy, at a path our seed really does derive but whose key the committed
+            script has no use for.
+
+        This function only checks and returns the DerivationPath entry for each key that
+        derives from our seed. What those entries mean for the psbt is determined
+        elsewhere.
 
         The path itself is still whatever the psbt supplied: it can be any length or
         shape, since any path that derives from the seed will pass. Whether the path is
-        one the user's wallet would ever look at is a separate question, answered
-        elsewhere.
+        one the user's wallet would ever look at is a separate question.
         """
         seed_fingerprint = root.my_fingerprint
-        verified_derivation_path = None
+        verified_derivation_paths = []
 
         def _check_claim(public_key: PublicKey, derivation_path_obj: DerivationPath, is_taproot: bool):
-            nonlocal verified_derivation_path
-
             if derivation_path_obj.fingerprint != seed_fingerprint:
                 # Claims to belong to some other key. Nothing to prove or disprove here.
                 return
@@ -1039,9 +1080,7 @@ class PSBTParser():
                 error_class = (PSBTInputOwnershipClaimError if isinstance(scope, InputScope) else PSBTOutputOwnershipClaimError)
                 raise error_class(f"Key at {bip32.path_to_str(derivation_path_obj.derivation)} claims this seed's fingerprint but does not derive from it")
 
-            # Store only the first verified path
-            if verified_derivation_path is None:
-                verified_derivation_path = derivation_path_obj.derivation
+            verified_derivation_paths.append(derivation_path_obj)
 
         # Note that both loops check EVERY claim
         for public_key, derivation_path_obj in scope.bip32_derivations.items():
@@ -1057,14 +1096,15 @@ class PSBTParser():
         if scope.bip32_derivations and scope.taproot_bip32_derivations:
             raise PSBTMixedDerivationPathTypesError("Scope declares both ecdsa and taproot derivation paths")
 
-        return verified_derivation_path
+        return verified_derivation_paths
 
 
     def _verify_claimed_derivation_paths(self, child_key_derivation_cache: dict):
         """
         Verifies every derivation path entry that claims this seed's fingerprint. The
-        result, stored in verified_[input|output]_derivation_paths, is either the verified
-        derivation path or None (no entry claimed this seed) for each input/output scope.
+        result, stored in verified_[input|output]_derivation_paths, is the list of
+        verified DerivationPath entries for each input/output scope (empty where no entry
+        claimed this seed).
 
         The coordinator-supplied fingerprints cannot be trusted as-is. We must derive and
         verify the ownership of each one that claims to belong to this seed.
@@ -1076,12 +1116,12 @@ class PSBTParser():
         Raises PSBT[Output|Input]OwnershipClaimError on the first false claim detected.
         """
         self.verified_output_derivation_paths = [
-            PSBTParser._get_seed_derivation_path(out, self.root, child_key_derivation_cache)
+            PSBTParser._get_seed_derivation_paths(out, self.root, child_key_derivation_cache)
             for out in self.psbt.outputs
         ]
 
         self.verified_input_derivation_paths = [
-            PSBTParser._get_seed_derivation_path(inp, self.root, child_key_derivation_cache)
+            PSBTParser._get_seed_derivation_paths(inp, self.root, child_key_derivation_cache)
             for inp in self.psbt.inputs
         ]
 
@@ -1107,11 +1147,72 @@ class PSBTParser():
         # proved the seed derives it (single-sig: one such key; multisig: one per
         # cosigner, ours among them). One verified input path is enough for the psbt to
         # be signable.
-        if any(path is not None for path in self.verified_input_derivation_paths):
-            return
+        for verified_derivation_paths in self.verified_input_derivation_paths:
+            if verified_derivation_paths != []:
+                return
 
         # There's nothing for this seed to sign
         raise PSBTSeedCannotSignError()
+
+
+    def _reject_inconsistent_fingerprints(self, child_key_derivation_cache: dict):
+        """
+        A psbt may provide two related claims for its inputs/outputs:
+          * The fingerprint claimed for a key.
+          * The fingerprint claimed for a global xpub that in turn claims to produce that
+            key.
+
+        If the xpub really does derive the key, we expect the two fingerprints to agree.
+        The purpose of this function is to explicitly reject a psbt that has any such
+        discrepancies. Raises PSBTInconsistentFingerprintError on the first disagreement.
+
+        Notes:
+          * An all-zero fingerprint is possible, but more often means that the coordinator
+            does not know the fingerprint (see _fill_missing_fingerprints), so these are
+            ignored.
+          * Single sig never reads the global xpubs elsewhere, so its derivations are new,
+            two per key.
+          * For multisig, _get_cosigners has already derived every key compared here and
+            stored it in the derivation cache, so this re-walk is basically free.
+
+        TODO: Fold this check into _get_cosigners, where the two claims meet. That needs
+        _get_cosigners and _get_policy to become instance methods so a mismatch can be
+        recorded on the instance and raised by parse() AFTER the outputs are read. That
+        way any of the more important inconsistencies or deceptions are reported first.
+        """
+        # Check every input and output
+        for scope in list(self.psbt.inputs) + list(self.psbt.outputs):
+            # Check every key on the current scope
+            for public_key, derivation_path_obj in scope.bip32_derivations.items():
+                # Skip the all-zero fingerprint
+                if derivation_path_obj.fingerprint == PSBTParser.MISSING_FINGERPRINT:
+                    continue
+
+                # Check public_key against every global xpub
+                for xpub, origin_derivation_path_obj in self.psbt.xpubs.items():
+                    # All-zero fingerprint global xpubs get skipped, too
+                    if origin_derivation_path_obj.fingerprint == PSBTParser.MISSING_FINGERPRINT:
+                        continue
+
+                    # The full derivation path goes two indices deeper than the xpub's so
+                    # we omit those last two when comparing.
+                    if origin_derivation_path_obj.derivation != derivation_path_obj.derivation[:-2]:
+                        continue
+
+                    # Derive the child key that sits two indices below the xpub (i.e. at
+                    # the full derivation path).
+                    derived_key = PSBTParser._derive_with_cache_via_indices(xpub, derivation_path_obj.derivation[-2:], child_key_derivation_cache)
+
+                    if derived_key.key != public_key:
+                        # This xpub is NOT public_key's parent. Move on.
+                        continue
+
+                    # This xpub IS public_key's parent, so each should be annotated with
+                    # the same fingerprint.
+                    if origin_derivation_path_obj.fingerprint != derivation_path_obj.fingerprint:
+                        # A mismatch is either an attack or a mistake. Either way, we
+                        # abort the parse.
+                        raise PSBTInconsistentFingerprintError(f"Key at {bip32.path_to_str(derivation_path_obj.derivation)} claims fingerprint {hexlify(derivation_path_obj.fingerprint).decode()} but the xpub that derives it claims {hexlify(origin_derivation_path_obj.fingerprint).decode()}")
 
 
     @staticmethod
@@ -1151,7 +1252,7 @@ class PSBTParser():
 
             # Helper function to check and fix fingerprint
             def _get_updated_fingerprint(public_key: PublicKey, derivation_path_obj: DerivationPath, is_taproot: bool) -> DerivationPath | None:
-                if derivation_path_obj.fingerprint != b"\x00\x00\x00\x00":
+                if derivation_path_obj.fingerprint != PSBTParser.MISSING_FINGERPRINT:
                     return None
 
                 # If the signing seed really derives the psbt-provided public key at the

@@ -1,6 +1,6 @@
 from gettext import gettext as _
 
-from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
+from seedsigner.models.psbt_parser import (PSBTInconsistentFingerprintError, PSBTInputOwnershipClaimError,
     PSBTMixedDerivationPathTypesError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
     PSBTSurplusDerivationPathsError)
@@ -121,6 +121,10 @@ class PSBTOverviewView(View):
 
             except PSBTMixedDerivationPathTypesError:
                 self.set_redirect(Destination(PSBTMixedDerivationPathTypesView, clear_history=True))
+                return
+
+            except PSBTInconsistentFingerprintError:
+                self.set_redirect(Destination(PSBTInconsistentFingerprintView, clear_history=True))
                 return
 
             except PSBTOutputOwnershipContradictionError:
@@ -575,6 +579,35 @@ class PSBTMixedDerivationPathTypesView(View):
             status_headline=None,
             # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
             text=_("This transaction claims taproot and non-taproot keys for the same script."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTInconsistentFingerprintView(View):
+    """
+    Reached when a key's derivation path entry and its associated global xpub list
+    different fingerprints (PSBTInconsistentFingerprintError).
+
+    We view this as a strange / buggy psbt and do not try to decide whether it is
+    malicious. We do not allow the user to continue, but we use the milder "Warning"
+    level as this is not considered an attack.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
+            text=_("This transaction lists two different fingerprints for one of its keys."),
             button_data=[self.DISCARD],
             show_back_button=False,
         )

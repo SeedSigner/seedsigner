@@ -320,6 +320,34 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         ])
 
 
+    def test_inconsistent_fingerprint_terminates_signing_flow(self):
+        """
+        A multisig psbt in which one cosigner's key entry (in bip32_derivations) and the
+        global xpub deriving that key list different fingerprints.
+
+        It ends the flow at its own warning before any transaction detail is rendered.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        seed_fingerprint = root_for_seed(PSBTTestData.seed).my_fingerprint
+
+        # Rewrite the fingerprint on the first cosigner entry that isn't this seed's,
+        # leaving the key and its derivation path as they are.
+        inp = psbt.inputs[0]
+        for public_key, derivation_path_obj in inp.bip32_derivations.items():
+            if derivation_path_obj.fingerprint != seed_fingerprint:
+                inp.bip32_derivations[public_key] = DerivationPath(b"\xde\xad\xbe\xef", derivation_path_obj.derivation)
+                break
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTInconsistentFingerprintView, button_data_selection=psbt_views.PSBTInconsistentFingerprintView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
     def test_wrong_seed_routes_back_to_seed_selection_flow(self):
         """
         The wrong seed for a psbt redirects before any transaction detail is rendered and
