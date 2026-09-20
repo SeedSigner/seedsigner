@@ -177,6 +177,11 @@ class PSBTParser():
         self.destination_amounts = []
         self.op_return_data: bytes = None
 
+        # Whether the fee is high relative to what is being sent; see has_high_fee().
+        # Computed once at the end of parse() so the views can read it without each
+        # re-walking the outputs.
+        self.is_high_fee: bool = False
+
         # Contains one entry per input in psbt.inputs and per output in psbt.outputs. Each
         # entry is either the derivation path the seed genuinely owns there, or it is set
         # to `None`.
@@ -302,6 +307,9 @@ class PSBTParser():
         rt = self._parse_outputs(child_key_derivation_cache)
         if rt == False:
             return False
+
+        # Every total is known now, so settle this once rather than per view.
+        self.is_high_fee = self.has_high_fee()
 
         return True
 

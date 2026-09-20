@@ -445,6 +445,27 @@ class TestPSBTParser:
         assert parser.has_high_fee() is expected
 
 
+    def test_parse_sets_is_high_fee(self):
+        """
+            parse() should settle is_high_fee once, from the real totals, so the views
+            can read it without recomputing. Checked in both directions: a realistic fee
+            leaves it False, a fee dwarfing the spend sets it True.
+        """
+        # 272 sat fee on a 2 BTC spend: nowhere near the threshold
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
+        psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.two_input_seed, network=SettingsConstants.REGTEST)
+        assert psbt_parser.is_high_fee is False
+        assert psbt_parser.is_high_fee == psbt_parser.has_high_fee()
+
+        # 1 BTC input paying a 50,000 sat recipient and 10,000 sats change: almost all fee
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 50_000))
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE, 10_000))
+        psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+        assert psbt_parser.is_high_fee is True
+        assert psbt_parser.is_high_fee == psbt_parser.has_high_fee()
+
+
 
 # TODO: Refactor all tests to be in the TestPSBTParser class(?)
 def test_p2tr_change_detection():
