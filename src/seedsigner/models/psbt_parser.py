@@ -171,6 +171,10 @@ class PSBTParser():
     # Input types whose sighash does NOT commit to the input amount. A lie about the
     # input amount still allows a valid signature, so these inputs must supply a non_witness_utxo.
     UNCOMMITTED_AMOUNT_SCRIPT_TYPES = [None, "p2pkh", "p2sh"]
+    
+    # Warn when the fee exceeds this percentage of what is being sent (outputs other than
+    # change). TODO: Possibly make this configurable via settings.
+    HIGH_FEES_WARNING_THRESHOLD = 25
 
 
     def __init__(self, p: PSBT, seed: Seed, network: str = SettingsConstants.MAINNET):
@@ -188,6 +192,11 @@ class PSBTParser():
         self.destination_addresses = []
         self.destination_amounts = []
         self.op_return_data: bytes = None
+
+        # Whether the fee is high relative to what is being sent; see has_high_fee().
+        # Computed once at the end of parse() so the views can read it without each
+        # re-walking the outputs.
+        self.is_high_fee: bool = False
 
         # Contains one entry per input in psbt.inputs and per output in psbt.outputs. Each
         # entry is either the derivation path the seed genuinely owns there, or it is set
@@ -323,6 +332,9 @@ class PSBTParser():
         rt = self._parse_outputs(child_key_derivation_cache)
         if rt == False:
             return False
+
+        # Every total is known now, so settle this once rather than per view.
+        self.is_high_fee = self.has_high_fee()
 
         return True
 
@@ -1276,3 +1288,47 @@ class PSBTParser():
 
         for out in self.psbt.outputs:
             _fill_scope(out)
+
+
+    def get_total_output_value(self, include_change: bool = False):
+        """
+            Returns the sum of all outputs (fee not included).
+
+            `change_data` holds every output that comes back to this seed, which is two
+            different things: change, and self-transfers to one of our own receive
+            addresses. With `include_change=False` only the change is subtracted;
+            self-transfers stay in the total, since the user chose to send funds there
+            just as they did for any external recipient. The two are told apart the way
+            the views do it, by `is_change_branch` on the derivation path the parse
+            proved this seed owns.
+
+            Used to decide whether the fee is high relative to what is actually being
+            sent, and whether to warn.
+        """
+        total = sum(out.value for out in self.psbt.tx.vout)
+
+        if include_change:
+            return total
+
+        # Subtract the change; keep self-transfers, they count as recipients.
+        true_change = sum(
+            entry["amount"]
+            for entry in self.change_data
+            if PSBTParser.is_change_branch(entry["verified_derivation_path"])
+        )
+        return total - true_change
+
+
+    def has_high_fee(self):
+        """
+            Returns True if the fee is high.
+            i.e. fee amount > <HIGH_FEES_WARNING_THRESHOLD>% of total outputs excluding change
+        """
+        total_output_value_excluding_change = self.get_total_output_value()
+
+        # If there are no outputs other than change, then it can't be a high fee
+        if total_output_value_excluding_change <= 0:
+            return False
+
+        else:
+            return self.fee_amount > ((self.HIGH_FEES_WARNING_THRESHOLD / 100) * total_output_value_excluding_change)

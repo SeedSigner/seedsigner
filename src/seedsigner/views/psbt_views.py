@@ -186,6 +186,7 @@ class PSBTOverviewView(View):
             num_change_outputs=num_change_outputs,
             destination_addresses=psbt_parser.destination_addresses,
             has_op_return=psbt_parser.op_return_data is not None,
+            is_high_fee_tx=psbt_parser.is_high_fee,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
@@ -196,6 +197,9 @@ class PSBTOverviewView(View):
         # skip change warning and psbt math view
         if psbt_parser.policy == None:
             return Destination(PSBTUnsupportedScriptTypeWarningView)
+
+        elif psbt_parser.is_high_fee:
+            return Destination(PSBTHighFeeWarningView, view_args={"warning_threshold_percent": psbt_parser.HIGH_FEES_WARNING_THRESHOLD})
         
         elif psbt_parser.change_amount == 0:
             return Destination(PSBTNoChangeWarningView)
@@ -247,6 +251,39 @@ class PSBTNoChangeWarningView(View):
 
 
 
+class PSBTHighFeeWarningView(View):
+    def __init__(self, warning_threshold_percent: int):
+        super().__init__()
+        
+        self.warning_threshold_percent = warning_threshold_percent
+    
+    def run(self):
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
+            status_headline=_("High Fee!"),
+            # TRANSLATOR_NOTE: Variable is the percentage of the total output value (excluding change) that the fee exceeds. (e.g. "This transaction has a fee higher than 25% of the total output value (excluding change).")
+            text=_("This transaction has a fee higher than {}% of the total output value (excluding change).").format(self.warning_threshold_percent),
+            button_data=[ButtonOption("Continue")],
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        # PSBT may have high fee + no change
+        if self.controller.psbt_parser.change_amount == 0:
+            return Destination(
+                PSBTNoChangeWarningView,
+                skip_current_view=True,  # Prevent going BACK to WarningViews
+            )
+
+        else:
+            return Destination(
+                PSBTMathView,
+                skip_current_view=True,  # Prevent going BACK to WarningViews
+            )
+
+
+
 class PSBTMathView(View):
     """
         Follows the Overview pictogram. Shows:
@@ -271,6 +308,7 @@ class PSBTMathView(View):
             num_recipients=psbt_parser.num_destinations,
             fee_amount=psbt_parser.fee_amount,
             change_amount=psbt_parser.change_amount,
+            is_high_fee_tx=psbt_parser.is_high_fee,
         )
 
         if selected_menu_num == RET_CODE__BACK_BUTTON:
