@@ -8,7 +8,7 @@ Whenever possible, recreate a crash in testnet. This will help avoid accidentall
 
 ### Network-Connected SeedSigner
 
-If you are using SeedSigner for development and testing, then we recommend network access via SSH to view crash logs. Follow [these](https://github.com/SeedSigner/seedsigner/blob/main/docs/usb_relay.md) instructions to set up a USB relay for internet access. You can also connect your SeedSigner to WiFi if you have a Raspberry Pi Zero W with WiFi.
+If you are using SeedSigner for development and testing, then we recommend network access via SSH to view crash logs. The SeedSigner OS `-dev` images ship with SSH and networking already configured; see the [dev images reference](https://github.com/SeedSigner/seedsigner-os/blob/main/docs/dev_images.md) for the connection options.
 
 ### Airgapped Debugging Setup
 

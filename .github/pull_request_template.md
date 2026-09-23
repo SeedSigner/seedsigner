@@ -67,7 +67,6 @@ Any new or altered functionality should be covered in a unit test. Any new or up
 ---
 
 #### I tested this PR hands-on on the following platform(s):
-- [ ] Raspberry Pi OS [Manual Build](https://github.com/SeedSigner/seedsigner/blob/dev/docs/raspberry_pi_os_build_instructions.md)
 - [ ] [SeedSigner OS](https://github.com/SeedSigner/seedsigner-os) on a Pi0/Pi0W board
 - [ ] Emulator
 
