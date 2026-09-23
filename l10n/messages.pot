@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: seedsigner 0.8.7\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-03-05 22:02+0000\n"
+"POT-Creation-Date: 2026-08-23 11:04+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -265,6 +265,10 @@ msgstr ""
 
 #: src/seedsigner/gui/screens/seed_screens.py
 msgid "BIP-85 Index"
+msgstr ""
+
+#: src/seedsigner/gui/screens/seed_screens.py
+msgid "Account Number"
 msgstr ""
 
 #: src/seedsigner/gui/screens/seed_screens.py
@@ -751,6 +755,14 @@ msgid "Show xpub details"
 msgstr ""
 
 #: src/seedsigner/models/settings_definition.py
+msgid "Account selection"
+msgstr ""
+
+#: src/seedsigner/models/settings_definition.py
+msgid "Prompt for account number when deriving wallet keys"
+msgstr ""
+
+#: src/seedsigner/models/settings_definition.py
 msgid "BIP-39 passphrase"
 msgstr ""
 
@@ -1164,6 +1176,22 @@ msgstr ""
 
 #: src/seedsigner/views/seed_views.py
 msgid "Export Xpub"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Account Number Error"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Invalid Account Number"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Account number must be between 0 and {max_account}."
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Try Again"
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
@@ -1588,4 +1616,3 @@ msgid ""
 "You must remove the\n"
 "MicroSD card to continue."
 msgstr ""
-

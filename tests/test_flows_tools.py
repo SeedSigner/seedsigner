@@ -34,6 +34,81 @@ class TestToolsFlows(FlowTest):
         ])
 
 
+    def test__address_explorer__account_selection_flow(self):
+        seed = Seed(mnemonic=["abandon"] * 11 + ["about"])
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
+
+        script_selection = ButtonOption(
+            SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(SettingsConstants.NATIVE_SEGWIT),
+            return_data=SettingsConstants.NATIVE_SEGWIT,
+        )
+
+        def assert_account_one(view):
+            assert view.account == 1
+            assert view.controller.address_explorer_data["account"] == 1
+            assert view.controller.address_explorer_data["derivation_path"] == "m/84'/0'/1'"
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, screen_return_value=0),
+            FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=script_selection),
+            FlowStep(seed_views.SeedAccountNumberView, screen_return_value="1"),
+            FlowStep(tools_views.ToolsAddressExplorerAddressTypeView, before_run=assert_account_one, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.SeedAccountNumberView),
+        ])
+
+
+    def test__address_explorer__custom_derivation_bypasses_account_selection(self):
+        seed = Seed(mnemonic=["abandon"] * 11 + ["about"])
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(
+            SettingsConstants.SETTING__SCRIPT_TYPES,
+            [SettingsConstants.NATIVE_SEGWIT, SettingsConstants.CUSTOM_DERIVATION],
+        )
+
+        custom_selection = ButtonOption(
+            SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(SettingsConstants.CUSTOM_DERIVATION),
+            return_data=SettingsConstants.CUSTOM_DERIVATION,
+        )
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, screen_return_value=0),
+            FlowStep(seed_views.SeedExportXpubScriptTypeView, button_data_selection=custom_selection),
+            FlowStep(seed_views.SeedExportXpubCustomDerivationView, screen_return_value="m/0'/0'"),
+            FlowStep(tools_views.ToolsAddressExplorerAddressTypeView),
+        ])
+
+
+    def test__verify_address__new_seed_account_back_returns_to_seed_selection(self):
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
+
+        def load_address_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("bc1qku0qh0mc00y8tk0n65x2tqw4trlspak0fnjmfz")
+
+        def load_seed_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("0000" * 11 + "0003")
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+            FlowStep(seed_views.SeedAccountNumberView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.SeedSelectSeedView),
+        ])
+
+
     def test__address_explorer__loadseed__sideflow(self):
         """
             Finalizing a seed during the Address Explorer flow should return to the next
@@ -78,6 +153,7 @@ class TestToolsFlows(FlowTest):
             and successfully generate receive or change addresses.
         """
         self.settings.set_value(SettingsConstants.SETTING__ELECTRUM_SEEDS, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
 
         sequence = [
             FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
@@ -196,6 +272,8 @@ class TestToolsFlows(FlowTest):
             Address Explorer should be able to parse a legacy multisig p2sh (m/45')
             descriptor and generate addresses.
         """
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
+
         def load_descriptor_into_decoder(view: scan_views.ScanView):
             # descriptor from test_psbt_parser.py
             p2sh_descriptor = "sh(sortedmulti(2,[0f889044/45h]tpubD8NkS3Gngj7L4FJRYrwojKhsx2seBhrNrXVdvqaUyvtVe1YDCVcziZVa9g3KouXz7FN5CkGBkoC16nmNu2HcG9ubTdtCbSW8DEXSMHmmu62/<0;1>/*,[03cd0a2b/45h]tpubD8HkLLgkdJkVitn1i9CN4HpFKJdom48iKm9PyiXYz5hivn1cGz6H3VeS6ncmCEgamvzQA2Qofu2YSTwWzvuaYWbJDEnvTUtj5R96vACdV6L/<0;1>/*,[769f695c/45h]tpubD98hRDKvtATTM8hy5Vvt5ZrvDXwJvrUZm1p1mTKDmd7FqUHY9Wj2k4X1CvxjjtTf3JoChWqYbnWjfkRJ65GQnpVJKbbMfjnGzCwoBUXafyM/<0;1>/*))#uardwtq4".replace("<0;1>", "{0,1}")
@@ -220,6 +298,8 @@ class TestToolsFlows(FlowTest):
             Address Explorer should be able to scan a legacy multisig p2sh address and
             verify it against its descriptor.
         """
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
+
         def load_address_into_decoder(view: scan_views.ScanView):
             # Receive addr @ index 5 from test_psbt_parser.py
             view.decoder.add_data("2N5eN5vUpgsLHAGzKm2VfmYyvNwXmCug5dH")
@@ -279,6 +359,54 @@ class TestToolsFlows(FlowTest):
                 FlowStep(seed_views.SeedAddressVerificationView),
                 FlowStep(seed_views.SeedAddressVerificationSuccessView),
             ])
+
+
+    def test__verify_address__account_selection_flow(self):
+        seed = Seed(mnemonic=["abandon"] * 11 + ["about"])
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
+
+        def load_address_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("bc1qku0qh0mc00y8tk0n65x2tqw4trlspak0fnjmfz")
+
+        def assert_account_one(view):
+            assert view.derivation_path == "m/84'/0'/1'"
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, screen_return_value=0),
+            FlowStep(seed_views.SeedAccountNumberView, screen_return_value="1"),
+            FlowStep(seed_views.SeedAddressVerificationView, before_run=assert_account_one),
+            FlowStep(seed_views.SeedAddressVerificationSuccessView),
+        ])
+
+
+    def test__verify_address__electrum_bypasses_account_selection(self):
+        from seedsigner.models.seed import ElectrumSeed
+
+        seed = ElectrumSeed("regular reject rare profit once math fringe chase until ketchup century escape".split())
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
+        self.controller.unverified_address = dict(
+            address="bc1qexample",
+            script_type=SettingsConstants.NATIVE_SEGWIT,
+            sig_type=SettingsConstants.SINGLE_SIG,
+            network=SettingsConstants.MAINNET,
+            derivation_path="m/84'/0'/0'",
+        )
+
+        self.run_sequence(
+            initial_destination_view_args=dict(flow=Controller.FLOW__VERIFY_SINGLESIG_ADDR),
+            sequence=[
+                FlowStep(seed_views.SeedSelectSeedView, screen_return_value=0),
+                FlowStep(seed_views.SeedAddressVerificationView),
+            ],
+        )
 
 
 class TestToolsImageEntropyFlows(FlowTest):
