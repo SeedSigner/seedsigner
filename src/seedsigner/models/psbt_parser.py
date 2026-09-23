@@ -356,10 +356,9 @@ class PSBTParser():
         teach users to click through warnings.
         """
         for i, inp in enumerate(self.psbt.inputs):
-            # Must precede any read of inp.utxo which dereferences
-            # non_witness_utxo.vout[inp.vout], so an out-of-range outpoint index raises
-            # IndexError rather than something the view can route on. embit's verify()
-            # only compares txids and never checks this.
+            # Make sure inp.vout, the output this input claims to spend, actually exists in the
+            # non_witness_utxo. Otherwise the lookups below raise an IndexError instead of
+            # rejecting the psbt.
             if inp.non_witness_utxo and inp.vout >= len(inp.non_witness_utxo.vout):
                 raise PSBTInputAmountVerificationError(
                     f"Input {i}: outpoint index {inp.vout} is out of range of its non_witness_utxo")
