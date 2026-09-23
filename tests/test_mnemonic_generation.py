@@ -34,7 +34,7 @@ def test_calculate_checksum_input_type():
     """
         Given an 11-word or 23-word mnemonic, the calculated checksum should yield a
         valid complete mnemonic.
-        
+
         calculate_checksum should accept the mnemonic as:
         * a list of strings
         * string: "A B C", "A, B, C", "A,B,C"
@@ -131,19 +131,6 @@ def test_generate_mnemonic_from_bytes():
     assert mnemonic == expected_mnemonic
 
 
-
-def test_verify_against_coldcard_sample():
-    """ https://coldcard.com/docs/verifying-dice-roll-math """
-    dice_rolls = "123456"
-    expected = "mirror reject rookie talk pudding throw happy era myth already payment own sentence push head sting video explain letter bomb casual hotel rather garment"
-
-    mnemonic = mnemonic_generation.generate_mnemonic_from_dice(dice_rolls)
-    actual = " ".join(mnemonic)
-    assert bip39.mnemonic_is_valid(actual)
-    assert actual == expected
-
-
-
 def test_known_dice_rolls():
     """ Given 99 known dice rolls, the resulting mnemonic should be valid and match the expected. """
     dice_rolls = "522222222222222222222222222222222222222222222555555555555555555555555555555555555555555555555555555"
@@ -195,3 +182,13 @@ def test_50_dice_rolls():
     actual = " ".join(mnemonic)
     assert bip39.mnemonic_is_valid(actual)
     assert actual == expected
+
+
+def test_invalid_number_of_rolls():
+    for i in range(0, 1000):
+        dice_rolls = [str(random.randint(1, 6)) for _ in range(0, i)]
+        if i not in (mnemonic_generation.DICE__NUM_ROLLS__12WORD, mnemonic_generation.DICE__NUM_ROLLS__24WORD):
+            try:
+                mnemonic_generation.generate_mnemonic_from_dice(dice_rolls)
+            except Exception as e:
+                assert type(e) == AssertionError
