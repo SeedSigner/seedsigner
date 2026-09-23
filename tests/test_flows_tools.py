@@ -243,6 +243,7 @@ class TestToolsFlows(FlowTest):
             FlowStep(seed_views.MultisigWalletDescriptorView, screen_return_value=0),
             FlowStep(seed_views.SeedAddressVerificationView),
             FlowStep(seed_views.SeedAddressVerificationSuccessView),
+            FlowStep(MainMenuView)
         ])
 
 
@@ -278,8 +279,215 @@ class TestToolsFlows(FlowTest):
                 FlowStep(seed_views.SeedSelectSeedView, screen_return_value=0),
                 FlowStep(seed_views.SeedAddressVerificationView),
                 FlowStep(seed_views.SeedAddressVerificationSuccessView),
+                FlowStep(MainMenuView),
             ])
 
+
+    def test_verify_address_legacy_p2pkh_routes_to_seed_selection(self):
+        """
+            Legacy P2PKH addresses should route directly to SeedSelectSeedView, skipping
+            AddressVerificationSigTypeView because P2PKH is always singlesig.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # Legacy P2PKH address
+            view.decoder.add_data("1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2")
+
+        settings = Controller.get_instance().settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView),
+        ])
+
+    def test_verify_address_native_multisig_with_loaded_descriptor_starts_verification(self):
+        """
+            Native segwit multisig addresses with a descriptor already loaded
+            skip the descriptor loading view and goes directly to verification.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # 2-of-3 Native SegWit multisig address (Testnet)
+            view.decoder.add_data("tb1q7tpecll8jhp77yqdeyt2t8q5swxmmqeh2v22cqpms5dxlp6p27dqlftet8")
+
+        def load_descriptor_into_controller(view: tools_views.ToolsMenuView):
+            from seedsigner.models.decode_qr import DecodeQR
+            # Use testnet descriptor from test_embit_utils.py
+            descriptor_str = "wsh(sortedmulti(2,[8d55ff0d/48h/1h/0h/2h]tpubDDxNVWk924RTUhdkVB2uLHw1hGMPNMGufpZefhkkswjbZppVZcuMdjYKQN4ewUog9vbL6RBLFPRWcgTGT7kYP79N6thyJ43ELUs4N2szXMg/{0,1}/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/{0,1}/*,[0be174ee/48h/1h/0h/2h]tpubDEsePyLPkbxbrDiZSTTWdsviiNtiQjrvvzZnkLtG72QYLBygEsXePRsTdXi8DeMA7taCuuvoEBjUAfFrsNZeQJqfvG9fFoujYWbFPYUn7ux/{0,1}/*))#zw6cnrlk".replace("{0,1}", "<0;1>")
+            decoder = DecodeQR()
+            decoder.add_data(descriptor_str)
+            Controller.get_instance().multisig_wallet_descriptor = decoder.get_wallet_descriptor()
+
+        settings = Controller.get_instance().settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.TESTNET)
+
+        self.run_sequence([
+            FlowStep(tools_views.ToolsMenuView, before_run=load_descriptor_into_controller, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            # Skips LoadMultisigWalletDescriptorView because descriptor is already loaded
+            FlowStep(seed_views.SeedAddressVerificationView),
+        ])
+
+    def test_verify_address_native_multisig_loads_descriptor_and_resumes_verification(self):
+        """
+            Native segwit multisig addresses without a descriptor load the descriptor
+            and then resume verification at SeedAddressVerificationView.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # Native segwit testnet receive addr
+            view.decoder.add_data("tb1q7tpecll8jhp77yqdeyt2t8q5swxmmqeh2v22cqpms5dxlp6p27dqlftet8")
+
+        def load_descriptor_into_decoder(view: scan_views.ScanView):
+            descriptor_str = "wsh(sortedmulti(2,[8d55ff0d/48h/1h/0h/2h]tpubDDxNVWk924RTUhdkVB2uLHw1hGMPNMGufpZefhkkswjbZppVZcuMdjYKQN4ewUog9vbL6RBLFPRWcgTGT7kYP79N6thyJ43ELUs4N2szXMg/<0;1>/*,[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ/<0;1>/*,[0be174ee/48h/1h/0h/2h]tpubDEsePyLPkbxbrDiZSTTWdsviiNtiQjrvvzZnkLtG72QYLBygEsXePRsTdXi8DeMA7taCuuvoEBjUAfFrsNZeQJqfvG9fFoujYWbFPYUn7ux/<0;1>/*))#zw6cnrlk"
+            view.decoder.add_data(descriptor_str)
+
+        settings = Controller.get_instance().settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.TESTNET)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            # Skips SigTypeView because it's native multisig (length >= 62)
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_descriptor_into_decoder),
+            FlowStep(seed_views.MultisigWalletDescriptorView, screen_return_value=0),
+            FlowStep(seed_views.SeedAddressVerificationView),
+        ])
+
+    def test_verify_address_nested_multisig_with_loaded_descriptor_starts_verification(self):
+        """
+            Nested segwit multisig addresses with a descriptor already loaded
+            still require SigType selection, but then skip descriptor loading.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # 2-of-3 Nested SegWit multisig address (Testnet)
+            view.decoder.add_data("2MtgJH28mZWNWU7VRU4ba6ciFbRRGYWZDt3")
+
+        def load_descriptor_into_controller(view: tools_views.ToolsMenuView):
+            from seedsigner.models.decode_qr import DecodeQR
+            # Use testnet nested segwit descriptor from test_embit_utils.py
+            descriptor_str = "sh(wsh(sortedmulti(2,[73c5da0a/48h/1h/1h/0h/1h]tpubDFH9dgzveyD8yHQb8VrpG8FYAuwcLMHMje2CCcbBo1FpaGzYVtJeYYxcYgRqSTta5utUFts8nPPHs9C2bqoxrey5jia6Dwf9mpwrPq7YvcJ/{0,1}/*,[0be174ee/48h/1h/0h/1h]tpubDEsePyLPkbxbnj6XuKvWwdERHaKkikZxaGJ9sJqmM7okbZXgkNSFiGU6GX6qEes6kD8f9Z9FosYB9UEnBSgBEyEwwJhj4uUcFE1WE8VtKoh/{0,1}/*,[8d55ff0d/48h/1h/0h/1h]tpubDDxNVWk924RTT3vyGLHdSDoZ2JUVX7jUsPcwCQ9MrKHAtJrW5zECTF9rFHCvqu526E4PjHp61hBknts2c5aGexvX7hvCZ8TGPvQFdzxxy59/{0,1}/*)))#2ujlfp73".replace("{0,1}", "<0;1>")
+            decoder = DecodeQR()
+            decoder.add_data(descriptor_str)
+            Controller.get_instance().multisig_wallet_descriptor = decoder.get_wallet_descriptor()
+
+        settings = Controller.get_instance().settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.TESTNET)
+
+        self.run_sequence([
+            FlowStep(tools_views.ToolsMenuView, before_run=load_descriptor_into_controller, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.MULTISIG),
+            # Skips LoadMultisigWalletDescriptorView because descriptor is already loaded
+            FlowStep(seed_views.SeedAddressVerificationView),
+        ])
+
+    def test_verify_address_back_from_sig_type_returns_to_tools_menu(self):
+        """
+            Pressing back from AddressVerificationSigTypeView returns to ToolsMenuView
+            and wipes the verification state.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # 2-of-3 Nested SegWit multisig address
+            view.decoder.add_data("3Qzhs5zKVeSJUKTmECvvq3ZEuuZkZQcMYq")
+
+        settings = Controller.get_instance().settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.AddressVerificationSigTypeView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsMenuView),
+        ])
+
+        controller = Controller.get_instance()
+        assert controller.resume_main_flow is None
+        assert controller.unverified_address is None
+
+    def test_verify_address_back_from_sig_type_seed_selection_returns_to_sig_type_view(self):
+        """
+            Pressing back from SeedSelectSeedView when it was reached from
+            AddressVerificationSigTypeView returns to AddressVerificationSigTypeView.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # Nested SegWit address
+            view.decoder.add_data("3Qzhs5zKVeSJUKTmECvvq3ZEuuZkZQcMYq")
+
+        settings = Controller.get_instance().settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.SINGLE_SIG),
+            FlowStep(seed_views.SeedSelectSeedView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.AddressVerificationSigTypeView),
+        ])
+
+    def test_verify_address_back_from_direct_seed_selection_returns_to_tools_menu(self):
+        """
+            Pressing back from SeedSelectSeedView when it was reached directly
+            (e.g. from Legacy P2PKH) returns to ToolsMenuView.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # Legacy P2PKH address
+            view.decoder.add_data("1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2")
+
+        settings = Controller.get_instance().settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsMenuView),
+        ])
+
+        controller = Controller.get_instance()
+        assert controller.resume_main_flow is None
+
+    def test_verify_address_cancel_from_verification_returns_to_main_menu(self):
+        """
+            Pressing back from SeedAddressVerificationView cancels the verification
+            and returns to MainMenuView.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # Native segwit regtest receive addr
+            view.decoder.add_data("bcrt1q4e9q5taxnsvc6m0uxv6h75mkzvnkxeqk6l90u2")
+
+        controller = Controller.get_instance()
+        controller.storage.set_pending_seed(Seed(mnemonic=["abandon "* 11 + "about"]))
+        controller.storage.finalize_pending_seed()
+
+        settings = controller.settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, screen_return_value=0),
+            FlowStep(seed_views.SeedAddressVerificationView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(MainMenuView),
+        ])
+
+        controller = Controller.get_instance()
+        assert controller.resume_main_flow is None
+        assert controller.unverified_address is None
 
 class TestToolsImageEntropyFlows(FlowTest):
 
