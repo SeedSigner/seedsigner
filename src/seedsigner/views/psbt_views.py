@@ -672,7 +672,7 @@ class PSBTInputAmountVerificationFailedView(View):
         self.run_screen(
             DireWarningScreen,
             title=_("Suspicious Transaction"),
-            status_headline=_("Input Amounts Unverified"),
+            status_headline=_("Likely an Attack!"),
             text=_("The PSBT input amounts cannot be confirmed. The fee shown cannot be trusted."),
             button_data=[self.DISCARD],
             show_back_button=False,
