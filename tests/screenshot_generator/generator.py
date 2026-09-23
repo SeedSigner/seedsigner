@@ -111,6 +111,20 @@ def add_op_return_to_psbt(psbt: PSBT, raw_payload_data: bytes, value: int = 0):
     return psbt.to_string()
 
 
+def keep_only_last_output(psbt: PSBT) -> PSBT:
+    """
+        Simplifies the output side down to its last output. The dropped outputs' value is
+        folded into the one kept, so the fee stays what the base psbt paid; dropping it
+        instead would turn several BTC into fee and trip the high fee warning on screens
+        that have nothing to do with fees.
+    """
+    output = psbt.outputs[-1]
+    output.value += sum(dropped.value for dropped in psbt.outputs[:-1])
+    psbt.outputs.clear()
+    psbt.outputs.append(output)
+    return psbt
+
+
 def op_return_filler(num_bytes: int) -> bytes:
     """
         Numbered filler text, so a screenshot shows at a glance which part of a long
@@ -120,13 +134,7 @@ def op_return_filler(num_bytes: int) -> bytes:
 
 # Prep a PSBT with a human-readable OP_RETURN
 raw_payload_data = "Chancellor on the brink of third bailout for banks".encode()
-psbt = PSBT.from_base64(BASE64_MULTISIG_PSBT)
-
-# Simplify the output side
-output = psbt.outputs[-1]
-psbt.outputs.clear()
-psbt.outputs.append(output)
-assert len(psbt.outputs) == 1
+psbt = keep_only_last_output(PSBT.from_base64(BASE64_MULTISIG_PSBT))
 BASE64_PSBT_WITH_OP_RETURN_TEXT = add_op_return_to_psbt(psbt, raw_payload_data)
 
 # Prep a PSBT with a (repeatably) random 80-byte OP_RETURN
@@ -145,10 +153,7 @@ BASE64_PSBT_WITH_OP_RETURN_EMPTY = add_op_return_to_psbt(PSBT.from_base64(BASE64
 
 # Three OP_RETURN outputs where only the second burns sats, so the flow diagram has to
 # mark that row and only that row.
-psbt = PSBT.from_base64(BASE64_MULTISIG_PSBT)
-output = psbt.outputs[-1]
-psbt.outputs.clear()
-psbt.outputs.append(output)
+psbt = keep_only_last_output(PSBT.from_base64(BASE64_MULTISIG_PSBT))
 add_op_return_to_psbt(psbt, "Carries no value".encode())
 add_op_return_to_psbt(psbt, "Burns sats".encode(), value=50_000)
 BASE64_PSBT_WITH_ONE_BURNING_OP_RETURN = add_op_return_to_psbt(psbt, "Carries no value either".encode())
