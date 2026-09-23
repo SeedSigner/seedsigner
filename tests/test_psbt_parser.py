@@ -3,6 +3,7 @@ import random
 
 from binascii import a2b_base64
 from copy import deepcopy
+from types import SimpleNamespace
 from unittest.mock import patch
 from embit import bip32, script
 from embit.ec import PublicKey
@@ -59,7 +60,11 @@ class TestPSBTParser:
             assert psbt_parser.change_amount == input_amount - recipient_amount - fee_amount
             assert psbt_parser.fee_amount == fee_amount
             assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
-        
+
+            # No self-transfer here, so all change is true change
+            assert psbt_parser.get_total_output_value() == psbt_parser.spend_amount
+            assert psbt_parser.get_total_output_value(include_change=True) == psbt_parser.spend_amount + psbt_parser.change_amount
+
         # Internally cycle the input(s) back to sender via the `self_transfer_data`
         psbt.outputs.clear()
         psbt.outputs.append(create_output(self_transfer_data, input_amount - fee_amount))
@@ -74,6 +79,11 @@ class TestPSBTParser:
         assert psbt_parser.change_amount == input_amount - fee_amount  # PSBTParser considers self-transfers == change
         assert psbt_parser.fee_amount == fee_amount
         assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+
+        # Only self-transfer, and no "true" change, so `change_amount` is included in total output
+        # Both calls should return the same value
+        assert psbt_parser.get_total_output_value() == psbt_parser.spend_amount + psbt_parser.change_amount
+        assert psbt_parser.get_total_output_value(include_change=True) == psbt_parser.spend_amount + psbt_parser.change_amount
 
         # Now do full spends with no change
         fee_amount = random.randint(5_000, 100_000)
@@ -93,6 +103,10 @@ class TestPSBTParser:
             assert psbt_parser.change_amount == 0
             assert psbt_parser.fee_amount == fee_amount
             assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+
+            # No self-transfer here, so all change is true change
+            assert psbt_parser.get_total_output_value() == psbt_parser.spend_amount
+            assert psbt_parser.get_total_output_value(include_change=True) == psbt_parser.spend_amount + psbt_parser.change_amount
 
         # Now try a single mega psbt with ALL the outputs at once
         psbt.outputs.clear()
@@ -115,6 +129,10 @@ class TestPSBTParser:
         assert psbt_parser.change_amount == change_amount
         assert psbt_parser.fee_amount == fee_amount
         assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+
+        # No self-transfer here, so all change is true change
+        assert psbt_parser.get_total_output_value() == psbt_parser.spend_amount
+        assert psbt_parser.get_total_output_value(include_change=True) == psbt_parser.spend_amount + psbt_parser.change_amount
 
 
     def test_singlesig_native_segwit(self):
@@ -348,6 +366,104 @@ class TestPSBTParser:
         """
         assert PSBTParser.is_change_branch(bip32.parse_path("m/84h/1h/0h/1/0")) is True
         assert PSBTParser.is_change_branch(bip32.parse_path("m/84h/1h/0h/0/0")) is False
+    @pytest.mark.parametrize("vout_values, change_data, expected", [
+        # single destination + single change
+        ([100, 200], [{"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/1/0"), "amount": 200}], 100),
+        # multiple destinations + single change
+        ([50, 75, 25], [{"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/1/0"), "amount": 25}], 50 + 75),
+        # no change outputs at all
+        ([10, 20, 30], [], 10 + 20 + 30),
+        # only change outputs
+        ([123], [{"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/1/0"), "amount": 123}], 0),
+        # mix of true change and self-transfer
+        (
+            [100, 200, 300], 
+            [
+                {"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/0/0"), "amount": 200},  # self-transfer
+                {"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/1/0"), "amount": 300},  # true change
+            ], 
+            100 + 200  # Only subtract true change (300)
+        ),
+    ])
+    def test_get_total_output_value(self, vout_values, change_data, expected):
+        """
+            get_total_output_value() should return
+            sum(vout_values) - sum(true_change),
+            where true change is determined by derivation path having chain index 1.
+        """
+        # Build a dummy parser without running .parse()
+        parser = PSBTParser.__new__(PSBTParser)
+
+        # Stub out parser.psbt.tx.vout as list of objects with a .value attribute
+        parser.psbt = SimpleNamespace(
+            tx=SimpleNamespace(
+                vout=[SimpleNamespace(value=v) for v in vout_values]
+            )
+        )
+        parser.change_data = change_data
+
+        assert parser.get_total_output_value() == expected
+
+
+    @pytest.mark.parametrize("vin, vout_values, change_data, expected", [
+        # fee=30 (24%) -> NOT high
+        (180, [50, 75, 25], [{"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/1/0"), "amount": 25}], False),
+        # fee=40 (32%) -> HIGH
+        (190, [50, 75, 25], [{"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/1/0"), "amount": 25}], True),
+        # fee=15 (exactly 25%) -> NOT high
+        (75, [10, 20, 30], [], False),
+        # only change outputs: excluding change=0 -> never high by definition
+        (130, [123], [{"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/1/5"), "amount": 123}], False),
+        # fee=60 (20%) -> NOT high
+        (660, [100, 200, 300], [
+            {"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/0/0"), "amount": 200},  # self-transfer
+            {"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/1/0"), "amount": 300},  # true change
+        ], False),
+        # same mix but high fee: fee=100 (33%) -> HIGH
+        (700, [100, 200, 300], [
+            {"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/0/0"), "amount": 200},
+            {"verified_derivation_path": bip32.parse_path("m/84h/0h/0h/1/0"), "amount": 300},
+        ], True),
+    ])
+    def test_has_high_fee(self, vin, vout_values, change_data, expected):
+        """
+            Should correctly identify if a PSBT has a high fee.
+        """
+        # Build a dummy parser without running .parse()
+        parser = PSBTParser.__new__(PSBTParser)
+        parser.HIGH_FEES_WARNING_THRESHOLD = 25
+
+        # Stub out parser.psbt.tx.vout as list of objects with a .value attribute
+        parser.psbt = SimpleNamespace(
+            tx=SimpleNamespace(
+                vout=[SimpleNamespace(value=v) for v in vout_values]
+            )
+        )
+        parser.change_data = change_data
+        parser.fee_amount = vin - sum(vout_values)
+
+        assert parser.has_high_fee() is expected
+
+
+    def test_parse_sets_is_high_fee(self):
+        """
+            parse() should settle is_high_fee once, from the real totals, so the views
+            can read it without recomputing. Checked in both directions: a realistic fee
+            leaves it False, a fee dwarfing the spend sets it True.
+        """
+        # 272 sat fee on a 2 BTC spend: nowhere near the threshold
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
+        psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.two_input_seed, network=SettingsConstants.REGTEST)
+        assert psbt_parser.is_high_fee is False
+        assert psbt_parser.is_high_fee == psbt_parser.has_high_fee()
+
+        # 1 BTC input paying a 50,000 sat recipient and 10,000 sats change: almost all fee
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_RECEIVE, 50_000))
+        psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE, 10_000))
+        psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+        assert psbt_parser.is_high_fee is True
+        assert psbt_parser.is_high_fee == psbt_parser.has_high_fee()
 
 
 
