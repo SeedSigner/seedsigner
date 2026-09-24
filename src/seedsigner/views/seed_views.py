@@ -2368,8 +2368,8 @@ class SeedShamirShareStartView(View):
 
 
 class SeedShamirShareImportSelectWordCount(View):
-    TYPE_20WORD = ButtonOption("20 words") # 128-bit seed
-    TYPE_33WORD = ButtonOption("33 words") # 256-bit seed
+    TYPE_20WORD = ButtonOption("20 Words (SLIP-39)") # 128-bit seed
+    TYPE_33WORD = ButtonOption("33 Words (SLIP-39)") # 256-bit seed
 
     def run(self):
         button_data = [self.TYPE_20WORD, self.TYPE_33WORD]

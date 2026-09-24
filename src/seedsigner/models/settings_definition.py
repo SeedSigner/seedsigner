@@ -690,8 +690,8 @@ class SettingsDefinition:
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__SHAMIR,
                       abbreviated_name="shamir",
-                      display_name="Shamir Secret Sharing",
-                      help_text="Shares import only",
+                      display_name=_mft("Shamir Secret Sharing"),
+                      help_text="Shares import only (SLIP-39)",
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__DISABLED),
 
