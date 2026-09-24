@@ -136,10 +136,6 @@ def parse_derivation_path(derivation_path: str) -> dict:
 
     sections = derivation_path.split("/")
 
-    if sections[1] == "48h":
-        # So far this helper is only meant for single sig message signing
-        raise Exception("Not implemented")
-
     lookups = {
         "script_types": {
             "44h": SettingsConstants.LEGACY_P2PKH,
@@ -154,9 +150,27 @@ def parse_derivation_path(derivation_path: str) -> dict:
     }
 
     details = dict()
-    details["script_type"] = lookups["script_types"].get(sections[1])
-    if not details["script_type"]:
-        details["script_type"] = SettingsConstants.CUSTOM_DERIVATION
+
+    if sections[1] == "48h":
+        # BIP48 multisig: m/48h/<network>/<account>/<script_type>/[change]/[index]
+        # The script type is encoded in sections[4]:
+        #   1h = p2sh-p2wsh (nested segwit)
+        #   2h = p2wsh (native segwit)
+        bip48_script_types = {
+            "1h": SettingsConstants.NESTED_SEGWIT,
+            "2h": SettingsConstants.NATIVE_SEGWIT,
+        }
+        if len(sections) > 4:
+            details["script_type"] = bip48_script_types.get(sections[4])
+        else:
+            details["script_type"] = None
+
+        if not details["script_type"]:
+            details["script_type"] = SettingsConstants.CUSTOM_DERIVATION
+    else:
+        details["script_type"] = lookups["script_types"].get(sections[1])
+        if not details["script_type"]:
+            details["script_type"] = SettingsConstants.CUSTOM_DERIVATION
     details["network"] = lookups["networks"].get(sections[2])
 
     # Check if there's a standard change path
