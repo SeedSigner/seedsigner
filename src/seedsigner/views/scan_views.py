@@ -5,7 +5,7 @@ from gettext import gettext as _
 from seedsigner.helpers.l10n import mark_for_translation as _mft
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.view import BackStackView, ErrorView, MainMenuView, NotYetImplementedView, View, Destination
-from seedsigner.gui.screens.screen import ButtonOption
+from seedsigner.gui.screens.screen import ButtonOption, RET_CODE__BACK_BUTTON
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class ScanView(View):
         from seedsigner.gui.screens.scan_screens import ScanScreen
 
         # Start the live preview and background QR reading
-        self.run_screen(
+        scan_results = self.run_screen(
             ScanScreen,
             instructions_text=self.instructions_text,
             decoder=self.decoder
@@ -53,7 +53,9 @@ class ScanView(View):
         # doesn't immediately engage when we leave here.
         self.controller.reset_screensaver_timeout()
 
-        # Handle the results
+        if scan_results == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
         if self.decoder.is_complete:
             if not self.is_valid_qr_type:
                 # We recognized the QR type but it was not the type expected for the
