@@ -1128,7 +1128,7 @@ class PSBTParser():
         # cosigner, ours among them). One verified input path is enough for the psbt to
         # be signable.
         for verified_derivation_paths in self.verified_input_derivation_paths:
-            if verified_derivation_paths != []:
+            if len(verified_derivation_paths) > 0:
                 return
 
         # There's nothing for this seed to sign
