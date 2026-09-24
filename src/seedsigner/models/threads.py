@@ -7,6 +7,16 @@ logger = logging.getLogger(__name__)
 class BaseThread(Thread):
     def __init__(self):
         super().__init__(daemon=True)
+        
+        # Intercept the subclass's run() method to catch silent thread crashes
+        orig_run = self.run
+        def wrapped_run():
+            try:
+                orig_run()
+            except Exception as e:
+                logger.exception(f"Thread {self.__class__.__name__} crashed: {e}")
+                self.keep_running = False
+        self.run = wrapped_run
     
     def start(self):
         logger.debug(f"{self.__class__.__name__} STARTING")
