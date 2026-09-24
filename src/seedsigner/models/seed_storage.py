@@ -1,5 +1,5 @@
 from typing import List
-from seedsigner.models.seed import Seed, ElectrumSeed, ShamirSeed, InvalidSeedException, IncompleteShamirShareSetException
+from seedsigner.models.seed import Seed, ElectrumSeed, ShamirSeed, InvalidSeedException, IncompleteShamirShareSetException, DuplicateShamirShareException
 from seedsigner.models.settings_definition import SettingsConstants
 
 
@@ -123,6 +123,16 @@ class SeedStorage:
         Add the current pending mnemonic as a new share in the share set.
         """
         if self._pending_mnemonic and None not in self._pending_mnemonic:
+            from embit import slip39
+
+            new_share = slip39.Share.parse(" ".join(self._pending_mnemonic))
+            for words in self._pending_shamir_share_set:
+                share = slip39.Share.parse(" ".join(words))
+                if (share.id, share.group_index, share.member_index) == (
+                    new_share.id, new_share.group_index, new_share.member_index
+                ):
+                    raise DuplicateShamirShareException("Share already entered")
+
             # Copy the current mnemonic as a completed share
             self._pending_shamir_share_set.append(list(self._pending_mnemonic))
             # Reset the pending mnemonic for the next share
@@ -161,19 +171,55 @@ class SeedStorage:
         self._pending_shamir_share_set = []
         self._pending_shamir_num_words = None
 
-    def get_pending_shamir_threshold(self) -> int | None:
-        """Return threshold based on the first parsed share."""
+    def get_pending_shamir_progress(self) -> dict:
+        """Return recovery progress using both SLIP-39 threshold levels."""
         if not self._pending_shamir_share_set:
-            return None
+            return {
+                "group_threshold": None,
+                "completed_groups": 0,
+                "shares_entered": 0,
+                "shares_remaining": None,
+                "current_group_index": None,
+                "current_group_shares": 0,
+                "current_group_threshold": None,
+            }
 
-        try:
-            from embit import slip39
-            first_share = " ".join(self._pending_shamir_share_set[0])
-            share = slip39.Share.parse(first_share)
-        except Exception:
-            return None
+        from embit import slip39
 
-        return share.group_threshold
+        shares = [
+            slip39.Share.parse(" ".join(words))
+            for words in self._pending_shamir_share_set
+        ]
+        group_threshold = shares[0].group_threshold
+        group_counts = {}
+        group_member_thresholds = {}
+        for share in shares:
+            group_counts[share.group_index] = group_counts.get(share.group_index, 0) + 1
+            group_member_thresholds[share.group_index] = share.member_threshold
+
+        completed_groups = sum(
+            count >= group_member_thresholds[index]
+            for index, count in group_counts.items()
+        )
+        current_group_index = shares[-1].group_index
+        current_group_threshold = group_member_thresholds[current_group_index]
+        current_group_shares = min(
+            group_counts[current_group_index], current_group_threshold
+        )
+
+        shares_remaining = None
+        if group_threshold == 1 and len(group_counts) == 1:
+            shares_remaining = max(current_group_threshold - current_group_shares, 0)
+
+        return {
+            "group_threshold": group_threshold,
+            "completed_groups": completed_groups,
+            "shares_entered": len(shares),
+            "shares_remaining": shares_remaining,
+            "current_group_index": current_group_index,
+            "current_group_shares": current_group_shares,
+            "current_group_threshold": current_group_threshold,
+        }
 
 
     def can_finalize_pending_shamir_share_set(self, passphrase: str = "") -> bool:

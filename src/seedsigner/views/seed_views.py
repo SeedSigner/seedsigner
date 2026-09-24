@@ -13,7 +13,7 @@ from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
 from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
-from seedsigner.models.seed import Seed, ShamirSeed, InvalidSeedException
+from seedsigner.models.seed import Seed, ShamirSeed, InvalidSeedException, DuplicateShamirShareException
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
@@ -2449,8 +2449,12 @@ class SeedShamirShareMnemonicEntryView(View):
             try:
                 self.controller.storage.add_pending_shamir_share()
                 can_finalize = self.controller.storage.can_finalize_pending_shamir_share_set()
-                share_threshold = self.controller.storage.get_pending_shamir_threshold()
-                share_count = self.controller.storage.pending_shamir_share_set_length
+                progress = self.controller.storage.get_pending_shamir_progress()
+            except DuplicateShamirShareException:
+                return Destination(
+                    SeedShamirShareInvalidView,
+                    view_args={"duplicate": True},
+                )
             except InvalidSeedException:
                 logger.exception("Unable to reconstruct seed from the provided shares.")
                 from seedsigner.views.view import ErrorView
@@ -2465,8 +2469,7 @@ class SeedShamirShareMnemonicEntryView(View):
                     SeedShamirShareOptionsView,
                     view_args={
                         "can_finalize": can_finalize,
-                        "share_threshold": share_threshold,
-                        "share_count": share_count
+                        **progress,
                     }
                 )
 
@@ -2477,12 +2480,18 @@ class SeedShamirShareOptionsView(View):
     ADD_SHARE = ButtonOption("Add another share")
     FINALIZE = ButtonOption("Finalize")
 
-    def __init__(self, can_finalize, share_threshold, share_count):
+    def __init__(self, can_finalize, group_threshold=None, completed_groups=0,
+                 shares_entered=0, shares_remaining=None, current_group_index=None,
+                 current_group_shares=0, current_group_threshold=None):
         super().__init__()
         self.can_finalize = can_finalize
-        self.share_threshold = share_threshold
-        self.share_count = share_count
-        self.shares_remaining = share_threshold - share_count
+        self.group_threshold = group_threshold
+        self.completed_groups = completed_groups
+        self.shares_entered = shares_entered
+        self.shares_remaining = shares_remaining
+        self.current_group_index = current_group_index
+        self.current_group_shares = current_group_shares
+        self.current_group_threshold = current_group_threshold
 
 
     def run(self):
@@ -2495,12 +2504,20 @@ class SeedShamirShareOptionsView(View):
         # TRANSLATOR_NOTE: "Shares" here means SLIP-39 Shamir's secret shares.
         title = _("Share Added")
         text = None
-        if self.share_threshold is not None and self.shares_remaining is not None:
-            if self.shares_remaining > 0:
-                # TRANSLATOR_NOTE: Indicates how many more SLIP-39 shares must be collected.
-                text = _("Shares entered: {}\nShares remaining: {}").format(self.share_count, self.shares_remaining)
-            else:
-                text = _("Required shares collected.\nReady to finalize.")
+        if self.can_finalize:
+            text = _("Required shares collected.\nReady to finalize.")
+        elif self.shares_remaining is not None:
+            # TRANSLATOR_NOTE: Indicates how many more SLIP-39 shares must be collected.
+            text = _("Shares entered: {}\nShares remaining: {}").format(self.shares_entered, self.shares_remaining)
+        elif self.group_threshold is not None and self.current_group_index is not None:
+            # TRANSLATOR_NOTE: SLIP-39 group number, shares in that group, and groups needed to recover.
+            text = _("Group {}: {}/{} shares\nGroups: {}/{} complete").format(
+                self.current_group_index + 1,
+                self.current_group_shares,
+                self.current_group_threshold,
+                self.completed_groups,
+                self.group_threshold,
+            )
         
         selected_menu_num = self.run_screen(
             LargeIconStatusScreen,
@@ -2520,14 +2537,14 @@ class SeedShamirShareOptionsView(View):
                 self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(finalize=False)
             except InvalidSeedException:
                 logger.exception("Pending Shamir share set unexpectedly failed to reconstruct despite eligibility.")
-                return Destination(
-                        SeedShamirShareOptionsView,
-                        view_args={
-                            "can_finalize": self.can_finalize,
-                            "share_threshold": self.share_threshold,
-                            "share_count": self.share_count
-                        }
-                    )
+                from seedsigner.views.view import ErrorView
+                return Destination(ErrorView, view_args=dict(
+                    title=_("Invalid Shamir Share Set!"),
+                    status_headline=_("Error!"),
+                    text=_("Unable to reconstruct seed from the provided shares."),
+                    button_text=_("Back"),
+                    next_destination=Destination(MainMenuView, clear_history=True),
+                ))
             return Destination(SeedShamirShareFinalizeView)
 
 
@@ -2536,8 +2553,9 @@ class SeedShamirShareInvalidView(View):
     EDIT = ButtonOption("Review & Edit")
     DISCARD = ButtonOption("Discard", button_label_color="red")
 
-    def __init__(self):
+    def __init__(self, duplicate=False):
         super().__init__()
+        self.duplicate = duplicate
         self.mnemonic: list[str] = self.controller.storage.pending_mnemonic
 
 
@@ -2545,10 +2563,10 @@ class SeedShamirShareInvalidView(View):
         button_data = [self.EDIT, self.DISCARD]
         selected_menu_num = self.run_screen(
             DireWarningScreen,
-            title=_("Invalid Shamir Share!"),
+            title=_("Share Already Entered") if self.duplicate else _("Invalid Shamir Share!"),
             status_headline=None,
             status_icon_name=SeedSignerIconConstants.ERROR,
-            text=_("Checksum failure; not a valid Shamir share."),
+            text=_("This share was already entered.") if self.duplicate else _("Checksum failure; not a valid Shamir share."),
             show_back_button=False,
             button_data=button_data,
         )
@@ -2565,14 +2583,12 @@ class SeedShamirShareInvalidView(View):
             
             else:
                 can_finalize = self.controller.storage.can_finalize_pending_shamir_share_set()
-                share_threshold = self.controller.storage.get_pending_shamir_threshold()
-                share_count = self.controller.storage.pending_shamir_share_set_length
+                progress = self.controller.storage.get_pending_shamir_progress()
                 return Destination(
                         SeedShamirShareOptionsView,
                         view_args={
                             "can_finalize": can_finalize,
-                            "share_threshold": share_threshold,
-                            "share_count": share_count
+                            **progress,
                         }
                     )
 

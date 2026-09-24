@@ -21,6 +21,10 @@ class IncompleteShamirShareSetException(Exception):
     pass
 
 
+class DuplicateShamirShareException(InvalidSeedException):
+    pass
+
+
 
 class Seed:
     def __init__(self,
@@ -277,20 +281,44 @@ class ShamirSeed(Seed):
 
     def _generate_seed(self):
         try:
-            # embit expects each SLIP-39 share as a single whitespace-separated string.
-            # Here, self._mnemonic holds shares as List[List[str]] (a list of word lists),
-            # so join each share into the required string form (List[str]) before parsing.
-            share_set_formatted = [" ".join(share) for share in self._mnemonic]
-            share_set = slip39.ShareSet([slip39.Share.parse(share) for share in share_set_formatted])
-            self.seed_bytes = share_set.recover(self._passphrase.encode('utf-8'))
+            shares = [slip39.Share.parse(" ".join(words)) for words in self._mnemonic]
+            # Validate the entire backup before selecting shares for recovery.
+            share_set = slip39.ShareSet(shares)
+            groups = {}
+            for share in shares:
+                if share.group_index >= share.group_count:
+                    raise ValueError("Group index exceeds group count")
+                group = groups.setdefault(share.group_index, [])
+                if group and share.member_threshold != group[0].member_threshold:
+                    raise ValueError("Member thresholds differ within a group")
+                group.append(share)
+
+            complete_groups = [
+                group[:group[0].member_threshold]
+                for _, group in sorted(groups.items())
+                if len(group) >= group[0].member_threshold
+            ]
+            if len(complete_groups) < share_set.group_threshold:
+                raise IncompleteShamirShareSetException("Not enough complete groups")
+
+            # embit 0.8.0 tries to recover every supplied group, including
+            # incomplete ones. Pass only the required complete groups.
+            recovery_shares = [
+                share
+                for group in complete_groups[:share_set.group_threshold]
+                for share in group
+            ]
+            self.seed_bytes = slip39.ShareSet(recovery_shares).recover(
+                self._passphrase.encode('utf-8')
+            )
+        except IncompleteShamirShareSetException:
+            raise
         except ValueError as e:
-            # Not enough shares
             logger.info(repr(e), exc_info=True)
-            raise IncompleteShamirShareSetException(repr(e))
+            raise InvalidSeedException(repr(e)) from e
         except TypeError as e:
-            # Shares are from different secrets or don't have the same exponent
             logger.info(repr(e), exc_info=True)
-            raise InvalidSeedException(repr(e))
+            raise InvalidSeedException(repr(e)) from e
         
 
     @property

@@ -1,5 +1,6 @@
 import pytest
-from seedsigner.models.seed import InvalidSeedException, Seed, ElectrumSeed, ShamirSeed
+from seedsigner.models.seed import InvalidSeedException, Seed, ElectrumSeed, ShamirSeed, DuplicateShamirShareException
+from seedsigner.models.seed_storage import SeedStorage
 
 from seedsigner.models.settings import SettingsConstants
 
@@ -132,5 +133,101 @@ def test_shamir_share_import_seed():
 	expected_fingerprint = "60863147"
 	seed = ShamirSeed(share_set_formatted, passphrase="mupassphrase")
 	assert seed.get_fingerprint() == expected_fingerprint
-	
-	
+
+
+def make_multigroup_shares(secret):
+	"""Build a legacy 2-of-3 group backup with mixed member thresholds."""
+	from itertools import count
+	from embit.slip39 import Share, ShareSet
+
+	identifier = 1234
+	random_values = count()
+	random_byte = lambda _low, _high: next(random_values) % 256
+	encrypted = ShareSet.encrypt(secret, identifier, 0)
+	group_secrets = ShareSet.split_secret(encrypted, 2, 3, randint=random_byte)
+	groups = {}
+	for group_index, group_secret in group_secrets:
+		member_threshold, member_count = (1, 1) if group_index == 2 else (2, 3)
+		members = ShareSet.split_secret(
+			group_secret, member_threshold, member_count, randint=random_byte
+		)
+		groups[group_index] = [
+			Share(
+				len(secret) * 8, identifier, 0, group_index, 2, 3,
+				member_index, member_threshold, int.from_bytes(value, "big"),
+			).mnemonic().split()
+			for member_index, value in members
+		]
+	return groups
+
+
+def add_pending_share(storage, words):
+	for index, word in enumerate(words):
+		storage.update_pending_mnemonic(word, index)
+	storage.add_pending_shamir_share()
+
+
+def test_single_group_progress_uses_member_threshold():
+	shares = [
+		"shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed".split(),
+		"shadow pistol academic acid actress prayer class unknown daughter sweater depict flip twice unkind craft early superior advocate guest smoking".split(),
+	]
+	storage = SeedStorage()
+	storage.init_pending_shamir_share_set(num_words=20)
+	add_pending_share(storage, shares[0])
+
+	assert not storage.can_finalize_pending_shamir_share_set()
+	assert storage.get_pending_shamir_progress()["shares_remaining"] == 1
+	add_pending_share(storage, shares[1])
+	assert storage.can_finalize_pending_shamir_share_set()
+
+
+@pytest.mark.parametrize("secret_length", [16, 32])
+def test_multigroup_backup_recovers_with_an_incomplete_extra_group(secret_length):
+	secret = bytes(range(secret_length))
+	groups = make_multigroup_shares(secret)
+	storage = SeedStorage()
+	storage.init_pending_shamir_share_set(num_words=len(groups[0][0]))
+
+	for share in groups[0][:2]:
+		add_pending_share(storage, share)
+	assert not storage.can_finalize_pending_shamir_share_set()
+	assert storage.get_pending_shamir_progress() == {
+		"group_threshold": 2,
+		"completed_groups": 1,
+		"shares_entered": 2,
+		"shares_remaining": None,
+		"current_group_index": 0,
+		"current_group_shares": 2,
+		"current_group_threshold": 2,
+	}
+
+	add_pending_share(storage, groups[1][0])
+	assert not storage.can_finalize_pending_shamir_share_set()
+	assert storage.get_pending_shamir_progress()["current_group_shares"] == 1
+
+	add_pending_share(storage, groups[2][0])
+	assert storage.can_finalize_pending_shamir_share_set()
+	storage.convert_pending_shamir_share_set_to_pending_seed()
+	assert storage.get_pending_seed().seed_bytes == secret
+
+
+def test_duplicate_share_is_rejected_without_poisoning_multigroup_backup():
+	secret = bytes(range(16))
+	groups = make_multigroup_shares(secret)
+	storage = SeedStorage()
+	storage.init_pending_shamir_share_set(num_words=20)
+	add_pending_share(storage, groups[0][0])
+
+	for index, word in enumerate(groups[0][0]):
+		storage.update_pending_mnemonic(word, index)
+	with pytest.raises(DuplicateShamirShareException):
+		storage.add_pending_shamir_share()
+	assert storage.pending_shamir_share_set_length == 1
+	assert storage.pending_mnemonic == groups[0][0]
+
+	add_pending_share(storage, groups[0][1])
+	add_pending_share(storage, groups[2][0])
+	assert storage.can_finalize_pending_shamir_share_set()
+	storage.convert_pending_shamir_share_set_to_pending_seed()
+	assert storage.get_pending_seed().seed_bytes == secret

@@ -735,6 +735,99 @@ class TestMessageSigningFlows(FlowTest):
 
 
 class TestShamirShareImportFlows(FlowTest):
+    def test_multigroup_recovery_with_incomplete_group_and_duplicate_share(self):
+        """Two complete groups recover despite a partial group and a rejected duplicate."""
+        # This test backup needs 2 of 3 groups. Groups 1 and 2 need two shares each;
+        # Group 3 needs one share.
+        self.settings.set_value(SettingsConstants.SETTING__SHAMIR, SettingsConstants.OPTION__ENABLED)
+        shares = [
+            "analysis merchant acrobat leaf ancestor black retreat pencil fake racism scene scout floral tenant clothes payment museum remind champion making".split(),
+            "analysis merchant acrobat lily crowd maiden wits lawsuit again educate voter float clogs ruler glen nuclear cleanup drove tadpole grocery".split(),
+            "analysis merchant beard leaf boring evaluate plan spider cover view club paces domain reunion repeat wrist remove march rival radar".split(),
+            "analysis merchant ceramic leader admit frozen spew exchange glimpse forget drink eyebrow numb capture clock exercise solution wrist equip grumpy".split(),
+        ]
+
+        def expect_progress(completed_groups, group_index, member_count, member_threshold, can_finalize):
+            def check(view):
+                assert view.group_threshold == 2
+                assert view.completed_groups == completed_groups
+                assert view.current_group_index == group_index
+                assert view.current_group_shares == member_count
+                assert view.current_group_threshold == member_threshold
+                assert view.shares_remaining is None
+                assert view.can_finalize == can_finalize
+            return check
+
+        def enter_share(sequence, share):
+            for word in share:
+                sequence.append(FlowStep(seed_views.SeedShamirShareMnemonicEntryView, screen_return_value=word))
+
+        sequence = [
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.TYPE_SHAMIR),
+            FlowStep(seed_views.SeedShamirShareStartView),
+            FlowStep(seed_views.SeedShamirShareImportSelectWordCount,
+                     button_data_selection=seed_views.SeedShamirShareImportSelectWordCount.TYPE_20WORD),
+        ]
+
+        # One share from Group 1 is not enough to complete the group.
+        enter_share(sequence, shares[0])
+        sequence.append(FlowStep(
+            seed_views.SeedShamirShareOptionsView,
+            before_run=expect_progress(0, 0, 1, 2, False),
+            button_data_selection=seed_views.SeedShamirShareOptionsView.ADD_SHARE,
+        ))
+
+        # Re-entering the same share must show a warning without losing the first share.
+        enter_share(sequence, shares[0])
+
+        def check_duplicate(view):
+            assert view.duplicate
+            assert view.controller.storage.pending_shamir_share_set_length == 1
+
+        sequence.extend([
+            FlowStep(seed_views.SeedShamirShareInvalidView,
+                     before_run=check_duplicate,
+                     button_data_selection=seed_views.SeedShamirShareInvalidView.DISCARD),
+            FlowStep(seed_views.SeedShamirShareOptionsView,
+                     before_run=expect_progress(0, 0, 1, 2, False),
+                     button_data_selection=seed_views.SeedShamirShareOptionsView.ADD_SHARE),
+        ])
+
+        # Group 1 is complete, but recovery still needs another complete group.
+        enter_share(sequence, shares[1])
+        sequence.append(FlowStep(
+            seed_views.SeedShamirShareOptionsView,
+            before_run=expect_progress(1, 0, 2, 2, False),
+            button_data_selection=seed_views.SeedShamirShareOptionsView.ADD_SHARE,
+        ))
+
+        # Leave Group 2 incomplete; it must not count toward the group threshold.
+        enter_share(sequence, shares[2])
+        sequence.append(FlowStep(
+            seed_views.SeedShamirShareOptionsView,
+            before_run=expect_progress(1, 1, 1, 2, False),
+            button_data_selection=seed_views.SeedShamirShareOptionsView.ADD_SHARE,
+        ))
+
+        # Group 3 needs only one share and completes the 2-of-3 requirement.
+        enter_share(sequence, shares[3])
+
+        def check_fingerprint(view):
+            assert view.fingerprint == "3442193e"
+
+        sequence.extend([
+            FlowStep(seed_views.SeedShamirShareOptionsView,
+                     before_run=expect_progress(2, 2, 1, 1, True),
+                     button_data_selection=seed_views.SeedShamirShareOptionsView.FINALIZE),
+            FlowStep(seed_views.SeedShamirShareFinalizeView,
+                     before_run=check_fingerprint,
+                     button_data_selection=seed_views.SeedShamirShareFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView),
+        ])
+        self.run_sequence(sequence)
+
     def test_mnemonic_entry_flow(self):
         """
             Manually importing a mnemonic from a Shamir shared secret should land at 
