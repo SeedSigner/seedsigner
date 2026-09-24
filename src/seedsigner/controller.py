@@ -120,6 +120,11 @@ class Controller(Singleton):
     image_entropy_preview_frames: list[Image] = None
     image_entropy_final_image: Image = None
 
+    # Dice read from a photo of the dice grid sheet, awaiting the user's review
+    dice_grid_rolls: list[int] = None
+    dice_grid_uncertain: list[bool] = None
+    dice_grid_selected_index: int = 0
+
     address_explorer_data: dict = None
 
     sign_message_data: dict = None
@@ -232,6 +237,13 @@ class Controller(Singleton):
         return Destination(None)
     
 
+    def clear_dice_grid(self):
+        """ Forget dice read from a dice grid photo; they are seed entropy. """
+        self.dice_grid_rolls = None
+        self.dice_grid_uncertain = None
+        self.dice_grid_selected_index = 0
+
+
     def clear_back_stack(self):
         self.back_stack = BackStack()
 
@@ -298,6 +310,7 @@ class Controller(Singleton):
                     # Home always wipes the back_stack/state of temp vars
                     self.resume_main_flow = None
                     self.multisig_wallet_descriptor = None
+                    self.clear_dice_grid()
                     self.unverified_address = None
                     self.address_explorer_data = None
                     self.psbt = None
