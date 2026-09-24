@@ -1,3 +1,4 @@
+import datetime
 import time
 
 from dataclasses import dataclass
@@ -25,7 +26,6 @@ class SettingsEntryUpdateSelectionScreen(ButtonListScreen):
     def __post_init__(self):
         self.title = _("Settings")
         self.is_bottom_list = True
-        self.use_checked_selection_buttons = True
         if self.settings_entry_type == SettingsConstants.TYPE__MULTISELECT:
             self.Button_cls = CheckboxButton
         else:
@@ -145,7 +145,11 @@ class IOTestScreen(BaseTopNavScreen):
             outline_color=GUIConstants.ACCENT_COLOR,
             is_scrollable_text=False,  # Text has to dynamically update, can't use scrollable Button
         )
-        self.key2_button.text = " "  # but default state is empty
+        if not self.renderer.is_screenshot_generator:
+            # The button text should be empty for its initial state ("Clear" doesn't make
+            # any sense until a test image is captured). But the screenshot generator
+            # should show the text so its translation can be reviewed.
+            self.key2_button.text = " "
         self.components.append(self.key2_button)
 
         self.key1_button = IconButton(
@@ -307,6 +311,110 @@ class DonateScreen(BaseTopNavScreen):
             font_color=GUIConstants.ACCENT_COLOR,
             supersampling_factor=1,
             screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+        ))
+
+
+
+@dataclass
+class VersionScreen(BaseTopNavScreen):
+    version_name: str = None
+    version_fork: str = None
+    version_timestamp: datetime = None
+    short_commit_hash: str = None
+
+    def __post_init__(self):
+        self.title = _("Version")
+        super().__post_init__()
+
+        version_name_font_name = GUIConstants.FIXED_WIDTH_FONT_NAME
+        version_name_font_size = GUIConstants.get_top_nav_title_font_size() + 6
+        version_name_font = Fonts.get_font(version_name_font_name, version_name_font_size)
+        (left, version_name_char_height, version_name_char_width, bottom) = version_name_font.getbbox("X", anchor="ls")
+
+        if len(self.version_name) * version_name_char_width > self.canvas_width - 2*GUIConstants.EDGE_PADDING:
+            max_chars_width = int((self.canvas_width - 2*GUIConstants.EDGE_PADDING) / version_name_char_width)
+            # Add as many line breaks as needed for the version string to fit
+            wrapped_version = []
+            for i in range(0, len(self.version_name), max_chars_width):
+                if i + max_chars_width < len(self.version_name):
+                    wrapped_version.append(self.version_name[i:i+max_chars_width])
+                else:
+                    wrapped_version.append(self.version_name[i:])
+            self.version_name = "\n".join(wrapped_version)
+
+        timestamp_font_name = GUIConstants.get_body_font_name()
+        timestamp_font_size = GUIConstants.get_body_font_size()
+        timestamp_font = Fonts.get_font(timestamp_font_name, timestamp_font_size)
+        (left, timestamp_char_height, timestamp_char_width, bottom) = timestamp_font.getbbox("UTC", anchor="ls")
+
+        screen_y = self.top_nav.height + GUIConstants.COMPONENT_PADDING * 2
+        if not self.version_fork and not self.short_commit_hash:
+            # Center the version name if there's no fork/commit info
+            screen_y = int(self.canvas_height / 2) - (-1 * version_name_char_height)  # char_height is negative
+
+        self.components.append(TextArea(
+            text=self.version_name,
+            font_name=version_name_font_name,
+            font_size=version_name_font_size,
+            font_color=GUIConstants.ACCENT_COLOR,
+            screen_y=screen_y,
+        ))
+
+        screen_y = self.components[-1].screen_y + self.components[-1].height + 3*GUIConstants.COMPONENT_PADDING
+
+        label_font_name = GUIConstants.get_body_font_name()
+        label_font_size = GUIConstants.get_body_font_size()
+        label_font = Fonts.get_font(label_font_name, label_font_size)
+        (left, label_height, fork_label_width, bottom) = label_font.getbbox("fork: ", anchor="ls")
+        (left, label_height, commit_label_width, bottom) = label_font.getbbox("commit: ", anchor="ls")
+
+        if self.version_fork:
+            screen_x = 0
+            if self.short_commit_hash:
+                # right-align the labels
+                screen_x = commit_label_width - fork_label_width
+            self.components.append(TextArea(
+                text=f"fork: ",
+                is_text_centered=False,
+                font_color=GUIConstants.LABEL_FONT_COLOR,
+                screen_x=screen_x,
+                screen_y=screen_y,
+            ))
+            self.components.append(TextArea(
+                text=self.version_fork,
+                is_text_centered=False,
+                font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+                font_size=GUIConstants.get_top_nav_title_font_size(),
+                edge_padding=0,
+                screen_x=screen_x + fork_label_width + GUIConstants.COMPONENT_PADDING,
+                screen_y=screen_y,
+            ))
+            screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+
+        if self.short_commit_hash:
+            self.components.append(TextArea(
+                text=f"commit: ",
+                is_text_centered=False,
+                font_color=GUIConstants.LABEL_FONT_COLOR,
+                screen_y=screen_y,
+            ))
+            self.components.append(TextArea(
+                text=self.short_commit_hash,
+                is_text_centered=False,
+                font_name=GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME,
+                font_size=GUIConstants.get_top_nav_title_font_size(),
+                edge_padding=0,
+                screen_x=commit_label_width + GUIConstants.COMPONENT_PADDING,
+                screen_y=screen_y,
+            ))
+
+        # Pin the timestamp centered to the bottom of the screen
+        last_edit_str = self.version_timestamp.strftime("%Y-%m-%d %H:%M:%S UTC")
+        self.components.append(TextArea(
+            text=last_edit_str,
+            font_name=timestamp_font_name,
+            font_size=timestamp_font_size,
+            screen_y=self.canvas_height - (-1 * timestamp_char_height) - GUIConstants.EDGE_PADDING,
         ))
 
 

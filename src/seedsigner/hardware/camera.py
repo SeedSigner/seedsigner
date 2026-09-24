@@ -9,9 +9,7 @@ from seedsigner.models.singleton import Singleton
 
 
 class CameraConnectionError(Exception):
-    def __init__(self, *args, **kwargs):
-        message = _("Camera error. Check camera connections.")
-        super().__init__(message)
+    pass
 
 
 

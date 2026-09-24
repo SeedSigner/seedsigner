@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class HardwareButtons(Singleton):
     if GPIO.RPI_INFO['P1_REVISION'] == 3: #This indicates that we have revision 3 GPIO
-        logger.info("Detected 40pin GPIO (Rasbperry Pi 2 and above)")
+        logger.info("Detected 40pin GPIO (Raspberry Pi 2 and above)")
         KEY_UP_PIN = 31
         KEY_DOWN_PIN = 35
         KEY_LEFT_PIN = 29
@@ -22,7 +22,7 @@ class HardwareButtons(Singleton):
         KEY3_PIN = 36
 
     else:
-        logger.info("Assuming 26 Pin GPIO (Raspberry P1 1)")
+        logger.info("Assuming 26 Pin GPIO (Raspberry Pi 1)")
         KEY_UP_PIN = 5
         KEY_DOWN_PIN = 11
         KEY_LEFT_PIN = 3
@@ -82,7 +82,7 @@ class HardwareButtons(Singleton):
                 return HardwareButtonsConstants.OVERRIDE
 
             cur_time = int(time.time() * 1000)
-            if cur_time - self.last_input_time > controller.screensaver_activation_ms and not controller.is_screensaver_running:
+            if cur_time - self.last_input_time > controller.screensaver_activation_ms and controller.is_screensaver_start_allowed:
                 # Start the screensaver. Will block execution until input detected.
                 controller.start_screensaver()
 

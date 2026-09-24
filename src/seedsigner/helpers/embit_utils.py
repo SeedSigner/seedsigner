@@ -104,6 +104,14 @@ def get_multisig_address(descriptor: Descriptor, index: int = 0, is_change: bool
 
 
 
+def get_multisig_policy(descriptor: Descriptor) -> tuple:
+    """Extract (threshold, n) from a basic multisig descriptor."""
+    if not descriptor.is_basic_multisig:
+        raise ValueError(f"Expected a basic multisig descriptor, got: {descriptor.brief_policy}")
+    return (str(descriptor.miniscript.args[0]), str(len(descriptor.keys)))
+
+
+
 def get_embit_network_name(settings_name):
     """ Convert SeedSigner SettingsConstants for `network` to embit's NETWORK key """
     lookup = {

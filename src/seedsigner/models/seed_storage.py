@@ -24,15 +24,13 @@ class SeedStorage:
         return self.pending_seed
 
 
-    def finalize_pending_seed(self) -> int:
-        # Finally store the pending seed and return its index
-        if self.pending_seed in self.seeds:
-            index = self.seeds.index(self.pending_seed)
-        else:
-            self.seeds.append(self.pending_seed)
-            index = len(self.seeds) - 1
+    def finalize_pending_seed(self) -> Seed:
+        # Store the pending seed and return it
+        seed = self.pending_seed
+        if seed not in self.seeds:
+            self.seeds.append(seed)
         self.pending_seed = None
-        return index
+        return seed
 
 
     def clear_pending_seed(self):

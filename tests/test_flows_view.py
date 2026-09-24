@@ -30,7 +30,6 @@ class TestViewFlows(FlowTest):
         """
         Basic flow from MainMenuView to PowerOffView
         """
-        Settings.HOSTNAME = Settings.SEEDSIGNER_OS
         self.run_sequence([
             FlowStep(MainMenuView, screen_return_value=RET_CODE__POWER_BUTTON),
             FlowStep(PowerOptionsView, button_data_selection=PowerOptionsView.POWER_OFF),

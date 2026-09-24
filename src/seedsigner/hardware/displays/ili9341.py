@@ -29,11 +29,15 @@ import time
 # import numpy as np
 import array
 
+from dataclasses import dataclass
+
 from PIL import Image
 from PIL import ImageDraw
 
 import RPi.GPIO as GPIO
 from spidev import SpiDev
+
+from seedsigner.hardware.displays.display_driver import BaseDisplayDriver
 
 
 # Constants for interacting with display registers.
@@ -129,16 +133,15 @@ def image_to_data(image):
     return arr.tobytes()
 
 
-class ILI9341(object):
+@dataclass
+class ILI9341(BaseDisplayDriver):
     """Representation of an ILI9341 TFT LCD."""
 
-    def __init__(self, dc=22, rst=13, led=12, width=ILI9341_TFTWIDTH,
-        height=ILI9341_TFTHEIGHT, rotation=90):
-        """Create an instance of the display using SPI communication.  Must
-        provide the GPIO pin number for the D/C pin and the SPI driver.  Can
-        optionally provide the GPIO pin number for the reset pin as the rst
-        parameter.
-        """
+    def __post_init__(self):
+        dc=22
+        rst=13
+        led=12
+        rotation=90
         spi = SpiDev(0, 0)
         # spi.mode = 0b10  # [CPOL|CPHA] -> polarity 1, phase 0
         spi.max_speed_hz = 64_000_000
@@ -146,8 +149,6 @@ class ILI9341(object):
         self._dc = dc
         self._rst = rst
         self._spi = spi
-        self.width = width
-        self.height = height
         self.rotation = rotation
         self.inverted = False
         # if self._gpio is None:
@@ -165,15 +166,7 @@ class ILI9341(object):
             GPIO.output(self._rst, GPIO.HIGH)
 
         # Create an image buffer.
-        self.buffer = Image.new('RGB', (width, height))
-
-    # @property
-    # def width(self):
-    #     return self.width
-
-    # @property
-    # def height(self):
-    #     return self.height
+        self.buffer = Image.new('RGB', (self.width, self.height))
 
 
     def send(self, data, is_data=True, chunk_size=4096):
@@ -310,15 +303,15 @@ class ILI9341(object):
         self.reset()
         self._init()
 
-    def invert(self, state: bool = True):
+    def invert(self, enabled: bool = True):
         """Sets display inversion to the specified state. If not provided, state
         is True, which inverts the display. If state is False, the display turns
         back into normal mode."""
-        if state:
+        if enabled:
             self.command(ILI9341_INVON)
         else:
             self.command(ILI9341_INVOFF)
-        self.inverted = state
+        self.inverted = enabled
         return self
 
     def set_window(self, x0=0, y0=0, x1=None, y1=None):

@@ -389,7 +389,6 @@ class ButtonListScreen(BaseTopNavScreen):
 
         if self.has_scroll_arrows:
             self.arrow_half_width = 10
-            self.cur_scroll_y = self.scroll_y_initial_offset if self.scroll_y_initial_offset is not None else 0
             self.up_arrow_img = Image.new("RGBA", size=(2 * self.arrow_half_width, 8), color="black")
             self.up_arrow_img_y = self.top_nav.height - 12
             arrow_draw = ImageDraw.Draw(self.up_arrow_img)
@@ -804,7 +803,6 @@ class QRDisplayScreen(BaseScreen):
                 width=int(rectangle_width/2),
                 screen_x=chevron_up_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_y=chevron_up_icon.screen_y - 2,  # -2 to account for Icon's positioning
-                allow_text_overflow=False
             ).render()
 
             # TRANSLATOR_NOTE: Decrease QR code screen brightness
@@ -822,7 +820,6 @@ class QRDisplayScreen(BaseScreen):
                 width=int(rectangle_width/2),
                 screen_x=chevron_down_icon.screen_x + GUIConstants.ICON_INLINE_FONT_SIZE,
                 screen_y=chevron_down_icon.screen_y - 2,  # -2 to account for Icon's positioning
-                allow_text_overflow=False
             ).render()
 
             # Write our temp Image onto the main image
@@ -924,7 +921,6 @@ class LargeIconStatusScreen(ButtonListScreen):
     text: str = ""                          # The body text of the screen
     text_edge_padding: int = GUIConstants.EDGE_PADDING
     button_data: list = None
-    allow_text_overflow: bool = False
 
 
     def __post_init__(self):
@@ -1091,21 +1087,6 @@ class ResetScreen(BaseTopNavScreen):
 
 
 @dataclass
-class PowerOffScreen(BaseTopNavScreen):
-    def __post_init__(self):
-        self.title = _("Powering Off")
-        self.show_back_button = False
-        super().__post_init__()
-
-        self.components.append(TextArea(
-            text=_("Please wait about 30 seconds before disconnecting power."),
-            screen_y=self.top_nav.height,
-            height=self.canvas_height - self.top_nav.height,
-        ))
-
-
-
-@dataclass
 class PowerOffNotRequiredScreen(BaseTopNavScreen):
     def __post_init__(self):
         self.title = _("Just Unplug It")
@@ -1148,6 +1129,8 @@ class KeyboardScreen(BaseTopNavScreen):
     return_after_n_chars: int = None
     show_save_button: bool = False
     initial_value: str = ""
+    from dataclasses import dataclass, field
+    custom_additional_keys: dict = field(default_factory=lambda: Keyboard.ADDITIONAL_KEYS)    
 
     def __post_init__(self):
         if self.keyboard_font_size is None:
@@ -1206,6 +1189,7 @@ class KeyboardScreen(BaseTopNavScreen):
                 GUIConstants.EDGE_PADDING + self.keyboard_width,
                 keyboard_start_y + self.rows * self.key_height + (self.rows - 1) * 2
             ),
+            additional_keys=self.custom_additional_keys,
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
         )

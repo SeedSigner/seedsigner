@@ -60,6 +60,7 @@ class SeedMnemonicEntryScreen(BaseTopNavScreen):
                 GUIConstants.EDGE_PADDING + self.keyboard_width,
                 self.canvas_height
             ),
+            additional_keys=[Keyboard.KEY_BACKSPACE_4],
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT]
         )
 
@@ -441,7 +442,6 @@ class SeedFinalizeScreen(ButtonListScreen):
 @dataclass
 class SeedOptionsScreen(ButtonListScreen):
     fingerprint: str = None
-    has_passphrase: bool = False
 
     def __post_init__(self):
         self.top_nav_icon_name = SeedSignerIconConstants.FINGERPRINT
@@ -451,24 +451,6 @@ class SeedOptionsScreen(ButtonListScreen):
         self.is_bottom_list = True
 
         super().__post_init__()
-
-
-
-@dataclass
-class SeedBackupScreen(ButtonListScreen):
-    has_passphrase: bool = False
-
-    def __post_init__(self):
-        self.title = _("Backup Seed")
-        self.is_bottom_list = True
-        super().__post_init__()
-
-        if self.has_passphrase:
-            self.components.append(TextArea(
-                # TRANSLATOR_NOTE: Additional explainer for the two seed backup options (mnemonic phrase and SeedQR).
-                text=_("Backups do not include your passphrase."),
-                screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
-            ))
 
 
 
@@ -566,6 +548,7 @@ class SeedBIP85SelectChildIndexScreen(KeyboardScreen):
         self.cols = 5
         self.keys_charset = "0123456789"
         self.show_save_button = True
+        self.custom_additional_keys = [Keyboard.KEY_BACKSPACE_5]
 
         super().__post_init__()
 
@@ -598,6 +581,7 @@ class SeedExportXpubCustomDerivationScreen(KeyboardScreen):
         self.cols = 6
         self.keys_charset = "/'0123456789"
         self.show_save_button = True
+        self.custom_additional_keys = [Keyboard.KEY_BACKSPACE_6]
 
         super().__post_init__()
 
@@ -608,7 +592,6 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
     # Customize defaults
     is_bottom_list: bool = True
     fingerprint: str = None
-    has_passphrase: bool = False
     derivation_path: str = "m/84'/0'/0'"
     xpub: str = "zpub6r..."
 
@@ -777,7 +760,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 Keyboard.KEY_SPACE_2,
                 Keyboard.KEY_CURSOR_LEFT,
                 Keyboard.KEY_CURSOR_RIGHT,
-                Keyboard.KEY_BACKSPACE
+                Keyboard.KEY_BACKSPACE_2
             ],
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
@@ -798,7 +781,7 @@ class SeedAddPassphraseScreen(BaseTopNavScreen):
                 Keyboard.KEY_SPACE_2,
                 Keyboard.KEY_CURSOR_LEFT,
                 Keyboard.KEY_CURSOR_RIGHT,
-                Keyboard.KEY_BACKSPACE
+                Keyboard.KEY_BACKSPACE_2
             ],
             auto_wrap=[Keyboard.WRAP_LEFT, Keyboard.WRAP_RIGHT],
             render_now=False
@@ -1129,7 +1112,6 @@ class SeedReviewPassphraseScreen(ButtonListScreen):
                 font_color="orange",
                 is_text_centered=True,
                 screen_y=screen_y,
-                allow_text_overflow=True
             ))
             screen_y += char_height + 2
 
@@ -1641,7 +1623,6 @@ class SeedSignMessageConfirmMessageScreen(ButtonListScreen):
                 text=self.sign_message_data["message"],
                 width=renderer.canvas_width - 2*GUIConstants.EDGE_PADDING,
                 height=message_height,
-                allow_text_overflow=True,
             )
             self.sign_message_data["paged_message"] = paged
 
@@ -1660,7 +1641,6 @@ class SeedSignMessageConfirmMessageScreen(ButtonListScreen):
         message_display = TextArea(
             text=self.sign_message_data["paged_message"][self.page_num],
             is_text_centered=False,
-            allow_text_overflow=True,
             screen_y=start_y,
         )
         self.components.append(message_display)

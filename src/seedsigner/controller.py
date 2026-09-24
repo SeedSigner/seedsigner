@@ -1,4 +1,6 @@
+from datetime import datetime
 import logging
+import os
 import time
 import traceback
 
@@ -15,7 +17,7 @@ from seedsigner.models.settings import SettingsConstants
 from seedsigner.models.singleton import Singleton
 from seedsigner.models.threads import BaseThread
 from seedsigner.views.screensaver import ScreensaverScreen
-from seedsigner.views.view import Destination
+from seedsigner.views.view import Destination, View
 
 
 logger = logging.getLogger(__name__)
@@ -99,8 +101,6 @@ class Controller(Singleton):
         Note: In many/most cases you'll need to do the Controller import within a method
         rather than at the top in order avoid circular imports.
     """
-
-    VERSION = "0.8.6"
 
     # Declare class member vars with type hints to enable richer IDE support throughout
     # the code.
@@ -217,18 +217,8 @@ class Controller(Singleton):
         return self._storage
 
 
-    def get_seed(self, seed_num: int) -> Seed:
-        if seed_num < len(self.storage.seeds):
-            return self.storage.seeds[seed_num]
-        else:
-            raise Exception(f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory.")
-
-
-    def discard_seed(self, seed_num: int):
-        if seed_num < len(self.storage.seeds):
-            del self.storage.seeds[seed_num]
-        else:
-            raise Exception(f"There is no seed_num {seed_num}; only {len(self.storage.seeds)} in memory.")
+    def discard_seed(self, seed: Seed):
+        self.storage.seeds.remove(seed)
 
 
     def pop_prev_from_back_stack(self):
@@ -468,10 +458,25 @@ class Controller(Singleton):
             if ", line " in traceback_line:
                 line_info = traceback_line.split("/")[-1].replace("\"", "").replace("line ", "")
                 break
-        
+
         error = [
             exception_type,
             line_info,
             exception_msg,
         ]
         return Destination(UnhandledExceptionView, view_args={"error": error}, clear_history=True)
+
+
+    @property
+    def is_screensaver_start_allowed(self) -> bool:
+        """
+            Determines whether the screensaver is allowed to start.
+
+            The screensaver can start only if:
+            - It is not currently running.
+            - The current active view allows screensaver activity.
+        """
+        from seedsigner.views import MainMenuView
+        # Confusingly, the top item in the `BackStack` is actually the *current* View
+        active_view = self.back_stack[-1].view if self.back_stack else MainMenuView()
+        return not self.is_screensaver_running and active_view.is_screensaver_allowed

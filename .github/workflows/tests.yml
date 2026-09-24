@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+# Explicitly restrict the auto-provisioned GITHUB_TOKEN to the least privilege required
+# for this workflow.
+permissions:
+  contents: read
+
 concurrency:
   # Concurrency group that uses the workflow name and PR number if available
   # or commit SHA as a fallback. If a new build is triggered under that
@@ -13,9 +18,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
+env:
+  # Used by the `Version` class so it can identify the current fork
+  PR_AUTHOR: ${{ github.event.pull_request.user.login || github.actor }}
+
+  # Used by `Version`. We want the PR author's latest commit hash if this is a PR
+  # but the default SHA env var reflects a new commit into the target repo.
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
         # 3.10: currently used by Seedsigner
@@ -31,19 +45,27 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            tests/requirements.txt
       - name: Install dependencies
         run: |
           sudo apt-get install libzbar0
           python -m pip install --upgrade pip
-          pip install -r requirements.txt -r tests/requirements.txt
-          pip install .
+          # hash-locked requirements files
+          pip install -r requirements.txt -r tests/requirements.txt -r l10n/requirements-l10n.txt
+          # An editable install can't satisfy hash-checking, so `-e .` can't
+          # share an invocation with the hash-locked files above.
+          pip install -e .
+      - name: Compile translations
+        run: python setup.py compile_catalog
       - name: Test with pytest
         run: |
-          mkdir artifacts
+          mkdir -p artifacts
           python -m pytest \
             --color=yes \
             --cov=seedsigner \
-            --cov-append \
             --cov-branch \
             --durations 5 \
             -vv
@@ -66,5 +88,5 @@ jobs:
           path: artifacts/**
           retention-days: 10
         # Upload also when tests fail. The workflow result (red/green) will
-        # be not effected by this.
+        # not be affected by this.
         if: always()

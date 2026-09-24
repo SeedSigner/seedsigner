@@ -142,7 +142,7 @@ class TestFlowTest(FlowTest):
         self.controller.storage.finalize_pending_seed()
 
         self.run_sequence(
-            initial_destination_view_args=dict(seed_num=0),
+            initial_destination_view_args=dict(seed=seed),
             sequence=[
                 FlowStep(SeedOptionsView, button_data_selection=SeedOptionsView.BACKUP),
                 FlowStep(SeedBackupView),

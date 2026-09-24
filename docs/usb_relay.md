@@ -139,19 +139,47 @@ see: https://www.circuitbasics.com/raspberry-pi-zero-ethernet-gadget/
 
 
 ### Linux
-To enable IP forwarding on your Host:
-```bash
-nano /etc/sysctl.conf
-```
 
-and uncomment the following line:
+To enable internet sharing on your Linux host:
+
+#### Step 1: Enable IP Forwarding
+```bash
+# Check current IP forwarding status
+cat /proc/sys/net/ipv4/ip_forward
+
+# Enable IP forwarding temporarily
+sudo sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward"
+
+# Enable permanently
+sudo nano /etc/sysctl.conf
+```
+Uncomment or add:
 ```
 net.ipv4.ip_forward = 1
 ```
+Save and apply:
+```bash
+sudo sysctl -p
+```
 
-Then run `sudo sysctl -p` to have immediate effect.
+#### Step 2: Configure Network Sharing
+```bash
+# Assuming eth0 is your internet-connected interface and usb0 is the USB interface
+sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+sudo iptables -A FORWARD -i usb0 -o eth0 -j ACCEPT
+sudo iptables -A FORWARD -i eth0 -o usb0 -m state --state RELATED,ESTABLISHED -j ACCEPT
 
-You should now be able to SSH into your internet connected Pi Zero 1.3, as described in the ["Get started"](#get-started) section.
+# Save the rules
+sudo apt install iptables-persistent
+sudo netfilter-persistent save
+sudo netfilter-persistent reload
+```
+
+#### Step 3: Test the Connection
+```bash
+ping 8.8.8.8
+```
+If you see responses, the Pi has internet access.
 
 
 ## Set a static IP on Linux

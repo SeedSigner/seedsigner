@@ -1,9 +1,7 @@
 from PIL import Image, ImageDraw
 from threading import Lock
 
-# from seedsigner.hardware.st7789_mpy import ST7789
-from seedsigner.hardware.displays.display_driver import ALL_DISPLAY_TYPES, DISPLAY_TYPE__ILI9341, DISPLAY_TYPE__ILI9486, DISPLAY_TYPE__ST7789, DisplayDriver
-from seedsigner.hardware.displays.ili9341 import ILI9341, ILI9341_TFTWIDTH, ILI9341_TFTHEIGHT
+from seedsigner.hardware.displays.display_driver import ALL_DISPLAY_TYPES, DISPLAY_TYPE__ILI9341, DISPLAY_TYPE__ILI9486, DISPLAY_TYPE__ST7789, DisplayDriverFactory
 from seedsigner.models.settings import Settings
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.models.singleton import ConfigurableSingleton
@@ -45,7 +43,12 @@ class Renderer(ConfigurableSingleton):
             raise Exception(f"Invalid display type: {self.display_type}")
 
         width, height = display_config.split("_")[1].split("x")
-        self.disp = DisplayDriver(self.display_type, width=int(width), height=int(height))
+
+        if self.disp:
+            # Existing instances might need to close resources like pwm
+            self.disp.cleanup()
+
+        self.disp = DisplayDriverFactory.instantiate_display_driver(self.display_type, width=int(width), height=int(height))
 
         if Settings.get_instance().get_value(SettingsConstants.SETTING__DISPLAY_COLOR_INVERTED, default_if_none=True) == SettingsConstants.OPTION__ENABLED:
             self.disp.invert()

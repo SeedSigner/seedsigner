@@ -1,6 +1,5 @@
 import hashlib
 import logging
-import os
 import time
 
 from gettext import gettext as _
@@ -61,6 +60,26 @@ class ToolsMenuView(View):
     Image entropy Views
 ****************************************************************************"""
 class ToolsImageEntropyLivePreviewView(View):
+    """
+    A fixed number of live preview frames are collected into a frame pool to provide an
+    additional source of entropy. These frames provide VOLUME for the final seed but are
+    not themselves individually assessed for entropy QUALITY. The quality heuristics are
+    only applied to the final image capture.
+
+    The preview pool enforces two rules:
+    1.) A frame that is a single flat color is rejected (e.g. completely black, completely
+    white, all just one shade of green).
+
+    2.) A frame identical to any previously admitted frame is rejected (de-duplicated via
+    sha256).
+
+    The final image cannot be taken until the full pool has arrived.
+
+    This mirrors the role that NIST SP 800-90B (sec. 4.2) assigns to continuous health
+    tests: detect gross noise-source failure -- a sensor stuck on one value, a stalled
+    or repeating camera -- without attempting to measure entropy.
+    """
+
     def run(self):
         from seedsigner.gui.screens.tools_screens import ToolsImageEntropyLivePreviewScreen
         self.controller.image_entropy_preview_frames = None
@@ -68,7 +87,14 @@ class ToolsImageEntropyLivePreviewView(View):
 
         if ret == RET_CODE__BACK_BUTTON:
             return Destination(BackStackView)
-        
+
+        # The live preview screen must return the required number of preview pool frames.
+        # Do not proceed if there is any mismatch.
+        if ret is None or len(ret) != ToolsImageEntropyLivePreviewScreen.PREVIEW_POOL_SIZE:
+            num_frames = 0 if ret is None else len(ret)
+            # TRANSLATOR_NOTE: Shown when the camera fails to collect enough frames for a new seed. "expected" and "actual" are the number of frames.
+            raise Exception(_("Entropy collection failed. Expected {expected} preview frames, got {actual}").format(expected=ToolsImageEntropyLivePreviewScreen.PREVIEW_POOL_SIZE, actual=num_frames))
+
         self.controller.image_entropy_preview_frames = ret
         return Destination(ToolsImageEntropyFinalImageView)
 
@@ -127,7 +153,7 @@ class ToolsImageEntropyMnemonicLengthView(View):
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
-            title=_("Mnemonic Length?"),
+            title=_("Mnemonic Length"),
             button_data=button_data,
         )
 
@@ -148,9 +174,12 @@ class ToolsImageEntropyMnemonicLengthView(View):
 
             # Build in some hardware-level uniqueness via CPU unique Serial num
             try:
-                stream = os.popen("cat /proc/cpuinfo | grep Serial")
-                output = stream.read()
-                serial_num = output.split(":")[-1].strip().encode('utf-8')
+                serial_num = b''
+                with open("/proc/cpuinfo", "r") as f:
+                    for line in f:
+                        if "Serial" in line:
+                            serial_num = line.split(":")[-1].strip().encode('utf-8')
+                            break
                 serial_hash = hashlib.sha256(serial_num)
                 hash_bytes = serial_hash.digest()
             except Exception as e:
@@ -193,7 +222,7 @@ class ToolsImageEntropyMnemonicLengthView(View):
             self.loading_screen.stop()
 
         # Cannot return BACK to this View
-        return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
+        return Destination(SeedWordsWarningView, view_args={"seed": None}, clear_history=True)
 
 
 
@@ -256,7 +285,7 @@ class ToolsDiceEntropyEntryView(View):
         self.controller.storage.set_pending_seed(seed)
 
         # Cannot return BACK to this View
-        return Destination(SeedWordsWarningView, view_args={"seed_num": None}, clear_history=True)
+        return Destination(SeedWordsWarningView, view_args={"seed": None}, clear_history=True)
 
 
 
@@ -508,11 +537,11 @@ class ToolsAddressExplorerSelectSourceView(View):
         self.controller.resume_main_flow = Controller.FLOW__ADDRESS_EXPLORER
 
         if len(seeds) > 0 and selected_menu_num < len(seeds):
-            # User selected one of the n seeds
+            selected_seed = seeds[selected_menu_num]
             return Destination(
                 SeedExportXpubScriptTypeView,
                 view_args=dict(
-                    seed_num=selected_menu_num,
+                    seed=selected_seed,
                     sig_type=SettingsConstants.SINGLE_SIG,
                 )
             )
@@ -544,32 +573,30 @@ class ToolsAddressExplorerAddressTypeView(View):
     CHANGE = ButtonOption("Change addresses")
 
 
-    def __init__(self, seed_num: int = None, script_type: str = None, custom_derivation: str = None):
+    def __init__(self, seed: Seed = None, script_type: str = None, custom_derivation: str = None):
         """
-            If the explorer source is a seed, `seed_num` and `script_type` must be
+            If the explorer source is a seed, `seed` and `script_type` must be
             specified. `custom_derivation` can be specified as needed.
 
-            If the source is a multisig or single sig wallet descriptor, `seed_num`,
+            If the source is a multisig or single sig wallet descriptor, `seed`,
             `script_type`, and `custom_derivation` should be `None`.
         """
         super().__init__()
-        self.seed_num = seed_num
+        self.seed = seed
         self.script_type = script_type
         self.custom_derivation = custom_derivation
     
-        network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        self.network = self.settings.get_value(SettingsConstants.SETTING__NETWORK)
 
         # Store everything in the Controller's `address_explorer_data` so we don't have
         # to keep passing vals around from View to View and recalculating.
         data = dict(
-            seed_num=seed_num,
-            network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
-            embit_network=SettingsConstants.map_network_to_embit(network),
+            seed=self.seed,
+            network=self.network,
+            embit_network=SettingsConstants.map_network_to_embit(self.network),
             script_type=script_type,
         )
-        if self.seed_num is not None:
-            self.seed = self.controller.storage.seeds[seed_num]
-            data["seed_num"] = self.seed
+        if self.seed is not None:
             seed_derivation_override = self.seed.derivation_override(sig_type=SettingsConstants.SINGLE_SIG)
 
             if self.script_type == SettingsConstants.CUSTOM_DERIVATION:
@@ -579,13 +606,13 @@ class ToolsAddressExplorerAddressTypeView(View):
             else:
                 from seedsigner.helpers import embit_utils
                 derivation_path = embit_utils.get_standard_derivation_path(
-                    network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
+                    network=self.network,
                     wallet_type=SettingsConstants.SINGLE_SIG,
                     script_type=self.script_type,
                 )
 
             data["derivation_path"] = derivation_path
-            data["xpub"] = self.seed.get_xpub(derivation_path, network=network)
+            data["xpub"] = self.seed.get_xpub(derivation_path, network=self.network)
         
         else:
             data["wallet_descriptor"] = self.controller.multisig_wallet_descriptor
@@ -599,8 +626,12 @@ class ToolsAddressExplorerAddressTypeView(View):
 
         wallet_descriptor_display_name = None
         if "wallet_descriptor" in data:
-            wallet_descriptor_display_name = data["wallet_descriptor"].brief_policy.replace(" (sorted)", "")
-            wallet_descriptor_display_name = " / ".join(wallet_descriptor_display_name.split(" of ")) # i18n w/o l10n since coming from non-l10n embit
+            from seedsigner.helpers.embit_utils import get_multisig_policy
+            threshold, n = get_multisig_policy(data["wallet_descriptor"])
+            # TRANSLATOR_NOTE: Multisig policy. For a "2 / 3 multisig" policy, "threshold" = 2; "n" = 3
+            wallet_descriptor_display_name = _("{threshold} / {n} multisig").format(
+                threshold=threshold, n=n
+            )
 
         script_type = data["script_type"] if "script_type" in data else None
 
@@ -609,7 +640,7 @@ class ToolsAddressExplorerAddressTypeView(View):
         selected_menu_num = self.run_screen(
             ToolsAddressExplorerAddressTypeScreen,
             button_data=button_data,
-            fingerprint=self.seed.get_fingerprint() if self.seed_num is not None else None,
+            fingerprint=None if self.seed is None else self.seed.get_fingerprint(self.network),
             wallet_descriptor_display_name=wallet_descriptor_display_name,
             script_type=script_type,
             custom_derivation_path=self.custom_derivation,

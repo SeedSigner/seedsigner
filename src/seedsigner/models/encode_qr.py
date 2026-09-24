@@ -238,7 +238,11 @@ class BaseSimpleAnimatedQREncoder(BaseQrEncoder):
 
 
 @dataclass
-class SpecterXPubQrEncoder(BaseSimpleAnimatedQREncoder, BaseXpubQrEncoder):
+class SpecterLegacyXPubQrEncoder(BaseSimpleAnimatedQREncoder, BaseXpubQrEncoder):
+    """
+    Legacy "pXofY" format. Included here for compatibility with much older versions of
+    Specter Desktop. Can probably eventually be removed.
+    """
     @property
     def qr_max_fragment_size(self):
         density_mapping = {

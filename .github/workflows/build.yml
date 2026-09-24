@@ -16,6 +16,18 @@ on:
         default: main
         required: true
 
+# Explicitly restrict the auto-provisioned GITHUB_TOKEN to the least privilege required
+# for this workflow.
+permissions:
+  contents: read
+
+# Cancel superseded runs on the same branch/PR. Intermediate builds on dev/main
+# have no downstream consumers (official releases are built offline), so only
+# the latest commit per ref needs to be built.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 # Increment this number as part of a PR to trigger an image build for the PR
 # trigger = 0
 
@@ -23,6 +35,7 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     # Prevent resource consuming cron triggered runs in forks
     if: (!github.event.repository.fork || github.event_name == 'workflow_dispatch')
     strategy:
@@ -70,12 +83,9 @@ jobs:
             echo "img_version=os${os_version}_sw${source_version}"| tee -a $GITHUB_ENV
           fi
 
-      - name: delete unnecessary files
-        run: |
-          cd seedsigner-os/opt/rootfs-overlay/opt
-          find . -mindepth 1 -maxdepth 1 ! -name src -exec rm -rf {} +
-          ls -la .
-          ls -la src
+      # NOTE: trimming the overlay down to src/ is deliberately left to seedsigner-os
+      # build.sh (delete_unnecessary_files). It needs the .git/ and tools/ we would
+      # otherwise delete here in order to write version.json first.
 
       - name: restore build cache
         uses: actions/cache@v4
@@ -108,6 +118,15 @@ jobs:
             seedsigner-os-build \
             --${{ matrix.target }} --skip-repo --no-clean
           sudo chown -R $USER:$USER seedsigner-os/images seedsigner-os/buildroot_dl ~/.buildroot-ccache/
+
+      # version.json is written by seedsigner-os build.sh. If it is missing or has a
+      # null field the app raises at the splash screen, which looks like an
+      # unrecoverable boot hang, so fail the build rather than publish the image.
+      - name: verify version.json
+        working-directory: seedsigner-os/opt/rootfs-overlay/opt
+        run: |
+          cat src/seedsigner/version.json
+          jq -e '.name and .fork and .short_commit_hash and .timestamp' src/seedsigner/version.json
 
       - name: list image (before rename)
         run: |
@@ -151,10 +170,7 @@ jobs:
           ls -lRa images
 
       - name: get seedsigner latest commit hash
-        id: get-seedsigner-hash
-        run: |
-          git init
-          echo "source_hash=$(git rev-parse --short ${{ github.sha }})" >> $GITHUB_ENV
+        run: echo "source_hash=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
       - name: write sha256sum
         run: |

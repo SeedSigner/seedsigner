@@ -1,4 +1,5 @@
 import os
+import pathlib
 from dataclasses import dataclass
 from typing import Any, List
 
@@ -38,17 +39,18 @@ class SettingsConstants:
     ]
 
     # User-facing selection options
-    COORDINATOR__BLUE_WALLET = "bw"
-    COORDINATOR__NUNCHUK = "nun"
-    COORDINATOR__SPARROW = "spa"
-    COORDINATOR__SPECTER_DESKTOP = "spd"
-    COORDINATOR__KEEPER = "kpr"
-    ALL_COORDINATORS = [
-        (COORDINATOR__BLUE_WALLET, "BlueWallet"),
-        (COORDINATOR__NUNCHUK, "Nunchuk"),
-        (COORDINATOR__SPARROW, "Sparrow"),
-        (COORDINATOR__SPECTER_DESKTOP, "Specter Desktop"),
-        (COORDINATOR__KEEPER, "Keeper"),
+    XPUB_QR_FORMAT__UR_CRYPTO_ACCOUNT = "urca"
+    XPUB_QR_FORMAT__STATIC = "sta"
+    XPUB_QR_FORMAT__SPECTER_LEGACY = "spl"
+    ALL_XPUB_QR_FORMATS = [
+        # TRANSLATOR_NOTE: QR code format option; "default" = this is the format most wallets use
+        (XPUB_QR_FORMAT__UR_CRYPTO_ACCOUNT, _mft("Animated (default)")),
+
+        # TRANSLATOR_NOTE: QR code format option (static = single frame, not animated)
+        (XPUB_QR_FORMAT__STATIC, _mft("Static")),
+
+        # TRANSLATOR_NOTE: QR code format option: old format that Specter Desktop used to use
+        (XPUB_QR_FORMAT__SPECTER_LEGACY, _mft("Specter legacy")),
     ]
 
     # Over-specifying current and possible future locales to reduce/eliminate main repo
@@ -128,10 +130,23 @@ class SettingsConstants:
         LOCALE__DUTCH: "Nederlands",
 
         # --------- Beta languages ------------------------------------------------------
+        LOCALE__CZECH: "(beta) Čeština",
         LOCALE__CHINESE_SIMPLIFIED: "(beta) 简体中文 (Chinese Simplified)",
+        LOCALE__HINDI: "(beta) हिन्दी (Hindi)",
+        LOCALE__INDONESIAN: "(beta) Indonesia (Indonesian)",
         LOCALE__JAPANESE: "(beta) 日本語 (Japanese)",
         LOCALE__KOREAN: "(beta) 한국어 (Korean)",
+        LOCALE__PERSIAN: "(beta) فارسی (Persian)",
+        LOCALE__POLISH: "(beta) Polski",
+        LOCALE__PORTUGUESE_BR: "(beta) Português (Brasil)",
         LOCALE__THAI: "(beta) ไทย (Thai)",
+        LOCALE__VIETNAMESE: "(beta) Tiếng Việt (Vietnamese)",
+
+        # --------- In Progress Languages -----------------------------------------------
+        LOCALE__GREEK: "(incomplete) Ελληνικά (Greek)",  # OpenSans includes Greek chars
+        LOCALE__NORWEGIAN: "(incomplete) Norsk (Norwegian)",
+        LOCALE__RUSSIAN: "(incomplete) русский (Russian)",  # OpenSans includes cyrillic chars
+        LOCALE__TURKISH: "(incomplete) Türkçe (Turkish)",
 
         # --------- Placeholders / Coming soon ------------------------------------------
         # Commented out options require explicit additional font support.
@@ -139,19 +154,15 @@ class SettingsConstants:
         LOCALE__ARABIC: "العربية (Arabic)",
         # LOCALE__BENGALI: "বাংলা (Bengali)",
         LOCALE__BULGARIAN: "български (Bulgarian)",  # OpenSans includes cyrillic chars
-        LOCALE__CZECH: "čeština",
         # LOCALE__CHINESE_TRADITIONAL: "繁體中文 (Chinese Traditional)",
         LOCALE__DANISH: "Dansk",
         LOCALE__ESTONIAN: "Eesti",
         # LOCALE__EGYPTIAN: "مصرى (Egyptian)",
         LOCALE__GAELIC: "Gaeilge",
-        LOCALE__GREEK: "Ελληνικά (Greek)",  # OpenSans includes Greek chars
         # LOCALE__GUJARATI: "ગુજરાતી (Gujarati)",
         LOCALE__HAUSA: "Hausa",
         # LOCALE__HEBREW: "עברית (Hebrew)",
-        # LOCALE__HINDI: "हिन्दी (Hindi)",
         LOCALE__CROATIAN: "Hrvatski",
-        LOCALE__INDONESIAN: "Indonesia",
         LOCALE__JAVANESE: "Jawa (Javanese)",
         # LOCALE__LAO: "ລາວ (Lao)",
         LOCALE__LATVIAN: "Latviešu",
@@ -160,14 +171,9 @@ class SettingsConstants:
         LOCALE__MALAY: "Melayu",
         LOCALE__MALTESE: "Malti",
         # LOCALE__MARATHI: "मराठी (Marathi)",
-        LOCALE__NORWEGIAN: "Norsk",
-        LOCALE__PERSIAN: "فارسی (Persian)",
-        LOCALE__POLISH: "Polski",
-        LOCALE__PORTUGUESE_BR: "Português (Brasil)",
         LOCALE__PORTUGUESE_PT: "Português (Portugal)",
         # LOCALE__PUNJABI: "ਪੰਜਾਬੀ (Punjabi)",
         LOCALE__ROMANIAN: "Română",
-        LOCALE__RUSSIAN: "русский (Russian)",  # OpenSans includes cyrillic chars
         LOCALE__SLOVAK: "Slovenčina",
         LOCALE__SLOVENIAN: "Slovenščina",
         LOCALE__FINNISH: "Suomi",
@@ -175,11 +181,10 @@ class SettingsConstants:
         LOCALE__TAGALOG: "Tagalog",
         # LOCALE__TAMIL: "தமிழ் (Tamil)",
         # LOCALE__TELUGU: "తెలుగు (Telugu)",
-        LOCALE__TURKISH: "Türkçe",
         LOCALE__UKRANIAN: "українська (Ukranian)",   # OpenSans includes cyrillic chars
         # LOCALE__URDU: "اردو (Urdu)",
-        LOCALE__VIETNAMESE: "Tiếng Việt (Vietnamese)",
     }
+
 
     @classmethod
     def get_detected_languages(cls) -> list[tuple[str, str]]:
@@ -188,22 +193,20 @@ class SettingsConstants:
 
         Scans the filesystem to autodiscover which language codes are onboard.
         """
-        # Will normally be the launch dir (where main.py is located)...
-        cwd = os.getcwd()
-
-        # ...except when running the tests which happens one dir higher
-        if "src" not in cwd:
-            cwd = os.path.join(cwd, "src")
+        # Back out from the models/ dir to reach the seedsigner root
+        models_dir = pathlib.Path(__file__).parent.resolve()
+        seedsigner_root = models_dir.parent.resolve()
 
         # Pre-load English since there's no "en" entry in the translations folder; also
         # it should always appear first in the list anyway.
         detected_languages = [(cls.LOCALE__ENGLISH, cls.ALL_LOCALES[cls.LOCALE__ENGLISH])]
 
         locales_present = set()
-        for root, dirs, files in os.walk(os.path.join(cwd, "seedsigner", "resources", "seedsigner-translations", "l10n")):
+        for root, dirs, files in os.walk(os.path.join(seedsigner_root, "resources", "seedsigner-translations", "l10n")):
             for file in [f for f in files if f.endswith(".mo")]:
                 # `root` will be [...]seedsigner/resources/seedsigner-translations/l10n/pt_BR/LC_MESSAGES
-                locales_present.add(root.split(f"l10n{ os.sep }")[1].split(os.sep)[0])
+                # Isolate the language code from the path
+                locales_present.add(root.rsplit(os.sep, 2)[-2])
 
         for locale in cls.ALL_LOCALES.keys():
             if locale in locales_present:
@@ -297,9 +300,11 @@ class SettingsConstants:
     MICROSD_TOAST_TIMER_FIVE_SECONDS = "E"
     MICROSD_TOAST_TIMER_FOREVER = "inf"
     ALL_MICROSD_TOAST_TIMERS = [
-        (MICROSD_TOAST_TIMER_DISABLED, "Disabled"),
-        (MICROSD_TOAST_TIMER_FIVE_SECONDS, "5 seconds"),
-        (MICROSD_TOAST_TIMER_FOREVER, "Until SD removed")
+        (MICROSD_TOAST_TIMER_DISABLED, _mft("Disabled")),
+        # TRANSLATOR_NOTE: MicroSD notification duration setting - Display notification for 5 seconds
+        (MICROSD_TOAST_TIMER_FIVE_SECONDS, _mft("5 seconds")),
+        # TRANSLATOR_NOTE: MicroSD notification duration setting - Display notification until the SD card is removed
+        (MICROSD_TOAST_TIMER_FOREVER, _mft("Until SD removed"))
     ]
 
     WORDLIST_LANGUAGE__ENGLISH = "en"
@@ -326,7 +331,7 @@ class SettingsConstants:
     SETTING__LOCALE = "locale"
     SETTING__WORDLIST_LANGUAGE = "wordlist_language"
     SETTING__PERSISTENT_SETTINGS = "persistent_settings"
-    SETTING__COORDINATORS = "coordinators"
+    SETTING__XPUB_QR_FORMAT = "xpub_qr"
     SETTING__BTC_DENOMINATION = "denomination"
 
     SETTING__DISPLAY_CONFIGURATION = "display_config"
@@ -334,7 +339,6 @@ class SettingsConstants:
 
     SETTING__NETWORK = "network"
     SETTING__QR_DENSITY = "qr_density"
-    SETTING__XPUB_EXPORT = "xpub_export"
     SETTING__SIG_TYPES = "sig_types"
     SETTING__SCRIPT_TYPES = "script_types"
     SETTING__XPUB_DETAILS = "xpub_details"
@@ -454,6 +458,9 @@ class SettingsEntry:
         elif type(self.default_value) == tuple:
             self.default_value = self.default_value[0]
 
+        if not self.abbreviated_name:
+            self.abbreviated_name = self.attr_name
+
 
     @property
     def selection_options_display_names(self) -> List[str]:
@@ -572,19 +579,6 @@ class SettingsDefinition:
                       help_text=SettingsConstants.PERSISTENT_SETTINGS__SD_INSERTED__HELP_TEXT,
                       default_value=SettingsConstants.OPTION__DISABLED),
 
-        SettingsEntry(category=SettingsConstants.CATEGORY__WALLET,
-                      attr_name=SettingsConstants.SETTING__COORDINATORS,
-                      abbreviated_name="coords",
-                      display_name=_mft("Coordinator software"),
-                      type=SettingsConstants.TYPE__MULTISELECT,
-                      selection_options=SettingsConstants.ALL_COORDINATORS,
-                      default_value=[
-                          SettingsConstants.COORDINATOR__BLUE_WALLET,
-                          SettingsConstants.COORDINATOR__NUNCHUK,
-                          SettingsConstants.COORDINATOR__SPARROW,
-                          SettingsConstants.COORDINATOR__SPECTER_DESKTOP,
-                      ]),
-
         SettingsEntry(category=SettingsConstants.CATEGORY__SYSTEM,
                       attr_name=SettingsConstants.SETTING__BTC_DENOMINATION,
                       abbreviated_name="denom",
@@ -612,12 +606,6 @@ class SettingsDefinition:
                       default_value=SettingsConstants.DENSITY__MEDIUM),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
-                      attr_name=SettingsConstants.SETTING__XPUB_EXPORT,
-                      display_name=_mft("Xpub export"),
-                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
-                      default_value=SettingsConstants.OPTION__ENABLED),
-
-        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__SIG_TYPES,
                       abbreviated_name="sigs",
                       display_name=_mft("Sig types"),
@@ -634,6 +622,17 @@ class SettingsDefinition:
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SettingsConstants.ALL_SCRIPT_TYPES,
                       default_value=[SettingsConstants.NATIVE_SEGWIT, SettingsConstants.NESTED_SEGWIT, SettingsConstants.TAPROOT]),
+
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__XPUB_QR_FORMAT,
+                      display_name=_mft("Xpub QR format"),
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      type=SettingsConstants.TYPE__MULTISELECT,
+                      selection_options=SettingsConstants.ALL_XPUB_QR_FORMATS,
+                      default_value=[
+                            SettingsConstants.XPUB_QR_FORMAT__UR_CRYPTO_ACCOUNT,
+                            SettingsConstants.XPUB_QR_FORMAT__STATIC,
+                      ]),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__XPUB_DETAILS,
@@ -681,7 +680,7 @@ class SettingsDefinition:
         
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__MICROSD_TOAST_TIMER,
-                      display_name="MicroSD toast timer",
+                      display_name=_mft("MicroSD notification duration"),
                       type=SettingsConstants.TYPE__SELECT_1,
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       selection_options=SettingsConstants.ALL_MICROSD_TOAST_TIMERS,
@@ -793,15 +792,25 @@ class SettingsDefinition:
 
 
     @classmethod
-    def get_defaults(cls) -> dict:
+    def get_defaults(cls, use_abbreviated_name: bool = False, skip_hidden: bool = False) -> dict:
+        """
+        * use_abbreviated_name: Only used by the test suite.
+        * skip_hidden: Only used by the test suite.
+        """
         as_dict = {}
         for entry in SettingsDefinition.settings_entries:
+            if skip_hidden and entry.visibility == SettingsConstants.VISIBILITY__HIDDEN:
+                continue
+            if not use_abbreviated_name:
+                attr_name = entry.attr_name
+            else:
+                attr_name = entry.abbreviated_name
             if type(entry.default_value) == list:
                 # Must copy the default_value list, otherwise we'll inadvertently change
                 # defaults when updating these attrs
-                as_dict[entry.attr_name] = list(entry.default_value)
+                as_dict[attr_name] = list(entry.default_value)
             else:
-                as_dict[entry.attr_name] = entry.default_value
+                as_dict[attr_name] = entry.default_value
         return as_dict
 
 
@@ -814,19 +823,3 @@ class SettingsDefinition:
             output["settings_entries"].append(settings_entry.to_dict())
         
         return output
-
-
-
-if __name__ == "__main__":
-    import json
-    import os
-
-    hostname = os.uname()[1]
-  
-    if hostname == "seedsigner-os":
-        output_file = "/mnt/microsd/settings_definition.json"
-    else:
-        output_file = "settings_definition.json"
-    
-    with open(output_file, 'w') as json_file:
-        json.dump(SettingsDefinition.to_dict(), json_file, indent=4)

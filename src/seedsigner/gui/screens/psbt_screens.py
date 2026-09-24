@@ -25,6 +25,10 @@ class PSBTOverviewScreen(ButtonListScreen):
     num_change_outputs: int = 0
     destination_addresses: list[str] = None
     has_op_return: bool = False
+    is_high_fee_tx: bool = False
+
+    # Appended to a row that needs the user's attention, drawn in the dire warning color
+    WARNING_MARK = " (!)"
     
 
     def __post_init__(self):
@@ -32,9 +36,6 @@ class PSBTOverviewScreen(ButtonListScreen):
         self.title = _("Review Transaction")
         self.is_bottom_list = True
         self.button_data = [ButtonOption("Review details")]
-
-        # This screen can take a while to load while parsing the PSBT
-        self.show_loading_screen = True
 
         super().__post_init__()
 
@@ -150,7 +151,13 @@ class PSBTOverviewScreen(ButtonListScreen):
                 # TRANSLATOR_NOTE: Inserts the recipient number (e.g. the fifth one is: "recipient 5")
                 destination_column.append(_("recipient {}").format(len(self.destination_addresses) + self.num_self_transfer_outputs))
 
-            destination_column.append(_("fee"))
+            fee_label = _("fee")
+            if self.is_high_fee_tx:
+                # Part of the label, not something appended at render time: the column is
+                # measured from these strings, so a mark added later would be drawn
+                # outside the width that was reserved for the row.
+                fee_label += PSBTOverviewScreen.WARNING_MARK
+            destination_column.append(fee_label)
 
             if self.has_op_return:
                 # TRANSLATOR_NOTE: Technical term, should probably NOT be translated in most languages
@@ -311,11 +318,15 @@ class PSBTOverviewScreen(ButtonListScreen):
 
         output_curves = []
         for destination in destination_column:
+            text_color = chart_font_color
+            if destination.endswith(PSBTOverviewScreen.WARNING_MARK):
+                text_color = GUIConstants.DIRE_WARNING_COLOR
+
             draw.text(
                 (recipients_text_x, destination_y),
                 text=destination,
                 font=font,
-                fill=chart_font_color,
+                fill=text_color,
                 anchor="lt"
             )
 
@@ -474,6 +485,7 @@ class PSBTMathScreen(ButtonListScreen):
     num_recipients: int = 0
     fee_amount: int = 0
     change_amount: int = 0
+    is_high_fee_tx: bool = False
 
 
     def __post_init__(self):
@@ -572,10 +584,17 @@ class PSBTMathScreen(ButtonListScreen):
             )
 
         cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
+
+        info_text = _("fee")
+        info_text_color = GUIConstants.BODY_FONT_COLOR
+        if self.is_high_fee_tx:
+            info_text += PSBTOverviewScreen.WARNING_MARK
+            info_text_color = GUIConstants.DIRE_WARNING_COLOR
         render_amount(
             cur_y,
             f"-{self.fee_amount}",
-            info_text=_("fee"),
+            info_text=info_text,
+            info_text_color=info_text_color,
         )
 
         cur_y += digits_height + GUIConstants.BODY_LINE_SPACING * ssf
@@ -668,40 +687,47 @@ class PSBTChangeDetailsScreen(ButtonListScreen):
             screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
         ))
 
+        screen_y = self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING
+
+        if self.is_change_derivation_path :
+            # TRANSLATOR_NOTE: Describes the address type (change or receive)
+            addr_type = _("change address")
+        else: 
+            addr_type = _("receive address")
+
+        # TRANSLATOR_NOTE: Symbol for index number, e.g. "address #3"
+        index_num_symbol = _("#")
+
+        # note: NOT marking this for translation, hoping that the var ordering will not
+        # need to change in other languages.
+        value_text = f"{addr_type} {index_num_symbol}{self.derivation_path_addr_index}"
+        self.components.append(TextArea(
+            text=value_text,
+            font_color=GUIConstants.LABEL_FONT_COLOR,
+            font_size=GUIConstants.LABEL_FONT_SIZE,
+            is_text_centered=True,
+            screen_x=GUIConstants.EDGE_PADDING,
+            screen_y=screen_y,
+        ))
+
         self.components.append(FormattedAddress(
             screen_y=self.components[-1].screen_y + self.components[-1].height,
             address=self.address,
             max_lines=1,
         ))
 
-        screen_y = self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING
-
-        change_type = _("Multisig") if self.is_multisig else self.fingerprint
-
-        if self.is_change_derivation_path :
-            addr_type = _("Change")
-        else: 
-            # TRANSLATOR_NOTE: Abbreviation for receive address
-            addr_type = _("Addr")
-
-        value_text = "{}: {} #{}".format(change_type, addr_type, self.derivation_path_addr_index)
-        self.components.append(IconTextLine(
-            value_text=value_text,
-            icon_name=SeedSignerIconConstants.FINGERPRINT,
-            icon_color=GUIConstants.INFO_COLOR,
-            is_text_centered=False,
-            screen_x=GUIConstants.EDGE_PADDING,
-            screen_y=screen_y,
-        ))
-
         if self.is_change_addr_verified:
+            # How much empty space is left between the bottom of the addr and the first button?
+            available_y = self.buttons[0].screen_y - (self.components[-1].screen_y + self.components[-1].height)
+
             self.components.append(IconTextLine(
                 icon_name=SeedSignerIconConstants.SUCCESS,
                 icon_color=GUIConstants.SUCCESS_COLOR,
                 value_text=_("Address verified!"),
-                is_text_centered=False,
+                is_text_centered=True,
                 screen_x=GUIConstants.EDGE_PADDING,
-                screen_y=self.components[-1].screen_y + self.components[-1].height + GUIConstants.COMPONENT_PADDING,
+                screen_y=self.components[-1].screen_y + self.components[-1].height,
+                height=available_y,  # Let the component auto-center vertically
             ))
 
 
@@ -722,7 +748,6 @@ class PSBTOpReturnScreen(ButtonListScreen):
                 text=self.op_return_data.decode(errors="strict"),  # "strict" is a good enough heuristic to decide if it's human readable
                 font_size=GUIConstants.get_top_nav_title_font_size(),
                 is_text_centered=True,
-                allow_text_overflow=True,
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
                 height=self.buttons[0].screen_y - self.top_nav.height - 2*GUIConstants.COMPONENT_PADDING,
             ))
