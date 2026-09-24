@@ -2062,6 +2062,49 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
                 self._parse(psbt)
 
 
+    def test__parse__counts_nested_single_sig_change_without_its_redeem_script_as_change(self):
+        """
+        A legitimate nested single sig (p2sh-p2wpkh) change output can omit its redeem
+        script (BIP-174 makes it optional) while still claiming (via bip32_derivations)
+        that a key owned by our seed will receive the change.
+
+        But the parser's proof of ownership check does not care about the missing redeem
+        script: the parser rebuilds p2sh(p2wpkh(K)) from the seed's own key at the claimed
+        path regardless. So the output should still be verifiable as change.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_CHANGE)
+
+        # The output claims a single key and our seed really does derive it there.
+        assert len(psbt.outputs[0].bip32_derivations) == 1
+        public_key, derivation_path = list(psbt.outputs[0].bip32_derivations.items())[0]
+        assert PSBTParser.seed_owns_pubkey(self._root(), derivation_path.derivation, public_key, child_key_derivation_cache=None) is True
+
+        psbt.outputs[0].redeem_script = None
+
+        psbt_parser = self._parse(psbt)
+        assert psbt_parser.change_amount == 10_000
+        assert psbt_parser.spend_amount == 0
+
+
+    def test__parse__rejects_a_bare_p2sh_output_that_claims_this_seed_but_pays_someone_else(self):
+        """
+        Variation on the prior test: the redeem script is still omitted but this time the
+        psbt repoints its output at a stranger's p2sh-p2wpkh. Crucially, the output keeps
+        its claim on this seed, making this an attempt at deception (if there was no claim
+        on the output, it would simply be a typical external spend output).
+
+        When the parser rebuilds p2sh(p2wpkh(K)), the resulting scriptPubKey will not
+        match what the output commits to. The psbt should be refused with
+        PSBTOutputOwnershipContradictionError.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_CHANGE)
+        psbt.outputs[0].redeem_script = None
+        psbt.outputs[0].script_pubkey = script.p2sh(script.p2wpkh(foreign_public_key()))
+
+        with pytest.raises(PSBTOutputOwnershipContradictionError):
+            self._parse(psbt)
+
+
     def test_get_cosigners_returns_a_sorted_list(self):
         """
         Two multisig scripts can list the same wallet's keys in different orders, so the
