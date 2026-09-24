@@ -1867,7 +1867,7 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
             for entries in [decoy_first, decoy_last, decoy_substituted]:
                 psbt.outputs[0].bip32_derivations = entries
 
-                # Prep the our modified psbt in embit
+                # Prep the modified psbt in embit
                 tampered_psbt = PSBT.parse(psbt.serialize())
 
                 with pytest.raises(PSBTOutputOwnershipContradictionError):
