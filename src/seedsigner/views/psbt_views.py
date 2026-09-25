@@ -2,8 +2,10 @@ import logging
 
 from gettext import gettext as _
 
-from seedsigner.models.psbt_parser import (PSBTInputAmountVerificationError,
-    PSBTInputOwnershipClaimError, PSBTMalformedOpReturnError, PSBTMissingInputUtxoError,
+from seedsigner.models.psbt_parser import (PSBTExtraneousInputScriptError,
+    PSBTInputAmountVerificationError, PSBTInputOwnershipClaimError,
+    PSBTInputScriptMismatchError, PSBTMalformedOpReturnError,
+    PSBTMissingInputScriptError, PSBTMissingInputUtxoError,
     PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
     PSBTSurplusDerivationPathsError)
@@ -130,6 +132,18 @@ class PSBTOverviewView(View):
 
             except PSBTMalformedOpReturnError:
                 self.set_redirect(Destination(PSBTMalformedOpReturnView, clear_history=True))
+                return
+
+            except PSBTMissingInputScriptError:
+                self.set_redirect(Destination(PSBTMissingInputScriptView, clear_history=True))
+                return
+
+            except PSBTInputScriptMismatchError:
+                self.set_redirect(Destination(PSBTInputScriptMismatchView, clear_history=True))
+                return
+
+            except PSBTExtraneousInputScriptError:
+                self.set_redirect(Destination(PSBTExtraneousInputScriptView, clear_history=True))
                 return
 
             except PSBTOutputOwnershipContradictionError:
@@ -725,6 +739,90 @@ class PSBTNegativeFeeView(View):
 
         # We're done with this PSBT. Route back to MainMenuView, which clears all ephemeral
         # data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTMissingInputScriptView(View):
+    """
+    Reached when an input commits to a script that the psbt did not supply (see
+    PSBTMissingInputScriptError).
+
+    We view this as a correctness problem rather than an attack. We do not allow the user
+    to continue, but only give this the "Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
+            text=_("This transaction left out a script that one of its inputs needs."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTInputScriptMismatchView(View):
+    """
+    Reached when an input supplies a script that hashes to something other than what the
+    input commits to (see PSBTInputScriptMismatchError).
+
+    We view this as an attack. We do not allow the user to continue and give this the
+    "Dire Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            DireWarningScreen,
+            title=_("Suspicious Transaction"),
+            status_headline=_("Likely an Attack!"),
+            # TRANSLATOR_NOTE: The transaction/psbt contains a deception that we consider an attack.
+            text=_("This transaction supplied the wrong script for one of its inputs."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTExtraneousInputScriptView(View):
+    """
+    Reached when an input supplies a script beyond the ones its scriptPubKey commits to
+    (see PSBTExtraneousInputScriptError).
+
+    We do not try to decide whether this is an attack or a mistake. We do not allow the
+    user to continue, but only give this the "Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
+            text=_("This transaction supplied an extra script for one of its inputs."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
         # Set clear_history to disable returning via BACK button.
         return Destination(MainMenuView, clear_history=True)
 
