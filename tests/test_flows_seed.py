@@ -6,6 +6,7 @@ import pytest
 from base import BaseTest, FlowTest, FlowStep
 from base import FlowTestInvalidButtonDataSelectionException
 
+from seedsigner.controller import Controller
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, ButtonOption
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.seed import ElectrumSeed, Seed
@@ -117,6 +118,73 @@ class TestSeedFlows(FlowTest):
         ]
 
         self.run_sequence(sequence)
+
+
+    def test_back_from_seedqr_scan_via_load_seed_flow(self):
+        """
+        Pressing BACK during SeedQR loading should return to LoadSeedView.
+        """
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, is_redirect=True),
+            FlowStep(seed_views.LoadSeedView, button_data_selection=seed_views.LoadSeedView.SEED_QR),
+            FlowStep(scan_views.ScanSeedQRView),
+            FlowStep(seed_views.LoadSeedView),
+        ])
+
+
+    def test_back_from_psbt_scan_via_seed_options_flow(self):
+        """
+        Pressing BACK during a transaction scan should return to SeedOptionsView
+        with the selected seed intact. A second sequence verifies that backing out
+        from SeedOptionsView to Main Menu clears the pending PSBT seed.
+        """
+        seed = Seed(mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about".split())
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+
+        # Sequence 1: BACK from the transaction scanner returns to Seed Options.
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, screen_return_value=0),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SCAN_PSBT),
+            FlowStep(scan_views.ScanPSBTView),
+            FlowStep(seed_views.SeedOptionsView),
+        ])
+        assert self.controller.psbt_seed is self.controller.storage.seeds[0]
+
+        # Sequence 2: BACK from Seed Options returns to Main Menu and clears state.
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SEEDS),
+            FlowStep(seed_views.SeedsMenuView, screen_return_value=0),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SCAN_PSBT),
+            FlowStep(scan_views.ScanPSBTView),
+            FlowStep(seed_views.SeedOptionsView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(MainMenuView),
+        ])
+        assert self.controller.psbt_seed is None
+
+
+    def test_back_from_seed_scan_via_sign_message_flow(self):
+        """
+        Pressing BACK during seed selection for message signing should return to
+        SeedSelectSeedView with the captured message intact.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+
+        def load_message(view):
+            view.decoder.add_data("signmessage m/84h/0h/0h/0/0 ascii:test message")
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=load_message),
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanView),
+            FlowStep(seed_views.SeedSelectSeedView),
+        ])
+        assert self.controller.resume_main_flow == Controller.FLOW__SIGN_MESSAGE
+        assert "message" in self.controller.sign_message_data
 
 
     def test_electrum_mnemonic_entry_flow(self):
@@ -624,6 +692,26 @@ class TestMessageSigningFlows(FlowTest):
         self.controller.sign_message_data["paged_message"] = paged
 
 
+    def test_back_from_sign_message_review_returns_to_seed_options(self):
+        """
+        Pressing BACK from the message review after selecting Sign Message from
+        Seed Options should return to SeedOptionsView instead of reopening ScanView.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__MESSAGE_SIGNING, SettingsConstants.OPTION__ENABLED)
+
+        # Scan the seed first, then start Sign Message from Seed Options.
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.SCAN),
+            FlowStep(scan_views.ScanView, before_run=self.load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.SIGN_MESSAGE),
+            FlowStep(scan_views.ScanView, before_run=self.load_short_message_into_decoder),
+            FlowStep(seed_views.SeedSignMessageStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSignMessageConfirmMessageView, before_run=self.inject_mesage_as_paged_message, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(seed_views.SeedOptionsView)
+        ])
+
+
     def test_sign_message_flow(self):
         """
         Should scan a `signmessage` QR and complete the message review, address review,
@@ -823,5 +911,3 @@ class TestMessageSigningFlows(FlowTest):
 
         self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
         expect_unsupported_derivation(self.load_custom_derivation_into_decoder)
-
-

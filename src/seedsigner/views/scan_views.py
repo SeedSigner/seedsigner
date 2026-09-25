@@ -151,6 +151,7 @@ class ScanView(View):
 
                 return Destination(
                     SeedSignMessageStartView,
+                    skip_current_view=True,
                     view_args=dict(
                         derivation_path=qr_data["derivation_path"],
                         message=qr_data["message"],
@@ -166,7 +167,7 @@ class ScanView(View):
             self.controller.resume_main_flow = None
             return Destination(ScanInvalidQRTypeView)
 
-        return Destination(MainMenuView)
+        return Destination(BackStackView)
 
 
 
