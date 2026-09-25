@@ -249,7 +249,7 @@ class PSBTParser():
                  _get_policy doesn't propagate cosigner errors, so two such policies match
                  without anything having tied them to the same keys. TODO: don't let a
                  policy with no cosigner information pass as a match between inputs.
-                 Outputs deliberately compare shape alone; see _policy_shape_matches.
+                 Outputs deliberately compare shape alone; see _is_change_candidate.
 
           5. _parse_outputs: organizes the output data (amounts, destination_addresses,
              etc.) and verifies the ownership of the outputs that come back to this seed
@@ -411,7 +411,7 @@ class PSBTParser():
             # Is this output change? If this output's policy is superficially similar to
             # the spending wallet's policy (e.g. they're both 2-of-3 p2wsh), then it's a
             # candidate for being change.
-            if PSBTParser._policy_shape_matches(out_policy, self.policy):
+            if self._is_change_candidate(out, out_policy, self.verified_output_derivation_paths[i]):
                 # Begin the extensive work to fully verify whether this output is indeed
                 # change.
 
@@ -708,23 +708,42 @@ class PSBTParser():
         return policy
 
 
-    @staticmethod
-    def _policy_shape_matches(policy_a: dict, policy_b: dict) -> bool:
+    def _is_change_candidate(self, out: OutputScope, out_policy: dict, verified_derivation_paths: List[DerivationPath]) -> bool:
         """
-        Compares two policies on the shape of the script they describe: the script type,
-        plus m-of-n for multisig.
+        Determines whether an output is worth the full ownership check in _parse_outputs.
 
-        A policy can also carry the cosigners resolved from the coordinator's global
-        xpubs. Those are never authoritative here, and comparing them would let a psbt
-        decide which of its own outputs get verified: one misannotated fingerprint makes
-        that output's cosigners fail to resolve, and the output then stops matching the
-        inputs' policy. Shape comes from the scriptPubKey and the supplied script, and the
-        caller proves ownership rather than assuming it.
+        Returns True if the output's policy has the same "shape" as the inputs' policy:
+        the script type, plus m-of-n for multisig.
+
+        One outlier: Nested single sig (p2sh-p2wpkh). Its scriptPubKey is a p2sh hash of
+        its redeem script, but per BIP-174 the redeem script itself is optional.
+        When it is omitted, the output is superficially indistinguishable from plain p2sh.
+        If the inputs are p2sh-p2wpkh, then such an output would fail the policy
+        comparison test (p2sh != p2sh-p2wpkh) when it may have actually been possible to
+        verify it as our change.
+
+        So instead, when a p2sh output could be our own nested single sig change we let it
+        through and leave it to the rebuild process to verify if the output really is our
+        change.
+
+        Note: A multisig's input or output policy can also include the cosigners if
+        they're supplied in the global xpubs. But this function does not take the
+        cosigners into account; cosigner information, if provided, is evaluated later.
         """
+        # The outlier: a single sig p2sh output when the inputs are p2sh-p2wpkh.
+        if (
+            self.policy["type"] == "p2sh-p2wpkh"    # Input policy criteria
+            and out_policy["type"] == "p2sh"        # Output policy criteria
+            and "m" not in out_policy               # Exclude multisig
+            and len(out.bip32_derivations) == 1     # Nested single sig pays just one key
+            and len(verified_derivation_paths) == 1 # And that one key must be ours
+        ):
+            return True
+
+        # The usual test: the output's policy has the same shape as the inputs' policy.
         for field in ("type", "m", "n"):
-            if policy_a.get(field) != policy_b.get(field):
+            if out_policy.get(field) != self.policy.get(field):
                 return False
-
         return True
 
 
