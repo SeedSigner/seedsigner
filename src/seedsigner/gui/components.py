@@ -203,7 +203,7 @@ class SeedSignerIconConstants:
     CHEVRON_LEFT = "\ue909"
     CHEVRON_RIGHT = "\ue90a"
     CHEVRON_UP = "\ue90b"
-    # CLOSE = "\ue90c"  # Unused icons
+    CLOSE = "\ue90c"
     # PAGE_DOWN = "\ue90d"
     # PAGE_UP = "\ue90e"
     PLUS = "\ue90f"
