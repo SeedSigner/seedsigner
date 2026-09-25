@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from gettext import gettext as _
+from seedsigner.helpers.l10n import seedsigner_gettext as _
 from typing import Type
 
 from seedsigner.helpers.l10n import mark_for_translation as _mft
