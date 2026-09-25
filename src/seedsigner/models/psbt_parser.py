@@ -97,8 +97,44 @@ class PSBTOutputOwnershipContradictionError(PSBTVerificationError):
     output claims our key but commits to another key, or it commits to our key while
     claiming a different fingerprint in our place.
 
-
     We treat any of these deceptions as an attack.
+    """
+    pass
+
+
+class PSBTMissingInputScriptError(PSBTVerificationError):
+    """
+    An input is missing a required script.
+
+    Required scripts:
+      * p2wsh: witness_script
+      * p2sh: redeem_script
+      * p2sh-p2wsh (nested segwit multisig): witness_script and redeem_script
+
+    This is a correctness problem rather than an attack.
+    """
+    pass
+
+
+class PSBTInputScriptMismatchError(PSBTVerificationError):
+    """
+    An input supplied a script that doesn't match what the input actually commits to.
+
+    This sort of misleading script can lead the parser to an incorrect determination of
+    whether an output is our change.
+
+    We treat this deception as an attack.
+    """
+    pass
+
+
+class PSBTExtraneousInputScriptError(PSBTVerificationError):
+    """
+    An input commits to a specific script type but also supplies an extraneous script that
+    is not used by that script type (e.g. a redeem script is meaningless for native
+    segwit).
+
+    We don't try to decide whether this is an attack or a mistake.
     """
     pass
 
@@ -228,9 +264,13 @@ class PSBTParser():
              inputs can be signed by the seed. A mismatch rather than an attack, caught
              here so the flow can say so before showing a transaction.
 
-          4. _parse_inputs: every input must resolve to the same policy otherwise a
-             RuntimeError is raised. TODO: make this a PSBTVerificationError subclass so
-             the view can deliberately catch this scenario and route accordingly.
+          4. _parse_inputs: an input must supply every script it commits to and no others.
+             A missing script raises PSBTMissingInputScriptError, a wrong one
+             PSBTInputScriptMismatchError, and an extra one
+             PSBTExtraneousInputScriptError. Every input must then resolve to the same
+             policy otherwise a RuntimeError is raised (TODO: replace the RuntimeError
+             with a PSBTVerificationError subclass so the View can deliberately catch this
+             scenario and route accordingly).
 
              A policy is one of:
                - single-sig: the script type alone. Says nothing about keys.
@@ -318,12 +358,91 @@ class PSBTParser():
                 self.input_amount += inp.utxo.value
                 script_pubkey = inp.script_pubkey
 
+            # Verify the input's scripts and reject the psbt if verification fails
+            PSBTParser._verify_input_scripts(inp, script_pubkey)
+
+            # Now we can safely use those scripts to determine this input's wallet policy
             inp_policy = PSBTParser._get_policy(inp, script_pubkey, self.psbt.xpubs, child_key_derivation_cache)
             if self.policy == None:
                 self.policy = inp_policy
             else:
                 if self.policy != inp_policy:
                     raise RuntimeError("Mixed inputs in the transaction")
+
+
+    @staticmethod
+    def _verify_input_scripts(inp: InputScope, script_pubkey: script.Script):
+        """
+        Checks that an input supplies exactly the scripts it commits to.
+
+        A p2sh or p2wsh scriptPubKey holds only a hash of the script the input spends
+        with. Per BIP-174, the psbt must supply that script. Missing scripts raise
+        PSBTMissingInputScriptError.
+
+        We then rebuild what the input commits to and compare, as BIP-174 requires of a
+        signer:
+            p2wsh:       p2wsh(witness_script) == scriptPubKey
+            p2sh:        p2sh(redeem_script)   == scriptPubKey
+            p2sh-p2wpkh: p2sh(redeem_script)   == scriptPubKey
+
+        Multisig nested segwit has TWO layers to check:
+            p2sh-p2wsh:  p2sh(redeem_script)   == scriptPubKey
+                         p2wsh(witness_script) == redeem_script
+
+        If any comparison required above fails, we raise PSBTInputScriptMismatchError.
+
+        Each input commits to a specific script type. It should not include any extraneous
+        scripts that are not required by that script type (e.g. a witness_script on a p2sh
+        input). Such a script could distort the parser's understanding of the wallet being
+        spent from, which would affect its determination of whether an output is the
+        user's change. But it's also possible that a buggy coordinator just created an odd
+        psbt. Either way, we raise PSBTExtraneousInputScriptError for any extraneous
+        script.
+        """
+        script_type = script_pubkey.script_type()
+        expects_redeem_script = False
+        expects_witness_script = False
+
+        if script_type == "p2wsh":
+            expects_witness_script = True
+
+            if inp.witness_script is None:
+                raise PSBTMissingInputScriptError("Input commits to a witness script it did not supply")
+
+            # The scriptPubKey holds a hash of the witness script, so we rebuild the
+            # scriptPubKey from the supplied one and compare.
+            if script.p2wsh(inp.witness_script).data != script_pubkey.data:
+                raise PSBTInputScriptMismatchError("Input's witness script is not the one its scriptPubKey commits to")
+
+        elif script_type == "p2sh":
+            expects_redeem_script = True
+
+            if inp.redeem_script is None:
+                raise PSBTMissingInputScriptError("Input commits to a redeem script it did not supply")
+
+            # The scriptPubKey holds a hash of the redeem script, so we rebuild the
+            # scriptPubKey from the supplied one and compare. For legacy p2sh multisig and
+            # p2sh-p2wpkh, the redeem script is the only layer.
+            if script.p2sh(inp.redeem_script).data != script_pubkey.data:
+                raise PSBTInputScriptMismatchError("Input's redeem script is not the one its scriptPubKey commits to")
+
+            # Nested segwit: the redeem script is itself a commitment to a witness script,
+            # so p2sh-p2wsh has a second layer to check.
+            if inp.redeem_script.script_type() == "p2wsh":
+                expects_witness_script = True
+
+                if inp.witness_script is None:
+                    raise PSBTMissingInputScriptError("Nested segwit input commits to a witness script it did not supply")
+
+                if script.p2wsh(inp.witness_script).data != inp.redeem_script.data:
+                    raise PSBTInputScriptMismatchError("Nested segwit input's witness script is not the one its redeem script commits to")
+
+        # Any script beyond the ones this input commits to is extraneous
+        if inp.redeem_script is not None and not expects_redeem_script:
+            raise PSBTExtraneousInputScriptError("Input supplied a redeem script its scriptPubKey does not commit to")
+
+        if inp.witness_script is not None and not expects_witness_script:
+            raise PSBTExtraneousInputScriptError("Input supplied a witness script its scriptPubKey does not commit to")
 
 
     def _parse_outputs(self, child_key_derivation_cache: dict):
