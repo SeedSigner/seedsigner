@@ -433,6 +433,15 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedSignMessageConfirmAddressView),
 
                 ScreenshotConfig(seed_views.SeedElectrumMnemonicStartView),
+
+                ScreenshotConfig(seed_views.SeedShamirShareStartView),
+                ScreenshotConfig(seed_views.SeedShamirShareImportSelectWordCount),
+                ScreenshotConfig(seed_views.SeedShamirShareMnemonicEntryView),
+                ScreenshotConfig(seed_views.SeedShamirShareOptionsView, dict(can_finalize=False, group_threshold=1, completed_groups=0, shares_entered=2, shares_remaining=1, current_group_index=0, current_group_shares=2, current_group_threshold=3), screenshot_name="SeedShamirShareOptionsView_AddShare_SingleGroup"),
+                ScreenshotConfig(seed_views.SeedShamirShareOptionsView, dict(can_finalize=False, group_threshold=2, completed_groups=1, shares_entered=3, shares_remaining=None, current_group_index=1, current_group_shares=1, current_group_threshold=2), screenshot_name="SeedShamirShareOptionsView_AddShare_MultiGroup"),
+                ScreenshotConfig(seed_views.SeedShamirShareOptionsView, dict(can_finalize=True, group_threshold=1, completed_groups=1, shares_entered=3, shares_remaining=0, current_group_index=0, current_group_shares=3, current_group_threshold=3), screenshot_name="SeedShamirShareOptionsView_Finalize"),
+                ScreenshotConfig(seed_views.SeedShamirShareFinalizeView),
+                ScreenshotConfig(seed_views.SeedShamirShareInvalidView),
             ],
             "PSBT Views": [
                 ScreenshotConfig(psbt_views.PSBTSelectSeedView, mock_context_manager=mock_controller_psbt_seed_empty),
