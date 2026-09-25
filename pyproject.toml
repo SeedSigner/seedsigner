@@ -12,7 +12,7 @@ classifiers = [
 description = "Build an offline, airgapped Bitcoin signing device for less than $50!"
 name = "seedsigner"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"
 version = "0.8.7"
 
 [project.urls]
