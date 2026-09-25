@@ -24,6 +24,7 @@ class PiVideoStream:
 		self.frame = None
 		self.should_stop = False
 		self.is_stopped = True
+		self.last_capture_time = 0.0  # updated every frame; used by Camera watchdog
 
 	def start(self):
 		# start the thread to read frames from the video stream
@@ -39,6 +40,7 @@ class PiVideoStream:
 			# grab the frame from the stream and clear the stream in
 			# preparation for the next frame
 			self.frame = f.array
+			self.last_capture_time = time.time()
 			self.rawCapture.truncate(0)
 
 			# if the thread indicator variable is set, stop the thread
