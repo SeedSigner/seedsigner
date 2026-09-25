@@ -11,7 +11,6 @@ from datetime import datetime
 from PIL import ImageFont
 from unittest.mock import Mock, patch, MagicMock
 
-from embit import compact
 from embit.psbt import PSBT, OutputScope
 from embit.script import Script
 
@@ -82,32 +81,82 @@ BASE64_MULTISIG_PSBT = """cHNidP8BAP06AQIAAAAC5l4E3oEjI+H0im8t/K2nLmF5iJFdKEiuQs
 mnemonic_12b = ["abandon"] * 11 + ["about"]
 seed_12b = Seed(mnemonic=mnemonic_12b, wordlist_language_code=SettingsConstants.WORDLIST_LANGUAGE__ENGLISH)
 
-def add_op_return_to_psbt(psbt: PSBT, raw_payload_data: bytes):
-    data = (compact.to_bytes(OPCODES.OP_RETURN) + 
-        compact.to_bytes(OPCODES.OP_PUSHDATA1) + 
-        compact.to_bytes(len(raw_payload_data)) +
-        raw_payload_data)
-    script = Script(data)
+def add_op_return_to_psbt(psbt: PSBT, raw_payload_data: bytes, value: int = 0):
+    # Push the payload the way Bitcoin Core does: directly for 75 bytes or fewer, then
+    # OP_PUSHDATA1, 2, or 4 as the length demands. Hard-coding OP_PUSHDATA1 is why the
+    # screenshots never showed the payload being mis-parsed.
+    if not raw_payload_data:
+        # A bare OP_RETURN. Don't emit OP_0 for an empty push: that leaves a 0x00 byte in
+        # the script, which is not the same as no data.
+        push = b""
+    elif len(raw_payload_data) <= OPCODES.OP_PUSHDATA_MAX_DIRECT:
+        push = bytes([len(raw_payload_data)])
+    elif len(raw_payload_data) <= 0xff:
+        push = bytes([OPCODES.OP_PUSHDATA1, len(raw_payload_data)])
+    elif len(raw_payload_data) <= 0xffff:
+        push = bytes([OPCODES.OP_PUSHDATA2]) + len(raw_payload_data).to_bytes(2, "little")
+    else:
+        push = bytes([OPCODES.OP_PUSHDATA4]) + len(raw_payload_data).to_bytes(4, "little")
+    script = Script(bytes([OPCODES.OP_RETURN]) + push + raw_payload_data)
     output = OutputScope()
     output.script_pubkey = script
-    output.value = 0
+    output.value = value
+
+    if value > 0:
+        # Take the value from an existing output; otherwise the outputs would exceed the
+        # inputs and the fee would go negative.
+        psbt.outputs[0].value -= value
+
     psbt.outputs.append(output)
     return psbt.to_string()
 
+
+def keep_only_last_output(psbt: PSBT) -> PSBT:
+    """
+        Simplifies the output side down to its last output. The dropped outputs' value is
+        folded into the one kept, so the fee stays what the base psbt paid; dropping it
+        instead would turn several BTC into fee and trip the high fee warning on screens
+        that have nothing to do with fees.
+    """
+    output = psbt.outputs[-1]
+    output.value += sum(dropped.value for dropped in psbt.outputs[:-1])
+    psbt.outputs.clear()
+    psbt.outputs.append(output)
+    return psbt
+
+
+def op_return_filler(num_bytes: int) -> bytes:
+    """
+        Numbered filler text, so a screenshot shows at a glance which part of a long
+        payload is on screen.
+    """
+    return ("".join(f"{i:04d} " for i in range(num_bytes//5 + 1)))[:num_bytes].encode()
+
 # Prep a PSBT with a human-readable OP_RETURN
 raw_payload_data = "Chancellor on the brink of third bailout for banks".encode()
-psbt = PSBT.from_base64(BASE64_MULTISIG_PSBT)
-
-# Simplify the output side
-output = psbt.outputs[-1]
-psbt.outputs.clear()
-psbt.outputs.append(output)
-assert len(psbt.outputs) == 1
+psbt = keep_only_last_output(PSBT.from_base64(BASE64_MULTISIG_PSBT))
 BASE64_PSBT_WITH_OP_RETURN_TEXT = add_op_return_to_psbt(psbt, raw_payload_data)
 
 # Prep a PSBT with a (repeatably) random 80-byte OP_RETURN
 random.seed(6102)
 BASE64_PSBT_WITH_OP_RETURN_RAW_BYTES = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), random.randbytes(80))
+
+# A payload too long for one screen, so the paging and the "N of M" label show.
+BASE64_PSBT_WITH_OP_RETURN_LONG = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), op_return_filler(300))
+
+# Too large even for paging. Bitcoin Core v30 allows up to 100,000 bytes by default, so
+# sizes like this are now ordinary.
+BASE64_PSBT_WITH_OP_RETURN_TRUNCATED = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), op_return_filler(4096))
+
+# A bare OP_RETURN: an output that exists and pushes nothing
+BASE64_PSBT_WITH_OP_RETURN_EMPTY = add_op_return_to_psbt(PSBT.from_base64(BASE64_MULTISIG_PSBT), b"")
+
+# Three OP_RETURN outputs where only the second burns sats, so the flow diagram has to
+# mark that row and only that row.
+psbt = keep_only_last_output(PSBT.from_base64(BASE64_MULTISIG_PSBT))
+add_op_return_to_psbt(psbt, "Carries no value".encode())
+add_op_return_to_psbt(psbt, "Burns sats".encode(), value=50_000)
+BASE64_PSBT_WITH_ONE_BURNING_OP_RETURN = add_op_return_to_psbt(psbt, "Carries no value either".encode())
 
 mnemonic_12 = "forum undo fragile fade shy sign arrest garment culture tube off merit".split()
 mnemonic_24 = "attack pizza motion avocado network gather crop fresh patrol unusual wild holiday candy pony ranch winter theme error hybrid van cereal salon goddess expire".split()
@@ -335,6 +384,30 @@ def generate_screenshots(locale):
 
 
         @contextmanager
+        def mock_psbt_with_op_return_long_loaded():
+            with mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_LONG):
+                yield
+
+
+        @contextmanager
+        def mock_psbt_with_op_return_truncated_loaded():
+            with mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_TRUNCATED):
+                yield
+
+
+        @contextmanager
+        def mock_psbt_with_one_burning_op_return_loaded():
+            with mock_load_psbt(BASE64_PSBT_WITH_ONE_BURNING_OP_RETURN):
+                yield
+
+
+        @contextmanager
+        def mock_psbt_with_op_return_empty_loaded():
+            with mock_load_psbt(BASE64_PSBT_WITH_OP_RETURN_EMPTY):
+                yield
+
+
+        @contextmanager
         def mock_version_to_most_recent_release():
             # Patch the Version get_* calls to the most recent release
             with patch.multiple(Version,
@@ -450,6 +523,12 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTOverviewView, screenshot_name="PSBTOverviewView_op_return",    mock_context_manager=mock_psbt_with_op_return_loaded),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_text",         mock_context_manager=mock_psbt_with_op_return_loaded),
                 ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_raw_hex_data", mock_context_manager=mock_psbt_with_op_return_raw_bytes_loaded),
+                ScreenshotConfig(psbt_views.PSBTOpReturnView, dict(page_num=1), screenshot_name="PSBTOpReturnView_paged",     mock_context_manager=mock_psbt_with_op_return_long_loaded),
+                ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_truncated",                   mock_context_manager=mock_psbt_with_op_return_truncated_loaded),
+                ScreenshotConfig(psbt_views.PSBTOpReturnView, screenshot_name="PSBTOpReturnView_empty",                       mock_context_manager=mock_psbt_with_op_return_empty_loaded),
+                ScreenshotConfig(psbt_views.PSBTOpReturnView, dict(op_return_num=1), screenshot_name="PSBTOpReturnView_second_output_burns_sats", mock_context_manager=mock_psbt_with_one_burning_op_return_loaded),
+                ScreenshotConfig(psbt_views.PSBTMathView, screenshot_name="PSBTMathView_op_return_burns_sats",                mock_context_manager=mock_psbt_with_one_burning_op_return_loaded),
+                ScreenshotConfig(psbt_views.PSBTOverviewView, screenshot_name="PSBTOverviewView_one_op_return_burns_sats",    mock_context_manager=mock_psbt_with_one_burning_op_return_loaded),
                 ScreenshotConfig(psbt_views.PSBTSurplusDerivationPathsView),
                 ScreenshotConfig(psbt_views.PSBTMixedDerivationPathTypesView),
                 ScreenshotConfig(psbt_views.PSBTOutputOwnershipContradictionView),

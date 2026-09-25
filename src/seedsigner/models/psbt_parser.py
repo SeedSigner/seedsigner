@@ -15,7 +15,14 @@ logger = logging.getLogger(__name__)
 
 class OPCODES:
     OP_RETURN = 106
+
+    # Opcodes 0x01-0x4b are themselves the number of bytes to push, so 75 is the largest
+    # payload a direct push can carry. Bitcoin Core emits the minimal encoding, which
+    # means a direct push whenever the payload fits and OP_PUSHDATA1/2/4 only above that.
+    OP_PUSHDATA_MAX_DIRECT = 75
     OP_PUSHDATA1 = 76
+    OP_PUSHDATA2 = 77
+    OP_PUSHDATA4 = 78
 
 
 
@@ -120,7 +127,7 @@ class PSBTParser():
     Reads a psbt on behalf of one seed and works out everything the signing flow shows the
     user before they approve: the wallet policy (script type, plus m-of-n and the
     cosigners for multisig), the amount coming in, what is being spent, what comes back as
-    change, the fee, where the spend is going, and any OP_RETURN payload.
+    change, the fee, where the spend is going, and any OP_RETURN payloads.
 
     Constructing it with a seed parses immediately; see parse() for what that establishes
     in what order and which psbts it turns away.
@@ -175,7 +182,21 @@ class PSBTParser():
         self.num_inputs = 0
         self.destination_addresses = []
         self.destination_amounts = []
-        self.op_return_data: bytes = None
+
+        # One entry per OP_RETURN output, in output order. A transaction can have more
+        # than one: consensus never limited them, and Bitcoin Core v30 dropped the
+        # one-per-transaction relay rule, so multiples now show up in practice.
+        self.op_return_data: List[bytes] = []
+
+        # The value on each OP_RETURN output (same order as op_return_data, the way
+        # destination_amounts pairs with destination_addresses) and their total.
+        #
+        # Any sats sent to an OP_RETURN are burned. They are tracked on their own, not in
+        # spend_amount or change_amount, since they neither go to a recipient nor come
+        # back to this seed. Without this total the amounts on screen wouldn't add up to
+        # the inputs.
+        self.op_return_amounts: List[int] = []
+        self.op_return_amount: int = 0
 
         # Whether the fee is high relative to what is being sent; see has_high_fee().
         # Computed once at the end of parse() so the views can read it without each
@@ -216,6 +237,11 @@ class PSBTParser():
     @property
     def num_destinations(self):
         return len(self.destination_addresses)
+
+
+    @property
+    def num_op_returns(self):
+        return len(self.op_return_data)
 
 
     def _set_root(self):
@@ -398,6 +424,9 @@ class PSBTParser():
         self.fee_amount = 0
         self.destination_addresses = []
         self.destination_amounts = []
+        self.op_return_data = []
+        self.op_return_amounts = []
+        self.op_return_amount = 0
 
         # Asking the PSBT for its transaction rebuilds that entire transaction from
         # scratch on every single request. The outputs are consulted a dozen times
@@ -607,9 +636,11 @@ class PSBTParser():
                     # an omitted optional field is not a contradiction.
                     raise PSBTOutputOwnershipContradictionError(f"Output claims this seed at {bip32.path_to_str(verified_derivation_paths[0].derivation)} but its committed script contradicts that")
 
-            if vout[i].script_pubkey.data[0] == OPCODES.OP_RETURN:
-                # The data is written as: OP_RETURN + OP_PUSHDATA1 + len(payload) + payload
-                self.op_return_data = vout[i].script_pubkey.data[3:]
+            script_data = vout[i].script_pubkey.data
+            if script_data[:1] == bytes([OPCODES.OP_RETURN]):
+                self.op_return_data.append(PSBTParser._parse_op_return_payload(script_data))
+                self.op_return_amounts.append(vout[i].value)
+                self.op_return_amount += vout[i].value
 
             elif is_presumed_change:
                 # Remember that "change" in this function is ANY output coming back to our
@@ -661,6 +692,81 @@ class PSBTParser():
                 cnt += len(list(inp.partial_sigs.keys()))
 
         return cnt
+
+
+    @staticmethod
+    def _parse_op_return_payload(script_data: bytes) -> bytes:
+        """
+        Extracts the data an OP_RETURN output carries, for every way the script can push
+        it.
+
+        Script pushes data with a variable-width opcode: opcodes 0x01 through 0x4b are
+        themselves the byte count, while OP_PUSHDATA1, 2, and 4 are followed by a 1, 2,
+        or 4 byte little-endian length. Bitcoin Core emits the minimal encoding, so a
+        payload of 75 bytes or fewer arrives as a direct push. Reading the payload at a
+        fixed offset instead of reading the opcode drops the first byte of every such
+        payload, and a mangled payload is worse than a missing one: rendered as hex, a
+        one byte shift looks like perfectly ordinary data.
+
+        A script may hold more than one push after OP_RETURN. That is unusual but legal,
+        and the pushes are concatenated here rather than returned separately. What the
+        user is being asked to approve is the data this transaction commits to; where the
+        encoder chose to break it into pushes carries no consensus meaning and there is no
+        convention for showing those boundaries on screen.
+
+        Anything that is not a data push, and any push that claims more bytes than the
+        script actually carries, ends the walk and the remaining bytes are appended
+        verbatim. Returning nothing there would hide committed data from the review
+        screen, which is the one outcome this parser must never produce. The caller gets
+        raw bytes and decides how to render them.
+        """
+        # Accumulated in a list rather than concatenated in the loop: a 100,000 byte
+        # OP_RETURN split into one-byte pushes would otherwise copy the whole payload
+        # again on every iteration, which a Pi Zero would feel.
+        pushes = []
+
+        # Start after OP_RETURN. The caller has already matched it by slice, so an empty
+        # script_pubkey never reaches here, but the loop bound handles it anyway.
+        i = 1
+        while i < len(script_data):
+            opcode = script_data[i]
+
+            if 1 <= opcode <= OPCODES.OP_PUSHDATA_MAX_DIRECT:
+                # The opcode is itself the length; no separate length field follows
+                length_size = 0
+            elif opcode == OPCODES.OP_PUSHDATA1:
+                length_size = 1
+            elif opcode == OPCODES.OP_PUSHDATA2:
+                length_size = 2
+            elif opcode == OPCODES.OP_PUSHDATA4:
+                length_size = 4
+            else:
+                # Not a data push (OP_0, a numeric opcode, anything else). Surface the
+                # rest as-is rather than silently dropping it.
+                pushes.append(script_data[i:])
+                break
+
+            if length_size == 0:
+                length = opcode
+            else:
+                length_end = i + 1 + length_size
+                if length_end > len(script_data):
+                    # The length field itself is truncated
+                    pushes.append(script_data[i:])
+                    break
+                length = int.from_bytes(script_data[i + 1:length_end], "little")
+
+            data_start = i + 1 + length_size
+            data_end = data_start + length
+            if data_end > len(script_data):
+                # The push claims more data than the script carries
+                pushes.append(script_data[data_start:])
+                break
+
+            pushes.append(script_data[data_start:data_end])
+            i = data_end
+
+        return b"".join(pushes)
 
 
     @staticmethod

@@ -1,13 +1,16 @@
 from binascii import a2b_base64
+from itertools import product
+from unittest.mock import patch
 
 from embit import bip32, script
 from embit.psbt import PSBT, DerivationPath
 
-from base import FlowTest, FlowStep
-from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_output,
-    foreign_public_key, root_for_seed)
+from base import BaseTest, FlowTest, FlowStep
+from psbt_testing_util import (PSBTTestData, claim_seed_owns_key, create_op_return_output,
+    create_op_return_psbt, create_output, foreign_public_key, root_for_seed)
 
 from seedsigner.controller import Controller
+from seedsigner.models.psbt_parser import OPCODES, PSBTParser
 from seedsigner.views.view import MainMenuView
 from seedsigner.views import scan_views, seed_views, psbt_views
 from seedsigner.models.seed import Seed
@@ -341,3 +344,239 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         # The psbt itself is kept: the user is choosing a different seed for it, not
         # starting over
         assert self.controller.psbt is not None
+
+
+class TestPSBTOpReturnPaging(BaseTest):
+    """
+    Which part of a payload reaches each screen. Tested directly rather than through a
+    FlowTest, which can only count screens, not see what is on them.
+    """
+    V = psbt_views.PSBTOpReturnView
+
+    def test_a_page_holds_what_it_has_room_for(self):
+        for length in (0, 1, self.V.MAX_UNITS_PER_PAGE):
+            assert self.V.paginate(b"a" * length) == ([("a" * length)], False, False)
+
+        # One character more needs a second page
+        assert len(self.V.paginate(b"a" * (self.V.MAX_UNITS_PER_PAGE + 1))[0]) == 2
+
+        # And a screen that also has to warn about burned value has one line less
+        assert len(self.V.paginate(b"a" * self.V.MAX_UNITS_PER_PAGE, has_warning=True)[0]) == 2
+        assert len(self.V.paginate(b"a" * (self.V.MAX_UNITS_PER_PAGE - self.V.UNITS_PER_LINE), has_warning=True)[0]) == 1
+
+        # Hex draws two characters per byte, so it is paged against its own figure
+        payload = bytes(range(0x80, 0x80 + self.V.MAX_UNITS_PER_PAGE)) * 2
+        pages, is_hex, _ = self.V.paginate(payload)
+        assert is_hex and len(pages) == 2 and "".join(pages) == payload.hex()
+
+
+    def test_truncation_begins_one_page_past_the_limit(self):
+        """
+            Up to the limit the user sees every byte; one byte past it they are told
+            some were left out.
+        """
+        exactly_full = b"a" * (self.V.MAX_UNITS_PER_PAGE * self.V.MAX_PAGES)
+
+        pages, _, is_truncated = self.V.paginate(exactly_full)
+        assert not is_truncated and "".join(pages) == exactly_full.decode()
+
+        assert self.V.paginate(exactly_full + b"a")[2] is True
+
+        # However enormous the payload, the page count is what bounds the work done. The
+        # last page is a line short, to make room for the "not shown" label.
+        pages, _, is_truncated = self.V.paginate(b"a" * 100_000)
+        assert len(pages) == self.V.MAX_PAGES and is_truncated
+        assert len(pages[-1]) == self.V.MAX_UNITS_PER_PAGE - self.V.UNITS_PER_LINE
+
+
+    def test_text_or_hex_is_decided_once_for_the_whole_payload(self):
+        """
+            Deciding per page could cut a multi-byte character in half. And a decode
+            check alone would let control characters through to the text path, where
+            they draw as empty boxes.
+        """
+        # Valid UTF-8, but nothing anyone can read
+        assert self.V.paginate(bytes(range(0x01, 0x20)))[1] is True
+
+        # A message split over lines is still text
+        assert self.V.paginate(b"Chancellor on the brink\nof third bailout")[1] is False
+
+        # Four bytes per character, so a byte-wise split would land inside one
+        payload = ("\U0001F4B8" * self.V.MAX_UNITS_PER_PAGE * 2).encode()
+        pages, is_hex, _ = self.V.paginate(payload)
+        assert not is_hex and "".join(pages) == payload.decode()
+
+        # A bare OP_RETURN has nothing to render either way, and is not hex
+        assert self.V.paginate(b"") == ([""], False, False)
+
+
+    def test_each_screen_receives_its_own_output_and_page(self):
+        """
+            The flow tests only count screens, so they would pass even if every screen
+            showed the first payload. This checks what each screen is actually given.
+        """
+        # The first output burns, so its screens carry a warning line and are paged tighter
+        per_page = self.V.MAX_UNITS_PER_PAGE - self.V.UNITS_PER_LINE
+        first, second = b"a" * per_page + b"bbbb", b"second payload"
+
+        self.controller.psbt_parser = PSBTParser(
+            p=create_op_return_psbt([
+                create_op_return_output(first, value=7_000),
+                create_op_return_output(second),
+            ]),
+            seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+        expected = [
+            (0, 0, "a" * per_page, len(first), 7_000),
+            (0, 1, "bbbb", len(first), 7_000),
+            (1, 0, "second payload", len(second), 0),
+        ]
+
+        for op_return_num, page_num, page_text, total_bytes, amount in expected:
+            with patch.object(psbt_views.View, "run_screen") as mock_run_screen:
+                mock_run_screen.return_value = 0
+                self.V(op_return_num=op_return_num, page_num=page_num).run()
+
+            kwargs = mock_run_screen.call_args.kwargs
+            assert (kwargs["page_text"], kwargs["total_bytes"], kwargs["amount"],
+                kwargs["page_num"]) == (page_text, total_bytes, amount, page_num)
+
+
+    def test_bytes_not_shown_counts_bytes_not_characters(self):
+        """
+            A page of text holds a fixed number of characters, but the label counts
+            bytes. With multi-byte characters those differ, and the label must not
+            under-report what was left out.
+        """
+        # Four bytes per character; one page more than the limit, so it is truncated
+        payload = ("\U0001F4B8" * self.V.MAX_UNITS_PER_PAGE * (self.V.MAX_PAGES + 1)).encode()
+        self.controller.psbt_parser = PSBTParser(
+            p=create_op_return_psbt([create_op_return_output(payload)]),
+            seed=PSBTTestData.seed, network=SettingsConstants.REGTEST)
+
+        with patch.object(psbt_views.View, "run_screen") as mock_run_screen:
+            mock_run_screen.return_value = 0
+            self.V().run()
+
+        kwargs = mock_run_screen.call_args.kwargs
+        assert kwargs["is_truncated"]
+        chars_shown = self.V.MAX_UNITS_PER_PAGE * self.V.MAX_PAGES - self.V.UNITS_PER_LINE
+        assert kwargs["bytes_shown"] == chars_shown * 4
+
+
+
+class TestPSBTOverviewOpReturnRows(BaseTest):
+    """
+    Which rows the flow diagram draws for the OP_RETURN outputs, and which get the burn
+    mark. Tries every combination of burning and non-burning outputs, since a mark on
+    the wrong row is worse than none.
+    """
+    MARK = " (!)"
+
+    def _rows(self, amounts: list) -> list:
+        from seedsigner.gui.screens.psbt_screens import PSBTOverviewScreen
+        return PSBTOverviewScreen.op_return_rows(amounts)
+
+
+    def test_a_row_each_up_to_three_then_elided(self):
+        assert self._rows(None) == []
+
+        for count in range(0, 4):
+            assert len(self._rows([0] * count)) == count
+
+        # Past three, always exactly three rows however many outputs there are
+        for count in range(4, 12):
+            rows = self._rows([0] * count)
+            assert len(rows) == 3
+            assert "1" in rows[0] and str(count) in rows[2]
+
+
+    def test_only_the_outputs_that_burn_are_marked(self):
+        """
+            Every arrangement of burning and non-burning outputs, up to six of them.
+
+            Once the rows are collapsed only the first and last outputs have their own
+            row, so a burn on any of the middle ones has to show on the ellipsis, or the
+            diagram would show no burn at all.
+        """
+        for count in range(1, 7):
+            for burns in product([False, True], repeat=count):
+                rows = self._rows([10_000 if b else 0 for b in burns])
+                marked = [row.endswith(self.MARK) for row in rows]
+
+                if count <= 3:
+                    assert marked == list(burns), f"{burns} -> {rows}"
+                else:
+                    assert marked == [burns[0], any(burns[1:-1]), burns[-1]], f"{burns} -> {rows}"
+
+                # However the burns fall, a transaction that burns shows at least one mark
+                assert any(marked) == any(burns)
+
+
+
+class TestPSBTOpReturnFlows(FlowTest):
+    """
+    A transaction may have more than one OP_RETURN, and a payload may need more than one
+    screen. These check the routing that walks the user through all of it.
+    """
+
+    def _load_psbt_for_signing(self, psbt: PSBT):
+        """
+        Stage the psbt in the Controller and load the signing seed into storage, as if
+        both had just been scanned, so the sequence can start at seed selection.
+        """
+        self.settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.REGTEST)
+        self.controller.psbt = psbt
+        self.controller.storage.set_pending_seed(PSBTTestData.seed)
+        self.controller.storage.finalize_pending_seed()
+
+
+    def test_paging_walks_every_page_of_every_output(self):
+        """
+            Every page of the first output, then every page of the second.
+        """
+        per_page = psbt_views.PSBTOpReturnView.MAX_UNITS_PER_PAGE
+
+        self._load_psbt_for_signing(create_op_return_psbt([
+            create_op_return_output(b"a" * (per_page + 1)),   # two pages
+            create_op_return_output(b"b" * (per_page + 1)),   # two pages
+        ]))
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+
+            # Both pages of the first output, then both pages of the second
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_a_bare_op_return_still_gets_a_screen(self):
+        """
+            An empty OP_RETURN is still an output, and may still carry sats, so the flow
+            must not skip it.
+        """
+        self._load_psbt_for_signing(create_op_return_psbt([
+            create_op_return_output(b"", script_pubkey=script.Script(bytes([OPCODES.OP_RETURN])))
+        ]))
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView),
+            FlowStep(psbt_views.PSBTMathView),
+            FlowStep(psbt_views.PSBTChangeDetailsView, button_data_selection=psbt_views.PSBTChangeDetailsView.NEXT),
+            FlowStep(psbt_views.PSBTOpReturnView, button_data_selection=0),
+            FlowStep(psbt_views.PSBTFinalizeView, button_data_selection=psbt_views.PSBTFinalizeView.APPROVE_PSBT),
+            FlowStep(psbt_views.PSBTSignedQRDisplayView),
+            FlowStep(MainMenuView),
+        ])
+
