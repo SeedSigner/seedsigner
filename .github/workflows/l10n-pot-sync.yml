@@ -1,0 +1,205 @@
+# Keeps messages.pot in sync after a merge to the default branch.
+#
+# When source strings actually change, it opens or updates a single rolling PR
+# from the bot fork into this repo, and mirrors the canonical messages.pot into
+# the translations bot fork so Transifex picks up the new source.
+#
+# Branch writes happen only inside bot forks, using short-lived GitHub App
+# tokens; this repo's own GITHUB_TOKEN stays read-only. The job no-ops while
+# vars.L10N_BOT_FORK is unset, so it is safe to merge before a bot fork exists.
+name: l10n source-string sync
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "src/**"
+      - "setup.cfg"
+      - "l10n/messages.pot"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: l10n-pot-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    # Activates only once a bot fork is configured. Until then this is a no-op.
+    if: ${{ vars.L10N_BOT_FORK != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resolve bot topology
+        id: prep
+        env:
+          BOT_FORK: ${{ vars.L10N_BOT_FORK }}
+          TR_FORK: ${{ vars.L10N_TRANSLATIONS_BOT_FORK }}
+        run: |
+          set -euo pipefail
+          bot_owner="${BOT_FORK%%/*}"
+          repos="${BOT_FORK##*/}"
+          if [ -n "${TR_FORK:-}" ]; then
+            repos="$repos,${TR_FORK##*/}"
+          fi
+          echo "bot_owner=$bot_owner" >> "$GITHUB_OUTPUT"
+          echo "bot_repos=$repos" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python -m pip install --quiet -r l10n/requirements-l10n.txt
+
+      - name: Regenerate and detect source-string change
+        id: detect
+        run: |
+          set -euo pipefail
+          python setup.py extract_messages -o regen.pot
+          changed="$(python l10n/automation/pot_sync_helper.py \
+            --committed l10n/messages.pot --regenerated regen.pot)"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+      # Privileged tokens are minted only when there is an actual source-string
+      # change to publish, so no-op merges never create write-capable tokens.
+      # The PR-side token is scoped to pull-requests:write on this repo and is
+      # never granted contents:write, so the main repo cannot mutate branches.
+      - name: Mint app token (main repo, pull-requests write)
+        id: app_main
+        if: steps.detect.outputs.changed == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.L10N_PR_CLIENT_ID }}
+          private-key: ${{ secrets.L10N_PR_PRIVATE_KEY }}
+          permission-pull-requests: write
+
+      # Token for the bot account, scoped to contents:write on the bot forks only.
+      - name: Mint app token (bot forks, contents write)
+        id: app_bot
+        if: steps.detect.outputs.changed == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.L10N_FORK_CLIENT_ID }}
+          private-key: ${{ secrets.L10N_FORK_PRIVATE_KEY }}
+          owner: ${{ steps.prep.outputs.bot_owner }}
+          repositories: ${{ steps.prep.outputs.bot_repos }}
+          permission-contents: write
+
+      - name: Push rolling branch to bot fork
+        if: steps.detect.outputs.changed == 'true'
+        env:
+          GIT_TOKEN: ${{ steps.app_bot.outputs.token }}
+          BOT_FORK: ${{ vars.L10N_BOT_FORK }}
+          APP_SLUG: ${{ steps.app_bot.outputs.app-slug }}
+          BRANCH: automation/messages-pot
+        run: |
+          set -euo pipefail
+          cp regen.pot l10n/messages.pot
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${APP_SLUG}[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add l10n/messages.pot
+          git commit -m "l10n: sync messages.pot (source strings)"
+          # Force-push keeps the rolling branch rebased on the latest default branch.
+          git push --force \
+            "https://x-access-token:${GIT_TOKEN}@github.com/${BOT_FORK}.git" \
+            "HEAD:refs/heads/${BRANCH}"
+
+      - name: Open or update rolling PR
+        if: steps.detect.outputs.changed == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          BOT_OWNER: ${{ steps.prep.outputs.bot_owner }}
+          BOT_FORK: ${{ vars.L10N_BOT_FORK }}
+          BRANCH: automation/messages-pot
+        with:
+          github-token: ${{ steps.app_main.outputs.token }}
+          script: |
+            const head = `${process.env.BOT_OWNER}:${process.env.BRANCH}`;
+            const headRepo = process.env.BOT_FORK.split('/')[1];
+            const base = context.ref.replace('refs/heads/', '');
+            const title = 'l10n: sync messages.pot (source strings)';
+            const body = [
+              'Automated regeneration of `l10n/messages.pot` from the source on ' +
+                '`' + base + '`. This rolling PR updates in place as new source ' +
+                'strings land.',
+              '',
+              'Merging keeps the canonical translation source in step with the code.',
+            ].join('\n');
+
+            const { data: open } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head,
+              base,
+            });
+
+            if (open.length > 0) {
+              core.info(`Rolling PR already open: #${open[0].number} (branch updated).`);
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head,
+              head_repo: headRepo,
+              base,
+              title,
+              body,
+              // This token has pull-requests:write on this repo only; it has no
+              // write access to the bot fork that owns the head branch. Requesting
+              // maintainer edit rights (the API default) would make a cross-fork
+              // create fail with 403, so opt out of it explicitly.
+              maintainer_can_modify: false,
+            });
+            core.info(`Opened rolling PR #${pr.number}.`);
+
+      - name: Mirror canonical messages.pot to translations bot fork
+        if: steps.detect.outputs.changed == 'true' && vars.L10N_TRANSLATIONS_BOT_FORK != ''
+        env:
+          GIT_TOKEN: ${{ steps.app_bot.outputs.token }}
+          TR_FORK: ${{ vars.L10N_TRANSLATIONS_BOT_FORK }}
+          TR_BRANCH: ${{ vars.L10N_TRANSLATIONS_BRANCH || 'dev' }}
+          TR_POT_PATH: ${{ vars.L10N_TRANSLATIONS_POT_PATH || 'l10n/messages.pot' }}
+          APP_SLUG: ${{ steps.app_bot.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          git clone --quiet --depth 1 --branch "$TR_BRANCH" \
+            "https://x-access-token:${GIT_TOKEN}@github.com/${TR_FORK}.git" "$tmp"
+          mkdir -p "$(dirname "$tmp/$TR_POT_PATH")"
+          cp regen.pot "$tmp/$TR_POT_PATH"
+          cd "$tmp"
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${APP_SLUG}[bot]@users.noreply.github.com"
+          git add "$TR_POT_PATH"
+          if git diff --cached --quiet; then
+            echo "Translations source already up to date; nothing to mirror."
+          else
+            git commit -m "l10n: sync messages.pot source from main repo"
+            git push origin "HEAD:refs/heads/${TR_BRANCH}"
+          fi
+
+      - name: Summary
+        if: always()
+        env:
+          CHANGED: ${{ steps.detect.outputs.changed }}
+        run: |
+          if [ "${CHANGED:-}" = "true" ]; then
+            echo "Source strings changed; rolling PR and translations mirror updated." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No source-string change detected; nothing to sync." >> "$GITHUB_STEP_SUMMARY"
+          fi
