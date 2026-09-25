@@ -114,6 +114,21 @@ class PSBTSeedCannotSignError(PSBTVerificationError):
     pass
 
 
+class PSBTNegativeFeeError(PSBTVerificationError):
+    """
+    The outputs spend more than the inputs bring in, so the fee is negative.
+
+    Treated as malformed data rather than an attack. No honest coordinator builds one,
+    and a coordinator lying about its input amounts wants the fee it shows us to look
+    small, not impossible. Note that the amounts on both sides of that subtraction are
+    the coordinator's claims, so a negative result only establishes that the arithmetic
+    cannot be trusted, not which side of it is false. Either way nothing is signed here.
+    It is raised because the alternative is walking the user through a review that quotes
+    a negative fee.
+    """
+    pass
+
+
 
 class PSBTParser():
     """
@@ -259,7 +274,8 @@ class PSBTParser():
              - multisig: Match each of the seed's verified keys against the pubkeys in
                the script the output commits to.
              Every change_data entry after this point will carry a derivation path that
-             our seed provably owns.
+             our seed provably owns. Raises PSBTNegativeFeeError if the outputs spend more
+             than the inputs bring in.
 
         Optimization via child_key_derivation_cache:
         Parsing traverses a derivation path down to an individual address one level at a
@@ -631,7 +647,14 @@ class PSBTParser():
                 self.destination_amounts.append(vout[i].value)
                 self.spend_amount += vout[i].value
 
+        # embit computes the fee as inputs minus outputs and does not look at the sign of
+        # the result. A negative fee means the outputs claim more than the inputs fund,
+        # which no valid transaction can do. Zero is left alone: it is a pointless
+        # transaction, but not a malformed one.
         self.fee_amount = self.psbt.fee()
+        if self.fee_amount < 0:
+            raise PSBTNegativeFeeError()
+
         return True
 
 
