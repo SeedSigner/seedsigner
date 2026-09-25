@@ -6,7 +6,9 @@ from embit.ec import PublicKey
 from embit.hashes import tagged_hash
 from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath, InputScope, OutputScope
+from embit.script import Script
 
+from seedsigner.models.psbt_parser import OPCODES
 from seedsigner.models.seed import Seed
 
 
@@ -254,3 +256,70 @@ def claim_seed_owns_key(scope: InputScope | OutputScope, claimed_derivation_path
         scope.taproot_bip32_derivations[public_key] = (leaf_hashes or [], derivation_path)
     else:
         scope.bip32_derivations[public_key] = derivation_path
+
+
+def op_return_script(payload: bytes, push_opcode: int = None) -> Script:
+    """
+    Build an OP_RETURN scriptPubKey carrying `payload`.
+
+    Defaults to the minimal push encoding, which is what Bitcoin Core emits: a direct
+    push for 75 bytes or fewer, OP_PUSHDATA1 up to 255, OP_PUSHDATA2 up to 65535, and
+    OP_PUSHDATA4 above that.
+
+    `push_opcode` forces a specific OP_PUSHDATA* instead, so a test can build the
+    non-minimal encodings that a coordinator is still free to produce.
+    """
+    if push_opcode is None:
+        if len(payload) <= OPCODES.OP_PUSHDATA_MAX_DIRECT:
+            push = bytes([len(payload)])
+        elif len(payload) <= 0xff:
+            push = bytes([OPCODES.OP_PUSHDATA1, len(payload)])
+        elif len(payload) <= 0xffff:
+            push = bytes([OPCODES.OP_PUSHDATA2]) + len(payload).to_bytes(2, "little")
+        else:
+            push = bytes([OPCODES.OP_PUSHDATA4]) + len(payload).to_bytes(4, "little")
+    else:
+        length_size = {OPCODES.OP_PUSHDATA1: 1, OPCODES.OP_PUSHDATA2: 2, OPCODES.OP_PUSHDATA4: 4}[push_opcode]
+        push = bytes([push_opcode]) + len(payload).to_bytes(length_size, "little")
+
+    return Script(bytes([OPCODES.OP_RETURN]) + push + payload)
+
+
+def create_op_return_output(payload: bytes, value: int = 0, script_pubkey: Script = None) -> OutputScope:
+    """
+    Create an OP_RETURN OutputScope that can be appended to a PSBT's `outputs`.
+
+    Pass `script_pubkey` to supply a hand-built script (a bare OP_RETURN, several pushes,
+    a deliberately malformed one); otherwise `payload` is wrapped in a minimal push.
+
+    Note that the scriptPubKey and value have to be set on the OutputScope. `PSBT.tx`
+    rebuilds the whole transaction from the scopes on every access and `OutputScope.vout`
+    rebuilds its TransactionOutput, so assigning through `psbt.tx.vout[i]` is silently
+    discarded and would leave a test asserting against the fixture it meant to replace.
+    """
+    output = OutputScope()
+    output.script_pubkey = script_pubkey if script_pubkey is not None else op_return_script(payload)
+    output.value = value
+    return output
+
+
+def create_op_return_psbt(op_return_outputs: list, change_amount: int = None, fee_amount: int = 5_000) -> PSBT:
+    """
+    A single-sig native segwit psbt with one change output and the given OP_RETURN
+    OutputScopes (see `create_op_return_output`) appended after it, in order.
+
+    `change_amount` defaults to whatever is left of the input after the OP_RETURN values
+    and the fee, so the psbt balances.
+    """
+    psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_1_INPUT))
+    input_amount = sum([inp.utxo.value for inp in psbt.inputs])
+    op_return_amount = sum([output.value for output in op_return_outputs])
+
+    if change_amount is None:
+        change_amount = input_amount - op_return_amount - fee_amount
+
+    psbt.outputs.clear()
+    psbt.outputs.append(create_output(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_CHANGE, change_amount))
+    for output in op_return_outputs:
+        psbt.outputs.append(output)
+    return psbt
