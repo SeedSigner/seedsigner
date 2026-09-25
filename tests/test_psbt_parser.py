@@ -11,10 +11,11 @@ from embit.networks import NETWORKS
 from embit.psbt import PSBT, DerivationPath, OutputScope
 from embit.descriptor import Descriptor
 
-from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
-    PSBTMixedDerivationPathTypesError, PSBTOutputOwnershipClaimError,
-    PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
-    PSBTSurplusDerivationPathsError)
+from seedsigner.models.psbt_parser import (PSBTExtraneousInputScriptError,
+    PSBTInputOwnershipClaimError, PSBTInputScriptMismatchError,
+    PSBTMissingInputScriptError, PSBTMixedDerivationPathTypesError,
+    PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
+    PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
@@ -2062,6 +2063,49 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
                 self._parse(psbt)
 
 
+    def test__parse__counts_nested_single_sig_change_without_its_redeem_script_as_change(self):
+        """
+        A legitimate nested single sig (p2sh-p2wpkh) change output can omit its redeem
+        script (BIP-174 makes it optional) while still claiming (via bip32_derivations)
+        that a key owned by our seed will receive the change.
+
+        But the parser's proof of ownership check does not care about the missing redeem
+        script: the parser rebuilds p2sh(p2wpkh(K)) from the seed's own key at the claimed
+        path regardless. So the output should still be verifiable as change.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_CHANGE)
+
+        # The output claims a single key and our seed really does derive it there.
+        assert len(psbt.outputs[0].bip32_derivations) == 1
+        public_key, derivation_path = list(psbt.outputs[0].bip32_derivations.items())[0]
+        assert PSBTParser.seed_owns_pubkey(self._root(), derivation_path.derivation, public_key, child_key_derivation_cache=None) is True
+
+        psbt.outputs[0].redeem_script = None
+
+        psbt_parser = self._parse(psbt)
+        assert psbt_parser.change_amount == 10_000
+        assert psbt_parser.spend_amount == 0
+
+
+    def test__parse__rejects_a_bare_p2sh_output_that_claims_this_seed_but_pays_someone_else(self):
+        """
+        Variation on the prior test: the redeem script is still omitted but this time the
+        psbt repoints its output at a stranger's p2sh-p2wpkh. Crucially, the output keeps
+        its claim on this seed, making this an attempt at deception (if there was no claim
+        on the output, it would simply be a typical external spend output).
+
+        When the parser rebuilds p2sh(p2wpkh(K)), the resulting scriptPubKey will not
+        match what the output commits to. The psbt should be refused with
+        PSBTOutputOwnershipContradictionError.
+        """
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_CHANGE)
+        psbt.outputs[0].redeem_script = None
+        psbt.outputs[0].script_pubkey = script.p2sh(script.p2wpkh(foreign_public_key()))
+
+        with pytest.raises(PSBTOutputOwnershipContradictionError):
+            self._parse(psbt)
+
+
     def test_get_cosigners_returns_a_sorted_list(self):
         """
         Two multisig scripts can list the same wallet's keys in different orders, so the
@@ -2324,4 +2368,198 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
         assert psbt.outputs[0].script_pubkey.script_type() is None
 
         with pytest.raises(RuntimeError, match="Unsupported policy type"):
+            self._parse(psbt)
+
+
+class TestPSBTParserInputScripts(PSBTParserOwnershipTestBase):
+    """
+    Tests that an input supplies exactly the scripts it commits to.
+
+    A p2sh or p2wsh input's scriptPubKey holds only a hash of the script it spends with,
+    so the psbt has to supply that script for anything to be checked. These tests cover
+    the parser requiring that script, requiring it to be the right one, and refusing an
+    extraneous one.
+    """
+    def _foreign_multisig_script(self) -> script.Script:
+        """A 2-of-3 built entirely from someone else's keys."""
+        return script.multisig(2, [foreign_public_key(f"m/48h/1h/0h/2h/0/{i}") for i in range(3)])
+
+
+    def _add_foreign_nested_segwit_input(self, psbt: PSBT, derivation_path: str = "m/49h/1h/0h/0/0"):
+        """
+        Adds another party's p2sh-p2wpkh input with no derivation paths, as in a payjoin:
+        their utxo, their key, and a redeem script built from their key.
+
+        The supplied psbt's first input should be a witness_utxo input.
+        """
+        # Start from a copy of our own input for its utxo fields
+        foreign_input = deepcopy(psbt.inputs[0])
+
+        # Strip the derivation paths so the input claims none of the user's keys
+        foreign_input.bip32_derivations.clear()
+
+        # Give it the other party's key: a redeem script built from that key and a
+        # scriptPubKey that commits to that redeem script.
+        public_key = foreign_public_key(derivation_path)
+        foreign_input.redeem_script = script.p2wpkh(public_key)
+        foreign_input.witness_utxo.script_pubkey = script.p2sh(foreign_input.redeem_script)
+
+        psbt.inputs.append(foreign_input)
+        return foreign_input
+
+
+    def test__parse__refuses_an_input_that_omits_the_script_it_commits_to(self):
+        """
+        The psbt leaves out a script that an input commits to:
+          * p2wsh: witness_script
+          * legacy p2sh multisig: redeem_script
+          * p2sh-p2wpkh: redeem_script
+          * p2sh-p2wsh: witness_script or redeem_script
+
+        Each case should raise PSBTMissingInputScriptError.
+        """
+        # Each case first confirms that the fixture really does carry the script it is
+        # about to omit.
+
+        # p2wsh: omit the witness script
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        assert psbt.inputs[0].witness_script is not None
+        psbt.inputs[0].witness_script = None
+        with pytest.raises(PSBTMissingInputScriptError):
+            self._parse(psbt)
+
+        # legacy p2sh multisig: omit the redeem script
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE)
+        assert psbt.inputs[0].redeem_script is not None
+        psbt.inputs[0].redeem_script = None
+        with pytest.raises(PSBTMissingInputScriptError):
+            self._parse(psbt)
+
+        # p2sh-p2wpkh: omit the redeem script
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_CHANGE)
+        assert psbt.inputs[0].redeem_script is not None
+        psbt.inputs[0].redeem_script = None
+        with pytest.raises(PSBTMissingInputScriptError):
+            self._parse(psbt)
+
+        # p2sh-p2wsh: omit the witness script
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE)
+        assert psbt.inputs[0].witness_script is not None
+        psbt.inputs[0].witness_script = None
+        with pytest.raises(PSBTMissingInputScriptError):
+            self._parse(psbt)
+
+        # p2sh-p2wsh: omit the redeem script
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE)
+        assert psbt.inputs[0].redeem_script is not None
+        psbt.inputs[0].redeem_script = None
+        with pytest.raises(PSBTMissingInputScriptError):
+            self._parse(psbt)
+
+
+    def test__parse__refuses_an_input_that_supplies_the_wrong_script(self):
+        """
+        The psbt replaces one of an input's own scripts with a stranger's. A script that
+        hashes to the wrong value should raise PSBTInputScriptMismatchError, at each layer
+        of each script type that has one.
+        """
+        foreign_script = self._foreign_multisig_script()
+
+        # p2wsh: the witness script is the only layer
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE)
+        psbt.inputs[0].witness_script = foreign_script
+        with pytest.raises(PSBTInputScriptMismatchError):
+            self._parse(psbt)
+
+        # legacy p2sh multisig: the redeem script is the only layer
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE)
+        psbt.inputs[0].redeem_script = foreign_script
+        with pytest.raises(PSBTInputScriptMismatchError):
+            self._parse(psbt)
+
+        # p2sh-p2wpkh: a redeem script built from someone else's key
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_CHANGE)
+        psbt.inputs[0].redeem_script = script.p2wpkh(foreign_public_key())
+        with pytest.raises(PSBTInputScriptMismatchError):
+            self._parse(psbt)
+
+        # p2sh-p2wsh, inner layer: the genuine redeem script, but a witness script other
+        # than the one it commits to
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE)
+        psbt.inputs[0].witness_script = foreign_script
+        with pytest.raises(PSBTInputScriptMismatchError):
+            self._parse(psbt)
+
+        # p2sh-p2wsh, outer layer: a redeem script other than the one the scriptPubKey
+        # commits to
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.MULTISIG_NESTED_SEGWIT_CHANGE)
+        psbt.inputs[0].redeem_script = script.p2wsh(foreign_script)
+        with pytest.raises(PSBTInputScriptMismatchError):
+            self._parse(psbt)
+
+
+    def test__parse__refuses_an_input_that_supplies_an_extra_script(self):
+        """
+        The psbt adds an extraneous script that is nonsensical to include for the input's
+        script type:
+          * legacy p2sh multisig: should never have a witness_script
+          * p2wpkh: should never have a redeem_script
+          * p2sh-p2wpkh: should never have a witness_script
+
+        The input's required script(s) must pass validation in order to reach the
+        extraneous script check, so those required scripts are preserved in their correct
+        form here.
+
+        By rule, an extraneous script should raise PSBTExtraneousInputScriptError.
+        """
+        # The extraneous script's content is irrelevant, so an arbitrary script will do
+        arbitrary_script = script.Script(b"\x51")  # OP_TRUE
+
+        # legacy p2sh multisig: add a witness script
+        psbt = self._psbt_with_change(PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT, PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE)
+        psbt.inputs[0].witness_script = arbitrary_script
+        with pytest.raises(PSBTExtraneousInputScriptError):
+            self._parse(psbt)
+
+        # p2wpkh: add a redeem script
+        psbt = self._psbt_with_change()
+        psbt.inputs[0].redeem_script = arbitrary_script
+        with pytest.raises(PSBTExtraneousInputScriptError):
+            self._parse(psbt)
+
+        # p2sh-p2wpkh: add a witness script
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_CHANGE)
+        psbt.inputs[0].witness_script = arbitrary_script
+        with pytest.raises(PSBTExtraneousInputScriptError):
+            self._parse(psbt)
+
+
+    def test__parse__checks_input_scripts_whoever_the_input_belongs_to(self):
+        """
+        A collaborative spend, such as a payjoin, puts another party's input alongside the
+        user's. That input's scripts should be checked just as the user's are. Whose
+        input it is rests on the psbt's own claims, so no input is exempt from the script
+        checks.
+
+        The psbt will be rejected if a script is missing (PSBTMissingInputScriptError) or
+        wrong (PSBTInputScriptMismatchError).
+        """
+        psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_CHANGE)
+        foreign_input = self._add_foreign_nested_segwit_input(psbt)
+
+        # The other party's input carries its correct redeem script and none of the
+        # user's keys.
+        psbt_parser = self._parse(psbt)
+        assert psbt_parser.num_inputs == 2
+        assert psbt_parser.verified_input_derivation_paths[1] == []
+
+        # Omit its redeem script
+        foreign_input.redeem_script = None
+        with pytest.raises(PSBTMissingInputScriptError):
+            self._parse(psbt)
+
+        # With a redeem script built from the other party's key at the next address
+        # (index 1), rather than the index 0 key that the scriptPubKey commits to.
+        foreign_input.redeem_script = script.p2wpkh(foreign_public_key("m/49h/1h/0h/0/1"))
+        with pytest.raises(PSBTInputScriptMismatchError):
             self._parse(psbt)

@@ -320,6 +320,77 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         ])
 
 
+    def test_missing_input_script_terminates_signing_flow(self):
+        """
+        The psbt leaves out the witness script that a p2wsh input commits to.
+
+        The flow should stop at PSBTMissingInputScriptView, before any transaction detail
+        is rendered.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, 10_000))
+        psbt.inputs[0].witness_script = None
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMissingInputScriptView, button_data_selection=psbt_views.PSBTMissingInputScriptView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_input_script_mismatch_terminates_signing_flow(self):
+        """
+        The psbt replaces a p2wsh input's witness script with a stranger's. The coin
+        really is the user's, but the supplied script hashes to something other than what
+        the input's scriptPubKey commits to.
+
+        The flow should stop at PSBTInputScriptMismatchView, before any transaction detail
+        is rendered.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_NATIVE_SEGWIT_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.MULTISIG_NATIVE_SEGWIT_CHANGE, 10_000))
+        foreign_multisig_keys = [foreign_public_key(f"m/48h/1h/0h/2h/0/{i}") for i in range(3)]
+        psbt.inputs[0].witness_script = script.multisig(2, foreign_multisig_keys)
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTInputScriptMismatchView, button_data_selection=psbt_views.PSBTInputScriptMismatchView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
+    def test_extraneous_input_script_terminates_signing_flow(self):
+        """
+        The psbt adds a witness script to a legacy multisig input, in addition to the
+        input's own redeem script. The coin really is the user's and the redeem script
+        still hashes to the scriptPubKey, but a legacy p2sh multisig input should never
+        have a witness script.
+
+        The flow should stop at PSBTExtraneousInputScriptView, before any transaction
+        detail is rendered.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.MULTISIG_LEGACY_P2SH_1_INPUT))
+        psbt.outputs.append(create_output(PSBTTestData.MULTISIG_LEGACY_P2SH_CHANGE, 10_000))
+
+        # The extraneous script's content is irrelevant, so an arbitrary script will do
+        psbt.inputs[0].witness_script = script.Script(b"\x51")  # OP_TRUE
+
+        self._load_psbt_for_signing(psbt)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTExtraneousInputScriptView, button_data_selection=psbt_views.PSBTExtraneousInputScriptView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
     def test_wrong_seed_routes_back_to_seed_selection_flow(self):
         """
         The wrong seed for a psbt redirects before any transaction detail is rendered and
