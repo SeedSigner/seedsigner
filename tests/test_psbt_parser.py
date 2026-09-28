@@ -2451,8 +2451,8 @@ class TestPSBTParserInputScripts(PSBTParserOwnershipTestBase):
 
     def _add_foreign_nested_segwit_input(self, psbt: PSBT, derivation_path: str = "m/49h/1h/0h/0/0"):
         """
-        Adds another party's p2sh-p2wpkh input with no derivation paths, as in a payjoin:
-        their utxo, their key, and a redeem script built from their key.
+        Adds a p2sh-p2wpkh input spending from another party's key with no derivation
+        paths specified. Its scriptPubKey and redeem script are both built from that key.
 
         The supplied psbt's first input should be a witness_utxo input.
         """
@@ -2600,13 +2600,17 @@ class TestPSBTParserInputScripts(PSBTParserOwnershipTestBase):
 
     def test__parse__checks_input_scripts_whoever_the_input_belongs_to(self):
         """
-        A collaborative spend, such as a payjoin, puts another party's input alongside the
-        user's. That input's scripts should be checked just as the user's are. Whose
-        input it is rests on the psbt's own claims, so no input is exempt from the script
-        checks.
+        The parser verifies the scripts on every input, whoever the psbt says the input
+        belongs to. So an input with no derivation paths, claiming none of the user's
+        keys, gets the same script checks as the user's own input.
 
         The psbt will be rejected if a script is missing (PSBTMissingInputScriptError) or
         wrong (PSBTInputScriptMismatchError).
+
+        Note: despite setting up a collaborative spend, this test is not meant to mimic a
+        realistic payjoin transaction. Certain types of payjoin inputs (e.g. nested
+        segwit) require special handling to pass the input script checks. See the separate
+        payjoin TODO in the parser.
         """
         psbt = self._psbt_with_change(PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_1_INPUT, PSBTTestData.SINGLE_SIG_NESTED_SEGWIT_CHANGE)
         foreign_input = self._add_foreign_nested_segwit_input(psbt)

@@ -379,6 +379,10 @@ class PSBTParser():
                 self.policy = inp_policy
             else:
                 if self.policy != inp_policy:
+                    # TODO: Read the policy only from the user's own inputs. Requiring
+                    # every input to share one policy rejects a collaborative spend whose
+                    # other party spends from a different script type or multisig wallet,
+                    # which is allowed by BIP-174 and BIP-78.
                     raise RuntimeError("Mixed inputs in the transaction")
 
 
@@ -412,6 +416,11 @@ class PSBTParser():
         psbt. Either way, we raise PSBTExtraneousInputScriptError for any extraneous
         script.
         """
+        # TODO: Support finalized inputs, such as a payjoin receiver's input. Finalizing
+        # an input clears its script fields and leaves the script only in its final
+        # scriptSig or witness, so a finalized p2sh or p2wsh input is rejected here for
+        # missing its script. Recover the script from the final fields, verify it the same
+        # way, and read the policy from it.
         script_type = script_pubkey.script_type()
         expects_redeem_script = False
         expects_witness_script = False
