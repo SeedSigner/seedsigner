@@ -347,6 +347,7 @@ class SettingsConstants:
     SETTING__COMPACT_SEEDQR = "compact_seedqr"
     SETTING__BIP85_CHILD_SEEDS = "bip85_child_seeds"
     SETTING__ELECTRUM_SEEDS = "electrum_seeds"
+    SETTING__ACCOUNT_INDEX = "account_index"
     SETTING__MESSAGE_SIGNING = "message_signing"
     SETTING__PRIVACY_WARNINGS = "privacy_warnings"
     SETTING__DIRE_WARNINGS = "dire_warnings"
@@ -675,6 +676,16 @@ class SettingsDefinition:
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       default_value=SettingsConstants.OPTION__DISABLED),
         
+        SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
+                      attr_name=SettingsConstants.SETTING__ACCOUNT_INDEX,
+                      abbreviated_name="acct",
+                      # TRANSLATOR_NOTE: Setting to choose a BIP-44-style account number (e.g. m/84'/0'/1') instead of always using account 0
+                      display_name=_mft("Account index selection"),
+                      # TRANSLATOR_NOTE: Short help text for the "Account index selection" setting
+                      help_text=_mft("Xpub export & address explorer"),
+                      visibility=SettingsConstants.VISIBILITY__ADVANCED,
+                      default_value=SettingsConstants.OPTION__DISABLED),
+
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__MICROSD_TOAST_TIMER,
                       display_name=_mft("MicroSD notification duration"),

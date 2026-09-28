@@ -96,6 +96,57 @@ def test_get_standard_derivation_path():
                 func(**a_dict)
 
 
+def test_get_standard_derivation_path_account_index():
+    """
+    tests the optional `account` arg of embit_utils.get_standard_derivation_path()
+    """
+    func = embit_utils.get_standard_derivation_path
+
+    # Default is still account 0
+    assert func(SC.MAINNET, SC.SINGLE_SIG, SC.NATIVE_SEGWIT) == func(SC.MAINNET, SC.SINGLE_SIG, SC.NATIVE_SEGWIT, account=0) == "m/84'/0'/0'"
+
+    vectors = {
+        # single sig
+        (SC.MAINNET, SC.SINGLE_SIG, SC.LEGACY_P2PKH, 1): "m/44'/0'/1'",
+        (SC.MAINNET, SC.SINGLE_SIG, SC.NESTED_SEGWIT, 2): "m/49'/0'/2'",
+        (SC.MAINNET, SC.SINGLE_SIG, SC.NATIVE_SEGWIT, 1): "m/84'/0'/1'",
+        (SC.TESTNET, SC.SINGLE_SIG, SC.NATIVE_SEGWIT, 7): "m/84'/1'/7'",
+        (SC.REGTEST, SC.SINGLE_SIG, SC.TAPROOT, 3): "m/86'/1'/3'",
+        (SC.MAINNET, SC.SINGLE_SIG, SC.NATIVE_SEGWIT, 2**31 - 1): "m/84'/0'/2147483647'",
+
+        # multisig
+        (SC.MAINNET, SC.MULTISIG, SC.NESTED_SEGWIT, 1): "m/48'/0'/1'/1'",
+        (SC.MAINNET, SC.MULTISIG, SC.NATIVE_SEGWIT, 1): "m/48'/0'/1'/2'",
+        (SC.TESTNET, SC.MULTISIG, SC.NATIVE_SEGWIT, 5): "m/48'/1'/5'/2'",
+        (SC.MAINNET, SC.MULTISIG, SC.LEGACY_P2PKH, 0): "m/45'",
+    }
+    for (network, wallet_type, script_type, account), expected in vectors.items():
+        assert func(network=network, wallet_type=wallet_type, script_type=script_type, account=account) == expected
+
+    # Invalid account indices
+    for account in [-1, 2**31, "1", 1.0, None, True]:
+        with pytest.raises(ValueError):
+            func(SC.MAINNET, SC.SINGLE_SIG, SC.NATIVE_SEGWIT, account=account)
+
+    # BIP-45 has no account level
+    with pytest.raises(ValueError):
+        func(SC.MAINNET, SC.MULTISIG, SC.LEGACY_P2PKH, account=1)
+
+
+
+def test_supports_account_index():
+    func = embit_utils.supports_account_index
+    for script_type in [SC.LEGACY_P2PKH, SC.NESTED_SEGWIT, SC.NATIVE_SEGWIT, SC.TAPROOT]:
+        assert func(SC.SINGLE_SIG, script_type)
+    assert func(SC.MULTISIG, SC.NESTED_SEGWIT)
+    assert func(SC.MULTISIG, SC.NATIVE_SEGWIT)
+    assert not func(SC.MULTISIG, SC.LEGACY_P2PKH)
+    assert not func(SC.MULTISIG, SC.TAPROOT)
+    assert not func(SC.SINGLE_SIG, SC.CUSTOM_DERIVATION)
+    assert not func(SC.MULTISIG, SC.CUSTOM_DERIVATION)
+
+
+
 def test_get_xpub():
     """
     tests seedsigner.helpers.embit_utils.get_xpub()

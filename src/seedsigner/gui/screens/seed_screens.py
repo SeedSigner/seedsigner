@@ -588,6 +588,27 @@ class SeedExportXpubCustomDerivationScreen(KeyboardScreen):
 
 
 @dataclass
+class SeedExportXpubAccountIndexScreen(KeyboardScreen):
+    """
+        Numeric entry for the BIP-44-style account level of a standard derivation
+        path (e.g. the `1` in `m/84'/0'/1'`).
+    """
+    def __post_init__(self):
+        # TRANSLATOR_NOTE: Title of the screen where the user enters the account number of a derivation path (e.g. the "1" in m/84'/0'/1')
+        self.title = _("Account Index")
+
+        # Specify the keys in the keyboard
+        self.rows = 3
+        self.cols = 5
+        self.keys_charset = "0123456789"
+        self.show_save_button = True
+        self.custom_additional_keys = [Keyboard.KEY_BACKSPACE_5]
+
+        super().__post_init__()
+
+
+
+@dataclass
 class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
     # Customize defaults
     is_bottom_list: bool = True
