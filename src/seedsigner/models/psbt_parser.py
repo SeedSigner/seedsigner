@@ -387,12 +387,10 @@ class PSBTParser():
         """
         Checks that an input supplies exactly the scripts it commits to.
 
+        **** For just p2sh or p2wsh inputs: ****
         A p2sh or p2wsh scriptPubKey holds only a hash of the script the input spends
-        with. Per BIP-174, the psbt must supply that script. Missing scripts raise
-        PSBTMissingInputScriptError.
-
-        We then rebuild what the input commits to and compare, as BIP-174 requires of a
-        signer:
+        with. So we have to rebuild what the input commits to and compare our result
+        against the input's scriptPubKey:
             p2wsh:       p2wsh(witness_script) == scriptPubKey
             p2sh:        p2sh(redeem_script)   == scriptPubKey
             p2sh-p2wpkh: p2sh(redeem_script)   == scriptPubKey
@@ -401,8 +399,11 @@ class PSBTParser():
             p2sh-p2wsh:  p2sh(redeem_script)   == scriptPubKey
                          p2wsh(witness_script) == redeem_script
 
+        If any required scripts are missing, raise PSBTMissingInputScriptError.
+
         If any comparison required above fails, we raise PSBTInputScriptMismatchError.
 
+        **** For all script types: ****
         Each input commits to a specific script type. It should not include any extraneous
         scripts that are not required by that script type (e.g. a witness_script on a p2sh
         input). Such a script could distort the parser's understanding of the wallet being
