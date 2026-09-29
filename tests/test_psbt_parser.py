@@ -2268,6 +2268,8 @@ class TestPSBTParserOutputOwnership(PSBTParserOwnershipTestBase):
 
         with pytest.raises(RuntimeError, match="Unsupported policy type"):
             self._parse(psbt)
+
+
     def test__parse__rejects_outputs_that_exceed_inputs(self):
         """
         Outputs that spend more than the inputs bring in produce a negative fee. `parse`
