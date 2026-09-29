@@ -411,7 +411,7 @@ class PSBTParser():
             # Is this output change? If this output's policy is superficially similar to
             # the spending wallet's policy (e.g. they're both 2-of-3 p2wsh), then it's a
             # candidate for being change.
-            if self._is_change_candidate(out, out_policy, self.verified_output_derivation_paths[i]):
+            if self._is_change_candidate(out, out_policy):
                 # Begin the extensive work to fully verify whether this output is indeed
                 # change.
 
@@ -708,7 +708,7 @@ class PSBTParser():
         return policy
 
 
-    def _is_change_candidate(self, out: OutputScope, out_policy: dict, verified_derivation_paths: List[DerivationPath]) -> bool:
+    def _is_change_candidate(self, out: OutputScope, out_policy: dict) -> bool:
         """
         Determines whether an output is worth the full ownership check in _parse_outputs.
 
@@ -732,15 +732,13 @@ class PSBTParser():
         """
         # The outlier: a single sig p2sh output when the inputs are p2sh-p2wpkh.
         if (
-            self.policy["type"] == "p2sh-p2wpkh"    # Input policy criteria
-            and out_policy["type"] == "p2sh"        # Output policy criteria
-            and "m" not in out_policy               # Exclude multisig
-            and len(out.bip32_derivations) == 1     # Nested single sig pays just one key
-            and len(verified_derivation_paths) == 1 # And that one key must be ours
+            self.policy["type"] == "p2sh-p2wpkh"    # Input is nested single sig
+            and out_policy["type"] == "p2sh"        # Output parses as plain p2sh
+            and out.redeem_script is None           # Output omits its redeem script
         ):
             return True
 
-        # The usual test: the output's policy has the same shape as the inputs' policy.
+        # All other outputs must have the same policy shape as the inputs
         for field in ("type", "m", "n"):
             if out_policy.get(field) != self.policy.get(field):
                 return False
