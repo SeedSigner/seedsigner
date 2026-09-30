@@ -613,14 +613,14 @@ class ToolsSeedIndexesLoadView(View):
     DISCARD = ButtonOption("Discard", button_label_color="red")
 
     def run(self):
-        from seedsigner.gui.screens.seed_indexes_screens import SeedIndexesLoadScreen
+        from seedsigner.gui.screens.seed_screens import SeedFinalizeScreen
 
         button_data = [self.LOAD, self.DISCARD]
         fingerprint = self.controller.storage.get_pending_seed().get_fingerprint(
             self.settings.get_value(SettingsConstants.SETTING__NETWORK)
         )
         selected_menu_num = self.run_screen(
-            SeedIndexesLoadScreen,
+            SeedFinalizeScreen,
             fingerprint=fingerprint,
             button_data=button_data,
         )

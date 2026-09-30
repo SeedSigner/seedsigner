@@ -408,30 +408,6 @@ class SeedIndexesEntryScreen(BaseTopNavScreen):
 
 
 @dataclass
-class SeedIndexesLoadScreen(ButtonListScreen):
-    fingerprint: str = None
-    is_bottom_list: bool = True
-    button_data: list = None
-
-    def __post_init__(self):
-        self.show_back_button = False
-        self.title = _("Load seed")
-        super().__post_init__()
-
-        self.fingerprint_icontl = IconTextLine(
-            icon_name=SeedSignerIconConstants.FINGERPRINT,
-            icon_color=GUIConstants.INFO_COLOR,
-            icon_size=GUIConstants.ICON_FONT_SIZE + 12,
-            label_text=_("fingerprint"),
-            value_text=self.fingerprint,
-            font_size=GUIConstants.get_body_font_size() + 2,
-            is_text_centered=True,
-            screen_y=self.top_nav.height + int((self.buttons[0].screen_y - self.top_nav.height) / 2) - 30,
-        )
-        self.components.append(self.fingerprint_icontl)
-
-
-@dataclass
 class SeedIndexesBackupScreen(WarningEdgesMixin, ButtonListScreen):
     word_num: int = 1
     word: str = ""
