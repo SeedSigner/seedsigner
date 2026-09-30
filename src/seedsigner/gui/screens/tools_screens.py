@@ -673,3 +673,24 @@ class ToolsAddressExplorerAddressListScreen(ButtonListScreen):
         self.button_data.append(ButtonOption(button_label, right_icon_name=SeedSignerIconConstants.CHEVRON_RIGHT))
 
         super().__post_init__()
+
+
+
+@dataclass
+class ToolsSeedIndexesFormatScreen(ButtonListScreen):
+    is_bottom_list: bool = True
+    text: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        gap_top = self.top_nav.height
+        gap_bottom = self.buttons[0].screen_y
+        msg = TextArea(
+            text=_(self.text),
+            width=self.canvas_width,
+            is_text_centered=True,
+            font_color=GUIConstants.BODY_FONT_COLOR,
+        )
+        msg.screen_y = gap_top + (gap_bottom - gap_top - msg.height) // 2
+        if self.text:
+            self.components.append(msg)

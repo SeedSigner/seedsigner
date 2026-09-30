@@ -510,10 +510,12 @@ class ToolsSeedIndexesView(View):
     BINARY = ButtonOption("Binary")
 
     def run(self):
+        from seedsigner.gui.screens.tools_screens import ToolsSeedIndexesFormatScreen
         button_data = [self.NUMBERS, self.BINARY]
         selected_menu_num = self.run_screen(
-            ButtonListScreen,
+            ToolsSeedIndexesFormatScreen,
             title=_("Seed Word Indexes"),
+            text="Valid indexes: 1-2048",
             is_button_text_centered=True,
             is_bottom_list=True,
             button_data=button_data,
