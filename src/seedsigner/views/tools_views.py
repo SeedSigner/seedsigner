@@ -5,14 +5,14 @@ import time
 from gettext import gettext as _
 
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants, resize_image_to_fill
-from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen
+from seedsigner.gui.screens import RET_CODE__BACK_BUTTON, ButtonListScreen, DireWarningScreen
 from seedsigner.gui.screens.screen import ButtonOption
 from seedsigner.helpers import mnemonic_generation
-from seedsigner.models.seed import Seed
+from seedsigner.models.seed import InvalidSeedException, Seed
 from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.views.seed_views import SeedDiscardView, SeedFinalizeView, SeedMnemonicEntryView, SeedOptionsView, SeedWordsWarningView, SeedExportXpubScriptTypeView
 
-from .view import View, Destination, BackStackView
+from .view import View, Destination, BackStackView, MainMenuView
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +22,12 @@ class ToolsMenuView(View):
     IMAGE = ButtonOption("New seed", FontAwesomeIconConstants.CAMERA)
     DICE = ButtonOption("New seed", FontAwesomeIconConstants.DICE)
     KEYBOARD = ButtonOption("Calc 12th/24th word", FontAwesomeIconConstants.KEYBOARD)
+    WORD_INDEX = ButtonOption("Seed Word Indexes", FontAwesomeIconConstants.LIST)
     ADDRESS_EXPLORER = ButtonOption("Address explorer")
     VERIFY_ADDRESS = ButtonOption("Verify address")
 
     def run(self):
-        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
+        button_data = [self.IMAGE, self.DICE, self.KEYBOARD, self.WORD_INDEX, self.ADDRESS_EXPLORER, self.VERIFY_ADDRESS]
 
         selected_menu_num = self.run_screen(
             ButtonListScreen,
@@ -46,6 +47,9 @@ class ToolsMenuView(View):
 
         elif button_data[selected_menu_num] == self.KEYBOARD:
             return Destination(ToolsCalcFinalWordNumWordsView)
+
+        elif button_data[selected_menu_num] == self.WORD_INDEX:
+            return Destination(ToolsSeedIndexesView)
 
         elif button_data[selected_menu_num] == self.ADDRESS_EXPLORER:
             return Destination(ToolsAddressExplorerSelectSourceView)
@@ -495,6 +499,168 @@ class ToolsCalcFinalWordDoneView(View):
         
         elif button_data[selected_menu_num] == self.DISCARD:
             return Destination(SeedDiscardView)
+
+
+
+"""****************************************************************************
+    Seed Indexes Views
+****************************************************************************"""
+class ToolsSeedIndexesView(View):
+    NUMBERS = ButtonOption("Numbers")
+    BINARY = ButtonOption("Binary")
+
+    def run(self):
+        button_data = [self.NUMBERS, self.BINARY]
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("Seed Word Indexes"),
+            is_button_text_centered=True,
+            is_bottom_list=True,
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        mode = "numbers" if button_data[selected_menu_num] == self.NUMBERS else "binary"
+        return Destination(ToolsSeedIndexesNumWordsView, view_args={"mode": mode})
+
+
+
+class ToolsSeedIndexesNumWordsView(View):
+    TWELVE = ButtonOption("12 words", return_data=12)
+    TWENTY_FOUR = ButtonOption("24 words", return_data=24)
+
+    def __init__(self, mode: str):
+        super().__init__()
+        self.mode = mode
+
+    def run(self):
+        button_data = [self.TWELVE, self.TWENTY_FOUR]
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("Mnemonic Length"),
+            is_button_text_centered=True,
+            is_bottom_list=True,
+            button_data=button_data,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        self.controller.storage.init_pending_mnemonic(
+            button_data[selected_menu_num].return_data
+        )
+        return Destination(
+            ToolsSeedIndexesEntryView,
+            view_args={"cur_word_index": 0, "mode": self.mode},
+        )
+
+
+
+class ToolsSeedIndexesEntryView(View):
+    def __init__(self, cur_word_index: int = 0, mode: str = "binary"):
+        super().__init__()
+        self.cur_word_index = cur_word_index
+        self.mode = mode
+        self.cur_word = self.controller.storage.get_pending_mnemonic_word(cur_word_index)
+
+    def run(self):
+        from seedsigner.gui.screens.seed_indexes_screens import SeedIndexesEntryScreen
+
+        ret = self.run_screen(
+            SeedIndexesEntryScreen,
+            # TRANSLATOR_NOTE: Inserts the word number (e.g. "Seed Word #6")
+            title=_("Seed Word #{}").format(self.cur_word_index + 1),  # Human-readable 1-indexing!
+            mode=self.mode,
+            initial_word=self.cur_word,
+            wordlist=Seed.get_wordlist(
+                wordlist_language_code=self.settings.get_value(
+                    SettingsConstants.SETTING__WORDLIST_LANGUAGE
+                )
+            ),
+        )
+
+        if ret == RET_CODE__BACK_BUTTON:
+            if self.cur_word_index == 0:
+                self.controller.storage.discard_pending_mnemonic()
+            return Destination(BackStackView)
+
+        self.controller.storage.update_pending_mnemonic(ret, self.cur_word_index)
+
+        if self.cur_word_index < self.controller.storage.pending_mnemonic_length - 1:
+            return Destination(
+                ToolsSeedIndexesEntryView,
+                view_args={
+                    "cur_word_index": self.cur_word_index + 1,
+                    "mode": self.mode,
+                },
+            )
+
+        try:
+            self.controller.storage.convert_pending_mnemonic_to_pending_seed()
+        except InvalidSeedException:
+            return Destination(ToolsSeedIndexesInvalidView, view_args={"mode": self.mode})
+
+        return Destination(ToolsSeedIndexesLoadView)
+
+
+
+class ToolsSeedIndexesLoadView(View):
+    """Fingerprint + Load seed / Discard — same fork as Calc 12th/24th word Done."""
+
+    LOAD = ButtonOption("Load seed")
+    DISCARD = ButtonOption("Discard", button_label_color="red")
+
+    def run(self):
+        from seedsigner.gui.screens.seed_indexes_screens import SeedIndexesLoadScreen
+
+        button_data = [self.LOAD, self.DISCARD]
+        fingerprint = self.controller.storage.get_pending_seed().get_fingerprint(
+            self.settings.get_value(SettingsConstants.SETTING__NETWORK)
+        )
+        selected_menu_num = self.run_screen(
+            SeedIndexesLoadScreen,
+            fingerprint=fingerprint,
+            button_data=button_data,
+        )
+
+        if button_data[selected_menu_num] == self.LOAD:
+            return Destination(SeedFinalizeView)
+
+        return Destination(SeedDiscardView)
+
+
+
+class ToolsSeedIndexesInvalidView(View):
+    EDIT = ButtonOption("Review & edit")
+    DISCARD = ButtonOption("Discard", button_label_color="red")
+
+    def __init__(self, mode: str):
+        super().__init__()
+        self.mode = mode
+
+    def run(self):
+        button_data = [self.EDIT, self.DISCARD]
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
+            title=_("Invalid Mnemonic!"),
+            status_icon_name=SeedSignerIconConstants.ERROR,
+            status_headline=None,
+            text=_("Checksum failure; not a valid seed phrase."),
+            show_back_button=False,
+            button_data=button_data,
+        )
+
+        if button_data[selected_menu_num] == self.EDIT:
+            return Destination(
+                ToolsSeedIndexesEntryView,
+                view_args={"cur_word_index": 0, "mode": self.mode},
+            )
+
+        self.controller.storage.discard_pending_mnemonic()
+        return Destination(MainMenuView)
+
 
 
 
