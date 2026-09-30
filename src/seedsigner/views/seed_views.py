@@ -1138,7 +1138,7 @@ class SeedIndexesWarningView(View):
 
         selected_menu_num = self.run_screen(
             DireWarningScreen,
-            text=_("You must keep your seed word indexes private & away from all online devices."),
+            text=_("Indexes are 1–2048. You must keep your word indexes private & away from all online devices."),
         )
 
         if selected_menu_num == 0:
