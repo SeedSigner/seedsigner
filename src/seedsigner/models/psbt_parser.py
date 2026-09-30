@@ -373,7 +373,7 @@ class PSBTParser():
             # Verify the input's scripts and reject the psbt if verification fails
             PSBTParser._verify_input_scripts(inp, script_pubkey)
 
-            # Now we can safely use those scripts to determine this input's wallet policy
+            # Now we can use those scripts to determine this input's wallet policy
             inp_policy = PSBTParser._get_policy(inp, script_pubkey, self.psbt.xpubs, child_key_derivation_cache)
             if self.policy == None:
                 self.policy = inp_policy

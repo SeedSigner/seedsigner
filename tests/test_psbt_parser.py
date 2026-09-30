@@ -954,7 +954,7 @@ class TestPSBTParserOptimizations:
 
 class PSBTParserOwnershipTestBase:
     """
-    Base class for the two ownership test classes below. Provides:
+    Base class for the test classes below. Provides:
       * the signing seed
       * a psbt made of nothing but that seed's own scopes
       * the parse call under test.
