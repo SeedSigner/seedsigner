@@ -728,7 +728,16 @@ class PSBTParser():
 
         Note: A multisig's input or output policy can also include the cosigners if
         they're supplied in the global xpubs. But this function does not take the
-        cosigners into account; cosigner information, if provided, is evaluated later.
+        cosigners into account; comparing the cosigners here would let a psbt decide which
+        of its own outputs get verified:
+          * One misannotated derivation path would make that output's cosigners fail
+            to resolve.
+          * The output's missing cosigners would mean that it would not match the inputs'
+            cosigners.
+          * End result: the output would not be considered a change candidate and would
+            not go through the same scrutiny that change candidates do.
+
+        Cosigner information, if provided, is evaluated later.
         """
         # The outlier: a single sig p2sh output when the inputs are p2sh-p2wpkh.
         if (
