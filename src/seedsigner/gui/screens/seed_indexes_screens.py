@@ -200,11 +200,6 @@ def _draw_bit_row(draw, target, canvas_width, y, bits, focused_index=None, label
     return y + BIT_BOX
 
 
-def _index_bits_text(index1: int) -> str:
-    chars = "".join("1" if on else "0" for on in index_to_bits(index1))
-    return f"{chars[0:4]}  {chars[4:8]}  {chars[8:12]}"
-
-
 @dataclass
 class SeedIndexesEntryScreen(BaseTopNavScreen):
     """Enter one mnemonic word as a 1–2048 index (numbers or 12-bit row)."""
