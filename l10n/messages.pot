@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: seedsigner 0.8.7\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-03-05 22:02+0000\n"
+"POT-Creation-Date: 2026-08-24 14:08+0530\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -211,6 +211,8 @@ msgstr ""
 msgid "Caution"
 msgstr ""
 
+#. BIP-352 Silent Payments - warning headline about privacy implications of SP
+#. descriptor
 #: src/seedsigner/gui/screens/screen.py src/seedsigner/views/seed_views.py
 msgid "Privacy Leak!"
 msgstr ""
@@ -247,6 +249,20 @@ msgstr ""
 msgid "It is safe to disconnect power at any time."
 msgstr ""
 
+#. Short for "BIP-32 Master Fingerprint"
+#. a label for the shortened Key-id of a BIP-32 master HD wallet
+#: src/seedsigner/gui/screens/screen.py
+#: src/seedsigner/gui/screens/tools_screens.py
+msgid "Fingerprint"
+msgstr ""
+
+#. Short for "Derivation Path"
+#. a label for the derivation-path into a BIP-32 HD wallet
+#: src/seedsigner/gui/screens/screen.py
+#: src/seedsigner/gui/screens/tools_screens.py
+msgid "Derivation"
+msgstr ""
+
 #: src/seedsigner/gui/screens/seed_screens.py
 msgid "Finalize Seed"
 msgstr ""
@@ -264,6 +280,10 @@ msgid "Seed Words: {}/{}"
 msgstr ""
 
 #: src/seedsigner/gui/screens/seed_screens.py
+msgid "Silent Payment Address"
+msgstr ""
+
+#: src/seedsigner/gui/screens/seed_screens.py
 msgid "BIP-85 Index"
 msgstr ""
 
@@ -277,33 +297,6 @@ msgstr ""
 
 #: src/seedsigner/gui/screens/seed_screens.py
 msgid "Derivation Path"
-msgstr ""
-
-#: src/seedsigner/gui/screens/seed_screens.py
-#: src/seedsigner/views/seed_views.py
-msgid "Export xpub"
-msgstr ""
-
-#: src/seedsigner/gui/screens/seed_screens.py
-msgid "Xpub Details"
-msgstr ""
-
-#. Short for "BIP-32 Master Fingerprint"
-#. a label for the shortened Key-id of a BIP-32 master HD wallet
-#: src/seedsigner/gui/screens/seed_screens.py
-#: src/seedsigner/gui/screens/tools_screens.py
-msgid "Fingerprint"
-msgstr ""
-
-#. Short for "Derivation Path"
-#. a label for the derivation-path into a BIP-32 HD wallet
-#: src/seedsigner/gui/screens/seed_screens.py
-#: src/seedsigner/gui/screens/tools_screens.py
-msgid "Derivation"
-msgstr ""
-
-#: src/seedsigner/gui/screens/seed_screens.py
-msgid "Xpub"
 msgstr ""
 
 #: src/seedsigner/gui/screens/seed_screens.py
@@ -471,6 +464,11 @@ msgstr ""
 
 #: src/seedsigner/gui/screens/settings_screens.py
 #: src/seedsigner/views/settings_views.py
+msgid "Version"
+msgstr ""
+
+#: src/seedsigner/gui/screens/settings_screens.py
+#: src/seedsigner/views/settings_views.py
 msgid "Settings QR"
 msgstr ""
 
@@ -482,8 +480,18 @@ msgstr ""
 msgid "Home"
 msgstr ""
 
+#. Counts frames collected so far vs the total required (e.g. 12/50)
+#: src/seedsigner/gui/screens/tools_screens.py
+msgid "{}/{}"
+msgstr ""
+
 #: src/seedsigner/gui/screens/tools_screens.py
 msgid "click a button"
+msgstr ""
+
+#. Shown while the camera gathers the image frames a new seed requires
+#: src/seedsigner/gui/screens/tools_screens.py
+msgid "Collecting entropy frames"
 msgstr ""
 
 #. A prompt to the user to either accept or reshoot the image
@@ -767,6 +775,11 @@ msgid "BIP-85 child seeds"
 msgstr ""
 
 #: src/seedsigner/models/settings_definition.py
+#: src/seedsigner/views/seed_views.py
+msgid "BIP-352 silent payments"
+msgstr ""
+
+#: src/seedsigner/models/settings_definition.py
 msgid "Electrum seeds"
 msgstr ""
 
@@ -847,6 +860,12 @@ msgstr ""
 msgid "Parsing PSBT..."
 msgstr ""
 
+#. Shown when none of a transaction's inputs can participate in a Silent
+#. Payments send.
+#: src/seedsigner/views/psbt_views.py
+msgid "No Silent Payments input: needs P2PKH, P2WPKH, P2SH-P2WPKH or P2TR."
+msgstr ""
+
 #: src/seedsigner/views/psbt_views.py
 msgid "Unsupported Script Type!"
 msgstr ""
@@ -857,7 +876,8 @@ msgid ""
 "addresses."
 msgstr ""
 
-#: src/seedsigner/views/psbt_views.py src/seedsigner/views/view.py
+#: src/seedsigner/views/psbt_views.py src/seedsigner/views/seed_views.py
+#: src/seedsigner/views/view.py
 msgid "Continue"
 msgstr ""
 
@@ -953,6 +973,15 @@ msgstr ""
 
 #: src/seedsigner/views/psbt_views.py
 msgid "Signing with this seed did not add a valid signature."
+msgstr ""
+
+#. Button to abandon the current transaction and return to the main menu.
+#: src/seedsigner/views/psbt_views.py src/seedsigner/views/seed_views.py
+msgid "Cancel"
+msgstr ""
+
+#: src/seedsigner/views/psbt_views.py
+msgid "SP Signing Error"
 msgstr ""
 
 #: src/seedsigner/views/scan_views.py
@@ -1134,6 +1163,10 @@ msgstr ""
 msgid "Scan transaction"
 msgstr ""
 
+#: src/seedsigner/views/seed_views.py
+msgid "Export xpub"
+msgstr ""
+
 #: src/seedsigner/views/seed_views.py src/seedsigner/views/tools_views.py
 msgid "Address explorer"
 msgstr ""
@@ -1179,6 +1212,14 @@ msgid "Generating xpub..."
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
+msgid "Xpub Details"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Xpub"
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
 msgid "You must keep your seed words private & away from all online devices."
 msgstr ""
 
@@ -1217,6 +1258,42 @@ msgstr ""
 
 #: src/seedsigner/views/seed_views.py
 msgid "Try again"
+msgstr ""
+
+#. allows the user to generate a static reusable SP address.
+#: src/seedsigner/views/seed_views.py
+msgid "Export SP address"
+msgstr ""
+
+#. allows the user to export the sp() descriptor (scan privkey + spend pubkey).
+#: src/seedsigner/views/seed_views.py
+msgid "Export SP descriptor"
+msgstr ""
+
+#. BIP-352 Silent Payments - main menu title
+#: src/seedsigner/views/seed_views.py
+msgid "Silent Payments"
+msgstr ""
+
+#. BIP-352 Silent Payments - explanation of SP descriptor risks
+#: src/seedsigner/views/seed_views.py
+msgid ""
+"Your SP descriptor contains the scan private key, which reveals all your "
+"silent payment activity."
+msgstr ""
+
+#: src/seedsigner/views/seed_views.py
+msgid "Export via QR code"
+msgstr ""
+
+#. BIP-352 Silent Payments - title for screen showing SP descriptor details
+#: src/seedsigner/views/seed_views.py
+msgid "SP Descriptor Details"
+msgstr ""
+
+#. BIP-352 Silent Payments - label for the SP descriptor field
+#: src/seedsigner/views/seed_views.py
+msgid "SP Descriptor"
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
@@ -1329,10 +1406,6 @@ msgid "Skip 10"
 msgstr ""
 
 #: src/seedsigner/views/seed_views.py
-msgid "Cancel"
-msgstr ""
-
-#: src/seedsigner/views/seed_views.py
 msgid "Return to transaction"
 msgstr ""
 
@@ -1405,6 +1478,14 @@ msgstr ""
 
 #: src/seedsigner/views/tools_views.py src/seedsigner/views/view.py
 msgid "Tools"
+msgstr ""
+
+#. Shown when the camera fails to collect enough frames for a new seed.
+#. "expected" and "actual" are the number of frames.
+#: src/seedsigner/views/tools_views.py
+msgid ""
+"Entropy collection failed. Expected {expected} preview frames, got "
+"{actual}"
 msgstr ""
 
 #: src/seedsigner/views/tools_views.py

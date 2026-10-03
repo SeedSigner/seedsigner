@@ -87,6 +87,10 @@ class GUIConstants:
     FIXED_WIDTH_FONT_NAME = "Inconsolata-Regular"
     FIXED_WIDTH_EMPHASIS_FONT_NAME = "Inconsolata-SemiBold"
 
+    # SP addresses are ~117 chars and blow past the normal 24px font; shrink so the
+    # whole thing fits.
+    SP_ADDRESS_FONT_SIZE = 17
+
     # TODO: this should have a get_label_font_size() method like the others for l10n
     LABEL_FONT_SIZE = BODY_FONT_MIN_SIZE
     LABEL_FONT_COLOR = "#777777"
@@ -931,6 +935,7 @@ class FormattedAddress(BaseComponent):
     screen_y: int = 0
     address: str = None
     max_lines: int = None
+    line_spacing: int = GUIConstants.BODY_LINE_SPACING
     font_name: str = GUIConstants.FIXED_WIDTH_FONT_NAME
     font_size: int = 24
     font_accent_color: str = GUIConstants.ACCENT_COLOR
@@ -940,7 +945,7 @@ class FormattedAddress(BaseComponent):
         super().__post_init__()
         if self.width == 0:
             self.width = self.renderer.canvas_width
-        
+
         self.font = Fonts.get_font(self.font_name, self.font_size)
         self.accent_font = Fonts.get_font(GUIConstants.FIXED_WIDTH_EMPHASIS_FONT_NAME, self.font_size)
 
@@ -1069,7 +1074,7 @@ class FormattedAddress(BaseComponent):
                     ))
 
                 remaining_display_str = remaining_display_str[max_chars_per_line:]
-                cur_y += char_height + GUIConstants.BODY_LINE_SPACING
+                cur_y += char_height + self.line_spacing
         
         self.height = cur_y
     
