@@ -1,0 +1,145 @@
+# Posts the advisory source-string comment on a feature PR.
+#
+# This is the write-capable half of the diff/comment pair. It is triggered by
+# the read-only "l10n source-string diff" run completing, and runs code from the
+# default branch rather than the PR, so it never executes PR-supplied code. It
+# validates the uploaded manifest (schema plus trust anchors), re-renders the
+# comment from the validated fields, and maintains a single comment per PR.
+name: l10n source-string comment
+
+on:
+  workflow_run:
+    workflows: ["l10n source-string diff"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+
+concurrency:
+  group: l10n-pot-comment-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  comment:
+    # Only act on successful diff runs that came from a pull request.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout default-branch automation code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          submodules: false
+
+      - name: Download manifest artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: l10n-review-manifest
+          path: incoming
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install validation deps
+        # Only jsonschema is needed here (validate_manifest.py); render_comment.py
+        # is stdlib-only. This is the sole consumer, so it is pinned inline rather
+        # than in l10n/requirements-l10n.txt (which is for message extraction).
+        run: python -m pip install --quiet "jsonschema==4.26.0"
+
+      - name: Validate manifest
+        env:
+          EXPECT_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          EXPECT_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python l10n/automation/validate_manifest.py \
+            --manifest incoming/manifest.json \
+            --schema l10n/automation/schema/review-manifest.schema.json \
+            --expect-head-sha "$EXPECT_HEAD_SHA" \
+            --expect-repository "$EXPECT_REPO"
+
+      - name: Render comment
+        run: |
+          set -euo pipefail
+          python l10n/automation/render_comment.py \
+            --manifest incoming/manifest.json \
+            --out comment.md
+
+      - name: Upsert advisory comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        with:
+          script: |
+            const fs = require('fs');
+            const MARKER = '<!-- l10n-automation:comment=messages-pot -->';
+
+            const manifest = JSON.parse(fs.readFileSync('incoming/manifest.json', 'utf8'));
+            const body = fs.readFileSync('comment.md', 'utf8');
+            const prNumber = manifest.pr.number;
+            const runHeadSha = process.env.RUN_HEAD_SHA;
+
+            // Authoritative PR-number <-> head-SHA binding: confirm the PR we are
+            // about to comment on really has the head commit this run was built
+            // from. Prevents a malicious PR from targeting another PR's thread.
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            if (pr.head.sha !== runHeadSha) {
+              // The manifest's head SHA was already confirmed to equal this run's
+              // head by validate_manifest, so a mismatch here means the PR has
+              // since advanced (a benign race with a newer push) or the manifest
+              // named someone else's PR. Either way the safe action is to not
+              // comment; skip neutrally rather than failing the run with noise.
+              core.warning(
+                `PR #${prNumber} head ${pr.head.sha} != run head ${runHeadSha}; ` +
+                `skipping comment (PR advanced, or PR number does not match this run).`);
+              return;
+            }
+
+            // The login this token comments as (e.g. "github-actions[bot]"); the
+            // [bot] suffix is normalized away so REST and GraphQL forms compare equal.
+            const { viewer } = await github.graphql('query { viewer { login } }');
+            const myLogin = viewer.login.replace(/\[bot\]$/, '');
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            // Match our own previous comment: the marker identifies the stream,
+            // and requiring our exact author login means a human (or any other
+            // bot) carrying the marker can never be mistaken for the one we maintain.
+            const existing = comments.find(c =>
+              c.user && c.user.login.replace(/\[bot\]$/, '') === myLogin &&
+              c.body && c.body.includes(MARKER));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+              core.info(`Updated advisory comment ${existing.id} on PR #${prNumber}.`);
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+              core.info(`Created advisory comment on PR #${prNumber}.`);
+            }
