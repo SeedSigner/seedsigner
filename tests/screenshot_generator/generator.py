@@ -386,10 +386,13 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedBackupView,  dict(seed=seed_12)),
                 ScreenshotConfig(seed_views.SeedExportXpubSigTypeView,          dict(seed=seed_12)),
                 ScreenshotConfig(seed_views.SeedExportXpubScriptTypeView,       dict(seed=seed_12, sig_type="msig")),
+                ScreenshotConfig(seed_views.SeedExportXpubAccountIndexView,     dict(seed=seed_12, sig_type="ss",   script_type="nat")),
+                ScreenshotConfig(seed_views.SeedExportXpubInvalidAccountIndexView, dict(seed=seed_12, sig_type="ss", script_type="nat")),
                 ScreenshotConfig(seed_views.SeedExportXpubCustomDerivationView, dict(seed=seed_12, sig_type="ss",   script_type="")),
                 ScreenshotConfig(seed_views.SeedExportXpubQRFormatView,         dict(seed=seed_12, sig_type="ss",   script_type="nat")),
                 ScreenshotConfig(seed_views.SeedExportXpubWarningView,          dict(seed=seed_12, sig_type="msig", script_type="nes", xpub_qr_format="urca", custom_derivation="")),
                 ScreenshotConfig(seed_views.SeedExportXpubDetailsView,          dict(seed=seed_12, sig_type="ss",   script_type="nat", xpub_qr_format="urca", custom_derivation="")),
+                ScreenshotConfig(seed_views.SeedExportXpubDetailsView,          dict(seed=seed_12, sig_type="ss",   script_type="nat", xpub_qr_format="urca", custom_derivation="", account=1), screenshot_name="SeedExportXpubDetailsView_account_1"),
                 ScreenshotConfig(SeedExportXpubQR_ScreenBrightnessView,         dict(seed=seed_12, xpub_qr_format="urca", derivation_path="m/84'/0'/0'")),
 
                 ScreenshotConfig(seed_views.SeedWordsWarningView, dict(seed=seed_12)),
@@ -478,6 +481,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(tools_views.ToolsAddressExplorerSelectSourceView),
                 ScreenshotConfig(tools_views.ToolsAddressExplorerAddressTypeView, mock_context_manager=mock_multisig_wallet_descriptor_loaded),
                 ScreenshotConfig(tools_views.ToolsAddressExplorerAddressListView),
+                ScreenshotConfig(tools_views.ToolsAddressExplorerAddressTypeView, dict(seed=seed_12, script_type="nat", account=1), screenshot_name="ToolsAddressExplorerAddressTypeView_account_1"),
                 # ScreenshotConfig(tools_views.ToolsAddressExplorerAddressView),
             ],
             "Settings Views": settings_views_list + [
