@@ -217,10 +217,6 @@ class Controller(Singleton):
         return self._storage
 
 
-    def discard_seed(self, seed: Seed):
-        self.storage.seeds.remove(seed)
-
-
     def pop_prev_from_back_stack(self):
         if len(self.back_stack) > 0:
             # Pop the top View (which is the current View_cls)
