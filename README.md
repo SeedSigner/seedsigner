@@ -358,3 +358,19 @@ See the [SeedSigner OS repo](https://github.com/SeedSigner/seedsigner-os/) for i
 
 # Developer Local Build Instructions
 Raspberry Pi OS is commonly used for development. See the [Raspberry Pi OS Build Instructions](docs/raspberry_pi_os_build_instructions.md)
+
+# Development Environment
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and the `zbar` system library (`sudo apt-get install libzbar0` on Debian/Ubuntu, `brew install zbar` on macOS). Then, from the repo root:
+
+```bash
+git submodule update --init --recursive
+uv sync
+uv run poe translations-compile
+uv run poe test
+```
+
+`uv sync` creates `.venv/` with the exact dependency versions recorded in `uv.lock` and installs SeedSigner in editable mode; `.python-version` pins the same CPython (3.12.10) that SeedSigner OS ships. `uv run poe` lists the available tasks. See [tests/README.md](tests/README.md) and [l10n/README.md](l10n/README.md).
+
+`uv run` executes a command inside `.venv` without activating it (and re-syncs the environment if `uv.lock` changed). If you prefer to `source .venv/bin/activate`, drop the `uv run` prefix: `poe test`, `pytest`, etc. work as-is.
+
+To change a dependency, edit its pin in `pyproject.toml` and run `uv lock`; never edit `uv.lock` by hand. Runtime versions must stay in step with the Buildroot packages in the [SeedSigner OS repo](https://github.com/SeedSigner/seedsigner-os/).
