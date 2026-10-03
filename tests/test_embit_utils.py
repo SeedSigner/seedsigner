@@ -374,6 +374,25 @@ def test_get_multisig_policy():
         ))
 
 
+def test_parse_derivation_path_rejects_malformed_input():
+    """
+        Should report an unclean match rather than raise.
+
+        The derivation path can arrive from an untrusted QR: a `signmessage` request
+        supplies it verbatim and SeedSignMessageStartView.__init__ parses it before
+        anything else. An IndexError here reaches Controller.handle_exception and puts
+        the user on the generic "System Error" screen.
+    """
+    for derivation_path in ["", "m", "x", "m/", "m/84h", "m/84'"]:
+        result = embit_utils.parse_derivation_path(derivation_path)
+        assert result["clean_match"] is False, f"should not have cleanly matched {derivation_path!r}"
+
+    # Multisig paths are out of scope for this helper, but must not raise either
+    result = embit_utils.parse_derivation_path("m/48h/0h/0h/2h/0/0")
+    assert result["clean_match"] is False
+
+
+
 def test_parse_derivation_path():
     # Shouldn't care if input uses "'" or "h"
     derivation_path = "m/84'/0'/0'/0/0"
