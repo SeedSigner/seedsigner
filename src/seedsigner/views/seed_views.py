@@ -9,11 +9,11 @@ from embit.descriptor import Descriptor
 
 from seedsigner.gui.components import FontAwesomeIconConstants, SeedSignerIconConstants
 from seedsigner.gui.screens import (RET_CODE__BACK_BUTTON, ButtonListScreen,
-    WarningScreen, DireWarningScreen, seed_screens)
+    WarningScreen, DireWarningScreen, LargeIconStatusScreen, seed_screens)
 from seedsigner.gui.screens.screen import ButtonOption, ButtonOptionWithoutTranslation
 from seedsigner.models.encode_qr import CompactSeedQrEncoder, GenericStaticQrEncoder, SeedQrEncoder, SpecterLegacyXPubQrEncoder, StaticXpubQrEncoder, UrXpubQrEncoder
 from seedsigner.models.qr_type import QRType
-from seedsigner.models.seed import Seed
+from seedsigner.models.seed import Seed, ShamirSeed, InvalidSeedException, DuplicateShamirShareException
 from seedsigner.models.settings import Settings, SettingsConstants
 from seedsigner.models.settings_definition import SettingsDefinition
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
@@ -160,11 +160,13 @@ class SeedSelectSeedView(View):
     Loading seeds, passphrases, etc
 ****************************************************************************"""
 class LoadSeedView(View):
-    SEED_QR = ButtonOption("Scan a SeedQR", SeedSignerIconConstants.QRCODE)
+    # TODO: Fix icon and text alignment in Button/ButtonListScreen instead of using leading spaces.
+    SEED_QR = ButtonOption(" Scan a SeedQR", SeedSignerIconConstants.QRCODE)
     TYPE_12WORD = ButtonOption("Enter 12-word seed", FontAwesomeIconConstants.KEYBOARD)
     TYPE_24WORD = ButtonOption("Enter 24-word seed", FontAwesomeIconConstants.KEYBOARD)
+    TYPE_SHAMIR = ButtonOption("Shamir recovery", FontAwesomeIconConstants.KEYBOARD)
     TYPE_ELECTRUM = ButtonOption("Enter Electrum seed", FontAwesomeIconConstants.KEYBOARD)
-    CREATE = ButtonOption("Create a seed", SeedSignerIconConstants.PLUS)
+    CREATE = ButtonOption(" Create a seed", SeedSignerIconConstants.PLUS)
 
     def run(self):
         button_data = [
@@ -175,6 +177,9 @@ class LoadSeedView(View):
 
         if self.settings.get_value(SettingsConstants.SETTING__ELECTRUM_SEEDS) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.TYPE_ELECTRUM)
+
+        if self.settings.get_value(SettingsConstants.SETTING__SHAMIR) == SettingsConstants.OPTION__ENABLED:
+            button_data.append(self.TYPE_SHAMIR)
         
         button_data.append(self.CREATE)
 
@@ -199,6 +204,9 @@ class LoadSeedView(View):
         elif button_data[selected_menu_num] == self.TYPE_24WORD:
             self.controller.storage.init_pending_mnemonic(num_words=24)
             return Destination(SeedMnemonicEntryView)
+        
+        elif button_data[selected_menu_num] == self.TYPE_SHAMIR:
+            return Destination(SeedShamirShareStartView)
 
         elif button_data[selected_menu_num] == self.TYPE_ELECTRUM:
             return Destination(SeedElectrumMnemonicStartView)
@@ -356,7 +364,7 @@ class SeedAddPassphraseView(View):
 
 
     def run(self):
-        passphrase_title=self.seed.passphrase_label
+        passphrase_title = self.seed.passphrase_label
         ret_dict = self.run_screen(
             seed_screens.SeedAddPassphraseScreen,
             passphrase=self.seed.passphrase,
@@ -367,10 +375,17 @@ class SeedAddPassphraseView(View):
         # The new passphrase will be the return value; it might be empty.
         self.seed.set_passphrase(ret_dict["passphrase"])
 
+        # Detect whether we're currently in a Shamir flow by checking for a pending shamir share set in storage.
+        is_shamir_flow = getattr(self.controller.storage, "pending_shamir_share_set_length", 0) > 0
+
         if "is_back_button" in ret_dict or len(self.seed.passphrase) == 0:
             return Destination(SeedAddPassphraseExitDialogView)
                     
         else:
+            # If this is a Shamir flow we must convert the pending share set into pending_seed first
+            if is_shamir_flow:
+                self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase=ret_dict["passphrase"], finalize=False)
+
             return Destination(SeedReviewPassphraseView)
 
 
@@ -404,12 +419,19 @@ class SeedAddPassphraseExitDialogView(View):
             button_data=button_data,
         )
 
+        # If this is a Shamir flow then the storage contains a pending_shamir_share_set
+        is_shamir_flow = getattr(self.controller.storage, "pending_shamir_share_set_length", 0) > 0
+
         if button_data[selected_menu_num] == self.EDIT:
             return Destination(SeedAddPassphraseView)
 
         elif button_data[selected_menu_num] in [self.DISCARD, self.SKIP]:
-            self.seed.set_passphrase("")
-            return Destination(SeedFinalizeView)
+            if is_shamir_flow:
+                self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(passphrase="", finalize=False)
+                return Destination(SeedShamirShareFinalizeView)
+            else:
+                self.seed.set_passphrase("")
+                return Destination(SeedFinalizeView)
         
 
 
@@ -451,6 +473,14 @@ class SeedReviewPassphraseView(View):
             return Destination(SeedAddPassphraseView)
         
         elif button_data[selected_menu_num] == self.DONE:
+            # If this is a Shamir flow we need to also clear the pending shamir share set and pending mnemonic
+            is_shamir_flow = getattr(self.controller.storage, "pending_shamir_share_set_length", 0) > 0
+
+            if is_shamir_flow:
+                # Remove in-progress share set data now that the seed is finalized
+                self.controller.storage.discard_pending_mnemonic()
+                self.controller.storage.discard_pending_shamir_share_set()
+
             seed = self.controller.storage.finalize_pending_seed()
             return Destination(SeedOptionsView, view_args={"seed": seed}, clear_history=True)
             
@@ -576,7 +606,9 @@ class SeedOptionsView(View):
         button_data.append(self.EXPORT_XPUB)
 
         button_data.append(self.EXPLORER)
-        button_data.append(self.BACKUP)
+
+        if self.seed.backup_supported:
+            button_data.append(self.BACKUP)
 
         if self.settings.get_value(SettingsConstants.SETTING__MESSAGE_SIGNING) == SettingsConstants.OPTION__ENABLED:
             button_data.append(self.SIGN_MESSAGE)
@@ -2268,3 +2300,286 @@ class SeedSignMessageSignedMessageQRView(View):
 
         # Exiting/Canceling the QR display screen always returns Home
         return Destination(MainMenuView, skip_current_view=True)
+
+
+
+"""****************************************************************************
+    Shamir's Secret Sharing Views
+****************************************************************************"""
+class SeedShamirShareStartView(View):
+    """
+    Currently just a warning display before entering the Shamir shares.
+    
+    Could be expanded with a follow-up View to specify Shamir seed type.
+
+    See docs/shamir.md to check which features are supported for Shamir Shares.
+    """
+    def run(self):
+        self.run_screen(
+                WarningScreen,
+                title=_("Shamir Secret Sharing"),
+                status_headline=None,
+                text=_("Some features are disabled for Shamir seeds."),
+                show_back_button=False,
+        )
+
+        return Destination(SeedShamirShareImportSelectWordCount)
+
+
+
+class SeedShamirShareImportSelectWordCount(View):
+    TYPE_20WORD = ButtonOption("20 Words (SLIP-39)") # 128-bit seed
+    TYPE_33WORD = ButtonOption("33 Words (SLIP-39)") # 256-bit seed
+
+    def run(self):
+        button_data = [self.TYPE_20WORD, self.TYPE_33WORD]
+
+        selected_menu_num = self.run_screen(
+            ButtonListScreen,
+            title=_("Words Per Share"),
+            button_data=button_data,
+        )
+        
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(MainMenuView, clear_history=True)
+
+        elif button_data[selected_menu_num] == self.TYPE_20WORD:
+            self.controller.storage.init_pending_shamir_share_set(num_words=20)
+            return Destination(SeedShamirShareMnemonicEntryView)
+        
+        elif button_data[selected_menu_num] == self.TYPE_33WORD:
+            self.controller.storage.init_pending_shamir_share_set(num_words=33)
+            return Destination(SeedShamirShareMnemonicEntryView)
+
+
+
+class SeedShamirShareMnemonicEntryView(View):
+    def __init__(self, cur_word_index: int = 0):
+        super().__init__()
+        self.cur_word_index = cur_word_index
+
+        # Ensure pending mnemonic is initialized for the current share
+        if not self.controller.storage.pending_mnemonic or len(self.controller.storage.pending_mnemonic) == 0:
+            # Initialize pending mnemonic with the correct word count
+            num_words = self.controller.storage.pending_shamir_num_words
+            self.controller.storage.init_pending_mnemonic(num_words)
+        
+        self.cur_word = self.controller.storage.get_pending_mnemonic_word(cur_word_index)
+
+
+    def run(self):
+        ret = self.run_screen(
+            seed_screens.SeedMnemonicEntryScreen,
+            # TRANSLATOR_NOTE: Inserts the word number (e.g. "Word #1")
+            title=_("Word #{}").format(self.cur_word_index+1),
+            initial_letters=list(self.cur_word) if self.cur_word else ["a"],
+            wordlist=ShamirSeed.get_wordlist(),
+        )
+
+        if ret == RET_CODE__BACK_BUTTON:
+            if self.cur_word_index > 0:
+                return Destination(BackStackView)
+            else:
+                self.controller.storage.discard_pending_mnemonic()
+                self.controller.storage.discard_pending_shamir_share_set()
+                return Destination(SeedShamirShareImportSelectWordCount)
+        
+        # ret will be our new mnemonic word
+        self.controller.storage.update_pending_mnemonic(ret, self.cur_word_index)
+
+        if self.cur_word_index < self.controller.storage.pending_mnemonic_length - 1:
+            return Destination(
+                SeedShamirShareMnemonicEntryView,
+                view_args={
+                    "cur_word_index": self.cur_word_index + 1
+                }
+            )
+        
+        else:
+            # Validate the current share before adding it
+            try:
+                # Test if this share is valid
+                test_share = " ".join(self.controller.storage.pending_mnemonic)
+                from embit import slip39
+                slip39.Share.parse(test_share)
+            except Exception:
+                return Destination(SeedShamirShareInvalidView)
+            
+            # Add the completed share
+            try:
+                self.controller.storage.add_pending_shamir_share()
+                can_finalize = self.controller.storage.can_finalize_pending_shamir_share_set()
+                progress = self.controller.storage.get_pending_shamir_progress()
+            except DuplicateShamirShareException:
+                return Destination(
+                    SeedShamirShareInvalidView,
+                    view_args={"duplicate": True},
+                )
+            except InvalidSeedException:
+                logger.exception("Unable to reconstruct seed from the provided shares.")
+                from seedsigner.views.view import ErrorView
+                return Destination(ErrorView, view_args=dict(
+                        title=_("Invalid Shamir Share Set!"),
+                        status_headline=_("Error!"),
+                        text=_("Unable to reconstruct seed from the provided shares."),
+                        button_text="Back",
+                        next_destination=Destination(MainMenuView, clear_history=True),
+                    ))
+            return Destination(
+                    SeedShamirShareOptionsView,
+                    view_args={
+                        "can_finalize": can_finalize,
+                        **progress,
+                    }
+                )
+
+
+
+class SeedShamirShareOptionsView(View):
+    # TRANSLATOR_NOTE: These options apply to SLIP-39 Shamir shares (add another share or finalize share set).
+    ADD_SHARE = ButtonOption("Add another share")
+    FINALIZE = ButtonOption("Finalize")
+
+    def __init__(self, can_finalize, group_threshold=None, completed_groups=0,
+                 shares_entered=0, shares_remaining=None, current_group_index=None,
+                 current_group_shares=0, current_group_threshold=None):
+        super().__init__()
+        self.can_finalize = can_finalize
+        self.group_threshold = group_threshold
+        self.completed_groups = completed_groups
+        self.shares_entered = shares_entered
+        self.shares_remaining = shares_remaining
+        self.current_group_index = current_group_index
+        self.current_group_shares = current_group_shares
+        self.current_group_threshold = current_group_threshold
+
+
+    def run(self):
+        button_data = []
+        if self.can_finalize:
+            button_data.append(self.FINALIZE)
+        else:
+            button_data.append(self.ADD_SHARE)
+        
+        # TRANSLATOR_NOTE: "Shares" here means SLIP-39 Shamir's secret shares.
+        title = _("Share Added")
+        text = None
+        if self.can_finalize:
+            text = _("Required shares collected.\nReady to finalize.")
+        elif self.shares_remaining is not None:
+            # TRANSLATOR_NOTE: Indicates how many more SLIP-39 shares must be collected.
+            text = _("Shares entered: {}\nShares remaining: {}").format(self.shares_entered, self.shares_remaining)
+        elif self.group_threshold is not None and self.current_group_index is not None:
+            # TRANSLATOR_NOTE: SLIP-39 group number, shares in that group, and groups needed to recover.
+            text = _("Group {}: {}/{} shares\nGroups: {}/{} complete").format(
+                self.current_group_index + 1,
+                self.current_group_shares,
+                self.current_group_threshold,
+                self.completed_groups,
+                self.group_threshold,
+            )
+        
+        selected_menu_num = self.run_screen(
+            LargeIconStatusScreen,
+            title=title,
+            button_data=button_data,
+            text=text,
+        )
+
+        if selected_menu_num == RET_CODE__BACK_BUTTON:
+            return Destination(BackStackView)
+
+        elif button_data[selected_menu_num] == self.ADD_SHARE:
+            return Destination(SeedShamirShareMnemonicEntryView)
+
+        elif button_data[selected_menu_num] == self.FINALIZE:
+            try:
+                self.controller.storage.convert_pending_shamir_share_set_to_pending_seed(finalize=False)
+            except InvalidSeedException:
+                logger.exception("Pending Shamir share set unexpectedly failed to reconstruct despite eligibility.")
+                from seedsigner.views.view import ErrorView
+                return Destination(ErrorView, view_args=dict(
+                    title=_("Invalid Shamir Share Set!"),
+                    status_headline=_("Error!"),
+                    text=_("Unable to reconstruct seed from the provided shares."),
+                    button_text=_("Back"),
+                    next_destination=Destination(MainMenuView, clear_history=True),
+                ))
+            return Destination(SeedShamirShareFinalizeView)
+
+
+
+class SeedShamirShareInvalidView(View):
+    EDIT = ButtonOption("Review & Edit")
+    DISCARD = ButtonOption("Discard", button_label_color="red")
+
+    def __init__(self, duplicate=False):
+        super().__init__()
+        self.duplicate = duplicate
+        self.mnemonic: list[str] = self.controller.storage.pending_mnemonic
+
+
+    def run(self):
+        button_data = [self.EDIT, self.DISCARD]
+        selected_menu_num = self.run_screen(
+            DireWarningScreen,
+            title=_("Share Already Entered") if self.duplicate else _("Invalid Shamir Share!"),
+            status_headline=None,
+            status_icon_name=SeedSignerIconConstants.ERROR,
+            text=_("This share was already entered.") if self.duplicate else _("Checksum failure; not a valid Shamir share."),
+            show_back_button=False,
+            button_data=button_data,
+        )
+
+        if button_data[selected_menu_num] == self.EDIT:
+            return Destination(SeedShamirShareMnemonicEntryView, view_args={"cur_word_index": 0})
+
+        elif button_data[selected_menu_num] == self.DISCARD:
+            self.controller.storage.discard_pending_mnemonic()
+            # Check if this is the first share or a subsequent share
+            if self.controller.storage.pending_shamir_share_set_length == 0:
+                self.controller.storage.discard_pending_shamir_share_set()
+                return Destination(MainMenuView)
+            
+            else:
+                can_finalize = self.controller.storage.can_finalize_pending_shamir_share_set()
+                progress = self.controller.storage.get_pending_shamir_progress()
+                return Destination(
+                        SeedShamirShareOptionsView,
+                        view_args={
+                            "can_finalize": can_finalize,
+                            **progress,
+                        }
+                    )
+
+
+
+class SeedShamirShareFinalizeView(View):
+    # TRANSLATOR_NOTE: These options apply to SLIP-39 Shamir shares (finalize or add SLIP-39 passphrase).
+    FINALIZE = ButtonOption("Done")
+    PASSPHRASE = ButtonOption("SLIP-39 Passphrase")
+
+    def __init__(self):
+        super().__init__()
+        self.seed = self.controller.storage.get_pending_seed()
+        self.fingerprint = self.seed.get_fingerprint()
+
+
+    def run(self):
+        button_data = [self.FINALIZE, self.PASSPHRASE]
+
+        selected_menu_num = self.run_screen(
+            seed_screens.SeedFinalizeScreen,
+            fingerprint=self.fingerprint,
+            button_data=button_data,
+            title=_("Finalize Shamir Shares"),
+        )
+
+        if button_data[selected_menu_num] == self.FINALIZE:
+            self.controller.storage.discard_pending_mnemonic()
+            self.controller.storage.discard_pending_shamir_share_set()
+            seed = self.controller.storage.finalize_pending_seed()
+            return Destination(SeedOptionsView, view_args={"seed": seed}, clear_history=True)
+
+        elif button_data[selected_menu_num] == self.PASSPHRASE:
+            return Destination(SeedAddPassphraseView)
