@@ -42,15 +42,19 @@ class SettingsConstants:
     XPUB_QR_FORMAT__UR_CRYPTO_ACCOUNT = "urca"
     XPUB_QR_FORMAT__STATIC = "sta"
     XPUB_QR_FORMAT__SPECTER_LEGACY = "spl"
+    XPUB_FORMAT__TEXT = "txt"
     ALL_XPUB_QR_FORMATS = [
         # TRANSLATOR_NOTE: QR code format option; "default" = this is the format most wallets use
-        (XPUB_QR_FORMAT__UR_CRYPTO_ACCOUNT, _mft("Animated (default)")),
+        (XPUB_QR_FORMAT__UR_CRYPTO_ACCOUNT, _mft("Animated QR (default)")),
 
         # TRANSLATOR_NOTE: QR code format option (static = single frame, not animated)
-        (XPUB_QR_FORMAT__STATIC, _mft("Static")),
+        (XPUB_QR_FORMAT__STATIC, _mft("Static QR")),
 
         # TRANSLATOR_NOTE: QR code format option: old format that Specter Desktop used to use
-        (XPUB_QR_FORMAT__SPECTER_LEGACY, _mft("Specter legacy")),
+        (XPUB_QR_FORMAT__SPECTER_LEGACY, _mft("Specter legacy QR")),
+
+        # TRANSLATOR_NOTE: Xpub export format option: display as text instead of a QR code
+        (XPUB_FORMAT__TEXT, _mft("Text")),
     ]
 
     # Over-specifying current and possible future locales to reduce/eliminate main repo
@@ -622,13 +626,14 @@ class SettingsDefinition:
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,
                       attr_name=SettingsConstants.SETTING__XPUB_QR_FORMAT,
-                      display_name=_mft("Xpub QR format"),
+                      display_name=_mft("Xpub Format"),
                       visibility=SettingsConstants.VISIBILITY__ADVANCED,
                       type=SettingsConstants.TYPE__MULTISELECT,
                       selection_options=SettingsConstants.ALL_XPUB_QR_FORMATS,
                       default_value=[
                             SettingsConstants.XPUB_QR_FORMAT__UR_CRYPTO_ACCOUNT,
                             SettingsConstants.XPUB_QR_FORMAT__STATIC,
+                            SettingsConstants.XPUB_FORMAT__TEXT,
                       ]),
 
         SettingsEntry(category=SettingsConstants.CATEGORY__FEATURES,

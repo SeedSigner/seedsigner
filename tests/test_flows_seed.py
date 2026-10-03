@@ -231,6 +231,48 @@ class TestSeedFlows(FlowTest):
                         flowtest_standard_xpub(sig_tuple, script_tuple, xpub_qr_tuple)
 
 
+    def test_export_xpub_format_selection_when_enabled_out_of_order(self):
+        """
+        Enabling Specter legacy after the defaults appends it to the stored value list.
+        Labels must still map to the matching format value (not zip by index).
+        """
+        seed = Seed(mnemonic="blush twice taste dawn feed second opinion lazy thumb play neglect impact".split())
+        self.controller.storage.set_pending_seed(seed)
+        self.controller.storage.finalize_pending_seed()
+
+        self.settings.set_value(SettingsConstants.SETTING__SIG_TYPES, [SettingsConstants.SINGLE_SIG])
+        self.settings.set_value(SettingsConstants.SETTING__SCRIPT_TYPES, [SettingsConstants.NATIVE_SEGWIT])
+        # Same order as toggling Specter on in Advanced settings (appended last).
+        self.settings.set_value(SettingsConstants.SETTING__XPUB_QR_FORMAT, [
+            SettingsConstants.XPUB_QR_FORMAT__UR_CRYPTO_ACCOUNT,
+            SettingsConstants.XPUB_QR_FORMAT__STATIC,
+            SettingsConstants.XPUB_FORMAT__TEXT,
+            SettingsConstants.XPUB_QR_FORMAT__SPECTER_LEGACY,
+        ])
+
+        def format_button(format_value: str) -> ButtonOption:
+            display_name = dict(SettingsConstants.ALL_XPUB_QR_FORMATS)[format_value]
+            return ButtonOption(display_name, return_data=format_value)
+
+        def flowtest_format(format_value: str):
+            self.run_sequence(
+                initial_destination_view_args=dict(seed=seed),
+                sequence=[
+                    FlowStep(seed_views.SeedOptionsView, button_data_selection=seed_views.SeedOptionsView.EXPORT_XPUB),
+                    FlowStep(seed_views.SeedExportXpubSigTypeView, is_redirect=True),
+                    FlowStep(seed_views.SeedExportXpubScriptTypeView, is_redirect=True),
+                    FlowStep(seed_views.SeedExportXpubQRFormatView, button_data_selection=format_button(format_value)),
+                    FlowStep(seed_views.SeedExportXpubWarningView, screen_return_value=0),
+                    FlowStep(seed_views.SeedExportXpubDetailsView, screen_return_value=0),
+                    FlowStep(seed_views.SeedExportXpubQRDisplayView, screen_return_value=0),
+                    FlowStep(MainMenuView),
+                ]
+            )
+
+        flowtest_format(SettingsConstants.XPUB_QR_FORMAT__SPECTER_LEGACY)
+        flowtest_format(SettingsConstants.XPUB_FORMAT__TEXT)
+
+
     def test_export_xpub_disabled_not_available_flow(self):
         """
             If sig_type/script_type/xpub_qr_format disabled, then these options are not available

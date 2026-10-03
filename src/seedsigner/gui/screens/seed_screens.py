@@ -647,6 +647,146 @@ class SeedExportXpubDetailsScreen(WarningEdgesMixin, ButtonListScreen):
 
 
 @dataclass
+class SeedExportXpubTextScreen(BaseTopNavScreen):
+    """Display the full xpub as wrapped, vertically scrollable text."""
+    xpub: str = None
+
+    def __post_init__(self):
+        self.title = _("Xpub")
+        super().__post_init__()
+
+        self.done_button = Button(
+            text=_("Done"),
+            screen_x=GUIConstants.EDGE_PADDING,
+            screen_y=self.canvas_height - GUIConstants.EDGE_PADDING - GUIConstants.BUTTON_HEIGHT,
+            width=self.canvas_width - 2 * GUIConstants.EDGE_PADDING,
+            height=GUIConstants.BUTTON_HEIGHT,
+            is_text_centered=True,
+        )
+        self.done_button.is_selected = True
+
+        font_name = GUIConstants.FIXED_WIDTH_FONT_NAME
+        font_size = GUIConstants.get_body_font_size() + 2
+        font = Fonts.get_font(font_name, font_size)
+        (left, top, right, bottom) = font.getbbox("X", anchor="ls")
+        char_width = right - left
+        usable_width = self.canvas_width - 2 * GUIConstants.EDGE_PADDING
+        chars_per_line = max(1, int(usable_width / char_width))
+        wrapped = "\n".join(
+            self.xpub[i:i + chars_per_line]
+            for i in range(0, len(self.xpub), chars_per_line)
+        )
+
+        self.xpub_textarea = TextArea(
+            text=wrapped,
+            font_name=font_name,
+            font_size=font_size,
+            is_text_centered=False,
+            edge_padding=GUIConstants.EDGE_PADDING,
+        )
+        self.text_img = self.xpub_textarea.rendered_text_img
+
+        self.content_y = self.top_nav.height + GUIConstants.COMPONENT_PADDING
+        self.content_bottom = self.done_button.screen_y - GUIConstants.COMPONENT_PADDING
+        self.visible_height = self.content_bottom - self.content_y
+        self.scroll_y = 0
+        self.max_scroll = max(0, self.text_img.height - self.visible_height)
+        self.scroll_step = self.xpub_textarea.text_height_above_baseline + GUIConstants.BODY_LINE_SPACING
+
+        self.has_scroll_arrows = self.max_scroll > 0
+        if self.has_scroll_arrows:
+            self.arrow_half_width = 10
+            self.up_arrow_img = Image.new("RGBA", size=(2 * self.arrow_half_width, 8), color="black")
+            self.up_arrow_img_y = self.top_nav.height - 12
+            arrow_draw = ImageDraw.Draw(self.up_arrow_img)
+            arrow_draw.line((self.arrow_half_width, 1, 0, 7), fill=GUIConstants.BUTTON_FONT_COLOR)
+            arrow_draw.line((self.arrow_half_width, 1, 2 * self.arrow_half_width, 7), fill=GUIConstants.BUTTON_FONT_COLOR)
+
+            self.down_arrow_img = Image.new("RGBA", size=(2 * self.arrow_half_width, 8), color="black")
+            self.down_arrow_img_y = self.done_button.screen_y - 12
+            arrow_draw = ImageDraw.Draw(self.down_arrow_img)
+            arrow_draw.line((self.arrow_half_width, 7, 0, 1), fill=GUIConstants.BUTTON_FONT_COLOR)
+            arrow_draw.line((self.arrow_half_width, 7, 2 * self.arrow_half_width, 1), fill=GUIConstants.BUTTON_FONT_COLOR)
+
+
+    def _render_up_arrow(self):
+        self.canvas.paste(self.up_arrow_img, (int(self.canvas_width / 2) - self.arrow_half_width, self.up_arrow_img_y))
+
+
+    def _render_down_arrow(self):
+        self.canvas.paste(self.down_arrow_img, (int(self.canvas_width / 2) - self.arrow_half_width, self.down_arrow_img_y))
+
+
+    def _render(self):
+        self.clear_screen()
+        self.top_nav.render()
+
+        crop_bottom = min(self.text_img.height, self.scroll_y + self.visible_height)
+        visible = self.text_img.crop((0, self.scroll_y, self.text_img.width, crop_bottom))
+        self.canvas.paste(visible, (0, self.content_y))
+
+        if self.has_scroll_arrows:
+            if self.scroll_y > 0:
+                self._render_up_arrow()
+            if self.scroll_y < self.max_scroll:
+                self._render_down_arrow()
+
+        self.done_button.render()
+        self.renderer.show_image()
+
+
+    def _run(self):
+        while True:
+            user_input = self.hw_inputs.wait_for(
+                [
+                    HardwareButtonsConstants.KEY_UP,
+                    HardwareButtonsConstants.KEY_DOWN,
+                    HardwareButtonsConstants.KEY_LEFT,
+                    HardwareButtonsConstants.KEY_RIGHT,
+                ] + HardwareButtonsConstants.KEYS__ANYCLICK
+            )
+
+            with self.renderer.lock:
+                if user_input == HardwareButtonsConstants.KEY_UP:
+                    if self.top_nav.is_selected:
+                        continue
+                    if self.scroll_y > 0:
+                        self.scroll_y = max(0, self.scroll_y - self.scroll_step)
+                        self._render()
+                    else:
+                        self.top_nav.is_selected = True
+                        self.done_button.is_selected = False
+                        self._render()
+
+                elif user_input == HardwareButtonsConstants.KEY_DOWN:
+                    if self.top_nav.is_selected:
+                        self.top_nav.is_selected = False
+                        self.done_button.is_selected = True
+                        self._render()
+                    elif self.scroll_y < self.max_scroll:
+                        self.scroll_y = min(self.max_scroll, self.scroll_y + self.scroll_step)
+                        self._render()
+
+                elif user_input == HardwareButtonsConstants.KEY_LEFT:
+                    if not self.top_nav.is_selected:
+                        self.top_nav.is_selected = True
+                        self.done_button.is_selected = False
+                        self._render()
+
+                elif user_input == HardwareButtonsConstants.KEY_RIGHT:
+                    if self.top_nav.is_selected:
+                        self.top_nav.is_selected = False
+                        self.done_button.is_selected = True
+                        self._render()
+
+                elif user_input in HardwareButtonsConstants.KEYS__ANYCLICK:
+                    if self.top_nav.is_selected:
+                        return RET_CODE__BACK_BUTTON
+                    return 0
+
+
+
+@dataclass
 class SeedAddPassphraseScreen(BaseTopNavScreen):
     passphrase: str = ""
 
