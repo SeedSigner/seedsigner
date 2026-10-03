@@ -281,6 +281,82 @@ class TestToolsFlows(FlowTest):
             ])
 
 
+    def test_verify_address_cancel_from_multisig_descriptor_loading_returns_to_sig_type_view(self):
+        """
+            Cancelling out of multisig descriptor loading during nested segwit address verification
+            must safely return to the sig type selection view and preserve state.
+            Backing out fully to MainMenu should wipe the verification state.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # 2-of-3 Nested SegWit multisig address
+            view.decoder.add_data("3Qzhs5zKVeSJUKTmECvvq3ZEuuZkZQcMYq")
+
+        settings = Controller.get_instance().settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),  # simulate read address QR
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.CANCEL),
+            FlowStep(seed_views.AddressVerificationSigTypeView),
+        ])
+
+        controller = Controller.get_instance()
+        assert controller.resume_main_flow == Controller.FLOW__VERIFY_MULTISIG_ADDR
+        assert controller.unverified_address is not None
+
+        self.run_sequence([
+            FlowStep(seed_views.AddressVerificationSigTypeView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(tools_views.ToolsMenuView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(MainMenuView),
+        ])
+
+        controller = Controller.get_instance()
+        assert controller.resume_main_flow is None
+        assert controller.unverified_address is None
+
+
+    def test_verify_address_cancel_from_native_multisig_descriptor_loading_returns_to_tools_menu(self):
+        """
+            Native segwit multisig addresses are deterministically multisig,
+            so they skip the AddressVerificationSigTypeView entirely.
+            Because of this, cancelling out of multisig descriptor loading must safely return
+            to the previous view, rather than the AddressVerificationSigTypeView.
+            Backing out fully to MainMenu should wipe the verification state.
+        """
+        def load_address_into_decoder(view: scan_views.ScanView):
+            # 2-of-3 Native SegWit multisig address
+            view.decoder.add_data("bc1qecqflvqj6skhxxw7k0v863u0fgscjhkjnw3l3mc3n6hfxx6p9atsqqadwd")
+
+        settings = Controller.get_instance().settings
+        settings.set_value(SettingsConstants.SETTING__NETWORK, SettingsConstants.MAINNET)
+
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),  # simulate read address QR
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.CANCEL),
+            FlowStep(tools_views.ToolsMenuView),
+        ])
+
+        controller = Controller.get_instance()
+        assert controller.resume_main_flow == Controller.FLOW__VERIFY_MULTISIG_ADDR
+        assert controller.unverified_address is not None
+
+        self.run_sequence([
+            FlowStep(tools_views.ToolsMenuView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(MainMenuView),
+        ])
+
+        controller = Controller.get_instance()
+        assert controller.resume_main_flow is None
+        assert controller.unverified_address is None
+
+
 class TestToolsImageEntropyFlows(FlowTest):
 
     def test__image_entropy__incorrect_preview_frame_count_aborts(self):
