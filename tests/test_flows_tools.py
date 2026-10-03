@@ -214,6 +214,80 @@ class TestToolsFlows(FlowTest):
             FlowStep(tools_views.ToolsAddressExplorerAddressListView),
         ])
 
+    def test__address_explorer__invalid_seed_qr__flow(self):
+        """
+        Scanning an invalid QR while choosing to scan a SeedQR for the Address Explorer 
+        should give the user the option to go back and retry or exit the flow and return 
+        to the Main Menu.
+        """
+        def load_invalid_seed_qr(view: scan_views.ScanView):
+            view.decoder.add_data("this text will not make sense to the decoder")
+    
+        def load_seed_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("0000" * 11 + "0003")
+
+        # Sequence 1: User clicks on "Return to Main Menu"
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_SEED),
+            FlowStep(scan_views.ScanSeedQRView, before_run=load_invalid_seed_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView),
+            FlowStep(MainMenuView)
+        ])
+
+        assert self.controller.resume_main_flow is None
+
+        # Sequence 2: User clicks on BACK, returns to Scan View for a rescan
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_SEED),
+            FlowStep(scan_views.ScanSeedQRView, before_run=load_invalid_seed_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(scan_views.ScanSeedQRView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+            FlowStep(seed_views.SeedExportXpubScriptTypeView),
+        ])
+    
+    
+    def test__address_explorer__invalid_descriptor_qr__flow(self):
+        """
+        Scanning an invalid QR while choosing to scan a Wallet Descriptor for the 
+        Address Explorer should give the user the option to go back and retry or exit 
+        the flow and return to the Main Menu.
+        """
+        def load_invalid_qr(view: scan_views.ScanView):
+            view.decoder.add_data("this text will not make sense to the decoder")
+
+        def load_descriptor_into_decoder(view: scan_views.ScanView):
+            p2sh_descriptor = "sh(sortedmulti(2,[0f889044/45h]tpubD8NkS3Gngj7L4FJRYrwojKhsx2seBhrNrXVdvqaUyvtVe1YDCVcziZVa9g3KouXz7FN5CkGBkoC16nmNu2HcG9ubTdtCbSW8DEXSMHmmu62/<0;1>/*,[03cd0a2b/45h]tpubD8HkLLgkdJkVitn1i9CN4HpFKJdom48iKm9PyiXYz5hivn1cGz6H3VeS6ncmCEgamvzQA2Qofu2YSTwWzvuaYWbJDEnvTUtj5R96vACdV6L/<0;1>/*,[769f695c/45h]tpubD98hRDKvtATTM8hy5Vvt5ZrvDXwJvrUZm1p1mTKDmd7FqUHY9Wj2k4X1CvxjjtTf3JoChWqYbnWjfkRJ65GQnpVJKbbMfjnGzCwoBUXafyM/<0;1>/*))#uardwtq4".replace("<0;1>", "{0,1}")
+            view.decoder.add_data(p2sh_descriptor)
+
+        # Sequence 1: User clicks on "Return to Main Menu"
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_DESCRIPTOR),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_invalid_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView),
+            FlowStep(MainMenuView),
+        ])
+
+        assert self.controller.resume_main_flow is None
+
+        # Sequence 2: User clicks on BACK, returns to Scan View for a rescan
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.ADDRESS_EXPLORER),
+            FlowStep(tools_views.ToolsAddressExplorerSelectSourceView, button_data_selection=tools_views.ToolsAddressExplorerSelectSourceView.SCAN_DESCRIPTOR),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_invalid_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_descriptor_into_decoder),
+            FlowStep(seed_views.MultisigWalletDescriptorView),
+        ])
+
 
     def test__verify_address__legacy_multisig_p2sh__flow(self):
         """
@@ -280,6 +354,129 @@ class TestToolsFlows(FlowTest):
                 FlowStep(seed_views.SeedAddressVerificationSuccessView),
             ])
 
+    def test__verify_address__invalid_address_qr__flow(self):
+        """
+        Scanning an invalid QR while choosing to Verify Address should give the user the 
+        option to go back and retry or exit the flow and return to the Main Menu.
+        """
+        def load_invalid_qr(view: scan_views.ScanView):
+            view.decoder.add_data("this text will not make sense to the decoder")
+        
+        def load_address_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("bcrt1q4e9q5taxnsvc6m0uxv6h75mkzvnkxeqk6l90u2")
+
+        # Sequence 1: User clicks on "Return to Main Menu"
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_invalid_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView),
+            FlowStep(MainMenuView),
+        ])
+
+        assert self.controller.resume_main_flow is None
+
+        # Sequence 2: User clicks on BACK, returns to Scan View for a rescan
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_invalid_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView),
+        ])
+
+    def test__verify_address__singlesig_invalid_seed_qr__flow(self):
+        """
+        Scanning an invalid QR while choosing to scan a SeedQR to Verify Address 
+        should give the user the option to go back and retry or exit the flow and return 
+        to the Main Menu.
+        """
+        def load_invalid_qr(view: scan_views.ScanView):
+            view.decoder.add_data("this text will not make sense to the decoder")
+        
+        def load_address_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("bcrt1q4e9q5taxnsvc6m0uxv6h75mkzvnkxeqk6l90u2")
+
+        def load_seed_into_decoder(view: scan_views.ScanView):
+            view.decoder.add_data("0000" * 11 + "0003")
+
+        # Sequence 1: User clicks on "Return to Main Menu"
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanView, before_run=load_invalid_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView),
+            FlowStep(MainMenuView),
+        ])
+
+        assert self.controller.resume_main_flow is None
+
+        # Sequence 2: User clicks on BACK, returns to Scan View for a rescan
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.SeedSelectSeedView, button_data_selection=seed_views.SeedSelectSeedView.SCAN_SEED),
+            FlowStep(scan_views.ScanView, before_run=load_invalid_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(scan_views.ScanView, before_run=load_seed_into_decoder),
+            FlowStep(seed_views.SeedFinalizeView, button_data_selection=seed_views.SeedFinalizeView.FINALIZE),
+            FlowStep(seed_views.SeedOptionsView, is_redirect=True),
+            FlowStep(seed_views.SeedAddressVerificationView),
+        ])
+
+    def test__verify_address__multisig_invalid_descriptor_qr__flow(self):
+        """
+        Scanning an invalid QR while choosing to load a multisig descriptor to Verify Address 
+        should give the user the option to go back and retry or exit the flow and return 
+        to the Main Menu.
+        """
+        def load_invalid_qr(view: scan_views.ScanView):
+            view.decoder.add_data("this text will not make sense to the decoder")
+        
+        def load_multisig_address_into_decoder(view: scan_views.ScanView):
+            # Receive addr @ index 5 from test_psbt_parser.py
+            view.decoder.add_data("2N5eN5vUpgsLHAGzKm2VfmYyvNwXmCug5dH")
+
+        def load_descriptor_into_decoder(view: scan_views.ScanView):
+            # descriptor from test_psbt_parser.py
+            p2sh_descriptor = "sh(sortedmulti(2,[0f889044/45h]tpubD8NkS3Gngj7L4FJRYrwojKhsx2seBhrNrXVdvqaUyvtVe1YDCVcziZVa9g3KouXz7FN5CkGBkoC16nmNu2HcG9ubTdtCbSW8DEXSMHmmu62/<0;1>/*,[03cd0a2b/45h]tpubD8HkLLgkdJkVitn1i9CN4HpFKJdom48iKm9PyiXYz5hivn1cGz6H3VeS6ncmCEgamvzQA2Qofu2YSTwWzvuaYWbJDEnvTUtj5R96vACdV6L/<0;1>/*,[769f695c/45h]tpubD98hRDKvtATTM8hy5Vvt5ZrvDXwJvrUZm1p1mTKDmd7FqUHY9Wj2k4X1CvxjjtTf3JoChWqYbnWjfkRJ65GQnpVJKbbMfjnGzCwoBUXafyM/<0;1>/*))#uardwtq4".replace("<0;1>", "{0,1}")
+            view.decoder.add_data(p2sh_descriptor)
+
+        # Sequence 1: User clicks on "Return to Main Menu"
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_multisig_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_invalid_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView),
+            FlowStep(MainMenuView),
+        ])
+
+        assert self.controller.resume_main_flow is None
+
+        # Sequence 2: User clicks on BACK, returns to Scan View for a rescan
+        self.run_sequence([
+            FlowStep(MainMenuView, button_data_selection=MainMenuView.TOOLS),
+            FlowStep(tools_views.ToolsMenuView, button_data_selection=tools_views.ToolsMenuView.VERIFY_ADDRESS),
+            FlowStep(scan_views.ScanAddressView, before_run=load_multisig_address_into_decoder),
+            FlowStep(seed_views.AddressVerificationStartView, is_redirect=True),
+            FlowStep(seed_views.AddressVerificationSigTypeView, button_data_selection=seed_views.AddressVerificationSigTypeView.MULTISIG),
+            FlowStep(seed_views.LoadMultisigWalletDescriptorView, button_data_selection=seed_views.LoadMultisigWalletDescriptorView.SCAN),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_invalid_qr),
+            FlowStep(scan_views.ScanInvalidQRTypeView, screen_return_value=RET_CODE__BACK_BUTTON),
+            FlowStep(scan_views.ScanWalletDescriptorView, before_run=load_descriptor_into_decoder),
+            FlowStep(seed_views.MultisigWalletDescriptorView),
+        ])
 
 class TestToolsImageEntropyFlows(FlowTest):
 
