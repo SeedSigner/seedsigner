@@ -1919,9 +1919,6 @@ class SeedAddressVerificationView(View):
                 if self.verified_index.cur_count is not None:
                     break
 
-                if selected_menu_num == RET_CODE__BACK_BUTTON:
-                    break
-
                 if selected_menu_num is None:
                     # Only happens in the test suite; the screen isn't actually executed so
                     # it returns before the brute force thread has completed.
@@ -1949,7 +1946,8 @@ class SeedAddressVerificationView(View):
             while self.addr_verification_thread.is_alive():
                 time.sleep(0.01)
 
-        return Destination(MainMenuView)
+        # Cancel should return to the view that started verification.
+        return Destination(BackStackView)
 
 
 
