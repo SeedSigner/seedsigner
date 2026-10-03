@@ -357,4 +357,6 @@ Letter templates(8.5in * 11in):
 See the [SeedSigner OS repo](https://github.com/SeedSigner/seedsigner-os/) for instructions.
 
 # Developer Local Build Instructions
-Raspberry Pi OS is commonly used for development. See the [Raspberry Pi OS Build Instructions](docs/raspberry_pi_os_build_instructions.md)
+On-device development runs on the SeedSigner OS `-dev` images: flash a dev image, then edit, run, and test the app on real hardware over SSH. See the SeedSigner OS repo's [dev workflow guide](https://github.com/SeedSigner/seedsigner-os/blob/main/docs/dev_workflow.md) and [dev images reference](https://github.com/SeedSigner/seedsigner-os/blob/main/docs/dev_images.md).
+
+Unlike the release images, dev images are not security-hardened: SSH is enabled with a default root password, reachable over a direct USB cable connection to a computer or over wifi/ethernet on boards that have that hardware. Never use a dev image with real funds.
