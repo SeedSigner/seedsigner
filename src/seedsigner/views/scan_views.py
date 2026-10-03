@@ -142,6 +142,7 @@ class ScanView(View):
                         "address": address,
                         "script_type": script_type,
                         "network": network,
+                        **({"seed": self.seed} if "seed" in self.__dict__ and self.seed is not None else {}) #If the subclass is ScanAddressView, the 'seed' member may be present as an additional argument.
                     }
                 )
             
@@ -203,6 +204,10 @@ class ScanWalletDescriptorView(ScanView):
 class ScanAddressView(ScanView):
     instructions_text = _mft("Scan address QR")
     invalid_qr_type_message = _mft("Expected an address QR")
+
+    def __init__(self, seed=None):
+        super().__init__()
+        self.seed = seed
 
     @property
     def is_valid_qr_type(self):

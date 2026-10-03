@@ -391,7 +391,8 @@ def generate_screenshots(locale):
                 ScreenshotConfig(seed_views.SeedExportXpubWarningView,          dict(seed=seed_12, sig_type="msig", script_type="nes", xpub_qr_format="urca", custom_derivation="")),
                 ScreenshotConfig(seed_views.SeedExportXpubDetailsView,          dict(seed=seed_12, sig_type="ss",   script_type="nat", xpub_qr_format="urca", custom_derivation="")),
                 ScreenshotConfig(SeedExportXpubQR_ScreenBrightnessView,         dict(seed=seed_12, xpub_qr_format="urca", derivation_path="m/84'/0'/0'")),
-
+                ScreenshotConfig(seed_views.SeedExportXpubQRAskVerifyAddressView, dict(seed=seed_12)),
+                
                 ScreenshotConfig(seed_views.SeedWordsWarningView, dict(seed=seed_12)),
                 ScreenshotConfig(seed_views.SeedWordsView, dict(seed=seed_12)),
                 ScreenshotConfig(seed_views.SeedWordsView, dict(seed=seed_12, page_index=2), screenshot_name="SeedWordsView_2"),
