@@ -22,6 +22,27 @@ from seedsigner.views.view import NotYetImplementedView, OptionDisabledView, Vie
 logger = logging.getLogger(__name__)
 
 
+def _account_selection_enabled_for(seed: Seed, sig_type: str, script_type: str) -> bool:
+    """Return whether this seed-based standard derivation supports an account choice."""
+    if Settings.get_instance().get_value(SettingsConstants.SETTING__ACCOUNT_SELECTION) != SettingsConstants.OPTION__ENABLED:
+        return False
+    if seed.derivation_override(sig_type=sig_type):
+        return False
+    if script_type == SettingsConstants.CUSTOM_DERIVATION:
+        return False
+    if sig_type == SettingsConstants.SINGLE_SIG:
+        return script_type in [
+            SettingsConstants.LEGACY_P2PKH,
+            SettingsConstants.NESTED_SEGWIT,
+            SettingsConstants.NATIVE_SEGWIT,
+            SettingsConstants.TAPROOT,
+        ]
+    return script_type in [
+        SettingsConstants.NESTED_SEGWIT,
+        SettingsConstants.NATIVE_SEGWIT,
+    ]
+
+
 
 class SeedsMenuView(View):
     LOAD = ButtonOption("Load a seed")
@@ -131,6 +152,18 @@ class SeedSelectSeedView(View):
             # User selected one of the n seeds
             seed = seeds[selected_menu_num]
             if self.flow == Controller.FLOW__VERIFY_SINGLESIG_ADDR:
+                if _account_selection_enabled_for(
+                    seed,
+                    SettingsConstants.SINGLE_SIG,
+                    self.controller.unverified_address["script_type"],
+                ):
+                    return Destination(
+                        SeedAccountNumberView,
+                        view_args=dict(
+                            flow=SeedAccountNumberView.FLOW__VERIFY_ADDRESS,
+                            seed=seed,
+                        ),
+                    )
                 return Destination(SeedAddressVerificationView, view_args={"seed": seed})
 
             elif self.flow == Controller.FLOW__SIGN_MESSAGE:
@@ -548,6 +581,19 @@ class SeedOptionsView(View):
             if self.controller.resume_main_flow == Controller.FLOW__VERIFY_SINGLESIG_ADDR:
                 # Jump straight back into the single sig addr verification flow
                 self.controller.resume_main_flow = None
+                if _account_selection_enabled_for(
+                    self.seed,
+                    SettingsConstants.SINGLE_SIG,
+                    self.controller.unverified_address["script_type"],
+                ):
+                    return Destination(
+                        SeedAccountNumberView,
+                        view_args=dict(
+                            flow=SeedAccountNumberView.FLOW__VERIFY_ADDRESS,
+                            seed=self.seed,
+                        ),
+                        skip_current_view=True,
+                    )
                 return Destination(SeedAddressVerificationView, view_args=dict(seed=self.seed), skip_current_view=True)
 
         if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
@@ -716,8 +762,20 @@ class SeedExportXpubScriptTypeView(View):
 
             if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
                 del args["sig_type"]
+                if _account_selection_enabled_for(self.seed, SettingsConstants.SINGLE_SIG, args["script_type"]):
+                    return Destination(
+                        SeedAccountNumberView,
+                        view_args=dict(flow=SeedAccountNumberView.FLOW__ADDRESS_EXPLORER, **args),
+                        skip_current_view=True,
+                    )
                 return Destination(ToolsAddressExplorerAddressTypeView, view_args=args, skip_current_view=True)
             else:
+                if _account_selection_enabled_for(self.seed, self.sig_type, args["script_type"]):
+                    return Destination(
+                        SeedAccountNumberView,
+                        view_args=dict(flow=SeedAccountNumberView.FLOW__XPUB_EXPORT, **args),
+                        skip_current_view=True,
+                    )
                 return Destination(SeedExportXpubQRFormatView, view_args=args, skip_current_view=True)
         
         title = _("Export Xpub")
@@ -751,9 +809,140 @@ class SeedExportXpubScriptTypeView(View):
 
             if self.controller.resume_main_flow == Controller.FLOW__ADDRESS_EXPLORER:
                 del args["sig_type"]
+                if _account_selection_enabled_for(self.seed, SettingsConstants.SINGLE_SIG, args["script_type"]):
+                    return Destination(
+                        SeedAccountNumberView,
+                        view_args=dict(flow=SeedAccountNumberView.FLOW__ADDRESS_EXPLORER, **args),
+                    )
                 return Destination(ToolsAddressExplorerAddressTypeView, view_args=args)
             else:
+                if _account_selection_enabled_for(self.seed, self.sig_type, args["script_type"]):
+                    return Destination(
+                        SeedAccountNumberView,
+                        view_args=dict(flow=SeedAccountNumberView.FLOW__XPUB_EXPORT, **args),
+                    )
                 return Destination(SeedExportXpubQRFormatView, view_args=args)
+
+
+
+class SeedAccountNumberView(View):
+    FLOW__XPUB_EXPORT = "xpub_export"
+    FLOW__ADDRESS_EXPLORER = "address_explorer"
+    FLOW__VERIFY_ADDRESS = "singlesig_addr"
+
+    def __init__(
+        self,
+        flow: str,
+        seed: Seed,
+        sig_type: str = None,
+        script_type: str = None,
+        custom_derivation: str = None,
+        initial_value: str = "0",
+    ):
+        super().__init__()
+        self.flow = flow
+        self.seed = seed
+        self.sig_type = sig_type
+        self.script_type = script_type
+        self.custom_derivation = custom_derivation
+        self.initial_value = initial_value
+
+
+    @property
+    def view_args(self) -> dict:
+        return dict(
+            flow=self.flow,
+            seed=self.seed,
+            sig_type=self.sig_type,
+            script_type=self.script_type,
+            custom_derivation=self.custom_derivation,
+        )
+
+
+    def run(self):
+        ret = self.run_screen(
+            seed_screens.SeedAccountNumberScreen,
+            initial_value=self.initial_value,
+        )
+
+        if ret == RET_CODE__BACK_BUTTON:
+            if self.flow == self.FLOW__VERIFY_ADDRESS and len(self.controller.back_stack) == 1:
+                # Finalizing a newly loaded seed clears history. Restore the seed
+                # chooser as the meaningful previous step instead of falling home.
+                return Destination(
+                    SeedSelectSeedView,
+                    view_args=dict(flow=self.FLOW__VERIFY_ADDRESS),
+                    skip_current_view=True,
+                )
+            return Destination(BackStackView)
+
+        try:
+            account = int(ret)
+        except (TypeError, ValueError):
+            account = None
+
+        if account is None or not 0 <= account < 2**31:
+            return Destination(
+                SeedAccountNumberErrorView,
+                view_args=dict(initial_value=str(ret), **self.view_args),
+                skip_current_view=True,
+            )
+
+        if self.flow == self.FLOW__XPUB_EXPORT:
+            return Destination(
+                SeedExportXpubQRFormatView,
+                view_args=dict(
+                    seed=self.seed,
+                    sig_type=self.sig_type,
+                    script_type=self.script_type,
+                    custom_derivation=self.custom_derivation,
+                    account=account,
+                ),
+            )
+
+        if self.flow == self.FLOW__ADDRESS_EXPLORER:
+            from .tools_views import ToolsAddressExplorerAddressTypeView
+            return Destination(
+                ToolsAddressExplorerAddressTypeView,
+                view_args=dict(
+                    seed=self.seed,
+                    script_type=self.script_type,
+                    custom_derivation=self.custom_derivation,
+                    account=account,
+                ),
+            )
+
+        if self.flow == self.FLOW__VERIFY_ADDRESS:
+            from seedsigner.helpers import embit_utils
+            unverified_address = self.controller.unverified_address
+            unverified_address["account"] = account
+            unverified_address["derivation_path"] = embit_utils.get_standard_derivation_path(
+                network=unverified_address["network"],
+                wallet_type=SettingsConstants.SINGLE_SIG,
+                script_type=unverified_address["script_type"],
+                account=account,
+            )
+            return Destination(SeedAddressVerificationView, view_args=dict(seed=self.seed))
+
+        raise Exception(f"Unsupported account-selection flow: {self.flow}")
+
+
+class SeedAccountNumberErrorView(SeedAccountNumberView):
+    def run(self):
+        self.run_screen(
+            DireWarningScreen,
+            title=_("Account Number Error"),
+            show_back_button=False,
+            status_headline=_("Invalid Account Number"),
+            text=_("Account number must be between 0 and {max_account}.").format(max_account=2**31 - 1),
+            button_data=[ButtonOption("Try Again")],
+        )
+
+        return Destination(
+            SeedAccountNumberView,
+            view_args=dict(initial_value=self.initial_value, **self.view_args),
+            skip_current_view=True,
+        )
 
 
 
@@ -796,12 +985,13 @@ class SeedExportXpubCustomDerivationView(View):
 
 
 class SeedExportXpubQRFormatView(View):
-    def __init__(self, seed: Seed, sig_type: str, script_type: str, custom_derivation: str = None):
+    def __init__(self, seed: Seed, sig_type: str, script_type: str, custom_derivation: str = None, account: int = 0):
         super().__init__()
         self.seed = seed
         self.sig_type = sig_type
         self.script_type = script_type
         self.custom_derivation = custom_derivation
+        self.account = account
 
 
     def run(self):
@@ -810,6 +1000,7 @@ class SeedExportXpubQRFormatView(View):
             "sig_type": self.sig_type,
             "script_type": self.script_type,
             "custom_derivation": self.custom_derivation,
+            "account": self.account,
         }
         if len(self.settings.get_value(SettingsConstants.SETTING__XPUB_QR_FORMAT)) == 1:
             # Nothing to select; skip this screen
@@ -838,13 +1029,14 @@ class SeedExportXpubQRFormatView(View):
 
 
 class SeedExportXpubWarningView(View):
-    def __init__(self, seed: Seed, sig_type: str, script_type: str, xpub_qr_format: str, custom_derivation: str):
+    def __init__(self, seed: Seed, sig_type: str, script_type: str, xpub_qr_format: str, custom_derivation: str, account: int = 0):
         super().__init__()
         self.seed = seed
         self.sig_type = sig_type
         self.script_type = script_type
         self.xpub_qr_format = xpub_qr_format
         self.custom_derivation = custom_derivation
+        self.account = account
 
 
     def run(self):
@@ -856,6 +1048,7 @@ class SeedExportXpubWarningView(View):
                 "script_type": self.script_type,
                 "xpub_qr_format": self.xpub_qr_format,
                 "custom_derivation": self.custom_derivation,
+                "account": self.account,
             },
             skip_current_view=True,  # Prevent going BACK to WarningViews
         )
@@ -884,12 +1077,13 @@ class SeedExportXpubDetailsView(View):
         Collects the user input from all the previous screens leading up to this and
         finally calculates the xpub and displays the summary view to the user.
     """
-    def __init__(self, seed: Seed, sig_type: str, script_type: str, xpub_qr_format: str, custom_derivation: str):
+    def __init__(self, seed: Seed, sig_type: str, script_type: str, xpub_qr_format: str, custom_derivation: str, account: int = 0):
         super().__init__()
         self.sig_type = sig_type
         self.script_type = script_type
         self.xpub_qr_format = xpub_qr_format
         self.custom_derivation = custom_derivation
+        self.account = account
         
         self.seed = seed
 
@@ -905,7 +1099,8 @@ class SeedExportXpubDetailsView(View):
             derivation_path = embit_utils.get_standard_derivation_path(
                 network=self.settings.get_value(SettingsConstants.SETTING__NETWORK),
                 wallet_type=self.sig_type,
-                script_type=self.script_type
+                script_type=self.script_type,
+                account=self.account,
             )
 
         if self.settings.get_value(SettingsConstants.SETTING__XPUB_DETAILS) == SettingsConstants.OPTION__DISABLED:

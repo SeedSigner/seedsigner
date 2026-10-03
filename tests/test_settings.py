@@ -30,6 +30,28 @@ class TestSettings(BaseTest):
         assert settings.get_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS) == SettingsConstants.OPTION__DISABLED
 
 
+    def test_account_selection_persistence(self):
+        self.settings.set_value(SettingsConstants.SETTING__PERSISTENT_SETTINGS, SettingsConstants.OPTION__ENABLED)
+        self.settings.set_value(SettingsConstants.SETTING__ACCOUNT_SELECTION, SettingsConstants.OPTION__ENABLED)
+
+        with open(Settings.SETTINGS_FILENAME) as settings_file:
+            settings_json = json.loads(settings_file.read())
+
+        BaseTest.reset_settings()
+        with open(Settings.SETTINGS_FILENAME, "w") as settings_file:
+            settings_file.write(json.dumps(settings_json))
+
+        assert Settings.get_instance().get_value(SettingsConstants.SETTING__ACCOUNT_SELECTION) == SettingsConstants.OPTION__ENABLED
+
+
+    def test_account_selection_definition(self):
+        entry = SettingsDefinition.get_settings_entry(SettingsConstants.SETTING__ACCOUNT_SELECTION)
+        assert entry.display_name == "Account selection"
+        assert entry.help_text == "Prompt for account number when deriving wallet keys"
+        assert entry.visibility == SettingsConstants.VISIBILITY__ADVANCED
+        assert entry.default_value == SettingsConstants.OPTION__DISABLED
+
+
     def test_settings_defaults(self):
         """ Settings should initialize to their default values """
         BaseTest.reset_settings()
@@ -122,6 +144,20 @@ class SettingsQRBase(BaseTest):
 
 
 class TestSettingsQRParser(SettingsQRBase):
+    @pytest.mark.parametrize("value", [SettingsConstants.OPTION__ENABLED, SettingsConstants.OPTION__DISABLED])
+    def test_settingsqr_account_selection(self, value):
+        _, settings_update_dict = Settings.parse_settingsqr(
+            f"settings::v1 name=Account_Test account_selection={value}"
+        )
+        assert settings_update_dict[SettingsConstants.SETTING__ACCOUNT_SELECTION] == value
+
+
+    def test_settingsqr_without_account_selection_defaults_to_disabled(self):
+        _, settings_update_dict = Settings.parse_settingsqr("settings::v1 name=Legacy persistent=D")
+        self.settings.update(settings_update_dict)
+        assert self.settings.get_value(SettingsConstants.SETTING__ACCOUNT_SELECTION) == SettingsConstants.OPTION__DISABLED
+
+
     def test_parse_settingsqr_data(self):
         """
         SettingsQR parser should successfully parse a valid settingsqr input string and

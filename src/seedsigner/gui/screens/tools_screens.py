@@ -11,7 +11,7 @@ from seedsigner.gui.components import FontAwesomeIconConstants, Fonts, GUIConsta
 
 from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON, BaseScreen, ButtonListScreen, ButtonOption, KeyboardScreen
 from seedsigner.hardware.buttons import HardwareButtonsConstants
-from seedsigner.models.settings_definition import SettingsConstants, SettingsDefinition
+from seedsigner.models.settings_definition import SettingsConstants
 from seedsigner.gui.keyboard import Keyboard
 
 
@@ -583,6 +583,7 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
     wallet_descriptor_display_name: Any = None
     script_type: str = None
     custom_derivation_path: str = None
+    derivation_path: str = None
 
     def __post_init__(self):
         # TRANSLATOR_NOTE: a label for the tool to explore public addresses for this seed.
@@ -601,24 +602,14 @@ class ToolsAddressExplorerAddressTypeScreen(ButtonListScreen):
                 screen_y=self.top_nav.height + GUIConstants.COMPONENT_PADDING,
             ))
 
-            if self.script_type != SettingsConstants.CUSTOM_DERIVATION:
-                self.components.append(IconTextLine(
-                    icon_name=SeedSignerIconConstants.DERIVATION,
-                    # TRANSLATOR_NOTE: a label for the derivation-path into a BIP-32 HD wallet
-                    label_text=_("Derivation"),
-                    value_text=SettingsDefinition.get_settings_entry(attr_name=SettingsConstants.SETTING__SCRIPT_TYPES).get_selection_option_display_name_by_value(value=self.script_type),
-                    screen_x=GUIConstants.EDGE_PADDING,
-                    screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
-                ))
-            else:
-                self.components.append(IconTextLine(
-                    icon_name=SeedSignerIconConstants.DERIVATION,
-                    # l10n_note already exists.
-                    label_text=_("Derivation"),
-                    value_text=self.custom_derivation_path,
-                    screen_x=GUIConstants.EDGE_PADDING,
-                    screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
-                ))
+            self.components.append(IconTextLine(
+                icon_name=SeedSignerIconConstants.DERIVATION,
+                # TRANSLATOR_NOTE: a label for the derivation-path into a BIP-32 HD wallet
+                label_text=_("Derivation"),
+                value_text=self.derivation_path,
+                screen_x=GUIConstants.EDGE_PADDING,
+                screen_y=self.components[-1].screen_y + self.components[-1].height + 2*GUIConstants.COMPONENT_PADDING,
+            ))
 
         else:
             self.components.append(IconTextLine(
