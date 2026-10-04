@@ -118,13 +118,8 @@ class PSBTNegativeFeeError(PSBTVerificationError):
     """
     The outputs spend more than the inputs bring in, so the fee is negative.
 
-    Treated as malformed data rather than an attack. No honest coordinator builds one,
-    and a coordinator lying about its input amounts wants the fee it shows us to look
-    small, not impossible. Note that the amounts on both sides of that subtraction are
-    the coordinator's claims, so a negative result only establishes that the arithmetic
-    cannot be trusted, not which side of it is false. Either way nothing is signed here.
-    It is raised because the alternative is walking the user through a review that quotes
-    a negative fee.
+    This is a malformed psbt rather than a proven deception, so we do not treat it as an
+    attack.
     """
     pass
 
@@ -646,8 +641,9 @@ class PSBTParser():
 
         # embit computes the fee as inputs minus outputs and does not look at the sign of
         # the result. A negative fee means the outputs claim more than the inputs fund,
-        # which no valid transaction can do. Zero is left alone: it is a pointless
-        # transaction, but not a malformed one.
+        # which no valid transaction can do. Both totals are the coordinator's own claims,
+        # so this proves the psbt is malformed but not which side is false. Zero is left
+        # alone: it is a pointless transaction, but not a malformed one.
         self.fee_amount = self.psbt.fee()
         if self.fee_amount < 0:
             raise PSBTNegativeFeeError()
