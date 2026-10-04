@@ -8,7 +8,7 @@ from seedsigner.gui import renderer
 from seedsigner.gui.components import GUIConstants, Fonts, resize_image_to_fill
 from seedsigner.models.decode_qr import DecodeQR
 from seedsigner.models.threads import BaseThread, ThreadsafeCounter
-
+from seedsigner.gui.screens.screen import RET_CODE__BACK_BUTTON
 from .screen import BaseScreen
 
 
@@ -262,5 +262,6 @@ class ScanScreen(BaseScreen):
                 
                 if self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_RIGHT) or self.hw_inputs.check_for_low(HardwareButtonsConstants.KEY_LEFT):
                     self.camera.stop_video_stream_mode()
-                    return False
+                    return RET_CODE__BACK_BUTTON
+
 
