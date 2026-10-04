@@ -1,7 +1,7 @@
 from gettext import gettext as _
 
 from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
-    PSBTMixedDerivationPathTypesError, PSBTOutputOwnershipClaimError,
+    PSBTMixedDerivationPathTypesError, PSBTNegativeFeeError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
     PSBTSurplusDerivationPathsError)
 from seedsigner.models.settings import SettingsConstants
@@ -125,6 +125,10 @@ class PSBTOverviewView(View):
 
             except PSBTOutputOwnershipContradictionError:
                 self.set_redirect(Destination(PSBTOutputOwnershipContradictionView, clear_history=True))
+                return
+
+            except PSBTNegativeFeeError:
+                self.set_redirect(Destination(PSBTNegativeFeeView, clear_history=True))
                 return
 
             except PSBTSeedCannotSignError:
@@ -647,6 +651,32 @@ class PSBTOutputOwnershipContradictionView(View):
 
         # We're done with this PSBT. Route back to MainMenuView, which clears all
         # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTNegativeFeeView(View):
+    """
+    Reached when a psbt's outputs spend more than its inputs bring in (see
+    PSBTNegativeFeeError). Malformed rather than hostile, so it shows a plain (not dire)
+    warning and discards the psbt to the main menu.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: The transaction's outputs spend more than its inputs hold, which is impossible.
+            text=_("This transaction's outputs send more than its inputs provide."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all ephemeral
+        # data (except in-memory seeds).
         # Set clear_history to disable returning via BACK button.
         return Destination(MainMenuView, clear_history=True)
 

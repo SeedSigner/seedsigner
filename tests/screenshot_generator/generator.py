@@ -457,6 +457,7 @@ def generate_screenshots(locale):
                 ScreenshotConfig(psbt_views.PSBTAddressVerificationFailedView, dict(is_change=False), screenshot_name="PSBTAddressVerificationFailedView_multisig_selftransfer"),
                 ScreenshotConfig(psbt_views.PSBTOutputOwnershipClaimFailedView),
                 ScreenshotConfig(psbt_views.PSBTInputOwnershipClaimFailedView),
+                ScreenshotConfig(psbt_views.PSBTNegativeFeeView),
                 ScreenshotConfig(psbt_views.PSBTSeedCannotSignView),
                 ScreenshotConfig(psbt_views.PSBTFinalizeView,     mock_context_manager=mock_multisig_psbt_loaded),
                 #ScreenshotConfig(PSBTSignedQRDisplayViewScreenshotConfig),
