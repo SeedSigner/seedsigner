@@ -101,7 +101,7 @@ In general we try to avoid using `_mft` at all, but some class-level attributes 
 This is the way you'll see text wrapping handled in the vast majority of tutorials.
 
 ```python
-from gettext import gettext as _
+from seedsigner.helpers.l10n import seedsigner_gettext as _
 
 my_text = _("Hello!")
 
@@ -121,7 +121,7 @@ This approach marks string literals for translation AND retrieves the translated
 We do the same in SeedSigner code, but only when the string literal is in a part of the code that is dynamically evaluated:
 
 ```python
-from gettext import gettext as _
+from seedsigner.helpers.l10n import seedsigner_gettext as _
 
 class SomeView(View):
     def __init__(self):

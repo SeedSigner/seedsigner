@@ -1,7 +1,7 @@
 import logging
 import re
 
-from gettext import gettext as _
+from seedsigner.helpers.l10n import seedsigner_gettext as _
 from seedsigner.helpers.l10n import mark_for_translation as _mft
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.views.view import BackStackView, ErrorView, MainMenuView, NotYetImplementedView, View, Destination
