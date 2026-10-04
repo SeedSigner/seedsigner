@@ -90,18 +90,36 @@ class QR:
                 ).resize((width,height)).convert('RGBA')
 
 
+ 
     def qrimage_io(self, data, width=240, height=240, border=3, background_color="808080"):
         if 1 <= border <= 10:
             border_str = str(border)
         else:
             border_str = "3"
 
-        cmd = f"""qrencode -m {border_str} -s 3 -l L --foreground=000000 --background={background_color} -t PNG -o "/tmp/qrcode.png" "{str(data)}" """
-        rv = subprocess.call(cmd, shell=True)
+        cmd = [
+            "qrencode",
+            "-m", border_str,
+            "-s", "3",
+            "-l", "L",
+            "--foreground=000000",
+            f"--background={background_color}",
+            "-t", "PNG",
+            "-o", "/tmp/qrcode.png",
+            str(data),
+        ]
+
+        rv = subprocess.call(cmd)
 
         # if qrencode fails, fall back to only encoder
         if rv != 0:
-            return self.qrimage(data,width,height,border)
-        img = Image.open("/tmp/qrcode.png").resize((width,height), Image.Resampling.NEAREST).convert("RGBA")
+            return self.qrimage(data, width, height, border)
+
+        img = Image.open("/tmp/qrcode.png")
+        img = img.resize((width, height), Image.NEAREST)
+        img = img.convert("RGBA")
 
         return img
+
+
+
