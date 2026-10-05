@@ -374,9 +374,8 @@ class PSBTParser():
         """
         verified_input_amount = 0
         for i, inp in enumerate(self.psbt.inputs):
-            # Make sure inp.vout, the output this input claims to spend, actually exists in the
-            # non_witness_utxo. Otherwise the lookups below raise an IndexError instead of
-            # rejecting the psbt.
+            # Make sure the output that this input claims to spend (inp.vout) actually exists
+            # in the non_witness_utxo.
             if inp.non_witness_utxo and inp.vout >= len(inp.non_witness_utxo.vout):
                 raise PSBTMissingInputUtxoError(
                     f"Input {i}: outpoint index {inp.vout} is out of range of its non_witness_utxo")
