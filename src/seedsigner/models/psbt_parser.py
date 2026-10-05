@@ -106,12 +106,7 @@ class PSBTOutputOwnershipContradictionError(PSBTVerificationError):
 class PSBTInputAmountVerificationError(PSBTVerificationError):
     """
     An input's declared amount could not be verified, so the fee this device would display
-    cannot be trusted. See PSBTParser._verify_input_amounts().
-
-    Segwit inputs carrying only a witness_utxo are deliberately NOT rejected: there the
-    sighash commits the amount, so a lie invalidates the signature rather than burning
-    funds. _verify_input_amounts() covers why the residual risk (CVE-2020-14199) is accepted
-    rather than warned about.
+    cannot be trusted.
     """
     pass
 
@@ -168,8 +163,7 @@ class PSBTParser():
     # just stops getting cache hits once the cache is full.
     MAX_CACHED_DERIVATIONS = 1000
 
-    # Input types whose sighash does NOT commit to the input amount. A lie about the
-    # input amount still allows a valid signature, so these inputs must supply a non_witness_utxo.
+    # Input types whose sighash does NOT commit to the input amount.
     UNCOMMITTED_AMOUNT_SCRIPT_TYPES = [None, "p2pkh", "p2sh"]
     
     # Warn when the fee exceeds this percentage of what is being sent (outputs other than
