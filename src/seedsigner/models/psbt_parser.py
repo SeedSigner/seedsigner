@@ -345,7 +345,7 @@ class PSBTParser():
 
     def _verify_input_amounts(self):
         """
-        Verify each input's declared amount before it is added to the total. Since seedsigner is
+        Verify each input's declared amount before it is added to the total. Since SeedSigner is
         airgapped, we can't look up what an input is actually worth. We're relying on what the
         coordinator declared. Unchecked, a compromised coordinator could declare false amounts
         and have us display any fee it liked. See the miner fee attack described in embit's
@@ -355,21 +355,22 @@ class PSBTParser():
         the coin being spent, so we can hash it and confirm it produces the txid this input
         claims to spend. A witness_utxo is just the one output, with no such proof.
 
-        ignore_missing=True is required: coordinators legitimately and typically supply only
-        the witness_utxo for segwit inputs, where the sighash commits the input amount. A lie there
-        invalidates the signature instead of burning funds. Legacy sighashes commit no amount
-        at all, so legacy inputs must supply a non_witness_utxo.
+        InputScope.verify() needs ignore_missing=True: coordinators legitimately and typically
+        supply only the witness_utxo for segwit and taproot inputs, where the sighash commits the
+        input amount. A lie there invalidates the signature instead of burning funds. Legacy
+        sighashes commit no amount at all, so legacy inputs must supply a non_witness_utxo.
+        Raises PSBTInputAmountVerificationError otherwise.
 
         Known limitation: that sighash protection is not absolute. BIP-143 commits only the
         amount of the input being signed, so a coordinator that gets us to sign the same
         transaction twice can keep one valid signature per session/input and combine them into
-        a tx that burns the difference as miner fee (CVE-2020-14199).
+        a tx that burns the difference as miner fee (CVE-2020-14199). Taproot is not affected:
+        BIP-341 commits the amount of every input.
 
         We accept that risk for segwit rather than warn about it, because the data needed to
         close it isn't coming. Wallets generally provide non_witness_utxo *or* witness_utxo but
-        not both. This is mainly so psbts stay small for QR-based signers. Warning
-        on it would therefore fire on nearly every ordinary multi-input segwit spend and only
-        teach users to click through warnings.
+        not both, likely to keep psbts small for QR-based signers. Warning on it would therefore
+        fire on nearly every ordinary multi-input segwit spend.
         """
         verified_input_amount = 0
         for i, inp in enumerate(self.psbt.inputs):
