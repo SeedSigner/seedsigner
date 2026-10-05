@@ -3,9 +3,10 @@ import logging
 from gettext import gettext as _
 
 from seedsigner.models.psbt_parser import (PSBTInputAmountVerificationError,
-    PSBTInputOwnershipClaimError, PSBTMixedDerivationPathTypesError,
-    PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
-    PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError)
+    PSBTInputOwnershipClaimError, PSBTMissingInputUtxoError,
+    PSBTMixedDerivationPathTypesError, PSBTOutputOwnershipClaimError,
+    PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
+    PSBTSurplusDerivationPathsError)
 from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
@@ -137,6 +138,10 @@ class PSBTOverviewView(View):
                 self.controller.psbt_parser = None
                 self.controller.psbt_seed = None
                 self.set_redirect(Destination(PSBTSeedCannotSignView))
+                return
+
+            except PSBTMissingInputUtxoError:
+                self.set_redirect(Destination(PSBTMissingInputUtxoView, clear_history=True))
                 return
 
             except PSBTInputAmountVerificationError as e:
@@ -718,6 +723,33 @@ class PSBTInputAmountVerificationFailedView(View):
 
         # We're done with this PSBT. Route back to MainMenuView, which clears all ephemeral
         # data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTMissingInputUtxoView(View):
+    """
+    Reached when an input is missing the utxo it spends (see PSBTMissingInputUtxoError).
+
+    We view this as a correctness problem rather than an attack. We do not allow the user
+    to continue, but only give this the "Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
+            text=_("This transaction left out the amount for one of its inputs."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
         # Set clear_history to disable returning via BACK button.
         return Destination(MainMenuView, clear_history=True)
 

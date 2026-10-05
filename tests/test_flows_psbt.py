@@ -353,6 +353,30 @@ class TestPSBTOwnershipClaimRouting(FlowTest):
         ])
 
 
+    def test_missing_input_utxo_terminates_signing_flow(self):
+        """
+        An input that carries no utxo data gives us no amount to verify, so parsing
+        refuses the psbt.
+
+        It ends the flow at its own warning before any transaction detail is rendered.
+        """
+        psbt = PSBT.parse(a2b_base64(PSBTTestData.SINGLE_SIG_NATIVE_SEGWIT_2_INPUTS))
+
+        # Input 0 is left intact, so the seed can still sign and the parse gets as far as
+        # the amount check.
+        psbt.inputs[1].witness_utxo = None
+        psbt.inputs[1].non_witness_utxo = None
+
+        self._load_psbt_for_signing(psbt, seed=PSBTTestData.two_input_seed)
+
+        self.run_sequence([
+            FlowStep(psbt_views.PSBTSelectSeedView, screen_return_value=0),
+            FlowStep(psbt_views.PSBTOverviewView, is_redirect=True),
+            FlowStep(psbt_views.PSBTMissingInputUtxoView, button_data_selection=psbt_views.PSBTMissingInputUtxoView.DISCARD),
+            FlowStep(MainMenuView),
+        ])
+
+
     def test_wrong_seed_routes_back_to_seed_selection_flow(self):
         """
         The wrong seed for a psbt redirects before any transaction detail is rendered and

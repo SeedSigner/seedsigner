@@ -111,6 +111,15 @@ class PSBTInputAmountVerificationError(PSBTVerificationError):
     pass
 
 
+class PSBTMissingInputUtxoError(PSBTVerificationError):
+    """
+    An input is missing its utxo, which holds its amount. A psbt supplies the amount in
+    the witness_utxo or non_witness_utxo field, and without either there is no amount to
+    verify. This is a correctness problem rather than an attack.
+    """
+    pass
+
+
 class PSBTSeedCannotSignError(PSBTVerificationError):
     """
     The selected seed holds no key that could sign any input.
@@ -247,9 +256,11 @@ class PSBTParser():
              here so the flow can say so before showing a transaction.
 
           4. _verify_input_amounts: verifies each input's claimed amount, then totals them
-             as verified_input_amount. Raises PSBTInputAmountVerificationError if an amount
-             cannot be verified. Runs after the ownership checks so a psbt this seed cannot
-             sign is reported as a mismatch rather than as a suspicious transaction.
+             as verified_input_amount. Raises PSBTMissingInputUtxoError if an input is
+             missing the utxo that holds its amount, or PSBTInputAmountVerificationError
+             if an amount cannot be verified. Runs after the ownership checks so a psbt
+             this seed cannot sign is reported as a mismatch rather than as a suspicious
+             transaction.
 
           5. _parse_inputs: every input must resolve to the same policy otherwise a
              RuntimeError is raised. TODO: make this a PSBTVerificationError subclass so
@@ -366,11 +377,12 @@ class PSBTParser():
             # non_witness_utxo. Otherwise the lookups below raise an IndexError instead of
             # rejecting the psbt.
             if inp.non_witness_utxo and inp.vout >= len(inp.non_witness_utxo.vout):
-                raise PSBTInputAmountVerificationError(
+                raise PSBTMissingInputUtxoError(
                     f"Input {i}: outpoint index {inp.vout} is out of range of its non_witness_utxo")
 
+            # Without any utxo data there is no amount to verify or total
             if inp.utxo is None:
-                raise PSBTInputAmountVerificationError(f"Input {i} has no utxo data")
+                raise PSBTMissingInputUtxoError(f"Input {i} has no utxo data")
 
             try:
                 verified = inp.verify(ignore_missing=True)

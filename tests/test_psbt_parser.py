@@ -13,9 +13,10 @@ from embit.descriptor import Descriptor
 from embit.script import Script
 
 from seedsigner.models.psbt_parser import (PSBTInputAmountVerificationError,
-    PSBTInputOwnershipClaimError, PSBTMixedDerivationPathTypesError,
-    PSBTOutputOwnershipClaimError, PSBTOutputOwnershipContradictionError, PSBTParser,
-    PSBTSeedCannotSignError, PSBTSurplusDerivationPathsError)
+    PSBTInputOwnershipClaimError, PSBTMissingInputUtxoError,
+    PSBTMixedDerivationPathTypesError, PSBTOutputOwnershipClaimError,
+    PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
+    PSBTSurplusDerivationPathsError)
 from seedsigner.models.seed import Seed
 from seedsigner.models.settings_definition import SettingsConstants
 
@@ -652,7 +653,7 @@ class TestPSBTInputAmountVerification:
         psbt.inputs[0].witness_utxo = None
         psbt.inputs[0].non_witness_utxo = None
 
-        with pytest.raises(PSBTInputAmountVerificationError):
+        with pytest.raises(PSBTMissingInputUtxoError):
             self.parse(psbt)
 
 
@@ -670,7 +671,7 @@ class TestPSBTInputAmountVerification:
         assert inp.vout < len(inp.non_witness_utxo.vout)
         inp.vout = len(inp.non_witness_utxo.vout)
 
-        with pytest.raises(PSBTInputAmountVerificationError):
+        with pytest.raises(PSBTMissingInputUtxoError):
             self.parse(psbt)
 
 
