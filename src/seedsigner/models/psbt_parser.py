@@ -181,7 +181,7 @@ class PSBTParser():
         self.change_amount = 0
         self.change_data = []
         self.fee_amount = 0
-        self.input_amount = 0
+        self.verified_input_amount = 0
         self.num_inputs = 0
         self.destination_addresses = []
         self.destination_amounts = []
@@ -246,11 +246,10 @@ class PSBTParser():
              inputs can be signed by the seed. A mismatch rather than an attack, caught
              here so the flow can say so before showing a transaction.
 
-          4. _verify_input_amounts: raises PSBTInputAmountVerificationError when an input's
-             claimed amount cannot be verified against a non_witness_utxo. Runs after the
-             ownership checks so a psbt this seed cannot sign is reported as a mismatch
-             rather than as a suspicious transaction, but before _parse_inputs, which is
-             where amounts are first summed.
+          4. _verify_input_amounts: verifies each input's claimed amount, then totals them
+             as verified_input_amount. Raises PSBTInputAmountVerificationError if an amount
+             cannot be verified. Runs after the ownership checks so a psbt this seed cannot
+             sign is reported as a mismatch rather than as a suspicious transaction.
 
           5. _parse_inputs: every input must resolve to the same policy otherwise a
              RuntimeError is raised. TODO: make this a PSBTVerificationError subclass so
@@ -316,7 +315,7 @@ class PSBTParser():
         self._verify_claimed_derivation_paths(child_key_derivation_cache)
         self._reject_if_seed_cannot_sign()
 
-        # Single source of truth for input amounts; raises before any amount is summed
+        # Single source of truth for input amounts: each is verified before it is totaled
         self._verify_input_amounts()
 
         rt = self._parse_inputs(child_key_derivation_cache)
@@ -335,7 +334,7 @@ class PSBTParser():
 
     def _verify_input_amounts(self):
         """
-        Verify each input's declared amount before any of them is summed. Since seedsigner is
+        Verify each input's declared amount before it is added to the total. Since seedsigner is
         airgapped, we can't look up what an input is actually worth. We're relying on what the
         coordinator declared. Unchecked, a compromised coordinator could declare false amounts
         and have us display any fee it liked. See the miner fee attack described in embit's
@@ -361,6 +360,7 @@ class PSBTParser():
         on it would therefore fire on nearly every ordinary multi-input segwit spend and only
         teach users to click through warnings.
         """
+        verified_input_amount = 0
         for i, inp in enumerate(self.psbt.inputs):
             # Make sure inp.vout, the output this input claims to spend, actually exists in the
             # non_witness_utxo. Otherwise the lookups below raise an IndexError instead of
@@ -382,7 +382,6 @@ class PSBTParser():
                 script_type = PSBTParser._get_script_type(inp, inp.script_pubkey)
                 if script_type in PSBTParser.UNCOMMITTED_AMOUNT_SCRIPT_TYPES:
                     raise PSBTInputAmountVerificationError(f"Input {i}: {script_type} input has no non_witness_utxo to verify against")
-                continue
 
             # verify() hashes the non_witness_utxo but never looks at the witness_utxo that may
             # sit alongside it. embit's PSBT.utxo()/fee() prefer witness_utxo, so a witness_utxo
@@ -394,17 +393,19 @@ class PSBTParser():
                 if prevout.value != inp.witness_utxo.value or prevout.script_pubkey.data != inp.witness_utxo.script_pubkey.data:
                     raise PSBTInputAmountVerificationError(f"Input {i}: witness_utxo doesn't match verified non_witness_utxo")
 
+            verified_input_amount += inp.utxo.value
+
+        # Only assigned once every input has passed, so a rejected psbt leaves no partial total
+        self.verified_input_amount = verified_input_amount
+
 
     def _parse_inputs(self, child_key_derivation_cache: dict):
         """
-        Totals the input amounts and determines the wallet policy. Every input must
-        resolve to the same policy, otherwise a RuntimeError is raised.
+        Determines the wallet policy. Every input must resolve to the same policy,
+        otherwise a RuntimeError is raised.
         """
-        self.input_amount = 0
         self.num_inputs = len(self.psbt.inputs)
         for inp in self.psbt.inputs:
-            # Amounts were verified in _verify_input_amounts()
-            self.input_amount += inp.utxo.value
             script_pubkey = inp.script_pubkey
 
             inp_policy = PSBTParser._get_policy(inp, script_pubkey, self.psbt.xpubs, child_key_derivation_cache)

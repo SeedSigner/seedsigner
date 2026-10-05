@@ -302,7 +302,7 @@ class PSBTMathView(View):
         
         selected_menu_num = self.run_screen(
             PSBTMathScreen,
-            input_amount=psbt_parser.input_amount,
+            input_amount=psbt_parser.verified_input_amount,
             num_inputs=psbt_parser.num_inputs,
             spend_amount=psbt_parser.spend_amount,
             num_recipients=psbt_parser.num_destinations,

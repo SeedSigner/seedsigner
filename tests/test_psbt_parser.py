@@ -54,13 +54,13 @@ class TestPSBTParser:
             assert len(psbt.outputs) == 2
             psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
             assert psbt_parser.num_inputs == len(psbt.inputs)
-            assert psbt_parser.input_amount == input_amount
+            assert psbt_parser.verified_input_amount == input_amount
             assert psbt_parser.num_destinations == 1
             assert psbt_parser.num_change_outputs == 1
             assert psbt_parser.spend_amount == recipient_amount
             assert psbt_parser.change_amount == input_amount - recipient_amount - fee_amount
             assert psbt_parser.fee_amount == fee_amount
-            assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+            assert psbt_parser.verified_input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
 
             # No self-transfer here, so all change is true change
             assert psbt_parser.get_total_output_value() == psbt_parser.spend_amount
@@ -73,13 +73,13 @@ class TestPSBTParser:
         assert len(psbt.outputs) == 1
         psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
         assert psbt_parser.num_inputs == len(psbt.inputs)
-        assert psbt_parser.input_amount == input_amount
+        assert psbt_parser.verified_input_amount == input_amount
         assert psbt_parser.num_destinations == 0    # No external recipients == no destinations
         assert psbt_parser.num_change_outputs == 1  # PSBTParser considers self-transfers == change
         assert psbt_parser.spend_amount == 0        # No external recipients == nothing spent (ignores fee)
         assert psbt_parser.change_amount == input_amount - fee_amount  # PSBTParser considers self-transfers == change
         assert psbt_parser.fee_amount == fee_amount
-        assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+        assert psbt_parser.verified_input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
 
         # Only self-transfer, and no "true" change, so `change_amount` is included in total output
         # Both calls should return the same value
@@ -97,13 +97,13 @@ class TestPSBTParser:
             assert len(psbt.outputs) == 1
             psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
             assert psbt_parser.num_inputs == len(psbt.inputs)
-            assert psbt_parser.input_amount == input_amount
+            assert psbt_parser.verified_input_amount == input_amount
             assert psbt_parser.num_destinations == 1
             assert psbt_parser.num_change_outputs == 0
             assert psbt_parser.spend_amount == recipient_amount
             assert psbt_parser.change_amount == 0
             assert psbt_parser.fee_amount == fee_amount
-            assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+            assert psbt_parser.verified_input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
 
             # No self-transfer here, so all change is true change
             assert psbt_parser.get_total_output_value() == psbt_parser.spend_amount
@@ -123,13 +123,13 @@ class TestPSBTParser:
         assert len(psbt.outputs) == len(PSBTTestData.ALL_EXTERNAL_OUTPUTS) + 1
         psbt_parser = PSBTParser(p=psbt, seed=self.seed, network=SettingsConstants.REGTEST)
         assert psbt_parser.num_inputs == len(psbt.inputs)
-        assert psbt_parser.input_amount == input_amount
+        assert psbt_parser.verified_input_amount == input_amount
         assert psbt_parser.num_destinations == len(PSBTTestData.ALL_EXTERNAL_OUTPUTS)
         assert psbt_parser.num_change_outputs == 1
         assert psbt_parser.spend_amount == input_amount - change_amount - fee_amount
         assert psbt_parser.change_amount == change_amount
         assert psbt_parser.fee_amount == fee_amount
-        assert psbt_parser.input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
+        assert psbt_parser.verified_input_amount == psbt_parser.spend_amount + psbt_parser.change_amount + psbt_parser.fee_amount
 
         # No self-transfer here, so all change is true change
         assert psbt_parser.get_total_output_value() == psbt_parser.spend_amount
@@ -519,9 +519,9 @@ class TestPSBTInputAmountVerification:
 
         is_verified is the assertion that carries the weight here. It is only set by embit's
         InputScope.verify(), so it is the one flag that distinguishes "we hashed the previous
-        tx ourselves" from "we took the coordinator's word for it". input_amount alone would
-        hold with or without _verify_input_amounts(), since _parse_inputs() sums inp.utxo.value
-        either way.
+        tx ourselves" from "we took the coordinator's word for it". verified_input_amount
+        alone can't tell those apart: it is totaled the same way for a segwit input that was
+        accepted with no non_witness_utxo to hash.
         """
         psbt = self.build_psbt(psbt_base64)
         assert all(inp.is_verified == False for inp in psbt.inputs)  # not verified until we do it
@@ -529,7 +529,7 @@ class TestPSBTInputAmountVerification:
         psbt_parser = self.parse(psbt)
 
         assert all(inp.is_verified for inp in psbt.inputs)
-        assert psbt_parser.input_amount == sum([inp.utxo.value for inp in psbt.inputs])
+        assert psbt_parser.verified_input_amount == sum([inp.utxo.value for inp in psbt.inputs])
 
 
     @pytest.mark.parametrize("psbt_base64", PSBTTestData.ALL_INPUTS)
@@ -636,7 +636,7 @@ class TestPSBTInputAmountVerification:
         psbt = self.build_psbt(psbt_base64)
         psbt.inputs[0].non_witness_utxo = None
 
-        assert self.parse(psbt).input_amount == psbt.inputs[0].witness_utxo.value
+        assert self.parse(psbt).verified_input_amount == psbt.inputs[0].witness_utxo.value
 
 
     def test_input_with_no_utxo_data_raises(self):
@@ -689,7 +689,7 @@ class TestPSBTInputAmountVerification:
         # Untampered, both inputs verify and their amounts are summed
         psbt_parser = PSBTParser(p=psbt, seed=PSBTTestData.two_input_seed, network=SettingsConstants.REGTEST)
         assert psbt_parser.num_inputs == 2
-        assert psbt_parser.input_amount == 56_522_834 + 1_990_245_069
+        assert psbt_parser.verified_input_amount == 56_522_834 + 1_990_245_069
 
         psbt.inputs[1].non_witness_utxo.vout[0].value += 100_000
 
@@ -903,7 +903,7 @@ class TestPSBTParserOptimizations:
         psbt is compared too, not just the parser's own attributes.
         """
         assert parser_a.policy == parser_b.policy
-        assert parser_a.input_amount == parser_b.input_amount
+        assert parser_a.verified_input_amount == parser_b.verified_input_amount
         assert parser_a.spend_amount == parser_b.spend_amount
         assert parser_a.change_amount == parser_b.change_amount
         assert parser_a.fee_amount == parser_b.fee_amount
