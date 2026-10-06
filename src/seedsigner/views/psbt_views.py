@@ -1,6 +1,9 @@
+import logging
+
 from gettext import gettext as _
 
-from seedsigner.models.psbt_parser import (PSBTInputOwnershipClaimError,
+from seedsigner.models.psbt_parser import (PSBTInputAmountVerificationError,
+    PSBTInputOwnershipClaimError, PSBTMissingInputUtxoError,
     PSBTMixedDerivationPathTypesError, PSBTOutputOwnershipClaimError,
     PSBTOutputOwnershipContradictionError, PSBTParser, PSBTSeedCannotSignError,
     PSBTSurplusDerivationPathsError)
@@ -8,6 +11,8 @@ from seedsigner.models.settings import SettingsConstants
 from seedsigner.gui.components import FontAwesomeIconConstants, GUIConstants, SeedSignerIconConstants
 from seedsigner.gui.screens.screen import (RET_CODE__BACK_BUTTON, ButtonListScreen, ButtonOption, LargeIconStatusScreen, WarningScreen, DireWarningScreen, QRDisplayScreen)
 from seedsigner.views.view import BackStackView, MainMenuView, View, Destination
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -133,6 +138,18 @@ class PSBTOverviewView(View):
                 self.controller.psbt_parser = None
                 self.controller.psbt_seed = None
                 self.set_redirect(Destination(PSBTSeedCannotSignView))
+                return
+
+            except PSBTMissingInputUtxoError:
+                self.set_redirect(Destination(PSBTMissingInputUtxoView, clear_history=True))
+                return
+
+            except PSBTInputAmountVerificationError as e:
+                # The declared input amounts could not be verified, so the fee we would show is unproven
+                # Set clear_history to disable returning via BACK button.
+                logger.error(f"PSBT input amount verification failed: {e}")
+                self.controller.psbt_parser = None
+                self.set_redirect(Destination(PSBTInputAmountVerificationFailedView, clear_history=True))
                 return
 
             finally:
@@ -290,7 +307,7 @@ class PSBTMathView(View):
         
         selected_menu_num = self.run_screen(
             PSBTMathScreen,
-            input_amount=psbt_parser.input_amount,
+            input_amount=psbt_parser.verified_input_amount,
             num_inputs=psbt_parser.num_inputs,
             spend_amount=psbt_parser.spend_amount,
             num_recipients=psbt_parser.num_destinations,
@@ -676,6 +693,58 @@ class PSBTAddressVerificationFailedView(View):
             status_headline=_("Address Verification Failed"),
             text=text,
             button_data=[ButtonOption("Discard transaction")],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all
+        # ephemeral data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTInputAmountVerificationFailedView(View):
+    """
+    Reached when an input's declared amount could not be verified (see
+    PSBTInputAmountVerificationError). Shows a dire warning and discards the psbt to the
+    main menu.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            DireWarningScreen,
+            title=_("Suspicious Transaction"),
+            status_headline=_("Likely an Attack!"),
+            text=_("This transaction's input amounts cannot be verified, so its fee cannot be trusted."),
+            button_data=[self.DISCARD],
+            show_back_button=False,
+        )
+
+        # We're done with this PSBT. Route back to MainMenuView, which clears all ephemeral
+        # data (except in-memory seeds).
+        # Set clear_history to disable returning via BACK button.
+        return Destination(MainMenuView, clear_history=True)
+
+
+
+class PSBTMissingInputUtxoView(View):
+    """
+    Reached when an input is missing the utxo it spends (see PSBTMissingInputUtxoError).
+
+    We view this as a correctness problem rather than an attack. We do not allow the user
+    to continue, but only give this the "Warning" level.
+    """
+    DISCARD = ButtonOption("Discard transaction")
+
+    def run(self):
+        self.run_screen(
+            WarningScreen,
+            title=_("Transaction Problem"),
+            status_headline=None,
+            # TRANSLATOR_NOTE: The transaction/psbt has an error but does not seem to be malicious.
+            text=_("This transaction left out the amount for one of its inputs."),
+            button_data=[self.DISCARD],
             show_back_button=False,
         )
 

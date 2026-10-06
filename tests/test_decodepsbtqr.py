@@ -144,7 +144,7 @@ def test_base64_2_input_p2wsh():
 
     assert tx.inputs[1].witness_utxo.value == 10000000 # input amount 2 in psbt
 
-    assert pp.input_amount == 20000000
+    assert pp.verified_input_amount == 20000000
 
     assert (pp.spend_amount + pp.change_amount + pp.fee_amount) == 20000000
 
@@ -169,7 +169,7 @@ def test_base64_1_input_p2sh_p2wsh():
 
     assert tx.inputs[0].witness_utxo.value == 100000000 # input amount 1 in psbt
 
-    assert pp.input_amount == 100000000
+    assert pp.verified_input_amount == 100000000
 
     assert (pp.spend_amount + pp.change_amount + pp.fee_amount) == 100000000
 
@@ -201,7 +201,7 @@ def test_specter_multisig_animated_qr():
     mnemonic = "zone zone zone zone zone abandon ability able abandon ability able abstract".split()
     pp = PSBTParser(p=tx, seed=Seed(mnemonic), network=SettingsConstants.TESTNET)
 
-    assert pp.input_amount == 1052818
+    assert pp.verified_input_amount == 1052818
 
     assert pp.change_amount == 0
 
@@ -239,7 +239,7 @@ def test_specter_multisig_animated_qr():
     mnemonic2 = "able bacon cable able bacon cable abandon abandon abandon abandon abandon access".split()
     pp2 = PSBTParser(p=tx2, seed=Seed(mnemonic2), network=SettingsConstants.TESTNET)
 
-    assert pp2.input_amount == 1052818
+    assert pp2.verified_input_amount == 1052818
 
     assert pp2.change_amount == 0
 
