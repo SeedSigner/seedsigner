@@ -385,21 +385,24 @@ class PSBTParser():
                 raise PSBTMissingInputUtxoError(f"Input {i} has no utxo data")
 
             try:
+                # ignore_missing=True: a missing non_witness_utxo returns False instead of raising
                 verified = inp.verify(ignore_missing=True)
             except PSBTError as e:
+                # embit's verify() hashes the non_witness_utxo and raises PSBTError only when that
+                # hash isn't the txid this input spends: a wrong or altered previous transaction.
                 raise PSBTInputAmountVerificationError(f"Input {i}: {e}")
 
             if not verified:
-                # No non_witness_utxo supplied; only safe if the sighash commits the amount
+                # embit's verify() with ignore_missing=True returns False only when the input has
+                # no non_witness_utxo. Raise if the sighash does not commit to the amount: without
+                # that commitment, the signature would still be valid for a false amount.
                 script_type = PSBTParser._get_script_type(inp, inp.script_pubkey)
                 if script_type in PSBTParser.UNCOMMITTED_AMOUNT_SCRIPT_TYPES:
                     raise PSBTInputAmountVerificationError(f"Input {i}: {script_type} input has no non_witness_utxo to verify against")
 
-            # verify() hashes the non_witness_utxo but never looks at the witness_utxo that may
-            # sit alongside it. embit's PSBT.utxo()/fee() prefer witness_utxo, so a witness_utxo
-            # that disagrees would still be the value driving our fee. Coordinators that keep
-            # psbts small send one field or the other, never both, so this only fires on a
-            # malformed or deliberately crafted psbt.
+            # With both fields present, compare the witness_utxo to the output this input spends
+            # in the verified non_witness_utxo. embit's verify() does not compare the two, so
+            # reject the psbt if their amounts or scripts contradict.
             if inp.witness_utxo and inp.non_witness_utxo:
                 prevout = inp.non_witness_utxo.vout[inp.vout]
                 if prevout.value != inp.witness_utxo.value or prevout.script_pubkey.data != inp.witness_utxo.script_pubkey.data:
